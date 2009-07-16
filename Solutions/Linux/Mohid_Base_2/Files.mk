@@ -28,20 +28,20 @@
 
 INCS = -I$(HDF5) -I$(BASE1INC)
 LIBS =
-SRCS = \
-       ModuleStatistic.$(F) \
-       ModuleHorizontalGrid.$(F) \
-       ModuleGridData.$(F) \
-       ModuleHorizontalMap.$(F) \
-       ModuleBoxDif.$(F) \
-       ModuleBasinGeometry.$(F) \
-       ModuleGeometry.$(F) \
-       ModuleMap.$(F) \
-       ModuleAdvectionDiffusion.$(F) \
-       ModuleFillMatrix.$(F) \
-       ModuleInterpolation.$(F) \
-       ModuleAtmosphere.$(F)
-FILES = $(SRCS:.$(F)=.$(S))
+$(SRCDIR) = $(SRCBASE2)
+FILES = \
+       ModuleStatistic.$(S) \
+       ModuleHorizontalGrid.$(S) \
+       ModuleGridData.$(S) \
+       ModuleHorizontalMap.$(S) \
+       ModuleBoxDif.$(S) \
+       ModuleBasinGeometry.$(S) \
+       ModuleGeometry.$(S) \
+       ModuleMap.$(S) \
+       ModuleAdvectionDiffusion.$(S) \
+       ModuleFillMatrix.$(S) \
+       ModuleInterpolation.$(S) \
+       ModuleAtmosphere.$(S)
 METAFILES = \
         Files.smk \
         Dependencies.smk

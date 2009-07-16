@@ -11,6 +11,9 @@ export CCFLAGS  = -c -fpp -warn all -nologo -convert big_endian -D_USE_NIX# Debu
 export LFLAGS   = -fpp -nologo -warn all -i-static -convert big_endian -D_USE_NIX# Profiling: -p
 export LLFLAGS  =
 export AR = ar rc
+export SRCBASE1 = ../../../Shared/MOHID.Base.1
+export SRCBASE2 = ../../../Shared/MOHID.Base.2
+export SRCWATER = ../../../Modulus.Software/MOHID.Water
 export BASE1INC = ../Mohid_Base_1
 export BASE1 = Mohid_Base_1.lib
 export BASE2INC = ../Mohid_Base_2
@@ -35,5 +38,5 @@ export NETCDFLIBS := \
 
 include Editme.mk
 include Modules.mk
-include actions.mk
+include Actions.mk
 include Dependencies.mk

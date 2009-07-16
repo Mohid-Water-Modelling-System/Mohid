@@ -28,35 +28,34 @@
 
 INCS = -I$(HDF5) -I$(BASE1INC) -I$(BASE2INC)
 LIBS = $(BASELIBS)
-SRCS = \
-       ModuleAssimilation.$(F) \
-       ModuleConsolidation.$(F) \
-       ModuleFreeVerticalMovement.$(F) \
-       ModuleJet.$(F) \
-       ModuleHydrodynamicFile.$(F) \
-       ModuleOil.$(F) \
-       ModuleToga.$(F) \
-       ModuleWaves.$(F) \
-       ModuleGauge.$(F) \
-       ModuleSand.$(F) \
-       ModuleSedimentProperties.$(F) \
-       ModuleOpenBoundary.$(F) \
-       ModuleGOTM.$(F) \
-       ModuleTurbGOTM.$(F) \
-       ModuleTurbulence.$(F) \
-       ModuleHydrodynamic.$(F) \
-       ModuleWaterProperties.$(F) \
-       ModuleLagrangian.$(F) \
-       ModuleInterfaceWaterAir.$(F) \
-       ModuleInterfaceSedimentWater.$(F) \
-       ModuleModel.$(F) \
-       Main.$(F)
-FILES = $(SRCS:.$(F)=.$(S))
+SRCDIR = $(SRCWATER)
+FILES = \
+       ModuleAssimilation.$(S) \
+       ModuleConsolidation.$(S) \
+       ModuleFreeVerticalMovement.$(S) \
+       ModuleJet.$(S) \
+       ModuleHydrodynamicFile.$(S) \
+       ModuleOil.$(S) \
+       ModuleToga.$(S) \
+       ModuleWaves.$(S) \
+       ModuleGauge.$(S) \
+       ModuleSand.$(S) \
+       ModuleSedimentProperties.$(S) \
+       ModuleOpenBoundary.$(S) \
+       ModuleGOTM.$(S) \
+       ModuleTurbGOTM.$(S) \
+       ModuleTurbulence.$(S) \
+       ModuleHydrodynamic.$(S) \
+       ModuleWaterProperties.$(S) \
+       ModuleLagrangian.$(S) \
+       ModuleInterfaceWaterAir.$(S) \
+       ModuleInterfaceSedimentWater.$(S) \
+       ModuleModel.$(S) \
+       Main.$(S)
 METAFILES = \
         Files.smk \
         Dependencies.smk
 TARGET = $(WATER)
-SOSPROJ = $(basename $(TARGET))
 
 #----------------------------------------------------------------------------------------------------------
 #MOHID Water Modelling System.

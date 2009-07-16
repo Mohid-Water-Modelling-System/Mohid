@@ -28,35 +28,34 @@
 
 INCS = -I$(HDF5)
 LIBS =
-SRCS = \
-        ModuleGlobalData.$(F) \
-        ModuleTime.$(F) \
-        ModuleEnterData.$(F) \
-        ModuleFunctions.$(F) \
-        ModuleBenthos.$(F) \
-        ModuleCEQUALW2.$(F) \
-        ModuleMacroAlgae.$(F) \
-        ModuleTimeSerie.$(F) \
-        ModuleDischarges.$(F) \
-        ModuleDrawing.$(F) \
-        ModuleLUD.$(F) \
-        ModuleWaterQuality.$(F) \
-        ModuleSedimentQuality.$(F) \
-        ModuleLife.$(F) \
-        ModuleInterface.$(F) \
-        ModuleHydroIntegration.$(F) \
-        ModuleLightExtinction.$(F) \
-        ModuleStopWatch.$(F) \
-        ModuleTriangulation.$(F) \
-        ModuleHDF5.$(F) \
-        ModuleDrainageNetwork.$(F) \
-        ModuleProfile.$(F)
-FILES = $(SRCS:.$(F)=.$(S))
+SRCDIR = $(SRCBASE1)
+FILES = \
+        ModuleGlobalData.$(S) \
+        ModuleTime.$(S) \
+        ModuleEnterData.$(S) \
+        ModuleFunctions.$(S) \
+        ModuleBenthos.$(S) \
+        ModuleCEQUALW2.$(S) \
+        ModuleMacroAlgae.$(S) \
+        ModuleTimeSerie.$(S) \
+        ModuleDischarges.$(S) \
+        ModuleDrawing.$(S) \
+        ModuleLUD.$(S) \
+        ModuleWaterQuality.$(S) \
+        ModuleSedimentQuality.$(S) \
+        ModuleLife.$(S) \
+        ModuleInterface.$(S) \
+        ModuleHydroIntegration.$(S) \
+        ModuleLightExtinction.$(S) \
+        ModuleStopWatch.$(S) \
+        ModuleTriangulation.$(S) \
+        ModuleHDF5.$(S) \
+        ModuleDrainageNetwork.$(S) \
+        ModuleProfile.$(S)
 METAFILES = \
         Files.smk \
         Dependencies.smk
 TARGET = $(BASE1)
-SOSPROJ = $(basename $(TARGET))
 
 #----------------------------------------------------------------------------------------------------------
 #MOHID Water Modelling System.

@@ -7,8 +7,8 @@ default:
 	@echo Please choose your platform from:
 	@echo Type "make (win nix).(' '  clean install sos)".
 
-#make all
-PLAT := nix win nix_double nix_mpi nix_openmp nix_pgf nix_fast nix_single
+#make all (add other platforms "Nix Nix Nix_double Win" ...)
+PLAT := Nix
 .PHONY : $(PLAT)
 $(PLAT):
 	$(MAKE) -f $@.mk all
