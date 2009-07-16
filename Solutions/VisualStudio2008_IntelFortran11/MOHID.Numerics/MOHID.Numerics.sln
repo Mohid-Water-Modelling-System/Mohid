@@ -1,0 +1,66 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 10.00
+# Visual Studio 2008
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Shared", "Shared", "{B58BEC68-E063-4DAB-8971-260228415772}"
+EndProject
+Project("{6989167D-11E4-40FE-8C1A-2192A86A7E90}") = "MOHID.Base.1", "MOHID.Base.1\MOHID.Base.1.vfproj", "{0056F7D7-347A-40DE-98B8-843CF05B5488}"
+EndProject
+Project("{6989167D-11E4-40FE-8C1A-2192A86A7E90}") = "MOHID.Base.2", "MOHID.Base.2\MOHID.Base.2.vfproj", "{98ABA093-7927-4BCD-B011-BF409B5BBB78}"
+	ProjectSection(ProjectDependencies) = postProject
+		{0056F7D7-347A-40DE-98B8-843CF05B5488} = {0056F7D7-347A-40DE-98B8-843CF05B5488}
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Modulus Software", "Modulus Software", "{10AECD7E-48C8-4C1E-A0C8-ACD15EEB544A}"
+EndProject
+Project("{6989167D-11E4-40FE-8C1A-2192A86A7E90}") = "MOHID.Land", "MOHID.Land\MOHID.Land.vfproj", "{8FDBAD87-52D7-4B29-A346-CF6918785077}"
+	ProjectSection(ProjectDependencies) = postProject
+		{98ABA093-7927-4BCD-B011-BF409B5BBB78} = {98ABA093-7927-4BCD-B011-BF409B5BBB78}
+	EndProjectSection
+EndProject
+Project("{6989167D-11E4-40FE-8C1A-2192A86A7E90}") = "MOHID.Water", "MOHID.Water\MOHID.Water.vfproj", "{141470D5-4F1E-4328-828C-8767F85E9629}"
+	ProjectSection(ProjectDependencies) = postProject
+		{98ABA093-7927-4BCD-B011-BF409B5BBB78} = {98ABA093-7927-4BCD-B011-BF409B5BBB78}
+	EndProjectSection
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug Double|Win32 = Debug Double|Win32
+		Debug|Win32 = Debug|Win32
+		Release|Win32 = Release|Win32
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{0056F7D7-347A-40DE-98B8-843CF05B5488}.Debug Double|Win32.ActiveCfg = Debug Double|Win32
+		{0056F7D7-347A-40DE-98B8-843CF05B5488}.Debug Double|Win32.Build.0 = Debug Double|Win32
+		{0056F7D7-347A-40DE-98B8-843CF05B5488}.Debug|Win32.ActiveCfg = Debug|Win32
+		{0056F7D7-347A-40DE-98B8-843CF05B5488}.Debug|Win32.Build.0 = Debug|Win32
+		{0056F7D7-347A-40DE-98B8-843CF05B5488}.Release|Win32.ActiveCfg = Release|Win32
+		{0056F7D7-347A-40DE-98B8-843CF05B5488}.Release|Win32.Build.0 = Release|Win32
+		{98ABA093-7927-4BCD-B011-BF409B5BBB78}.Debug Double|Win32.ActiveCfg = Debug Double|Win32
+		{98ABA093-7927-4BCD-B011-BF409B5BBB78}.Debug Double|Win32.Build.0 = Debug Double|Win32
+		{98ABA093-7927-4BCD-B011-BF409B5BBB78}.Debug|Win32.ActiveCfg = Debug|Win32
+		{98ABA093-7927-4BCD-B011-BF409B5BBB78}.Debug|Win32.Build.0 = Debug|Win32
+		{98ABA093-7927-4BCD-B011-BF409B5BBB78}.Release|Win32.ActiveCfg = Release|Win32
+		{98ABA093-7927-4BCD-B011-BF409B5BBB78}.Release|Win32.Build.0 = Release|Win32
+		{8FDBAD87-52D7-4B29-A346-CF6918785077}.Debug Double|Win32.ActiveCfg = Debug Double|Win32
+		{8FDBAD87-52D7-4B29-A346-CF6918785077}.Debug Double|Win32.Build.0 = Debug Double|Win32
+		{8FDBAD87-52D7-4B29-A346-CF6918785077}.Debug|Win32.ActiveCfg = Debug|Win32
+		{8FDBAD87-52D7-4B29-A346-CF6918785077}.Debug|Win32.Build.0 = Debug|Win32
+		{8FDBAD87-52D7-4B29-A346-CF6918785077}.Release|Win32.ActiveCfg = Release|Win32
+		{8FDBAD87-52D7-4B29-A346-CF6918785077}.Release|Win32.Build.0 = Release|Win32
+		{141470D5-4F1E-4328-828C-8767F85E9629}.Debug Double|Win32.ActiveCfg = Debug|Win32
+		{141470D5-4F1E-4328-828C-8767F85E9629}.Debug Double|Win32.Build.0 = Debug|Win32
+		{141470D5-4F1E-4328-828C-8767F85E9629}.Debug|Win32.ActiveCfg = Debug|Win32
+		{141470D5-4F1E-4328-828C-8767F85E9629}.Debug|Win32.Build.0 = Debug|Win32
+		{141470D5-4F1E-4328-828C-8767F85E9629}.Release|Win32.ActiveCfg = Release|Win32
+		{141470D5-4F1E-4328-828C-8767F85E9629}.Release|Win32.Build.0 = Release|Win32
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{0056F7D7-347A-40DE-98B8-843CF05B5488} = {B58BEC68-E063-4DAB-8971-260228415772}
+		{98ABA093-7927-4BCD-B011-BF409B5BBB78} = {B58BEC68-E063-4DAB-8971-260228415772}
+		{8FDBAD87-52D7-4B29-A346-CF6918785077} = {10AECD7E-48C8-4C1E-A0C8-ACD15EEB544A}
+		{141470D5-4F1E-4328-828C-8767F85E9629} = {10AECD7E-48C8-4C1E-A0C8-ACD15EEB544A}
+	EndGlobalSection
+EndGlobal
