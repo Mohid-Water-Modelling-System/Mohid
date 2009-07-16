@@ -1,6 +1,6 @@
 METAFILES = \
         README.txt \
-		Nix.smk \
+        Nix.smk \
         Files.smk \
         Dependencies.smk \
         Actions.smk

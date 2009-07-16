@@ -1,0 +1,17 @@
+A/ What are the prerequisites to build MOHID in Linux?
+1 - Install the zlib package (library file name is "libz.a").
+2 - Find, get and compile the HDF5 libraries with "the --enable-fortran" option.
+http://www.mohid.com/wiki/index.php?title=%2ANIX_platforms
+
+B/ How to build MOHID?
+1 - Edit the uncommented lines in the file "Solutions/Linux/Editme.mk"
+2 - > make Nix
+3 - > make Nix.install
+
+C/ How to erase the MOHID build?
+> make Nix.clean
+
+D/ Where do I get the latest version of the code?
+http://mohid.codeplex.com
+
+2009/07/16 G.R.
