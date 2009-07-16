@@ -1,8 +1,7 @@
 METAFILES = \
         README.txt \
-		Nix_template.smk \
-		Win_template.smk \
-        Modules.smk \
+		Nix.smk \
+        Files.smk \
         Dependencies.smk \
         Actions.smk
 MODULES = \
