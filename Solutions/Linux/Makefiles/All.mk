@@ -6,10 +6,10 @@ SRCF = $(SRCDIR)
 all: $(TARGET)
 
 $(TARGET) : $(OBJS) $(LIBS)
-	$(CC) $(LFLAGS) -o $@ $^ $(LLFLAGS)
+	@$(CC) $(LFLAGS) -o $@ $^ $(LLFLAGS)
 	@echo Finished building $@.
 
 %.$(O) : $(SRCF)/%.$(F)
-	$(CC) $(CCFLAGS) $(INCS) $<
+	@$(CC) $(CCFLAGS) $(INCS) $<
 	@echo $* .................. [OK]
 
