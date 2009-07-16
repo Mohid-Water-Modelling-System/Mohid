@@ -29,10 +29,9 @@
 SHELL = /bin/sh 
 
 include Files.mk
-include ../makefiles/Sos.mk
-include ../makefiles/install.mk
-include ../makefiles/clean.mk
-include ../makefiles/all.mk
+include ../Makefiles/Install.mk
+include ../Makefiles/Clean.mk
+include ../Makefiles/All.mk
 include Dependencies.mk
 
 #----------------------------------------------------------------------------------------------------------

@@ -1,5 +1,5 @@
 OBJS = $(FILES:.$(S)=.$(O))
-SRC = $(SRCDIR)
+SRCF = $(SRCDIR)
 
 .PHONY: all
 
