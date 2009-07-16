@@ -4,4 +4,4 @@ include Files.mk
 
 .PHONY: all
 all: 
-	echo No such action in this module
+	@echo No such action in this module

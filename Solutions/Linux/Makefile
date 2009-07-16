@@ -11,17 +11,17 @@ default:
 PLAT := Nix
 .PHONY : $(PLAT)
 $(PLAT):
-	$(MAKE) -f $@.mk all
+	@$(MAKE) -f $@.mk all
 
 #make clean
 PLATCLEAN := $(addsuffix .clean, $(PLAT))
 .PHONY : $(PLATCLEAN)
 $(PLATCLEAN) :
-	$(MAKE) -f $(@:.clean=).mk clean
+	@$(MAKE) -f $(@:.clean=).mk clean
 
 #make install
 PLATINST := $(addsuffix .install, $(PLAT))
 .PHONY : $(PLATINST)
 $(PLATINST) :
-	$(MAKE) -f $(@:.install=).mk install
+	@$(MAKE) -f $(@:.install=).mk install
 
