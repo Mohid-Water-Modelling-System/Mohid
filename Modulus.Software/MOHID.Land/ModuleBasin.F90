@@ -80,13 +80,16 @@ Module ModuleBasin
     use ModulePorousMediaProperties,                                                     &
                               only : ConstructPorousMediaProperties,                     &
                                      ModifyPorousMediaProperties,                        &
-                                     KillPorousMediaProperties, GetPropInfiltration,     &
-                                     GetPropEfectiveEVTP, GetNextPorousMediaPropDT,      &
-                                     UngetPorousMediaProperties
+                                     KillPorousMediaProperties, GetConcentration,        &
+                                     SetVegetationPMProperties, GetPMPCoupled,           &
+                                     SetWindVelocity, UngetPorousMediaProperties
     use ModuleVegetation,     only : ConstructVegetation, ModifyVegetation,              &
                                      KillVegetation, GetLeafAreaIndex,                   &
                                      GetSpecificLeafStorage, GetEVTPCropCoefficient,     &
-                                     GetTranspiration, UnGetVegetation
+                                     GetTranspiration, GetVegetationSoilFluxes,          &
+                                     SetSoilConcVegetation, GetVegetationOptions,        &
+                                     GetVegetationDT, GetRootDepth, GetNutrientFraction, &
+                                     UnGetVegetation, UnGetVegetationSoilFluxes
     use ModuleStopWatch      ,only : StartWatch, StopWatch
 
     implicit none
@@ -115,9 +118,11 @@ Module ModuleBasin
     private ::      AtmosphereProcesses
     private ::          DividePrecipitation
     private ::          CalcPotEvapoTranspiration
+    private ::      VegetationProcesses
     private ::      OverLandProcesses
     private ::      DrainageNetworkProcesses
     private ::      PorousMediaProcesses
+    private ::      PorousMediaPropertiesProcesses
     private ::      HDF5Output
     private ::      TimeSerieOutput
     private ::      GlobalMassBalance
@@ -1489,10 +1494,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 call ConstructPorousMediaProperties   (ObjPorousMediaPropertiesID = Me%ObjPorousMediaProperties,  &
                                                        ComputeTimeID              = Me%ObjTime,                   &
                                                        HorizontalGridID           = Me%ObjHorizontalGrid,         &
-                                                       HorizontalMapID            = Me%ObjHorizontalMap,          &
-                                                       TopographyID               = Me%ObjGridData,               &
                                                        BasinGeometryID            = Me%ObjBasinGeometry,          &
-                                                       DrainageNetworkID          = Me%ObjDrainageNetwork,        &
                                                        PorousMediaID              = Me%ObjPorousMedia,            &
                                                        GeometryID                 = GeometryID,                   &
                                                        MapID                      = MapID,                        &
@@ -1820,7 +1822,7 @@ cd2 :           if (BlockFound) then
                 
             endif
 
-            !Updates Vegetation - gives transpiration and permeable fraction
+            !Updates Vegetation 
             if (Me%Coupled%Vegetation) then
 
                 call VegetationProcesses
@@ -2444,10 +2446,83 @@ etr_fao:        if (.not. RefEvapotrans%ID%SolutionFromFile) then
         integer                                     :: STAT_CALL
         real, dimension(:,:,:), pointer             :: ActualTranspiration
         real, dimension(:,:  ), pointer             :: PotentialTranspiration
+        real, dimension(:,:,:), pointer             :: Nitrate
+        real, dimension(:,:,:), pointer             :: InorganicPhosphorus
+        logical                                     :: ModelNitrogen
+        logical                                     :: ModelPhosphorus
+
         !Begin-----------------------------------------------------------------
 
         if (MonitorPerformance) call StartWatch ("ModuleBasin", "VegetationProcesses")
 
+        
+        call GetVegetationOptions (Me%ObjVegetation,                                     &
+                                   ModelNitrogen = ModelNitrogen,                        &
+                                   ModelPhosphorus = ModelPhosphorus,                    &
+                                   STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)stop 'VegetationProcesses - ModuleBasin - ERR01'
+
+        if (ModelNitrogen) then 
+            
+            if (Me%Coupled%PorousMediaProperties) then
+            
+                call GetConcentration(PorousMediaPropertiesID = Me%ObjPorousMediaProperties,  &
+                                      ConcentrationX          = Nitrate,                      &
+                                      PropertyXIDNumber       = Nitrate_,                     &
+                                      STAT                    = STAT_CALL)        
+                if (STAT_CALL /= SUCCESS_) then
+                    write (*,*) 'Trying to model nitrogen in vegetation but nitrate property not'
+                    write (*,*) 'defined in porousmediaproperties. Check options'                
+                    stop 'VegetationProcesses - ModuleBasin - ERR010'
+                endif
+
+                call SetSoilConcVegetation (Me%ObjVegetation,                                 &
+                                            Nitrate             = Nitrate,                    &
+                                            STAT                = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'VegetationProcesses - ModuleBasin - ERR020' 
+
+
+                call UnGetPorousMediaProperties (Me%ObjPorousMediaProperties, Nitrate, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'VegetationProcesses - ModuleBasin - ERR025'   
+                  
+            else
+                write (*,*) 'Can not model nitrogen in vegetation if porous media properties'
+                write (*,*) 'model not connected. Check basin keyword.'
+                stop 'VegetationProcesses - ModuleBasin - ERR030'
+            endif
+        endif
+
+        if (ModelPhosphorus) then 
+
+            if (Me%Coupled%PorousMediaProperties) then
+
+                call GetConcentration(PorousMediaPropertiesID = Me%ObjPorousMediaProperties,  &
+                                      ConcentrationX          = InorganicPhosphorus,          &
+                                      PropertyXIDNumber       = Inorganic_Phosphorus_,        &
+                                      STAT                    = STAT_CALL)        
+                if (STAT_CALL /= SUCCESS_) then
+                    write (*,*) 'Trying to model phosphorus in vegetation but inorganic phosphorus '
+                    write (*,*) 'property not defined in porousmediaproperties. Check options'                
+                    stop 'VegetationProcesses - ModuleBasin - ERR040'
+                endif
+
+                call SetSoilConcVegetation (Me%ObjVegetation,                                 &
+                                            InorganicPhosphorus = InorganicPhosphorus,        &
+                                            STAT                = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'VegetationProcesses - ModuleBasin - ERR050'   
+
+                call UnGetPorousMediaProperties (Me%ObjPorousMediaProperties, InorganicPhosphorus, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'VegetationProcesses - ModuleBasin - ERR055'   
+
+            else
+                write (*,*) 'Can not model phosphorus in vegetation if porous media properties'
+                write (*,*) 'model not connected. Check basin keyword.'
+                stop 'VegetationProcesses - ModuleBasin - ERR060'
+            endif
+        endif
+
+        
+        !Transpiration
         if (Me%EvapoTranspirationMethod == SeparateEvapoTranspiration) then
             PotentialTranspiration => Me%PotentialTranspiration
         else
@@ -2459,10 +2534,11 @@ etr_fao:        if (.not. RefEvapotrans%ID%SolutionFromFile) then
                               PotentialTranspiration = PotentialTranspiration,&
                               ActualTranspiration    = ActualTranspiration,   & 
                               STAT                   = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ModifyBasin - ModuleBasin - ERR01a'
+        if (STAT_CALL /= SUCCESS_) stop 'VegetationProcesses - ModuleBasin - ERR070'
     
         !Points to computed variables to be used in porous media (vegetation uses ModulePorousMedia)
         Me%ExtVar%ActualTranspiration => ActualTranspiration
+
 
         if (MonitorPerformance) call StopWatch ("ModuleBasin", "VegetationProcesses")
     
@@ -2913,16 +2989,302 @@ etr_fao:        if (.not. RefEvapotrans%ID%SolutionFromFile) then
         !Arguments-------------------------------------------------------------
         !Local-----------------------------------------------------------------
         integer                                     :: STAT_CALL
+        logical, dimension(:,:), pointer            :: SoilFluxesActive
+        real, dimension(:,:), pointer               :: GrazingBiomass
+        real, dimension(:,:), pointer               :: GrazingNitrogen
+        real, dimension(:,:), pointer               :: GrazingPhosphorus
+        real, dimension(:,:), pointer               :: ManagementAerialBiomass
+        real, dimension(:,:), pointer               :: ManagementNitrogen
+        real, dimension(:,:), pointer               :: ManagementPhosphorus
+        real, dimension(:,:), pointer               :: ManagementRootBiomass
+        real, dimension(:,:), pointer               :: DormancyBiomass
+        real, dimension(:,:), pointer               :: DormancyNitrogen
+        real, dimension(:,:), pointer               :: DormancyPhosphorus
+        real, dimension(:,:), pointer               :: FertilNitrateSurface
+        real, dimension(:,:), pointer               :: FertilNitrateSubSurface
+        real, dimension(:,:), pointer               :: FertilAmmoniaSurface
+        real, dimension(:,:), pointer               :: FertilAmmoniaSubSurface
+        real, dimension(:,:), pointer               :: FertilOrganicNSurface
+        real, dimension(:,:), pointer               :: FertilOrganicNSubSurface
+        real, dimension(:,:), pointer               :: FertilOrganicPSurface
+        real, dimension(:,:), pointer               :: FertilOrganicPSubSurface
+        real, dimension(:,:), pointer               :: FertilMineralPSurface
+        real, dimension(:,:), pointer               :: FertilMineralPSubSurface
+        real, dimension(:,:), pointer               :: RootDepth
+        real, dimension(:,:), pointer               :: NitrogenFraction
+        real, dimension(:,:), pointer               :: PhosphorusFraction
+        real, dimension(:,:,:),pointer              :: NitrogenUptake
+        real, dimension(:,:,:),pointer              :: PhosphorusUptake
+        logical                                    :: Grazing
+        logical                                    :: Management
+        logical                                    :: Dormancy
+        logical                                    :: Fertilization
+        logical                                    :: NutrientFluxesWithSoil
+        logical                                    :: CoupledSedimentQuality
+        logical                                    :: ModelNitrogen
+        logical                                    :: ModelPhosphorus
+        logical                                    :: GrowthModel
+        real, dimension(:,:), pointer               :: WindVelocity
+        real                                        :: VegetationDT
+
         !Begin-----------------------------------------------------------------
 
         if (MonitorPerformance) call StartWatch ("ModuleBasin", "PorousMediaPropertiesProcesses")
+        
 
-            call ModifyPorousMediaProperties(ObjPorousMediaPropertiesID = Me%ObjPorousMediaProperties,       &
-                                             STAT                       = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'PorousMediaPropertiesProcesses - ModuleBasin - ERR01' 
+        !Vegetation organic matter and nutrient fluxes to/from soil
+        if (Me%Coupled%Vegetation) then
+
+            call GetVegetationOptions (Me%ObjVegetation,                                          &
+                                      NutrientFluxesWithSoil = NutrientFluxesWithSoil,           &
+                                      Grazing                = Grazing,                          &
+                                      Management             = Management,                       &
+                                      Dormancy               = Dormancy,                         &
+                                      Fertilization          = Fertilization,                    &
+                                      ModelNitrogen          = ModelNitrogen,                    &
+                                      ModelPhosphorus        = ModelPhosphorus,                  &
+                                      GrowthModel            = GrowthModel,                      &
+                                      STAT                   = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'PorousMediaPropertiesProcesses - ModuleBasin - ERR01'
+
+            
+            if (NutrientFluxesWithSoil) then
+
+                call GetVegetationDT  (Me%ObjVegetation, VegetationDT, STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'PorousMediaPropertiesProcesses - ModuleBasin - ERR02'
+
+                call GetRootDepth  (Me%ObjVegetation, RootDepth, STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'PorousMediaPropertiesProcesses - ModuleBasin - ERR03'
+                
+                call GetVegetationSoilFluxes  (VegetationID             = Me%ObjVegetation,                &
+                                               NitrogenUptake           = NitrogenUptake,                  &
+                                               PhosphorusUptake         = PhosphorusUptake,                &
+                                               SoilFluxesActive         = SoilFluxesActive,                &  
+                                               STAT                     = STAT_CALL)               
+                if (STAT_CALL /= SUCCESS_) stop 'PorousMediaPropertiesProcesses - ModuleBasin - ERR010'
+
+                
+                !Set to porous media properties the information needed from vegetation                
+                call SetVegetationPMProperties(PorousMediaPropertiesID  = Me%ObjPorousMediaProperties,     &
+                                               NutrientFluxesWithSoil   = NutrientFluxesWithSoil,          &
+                                               NitrogenUptake           = NitrogenUptake,                  &
+                                               PhosphorusUptake         = PhosphorusUptake,                &
+                                               SoilFluxesActive         = SoilFluxesActive,                &
+                                               RootDepth                = RootDepth,                       &
+                                               ModelNitrogen            = ModelNitrogen,                   &
+                                               ModelPhosphorus          = ModelPhosphorus,                 &
+                                               GrowthModel              = GrowthModel,                     &
+                                               CoupledVegetation        = .true.,                          &
+                                               VegetationDT             = VegetationDT,                    &
+                                               STAT                     = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'PorousMediaPropertiesProcesses - ModuleBasin - ERR020'
+
+                call UnGetVegetation  (Me%ObjVegetation, RootDepth, STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'PorousMediaPropertiesProcesses - ModuleBasin - ERR021'
+                                
+
+
+                if (GrowthModel) then
+
+                   
+                    call GetNutrientFraction (VegetationID             = Me%ObjVegetation,                &
+                                              NitrogenFraction         = NitrogenFraction,                &
+                                              PhosphorusFraction       = PhosphorusFraction,              &
+                                              STAT                     = STAT_CALL)               
+                    if (STAT_CALL /= SUCCESS_) stop 'PorousMediaPropertiesProcesses - ModuleBasin - ERR022'
+
+                    call SetVegetationPMProperties(PorousMediaPropertiesID  = Me%ObjPorousMediaProperties, &
+                                                   NitrogenFraction         = NitrogenFraction,            &
+                                                   PhosphorusFraction       = PhosphorusFraction,          &
+                                                   STAT                     = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'PorousMediaPropertiesProcesses - ModuleBasin - ERR023'
+ 
+                    call UnGetVegetation  (Me%ObjVegetation, NitrogenFraction, STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'PorousMediaPropertiesProcesses - ModuleBasin - ERR024'
+
+                    call UnGetVegetation  (Me%ObjVegetation, PhosphorusFraction, STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'PorousMediaPropertiesProcesses - ModuleBasin - ERR025'
+
+            
+                
+                    if (Grazing) then
+                        call GetVegetationSoilFluxes   (VegetationID             = Me%ObjVegetation,            &
+                                                        GrazingBiomass           = GrazingBiomass,              &
+                                                        GrazingNitrogen          = GrazingNitrogen,             &   
+                                                        GrazingPhosphorus        = GrazingPhosphorus,           &
+                                                        STAT                     = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'PorousMediaPropertiesProcesses - ModuleBasin - ERR030'
+
+                        call SetVegetationPMProperties(PorousMediaPropertiesID  = Me%ObjPorousMediaProperties, &
+                                                       Grazing                  = Grazing,                     &
+                                                       GrazingBiomass           = GrazingBiomass,              &
+                                                       GrazingNitrogen          = GrazingNitrogen,             &
+                                                       GrazingPhosphorus        = GrazingPhosphorus,           &
+                                                       STAT                     = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'PorousMediaPropertiesProcesses - ModuleBasin - ERR040'
+                    endif
+                
+                    if (Management) then
+                        call GetVegetationSoilFluxes   (VegetationID             = Me%ObjVegetation,            &
+                                                        ManagementAerialBiomass  = ManagementAerialBiomass,     &
+                                                        ManagementNitrogen       = ManagementNitrogen,          &
+                                                        ManagementPhosphorus     = ManagementPhosphorus,        &
+                                                        ManagementRootBiomass    = ManagementRootBiomass,       &
+                                                       STAT                     = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'PorousMediaPropertiesProcesses - ModuleBasin - ERR050'
+
+                        call SetVegetationPMProperties(PorousMediaPropertiesID  = Me%ObjPorousMediaProperties, &
+                                                       Management               = Management,                  &
+                                                       ManagementAerialBiomass  = ManagementAerialBiomass,     &
+                                                       ManagementNitrogen       = ManagementNitrogen,          &
+                                                       ManagementPhosphorus     = ManagementPhosphorus,        &
+                                                       ManagementRootBiomass    = ManagementRootBiomass,       &     
+                                                      STAT                     = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'PorousMediaPropertiesProcesses - ModuleBasin - ERR060'
+                    endif
+
+                    if (Dormancy) then
+                        call GetVegetationSoilFluxes   (VegetationID             = Me%ObjVegetation,            &
+                                                        DormancyBiomass          = DormancyBiomass,             &
+                                                        DormancyNitrogen         = DormancyNitrogen,            &
+                                                        DormancyPhosphorus       = DormancyPhosphorus,          &
+                                                        STAT                     = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'PorousMediaPropertiesProcesses - ModuleBasin - ERR070'
+
+                        call SetVegetationPMProperties(PorousMediaPropertiesID  = Me%ObjPorousMediaProperties, &
+                                                       Dormancy                 = Dormancy,                    &
+                                                       DormancyBiomass          = DormancyBiomass,             &
+                                                       DormancyNitrogen         = DormancyNitrogen,            &
+                                                       DormancyPhosphorus       = DormancyPhosphorus,          &
+                                                       STAT                     = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'PorousMediaPropertiesProcesses - ModuleBasin - ERR080'
+                    endif
+
+                    if (Fertilization) then
+                        call GetVegetationSoilFluxes   (VegetationID             = Me%ObjVegetation,           &
+                                                        FertilNitrateSurface     = FertilNitrateSurface,       &
+                                                        FertilNitrateSubSurface  = FertilNitrateSubSurface,    &
+                                                        FertilAmmoniaSurface     = FertilAmmoniaSurface,       &
+                                                        FertilAmmoniaSubSurface  = FertilAmmoniaSubSurface,    &
+                                                        FertilOrganicNSurface    = FertilOrganicNSurface,      &
+                                                        FertilOrganicNSubSurface = FertilOrganicNSubSurface,   &
+                                                        FertilOrganicPSurface    = FertilOrganicPSurface,      &
+                                                        FertilOrganicPSubSurface = FertilOrganicPSubSurface,   &
+                                                        FertilMineralPSurface    = FertilMineralPSurface,      &
+                                                        FertilMineralPSubSurface = FertilMineralPSubSurface,   &
+                                                        STAT                     = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'PorousMediaPropertiesProcesses - ModuleBasin - ERR090'
+
+                        call SetVegetationPMProperties(PorousMediaPropertiesID  = Me%ObjPorousMediaProperties, &
+                                                        Fertilization            = Fertilization,              &
+                                                        FertilNitrateSurface     = FertilNitrateSurface,       &
+                                                        FertilNitrateSubSurface  = FertilNitrateSubSurface,    &
+                                                        FertilAmmoniaSurface     = FertilAmmoniaSurface,       &
+                                                        FertilAmmoniaSubSurface  = FertilAmmoniaSubSurface,    &
+                                                        FertilOrganicNSurface    = FertilOrganicNSurface,      &
+                                                        FertilOrganicNSubSurface = FertilOrganicNSubSurface,   &
+                                                        FertilOrganicPSurface    = FertilOrganicPSurface,      &
+                                                        FertilOrganicPSubSurface = FertilOrganicPSubSurface,   &
+                                                        FertilMineralPSurface    = FertilMineralPSurface,      &
+                                                        FertilMineralPSubSurface = FertilMineralPSubSurface,   &       
+                                                        STAT                     = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'PorousMediaPropertiesProcesses - ModuleBasin - ERR0100'
+                    endif
+                endif
+            endif
+        endif                                                    
+        
+        !sediment quality needs wind velocity
+        call GetPMPCoupled (PorousMediaPropertiesID    = Me%ObjPorousMediaProperties,                    &
+                            SoilQuality                = CoupledSedimentQuality,                         &       
+                            STAT                       = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'PorousMediaPropertiesProcesses - ModuleBasin - ERR0101'
+        
+        if (CoupledSedimentQuality) then
+
+            !Wind Velocity
+            call GetAtmosphereProperty  (Me%ObjAtmosphere, WindVelocity, ID = WindModulus_, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'PorousMediaPropertiesProcesses - ModuleBasin - ERR0102'
+
+
+            call SetWindVelocity (PorousMediaPropertiesID    = Me%ObjPorousMediaProperties,              &
+                                  WindModulus                = WindVelocity,                             &       
+                                  STAT                       = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'PorousMediaPropertiesProcesses - ModuleBasin - ERR0103'
+
+        endif
+
+        call ModifyPorousMediaProperties(ObjPorousMediaPropertiesID = Me%ObjPorousMediaProperties,       &
+                                         STAT                       = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'PorousMediaPropertiesProcesses - ModuleBasin - ERR0110' 
            
+        
+        !Unlock
+        if (Me%Coupled%Vegetation) then
+
+            if (NutrientFluxesWithSoil) then
+
+                call UngetVegetationSoilFluxes  (VegetationID             = Me%ObjVegetation,                &
+                                               NitrogenUptake           = NitrogenUptake,                  &
+                                               PhosphorusUptake         = PhosphorusUptake,                &
+                                               SoilFluxesActive         = SoilFluxesActive,                &  
+                                               STAT                     = STAT_CALL)               
+                if (STAT_CALL /= SUCCESS_) stop 'PorousMediaPropertiesProcesses - ModuleBasin - ERR0120'
+               
+                if (Grazing) then
+                    call UngetVegetationSoilFluxes   (VegetationID             = Me%ObjVegetation,            &
+                                                    GrazingBiomass           = GrazingBiomass,              &
+                                                    GrazingNitrogen          = GrazingNitrogen,             &   
+                                                    GrazingPhosphorus        = GrazingPhosphorus,           &
+                                                    STAT                     = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'PorousMediaPropertiesProcesses - ModuleBasin - ERR0130'
+                endif
+                
+                if (Management) then
+                    call UngetVegetationSoilFluxes   (VegetationID             = Me%ObjVegetation,            &
+                                                    ManagementAerialBiomass  = ManagementAerialBiomass,     &
+                                                    ManagementNitrogen       = ManagementNitrogen,          &
+                                                    ManagementPhosphorus     = ManagementPhosphorus,        &
+                                                    ManagementRootBiomass    = ManagementRootBiomass,       &
+                                                   STAT                     = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'PorousMediaPropertiesProcesses - ModuleBasin - ERR0140'
+                endif
+
+                if (Dormancy) then
+                    call UngetVegetationSoilFluxes   (VegetationID             = Me%ObjVegetation,            &
+                                                    DormancyBiomass          = DormancyBiomass,             &
+                                                    DormancyNitrogen         = DormancyNitrogen,            &
+                                                    DormancyPhosphorus       = DormancyPhosphorus,          &
+                                                    STAT                     = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'PorousMediaPropertiesProcesses - ModuleBasin - ERR0150'
+                endif
+
+                if (Fertilization) then
+                    call UngetVegetationSoilFluxes   (VegetationID             = Me%ObjVegetation,           &
+                                                    FertilNitrateSurface     = FertilNitrateSurface,       &
+                                                    FertilNitrateSubSurface  = FertilNitrateSubSurface,    &
+                                                    FertilAmmoniaSurface     = FertilAmmoniaSurface,       &
+                                                    FertilAmmoniaSubSurface  = FertilAmmoniaSubSurface,    &
+                                                    FertilOrganicNSurface    = FertilOrganicNSurface,      &
+                                                    FertilOrganicNSubSurface = FertilOrganicNSubSurface,   &
+                                                    FertilOrganicPSurface    = FertilOrganicPSurface,      &
+                                                    FertilOrganicPSubSurface = FertilOrganicPSubSurface,   &
+                                                    FertilMineralPSurface    = FertilMineralPSurface,      &
+                                                    FertilMineralPSubSurface = FertilMineralPSubSurface,   &
+                                                    STAT                     = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'PorousMediaPropertiesProcesses - ModuleBasin - ERR0160'
+                endif
+            endif
+        endif
+
+        if (CoupledSedimentQuality) then
+            !Wind Velocity
+            call UnGetAtmosphere  (Me%ObjAtmosphere, WindVelocity, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'PorousMediaPropertiesProcesses - ModuleBasin - ERR0162'
+        endif
 
         if (MonitorPerformance) call StopWatch ("ModuleBasin", "PorousMediaPropertiesProcesses")
+
 
     end subroutine PorousMediaPropertiesProcesses
 

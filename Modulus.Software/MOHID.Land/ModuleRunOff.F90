@@ -1212,10 +1212,11 @@ doIter:         do while (iter <= Niter)
         !Local------------------------------------------------------------------
         integer                                 :: iDis, nDischarges
         integer                                 :: i, j, k
-        real(8)                                 :: VolumeNew
+!        real(8)                                 :: VolumeNew
+        real                                    :: SurfaceElevation    
         real                                    :: Flow    
         integer                                 :: STAT_CALL
-        integer                                 :: iProp
+!        integer                                 :: iProp
 
         !Sets to 0
         Me%lFlowDischarge = 0.0
@@ -1235,10 +1236,12 @@ doIter:         do while (iter <= Niter)
             if (STAT_CALL/=SUCCESS_) stop 'ModuleRunOff - ModifyWaterDischarges - ERR02'
             
             if (k == 0) then
-
+                
+                !real(8) to real as expected in GetDischargeWaterFlow
+                SurfaceElevation = Me%myWaterLevel(i, j)
                 call GetDischargeWaterFlow(Me%ObjDischarges,                            &
-                                        Me%ExtVar%Now, iDis,                           &
-                                        Me%myWaterLevel(i, j),                          &
+                                        Me%ExtVar%Now, iDis,                            &
+                                        SurfaceElevation,                               &
                                         Flow, STAT = STAT_CALL)
                 if (STAT_CALL/=SUCCESS_) stop 'ModuleRunOff - ModifyWaterDischarges - ERR04'
 
@@ -1271,7 +1274,8 @@ doIter:         do while (iter <= Niter)
         !Local-----------------------------------------------------------------
         integer                                     :: i, j
         integer                                     :: ILB, IUB, JLB, JUB
-        real                                        :: MaxBottom, WCL, WCR, WCA
+        real                                        :: MaxBottom
+        real(8)                                     :: WCL, WCR, WCA
         real                                        :: Slope, dVol, MaxFlow
 
         ILB = Me%WorkSize%ILB
@@ -1398,7 +1402,8 @@ doIter:         do while (iter <= Niter)
         !Local-----------------------------------------------------------------
         integer                                     :: i, j
         integer                                     :: ILB, IUB, JLB, JUB
-        real                                        :: MaxBottom, WCL, WCR, WCA
+        real                                        :: MaxBottom
+        real(8)                                     :: WCL, WCR, WCA
         real                                        :: Slope, dVol, MaxFlow
 
         ILB = Me%WorkSize%ILB
@@ -1531,7 +1536,7 @@ doIter:         do while (iter <= Niter)
         !Local-----------------------------------------------------------------
         integer                                     :: i, j
         integer                                     :: ILB, IUB, JLB, JUB, STAT_CALL
-        real                                        :: DifLevel
+        real(8)                                     :: DifLevel
         real                                        :: Slope, AverageCellLength, dVol, MaxFlow
         real   , dimension(:, :), pointer           :: ChannelsWaterLevel 
         real   , dimension(:, :), pointer           :: ChannelsNodeLength 
@@ -2198,7 +2203,8 @@ doIter:         do while (iter <= Niter)
 !        do i = ILB, IUB
 !
 !            if (Me%ExtVar%RiverPoints(i, j) == BasinPoint) &
-!                write(UnitMax,100) ChannelsID(i,j), Me%MaxWaterColumn(i,j), Me%MaxWaterColumnTime(i,j), trim(adjustl(ChannelsStationName(i,j)))
+!                write(UnitMax,100) ChannelsID(i,j), Me%MaxWaterColumn(i,j), Me%MaxWaterColumnTime(i,j), &
+!                trim(adjustl(ChannelsStationName(i,j)))
 !
 !        enddo
 !        enddo
@@ -2225,7 +2231,7 @@ doIter:         do while (iter <= Niter)
 
         !Arguments--------------------------------------------------------------
         integer                                 :: RoutingMethod
-        real                                    :: WaterColumn
+        real(8)                                 :: WaterColumn
         real                                    :: Width, Slope
         real                                    :: OverLandCoefficient
         real                                    :: VelAux, Area, Coef
@@ -2273,7 +2279,7 @@ doIter:         do while (iter <= Niter)
     real function AdjustSlope (Slope)
     
         !Arguments--------------------------------------------------------------
-        real                                    :: Slope
+        real(8)                                 :: Slope
         real                                    :: sign
 
         !Slope correction given by City of Albuquerque, 1997, p.22-26

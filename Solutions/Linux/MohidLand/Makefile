@@ -48,7 +48,6 @@ include ../Makefiles/Makefiles.mk
 
 ModulePorousMediaProperties.${O} : ModulePorousMedia.${O}
 ModuleBasin.${O} :  ModuleRunOff.${O} \
-                    ModuleDrainageNetwork.${O} \
                     ModulePorousMediaProperties.${O} \
                     ModuleVegetation.${O}
 

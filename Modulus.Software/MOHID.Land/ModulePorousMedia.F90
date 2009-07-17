@@ -374,7 +374,7 @@ Module ModulePorousMedia
         real(8), dimension(:,:,:), pointer      :: FluxV                    => null()
         real(8), dimension(:,:,:), pointer      :: FluxW                    => null()
         real(8), dimension(:,:,:), pointer      :: FluxWOld                    => null()
-        real(8), dimension(:,:  ), pointer      :: EvaporationFlux          => null()
+        real,    dimension(:,:  ), pointer      :: EvaporationFlux          => null()
 !        real(8), dimension(:,:,:), pointer      :: TranspirationFlux        => null() !Lúcia fluxo de água perdida por transpiração
         !Flow Properties
         real,    pointer, dimension(:,:,:)      :: Theta                    => null() !water content on each cell [m3/m3]                
@@ -1892,8 +1892,8 @@ doSP:           do
         PropertyList(8)  = 'Water Table Depth'
         PropertyList(9)  = 'Hydro Pressure'
         PropertyList(10) = 'Final Head'
-        PropertyList(11) = 'PM Water Column m'
-        i = 11
+!        PropertyList(11) = 'PM Water Column m'
+        i = 10
         if (Me%ExtVar%ConstructEvaporation) then
             i = i + 1
             PropertyList(i) = 'Surface Evaporation Flux m3/s'
@@ -2469,7 +2469,7 @@ doSP:           do
 
         !Arguments-------------------------------------------------------------
         integer                                         :: ObjPorousMediaID
-        real(8),    pointer, dimension(:,:)             :: Evaporation
+        real   ,    pointer, dimension(:,:)             :: Evaporation
         integer, intent(OUT), optional                  :: STAT
 
         !Local-----------------------------------------------------------------
@@ -5027,10 +5027,10 @@ doK:            do K = Me%ExtVar%KFloor(i, j), Me%WorkSize%KUB
         if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModulePorousMedia - ERR08'
 
         !Porous Media Water column - to compare to Basin water column
-        call WriteTimeSerie(Me%ObjTimeSerie,                                            &
-                            Data2D = Me%WaterColumn,                                    &
-                            STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModulePorousMedia - ERR08'
+!        call WriteTimeSerie(Me%ObjTimeSerie,                                            &
+!                            Data2D = Me%WaterColumn,                                    &
+!                            STAT = STAT_CALL)
+!        if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModulePorousMedia - ERR08'
         
         if (Me%ExtVar%ConstructEvaporation) then
             !Evaporation
