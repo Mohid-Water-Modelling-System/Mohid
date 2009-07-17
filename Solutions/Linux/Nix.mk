@@ -18,18 +18,34 @@ export LLFLAGS  =
 export AR = ar rc
 export SUFFLIB = .lib
 export SUFFPROG = 
+
+# MohidBase1
 export SRCBASE1 = ../../../Shared/MOHID.Base.1
-export SRCBASE2 = ../../../Shared/MOHID.Base.2
-export SRCWATER = ../../../Modulus.Software/MOHID.Water
 export BASE1INC = ../Mohid_Base_1
 export BASE1 = Mohid_Base_1$(SUFFLIB)
+
+# MohidBase2
+export SRCBASE2 = ../../../Shared/MOHID.Base.2
 export BASE2INC = ../Mohid_Base_2
 export BASE2 = Mohid_Base_2$(SUFFLIB)
+
+# MohidWater
+export SRCWATER = ../../../Modulus.Software/MOHID.Water
 export WATER = MohidWater$(SUFFPROG)
+
+# MohidLand
+export SRCLAND = ../../../Modulus.Software/MOHID.Land
+export LAND = MohidLand$(SUFFPROG)
+
+# HDF5 lib
 export LHDF5FORTRAN = libhdf5_fortran.a
 export LHDF5 = libhdf5.a
 export LHDF5HL = libhdf5_hl.a
+
+# Z lib
 export ZLIB = libz.a
+
+# All libs folders
 export BASELIBS = \
        $(BASE1INC)/$(BASE1) \
        $(BASE2INC)/$(BASE2) \
@@ -37,6 +53,8 @@ export BASELIBS = \
        $(HDF5)/$(LHDF5) \
        $(HDF5)/$(LHDF5HL) \
        $(ZLIBINC)/$(ZLIB)
+
+# Netcdf lib
 export LNETCDF  = netcdf.a
 export NETCDFLIBS := \
                      $(BASELIBS) \
@@ -50,6 +68,7 @@ METAFILES = \
         Nix.smk
 MODULES = \
           Makefiles \
+          MohidLand \
           MohidWater \
           Mohid_Base_2 \
           Mohid_Base_1
@@ -61,5 +80,6 @@ include Makefiles/Makemodules.mk
 #------Modules dependencies----------
 
 Mohid_Base_2.all : Mohid_Base_1.all
+MohidLand.all : Mohid_Base_2.all
 MohidWater.all : Mohid_Base_2.all
 

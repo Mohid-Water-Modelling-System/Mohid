@@ -1638,7 +1638,7 @@ cd2 :           if (BlockFound) then
 
         !Write the Horizontal Grid
         call WriteHorizontalGrid(Me%ObjHorizontalGrid, ObjHDF5,                         &
-                                 WorkSize = WorkSize2D, STAT = STAT_CALL)
+                                 STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleWaterProperties - ERR08'
 
         !Writes everything to disk
