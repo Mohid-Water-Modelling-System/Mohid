@@ -26,13 +26,67 @@
 #
 #------------------------------------------------------------------------------
 
+INCS = -I$(HDF5) -I$(BASE1INC) -I$(BASE2INC)
+LIBS = $(BASELIBS)
+SRCDIR = $(SRCWATER)
+FILES = \
+       ModuleAssimilation.$(S) \
+       ModuleConsolidation.$(S) \
+       ModuleFreeVerticalMovement.$(S) \
+       ModuleJet.$(S) \
+       ModuleHydrodynamicFile.$(S) \
+       ModuleOil.$(S) \
+       ModuleToga.$(S) \
+       ModuleWaves.$(S) \
+       ModuleGauge.$(S) \
+       ModuleSand.$(S) \
+       ModuleSedimentProperties.$(S) \
+       ModuleOpenBoundary.$(S) \
+       ModuleGOTM.$(S) \
+       ModuleTurbGOTM.$(S) \
+       ModuleTurbulence.$(S) \
+       ModuleHydrodynamic.$(S) \
+       ModuleWaterProperties.$(S) \
+       ModuleLagrangian.$(S) \
+       ModuleInterfaceWaterAir.$(S) \
+       ModuleInterfaceSedimentWater.$(S) \
+       ModuleModel.$(S) \
+       Main.$(S)
+TARGET = $(WATER)
+
+#----------Makefile rules--------------
+
 SHELL = /bin/sh 
 
-include Files.mk
-include ../Makefiles/Install.mk
-include ../Makefiles/Clean.mk
-include ../Makefiles/All.mk
-include Dependencies.mk
+include ../Makefiles/Makefiles.mk
+
+#--------Dependencies list-------------
+
+ModuleGauge.${O} : ModuleToga.${O}
+ModuleSand.${O} : ModuleWaves.${O}
+ModuleSedimentProperties.${O} : ModuleConsolidation.${O}
+ModuleOpenBoundary.${O} : ModuleGauge.${O}
+ModuleTurbGOTM.${O} : ModuleGOTM.${O}
+ModuleTurbulence.${O} : ModuleTurbGOTM.${O}
+ModuleHydrodynamic.${O} : ModuleAssimilation.${O} \
+                       ModuleHydrodynamicFile.${O} \
+                       ModuleOpenBoundary.${O} \
+                       ModuleTurbulence.${O}
+ModuleWaterProperties.${O} : ModuleFreeVerticalMovement.${O} \
+                          ModuleHydrodynamic.${O}
+ModuleLagrangian.${O} : ModuleJet.${O} \
+                     ModuleOil.${O} \
+                     ModuleWaves.${O} \
+                     ModuleWaterProperties.${O}
+ModuleInterfaceWaterAir.${O} : ModuleLagrangian.${O}
+ModuleInterfaceSedimentWater.${O} : ModuleSand.${O} \
+                                 ModuleLagrangian.${O} \
+                                 ModuleSedimentProperties.${O}
+ModuleModel.${O} : ModuleInterfaceWaterAir.${O} \
+                ModuleInterfaceSedimentWater.${O}
+ModuleMain.${O} : ModuleModel.${O}
+
+#--------End of dependencies list---------
 
 #----------------------------------------------------------------------------------------------------------
 #MOHID Water Modelling System.

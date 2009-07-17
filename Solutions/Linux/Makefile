@@ -5,7 +5,7 @@ export MAKE = make
 .PHONY: default
 default:
 	@echo Please choose your platform from:
-	@echo Type "make (win nix).(' '  clean install sos)".
+	@echo Type "make (Win Nix).(' '  clean install)".
 
 #make all (add other platforms "Nix Nix Nix_double Win" ...)
 PLAT := Nix

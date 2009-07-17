@@ -1,21 +1,26 @@
 #make all
 MODALL = $(addsuffix .all, $(MODULES))
-.PHONY: all $(MODALL)
-all: $(MODALL)
+.PHONY: $(MODALL)
 $(MODALL):
 	@-$(MAKE) -C $(@:.all=) all
 
+.PHONY: all
+all: $(MODALL)
+
 #make clean
 MODCLEAN = $(addsuffix .clean, $(MODULES))
-.PHONY: clean $(MODCLEAN)
-clean: $(MODCLEAN)
+.PHONY: $(MODCLEAN)
 $(MODCLEAN):
 	@-$(MAKE) -C $(@:.clean=) clean
 
+.PHONY: clean
+clean: $(MODCLEAN)
+
 #make install
 MODINSTALL = $(addsuffix .install, $(MODULES))
-.PHONY: install $(MODINSTALL)
-install: $(MODINSTALL)
+.PHONY: $(MODINSTALL)
 $(MODINSTALL) :
 	@-$(MAKE) -C $(@:.install=) install
 
+.PHONY: install
+install: $(MODINSTALL)

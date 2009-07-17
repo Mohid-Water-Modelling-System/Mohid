@@ -1,6 +1,8 @@
-SHELL = /bin/sh
+METAFILES = \
+        Makefiles.smk \
+        Makemodules.smk
 
-include Files.mk
+SHELL = /bin/sh
 
 .PHONY: all
 all: 

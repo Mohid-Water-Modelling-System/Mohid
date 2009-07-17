@@ -26,16 +26,48 @@
 #
 #------------------------------------------------------------------------------
 
+INCS = -I$(HDF5) -I$(BASE1INC)
+LIBS =
+SRCDIR = $(SRCBASE2)
+FILES = \
+       ModuleStatistic.$(S) \
+       ModuleHorizontalGrid.$(S) \
+       ModuleGridData.$(S) \
+       ModuleHorizontalMap.$(S) \
+       ModuleBoxDif.$(S) \
+       ModuleBasinGeometry.$(S) \
+       ModuleGeometry.$(S) \
+       ModuleMap.$(S) \
+       ModuleAdvectionDiffusion.$(S) \
+       ModuleFillMatrix.$(S) \
+       ModuleInterpolation.$(S) \
+       ModuleAtmosphere.$(S)
+TARGET = $(BASE2)
+
+#-------Makefile rules-----------------
+
 SHELL = /bin/sh
 
-include Files.mk
-include ../Makefiles/Install.mk
-include ../Makefiles/Clean.mk
-include ../Makefiles/Alllib.mk
-include Dependencies.mk
+include ../Makefiles/Makefiles.mk
+
+#--------Dependencies list-------------
+
+ModuleGridData.${O} : ModuleHorizontalGrid.${O}
+ModuleHorizontalMap.${O} : ModuleGridData.${O}
+ModuleBoxDif.${O} : ModuleHorizontalGrid.${O}
+ModuleBasinGeometry.${O} : ModuleGridData.${O}
+ModuleGeometry.${O} : ModuleHorizontalMap.${O}
+ModuleMap.${O} : ModuleGeometry.${O}
+ModuleAdvectionDiffusion.${O} : ModuleMap.${O}
+ModuleFillMatrix.${O} : ModuleBoxDif.${O} \
+                     ModuleGeometry.${O}
+ModuleInterpolation.${O} : ModuleMap.${O}
+ModuleAtmosphere.${O} : ModuleStatistic.${O} \
+                     ModuleFillMatrix.${O}
+
+#--------End of dependencies list---------
 
 #----------------------------------------------------------------------------------------------------------
 #MOHID Water Modelling System.
 #Copyright (C) 1985, 1998, 2002, 2005. Instituto Superior Técnico, Technical University of Lisbon. 
 #----------------------------------------------------------------------------------------------------------
-
