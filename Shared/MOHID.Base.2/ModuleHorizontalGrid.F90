@@ -2158,10 +2158,9 @@ do8 :       do i = ILB, IUB
 
 
                 if      (Me%CoordType == MIL_PORT_) then
-                    !Passagem para o referencial geografico
-                    AuxCoordTip = Me%CoordType
-
-                    AuxCoordTip = 5 !coord portuguesas para geograficas
+   
+                    !from Portuguese coord. to geographic coord. 
+                    AuxCoordTip = 5 
 
                     call USCONVCO (AuxCoordTip, Me%ZoneLong, DB_LAT, DB_LONG,        & 
                                    dble(X_PONTO), dble(Y_PONTO))
@@ -2551,13 +2550,9 @@ cd23:   if (Me%CoordType == CIRCULAR_) then
                     Y_PONTO = 0.
                 endif
             
-                !coord portuguesas para geograficas
                 if (Me%CoordType == MIL_PORT_) then
                 
-                    AuxCoordTip = 5 
-
-                    !Passagem para o referencial geografico
-                    AuxCoordTip = Me%CoordType
+                    AuxCoordTip = 5 !from Portuguese coord. to geographic coord. 
 
                     call USCONVCO (AuxCoordTip, Me%ZoneLong, DB_LAT, DB_LONG, &
                                    dble(X_PONTO), dble(Y_PONTO))
@@ -6023,21 +6018,21 @@ doi:        do i = ILBSon, IUBSon
     !----------------------------------------------------------------------------
 
 
-    subroutine WriteHorizontalGrid (HorizontalGridID, ObjHDF5, OutputNumber, STAT)
+    subroutine WriteHorizontalGrid (HorizontalGridID, ObjHDF5, OutputNumber, WorkSize, STAT)
 
 
         !Arguments-------------------------------------------------------------
         integer                                     :: HorizontalGridID
         integer                                     :: ObjHDF5
-        integer, optional                           :: OutputNumber
-        integer, optional                           :: STAT
+        integer,        optional                    :: OutputNumber
+        type(T_Size2D), optional                    :: WorkSize
+        integer,        optional                    :: STAT
 
         !Local-----------------------------------------------------------------
-        integer                                     :: ILB, IUB
-        integer                                     :: JLB, JUB
         integer                                     :: WorkILB, WorkIUB
         integer                                     :: WorkJLB, WorkJUB
         integer                                     :: STAT_, ready_, STAT_CALL
+        !Begin-----------------------------------------------------------------
 
         STAT_ = UNKNOWN_
 
@@ -6045,60 +6040,57 @@ doi:        do i = ILBSon, IUBSon
 
 cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
 
-
-            !Size
-            ILB = Me%Size%ILB
-            IUB = Me%Size%IUB
-
-            JLB = Me%Size%JLB
-            JUB = Me%Size%JUB
-
-
             !WorkSize
-            WorkILB = Me%WorkSize%ILB
-            WorkIUB = Me%WorkSize%IUB
+            if (present(WorkSize)) then
+                WorkILB = WorkSize%ILB
+                WorkIUB = WorkSize%IUB
 
-            WorkJLB = Me%WorkSize%JLB
-            WorkJUB = Me%WorkSize%JUB
+                WorkJLB = WorkSize%JLB
+                WorkJUB = WorkSize%JUB
+            else
+                WorkILB = Me%WorkSize%ILB
+                WorkIUB = Me%WorkSize%IUB
 
+                WorkJLB = Me%WorkSize%JLB
+                WorkJUB = Me%WorkSize%JUB
+            endif
 
             !Sets limits for next write operations
-            call HDF5SetLimits   (ObjHDF5, WorkILB, WorkIUB+1, WorkJLB, WorkJUB+1,           &
+            call HDF5SetLimits   (ObjHDF5, WorkILB, WorkIUB+1, WorkJLB, WorkJUB+1,      &
                                   STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid - HorizontalGrid - ERR02'
 
-
             if (present(OutputNumber)) then
 
-                call HDF5WriteData   (ObjHDF5, "/Grid/ConnectionX", "ConnectionX", "m",          &
-                                      Array2D = Me%XX_IE,                                        &
-                                      OutputNumber = OutputNumber,                               &
+                call HDF5WriteData   (ObjHDF5, "/Grid/ConnectionX", "ConnectionX", "m", &
+                                      Array2D = Me%XX_IE,                               &
+                                      OutputNumber = OutputNumber,                      &
                                       STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid - HorizontalGrid - ERR03'
 
-                call HDF5WriteData   (ObjHDF5, "/Grid/ConnectionY", "ConnectionY", "m",          &
-                                      Array2D = Me%YY_IE,                                        &
-                                      OutputNumber = OutputNumber,                               &
+                call HDF5WriteData   (ObjHDF5, "/Grid/ConnectionY", "ConnectionY", "m", &
+                                      Array2D = Me%YY_IE,                               &
+                                      OutputNumber = OutputNumber,                      &
                                       STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid - HorizontalGrid - ERR04'
 
-                call HDF5WriteData   (ObjHDF5, "/Grid/Longitude", "Longitude", "º",              &
-                                      Array2D = Me%LongitudeConn,                                &
-                                      OutputNumber = OutputNumber,                               &
+                call HDF5WriteData   (ObjHDF5, "/Grid/Longitude", "Longitude", "º",     &
+                                      Array2D = Me%LongitudeConn,                       &
+                                      OutputNumber = OutputNumber,                      &
                                       STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid - HorizontalGrid - ERR05'
 
-                call HDF5WriteData   (ObjHDF5, "/Grid/Latitude", "Latitude", "º",                &
-                                      Array2D = Me%LatitudeConn,                                 &
-                                      OutputNumber = OutputNumber,                               &
+                call HDF5WriteData   (ObjHDF5, "/Grid/Latitude", "Latitude", "º",       &
+                                      Array2D = Me%LatitudeConn,                        &
+                                      OutputNumber = OutputNumber,                      &
                                       STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid - HorizontalGrid - ERR06'
 
                 if (Me%CornersXYInput) then
 
-                    call HDF5WriteData   (ObjHDF5, "/Grid/Define_Cells", "Define Cells", "-",    &
-                                          Array2D = Me%DefineCellsMap,                           &
-                                          OutputNumber = OutputNumber,                           &
+                    call HDF5WriteData   (ObjHDF5, "/Grid/Define_Cells", "Define Cells", "-",&
+                                          Array2D = Me%DefineCellsMap,                  &
+                                          OutputNumber = OutputNumber,                  &
                                           STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid - HorizontalGrid - ERR09'
 
@@ -6107,30 +6099,30 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
 
             else
 
-                call HDF5WriteData   (ObjHDF5, "/Grid", "ConnectionX", "m",                      &
-                                      Array2D = Me%XX_IE,                                        &
+                call HDF5WriteData   (ObjHDF5, "/Grid", "ConnectionX", "m",             &
+                                      Array2D = Me%XX_IE,                               &
                                       STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid - HorizontalGrid - ERR03'
 
-                call HDF5WriteData   (ObjHDF5, "/Grid", "ConnectionY", "m",                      &
-                                      Array2D = Me%YY_IE,                                        &
+                call HDF5WriteData   (ObjHDF5, "/Grid", "ConnectionY", "m",             &
+                                      Array2D = Me%YY_IE,                               &
                                       STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid - HorizontalGrid - ERR04'
 
-                call HDF5WriteData   (ObjHDF5, "/Grid", "Longitude", "º",                        &
-                                      Array2D = Me%LongitudeConn,                                &
+                call HDF5WriteData   (ObjHDF5, "/Grid", "Longitude", "º",               &
+                                      Array2D = Me%LongitudeConn,                       &
                                       STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid - HorizontalGrid - ERR05'
 
-                call HDF5WriteData   (ObjHDF5, "/Grid", "Latitude", "º",                         &
-                                      Array2D = Me%LatitudeConn,                                 &
+                call HDF5WriteData   (ObjHDF5, "/Grid", "Latitude", "º",                &
+                                      Array2D = Me%LatitudeConn,                        &
                                       STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid - HorizontalGrid - ERR06'
 
                 if (Me%CornersXYInput) then
 
-                    call HDF5WriteData   (ObjHDF5, "/Grid", "Define Cells", "-",                 &
-                                          Array2D = Me%DefineCellsMap,                           &
+                    call HDF5WriteData   (ObjHDF5, "/Grid", "Define Cells", "-",        &
+                                          Array2D = Me%DefineCellsMap,                  &
                                           STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid - HorizontalGrid - ERR09'
 
@@ -7494,19 +7486,22 @@ cd1:    if (ObjHorizontalGrid_ID > 0) then
         integer                                     :: inum, icode, LD, LM, LOD, LOM
         character(1)                                :: DATNUM, NORS, EORW 
         logical                                     :: MILP 
+        !Local-----------------------------------------------------------------
+        real(8)                                     :: PI, RAD, SLAT, SLON
+        real(8)                                     :: north, east, lat, lon
+        real(8)                                     :: ER, RF, F, ESQ        
+        
         COMMON / MIL / MILP 
         COMMON / CONST / RAD, ER, RF, ESQ, PI 
         COMMON / DATUM / DATNUM 
         COMMON / XY / NORTH, EAST 
                                                                         
-        !Local-----------------------------------------------------------------
-        real(8)                                     :: PI, RAD, SLAT, SLON
-        real(8)                                     :: north, east, lat, lon
-        real(8)                                     :: ER, RF, F, ESQ
+
 
       PI = 4.D0 * DATAN (1.D0) 
       RAD = 180.D0 / PI 
       MILP = .FALSE. 
+
 ! passagem para as variaveis internas                                   
       IF (INUM.EQ.1.OR.INUM.EQ.4) THEN 
          IF (ext_lat.gt.0.) then 
@@ -7556,22 +7551,13 @@ cd1:    if (ObjHorizontalGrid_ID > 0) then
          CALL UTGP83 (ICODE, lat, lon) 
       ENDIF 
       IF (INUM.EQ.1.OR.INUM.EQ.4) THEN 
-!        if (eorw.eq.'W') then                                          
-!       ext_x=-1.*east                                                    
-!     else                                                                
-!                                                                       
          ext_x = east 
-!     endif                                                               
-!        if (nors.eq.'S') then                                          
-!         ext_y=-1.*north                                               
-!     else                                                                
          ext_y = north 
-!     endif                                                               
       ELSE 
-         ext_lat = lat * rad 
+         ext_lat  = lat * rad 
          ext_long = lon * rad 
       ENDIF 
-      RETURN 
+
       END SUBROUTINE USCONVCO    
 
     !--------------------------------------------------------------------------

@@ -29,7 +29,6 @@
 !------------------------------------------------------------------------------
 
 Module ModuleSedimentQuality
-!to_change - coisas a mudar
     use ModuleFunctions            
     use ModuleLUD                 
     use ModuleEnterData
@@ -73,8 +72,10 @@ Module ModuleSedimentQuality
     private ::      HydrogenCalculation
     private ::      PotentialRatesCalc
     private ::          CalcTterm       !function
+    private ::          CalcTtermDeath
     private ::          CalcPopulation          
-    private ::      LogicalImobilization    
+    private ::      LogicalImobilization 
+    private ::      LogicalImobilization_P   !!!Lúcia   
     private ::      LogicalLimitation
     private ::      StartSedimentQualityIteration
     private ::      SedimentQualityCoefCalculation    
@@ -82,16 +83,16 @@ Module ModuleSedimentQuality
     private ::          Carbon
     private ::              LabilOrganicCarbon
     private ::              RefractOrganicCarbon   
-    private ::              HetrotrophicC          
-    private ::              AutotrotrophicC        
+    private ::              HeterotrophicC          
+    private ::              AutotrophicC        
     private ::              AnaerobicC
     private ::          Nitrogen
     private ::              Ammonia
     private ::              Nitrate
     private ::              LabilOrganicNitrogen   
     private ::              RefractOrganicNitrogen 
-    private ::              HetrotrophicN          
-    private ::              AutotrotrophicN        
+    private ::              HeterotrophicN          
+    private ::              AutotrophicN        
     private ::              AnaerobicN             
     private ::              Ngas
     private ::      SystemResolution
@@ -112,10 +113,10 @@ Module ModuleSedimentQuality
 
     !Types---------------------------------------------------------------------
     type       T_PropIndex
-        integer :: HetrotrophicN                    = null_int
-        integer :: HetrotrophicC                    = null_int
-        integer :: AutotrotrophicN                  = null_int
-        integer :: AutotrotrophicC                  = null_int
+        integer :: HeterotrophicN                   = null_int
+        integer :: HeterotrophicC                   = null_int
+        integer :: AutotrophicN                     = null_int
+        integer :: AutotrophicC                     = null_int
         integer :: AnaerobicN                       = null_int
         integer :: AnaerobicC                       = null_int
         integer :: Labil_OM_C                       = null_int
@@ -126,8 +127,26 @@ Module ModuleSedimentQuality
         integer :: Nitrate                          = null_int
         integer :: Ngas                             = null_int
         integer :: Oxygen                           = null_int
+        integer :: HeterotrophicP                   = null_int  !!!Lúcia
+        integer :: AutotrophicP                     = null_int
+        integer :: AnaerobicP                       = null_int
+        integer :: Labil_OM_P                       = null_int
+        integer :: RefractOM_P                      = null_int
+        integer :: Inorganic_P_soluble              = null_int
+        integer :: Inorganic_P_fix                  = null_int  
+        integer :: SolC                             = null_int 
+        integer :: SolN                             = null_int
+        integer :: SolP                             = null_int
+        integer :: CO2                              = null_int
+        integer :: Urea                             = null_int
+        integer :: AmmoniaGas                       = null_int
+        integer :: methane                          = null_int
+        
+    
     end type T_PropIndex
-
+    type T_Files
+        integer                                 :: AsciiUnit
+    end type T_Files    
 
     type           T_PropRateFlux
         integer                              :: ID
@@ -150,9 +169,11 @@ Module ModuleSedimentQuality
     end type T_ExtraRate
    
     type       T_PropCalc
-        logical :: Carbon     = OFF
-        logical :: Nitrogen   = OFF
-        logical :: Oxygen     = OFF
+        logical :: Carbon       = OFF
+        logical :: Nitrogen     = OFF
+        logical :: Oxygen       = OFF
+        logical :: Phosphorus   = OFF           !!! lucia
+        logical :: Sol_Bacteria = OFF           !!!Lúcia
     end type T_PropCalc
 
     type       T_CalcMethod
@@ -161,17 +182,29 @@ Module ModuleSedimentQuality
         logical :: SemiImpMethod  = OFF
     end type T_CalcMethod
 
+ 
     type       T_External
         real, pointer, dimension(:  )       :: Temperature
         real, pointer, dimension(:  )       :: ThetaF         !water content
         real, pointer, dimension(:,:)       :: Mass
-        real, pointer, dimension(:  )       :: DissolvedToParticulate      
+        real, pointer, dimension(:  )       :: DissolvedToParticulate 
+!        real                                :: ParticleDensity
+        real, pointer, dimension(:  )       :: SoilDryDensity
+!        real                                :: DrySoilVolume
+        real, pointer, dimension(:  )       :: Salinity
+        real, pointer, dimension(:  )       :: pH
+        real, pointer, dimension(:  )       :: Ionic
+        real , pointer, dimension(:  )      :: Pai
+        real , pointer, dimension(:  )      :: Wind
     end type T_External
+
+
 
     type        T_Coeficients
         real                                :: ActivationE          = null_real     !Activation energy
         real                                :: Acoef                = null_real     !Specific coeficient
-        real                                :: optimumTemperature   = null_real     !Optimum temperature
+        real                                :: Kp                   = null_real
+        real                                :: OptimumTemperature   = null_real     !Optimum temperature
         real                                :: Value                = null_real     !specific rate value     
         integer                             :: RateIndex            = null_int      !Rate Index number
     end type    T_Coeficients
@@ -185,13 +218,19 @@ Module ModuleSedimentQuality
         type(T_Coeficients)                :: AmmoniaImobilization         
         type(T_Coeficients)                :: NitrateToNgas
         type(T_Coeficients)                :: NitrateImobilization
+        type(T_Coeficients)                :: PhosphorusImobilization       !!!!Lúcia
+        type(T_Coeficients)                :: Solubilizing       !!!!!!
         type(T_Coeficients)                :: Heterotrophs
         type(T_Coeficients)                :: Autotrophs
-        type(T_Coeficients)                :: Anaerobic      
+        type(T_Coeficients)                :: Anaerobic
+        type(T_Coeficients)                :: MethaneProduction
+        type(T_Coeficients)                :: UreaHydrolysis        
+        type(T_Coeficients)                :: Sol      !!!!Lúcia              
     end type T_Rates
 
     type        T_Constants
         real                                :: CNRatio          = null_real     !Microorganisms C/N ratio
+        real                                :: CPRatio          = null_real     !Microorganisms C/P ratio       !!!Lúcia
         real                                :: CPopRatio        = null_real     !Carbon to # microorganisms ratio
         real                                :: Population       = null_real     !Population
         integer                             :: MicroIndex       = null_int      !Propertie number
@@ -207,7 +246,8 @@ Module ModuleSedimentQuality
     type        T_Microorganisms
         type(T_Constants        )          :: Heterotrophs
         type(T_Constants        )          :: Autotrophs
-        type(T_Constants        )          :: Anaerobic       
+        type(T_Constants        )          :: Anaerobic 
+        type(T_Constants        )          :: Sols                     !!!Lúcia    
     end type    T_Microorganisms
 
     
@@ -225,14 +265,20 @@ Module ModuleSedimentQuality
         type(T_EquaRateFlux ),   pointer                    :: LastEquaRateFlux
 
         type(T_Rates            )                           :: SpecificRates
-        type(T_Microorganisms   )                           :: Microorganisms    
-        logical                                             :: Imobilization        = OFF
-        logical                                             :: NLimitation          = OFF 
+        type(T_Microorganisms   )                           :: Microorganisms
+        type(T_Files            )                           :: Files   
+        logical                                             :: Imobilization        = OFF       !!! o nome tem de ser mudado
+        logical                                             :: Imobilization_P      = OFF       !!!Lúcia
+        logical                                             :: NLimitation          = OFF   
+        logical                                             :: PLimitation          = OFF       !!!Lúcia
+        integer                                             :: Select               = null_int  !!!Lúcia
         real                                                :: Partition            = null_real
         real                                                :: AnaerobicPartition   = null_real
+        real                                                :: Solpartition        = null_real  !!!
         double precision,       pointer, dimension(:,:)     :: Matrix
         real,                   pointer, dimension(:  )     :: IndTerm
         real,                   pointer, dimension(:  )     :: NewMass          !Used with Explicit method
+        double precision,       pointer, dimension(:,:)     :: OxygenTab
         
         real                                                :: DTDay                = null_real
         real                                                :: DTSecond             = null_real
@@ -240,10 +286,14 @@ Module ModuleSedimentQuality
         real                                                :: Aerobiose            = null_real
         real                                                :: Anaerobiose          = null_real
         real                                                :: LabiOM_CN_Ratio      = null_real
-        real                                                :: RefractOM_CN_Ratio   = null_real
+        real                                                :: LabilOM_CP_ratio     = null_real !!!Lúcia
+        real                                                :: RefractOM_CN_ratio   = null_real
+        real                                                :: RefractOM_CP_ratio   = null_real !!!Lúcia
         real                                                :: Oxygen               = null_real
         real                                                :: Hydrogen             = null_real
-
+        real                                                :: Khn
+        real                                                :: NO3limit
+        real                                                :: ADJ
         !Instance of Module_EnterData
         integer                                             :: ObjEnterData = 0
 
@@ -318,11 +368,12 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             if (STAT_CALL .NE. SUCCESS_)                                            &
                 stop 'Subroutine StartSedimentQuality; module ModuleSedimentQuality. ERR02.'
             
+            call ConstructAsciiOutPut
 
             call SQReadData
             call AllocateVariables
 
-            
+             
 cd1 :       if (.NOT. Me%CalcMethod%ExplicitMethod) then
                 call StartLUD(Me%ObjLUD,                            &
                               Me%Prop%ILB,                          &
@@ -358,6 +409,40 @@ cd1 :       if (.NOT. Me%CalcMethod%ExplicitMethod) then
     end subroutine StartSedimentQuality
 
     !--------------------------------------------------------------------------
+
+
+    subroutine ConstructAsciiOutPut            
+
+        !Local-----------------------------------------------------------------
+        integer               :: status
+        integer               :: STAT_CALL                
+        integer               :: Counter
+        character(LEN=4)      :: Number
+
+        call UnitsManager(Me%Files%AsciiUnit, OPEN_FILE, STAT = status) 
+        if (status /= SUCCESS_) stop "ConstructAsciiOutPut - ModulePorousMedia - ERR01"
+
+        Counter  = 1
+do1:     do
+            Number = '    '
+            write(Number, fmt='(i4)')Counter
+            open(UNIT   = Me%Files%AsciiUnit,                                      &
+                 FILE   = '..\res\SQ_Situation_'//trim(adjustl(Number))//'.log', &
+                 STATUS = "REPLACE",                                      &
+                 IOSTAT = STAT_CALL)
+            if (STAT_CALL == SUCCESS_) then
+                exit do1
+            else
+                Counter = Counter + 1
+            end if
+        enddo do1
+
+        write (Me%Files%AsciiUnit, FMT=*) 'Situation      Aerobiose       Anaerobiose '
+    
+    end subroutine ConstructAsciiOutPut
+    
+    !--------------------------------------------------------------------------
+
 
 
     !--------------------------------------------------------------------------
@@ -459,16 +544,16 @@ cd0 :   if (ready_ .EQ. IDLE_ERR_) then
         
             countequa=0
        
-            !Oxygen is always computed
+            !Oxygen is always computed 
             Logicalequa(PIndex%Oxygen) =.true.
             countequa = countequa + 1.
       
             if (Me%PropCalc%Nitrogen) then
 
-                Logicalequa(PIndex%HetrotrophicN      )=.true.
+                Logicalequa(PIndex%HeterotrophicN     )=.true.
                 countequa = countequa + 1.
 
-                Logicalequa(PIndex%AutotrotrophicN    )=.true.
+                Logicalequa(PIndex%AutotrophicN       )=.true.
                 countequa = countequa + 1.
 
                 Logicalequa(PIndex%AnaerobicN         )=.true.
@@ -488,16 +573,30 @@ cd0 :   if (ready_ .EQ. IDLE_ERR_) then
 
                 Logicalequa(PIndex%Ngas               )=.true.
                 countequa = countequa + 1.
-       
+
+                Logicalequa(PIndex%Urea               )=.true.
+                countequa = countequa + 1.
+
+!                Logicalequa(PIndex%AmmoniaGas         )=.true.
+!                countequa = countequa + 1.
+      
+                !!!!                
+                if (Me%PropCalc%Sol_Bacteria) then
+
+                    Logicalequa(PIndex%SolN           )=.true.
+                    countequa = countequa + 1.
+                
+                endif
+  
             endif
 
        
             if (Me%PropCalc%Carbon) then
 
-                Logicalequa(PIndex%HetrotrophicC      )=.true.
+                Logicalequa(PIndex%HeterotrophicC     )=.true.
                 countequa = countequa + 1.
 
-                Logicalequa(PIndex%AutotrotrophicC    )=.true.
+                Logicalequa(PIndex%AutotrophicC       )=.true.
                 countequa = countequa + 1.
 
                 Logicalequa(PIndex%AnaerobicC         )=.true.
@@ -508,10 +607,59 @@ cd0 :   if (ready_ .EQ. IDLE_ERR_) then
 
                 Logicalequa(PIndex%RefractOM_C        )=.true.
                 countequa = countequa + 1.
-       
+
+                Logicalequa(PIndex%CO2                )=.true.
+                countequa = countequa + 1.
+
+!                Logicalequa(PIndex%methane            )=.true.
+!                countequa = countequa + 1.
+
+
+
+!!!!!!
+                if (Me%PropCalc%Sol_Bacteria) then
+
+                    Logicalequa(PIndex%SolC               )=.true.
+                    countequa = countequa + 1.
+                
+                endif
+    
             endif
 
-       
+          !!! o mesmo para o fósforo
+          
+            if (Me%PropCalc%Phosphorus) then
+
+                Logicalequa(PIndex%HeterotrophicP     )=.true.  !!!Lúcia
+                countequa = countequa + 1.
+
+                Logicalequa(PIndex%AutotrophicP       )=.true.
+                countequa = countequa + 1.
+
+                Logicalequa(PIndex%AnaerobicP         )=.true.
+                countequa = countequa + 1.
+
+                Logicalequa(PIndex%Labil_OM_P         )=.true.
+                countequa = countequa + 1.
+
+                Logicalequa(PIndex%RefractOM_P        )=.true.
+                countequa = countequa + 1.
+
+                Logicalequa(PIndex%Inorganic_P_soluble)=.true.
+                countequa = countequa + 1.
+
+                Logicalequa(PIndex%Inorganic_P_fix    )=.true.  !!!Lúcia
+                countequa = countequa + 1.
+
+!!!
+                if (Me%PropCalc%Sol_Bacteria) then
+
+                    Logicalequa(PIndex%SolP           )=.true.   !!!Lúcia
+                    countequa = countequa + 1.
+                
+                endif
+            endif
+
             if (countequa.ne.PropUB) stop 'SubRoutine Construct_SQRateFlux ModuleSedimentQuality - ERR01'
                        
                   do equa = PropLB,PropUB
@@ -609,7 +757,7 @@ do1:         do while (associated(EquaRateFluxX))
         
         else
             
-            NewEquaRateFlux%Prev                      => Me%LastEquaRateFlux
+            NewEquaRateFlux%Prev      => Me%LastEquaRateFlux
             Me%LastEquaRateFlux%Next  => NewEquaRateFlux
             Me%LastEquaRateFlux       => NewEquaRateFlux
         
@@ -692,6 +840,31 @@ do1:         do while (associated(EquaRateFluxX))
         if (STAT_CALL .NE. SUCCESS_)                                    &
             stop 'Subroutine SedimentQualityOptions; Module ModuleSedimentQuality. ERR02.'
 
+!!!!Opção válida para o fosforo tb!!!
+        call GetData(Me%PropCalc%Phosphorus                 ,           &    !!!Lúcia
+                     Me%ObjEnterData, flag                  ,           &    !!!Lúcia
+                     SearchType   = FromFile                ,           &    !!!Lúcia
+                     keyword      = 'PHOSPHORUS'            ,           &    !!!Lúcia
+                     default      = .true.                  ,           &    !!!Lúcia
+                     ClientModule = 'ModuleSedimentQuality' ,           &    !!!Lúcia
+                     STAT         = STAT_CALL)
+
+        if (STAT_CALL .NE. SUCCESS_)                                    &
+            stop 'Subroutine SedimentQualityOptions; Module ModuleSedimentQuality. ERR02.'
+
+!!!!Opção válida para as bacterias solubilizadoras tb!!!
+        call GetData(Me%PropCalc%Sol_Bacteria               ,           &    !!!Lúcia
+                     Me%ObjEnterData, flag                  ,           &    !!!Lúcia
+                     SearchType   = FromFile                ,           &    !!!Lúcia
+                     keyword      = 'SOL_BACTERIA'          ,           &    !!!Lúcia
+                     default      = .false.                  ,          &    !!!Lúcia
+                     ClientModule = 'ModuleSedimentQuality' ,           &    !!!Lúcia
+                     STAT         = STAT_CALL)
+
+        if (STAT_CALL .NE. SUCCESS_)                                    &
+            stop 'Subroutine SedimentQualityOptions; Module ModuleSedimentQuality. ERR02.'
+
+
         !----------------------------------------------------------------------
 
     end subroutine SedimentQualityOptions         
@@ -710,11 +883,11 @@ do1:         do while (associated(EquaRateFluxX))
         !Carbon index number
         if (Me%PropCalc%Carbon) then
             Me%Prop%IUB                                 = Me%Prop%IUB + 1
-            Me%PropIndex%HetrotrophicC                  = Me%Prop%IUB
+            Me%PropIndex%HeterotrophicC                 = Me%Prop%IUB
             Me%Microorganisms%Heterotrophs%MicroIndex   = Me%Prop%IUB
 
             Me%Prop%IUB                                 = Me%Prop%IUB + 1
-            Me%PropIndex%AutotrotrophicC                = Me%Prop%IUB
+            Me%PropIndex%AutotrophicC                   = Me%Prop%IUB
             Me%Microorganisms%Autotrophs%MicroIndex     = Me%Prop%IUB
 
             Me%Prop%IUB                                 = Me%Prop%IUB + 1
@@ -726,17 +899,29 @@ do1:         do while (associated(EquaRateFluxX))
 
             Me%Prop%IUB                                 = Me%Prop%IUB + 1
             Me%PropIndex%RefractOM_C                    = Me%Prop%IUB
-            
-         
+  !!!!          
+            Me%Prop%IUB                                 = Me%Prop%IUB + 1
+            Me%PropIndex%CO2                            = Me%Prop%IUB
+
+!            Me%Prop%IUB                                 = Me%Prop%IUB + 1
+!            Me%PropIndex%methane                        = Me%Prop%IUB
+
+            if (Me%PropCalc%Sol_Bacteria) then
+                Me%Prop%IUB                                 = Me%Prop%IUB + 1
+                Me%PropIndex%SolC                           = Me%Prop%IUB
+                Me%Microorganisms%Sols%MicroIndex           = Me%Prop%IUB
+            endif
+
+          
         endif  
 
         !Nitrogen index number
         if (Me%PropCalc%Nitrogen) then
             Me%Prop%IUB                     = Me%Prop%IUB + 1
-            Me%PropIndex%HetrotrophicN      = Me%Prop%IUB
+            Me%PropIndex%HeterotrophicN     = Me%Prop%IUB
 
             Me%Prop%IUB                     = Me%Prop%IUB + 1
-            Me%PropIndex%AutotrotrophicN    = Me%Prop%IUB
+            Me%PropIndex%AutotrophicN       = Me%Prop%IUB
 
             Me%Prop%IUB                     = Me%Prop%IUB + 1
             Me%PropIndex%AnaerobicN         = Me%Prop%IUB
@@ -756,14 +941,61 @@ do1:         do while (associated(EquaRateFluxX))
             Me%Prop%IUB                     = Me%Prop%IUB + 1
             Me%PropIndex%Ngas               = Me%Prop%IUB
         
-            
+            Me%Prop%IUB                     = Me%Prop%IUB + 1
+            Me%PropIndex%Urea               = Me%Prop%IUB
+ 
+!            Me%Prop%IUB                     = Me%Prop%IUB + 1
+!            Me%PropIndex%AmmoniaGas         = Me%Prop%IUB
+
+ !!!!
+            if (Me%PropCalc%Sol_Bacteria) then
+ 
+                Me%Prop%IUB                     = Me%Prop%IUB + 1
+                Me%PropIndex%SolN               = Me%Prop%IUB
+
+            endif
+               
         endif    
 
 
-        !Oxygen index number -> The oxygen is always calculated.
+        !Oxygen index number -> The oxygen is always calculated 
         Me%Prop%IUB         = Me%Prop%IUB + 1
         Me%PropIndex%Oxygen = Me%Prop%IUB
 
+
+        ! o mesmo para o fósforo
+
+        if (Me%PropCalc%Phosphorus) then
+            Me%Prop%IUB                      = Me%Prop%IUB + 1  !!!Lúcia
+            Me%PropIndex%HeterotrophicP      = Me%Prop%IUB
+
+            Me%Prop%IUB                      = Me%Prop%IUB + 1
+            Me%PropIndex%AutotrophicP        = Me%Prop%IUB
+
+            Me%Prop%IUB                      = Me%Prop%IUB + 1
+            Me%PropIndex%AnaerobicP          = Me%Prop%IUB
+
+            Me%Prop%IUB                      = Me%Prop%IUB + 1
+            Me%PropIndex%Labil_OM_P          = Me%Prop%IUB
+
+            Me%Prop%IUB                      = Me%Prop%IUB + 1
+            Me%PropIndex%RefractOM_P         = Me%Prop%IUB
+
+            Me%Prop%IUB                      = Me%Prop%IUB + 1
+            Me%PropIndex%Inorganic_P_soluble = Me%Prop%IUB
+
+            Me%Prop%IUB                      = Me%Prop%IUB + 1  !!!Lúcia
+            Me%PropIndex%Inorganic_P_fix     = Me%Prop%IUB
+
+    !!!!!!
+            if (Me%PropCalc%Sol_Bacteria) then
+
+                Me%Prop%IUB                      = Me%Prop%IUB + 1
+                Me%PropIndex%SolP                = Me%Prop%IUB
+            
+            endif
+
+        endif
 
         !----------------------------------------------------------------------
     end subroutine SQPropertyIndexNumber
@@ -1051,42 +1283,93 @@ cd5 :           if (BlockFound) then
                 block_end       =   '<end_Anaerobic_Rate>'
                 return
 
+            Case (6)
+                RateinProgress  =>  Me%SpecificRates%MethaneProduction 
+                block_begin     =   '<begin_methane_production>'
+                block_end       =   '<end_methane_production>'
+                return
+
+
+
+!!!!!!!!!!!!                    
             end select
+    end if
+            
         
-        end if             
-       
         if (Me%PropCalc%Nitrogen) then
 
             Select case (blockpointer)
 
-            Case (6)
+            Case (7)
                 RateinProgress  =>  Me%SpecificRates%AmmoniaToNitrate
                 block_begin     =   '<begin_AmmoniaToNitrate_Rate>'
                 block_end       =   '<end_AmmoniaToNitrate_Rate>'
                 return
 
-            Case (7)
+            Case (8)
                 RateinProgress  =>  Me%SpecificRates%AmmoniaImobilization 
                 block_begin     =   '<begin_AmmoniaImobilization_Rate>'
                 block_end       =   '<end_AmmoniaImobilization_Rate>'
                 return
 
-            Case (8)
+            Case (9)
                 RateinProgress  =>  Me%SpecificRates%NitrateToNgas
                 block_begin     =   '<begin_NitrateToNgas_Rate>'
                 block_end       =   '<end_NitrateToNgas_Rate>'
                 return
 
-            Case (9)        
+            Case (10)        
                 RateinProgress  =>  Me%SpecificRates%NitrateImobilization               
                 block_begin     =   '<begin_NitrateImobilization_Rate>'
                 block_end       =   '<end_NitrateImobilization_Rate>'
                 return
 
+            Case (11)        
+                RateinProgress  =>  Me%SpecificRates%UreaHydrolysis               
+                block_begin     =   '<begin_Urea_Hydrolysis>'
+                block_end       =   '<end_Urea_Hydrolysis>'
+                return
+            end select
+         
+        end if
+
+
+        !!!!!!O mesmo para o fosforo... e esta em construcçção!!!
+        
+        if (Me%PropCalc%Phosphorus) then                    !!!Lúcia
+
+            Select case (blockpointer)                      !!!Lúcia
+
+            Case (12)        
+                RateinProgress  =>  Me%SpecificRates%PhosphorusImobilization !!!Lúcia              
+                block_begin     =   '<begin_PhosphorusImobilization_Rate>'   !!!Lúcia
+                block_end       =   '<end_PhosphorusImobilization_Rate>'
+                return
+
+            end Select  
+         
+        end if
+                    
+        if (Me%PropCalc%Sol_Bacteria) then
+
+            Select case(blockpointer)
+            
+            Case (13)
+                RateinProgress  =>  Me%SpecificRates%Sol 
+                block_begin     =   '<begin_Sol_Rate>'
+                block_end       =   '<end_Sol_Rate>'
+                return
+               
+            Case (14)        
+                RateinProgress  =>  Me%SpecificRates%Solubilizing 
+                block_begin     =   '<begin_Solubilizing_Rate>'
+                block_end       =   '<end_Solubilizing_Rate>'
+                return
+
             end select
         
-        end if
-        
+        end if  
+   
         blockpointer = null_int 
         !------------------------------------------------------------------------
 
@@ -1127,13 +1410,24 @@ cd5 :           if (BlockFound) then
                 MicroorginProgress  =>  Me%Microorganisms%Anaerobic
                 block_begin         =   '<begin_Anaerobic>'
                 block_end           =   '<end_Anaerobic>'
-                return
-
+                return          
 
             end select
+        end if    
         
-        end if             
-       
+        if (Me%PropCalc%Sol_Bacteria) then
+
+            Select case (blockpointer)
+    
+            Case (4)
+                MicroorginProgress  =>  Me%Microorganisms%Sols
+                block_begin         =   '<begin_Sols>'
+                block_end           =   '<end_Sols>'
+                return
+            
+          end select
+
+        end If
         
         blockpointer = null_int 
         !------------------------------------------------------------------------
@@ -1186,6 +1480,20 @@ cd5 :           if (BlockFound) then
         
         RateinProgress%Acoef = value
 
+        call GetData(   value                                    ,   &
+                        Me%ObjEnterData, iflag                   ,   &
+                        SearchType      = FromBlock              ,   &
+                        keyword         ='kp'                 ,   &
+                        ClientModule    = 'ModuleSedimentQuality',   &
+                        default         = 0.                     ,   &
+                        STAT           = status)
+       
+        if (status /= SUCCESS_)                                      &
+           call SetError(FATAL_, INTERNAL_, 'ConstructRate - ModuleSedimentQuality - ERR02') 
+        
+        RateinProgress%kp = value
+
+
         call GetData(   value                                    ,   & 
                         Me%ObjEnterData, iflag                   ,   &
                         SearchType      = FromBlock              ,   &
@@ -1197,7 +1505,7 @@ cd5 :           if (BlockFound) then
         if (status /= SUCCESS_)                                      &
            call SetError(FATAL_, INTERNAL_, 'ConstructRate - ModuleSedimentQuality - ERR03') 
         
-        RateinProgress%optimumTemperature = value
+        RateinProgress%OptimumTemperature = value
 
         !------------------------------------------------------------------------
 
@@ -1234,7 +1542,20 @@ cd5 :           if (BlockFound) then
         if (status /= SUCCESS_)                                         &
            call SetError(FATAL_, INTERNAL_, 'ConstructMicroorg - ModuleSedimentQuality - ERR01') 
         
-       
+
+        !!! inserir a razão CP dos microorganismos                          
+        call GetData(   MicroorginProgress%CPRatio                  ,   & !!!Lúcia
+                        Me%ObjEnterData, iflag                      ,   &
+                        SearchType      = FromBlock                 ,   &
+                        Keyword         = 'CP_RATIO'                ,   &
+                        ClientModule    = 'ModuleSedimentQuality'   ,   & 
+                        default         = 0.                        ,   & !!!Lúcia
+                        STAT            = status)
+        if (status /= SUCCESS_)                                         &
+           call SetError(FATAL_, INTERNAL_, 'ConstructMicroorg - ModuleSedimentQuality - ERR01') 
+
+
+
        call GetData(   MicroorginProgress%CPopRatio                 ,   & 
                         Me%ObjEnterData, iflag                      ,   &
                         SearchType      = FromBlock                 ,   &
@@ -1372,6 +1693,8 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
                             Nitrogen,                          &
                             Oxygen,                            &
                             Carbon,                            &
+                            Phosphorus,                        &  !!!
+                            Sol_Bacteria,                      &  !!!Lúcia
                             ExplicitMethod,                    &
                             ImplicitMethod,                    &
                             SemiImpMethod, STAT) 
@@ -1379,7 +1702,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
         !Arguments-------------------------------------------------------------
         integer                        :: SedimentQualityID
         integer, optional, intent(OUT) :: STAT
-        logical, optional, intent(OUT) :: Nitrogen, Oxygen, Carbon
+        logical, optional, intent(OUT) :: Nitrogen, Oxygen, Carbon , Phosphorus,Sol_Bacteria        !!!Lúcia
         logical, optional, intent(OUT) :: ExplicitMethod, ImplicitMethod, SemiImpMethod  
 
 
@@ -1401,7 +1724,9 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.     &
 
             if (present(Nitrogen      )) Nitrogen       = Me%PropCalc%Nitrogen
             if (present(Oxygen        )) Oxygen         = Me%PropCalc%Oxygen
-            if (present(Carbon        )) Carbon         = Me%PropCalc%Carbon        
+            if (present(Carbon        )) Carbon         = Me%PropCalc%Carbon    
+            if (present(Phosphorus    )) Phosphorus     = Me%PropCalc%Phosphorus    !!!Lúcia                
+            if (present(Sol_Bacteria  )) Sol_Bacteria   = Me%PropCalc%Sol_Bacteria  !!!
             if (present(ExplicitMethod)) ExplicitMethod = Me%CalcMethod%ExplicitMethod
             if (present(ImplicitMethod)) ImplicitMethod = Me%CalcMethod%ImplicitMethod
             if (present(SemiImpMethod )) SemiImpMethod  = Me%CalcMethod%SemiImpMethod    
@@ -1420,10 +1745,10 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.     &
 
 
     !--------------------------------------------------------------------------
-    subroutine GetPropIndex(SedimentQualityID,  HetrotrophicN,              &
-                                                HetrotrophicC,              &
-                                                AutotrotrophicN,            &
-                                                AutotrotrophicC,            &
+    subroutine GetPropIndex(SedimentQualityID,  HeterotrophicN,              &
+                                                HeterotrophicC,              &
+                                                AutotrophicN,            &
+                                                AutotrophicC,            &
                                                 AnaerobicN,                 &
                                                 AnaerobicC,                 &
                                                 Labil_OM_C,                 &
@@ -1434,29 +1759,71 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.     &
                                                 Nitrate,                    &
                                                 Ngas,                       &
                                                 Oxygen,                     &
+                                                HeterotrophicP,              &  !!!Lúcia
+                                                AutotrophicP,               &
+                                                AnaerobicP,                 &
+                                                Labil_OM_P,                 &
+                                                RefractOM_P,                &
+                                                Inorganic_P_soluble,        &
+                                                Inorganic_P_fix,            &
+                                                SolC,                       &
+                                                SolN,                       &
+                                                SolP,                       &
+                                                CO2,                        &
+                                                Urea,                       &
+!                                                Ammoniagas,                 &
+!                                                Methane,                    &
                                                 STAT)
+
 
         !Arguments-------------------------------------------------------------
         integer                             :: SedimentQualityID
 
-        integer, optional, intent(OUT)      :: HetrotrophicN
-        integer, optional, intent(OUT)      :: HetrotrophicC
-        integer, optional, intent(OUT)      :: AutotrotrophicN
-        integer, optional, intent(OUT)      :: AutotrotrophicC
+        integer, optional, intent(OUT)      :: HeterotrophicN
+        integer, optional, intent(OUT)      :: HeterotrophicC
+        integer, optional, intent(OUT)      :: HeterotrophicP    !!!Lúcia
+    
+
+        integer, optional, intent(OUT)      :: AutotrophicN
+        integer, optional, intent(OUT)      :: AutotrophicC
+        integer, optional, intent(OUT)      :: AutotrophicP !!!Lúcia
+
+    
         integer, optional, intent(OUT)      :: AnaerobicN
         integer, optional, intent(OUT)      :: AnaerobicC
+        integer, optional, intent(OUT)      :: AnaerobicP   !!!Lúcia
+        
+
         
         integer, optional, intent(OUT)      :: Labil_OM_C
         integer, optional, intent(OUT)      :: Labil_OM_N
+        integer, optional, intent(OUT)      :: Labil_OM_P   !!!Lúcia
+
+
 
         integer, optional, intent(OUT)      :: RefractOM_C
         integer, optional, intent(OUT)      :: RefractOM_N
+        integer, optional, intent(OUT)      :: RefractOM_P  !!!Lúcia
+    
+    
         
         integer, optional, intent(OUT)      :: Ammonia
         integer, optional, intent(OUT)      :: Nitrate
         integer, optional, intent(OUT)      :: Ngas
+        integer, optional, intent(OUT)      :: Urea
+!        integer, optional, intent(OUT)      :: AmmoniaGas
+!        integer, optional, intent(OUT)      :: Methane
+        integer, optional, intent(OUT)      :: Inorganic_P_soluble  !!!Lúcia
+        integer, optional, intent(OUT)      :: CO2
+        integer, optional, intent(OUT)      :: Inorganic_P_fix      !!!Lúcia
+
+        integer, optional, intent(OUT)      :: SolC      !!!Lúcia
+        integer, optional, intent(OUT)      :: SolN      !!!Lúcia
+        integer, optional, intent(OUT)      :: SolP      !!!Lúcia
         
-        integer, optional, intent(OUT) :: Oxygen                          
+
+
+        integer, optional, intent(OUT) :: Oxygen
         
         integer, optional, intent(OUT) :: STAT
  
@@ -1474,23 +1841,47 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.     &
 cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                     &
             (ready_ .EQ. READ_LOCK_ERR_)) then
             
-            if (present(HetrotrophicN       )) HetrotrophicN        = Me%PropIndex%HetrotrophicN
-            if (present(HetrotrophicC       )) HetrotrophicC        = Me%PropIndex%HetrotrophicC
-            if (present(AutotrotrophicN     )) AutotrotrophicN      = Me%PropIndex%AutotrotrophicN
-            if (present(AutotrotrophicC     )) AutotrotrophicC      = Me%PropIndex%AutotrotrophicC
+            if (present(HeterotrophicN       )) HeterotrophicN        = Me%PropIndex%HeterotrophicN
+            if (present(HeterotrophicC       )) HeterotrophicC        = Me%PropIndex%HeterotrophicC
+            if (present(HeterotrophicP       )) HeterotrophicP        = Me%PropIndex%HeterotrophicP    !!!Lúcia
+                
+
+            if (present(AutotrophicN        )) AutotrophicN         = Me%PropIndex%AutotrophicN
+            if (present(AutotrophicC        )) AutotrophicC         = Me%PropIndex%AutotrophicC
+            if (present(AutotrophicP        )) AutotrophicP         = Me%PropIndex%AutotrophicP !!!Lúcia
+        
+
             if (present(AnaerobicN          )) AnaerobicN           = Me%PropIndex%AnaerobicN
             if (present(AnaerobicC          )) AnaerobicC           = Me%PropIndex%AnaerobicC
+            if (present(AnaerobicP          )) AnaerobicP           = Me%PropIndex%AnaerobicP   !!!Lúcia
+            
             
             if (present(Labil_OM_C          )) Labil_OM_C           = Me%PropIndex%Labil_OM_C
             if (present(Labil_OM_N          )) Labil_OM_N           = Me%PropIndex%Labil_OM_N
+            if (present(Labil_OM_P          )) Labil_OM_P           = Me%PropIndex%Labil_OM_P   !!!Lúcia
+            
             
             if (present(Labil_OM_C          )) RefractOM_C          = Me%PropIndex%RefractOM_C
             if (present(Labil_OM_N          )) RefractOM_N          = Me%PropIndex%RefractOM_N
+            if (present(Labil_OM_P          )) RefractOM_P          = Me%PropIndex%RefractOM_P  !!!Lúcia
+            
 
             if (present(Ammonia             )) Ammonia              = Me%PropIndex%Ammonia
             if (present(Nitrate             )) Nitrate              = Me%PropIndex%Nitrate
             if (present(Ngas                )) Ngas                 = Me%PropIndex%Ngas
+            if (present(CO2                 )) CO2                  = Me%PropIndex%CO2
+            if (present(Urea                )) Urea                 = Me%PropIndex%Urea
+!            if (present(AmmoniaGas          )) AmmoniaGas            = Me%PropIndex%AmmoniaGas
+!            if (present(methane             )) Methane              = Me%PropIndex%Methane
             
+            if (present(Inorganic_P_soluble )) Inorganic_P_soluble  = Me%PropIndex%Inorganic_P_soluble  !!!Lúcia
+            if (present(Inorganic_P_fix     )) Inorganic_P_fix      = Me%PropIndex%Inorganic_P_fix  !!!Lúcia
+   
+            if (present(SolC                )) SolC                 = Me%PropIndex%SolC !!!Lúcia
+            if (present(SolN                )) SolN                 = Me%PropIndex%SolN !!!Lúcia
+            if (present(SolP                )) SolP                 = Me%PropIndex%SolP !!!Lúcia
+            
+
             if (present(Oxygen              )) Oxygen               = Me%PropIndex%Oxygen    
 
             STAT_ = SUCCESS_
@@ -1686,6 +2077,14 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
                                     ThetaF                  ,                   &
                                     DissolvedToParticulate  ,                   &
                                     ArrayLB, ArrayUB        ,                   &
+!                                    particledensity         ,                   &
+                                    SoilDryDensity          ,                   &
+!                                    DrySoilVolume           ,                   &
+                                    Salinity                ,                   &
+                                    pH                      ,                   &
+                                    Ionic                   ,                   &
+                                    Pai                     ,                   &
+                                    Wind                    ,                   &
                                     OpenPoints              ,                   &
                                     STAT)  
 
@@ -1696,19 +2095,28 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
         real,               pointer, dimension(:  ) :: DissolvedToParticulate
         real,               pointer, dimension(:,:) :: Mass
         integer, optional,  pointer, dimension(:  ) :: OpenPoints
-        integer,            intent(IN )             :: ArrayLB, ArrayUB  
+        integer,            intent(IN )             :: ArrayLB, ArrayUB
+!        real,               intent (IN)             :: ParticleDensity
+!        real,               intent (IN)             :: DrySoilVolume
+        real,   pointer, dimension(:  ), optional   :: SoilDryDensity
+        real,               pointer, dimension(:  ) :: Salinity
+        real,               pointer, dimension(:  ) :: pH
+        real,               pointer, dimension(:  ) :: Ionic
+        real,   pointer, dimension(:  ), optional   :: Pai
+        real,   pointer, dimension(:  ), optional   :: Wind               
         integer, optional,  intent(OUT)             :: STAT
-         
         !External----------------------------------------------------------------
         integer                                     :: index
         integer                                     :: ready_   
-               
+        integer                                     :: conta      
         !Local-------------------------------------------------------------------
         integer                                     :: STAT_          
         logical                                     :: CalcPoint
-        !------------------------------------------------------------------------                         
 
+        !------------------------------------------------------------------------                         
+            
         STAT_ = UNKNOWN_
+
 
         call Ready(SedimentQualityID, ready_)
 
@@ -1731,56 +2139,104 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
                 stop 'Subroutine SedimentQuality; Module ModuleSedimentQuality. ERR04.'
 
             
-            call StartSedimentQualityIteration !zeros the matrix and independent term
+            if (Me%PropCalc%Phosphorus) then
+                if (present(SoilDryDensity)) Me%ExternalVar%SoilDryDensity => SoilDryDensity
+                if (.NOT. associated(Me%ExternalVar%SoilDryDensity) )                       &
+                    stop 'Subroutine SedimentQuality; Module ModuleSedimentQuality. ERR05.'
 
-do1 :       do index = ArrayLB, ArrayUB
-            
-            !If this module is called from the Interface module, OpenPoint is present
-            !and the  module runs for all Openpoints
-            !If this module is called from the Lagrangian module, OpenPoint is not present
-            !and the  module runs for all volumes
-            if (present(OpenPoints)) then
-                if (OpenPoints(index) == OpenPoint) then
-                    CalcPoint = .true.
-                else
-                    CalcPoint = .false.
-                endif
-            else
-                CalcPoint = .true.
+                if (present(Pai))            Me%ExternalVar%Pai            => Pai
+                if (.NOT. associated(Me%ExternalVar%SoilDryDensity) )                       &
+                    stop 'Subroutine SedimentQuality; Module ModuleSedimentQuality. ERR06.'
             endif
 
 
+            if (Me%PropCalc%Nitrogen) then
+                if (present(Wind))           Me%ExternalVar%Wind           => Wind
+                if (.NOT. associated(Me%ExternalVar%SoilDryDensity) )                       &
+                    stop 'Subroutine SedimentQuality; Module ModuleSedimentQuality. ERR07.'
+            endif
 
-            if (CalcPoint) then
-                
-                call OxygenCalculation              (index           )
-                call AnaerobioseCalculation         (ThetaF, index   )
-                call HydrogenCalculation           
-                
-                call PotentialRatesCalc             (index)
-                call LogicalImobilization           (index           )
-
-                if (Me%Imobilization) then
-                    call LogicalLimitation          (index           )
-                end if
-                
-                call SedimentQualityCoefCalculation (index           )
-                
-                call SystemResolution               (index           )
-                
-                !The rates can just be calculated if the rate flux is associated
-                !In the case that this module is used by the lagrangian module
-                !the rate fluxes are not calculated
-                if (associated(Me%FirstEquaRateFlux)) then
-                    call SedimentQualityRatesCalculation   (index)
-                endif
-            endif    
+            !Salinity fo oxygen computation
+            Me%ExternalVar%Salinity       => Salinity
+            if (.NOT. associated(Me%ExternalVar%SoilDryDensity) )                       &
+                stop 'Subroutine SedimentQuality; Module ModuleSedimentQuality. ERR08.'
             
-            Me%Matrix    (:, :)     = 0.
-            Me%Imobilization        = OFF
-            Me%NLimitation          = OFF
-            Me%Partition            = 0.
-            Me%AnaerobicPartition   = 0.
+            Me%ExternalVar%pH             => pH
+            if (.NOT. associated(Me%ExternalVar%SoilDryDensity) )                       &
+                stop 'Subroutine SedimentQuality; Module ModuleSedimentQuality. ERR09.'
+            
+            Me%ExternalVar%Ionic          => Ionic
+            if (.NOT. associated(Me%ExternalVar%SoilDryDensity) )                       &
+                stop 'Subroutine SedimentQuality; Module ModuleSedimentQuality. ERR010.'
+
+
+
+
+            call StartSedimentQualityIteration !zeros the matrix and independent term
+
+
+
+do1 :       do index = ArrayLB, ArrayUB
+            
+                !If this module is called from the Interface module, OpenPoint is present
+                !and the  module runs for all Openpoints
+                !If this module is called from the Lagrangian module, OpenPoint is not present
+                !and the  module runs for all volumes
+                if (present(OpenPoints)) then
+                    if (OpenPoints(index) == OpenPoint) then
+                        CalcPoint = .true.
+                    else
+                        CalcPoint = .false.
+                    endif
+                else
+                    CalcPoint = .true.
+                endif
+
+
+
+                if (CalcPoint) then
+                
+                
+                    call OxygenCalculation              (index           )
+                
+                    call AnaerobioseCalculation         (ThetaF, index   )
+                
+                    call HydrogenCalculation            (index           )        
+                
+                    call PotentialRatesCalc             (index           )
+               
+                    call SelectSituation                (index           )   !!!Lúcia
+
+!                    write(*,*) 'Situaçao', Me%select
+
+                    call SedimentQualityCoefCalculation (index           )
+                
+                    call SystemResolution               (index           )
+                
+                    call CorrectOM                      (index           )
+                    !The rates can just be calculated if the rate flux is associated
+                    !In the case that this module is used by the lagrangian module
+                    !the rate fluxes are not calculated
+                
+                    call ExternalOutput                 (                )           
+                    
+                    call LogSituation
+
+                    if (associated(Me%FirstEquaRateFlux)) then
+                        call SedimentQualityRatesCalculation   (index)
+                    endif
+                endif  
+              
+                conta                   = conta +1
+                Me%Matrix    (:, :)     = 0.
+                Me%Imobilization        = OFF
+                Me%Imobilization_P      = OFF !!!Lúcia
+                Me%NLimitation          = OFF
+                ME%PLimitation          = OFF !!!Lúcia
+                Me%Select               = 0.  !!!Lúcia
+                Me%AnaerobicPartition   = 0.
+                Me%Partition            = 0. 
+                   
 
             end do do1
 
@@ -1794,6 +2250,10 @@ do1 :       do index = ArrayLB, ArrayUB
             STAT_ = ready_
         end if cd1
 
+!        Write(*,*) 'Factor Aerobiose' , Me%Aerobiose
+!        Write(*,*) 'Factor Anaerobiose' , Me%Anaerobiose
+
+
 
         if (present(STAT)) STAT = STAT_
 
@@ -1801,6 +2261,20 @@ do1 :       do index = ArrayLB, ArrayUB
 
     end subroutine SedimentQuality
     !----------------------------------------------------------------------------
+
+
+    subroutine LogSituation
+
+        !Arguments-------------------------------------------------------------
+        !Local-----------------------------------------------------------------
+
+        write (Me%Files%AsciiUnit, fmt=1000) Me%Select, Me%Aerobiose, Me%Anaerobiose
+
+        1000 format(i3, f12.5, f12.5)
+
+    end subroutine LogSituation
+
+    !--------------------------------------------------------------------------
 
 
     ! Calculation of the aerobic and anaerobic functions for Microbiological action.
@@ -1812,52 +2286,75 @@ do1 :       do index = ArrayLB, ArrayUB
 
         integer             , intent(IN)                    :: index  
         real                , dimension(:  ), intent(IN)    :: ThetaF
-
         !Local-------------------------------------------------------------------
 
-        real :: thetaef
-        real :: m
-        real :: b
-        !------------------------------------------------------------------------
+        real                                                :: PWFPC
+!        real                                                :: ParticleDensity
+!        real                                                :: SoilDensity
+        real                                                :: conversion
+      !------------------------------------------------------------------------
         
-        thetaef = ThetaF(index) * 100.
+!        ParticleDensity = Me%ExternalVar%ParticleDensity
 
-        if      (thetaef .LE. 60                     )   then
-                    Me%Aerobiose     = 1.
-                    Me%Anaerobiose   = 0.01
+!        SoilDensity = Me%ExternalVar%SoilDryDensity 
 
-        elseif  (thetaef .GE. 60 .AND. thetaef .LE. 70)   then
-                    
-                    m                = 0.6 / (60.-70.)
-                    b                = 1. - m * 60.
-                    Me%Aerobiose     = m * thetaef + b
-                    
-                    m                = 0.13 / (80.-60.)
-                    b                = 0
-                    Me%Anaerobiose   = m * thetaef + b
-        
-        elseif  (thetaef .GE. 70 .AND. thetaef .LE. 80)   then
-        
-                    m                = 0.3 / (70.- 80.)
-                    b                = 0.4 - m * 70.
-                    Me%Aerobiose     = m * thetaef + b
-                    
-                    m                = 0.13 / (80.-60.)
-                    b                = 0
-                    Me%Anaerobiose   = m * thetaef + b
-        else                
-                    Me%Aerobiose     = 0.1
-                    Me%Anaerobiose   = 1.
-        end if  
-        
+        PWFPC = ThetaF(index)*100
+                        
+                
+! coeficiente de anaerobiose
+
+        if (PWFPC <60) then 
+
+            Me%Anaerobiose = 0.00001            ! porque o SedimteQuality nao esta preparado para receber FANA =0
+
+        else
+
+            Me%Anaerobiose = 0.000304*EXP(0.0815*PWFPC)
+
+        end if
+
+
+! coeficiente de aerobiose
+
+
+        if (PWFPC<=20) then
+
+            Me%aerobiose = 0.75
+
+        else if (PWFPC>20 .AND. PWFPC<59) then
+
+            Me%aerobiose = -0.253+0.0203*PWFPC
+
+
+        else
+
+            Me%aerobiose = 41.1*EXP(-0.0625*PWFPC)
+
+
+        end If
+
+
+
+
+! vou por aqui o NO3 limit, so para não fazer confusao
+    
+        Conversion = Me%ExternalVar%DissolvedToParticulate (index)
+
+        Me%NO3limit = 0.00000000000000005*1000/conversion
+       
+
+
+!       Me%aerobiose = 0.7164           !versao tste comparação RZWQM
+
+!       Me%anaerobiose = 5.97E-2
+
         !------------------------------------------------------------------------
 
     end subroutine AnaerobioseCalculation
     !----------------------------------------------------------------------------
 
 
-    ! Calculation of the saturation [O2] in water (saturation atm pressure is used)
-    ! Anaerobiose calculatons will be made using the anaerobiose function
+    !Computes oxygen concentration (mol/L) depending of the temperature and salinity 
     !----------------------------------------------------------------------------
     subroutine OxygenCalculation (index)
 
@@ -1866,25 +2363,90 @@ do1 :       do index = ArrayLB, ArrayUB
         integer                 , intent(IN)    :: index  
 
         !Local-------------------------------------------------------------------
+        integer :: IOXI
         real    :: Temp
+        real    :: oxy
+        real    :: sal
+
         !------------------------------------------------------------------------
        
+ 
         Temp                        = Me%ExternalVar%Temperature(index)
-        Me%Oxygen                   = OxygenSaturationHenry (Temp)
-        
-        !------------------------------------------------------------------------
+        IOXI                        = Me%PropIndex%OXYGEN   
+        sal                         = Me%ExternalVar%Salinity(index)               
 
+!       Me%OxygenTab(1,1) = 0.5
+
+! values in Mol/L
+
+            if (sal == 0) Then
+
+                oxy =  -2E-09*temp**3 + 2E-07*temp**2 - 1E-05*temp + 0.0005
+
+            else if (sal == 5 .OR. sal == 10 .OR. sal == 15 .OR. sal == 20 &
+                        .OR. sal == 25 .OR. sal == 30 .OR. sal == 35) then
+
+
+                oxy = -1E-09*temp**3 + 2E-07*temp**2 - 1E-05*temp + 0.0004
+
+            else if  (sal == 40) then
+
+                oxy =  -1E-09*temp**3 + 2E-07*temp**2 - 9E-06*temp + 0.0003
+
+            else
+
+                oxy = -1E-09*temp**3 + 1E-07*temp**2 - 8E-06*temp + 0.0003
+
+            end if
+
+            Me%Oxygen= oxy
+
+
+!!! teste para RZWQM!!!
+!            Me%Oxygen = 2.679E-4
+    
     end subroutine OxygenCalculation 
     !----------------------------------------------------------------------------
 
 
     ! Calculation of the Hydrogen activity for specific rates calculations
-
     !----------------------------------------------------------------------------
-    subroutine HydrogenCalculation 
+    subroutine HydrogenCalculation(index)
 
-        Me%Hydrogen = 1. * 10. ** (-7.0)
+        !Argument----------------------------------------------------------------
+        integer                 , intent(IN)    :: index  
+
+        !Local-------------------------------------------------------------------
+        real    :: Hyd,Khn
+        real    :: pH
+        !------------------------------------------------------------------------
+       
+        pH    = Me%ExternalVar%pH(index)
+    
+        Hyd   =  1. * 10. ** (-pH )
+                            
+        Me%Hydrogen = Hyd
+
            
+        
+        if (pH <= 7) then
+        
+            khn = 0.167
+
+            Me%Adj  = 1
+            
+        else
+        
+            khn = -0.333            
+        
+            Me%Adj = 3159.7
+
+        end if
+
+
+        Me%Khn = Khn
+    
+    
     end subroutine HydrogenCalculation
     !----------------------------------------------------------------------------
     
@@ -1897,8 +2459,7 @@ do1 :       do index = ArrayLB, ArrayUB
         integer                 , intent(IN)    :: index  
 
         !Local-------------------------------------------------------------------
-        integer :: CI                   !C property index
-        integer :: NI                   !N property index
+        integer :: NI, AMI              !N property index
                 
         real    :: LC                   !Labil OM C content
         real    :: LCN                  !Labil CN ratio
@@ -1908,35 +2469,48 @@ do1 :       do index = ArrayLB, ArrayUB
         real    :: RCN                  !Refractary CN ratio
         real    :: Pot_ROM_C_Decay      !Potential Refract OM C Decay   [massC / Time]
         
-        real    :: N                    !Labil or Refractary N content
-              
+        real    :: N, AM, LN,RN         !inorganic, Labil or Refractary N content
+        integer :: LCI,RNI,LNI,RCI          
         real    :: obtained             !Obtained N during OM decay    
         real    :: needed               !Needed N for the obtained C in OM decay
+        real    :: PotAMImobil      !Potential Ammonia immobilizaion rate
+        real    :: PotNIImobil      !Potential Nitrate immobilizaion rate
         !------------------------------------------------------------------------
         
         !calculate the Labil OM CN ratio
-        CI  = Me%PropIndex%Labil_OM_C
-        NI  = Me%PropIndex%Labil_OM_N
+        LCI  = Me%PropIndex%Labil_OM_C
+        LNI  = Me%PropIndex%Labil_OM_N           
+        AMI  = Me%PropIndex%AMMONIA
+        NI   = Me%PropIndex%Nitrate
+        LC   = Me%ExternalVar%Mass(LCI, index)
+        LN   = Me%ExternalVar%Mass(LNI, index)    !
+        AM   = Me%ExternalVar%Mass(AMI, index)
+        N    = Me%ExternalVar%Mass(NI, index)
 
-        LC  = Me%ExternalVar%Mass(CI, index)
-        N   = Me%ExternalVar%Mass(NI, index)
-        
-        Me%LabiOM_CN_Ratio   = LC/N 
+        Me%LabiOM_CN_Ratio   = LC/LN 
         LCN                  = Me%LabiOM_CN_Ratio
         
         !calculate the Refractary OM CN ratio
-        CI  = Me%PropIndex%RefractOM_C
-        NI  = Me%PropIndex%RefractOM_N
+        RCI  = Me%PropIndex%RefractOM_C
+        RNI  = Me%PropIndex%RefractOM_N
 
-        RC  = Me%ExternalVar%Mass(CI, index)
-        N   = Me%ExternalVar%Mass(NI, index)
+        RC  = Me%ExternalVar%Mass(RCI, index)
+        RN   = Me%ExternalVar%Mass(RNI, index)
 
-        Me%RefractOM_CN_Ratio = RC/N
+        Me%RefractOM_CN_Ratio = RC/RN
         RCN                   = Me%RefractOM_CN_Ratio
-    
+   
+
+     
         !Calculate the OM_C decay rates
         Pot_LOM_C_Decay     = LC * Me%SpecificRates%Labil_OM_C%Value
         Pot_ROM_C_Decay     = RC * Me%SpecificRates%RefractOM_C%Value
+
+
+        !Potential Mineral N imobilization
+        PotNIImobil         = N* Me%SpecificRates%NitrateImobilization%Value
+        PotAMImobil         = AM * Me%SpecificRates%AmmoniaImobilization%Value
+
 
         !Obtained N during OM decay
         obtained            = Pot_LOM_C_Decay / LCN + Pot_ROM_C_Decay / RCN
@@ -1945,18 +2519,100 @@ do1 :       do index = ArrayLB, ArrayUB
         needed              =   (Pot_LOM_C_Decay + Pot_ROM_C_Decay) /                  & 
                                 Me%Microorganisms%Heterotrophs%CNRatio  
         !Immobilization test
-        if (obtained .LT. needed ) then
+        if (obtained < needed ) then
             Me%Imobilization = ON    !the Heterotrophs will have to incorporate Mineral N
                             
         end if
         
         !Set Anaeribic Partition
+
         Me%AnaerobicPartition = (Pot_ROM_C_Decay)/(Pot_LOM_C_Decay )
+
+        Me%Partition = (PotNIImobil) / (PotAMImobil )
 
         !------------------------------------------------------------------------
 
     end subroutine LogicalImobilization 
     !----------------------------------------------------------------------------
+
+
+
+    ! Check If heterotrophs have to immobilize P
+    !----------------------------------------------------------------------------
+        
+        subroutine LogicalImobilization_P(index)
+
+        !Arguments---------------------------------------------------------------
+        integer                 , intent(IN)    :: index  
+
+        !Local-------------------------------------------------------------------
+                
+        real    :: LC                   !Labil OM C content
+        real    :: LCP                  !Labil CP ratio
+        real    :: Pot_LOM_C_Decay      !Potential OM C Decay           [massC / Time]
+
+        real    :: RC                   !Refractary OM C content
+        real    :: RCP                  !Refractary CP ratio
+        real    :: Pot_ROM_C_Decay      !Potential Refract OM C Decay   [massC / Time]
+        integer :: RPI,LPI,LCI,RCI       
+        real    :: LP,RP    
+          
+        real    :: obtained             !Obtained P during OM decay    
+        real    :: needed               !Needed P for the obtained C in OM decay
+        !------------------------------------------------------------------------
+
+        !calculate the Labil OM CP ratio
+
+        LCI  = Me%PropIndex%Labil_OM_C
+        LPI   = Me%PropIndex%Labil_OM_P
+
+        LC   = Me%ExternalVar%Mass(LCI,index)
+        LP   = Me%ExternalVar%Mass(LPI,index)
+
+        Me%LabilOM_CP_Ratio = LC/LP
+        LCP   = Me%LabilOM_CP_Ratio
+
+        !calculate the Refractory OM CP ratio
+
+        RCI  = Me%PropIndex%RefractOM_C
+        RPI = Me%PropIndex%RefractOM_P
+
+        RC  = Me%ExternalVar%Mass(RCI,index)
+        RP  = Me%ExternalVar%Mass(RPI,index)
+
+        Me%RefractOM_CP_Ratio = RC/RP
+        RCP = Me%RefractOM_CP_Ratio 
+
+        !Calculate the OM_C decay rates    assumindo o potencial!!!
+        Pot_LOM_C_Decay     = LC * Me%SpecificRates%Labil_OM_C%Value
+        Pot_ROM_C_Decay     = RC * Me%SpecificRates%RefractOM_C%Value
+
+
+        !Obtained P during OM decay 
+
+        obtained = (Pot_LOM_C_Decay/ LCP) + (Pot_ROM_C_Decay/RCP)
+    
+    
+        !Needed P for de C obtained in the OM decay    
+        
+        needed   = (Pot_LOM_C_Decay+Pot_ROM_C_Decay)/Me%Microorganisms%Heterotrophs%CPRatio 
+        
+        if( obtained < needed) then
+
+            Me%Imobilization_P = ON    !the Heterotrophs will have to incorporate Mineral P
+                            
+        end if
+        
+        !!! não sei se é importante ou não, mas vou por de novo a equaçao do partition      
+
+        Me%AnaerobicPartition = (Pot_ROM_C_Decay)/(Pot_LOM_C_Decay )
+
+
+        !------------------------------------------------------------------------
+
+        end subroutine LogicalImobilization_P
+
+        !------------------------------------------------------------------------
 
 
     ! Check if the Heterotrphs are limited by C or N
@@ -1970,20 +2626,20 @@ do1 :       do index = ArrayLB, ArrayUB
         !Local-------------------------------------------------------------------
         
         integer :: RCI              !Refractary OM C index
+        integer :: LCI              !Labil OM C index
+        integer :: AMI              !Ammonia index
+        integer :: NII              !Nitrate index
         real    :: RC               !Refractary OM C concentration
         real    :: RCN              !Refractary OM CN ratio
         real    :: Pot_ROM_C_Decay  !Potential Refractary OM C decay rate
 
-        integer :: LCI              !Labil OM C index
         real    :: LC               !Labil OM C concentration
         real    :: LCN              !Labil OM CN ratio
         real    :: Pot_LOM_C_Decay  !Potential Labil OM C decay rate
 
-        integer :: AMI              !Ammonia index
         real    :: AM               !Ammonia concentration
         real    :: PotAMImobil      !Potential Ammonia immobilizaion rate
 
-        integer :: NII              !Nitrate index
         real    :: NI               !Nitrate concentration
         real    :: PotNIImobil      !Potential Nitrate immobilizaion rate
                        
@@ -2010,7 +2666,7 @@ do1 :       do index = ArrayLB, ArrayUB
         NI  = Me%ExternalVar%Mass(NII, index)
 
 
-        !get the CN ratios
+        !get de mineral forms of N values
         LCN = Me%LabiOM_CN_Ratio
         RCN = Me%RefractOM_CN_Ratio
         MCN = Me%Microorganisms%Heterotrophs%CNRatio
@@ -2038,23 +2694,240 @@ do1 :       do index = ArrayLB, ArrayUB
         CarbonS         = (Pot_LOM_C_Decay + Pot_ROM_C_Decay) / MCN -       & 
                            Pot_LOM_C_Decay / LCN - Pot_ROM_C_Decay / RCN    
 
-        
         !Imobilization test        
-        if (ImobilizationS .LE. CarbonS ) then
+        if (ImobilizationS < CarbonS ) then
             !The organic mather decay rates are function of de N immobilization rates
             Me%NLimitation = ON    
-            !The immobilization rates will be a function of Potential OM carbon decay
-            Me%Partition = (Pot_ROM_C_Decay)/(Pot_LOM_C_Decay )
-        
-        else
+            !The immobilization rates will be a function of Potential OM carbon decay        
             !The OM carbon decay rates will be a function of Potential immobilization rates 
-            Me%Partition = (PotNIImobil) / (PotAMImobil )
         
         end if
            
         !------------------------------------------------------------------------
 
     end subroutine LogicalLimitation
+    !----------------------------------------------------------------------------
+
+  
+
+     ! Check if the Heterotrphs are limited by C or P 
+      !----------------------------------------------------------------------------
+    subroutine LogicalLimitation_P (index)
+
+        !Arguments---------------------------------------------------------------
+
+        integer                 , intent(IN)    :: index  
+
+        !Local-------------------------------------------------------------------
+        
+        integer :: RCI              !Refractary OM C index
+        integer :: LCI              !Labil OM C index
+        integer :: PI               !Phosphorus Soluble index
+        real    :: RC               !Refractary OM C concentration
+        real    :: RCP              !Refractary OM CP ratio
+        real    :: Pot_ROM_C_Decay  !Potential Refractary OM C decay rate
+
+        real    :: LC               !Labil OM C concentration
+        real    :: LCP              !Labil OM CP ratio
+        real    :: Pot_LOM_C_Decay  !Potential Labil OM C decay rate
+
+        real    :: P                !Phosphorus soluble concentratio
+        real    :: PotPImobil       !Potential Soluble Phosphorus immobilizaion rate
+
+        real    :: MCP              !Heterotrophs OM CP ratio
+                       
+        real    :: ImobilizationS   !P immobilization rate
+        real    :: CarbonS          !Carbon immobilization rate
+        real    :: Conversion       !From dissolved to particulate
+        !------------------------------------------------------------------------
+ 
+         !get the OM values
+ 
+        RCI = Me%PropIndex%RefractOM_C
+        LCI = Me%PropIndex%Labil_OM_C
+        PI  = Me%PropIndex%Inorganic_P_soluble
+        
+        !get the mineral form of P values
+        
+        RC  = Me%ExternalVar%Mass(RCI,index)
+        LC  = Me%ExternalVar%Mass(LCI,index)
+        P   = Me%ExternalVar%Mass(PI,index)
+
+        !get the ratios values
+
+        LCP = Me%LabilOM_CP_Ratio
+        RCP = Me%RefractOM_CP_Ratio
+        MCP = Me%Microorganisms%Heterotrophs%CPRatio
+          
+        !Potential C uptake
+
+        Pot_LOM_C_Decay     = LC * Me%SpecificRates%Labil_OM_C%Value
+        Pot_ROM_C_Decay     = RC * Me%SpecificRates%RefractOM_C%Value
+
+        !Potential Phosphorus Imobilization
+            
+        PotPImobil          = P * Me%SpecificRates%PhosphorusImobilization%Value
+
+        !Conversion from dissolved to Particulate
+        Conversion      = Me%ExternalVar%DissolvedToParticulate (index) 
+
+
+        !Rate that the Heterotrophs can uptake mineral P in ug kg-1 soil   
+        ImobilizationS  = (PotPImobil  ) * Conversion 
+
+
+
+        !Rate that the Heterotrophs need extra Phosphorus (not in the OM) assuming the potential rates ug kg-1 soil
+        CarbonS         = (Pot_LOM_C_Decay + Pot_ROM_C_Decay) / MCP -       & 
+                           Pot_LOM_C_Decay / LCP - Pot_ROM_C_Decay / RCP    
+
+
+
+        !Imobilization test        
+        if (ImobilizationS < CarbonS ) then
+            !The organic mather decay rates are function of de P immobilization rates
+            Me%PLimitation = ON    
+              
+        end if
+
+    end subroutine LogicalLimitation_P 
+  
+    !----------------------------------------------------------------------------
+
+
+    ! Check for special case when both immobilizations occur
+    !----------------------------------------------------------------------------
+    subroutine BothImobilization ()
+
+
+        !Arguments---------------------------------------------------------------
+
+!        integer                 , intent(IN)    :: index  
+
+        !----------------------------------------------------------------------------
+
+        if (Me%NLimitation .AND. Me%PLimitation) then
+                
+            Me%select  = 1              ! OM decay        : special case!
+                                        ! N imobilization : potential
+                                        ! P imobilization : potential   
+
+        end if
+
+        if (Me%NLimitation .AND. .NOT. Me%PLimitation ) then 
+                
+            Me%select = 2               ! OM decay        : Real N
+                                        ! N imobilization : Potential
+                                        ! P imobilization : real imobilization
+
+
+        end if
+
+        if (.NOT.Me%NLimitation .AND. Me%PLimitation )  then
+                    
+
+            Me%select = 4               ! OM decay        : real P
+                                        ! N imobilization : real imobilization
+                                        ! P imobilization : potential
+
+
+        end if
+
+    
+        if (.NOT.Me%NLimitation .AND. .NOT.Me%PLimitation ) then
+        
+            Me%select = 5               ! OM decay        : potential
+                                        ! N imobilization : real imobilization
+                                        ! P imobilization : real imobilization
+
+        end if
+
+    end subroutine BothImobilization 
+
+    !----------------------------------------------------------------------------
+
+
+
+    ! Select the situation where organic matter decay and hete growth is defined
+    !----------------------------------------------------------------------------
+    subroutine SelectSituation (index)
+    
+        !Arguments---------------------------------------------------------------
+
+        integer                 , intent(IN)    :: index  
+
+         !------------------------------------------------------------------------
+
+        call LogicalImobilization (index)
+
+        call LogicalImobilization_P (index)
+
+        if (Me%Imobilization) then 
+            
+            call LogicalLimitation (index)
+        end if
+
+        if (Me%Imobilization_P) then
+
+            call LogicalLimitation_P (index)
+        end if
+
+
+        !!! começamos aqui a selecionar os casos
+
+
+        if (.NOT.Me%Imobilization .AND. .NOT.Me%Imobilization_P) then
+
+            Me%select=9                 ! OM decay        : potential
+                                        ! N imobilization : 0
+                                        ! P imobilization : 0
+        end if
+
+
+        if (.NOT.Me%Imobilization .AND. Me%Imobilization_P) then
+        
+            if (Me%PLimitation) then 
+        
+                Me%select =7            ! OM decay        : Real P
+                                        ! N imobilization : 0
+                                        ! P imobilization : Potencial
+            
+            else
+
+                Me%select = 8           ! OM decay        : potential
+                                        ! N imobilization : 0
+                                        ! P imobilization : Real Imobilization
+        
+            end if
+
+        end if
+
+        if (Me%Imobilization .AND. .NOT.Me%Imobilization_P) then
+
+            if (Me%NLimitation) then
+           
+                Me%select =3            ! OM decay        : Real N
+                                        ! N imobilization : Potential
+                                        ! P imobilization : 0
+            
+            else
+
+                Me%select =6            ! OM decay        : potential
+                                        ! N imobilization : real imobilization
+                                        ! P imobilization : 0
+            end if
+        end if
+    
+    
+        if (Me%Imobilization .AND. Me%Imobilization_P) then 
+    
+            call BothImobilization ()
+
+        end if 
+
+
+    end subroutine SelectSituation 
+
     !----------------------------------------------------------------------------
 
     
@@ -2066,19 +2939,22 @@ do1 :       do index = ArrayLB, ArrayUB
         integer, intent(IN)                 :: index
 
         !Local-------------------------------------------------------------------
+        integer                             :: CLI
+        integer                             :: CRI
+        integer                             :: AMI,PFI,NI
         real(8)                             :: Tterm
         real                                :: Aerobiose
         real                                :: Anaerobiose
         real                                :: Oxygen
         real                                :: Hydrogen
         real                                :: Temp
-
-        integer                             :: CLI
-        integer                             :: CRI
+        real                                :: Ionic
+        real                                :: PF
         real                                :: CSUBST
 
-        integer                             :: AMI
-        real                                :: Ammonia
+        real                                :: Ammonia, nitrate,Limitstuff
+        real                                :: Khn
+        real                                :: Adj 
 
         type(T_Coeficients)     , pointer   :: Rate
         type(T_Microorganisms)  , pointer   :: Micro
@@ -2091,51 +2967,81 @@ do1 :       do index = ArrayLB, ArrayUB
         Hydrogen    = Me%Hydrogen
         
         Temp        = Me%ExternalVar%Temperature(index)
+        Ionic       = Me%ExternalVar%Ionic(index)
 
         CLI         = Me%PropIndex%Labil_OM_C
         CRI         = Me%PropIndex%RefractOM_C
         CSUBST      = Me%ExternalVar%Mass(CLI, index) +         &
                       Me%ExternalVar%Mass(CRI, index) 
-        
+        PFI         = Me%PropIndex%Inorganic_P_fix
+   
+        PF          = Me%ExternalVar%Mass(PFI, index) 
         AMI         = Me%PropIndex%Ammonia
-        Ammonia     = Me%ExternalVar%Mass(AMI, index) 
-
+        NI          = Me%PropIndex%nitrate
+        Ammonia     = Me%ExternalVar%Mass(AMI, index)
+        Nitrate     = Me%ExternalVar%Mass(NI, index) 
+        Khn         = Me%Khn
+        Adj         = Me%Adj
         Rate        => Me%SpecificRates%Labil_OM_C
         Micro       => Me%Microorganisms
+
+        ! Limit for specific rate : ammonia and Csubs
+        Limitstuff = 0 !1400000.000000                      
+
 
         call CalcPopulation (index)
 
         if (Me%PropCalc%Carbon) then
              
         !Calculates the OM C specific decay Rate                 
-            Tterm       =   CalcTterm (Rate, Temp)                                                 
-            Rate%Value  =   Aerobiose * Tterm * Oxygen / Hydrogen**0.167        & 
-                            * Micro%Heterotrophs%Population
+
+            Tterm       =   CalcTterm (Rate, Temp,Ionic)                                                 
+            Rate%Value  =   Aerobiose * Tterm * Oxygen / Hydrogen**Khn       & 
+                            * Micro%Heterotrophs%Population*Adj
             
         !Calculates the Refractary OM C specific decay Rate
             Rate        =>  Me%SpecificRates%RefractOM_C
-            Tterm       =   CalcTterm (Rate, Temp)                    
-            Rate%Value  =   Aerobiose * Tterm * Oxygen / Hydrogen**0.167        &
-                            * Micro%Heterotrophs%Population
+            Tterm       =   CalcTterm (Rate, Temp,Ionic)                   
+            Rate%Value  =   Aerobiose * Tterm * Oxygen / Hydrogen**Khn       &
+                            * Micro%Heterotrophs%Population*Adj
         
         !Calculates the Heterotrophs C specific decay (death) Rate
             Rate        =>  Me%SpecificRates%Heterotrophs
-            Tterm       =   CalcTterm (Rate, Temp)
-            Rate%Value  =   1./ Aerobiose * Tterm * Hydrogen /                   & 
-                            ( Oxygen * CSUBST )  
+            Tterm       =   CalcTtermDeath (Rate, Temp,Ionic)
+            Rate%Value  =   1./ Aerobiose * Tterm * Hydrogen**Khn /                   & 
+                            ( Oxygen * Max(CSUBST,Limitstuff))*Micro%Heterotrophs%Population/Adj 
                         
         !Calculates the Autotrophs C specific decay (death) Rate
             Rate        =>  Me%SpecificRates%Autotrophs
-            Tterm       =   CalcTterm (Rate, Temp)
-            Rate%Value  =   1./ Aerobiose * Tterm * Hydrogen /                   & 
-                            ( Oxygen * (Ammonia + 0.5) )  
+            Tterm       =   CalcTtermDeath (Rate, Temp,Ionic)
+            Rate%Value  =   1./ Aerobiose * Tterm * Hydrogen**Khn /                   & 
+                            ( Oxygen *Max(Ammonia,Limitstuff))*Micro%Autotrophs%Population/Adj 
                         
         !Calculates the Anaerobic C specific decay (death) Rate
             Rate        =>  Me%SpecificRates%Anaerobic
-            Tterm       =   CalcTterm (Rate, Temp)
-            Rate%Value  =   1./ Anaerobiose * Tterm * Hydrogen /                 & 
-                            ( Oxygen * CSUBST )        
+            Tterm       =   CalcTtermDeath (Rate, Temp,Ionic)
+            Rate%Value  =   (1./ Anaerobiose * Tterm * Hydrogen**Khn /                 & 
+                            ( Max(Nitrate,Limitstuff)* Max(CSUBST,LimitStuff) ))*Micro%anaerobic%Population/Adj   
+                            
+        !Calculates the production of methane rate
+            Rate        =>  Me%SpecificRates%MethaneProduction
+            Tterm       =   CalcTterm (Rate, Temp,Ionic)
+            Rate%Value  =   (Anaerobiose * Tterm *Micro%Anaerobic%Population   &
+                            /Hydrogen**Khn)*Adj
+                                         
+                            
+        end if      
+                                                
         
+        if (Me%PropCalc%Sol_Bacteria) then
+
+        !Calculates the Solubilizing bacteria C specific decay (death) Rate
+
+            Rate        =>  Me%SpecificRates%Sol
+            Tterm       =   CalcTtermDeath (Rate, Temp,Ionic)
+            Rate%Value  =   1./ Aerobiose * Tterm * Hydrogen /                   & 
+                            ( Oxygen * (0.5+PF) ) /Adj 
+    
         end if
 
 
@@ -2143,29 +3049,56 @@ do1 :       do index = ArrayLB, ArrayUB
         
         !Calculates the AmmoniaToNitrate (nitrification) specific Rate  
             Rate        =>  Me%SpecificRates%AmmoniaToNitrate                   
-            Tterm       =   CalcTterm (Rate, Temp)
-            Rate%Value  =   Aerobiose * Tterm * Oxygen ** 0.5 / Hydrogen**0.167         &
-                            * Micro%Autotrophs%Population
+            Tterm       =   CalcTterm (Rate, Temp,Ionic)
+            Rate%Value  =   Aerobiose * Tterm * Oxygen ** 0.5 / Hydrogen**Khn        &
+                            * Micro%Autotrophs%Population*Adj
                                                 
         !Calculates the AmmoniaImobilization specific Rate
             Rate        =>  Me%SpecificRates%AmmoniaImobilization 
-            Tterm       =   CalcTterm (Rate, Temp)
-            Rate%Value  =   Aerobiose * Tterm * Oxygen / Hydrogen **0.167               &
-                            * Micro%Heterotrophs%Population 
+            Rate%Value  =   0.45
                                                         
         !Calculates the NitrateToNgas specific Rate
             Rate        =>  Me%SpecificRates%NitrateToNgas       
-            Tterm       =   CalcTterm (Rate, Temp)
-            Rate%Value  =   Anaerobiose * Tterm * CSUBST / Hydrogen **0.167             &
-                            * Micro%Anaerobic%Population
+            Tterm       =   CalcTterm (Rate, Temp,Ionic)
+            Rate%Value  =   Anaerobiose * Tterm * CSUBST / Hydrogen **Khn             &
+                            * Micro%Anaerobic%Population*Adj
 
         !Calculates the NitrateImobilization specific Rate
             Rate        =>  Me%SpecificRates%NitrateImobilization 
-            Tterm       =   CalcTterm (Rate, Temp)
-            Rate%Value  =   Aerobiose * Tterm * Oxygen / Hydrogen **0.167               &
-                            * Micro%Heterotrophs%Population
+            Rate%Value  =   0.45
+
+        !Calculates the Urea hydrolysis rate
+            Rate        =>  Me%SpecificRates%UreaHydrolysis 
+            Tterm       =   CalcTterm (Rate, Temp,Ionic)
+            Rate%Value  =   Aerobiose * Tterm
+
+
                                                         
         end if  
+
+
+        if (Me%PropCalc%Phosphorus) then                              !!!Lúcia
+
+        !Calculates the Phosphorus Immobilizationspecific Rate  
+                                                                        !!!Lúcia
+            Rate        =>  Me%SpecificRates%PhosphorusImobilization    !!!Lúcia
+            Tterm       =   CalcTterm (Rate, Temp,Ionic)
+            Rate%Value  =   Aerobiose * Tterm * Oxygen / Hydrogen ** Khn               &
+                            * Micro%Heterotrophs%Population*Adj
+
+            if (Me%PropCalc%Sol_Bacteria) then
+                    
+                Rate        =>  Me%SpecificRates%solubilizing                  
+                Tterm       =   CalcTterm (Rate, Temp,Ionic)
+                Rate%Value  =   Aerobiose * Tterm * Oxygen ** 0.5 / Hydrogen**Khn         &
+                                * Micro%Sols%Population*Adj
+
+
+             end if
+
+          end if  
+
+
         !------------------------------------------------------------------------
 
     end subroutine PotentialRatesCalc
@@ -2174,35 +3107,115 @@ do1 :       do index = ArrayLB, ArrayUB
 
     ! Calculates the temperature term of the Specific rates
     !----------------------------------------------------------------------------
-    function   CalcTterm (Coeficient, Temperature)
+    function   CalcTterm (Coeficient, Temperature,Ionic)
     real(8)     :: CalcTterm
 
         !Arguments---------------------------------------------------------------
         type(T_Coeficients) , pointer                       :: Coeficient
         real                                                :: Temperature
+        real                                                :: Ionic        
+        !Local-------------------------------------------------------------------
+        real    :: optimumt
+        real    :: tcalc
+        real    :: AE
+        real    :: A
+        real    :: kp
+        real    :: I
+        real    :: Eactivation
+        !------------------------------------------------------------------------
+        
+            optimumt        = Coeficient%optimumTemperature  !rate optimum temperature
+            tcalc           = Temperature
+            if (tcalc > optimumt) tcalc = 2 * optimumt - tcalc
+
+            AE          = Coeficient%ActivationE        ! enegia activação inicial-> constante
+            kp          = Coeficient%kp
+            A           = Coeficient%Acoef
+            tcalc       = tcalc + 273.15
+            I           = Ionic
+
+            Eactivation = AE+kp*I           ! calculo da verdadeira energia activção com base na força ionica
+ 
+
+            CalcTterm = (1.38E-23 * tcalc / 6.63E-34) * A * &
+                        exp (- Eactivation / (1.99E-03 * tcalc) ) 
+        !------------------------------------------------------------------------
+
+    end function CalcTterm
+    !----------------------------------------------------------------------------
+
+    ! Calculates the temperature term of the Specific rates
+    !----------------------------------------------------------------------------
+    function   CalcTtermDeath (Coeficient, Temperature,Ionic)
+    real(8)     :: CalcTtermDeath
+
+        !Arguments---------------------------------------------------------------
+        type(T_Coeficients) , pointer                       :: Coeficient
+        real                                                :: Temperature
+        real                                                :: Ionic
         
         !Local-------------------------------------------------------------------
         real    :: optimumt
         real    :: tcalc
         real    :: AE
         real    :: A
+        real    :: kp
+        real    :: I
+        real    :: Eactivation
         !------------------------------------------------------------------------
         
             optimumt        = Coeficient%optimumTemperature  !rate optimum temperature
             tcalc           = Temperature
-            tcalc           = 30
             if (tcalc > optimumt) tcalc = 2 * optimumt - tcalc
 
             AE          = Coeficient%ActivationE
+            kp          = Coeficient%kp
             A           = Coeficient%Acoef
-            tcalc       = tcalc + 273.
+            tcalc       = tcalc + 273.15
+            I           = Ionic
 
-            CalcTterm = Boltzman * tcalc / Planck * A * &
-                        exp (- AE / (UnivGC) * tcalc  ) 
+            Eactivation = AE+kp*I
+ 
+ 
+            CalcTtermDeath = (1.383E-23 * tcalc / 6.63E-34) * A / &
+                        exp (- Eactivation / (1.99E-03 * tcalc) ) 
         !------------------------------------------------------------------------
 
-    end function CalcTterm
+    end function CalcTtermDeath
     !----------------------------------------------------------------------------
+
+
+
+    ! Calculates the temperature term of the Specific rates
+    !----------------------------------------------------------------------------
+!    function   CalcActivationEnergy (coeficient,I,Ea)
+!    real(8)     :: CalcActivationEnergy
+
+        !Arguments---------------------------------------------------------------
+!        type(T_Coeficients) , pointer                       :: Coeficient
+!       real                                                :: I        
+!       real                                                :: Ea
+        !Local-------------------------------------------------------------------
+
+!       real    ::  E0i
+!       real    ::  kp
+        !----------------------------------------------------------------------------
+
+
+
+
+!       E0i = Coeficient%ActivationE
+!       kp  = Coeficient%kp
+!       I   = Me%ExternalVar%Ionic
+
+
+!       Ea = E0i +kp*I
+
+
+    !----------------------------------------------------------------------------
+!       end function CalcActivationEnergy 
+    !----------------------------------------------------------------------------
+
 
 
     ! Calculates the microorganisms population
@@ -2263,6 +3276,27 @@ do1 :       do index = ArrayLB, ArrayUB
             else
                 Microorganisms%LogicalMinumumPOP = OFF
             end if             
+ 
+
+
+
+        if ( Me%PropCalc%Sol_Bacteria) then
+
+            Microorganisms    => Me%Microorganisms%Sols
+
+                propindex   = Microorganisms%MicroIndex
+                Carbon      = Me%ExternalVar%Mass(propindex, index) 
+                CpopRatio   = Microorganisms%CPopRatio
+
+                Microorganisms%Population = Carbon * CpopRatio
+
+                if (Microorganisms%Population .LE.  Microorganisms%MinimumPop   ) then
+                    Microorganisms%LogicalMinumumPOP = ON
+                else
+                    Microorganisms%LogicalMinumumPOP = OFF
+                end if             
+
+        end if
         
         nullify(Microorganisms        )                     
         !------------------------------------------------------------------------
@@ -2300,18 +3334,20 @@ do2 :       do j = PropLB, PropUB
 
 
     !--------------------------------------------------------------------------
-    subroutine SedimentQualityCoefCalculation(index)
+    subroutine SedimentQualityCoefCalculation(index)        !!!Lúcia
 
         !Arguments-------------------------------------------------------------
         integer, intent(IN)         :: index
         !----------------------------------------------------------------------
 
-                                    call Oxygen       (index)
-        if (Me%PropCalc%Carbon    ) call Carbon       (index)
-        if (Me%PropCalc%Nitrogen  ) call Nitrogen     (index)
+                                      call Oxygen       (index)
+        if (Me%PropCalc%Carbon    )   call Carbon       (index)
+        if (Me%PropCalc%Nitrogen  )   call Nitrogen     (index)
+        if (Me%PropCalc%Phosphorus)   call Phosphorus   (index)         !!!Lúcia
+        if (Me%PropCalc%Sol_Bacteria) call Sol_Bacteria (index)         !!!Lúcia
         !----------------------------------------------------------------------
 
-    end subroutine SedimentQualityCoefCalculation
+    end subroutine 
     !--------------------------------------------------------------------------
 
 
@@ -2339,23 +3375,23 @@ cd1 :   if (Me%CalcMethod%ExplicitMethod) then
 do1 :       do equa = PropLB, PropUB           !Percorre as equacoes
 do2 :       do prop = PropLB, PropUB           !Percorre as propriedades
 
-cd2 :       if (Me%Matrix(equa, prop) .NE. 0.)  then
+cd2 :           if (Me%Matrix(equa, prop) .NE. 0.)  then
 
-cd3 :           if (equa .EQ. prop) then
+cd3 :               if (equa .EQ. prop) then
                     
-                    Me%IndTerm(equa) =  Me%IndTerm (equa )                          &
-                                     + ((Me%Matrix (equa, prop ) - 1. )             &
-                                     * Me%ExternalVar%Mass (prop, index) )
-                else cd3
+                        Me%IndTerm(equa) =  Me%IndTerm (equa )                          &
+                                         + ((Me%Matrix (equa, prop ) - 1. )             &
+                                         * Me%ExternalVar%Mass (prop, index) )
+                    else cd3
                     
-                    Me%IndTerm(equa) =  Me%IndTerm (equa)                           &
-                                     +  Me%Matrix    (equa, prop)                   &
-                                     *  Me%ExternalVar%Mass(prop, index)
-                end if cd3
+                        Me%IndTerm(equa) =  Me%IndTerm (equa)                           &
+                                         +  Me%Matrix    (equa, prop)                   &
+                                         *  Me%ExternalVar%Mass(prop, index)
+                    end if cd3
 
-                Me%NewMass(equa) = Me%IndTerm(equa)
+                    Me%NewMass(equa) = Me%IndTerm(equa)
             
-            end if cd2
+                end if cd2
             
             end do do2
             end do do1
@@ -2380,7 +3416,7 @@ do3 :       do prop = PropLB, PropUB
 
             nullify   (x)
         
-    else if (Me%CalcMethod%SemiimpMethod) then
+        else if (Me%CalcMethod%SemiimpMethod) then
 
 do31 :       do equa = PropLB, PropUB           !Percorre as equacoes
 do32 :       do prop = PropLB, PropUB           !Percorre as propriedades
@@ -2447,35 +3483,35 @@ do33 :      do prop = PropLB, PropUB
         propUB = Me%Prop%IUB
 
           
-                EquaRateFluxX => Me%FirstEquaRateFlux
+        EquaRateFluxX => Me%FirstEquaRateFlux
 
-do1 :           do while(associated(EquaRateFluxX))  
-                    
-                    PropRateFluxX => EquaRateFluxX%FirstPropRateFlux
-                    
-                    do while(associated(PropRateFluxX))  
-                         
-                         equa = EquaRateFluxX%ID
-                         prop = PropRateFluxX%ID
-                                                                    
-
-                    if (equa.ne.prop) then
-                    
-                        PropRateFluxX%Field(index)  = Me%Matrix(equa, prop)         & 
-                                                    * Me%ExternalVar%Mass(prop,index)
-                    else
-                        
-                        PropRateFluxX%Field(index)  = -(1.-Me%Matrix(equa, prop))   & 
-                                                    * Me%ExternalVar%Mass(prop,index)                       
-                    endif
-
-                    PropRateFluxX => PropRateFluxX%Next
-                    
-                    end do
+do1 :   do while(associated(EquaRateFluxX))  
+            
+            PropRateFluxX => EquaRateFluxX%FirstPropRateFlux
+            
+            do while(associated(PropRateFluxX))  
                  
-                 EquaRateFluxX => EquaRateFluxX%Next
+                equa = EquaRateFluxX%ID
+                prop = PropRateFluxX%ID
+                                                            
 
-                 end do do1
+                if (equa.ne.prop) then
+            
+                    PropRateFluxX%Field(index)  = Me%Matrix(equa, prop)         & 
+                                                * Me%ExternalVar%Mass(prop,index)
+                else
+                
+                    PropRateFluxX%Field(index)  = -(1.-Me%Matrix(equa, prop))   & 
+                                                * Me%ExternalVar%Mass(prop,index)                       
+                endif
+
+                PropRateFluxX => PropRateFluxX%Next
+            
+            end do
+         
+            EquaRateFluxX => EquaRateFluxX%Next
+
+         end do do1
 
           !unidades
           
@@ -2502,6 +3538,7 @@ do1 :           do while(associated(EquaRateFluxX))
         !Arguments---------------------------------------------------------------
         integer, intent(IN)         :: index
         
+        
         !Local-------------------------------------------------------------------
         integer                     :: O
         !------------------------------------------------------------------------
@@ -2515,6 +3552,8 @@ do1 :           do while(associated(EquaRateFluxX))
         Me%IndTerm(O) = Me%ExternalVar%Mass(O, index)
         ! vou correr com 0xigénio constante
         !------------------------------------------------------------------------
+
+
 
     end subroutine Oxygen
     !----------------------------------------------------------------------------
@@ -2531,17 +3570,24 @@ do1 :           do while(associated(EquaRateFluxX))
 
         call RefractOrganicCarbon   (index)
 
-        call HetrotrophicC          (index)
+        call HeterotrophicC         (index)
 
-        call AutotrotrophicC        (index)
+        call AutotrophicC           (index)
 
-        call AnaerobicC             (index)       
+        call AnaerobicC             (index)
+        
+        call CO2                    (index)     
+
+!       call Methane                (index)       
     !------------------------------------------------------------------------
 
     end subroutine Carbon
     !---------------------------------------------------------------------------
 
 
+
+
+    !Alterações---Lucia
     !Labil Organic Carbon
     !
     !SOURCES: - Microorganisms death 
@@ -2553,97 +3599,217 @@ do1 :           do while(associated(EquaRateFluxX))
         integer, intent(IN)         :: index
 
         !Local-------------------------------------------------------------------
-        integer :: AMI, NII
+        integer :: AMI, NII,LOM_CI,ROM_CI,PI            !!!Lúcia
         
         real    :: ImobilizationRateNH4
         real    :: DenitrificationRate
         real    :: ImobilizationRateNO3
+        real    :: ImobilizationRateP
+        real    :: solubilizingRate
+        real    :: LOM_C_Srate
 
-        real    :: LOM_C_Srate,LCN
-        integer :: LOM_CI
-
+        real    :: LCN
+        real    :: LCP                          !!!Lúcia
         real    :: RCN
+        real    :: RCP                          !!!Lúcia
 
-        real    :: HeteroDeathRate, HetCN     
+        real    :: HeteroDeathRate, HetCN , HetCP    !!!Lúcia
         integer :: HetI                
         
-        real    :: AnaDeathRate, AnaCN        
+        real    :: AnaDeathRate, AnaCN, AnaCP     !!!Lúcia   
         integer :: AnaI                  
 
-        real    :: AutoDeathRate, AutoCN 
+        real    :: AutoDeathRate, AutoCN , AutoCP !!!Lúcia
         integer :: AutoI               
 
-        real    :: Partition, AnaPartition
+        real    :: Partition, AnaPartition , seletion,solpartition   !!!Lúcia
         real    :: Conversion, DTDay
+        integer :: PFI
+
+        real    :: AM,N,P,Real_N,Real_P         !!!Lúcia
+        real    :: NO3,NO3limit,MethaneProduction
         !------------------------------------------------------------------------
         LOM_C_Srate         = Me%SpecificRates%Labil_OM_C%Value
         LCN                 = Me%LabiOM_CN_Ratio
         LOM_CI              = Me%PropIndex%Labil_OM_C
+        ROM_CI              = Me%PropIndex%RefractOM_C
+        LCP                 = Me%LabilOM_CP_Ratio       !!!Lúcia  
+        
+        PFI                 = Me%PropIndex%Inorganic_P_fix  
+    
             
         RCN                 = Me%RefractOM_CN_Ratio   
+        RCP                 = Me%RefractOM_CP_Ratio         !!!Lúcia
                 
         DenitrificationRate     = Me%SpecificRates%NitrateToNgas%Value
         ImobilizationRateNH4    = Me%SpecificRates%AmmoniaImobilization%Value
         ImobilizationRateNO3    = Me%SpecificRates%NitrateImobilization%Value
-                      
+        ImobilizationRateP      = Me%SpecificRates%PhosphorusImobilization%Value  !!!Lúcia
+        solubilizingrate        = Me%SpecificRates%Solubilizing%Value           
+            
         NII                 = Me%PropIndex%Nitrate
         AMI                 = Me%PropIndex%Ammonia
+        PI                  = Me%PropIndex%Inorganic_P_soluble   !!!Lúcia
 
         Partition           = Me%Partition
         AnaPartition        = Me%AnaerobicPartition
+        solpartition        = Me%Solpartition
+        seletion            = Me%Select                          !!!Lúcia
 
         HeteroDeathRate     = Me%SpecificRates%Heterotrophs%Value
-        HetI                = Me%PropIndex%HetrotrophicC
+        HetI                = Me%PropIndex%HeterotrophicC
         HetCN               = Me%Microorganisms%Heterotrophs%CNRatio
+        HetCP               = Me%Microorganisms%Heterotrophs%CPRatio        !!!Lúcia
 
         AnaDeathRate        = Me%SpecificRates%Anaerobic%Value
         AnaI                = Me%PropIndex%AnaerobicC
         AnaCN               = Me%Microorganisms%Anaerobic%CNRatio
+        AnaCP               = Me%Microorganisms%Anaerobic%CPRatio
 
         AutoDeathRate       = Me%SpecificRates%Autotrophs%Value
-        AutoI               = Me%PropIndex%AutotrotrophicC
+        AutoI               = Me%PropIndex%AutotrophicC
         AutoCN              = Me%Microorganisms%Autotrophs%CNRatio
+        AutoCP              = Me%Microorganisms%Autotrophs%CPRatio
 
         Conversion          = Me%ExternalVar%DissolvedToParticulate (index)
 
         DTDay               = Me%DTDay
 
+        AM   = Me%ExternalVar%Mass(AMI,index)   !!!
+        N    = Me%ExternalVar%Mass(NII,index)   !!!
+        P    = Me%ExternalVar%Mass(PI,index)    !!!
+
+        NO3limit            = Me%NO3limit
+        methaneproduction   = Me%SpecificRates%MethaneProduction%Value
+        NO3                 = Me%ExternalVar%Mass(NII,index)
+
+
+
         Me%Matrix(LOM_CI, LOM_CI)  = 1.
 
-        !Sinks Heterotrophs uptake           
-        if (Me%NLimitation)  then 
-        !The OM C uptake rate is controled by the potential immobilization rate
+
+        !Sinks  : Heterotrophs uptake:  will depende on the type of biomass growth
+        
             
+        if (seletion==5.OR.seletion==6 .OR. seletion==8 .OR. seletion==9 )  then 
+
+            ! biomass potential growth
+        
+            Me%Matrix(LOM_CI, LOM_CI)  = Me%Matrix(LOM_CI, LOM_CI) - DTDay * LOM_C_Srate  
+
+        end if
+
+        if (seletion==2.OR. seletion==3) then 
+
+            ! biomass real growth limited by nitrogen 
+
             Me%Matrix(LOM_CI, AMI)  = Me%Matrix(LOM_CI, AMI) - DTDay                & 
                                     * ImobilizationRateNH4  * Conversion            &
-                                    * (1./( (1./HetCN - 1./LCN ) + Partition * (1./HetCN - 1./RCN))) 
+                                    * (1./( (1./HetCN - 1./LCN ) + AnaPartition     &
+                                    * (1./HetCN - 1./RCN))) 
                 
             Me%Matrix(LOM_CI, NII)  = Me%Matrix(LOM_CI, NII) - DTDay                &
                                     * ImobilizationRateNO3  * Conversion            & 
-                                    * (1./( (1./HetCN - 1./LCN ) + Partition * (1./HetCN - 1./RCN))) 
+                                    * (1./( (1./HetCN - 1./LCN ) + AnaPartition     &
+                                    * (1./HetCN - 1./RCN)))
+         end if
 
-        else
-        
-            Me%Matrix(LOM_CI, LOM_CI)  = Me%Matrix(LOM_CI, LOM_CI) - DTDay * LOM_C_Srate  
+        if (seletion==4.OR. seletion==7) then
+
+            ! biomass real growth limited by phosphorus
+                    
+            Me%Matrix(LOM_CI, PI)  = Me%Matrix(LOM_CI, PI) - DTDay                  &
+                                    * ImobilizationRateP  * Conversion              & 
+                                    * (1./( (1./HetCP - 1./LCP ) + AnaPartition     &
+                                    * (1./HetCP - 1./RCP)))
+
         end if
+
         
-        !Sinks: Anaerobic uptake 
-        Me%Matrix(LOM_CI, NII)      = Me%Matrix(LOM_CI, NII) - DTDay                & 
-                                    * DenitrificationRate * Conversion              &
-                                    * ( 0.1/( AnaPartition +1.) )
+        if(seletion==1) then
+    
+            ! special case
+
+            Real_N = ((ImobilizationRateNH4*AM+ImobilizationRateNO3*N)               &
+                      *Conversion)*(1./( (1./HetCN - 1./LCN )                        &
+                      + AnaPartition * (1./HetCN - 1./RCN)))
+
+            Real_P = ((ImobilizationRateP*P)*Conversion)                             &
+                    * (1./( (1./HetCP - 1./LCP ) +                                   &
+                    AnaPartition * (1./HetCP - 1./RCP)))
+
+    
+            if( Real_N<Real_P) then
+
+                  Me%Matrix(LOM_CI, AMI)  = Me%Matrix(LOM_CI, AMI) - DTDay           & 
+                                    * ImobilizationRateNH4  * Conversion             &
+                                    * (1./( (1./HetCN - 1./LCN ) +                   &
+                                    AnaPartition * (1./HetCN - 1./RCN))) 
+                
+                  Me%Matrix(LOM_CI, NII)  = Me%Matrix(LOM_CI, NII) - DTDay           &
+                                    * ImobilizationRateNO3  * Conversion             & 
+                                    * (1./( (1./HetCN - 1./LCN )                     &
+                                    + AnaPartition * (1./HetCN - 1./RCN)))  
+                            
+                                else
+
+                  Me%Matrix(LOM_CI, PI)  = Me%Matrix(LOM_CI, PI) - DTDay             &
+                                    * ImobilizationRateP  * Conversion               & 
+                                    * (1./( (1./HetCP - 1./LCP )                     &
+                                    + AnaPartition * (1./HetCP - 1./RCP)))
+
+            end if
+        end if
+                
         
-        !Sources: Anaerobic death
+        !Sinks    : Anaerobic uptake, vai depender se respiram NO3 ou CO2 
+
+        if (NO3>NO3limit) then    ! respiram NO3
+
+
+            Me%Matrix(LOM_CI, NII)     = Me%Matrix(LOM_CI, NII) - DTDay          & 
+                                     * DenitrificationRate * Conversion        &
+                                     * ( 0.1/( AnaPartition +1.) )
+  
+        else                   ! respiram CO2
+             
+            Me%Matrix(LOM_CI, LOM_CI)     = Me%Matrix(LOM_CI, LOM_CI) - DTDay    & 
+                                     *  methaneproduction         &
+                                     * ( 0.1/( AnaPartition +1.) )
+
+            Me%Matrix(LOM_CI, ROM_CI)     = Me%Matrix(LOM_CI, ROM_CI) - DTDay    & 
+                                     *  methaneproduction                     &
+                                     * ( 0.1/( AnaPartition +1.) )
+             
+        end if              
+  
+        
+        !Sources  : Anaerobic death
+
         if (.NOT. Me%Microorganisms%Anaerobic%LogicalMinumumPOP)                    &
             Me%Matrix(LOM_CI, AnaI) = Me%Matrix(LOM_CI, AnaI) + DTDay * AnaDeathRate
                                               
-        !Sources: Hetrotrophic death
+        !Sources  : Heterotrophic death
+
         if (.NOT. Me%Microorganisms%Heterotrophs%LogicalMinumumPOP )                &
             Me%Matrix(LOM_CI, HetI) = Me%Matrix(LOM_CI, HetI) + DTDay * HeteroDeathRate
                                               
-        !Sources: Autotrotrophic death
+        !Sources  : Autotrophic death
+
         if (.NOT. Me%Microorganisms%Autotrophs%LogicalMinumumPOP)                   &
             Me%Matrix(LOM_CI, AutoI)= Me%Matrix(LOM_CI, AutoI) + DTDay * AutoDeathRate
-        
+
+
+        if (Me%PropCalc%Sol_Bacteria) then
+       
+            !Sink: Sol uptake
+            Me%Matrix(LOM_CI, PFI) = Me%Matrix(LOM_CI, PFI) - DTDay                       &
+                                  * solubilizingRate * Conversion                       &
+                                  * (0.1 /( (SolPartition + 1. ))) 
+
+        end if
+
+       
         !Independent term
         Me%IndTerm(LOM_CI) = Me%ExternalVar%Mass(LOM_CI, index)                                    
     !------------------------------------------------------------------------
@@ -2652,6 +3818,10 @@ do1 :           do while(associated(EquaRateFluxX))
     !----------------------------------------------------------------------------
 
 
+
+
+
+    !Alterações---Lucia
     !Refractary Organic Carbon
     !
     !SOURCES: - Nitrification eficiency 
@@ -2663,222 +3833,510 @@ do1 :           do while(associated(EquaRateFluxX))
         integer, intent(IN)         :: index
 
        !Local-------------------------------------------------------------------
-        integer :: AMI, NII
-        
+        integer :: AMI, NII,ROM_CI,PI,PFI,LOM_CI            !!!Lúcia
+       
         real    :: ImobilizationRateNH4
         real    :: DenitrificationRate
         real    :: ImobilizationRateNO3
-
-        real    :: ROM_C_Srate, RCN
-        integer :: ROM_CI
+        real    :: ImobilizationRateP         !!!Lúcia
+        real    :: solubilizingrate
+        real    :: ROM_C_Srate, RCN,RCP
 
         real    :: LCN
-
-        real    :: HeteroDeathRate, HetCN     
+        real    :: LCP                          !!!Lúcia
+        real    :: HeteroDeathRate, HetCN , HetCP    !!!Lúcia
+        
         integer :: HetI                
         
-        real    :: AnaDeathRate, AnaCN  
+        real    :: AnaDeathRate, AnaCN     !!!Lúcia  
         integer :: AnaI                
 
-        real    :: AutoDeathRate, AutoCN 
+        real    :: AutoDeathRate, AutoCN !!!Lúcia
         integer :: AutoI               
 
-        real    :: Partition, AnaPartition
-
+        real    :: Partition, AnaPartition,seletion,solpartition    !!!Lúcia
         real    :: Conversion, DTDay
+
+        real    :: AM,N,P,Real_N,Real_P         !!!Lúcia
+        real    :: NO3,NO3limit,methaneproduction
         !------------------------------------------------------------------------
         
         ROM_C_Srate         = Me%SpecificRates%RefractOM_C%Value
         RCN                 = Me%RefractOM_CN_Ratio   
         ROM_CI              = Me%PropIndex%RefractOM_C
+        LOM_CI              = Me%PropIndex%Labil_OM_C
+
+        LCP                 = Me%LabilOM_CP_Ratio       !!!Lúcia  
+        PFI                 = Me%PropIndex%Inorganic_P_fix  
             
-        LCN                 = Me%LabiOM_CN_Ratio   
+        LCN                 = Me%LabiOM_CN_Ratio  
+        RCP                 = Me%RefractOM_CP_Ratio         !!!Lúcia 
                 
         DenitrificationRate     = Me%SpecificRates%NitrateToNgas%Value
         ImobilizationRateNH4    = Me%SpecificRates%AmmoniaImobilization%Value
         ImobilizationRateNO3    = Me%SpecificRates%NitrateImobilization%Value
+        ImobilizationRateP      = Me%SpecificRates%PhosphorusImobilization%Value  !!!Lúcia
+        solubilizingrate        = Me%SpecificRates%Solubilizing%Value           
                       
         NII                 = Me%PropIndex%Nitrate
         AMI                 = Me%PropIndex%Ammonia
+        PI                  = Me%PropIndex%Inorganic_P_soluble   !!!Lúcia
 
         Partition           = Me%Partition
         AnaPartition        = Me%AnaerobicPartition
+        solpartition        = Me%Solpartition
 
         HeteroDeathRate     = Me%SpecificRates%Heterotrophs%Value
-        HetI                = Me%PropIndex%HetrotrophicC
+        HetI                = Me%PropIndex%HeterotrophicC
         HetCN               = Me%Microorganisms%Heterotrophs%CNRatio
+        HetCP               = Me%Microorganisms%Heterotrophs%CPRatio        !!!Lúcia
 
         AnaDeathRate        = Me%SpecificRates%Anaerobic%Value
         AnaI                = Me%PropIndex%AnaerobicC
         AnaCN               = Me%Microorganisms%Anaerobic%CNRatio
 
         AutoDeathRate       = Me%SpecificRates%Autotrophs%Value
-        AutoI               = Me%PropIndex%AutotrotrophicC
+        AutoI               = Me%PropIndex%AutotrophicC
         AutoCN              = Me%Microorganisms%Autotrophs%CNRatio
 
         Conversion          = Me%ExternalVar%DissolvedToParticulate (index)
-        
+        seletion            = Me%Select                          !!!Lúcia       
         DTDay               = Me%DTDay
+
+
+        AM   = Me%ExternalVar%Mass(AMI,index)   !!!
+        N    = Me%ExternalVar%Mass(NII,index)   !!!
+        P    = Me%ExternalVar%Mass(PI,index)    !!!
+       
+        NO3limit            = Me%NO3limit
+        methaneproduction   = Me%SpecificRates%MethaneProduction%Value
+        NO3                 = Me%ExternalVar%Mass(NII,index)
+
 
         
         Me%Matrix(ROM_CI, ROM_CI)   = 1.
 
-        !Sinks Heterotrophs uptake           
-        if (Me%NLimitation)  then 
-        !The OM N uptake rate is controlrd by the potential immobilization rate
-            
-            Me%Matrix(ROM_CI, AMI)   = Me%Matrix(ROM_CI, AMI) - DTDay               & 
-                                     * ImobilizationRateNH4  * Conversion           &
-                                     * (1./( (1./HetCN - 1./LCN )                   &
-                                     * 1./ Partition + (1./HetCN - 1./RCN)))       
-                
-            Me%Matrix(ROM_CI, NII)   = Me%Matrix(ROM_CI, NII) - DTDay               & 
-                                     * ImobilizationRateNO3  * Conversion           &
-                                     * (1./( (1./HetCN - 1./LCN )                   &
-                                     * 1./ Partition +  (1./HetCN - 1./RCN)))     
+        !Sinks: Heterotrophs uptake           
+        
 
-        else
+        if (seletion==5.OR.seletion==6 .OR. seletion==8 .OR. seletion==9 )  then 
         
-            Me%Matrix(ROM_CI,ROM_CI) = Me%Matrix(ROM_CI, ROM_CI) - DTDay * ROM_C_Srate
+             Me%Matrix(ROM_CI, ROM_CI)  = Me%Matrix(ROM_CI, ROM_CI) - DTDay * ROM_C_Srate  
+
         end if
+
         
-        !Sinks: Anaerobic uptake 
-        Me%Matrix(ROM_CI, NII)       = Me%Matrix(ROM_CI, NII) - DTDay               &
-                                     * DenitrificationRate * Conversion             &
-                                     * ( 0.1/( 1./ AnaPartition +1.) )             
-                                                                                 
+        if (seletion==2.OR. seletion==3) then 
+
+
+            Me%Matrix(ROM_CI, AMI)  = Me%Matrix(ROM_CI, AMI) - DTDay                & 
+                                    * ImobilizationRateNH4  * Conversion            &
+                                    * (1./( (1./HetCN - 1./LCN )*(1/AnaPartition)   &
+                                    +  (1./HetCN - 1./RCN))) 
+                
+            Me%Matrix(ROM_CI, NII)  = Me%Matrix(ROM_CI, NII) - DTDay                &
+                                    * ImobilizationRateNO3  * Conversion            & 
+                                    * (1./( (1./HetCN - 1./LCN )*(1/AnaPartition)   &
+                                    +  (1./HetCN - 1./RCN)))
+         end if
+
+        if (seletion==4.OR. seletion==7) then
+
+            
+            Me%Matrix(ROM_CI, PI)  = Me%Matrix(ROM_CI, PI) - DTDay                  &
+                                    * ImobilizationRateP  * Conversion              & 
+                                    * (1./( (1./HetCP - 1./LCP )*(1/AnaPartition)   &
+                                    + (1./HetCP - 1./RCP)))
+
+        end if
+
+        
+        if(seletion==1) then
+    
+            Real_N = ((ImobilizationRateNH4*AM+ImobilizationRateNO3*N)*Conversion)  &
+                        *(1./( (1./HetCN - 1./LCN )*(1/AnaPartition) +              & 
+                        (1./HetCN - 1./RCN)))
+
+            Real_P = ((ImobilizationRateP*P)*Conversion)                            &
+                    * (1./( (1./HetCP - 1./LCP )*(1/AnaPartition)                   &
+                    +  (1./HetCP - 1./RCP)))
+
+    
+            if( Real_N<Real_P) then
+
+                  Me%Matrix(ROM_CI, AMI)  = Me%Matrix(ROM_CI, AMI) - DTDay          & 
+                                    * ImobilizationRateNH4  * Conversion            &
+                                    * (1./( (1./HetCN - 1./LCN )*(1/AnaPartition)   &
+                                    +  (1./HetCN - 1./RCN))) 
+                
+                  Me%Matrix(ROM_CI, NII)  = Me%Matrix(ROM_CI, NII) - DTDay          &
+                                    * ImobilizationRateNO3  * Conversion            & 
+                                    * (1./( (1./HetCN - 1./LCN )*(1/AnaPartition)   &
+                                    +  (1./HetCN - 1./RCN)))    
+                            
+                                else
+
+                  Me%Matrix(ROM_CI, PI)  = Me%Matrix(ROM_CI, PI) - DTDay            &
+                                    * ImobilizationRateP  * Conversion              & 
+                                    * (1./( (1./HetCP - 1./LCP )*(1/AnaPartition)   &
+                                    + (1./HetCP - 1./RCP)))
+
+            end if
+        end if
+
+
+        !Sinks    : Anaerobic uptake, vai depender se respiram NO3 ou CO2 
+
+        if (NO3>NO3limit) then    ! respiram NO3
+
+
+            Me%Matrix(ROM_CI, NII) = Me%Matrix(ROM_CI, NII) - DTDay                     &
+                               * DenitrificationRate * Conversion                   &
+                               * (0.1/( (1./AnaPartition) +1.) )     
+
+        else                   ! respiram CO2
+
+            Me%Matrix(ROM_CI, LOM_CI)     = Me%Matrix(ROM_CI, LOM_CI) - DTDay    & 
+                                     *  methaneproduction                       &
+                                     * ( 0.1/( (1/AnaPartition) +1.) )
+
+            Me%Matrix(ROM_CI, ROM_CI)     = Me%Matrix(ROM_CI, ROM_CI) - DTDay    & 
+                                     *  methaneproduction                        &
+                                     * ( 0.1/( (1/AnaPartition) +1.) )
+             
+        end if              
+
+
+                                             
         !Independent term
-        Me%IndTerm(ROM_CI)       =  Me%ExternalVar%Mass(ROM_CI, index) 
-        !------------------------------------------------------------------------
+        Me%IndTerm(ROM_CI)     = Me%ExternalVar%Mass(ROM_CI, index)
+
+        if (Me%PropCalc%Sol_Bacteria) then
+        
+            !Sink: Sol uptake
+            Me%Matrix(ROM_CI, PFI) = Me%Matrix(ROM_CI, PFI) -DTDay                      &
+                                  * solubilizingRate * Conversion                       &
+                                  * (0.1 /( ((1/SolPartition) + 1. ))) 
+        end if      
+                                                 
+    !----------------------------------------------------------------------------
+
 
     end subroutine RefractOrganicCarbon 
     !----------------------------------------------------------------------------
 
 
+
+
+
+    !Alterações Lúcia
     !Heterotrophic Carbon
     !
     !SOURCES: - Nitrification eficiency 
     !SINKS:   - Death
     !----------------------------------------------------------------------------    
-    subroutine HetrotrophicC (index)
+    subroutine HeterotrophicC (index)
 
         !Arguments---------------------------------------------------------------
         integer, intent(IN)         :: index
 
         !Local-------------------------------------------------------------------
-        real    :: HeteroDeathRate, HetCN, HetEF
+        real    :: HeteroDeathRate, HetCN, HetEF,HetCP          !!!Lúcia
         integer :: HetCI
         
-        real    :: ROM_C_Srate, RCN                 
+        real    :: ROM_C_Srate, RCN,RCP      !!!Lúcia          
         integer :: ROM_CI                          
 
-        real    :: LOM_C_Srate, LCN                 
+        real    :: LOM_C_Srate, LCN, LCP    !!!Lúcia            
         integer :: LOM_CI             
        
         real    :: ImobilizationRateNO3
-        
         integer :: NII, AMI
+
+
+        real    :: ImobilizationRateP       !!!Lúcia
+        integer :: PI                   !!!Lúcia
         
         real    :: ImobilizationRateNH4
+
+        real    :: Real_N_ROM , Real_P_ROM,Real_N_LOM, Real_P_LOM, AM,N, P   !!!Lúcia
         
-        real    :: Partition, Conversion, DTDay
+        real    :: AnaPartition,partition, Conversion, DTDay,seletion          !!!Lúcia
         !------------------------------------------------------------------------
 
         HeteroDeathRate      = Me%SpecificRates%Heterotrophs%Value
-        HetCI                = Me%PropIndex%HetrotrophicC
+        HetCI                = Me%PropIndex%HeterotrophicC
         HetCN                = Me%Microorganisms%Heterotrophs%CNRatio
+        HetCP                = Me%Microorganisms%Heterotrophs%CPRatio !!!Lúcia
         HetEF                = Me%Microorganisms%Heterotrophs%EficiencyC
 
         ROM_C_Srate          = Me%SpecificRates%RefractOM_C%Value
-        RCN                  = Me%RefractOM_CN_Ratio   
+        RCN                  = Me%RefractOM_CN_Ratio 
+        RCP                  = Me%RefractOM_CP_Ratio  !!!Lúcia
         ROM_CI               = Me%PropIndex%RefractOM_C
             
         LOM_C_Srate          = Me%SpecificRates%Labil_OM_C%Value
         LCN                  = Me%LabiOM_CN_Ratio
+        LCP                  = Me%LabilOM_CP_Ratio    !!!Lúcia
         LOM_CI               = Me%PropIndex%Labil_OM_C
         
         NII                  = Me%PropIndex%Nitrate
         ImobilizationRateNO3 = Me%SpecificRates%NitrateImobilization%Value
+        N                    = Me%ExternalVar%Mass(NII, index)       !!!Lúcia
 
         AMI                  = Me%PropIndex%Ammonia
         ImobilizationRateNH4 = Me%SpecificRates%AmmoniaImobilization%Value
+        AM                   = Me%ExternalVar%Mass(AMI, index)    !!!Lúcia
 
+
+        PI                   = Me%PropIndex%Inorganic_P_soluble
+        ImobilizationRateP   = Me%SpecificRates%PhosphorusImobilization%Value
+        P                    = Me%ExternalVar%Mass(PI, index)     !!!Lúcia
+
+        AnaPartition         = Me%AnaerobicPartition
         Partition            = Me%Partition
-        
         Conversion           = Me%ExternalVar%DissolvedToParticulate (index)
 
         DTDay                = Me%DTDay
+        seletion             = Me%Select    !!!Lúcia
 
         
         Me%Matrix(HetCI, HetCI) = 1.
         
-        !Sink   : Hetrotrophic death
+        !Sink   : Heterotrophic death
+
         if (.NOT. Me%Microorganisms%Heterotrophs%LogicalMinumumPOP)                 &
            Me%Matrix(HetCI, HetCI) = Me%Matrix(HetCI, HetCI) - DTDay * HeteroDeathRate
 
-         if (Me%NLimitation)  then 
-         !The OM N uptake rate is controlrd by the potential immobilization rate
-            
-        !Source : Labil and Refract C uptake
-            Me%Matrix(HetCI, AMI)  = Me%Matrix(HetCI, AMI) + DTDay                  & 
-                                   * ImobilizationRateNH4  * Conversion             &
-                                   * (1./((1./HetCN - 1./LCN)                       &
-                                   + Partition * (1./HetCN - 1./RCN))               &
-                                   + 1./((1./HetCN - 1./LCN ) * 1./Partition        &
-                                   + (1./HetCN - 1./RCN)))
-                
-            Me%Matrix(HetCI, NII)  = Me%Matrix(HetCI, NII) + DTDay                  &
-                                   * ImobilizationRateNO3  * Conversion             &
-                                   * (1./((1./HetCN - 1./LCN)                       &
-                                   + Partition * (1./HetCN - 1./RCN))               &
-                                   + 1./((1./HetCN - 1./LCN ) * 1./ Partition       &
-                                   + (1./HetCN - 1./RCN)))               
-                                                   
-        !Sink   : Labil And refract C breathe
-            Me%Matrix(HetCI, AMI)  = Me%Matrix(HetCI, AMI) - DTDay                  &
-                                   * ImobilizationRateNH4 * Conversion * (1.- HetEF)&
-                                   * (1./( (1./HetCN - 1./LCN)                      &
-                                   + Partition * (1./HetCN - 1./RCN))               &
-                                   + 1./((1./HetCN - 1./LCN ) * 1./ Partition       &
-                                   + (1./HetCN - 1./RCN)))  
-                
-            Me%Matrix(HetCI, NII)  = Me%Matrix(HetCI, NII) - DTDay                  & 
-                                   * ImobilizationRateNO3 * Conversion * (1.- HetEF)& 
-                                   * (1./((1./HetCN - 1./LCN )                      &
-                                   + Partition * (1./HetCN - 1./RCN))               &
-                                   + 1./((1./HetCN - 1./LCN ) * 1./ Partition       &
-                                   + (1./HetCN - 1./RCN)))
 
-        else ! OM C uptake equals the potential rate
+        !Souce  : Aerobic labile and refractory decay
+        !Sink   : Breath
 
-            !Source : Refract C uptake
-            Me%Matrix(HetCI, ROM_CI) = Me%Matrix(HetCI, ROM_CI) + DTDay * ROM_C_Srate
+
+        if (seletion==5.OR.seletion==6 .OR. seletion==8 .OR. seletion==9 )  then 
+        
+            Me%Matrix(HetCI, LOM_CI)  = Me%Matrix(HetCI, LOM_CI) +DTDay                &
+                                         * LOM_C_Srate  
+
+            Me%Matrix(HetCI, ROM_CI)  = Me%Matrix(HetCI, ROM_CI) +DTDay                &
+                                         * ROM_C_Srate 
+        
+             !Breath
+            Me%Matrix(HetCI, LOM_CI)  = Me%Matrix(HetCI, LOM_CI) -DTDay *              &
+                                         LOM_C_Srate*(HetEF)
+
+            Me%Matrix(HetCI, ROM_CI)  = Me%Matrix(HetCI, ROM_CI) -DTDay *              &
+                                         ROM_C_Srate*(HetEF)
+               
+        end if
+
+        if (seletion==2.OR. seletion==3) then 
+
+            Me%Matrix(HetCI, AMI)  = Me%Matrix(HetCI, AMI) + DTDay                      & 
+                                   * ImobilizationRateNH4  * Conversion                &
+                                   * (1/((1/HetCN-1/LCN)*(1/Anapartition)              &
+                                   +(1/HetCN-1/RCN)))
+
+            Me%Matrix(HetCI, AMI)  = Me%Matrix(HetCI, AMI) + DTDay                      & 
+                                   * ImobilizationRateNH4  * Conversion                &
+                                   * (1/((1/HetCN-1/LCN)+                              &
+                                   Anapartition*(1/HetCN-1/RCN)))
+
+
+            Me%Matrix(HetCI, NII)  = Me%Matrix(HetCI, NII) + DTDay                      &
+                                   * ImobilizationRateNO3  * Conversion                &
+                                   * (1/((1/HetCN-1/LCN)+                              & 
+                                   Anapartition*(1/HetCN-1/RCN)))                           
+
+
+            Me%Matrix(HetCI, NII)  = Me%Matrix(HetCI, NII) + DTDay                      &
+                                   * ImobilizationRateNO3  * Conversion                &
+                                   * (1/((1/HetCN-1/LCN)*(1/Anapartition)              &
+                                   +(1/HetCN-1/RCN)))                           
+
+
+            !Breath
+
+            Me%Matrix(HetCI, AMI)  = Me%Matrix(HetCI, AMI) - DTDay                     &
+                                   * ImobilizationRateNH4 * Conversion * ( HetEF)      &
+                                   * (1/((1/HetCN-1/LCN)*(1/Anapartition)              &
+                                   +(1/HetCN-1/RCN))) 
+
+            Me%Matrix(HetCI, AMI)  = Me%Matrix(HetCI, AMI) - DTDay                     &
+                                   * ImobilizationRateNH4 * Conversion * ( HetEF)      &
+                                   * (1/((1/HetCN-1/LCN)             &
+                                   +Anapartition*(1/HetCN-1/RCN))) 
+                
+            Me%Matrix(HetCI, NII)  = Me%Matrix(HetCI, NII) - DTDay                     & 
+                                   * ImobilizationRateNO3 * Conversion * ( HetEF)      & 
+                                   * (1/((1/HetCN-1/LCN)              &
+                                   +Anapartition*(1/HetCN-1/RCN)))
+
+            Me%Matrix(HetCI, NII)  = Me%Matrix(HetCI, NII) - DTDay                     & 
+                                   * ImobilizationRateNO3 * Conversion * ( HetEF)      & 
+                                   * (1/((1/HetCN-1/LCN)*(1/Anapartition)              &
+                                   +(1/HetCN-1/RCN)))
+        
+         end if
+
+
+        if (seletion==4.OR. seletion==7) then
+
             
-            !Sink   : Refract C breathe
-            Me%Matrix(HetCI, ROM_CI) = Me%Matrix(HetCI, ROM_CI) - DTDay * ROM_C_Srate * (1.- HetEF)          
+            Me%Matrix(HetCI, PI)  = Me%Matrix(HetCI, PI) + DTDay                      &
+                                    * ImobilizationRateP  * Conversion                & 
+                                    * (1./((1./HetCP - 1./LCP )*(1/Anapartition)      & 
+                                    + (1./HetCP - 1./RCP))) 
+                                    
+            Me%Matrix(HetCI, PI)  = Me%Matrix(HetCI, PI) + DTDay                      &
+                                    * ImobilizationRateP  * Conversion                & 
+                                    * (1./((1./HetCP - 1./LCP )                       & 
+                                    + Anapartition*(1./HetCP - 1./RCP)))    
+                                                                                    
+                                    
+            !Breath
+
+            Me%Matrix(HetCI, PI)  = Me%Matrix(HetCI, PI) - DTDay                      &
+                                    * ImobilizationRateP  * Conversion*(HetEF)        & 
+                                    * (1./((1./HetCP - 1./LCP )*(1/Anapartition)      & 
+                                    + (1./HetCP - 1./RCP))) 
+                        
+            Me%Matrix(HetCI, PI)  = Me%Matrix(HetCI, PI) - DTDay                      &
+                                    * ImobilizationRateP  * Conversion*(HetEF)        & 
+                                    * (1./((1./HetCP - 1./LCP )                       & 
+                                    + Anapartition*(1./HetCP - 1./RCP)))    
             
-            !Source : Labil C uptake
-            Me%Matrix(HetCI, LOM_CI) = Me%Matrix(HetCI, LOM_CI) + DTDay * LOM_C_Srate
-            
-            !Sink   : Labil C breathe
-            Me%Matrix(HetCI, LOM_CI) = Me%Matrix(HetCI, LOM_CI) - DTDay * LOM_C_Srate * (1.- HetEF)
-            
+                                                                
+        end if
+
+        
+
+        if(seletion==1) then
+    
+            Real_N_ROM = ((ImobilizationRateNH4*AM+ImobilizationRateNO3*N)            &
+                         *Conversion)*(1./( (1./HetCN - 1./LCN )                      &
+                         *(1/AnaPartition) +  (1./HetCN - 1./RCN)))
+
+            Real_P_ROM = ((ImobilizationRateP*P)*Conversion)                          &
+                         * (1./( (1./HetCP - 1./LCP )*(1/AnaPartition)                &
+                         +  (1./HetCP - 1./RCP)))
+
+
+
+            Real_N_LOM = ((ImobilizationRateNH4*AM+ImobilizationRateNO3*N)            &
+                         *Conversion) *(1./( (1./HetCN - 1./LCN )                     &
+                         +  AnaPartition*(1./HetCN - 1./RCN)))
+
+
+            Real_P_LOM = ((ImobilizationRateP*P)*Conversion)                          &
+                         * (1./( (1./HetCP - 1./LCP )                                 &
+                         +  AnaPartition*(1./HetCP - 1./RCP)))
+
+
+    
+            if( Real_N_ROM<Real_P_ROM) then
+
+                Me%Matrix(HetCI, AMI)  = Me%Matrix(HetCI, AMI) + DTDay               & 
+                                    * ImobilizationRateNH4  * Conversion               &
+                                    * (1./( (1./HetCN - 1./LCN )*(1/AnaPartition)      &
+                                    +  (1./HetCN - 1./RCN))) 
+                
+                Me%Matrix(HetCI, NII)  = Me%Matrix(HetCI, NII) + DTDay               &
+                                    * ImobilizationRateNO3  * Conversion               & 
+                                    * (1./( (1./HetCN - 1./LCN )*(1/AnaPartition)      & 
+                                    +  (1./HetCN - 1./RCN)))    
+                !Breath 
+                
+                        
+                Me%Matrix(HetCI, AMI)  = Me%Matrix(HetCI, AMI) - DTDay               & 
+                                    * ImobilizationRateNH4  * Conversion*(HetEF)       &
+                                    * (1./( (1./HetCN - 1./LCN )*(1/AnaPartition)      &
+                                    +  (1./HetCN - 1./RCN))) 
+                
+                Me%Matrix(HetCI, NII)  = Me%Matrix(HetCI, NII) - DTDay               &
+                                    * ImobilizationRateNO3  * Conversion *(HetEF)      & 
+                                    * (1./( (1./HetCN - 1./LCN )*(1/AnaPartition)      & 
+                                    +  (1./HetCN - 1./RCN)))    
+
+
+            else
+
+                Me%Matrix(HetCI, PI)  = Me%Matrix(HetCI, PI) + DTDay                   &
+                                    * ImobilizationRateP  * Conversion                 & 
+                                    * (1./( (1./HetCP - 1./LCP )*(1/AnaPartition)      &
+                                    + (1./HetCP - 1./RCP)))
+
+
+                !Breath
+
+                Me%Matrix(HetCI, PI)  = Me%Matrix(HetCI, PI) - DTDay                  &
+                                    * ImobilizationRateP  * Conversion*(HetEF)         & 
+                                    * (1./( (1./HetCP - 1./LCP )*(1/AnaPartition)      &
+                                    + (1./HetCP - 1./RCP)))
+
+            end if
+
+            if( Real_N_LOM<Real_P_LOM) then
+
+                Me%Matrix(HetCI, AMI)  = Me%Matrix(HetCI, AMI) + DTDay                & 
+                                    * ImobilizationRateNH4  * Conversion                &
+                                    * (1./( (1./HetCN - 1./LCN )                        &
+                                    + AnaPartition* (1./HetCN - 1./RCN))) 
+                
+                Me%Matrix(HetCI, NII)  = Me%Matrix(HetCI, NII) + DTDay                &
+                                    * ImobilizationRateNO3  * Conversion                & 
+                                    * (1./( (1./HetCN - 1./LCN )                        & 
+                                    +  AnaPartition*(1./HetCN - 1./RCN)))   
+                !Breath 
+                
+                        
+                Me%Matrix(HetCI, AMI)  = Me%Matrix(HetCI, AMI) - DTDay                & 
+                                    * ImobilizationRateNH4  * Conversion*(HetEF)        &
+                                    * (1./( (1./HetCN - 1./LCN )                        &
+                                    +  AnaPartition*(1./HetCN - 1./RCN))) 
+                
+                Me%Matrix(HetCI, NII)  = Me%Matrix(HetCI, NII) - DTDay                &
+                                    * ImobilizationRateNO3  * Conversion *(HetEF)       & 
+                                    * (1./( (1./HetCN - 1./LCN )                        & 
+                                    + AnaPartition*(1./HetCN - 1./RCN)))    
+
+
+            else
+
+
+                Me%Matrix(HetCI, PI) = Me%Matrix(HetCI, PI) + DTDay                   &
+                                    * ImobilizationRateP  * Conversion                  & 
+                                    * (1./( (1./HetCP - 1./LCP )                        &
+                                    + AnaPartition*(1./HetCP - 1./RCP)))
+
+                 !Breath 
+
+
+                Me%Matrix(HetCI, PI)  = Me%Matrix(HetCI, PI) - DTDay                  &
+                                    * ImobilizationRateP  * Conversion*(HetEF)          & 
+                                    * (1./( (1./HetCP - 1./LCP )                        &
+                                    + AnaPartition*(1./HetCP - 1./RCP)))
+
+            end if
+    
         end if
             
             !Independent term
-            Me%IndTerm(HetCI)       = Me%ExternalVar%Mass(HetCI, index) 
+        Me%IndTerm(HetCI)       = Me%ExternalVar%Mass(HetCI, index) 
     !------------------------------------------------------------------------
 
-    end subroutine HetrotrophicC 
+    end subroutine HeterotrophicC 
     !----------------------------------------------------------------------------
 
 
-    !Autotrotrophic Carbon
+
+
+    !Autotrophic Carbon
     !
     !SOURCES: - Nitrification eficiency 
     !SINKS:   - Death
     !----------------------------------------------------------------------------    
-    subroutine AutotrotrophicC (index)
+    subroutine AutotrophicC (index)
 
         !Arguments---------------------------------------------------------------
         integer, intent(IN)         :: index
@@ -2896,7 +4354,7 @@ do1 :           do while(associated(EquaRateFluxX))
         
         DTDay               = Me%DTDay
 
-        AutoCI              = Me%PropIndex%AutotrotrophicC
+        AutoCI              = Me%PropIndex%AutotrophicC
         AMI                 = Me%PropIndex%Ammonia
         
         AutoDeathRate       = Me%SpecificRates%Autotrophs%Value
@@ -2915,14 +4373,16 @@ do1 :           do while(associated(EquaRateFluxX))
         
         !Sources: Nitrification (CO2 uptake)
         Me%Matrix(AutoCI, AMI) = Me%Matrix(AutoCI, AMI) + DTDay                    &
-                               * NitificationRate * Conversion * AutoEf * AutoCN
+                               * NitificationRate * Conversion * AutoEf    !*AutoCN
         
         !Independent term
         Me%IndTerm(AutoCI)     = Me%ExternalVar%Mass(AutoCI, index) 
     !------------------------------------------------------------------------
 
-    end subroutine AutotrotrophicC 
+    end subroutine AutotrophicC 
     !----------------------------------------------------------------------------
+
+
 
 
     !Anaerobic Carbon
@@ -2937,16 +4397,22 @@ do1 :           do while(associated(EquaRateFluxX))
         !------------------------------------------------------------------------
 
         real    :: AnaCN, AnaCEf, AnaDeathRate
-        integer :: AnaCI
-        real    :: DenitrificationRate, Conversion 
-        
-        integer :: NII, DTDay    
+        integer :: AnaCI,LOM_CI,ROM_CI
+        real    :: DenitrificationRate, Conversion ,AnaPartition,methaneproduction
+        integer :: NII 
+        real    :: DTDay   
+        real    :: NO3limit
+        real    :: Eficiencia
+        real    :: NO3 
         !------------------------------------------------------------------------
         
         DTDay               = Me%DTDay
 
         AnaCI               = Me%PropIndex%AnaerobicC
         NII                 = Me%PropIndex%Nitrate
+        LOM_CI              = Me%PropIndex%Labil_OM_C
+        ROM_CI              = Me%PropIndex%RefractOM_C
+        NO3                 = Me%ExternalVar%Mass(NII,index)
         
         AnaDeathRate        = Me%SpecificRates%Anaerobic%Value
         AnaCN               = Me%Microorganisms%Anaerobic%CNRatio
@@ -2954,7 +4420,14 @@ do1 :           do while(associated(EquaRateFluxX))
         DenitrificationRate = Me%SpecificRates%NitrateToNgas%Value
         AnaCEf              = Me%Microorganisms%Anaerobic%EficiencyC
 
-        Conversion          = Me%ExternalVar%DissolvedToParticulate (index)        
+
+        AnaPartition        = Me%AnaerobicPartition
+        Conversion          = Me%ExternalVar%DissolvedToParticulate (index) 
+        
+        NO3limit            = Me%NO3limit
+        methaneproduction   = Me%SpecificRates%MethaneProduction%Value
+       
+        Eficiencia = 0.1        
 
         Me%Matrix(AnaCI, AnaCI) = 1.
 
@@ -2962,21 +4435,366 @@ do1 :           do while(associated(EquaRateFluxX))
         if (.NOT.Me%Microorganisms%Anaerobic%LogicalMinumumPOP )                    &
             Me%Matrix(AnaCI, AnaCI) = Me%Matrix(AnaCI, AnaCI) - DTDay * AnaDeathRate
         
-        !Sources: Labil and Refract C
-        Me%Matrix(AnaCI, NII) = Me%Matrix(AnaCI, NII) + DTDay * DenitrificationRate &
-                              * Conversion * 0.1
-        !Sink   : Respiration 
-        Me%Matrix(AnaCI, NII) = Me%Matrix(AnaCI, NII) - DTDay * DenitrificationRate &
-                              * Conversion * 0.1 * AnaCEf
+
+! Agora vamos ter dois casos: se existe nitrato para ser respirado ou se respiram CO2
+
+
+        if (NO3>NO3limit)   then
+
+            !Sources: degração de matéria orgãnica labile e refractaria
+            Me%Matrix(AnaCI, NII) = Me%Matrix(AnaCI, NII) + DTDay * DenitrificationRate &
+                                  * Conversion *0.1 
+
+
+            ! Sink:  libertaçao de CO2, segundo a respiração de NO3
+
+            Me%Matrix(AnaCI, NII) = Me%Matrix(AnaCI, NII) - DTDay * DenitrificationRate &
+                                  * Conversion  *0.1* AnaCEf
+
+        else
+
+            !Source :  degradação de matéria orgânica e respiração de CO2
+
+                !( vem da labile)    
+            Me%Matrix(AnaCI, LOM_CI)     = Me%Matrix(AnaCI, LOM_CI) + DTDay    & 
+                                     *  methaneproduction       &
+                                     *  0.1
+
+                ! (vem da refractory)
+
+            Me%Matrix(AnaCI, ROM_CI)     = Me%Matrix(AnaCI, ROM_CI) + DTDay    & 
+                                     *  methaneproduction         &
+                                     *  0.1
+
+
+            ! Source : assimilaçao directa de CO2
+
+            Me%Matrix(AnaCI, LOM_CI)     = Me%Matrix(AnaCI, LOM_CI) + DTDay    & 
+                                     *  methaneproduction       &
+                                     *  0.1
+
+            Me%Matrix(AnaCI, ROM_CI)     = Me%Matrix(AnaCI, ROM_CI) + DTDay    & 
+                                     *  methaneproduction         &
+                                     *  0.1
+
+
+
+            ! sink: excreção de CO2 e CH4, após a respiração de CO2
+
+            Me%Matrix(AnaCI, LOM_CI)     = Me%Matrix(AnaCI, LOM_CI) - DTDay    & 
+                                        *  methaneproduction      &
+                                        *0.1*AnaCEf
+
+            Me%Matrix(AnaCI, ROM_CI)     = Me%Matrix(AnaCI, ROM_CI) - DTDay    & 
+                                        *  methaneproduction     &
+                                        *0.1*AnaCEf
+
+        end if
+                                    
+                                   
         !Independent term
         Me%IndTerm(AnaCI)     = Me%ExternalVar%Mass(AnaCI, index) 
+
+
     !------------------------------------------------------------------------
 
     end subroutine AnaerobicC 
     !----------------------------------------------------------------------------
 
+    !CO2
+    !
+    !SOURCES: - Aerobic and anaerobic Excretation
+    !
+    !----------------------------------------------------------------------------    
+    subroutine CO2 (index)
+
+        !Arguments---------------------------------------------------------------
+        integer, intent(IN)         :: index
+        !------------------------------------------------------------------------
+
+        integer     :: ICO2
+        real        :: HetCN, HetEF,HetCP           !!!Lúcia
+
+        real        :: ROM_C_Srate, RCN,RCP      !!!Lúcia          
+        integer     :: ROM_CI                          
+
+        real        :: LOM_C_Srate, LCN, LCP    !!!Lúcia            
+        integer     :: LOM_CI             
+       
+        real        :: ImobilizationRateNO3
+        integer     :: NII, AMI
+        real        :: DenitrificationRate
+        real        :: AnaCEf
+        real        :: ImobilizationRateP       !!!Lúcia
+        integer     :: PI                   !!!Lúcia
+        
+        real        :: ImobilizationRateNH4
+
+        real        :: Real_N_ROM , Real_P_ROM,Real_N_LOM, Real_P_LOM, AM,N, P   !!!Lúcia
+
+
+        real        :: AnaPartition,partition, Conversion, DTDay,seletion          !!!Lúcia
+        real        :: NO3,NO3limit,methaneproduction
+        !------------------------------------------------------------------------
+        
+        HetCN                = Me%Microorganisms%Heterotrophs%CNRatio
+        HetCP                = Me%Microorganisms%Heterotrophs%CPRatio !!!Lúcia
+        HetEF                = Me%Microorganisms%Heterotrophs%EficiencyC
+        ROM_C_Srate          = Me%SpecificRates%RefractOM_C%Value
+        RCN                  = Me%RefractOM_CN_Ratio 
+        RCP                  = Me%RefractOM_CP_Ratio  !!!Lúcia
+        ROM_CI               = Me%PropIndex%RefractOM_C
+        LOM_C_Srate          = Me%SpecificRates%Labil_OM_C%Value
+        LCN                  = Me%LabiOM_CN_Ratio
+        LCP                  = Me%LabilOM_CP_Ratio    !!!Lúcia
+        LOM_CI               = Me%PropIndex%Labil_OM_C
+        
+        NII                  = Me%PropIndex%Nitrate
+        ImobilizationRateNO3 = Me%SpecificRates%NitrateImobilization%Value
+        N                    = Me%ExternalVar%Mass(NII, index)       !!!Lúcia
+
+        AMI                  = Me%PropIndex%Ammonia
+        ImobilizationRateNH4 = Me%SpecificRates%AmmoniaImobilization%Value
+        AM                   = Me%ExternalVar%Mass(AMI, index)    !!!Lúcia
+
+
+        PI                   = Me%PropIndex%Inorganic_P_soluble
+        ImobilizationRateP   = Me%SpecificRates%PhosphorusImobilization%Value
+        P                    = Me%ExternalVar%Mass(PI, index)     !!!Lúcia
+
+        DenitrificationRate  = Me%SpecificRates%NitrateToNgas%Value
+        AnaCEf               = Me%Microorganisms%Anaerobic%EficiencyC
+
+
+        AnaPartition         = Me%AnaerobicPartition
+        Partition            = Me%Partition
+        Conversion           = Me%ExternalVar%DissolvedToParticulate (index)
+
+        DTDay                = Me%DTDay
+        seletion             = Me%Select    !!!Lúcia
+
+        ICO2        = Me%PropIndex%CO2
+
+
+        NO3limit            = Me%NO3limit
+        methaneproduction   = Me%SpecificRates%MethaneProduction%Value
+        NO3                 = Me%ExternalVar%Mass(NII,index)
+
+       
+         Me%Matrix(ICO2, ICO2) =  1.
+
+
+        ! Source: aerobic Excretation
+        if (seletion==5.OR.seletion==6 .OR. seletion==8 .OR. seletion==9 )  then 
+        
+        
+            Me%Matrix(ICO2, LOM_CI)  = Me%Matrix(ICO2, LOM_CI) +DTDay *              &
+                                         LOM_C_Srate*(HetEF)
+
+            Me%Matrix(ICO2, ROM_CI)  = Me%Matrix(ICO2, ROM_CI) +DTDay *              &
+                                         ROM_C_Srate*(HetEF)
+               
+                  
+        end if
+
+        if (seletion==2.OR. seletion==3) then 
+
+            Me%Matrix(ICO2, AMI)  = Me%Matrix(ICO2, AMI) + DTDay                     &
+                                   * ImobilizationRateNH4 * Conversion * ( HetEF)      &
+                                   * (1/((1/HetCN-1/LCN)*(1/Anapartition)              &
+                                   +(1/HetCN-1/RCN))) 
+
+            Me%Matrix(ICO2, AMI)  = Me%Matrix(ICO2, AMI) + DTDay                     &
+                                   * ImobilizationRateNH4 * Conversion * ( HetEF)      &
+                                   * (1/((1/HetCN-1/LCN)             &
+                                   +Anapartition*(1/HetCN-1/RCN))) 
+                
+            Me%Matrix(ICO2, NII)  = Me%Matrix(ICO2, NII) + DTDay                     & 
+                                   * ImobilizationRateNO3 * Conversion * ( HetEF)      & 
+                                   * (1/((1/HetCN-1/LCN)              &
+                                   +Anapartition*(1/HetCN-1/RCN)))
+
+            Me%Matrix(ICO2, NII)  = Me%Matrix(ICO2, NII) + DTDay                     & 
+                                   * ImobilizationRateNO3 * Conversion * ( HetEF)      & 
+                                   * (1/((1/HetCN-1/LCN)*(1/Anapartition)              &
+                                   +(1/HetCN-1/RCN)))
+        
+         end if
+
+
+        if (seletion==4.OR. seletion==7) then
+
+            
+
+            Me%Matrix(ICO2, PI)  = Me%Matrix(ICO2, PI) + DTDay                      &
+                                    * ImobilizationRateP  * Conversion*(HetEF)        & 
+                                    * (1./((1./HetCP - 1./LCP )*(1/Anapartition)      & 
+                                    + (1./HetCP - 1./RCP))) 
+                        
+            Me%Matrix(ICO2, PI)  = Me%Matrix(ICO2, PI) + DTDay                      &
+                                    * ImobilizationRateP  * Conversion*(HetEF)        & 
+                                    * (1./((1./HetCP - 1./LCP )                       & 
+                                    + Anapartition*(1./HetCP - 1./RCP)))    
+            
+                                                                
+        end if
+
+        
+
+        if(seletion==1) then
+    
+            Real_N_ROM = ((ImobilizationRateNH4*AM+ImobilizationRateNO3*N)            &
+                         *Conversion)*(1./( (1./HetCN - 1./LCN )                      &
+                         *(1/AnaPartition) +  (1./HetCN - 1./RCN)))
+
+            Real_P_ROM = ((ImobilizationRateP*P)*Conversion)                          &
+                         * (1./( (1./HetCP - 1./LCP )*(1/AnaPartition)                &
+                         +  (1./HetCP - 1./RCP)))
+
+
+
+            Real_N_LOM = ((ImobilizationRateNH4*AM+ImobilizationRateNO3*N)            &
+                         *Conversion) *(1./( (1./HetCN - 1./LCN )                     &
+                         +  AnaPartition*(1./HetCN - 1./RCN)))
+
+
+            Real_P_LOM = ((ImobilizationRateP*P)*Conversion)                          &
+                         * (1./( (1./HetCP - 1./LCP )                                 &
+                         +  AnaPartition*(1./HetCP - 1./RCP)))
+
+
+    
+            if( Real_N_ROM<Real_P_ROM) then
+
+                Me%Matrix(ICO2, AMI)  = Me%Matrix(ICO2, AMI) + DTDay               & 
+                                    * ImobilizationRateNH4  * Conversion*(HetEF)       &
+                                    * (1./( (1./HetCN - 1./LCN )*(1/AnaPartition)      &
+                                    +  (1./HetCN - 1./RCN))) 
+                
+                Me%Matrix(ICO2, NII)  = Me%Matrix(ICO2, NII) + DTDay               &
+                                    * ImobilizationRateNO3  * Conversion *(HetEF)      & 
+                                    * (1./( (1./HetCN - 1./LCN )*(1/AnaPartition)      & 
+                                    +  (1./HetCN - 1./RCN)))    
+
+
+                                else
+
+                Me%Matrix(ICO2, PI)  = Me%Matrix(ICO2, PI) + DTDay                  &
+                                    * ImobilizationRateP  * Conversion*(HetEF)         & 
+                                    * (1./( (1./HetCP - 1./LCP )*(1/AnaPartition)      &
+                                    + (1./HetCP - 1./RCP)))
+
+            end if
+
+            if( Real_N_LOM<Real_P_LOM) then
+
+                
+                        
+                Me%Matrix(ICO2, AMI)  = Me%Matrix(ICO2, AMI) + DTDay                & 
+                                    * ImobilizationRateNH4  * Conversion*(HetEF)        &
+                                    * (1./( (1./HetCN - 1./LCN )                        &
+                                    +  AnaPartition*(1./HetCN - 1./RCN))) 
+                
+                Me%Matrix(ICO2, NII)  = Me%Matrix(ICO2, NII) + DTDay                &
+                                    * ImobilizationRateNO3  * Conversion *(HetEF)       & 
+                                    * (1./( (1./HetCN - 1./LCN )                        & 
+                                    + AnaPartition*(1./HetCN - 1./RCN)))    
+
+
+            else
+
+
+                Me%Matrix(ICO2, PI)  = Me%Matrix(ICO2, PI) + DTDay                  &
+                                    * ImobilizationRateP  * Conversion*(HetEF)          & 
+                                    * (1./( (1./HetCP - 1./LCP )                        &
+                                    + AnaPartition*(1./HetCP - 1./RCP)))
+
+            end if
+    
+        end if
+
+        ! Source : anaerobic Excretation
+
+        if (NO3> NO3limit) then 
+
+            Me%Matrix(ICO2, NII) = Me%Matrix(ICO2, NII) + DTDay * DenitrificationRate &
+                              * Conversion  *0.1* AnaCEf
+
+        else
+
+            Me%Matrix(ICO2, LOM_CI)     = Me%Matrix(ICO2, LOM_CI) + DTDay    & 
+                                        *  methaneproduction     &
+                                        *0.1*AnaCEf
+
+            Me%Matrix(ICO2, ROM_CI)     = Me%Matrix(ICO2, ROM_CI) + DTDay    & 
+                                        *  methaneproduction     &
+                                        *0.1*AnaCEf
+
+        end if
+
+
+        !Independent term
+        Me%IndTerm(ICO2)     = Me%ExternalVar%Mass(ICO2, index) 
+
+
+     end subroutine CO2
+    !----------------------------------------------------------------------------
 
     !----------------------------------------------------------------------------
+
+    subroutine Methane(index)
+
+        !Arguments---------------------------------------------------------------
+        integer, intent(IN) :: index
+        !------------------------------------------------------------------------
+
+        integer  ::    ICH4,LOM_CI,ROM_CI,NII
+        real     ::    methaneproduction
+        real     ::    DTDay
+        real     ::    NO3,NO3limit
+        real     ::    conversion
+        
+        !------------------------------------------------------------------------
+
+
+        ICH4                = Me%PropIndex%methane
+        LOM_CI              = Me%PropIndex%Labil_OM_C
+        ROM_CI              = Me%PropIndex%RefractOM_C
+        methaneproduction   = Me%SpecificRates%MethaneProduction%Value
+        DTDay               = Me%DTDay
+        NII                 = Me%PropIndex%Nitrate
+        NO3                 = Me%ExternalVar%Mass(NII,index)
+        Conversion          = Me%ExternalVar%DissolvedToParticulate (index)
+
+
+
+        NO3limit            = Me%NO3limit
+
+            
+        Me%Matrix(ICH4, ICH4) =  1.
+
+        if (NO3<=NO3limit) then 
+
+
+            ! source: anaerobic respiration when nitrate is not available
+            Me%Matrix(ICH4, LOM_CI)     = Me%Matrix(ICH4, LOM_CI) + DTDay    & 
+                                        *  methaneproduction     &
+                                        *(1-0.1)
+
+            Me%Matrix(ICH4, ROM_CI)     = Me%Matrix(ICH4, ROM_CI) + DTDay    & 
+                                        *  methaneproduction     &
+                                        *(1-0.1)
+
+        end if
+                                
+        !Independent term
+        Me%IndTerm(ICH4)        = Me%ExternalVar%Mass(ICH4, index) 
+
+    end subroutine methane
+
+    !----------------------------------------------------------------------------
+ 
+ 
     subroutine Nitrogen(index)
 
         !Arguments---------------------------------------------------------------
@@ -2991,13 +4809,17 @@ do1 :           do while(associated(EquaRateFluxX))
 
         call RefractOrganicNitrogen (index)
 
-        call HetrotrophicN          (index)
+        call HeterotrophicN         (index)
 
-        call AutotrotrophicN        (index)
+        call AutotrophicN           (index)
 
         call AnaerobicN             (index)
         
         call Ngas                   (index)
+
+        call Urea                   (index)
+
+!       call AmmoniaGas              (index)
     !------------------------------------------------------------------------
 
     end subroutine Nitrogen
@@ -3016,137 +4838,339 @@ do1 :           do while(associated(EquaRateFluxX))
         integer, intent(IN)         :: index            
         
         !Local-------------------------------------------------------------------
-        integer :: AMI, NII         !Ammonia and Nitrate
-
+        integer :: AMI, NII ,PI,PFI,IUrea         !Lúcia
+        real    :: AM, N , P              !!!Lúcia 
         integer :: LOM_CI
-        real    :: LOM_C_Srate, LCN, CurrentLabilC, potLCuptake
+        real    :: LOM_C_Srate, LCN, LCP, CurrentLabilC  !!!Lúcia
 
         integer :: ROM_CI 
-        real    :: ROM_C_Srate, RCN, CurrentRefractC, potRCuptake
+        real    :: ROM_C_Srate, RCN,RCP, CurrentRefractC
         
-        real    :: neededNuptake
-        
-        real    :: HetCN, HetEF, AnaCN, AnaNEF
+        real    :: solCN,SolCEf
+        real    :: HetCN, HetEF, AnaCN, AnaNEF, AnaCEf
+        real    :: HetCP, AnaCP    !!!Lúcia
         
         real    :: NitrificationRate, DenitrificationRate
-        real    :: ImobilizationRateNH4, ImobilizationRateNO3
-                
+        real    :: ImobilizationRateNH4, ImobilizationRateNO3, ImobilizationRateP       
         real    :: Partition, AnaPartition
-
-        real    :: Conversion, DTDay, totalNuptake        
+        real    :: Real_N_LOM, Real_P_LOM, Real_N_ROM, Real_P_ROM   !!!Lúcia
+        real    :: Conversion, DTDay, seletion     !!!Lúcia
+        real    :: solubilizingrate,SolPartition
+        real    :: NO3,NO3limit,MethaneProduction
+        
+        real    :: wind, XKG,TF,EK,PNH3,PANH3,TK,XK1,XK
+        real    :: Kvol,temp,H,ureahydrolysis      
+                        
         !------------------------------------------------------------------------
         
-        AMI             = Me%PropIndex%Ammonia
-        NII             = Me%PropIndex%Nitrate
-                
-        HetCN           = Me%Microorganisms%Heterotrophs%CNRatio
-        HetEF           = Me%Microorganisms%Heterotrophs%EficiencyC
-        AnaCN           = Me%Microorganisms%Anaerobic%CNRatio
-        AnaNEF          = Me%Microorganisms%Anaerobic%EficiencyN       
+        AMI                   = Me%PropIndex%Ammonia
+        NII                   = Me%PropIndex%Nitrate
+        PI                    = Me%PropIndex%Inorganic_P_soluble             !!!Lúcia
+        PFI                   = Me%PropIndex%Inorganic_P_fix
+        IUrea                 = Me%PropIndex%Urea                   
+        HetCN                 = Me%Microorganisms%Heterotrophs%CNRatio
+        HetCP                 = Me%Microorganisms%Heterotrophs%CPRatio     !!!Lúcia
+
+        HetEF                 = Me%Microorganisms%Heterotrophs%EficiencyC
+        AnaCN                 = Me%Microorganisms%Anaerobic%CNRatio
+        AnaCP                 = Me%Microorganisms%Anaerobic%CPRatio         !!!Lúcia
+        AnaCEf                = Me%Microorganisms%Anaerobic%EficiencyC
+        solCEf                = Me%Microorganisms%Heterotrophs%EficiencyC
+        SolCN                 = Me%Microorganisms%Sols%CNRatio
+
+        AnaNEF                = Me%Microorganisms%Anaerobic%EficiencyN       
         
-        LOM_CI          = Me%PropIndex%Labil_OM_C
-        LOM_C_Srate     = Me%SpecificRates%Labil_OM_C%Value
-        LCN             = Me%LabiOM_CN_Ratio
-        CurrentLabilC   = Me%ExternalVar%Mass(LOM_CI, index)
+        LOM_CI                = Me%PropIndex%Labil_OM_C
+        LOM_C_Srate           = Me%SpecificRates%Labil_OM_C%Value
+        LCN                   = Me%LabiOM_CN_Ratio
+        LCP                   = Me%LabilOM_CP_Ratio                          !!!Lúcia
+        CurrentLabilC         = Me%ExternalVar%Mass(LOM_CI, index)
 
-        ROM_CI          = Me%PropIndex%RefractOM_C        
-        ROM_C_Srate     = Me%SpecificRates%RefractOM_C%Value
-        RCN             = Me%RefractOM_CN_Ratio
-        CurrentRefractC = Me%ExternalVar%Mass(ROM_CI, index)
-                
-        Partition       = Me%Partition
-        AnaPartition    = Me%AnaerobicPartition
-        Conversion      = Me%ExternalVar%DissolvedToParticulate (index)        
+        ROM_CI                = Me%PropIndex%RefractOM_C        
+        ROM_C_Srate           = Me%SpecificRates%RefractOM_C%Value
+        RCN                   = Me%RefractOM_CN_Ratio
+        RCP                   = Me%RefractOM_CP_Ratio
+        CurrentRefractC       = Me%ExternalVar%Mass(ROM_CI, index)
+       
+        AM                    = Me%ExternalVar%Mass(AMI, index)    !!!Lúcia
+        N                     = Me%ExternalVar%Mass(NII, index)       !!!Lúcia
+        ImobilizationRateP    = Me%SpecificRates%PhosphorusImobilization%Value
+        P                     = Me%ExternalVar%Mass(PI, index)     !!!Lúcia
 
-        DTDay           = Me%DTDay
-        !------------------------------------------------------------------------
-
-        Me%Matrix(AMI, AMI) = 1.   
-        !Sinks : NO3 formation
-        NitrificationRate   = Me%SpecificRates%AmmoniaToNitrate%Value        
-        Me%Matrix(AMI, AMI) = Me%Matrix(AMI, AMI) - DTDay * NitrificationRate 
-        
-        !Sources : Anaerobic excretion
+        ImobilizationRateNH4  = Me%SpecificRates%AmmoniaImobilization%Value
+        ImobilizationRateNO3  = Me%SpecificRates%NitrateImobilization%Value
+        solubilizingrate      = Me%SpecificRates%Solubilizing%Value   
+        NitrificationRate   = Me%SpecificRates%AmmoniaToNitrate%Value 
         DenitrificationRate = Me%SpecificRates%NitrateToNgas%Value   
+
+        seletion              = Me%Select    !!!Lúcia       
+        Partition             = Me%Partition
+        AnaPartition          = Me%AnaerobicPartition
+        Conversion            = Me%ExternalVar%DissolvedToParticulate (index)        
+        solpartition          = Me%Solpartition
+
+        DTDay                 = Me%DTDay
+
+        Conversion          = Me%ExternalVar%DissolvedToParticulate (index)
+        methaneproduction   = Me%SpecificRates%MethaneProduction%Value
+        NO3                 = Me%ExternalVar%Mass(NII,index)
+        NO3limit            = Me%NO3limit       
+        ureahydrolysis      = Me%SpecificRates%ureahydrolysis%Value
+    
+        wind    =   Me%ExternalVar%Wind(index)
+        Temp    =   Me%ExternalVar%Temperature(index)
+        H       =   Me%Hydrogen
+
+
+
+
+        !------------------------------------------------------------------------
         
-        Me%Matrix(AMI, NII) = Me%Matrix(AMI, NII) + DTDay * DenitrificationRate     &
-                            * (AnaNEF + 0.1 / ( (AnaPartition + 1. ) * LCN )        &
-                            + 0.1 / (( 1./AnaPartition + 1. ) * RCN) - 0.1 / AnaCN)
+      
+        Me%Matrix(AMI, AMI) = 1.   
+          
+
+        ! Sink : Nitrification
+
+        Me%Matrix(AMI, AMI) = Me%Matrix(AMI, AMI) - DTDay * NitrificationRate 
+    
+    
+       ! Sources : Anaerobic excretion
+       ! Agora vamos ter dois casos: se existe nitrato para ser respirado ou se respiram CO2
 
 
-        if (.NOT. Me%Imobilization .OR. .NOT. Me%NLimitation) then       
-        
-        !Sources : Hetrotrophs excretion
-            Me%Matrix(AMI, LOM_CI) = Me%Matrix(AMI, LOM_CI) + DTDay                 &
-                                   * (LOM_C_Srate * 1 / Conversion * HetEF/HetCN) 
+        if (NO3>NO3limit)   then
 
-            Me%Matrix(AMI, ROM_CI) = Me%Matrix(AMI, ROM_CI) + DTDay                 &
-                                   * (ROM_C_Srate * 1 / Conversion * HetEF/HetCN)
+            Me%Matrix(AMI, NII) = Me%Matrix(AMI, NII) + DTDay                &
+                              * DenitrificationRate*0.1                  & 
+                              * AnaCEf/ AnaCN                                    
+
+        else 
+
+
+            Me%Matrix(AMI, LOM_CI)     = Me%Matrix(AMI, LOM_CI) + DTDay    & 
+                                        *  (methaneproduction/conversion)      &
+                                        *0.1*AnaCEf/AnaCN
+
+            Me%Matrix(AMI, ROM_CI)     = Me%Matrix(AMI, ROM_CI) + DTDay       & 
+                                        *  (methaneproduction/conversion)    &
+                                        *0.1*AnaCEf/AnaCN
+
+        end If 
+ 
+
+
+
+        !Sources : Heterotrophs excretion
+
+        if (seletion==5.OR.seletion==6 .OR. seletion==8 .OR. seletion==9 )  then 
+
+
+            Me%Matrix(AMI, LOM_CI)  = Me%Matrix(AMI, LOM_CI) +DTDay                  &
+                                       * LOM_C_Srate* (HetEF/HetCN)*(1/conversion)
+
+            Me%Matrix(AMI, ROM_CI)  = Me%Matrix(AMI, ROM_CI) +DTDay                  &
+                                       * ROM_C_Srate* (HetEF/HetCN)*(1/conversion)
+                      
         end if
-              
-                                                   
-        if (Me%Imobilization) then !immobilization
 
-            ImobilizationRateNH4   = Me%SpecificRates%AmmoniaImobilization%Value
-            ImobilizationRateNO3   = Me%SpecificRates%NitrateImobilization%Value
-                   
-            if (Me%NLimitation)  then    !The N immobilization rate is the potential rate
+        if (seletion==2.OR. seletion==3) then 
+
+
+            Me%Matrix(AMI, AMI)  = Me%Matrix(AMI, AMI) + DTDay                         &   
+                                   * ImobilizationRateNH4  *(HetEF/HetCN)             &
+                                   * 1./((1./HetCN - 1./LCN)*(1/Anapartition)         &
+                                   + (1./HetCN - 1./RCN))               
+                                   
+            Me%Matrix(AMI, AMI)  = Me%Matrix(AMI, AMI) + DTDay                         &   
+                                   * ImobilizationRateNH4  *(HetEF/HetCN)             &
+                                   * 1./((1./HetCN - 1./LCN)        &
+                                   + anapartition*(1./HetCN - 1./RCN))               
+
+
+            Me%Matrix(AMI, NII)  = Me%Matrix(AMI, NII) + DTDay                         &
+                                   * ImobilizationRateNO3 *(HetEF/HetCN)              &
+                                   * 1./((1./HetCN - 1./LCN)*(1/anapartition)         &
+                                   + (1./HetCN - 1./RCN))      
+                                   
+            Me%Matrix(AMI, NII)  = Me%Matrix(AMI, NII) + DTDay                         &
+                                   * ImobilizationRateNO3 *(HetEF/HetCN)              &
+                                   * 1./((1./HetCN - 1./LCN)                          &
+                                   + Anapartition*(1./HetCN - 1./RCN))      
+                                   
+                                   
+                                   
+                                            
+                                                                                 
         
+        end if
+
+        if (seletion==4.OR. seletion==7) then
+
+            Me%Matrix(AMI, PI)  = Me%Matrix(AMI, PI) + DTDay                         &
+                                    * ImobilizationRateP *( HetEF/HetCN)             & 
+                                    * (1./( (1./HetCP - 1./LCP )*(1/anapartition)    &                     
+                                    + (1./HetCP - 1./RCP)))                         
+
+            Me%Matrix(AMI, PI)  = Me%Matrix(AMI, PI) + DTDay                         &
+                                    * ImobilizationRateP *( HetEF/HetCN)             & 
+                                    * (1./( (1./HetCP - 1./LCP )                     &                     
+                                    + Anapartition*(1./HetCP - 1./RCP)))                            
+
+
+        end if
+
+        if(seletion==1) then
+    
+            Real_N_ROM = ((ImobilizationRateNH4*AM+ImobilizationRateNO3*N)           &
+                          *Conversion) *(1./( (1./HetCN - 1./LCN )*(1/AnaPartition)  &
+                          +  (1./HetCN - 1./RCN)))
+
+            Real_P_ROM = ((ImobilizationRateP*P)*Conversion)                         &
+                          * (1./( (1./HetCP - 1./LCP )*(1/AnaPartition)              &
+                          +  (1./HetCP - 1./RCP)))
+
+
+
+            Real_N_LOM = ((ImobilizationRateNH4*AM+ImobilizationRateNO3*N)           &
+                         *Conversion) *(1./( (1./HetCN - 1./LCN )                    &
+                         +  AnaPartition*(1./HetCN - 1./RCN)))
+
+
+            Real_P_LOM = ((ImobilizationRateP*P)*Conversion)                         &
+                         * (1./( (1./HetCP - 1./LCP ) +                              &
+                         AnaPartition*(1./HetCP - 1./RCP)))
+
+
+    
+            if( Real_N_ROM<Real_P_ROM) then
+
+                Me%Matrix(AMI, AMI)  = Me%Matrix(AMI, AMI) + DTDay                 & 
+                                    * ImobilizationRateNH4  * (HetEF/HetCN)          &
+                                    * (1./( (1./HetCN - 1./LCN )*(1/AnaPartition)    &
+                                    +  (1./HetCN - 1./RCN))) 
+                
+                Me%Matrix(AMI, NII)  = Me%Matrix(AMI, NII) + DTDay                 &
+                                    * ImobilizationRateNO3  * (HetEF/HetCN)          & 
+                                    * (1./( (1./HetCN - 1./LCN )*(1/AnaPartition)    & 
+                                    +  (1./HetCN - 1./RCN)))    
+
+
+            else
+
+                Me%Matrix(AMI, PI)  = Me%Matrix(AMI, PI) + DTDay                   &
+                                    * ImobilizationRateP  * (HetEF/ HetCN)           & 
+                                    * (1./( (1./HetCP - 1./LCP )*(1/AnaPartition)    &
+                                    + (1./HetCP - 1./RCP)))
+
+            end if
+
+            if( Real_N_LOM<Real_P_LOM) then
+
+                Me%Matrix(AMI, AMI)  = Me%Matrix(AMI, AMI) + DTDay                 & 
+                                    * ImobilizationRateNH4  * (HetEF/HetCN)          &
+                                    * (1./( (1./HetCN - 1./LCN )                     &
+                                    +  AnaPartition*(1./HetCN - 1./RCN))) 
+                
+                Me%Matrix(AMI, NII)  = Me%Matrix(AMI, NII) + DTDay                 &
+                                    * ImobilizationRateNO3  * (HetEF/HetCN)          & 
+                                    * (1./( (1./HetCN - 1./LCN )                     & 
+                                    +  AnaPartition*(1./HetCN - 1./RCN)))   
+
+
+            else
+
+                Me%Matrix(AMI, PI)  = Me%Matrix(AMI, PI) + DTDay                   &
+                                    * ImobilizationRateP  * (HetEF/HetCN)            & 
+                                    * (1./( (1./HetCP - 1./LCP )                     &
+                                    + AnaPartition*(1./HetCP - 1./RCP)))
+
+            end if
+    
+        end if
+
+
         !Sinks : NH4 imobilization
 
-               Me%Matrix(AMI, AMI) = Me%Matrix(AMI, AMI) - DTDay * ImobilizationRateNH4
-        
-        !Sources : Hetrotrophs labil and refract N excretion
-                   
-               Me%Matrix(AMI, AMI) = Me%Matrix(AMI, AMI) + DTDay                    &
-                                   * ImobilizationRateNH4 * HetEF/HetCN             &
-                                   * (1./((1./HetCN - 1./LCN)                       &
-                                   + Partition * (1./HetCN - 1./RCN))               &
-                                   + 1./((1./HetCN - 1./LCN) * 1. / Partition       &
-                                   + (1./HetCN - 1./RCN))) 
-                
-               Me%Matrix(AMI, NII) = Me%Matrix(AMI, NII) + DTDay                    &
-                                   * ImobilizationRateNO3 * HetEF/HetCN             &
-                                   * (1./((1./HetCN - 1./LCN )                      &
-                                   + Partition * (1./HetCN - 1./RCN))               &
-                                   + 1./((1./HetCN - 1./LCN) * 1. / Partition       &
-                                   + (1./HetCN - 1./RCN)))
-           
-            else 
-         
-                !Sinks : NH4 imobilization                                    
-               Me%Matrix(AMI, LOM_CI) = Me%Matrix(AMI, LOM_CI) - DTDay              &
-                                      * (LOM_C_Srate * 1. / Conversion              &
-                                      * (1./HetCN - 1./LCN) ) / (Partition + 1.)    
-                
-               Me%Matrix(AMI, ROM_CI) = Me%Matrix(AMI, ROM_CI) - DTDay              &
-                                      * (ROM_C_Srate * 1. / Conversion              &
-                                      * (1./HetCN - 1./RCN) ) / ( Partition + 1.)
-        
-            end if
+
+        if (seletion == 4 .OR. seletion ==5  .OR. seletion == 6) then
+
+
+            Me%Matrix(AMI, LOM_CI) = Me%Matrix(AMI, LOM_CI) - DTDay             &
+                                         * (LOM_C_Srate * (1./HetCN - 1./LCN))   &     
+                                         *(1/(Partition+1.))*(1/Conversion)
+            
+            Me%Matrix(AMI, ROM_CI) = Me%Matrix(AMI, ROM_CI) - DTDay             &
+                                         * (ROM_C_Srate * (1./HetCN - 1./RCN))   &
+                                         *(1/(Partition+1.))*(1/Conversion) 
+
         
         end if
+
+        if (seletion == 1 .OR. seletion == 2 .OR. seletion == 3) then
+
+            !NH4 immobilization       
+            Me%Matrix(AMI, AMI) = Me%Matrix(AMI, AMI) - DTDay                  &
+                                      * ImobilizationRateNH4                     
+
+        end if
+   
+        if (Me%PropCalc%Sol_Bacteria) then
+
+            ! Source: haverá a excreção destas bacterias!
+
+            !Sink: Excretion
+            Me%Matrix(AMI, PFI) =   Me%Matrix(AMI, PFI) - DTDay                       &
+                                  * solubilizingRate*solCEf*(1/LCN)       &
+                                  * (0.1 /( (SolPartition + 1. )))  
+                          
+            Me%Matrix(AMI, PFI) = Me%Matrix(AMI, PFI) - DTDay                       &
+                                  * SolubilizingRate *(1/RCN)              &
+                                  *solCEf* (0.1 /( (1./SolPartition + 1. ) ))                                   
+
+        end if
+
+
+        ! Source: Urea Hydrolysis
+
+
+        Me%Matrix(AMI,Iurea) = Me%Matrix(AMI,Iurea) + DTDay *ureahydrolysis
+
+
+            ! Sink : volatilization
+
+        wind    =   Me%ExternalVar%Wind(index)
+        if (wind .gt. 0.0) then
+            Temp    =   Me%ExternalVar%Temperature(index)
+            AMI     =   Me%Propindex%ammonia
+            AM      =   Me%ExternalVar%Mass(AMI,index)
+            H       =   Me%Hydrogen
+    
+            TK      =  29447
+            PANH3   =  2.45E-8
+            EK      =  8.79E-12
+            XK1     =  1000
+            XK      =  -0.25
+            TF      = TK*EXP(-6/(1.99E-3*(temp+273.15)))
+
+            PNH3    = EK*AM*7.14286E-11/H       !!! nao esquecer as unidades de NH4
         
+            XKG     = XK1*log(Wind)*exp(XK)
+
+            Kvol    = XKG*TF*(PNH3-PANH3)
+
+
+
+    !        Me%Matrix(AMI,AMI)= Me%Matrix(AMI,AMI)+ DTDay*Kvol
+        
+        endif
+
+                                    
 
         !Independent term
         Me%IndTerm(AMI) = Me%ExternalVar%Mass(AMI, index)
+                          
 
-        !Exessive N in the OM
-            if (.NOT. Me%Imobilization)      then
-
-                potLCuptake     = LOM_C_Srate * Me%ExternalVar%Mass(LOM_CI, index) 
-                potRCuptake     = ROM_C_Srate * Me%ExternalVar%Mass(ROM_CI, index)  
-                
-                totalNuptake    = potLCuptake /LCN + potRCuptake / RCN 
-                neededNuptake   = (potLCuptake + potRCuptake) / HetCN  
-                
-                if  (totalNuptake > neededNuptake)  then  
-                    Me%IndTerm(AMI) = Me%IndTerm(AMI)                               &
-                                    + (totalNuptake - neededNuptake)                &
-                                    * 1./ Conversion 
-                end if 
-                           
-            end if
     !------------------------------------------------------------------------
 
     end subroutine Ammonia
@@ -3176,72 +5200,88 @@ do1 :           do while(associated(EquaRateFluxX))
 
         real    :: HetCN, AutoEf
 
-        real    :: Partition, Conversion, DTDay
+        real    :: Partition, Conversion, DTDay, seletion    !!!Lúcia
+        real    :: NO3,NO3limit
         !------------------------------------------------------------------------
 
         NII     = Me%PropIndex%Nitrate
         AMI     = Me%PropIndex%Ammonia
         DTDay   = Me%DTDay
 
-        NitrificationRate   = Me%SpecificRates%AmmoniaToNitrate%Value
-        DenitrificationRate = Me%SpecificRates%NitrateToNgas%Value
+        NitrificationRate    = Me%SpecificRates%AmmoniaToNitrate%Value
+        DenitrificationRate  = Me%SpecificRates%NitrateToNgas%Value
+        ImobilizationRateNO3 = Me%SpecificRates%NitrateImobilization%Value
         
-        AutoEf              = Me%Microorganisms%Autotrophs%EficiencyN
-        Conversion          = Me%ExternalVar%DissolvedToParticulate (index)
+        AutoEf               = Me%Microorganisms%Autotrophs%EficiencyN
+        Conversion           = Me%ExternalVar%DissolvedToParticulate (index)
+        seletion             = Me%Select          !!!Lúcia
         
-        Me%Matrix(NII, NII) = 1.    
-        !Sources :
-        !Nitrification
+        Partition   = Me%Partition
+                
+        LOM_C_Srate = Me%SpecificRates%Labil_OM_C%Value
+        LCN         = Me%LabiOM_CN_Ratio          
+        LOM_CI      = Me%PropIndex%Labil_OM_C
+
+        ROM_C_Srate = Me%SpecificRates%RefractOM_C%Value
+        RCN         = Me%RefractOM_CN_Ratio   
+        ROM_CI      = Me%PropIndex%RefractOM_C
+
+        HetCN       = Me%Microorganisms%Heterotrophs%CNRatio
+        
+        NO3                 = Me%ExternalVar%Mass(NII,index)
+        NO3limit            = Me%NO3limit
+
+
+
+        Me%Matrix(NII, NII) = 1.
+        
+            
+        !Sources :Nitrification
+
         Me%Matrix(NII, AMI) = Me%Matrix(NII, AMI) + DTDay                           &
                             * NitrificationRate * (1. - AutoEf) 
         
-        !Sinks:
-        !Denitrification
-        Me%Matrix(NII, NII) = Me%Matrix(NII, NII) - DTDay * DenitrificationRate 
+        if (NO3> NO3limit) then  
+            !Sinks:Denitrification
+
+            Me%Matrix(NII, NII) = Me%Matrix(NII, NII) - DTDay * DenitrificationRate 
         
-        !Immobilization
-        if (Me%Imobilization) then !immobilization
+        end If
 
-            ImobilizationRateNO3 = Me%SpecificRates%NitrateImobilization%Value
-                   
-            if (Me%NLimitation)  then    
-            !The N immobilization rate is the potential rate
-                
-                Me%Matrix(NII, NII) = Me%Matrix(NII, NII) - DTDay * ImobilizationRateNO3
-           
-            else 
+        !Sink:Immobilization NO3
 
-                Partition   = Me%Partition
-                
-                LOM_C_Srate = Me%SpecificRates%Labil_OM_C%Value
-                LCN         = Me%LabiOM_CN_Ratio          
-                LOM_CI      = Me%PropIndex%Labil_OM_C
+        if (seletion == 4 .OR. seletion == 5 .OR. seletion == 6) then
 
-                ROM_C_Srate = Me%SpecificRates%RefractOM_C%Value
-                RCN         = Me%RefractOM_CN_Ratio   
-                ROM_CI      = Me%PropIndex%RefractOM_C
 
-                HetCN       = Me%Microorganisms%Heterotrophs%CNRatio
-                                    
-                Me%Matrix(NII, LOM_CI) = Me%Matrix(NII, LOM_CI) - DTDay             &
-                                       * (LOM_C_Srate * 1. / Conversion             &
-                                       * (1./HetCN - 1./LCN)) / (1./Partition + 1.)
-
-                Me%Matrix(NII, ROM_CI) = Me%Matrix(NII, ROM_CI) - DTDay             &
-                                       * (ROM_C_Srate * 1. / Conversion             &
-                                       * (1./HetCN - 1./RCN)) / (1./Partition + 1.) 
+            Me%Matrix(NII, LOM_CI) = Me%Matrix(NII, LOM_CI) - DTDay*(1/conversion)    &
+                                     * (LOM_C_Srate * (1./HetCN - 1./LCN))            &
+                                     *(1/((1/partition)+1))
         
-            end if
-        end if               
+            Me%Matrix(NII, ROM_CI) = Me%Matrix(NII, ROM_CI) - DTDay *(1/conversion)   &    !Lúcia
+                                     * (ROM_C_Srate * (1./HetCN - 1./RCN))            &
+                                     *(1/((1/partition)+1))
+        end if
+
+        if (seletion == 1 .OR. seletion == 2 .OR. seletion == 3) then
+
+              !NO3 immobilization
+            Me%Matrix(NII, NII) = Me%Matrix(NII, NII) - DTDay                   &
+                                   * ImobilizationRateNO3 
+
+        end if
+
 
         !Independent term
         Me%IndTerm(NII) = Me%ExternalVar%Mass(NII, index) 
+
     !----------------------------------------------------------------------------
 
     end subroutine Nitrate
     !----------------------------------------------------------------------------
 
-    
+  
+  
+    !ALterações Lúcia  
     !Labil Organic Nitrogen 
     !
     !SOURCES: - Microorganisms death
@@ -3253,108 +5293,218 @@ do1 :           do while(associated(EquaRateFluxX))
         integer                , intent(IN)         :: index
 
         !Local-------------------------------------------------------------------
-        integer :: AMI, NII
+        integer :: AMI, NII,LOM_CI,LOM_NI,PI,PFI,ROM_CI             !!!Lúcia
         
-        real    :: ImobilizationRateNH4, DenitrificationRate, ImobilizationRateNO3
-
-        real    :: LOM_C_Srate, LCN
-        integer :: LOM_CI, LOM_NI
+        real    :: ImobilizationRateNH4, DenitrificationRate, ImobilizationRateNO3 !!!Lúcia
+        real    :: solubilizingrate
+        real    :: ImobilizationRateP 
+        real    :: LOM_C_Srate, LCN,LCP             !!!Lúcia
 
         real    :: RCN
-
-        real    :: HeteroDeathRate, HetCN     
+        real    :: RCP                              !!!Lúcia
+        real    :: HeteroDeathRate, HetCN , HetCP   !!!Lúcia   
         integer :: HetI                
         
-        real    :: AnaDeathRate, AnaCN        
+        real    :: AnaDeathRate, AnaCN       !!!Lúcia   
         integer :: AnaI                
         
-        real    :: AutoDeathRate, AutoCN
+        real    :: AutoDeathRate, AutoCN    !!!Lúcia
         integer :: AutI               
 
-        real    :: Partition, AnaPartition, Conversion, DTDay
+        real    :: Partition, AnaPartition, Conversion, DTDay, seletion
+        real    :: solpartition                       !!!Lúcia
+
+        real    :: AM,N,P,Real_N,Real_P         !!!Lúcia
+        real    :: NO3,NO3limit,MethaneProduction
+
         !------------------------------------------------------------------------
         
         LOM_C_Srate         = Me%SpecificRates%Labil_OM_C%Value
         LCN                 = Me%LabiOM_CN_Ratio
+        LCP                 = Me%LabilOM_CP_Ratio       !!!Lúcia 
         LOM_CI              = Me%PropIndex%Labil_OM_C
+        ROM_CI              = Me%PropIndex%RefractOM_C
+
         LOM_NI              = Me%PropIndex%Labil_OM_N
             
         RCN                 = Me%RefractOM_CN_Ratio   
-                
+        RCP                 = Me%RefractOM_CP_Ratio         !!!Lúcia
+               
         DenitrificationRate     = Me%SpecificRates%NitrateToNgas%Value
         ImobilizationRateNH4    = Me%SpecificRates%AmmoniaImobilization%Value
         ImobilizationRateNO3    = Me%SpecificRates%NitrateImobilization%Value
+        ImobilizationRateP      = Me%SpecificRates%PhosphorusImobilization%Value  !!!Lúcia
+        solubilizingrate        = Me%SpecificRates%Solubilizing%Value           
                       
         NII                 = Me%PropIndex%Nitrate
         AMI                 = Me%PropIndex%Ammonia
+        PI                  = Me%PropIndex%Inorganic_P_soluble   !!!Lúcia
+        PFI                 = Me%PropIndex%Inorganic_P_fix  
 
         Partition           = Me%Partition
         AnaPartition        = Me%AnaerobicPartition
+        seletion            = Me%Select                          !!!Lúcia
+        solpartition        = Me%Solpartition
 
         HeteroDeathRate     = Me%SpecificRates%Heterotrophs%Value
-        HetI                = Me%PropIndex%HetrotrophicC
+        HetI                = Me%PropIndex%HeterotrophicC
         HetCN               = Me%Microorganisms%Heterotrophs%CNRatio
+        HetCP               = Me%Microorganisms%Heterotrophs%CPRatio    !!!Lúcia
 
         AnaDeathRate        = Me%SpecificRates%Anaerobic%Value
         AnaI                = Me%PropIndex%AnaerobicC
         AnaCN               = Me%Microorganisms%Anaerobic%CNRatio
 
         AutoDeathRate       = Me%SpecificRates%Autotrophs%Value
-        AutI                = Me%PropIndex%AutotrotrophicC
+        AutI                = Me%PropIndex%AutotrophicC
         AutoCN              = Me%Microorganisms%Autotrophs%CNRatio
 
         DTDay               = Me%DTDay
 
         Conversion          = Me%ExternalVar%DissolvedToParticulate (index)
 
+        AM   = Me%ExternalVar%Mass(AMI,index)   !!!
+        N    = Me%ExternalVar%Mass(NII,index)   !!!
+        P    = Me%ExternalVar%Mass(PI,index)    !!!
+       
+        methaneproduction      = Me%SpecificRates%MethaneProduction%Value
+        NO3                    = Me%ExternalVar%Mass(NII,index)
+
+        NO3limit               = Me%NO3limit
+
+
+
         Me%Matrix(LOM_NI, LOM_NI)   = 1.
         
-        !Sinks Heterotrophs uptake           
+      
+       !Sinks: Heterotrophs uptake 
         
-        if (Me%NLimitation)  then !The OM N uptake rate is controlrd by the potential immobilization rate
-            
-            Me%Matrix(LOM_NI, AMI)    = Me%Matrix(LOM_NI, AMI) - DTDay              &
-                                      * ImobilizationRateNH4 * Conversion * 1./ LCN & 
-                                      * (1./((1./HetCN - 1./LCN )                   &
-                                      + Partition * (1./HetCN - 1./RCN))) 
-                
-            Me%Matrix(LOM_NI, NII)    = Me%Matrix(LOM_NI, NII) - DTDay              &
-                                      * ImobilizationRateNO3 * Conversion * 1./ LCN &
-                                      * (1./((1./HetCN - 1./LCN )                   &
-                                      + Partition * (1./HetCN - 1./RCN)))
 
-        else
+        if (seletion==5.OR.seletion==6 .OR. seletion==8 .OR. seletion==9 )  then 
         
-            Me%Matrix(LOM_NI, LOM_CI) = Me%Matrix(LOM_NI, LOM_CI) - DTDay * LOM_C_Srate / LCN  
+            Me%Matrix(LOM_NI, LOM_CI)  = Me%Matrix(LOM_NI, LOM_CI) - DTDay          &
+                                          * LOM_C_Srate * 1./ LCN  
+
         end if
+
+        if (seletion==2.OR. seletion==3) then 
+
+
+            Me%Matrix(LOM_NI, AMI)  = Me%Matrix(LOM_NI, AMI) - DTDay                 & 
+                                    * ImobilizationRateNH4  * Conversion* (1./ LCN)  &
+                                    * (1./( (1./HetCN - 1./LCN ) +AnaPartition       &
+                                    * (1./HetCN - 1./RCN))) 
+                
+            Me%Matrix(LOM_NI, NII)  = Me%Matrix(LOM_NI, NII) - DTDay                 &
+                                    * ImobilizationRateNO3  * Conversion*(1./ LCN)   & 
+                                    * (1./( (1./HetCN - 1./LCN ) + AnaPartition      &
+                                    * (1./HetCN - 1./RCN)))
+         end if
+
+        if (seletion==4.OR. seletion==7) then
+
+            
+            Me%Matrix(LOM_NI, PI)  = Me%Matrix(LOM_NI, PI) - DTDay                   &
+                                    * ImobilizationRateP  * Conversion*( 1./ LCN )   & 
+                                    * (1./( (1./HetCP - 1./LCP ) + AnaPartition      &
+                                    * (1./HetCP - 1./RCP)))
+
+        end if
+
         
-        !Sinks: Anaerobic uptake 
-        Me%Matrix(LOM_NI, NII) = Me%Matrix(LOM_NI, NII) - DTDay                     & 
-                               * DenitrificationRate * Conversion * 1./ LCN         &
-                               * ( 0.1/( AnaPartition +1.))     
-        !Sources: Anaerobic death
-        if (.NOT. Me%Microorganisms%Anaerobic%LogicalMinumumPOP)                    &        
-            Me%Matrix(LOM_NI, AnaI) = Me%Matrix(LOM_NI, AnaI) + DTDay               &
-                                    * AnaDeathRate * 1. / AnaCN 
+        if(seletion==1) then
+    
+            Real_N = ((ImobilizationRateNH4*AM+ImobilizationRateNO3*N)               &
+                     *Conversion)*(1./( (1./HetCN - 1./LCN )                         &
+                     + AnaPartition * (1./HetCN - 1./RCN)))
+
+            Real_P = ((ImobilizationRateP*P)*Conversion)                             &
+                     * (1./( (1./HetCP - 1./LCP )                                    &
+                     + AnaPartition * (1./HetCP - 1./RCP)))
+
+    
+            if( Real_N<Real_P) then
+
+                    Me%Matrix(LOM_NI, AMI)  = Me%Matrix(LOM_NI, AMI) - DTDay           & 
+                                    * ImobilizationRateNH4  * Conversion* (1./ LCN ) &
+                                    * (1./( (1./HetCN - 1./LCN ) + AnaPartition      &
+                                    * (1./HetCN - 1./RCN))) 
+                
+                    Me%Matrix(LOM_NI, NII)  = Me%Matrix(LOM_NI, NII) - DTDay           &
+                                    * ImobilizationRateNO3  * Conversion * (1./ LCN) & 
+                                    * (1./( (1./HetCN - 1./LCN ) + AnaPartition      &
+                                    * (1./HetCN - 1./RCN))) 
+                            
+                                else
+
+                    Me%Matrix(LOM_NI, PI)  = Me%Matrix(LOM_NI, PI) - DTDay             &
+                                    * ImobilizationRateP  * Conversion * (1./ LCN )  & 
+                                    * (1./( (1./HetCP - 1./LCP ) + AnaPartition      &
+                                    * (1./HetCP - 1./RCP)))
+
+            end if
+        end if
+
+
+        !Sinks    : Anaerobic uptake, vai depender se respiram NO3 ou CO2 
+
+        if (NO3>NO3limit) then    ! respiram NO3
+
+
+            Me%Matrix(LOM_NI, NII) = Me%Matrix(LOM_NI, NII) - DTDay                      & 
+                           * DenitrificationRate * Conversion * (1./ LCN )       &
+                           * ( 0.1/( AnaPartition +1.))  
+                           
+        else                   ! respiram CO2
+                           
+            Me%Matrix(LOM_NI, LOM_CI)     = Me%Matrix(LOM_NI, LOM_CI) - DTDay     & 
+                                 *  methaneproduction *(1/LCN)  &
+                                 * ( 0.1/( AnaPartition +1.) )
+
+            Me%Matrix(LOM_NI, ROM_CI)     = Me%Matrix(LOM_NI, ROM_CI) - DTDay     & 
+                                 *  methaneproduction *(1/LCN)   &
+                                 * ( 0.1/( AnaPartition +1.) )
+         
+        end if              
+                               
+                                                                                                                      
+        !Sources: Anaerobic death 
+        if (.NOT. Me%Microorganisms%Anaerobic%LogicalMinumumPOP)                     &        
+            Me%Matrix(LOM_NI, AnaI) = Me%Matrix(LOM_NI, AnaI) + DTDay                &
+                                    * AnaDeathRate *( 1. / AnaCN )
                                               
-        !Sources: Hetrotrophic death
-        if ( .NOT. Me%Microorganisms%Heterotrophs%LogicalMinumumPOP)                &        
-            Me%Matrix(LOM_NI, HetI) = Me%Matrix(LOM_NI, HetI) + DTDay               &
-                                    * HeteroDeathRate * 1. / HetCN
+        !Sources: Heterotrophic death
+        if ( .NOT. Me%Microorganisms%Heterotrophs%LogicalMinumumPOP)                 &        
+            Me%Matrix(LOM_NI, HetI) = Me%Matrix(LOM_NI, HetI) + DTDay                &
+                                    * HeteroDeathRate * (1. / HetCN)
                                               
-        !Sources: Autotrotrophic death
-        if ( .NOT. Me%Microorganisms%Autotrophs%LogicalMinumumPOP)                  &        
-            Me%Matrix(LOM_NI, AutI) = Me%Matrix(LOM_NI, AutI) + DTDay               &
-                                    * AutoDeathRate * 1. / AutoCN                                       
+        !Sources: Autotrophic death
+        if ( .NOT. Me%Microorganisms%Autotrophs%LogicalMinumumPOP)                   &        
+            Me%Matrix(LOM_NI, AutI) = Me%Matrix(LOM_NI, AutI) + DTDay                &
+                                    * AutoDeathRate * (1. / AutoCN)                                       
+
+
+        if (Me%PropCalc%Sol_Bacteria) then
+
+            !Sinks: Labil N
+            Me%Matrix(LOM_NI, PFI) = Me%Matrix(LOM_NI, PFI) - DTDay                     &
+                                  * solubilizingRate * Conversion *(1/LCN)              &
+                                  * (0.1 /( (SolPartition + 1. ))) 
+        end if
+
        
         !Independent term
-        Me%IndTerm(LOM_NI) = Me%ExternalVar%Mass(LOM_NI, index)                     
+        Me%IndTerm(LOM_NI) = Me%ExternalVar%Mass(LOM_NI, index)  
+        
+                               
     !----------------------------------------------------------------------------
 
     end subroutine LabilOrganicNitrogen 
     !----------------------------------------------------------------------------
 
 
+
+    !Alterações Lúcia
     !Refractary Organic Nitrogen
     !
     !SOURCES: - INTERPOOL TRANSFORMATION
@@ -3366,85 +5516,187 @@ do1 :           do while(associated(EquaRateFluxX))
         integer                , intent(IN) :: index
 
         !Local-------------------------------------------------------------------
-        integer :: AMI, NII
+        integer :: AMI, NII,PI,PFI              !!!Lucia
         
-        real    :: ImobilizationRateNH4, DenitrificationRate, ImobilizationRateNO3
-
-        real    :: ROM_C_Srate, RCN
-        integer :: ROM_CI, ROM_NI
+        real    :: ImobilizationRateNH4, DenitrificationRate, ImobilizationRateNO3  !!!Lúcia
+        real    :: ImobilizationRateP
+        real    :: solubilizingrate
+        real    :: ROM_C_Srate, RCN , RCP    !!!Lúcia
+        integer :: ROM_CI, ROM_NI,LOM_CI
 
         real    :: LCN
+        real    :: LCP                          !!!Lúcia
 
-        real    :: HeteroDeathRate, HetCN   
+        real    :: HeteroDeathRate, HetCN , HetCP   !!!Lúcia   
         integer :: HetI                
         
-        real    :: AnaDeathRate, AnaCN        
+        real    :: AnaDeathRate, AnaCN     !!!Lúcia        
         integer :: AnaI                
 
-        real    :: AutoDeathRate, AutoCN
+        real    :: AutoDeathRate, AutoCN    !!!Lúcia
         integer :: AutoI               
 
-        real    :: Partition, AnaPartition, Conversion, DTDay
+        real    :: Partition, AnaPartition, Conversion, DTDay ,seletion
+        real    :: solpartition !!!Lúcia
+        real    :: AM,N,P,Real_N,Real_P         !!!Lúcia
+        real    :: NO3,NO3Limit,MethaneProduction
+
         !------------------------------------------------------------------------
         ROM_C_Srate         = Me%SpecificRates%RefractOM_C%Value
-        RCN                 = Me%RefractOM_CN_Ratio   
+        RCN                 = Me%RefractOM_CN_Ratio 
+        RCP                 = Me%RefractOM_CP_Ratio         !!!Lúcia 
+ 
         ROM_CI              = Me%PropIndex%RefractOM_C
+        LOM_CI              = Me%PropIndex%Labil_OM_C
         ROM_NI              = Me%PropIndex%RefractOM_N
-            
+        PFI                 = Me%PropIndex%Inorganic_P_fix  
+           
         LCN                 = Me%LabiOM_CN_Ratio   
-                
+        LCP                 = Me%LabilOM_CP_Ratio       !!!Lúcia  
+               
         DenitrificationRate     = Me%SpecificRates%NitrateToNgas%Value
         ImobilizationRateNH4    = Me%SpecificRates%AmmoniaImobilization%Value
         ImobilizationRateNO3    = Me%SpecificRates%NitrateImobilization%Value
-                      
+        ImobilizationRateP      = Me%SpecificRates%PhosphorusImobilization%Value  !!!Lúcia
+        solubilizingrate        = Me%SpecificRates%Solubilizing%Value           
+             
         NII                 = Me%PropIndex%Nitrate
         AMI                 = Me%PropIndex%Ammonia
+        PI                  = Me%PropIndex%Inorganic_P_soluble   !!!Lúcia
 
         Partition           = Me%Partition
         AnaPartition        = Me%AnaerobicPartition
+        solpartition        = Me%Solpartition
 
         HeteroDeathRate     = Me%SpecificRates%Heterotrophs%Value
-        HetI                = Me%PropIndex%HetrotrophicC
+        HetI                = Me%PropIndex%HeterotrophicC
         HetCN               = Me%Microorganisms%Heterotrophs%CNRatio
+        HetCP               = Me%Microorganisms%Heterotrophs%CPRatio        !!!Lúcia
 
         AnaDeathRate        = Me%SpecificRates%Anaerobic%Value
         AnaI                = Me%PropIndex%AnaerobicC
         AnaCN               = Me%Microorganisms%Anaerobic%CNRatio
 
         AutoDeathRate       = Me%SpecificRates%Autotrophs%Value
-        AutoI               = Me%PropIndex%AutotrotrophicC
+        AutoI               = Me%PropIndex%AutotrophicC
         AutoCN              = Me%Microorganisms%Autotrophs%CNRatio
 
         DTDay               = Me%DTDay
-        
+        seletion            = Me%Select                          !!!Lúcia       
+
         Conversion          = Me%ExternalVar%DissolvedToParticulate (index)
         
+        AM   = Me%ExternalVar%Mass(AMI,index)   !!!
+        N    = Me%ExternalVar%Mass(NII,index)   !!!
+        P    = Me%ExternalVar%Mass(PI,index)    !!!
+
+        NO3limit            = Me%NO3limit
+        methaneproduction   = Me%SpecificRates%MethaneProduction%Value
+        NO3                 = Me%ExternalVar%Mass(NII,index)
+
+
+
+
         Me%Matrix(ROM_NI, ROM_NI)  = 1.
         
         !Sinks Heterotrophs uptake           
-        if (Me%NLimitation)  then 
-        !The OM N uptake rate is controlrd by the potential immobilization rate
-            
-            Me%Matrix(ROM_NI, AMI)  = Me%Matrix(ROM_NI, AMI) - DTDay                &
-                                    * ImobilizationRateNH4 * Conversion * 1./RCN    &
-                                    * (1./((1./HetCN - 1./LCN ) * 1./ Partition     &
-                                    + (1./HetCN - 1./RCN))) 
-                
-            Me%Matrix(ROM_NI, NII)  = Me%Matrix(ROM_NI, NII) - DTDay                &
-                                    * ImobilizationRateNO3 * Conversion * 1./RCN    &
-                                    * (1./((1./HetCN - 1./LCN )* 1./ Partition      &
-                                    +  (1./HetCN - 1./RCN)))
+       
+        if (seletion==5.OR.seletion==6 .OR. seletion==8 .OR. seletion==9 )  then 
+        
+             Me%Matrix(ROM_NI, ROM_CI)  = Me%Matrix(ROM_NI, ROM_CI) - DTDay *         &
+                                          ROM_C_Srate *(1./ RCN)  
 
-        else
-        
-            Me%Matrix(ROM_NI, ROM_CI) = Me%Matrix(ROM_NI, ROM_CI) - DTDay * ROM_C_Srate / RCN  
         end if
+
+        if (seletion==2.OR. seletion==3) then 
+
+
+            Me%Matrix(ROM_NI, AMI)  = Me%Matrix(ROM_NI, AMI) - DTDay                  & 
+                                    * ImobilizationRateNH4  * Conversion*(1./ RCN)    &
+                                    * (1./( (1./HetCN - 1./LCN )*(1/AnaPartition)     &
+                                    +  (1./HetCN - 1./RCN))) 
+                
+            Me%Matrix(ROM_NI, NII)  = Me%Matrix(ROM_NI, NII) - DTDay                  &
+                                    * ImobilizationRateNO3  * Conversion *(1./ RCN)   & 
+                                    * (1./( (1./HetCN - 1./LCN )*(1/AnaPartition)     &
+                                    +  (1./HetCN - 1./RCN)))
+         end if
+
+        if (seletion==4.OR. seletion==7) then
+
+            
+            Me%Matrix(ROM_NI, PI)  = Me%Matrix(ROM_NI, PI) - DTDay                    &
+                                    * ImobilizationRateP  * Conversion * (1./ RCN )   & 
+                                    * (1./( (1./HetCP - 1./LCP )*(1/AnaPartition)     &
+                                    + (1./HetCP - 1./RCP)))
+
+        end if
+
         
-        !Sinks: Anaerobic uptake 
-        Me%Matrix(ROM_NI, NII) = Me%Matrix(ROM_NI, NII) - DTDay                     &
-                               * DenitrificationRate * Conversion * 1./RCN          &
-                               * (0.1/( 1./AnaPartition +1.) )     
-                                             
+        if(seletion==1) then
+    
+            Real_N = ((ImobilizationRateNH4*AM+ImobilizationRateNO3*N)                &
+                     *Conversion)*(1./( (1./HetCN - 1./LCN )*(1/AnaPartition)         &
+                     +  (1./HetCN - 1./RCN)))
+
+            Real_P = ((ImobilizationRateP*P)*Conversion)                              &
+                    * (1./( (1./HetCP - 1./LCP )*(1/AnaPartition)                     &
+                    +  (1./HetCP - 1./RCP)))
+
+    
+            if( Real_N<Real_P) then
+
+                Me%Matrix(ROM_NI, AMI)  = Me%Matrix(ROM_NI, AMI) - DTDay            & 
+                                    * ImobilizationRateNH4  * Conversion *(1./ RCN )  &
+                                    * (1./( (1./HetCN - 1./LCN )*(1/AnaPartition)     &
+                                    +  (1./HetCN - 1./RCN))) 
+                
+                Me%Matrix(ROM_NI, NII)  = Me%Matrix(ROM_NI, NII) - DTDay            &
+                                    * ImobilizationRateNO3  * Conversion *(1./ RCN )  & 
+                                    * (1./( (1./HetCN - 1./LCN )*(1/AnaPartition)     &
+                                    +  (1./HetCN - 1./RCN)))    
+                            
+            else
+
+                Me%Matrix(ROM_NI, PI)  = Me%Matrix(ROM_NI, PI) - DTDay              &
+                                    * ImobilizationRateP  * Conversion *(1./ RCN)     & 
+                                    * (1./( (1./HetCP - 1./LCP )*(1/AnaPartition)     &
+                                    + (1./HetCP - 1./RCP)))
+
+            end if
+        end if
+
+
+        !Sinks    : Anaerobic uptake, vai depender se respiram NO3 ou CO2 
+
+        if (NO3>NO3limit) then    ! respiram NO3
+
+            Me%Matrix(ROM_NI, NII) = Me%Matrix(ROM_NI, NII) - DTDay                       &
+                               * DenitrificationRate * Conversion * (1./RCN)          &
+                               * (0.1/( (1./AnaPartition) +1.) )
+                               
+        else                   ! respiram CO2
+
+            Me%Matrix(ROM_NI, LOM_CI)     = Me%Matrix(ROM_NI, LOM_CI) - DTDay    & 
+                                     *  methaneproduction *(1./RCN)          &
+                                     * ( 0.1/( (1/AnaPartition) +1.) )
+
+            Me%Matrix(ROM_NI, ROM_CI)     = Me%Matrix(ROM_NI, ROM_CI) - DTDay    & 
+                                     *  methaneproduction *(1./RCN)          &
+                                     * ( 0.1/( (1/AnaPartition) +1.) )
+             
+        end if              
+
+                                    
+        if (Me%PropCalc%Sol_Bacteria) then
+    
+            !Sinks: Refract N
+            Me%Matrix(ROM_NI, PFI) = Me%Matrix(ROM_NI, PFI) - DTDay                       &
+                                  * SolubilizingRate * Conversion *(1/RCN)              &
+                                  * (0.1 /( ((1./SolPartition) + 1. ) )) 
+        end if
+
+                                                 
         !Independent term
         Me%IndTerm(ROM_NI)     = Me%ExternalVar%Mass(ROM_NI, index)                                     
     !----------------------------------------------------------------------------
@@ -3456,168 +5708,362 @@ do1 :           do while(associated(EquaRateFluxX))
     !Heterotrophic N
     !
     !SOURCES: - Organic matter N decay
-    !SINKS:   - Hetrotrophic Death, excretion
+    !SINKS:   - Heterotrophic Death, excretion
     !----------------------------------------------------------------------------
-    subroutine HetrotrophicN (index)
+    subroutine HeterotrophicN (index)
 
         !Arguments---------------------------------------------------------------
         integer                 , intent(IN) :: index
 
         !Local-------------------------------------------------------------------
-        real    :: HeteroDeathRate, HetCN, HetEF
+        real    :: HeteroDeathRate, HetCN, HetEF , HetCP   !!!Lúcia
         integer :: HetCI, HetNI           
         
-        real    :: ROM_C_Srate, RCN, potRCuptake
+        real    :: ROM_C_Srate, RCN, RCP     !!!Lúcia
         integer :: ROM_CI, ROM_NI              
 
-        real    :: LOM_C_Srate, LCN, potLCuptake          
+        real    :: LOM_C_Srate, LCN, LCP    !!!Lúcia          
         integer :: LOM_CI, LOM_NI
 
-        real    :: totalNuptake, neededNuptake
         
-        real    :: ImobilizationRateNO3, ImobilizationRateNH4
-        integer :: NII, AMI
+        real    :: ImobilizationRateNO3, ImobilizationRateNH4 ,ImobilizationRateP !!!Lúcia
+
+        integer :: NII, AMI ,PI       !!!Lúcia
         
-        real    :: Partition, Conversion, DTDay
+        real    :: Real_N_ROM , Real_P_ROM,Real_N_LOM, Real_P_LOM, AM,N, P   !!!Lúcia
+
+        real    :: AnaPartition,Partition, Conversion, DTDay ,seletion          !!!Lúcia
         !------------------------------------------------------------------------
 
-        HeteroDeathRate = Me%SpecificRates%Heterotrophs%Value
-        HetCI           = Me%PropIndex%HetrotrophicC
-        HetNI           = Me%PropIndex%HetrotrophicN
-        HetCN           = Me%Microorganisms%Heterotrophs%CNRatio
-        HetEF           = Me%Microorganisms%Heterotrophs%EficiencyC
+        HeteroDeathRate         = Me%SpecificRates%Heterotrophs%Value
+        HetCI                   = Me%PropIndex%HeterotrophicC
+        HetNI                   = Me%PropIndex%HeterotrophicN
+        HetCN                   = Me%Microorganisms%Heterotrophs%CNRatio
+        HetCP                   = Me%Microorganisms%Heterotrophs%CPRatio !!!Lúcia
+        HetEF                   = Me%Microorganisms%Heterotrophs%EficiencyC
 
-        ROM_C_Srate         = Me%SpecificRates%RefractOM_C%Value
-        RCN                 = Me%RefractOM_CN_Ratio   
-        ROM_CI              = Me%PropIndex%RefractOM_C
-        ROM_NI              = Me%PropIndex%RefractOM_N
+        ROM_C_Srate             = Me%SpecificRates%RefractOM_C%Value
+        RCN                     = Me%RefractOM_CN_Ratio 
+        RCP                     = Me%RefractOM_CP_Ratio  !!!Lúcia         
+        ROM_CI                  = Me%PropIndex%RefractOM_C
+        ROM_NI                  = Me%PropIndex%RefractOM_N
             
-        LOM_C_Srate         = Me%SpecificRates%Labil_OM_C%Value
-        LCN                 = Me%LabiOM_CN_Ratio
-        LOM_CI              = Me%PropIndex%Labil_OM_C
-        LOM_NI              = Me%PropIndex%Labil_OM_N
+        LOM_C_Srate             = Me%SpecificRates%Labil_OM_C%Value
+        LCN                     = Me%LabiOM_CN_Ratio
+        LCP                     = Me%LabilOM_CP_Ratio    !!!Lúcia
+        LOM_CI                  = Me%PropIndex%Labil_OM_C
+        LOM_NI                  = Me%PropIndex%Labil_OM_N
         
         NII                     = Me%PropIndex%Nitrate
         ImobilizationRateNO3    = Me%SpecificRates%NitrateImobilization%Value
+        N                       = Me%ExternalVar%Mass(NII, index)       !!!Lúcia
+
 
         AMI                     = Me%PropIndex%Ammonia
         ImobilizationRateNH4    = Me%SpecificRates%AmmoniaImobilization%Value
+        AM                      = Me%ExternalVar%Mass(AMI, index)    !!!Lúcia
 
-        Partition           = Me%Partition
+        PI                      = Me%PropIndex%Inorganic_P_soluble
+        ImobilizationRateP      = Me%SpecificRates%PhosphorusImobilization%Value
+        P                       = Me%ExternalVar%Mass(PI, index)     !!!Lúcia
+
+
+        Partition               = Me%Partition
+        AnaPartition            = Me%AnaerobicPartition
         
-        DTDay               = Me%DTDay
+        DTDay                   = Me%DTDay
 
-        Conversion          = Me%ExternalVar%DissolvedToParticulate (index)
+        Conversion              = Me%ExternalVar%DissolvedToParticulate (index)
+        seletion                = Me%Select    !!!Lúcia
+
 
         
         Me%Matrix(HetNI, HetNI) = 1.
         
-        !Sink: Hetrotrophic death
-        if ( .not. Me%Microorganisms%Heterotrophs%LogicalMinumumPOP)                & 
-            Me%Matrix(HetNI, HetCI) = Me%Matrix(HetNI, HetCI) - DTDay * HeteroDeathRate * 1. / HetCN
+        !Sink: Heterotrophic death
+        if ( .not. Me%Microorganisms%Heterotrophs%LogicalMinumumPOP)                        & 
+                    Me%Matrix(HetNI, HetCI) = Me%Matrix(HetNI, HetCI) -                     &
+                                              DTDay * HeteroDeathRate *( 1. / HetCN)
 
-        !Sink Heterotrophs excretion
-        if (.NOT. Me%NLimitation) then       
-                                                
-                Me%Matrix(HetNI, LOM_CI) = Me%Matrix(HetNI, LOM_CI) - DTDay         &
-                                         * ( LOM_C_Srate * HetEF/HetCN ) 
+        !Sink : Breath
+        !Source : Labile and Refractory uptake 
 
-                Me%Matrix(HetNI, ROM_CI) = Me%Matrix(HetNI, ROM_CI) - DTDay         &
-                                         * ( ROM_C_Srate * HetEF/HetCN )
-        else
-            
-                Me%Matrix(HetNI, AMI)    = Me%Matrix(HetNI, AMI) - DTDay            &
-                                         * ImobilizationRateNH4 * Conversion * HetEF/HetCN &
-                                         * (1./((1./HetCN - 1./LCN)                 &
-                                         + Partition * (1./HetCN - 1./RCN))         &
-                                         + 1./((1./HetCN - 1./LCN) * 1. / Partition &
-                                         + (1./HetCN - 1./RCN))) 
-                
-                Me%Matrix(HetNI, NII)    = Me%Matrix(HetNI, NII) - DTDay            &
-                                         * ImobilizationRateNO3 * Conversion * HetEF/HetCN &
-                                         * (1./((1./HetCN - 1./LCN )                &
-                                         + Partition * (1./HetCN - 1./RCN))         &
-                                         + 1./((1./HetCN - 1./LCN ) * 1./ Partition & 
-                                         + (1./HetCN - 1./RCN))) 
-           
-        end if
+        if (seletion==5.OR.seletion==6 .OR. seletion==8 .OR. seletion==9 )  then 
         
-        !Source: OM N uptake
-         if (Me%NLimitation)  then 
-         !The OM N uptake rate is controlrd by the potential immobilization rate
+            Me%Matrix(HetNI, LOM_CI)  = Me%Matrix(HetNI, LOM_CI) +DTDay *          &
+                                         LOM_C_Srate * (1/LCN)
+
+            Me%Matrix(HetNI, ROM_CI)  = Me%Matrix(HetNI, ROM_CI) +DTDay *          &
+                                         ROM_C_Srate * (1/RCN)
+        
+                            
+            !Breath
+
+            Me%Matrix(HetNI, LOM_CI)  = Me%Matrix(HetNI, LOM_CI) -DTDay *          &
+                                     LOM_C_Srate* (HetEF/HetCN)
+
+            Me%Matrix(HetNI, ROM_CI)  = Me%Matrix(HetNI, ROM_CI) -DTDay *          &
+                                     ROM_C_Srate* (HetEF/HetCN)
+                      
+        end if
+
+        if (seletion==2.OR. seletion==3) then 
+
+            Me%Matrix(HetNI, AMI)  = Me%Matrix(HetNI, AMI) + DTDay                   & 
+                                   * ImobilizationRateNH4  * Conversion *(1/LCN )   &
+                                   * 1./((1./HetCN - 1./LCN)                        &
+                                   + AnaPartition * (1./HetCN - 1./RCN))               
+                       
+
+            Me%Matrix(HetNI, AMI)  = Me%Matrix(HetNI, AMI) + DTDay                   & 
+                                   * ImobilizationRateNH4  * Conversion *(1/RCN )   &
+                                   * 1./((1./HetCN - 1./LCN ) * (1./AnaPartition)   &
+                                   + (1./HetCN - 1./RCN))
+
+
+            Me%Matrix(HetNI, NII)  = Me%Matrix(HetNI, NII) + DTDay                   &
+                                   * ImobilizationRateNO3  * Conversion *(1/LCN)    &
+                                   * 1./((1./HetCN - 1./LCN)                        &
+                                   + AnaPartition * (1./HetCN - 1./RCN))               
+                                                
+
+
+            Me%Matrix(HetNI, NII)  = Me%Matrix(HetNI, NII) + DTDay                   &
+                                   * ImobilizationRateNO3  * Conversion *(1/RCN )   &
+                                   * 1./((1./HetCN - 1./LCN ) * (1./ AnaPartition ) &
+                                   + (1./HetCN - 1./RCN))                    
+
+
+            !Breath
+
+            Me%Matrix(HetNI, AMI)  = Me%Matrix(HetNI, AMI) - DTDay                   & 
+                                   * ImobilizationRateNH4  * Conversion             &
+                                   *(HetEF/HetCN )                                  &
+                                   * 1./((1./HetCN - 1./LCN)                        &
+                                   + AnaPartition * (1./HetCN - 1./RCN))               
+                       
+
+            Me%Matrix(HetNI, AMI)  = Me%Matrix(HetNI, AMI) - DTDay                   & 
+                                   * ImobilizationRateNH4  * Conversion             &
+                                   *(HetEF/HetCN)                                   &
+                                   * 1./((1./HetCN - 1./LCN ) * (1./AnaPartition)   &
+                                   + (1./HetCN - 1./RCN))
+
+
+            Me%Matrix(HetNI, NII)  = Me%Matrix(HetNI, NII) - DTDay                   &
+                                   * ImobilizationRateNO3  * Conversion             &
+                                   *(HetEF/HetCN )                                  &
+                                   * 1./((1./HetCN - 1./LCN)                        &
+                                   + AnaPartition * (1./HetCN - 1./RCN))               
+                                                
+
+
+            Me%Matrix(HetNI, NII)  = Me%Matrix(HetNI, NII) - DTDay                   &
+                                   * ImobilizationRateNO3  * Conversion             &
+                                   *(HetEF/HetCN )                                  &
+                                   * 1./((1./HetCN - 1./LCN ) * (1./ AnaPartition)  &
+                                   + (1./HetCN - 1./RCN))                    
+
+        end if
+
+
+        if (seletion==4.OR. seletion==7) then
+
             
-            !Labil N uptake
-            Me%Matrix(HetNI, AMI) = Me%Matrix(HetNI, AMI) + DTDay                   &
-                                  * ImobilizationRateNH4 * Conversion * 1./LCN      &
-                                  * (1./((1./HetCN - 1./LCN)                        &
-                                  + Partition * (1./HetCN - 1./RCN))) 
+            Me%Matrix(HetNI, PI)  = Me%Matrix(HetNI, PI) + DTDay                     &
+                                    * ImobilizationRateP  * Conversion * (1/RCN )    & 
+                                    * (1./( (1./HetCP - 1./LCP )*(1/AnaPartition)    & 
+                                    + (1./HetCP - 1./RCP)))                         
+
+
+            Me%Matrix(HetNI, PI)  = Me%Matrix(HetNI, PI) + DTDay                     &
+                                    * ImobilizationRateP  * Conversion * (1/LCN )    & 
+                                    * (1./( (1./HetCP - 1./LCP )                     &
+                                    + AnaPartition*(1./HetCP - 1./RCP)))
+
+
+            !Breath
+
+            Me%Matrix(HetNI, PI)  = Me%Matrix(HetNI, PI) - DTDay                     &
+                                    * ImobilizationRateP  * Conversion               &
+                                    * (HetEF/HetCN )                                 & 
+                                    * (1./( (1./HetCP - 1./LCP )*(1/Anapartition)    & 
+                                    + (1./HetCP - 1./RCP)))                         
+
+            Me%Matrix(HetNI, PI)  = Me%Matrix(HetNI, PI) - DTDay                     &
+                                    * ImobilizationRateP  * Conversion               &
+                                    * (HetEF/HetCN )                                 & 
+                                    * (1./( (1./HetCP - 1./LCP )                     & 
+                                    + Anapartition*(1./HetCP - 1./RCP)))                            
+
+
+
+        end if
+
+        
+
+        if(seletion==1) then
+    
+            Real_N_ROM = ((ImobilizationRateNH4*AM+ImobilizationRateNO3*N)           &
+                        *Conversion) *(1./( (1./HetCN - 1./LCN )*(1/AnaPartition)    &
+                         +  (1./HetCN - 1./RCN)))
+
+            Real_P_ROM = ((ImobilizationRateP*P)*Conversion)                         &
+                        * (1./( (1./HetCP - 1./LCP )*(1/AnaPartition)                &
+                        +  (1./HetCP - 1./RCP)))
+
+
+
+            Real_N_LOM = ((ImobilizationRateNH4*AM+ImobilizationRateNO3*N)           &
+                         *Conversion) *(1./( (1./HetCN - 1./LCN )                    &
+                         +  AnaPartition*(1./HetCN - 1./RCN)))
+
+
+            Real_P_LOM = ((ImobilizationRateP*P)*Conversion)                         &
+                         * (1./( (1./HetCP - 1./LCP ) +                              &
+                         AnaPartition*(1./HetCP - 1./RCP)))
+
+
+    
+            if( Real_N_ROM<Real_P_ROM) then
+
+                  Me%Matrix(HetNI, AMI)  = Me%Matrix(HetNI, AMI) + DTDay                 & 
+                                           * ImobilizationRateNH4  *                     &
+                                           Conversion *(1/RCN)                           &
+                                           * (1./( (1./HetCN - 1./LCN )*(1/AnaPartition) &
+                                            +  (1./HetCN - 1./RCN))) 
                 
-            Me%Matrix(HetNI, NII) = Me%Matrix(HetNI, NII) + DTDay                   &
-                                  * ImobilizationRateNO3 * Conversion * 1./LCN      &
-                                  *(1./((1./HetCN - 1./LCN)                         &
-                                  + Partition * (1./HetCN - 1./RCN))) 
-            !Refract N uptake
-            Me%Matrix(HetNI, AMI) = Me%Matrix(HetNI, AMI) + DTDay                   &
-                                  * ImobilizationRateNH4 * Conversion * 1./RCN      &
-                                  * (1./((1./HetCN - 1./LCN) * 1./ Partition        &
-                                  + (1./HetCN - 1./RCN))) 
+
+                  Me%Matrix(HetNI, NII)  = Me%Matrix(HetNI, NII) + DTDay                 &
+                                          * ImobilizationRateNO3  *                      &
+                                          Conversion * (1/RCN)                           & 
+                                          * (1./( (1./HetCN - 1./LCN )*(1/AnaPartition)  & 
+                                          +  (1./HetCN - 1./RCN)))
+                                                
+                    
+                !Breath 
                 
-            Me%Matrix(HetNI, NII) = Me%Matrix(HetNI, NII) + DTDay                   &
-                                  * ImobilizationRateNO3 * Conversion * 1./RCN      &
-                                  * (1./((1./HetCN - 1./LCN ) * 1./ Partition       &
-                                  + (1./HetCN - 1./RCN))) 
+                        
+                  Me%Matrix(HetNI, AMI)  = Me%Matrix(HetNI, AMI) - DTDay                 & 
+                                    * ImobilizationRateNH4  * Conversion*(HetEF/HetCN)   &
+                                    * (1./( (1./HetCN - 1./LCN )*(1/AnaPartition)        &
+                                    +  (1./HetCN - 1./RCN))) 
+                
+                  Me%Matrix(HetNI, NII)  = Me%Matrix(HetNI, NII) - DTDay                 &
+                                    * ImobilizationRateNO3  * Conversion *(HetEF/HetCN)  & 
+                                    * (1./( (1./HetCN - 1./LCN )*(1/AnaPartition)        & 
+                                    +  (1./HetCN - 1./RCN)))    
+
+
+            else
+
+
+                 Me%Matrix(HetNI, PI)  = Me%Matrix(HetNI, PI) + DTDay                    &
+                                    * ImobilizationRateP  * Conversion*(1/RCN)           & 
+                                    * (1./( (1./HetCP - 1./LCP )*(1/AnaPartition)        &
+                                    + (1./HetCP - 1./RCP)))
+
+
+                  !Breath
+
+                  Me%Matrix(HetNI, PI)  = Me%Matrix(HetNI, PI) - DTDay                   &
+                                    * ImobilizationRateP  * Conversion*(HetEF/ HetCN)    & 
+                                    * (1./( (1./HetCP - 1./LCP )*(1/AnaPartition)        &
+                                    + (1./HetCP - 1./RCP)))
+
+            end if
+
+
+
+            if( Real_N_LOM<Real_P_LOM) then
+
+                Me%Matrix(HetNI, AMI)  = Me%Matrix(HetNI, AMI) + DTDay                 & 
+                                    * ImobilizationRateNH4  * Conversion *(1/LCN )       &
+                                    * (1./( (1./HetCN - 1./LCN )                         &
+                                    + AnaPartition* (1./HetCN - 1./RCN))) 
+                
+                Me%Matrix(HetNI, NII)  = Me%Matrix(HetNI, NII) + DTDay                 &
+                                    * ImobilizationRateNO3  * Conversion * (1/LCN )      & 
+                                    * (1./( (1./HetCN - 1./LCN )                         & 
+                                    +  AnaPartition*(1./HetCN - 1./RCN)))   
+                                            
+
+                !Breath 
+                        
+                Me%Matrix(HetNI, AMI)  = Me%Matrix(HetNI, AMI) - DTDay                 & 
+                                * ImobilizationRateNH4  * Conversion*(HetEF/HetCN)   &
+                                * (1./( (1./HetCN - 1./LCN )                         &
+                                +  AnaPartition*(1./HetCN - 1./RCN))) 
+
+                Me%Matrix(HetNI, NII)  = Me%Matrix(HetNI, NII) - DTDay                 &
+                                * ImobilizationRateNO3  * Conversion *(HetEF/HetCN)  & 
+                                * (1./( (1./HetCN - 1./LCN )                         & 
+                                +  AnaPartition*(1./HetCN - 1./RCN)))   
+
+
+                            else
+
+                Me%Matrix(HetNI, PI)  = Me%Matrix(HetNI, PI) + DTDay                  &
+                                * ImobilizationRateP  * Conversion*(1/LCN)           & 
+                                * (1./( (1./HetCP - 1./LCP )                         &
+                                + AnaPartition*(1./HetCP - 1./RCP)))
+
+
+                !Breath
+
+                Me%Matrix(HetNI, PI)  = Me%Matrix(HetNI, PI) - DTDay                   &
+                                * ImobilizationRateP  * Conversion*(HetEF/HetCN)     & 
+                                * (1./( (1./HetCP - 1./LCP )                         &
+                                + AnaPartition*(1./HetCP - 1./RCP)))
+
+            end if
+    
+        end if
+
+
+
+        !Source  : imobilization of NO3 and NH4
+
+        if (seletion == 4 .OR. seletion == 5 .OR. seletion == 6) then
+        
+             !NO3 immobilization
+            Me%Matrix(HetNI, LOM_CI) = Me%Matrix(HetNI, LOM_CI) + DTDay          &
+                                         * (LOM_C_Srate * (1./HetCN - 1./LCN))     &
+                                         *(1/((1/partition)+1))
+            
+            Me%Matrix(HetNI, ROM_CI) = Me%Matrix(HetNI, ROM_CI) + DTDay          &
+                                         * (ROM_C_Srate * (1./HetCN - 1./RCN))     &
+                                         *(1/((1/partition)+1))
+              !NH4 immobilization
+            Me%Matrix(HetNI, LOM_CI) = Me%Matrix(HetNI, LOM_CI) + DTDay         &
+                                         * (LOM_C_Srate * (1./HetCN - 1./LCN))     &
+                                         *(1/(Partition+1.))
+            
+            Me%Matrix(HetNI, ROM_CI) = Me%Matrix(HetNI, ROM_CI) + DTDay         &
+                                         * (ROM_C_Srate * (1./HetCN - 1./RCN))     &
+                                         *(1/(Partition+1.)) 
+
+        end if
+
+
+        if (seletion == 1 .OR. seletion == 2 .OR. seletion == 3) then
+
             !NH4 immobilization
-            Me%Matrix(HetNI, AMI) = Me%Matrix(HetNI, AMI) + DTDay                   &
-                                  * ImobilizationRateNH4 * Conversion 
+            Me%Matrix(HetNI, AMI) = Me%Matrix(HetNI, AMI) + DTDay                &
+                          * ImobilizationRateNH4 * Conversion 
 
             !NO3 immobilization
-            Me%Matrix(HetNI, NII) = Me%Matrix(HetNI, NII) + DTDay                   &
-                                  * ImobilizationRateNO3 * Conversion 
+            Me%Matrix(HetNI, NII) = Me%Matrix(HetNI, NII) + DTDay                &
+                          * ImobilizationRateNO3 * Conversion 
 
-        else
-            !Labil N uptake    
-            Me%Matrix(HetNI, ROM_CI) = Me%Matrix(HetNI, ROM_CI) + DTDay * ROM_C_Srate / RCN 
-            !Refract N uptake
-            Me%Matrix(HetNI, LOM_CI) = Me%Matrix(HetNI, LOM_CI) + DTDay * LOM_C_Srate / LCN
-                
-                if (Me%Imobilization) then
-                    !NO3 immobilization
-                    Me%Matrix(HetNI, LOM_CI) = Me%Matrix(HetNI, LOM_CI) + DTDay     &
-                                             * (LOM_C_Srate * (1./HetCN - 1./LCN))/(1./Partition+1.)
-                
-                    Me%Matrix(HetNI, ROM_CI) = Me%Matrix(HetNI, ROM_CI) + DTDay     &
-                                             * (ROM_C_Srate * (1./HetCN - 1./RCN))/(1./Partition+1.)
-
-
-                    !NH4 immobilization
-                    Me%Matrix(HetNI, LOM_CI) = Me%Matrix(HetNI, LOM_CI) + DTDay     &
-                                             * (LOM_C_Srate * (1./HetCN - 1./LCN))/(Partition+1.)
-                
-                    Me%Matrix(HetNI, ROM_CI) = Me%Matrix(HetNI, ROM_CI) + DTDay     &
-                                             * (ROM_C_Srate * (1./HetCN - 1./RCN))/(Partition+1.)
-                end if                                                                         
         end if
-            
-            !Independent term
-            Me%IndTerm(HetNI) = Me%ExternalVar%Mass(HetNI,index) 
-            
-            !Exessive N in the OM
-            if (.NOT. Me%Imobilization)      then
-
-                potLCuptake     = LOM_C_Srate * Me%ExternalVar%Mass(LOM_CI, index) 
-                potRCuptake     = ROM_C_Srate * Me%ExternalVar%Mass(ROM_CI, index)  
-                
-                totalNuptake    = potLCuptake /LCN + potRCuptake / RCN 
-                neededNuptake   = (potLCuptake + potRCuptake) / HetCN  
-                
-                if  (totalNuptake > neededNuptake)  then  
-                    Me%IndTerm(HetNI) = Me%IndTerm(HetNI) - (totalNuptake - neededNuptake ) 
-                end if 
-                           
-            end if
+        
+        !Independent term
+        Me%IndTerm(HetNI) = Me%ExternalVar%Mass(HetNI,index) 
+           
     !----------------------------------------------------------------------------
 
-    end subroutine HetrotrophicN 
+    end subroutine HeterotrophicN 
     !----------------------------------------------------------------------------
 
     
@@ -3634,14 +6080,13 @@ do1 :           do while(associated(EquaRateFluxX))
         !Local-------------------------------------------------------------------
         real    :: AnaCN, AnaNEf, AnaCEf, AnaDeathRate
         integer :: AnaNI, AnaCI
-
         real    :: DenitrificationRate 
-
         real    :: LCN, RCN
-
-        real    :: AnaPartition, Conversion, DTDay
-        
-        integer :: NII    
+        real    :: AnaPartition, Conversion, DTDay       
+        integer :: NII
+        real    :: NO3,NO3limit,methaneproduction
+        integer :: LOM_CI,ROM_CI
+            
         !------------------------------------------------------------------------
         
         DTDay               = Me%DTDay
@@ -3649,6 +6094,9 @@ do1 :           do while(associated(EquaRateFluxX))
         AnaNI               = Me%PropIndex%AnaerobicN
         AnaCI               = Me%PropIndex%AnaerobicC
         NII                 = Me%PropIndex%Nitrate
+        ROM_CI              = Me%PropIndex%RefractOM_C
+        LOM_CI              = Me%PropIndex%Labil_OM_C
+
         
         AnaDeathRate        = Me%SpecificRates%Anaerobic%Value
         AnaCN               = Me%Microorganisms%Anaerobic%CNRatio
@@ -3664,29 +6112,76 @@ do1 :           do while(associated(EquaRateFluxX))
 
         Conversion          = Me%ExternalVar%DissolvedToParticulate (index)
 
+        NO3                 = Me%ExternalVar%Mass(NII,index)
+        NO3limit            = Me%NO3limit
+        methaneproduction   = Me%SpecificRates%MethaneProduction%Value
+
+
         Me%Matrix(AnaNI, AnaNI) = 1.
         !Sink: Death
         if ( .not. Me%Microorganisms%Anaerobic%LogicalMinumumPOP )                  &        
-            Me%Matrix(AnaNI, AnaCI) = Me%Matrix(AnaNI, AnaCI) - DTDay * AnaDeathRate / AnaCN  
+            Me%Matrix(AnaNI, AnaCI) = Me%Matrix(AnaNI, AnaCI) - DTDay               &
+                                     * AnaDeathRate / AnaCN  
+
+
+        if (NO3>NO3limit) then
+       
+            !Sources: DeNitrification (direct assimilation)
+            Me%Matrix(AnaNI, NII) = Me%Matrix(AnaNI, NII) + DTDay                       &
+                                  * DenitrificationRate * Conversion * AnaNEf
+            !Sources: Labil N
+            Me%Matrix(AnaNI, NII) = Me%Matrix(AnaNI, NII) + DTDay                       &
+                                  * DenitrificationRate * Conversion *(1/LCN)           &
+                                  * (0.1 /( (AnaPartition + 1. ))) 
+            !Sources: Refract N
+            Me%Matrix(AnaNI, NII) = Me%Matrix(AnaNI, NII) + DTDay                       &
+                                  * DenitrificationRate * Conversion *(1/RCN)           &
+                                  * (0.1 /( (1./AnaPartition + 1. ) ))
+                                                           
+            !Sink: Excretion
+            Me%Matrix(AnaNI, NII) = Me%Matrix(AnaNI, NII) - DTDay                       &
+                                  * DenitrificationRate * Conversion                    &
+                                  * AnaCEf*0.1/ AnaCN                       
+ 
+        else 
+
+            !Source :  degradação de matéria orgânica e respiração de CO2
         
-        !Sources: Nitrification (direct assimilation)
-        Me%Matrix(AnaNI, NII) = Me%Matrix(AnaNI, NII) + DTDay                       &
-                              * DenitrificationRate * Conversion * AnaNEf
-        !Sources: Labil N
-        Me%Matrix(AnaNI, NII) = Me%Matrix(AnaNI, NII) + DTDay                       &
-                              * DenitrificationRate * Conversion                    &
-                              * (0.1 /( (AnaPartition + 1. ) * LCN)) 
-        !Sources: Refract N
-        Me%Matrix(AnaNI, NII) = Me%Matrix(AnaNI, NII) + DTDay                       &
-                              * DenitrificationRate * Conversion                    &
-                              * (0.1 /( (1./AnaPartition + 1. ) * RCN )) 
-        !Sink: Excretion
-        Me%Matrix(AnaNI, NII) = Me%Matrix(AnaNI, NII) - DTDay                       &
-                              * DenitrificationRate * Conversion                    &
-                              * (AnaNEf + 0.1/((AnaPartition + 1.) * LCN )          &
-                              + 0.1/(( 1./AnaPartition + 1.)* RCN)                  &
-                              - 0.1 * (1 - AnaCEf)/ AnaCN)
-        
+                !( vem da labile)    
+            Me%Matrix(AnaNI, LOM_CI)     = Me%Matrix(AnaNI, LOM_CI) + DTDay    & 
+                                     *  methaneproduction *(1/LCN)         &
+                                     * ( 0.1/( AnaPartition +1.) )
+
+            Me%Matrix(AnaNI, ROM_CI)     = Me%Matrix(AnaNI, ROM_CI) + DTDay    & 
+                                     *  methaneproduction *(1/LCN)         &
+                                     * ( 0.1/( AnaPartition +1.) )
+
+                ! (vem da refractory)
+
+            Me%Matrix(AnaNI, LOM_CI)     = Me%Matrix(AnaNI, LOM_CI) + DTDay    & 
+                                     *  methaneproduction *(1/RCN)         &
+                                     * ( 0.1/( (1/AnaPartition) +1.) )
+
+            Me%Matrix(AnaNI, ROM_CI)     = Me%Matrix(AnaNI, ROM_CI) + DTDay    & 
+                                     *  methaneproduction *(1/RCN)         &
+                                     * ( 0.1/( (1/AnaPartition) +1.) )
+
+
+            ! sink: excreção de NH4+
+
+            Me%Matrix(AnaNI, LOM_CI)     = Me%Matrix(AnaNI, LOM_CI) - DTDay    & 
+                                        *  methaneproduction      &
+                                        *0.1*AnaCEf/AnaCN
+
+            Me%Matrix(AnaNI, ROM_CI)     = Me%Matrix(AnaNI, ROM_CI) - DTDay    & 
+                                        *  methaneproduction     &
+                                        *0.1*AnaCEf/AnaCN
+    
+
+        end if 
+ 
+
+       
         !Independent term
         Me%IndTerm(AnaNI)    = Me%ExternalVar%Mass(AnaNI, index) 
     !----------------------------------------------------------------------------
@@ -3696,12 +6191,12 @@ do1 :           do while(associated(EquaRateFluxX))
 
 
     
-    !Autotrotrophic N
+    !Autotrophic N
     !
     !SOURCES: - Nitrification eficiency 
     !SINKS:   - Death
     !----------------------------------------------------------------------------    
-    subroutine AutotrotrophicN (index)
+    subroutine AutotrophicN (index)
 
         !Arguments---------------------------------------------------------------
         integer                 , intent(IN)    :: index
@@ -3719,8 +6214,8 @@ do1 :           do while(associated(EquaRateFluxX))
         
         DTDay               = Me%DTDay
 
-        AutoNI              = Me%PropIndex%AutotrotrophicN
-        AutoCI              = Me%PropIndex%AutotrotrophicC
+        AutoNI              = Me%PropIndex%AutotrophicN
+        AutoCI              = Me%PropIndex%AutotrophicC
         AMI                 = Me%PropIndex%Ammonia
         
         AutoDeathRate       = Me%SpecificRates%Autotrophs%Value
@@ -3735,17 +6230,21 @@ do1 :           do while(associated(EquaRateFluxX))
 
         !Sink: Death
         if ( .not. Me%Microorganisms%Autotrophs%LogicalMinumumPOP)                  &        
-            Me%Matrix(AutoNI, AutoCI) = Me%Matrix(AutoNI, AutoCI) - DTDay * AutoDeathRate / AutoCN  
+            Me%Matrix(AutoNI, AutoCI) = Me%Matrix(AutoNI, AutoCI) - DTDay           &
+                                        * AutoDeathRate/AutoCN
         
         !Sources: Nitrification
-        Me%Matrix(AutoNI, AMI) = Me%Matrix(AutoNI, AMI) + DTDay * NitificationRate * Conversion * AutoEf
+        Me%Matrix(AutoNI, AMI) = Me%Matrix(AutoNI, AMI) + DTDay                     &
+                                 * NitificationRate * Conversion * AutoEf/AutoCN
         
         !Independent term
         Me%IndTerm(AutoNI) = Me%ExternalVar%Mass(AutoNI, index) 
     !----------------------------------------------------------------------------
 
-    end subroutine AutotrotrophicN 
+    end subroutine AutotrophicN 
     !----------------------------------------------------------------------------
+
+
 
       
     !N gas (N20 N2)
@@ -3764,6 +6263,8 @@ do1 :           do while(associated(EquaRateFluxX))
         integer :: NGI, NII
         
         real    :: DenitrificationRate, AnaNEf
+        real    :: NO3,NO3limit
+        real    :: conversion
         
         !------------------------------------------------------------------------
         
@@ -3774,22 +6275,1975 @@ do1 :           do while(associated(EquaRateFluxX))
 
         DenitrificationRate     = Me%SpecificRates%NitrateToNgas%Value
         AnaNEf                  = Me%Microorganisms%Anaerobic%EficiencyN
+        NO3                     = Me%ExternalVar%Mass(NII,index)
+        Conversion              = Me%ExternalVar%DissolvedToParticulate (index)
         
+  
+        NO3limit            = Me%NO3limit
+  
+  
         Me%Matrix(NGI, NGI) =  1.
 
-        !Sources: Denitrification
-        Me%Matrix(NGI, NII) = Me%Matrix(NGI, NII) + DTDay * DenitrificationRate * (1-AnaNEf)
+        if (NO3> NO3limit) then 
+        
+            !Sources: Denitrification
+
+            Me%Matrix(NGI, NII) = Me%Matrix(NGI, NII) + DTDay * DenitrificationRate * (1-AnaNEf)
+
+        end if 
         
         !Independent term
         Me%IndTerm(NGI)     = Me%ExternalVar%Mass(NGI, index) 
     !----------------------------------------------------------------------------
 
     end subroutine Ngas 
+
+    !----------------------------------------------------------------------------
+
+    !----------------------------------------------------------------------------
+    subroutine Urea (index)
+
+        !Arguments---------------------------------------------------------------
+        integer                , intent(IN) :: index
+    
+        !Local-------------------------------------------------------------------
+        real    :: DTDay
+        
+        integer :: Iurea
+        
+        real    :: ureahydrolysis
+        
+        !------------------------------------------------------------------------
+  
+        DTDay           = Me%DTDay
+        Iurea           = Me%Propindex%urea
+        ureahydrolysis  = Me%SpecificRates%UreaHydrolysis%Value
+
+        
+        Me%Matrix(Iurea, Iurea) =  1.
+
+
+        ! sink: Urea Hydrolysis 
+
+        Me%Matrix(Iurea,Iurea) = Me%Matrix(Iurea,Iurea) - DTDay *ureahydrolysis
+
+        !Independent term
+        Me%IndTerm(Iurea)     = Me%ExternalVar%Mass(Iurea, index) 
+
+
+        end subroutine Urea
+    !----------------------------------------------------------------------------
+
+    subroutine AmmoniaGas (index)
+
+        !Arguments---------------------------------------------------------------
+        integer                , intent(IN) :: index
+    
+        !Local-------------------------------------------------------------------
+        real    :: DTDay
+        integer :: IAmmoniaGas,AMI
+        real    :: wind, XKG,TF,EK,PNH3,PANH3,TK,XK1,XK
+        real    :: Kvol,temp,AM,H      
+        !------------------------------------------------------------------------
+
+        DTDay                = Me%DTDay
+        IAmmoniaGas           = Me%Propindex%AmmoniaGas
+
+        wind    =   Me%ExternalVar%Wind(index)
+        Temp    =   Me%ExternalVar%Temperature(index)
+        AMI     =   Me%Propindex%ammonia
+        AM      =   Me%ExternalVar%Mass(AMI,index)
+        H       =   Me%Hydrogen
+    
+        TK      =  29447 
+        PANH3   =  2.45E-8
+        EK      =  8.79E-12
+        XK1     =  1000
+        XK      =  -0.25
+        TF      = TK*EXP(-6/(1.99E-3*(temp+273.15)))
+
+        PNH3    = EK*AM*7.14286E-11/H       !!! nao esquecer as unidades de NH4
+        
+        XKG     = XK1*log(Wind)*exp(XK)
+
+        Kvol    = XKG*TF*(PNH3-PANH3)
+
+
+
+        Me%Matrix(IAmmoniaGas,IAmmoniaGas)= 1
+
+        
+        ! source: volatilization
+        Me%Matrix(IAmmoniaGas,AMI)= Me%Matrix(IAmmoniaGas,AMI)    &
+                                        + DTDay*Kvol
+
+        !Independent term
+        Me%IndTerm(IAmmoniaGas)    = Me%ExternalVar%Mass(IAmmoniaGas, index) 
+    !----------------------------------------------------------------------------
+        end subroutine AmmoniaGas
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!LÚCIA!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
+
+    !----------------------------------------------------------------------------
+    subroutine Phosphorus(index)
+
+        !Arguments---------------------------------------------------------------
+        integer, intent(IN) :: index
+        !------------------------------------------------------------------------
+
+        call LabilOrganicPhosphorus     (index)
+  
+        call RefractOrganicPhosphorus   (index)
+
+        call HeterotrophicP              (index)
+
+        call AutotrophicP               (index)
+
+        call AnaerobicP                 (index)
+        
+        call InorganicPhosphorusSoluble (index)
+
+        call InorganicPhosphorusFix     (index)        
+    !------------------------------------------------------------------------
+
+    end subroutine Phosphorus
+    !---------------------------------------------------------------------------
+
+
+
+
+    !Labil Organic Phosphorus 
+    !
+    !SOURCES: - Microorganisms death
+    !SINKS:   - Heterotrphs uptake, including anaerobic uptake 
+    !----------------------------------------------------------------------------
+    subroutine LabilOrganicPhosphorus (index)
+
+        !Arguments---------------------------------------------------------------
+        integer                , intent(IN)         :: index
+
+
+        !Local-------------------------------------------------------------------
+        integer :: AMI, NII,LOM_CI,LOM_PI,PI,PFI,ROM_CI             !!!Lúcia
+        
+        real    :: ImobilizationRateNH4, DenitrificationRate, ImobilizationRateNO3 !!!Lúcia
+        real    :: ImobilizationRateP 
+        real    :: LOM_C_Srate, LCN,LCP
+        real    :: solubilizingrate             !!!Lúcia
+
+        real    :: RCN
+        real    :: RCP                              !!!Lúcia
+        real    :: HeteroDeathRate, HetCN , HetCP   !!!Lúcia   
+        integer :: HetI                
+        
+        real    :: AnaDeathRate, AnaCP      !!!Lúcia   
+        integer :: AnaI                
+        
+        real    :: AutoDeathRate, AutoCP   !!!Lúcia
+        integer :: AutI               
+
+        real    :: Partition, AnaPartition, Conversion, DTDay, seletion
+        real    :: solpartition    !!!Lúcia
+
+        real    :: AM,N,P,Real_N,Real_P         !!!Lúcia
+        real    :: NO3,NO3limit, methaneProduction
+
+        !------------------------------------------------------------------------
+        
+        LOM_C_Srate         = Me%SpecificRates%Labil_OM_C%Value
+        LCN                 = Me%LabiOM_CN_Ratio
+        LCP                 = Me%LabilOM_CP_Ratio       !!!Lúcia 
+        LOM_CI              = Me%PropIndex%Labil_OM_C
+        ROM_CI              = Me%PropIndex%RefractOM_C
+        LOM_PI              = Me%PropIndex%Labil_OM_P
+        PFI                 = Me%PropIndex%Inorganic_P_fix
+ 
+        RCN                 = Me%RefractOM_CN_Ratio   
+        RCP                 = Me%RefractOM_CP_Ratio         !!!Lúcia
+               
+
+        DenitrificationRate     = Me%SpecificRates%NitrateToNgas%Value
+        ImobilizationRateNH4    = Me%SpecificRates%AmmoniaImobilization%Value
+        ImobilizationRateNO3    = Me%SpecificRates%NitrateImobilization%Value
+        ImobilizationRateP      = Me%SpecificRates%PhosphorusImobilization%Value  !!!Lúcia
+        solubilizingrate        = Me%SpecificRates%Solubilizing%Value   
+                      
+        NII                 = Me%PropIndex%Nitrate
+        AMI                 = Me%PropIndex%Ammonia
+        PI                  = Me%PropIndex%Inorganic_P_soluble   !!!Lúcia
+
+        Partition           = Me%Partition
+        AnaPartition        = Me%AnaerobicPartition
+        seletion            = Me%Select                          !!!Lúcia
+        solpartition        = Me%Solpartition
+
+        HeteroDeathRate     = Me%SpecificRates%Heterotrophs%Value
+        HetI                = Me%PropIndex%HeterotrophicC
+        HetCN               = Me%Microorganisms%Heterotrophs%CNRatio
+        HetCP               = Me%Microorganisms%Heterotrophs%CPRatio    !!!Lúcia
+
+
+        AnaDeathRate        = Me%SpecificRates%Anaerobic%Value
+        AnaI                = Me%PropIndex%AnaerobicC
+        AnaCP               = Me%Microorganisms%Anaerobic%CPRatio
+
+        AutoDeathRate       = Me%SpecificRates%Autotrophs%Value
+        AutI                = Me%PropIndex%AutotrophicC
+        AutoCP              = Me%Microorganisms%Autotrophs%CPRatio
+
+
+
+        DTDay               = Me%DTDay
+
+        Conversion          = Me%ExternalVar%DissolvedToParticulate (index)
+
+        AM   = Me%ExternalVar%Mass(AMI,index)   !!!
+        N    = Me%ExternalVar%Mass(NII,index)   !!!
+        P    = Me%ExternalVar%Mass(PI,index)    !!!
+
+
+        methaneproduction      = Me%SpecificRates%MethaneProduction%Value
+        NO3                    = Me%ExternalVar%Mass(NII,index)
+
+        NO3limit               = Me%NO3limit
+
+
+
+        Me%Matrix(LOM_PI, LOM_PI)   = 1.
+        
+           
+       !Sinks Heterotrophs uptake 
+        
+
+        if (seletion==5.OR.seletion==6 .OR. seletion==8 .OR. seletion==9 )  then 
+        
+             Me%Matrix(LOM_PI, LOM_CI)  = Me%Matrix(LOM_PI, LOM_CI) -               &
+                                          DTDay * LOM_C_Srate * 1./ LCP  
+
+
+        end if
+
+
+        if (seletion==2.OR. seletion==3) then 
+
+
+            Me%Matrix(LOM_PI, AMI)  = Me%Matrix(LOM_PI, AMI) - DTDay                & 
+                                    * ImobilizationRateNH4  * Conversion* 1./ LCP   &
+                                    * (1./( (1./HetCN - 1./LCN ) + AnaPartition     &
+                                    * (1./HetCN - 1./RCN))) 
+                
+            Me%Matrix(LOM_PI, NII)  = Me%Matrix(LOM_PI, NII) - DTDay                &
+                                    * ImobilizationRateNO3  * Conversion* 1./ LCP   & 
+                                    * (1./( (1./HetCN - 1./LCN ) + AnaPartition     &
+                                    * (1./HetCN - 1./RCN)))
+         end if
+
+
+        if (seletion==4.OR. seletion==7) then
+
+            
+            Me%Matrix(LOM_PI, PI)  = Me%Matrix(LOM_PI, PI) - DTDay                  &
+                                    * ImobilizationRateP  * Conversion*(1./ LCP )   & 
+                                    * (1./( (1./HetCP - 1./LCP ) + AnaPartition     &
+                                    * (1./HetCP - 1./RCP)))
+
+        end if
+
+
+        if(seletion==1) then
+    
+            Real_N = ((ImobilizationRateNH4*AM+ImobilizationRateNO3*N)              &
+                      *Conversion)*(1./( (1./HetCN - 1./LCN )                       &
+                      + AnaPartition * (1./HetCN - 1./RCN)))
+
+            Real_P = ((ImobilizationRateP*P)*Conversion)                            &
+                    * (1./( (1./HetCP - 1./LCP ) +                                  &
+                    AnaPartition * (1./HetCP - 1./RCP)))
+
+    
+            if( Real_N<Real_P) then
+
+                  Me%Matrix(LOM_PI, AMI)  = Me%Matrix(LOM_PI, AMI) - DTDay          & 
+                                    * ImobilizationRateNH4  * Conversion* 1./ LCP   &
+                                    * (1./( (1./HetCN - 1./LCN ) + AnaPartition     &
+                                    * (1./HetCN - 1./RCN))) 
+                
+                  Me%Matrix(LOM_PI, NII)  = Me%Matrix(LOM_PI, NII) - DTDay          &
+                                    * ImobilizationRateNO3  * Conversion * 1./ LCP  & 
+                                    * (1./( (1./HetCN - 1./LCN ) + AnaPartition     &
+                                    * (1./HetCN - 1./RCN))) 
+                            
+            else
+
+                  Me%Matrix(LOM_PI, PI)  = Me%Matrix(LOM_PI, PI) - DTDay             &
+                                    * ImobilizationRateP  * Conversion * 1./ LCP     & 
+                                    * (1./( (1./HetCP - 1./LCP ) + AnaPartition      &
+                                    * (1./HetCP - 1./RCP)))
+
+            end if
+        end if
+
+
+        !Sinks    : Anaerobic uptake, vai depender se respiram NO3 ou CO2 
+
+        if (NO3>NO3limit) then    ! respiram NO3
+
+
+            Me%Matrix(LOM_PI, NII) = Me%Matrix(LOM_PI, NII) - DTDay                     & 
+                                   * DenitrificationRate * Conversion * (1./ LCP)         &
+                                   * ( 0.1/( AnaPartition +1.))
+
+        else                   ! respiram CO2
+
+                               
+            Me%Matrix(LOM_PI, LOM_CI)     = Me%Matrix(LOM_PI, LOM_CI) - DTDay     & 
+                                     *  methaneproduction *(1/LCP)  &
+                                     * ( 0.1/( AnaPartition +1.) )
+
+            Me%Matrix(LOM_PI, ROM_CI)     = Me%Matrix(LOM_PI, ROM_CI) - DTDay     & 
+                                     *  methaneproduction *(1/LCP)   &
+                                     * ( 0.1/( AnaPartition +1.) )
+             
+        end if              
+
+
+                                    
+        !Sources: Anaerobic death
+        if (.NOT. Me%Microorganisms%Anaerobic%LogicalMinumumPOP)                    &        
+            Me%Matrix(LOM_PI, AnaI) = Me%Matrix(LOM_PI, AnaI) + DTDay               &
+                                    * AnaDeathRate * 1. / AnaCP 
+
+
+        !Sources: Heterotrophic death
+        if ( .NOT. Me%Microorganisms%Heterotrophs%LogicalMinumumPOP)                &        
+            Me%Matrix(LOM_PI, HetI) = Me%Matrix(LOM_PI, HetI) + DTDay               &
+                                    * HeteroDeathRate * 1. / HetCP
+                                              
+        !Sources: Autotrophic death
+        if ( .NOT. Me%Microorganisms%Autotrophs%LogicalMinumumPOP)                  &        
+            Me%Matrix(LOM_PI, AutI) = Me%Matrix(LOM_PI, AutI) + DTDay               &
+                                    * AutoDeathRate * 1. / AutoCP   
+                                    
+                                                                        
+        if (Me%PropCalc%Sol_Bacteria) then
+
+            !Sinks: Labil P
+            Me%Matrix(LOM_PI, PFI) = Me%Matrix(LOM_PI, PFI) - DTDay                       &
+                                  * solubilizingRate * Conversion *(1/LCP)              &
+                                  * (0.1 /( (SolPartition + 1. ))) 
+        end if
+
+
+        !Independent term
+        Me%IndTerm(LOM_PI) = Me%ExternalVar%Mass(LOM_PI, index)                     
+    !----------------------------------------------------------------------------
+
+    end subroutine LabilOrganicPhosphorus 
     !----------------------------------------------------------------------------
 
 
+    !Refractary Organic Phosphorus
+    !
+    !SOURCES: - INTERPOOL TRANSFORMATION
+    !SINKS:   - Heterotrphs uptake, including anaerobic uptake 
+    !----------------------------------------------------------------------------
+    subroutine RefractOrganicPhosphorus (index)
+
+        !Arguments---------------------------------------------------------------
+        integer                , intent(IN) :: index
+       !Local-------------------------------------------------------------------
+        integer :: AMI, NII,PI,PFI              !!!Lucia
+        
+        real    :: ImobilizationRateNH4, DenitrificationRate, ImobilizationRateNO3 !!!Lúcia
+        real    :: ImobilizationRateP 
+        real    :: solubilizingrate
+        real    :: ROM_C_Srate, RCN , RCP    !!!Lúcia
+        integer :: ROM_CI, ROM_PI,LOM_CI
+
+        real    :: LCN
+        real    :: LCP                          !!!Lúcia
+
+        real    :: HeteroDeathRate, HetCN , HetCP   !!!Lúcia   
+        integer :: HetI                
+        
+        real    :: AnaDeathRate, AnaCN     !!!Lúcia        
+        integer :: AnaI                
+
+        real    :: AutoDeathRate, AutoCN   !!!Lúcia
+        integer :: AutoI               
+
+        real    :: Partition, AnaPartition, Conversion, DTDay ,seletion,solpartition !!!Lúcia
+        real    :: AM,N,P,Real_N,Real_P         !!!Lúcia
+        real    :: NO3,NO3limit,methaneproduction
+
+        !------------------------------------------------------------------------
+
+        !------------------------------------------------------------------------
+        ROM_C_Srate         = Me%SpecificRates%RefractOM_C%Value
+        RCN                 = Me%RefractOM_CN_Ratio 
+        RCP                 = Me%RefractOM_CP_Ratio         !!!Lúcia 
+ 
+        ROM_CI              = Me%PropIndex%RefractOM_C
+        LOM_CI              = Me%PropIndex%Labil_OM_C
+        ROM_PI              = Me%PropIndex%RefractOM_P
+        PFI                 = Me%PropIndex%Inorganic_P_fix
+
+
+
+        LCN                 = Me%LabiOM_CN_Ratio   
+        LCP                 = Me%LabilOM_CP_Ratio       !!!Lúcia  
+               
+        DenitrificationRate     = Me%SpecificRates%NitrateToNgas%Value
+        ImobilizationRateNH4    = Me%SpecificRates%AmmoniaImobilization%Value
+        ImobilizationRateNO3    = Me%SpecificRates%NitrateImobilization%Value
+        ImobilizationRateP      = Me%SpecificRates%PhosphorusImobilization%Value  !!!Lúcia
+        solubilizingrate        = Me%SpecificRates%Solubilizing%Value   
+             
+        NII                 = Me%PropIndex%Nitrate
+        AMI                 = Me%PropIndex%Ammonia
+        PI                  = Me%PropIndex%Inorganic_P_soluble   !!!Lúcia
+
+        Partition           = Me%Partition
+        AnaPartition        = Me%AnaerobicPartition
+        solpartition        = Me%Solpartition
+
+        HeteroDeathRate     = Me%SpecificRates%Heterotrophs%Value
+        HetI                = Me%PropIndex%HeterotrophicC
+        HetCN               = Me%Microorganisms%Heterotrophs%CNRatio
+        HetCP               = Me%Microorganisms%Heterotrophs%CPRatio        !!!Lúcia
+
+        AnaDeathRate        = Me%SpecificRates%Anaerobic%Value
+        AnaI                = Me%PropIndex%AnaerobicC
+        AnaCN               = Me%Microorganisms%Anaerobic%CNRatio
+
+        AutoDeathRate       = Me%SpecificRates%Autotrophs%Value
+        AutoI               = Me%PropIndex%AutotrophicC
+        AutoCN              = Me%Microorganisms%Autotrophs%CNRatio
+
+        DTDay               = Me%DTDay
+        seletion            = Me%Select                          !!!Lúcia       
+
+        Conversion          = Me%ExternalVar%DissolvedToParticulate (index)
+        
+        AM   = Me%ExternalVar%Mass(AMI,index)   !!!
+        N    = Me%ExternalVar%Mass(NII,index)   !!!
+        P    = Me%ExternalVar%Mass(PI,index)    !!!
+
+
+        NO3limit            = Me%NO3limit
+        methaneproduction   = Me%SpecificRates%MethaneProduction%Value
+        NO3                 = Me%ExternalVar%Mass(NII,index)
+
+
+
+
+
+        Me%Matrix(ROM_PI, ROM_PI)  = 1.
+
+
+        
+        !Sinks Heterotrophs uptake           
+       
+        if (seletion==5.OR.seletion==6 .OR. seletion==8 .OR. seletion==9 )  then 
+        
+            Me%Matrix(ROM_PI, ROM_CI)  = Me%Matrix(ROM_PI, ROM_CI) -               &
+                                          DTDay * ROM_C_Srate *(1./ RCP)  
+
+        end if
+
+        if (seletion==2.OR. seletion==3) then 
+
+
+            Me%Matrix(ROM_PI, AMI)  = Me%Matrix(ROM_PI, AMI) - DTDay                & 
+                                    * ImobilizationRateNH4  * Conversion*(1./ RCP)  &
+                                    * (1./( (1./HetCN - 1./LCN )*(1/AnaPartition)   &
+                                    +  (1./HetCN - 1./RCN))) 
+                
+            Me%Matrix(ROM_PI, NII)  = Me%Matrix(ROM_PI, NII) - DTDay                &
+                                    * ImobilizationRateNO3  * Conversion *(1./ RCP) & 
+                                    * (1./( (1./HetCN - 1./LCN )*(1/AnaPartition)   &
+                                    +  (1./HetCN - 1./RCN)))
+         end if
+
+        if (seletion==4.OR. seletion==7) then
+
+            
+            Me%Matrix(ROM_PI, PI)  = Me%Matrix(ROM_PI, PI) - DTDay                  &
+                                    * ImobilizationRateP  * Conversion *(1./ RCP)   & 
+                                    * (1./( (1./HetCP - 1./LCP )*(1/AnaPartition)   &
+                                    + (1./HetCP - 1./RCP)))
+
+        end if
+
+        
+        if(seletion==1) then
+    
+            Real_N = ((ImobilizationRateNH4*AM+ImobilizationRateNO3*N)              &
+                      *Conversion)*(1./( (1./HetCN - 1./LCN )*(1/AnaPartition)      &
+                      +  (1./HetCN - 1./RCN)))
+
+            Real_P = ((ImobilizationRateP*P)*Conversion)                            &
+                      * (1./( (1./HetCP - 1./LCP )*(1/AnaPartition)                 &
+                      +  (1./HetCP - 1./RCP)))
+
+    
+            if( Real_N<Real_P) then
+
+                Me%Matrix(ROM_PI, AMI)  = Me%Matrix(ROM_PI, AMI) - DTDay          & 
+                                    * ImobilizationRateNH4  * Conversion *1./ RCP   &
+                                    * (1./( (1./HetCN - 1./LCN )*(1/AnaPartition)   &
+                                    +  (1./HetCN - 1./RCN))) 
+                
+                Me%Matrix(ROM_PI, NII)  = Me%Matrix(ROM_PI, NII) - DTDay          &
+                                    * ImobilizationRateNO3  * Conversion *1./ RCP   & 
+                                    * (1./( (1./HetCN - 1./LCN )*(1/AnaPartition)   &
+                                    +  (1./HetCN - 1./RCN)))    
+                            
+            else
+
+                Me%Matrix(ROM_PI, PI)  = Me%Matrix(ROM_PI, PI) - DTDay            &
+                                    * ImobilizationRateP  * Conversion *1./ RCP     & 
+                                    * (1./( (1./HetCP - 1./LCP )*(1/AnaPartition)   &
+                                    + (1./HetCP - 1./RCP)))
+
+            end if
+        end if
+
+
+        !Sinks    : Anaerobic uptake, vai depender se respiram NO3 ou CO2 
+
+        if (NO3>NO3limit) then    ! respiram NO3
+
+            Me%Matrix(ROM_PI, NII) = Me%Matrix(ROM_PI, NII) - DTDay                     &
+                               * DenitrificationRate * Conversion * (1./RCP)          &
+                               * (0.1/( 1./AnaPartition +1.) )     
+
+
+         else                   ! respiram CO2
+
+            Me%Matrix(ROM_PI, LOM_CI)     = Me%Matrix(ROM_PI, LOM_CI) - DTDay    & 
+                                     *  methaneproduction *(1./RCP)          &
+                                     * ( 0.1/( (1/AnaPartition) +1.) )
+
+            Me%Matrix(ROM_PI, ROM_CI)     = Me%Matrix(ROM_PI, ROM_CI) - DTDay    & 
+                                     *  methaneproduction *(1./RCP)          &
+                                     * ( 0.1/( (1/AnaPartition) +1.) )
+             
+        end if              
+
+
+
+        if (Me%PropCalc%Sol_Bacteria) then
+
+            !Sinks: Refract P
+
+            Me%Matrix(ROM_PI, PFI) = Me%Matrix(ROM_PI, PFI) - DTDay                       &
+                                  * SolubilizingRate * Conversion *(1/RCP)              &
+                                  * (0.1 /( (1./SolPartition + 1. ) )) 
+
+        end if
+                                             
+                                  
+        !Independent term
+        Me%IndTerm(ROM_PI)     = Me%ExternalVar%Mass(ROM_PI, index)                                     
+    !----------------------------------------------------------------------------
+
+    end subroutine RefractOrganicPhosphorus 
+    !----------------------------------------------------------------------------
+
+
+
+    
+    !Heterotrophic P
+    !
+    !SOURCES: - Organic matter P decay
+    !SINKS:   - Heterotrophic Death, excretion
+    !----------------------------------------------------------------------------
+
+    subroutine HeterotrophicP (index)
+
+        !Arguments---------------------------------------------------------------
+        integer                 , intent(IN) :: index
+
+        !Local-------------------------------------------------------------------
+        real    :: HeteroDeathRate, HetCN, HetEF , HetCP   !!!Lúcia
+        integer :: HetCI, HetPI           
+        
+        real    :: ROM_C_Srate, RCN, RCP     !!!Lúcia
+        integer :: ROM_CI, ROM_PI              
+
+        real    :: LOM_C_Srate, LCN, LCP    !!!Lúcia          
+        integer :: LOM_CI, LOM_PI
+
+        
+        real    :: ImobilizationRateNO3, ImobilizationRateNH4 ,ImobilizationRateP !!!Lúcia
+
+        integer :: NII, AMI ,PI       !!!Lúcia
+        
+        real    :: Real_N_ROM , Real_P_ROM,Real_N_LOM, Real_P_LOM, AM,N, P   !!!Lúcia
+
+        real    :: Partition,AnaPartition, Conversion, DTDay ,seletion          !!!Lúcia
+
+        !------------------------------------------------------------------------
+
+
+        HeteroDeathRate         = Me%SpecificRates%Heterotrophs%Value
+        HetCI                   = Me%PropIndex%HeterotrophicC
+        HetPI                   = Me%PropIndex%HeterotrophicP
+        HetCN                   = Me%Microorganisms%Heterotrophs%CNRatio
+        HetCP                   = Me%Microorganisms%Heterotrophs%CPRatio !!!Lúcia
+        HetEF                   = Me%Microorganisms%Heterotrophs%EficiencyC
+
+
+        ROM_C_Srate             = Me%SpecificRates%RefractOM_C%Value
+        RCN                     = Me%RefractOM_CN_Ratio 
+        RCP                     = Me%RefractOM_CP_Ratio  !!!Lúcia         
+        ROM_CI                  = Me%PropIndex%RefractOM_C
+        ROM_PI                  = Me%PropIndex%RefractOM_P
+
+        LOM_C_Srate             = Me%SpecificRates%Labil_OM_C%Value
+        LCN                     = Me%LabiOM_CN_Ratio
+        LCP                     = Me%LabilOM_CP_Ratio    !!!Lúcia
+        LOM_CI                  = Me%PropIndex%Labil_OM_C
+        LOM_PI                  = Me%PropIndex%Labil_OM_P
+
+        
+        NII                     = Me%PropIndex%Nitrate
+        ImobilizationRateNO3    = Me%SpecificRates%NitrateImobilization%Value
+        N                       = Me%ExternalVar%Mass(NII, index)       !!!Lúcia
+
+
+
+        AMI                     = Me%PropIndex%Ammonia
+        ImobilizationRateNH4    = Me%SpecificRates%AmmoniaImobilization%Value
+        AM                      = Me%ExternalVar%Mass(AMI, index)    !!!Lúcia
+
+        PI                      = Me%PropIndex%Inorganic_P_soluble
+        ImobilizationRateP      = Me%SpecificRates%PhosphorusImobilization%Value
+        P                       = Me%ExternalVar%Mass(PI, index)     !!!Lúcia
+
+
+        Partition               = Me%Partition
+        AnaPartition            = Me%AnaerobicPartition
+        
+        DTDay                   = Me%DTDay
+
+        Conversion              = Me%ExternalVar%DissolvedToParticulate (index)
+        seletion                = Me%Select    !!!Lúcia
+
+
+        
+        Me%Matrix(HetPI, HetPI) = 1.
+        
+
+        !Sink: Heterotrophic death
+        if ( .not. Me%Microorganisms%Heterotrophs%LogicalMinumumPOP)                & 
+            Me%Matrix(HetPI, HetCI) = Me%Matrix(HetPI, HetCI) - DTDay               &
+                                     * HeteroDeathRate * (1. / HetCP)
+
+        !Sink : Breath
+        !Source : Labile and Refractory uptake 
+
+        if (seletion==5.OR.seletion==6 .OR. seletion==8 .OR. seletion==9 )  then 
+         
+            Me%Matrix(HetPI, LOM_CI)  = Me%Matrix(HetPI, LOM_CI) +DTDay *          &
+                                         LOM_C_Srate * (1/LCP)
+
+            Me%Matrix(HetPI, ROM_CI)  = Me%Matrix(HetPI, ROM_CI) +DTDay *          &
+                                         ROM_C_Srate * (1/RCP)
+                                
+            !Breath
+
+            Me%Matrix(HetPI, LOM_CI)  = Me%Matrix(HetPI, LOM_CI) -DTDay            &
+                                        * LOM_C_Srate* (HetEF/HetCP)
+
+            Me%Matrix(HetPI, ROM_CI)  = Me%Matrix(HetPI, ROM_CI) -DTDay            &
+                                        * ROM_C_Srate* (HetEF/HetCP)
+                      
+        end if
+
+        if (seletion==2.OR. seletion==3) then 
+
+            Me%Matrix(HetPI, AMI)  = Me%Matrix(HetPI, AMI) + DTDay                   & 
+                                   * ImobilizationRateNH4  * Conversion *(1/LCP)    &
+                                   * 1./((1./HetCN - 1./LCN)                        &
+                                   + AnaPartition * (1./HetCN - 1./RCN))               
+                                   
+
+            Me%Matrix(HetPI, AMI)  = Me%Matrix(HetPI, AMI) + DTDay                   & 
+                                   * ImobilizationRateNH4  * Conversion *(1/RCP)    &
+                                   * 1./((1./HetCN - 1./LCN ) * (1./AnaPartition)   &
+                                   + (1./HetCN - 1./RCN))
+
+
+            Me%Matrix(HetPI, NII)  = Me%Matrix(HetPI, NII) + DTDay                   &
+                                   * ImobilizationRateNO3  * Conversion *(1/LCP)    &
+                                   * 1./((1./HetCN - 1./LCN)                        &
+                                   + AnaPartition * (1./HetCN - 1./RCN))               
+                                                            
+
+
+            Me%Matrix(HetPI, NII)  = Me%Matrix(HetPI, NII) + DTDay                   &
+                                   * ImobilizationRateNO3  * Conversion *(1/RCP)    &
+                                   * 1./((1./HetCN - 1./LCN ) *(1./ AnaPartition)   &
+                                   + (1./HetCN - 1./RCN))                    
+
+
+            !Breath
+
+            Me%Matrix(HetPI, AMI)  = Me%Matrix(HetPI, AMI) - DTDay                   & 
+                                   * ImobilizationRateNH4  *                        &
+                                   Conversion *(HetEF/HetCP)                        &
+                                   * 1./((1./HetCN - 1./LCN)                        &
+                                   + AnaPartition * (1./HetCN - 1./RCN))               
+                                   
+
+            Me%Matrix(HetPI, AMI)  = Me%Matrix(HetPI, AMI) - DTDay                   & 
+                                   * ImobilizationRateNH4  *                        &
+                                   Conversion *(HetEF/HetCP)                        &
+                                   * 1./((1./HetCN - 1./LCN ) * (1./AnaPartition)   &
+                                   + (1./HetCN - 1./RCN))
+
+
+            Me%Matrix(HetPI, NII)  = Me%Matrix(HetPI, NII) - DTDay                   &
+                                   * ImobilizationRateNO3  *                        &
+                                   Conversion *(HetEF/HetCP)                        &
+                                   * 1./((1./HetCN - 1./LCN)                        &
+                                   + AnaPartition * (1./HetCN - 1./RCN))               
+                                                            
+
+
+            Me%Matrix(HetPI, NII)  = Me%Matrix(HetPI, NII) - DTDay                   &
+                                   * ImobilizationRateNO3  * Conversion             &
+                                   *(HetEF/HetCP)                                   &
+                                   * 1./((1./HetCN - 1./LCN ) *(1./ AnaPartition)   &
+                                   + (1./HetCN - 1./RCN))                    
+        
+        end if
+
+
+        if (seletion==4.OR. seletion==7) then
+
+            
+            Me%Matrix(HetPI, PI)  = Me%Matrix(HetPI, PI) + DTDay                     &
+                                    * ImobilizationRateP  * Conversion * (1/RCP)     & 
+                                    * (1./( (1./HetCP - 1./LCP )*(1/AnaPartition)    & 
+                                    + (1./HetCP - 1./RCP)))                         
+
+
+            Me%Matrix(HetPI, PI)  = Me%Matrix(HetPI, PI) + DTDay                     &
+                                    * ImobilizationRateP  * Conversion * (1/LCP)     & 
+                                    * (1./( (1./HetCP - 1./LCP )                     &
+                                    + AnaPartition*(1./HetCP - 1./RCP)))
+
+
+            !Breath
+
+            Me%Matrix(HetPI, PI)  = Me%Matrix(HetPI, PI) - DTDay                     &
+                                    * ImobilizationRateP  * Conversion               &
+                                    * (HetEF/HetCP)                                  & 
+                                    * (1./( (1./HetCP - 1./LCP )*(1/Anapartition)    & 
+                                    + (1./HetCP - 1./RCP)))                         
+
+
+            Me%Matrix(HetPI, PI)  = Me%Matrix(HetPI, PI) - DTDay                     &
+                                    * ImobilizationRateP  * Conversion               &
+                                    * (HetEF/HetCP)                                  & 
+                                    * (1./( (1./HetCP - 1./LCP )                     & 
+                                    + Anapartition*(1./HetCP - 1./RCP)))                            
+
+
+        end if
+
+        
+
+        if(seletion==1) then
+    
+            Real_N_ROM = ((ImobilizationRateNH4*AM+ImobilizationRateNO3*N)           &
+                         *Conversion) *(1./( (1./HetCN - 1./LCN )*(1/AnaPartition)   &
+                         +  (1./HetCN - 1./RCN)))
+
+            Real_P_ROM = ((ImobilizationRateP*P)*Conversion)                         &          
+                        * (1./( (1./HetCP - 1./LCP )*(1/AnaPartition)                & 
+                        +  (1./HetCP - 1./RCP)))
+
+
+
+            Real_N_LOM = ((ImobilizationRateNH4*AM+ImobilizationRateNO3*N)           &
+                         *Conversion) *(1./( (1./HetCN - 1./LCN )                    &
+                         +  AnaPartition*(1./HetCN - 1./RCN)))
+
+
+            Real_P_LOM = ((ImobilizationRateP*P)*Conversion)                         &
+                    * (1./( (1./HetCP - 1./LCP )                                     &
+                    +  AnaPartition*(1./HetCP - 1./RCP)))
+
+
+    
+            if( Real_N_ROM<Real_P_ROM) then
+
+                Me%Matrix(HetPI, AMI)  = Me%Matrix(HetPI,AMI) + DTDay              & 
+                                           * ImobilizationRateNH4                    &
+                                           * Conversion *1/RCP                       &
+                                           * (1./( (1./HetCN - 1./LCN )              &
+                                           *(1/AnaPartition)                         &
+                                            +  (1./HetCN - 1./RCN))) 
+                
+
+                Me%Matrix(HetPI, NII)  = Me%Matrix(HetPI, NII) + DTDay             &
+                                    * ImobilizationRateNO3  * Conversion * 1/RCP     & 
+                                    * (1./( (1./HetCN - 1./LCN )*(1/AnaPartition)    & 
+                                    +  (1./HetCN - 1./RCN)))
+                                    
+                                
+                !Breath 
+                
+                        
+                Me%Matrix(HetPI, AMI)  = Me%Matrix(HetPI, AMI) - DTDay              & 
+                                    * ImobilizationRateNH4  * Conversion              &
+                                    *(HetEF/HetCP)                                    &
+                                    * (1./( (1./HetCN - 1./LCN )*(1/AnaPartition)     &
+                                    +  (1./HetCN - 1./RCN))) 
+                
+                Me%Matrix(HetPI, NII)  = Me%Matrix(HetPI, NII) - DTDay              &
+                                    * ImobilizationRateNO3  * Conversion              &
+                                    *(HetEF/HetCP)                                    & 
+                                    * (1./( (1./HetCN - 1./LCN )*(1/AnaPartition)     & 
+                                    +  (1./HetCN - 1./RCN)))    
+
+
+            else
+
+
+                Me%Matrix(HetPI, PI)  = Me%Matrix(HetPI, PI) + DTDay                 &
+                                    * ImobilizationRateP  * Conversion*(1/RCP)        & 
+                                    * (1./( (1./HetCP - 1./LCP )*(1/AnaPartition)     &
+                                    + (1./HetCP - 1./RCP)))
+
+
+                  !Breath
+
+                Me%Matrix(HetPI, PI)  = Me%Matrix(HetPI, PI) - DTDay                 &
+                                    * ImobilizationRateP  * Conversion*(HetEF/ HetCP)  & 
+                                    * (1./( (1./HetCP - 1./LCP )*(1/AnaPartition)      &
+                                    + (1./HetCP - 1./RCP)))
+
+            end if
+
+
+
+            if( Real_N_LOM<Real_P_LOM) then
+
+                Me%Matrix(HetPI, AMI)  = Me%Matrix(HetPI, AMI) + DTDay               & 
+                                    * ImobilizationRateNH4  * Conversion * 1/LCP       &
+                                    * (1./( (1./HetCN - 1./LCN )                       &
+                                    + AnaPartition* (1./HetCN - 1./RCN))) 
+                
+                Me%Matrix(HetPI, NII)  = Me%Matrix(HetPI, NII) + DTDay               &
+                                    * ImobilizationRateNO3  * Conversion * 1/LCP       & 
+                                    * (1./( (1./HetCN - 1./LCN )                       & 
+                                    +  AnaPartition*(1./HetCN - 1./RCN)))                                               
+
+                !Breath 
+                
+                        
+                Me%Matrix(HetPI, AMI)  = Me%Matrix(HetPI, AMI) - DTDay               & 
+                                    * ImobilizationRateNH4  * Conversion               &
+                                    *(HetEF/HetCP)                                     &
+                                    * (1./( (1./HetCN - 1./LCN )                       &
+                                    +  AnaPartition*(1./HetCN - 1./RCN))) 
+                
+                Me%Matrix(HetPI, NII)  = Me%Matrix(HetPI, NII) - DTDay               &
+                                    * ImobilizationRateNO3  * Conversion               &
+                                    *(HetEF/HetCP)                                     & 
+                                    * (1./( (1./HetCN - 1./LCN )                       & 
+                                    +  AnaPartition*(1./HetCN - 1./RCN)))   
+
+
+            else
+
+                Me%Matrix(HetPI, PI)  = Me%Matrix(HetPI, PI) + DTDay                &
+                                    * ImobilizationRateP  * Conversion*(1/LCP)         & 
+                                    * (1./( (1./HetCP - 1./LCP )                       &
+                                    + AnaPartition*(1./HetCP - 1./RCP)))
+
+
+                !Breath
+
+                Me%Matrix(HetPI, PI)  = Me%Matrix(HetPI, PI) - DTDay                 &
+                                    * ImobilizationRateP  * Conversion*(HetEF/HetCP)   & 
+                                    * (1./( (1./HetCP - 1./LCP )                       &
+                                    + AnaPartition*(1./HetCP - 1./RCP)))
+
+            end if
+    
+        end if
+
+
+            !Source  : imobilization of Soluble Phosphorus
+
+
+
+        if (seletion == 2 .OR. seletion == 5 .OR. seletion == 8) then
+        
+             ! RealP imobilization
+
+            Me%Matrix(HetPI, LOM_CI) = Me%Matrix(HetPI, LOM_CI) + DTDay         &
+                                         * (LOM_C_Srate * (1./HetCP - 1./LCP))
+            
+            Me%Matrix(HetPI, ROM_CI) = Me%Matrix(HetPI, ROM_CI) + DTDay         &
+                                         * (ROM_C_Srate * (1./HetCP - 1./RCP))
+        
+        end if
+
+             ! Potential P immobilization
+
+        if (seletion == 1 .OR. seletion == 4 .OR. seletion == 7) then
+
+
+            Me%Matrix(HetPI, PI) = Me%Matrix(HetPI, PI) + DTDay                &            
+                              * ImobilizationRateP * Conversion 
+
+
+        end if
+
+
+        !Independent term
+        Me%IndTerm(HetPI) = Me%ExternalVar%Mass(HetPI,index) 
+            
+
+
+    !----------------------------------------------------------------------------
+
+    end subroutine HeterotrophicP 
+    !----------------------------------------------------------------------------
+
+
+    !Anaerobic P
+    !
+    !SOURCES: - Denitrification eficiency - soluble phosphorus
+    !SINKS:   - Death
+    !----------------------------------------------------------------------------    
+    subroutine AnaerobicP (index)
+
+        !Arguments---------------------------------------------------------------
+        integer                , intent(IN) :: index
+
+
+        !Local-------------------------------------------------------------------
+        real    :: AnaCP, AnaNEf, AnaCEf, AnaDeathRate
+        integer :: AnaPI, AnaCI,LOM_CI,ROM_CI
+
+        real    :: DenitrificationRate 
+
+        real    :: LCP, RCP
+
+        real    :: AnaPartition, Conversion, DTDay
+        
+        integer :: NII    
+        real    :: NO3,NO3limit,methaneproduction
+        !------------------------------------------------------------------------
+
+        LOM_CI              = Me%PropIndex%Labil_OM_C
+        ROM_CI              = Me%PropIndex%RefractOM_C
+        DTDay               = Me%DTDay
+
+        AnaPI               = Me%PropIndex%AnaerobicP
+        AnaCI               = Me%PropIndex%AnaerobicC
+        NII                 = Me%PropIndex%Nitrate
+        
+        AnaDeathRate        = Me%SpecificRates%Anaerobic%Value
+        AnaCP               = Me%Microorganisms%Anaerobic%CPRatio
+        
+        DenitrificationRate  = Me%SpecificRates%NitrateToNgas%Value
+        AnaNEf              = Me%Microorganisms%Anaerobic%EficiencyN
+        AnaCEf              = Me%Microorganisms%Anaerobic%EficiencyC
+
+        LCP                 = Me%LabilOM_CP_Ratio
+        RCP                 = Me%RefractOM_CP_Ratio
+    
+        AnaPartition        = Me%AnaerobicPartition
+
+        Conversion          = Me%ExternalVar%DissolvedToParticulate (index)
+
+
+        NO3                 = Me%ExternalVar%Mass(NII,index)
+        NO3limit            = Me%NO3limit
+        methaneproduction   = Me%SpecificRates%MethaneProduction%Value
+
+
+
+        Me%Matrix(AnaPI, AnaPI) = 1.
+
+
+        !Sink: Death
+        if ( .not. Me%Microorganisms%Anaerobic%LogicalMinumumPOP )                    &        
+            Me%Matrix(AnaPI, AnaCI) = Me%Matrix(AnaPI, AnaCI) - DTDay * AnaDeathRate / AnaCP  
+
+
+
+        if (NO3>NO3limit) then
+
+
+            !Sources: Labil P
+            Me%Matrix(AnaPI, NII) = Me%Matrix(AnaPI, NII) + DTDay                         &
+                                  * DenitrificationRate * Conversion *(1/LCP)             &
+                                  * (0.1 /( (AnaPartition + 1. ))) 
+
+           !Sources: Refract P
+            Me%Matrix(AnaPI, NII) = Me%Matrix(AnaPI, NII) + DTDay                         &
+                                  * DenitrificationRate * Conversion *(1/RCP)             &
+                                  * (0.1 /( (1./AnaPartition + 1. ))) 
+
+            !Sink: Excretion
+            Me%Matrix(AnaPI, NII) = Me%Matrix(AnaPI, NII) - DTDay                         &
+                                  * DenitrificationRate * Conversion                      &
+                                  *AnaCEf*0.1/ AnaCP       
+
+        else 
+
+            !Source :  degradação de matéria orgânica e respiração de CO2
+        
+                !( vem da labile)    
+            Me%Matrix(AnaPI, LOM_CI)     = Me%Matrix(AnaPI, LOM_CI) + DTDay    & 
+                                     *  methaneproduction *(1/LCP)         &
+                                     * ( 0.1/( AnaPartition +1.) )
+
+            Me%Matrix(AnaPI, ROM_CI)     = Me%Matrix(AnaPI, ROM_CI) + DTDay    & 
+                                     *  methaneproduction *(1/LCP)         &
+                                     * ( 0.1/( AnaPartition +1.) )
+    
+                ! (vem da refractory)
+
+            Me%Matrix(AnaPI, LOM_CI)     = Me%Matrix(AnaPI, LOM_CI) + DTDay    & 
+                                     *  methaneproduction *(1/RCP)         &
+                                     * ( 0.1/( (1/AnaPartition) +1.) )
+
+            Me%Matrix(AnaPI, ROM_CI)     = Me%Matrix(AnaPI, ROM_CI) + DTDay    & 
+                                     *  methaneproduction *(1/RCP)         &
+                                     * ( 0.1/( (1/AnaPartition) +1.) )
+    
+    
+            ! sink: excreção de fósforo soluvel
+
+            Me%Matrix(AnaPI, LOM_CI)     = Me%Matrix(AnaPI, LOM_CI) - DTDay    & 
+                                        *  methaneproduction      &
+                                        *0.1*AnaCEf/AnaCP
+
+            Me%Matrix(AnaPI, ROM_CI)     = Me%Matrix(AnaPI, ROM_CI) - DTDay    & 
+                                        *  methaneproduction      &
+                                        *0.1*AnaCEf/AnaCP
+    
+        end if 
+
+
+
+       !Independent term
+        Me%IndTerm(AnaPI)    = Me%ExternalVar%Mass(AnaPI, index) 
+    !----------------------------------------------------------------------------
+
+    end subroutine AnaerobicP 
+    !----------------------------------------------------------------------------
+
+
+    !Autotrophic P
+    !
+    !SOURCES: - uptake phosphorus
+    !SINKS:   - Death
+    !----------------------------------------------------------------------------    
+    subroutine AutotrophicP (index)
+
+        !Arguments---------------------------------------------------------------
+        integer                 , intent(IN)    :: index
+
+
+        !Local-------------------------------------------------------------------
+        real    :: DTDay
+        
+        real    :: AutoCP, AutoEf, AutoDeathRate,AutoCN
+        integer :: AutoPI, AutoCI
+
+        real    :: NitificationRate, Conversion 
+
+        integer :: AMI,PI
+        
+        real    :: AutoNP     !!!nova variavel  
+        !------------------------------------------------------------------------
+
+        
+
+        DTDay               = Me%DTDay
+        AutoPI              = Me%PropIndex%AutotrophicP
+        AutoCI              = Me%PropIndex%AutotrophicC
+        AMI                 = Me%PropIndex%Ammonia
+        PI                  = Me%PropIndex%Inorganic_P_soluble
+        AutoDeathRate       = Me%SpecificRates%Autotrophs%Value
+        AutoCP              = Me%Microorganisms%Autotrophs%CPRatio
+        AutoCN              = Me%Microorganisms%Autotrophs%CNRatio
+        AutoNP              = AutoCP/AutoCN             !!!!! atenção a esta formula!!!
+
+        NitificationRate    = Me%SpecificRates%AmmoniaToNitrate%Value
+        AutoEf              = Me%Microorganisms%Autotrophs%EficiencyN
+        
+        Conversion          = Me%ExternalVar%DissolvedToParticulate (index)
+
+        Me%Matrix(AutoPI, AutoPI) = 1.
+
+        !Sink: Death
+        if ( .not. Me%Microorganisms%Autotrophs%LogicalMinumumPOP)                  &        
+            Me%Matrix(AutoPI, AutoCI) = Me%Matrix(AutoPI, AutoCI) - DTDay *         &
+                                        AutoDeathRate / AutoCP  
+
+
+        !Sources: uptake phosphorus
+        Me%Matrix(AutoPI, AMI) = Me%Matrix(AutoPI, AMI) + DTDay *                   &
+                                 NitificationRate * Conversion * AutoEf/AutoCP
+
+
+        
+        !Independent term
+        Me%IndTerm(AutoPI) = Me%ExternalVar%Mass(AutoPI, index) 
+    !----------------------------------------------------------------------------
+
+
+    end subroutine AutotrophicP 
+
+
+
+    subroutine InorganicPhosphorusSoluble (index)
+
+
+       !Arguments---------------------------------------------------------------
+        integer                 , intent(IN)    :: index
+
+
+        !Local-------------------------------------------------------------------
+
+        real    :: DTDay
+        integer :: PI, NII, AMI, LOM_CI, ROM_CI, PFI
+        real    :: AM, N, P ,PF
+        real    :: DenitrificationRate, NitrificationRate
+        real    :: ImobilizationRateNH4
+        real    :: ImobilizationRateP,ROM_C_Srate,LOM_C_Srate,ImobilizationRateNO3
+        real    :: AnaNEf,AnaCEf, AutoEf 
+        real    :: AnaCP, AutoNP, AutoCN,AutoCP
+        real    :: LCP,RCP, LCN, RCN
+        real    :: HetCN,HetCP, HetEf
+        real    :: Real_N_LOM,Real_N_ROM,Real_P_LOM,Real_P_ROM
+        real    :: pai
+        real    :: SolCEf,SolCP
+        real    :: solubilizingrate 
+        real    :: conversion, anaPartition, seletion,partition,solpartition
+        real    :: NO3,NO3limit,methaneproduction
+        real    :: SoilDens
+        !------------------------------------------------------------------------
+
+        DTDay               = Me%DTDay
+        
+        AMI                 = Me%PropIndex%Ammonia
+        PI                  = Me%PropIndex%Inorganic_P_soluble
+        NII                 = Me%PropIndex%Nitrate
+        PFI                 = Me%PropIndex%Inorganic_P_fix
+
+        AM                      = Me%ExternalVar%Mass(AMI, index)       !!!Lúcia
+        N                       = Me%ExternalVar%Mass(NII, index)       !!!Lúcia
+        P                       = Me%ExternalVar%Mass(PI, index)       !!!Lúcia
+        PF                      = Me%ExternalVar%Mass(PFI, index)
+
+
+        LOM_C_Srate             = Me%SpecificRates%Labil_OM_C%Value
+        LCN                     = Me%LabiOM_CN_Ratio
+        LCP                     = Me%LabilOM_CP_Ratio    !!!Lúcia
+        LOM_CI                  = Me%PropIndex%Labil_OM_C
+
+
+        ROM_C_Srate             = Me%SpecificRates%RefractOM_C%Value
+        RCN                     = Me%RefractOM_CN_Ratio 
+        RCP                     = Me%RefractOM_CP_Ratio  !!!Lúcia         
+        ROM_CI                  = Me%PropIndex%RefractOM_C
+
+        HetCP                   = Me%Microorganisms%Heterotrophs%CPRatio
+        HetCN                   = Me%Microorganisms%Heterotrophs%CNRatio
+        HetEF                   = Me%Microorganisms%Heterotrophs%EficiencyC
+
+        AnaNEf              = Me%Microorganisms%Anaerobic%EficiencyN
+        AnaCEf              = Me%Microorganisms%Anaerobic%EficiencyC
+        AnaCP               = Me%Microorganisms%Anaerobic%CPRatio
+
+        AutoEf              = Me%Microorganisms%Autotrophs%EficiencyN
+        AutoCN              = Me%Microorganisms%Autotrophs%CNRatio
+        AutoCP              = Me%Microorganisms%Autotrophs%CPRatio
+        AutoNP              = AutoCP/AutoCN             !!!!! atenção a esta formula!!!
+        solCEf              = Me%Microorganisms%Heterotrophs%EficiencyC
+        SolCP               = Me%Microorganisms%Sols%CPRatio
+
+        DenitrificationRate     = Me%SpecificRates%NitrateToNgas%Value
+        ImobilizationRateP      = Me%SpecificRates%PhosphorusImobilization%Value
+        ImobilizationRateNH4    = Me%SpecificRates%AmmoniaImobilization%Value
+        ImobilizationRateNO3    = Me%SpecificRates%NitrateImobilization%Value
+        NitrificationRate       = Me%SpecificRates%AmmoniaToNitrate%Value
+        solubilizingrate        = Me%SpecificRates%Solubilizing%Value   
+
+        AnaPartition        = Me%AnaerobicPartition
+        solpartition        = Me%Solpartition
+
+        Conversion          = Me%ExternalVar%DissolvedToParticulate (index)
+
+        seletion            = Me%Select    
+
+        Partition               = Me%Partition
+
+        SoilDens             = Me%ExternalVar%SoilDryDensity(index)
+
+        NO3                 = Me%ExternalVar%Mass(NII,index)
+        NO3limit            = Me%NO3limit
+        methaneproduction   = Me%SpecificRates%MethaneProduction%Value
+
+
+
+        PAI= Me%ExternalVar%PAI(index)
+
+        Me%Matrix(PI, PI) = 1.   
+
+        !Source: Excretion of Soluble Phosphorus vt anaerobics
+
+        if (NO3>NO3limit) then
+
+ 
+            Me%Matrix(PI, NII) =  Me%Matrix(PI, NII) + DTDay                       &
+                              * DenitrificationRate                          &
+                              * AnaCEf*0.1/ AnaCP
+        else 
+
+              Me%Matrix(PI, LOM_CI)     = Me%Matrix(PI, LOM_CI) + DTDay    & 
+                                            *  (methaneproduction/conversion)      &
+                                            *0.1*AnaCEf/AnaCP
+
+              Me%Matrix(PI, ROM_CI)     = Me%Matrix(PI, ROM_CI) + DTDay    & 
+                                            *  (methaneproduction/conversion)      &
+                                            *0.1*AnaCEf/AnaCP
+        end if
+
+        
+        !Sink: uptake phosphorus autotrophics
+
+        Me%Matrix(PI, AMI) = Me%Matrix(PI, AMI) - DTDay * NitrificationRate *AutoEf/AutoCP
+
+
+        !Source: Heterotrophic excretion 
+
+        if (seletion==5.OR.seletion==6 .OR. seletion==8 .OR. seletion==9 )  then 
+
+
+            Me%Matrix(PI, LOM_CI)  = Me%Matrix(PI, LOM_CI) +DTDay *                &
+                                 LOM_C_Srate* (HetEF/HetCP)*(1/conversion)
+
+            Me%Matrix(PI, ROM_CI)  = Me%Matrix(PI, ROM_CI) +DTDay *                &
+                                 ROM_C_Srate* (HetEF/HetCP)*(1/conversion)
+          
+        end if
+
+
+        if (seletion==2.OR. seletion==3) then 
+
+            Me%Matrix(PI, AMI)  = Me%Matrix(PI, AMI) + DTDay                        & 
+                                   * ImobilizationRateNH4 *(HetEF/HetCP)           &
+                                   * (1./((1./HetCN - 1./LCN)                      &
+                                   + AnaPartition * (1./HetCN - 1./RCN)) )              
+                       
+
+            Me%Matrix(PI, AMI)  = Me%Matrix(PI, AMI) + DTDay                        & 
+                                   * ImobilizationRateNH4 *(HetEF/HetCP)           &
+                                   * 1./((1./HetCN - 1./LCN ) * (1./AnaPartition)  &
+                                   + (1./HetCN - 1./RCN))
+
+
+            Me%Matrix(PI, NII)  = Me%Matrix(PI, NII) + DTDay                        &
+                                   * ImobilizationRateNO3 *(HetEF/HetCP)           &
+                                   *( 1./((1./HetCN - 1./LCN)                      &
+                                   + AnaPartition * (1./HetCN - 1./RCN)) )              
+                                                
+
+
+            Me%Matrix(PI, NII)  = Me%Matrix(PI, NII) + DTDay                        &
+                                   * ImobilizationRateNO3  *(HetEF/HetCP )         &
+                                   *( 1./((1./HetCN - 1./LCN )*(1./ AnaPartition)  &
+                                   + (1./HetCN - 1./RCN)))                       
+
+        end if
+
+
+        if (seletion==4.OR. seletion==7) then
+
+            Me%Matrix(PI, PI)  =    Me%Matrix(PI, PI) + DTDay                      &
+                                    * ImobilizationRateP* (HetEF/HetCP )           & 
+                                    * (1./( (1./HetCP - 1./LCP )*(1/Anapartition)  & 
+                                    + (1./HetCP - 1./RCP))) 
+                                    
+            Me%Matrix(PI, PI)  =    Me%Matrix(PI, PI) + DTDay                      &
+                                    * ImobilizationRateP* (HetEF/HetCP )           & 
+                                    * (1./( (1./HetCP - 1./LCP )                   & 
+                                    + Anapartition*(1./HetCP - 1./RCP)))    
+                                    
+                                                            
+                    
+        end if
+
+        if(seletion==1) then
+    
+            Real_N_ROM = ((ImobilizationRateNH4*AM+ImobilizationRateNO3*N)         &
+                        *Conversion) *(1./( (1./HetCN - 1./LCN )*(1/AnaPartition)  &
+                        +  (1./HetCN - 1./RCN)))
+
+            Real_P_ROM = ((ImobilizationRateP*P)*Conversion)                       &
+                        * (1./( (1./HetCP - 1./LCP )*(1/AnaPartition)              &
+                         +  (1./HetCP - 1./RCP)))
+
+
+
+            Real_N_LOM = ((ImobilizationRateNH4*AM+ImobilizationRateNO3*N)         &
+                        *Conversion) *(1./( (1./HetCN - 1./LCN )                   &
+                        +  AnaPartition*(1./HetCN - 1./RCN)))
+
+
+            Real_P_LOM = ((ImobilizationRateP*P)*Conversion)                       &
+                        * (1./( (1./HetCP - 1./LCP ) +                             &
+                        AnaPartition*(1./HetCP - 1./RCP)))
+
+
+
+            if( Real_N_ROM<Real_P_ROM) then
+
+                Me%Matrix(PI, AMI)  = Me%Matrix(PI, AMI) + DTDay                 & 
+                                    * ImobilizationRateNH4*(HetEF/HetCP)           &
+                                    * (1./( (1./HetCN - 1./LCN )*(1/AnaPartition)  &
+                                    +  (1./HetCN - 1./RCN))) 
+                
+                Me%Matrix(PI, NII)  = Me%Matrix(PI, NII) + DTDay                 &
+                                    * ImobilizationRateNO3*(HetEF/HetCP)           & 
+                                    * (1./( (1./HetCN - 1./LCN )*(1/AnaPartition)  & 
+                                    +  (1./HetCN - 1./RCN)))    
+
+            else
+
+                Me%Matrix(PI, PI)  = Me%Matrix(PI, PI) + DTDay                   &
+                                    * ImobilizationRateP *(HetEF/ HetCP)           & 
+                                    * (1./( (1./HetCP - 1./LCP )*(1/AnaPartition)  &
+                                    + (1./HetCP - 1./RCP)))
+
+            end if
+
+            if( Real_N_LOM<Real_P_LOM) then
+
+
+                        
+                Me%Matrix(PI, AMI)  = Me%Matrix(PI, AMI) + DTDay                 & 
+                                    * ImobilizationRateNH4*(HetEF/HetCP)           &
+                                    * (1./( (1./HetCN - 1./LCN )                   &
+                                    +  AnaPartition*(1./HetCN - 1./RCN))) 
+                
+                Me%Matrix(PI, NII)  = Me%Matrix(PI, NII) + DTDay                 &
+                                    * ImobilizationRateNO3  *(HetEF/HetCP)         & 
+                                    * (1./( (1./HetCN - 1./LCN )                   & 
+                                    +  AnaPartition*(1./HetCN - 1./RCN)))   
+
+            else
+
+
+                Me%Matrix(PI, PI)  = Me%Matrix(PI, PI) + DTDay                   &
+                                    * ImobilizationRateP*(HetEF/HetCP)             & 
+                                    * (1./( (1./HetCP - 1./LCP )                   &
+                                    + AnaPartition*(1./HetCP - 1./RCP)))
+
+            end if
+    
+        end if
+
+
+        !Sink  : imobilization of Soluble Phosphorus by heterotrophics
+
+
+        if (seletion == 2 .OR. seletion == 5 .OR. seletion == 8) then
+
+             ! RealP imobilization
+
+            Me%Matrix(PI, LOM_CI) = Me%Matrix(PI, LOM_CI) - DTDay               &
+                                      * (LOM_C_Srate * (1./HetCP - 1./LCP))    &
+                                      *(1/conversion)
+ 
+            Me%Matrix(PI, ROM_CI) = Me%Matrix(PI, ROM_CI) - DTDay               &
+                                      * (ROM_C_Srate * (1./HetCP - 1./RCP))    &
+                                      *(1/conversion)
+
+        end if
+
+
+        if (seletion == 1 .OR. seletion == 4 .OR. seletion == 7) then
+
+             ! Potential P immobilization  
+       
+            Me%Matrix(PI, PI) = Me%Matrix(PI, PI) - DTDay                    &
+                           * ImobilizationRateP 
+
+        end if
+
+        !!! passagem de fosforo soluvel para inorganico, ou seja fixação
+        if( P> PF*(pai/(1-pai)) )  then
+
+
+            Me%Matrix(PI, PI)  = Me%Matrix(PI, PI)-DTDay*100/(SoilDens*1)
+
+            Me%Matrix(PI, PFI) = Me%Matrix(PI, PFI)+DTDay*(pai/(1-pai))*100/(SoilDens*1)
+
+        end if
+
+
+        !!! escolha entre a passagem meramente quimica ou com a intervenção dos microorganismos
+
+        if (Me%PropCalc%Sol_Bacteria) then 
+
+
+            Me%Matrix(PI, PFI) = Me%Matrix(PI, PFI) + DTDay                       &
+                           * SolubilizingRate*(1-0.1)                          
+                                    
+
+        else
+
+            if( P< PF*(pai/(1-pai)) )  then
+
+
+                Me%Matrix(PI, PI)  = Me%Matrix(PI, PI)-0.1*DTDay*100/(SoilDens*1)
+
+                Me%Matrix(PI, PFI) = Me%Matrix(PI, PFI)+0.1*DTDay*(pai/(1-pai))*100/(SoilDens*1)
+
+            end if
+
+        end if
+
+ 
+         !Independent term
+         Me%IndTerm(PI) = Me%ExternalVar%Mass(PI,index) 
+       
+
+
+    end subroutine InorganicPhosphorusSoluble  
+
+  !----------------------------------------------------------------------------
+
+
+       subroutine InorganicPhosphorusFix (index)
+
+       !Arguments---------------------------------------------------------------
+        integer                   :: index
+
+
+       !Local-------------------------------------------------------------------
+
+        real    :: DTDay
+        integer :: PI,PFI
+        real    :: pai, P,PF
+        real    :: solubilizingrate
+        real    :: solCEf,SolCP,solpartition
+        real    :: conversion
+        real    :: SoilDens
+
+       !------------------------------------------------------------------------
+
+        DTDay               = Me%DTDay!
+        PFI                 = Me%PropIndex%Inorganic_P_fix
+        PI                  = Me%PropIndex%Inorganic_P_soluble
+        P                   = Me%ExternalVar%Mass(PI, index)
+        PF                  = Me%ExternalVar%Mass(PFI, index)
+        solubilizingrate    = Me%SpecificRates%Solubilizing%Value   
+        solpartition        = Me%Solpartition
+        solCEf              = Me%Microorganisms%Heterotrophs%EficiencyC
+        SolCP               = Me%Microorganisms%Sols%CPRatio
+        Conversion          = Me%ExternalVar%DissolvedToParticulate (index)
+        SoilDens            = Me%ExternalVar%SoilDryDensity(index)
+    
+        PAI  = Me%EXternalVar%PAI(index)
+
+
+        Me%Matrix(PFI, PFI) = 1.   
+
+
+        if( P> PF*(pai/(1-pai)) )  then
+
+
+            Me%Matrix(PFI, PI)  = Me%Matrix(PFI, PI)+DTDay*100/SoilDens
+
+            Me%Matrix(PFI, PFI) = Me%Matrix(PFI, PFI)-DTDay*(pai/(1-pai))*100/(SoilDens*1)
+
+        end if
+
+        !!! escolha entre a passagem meramente quimica ou com a intervenção dos microorganismos
+
+        if (Me%PropCalc%Sol_Bacteria) then 
+
+
+            Me%Matrix(PFI, PFI) = Me%Matrix(PFI, PFI) - DTDay                     &
+                          * SolubilizingRate                                   &
+                          * (1-0.1)/ SolCP                      
+
+        else
+
+            if( P< PF*(pai/(1-pai)) )  then
+
+
+                Me%Matrix(PI, PI)  = Me%Matrix(PI, PI)+0.1*DTDay*100/(SoilDens*1)
+
+                Me%Matrix(PI, PFI) = Me%Matrix(PI, PFI)-0.1*DTDay*(pai/(1-pai))*100/(SoilDens*1)
+
+            end if
+
+        end if
+
+  
+  
+         !Independent term
+        Me%IndTerm(PFI) = Me%ExternalVar%Mass(PFI,index) 
+       
+
+
+    end subroutine InorganicPhosphorusFix 
+
+   !----------------------------------------------------------------------------
+
+
+    subroutine Sol_Bacteria(index)
+
+        !Arguments---------------------------------------------------------------
+        integer, intent(IN) :: index
+        !------------------------------------------------------------------------
+            
+            call sol_carbon      (index)
+
+            call sol_nitrogen   (index)
+
+            call sol_phosphorus  (index)
+
+
+        !------------------------------------------------------------------------
+
+    end subroutine Sol_Bacteria
+    !---------------------------------------------------------------------------
+
+
+
+    subroutine sol_carbon (index)
+
+        !Arguments---------------------------------------------------------------
+        integer, intent(IN) :: index
+        !------------------------------------------------------------------------
+       !Local-------------------------------------------------------------------
+
+        integer     :: solCI,PFI
+        real        :: SolDeathRate, solubilizingrate
+        real        :: DTDay
+        real        :: conversion
+        real        :: solCEf
+
+       !----------------------------------------------------------------------------
+
+        SolDeathRate      = Me%SpecificRates%sol%Value
+        SolubilizingRate  = Me%SpecificRates%Solubilizing%Value   
+       
+        SolCI             = Me%PropIndex%SolC
+        PFI               = Me%PropIndex%Inorganic_P_Fix
+        solCEf            = Me%Microorganisms%Heterotrophs%EficiencyC             
+       
+        Conversion        = Me%ExternalVar%DissolvedToParticulate (index)
+        DTDay             = Me%DTDay
+
+
+        Me%Matrix(SolCI, SolCI)   =1
+
+         
+        !Sink   : Heterotrophic death
+
+        if (.NOT. Me%Microorganisms%Sols%LogicalMinumumPOP)                 &
+           Me%Matrix(SolCI, SolCI) = Me%Matrix(SolCI, SolCI) - DTDay * SolDeathRate
+
+
+        ! source : Labil 
+
+        Me%Matrix(SolCI, PFI) = Me%Matrix(SolCI, PFI) + DTDay                       &
+                              * solubilizingRate * Conversion                       
+
+                              
+                               
+        ! sink   : excrecion of CO2
+
+        Me%Matrix(SolCI, PFI) = Me%Matrix(SolCI, PFI) - DTDay                       &
+                              * solubilizingRate * Conversion*SolCEf                
+
+
+                              
+        !Independent term
+        Me%IndTerm(solCI)     = Me%ExternalVar%Mass(solCI, index) 
+                              
+                              
+                               
+        !------------------------------------------------------------------------
+
+     end subroutine sol_carbon
+
+        !------------------------------------------------------------------------
+
+
+        subroutine sol_nitrogen (index)
+        
+        !Arguments---------------------------------------------------------------
+        integer, intent(IN) :: index
+        !------------------------------------------------------------------------
+       !Local-------------------------------------------------------------------
+
+        integer     :: solNI,PFI
+        real        :: SolDeathRate, solubilizingrate
+        real        :: DTDay
+        real        :: conversion
+        real        :: solCN,anapartition
+        real        :: LCN,RCN
+        real        :: solCEf
+       !----------------------------------------------------------------------------
+
+        PFI                 = Me%PropIndex%Inorganic_P_fix
+            
+        SolNI               = Me%PropIndex%SolN
+        SolDeathRate        = Me%SpecificRates%sol%Value
+        solubilizingrate    = Me%SpecificRates%Solubilizing%Value   
+        solCEf              = Me%Microorganisms%Heterotrophs%EficiencyC
+
+        SolCN               = Me%Microorganisms%Sols%CNRatio
+        LCN                 = Me%LabiOM_CN_Ratio
+        RCN                 = Me%RefractOM_CN_Ratio
+        AnaPartition        = Me%AnaerobicPartition
+        Conversion        = Me%ExternalVar%DissolvedToParticulate (index)
+        DTDay             = Me%DTDay
+
+
+        Me%Matrix(SolNI, SolNI)    = 1
+         
+        !Sink   : Heterotrophic death
+
+        if (.NOT. Me%Microorganisms%Sols%LogicalMinumumPOP)                         &
+           Me%Matrix(SolNI, SolNI) = Me%Matrix(SolNI, SolNI) - DTDay * SolDeathRate/SolCN
+
+        !Sources: Labil N
+        Me%Matrix(SolNI, PFI) = Me%Matrix(SolNI, PFI) + DTDay                       &
+                              * solubilizingRate * Conversion *(1/LCN)              &
+                              * (0.1 /( (anapartition + 1. ))) 
+        !Sources: Refract N
+        Me%Matrix(SolNI, PFI) = Me%Matrix(SolNI, PFI) + DTDay                       &
+                              * SolubilizingRate * Conversion *(1/RCN)              &
+                              * (0.1 /( (1./anapartition + 1. ) )) 
+
+        !Sink: Excretion
+        Me%Matrix(SolNI, PFI) = Me%Matrix(SolNI, PFI) + DTDay                       &
+                              * solubilizingRate * Conversion *solCEf*(1/LCN)       &
+                              * (0.1 /( (anapartition + 1. )))  
+                              
+        Me%Matrix(SolNI, PFI) = Me%Matrix(SolNI, PFI) + DTDay                       &
+                              * SolubilizingRate * Conversion *(1/RCN)              &
+                              *solCEf* (0.1 /( (1./anapartition + 1. ) ))                                   
+
+                              
+        !Independent term
+        Me%IndTerm(solNI)     = Me%ExternalVar%Mass(solNI, index) 
+
+
+
+        !------------------------------------------------------------------------
+
+      end subroutine sol_nitrogen
+
+        !------------------------------------------------------------------------
+
+
+
+        subroutine sol_phosphorus (index)
+        
+        !Arguments---------------------------------------------------------------
+        integer, intent(IN) :: index
+        !------------------------------------------------------------------------
+       !Local-------------------------------------------------------------------
+
+        integer     :: solPI,PFI
+        real        :: SolDeathRate, solubilizingrate
+        real        :: DTDay
+        real        :: conversion
+        real        :: solCP
+        real        :: LCP,RCP
+        real        :: Anapartition
+       !----------------------------------------------------------------------------
+
+        PFI                 = Me%PropIndex%Inorganic_P_fix
+            
+        SolPI               = Me%PropIndex%SolP
+        SolDeathRate        = Me%SpecificRates%sol%Value
+        solubilizingrate    = Me%SpecificRates%Solubilizing%Value   
+
+
+        SolCP               = Me%Microorganisms%Sols%CPRatio
+        LCP                 = Me%LabilOM_CP_Ratio
+        RCP                 = Me%RefractOM_CP_Ratio
+        AnaPartition        = Me%AnaerobicPartition
+        Conversion        = Me%ExternalVar%DissolvedToParticulate (index)
+        DTDay             = Me%DTDay
+
+
+
+        Me%Matrix(SolPI, SolPI)    = 1
+
+
+        !Sink   : Heterotrophic death
+
+        if (.NOT. Me%Microorganisms%Sols%LogicalMinumumPOP)                         &
+           Me%Matrix(SolPI, SolPI) = Me%Matrix(SolPI, SolPI) - DTDay * SolDeathRate/SolCP
+
+
+        !Sources: Labil P
+        Me%Matrix(SolPI, PFI) = Me%Matrix(SolPI, PFI) + DTDay                       &
+                              * solubilizingRate * Conversion *(1/LCP)              &
+                              * (0.1 /( (anapartition + 1. ))) 
+        !Sources: Refract P
+        Me%Matrix(SolPI, PFI) = Me%Matrix(SolPI, PFI) + DTDay                       &
+                              * SolubilizingRate * Conversion *(1/RCP)              &
+                              * (0.1 /( (1./anapartition + 1. ) )) 
+
+        !Independent term
+        Me%IndTerm(solPI)     = Me%ExternalVar%Mass(solPI, index) 
+
+       !----------------------------------------------------------------------------
+
+       end subroutine sol_phosphorus
+
+       !----------------------------------------------------------------------------
+
+
+
+    subroutine correctOM (index)
+
+       !Local-------------------------------------------------------------------
+
+        real    :: conversion
+        integer :: index
+        real    :: AnaC,AnaN,HetC,HetN,AnaP,HetP,solC,solN,solP
+        real    :: HetCN,HetCP,AnaCN,AnaCP,solCN,solCP
+        real    :: N,P
+        real    :: excessoHN,excessoHP,excessoAN,ExcessoAP,Excesso_solP,Excesso_solN 
+        integer :: AnaCI,AnaNI,AnaPI,HetCI,HetNI,HetPI,PI,NI,solCI,solNI,solPI
+
+       !----------------------------------------------------------------------------
+
+!!! indices das propriedades
+
+
+        AnaCI = Me%PropIndex%anaerobicC
+        AnaNI = Me%PropIndex%anaerobicN
+        AnaPI = Me%PropIndex%anaerobicP
+
+        HetCI = Me%PropIndex%heterotrophicC
+        HetNI = Me%PropIndex%heterotrophicN
+        HetPI = Me%PropIndex%heterotrophicP
+
+        NI = Me%PropIndex%ammonia 
+        PI = Me%PropIndex%Inorganic_P_soluble
+
+        solCI = Me%PropIndex%solC 
+        solNI = Me%PropIndex%solN
+        solPI = Me%PropIndex%solP           
+
+            
+        conversion = Me%ExternalVar%DissolvedToParticulate (index) 
+
+        if (Me%PropCalc%Carbon) then
+
+            AnaC = Me%ExternalVar%Mass(anaCI, index)
+            HetC = Me%ExternalVar%Mass(HetCI, index)
+            
+            if (Me%PropCalc%Sol_Bacteria) then
+                solC = Me%ExternalVar%Mass(solCI, index) 
+            endif
+
+        endif
+
+        if (Me%PropCalc%Nitrogen) then
+
+            AnaN = Me%ExternalVar%Mass(AnaNI, index)
+            HetN = Me%ExternalVar%Mass(HetNI, index)
+            N = Me%ExternalVar%Mass(NI, index)
+ 
+            if (Me%PropCalc%Sol_Bacteria) then
+
+                solN = Me%ExternalVar%Mass(solNI, index)
+
+            endif
+
+        endif
+
+        if (Me%PropCalc%Phosphorus) then
+
+            AnaP = Me%ExternalVar%Mass(AnaPI, index)
+            HetP = Me%ExternalVar%Mass(HetPI, index)
+            P = Me%ExternalVar%Mass(PI, index)
+
+            if (Me%PropCalc%Sol_Bacteria) then
+
+                solP = Me%ExternalVar%Mass(solPI, index)
+
+            endif
+        
+        endif
+
+        HetCN = Me%Microorganisms%Heterotrophs%CNratio
+        HetCP = Me%Microorganisms%Heterotrophs%CPratio
+
+        AnaCN = Me%Microorganisms%Anaerobic%CNRatio
+        AnaCP = Me%Microorganisms%Anaerobic%CPRatio
+
+        solCN = Me%Microorganisms%sols%CNRatio
+        solCP = Me%Microorganisms%sols%CPRatio
+
+
+
+!! Excess organic matter in heterotrophicP
+
+        if(HetC/ HetCP< HetP)then
+
+            excessoHP = (HetP-(HetC/ HetCP))
+            HetP = HetP  - excessoHP
+
+            P = P+(1/conversion)*excessoHP
+
+
+        end if
+
+!!! Excess organic matter in heterotrophicN
+
+
+        if(HetC/ HetCN< HetN)then 
+
+            excessoHN = (HetN-(HetC/ HetCN))
+
+            HetN = HetN  - excessoHN
+
+            N = N + (1/conversion)*excessoHN
+
+
+        end if
+
+
+!!! excess organic matter in anaerobic N
+
+
+
+        excessoAN = (AnaN-(AnaC/ AnaCN))
+
+        AnaN = AnaN  - excessoAN
+
+        N = N+(1/conversion)*excessoAN
+
+
+
+
+
+!!! excess organic matter in anaerobicP
+
+
+        ExcessoAP  = (AnaP-(AnaC/ AnaCP))
+        AnaP = AnaP  -  ExcessoAP
+
+        P = P+(1/conversion)*ExcessoAP
+
+
+
+
+!!! excess organic matter in sol N
+
+        if(solC/solCN< solN)then
+
+            excesso_solN = (solN-(solC/ solCN))
+
+            solN = solN  - excesso_solN
+
+            N = N+(1/conversion)*excesso_solN
+
+
+        end if
+
+!!! excess organic matter in solP
+
+        if(solC/solCP< solP)then
+
+            Excesso_solP  = (solP-(solC/ solCP))
+            solP = solP  -  Excesso_solP
+
+            P = P+(1/conversion)*Excesso_solP
+
+
+        end if
+
+        if (Me%PropCalc%Nitrogen) then
+
+            Me%ExternalVar%Mass(AnaNI, index) = AnaN 
+            Me%ExternalVar%Mass(HetNI, index) = HetN
+            Me%ExternalVar%Mass(NI, index)    = N
+            
+            if (Me%PropCalc%Sol_Bacteria) then
+                
+                Me%ExternalVar%Mass(solNI, index) = solN 
+            
+            endif
+        endif
+
+        if (Me%PropCalc%Nitrogen) then
+
+            Me%ExternalVar%Mass(AnaPI, index) = AnaP 
+            Me%ExternalVar%Mass(HetPI, index) = HetP 
+            Me%ExternalVar%Mass(PI, index)    = P 
+
+            if (Me%PropCalc%Sol_Bacteria) then
+
+                Me%ExternalVar%Mass(solPI, index) = solP
+                
+            endif 
+
+        endif
+
+
+
+
+    end subroutine correctOM
+
+    !----------------------------------------------------------------------------
+
+
+    subroutine ExternalOutput()        
+    
+    
+       !Local-------------------------------------------------------------------
+!        integer     ::              index
+        real        ::              HetOrg
+        real        ::              AnaOrg
+        real        ::              AutoOrg
+
+       !----------------------------------------------------------------------------
+
+        HetOrg  = Me%Microorganisms%Heterotrophs%Population
+        
+        AutoOrg = Me%Microorganisms%Autotrophs%Population
+    
+        AnaOrg  = Me%Microorganisms%Anaerobic%Population
+
+    
+    end subroutine externaloutput               
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!LÙCIA!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-    !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+   !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
     !DESTRUCTOR DESTRUCTOR DESTRUCTOR DESTRUCTOR DESTRUCTOR DESTRUCTOR DESTRUCTOR
 

@@ -184,6 +184,11 @@ Module ModuleInterface
         real,    pointer, dimension(:    )      :: FishFood
         real,    pointer, dimension(:    )      :: WaterPercentage
         real,    pointer, dimension(:    )      :: DissolvedToParticulate
+        real,    pointer, dimension(:    )      :: SoilDryDensity
+        real,    pointer, dimension(:    )      :: pH
+        real,    pointer, dimension(:    )      :: IonicStrength
+        real,    pointer, dimension(:    )      :: PhosphorusAdsortionIndex
+        real,    pointer, dimension(:    )      :: WindVelocity
         integer, pointer, dimension(:    )      :: OpenPoints
         logical, pointer, dimension(:    )      :: AddedProperties
 
@@ -624,6 +629,35 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 
                 Me%DissolvedToParticulate = FillValueReal
          
+                allocate (Me%SoilDryDensity(ArrayLB:ArrayUB), STAT = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR14'
+                
+                Me%SoilDryDensity = FillValueReal
+
+                allocate (Me%Salinity(ArrayLB:ArrayUB), STAT = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR15'
+                
+                Me%Salinity = FillValueReal
+
+                allocate (Me%pH(ArrayLB:ArrayUB), STAT = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR15'
+                
+                Me%pH = FillValueReal
+
+                allocate (Me%IonicStrength(ArrayLB:ArrayUB), STAT = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR15'
+                
+                Me%IonicStrength = FillValueReal
+
+                allocate (Me%PhosphorusAdsortionIndex(ArrayLB:ArrayUB), STAT = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR15'
+                
+                Me%PhosphorusAdsortionIndex = FillValueReal
+
+                allocate (Me%WindVelocity(ArrayLB:ArrayUB), STAT = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR15'
+                
+                Me%WindVelocity = FillValueReal
 
             case (CEQUALW2Model)
 
@@ -1105,7 +1139,7 @@ cd1 :           if(STAT_CALL .EQ. KEYWORD_NOT_FOUND_ERR_) then
         logical                                              :: Nitrogen, Phosphorus
         logical                                              :: Silica  
         logical                                              :: Oxygen, BOD
-        logical                                              :: Carbon
+        logical                                              :: Carbon, Sol_Bacteria
         logical                                              :: Bacteria, Ciliate 
         logical                                              :: Larvae
         real                                                 :: DT
@@ -1287,61 +1321,114 @@ cd13 :          if (Silica) then
                 
               !Sinks and sources compute options 
                 call GetSQOptions(Me%ObjSedimentQuality,  Nitrogen    = Nitrogen  ,   &
-                                                                    Carbon      = Carbon    ,   &
-                                                                    Oxygen      = Oxygen    ,   &
-                                                                    STAT        = STAT_CALL)
+                                                          Carbon      = Carbon    ,   &
+                                                          Phosphorus  = Phosphorus,   &
+                                                          Sol_Bacteria= Sol_Bacteria, &
+                                                          Oxygen      = Oxygen    ,   &
+                                                          STAT        = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'Check_Options - ModuleInterface - ERR05' 
 
 cd10 :           if (Nitrogen) then
                    
                     if (.not.FindProperty(PropertiesList, Ammonia_)              )   &
-                        stop 'SQM needs property ammonia - Check_Options'
+                        stop 'SQM needs property "ammonia" - Check_Options'
 
                     if (.not.FindProperty(PropertiesList, Nitrate_)              )   &
-                        stop 'SQM needs property nitrate - Check_Options'
+                        stop 'SQM needs property "nitrate" - Check_Options'
 
-                    !if (.not.FindProperty(PropertiesList, AdsorbedAmmonia_)      )   &
+                    !if (.not.FindProperty(PropertiesList, AdsorbedAmmonia_)     )   &
                      !   STOP 'WQM needs property Adsorbed Ammonia - Check_Options'
                     
                     if (.not.FindProperty(PropertiesList, RefreactaryOrganicN_)  )   &
-                        stop 'SQM needs property Refreactary N - Check_Options'
+                        stop 'SQM needs property "particulated refractory organic nitrogen" - Check_Options'
 
                     if (.not.FindProperty(PropertiesList, PON_           )       )   &
-                        stop 'SQM needs property Labile N - Check_Options'
+                        stop 'SQM needs property "particulate organic nitrogen" - Check_Options'
 
                     if (.not.FindProperty(PropertiesList, Ngas_)                 )   &
-                        stop 'SQM needs property N gas - Check_Options'
+                        stop 'SQM needs property "nitrogen gas" - Check_Options'
 
                     if (.not.FindProperty(PropertiesList, HeterotrophicN_)       )   &
-                        stop 'SQM needs property Heterotrophic N - Check_Options'
+                        stop 'SQM needs property "heterotrophic microorganism nitrogen" - Check_Options'
 
                     if (.not.FindProperty(PropertiesList, AnaerobicN_)           )   &
-                        stop 'SQM needs property Anaerobic N - Check_Options'
+                        stop 'SQM needs property "anaerobic microorganism nitrogen" - Check_Options'
 
                     if (.not.FindProperty(PropertiesList, AutotrophicN_)         )   &
-                        STOP 'SQM needs property Autotrophic N - Check_Options'
+                        STOP 'SQM needs property "autotrophic microorganism nitrogen" - Check_Options'
+
+                    if (.not.FindProperty(PropertiesList, Urea_)                 )   &
+                        STOP 'SQM needs property "urea" - Check_Options'
+
+!                    if (.not.FindProperty(PropertiesList, AmmoniaGas_)          )   &
+!                        STOP 'SQM needs property "ammonia gas" - Check_Options'
+                    if (Sol_Bacteria) then
+                        if (.not.FindProperty(PropertiesList, SolubilizingN_)    )   &
+                            STOP 'SQM needs property "solubilizing microorganism nitrogen" - Check_Options'
+                    end if
 
                 end if cd10
 
-cd11 :           if (Carbon) then
+cd11 :          if (Carbon) then
                    
                     if (.not.FindProperty(PropertiesList, LabileOrganicC_)       )   &
-                        stop 'SQM needs property Labile Organic C - Check_Options'
+                        stop 'SQM needs property "particulate labile organic carbon" - Check_Options'
 
                     if (.not.FindProperty(PropertiesList, RefreactaryOrganicC_)  )   &
-                        stop 'SQM needs property Refreactary Organic C - Check_Options'
+                        stop 'SQM needs property "particulated refractory organic carbon" - Check_Options'
 
                     if (.not.FindProperty(PropertiesList, HeterotrophicC_)       )   &
-                        stop 'SQM needs property Heterotrophic C - Check_Options'
+                        stop 'SQM needs property "heterotrophic microorganism carbon" - Check_Options'
 
                     if (.not.FindProperty(PropertiesList, AnaerobicC_)           )   &
-                        stop 'SQM needs property Anaerobic C - Check_Options'
+                        stop 'SQM needs property "anaerobic microorganism carbon" - Check_Options'
                     
                     if (.not.FindProperty(PropertiesList, AutotrophicC_)         )   &
-                        stop 'SQM needs property Autotrophic C - Check_Options'
+                        stop 'SQM needs property "autotrophic microorganism carbon" - Check_Options'
+                    
+!                    if (.not.FindProperty(PropertiesList, Methane_)         )   &
+!                        stop 'SQM needs property "methane" - Check_Options'
+
+                    if (.not.FindProperty(PropertiesList, CarbonDioxide_)         )   &
+                        stop 'SQM needs property "carbon dioxide" - Check_Options'
+                    
+                    if (Sol_Bacteria) then
+                        if (.not.FindProperty(PropertiesList, SolubilizingC_)    )   &
+                            STOP 'SQM needs property "solubilizing microorganism carbon" - Check_Options'
+                    end if
 
 
                 end if cd11
+
+cd14 :          if (Phosphorus) then
+                   
+                    if (.not.FindProperty(PropertiesList, Inorganic_Phosphorus_)              )   &
+                        stop 'SQM needs property "inorganic phosphorus" - Check_Options'
+
+                    if (.not.FindProperty(PropertiesList, AdsorbedInorganicP_)              )   &
+                        stop 'SQM needs property "particulated inorganic phosphorus" - Check_Options'
+
+                    if (.not.FindProperty(PropertiesList, RefreactaryOrganicP_)  )   &
+                        stop 'SQM needs property "particulated refractory organic phosphorus" - Check_Options'
+
+                    if (.not.FindProperty(PropertiesList, POP_           )       )   &
+                        stop 'SQM needs property "particulate organic phosphorus" - Check_Options'
+
+                    if (.not.FindProperty(PropertiesList, HeterotrophicP_)       )   &
+                        stop 'SQM needs property "heterotrophic microorganism phosphorus" - Check_Options'
+
+                    if (.not.FindProperty(PropertiesList, AnaerobicP_)           )   &
+                        stop 'SQM needs property "anaerobic microorganism phosphorus" - Check_Options'
+
+                    if (.not.FindProperty(PropertiesList, AutotrophicP_)         )   &
+                        STOP 'SQM needs property "autotrophic microorganism phosphorus" - Check_Options'
+
+                    if (Sol_Bacteria) then
+                        if (.not.FindProperty(PropertiesList, SolubilizingP_)    )   &
+                            STOP 'SQM needs property "solubilizing microorganism phosphorus" - Check_Options'
+                    end if
+
+                end if cd14
 
                 if (.not.FindProperty(PropertiesList, Oxygen_))                     &
                     stop 'SQM needs property oxygen - Check_Options'         
@@ -1872,7 +1959,9 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
                                   ShearStress, SPMFlux,                                 &
                                   ShortWaveAverage, ShortWaveTop,                       &
                                   LightExtCoefField, WaterPercentage,                   &
-                                  DissolvedToParticulate3D,  DTProp, STAT)
+                                  DissolvedToParticulate3D, SoilDryDensity, Salinity,   &
+                                  pH, IonicStrength, PhosphorusAdsortionIndex,          &
+                                  WindVelocity,  DTProp, STAT)
                                  
         !Arguments-------------------------------------------------------------
         integer                                         :: InterfaceID
@@ -1883,6 +1972,12 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
         real,    optional, dimension(:,:,:), pointer    :: LightExtCoefField
         real   , optional, dimension(:,:,:), pointer    :: WaterPercentage
         real,    optional, dimension(:,:,:), pointer    :: DissolvedToParticulate3D
+        real,    optional, dimension(:,:,:), pointer    :: SoilDryDensity
+        real,    optional, dimension(:,:,:), pointer    :: Salinity
+        real,    optional, dimension(:,:,:), pointer    :: pH
+        real,    optional, dimension(:,:,:), pointer    :: IonicStrength
+        real,    optional, dimension(:,:,:), pointer    :: PhosphorusAdsortionIndex
+        real,    optional, dimension(:,:,:), pointer    :: WindVelocity
         integer,           dimension(:,:,:), pointer    :: WaterPoints3D
         integer, optional, dimension(:,:,:), pointer    :: OpenPoints3D
         real,    optional, dimension(:,:,:), pointer    :: DWZ, ShearStress, SPMFlux
@@ -1986,13 +2081,27 @@ cd4 :           if (ReadyToCompute) then
                             call UnfoldMatrix(WaterPercentage, Me%WaterPercentage)
                             call UnfoldMatrix(DissolvedToParticulate3D, Me%DissolvedToParticulate)
 
-                            call SedimentQuality(Me%ObjSedimentQuality,             &
-                                                 Me%Temperature,                    &
-                                                 Me%Mass,                           &
-                                                 Me%WaterPercentage,                &
-                                                 Me%DissolvedToParticulate,         &
-                                                 Me%Array%ILB,                      &
-                                                 Me%Array%IUB,                      &
+                            call UnfoldMatrix(SoilDryDensity, Me%SoilDryDensity)
+                            call UnfoldMatrix(Salinity, Me%Salinity)
+                            call UnfoldMatrix(pH, Me%pH)
+                            call UnfoldMatrix(IonicStrength, Me%IonicStrength)
+                            call UnfoldMatrix(PhosphorusAdsortionIndex, Me%PhosphorusAdsortionIndex)
+                            call UnfoldMatrix(WindVelocity, Me%WindVelocity)
+
+
+                            call SedimentQuality(Me%ObjSedimentQuality,            &
+                                                 Me%Temperature,                   &
+                                                 Me%Mass,                          &
+                                                 Me%WaterPercentage,               &
+                                                 Me%DissolvedToParticulate,        &
+                                                 Me%Array%ILB,                     &
+                                                 Me%Array%IUB,                     &
+                                                 Me%SoilDryDensity,                &
+                                                 Me%Salinity,                      &
+                                                 Me%pH,                            &
+                                                 Me%IonicStrength,                 &
+                                                 Me%PhosphorusAdsortionIndex,      &
+                                                 Me%WindVelocity,                  &
                                                  STAT = STAT_CALL)
                             if (STAT_CALL /= SUCCESS_) stop 'Modify_Interface3D - ModuleInterface - ERR06'
 
@@ -2438,6 +2547,8 @@ do6 :               do index = ArrayLB, ArrayUB
                                   RiverPoints1D, OpenPoints1D, DWZ,               &
                                   ShortWaveAverage, ShortWaveTop, LightExtCoefField, &
                                   WaterPercentage, DissolvedToParticulate1D,      &
+                                  SoilDryDensity, Salinity, pH, IonicStrength,    &
+                                  PhosphorusAdsortionIndex, WindVelocity,         &
                                   Oxygen1D, WaterVolume, DTProp, STAT)
 
         !Arguments-------------------------------------------------------------
@@ -2449,6 +2560,12 @@ do6 :               do index = ArrayLB, ArrayUB
         real,    optional, dimension(:), pointer        :: LightExtCoefField
         real   , optional, dimension(:), pointer        :: WaterPercentage
         real,    optional, dimension(:), pointer        :: DissolvedToParticulate1D
+        real,    optional, dimension(:,:,:), pointer    :: SoilDryDensity
+        real,    optional, dimension(:,:,:), pointer    :: Salinity
+        real,    optional, dimension(:,:,:), pointer    :: pH
+        real,    optional, dimension(:,:,:), pointer    :: IonicStrength
+        real,    optional, dimension(:,:,:), pointer    :: PhosphorusAdsortionIndex
+        real,    optional, dimension(:,:,:), pointer    :: WindVelocity
         integer,           dimension(:), pointer        :: RiverPoints1D
         integer, optional, dimension(:), pointer        :: OpenPoints1D
         real,    optional, dimension(:), pointer        :: DWZ
@@ -2551,6 +2668,13 @@ cd4 :           if (ReadyToCompute) then
                             call UnfoldMatrix(WaterPercentage, Me%WaterPercentage)
                             call UnfoldMatrix(DissolvedToParticulate1D, Me%DissolvedToParticulate)
 
+                            call UnfoldMatrix(SoilDryDensity, Me%SoilDryDensity)
+                            call UnfoldMatrix(Salinity, Me%Salinity)
+                            call UnfoldMatrix(pH, Me%pH)
+                            call UnfoldMatrix(IonicStrength, Me%IonicStrength)
+                            call UnfoldMatrix(PhosphorusAdsortionIndex, Me%PhosphorusAdsortionIndex)
+                            call UnfoldMatrix(WindVelocity, Me%WindVelocity)
+
                             call SedimentQuality(Me%ObjSedimentQuality,             &
                                                  Me%Temperature,                    &
                                                  Me%Mass,                           &
@@ -2558,6 +2682,12 @@ cd4 :           if (ReadyToCompute) then
                                                  Me%DissolvedToParticulate,         &
                                                  Me%Array%ILB,                      &
                                                  Me%Array%IUB,                      &
+                                                 Me%SoilDryDensity,                 &
+                                                 Me%Salinity,                       &
+                                                 Me%pH,                             &
+                                                 Me%IonicStrength,                  &
+                                                 Me%PhosphorusAdsortionIndex,       &
+                                                 Me%WindVelocity,                   &
                                                  STAT = STAT_CALL)
                             if (STAT_CALL /= SUCCESS_) stop 'Modify_Interface1D - ModuleInterface - ERR06'
 
@@ -2828,19 +2958,22 @@ cd10 :                      if (Me%ExternalVar%RiverPoints1D(i) == 1) then
         integer                                 :: numPartOrganicPhosphorus, numInorganicPhosphorus 
         integer                                 :: numBacteria, numCiliate
         integer                                 :: numLarvae
-        integer                                 :: numHetrotrophicN, numHetrotrophicC
-        integer                                 :: numAutotrotrophicN, numAutotrotrophicC
-        integer                                 :: numAnaerobicN, numAnaerobicC        
-        integer                                 :: numLabil_OM_N, numLabil_OM_C
-        integer                                 :: numRefractOM_N, numRefractOM_C
-        integer                                 :: numNgas 
+        integer                                 :: numHeterotrophicN, numHeterotrophicC
+        integer                                 :: numAutotrophicP, numHeterotrophicP
+        integer                                 :: numAutotrophicN, numAutotrophicC
+        integer                                 :: numAnaerobicN, numAnaerobicC, numAnaerobicP        
+        integer                                 :: numLabil_OM_N, numLabil_OM_C, numLabil_OM_P
+        integer                                 :: numRefractOM_N, numRefractOM_C, numRefractOM_P
+        integer                                 :: numNgas, numInorganicP_soluble, numInorganicP_fix
+        integer                                 :: numSol_C, numSol_N, numSol_P, numCO2, numUrea
+!        integer                                 :: numAmmoniaGas, numMethane
         integer                                 :: STAT_CALL
         logical                                 :: lZoo, lPhyto, lDiatoms 
         logical                                 :: lNitrogen, lPhosphorus, lSilica 
         logical                                 :: lOxygen, lSalinity, lBOD
         logical                                 :: lBacteria, lCiliate
         logical                                 :: lLarvae
-        logical                                 :: lCarbon
+        logical                                 :: lCarbon, lSol_Bacteria
 
         !Local-----------------------------------------------------------------
         integer                                 :: i, PropLB, PropUB, IndexNumber 
@@ -3074,10 +3207,10 @@ cd1 :               if (.NOT. Me%AddedProperties(i)) then
         case (SedimentQualityModel)
 
             call GetPropIndex(  Me%ObjSedimentQuality,                                      & 
-                                HetrotrophicN                   = numHetrotrophicN,         &
-                                HetrotrophicC                   = numHetrotrophicC,         &
-                                AutotrotrophicN                 = numAutotrotrophicN,       &
-                                AutotrotrophicC                 = numAutotrotrophicC,       &
+                                HeterotrophicN                  = numHeterotrophicN,         &
+                                HeterotrophicC                  = numHeterotrophicC,         &
+                                AutotrophicN                    = numAutotrophicN,          &
+                                AutotrophicC                    = numAutotrophicC,          &
                                 AnaerobicN                      = numAnaerobicN,            &
                                 AnaerobicC                      = numAnaerobicC,            &
                                 Labil_OM_C                      = numLabil_OM_C,            &
@@ -3088,6 +3221,20 @@ cd1 :               if (.NOT. Me%AddedProperties(i)) then
                                 Nitrate                         = numNitrate,               &
                                 Ngas                            = numNgas,                  &
                                 Oxygen                          = numOxygen,                &
+                                HeterotrophicP                  = numHeterotrophicP,         &  
+                                AutotrophicP                    = numAutotrophicP,          &
+                                AnaerobicP                      = numAnaerobicP,            &
+                                Labil_OM_P                      = numLabil_OM_P,            &
+                                RefractOM_P                     = numRefractOM_P,           &
+                                Inorganic_P_soluble             = numInorganicP_soluble,    &
+                                Inorganic_P_fix                 = numInorganicP_fix,        &
+                                SolC                            = numSol_C,                 &
+                                SolN                            = numSol_N,                 &
+                                SolP                            = numSol_P,                 &
+                                CO2                             = numCO2,                   &
+                                Urea                            = numUrea,                  &
+!                                AmmoniaGas                      = numAmmoniaGas,            &
+!                                Methane                         = numMethane,               &
                                 STAT                            = STAT_CALL )          
              if (STAT_CALL .NE. SUCCESS_)stop 'FillMassTempSalinity3D - ModuleInterface - ERR03' 
 
@@ -3095,6 +3242,8 @@ cd1 :               if (.NOT. Me%AddedProperties(i)) then
              call GetSQOptions( Me%ObjSedimentQuality,                                      &
                                 Nitrogen                        = lNitrogen,                &
                                 Carbon                          = lCarbon,                  &
+                                Phosphorus                      = lPhosphorus,              &
+                                Sol_Bacteria                    = lSol_Bacteria,            &
                                 Oxygen                          = lOxygen,                  &
                                 STAT                            = STAT_CALL  )
 
@@ -3130,13 +3279,13 @@ cd32 :              if (PropertyID== Ngas_                 ) then
                     end if cd32
 
 cd33 :              if (PropertyID== HeterotrophicN_       ) then
-                        call InputData(Concentration,numHetrotrophicN)
-                        Me%AddedProperties(numHetrotrophicN)      = .TRUE.
+                        call InputData(Concentration,numHeterotrophicN)
+                        Me%AddedProperties(numHeterotrophicN)      = .TRUE.
                     end if cd33
 
 cd34 :              if (PropertyID== AutotrophicN_         ) then
-                        call InputData(Concentration,numAutotrotrophicN)
-                        Me%AddedProperties(numAutotrotrophicN)    = .TRUE.
+                        call InputData(Concentration,numAutotrophicN)
+                        Me%AddedProperties(numAutotrophicN)    = .TRUE.
                     end if cd34
 
 cd35 :              if (PropertyID== AnaerobicN_           ) then
@@ -3144,6 +3293,25 @@ cd35 :              if (PropertyID== AnaerobicN_           ) then
                         Me%AddedProperties(numAnaerobicN)         = .TRUE.
                     end if cd35
 
+cd350 :             if (PropertyID== Urea_                 ) then
+                        call InputData(Concentration,numUrea)
+                        Me%AddedProperties(numUrea)               = .TRUE.
+                    end if cd350
+
+!cd351 :             if (PropertyID== AmmoniaGas_           ) then
+!                        call InputData(Concentration,numAmmoniaGas)
+!                        Me%AddedProperties(numAmmoniaGas)         = .TRUE.
+!                    end if cd351
+
+cd352 :             if (lSol_Bacteria) then
+
+cd353 :                 if (PropertyID== SolubilizingN_   ) then
+                            call InputData(Concentration,numSol_N)
+                            Me%AddedProperties(numSol_N)          = .TRUE.
+                        end if cd353                    
+                    
+                    end if cd352
+                    
                 
                 end if cd27
 
@@ -3161,8 +3329,8 @@ cd38 :              if (PropertyID== RefreactaryOrganicC_  ) then
                     end if cd38
 
 cd39 :              if (PropertyID== HeterotrophicC_       ) then
-                        call InputData(Concentration,numHetrotrophicC)
-                        Me%AddedProperties(numHetrotrophicC)      = .TRUE.
+                        call InputData(Concentration,numHeterotrophicC)
+                        Me%AddedProperties(numHeterotrophicC)      = .TRUE.
                     end if cd39
 
 cd40 :              if (PropertyID== AnaerobicC_           ) then
@@ -3171,11 +3339,79 @@ cd40 :              if (PropertyID== AnaerobicC_           ) then
                     end if cd40
 
 cd41 :              if (PropertyID== AutotrophicC_         ) then
-                        call InputData(Concentration,numAutotrotrophicC)
-                        Me%AddedProperties(numAutotrotrophicC)    = .TRUE.
+                        call InputData(Concentration,numAutotrophicC)
+                        Me%AddedProperties(numAutotrophicC)    = .TRUE.
                     end if cd41
 
+cd410 :             if (PropertyID== CarbonDioxide_        ) then
+                        call InputData(Concentration,numCO2)
+                        Me%AddedProperties(numCO2)             = .TRUE.
+                    end if cd410
+
+!cd411 :             if (PropertyID== Methane_              ) then
+!                        call InputData(Concentration,numMethane)
+!                        Me%AddedProperties(numMethane)         = .TRUE.
+!                    end if cd411
+
+cd412 :             if (lSol_Bacteria) then
+
+cd413 :                 if (PropertyID== SolubilizingC_   ) then
+                            call InputData(Concentration,numSol_C)
+                            Me%AddedProperties(numSol_C)          = .TRUE.
+                        end if cd413                    
+                    
+                    end if cd412
+
                 end if cd36
+
+
+cd512 :         if (lPhosphorus) then
+
+cd513:              if (PropertyID== POP_                  ) then
+                        call InputData(Concentration, numLabil_OM_P)
+                        Me%AddedProperties(numLabil_OM_P)         = .TRUE.
+                    end if cd513
+
+cd414 :             if (PropertyID== RefreactaryOrganicP_  ) then
+                        call InputData(Concentration, numRefractOM_P)
+                        Me%AddedProperties(numRefractOM_P)        = .TRUE.
+                    end if cd414
+
+cd415 :              if (PropertyID== Inorganic_Phosphorus_) then
+                        call InputData(Concentration,numInorganicP_soluble)
+                        Me%AddedProperties(numInorganicP_soluble) = .TRUE.
+                    end if cd415
+
+cd416 :              if (PropertyID== AdsorbedInorganicP_  ) then
+                        call InputData(Concentration,numInorganicP_fix)
+                        Me%AddedProperties(numInorganicP_fix)     = .TRUE.
+                    end if cd416
+
+cd417 :             if (PropertyID== AutotrophicP_         ) then
+                        call InputData(Concentration,numAutotrophicP)
+                        Me%AddedProperties(numAutotrophicP)       = .TRUE.
+                    end if cd417                
+
+cd418 :             if (PropertyID== HeterotrophicP_       ) then
+                        call InputData(Concentration,numHeterotrophicP)
+                        Me%AddedProperties(numHeterotrophicP)     = .TRUE.
+                    end if cd418                
+
+cd419 :             if (PropertyID== AnaerobicP_           ) then
+                        call InputData(Concentration,numAnaerobicP)
+                        Me%AddedProperties(numAnaerobicP)         = .TRUE.
+                    end if cd419                 
+
+cd420 :             if (lSol_Bacteria) then
+
+cd421 :                 if (PropertyID== SolubilizingP_    ) then
+                            call InputData(Concentration,numSol_P)
+                            Me%AddedProperties(numSol_P)          = .TRUE.
+                        end if cd421                    
+                    
+                    end if cd420
+                
+                end if cd512
 
                 !The oxygen is always compute. If it's not defined in the waterproperties 
                 ! module then the saturation value is compute
@@ -3437,17 +3673,20 @@ cd45 :                  if (.NOT. Me%AddedProperties(i)) then
         integer                                 :: numPartOrganicPhosphorus, numInorganicPhosphorus 
         integer                                 :: numBacteria, numCiliate
         integer                                 :: numLarvae
-        integer                                 :: numHetrotrophicN, numHetrotrophicC
-        integer                                 :: numAutotrotrophicN, numAutotrotrophicC
-        integer                                 :: numAnaerobicN, numAnaerobicC        
-        integer                                 :: numLabil_OM_N, numLabil_OM_C
-        integer                                 :: numRefractOM_N, numRefractOM_C
-        integer                                 :: numNgas 
+        integer                                 :: numHeterotrophicN, numHeterotrophicC
+        integer                                 :: numAutotrophicN, numAutotrophicC
+        integer                                 :: numAutotrophicP, numHeterotrophicP
+        integer                                 :: numAnaerobicN, numAnaerobicC, numAnaerobicP         
+        integer                                 :: numLabil_OM_N, numLabil_OM_C, numLabil_OM_P
+        integer                                 :: numRefractOM_N, numRefractOM_C, numRefractOM_P
+        integer                                 :: numNgas, numInorganicP_soluble, numInorganicP_fix
+        integer                                 :: numSol_C, numSol_N, numSol_P, numCO2, numUrea
+!        integer                                 :: numAmmoniaGas, numMethane 
         integer                                 :: STAT_CALL
         logical                                 :: lZoo, lPhyto, lDiatoms 
         logical                                 :: lNitrogen, lPhosphorus, lSilica 
         logical                                 :: lOxygen, lSalinity, lBOD
-        logical                                 :: lBacteria, lCiliate
+        logical                                 :: lBacteria, lCiliate, lSol_Bacteria
         logical                                 :: lLarvae
         logical                                 :: lCarbon
 
@@ -3682,10 +3921,10 @@ cd1 :               if (.NOT. Me%AddedProperties(i)) then
         case (SedimentQualityModel)
 
             call GetPropIndex(  Me%ObjSedimentQuality,                                      & 
-                                HetrotrophicN                   = numHetrotrophicN,         &
-                                HetrotrophicC                   = numHetrotrophicC,         &
-                                AutotrotrophicN                 = numAutotrotrophicN,       &
-                                AutotrotrophicC                 = numAutotrotrophicC,       &
+                                HeterotrophicN                  = numHeterotrophicN,        &
+                                HeterotrophicC                  = numHeterotrophicC,        &
+                                AutotrophicN                    = numAutotrophicN,          &
+                                AutotrophicC                    = numAutotrophicC,          &
                                 AnaerobicN                      = numAnaerobicN,            &
                                 AnaerobicC                      = numAnaerobicC,            &
                                 Labil_OM_C                      = numLabil_OM_C,            &
@@ -3696,6 +3935,20 @@ cd1 :               if (.NOT. Me%AddedProperties(i)) then
                                 Nitrate                         = numNitrate,               &
                                 Ngas                            = numNgas,                  &
                                 Oxygen                          = numOxygen,                &
+                                HeterotrophicP                  = numHeterotrophicP,        &  
+                                AutotrophicP                    = numAutotrophicP,          &
+                                AnaerobicP                      = numAnaerobicP,            &
+                                Labil_OM_P                      = numLabil_OM_P,            &
+                                RefractOM_P                     = numRefractOM_P,           &
+                                Inorganic_P_soluble             = numInorganicP_soluble,    &
+                                Inorganic_P_fix                 = numInorganicP_fix,        &
+                                SolC                            = numSol_C,                 &
+                                SolN                            = numSol_N,                 &
+                                SolP                            = numSol_P,                 &
+                                CO2                             = numCO2,                   &
+                                Urea                            = numUrea,                  &
+!                                AmmoniaGas                      = numAmmoniaGas,             &
+!                                Methane                         = numMethane,               &
                                 STAT                            = STAT_CALL )          
              if (STAT_CALL .NE. SUCCESS_)stop 'FillMassTempSalinity1D - ModuleInterface - ERR03' 
 
@@ -3703,6 +3956,8 @@ cd1 :               if (.NOT. Me%AddedProperties(i)) then
              call GetSQOptions( Me%ObjSedimentQuality,                                      &
                                 Nitrogen                        = lNitrogen,                &
                                 Carbon                          = lCarbon,                  &
+                                Phosphorus                      = lPhosphorus,              &
+                                Sol_Bacteria                    = lSol_Bacteria,            &
                                 Oxygen                          = lOxygen,                  &
                                 STAT                            = STAT_CALL  )
 
@@ -3738,13 +3993,13 @@ cd32 :              if (PropertyID== Ngas_                 ) then
                     end if cd32
 
 cd33 :              if (PropertyID== HeterotrophicN_       ) then
-                        call InputData(Concentration,numHetrotrophicN)
-                        Me%AddedProperties(numHetrotrophicN)      = .TRUE.
+                        call InputData(Concentration,numHeterotrophicN)
+                        Me%AddedProperties(numHeterotrophicN)      = .TRUE.
                     end if cd33
 
 cd34 :              if (PropertyID== AutotrophicN_         ) then
-                        call InputData(Concentration,numAutotrotrophicN)
-                        Me%AddedProperties(numAutotrotrophicN)    = .TRUE.
+                        call InputData(Concentration,numAutotrophicN)
+                        Me%AddedProperties(numAutotrophicN)    = .TRUE.
                     end if cd34
 
 cd35 :              if (PropertyID== AnaerobicN_           ) then
@@ -3752,6 +4007,24 @@ cd35 :              if (PropertyID== AnaerobicN_           ) then
                         Me%AddedProperties(numAnaerobicN)         = .TRUE.
                     end if cd35
 
+cd350 :             if (PropertyID== Urea_                 ) then
+                        call InputData(Concentration,numUrea)
+                        Me%AddedProperties(numUrea)               = .TRUE.
+                    end if cd350
+
+!cd351 :             if (PropertyID== AmmoniaGas_           ) then
+!                        call InputData(Concentration,numAmmoniaGas)
+!                        Me%AddedProperties(numAmmoniaGas)         = .TRUE.
+!                    end if cd351
+
+cd352 :             if (lSol_Bacteria) then
+
+cd353 :                 if (PropertyID== SolubilizingN_   ) then
+                            call InputData(Concentration,numSol_N)
+                            Me%AddedProperties(numSol_N)          = .TRUE.
+                        end if cd353                    
+                    
+                    end if cd352
                 
                 end if cd27
 
@@ -3769,8 +4042,8 @@ cd38 :              if (PropertyID== RefreactaryOrganicC_  ) then
                     end if cd38
 
 cd39 :              if (PropertyID== HeterotrophicC_       ) then
-                        call InputData(Concentration,numHetrotrophicC)
-                        Me%AddedProperties(numHetrotrophicC)      = .TRUE.
+                        call InputData(Concentration,numHeterotrophicC)
+                        Me%AddedProperties(numHeterotrophicC)      = .TRUE.
                     end if cd39
 
 cd40 :              if (PropertyID== AnaerobicC_           ) then
@@ -3779,11 +4052,79 @@ cd40 :              if (PropertyID== AnaerobicC_           ) then
                     end if cd40
 
 cd41 :              if (PropertyID== AutotrophicC_         ) then
-                        call InputData(Concentration,numAutotrotrophicC)
-                        Me%AddedProperties(numAutotrotrophicC)    = .TRUE.
+                        call InputData(Concentration,numAutotrophicC)
+                        Me%AddedProperties(numAutotrophicC)    = .TRUE.
                     end if cd41
 
+cd410 :             if (PropertyID== CarbonDioxide_        ) then
+                        call InputData(Concentration,numCO2)
+                        Me%AddedProperties(numCO2)             = .TRUE.
+                    end if cd410
+
+!cd411 :             if (PropertyID== Methane_              ) then
+!                        call InputData(Concentration,numMethane)
+!                        Me%AddedProperties(numMethane)         = .TRUE.
+!                    end if cd411
+
+cd412 :             if (lSol_Bacteria) then
+
+cd413 :                 if (PropertyID== SolubilizingC_   ) then
+                            call InputData(Concentration,numSol_C)
+                            Me%AddedProperties(numSol_C)          = .TRUE.
+                        end if cd413                    
+                    
+                    end if cd412
+
                 end if cd36
+
+
+cd512 :         if (lPhosphorus) then
+
+cd513:              if (PropertyID== POP_                  ) then
+                        call InputData(Concentration, numLabil_OM_P)
+                        Me%AddedProperties(numLabil_OM_P)         = .TRUE.
+                    end if cd513
+
+cd414 :             if (PropertyID== RefreactaryOrganicP_  ) then
+                        call InputData(Concentration, numRefractOM_P)
+                        Me%AddedProperties(numRefractOM_P)        = .TRUE.
+                    end if cd414
+
+cd415 :              if (PropertyID== Inorganic_Phosphorus_) then
+                        call InputData(Concentration,numInorganicP_soluble)
+                        Me%AddedProperties(numInorganicP_soluble) = .TRUE.
+                    end if cd415
+
+cd416 :              if (PropertyID== AdsorbedInorganicP_  ) then
+                        call InputData(Concentration,numInorganicP_fix)
+                        Me%AddedProperties(numInorganicP_fix)     = .TRUE.
+                    end if cd416
+
+cd417 :             if (PropertyID== AutotrophicP_         ) then
+                        call InputData(Concentration,numAutotrophicP)
+                        Me%AddedProperties(numAutotrophicP)       = .TRUE.
+                    end if cd417                
+
+cd418 :             if (PropertyID== HeterotrophicP_       ) then
+                        call InputData(Concentration,numHeterotrophicP)
+                        Me%AddedProperties(numHeterotrophicP)     = .TRUE.
+                    end if cd418                
+
+cd419 :             if (PropertyID== AnaerobicP_           ) then
+                        call InputData(Concentration,numAnaerobicP)
+                        Me%AddedProperties(numAnaerobicP)         = .TRUE.
+                    end if cd419                 
+
+cd420 :             if (lSol_Bacteria) then
+
+cd421 :                 if (PropertyID== SolubilizingP_    ) then
+                            call InputData(Concentration,numSol_P)
+                            Me%AddedProperties(numSol_P)          = .TRUE.
+                        end if cd421                    
+                    
+                    end if cd420
+                
+                end if cd512
 
                 !The oxygen is always compute. If it's not defined in the waterproperties 
                 ! module then the saturation value is compute
@@ -4366,12 +4707,15 @@ cd45 :                  if (.NOT. Me%AddedProperties(i)) then
         integer                         :: numPartOrganicPhosphorus, numInorganicPhosphorus 
         integer                         :: numBacteria, numCiliate
 
-        integer                         :: numHetrotrophicN, numHetrotrophicC
-        integer                         :: numAutotrotrophicN, numAutotrotrophicC
-        integer                         :: numAnaerobicN, numAnaerobicC        
-        integer                         :: numLabil_OM_N, numLabil_OM_C
-        integer                         :: numRefractOM_N, numRefractOM_C
-        integer                         :: numNgas
+        integer                         :: numHeterotrophicN, numHeterotrophicC
+        integer                         :: numAutotrophicN, numAutotrophicC
+        integer                         :: numAutotrophicP, numHeterotrophicP
+        integer                         :: numAnaerobicN, numAnaerobicC, numAnaerobicP        
+        integer                         :: numLabil_OM_N, numLabil_OM_C, numLabil_OM_P
+        integer                         :: numRefractOM_N, numRefractOM_C, numRefractOM_P
+        integer                         :: numNgas, numInorganicP_soluble, numInorganicP_fix
+        integer                         :: numSol_C, numSol_N, numSol_P, numCO2, numUrea
+!        integer                         :: numAmmoniaGas, numMethane 
         
         !Local-----------------------------------------------------------------
         integer                         :: nProperty
@@ -4537,10 +4881,10 @@ cd1 :           if      (PropertyID== Phytoplankton_       ) then
             case (SedimentQualityModel)
                 
                 call GetPropIndex(  Me%ObjSedimentQuality,                                  & 
-                                    HetrotrophicN                   = numHetrotrophicN,     &
-                                    HetrotrophicC                   = numHetrotrophicC,     &
-                                    AutotrotrophicN                 = numAutotrotrophicN,   &
-                                    AutotrotrophicC                 = numAutotrotrophicC,   &
+                                    HeterotrophicN                  = numHeterotrophicN,    &
+                                    HeterotrophicC                  = numHeterotrophicC,    &
+                                    AutotrophicN                    = numAutotrophicN,      &
+                                    AutotrophicC                    = numAutotrophicC,      &
                                     AnaerobicN                      = numAnaerobicN,        &
                                     AnaerobicC                      = numAnaerobicC,        &
                                     Labil_OM_C                      = numLabil_OM_C,        &
@@ -4551,6 +4895,20 @@ cd1 :           if      (PropertyID== Phytoplankton_       ) then
                                     Nitrate                         = numNitrate,           &
                                     Ngas                            = numNgas,              &
                                     Oxygen                          = numOxygen,            &
+                                    HeterotrophicP                  = numHeterotrophicP,    &  
+                                    AutotrophicP                    = numAutotrophicP,      &
+                                    AnaerobicP                      = numAnaerobicP,        &
+                                    Labil_OM_P                      = numLabil_OM_P,        &
+                                    RefractOM_P                     = numRefractOM_P,       &
+                                    Inorganic_P_soluble             = numInorganicP_soluble,&
+                                    Inorganic_P_fix                 = numInorganicP_fix,    &
+                                    SolC                            = numSol_C,             &
+                                    SolN                            = numSol_N,             &
+                                    SolP                            = numSol_P,             &
+                                    CO2                             = numCO2,               &
+                                    Urea                            = numUrea,              &
+!                                    AmmoniaGas                      = numAmmoniaGas,        &
+!                                    Methane                         = numMethane,           &
                                     STAT                            = STAT_CALL )          
                 if (STAT_CALL .NE. SUCCESS_) stop 'PropertyIndexNumber - ModuleInterface - ERR17'
 
@@ -4571,13 +4929,22 @@ cd1 :           if      (PropertyID== Phytoplankton_       ) then
                     nProperty = numNgas
 
                 else if (PropertyID== HeterotrophicN_      ) then
-                    nProperty = numHetrotrophicN
+                    nProperty = numHeterotrophicN
 
                 else if (PropertyID== AutotrophicN_        ) then
-                    nProperty = numAutotrotrophicN
+                    nProperty = numAutotrophicN
 
                 else if (PropertyID== AnaerobicN_          ) then
                     nProperty = numAnaerobicN
+
+                else if (PropertyID== Urea_                ) then
+                    nProperty = numUrea
+
+!                else if (PropertyID== AmmoniaGas_          ) then
+!                    nProperty = numAmmoniaGas
+
+                else if (PropertyID== SolubilizingN_       ) then
+                    nProperty = numSol_N
 
                 else if (PropertyID== LabileOrganicC_      ) then
                     nProperty = numLabil_OM_C
@@ -4586,13 +4953,46 @@ cd1 :           if      (PropertyID== Phytoplankton_       ) then
                     nProperty = numRefractOM_C
 
                 else if (PropertyID== HeterotrophicC_      ) then
-                    nProperty = numHetrotrophicC
+                    nProperty = numHeterotrophicC
 
                 else if (PropertyID== AnaerobicC_          ) then
                     nProperty = numAnaerobicC
 
                 else if (PropertyID== AutotrophicC_        ) then
-                    nProperty = numAutotrotrophicC
+                    nProperty = numAutotrophicC
+
+                else if (PropertyID== CarbonDioxide_       ) then
+                    nProperty = numCO2
+
+!                else if (PropertyID== Methane_             ) then
+!                    nProperty = numMethane
+
+                else if (PropertyID== SolubilizingC_       ) then
+                    nProperty = numSol_C
+
+                else if (PropertyID== POP_                 ) then            
+                    nProperty = numLabil_OM_P
+            
+                else if (PropertyID== RefreactaryOrganicP_ ) then
+                    nProperty = numRefractOM_P
+
+                else if (PropertyID== Inorganic_Phosphorus_) then
+                    nProperty = numInorganicP_soluble
+
+                else if (PropertyID== AdsorbedInorganicP_  ) then
+                    nProperty = numInorganicP_fix
+
+                else if (PropertyID== HeterotrophicP_      ) then
+                    nProperty = numHeterotrophicP
+
+                else if (PropertyID== AutotrophicP_        ) then
+                    nProperty = numAutotrophicN
+
+                else if (PropertyID== AnaerobicP_          ) then
+                    nProperty = numAnaerobicP
+
+                else if (PropertyID== SolubilizingP_       ) then
+                    nProperty = numSol_P
 
                 else if (PropertyID== Oxygen_              ) then
                     nProperty = numOxygen
