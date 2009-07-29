@@ -4,7 +4,7 @@
 		<Platform Name="Win32"/></Platforms>
 	<Configurations>
 		<Configuration Name="Debug|Win32" ConfigurationType="typeStaticLibrary">
-				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" DebugInformationFormat="debugEnabled" Optimization="optimizeDisabled" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\..\..\..\Solutions\VisualStudio2008_IntelFortran11\MOHID.Numerics\MOHID.Base.1\Debug" Interfaces="true" WarnInterfaces="true" Traceback="true" BoundsCheck="true" RuntimeLibrary="rtMultiThreadedDebug"/>
+				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" DebugInformationFormat="debugEnabled" Optimization="optimizeDisabled" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\..\..\..\Solutions\VisualStudio2008_IntelFortran11\MOHIDNumerics\MOHIDBase1\Debug" Interfaces="true" WarnInterfaces="true" Traceback="true" BoundsCheck="true" RuntimeLibrary="rtMultiThreadedDebug"/>
 				<Tool Name="VFLibrarianTool"/>
 				<Tool Name="VFResourceCompilerTool"/>
 				<Tool Name="VFMidlTool" SuppressStartupBanner="true"/>
@@ -14,7 +14,7 @@
 				<Tool Name="VFPostBuildEventTool"/>
 				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
 		<Configuration Name="Release|Win32" ConfigurationType="typeStaticLibrary">
-				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true"/>
+				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\..\..\..\Solutions\VisualStudio2008_IntelFortran11\MOHIDNumerics\MOHIDBase1\Release"/>
 				<Tool Name="VFLibrarianTool"/>
 				<Tool Name="VFResourceCompilerTool"/>
 				<Tool Name="VFMidlTool" SuppressStartupBanner="true"/>
@@ -24,7 +24,7 @@
 				<Tool Name="VFPostBuildEventTool"/>
 				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
 		<Configuration Name="Debug Double|Win32" ConfigurationType="typeStaticLibrary">
-				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" DebugInformationFormat="debugEnabled" Optimization="optimizeDisabled" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\..\..\..\Solutions\VisualStudio2008_IntelFortran11\MOHID.Numerics\MOHID.Base.1\Debug Double" Interfaces="true" WarnInterfaces="true" RealKIND="realKIND8" Traceback="true" BoundsCheck="true" RuntimeLibrary="rtMultiThreadedDebug"/>
+				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" DebugInformationFormat="debugEnabled" Optimization="optimizeDisabled" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\..\..\..\Solutions\VisualStudio2008_IntelFortran11\MOHIDNumerics\MOHIDBase1\Debug Double" Interfaces="true" WarnInterfaces="true" RealKIND="realKIND8" Traceback="true" BoundsCheck="true" RuntimeLibrary="rtMultiThreadedDebug"/>
 				<Tool Name="VFLibrarianTool"/>
 				<Tool Name="VFResourceCompilerTool"/>
 				<Tool Name="VFMidlTool" SuppressStartupBanner="true"/>
@@ -37,16 +37,16 @@
 		<Filter Name="Header Files" Filter="fi;fd"/>
 		<Filter Name="Resource Files" Filter="rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe"/>
 		<Filter Name="Source Files" Filter="f90;for;f;fpp;ftn;def;odl;idl">
-		<File RelativePath="..\..\..\..\Shared\MOHID.Base.2\ModuleAdvectionDiffusion.F90"/>
-		<File RelativePath="..\..\..\..\Shared\MOHID.Base.2\ModuleAtmosphere.F90"/>
-		<File RelativePath="..\..\..\..\Shared\MOHID.Base.2\ModuleBasinGeometry.F90"/>
-		<File RelativePath="..\..\..\..\Shared\MOHID.Base.2\ModuleBoxDif.F90"/>
-		<File RelativePath="..\..\..\..\Shared\MOHID.Base.2\ModuleFillMatrix.F90"/>
-		<File RelativePath="..\..\..\..\Shared\MOHID.Base.2\ModuleGeometry.F90"/>
-		<File RelativePath="..\..\..\..\Shared\MOHID.Base.2\ModuleGridData.F90"/>
-		<File RelativePath="..\..\..\..\Shared\MOHID.Base.2\ModuleHorizontalGrid.F90"/>
-		<File RelativePath="..\..\..\..\Shared\MOHID.Base.2\ModuleHorizontalMap.F90"/>
-		<File RelativePath="..\..\..\..\Shared\MOHID.Base.2\ModuleInterpolation.F90"/>
-		<File RelativePath="..\..\..\..\Shared\MOHID.Base.2\ModuleMap.F90"/>
-		<File RelativePath="..\..\..\..\Shared\MOHID.Base.2\ModuleStatistic.F90"/></Filter></Files>
+		<File RelativePath="..\..\..\..\Software\MOHIDBase2\ModuleAdvectionDiffusion.F90"/>
+		<File RelativePath="..\..\..\..\Software\MOHIDBase2\ModuleAtmosphere.F90"/>
+		<File RelativePath="..\..\..\..\Software\MOHIDBase2\ModuleBasinGeometry.F90"/>
+		<File RelativePath="..\..\..\..\Software\MOHIDBase2\ModuleBoxDif.F90"/>
+		<File RelativePath="..\..\..\..\Software\MOHIDBase2\ModuleFillMatrix.F90"/>
+		<File RelativePath="..\..\..\..\Software\MOHIDBase2\ModuleGeometry.F90"/>
+		<File RelativePath="..\..\..\..\Software\MOHIDBase2\ModuleGridData.F90"/>
+		<File RelativePath="..\..\..\..\Software\MOHIDBase2\ModuleHorizontalGrid.F90"/>
+		<File RelativePath="..\..\..\..\Software\MOHIDBase2\ModuleHorizontalMap.F90"/>
+		<File RelativePath="..\..\..\..\Software\MOHIDBase2\ModuleInterpolation.F90"/>
+		<File RelativePath="..\..\..\..\Software\MOHIDBase2\ModuleMap.F90"/>
+		<File RelativePath="..\..\..\..\Software\MOHIDBase2\ModuleStatistic.F90"/></Filter></Files>
 	<Globals/></VisualStudioProject>
