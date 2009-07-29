@@ -1,0 +1,1131 @@
+!------------------------------------------------------------------------------
+!        IST/MARETEC, Water Modelling Group, Mohid modelling system
+!------------------------------------------------------------------------------
+!
+! TITLE         : Mohid Model
+! PROJECT       : Mohid Base 1
+! MODULE        : GlueHDF5Files
+! URL           : http://www.mohid.com
+! AFFILIATION   : IST/MARETEC, Marine Modelling Group
+! DATE          : October 2003
+! REVISION      : Paulo Leitao - v4.0
+! DESCRIPTION   : Module to convert Glue HDF5 Files. The files must have the same VGroups
+!
+!------------------------------------------------------------------------------
+
+
+Module ModuleGlueHDF5Files
+
+    use HDF5
+    use ModuleGlobalData
+    use ModuleHDF5
+    use ModuleEnterData
+    use ModuleTime
+!    NIX
+#ifndef _USE_NIX
+    use DFWIN
+#endif
+
+    implicit none
+
+    private 
+
+    !Subroutines---------------------------------------------------------------
+
+    !Constructor
+    public  :: StartGlueHDF5Files
+    private ::      ReadOptions
+    private ::      GlueProcess
+    private ::      KillGlueHDF5Files
+
+    interface ReadInterface
+        module procedure ReadInterface1DR4
+        module procedure ReadInterface1DR8
+        module procedure ReadInterface2DR4
+        module procedure ReadInterface2DR8
+        module procedure ReadInterface3DR4
+        module procedure ReadInterface3DR8
+        module procedure ReadInterface1DI4
+        module procedure ReadInterface2DI4
+        module procedure ReadInterface3DI4
+    end interface
+
+    
+    
+    !Types---------------------------------------------------------------------
+    
+    private :: T_GlueHDF5Files
+    type       T_GlueHDF5Files
+        integer                                          :: ObjEnterData         = 0
+        integer                                          :: ObjHDF5_In           = 0
+        integer                                          :: ObjHDF5_Out          = 0
+        character(len=PathLength), dimension(:), pointer :: FileNameIn
+        integer, dimension(:), pointer                   :: FirstInstant
+        type (T_Time)                                    :: LastInstant
+        character(len=PathLength)                        :: FileNameOut
+        integer                                          :: FileNameInNumber
+        logical                                          :: File_3D
+        character(len=PathLength)                        :: BaseGroup
+        character(len=PathLength)                        :: TimeGroup
+    end type  T_GlueHDF5Files
+
+    type(T_GlueHDF5Files), pointer                  :: Me
+
+    !--------------------------------------------------------------------------
+    
+    contains
+
+
+    !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+    !CONSTRUCTOR CONSTRUCTOR CONSTRUCTOR CONSTRUCTOR CONSTRUCTOR CONSTRUCTOR CONS
+
+    !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+    subroutine StartGlueHDF5Files(EnterDataID, ClientNumber, STAT)
+
+        !Arguments---------------------------------------------------------------
+        integer,           intent(IN )                  :: EnterDataID, ClientNumber
+        integer, optional, intent(OUT)                  :: STAT
+
+        !------------------------------------------------------------------------
+
+        STAT = UNKNOWN_
+        
+        nullify (Me)
+        allocate(Me)
+
+        Me%ObjEnterData = AssociateInstance (mENTERDATA_, EnterDataID)
+
+        call ReadOptions(ClientNumber)
+
+        call GlueProcess
+
+        call KillGlueHDF5Files
+
+
+        STAT = SUCCESS_
+
+
+    end subroutine StartGlueHDF5Files
+
+    !------------------------------------------------------------------------
+
+    subroutine ReadOptions(ClientNumber)
+    
+        !Arguments
+        integer                                     :: ClientNumber
+
+        !Local-----------------------------------------------------------------
+        logical                                     :: BlockFound
+        integer                                     :: STAT_CALL
+        integer                                     :: iflag, FirstLine, LastLine, i
+
+        !Begin-----------------------------------------------------------------
+       
+
+ 
+        call GetData(Me%FileNameOut,                                                     &
+                     Me%ObjEnterData, iflag,                                             &
+                     SearchType   = FromBlock,                                           &
+                     keyword      = 'OUTPUTFILENAME',                                    &
+                     ClientModule = 'ModuleGlueHDF5Files',                               &
+                     STAT         = STAT_CALL)        
+        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleGlueHDF5Files - ERR01'
+
+
+        call GetData(Me%File_3D,                                                         &
+                     Me%ObjEnterData, iflag,                                             &
+                     SearchType   = FromBlock,                                           &
+                     keyword      = '3D_FILE',                                           &
+                     ClientModule = 'ModuleGlueHDF5Files',                               &
+                     STAT         = STAT_CALL)        
+        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleGlueHDF5Files - ERR01'
+
+        call GetData(Me%BaseGroup,                                                         &
+                     Me%ObjEnterData, iflag,                                             &
+                     SearchType   = FromBlock,                                           &
+                     keyword      = 'BASE_GROUP',                                           &
+                     Default      = 'Results',                               &
+                     ClientModule = 'ModuleGlueHDF5Files',                               &
+                     STAT         = STAT_CALL)        
+        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleGlueHDF5Files - ERR01'
+
+        call GetData(Me%TimeGroup,                                                         &
+                     Me%ObjEnterData, iflag,                                             &
+                     SearchType   = FromBlock,                                           &
+                     keyword      = 'TIME_GROUP',                                           &
+                     Default      = 'Time',                               &
+                     ClientModule = 'ModuleGlueHDF5Files',                               &
+                     STAT         = STAT_CALL)        
+        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleGlueHDF5Files - ERR01'
+
+do1 :   do
+            call ExtractBlockFromBlock(Me%ObjEnterData, ClientNumber,                    &
+                                        '<<begin_list>>', '<<end_list>>', BlockFound,    &
+                                        FirstLine = FirstLine, LastLine = LastLine,      &
+                                        STAT = STAT_CALL)
+
+if1 :       if(STAT_CALL .EQ. SUCCESS_) then    
+if2 :           if (BlockFound) then
+
+                    Me%FileNameInNumber = LastLine - FirstLine - 1
+
+                    allocate (Me%FileNameIn(Me%FileNameInNumber))
+                    allocate (Me%FirstInstant(Me%FileNameInNumber))
+
+                    do i = 1, Me%FileNameInNumber
+
+                        call GetData(Me%FileNameIn(i), Me%ObjEnterData,  iflag,          & 
+                                     Buffer_Line  = FirstLine + i,                       &
+                                     STAT         = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleGlueHDF5Files - ERR02'
+
+                    enddo
+
+                    exit do1 
+                        
+                end if if2
+
+            else if (STAT_CALL .EQ. BLOCK_END_ERR_) then if1
+                write(*,*)  
+                write(*,*) 'Error calling ExtractBlockFromBuffer. '
+                if(STAT_CALL .ne. SUCCESS_)stop 'ReadOptions - ModuleGlueHDF5Files - ERR03'
+                    
+            end if if1
+        end do do1
+
+
+    end subroutine ReadOptions
+
+
+    !--------------------------------------------------------------------------
+
+    subroutine GlueProcess
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: i, HDF5_READWRITE, STAT_CALL, iflag
+
+!       NIX   
+#ifdef _USE_NIX     
+        integer                                     :: system
+        character(PathLength)                       :: aux
+#endif
+
+        !Begin-----------------------------------------------------------------
+
+!         NIX
+#ifdef _USE_NIX     
+        write(aux, *) 'cp ',trim(Me%FileNameIn(1)), ' ',trim(Me%FileNameOut)      
+        iflag = system (aux)
+        if (iflag /= 0) stop 'GlueProcess - ConvertHDF5Files - ERR01'
+#else
+        iflag = copyfile(trim(Me%FileNameIn(1))//""C,trim(Me%FileNameOut)//""C,.false.)
+        if (iflag /= 1) stop 'GlueProcess - ConvertHDF5Files - ERR01'
+#endif
+
+        !Gets File Access Code
+        call GetHDF5FileAccess  (HDF5_READWRITE = HDF5_READWRITE)
+        
+
+        call ConstructHDF5 (Me%ObjHDF5_Out, Me%FileNameOut,                            &
+                            Access = HDF5_READWRITE, STAT = STAT_CALL)
+
+        do i=2, Me%FileNameInNumber
+        
+            call CheckVGCompatibility(i)
+
+        enddo
+
+
+        do i=2, Me%FileNameInNumber
+        
+            call GlueFileIn(i)
+
+        enddo
+
+
+
+
+
+    end subroutine GlueProcess
+
+
+    !--------------------------------------------------------------------------
+    subroutine CheckVGCompatibility(i)
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: i, HDF5_READ, STAT_CALL, IDIn, IDOut
+        logical                                     :: CheckOK
+
+        !Begin-----------------------------------------------------------------
+       
+        !Gets File Access Code
+        call GetHDF5FileAccess  (HDF5_READ = HDF5_READ)
+
+        call ConstructHDF5 (Me%ObjHDF5_In, Me%FileNameIn(i),                             &
+                            Access = HDF5_READ, STAT = STAT_CALL)
+       
+        call GetHDF5FileID (Me%ObjHDF5_In, IDIn, STAT = STAT_CALL)
+
+        call GetHDF5FileID (Me%ObjHDF5_Out, IDOut, STAT = STAT_CALL)
+
+        CheckOK = .true.
+
+        call CompareSubGroups (IDOut, IDIn, "/", "/", CheckOK)
+
+        if (.not.CheckOK) then
+            write(*,*) trim(Me%FileNameIn(i))//" is not a compatible file"
+            stop 'CheckVGCompatibility - ModuleGlueHDF5Files - ERR01'
+        endif
+
+        call KillHDF5(Me%ObjHDF5_In, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'CheckVGCompatibility - ModuleGlueHDF5Files - ERR02'
+
+        
+
+
+    end subroutine CheckVGCompatibility
+
+
+    !--------------------------------------------------------------------------
+
+    !--------------------------------------------------------------------------
+    subroutine GlueFileIn(i)
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: i, HDF5_READ, STAT_CALL, IDIn, IDOut
+        logical                                     :: CheckOK, Exist
+
+        !Begin-----------------------------------------------------------------
+       
+        !Gets File Access Code
+        call GetHDF5FileAccess  (HDF5_READ = HDF5_READ)
+
+        call ConstructHDF5 (Me%ObjHDF5_In, Me%FileNameIn(i),                             &
+                            Access = HDF5_READ, STAT = STAT_CALL)
+        if (STAT_CALL /= 0) stop 'GlueFileIn - ModuleGlueHDF5Files - ERR10'
+       
+        call GetHDF5FileID (Me%ObjHDF5_In, IDIn, STAT = STAT_CALL)
+        if (STAT_CALL /= 0) stop 'GlueFileIn - ModuleGlueHDF5Files - ERR20'
+
+        call GetHDF5FileID (Me%ObjHDF5_Out, IDOut, STAT = STAT_CALL)
+        if (STAT_CALL /= 0) stop 'GlueFileIn - ModuleGlueHDF5Files - ERR30'
+
+        CheckOK = .true.
+
+        call GlueInTime (IDOut, IDIn, '/'//trim(Me%TimeGroup)//'/', '/'//trim(Me%TimeGroup)//'/', Me%FirstInstant(i), CheckOK)
+
+        if (.not.CheckOK) then
+            write(*,*) trim(Me%FileNameIn(i))//" is not a compatible file"
+            stop 'GlueFileIn - ModuleGlueHDF5Files - ERR40'
+        endif
+
+        if(Me%File_3D)then
+            call GlueInResults (Me%ObjHDF5_Out, IDOut, IDIn, "/Grid/VerticalZ", Me%FirstInstant(i))
+        endif
+
+        call GlueInResults (Me%ObjHDF5_Out, IDOut, IDIn, '/'//trim(Me%BaseGroup)//'/', Me%FirstInstant(i))
+
+        call GetHDF5GroupExist(Me%ObjHDF5_Out, "/Generic4D/", Exist, STAT = STAT_CALL)
+        if (STAT_CALL /= 0) stop 'GlueFileIn - ModuleGlueHDF5Files - ERR50'
+
+        if (Exist) then
+            call GlueInResults (Me%ObjHDF5_Out, IDOut, IDIn, "/Generic4D/", Me%FirstInstant(i))
+        endif
+
+        if (.not.CheckOK) then
+            write(*,*) trim(Me%FileNameIn(i))//" is not a compatible file"
+            stop 'GlueFileIn - ModuleGlueHDF5Files - ERR60'
+        endif
+
+
+        call KillHDF5(Me%ObjHDF5_In, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'GlueFileIn - ModuleGlueHDF5Files - ERR70'
+       
+
+    end subroutine GlueFileIn
+
+
+    !--------------------------------------------------------------------------
+        !--------------------------------------------------------------------------
+
+    recursive subroutine CompareSubGroups (IDOut, IDIn, GroupNameOut, GroupNameIn, CheckOK)
+
+        !Arguments-------------------------------------------------------------
+        integer(HID_T)                              :: IDOut, IDIn
+        character(len=*)                            :: GroupNameOut, GroupNameIn
+        logical                                     :: CheckOK
+
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: nmembersOut, nmembersIn, nmembers
+        character(StringLength)                     :: obj_nameIn, obj_nameOut
+        integer                                     :: obj_type, idx
+        integer(HID_T)                              :: gr_idIn, gr_idOut, dset_id
+        integer(HID_T)                              :: space_id 
+        integer                                     :: STAT
+        character(StringLength)                     :: NewGroupNameIn, NewGroupNameOut
+        integer(HSIZE_T), dimension(7)              :: dimsOut, dimsIn, maxdims
+
+
+        !Get the number of members in the Group
+        call h5gn_members_f(IDOut, GroupNameOut, nmembersOut, STAT)
+        if (STAT /= SUCCESS_) return
+    
+        call h5gn_members_f(IDIn, GroupNameIn, nmembersIn, STAT)
+        if (STAT /= SUCCESS_) return
+        
+
+        if (trim(GroupNameOut) /= trim(GroupNameIn)) then
+            CheckOK = .false.
+            return
+        endif
+
+        nmembers = min(nmembersOut, nmembersIn)
+
+        do idx = 1, nmembers
+
+            !Gets information about the group
+            call h5gget_obj_info_idx_f(IDOut, GroupNameOut, idx-1, obj_nameOut, obj_type, STAT)
+            if (STAT /= SUCCESS_) return
+!            write(*,*)("+", i=1,Level),trim(adjustl(obj_name))
+            call h5gget_obj_info_idx_f(IDIn, GroupNameIn, idx-1, obj_nameIn, obj_type, STAT)
+            if (STAT /= SUCCESS_) return
+
+            if     (obj_type == H5G_DATASET_F.and.trim(obj_nameOut)=="Bathymetry") then
+
+                if (trim(obj_nameOut) /= trim(obj_nameIn))  then
+                    CheckOK = .false.
+                    return
+                endif
+
+                !Opens data set
+                call h5dopen_f      (IDOut, trim(adjustl(obj_nameOut)), dset_id, STAT)
+
+                !Opens data space
+                call h5dget_space_f (dset_id, space_id, STAT)
+    
+                !Gets dims
+                call h5sget_simple_extent_dims_f  (space_id, dimsOut, maxdims, STAT) 
+
+                !Closes data space
+                call h5sclose_f     (space_id, STAT)
+
+                !Opens data set
+                call h5dopen_f      (IDIn, trim(adjustl(obj_nameIn)), dset_id, STAT)
+
+                !Opens data space
+                call h5dget_space_f (dset_id, space_id, STAT)
+    
+                 !Gets dims
+                call h5sget_simple_extent_dims_f  (space_id, dimsIn, maxdims, STAT) 
+
+                !Closes data space
+                call h5sclose_f     (space_id, STAT)
+
+
+                if (dimsIn(1) /= dimsOut(1)) then 
+                    CheckOK = .false.
+                    return
+                endif
+                if (dimsIn(2) /= dimsOut(2)) then 
+                    CheckOK = .false.
+                    return
+                endif
+
+
+            elseif (obj_type ==H5G_GROUP_F) then
+
+                if (trim(obj_nameOut) /= trim(obj_nameIn))  then
+                    CheckOK = .false.
+                    return
+                endif
+
+                !Looks for futher subgroups
+                if (GroupNameOut == "/") then
+                    NewGroupNameOut = GroupNameOut//trim(adjustl(obj_nameOut))
+                else
+                    NewGroupNameOut = GroupNameOut//"/"//trim(adjustl(obj_nameOut))
+                endif
+                if (GroupNameIn == "/") then
+                    NewGroupNameIn = GroupNameIn//trim(adjustl(obj_nameIn))
+                else
+                    NewGroupNameIn = GroupNameIn//"/"//trim(adjustl(obj_nameIn))
+                endif
+
+                call h5gopen_f        (IDOut, trim(adjustl(NewGroupNameOut)), gr_idOut, STAT)
+                call h5gopen_f        (IDIn, trim(adjustl(NewGroupNameIn)), gr_idIn, STAT)
+                call CompareSubGroups (gr_idOut, gr_idIn, trim(adjustl(NewGroupNameOut)),&
+                                                          trim(adjustl(NewGroupNameIn)), CheckOK)
+                call h5gclose_f       (gr_idOut, STAT)
+                call h5gclose_f       (gr_idIn, STAT)
+            endif
+            
+        enddo
+
+
+    end subroutine CompareSubGroups
+    
+    !--------------------------------------------------------------------------
+
+    subroutine GlueInTime (IDOut, IDIn, GroupNameOut, GroupNameIn, FirstInstant, Check)
+
+        !Arguments-------------------------------------------------------------
+        integer(HID_T)                              :: IDOut, IDIn
+        character(len=*)                            :: GroupNameOut, GroupNameIn
+        integer                                     :: FirstInstant
+        logical                                     :: Check
+
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: nmembersOut, nmembersIn
+        character(StringLength)                     :: obj_nameIn, obj_nameOut
+        integer                                     :: obj_type, idx, NumType
+        integer(HID_T)                              :: dset_id, prp_id, gr_id
+        integer(HID_T)                              :: space_id 
+        character(StringLength)                     :: Name
+        integer(HSIZE_T), dimension(7)              :: dimsOut
+        integer                                     :: Rank, STAT_CALL, k
+        real, allocatable, dimension(:)             :: DataVal
+        logical                                     :: FirstTime
+        integer(HSIZE_T), dimension(7)              :: dims
+        type (T_Time)                               :: NextTime
+
+
+        !Get the number of members in the Group
+        call h5gn_members_f(IDOut, GroupNameOut, nmembersOut, STAT_CALL)
+
+        if (STAT_CALL /= 0) stop 'GlueInTime - ModuleHDF5Files - ERR01'
+    
+        call h5gn_members_f(IDIn, GroupNameIn, nmembersIn, STAT_CALL)
+
+        if (STAT_CALL /= 0) stop 'GlueInTime - ModuleHDF5Files - ERR02'
+        
+        !Gets information about the group
+        call h5gget_obj_info_idx_f(IDOut, GroupNameOut, nmembersOut-1, obj_nameOut, obj_type, STAT_CALL)
+
+        if (STAT_CALL /= 0) stop 'GlueInTime - ModuleHDF5Files - ERR03'
+
+        !Opens the Group
+        call h5gopen_f (IDOut, GroupNameOut, gr_id, STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadDataR4 - ModuleHDF5 - ERR04'
+
+        !Opens data set
+        call h5dopen_f (gr_id, trim(adjustl(obj_nameOut)), dset_id,  STAT_CALL)
+
+        if (STAT_CALL /= 0) stop 'GlueInTime - ModuleHDF5Files - ERR05'
+
+        allocate(DataVal(6))
+
+        call ReadInterface (dset_id, DataVal, dimsOut,  STAT_CALL)
+
+        if (STAT_CALL/=0) stop 'GlueInTime - ModuleHDF5Files - ERR06'
+
+        call SetDate  (Me%LastInstant, DataVal(1), DataVal(2), DataVal(3), DataVal(4), DataVal(5), DataVal(6))
+
+        !Closes data set
+        call h5dclose_f     (dset_id, STAT_CALL)
+
+        if (STAT_CALL /= 0) stop 'GlueInTime - ModuleHDF5Files - ERR07'
+
+        !Closes group
+        call h5gclose_f     (gr_id, STAT_CALL)
+
+        if (STAT_CALL /= 0) stop 'GlueInTime - ModuleHDF5Files - ERR08'
+
+
+        FirstTime = .true. 
+
+        k = 0
+
+        do idx = 1, nmembersIn
+
+            !Gets information about the group
+
+            call h5gget_obj_info_idx_f(IDIn, GroupNameIn, idx-1, obj_nameIn, obj_type,  STAT_CALL)
+
+            if (STAT_CALL /= 0) stop 'GlueInTime - ModuleHDF5Files - ERR09'
+
+            !Opens the Group
+            call h5gopen_f (IDIn, GroupNameIn, gr_id, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadDataR4 - ModuleHDF5 - ERR10'
+
+            !Opens data set
+            call h5dopen_f      (gr_id, trim(adjustl(obj_nameIn)), dset_id, STAT_CALL)
+
+            if (STAT_CALL /= 0) stop 'GlueInTime - ModuleHDF5Files - ERR11'
+
+            call h5dread_f(dset_id, H5T_NATIVE_REAL, DataVal, dims,   STAT_CALL)
+
+            if (STAT_CALL /= 0) stop 'GlueInTime - ModuleHDF5Files - ERR12'
+
+            !Closes data set
+            call h5dclose_f     (dset_id, STAT_CALL)
+
+            if (STAT_CALL /= 0) stop 'GlueInTime - ModuleHDF5Files - ERR13'
+
+            !Closes group
+            call h5gclose_f     (gr_id, STAT_CALL)
+
+            if (STAT_CALL /= 0) stop 'GlueInTime - ModuleHDF5Files - ERR14'
+
+
+            call SetDate  (NextTime, DataVal(1), DataVal(2), DataVal(3), DataVal(4), DataVal(5), DataVal(6))
+
+            if (NextTime <  Me%LastInstant) then
+            
+                !stop 'GlueInTime - ModuleHDF5Files - ERR15'
+                Check = .false.
+
+            elseif (NextTime >  Me%LastInstant) then
+
+                if (FirstTime) then 
+                    FirstInstant = idx
+                    FirstTime =.false.
+                endif
+
+                k = k + 1
+                
+                call ConstructDSName (trim(Me%TimeGroup), nmembersOut + k, Name)
+
+                dims(1) = 6
+                dims(2:7) = 0
+                Rank = 1
+                NumType = H5T_NATIVE_REAL
+
+                !Opens Group, Creates Dset, etc
+                call PrepareWrite (IDOut, Rank, dims, space_id, prp_id, gr_id,      &
+                                   dset_id, NumType, GroupNameOut, trim(adjustl(Name)))
+
+
+                call h5dwrite_f (dset_id, H5T_NATIVE_REAL, DataVal, dims, STAT_CALL)
+
+                if (STAT_CALL /= 0) stop 'GlueInTime - ModuleHDF5Files - ERR16'
+                !Closes data set
+                call h5dclose_f     (dset_id, STAT_CALL)
+
+                if (STAT_CALL /= 0) stop 'GlueInTime - ModuleHDF5Files - ERR17'
+
+                !Closes group
+                call h5gclose_f     (gr_id, STAT_CALL)
+
+
+            endif
+
+        enddo
+
+
+        deallocate(DataVal)
+
+    end subroutine GlueInTime
+
+    !--------------------------------------------------------------------------
+
+    recursive subroutine GlueInResults (ObjHDF5_Out, IDOut, IDIn, GroupName, FirstInstant)
+
+        !Arguments-------------------------------------------------------------
+        integer(HID_T)                              :: IDOut, IDIn, ObjHDF5_Out
+        character(len=*)                            :: GroupName
+        integer                                     :: FirstInstant
+
+
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: nmembersOut, nmembersIn
+        character(StringLength)                     :: obj_name
+        integer                                     :: obj_type, idx
+        integer(HID_T)                              :: gr_idIn, gr_idOut
+        integer(HID_T)                              :: dset_id, gr_id
+        integer(HID_T)                              :: space_id 
+        character(StringLength)                     :: NewGroupName
+        integer(HSIZE_T), dimension(7)              :: dims, maxdims
+        integer, dimension(7)                       :: dims_int
+        integer                                     :: Rank, STAT_CALL, k, ia
+        real, pointer, dimension(:)                 :: DataVal1D
+        real, pointer, dimension(:,:)               :: DataVal2D
+        real, pointer, dimension(:,:,:)             :: DataVal3D
+        integer(HID_T)                              :: attr_id, type_id
+        character(len=StringLength)                 :: Units
+
+
+
+
+        !Get the number of members in the Group
+        call h5gn_members_f(IDOut, GroupName, nmembersOut, STAT_CALL)
+
+        if (STAT_CALL /= 0) stop 'GlueInResults - ModuleHDF5Files - ERR10'
+    
+        call h5gn_members_f(IDIn, GroupName, nmembersIn, STAT_CALL)
+
+        if (STAT_CALL /= 0) stop 'GlueInResults - ModuleHDF5Files - ERR20'
+        
+
+        k = 0
+
+        do idx = 1, nmembersIn
+
+            !Gets information about the group
+
+            call h5gget_obj_info_idx_f(IDIn, GroupName, idx-1, obj_name, obj_type,  STAT_CALL)
+
+            if (STAT_CALL /= 0) stop 'GlueInResults - ModuleHDF5Files - ERR30'
+
+            if (obj_type == H5G_DATASET_F) then
+
+
+                !Opens the Group
+                call h5gopen_f (IDIn, GroupName, gr_id, STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadDataR4 - ModuleHDF5 - ERR40'
+
+                !Opens data set
+                call h5dopen_f      (gr_id, trim(adjustl(obj_name)), dset_id, STAT_CALL)
+
+                if (STAT_CALL /= 0) stop 'GlueInResults - ModuleHDF5Files - ERR50'
+
+                !Opens data space
+                call h5dget_space_f (dset_id, space_id, STAT_CALL)
+                if (STAT_CALL /= 0) stop 'GlueInResults - ModuleHDF5Files - ERR60'
+
+                !Gets dims
+                call h5sget_simple_extent_dims_f  (space_id, dims, maxdims, Rank) 
+                if (Rank < 0) stop 'GlueInResults - ModuleHDF5Files - ERR70'
+
+
+                if     (Rank==1) then
+
+                    allocate(DataVal1D(1:dims(1)))
+
+                    call ReadInterface(dset_id, DataVal1D, dims,   STAT_CALL)
+
+                    if (STAT_CALL /= 0) stop 'GlueInResults - ModuleHDF5Files - ERR80'
+               
+                
+                elseif (Rank==2) then
+
+                    allocate(DataVal2D(1:dims(1),1:dims(2)))
+
+                    call ReadInterface(dset_id, DataVal2D, dims,   STAT_CALL)
+
+                    if (STAT_CALL /= 0) stop 'GlueInResults - ModuleHDF5Files - ERR90'
+
+
+                elseif(Rank == 3) then
+                    
+                    allocate(DataVal3D(1:dims(1),1:dims(2),1:dims(3)))
+                    !stop 'GlueInResults - ModuleHDF5Files - ERR100'
+
+                    call ReadInterface(dset_id, DataVal3D, dims,   STAT_CALL)
+                    if (STAT_CALL /= 0) stop 'GlueInResults - ModuleHDF5Files - ERR110'
+
+                endif
+
+
+                
+                !Closes data space
+                call h5sclose_f     (space_id, STAT_CALL)
+
+                if (STAT_CALL /= 0) stop 'GlueInResults - ModuleHDF5Files - ERR120'
+
+
+                !Reads Units
+                call h5aopen_name_f     (dset_id, "Units", attr_id, STAT_CALL)
+                if (STAT_CALL /= 0) stop 'GlueInResults - ModuleHDF5Files - ERR130'
+
+                call h5Tcopy_f          (H5T_NATIVE_CHARACTER, type_id, STAT_CALL)
+                if (STAT_CALL /= 0) stop 'GlueInResults - ModuleHDF5Files - ERR140'
+
+                call h5Tset_size_f      (type_id, StringLength, STAT_CALL)
+                if (STAT_CALL /= 0) stop 'GlueInResults - ModuleHDF5Files - ERR150'
+
+                call h5aread_f          (attr_id, type_id, Units, dims, STAT_CALL)
+                if (STAT_CALL /= 0) stop 'GlueInResults - ModuleHDF5Files - ERR160'
+                
+                call h5aclose_f         (attr_id, STAT_CALL) 
+                if (STAT_CALL /= 0) stop 'GlueInResults - ModuleHDF5Files - ERR170'
+
+                call h5Tclose_f         (type_id, STAT_CALL)
+                if (STAT_CALL /= 0) stop 'GlueInResults - ModuleHDF5Files - ERR180'
+                !Closes data set
+                call h5dclose_f     (dset_id, STAT_CALL)
+                if (STAT_CALL /= 0) stop 'GlueInResults - ModuleHDF5Files - ERR190'
+
+                !Closes group
+                call h5gclose_f     (gr_id, STAT_CALL)
+
+                if (STAT_CALL /= 0) stop 'GlueInResults - ModuleHDF5Files - ERR200'
+
+
+                if (idx >= FirstInstant) then
+
+                    k = k + 1
+
+                    ia = 0
+                    do 
+                        ia = ia + 1
+                        if (obj_name(ia:ia) == '_') exit
+                    enddo                  
+
+                dims_int = dims
+
+                if (Rank==1) then
+
+                    call HDF5SetLimits  (ObjHDF5_Out, 1, dims_int(1), STAT = STAT_CALL)
+                    if (STAT_CALL /= 0) stop 'GlueInResults - ModuleHDF5Files - ERR210'
+                    
+                    call HDF5WriteData(ObjHDF5_Out, GroupName, trim(adjustl(obj_name(1:ia-1))), & 
+                                       Units, Array1D = DataVal1D, OutputNumber = nmembersOut + k, STAT = STAT_CALL)
+                    if (STAT_CALL /= 0) stop 'GlueInResults - ModuleHDF5Files - ERR220'
+
+                    deallocate(DataVal1D)
+
+                elseif (Rank==2) then
+
+                    call HDF5SetLimits  (ObjHDF5_Out, 1, dims_int(1), 1, dims_int(2), STAT = STAT_CALL)
+                    if (STAT_CALL /= 0) stop 'GlueInResults - ModuleHDF5Files - ERR220'
+                    
+                    call HDF5WriteData(ObjHDF5_Out, GroupName, trim(adjustl(obj_name(1:ia-1))), & 
+                                       Units, Array2D = DataVal2D, OutputNumber = nmembersOut + k, STAT = STAT_CALL)
+                    if (STAT_CALL /= 0) stop 'GlueInResults - ModuleHDF5Files - ERR230'
+
+                    deallocate(DataVal2D)
+
+                elseif(Rank == 3) then
+
+                    call HDF5SetLimits  (ObjHDF5_Out, 1, dims_int(1), 1, dims_int(2),1, dims_int(3),  STAT = STAT_CALL)
+
+                    call HDF5WriteData(ObjHDF5_Out, GroupName, trim(adjustl(obj_name(1:ia-1))), & 
+                                       Units, Array3D = DataVal3D, OutputNumber = nmembersOut + k, STAT = STAT_CALL)
+                    if (STAT_CALL /= 0) stop 'GlueInResults - ModuleHDF5Files - ERR240'
+
+                    deallocate(DataVal3D)
+
+
+                endif
+
+                   !Is assumed that the the data set name is equal the group name
+!                    call ConstructDSName (trim(adjustl(GroupName))//trim(adjustl(obj_name(1:ia-1))), nmembersOut + k, Name)
+
+!                    NumType = H5T_NATIVE_REAL
+
+                    !Opens Group, Creates Dset, etc
+!                    call PrepareWrite (IDOut, Rank, dims, space_id, prp_id, gr_id,      &
+!                                       dset_id, NumType, GroupName, trim(adjustl(Name)))
+
+
+!                    call h5dwrite_f (dset_id, H5T_NATIVE_REAL, DataVal, dims, STAT_CALL)
+
+!                    if (STAT_CALL /= 0) stop 'GlueInResults - ModuleHDF5Files - ERR250'
+
+
+                    !Creates data space for Units
+!                    call h5screate_f   (H5S_SCALAR_F, space_id, STAT_CALL)
+!                    if (STAT_CALL /= SUCCESS_) stop 'CreateMinMaxAttribute - ModuleHDF5 - ERR260'
+
+                    !Copies Type
+!                    call h5Tcopy_f     (H5T_NATIVE_CHARACTER, type_id, STAT_CALL)
+!                    if (STAT_CALL /= SUCCESS_) stop 'CreateMinMaxAttribute - ModuleHDF5 - ERR270'
+
+                    !Sets Size
+!                    call h5Tset_size_f (type_id, len_trim(Units), STAT_CALL)
+!                    if (STAT_CALL /= SUCCESS_) stop 'CreateMinMaxAttribute - ModuleHDF5 - ERR280'
+
+                    !Creates attribute
+!                    call h5acreate_f   (gr_id, "Units", type_id, space_id, attr_id, STAT_CALL)
+!                    if (STAT_CALL /= SUCCESS_) stop 'CreateMinMaxAttribute - ModuleHDF5 - ERR290'
+
+                    !Writes attribute
+!                    call h5awrite_f    (attr_id, type_id, Units, dims, STAT_CALL)
+!                    if (STAT_CALL /= SUCCESS_) stop 'CreateMinMaxAttribute - ModuleHDF5 - ERR300'
+
+                    !Close type id
+!                    call h5Tclose_f    (type_id, STAT_CALL)
+!                    if (STAT_CALL /= SUCCESS_) stop 'CreateMinMaxAttribute - ModuleHDF5 - ERR310'
+
+                    !Closes attribute
+!                    call h5aclose_f    (attr_id, STAT_CALL)
+!                    if (STAT_CALL /= SUCCESS_) stop 'CreateMinMaxAttribute - ModuleHDF5 - ERR320'
+
+                    !Closes dataspaces
+!                    call h5sclose_f    (space_id, STAT_CALL)
+!                    if (STAT_CALL /= SUCCESS_) stop 'CreateMinMaxAttribute - ModuleHDF5 - ERR330'
+
+
+
+
+                    !Closes data set
+!                    call h5dclose_f     (dset_id, STAT_CALL)
+
+!                    if (STAT_CALL /= 0) stop 'GlueInResults - ModuleHDF5Files - ERR340'
+
+                    !Closes group
+!                    call h5gclose_f     (gr_id, STAT_CALL)
+
+
+                endif
+
+            elseif (obj_type ==H5G_GROUP_F) then
+
+                NewGroupName = GroupName//trim(adjustl(obj_name))//"/"
+
+                call h5gopen_f        (IDOut, trim(adjustl(NewGroupName)), gr_idOut, STAT_CALL)
+
+                if (STAT_CALL /= 0) stop 'GlueInResults - ModuleHDF5Files - ERR350'
+
+                call h5gopen_f        (IDIn, trim(adjustl(NewGroupName)), gr_idIn, STAT_CALL)
+
+                if (STAT_CALL /= 0) stop 'GlueInResults - ModuleHDF5Files - ERR360'
+
+                call GlueInResults    (ObjHDF5_Out, gr_idOut, gr_idIn, trim(adjustl(NewGroupName)), FirstInstant)
+                call h5gclose_f       (gr_idOut, STAT_CALL)
+
+                if (STAT_CALL /= 0) stop 'GlueInResults - ModuleHDF5Files - ERR370'
+
+                call h5gclose_f       (gr_idIn, STAT_CALL)
+
+                if (STAT_CALL /= 0) stop 'GlueInResults - ModuleHDF5Files - ERR1380'
+
+            endif
+
+        enddo
+
+    end subroutine GlueInResults
+
+    subroutine ReadInterface1DR4 (dset_id, DataVal, dims,  STAT_CALL)
+
+        !Arguments----------------------------------------------------------------
+        integer(HID_T)                              :: dset_id
+        integer(HSIZE_T), dimension(7)              :: dims
+        integer                                     :: STAT_CALL
+        real(4),   dimension(:)                     :: DataVal
+
+        !Begin--------------------------------------------------------------------
+        call h5dread_f(dset_id, H5T_NATIVE_REAL, DataVal, dims,  STAT_CALL)
+
+    end subroutine ReadInterface1DR4 
+
+
+    subroutine ReadInterface1DR8 (dset_id, DataVal, dims,  STAT_CALL)
+
+        !Arguments----------------------------------------------------------------
+        integer(HID_T)                              :: dset_id
+        integer(HSIZE_T), dimension(7)              :: dims
+        integer                                     :: STAT_CALL
+        real(8),   dimension(:)                     :: DataVal
+
+        !Begin--------------------------------------------------------------------
+        call h5dread_f(dset_id, H5T_NATIVE_DOUBLE, DataVal, dims,  STAT_CALL)
+
+    end subroutine ReadInterface1DR8 
+
+
+    subroutine ReadInterface2DR4 (dset_id, DataVal, dims,  STAT_CALL)
+
+        !Arguments----------------------------------------------------------------
+        integer(HID_T)                              :: dset_id
+        integer(HSIZE_T), dimension(7)              :: dims
+        integer                                     :: STAT_CALL
+        real(4),   dimension(:,:)                   :: DataVal
+
+        !Begin--------------------------------------------------------------------
+        call h5dread_f(dset_id, H5T_NATIVE_REAL, DataVal, dims,  STAT_CALL)
+
+    end subroutine ReadInterface2DR4 
+
+
+    subroutine ReadInterface2DR8 (dset_id, DataVal, dims,  STAT_CALL)
+
+        !Arguments----------------------------------------------------------------
+        integer(HID_T)                              :: dset_id
+        integer(HSIZE_T), dimension(7)              :: dims
+        integer                                     :: STAT_CALL
+        real(8),   dimension(:,:)                   :: DataVal
+
+        !Begin--------------------------------------------------------------------
+        call h5dread_f(dset_id, H5T_NATIVE_DOUBLE, DataVal, dims,  STAT_CALL)
+
+    end subroutine ReadInterface2DR8 
+
+
+    subroutine ReadInterface3DR4 (dset_id, DataVal, dims,  STAT_CALL)
+
+        !Arguments----------------------------------------------------------------
+        integer(HID_T)                              :: dset_id
+        integer(HSIZE_T), dimension(7)              :: dims
+        integer                                     :: STAT_CALL
+        real(4),   dimension(:,:,:)                 :: DataVal
+
+        !Begin--------------------------------------------------------------------
+        call h5dread_f(dset_id, H5T_NATIVE_REAL, DataVal, dims,  STAT_CALL)
+
+    end subroutine ReadInterface3DR4 
+
+
+    subroutine ReadInterface3DR8 (dset_id, DataVal, dims,  STAT_CALL)
+
+        !Arguments----------------------------------------------------------------
+        integer(HID_T)                              :: dset_id
+        integer(HSIZE_T), dimension(7)              :: dims
+        integer                                     :: STAT_CALL
+        real(8),   dimension(:,:,:)                 :: DataVal
+
+        !Begin--------------------------------------------------------------------
+        call h5dread_f(dset_id, H5T_NATIVE_DOUBLE, DataVal, dims,  STAT_CALL)
+
+    end subroutine ReadInterface3DR8 
+
+
+    subroutine ReadInterface1DI4 (dset_id, DataVal, dims,  STAT_CALL)
+
+        !Arguments----------------------------------------------------------------
+        integer(HID_T)                              :: dset_id
+        integer(HSIZE_T), dimension(7)              :: dims
+        integer                                     :: STAT_CALL
+        integer,   dimension(:)                     :: DataVal
+
+        !Begin--------------------------------------------------------------------
+        call h5dread_f(dset_id, H5T_NATIVE_REAL, DataVal, dims,  STAT_CALL)
+
+    end subroutine ReadInterface1DI4 
+
+    subroutine ReadInterface2DI4 (dset_id, DataVal, dims,  STAT_CALL)
+
+        !Arguments----------------------------------------------------------------
+        integer(HID_T)                              :: dset_id
+        integer(HSIZE_T), dimension(7)              :: dims
+        integer                                     :: STAT_CALL
+        integer,   dimension(:,:)                   :: DataVal
+
+        !Begin--------------------------------------------------------------------
+        call h5dread_f(dset_id, H5T_NATIVE_REAL, DataVal, dims,  STAT_CALL)
+
+    end subroutine ReadInterface2DI4 
+
+
+    subroutine ReadInterface3DI4 (dset_id, DataVal, dims,  STAT_CALL)
+
+        !Arguments----------------------------------------------------------------
+        integer(HID_T)                              :: dset_id
+        integer(HSIZE_T), dimension(7)              :: dims
+        integer                                     :: STAT_CALL
+        integer,   dimension(:,:,:)                 :: DataVal
+
+        !Begin--------------------------------------------------------------------
+        call h5dread_f(dset_id, H5T_NATIVE_REAL, DataVal, dims,  STAT_CALL)
+
+    end subroutine ReadInterface3DI4 
+
+
+
+    
+
+    subroutine KillGlueHDF5Files
+        
+        !Local-----------------------------------------------------------------
+        integer                     :: STAT_CALL, nUsers
+        
+        !Begin-----------------------------------------------------------------
+
+
+        call KillHDF5(Me%ObjHDF5_Out, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)stop 'KillGlueHDF5Files - ModuleGlueHDF5Files - ERR03'
+
+        nUsers = DeassociateInstance(mENTERDATA_, Me%ObjEnterData)
+        if (nUsers == 0) stop 'KillGlueHDF5Files - ModuleGlueHDF5Files - ERR04'
+
+
+        deallocate(Me%FileNameIn)
+        deallocate(Me)
+        nullify   (Me)
+
+    
+    end subroutine KillGlueHDF5Files
+
+    !--------------------------------------------------------------------------
+
+    subroutine ConstructDSName (Name, OutputNumber, AuxChar)
+
+        !Arguments-------------------------------------------------------------
+        character(len=*)                            :: Name
+        integer                                     :: OutputNumber
+        character(len=*)                            :: AuxChar
+
+        !Local-----------------------------------------------------------------
+        character(StringLength)                     :: AuxNum
+
+        write(AuxNum, fmt=*)OutputNumber
+
+        if     (OutputNumber < 10     ) then
+            AuxChar = trim(adjustl(Name))//"_0000"//trim(adjustl(AuxNum))
+        elseif (OutputNumber < 100    ) then
+            AuxChar = trim(adjustl(Name))//"_000" //trim(adjustl(AuxNum))
+        elseif (OutputNumber < 1000   ) then
+            AuxChar = trim(adjustl(Name))//"_00"  //trim(adjustl(AuxNum))
+        elseif (OutputNumber < 10000  ) then
+            AuxChar = trim(adjustl(Name))//"_0"   //trim(adjustl(AuxNum))
+        else
+            AuxChar = trim(adjustl(Name))//"_"    //trim(adjustl(AuxNum))
+        endif
+
+    end subroutine ConstructDSName
+
+    !--------------------------------------------------------------------------
+
+    !--------------------------------------------------------------------------
+
+    subroutine PrepareWrite (FileID, Rank, dims, space_id, prp_id, gr_id, dset_id,       &
+                             NumType, GroupName, ItemName)
+
+        !Arguments-------------------------------------------------------------
+        integer (HID_T)                             :: FileID, Rank, space_id
+        integer (HID_T)                             :: prp_id, gr_id, dset_id, NumType
+        integer (HSIZE_T), dimension(7)             :: dims
+        character(len=*)                            :: GroupName
+        character(len=*)                            :: ItemName
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: STAT_CALL
+
+        !Creates a simple dataspace
+        call h5screate_simple_f(Rank, dims, space_id, STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'PrepareWrite - ModuleGlueHDF5Files - ERR01'
+
+        !Creates a property list
+        call h5pcreate_f (H5P_DATASET_CREATE_F, prp_id, STAT_CALL) 
+        if (STAT_CALL /= SUCCESS_) stop 'PrepareWrite - ModuleGlueHDF5Files - ERR02'
+
+        !Sets chunked
+        call h5pset_chunk_f(prp_id, Rank, dims, STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'PrepareWrite - ModuleGlueHDF5Files - ERR03'
+
+        !Sets the compression
+        call h5pset_deflate_f(prp_id, 6, STAT_CALL) 
+        if (STAT_CALL /= SUCCESS_) stop 'PrepareWrite - ModuleGlueHDF5Files - ERR04'
+
+        !Opens the Group
+        call h5gopen_f (FileID, GroupName, gr_id, STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'PrepareWrite - ModuleGlueHDF5Files - ERR05'
+
+        !Creates the dataset with default properties
+        call h5dcreate_f(gr_id, ItemName, NumType, space_id, dset_id,  STAT_CALL, prp_id) 
+        if (STAT_CALL /= SUCCESS_) stop 'PrepareWrite - ModuleGlueHDF5Files - ERR06'
+
+    end subroutine PrepareWrite
+
+
+
+    !--------------------------------------------------------------------------
+ 
+    !--------------------------------------------------------------------------
+end module ModuleGlueHDF5Files
+
+
+
+
+
+
+
+
+
