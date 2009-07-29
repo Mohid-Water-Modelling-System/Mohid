@@ -3234,7 +3234,9 @@ cd0 :   if (ready_ .EQ. IDLE_ERR_) then
                                                         Property%ISCoefficient
                                 
                                 if(Property%Concentration(i, j, WKUB)<0.)then
-                                    stop 'negative dissolved concentration surface boundary fluxes'
+                                    Property%Concentration(i, j, WKUB) = 0.
+                                    write(*,*) 'negative dissolved concentration surface boundary fluxes'
+                                    write(*,*)i,j,WKUB
                                 endif 
                                 
                             endif

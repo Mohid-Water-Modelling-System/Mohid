@@ -4743,7 +4743,8 @@ i6:                if (trim(OriginNameClone) == trim(OriginName)) then
         call GetBlockSize(Me%ObjEnterData, ClientNumber, StartLine, EndLine, STAT = STAT_CALL)  
         if (STAT_CALL /= SUCCESS_) stop 'ReplaceKeywordsInClone - ModuleLagrangianGlobal - ERR10'
 
-        BlockPropON = .false.
+        BlockPropON    = .false.
+        BlockInBlockOn = .false. 
 
 d1:     do lineC = StartClone, EndClone
 
@@ -9644,7 +9645,7 @@ ie:             if  (Me%EulerModel(NewPosition%ModelID)%OpenPoints3D(NewI, NewJ,
 
                     call MoveParticVertical  (CurrentOrigin, CurrentPartic, NewPosition, VelModH)
 
-                    call Convert_Z_CellK (CurrentOrigin, Me%EulerModel(CurrentPartic%Position%ModelID), &
+                    call Convert_Z_CellK (CurrentOrigin, Me%EulerModel(NewPosition%ModelID), &
                                                          NewPosition, PositionCorrected)
                     call Convert_CellK_K (               NewPosition)
 
@@ -12767,6 +12768,10 @@ d1:     do em =1, Me%EulerModelNumber
 
         !If the Particle is located below the bottom, its placed closed to the
         !bottom
+        if (kFloor <= 0) then
+            write(*,*) 'Kfloor =',KFloor,' i= ',i,' j= ',j
+            stop 'LagrangianGlobal - Convert_Z_CellK - ERR10'
+        endif
         if (Position%Z >= EulerModel%SZZ(i, j, kFloor-1)) then
 
             if (CurrentOrigin%State%Deposition) then

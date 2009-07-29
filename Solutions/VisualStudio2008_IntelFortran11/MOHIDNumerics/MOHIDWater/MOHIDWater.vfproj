@@ -4,8 +4,8 @@
 		<Platform Name="Win32"/></Platforms>
 	<Configurations>
 		<Configuration Name="Debug|Win32">
-				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" DebugInformationFormat="debugEnabled" Optimization="optimizeDisabled" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\..\..\..\Solutions\VisualStudio2008_IntelFortran11\MOHID.Numerics\MOHID.Base.1\Debug;..\..\..\..\Solutions\VisualStudio2008_IntelFortran11\MOHID.Numerics\MOHID.Base.2\Debug" Interfaces="true" WarnInterfaces="true" Traceback="true" BoundsCheck="true" RuntimeLibrary="rtMultiThreadedDebug"/>
-				<Tool Name="VFLinkerTool" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" GenerateDebugInformation="true" SubSystem="subSystemConsole"/>
+				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" DebugInformationFormat="debugEnabled" Optimization="optimizeDisabled" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\..\..\..\Solutions\VisualStudio2008_IntelFortran11\MOHIDNumerics\MOHIDBase1\Debug;..\..\..\..\Solutions\VisualStudio2008_IntelFortran11\MOHIDNumerics\MOHIDBase2\Debug" Interfaces="true" WarnInterfaces="true" Traceback="true" BoundsCheck="true" RuntimeLibrary="rtMultiThreadedDebug"/>
+				<Tool Name="VFLinkerTool" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" AdditionalLibraryDirectories="..\..\..\..\Solutions\VisualStudio2008_IntelFortran11\MOHIDNumerics\MOHIDBase1\Debug Double;..\..\..\..\Solutions\VisualStudio2008_IntelFortran11\MOHIDNumerics\MOHIDBase2\Debug Double;..\..\..\..\ExternalLibs\HDF_1.6.8\IntelFortran11\Lib;..\..\..\..\ExternalLibs\Zlib_1.2\dll;..\..\..\..\ExternalLibs\SZlib_2.1\dll" IgnoreDefaultLibraryNames="LIBCMT.lib" GenerateDebugInformation="true" SubSystem="subSystemConsole" AdditionalDependencies="MOHIDBase1.lib MOHIDBase2.lib hdf5.lib  hdf5_fortran.lib hdf5_f90cstub.lib zlib1.lib szlibdll.lib"/>
 				<Tool Name="VFResourceCompilerTool"/>
 				<Tool Name="VFMidlTool" SuppressStartupBanner="true"/>
 				<Tool Name="VFCustomBuildTool"/>
@@ -27,28 +27,26 @@
 		<Filter Name="Header Files" Filter="fi;fd"/>
 		<Filter Name="Resource Files" Filter="rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe"/>
 		<Filter Name="Source Files" Filter="f90;for;f;fpp;ftn;def;odl;idl">
-		<File RelativePath="..\..\..\..\Modulus Software\MOHID.Water\Main.F90"/>
-		<File RelativePath="..\..\..\..\Modulus Software\MOHID.Water\ModuleAssimilation.F90"/>
-		<File RelativePath="..\..\..\..\Modulus Software\MOHID.Water\ModuleConsolidation.F90"/>
-		<File RelativePath="..\..\..\..\Modulus Software\MOHID.Water\ModuleFreeVerticalMovement.F90"/>
-		<File RelativePath="..\..\..\..\Modulus Software\MOHID.Water\ModuleGauge.F90"/>
-		<File RelativePath="..\..\..\..\Modulus Software\MOHID.Water\ModuleGOTM.F90"/>
-		<File RelativePath="..\..\..\..\Modulus Software\MOHID.Water\ModuleHydrodynamic.f90"/>
-		<File RelativePath="..\..\..\..\Modulus Software\MOHID.Water\ModuleHydrodynamicFile.F90"/>
-		<File RelativePath="..\..\..\..\Modulus Software\MOHID.Water\ModuleInterfaceSedimentWater.F90"/>
-		<File RelativePath="..\..\..\..\Modulus Software\MOHID.Water\ModuleInterfaceWaterAir.F90"/>
-		<File RelativePath="..\..\..\..\Modulus Software\MOHID.Water\ModuleJet.F90"/>
-		<File RelativePath="..\..\..\..\Modulus Software\MOHID.Water\ModuleLagrangian.F90"/>
-		<File RelativePath="..\..\..\..\Modulus Software\MOHID.Water\ModuleLagrangianGlobal.F90"/>
-		<File RelativePath="..\..\..\..\Modulus Software\MOHID.Water\ModuleModel.F90"/>
-		<File RelativePath="..\..\..\..\Modulus Software\MOHID.Water\ModuleOil.F90"/>
-		<File RelativePath="..\..\..\..\Modulus Software\MOHID.Water\ModuleOpenBoundary.F90"/>
-		<File RelativePath="..\..\..\..\Modulus Software\MOHID.Water\ModuleSand.F90"/>
-		<File RelativePath="..\..\..\..\Modulus Software\MOHID.Water\ModuleSedimentProperties.F90"/>
-		<File RelativePath="..\..\..\..\Modulus Software\MOHID.Water\ModuleSequentialAssimilation.f90"/>
-		<File RelativePath="..\..\..\..\Modulus Software\MOHID.Water\ModuleToga.F90"/>
-		<File RelativePath="..\..\..\..\Modulus Software\MOHID.Water\ModuleTurbGOTM.F90"/>
-		<File RelativePath="..\..\..\..\Modulus Software\MOHID.Water\ModuleTurbulence.F90"/>
-		<File RelativePath="..\..\..\..\Modulus Software\MOHID.Water\ModuleWaterProperties.F90"/>
-		<File RelativePath="..\..\..\..\Modulus Software\MOHID.Water\ModuleWaves.F90"/></Filter></Files>
+		<File RelativePath="..\..\..\..\Software\MOHIDWater\Main.F90"/>
+		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleAssimilation.F90"/>
+		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleConsolidation.F90"/>
+		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleFreeVerticalMovement.F90"/>
+		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleGauge.F90"/>
+		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleGOTM.F90"/>
+		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleHydrodynamic.F90"/>
+		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleHydrodynamicFile.F90"/>
+		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleInterfaceSedimentWater.F90"/>
+		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleInterfaceWaterAir.F90"/>
+		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleJet.F90"/>
+		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleLagrangian.F90"/>
+		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleModel.F90"/>
+		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleOil.F90"/>
+		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleOpenBoundary.F90"/>
+		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleSand.F90"/>
+		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleSedimentProperties.F90"/>
+		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleToga.F90"/>
+		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleTurbGOTM.F90"/>
+		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleTurbulence.F90"/>
+		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleWaterProperties.F90"/>
+		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleWaves.F90"/></Filter></Files>
 	<Globals/></VisualStudioProject>

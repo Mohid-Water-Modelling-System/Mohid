@@ -2100,7 +2100,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 cd2 :       if (Me%ExternalVar%Now .GE. Me%NextInternalComputeTime) then
                 
                 VolumeTotalOUT                  = null_real
-                Me%Var%Volume                   = VolumeTotalIN
+                Me%Var%VolumeOil                = VolumeTotalIN
                 
 
                 if (AreaTotal >= 0.) then
@@ -2191,7 +2191,7 @@ cd4 :           if (present(DataLineIN  )) then
                 Me%NextInternalComputeTime = Me%ExternalVar%Now + Me%Var%DTOilInternalProcesses
 
 
-                VolumeTotalOUT                 = Me%Var%Volume 
+                VolumeTotalOUT                 = Me%Var%VolumeOil 
                 VWaterContent                  = Me%Var%VWaterContent
 
                 !AreaTotalOUT, OilDensity e MDispersed necessaria para o calculo da concentracao no ModuleLagrangian
@@ -3825,13 +3825,13 @@ cd1:        if (Me%Var%ViscRef .LT. 0) then
         real, intent(out)      :: Delta
 
         !Local-------------------------------------------------------------------
-
+        real                   :: aux1, aux2
 
         !------------------------------------------------------------------------
 
 cd1:    if (Me%Var%OilThickness .GE. Me%Var%ThicknessLimit) then
            
-           Delta                      = max(0.0,(WaterDensity - Me%Var%Density)) / WaterDensity
+           Delta                      = max(1e-9,(WaterDensity - Me%Var%Density)) / WaterDensity
 
            Me%Var%beta                       = Pi *(CFay_2**2/4.) * (Delta*Gravity*(Me%Var%VolInic**2)/          &
                                         sqrt(WaterCinematicVisc))**(1.0/3.0)
@@ -3845,9 +3845,12 @@ cd2:       if (Me%State%FirstStepAP) then
                Me%Var%beta_old              = Me%Var%beta
 
            else cd2
+           
+               aux1 = Me%Var%beta_old
 
+               aux2 = Me%Var%AreaTeoric/aux1
 
-               Me%Var%AreaTeoric = Me%Var%beta * sqrt((Me%Var%AreaTeoric/Me%Var%beta_old)**2 + DT)
+               Me%Var%AreaTeoric = Me%Var%beta * sqrt((aux2)**2 + DT)
 
                Me%Var%beta_old              = Me%Var%beta
 

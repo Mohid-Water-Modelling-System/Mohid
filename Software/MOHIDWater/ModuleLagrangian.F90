@@ -10140,7 +10140,7 @@ CurrOr: do while (associated(CurrentOrigin))
                                           OilDensity            = OilDensity,                     &
                                           VolTotOilBeached      = CurrentOrigin%VolTotOilBeached, &
                                           VolTotBeached         = CurrentOrigin%VolTotBeached,    &
-                                          VolumeTotalIN         = CurrentOrigin%VolumeTotal,      &   
+                                          VolumeTotalIN         = CurrentOrigin%VolumeOilTotal,   &   
                                           VolumeTotalOUT        = VolumeTotalOUT,                 &     
                                           AreaTotal             = CurrentOrigin%AreaTotal,        & 
                                           AreaTotalOUT          = AreaTotalOUT,                   & 
@@ -10158,7 +10158,7 @@ CurrOr: do while (associated(CurrentOrigin))
                 call OilGridConcentration  (CurrentOrigin, WaveHeight, WaterDensity)       
 
                 !Modifies OilVolume
-                Factor                                  =  VolumeTotalOUT / (max(AllmostZero,CurrentOrigin%VolumeTotal))
+                Factor                                  =  VolumeTotalOUT / (max(AllmostZero,CurrentOrigin%VolumeOilTotal))
                 CurrentPartic                           => CurrentOrigin%FirstPartic
                 do while (associated(CurrentPartic))
 
@@ -10168,8 +10168,8 @@ CurrOr: do while (associated(CurrentOrigin))
                         VolOld  = CurrentPartic%Geometry%Volume
                     
                         !New Volume
-                        CurrentPartic%Geometry%Volume    = CurrentPartic%Geometry%Volume * Factor
-                        CurrentPartic%Geometry%VolumeOil = CurrentPartic%Geometry%Volume *                 &
+                        CurrentPartic%Geometry%VolumeOil = CurrentPartic%Geometry%VolumeOil * Factor
+                        CurrentPartic%Geometry%Volume    = CurrentPartic%Geometry%VolumeOil / &
                                                            (1 - Me%ExternalVar%VWaterContent)
 
                         !Volume Variation
@@ -13579,7 +13579,7 @@ CurrOr:     do while (associated(CurrentOrigin))
                 !Just writes the output if there are particle
                 if (CurrentOrigin%nParticle > 0) then
                     OilGridThick2D = CurrentOrigin%GridThickness * 1000.0                       &
-                                     * CurrentOrigin%VolumeOilTotal / max(AllmostZero,CurrentOrigin%VolumeTotal) 
+                                     * (1 - Me%ExternalVar%VWaterContent)
 
 
                     !HDF 5
