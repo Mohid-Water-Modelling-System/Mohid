@@ -2440,6 +2440,9 @@ cd0:    if (EXIST) then
                   S1   = (Me%ExternalVar%ShearVelocity(I,J)/Me%ExternalVar%VelMod(I,J))**Vn
 
                   Me%TransportCapacity(i, j) = Ggr*RhoSW*Me%D35%Field2D(I,J)/S1               !(m)
+                  
+                  ! m*m/s = m3/s/m
+                  Me%TransportCapacity(i, j) = Me%ExternalVar%VelMod(I,J) * Me%TransportCapacity(i, j)
 
                 else
                   Me%TransportCapacity(i, j) = 0.
