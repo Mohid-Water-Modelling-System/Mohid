@@ -50,6 +50,9 @@ program MohidLand
     type (T_Time)                       :: BeginTime, EndTime, CurrentTime
     real                                :: DT, MaxDT
     logical                             :: VariableDT
+    real                                :: GmtReference
+    real                                :: DTPredictionInterval
+
 
     !Other Stuff
     type (T_Time)                       :: InitialSystemTime, FinalSystemTime
@@ -136,7 +139,8 @@ program MohidLand
         if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - MohidLand - ERR03'
 
         call ReadTimeKeyWords   (ObjEnterData, FromFile, BeginTime, EndTime, DT,         &
-                                 VariableDT, "Mohid Land", MaxDT)
+                                 VariableDT, "Mohid Land", MaxDT, GmtReference,          &
+                                 DTPredictionInterval)
 
         call KillEnterData (ObjEnterData, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - MohidLand - ERR04'
@@ -216,7 +220,7 @@ program MohidLand
             endif 
 
             call CPU_TIME(CPUTime)
-            if (CPUTime - LastCPUTime > 60.) then
+            if (CPUTime - LastCPUTime > DTPredictionInterval) then
                 LastCPUTime = CPUTime
                 call PrintProgress(ObjComputeTime, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ModifyMohidLand - MohidLand - ERR05'
