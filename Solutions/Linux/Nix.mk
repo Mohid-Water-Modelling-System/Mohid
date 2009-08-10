@@ -20,21 +20,21 @@ export SUFFLIB = .lib
 export SUFFPROG = 
 
 # MohidBase1
-export SRCBASE1 = ../../../Shared/MOHID.Base.1
+export SRCBASE1 = ../../../Software/MOHIDBase1
 export BASE1INC = ../Mohid_Base_1
 export BASE1 = Mohid_Base_1$(SUFFLIB)
 
 # MohidBase2
-export SRCBASE2 = ../../../Shared/MOHID.Base.2
+export SRCBASE2 = ../../../Software/MOHIDBase2
 export BASE2INC = ../Mohid_Base_2
 export BASE2 = Mohid_Base_2$(SUFFLIB)
 
 # MohidWater
-export SRCWATER = ../../../Modulus.Software/MOHID.Water
+export SRCWATER = ../../../Software/MOHIDWater
 export WATER = MohidWater$(SUFFPROG)
 
 # MohidLand
-export SRCLAND = ../../../Modulus.Software/MOHID.Land
+export SRCLAND = ../../../Software/MOHIDLand
 export LAND = MohidLand$(SUFFPROG)
 
 # HDF5 lib
