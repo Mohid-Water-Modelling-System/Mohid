@@ -4159,25 +4159,24 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
 
         !Local-----------------------------------------------------------------
         integer                                     :: STAT_CALL
-        integer                                     :: STAT
         !Begin-----------------------------------------------------------------
 
-        call GetOldWaterContent (Me%ObjPorousMedia, Me%ExtVar%WaterContentOld, STAT)
+        call GetOldWaterContent (Me%ObjPorousMedia, Me%ExtVar%WaterContentOld, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - ModulePorousMediaProperties - ERR010'
 
-        call GetWaterContent    (Me%ObjPorousMedia, Me%ExtVar%WaterContent, STAT)
+        call GetWaterContent    (Me%ObjPorousMedia, Me%ExtVar%WaterContent, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - ModulePorousMediaProperties - ERR020'
 
-        call GetFluxU           (Me%ObjPorousMedia, Me%ExtVar%FluxU, STAT)
+        call GetFluxU           (Me%ObjPorousMedia, Me%ExtVar%FluxU, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - ModulePorousMediaProperties - ERR030'
 
-        call GetFluxV           (Me%ObjPorousMedia, Me%ExtVar%FluxV, STAT)
+        call GetFluxV           (Me%ObjPorousMedia, Me%ExtVar%FluxV, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - ModulePorousMediaProperties - ERR040'
 
-        call GetFluxWOld        (Me%ObjPorousMedia, Me%ExtVar%FluxW, STAT)
+        call GetFluxWOld        (Me%ObjPorousMedia, Me%ExtVar%FluxW, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - ModulePorousMediaProperties - ERR050'
 
-        call GetUnsatWOld       (Me%ObjPorousMedia, Me%ExtVar%UnsatW, STAT)
+        call GetUnsatWOld       (Me%ObjPorousMedia, Me%ExtVar%UnsatW, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - ModulePorousMediaProperties - ERR060'
 
         call GetGridCellArea    (Me%ObjHorizontalGrid,                                     & 
@@ -4222,28 +4221,27 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
 
         !Local-----------------------------------------------------------------
         integer                                     :: STAT_CALL
-        integer                                     :: STAT
         !Begin-----------------------------------------------------------------
 
-        call UnGetPorousMedia           (Me%ObjPorousMedia, Me%ExtVar%WaterContentOld, STAT)
+        call UnGetPorousMedia           (Me%ObjPorousMedia, Me%ExtVar%WaterContentOld, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - ModulePorousMediaProperties - ERR010'
 
-        call UnGetPorousMedia           (Me%ObjPorousMedia, Me%ExtVar%WaterContent, STAT)
+        call UnGetPorousMedia           (Me%ObjPorousMedia, Me%ExtVar%WaterContent, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - ModulePorousMediaProperties - ERR020'
         
-        call UnGetPorousMedia           (Me%ObjPorousMedia, Me%ExtVar%FluxU, STAT)
+        call UnGetPorousMedia           (Me%ObjPorousMedia, Me%ExtVar%FluxU, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - ModulePorousMediaProperties - ERR030'
 
-        call UnGetPorousMedia           (Me%ObjPorousMedia, Me%ExtVar%FluxV, STAT)
+        call UnGetPorousMedia           (Me%ObjPorousMedia, Me%ExtVar%FluxV, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - ModulePorousMediaProperties - ERR040'
 
-        call UnGetPorousMedia           (Me%ObjPorousMedia, Me%ExtVar%FluxW, STAT)
+        call UnGetPorousMedia           (Me%ObjPorousMedia, Me%ExtVar%FluxW, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - ModulePorousMediaProperties - ERR050'
 
-        call UnGetPorousMedia           (Me%ObjPorousMedia,Me%ExtVar%UnsatW, STAT)
+        call UnGetPorousMedia           (Me%ObjPorousMedia,Me%ExtVar%UnsatW, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - ModulePorousMediaProperties - ERR060'
         
-        call UnGetHorizontalGrid        (Me%ObjHorizontalGrid,Me%ExtVar%Area,STAT)   
+        call UnGetHorizontalGrid        (Me%ObjHorizontalGrid,Me%ExtVar%Area,STAT = STAT_CALL)   
         if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - ModulePorousMediaProperties - ERR070'
 
         call UnGetMap                   (Me%ObjMap, Me%ExtVar%WaterPoints3D, STAT = STAT_CALL) 

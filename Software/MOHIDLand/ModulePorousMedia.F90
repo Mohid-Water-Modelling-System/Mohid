@@ -1869,7 +1869,7 @@ doSP:           do
         character(len=StringLength)                         :: TimeSerieLocationFile
         !Begin-----------------------------------------------------------------
         
-        nProperties = 11
+        nProperties = 10
         if (Me%ExtVar%ConstructEvaporation) then
             nProperties = nProperties + 1
         endif
