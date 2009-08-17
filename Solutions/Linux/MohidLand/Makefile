@@ -7,7 +7,7 @@
 # URL           : http://www.mohid.com
 # AFFILIATION   : IST/MARETEC, Marine Modelling Group
 # DATE          : September 2006
-# REVISION      : Guillaume Riflet - v1.0
+# REVISION      : Ana Rosa Trancoso
 # DESCRIPTION   : Makefile
 #------------------------------------------------------------------------------
 #
