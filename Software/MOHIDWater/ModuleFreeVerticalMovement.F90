@@ -1273,6 +1273,8 @@ do1 :   do i=Me%WorkSize%ILB, Me%WorkSize%IUB
                 enddo
                 !$OMP END DO NOWAIT
                 !$OMP END PARALLEL
+            else
+                call SetMatrixValue(PropertyX%Velocity, Me%Size, PropertyX%Ws_Value)
             endif
         end if
         
