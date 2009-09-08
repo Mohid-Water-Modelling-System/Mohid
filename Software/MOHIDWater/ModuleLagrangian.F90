@@ -13284,7 +13284,7 @@ cd3:    if (Deposition .and. present(GridBottomConc)) then ! fills up the bottom
                                    STAT = status)
             if (status /= SUCCESS_) call SetError(FATAL_, INTERNAL_, 'FillGridConcentration - ModuleLagrangian - ERR03')
 
-            deallocate (GridBottomConc)
+            deallocate (GridBottomMass)
 
 
         endif cd3
