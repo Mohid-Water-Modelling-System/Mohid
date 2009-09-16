@@ -8463,8 +8463,9 @@ i2:             if (Me%EulerModel(em)%WaterPoints3D(i, j, KUB) == WaterPoint) th
         type (T_Origin),   pointer                  :: CurrentOrigin
         type (T_Partic),   pointer                  :: CurrentPartic
         type (T_Property), pointer                  :: CurrentProperty
-        integer                                     :: TemperatureID, SalinityID, emp
+        integer                                     :: TemperatureID, SalinityID, emp, iProp
         real                                        :: T, S, Depth
+
 
 
         CurrentOrigin => Me%FirstOrigin
@@ -8472,16 +8473,20 @@ CurrOr: do while (associated(CurrentOrigin))
         
             if (CurrentOrigin%State%FarFieldBuoyancy) then
 
+                iProp = 0
+
                 !Finds Temperature and Salinity
                 CurrentProperty => CurrentOrigin%FirstProperty
                 do while (associated(CurrentProperty))
 
+                    iProp = iProp + 1
+
                     select case (CurrentProperty%ID)
                         case (Temperature_)
-                            TemperatureID = CurrentProperty%ID
+                            TemperatureID = iProp
                                                             
                         case (Salinity_   )
-                            SalinityID    = CurrentProperty%ID
+                            SalinityID    = iProp
                     end select
 
                     CurrentProperty => CurrentProperty%Next

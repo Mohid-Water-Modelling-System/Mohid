@@ -7172,23 +7172,29 @@ CurrOr: do while (associated(CurrentOrigin))
         type (T_Property), pointer                  :: CurrentProperty
         integer                                     :: TemperatureID, SalinityID
         real                                        :: T, S, Depth
-
+        integer                                     :: iProp
+        
+        !Begin-----------------------------------------------------------------
 
         CurrentOrigin => Me%FirstOrigin
 CurrOr: do while (associated(CurrentOrigin))
         
             if (CurrentOrigin%State%FarFieldBuoyancy) then
 
+                iProp = 0
+
                 !Finds Temperature and Salinity
                 CurrentProperty => CurrentOrigin%FirstProperty
                 do while (associated(CurrentProperty))
 
+                    iProp = iProp + 1
+
                     select case (CurrentProperty%ID)
                         case (Temperature_)
-                            TemperatureID = CurrentProperty%ID
+                            TemperatureID = iProp
                                                             
                         case (Salinity_   )
-                            SalinityID    = CurrentProperty%ID
+                            SalinityID    = iProp
                     end select
 
                     CurrentProperty => CurrentProperty%Next
