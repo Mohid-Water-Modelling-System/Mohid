@@ -1842,7 +1842,7 @@ cd11:   if (Me%ComputeOptions%Recording) then
             call SetGeneric4DValues(Me%ObjWaves, Me%Generic4D%CurrentValue, STAT = STAT_CALL)
 
             if (STAT_CALL /= SUCCESS_)                                                      &
-                stop 'Generic4thDimension - ModuleFillMatrix - ERR60'
+                stop 'Generic4thDimension - ModuleHydrodynamic - ERR60'
 #endif 
 
         else 
