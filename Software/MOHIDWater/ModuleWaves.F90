@@ -109,7 +109,7 @@ Module ModuleWaves
     integer, parameter                                      :: Old          = 0
     integer, parameter                                      :: CEQUALW2     = 1 
     integer, parameter                                      :: Grid         = 0
-    integer, parameter                                      :: Polygon      = 1                                                      
+    integer, parameter                                      :: Polygon      = 1
 
     integer, parameter                                      :: Sxx_         = 1
     integer, parameter                                      :: Syy_         = 2
