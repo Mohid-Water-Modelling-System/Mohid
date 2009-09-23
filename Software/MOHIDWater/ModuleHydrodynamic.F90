@@ -1200,10 +1200,10 @@ Module ModuleHydrodynamic
     private :: T_SubModel
     type       T_SubModel
         logical                              :: ON, Set, InterPolTime, DeadZone, MissingNull, FatherHotStart
-        !PCL - temporary
-        logical                              :: ON22
         character (Len = PathLength)         :: DeadZoneFile
         integer                              :: VertComunic
+
+        logical                              :: Extrapolate
 
         logical, dimension(:,:,:), pointer   :: DeadZonePoint
 
@@ -4671,8 +4671,6 @@ cd21:   if (Baroclinic) then
         if (STAT_CALL /= SUCCESS_)                                                       &
             call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR745') 
 
-        !PCL - temporary
-        Me%SubModel%ON22 = .false.
 
 
         !<BeginKeyword>
@@ -4700,6 +4698,31 @@ cd21:   if (Baroclinic) then
         if (STAT_CALL /= SUCCESS_)                                                       &
             call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR750') 
 
+
+        !<BeginKeyword>
+            !Keyword          : SUBMODEL_EXTRAPOL
+            !<BeginDescription>       
+               ! 
+               ! Check if the user wants to extrapolate the father velocities and water levels  
+               !  
+               ! 
+            !<EndDescription>
+            !Type             : logical 
+            !Default          : .false.
+            !File keyword     : IN_DAD3D
+            !Search Type      : From File
+        !<EndKeyword>
+
+        call GetData(Me%SubModel%Extrapolate,                                           & 
+                     Me%ObjEnterData, iflag,                                            &
+                     keyword    = 'SUBMODEL_EXTRAPOLATE',                               & 
+                     default    = .false.,                                              &
+                     SearchType = FromFile,                                             &
+                     ClientModule ='ModuleHydrodynamic',                                &
+                     STAT       = STAT_CALL)            
+        
+        if (STAT_CALL /= SUCCESS_)                                                       &
+            call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR750') 
 
 
 
@@ -8591,10 +8614,6 @@ cd5:                if (SurfaceElevation(i,j) < (- Bathymetry(i, j) + 0.999 * Mi
                               Array3D = WaterPoints3D,                                  &
                               STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleHydrodynamic - ERR440'
-
-        call HDF5SetLimits   (ObjHDF5, WorkILB, WorkIUB+1, WorkJLB,                     &
-                              WorkJUB+1, WorkKLB, WorkKUB, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleHydrodynamic - ERR450'
 
 
         !Writes everything to disk
@@ -12851,7 +12870,6 @@ cd6:            if (Water3DSon(i, j, KUB) == WaterPoint .and. .not. DeadZoneSon)
                     if (Me%SubModel%Z(i, j) < (- Bathymetry(i, j) + 0.75 * MinWaterColumn)) then
                         Me%SubModel%Z(i, j) =  - Bathymetry(i, j) + 0.75 * MinWaterColumn
                     endif
-
 
                     if (Me%SubModel%Z_Next    (i, j) < FillValueReal / 2. .or.   &
                         Me%SubModel%Z_Previous(i, j) < FillValueReal / 2.) then
@@ -17513,6 +17531,7 @@ cd21:   if (InitialField .and. .not. Me%ComputeOptions%Continuous) then
         real(8), dimension(:,:,:), pointer          :: FluxXFather, FluxYFather
         real,    dimension(:,:  ), pointer          :: ZFather
         integer, dimension(:,:,:), pointer          :: Open3DFather
+        integer, dimension(:,:,:), pointer          :: Open3DSon, Compute3DUSon, Compute3DVSon
         integer, dimension(:,:,:), pointer          :: Faces3D_UFather    
         integer, dimension(:,:,:), pointer          :: Faces3D_VFather      
         integer, dimension(:,:,:), pointer          :: WetFaces_UFather    
@@ -17522,22 +17541,28 @@ cd21:   if (InitialField .and. .not. Me%ComputeOptions%Continuous) then
 
         !Local-----------------------------------------------------------------
         integer                                     :: ComputeZ, ComputeU, ComputeV
-        integer                                     :: status, KLBSon, KUBSon
+        integer                                     :: status
+        integer                                     :: ILBSon, IUBSon, JLBSon, JUBSon, KLBSon, KUBSon
         integer                                     :: KLBFather, KUBFather
         
         !----------------------------------------------------------------------
 
 
-        KUBSon = Me%WorkSize%KUB
-        KLBSon = Me%WorkSize%KLB
+        KUBSon    = Me%WorkSize%KUB
+        KLBSon    = Me%WorkSize%KLB
 
         !Ang: new implementation father-son 3D connection
         KUBFather = Me%SubModel%FatherKUB
         KLBFather = Me%SubModel%FatherKLB
+        
+        ILBson    = Me%WorkSize%ILB
+        IUBson    = Me%WorkSize%IUB
+        JLBson    = Me%WorkSize%JLB
+        JUBson    = Me%WorkSize%JUB
 
         call GetComputeZUV(Me%ObjHorizontalGrid, ComputeZ, ComputeU, ComputeV, STAT = status)
         if (status /= SUCCESS_)                                                     &
-            call SetError(FATAL_, INTERNAL_, "ReadNextOrInitialField; Hydrodynamic. ERR01") 
+            call SetError(FATAL_, INTERNAL_, "ReadNextOrInitialField; Hydrodynamic. ERR10") 
 
 cd1:    if (Me%SubModel%InterPolTime .and. .not. InitialField) then
 
@@ -17554,7 +17579,7 @@ cd1:    if (Me%SubModel%InterPolTime .and. .not. InitialField) then
             !Me%SubModel%DVZ_Previous(:,:,:) = Me%SubModel%DVZ_Next(:,:,:)
 
         endif cd1
-
+        
         call InterpolRegularGrid   (Me%ObjHorizontalGrid,                           &
                                     FatherHorizontalGrid,                           &
                                     ZFather, Me%SubModel%Z_Next,                    &
@@ -17564,13 +17589,32 @@ cd1:    if (Me%SubModel%InterPolTime .and. .not. InitialField) then
                                     STAT          = status)
 
         if (status /= SUCCESS_)                                                     &
-            call SetError(FATAL_, INTERNAL_, "ReadNextOrInitialField; Hydrodynamic. ERR02") 
+            call SetError(FATAL_, INTERNAL_, "ReadNextOrInitialField; Hydrodynamic. ERR40") 
+            
+        if (Me%SubModel%Extrapolate) then
+           
+            call GetOpenPoints3D(Me%ObjMap, Open3DSon, STAT = status)
+            if (status /= SUCCESS_) stop "ReadNextOrInitialField - Hydrodynamic - ERR30"
 
+            call ExtraPol2DNearestCell (ILBson, IUBson, JLBson, JUBson, KUBson, Open3DSon, Me%SubModel%Z_Next)
+
+            call UnGetMap(Me%ObjMap, Open3DSon, STAT = status)
+            if (status /= SUCCESS_) stop "ReadNextOrInitialField - Hydrodynamic - ERR320"
+
+        endif
+            
         if (InitialField  .and. .not. Me%ComputeOptions%Continuous)                 &
             call Initial_Geometry(Me%SubModel%Z_Next)
 
             !The geometry is construct using the filed interpolated from the Father Water Level
             !The Mapping is also actualized by this subroutine
+            
+        if (Me%SubModel%Extrapolate) then
+        
+            call GetComputeFaces3D(Me%ObjMap, ComputeFacesU3D = Compute3DUSon, ComputeFacesV3D = Compute3DVSon, STAT = status)
+            if (status /= SUCCESS_) stop "ReadNextOrInitialField - Hydrodynamic - ERR20"
+           
+        endif                  
         
         !Ang: new implementation
         if ((Me%SubModel%VertComunic == FatherSonDifDim) .or.                       &
@@ -17587,8 +17631,8 @@ cd2:        if (InitialField) then  !.and. .not. Me%ComputeOptions%Continuous) t
                                             KLBFather, KUBFather, KUBSon,           &
                                             FluxType = .true., STAT = status)
                 if (status /= SUCCESS_)                                             &
-                    call SetError(FATAL_, INTERNAL_, "ReadNextOrInitialField; Hydrodynamic. ERR03") 
-
+                    call SetError(FATAL_, INTERNAL_, "ReadNextOrInitialField; Hydrodynamic. ERR50") 
+                    
 
                 call InterpolRegularGrid   (Me%ObjHorizontalGrid,                   &
                                             FatherHorizontalGrid,                   &
@@ -17598,7 +17642,18 @@ cd2:        if (InitialField) then  !.and. .not. Me%ComputeOptions%Continuous) t
                                             FluxType = .true., STAT = status)
 
                 if (status /= SUCCESS_)                                             &
-                    call SetError(FATAL_, INTERNAL_, "ReadNextOrInitialField; Hydrodynamic. ERR04") 
+                    call SetError(FATAL_, INTERNAL_, "ReadNextOrInitialField; Hydrodynamic. ERR60") 
+                    
+                if (Me%SubModel%Extrapolate) then
+                
+                    call ExtraPol3DNearestCell_8(ILBson, IUBson, JLBson, JUBson + 1,     &
+                                                KLBson, KUBson, Compute3DUSon, Me%SubModel%Aux_qX)
+
+                    call ExtraPol3DNearestCell_8(ILBson, IUBson + 1 , JLBson, JUBson,    & 
+                                                KLBson, KUBson, Compute3DVSon, Me%SubModel%Aux_qY)
+                               
+                endif
+                                
 
             endif cd2
 
@@ -17609,7 +17664,8 @@ cd2:        if (InitialField) then  !.and. .not. Me%ComputeOptions%Continuous) t
                                     KLBFather, KUBFather, KUBSon,                   &
                                     STAT = status)
             if (status /= SUCCESS_)                                                 &
-                call SetError(FATAL_, INTERNAL_, "ReadNextOrInitialField; Hydrodynamic. ERR05") 
+                call SetError(FATAL_, INTERNAL_, "ReadNextOrInitialField; Hydrodynamic. ERR70") 
+                
 
             call InterpolRegularGrid   (Me%ObjHorizontalGrid,                       &
                                     FatherHorizontalGrid,                           &
@@ -17628,6 +17684,8 @@ cd2:        if (InitialField) then  !.and. .not. Me%ComputeOptions%Continuous) t
                                     STAT = status)
             if (status /= SUCCESS_)                                                 &
                 call SetError(FATAL_, INTERNAL_, "ReadNextOrInitialField; Hydrodynamic. ERR07") 
+                
+             
 
             call InterpolRegularGrid   (Me%ObjHorizontalGrid,                       &
                                     FatherHorizontalGrid,                           &
@@ -17637,6 +17695,23 @@ cd2:        if (InitialField) then  !.and. .not. Me%ComputeOptions%Continuous) t
                                     STAT = status)
             if (status /= SUCCESS_)                                                 &
                 call SetError(FATAL_, INTERNAL_, "ReadNextOrInitialField; Hydrodynamic. ERR08") 
+                
+            if (Me%SubModel%Extrapolate) then
+            
+                call ExtraPol3DNearestCell(ILBson, IUBson, JLBson, JUBson + 1,     &
+                                            KLBson, KUBson, Compute3DUSon, Me%SubModel%Aux_U)
+
+                call ExtraPol3DNearestCell(ILBson, IUBson + 1 , JLBson, JUBson,    & 
+                                            KLBson, KUBson, Compute3DVSon, Me%SubModel%Aux_V)
+
+                call ExtraPol3DNearestCell(ILBson, IUBson, JLBson, JUBson + 1,     &
+                                            KLBson, KUBson, Compute3DUSon, Me%SubModel%Aux_DUZ)
+
+                call ExtraPol3DNearestCell(ILBson, IUBson + 1 , JLBson, JUBson,    & 
+                                            KLBson, KUBson, Compute3DVSon, Me%SubModel%Aux_DVZ)
+                           
+            endif
+                                          
 
        else
 
@@ -17700,6 +17775,27 @@ cd3:        if (InitialField) then  !.and. .not. Me%ComputeOptions%Continuous) t
             if (status /= SUCCESS_)                                                 &
                 call SetError(FATAL_, INTERNAL_, "ReadNextOrInitialField; Hydrodynamic. ERR14") 
 
+            if (Me%SubModel%Extrapolate) then
+
+                call ExtraPol3DNearestCell_8(ILBson, IUBson, JLBson, JUBson + 1,     &
+                                            KLBson, KUBson, Compute3DUSon, Me%SubModel%qX)
+
+                call ExtraPol3DNearestCell_8(ILBson, IUBson + 1 , JLBson, JUBson,    & 
+                                            KLBson, KUBson, Compute3DVSon, Me%SubModel%qY)
+                                  
+                call ExtraPol3DNearestCell(ILBson, IUBson, JLBson, JUBson + 1,     &
+                                            KLBson, KUBson, Compute3DUSon, Me%SubModel%U_Next)
+
+                call ExtraPol3DNearestCell(ILBson, IUBson + 1 , JLBson, JUBson,    & 
+                                            KLBson, KUBson, Compute3DVSon, Me%SubModel%V_Next)
+
+                call ExtraPol3DNearestCell(ILBson, IUBson, JLBson, JUBson + 1,     &
+                                            KLBson, KUBson, Compute3DUSon, Me%SubModel%DUZ_Next)
+
+                call ExtraPol3DNearestCell(ILBson, IUBson + 1 , JLBson, JUBson,    & 
+                                            KLBson, KUBson, Compute3DVSon, Me%SubModel%DVZ_Next)
+                           
+            endif
         endif 
 
 cd12:   if (Me%SubModel%InterPolTime .and. InitialField) then
@@ -17728,6 +17824,16 @@ cd12:   if (Me%SubModel%InterPolTime .and. InitialField) then
             endif
 
         endif cd12
+        
+        if (Me%SubModel%Extrapolate) then
+        
+            call UnGetMap(Me%ObjMap, Compute3DUSon, STAT = status)
+            if (status /= SUCCESS_) stop "ReadNextOrInitialField - Hydrodynamic - ERR300"
+                        
+            call UnGetMap(Me%ObjMap, Compute3DVSon, STAT = status)
+            if (status /= SUCCESS_) stop "ReadNextOrInitialField - Hydrodynamic - ERR310"
+
+        endif        
 
     end subroutine ReadNextOrInitialField 
 

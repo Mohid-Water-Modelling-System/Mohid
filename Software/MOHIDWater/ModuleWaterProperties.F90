@@ -216,7 +216,7 @@ Module ModuleWaterProperties
                                           OxygenSaturation,OxygenSaturationHenry,               &
                                           SpecificHeatUNESCO, ComputeT90_Chapra,                &
                                           ComputeT90_Canteras, SetMatrixValue, CHUNK_J, CHUNK_K, &
-                                          InterpolateProfileR8, TimeToString, ChangeSuffix
+                                          InterpolateProfileR8, TimeToString, ChangeSuffix, ExtraPol3DNearestCell 
 #else _USE_MPI
     use ModuleFunctions,            only: SigmaLeendertse, SigmaUNESCO, SigmaWang,              &
                                           SigmaUNESCOPressureCorrection,InterpolateValueInTime, &
@@ -225,7 +225,7 @@ Module ModuleWaterProperties
                                           OxygenSaturation,OxygenSaturationHenry,               &
                                           SpecificHeatUNESCO, ComputeT90_Chapra,                &
                                           ComputeT90_Canteras, SetMatrixValue, CHUNK_J, CHUNK_K, &
-                                          InterpolateProfileR8, TimeToString, ChangeSuffix
+                                          InterpolateProfileR8, TimeToString, ChangeSuffix, ExtraPol3DNearestCell 
 #endif _USE_MPI
                                           
     use ModuleTurbulence,           only: GetHorizontalViscosity, GetVerticalDiffusivity,       &
@@ -667,6 +667,7 @@ Module ModuleWaterProperties
         logical                                 :: Set
         logical                                 :: InterPolTime = .false.
         logical                                 :: Initial
+        logical                                 :: Extrapolate
         integer                                 :: VertComunic
         real,    dimension(:,:,:), pointer      :: NextField, PreviousField
         type(T_Time)                            :: NextTime, PreviousTime
@@ -1522,7 +1523,6 @@ cd2 :           if (BlockFound) then
 
         !Local-----------------------------------------------------------------
         real,    pointer, dimension(:, :   )        :: Bathymetry
-        real,    pointer, dimension(:, :   )        :: XX_IE, YY_IE
         integer, pointer, dimension(:, :, :)        :: WaterPoints3D
         character (Len = PathLength)                :: FileName
         character (Len = StringLength)              :: AuxChar
@@ -1589,11 +1589,6 @@ cd2 :           if (BlockFound) then
         call GetGridData      (Me%ObjGridData, Bathymetry, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleWaterProperties - ERR01'
 
-        !Gets XX_IE and YY_IE
-        call GetHorizontalGrid  (Me%ObjHorizontalGrid,                      &
-                                 XX_IE = XX_IE, YY_IE = YY_IE, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleWaterProperties - ERR02'
-
         !Gets WaterPoints3D
         call GetWaterPoints3D   (Me%ObjMap, WaterPoints3D, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleWaterProperties - ERR03'
@@ -1618,6 +1613,12 @@ cd2 :           if (BlockFound) then
             Me%ObjHDF5          = ObjHDF5
 
         endif        
+        
+        !Write the Horizontal Grid
+        call WriteHorizontalGrid(Me%ObjHorizontalGrid, ObjHDF5,                         &
+                                 WorkSize = WorkSize2D, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleWaterProperties - ERR08'
+        
 
         !Sets limits for next write operations
         call HDF5SetLimits   (ObjHDF5, WorkILB, WorkIUB, WorkJLB,                       &
@@ -1636,11 +1637,6 @@ cd2 :           if (BlockFound) then
                               STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleWaterProperties - ERR07'
 
-        !Write the Horizontal Grid
-        call WriteHorizontalGrid(Me%ObjHorizontalGrid, ObjHDF5,                         &
-                                 WorkSize = WorkSize2D, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleWaterProperties - ERR08'
-
         !Writes everything to disk
         call HDF5FlushMemory (ObjHDF5, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleWaterProperties - ERR09'
@@ -1653,13 +1649,6 @@ cd2 :           if (BlockFound) then
         !Ungets the WaterPoints
         call UnGetMap        (Me%ObjMap, WaterPoints3D, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleWaterProperties - ERR11'
-
-        !Ungets XX_IE, YY_IE
-        call UnGetHorizontalGrid (Me%ObjHorizontalGrid, XX_IE, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleWaterProperties - ERR12'
-
-        call UnGetHorizontalGrid (Me%ObjHorizontalGrid, YY_IE, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleWaterProperties - ERR13'
 
         !----------------------------------------------------------------------
 
@@ -5594,7 +5583,7 @@ cd1:    if (BoundaryCondition == Orlanski) then
                      ClientModule = 'ModuleWaterProperties',                             &
                      STAT       = STAT_CALL)  
         if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'ReadSubModelOptions - ModuleWaterProperties - ERR01'
+            stop 'ReadSubModelOptions - ModuleWaterProperties - ERR10'
 
 
         !<BeginKeyword>
@@ -5619,8 +5608,31 @@ cd1:    if (BoundaryCondition == Orlanski) then
                      ClientModule = 'ModuleWaterProperties',                             &
                      STAT       = STAT_CALL)  
         if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'ReadSubModelOptions - ModuleWaterProperties - ERR02'
+            stop 'ReadSubModelOptions - ModuleWaterProperties - ERR20'
 
+        !<BeginKeyword>
+            !Keyword          : SUBMODEL_EXTRAPOLATE
+            !<BeginDescription>       
+               ! 
+               ! Do not have
+               !
+            !<EndDescription>
+            !Type             : Logical 
+            !Default          : .false.
+            !File keyword     : DISPQUAL
+            !Search Type      : FromBlock
+            !Begin Block      : <beginproperty>
+            !End Block        : <endproperty>
+        !<EndKeyword>
+        call GetData(NewProperty%SubModel%Extrapolate,                                 &
+                     Me%ObjEnterData, iflag,                                             &
+                     SearchType   = FromBlock,                                           &
+                     keyword      = 'SUBMODEL_EXTRAPOLATE',                              &
+                     Default      = OFF,                                                 &
+                     ClientModule = 'ModuleWaterProperties',                             &
+                     STAT       = STAT_CALL)  
+        if (STAT_CALL /= SUCCESS_)                                                       &
+            stop 'ReadSubModelOptions - ModuleWaterProperties - ERR30'
 
 
     end subroutine ReadSubModelOptions
@@ -8840,24 +8852,38 @@ cd2:    if (PropertySon%SubModel%InterpolTime) then
         !Local-----------------------------------------------------------------
         integer                                 :: ComputeZ
         integer                                 :: STAT_CALL 
-        integer                                 :: KUBSon
+        integer                                 :: ILBSon, IUBSon, JLBSon, JUBSon, KLBSon, KUBSon
         integer                                 :: KLBFather, KUBFather
+        integer, dimension(:,:,:),  pointer     :: Open3DSon
 
         !----------------------------------------------------------------------
 
+       
         KUBSon    = Me%WorkSize%KUB
+        KLBSon    = Me%WorkSize%KLB
+        ILBson    = Me%WorkSize%ILB
+        IUBson    = Me%WorkSize%IUB
+        JLBson    = Me%WorkSize%JLB
+        JUBson    = Me%WorkSize%JUB        
 
         !Ang: new implementation father-son 3D connection
         KUBFather = PropertySon%SubModel%FatherKUB
         KLBFather = PropertySon%SubModel%FatherKLB
 
         call GetComputeZUV(FatherGridID, ComputeZ, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)stop 'ReadNextOrInitialField - WaterProperties - ERR01'
+        if (STAT_CALL /= SUCCESS_)stop 'ReadNextOrInitialField - WaterProperties - ERR10'
 
         if (PropertySon%SubModel%InterPolTime .and. .not. InitialField)then
             call SetMatrixValue(PropertySon%SubModel%PreviousField,         &
                                 Me%Size, PropertySon%SubModel%NextField)
         endif
+        
+        if (PropertySon%SubModel%Extrapolate) then
+        
+            call GetOpenPoints3D(Me%ObjMap, Open3DSon, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop "ReadNextOrInitialField - WaterProperties - ERR20"
+                        
+        endif         
 
         !Ang: new implementation
         if ((PropertySon%SubModel%VertComunic == FatherSonDifDim) .or.      &
@@ -8870,7 +8896,7 @@ cd2:    if (PropertySon%SubModel%InterpolTime) then
                                         Open3DFather, ComputeZ,             &
                                         KLBFather, KUBFather, KUBSon,       &
                                         STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)stop 'ReadNextOrInitialField - WaterProperties - ERR02'
+            if (STAT_CALL /= SUCCESS_)stop 'ReadNextOrInitialField - WaterProperties - ERR30'
 
             call InterpolRegularGrid   (Me%ObjHorizontalGrid,               &
                                         FatherGridID,                       &
@@ -8879,7 +8905,17 @@ cd2:    if (PropertySon%SubModel%InterpolTime) then
                                         Open3DFather, ComputeZ,             &
                                         KLBFather, KUBFather, KUBSon,       &
                                         STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)stop 'ReadNextOrInitialField - WaterProperties - ERR03'
+            if (STAT_CALL /= SUCCESS_)stop 'ReadNextOrInitialField - WaterProperties - ERR40'
+            
+            if (PropertySon%SubModel%Extrapolate) then
+               
+                call ExtraPol3DNearestCell (ILBson, IUBson, JLBson, JUBson, KLBson, KUBson, &
+                                            Open3DSon, PropertySon%SubModel%Aux_Field)
+
+                call ExtraPol3DNearestCell (ILBson, IUBson, JLBson, JUBson, KLBson, KUBson, &
+                                            Open3DSon, PropertySon%SubModel%Aux_ZCellCenter)
+
+            endif            
     
         else
 
@@ -8890,9 +8926,23 @@ cd2:    if (PropertySon%SubModel%InterpolTime) then
                                         Open3DFather, ComputeZ,             &
                                         KLBFather, KUBFather, KUBSon,       &
                                         STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)stop 'ReadNextOrInitialField - WaterProperties - ERR04'
+            if (STAT_CALL /= SUCCESS_)stop 'ReadNextOrInitialField - WaterProperties - ERR50'
+
+            if (PropertySon%SubModel%Extrapolate) then
+               
+                call ExtraPol3DNearestCell (ILBson, IUBson, JLBson, JUBson, KLBson, KUBson, &
+                                            Open3DSon, PropertySon%SubModel%NextField)
+
+           endif     
 
         endif
+        
+        if (PropertySon%SubModel%Extrapolate) then
+        
+            call UnGetMap(Me%ObjMap, Open3DSon, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop "ReadNextOrInitialField - WaterProperties - ERR60"
+                        
+        endif            
 
         if (PropertySon%SubModel%InterPolTime .and. InitialField)then
 
