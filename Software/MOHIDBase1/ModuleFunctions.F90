@@ -129,7 +129,12 @@ Module ModuleFunctions
     public  :: LinearInterpolation
     public  :: InterpolateLinearyMatrix2D
     public  :: InterpolateLinearyMatrix3D
-
+    
+    !Extrapolation 
+    public  :: ExtraPol2DNearestCell 
+    public  :: ExtraPol3DNearestCell 
+    public  :: ExtraPol3DNearestCell_8
+    
     !Reading of Time Keywords
     public  :: ReadTimeKeyWords
 
@@ -3298,7 +3303,286 @@ end function
 
     !--------------------------------------------------------------------------
 
-    
+    subroutine ExtraPol2DNearestCell (ILB, IUB, JLB, JUB, KUB, ComputePoints3D, OutValues2D)
+
+        !Arguments-------------------------------------------------------------
+        integer                                     :: JLB, JUB, ILB, IUB, KUB        
+        real,         dimension(:,:),   pointer     :: OutValues2D
+        integer,      dimension(:,:,:), pointer     :: ComputePoints3D
+
+        !Local-----------------------------------------------------------------
+
+        integer                                     :: dij, Count, i, j, NumberOfCells
+        integer                                     :: jj, ii, dijmax, dimax, djmax
+        real                                        :: SumValues
+        
+        !Begin-----------------------------------------------------------------
+
+        NumberOfCells =  Sum(ComputePoints3D(ILB:IUB, JLB:JUB, KUB))
+
+        if (NumberOfCells > 0) then
+
+            do j = JLB, JUB
+            do i = ILB, IUB
+
+            if (OutValues2D(i, j) < FillValueReal/4. .and. ComputePoints3D(i, j, KUB) == 1) then
+
+                    dimax = IUB-ILB + 1
+                    djmax = JUB-JLB + 1
+
+                    dijmax = max(dimax, djmax)
+                
+                    SumValues   = 0
+                    Count = 0
+
+                    do dij=1,dijmax
+
+                        do jj=j-dij,j+dij
+                        do ii=i-dij,i+dij
+
+                            if (jj < JLB) cycle
+                            if (jj > JUB) cycle
+                            if (ii < ILB) cycle
+                            if (ii > IUB) cycle
+
+                            if (OutValues2D(ii, jj) > FillValueReal/4.) then
+                                SumValues   = SumValues   + OutValues2D(ii, jj) 
+                                Count = Count + 1
+                            endif
+
+                        enddo
+                        enddo
+
+                        if (Count > 0) exit
+
+                    enddo
+
+                    if (Count > 0) then
+
+                        OutValues2D(i, j) = SumValues / real(Count)
+
+                    else
+                        stop 'ExtraPol2DNearestCell - ModuleFunctions - ERR10'
+                    endif
+
+                endif
+
+            enddo
+            enddo
+
+        endif
+
+    end subroutine ExtraPol2DNearestCell
+
+    !-------------------------------------------------------------------------------------
+
+    subroutine ExtraPol3DNearestCell (ILB, IUB, JLB, JUB, KLB, KUB, ComputePoints3D, OutValues3D)
+
+        !Arguments-------------------------------------------------------------
+        integer                                     :: JLB, JUB, ILB, IUB, KLB, KUB  
+        real,         dimension(:,:,:), pointer     :: OutValues3D
+        integer,      dimension(:,:,:), pointer     :: ComputePoints3D
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: dij, dk, Count, i, j, k, NumberOfCells
+        integer                                     :: jj, ii, kk, dijmax, dimax, djmax
+        real                                        :: SumValues
+        
+        !Begin-----------------------------------------------------------------
+
+d1:     do k = KLB, KUB
+
+            NumberOfCells =  Sum(ComputePoints3D(ILB:IUB, JLB:JUB, k))
+
+            if (NumberOfCells > 0) then
+
+                do j = JLB, JUB
+                do i = ILB, IUB
+
+                if (OutValues3D(i, j, k) < FillValueReal/4. .and. ComputePoints3D(i, j, k) == 1) then
+
+                        dimax = IUB-ILB + 1
+                        djmax = JUB-JLB + 1
+
+                        dijmax = max(dimax, djmax)
+                    
+                        SumValues   = 0
+                        Count = 0
+
+                        do dij=1,dijmax
+
+                            do jj=j-dij,j+dij
+                            do ii=i-dij,i+dij
+
+                                if (jj < JLB) cycle
+                                if (jj > JUB) cycle
+                                if (ii < ILB) cycle
+                                if (ii > IUB) cycle
+
+                                if (OutValues3D(ii, jj, k) > FillValueReal/4.) then
+                                    SumValues   = SumValues   + OutValues3D(ii, jj, k) 
+                                    Count = Count + 1
+                                endif
+
+                            enddo
+                            enddo
+
+                            if (Count > 0) exit
+
+                        enddo
+
+                        if (Count > 0) then
+
+                            OutValues3D(i, j, k) = SumValues / real(Count)
+
+                        else
+                            do dk = 1, KUB - KLB + 1
+                            
+                                do kk = k - dk, k + dk
+
+                                    if (kk < KLB) cycle
+                                    if (kk > KUB) cycle
+                                    
+                                    if (OutValues3D(i, j, kk) > FillValueReal/4.) then
+                                        SumValues   = SumValues   + OutValues3D(i, j, kk) 
+                                        Count = Count + 1
+                                    endif
+
+                                enddo  
+                                
+                                if (Count >0) exit
+                                
+                            enddo 
+                                
+                            if (Count > 0) then
+
+                                OutValues3D(i, j, k) = SumValues / real(Count)
+                            
+                            else
+
+                                stop 'ExtraPol3DNearestCell - ModuleFunctions - ERR10'
+                                
+                            endif
+                        endif
+
+                    endif
+
+                enddo
+                enddo
+
+            endif
+
+        enddo d1
+
+    end subroutine ExtraPol3DNearestCell
+
+    !-------------------------------------------------------------------------------------
+
+   !-------------------------------------------------------------------------------------
+
+    subroutine ExtraPol3DNearestCell_8 (ILB, IUB, JLB, JUB, KLB, KUB, ComputePoints3D, OutValues3D)
+
+        !Arguments-------------------------------------------------------------
+        integer                                     :: JLB, JUB, ILB, IUB, KLB, KUB  
+        real(8),      dimension(:,:,:), pointer     :: OutValues3D
+        integer,      dimension(:,:,:), pointer     :: ComputePoints3D
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: dij, dk, Count, i, j, k, NumberOfCells
+        integer                                     :: jj, ii, kk, dijmax, dimax, djmax
+        real                                        :: SumValues
+        
+        !Begin-----------------------------------------------------------------
+
+d1:     do k = KLB, KUB
+
+            NumberOfCells =  Sum(ComputePoints3D(ILB:IUB, JLB:JUB, k))
+
+            if (NumberOfCells > 0) then
+
+                do j = JLB, JUB
+                do i = ILB, IUB
+
+                if (OutValues3D(i, j, k) < FillValueReal/4. .and. ComputePoints3D(i, j, k) == 1) then
+
+                        dimax = IUB-ILB + 1
+                        djmax = JUB-JLB + 1
+
+                        dijmax = max(dimax, djmax)
+                    
+                        SumValues   = 0
+                        Count = 0
+
+                        do dij=1,dijmax
+
+                            do jj=j-dij,j+dij
+                            do ii=i-dij,i+dij
+
+                                if (jj < JLB) cycle
+                                if (jj > JUB) cycle
+                                if (ii < ILB) cycle
+                                if (ii > IUB) cycle
+
+                                if (OutValues3D(ii, jj, k) > FillValueReal/4.) then
+                                    SumValues   = SumValues   + OutValues3D(ii, jj, k) 
+                                    Count = Count + 1
+                                endif
+
+                            enddo
+                            enddo
+
+                            if (Count > 0) exit
+
+                        enddo
+
+                        if (Count > 0) then
+
+                            OutValues3D(i, j, k) = SumValues / real(Count)
+
+                        else
+                            do dk = 1, KUB - KLB + 1
+                            
+                                do kk = k - dk, k + dk
+
+                                    if (kk < KLB) cycle
+                                    if (kk > KUB) cycle
+                                    
+                                    if (OutValues3D(i, j, kk) > FillValueReal/4.) then
+                                        SumValues   = SumValues   + OutValues3D(i, j, kk) 
+                                        Count = Count + 1
+                                    endif
+
+                                enddo  
+                                
+                                if (Count >0) exit
+                                
+                            enddo 
+                                
+                            if (Count > 0) then
+
+                                OutValues3D(i, j, k) = SumValues / real(Count)
+                            
+                            else
+
+                                stop 'ExtraPol3DNearestCell_8 - ModuleFunctions - ERR10'
+                                
+                            endif
+                        endif
+
+                    endif
+
+                enddo
+                enddo
+
+            endif
+
+        enddo d1
+
+    end subroutine ExtraPol3DNearestCell_8
+
+    !-------------------------------------------------------------------------------------
+
+    !-------------------------------------------------------------------------------------    
     subroutine ReadTimeKeyWords(ObjEnterData, ExtractTime, BeginTime, EndTime, DT,       &
                                 VariableDT, ClientModule, MaxDT, GmtReference,           &
                                 DTPredictionInterval)
