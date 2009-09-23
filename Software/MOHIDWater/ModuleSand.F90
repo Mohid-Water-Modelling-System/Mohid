@@ -3793,7 +3793,15 @@ TOut:       if (Actual >= Me%OutPut%OutTime(OutPutNumber)) then
                                      OutputNumber = OutPutNumber, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'OutPutSandHDF - ModuleSand - ERR07'
 
+                call HDF5WriteData  (Me%ObjHDF5, "/Results/Transport Flux X", "Transport Flux X",        &
+                                     "m3/s/m", Array2D = Me%FluxX,                       &
+                                     OutputNumber = OutPutNumber, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'OutPutSandHDF - ModuleSand - ERR80'
 
+                call HDF5WriteData  (Me%ObjHDF5, "/Results/Transport Flux Y", "Transport Flux Y",        &
+                                     "m3/s/m", Array2D = Me%FluxY,                       &
+                                     OutputNumber = OutPutNumber, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'OutPutSandHDF - ModuleSand - ERR90'
 
                 !Writes everything to disk
                 call HDF5FlushMemory (Me%ObjHDF5, STAT = STAT_CALL)
