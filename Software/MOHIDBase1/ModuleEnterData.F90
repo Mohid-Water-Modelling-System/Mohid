@@ -3797,7 +3797,7 @@ if1:        if (FoundWindow) then
                 call GetOutPutTime(Me%InstanceID,                                       &
                     CurrentTime   = CurrentTime,                                        &
                     EndTime       = EndTime,                                            &
-                    keyword       = 'OUTPUT_TIME',                                      &
+                    keyword       = 'OUTPUT_TIME_W',                                    &
                     SearchType    = FromBlockinBlock,                                   &
                     OutPutsTime   = OutPutWindows(WN)%OutTime,                          &
                     OutPutsOn     = OutPutWindows(WN)%ON,                               &
@@ -3810,7 +3810,7 @@ if1:        if (FoundWindow) then
 
                 call GetDAta    (Aux,                                                   &
                                  Me%InstanceID, iflag,                                  &
-                                 Keyword        = 'KLB_KUB',                            &
+                                 Keyword        = 'KLB_KUB_W',                          &
                                  SearchType     = FromBlockinBlock,                     &
                                  ClientModule   = 'ModuleEnterData',                    &
                                  STAT           = STAT_CALL)
@@ -3826,7 +3826,7 @@ if1:        if (FoundWindow) then
 
                 call GetDAta    (Aux,                                                   &
                                  Me%InstanceID, iflag,                                  &
-                                 Keyword        = 'ILB_IUB',                            &
+                                 Keyword        = 'ILB_IUB_W',                          &
                                  SearchType     = FromBlockinBlock,                     &
                                  ClientModule   = 'ModuleEnterData',                    &
                                  STAT           = STAT_CALL)
@@ -3842,7 +3842,7 @@ if1:        if (FoundWindow) then
 
                 call GetDAta    (Aux,                                                   &
                                  Me%InstanceID, iflag,                                  &
-                                 Keyword        = 'JLB_JUB',                            &
+                                 Keyword        = 'JLB_JUB_W',                          &
                                  SearchType     = FromBlockinBlock,                     &
                                  ClientModule   = 'ModuleEnterData',                    &
                                  STAT           = STAT_CALL)
