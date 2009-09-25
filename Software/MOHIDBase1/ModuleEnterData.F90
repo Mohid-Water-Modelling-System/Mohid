@@ -3701,14 +3701,15 @@ if1:        if (FoundBlock) then
                 if (WindowsNumber > 0) OutPutWindowsON = .true.
                 
                 call ReadOutPutWindows   (CurrentTime, EndTime, ClientNumber, OutPutWindows)
-                    
-            else  if1
-
-                call Block_Unlock(Me%InstanceID, ClientNumber, STAT = STAT_CALL) 
-                if (STAT_CALL /= SUCCESS_) stop 'GetOutPutTimeWindows - EnterData - ERR20'
-            
+                
             endif if1
             
+            call RewindBuffer(Me%InstanceID, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'GetOutPutTimeWindows - EnterData - ERR20'   
+            
+            call Block_Unlock(Me%InstanceID, ClientNumber, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'GetOutPutTimeWindows - EnterData - ERR30'
+                                                 
             STAT_ = SUCCESS_
 
         else cd1
@@ -3859,9 +3860,6 @@ if1:        if (FoundWindow) then
                 
             else  if1
             
-                call Block_Unlock(Me%InstanceID, ClientNumber, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ReadOutPutWindows - EnterData - ERR90'
-                
                 exit
 
             endif if1
