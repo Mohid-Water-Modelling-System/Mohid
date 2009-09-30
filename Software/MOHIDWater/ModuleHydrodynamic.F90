@@ -619,6 +619,7 @@ Module ModuleHydrodynamic
     integer, parameter :: Gauge_                = 4
     integer, parameter :: AssimilaPlusSubModel_ = 5
     integer, parameter :: GaugePlusSubModel_    = 6
+    integer, parameter :: AssimilaGaugeSubModel_= 7
 
     !Baroclinic open boundary conditio discretization options
     integer, parameter :: Explicit_  = 1
@@ -4901,7 +4902,7 @@ cd21:   if (Baroclinic) then
             !Type             : integer 
             !Default          : NoRadiation_
             !Options          : 1 - NoLocalSolution_,      2 - Submodel_, 3 - AssimilationField_, 4 - Gauge_, 
-            !                   5 - AssimilaPlusSubModel_, 6 - GaugePlusSubModel_
+            !                   5 - AssimilaPlusSubModel_, 6 - GaugePlusSubModel_, 7 -AssimilaGaugeSubModel_
             !File keyword     : IN_DAD3D
             !Search Type      : From File
         !<EndKeyword>
@@ -4921,7 +4922,8 @@ cd21:   if (Baroclinic) then
         if (BarotropicRadia == FlatherLocalSolution_ .and.                              &
             (Me%ComputeOptions%LocalSolution == AssimilationField_ .or.                 &
              Me%ComputeOptions%LocalSolution == AssimilaPlusSubModel_ .or.              &
-             Me%ComputeOptions%LocalSolution == GaugePlusSubModel_)) then 
+             Me%ComputeOptions%LocalSolution == GaugePlusSubModel_    .or.              &
+             Me%ComputeOptions%LocalSolution == AssimilaGaugeSubModel_)) then 
 
 
             !<BeginKeyword>
@@ -5864,6 +5866,7 @@ cd3:            if (Me%ComputeOptions%Continuous) then
             Me%ComputeOptions%LocalSolution   /= SubModel_             .and.            &
             Me%ComputeOptions%LocalSolution   /= AssimilaPlusSubModel_ .and.            &
             Me%ComputeOptions%LocalSolution   /= GaugePlusSubModel_    .and.            &
+            Me%ComputeOptions%LocalSolution   /= AssimilaGaugeSubModel_.and.            & 
             Me%SubModel%ON)                                                             &
             call SetError(WARNING_, KEYWORD_, 'The model is not using in the flather OBC the submodel as the local solution')
         
@@ -5883,6 +5886,7 @@ cd3:            if (Me%ComputeOptions%Continuous) then
             Me%ComputeOptions%LocalSolution /= AssimilationField_    .and.              &
             Me%ComputeOptions%LocalSolution /= AssimilaPlusSubModel_ .and.              &
             Me%ComputeOptions%LocalSolution /= GaugePlusSubModel_    .and.              &
+            Me%ComputeOptions%LocalSolution /= AssimilaGaugeSubModel_.and.              &
             Me%ComputeOptions%LocalSolution /= Gauge_)                                  &
             call SetError(FATAL_, KEYWORD_, 'Verify_Numerical_Options - Hydrodynamic - ERR29.')            
 
@@ -5938,7 +5942,8 @@ cd3:            if (Me%ComputeOptions%Continuous) then
             write(*,*) 'Verify_Numerical_Options - Hydrodynamic - ERR42.'            
         endif
             
-        if (Me%ComputeOptions%LocalSolution   == GaugePlusSubModel_    .and.            &
+        if ((Me%ComputeOptions%LocalSolution == GaugePlusSubModel_ .or.                 &
+             Me%ComputeOptions%LocalSolution ==  AssimilaGaugeSubModel_)   .and.        &
            (.not.(Me%ComputeOptions%Compute_Tide .or. Me%ComputeOptions%InvertBarometer) )) then
             write(*,*) 'To activate the local solution Gauge + SubModel'
             write(*,*) 'One of the options TIDE or INVERTBAROMETER must be on' 
@@ -18774,7 +18779,8 @@ cd1:    if (Evolution == Solve_Equations_) then
                                             Me%External_Var%SigmaDens)
                                             
             if (Me%ComputeOptions%LocalSolution == AssimilationField_ .or.              &
-                Me%ComputeOptions%LocalSolution == AssimilaPlusSubModel_) then 
+                Me%ComputeOptions%LocalSolution == AssimilaPlusSubModel_ .or.           &
+                Me%ComputeOptions%LocalSolution == AssimilaGaugeSubModel_) then 
                 
                 ! Compute batotropic part of geostrophic velocitiy
             
@@ -23011,8 +23017,9 @@ cd24:   if (Me%Relaxation%RefBoundWaterLevel) then
             call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherLocalSolution - Hydrodynamic - ERR00")
 
 
-cd0:    if (Me%ComputeOptions%LocalSolution == Gauge_ .or.                              &
-            Me%ComputeOptions%LocalSolution == GaugePlusSubModel_ ) then
+cd0:    if (Me%ComputeOptions%LocalSolution == Gauge_             .or.                  &
+            Me%ComputeOptions%LocalSolution == GaugePlusSubModel_ .or.                  &
+            Me%ComputeOptions%LocalSolution == AssimilaGaugeSubModel_) then
 
 
             call Modify_OpenBoundary(Me%ObjOpenBoundary,                                &
@@ -23079,7 +23086,8 @@ cd0:    if (Me%ComputeOptions%LocalSolution == Gauge_ .or.                      
 
 
 ifa:    if (Me%ComputeOptions%LocalSolution == AssimilationField_ .or.      & 
-            Me%ComputeOptions%LocalSolution == AssimilaPlusSubModel_) then 
+            Me%ComputeOptions%LocalSolution == AssimilaPlusSubModel_ .or.   &
+            Me%ComputeOptions%LocalSolution == AssimilaGaugeSubModel_) then 
 
             !call GetAssimilationList(WaterLevel = PropertyID)
             call GetAssimilationField(Me%ObjAssimilation,                   &
@@ -23133,7 +23141,8 @@ ifa:    if (Me%ComputeOptions%LocalSolution == AssimilationField_ .or.      &
 
 ifb:    if  (Me%ComputeOptions%LocalSolution == SubModel_            .or.               &
              Me%ComputeOptions%LocalSolution == AssimilaPlusSubModel_.or.               &
-             Me%ComputeOptions%LocalSolution == GaugePlusSubModel_) then 
+             Me%ComputeOptions%LocalSolution == GaugePlusSubModel_   .or.               &
+             Me%ComputeOptions%LocalSolution == AssimilaGaugeSubmodel_) then 
 
 
             SubModelWaterLevel => Me%SubModel%Z 
@@ -23519,7 +23528,8 @@ cd15:           if (LocalSolution) then
         
 
 cd24:   if (Me%ComputeOptions%LocalSolution == Gauge_             .or.                  &
-            Me%ComputeOptions%LocalSolution == GaugePlusSubmodel_) then
+            Me%ComputeOptions%LocalSolution == GaugePlusSubmodel_ .or.                  &
+            Me%ComputeOptions%LocalSolution == AssimilaGaugeSubmodel_) then
 
             call UnGetOpenBoundary(Me%ObjOpenBoundary, GaugeWaterLevel, STAT = status)
             if (status /= SUCCESS_) &
@@ -23540,7 +23550,8 @@ cd24:   if (Me%ComputeOptions%LocalSolution == Gauge_             .or.          
 
 
 cd25:   if (Me%ComputeOptions%LocalSolution == AssimilationField_    .or.               &
-            Me%ComputeOptions%LocalSolution == AssimilaPlusSubModel_) then 
+            Me%ComputeOptions%LocalSolution == AssimilaPlusSubModel_ .or.               &
+            Me%ComputeOptions%LocalSolution == AssimilaGaugeSubmodel_) then 
 
 
             call UnGetAssimilation(Me%ObjAssimilation,                                  &
@@ -23950,7 +23961,8 @@ cd1:        if (BoundaryPoints(i, j) == Boundary) then
         !PCL - temporary
 cdsub: if (Me%SubModel%ON                                           .and.               &
            Me%ComputeOptions%LocalSolution /= AssimilaPlusSubModel_ .and.               &
-           Me%ComputeOptions%LocalSolution /= AssimilationField_) then
+           Me%ComputeOptions%LocalSolution /= AssimilationField_    .and.               &
+           Me%ComputeOptions%LocalSolution /= AssimilaGaugeSubModel_) then
 
             call VelSubModelNormalOB       ( Velocity_UV_New)
 
@@ -25856,7 +25868,9 @@ cd3:                   if (Manning) then
                 !To avoid chezyUV null. This way the bottom shear stress is not null when the water cover for the first time 
                 !an uncovered cell. Need to be double check is schematic models
                 
-                if (VelMod_UV == 0.) VelMod_UV = 0.1
+                if (.not. Me%FirstIteration .and. .not. Me%ComputeOptions%Continuous) then
+                    if (VelMod_UV == 0.) VelMod_UV = 0.1
+                endif
                 
                 ChezyVelUV(i, j) = Chezy  * DT_Z * VelMod_UV
 
@@ -29695,7 +29709,8 @@ do3:            do K=kbottom, KUB
                     if (Me%Relaxation%ReferenceVelocity /= BarotrVel_)      &
                         VelModel  = Velocity_UV_New(i, j, k)
 
-                    if     (Me%ComputeOptions%LocalSolution == AssimilaPlusSubModel_) then
+                    if     (Me%ComputeOptions%LocalSolution == AssimilaPlusSubModel_  .or.  &
+                            Me%ComputeOptions%LocalSolution == AssimilaGaugeSubmodel_) then
 
                          VelReference = VelAssimilation(i, j, k)  + SubModel_UV_New(i, j, k)
                     
