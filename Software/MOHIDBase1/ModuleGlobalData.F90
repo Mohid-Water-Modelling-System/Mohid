@@ -556,6 +556,7 @@ Module ModuleGlobalData
     integer, parameter ::  PeakDirection_                  = 3510
     integer, parameter ::  WindSeaPeakFrequency_           = 3511
     integer, parameter ::  WindSeaPeakDirection_           = 3512
+    integer, parameter ::  WaveSwellHeight_                = 3513 
 
 !____________________________________________________________________________________
 !________________________________________________________exclusive use @ modulelife__
@@ -1028,6 +1029,7 @@ Module ModuleGlobalData
     character(StringLength), private, parameter :: Char_PeakDirection            = 'peak direction'
     character(StringLength), private, parameter :: Char_WindSeaPeakFrequency     = 'wind sea peak frequency'
     character(StringLength), private, parameter :: Char_WindSeaPeakDirection     = 'wind sea peak direction'
+    character(StringLength), private, parameter :: Char_WaveSwellHeight          = 'wave swell height'
 
     !Consolidation
     character(StringLength), private, parameter :: Char_ConsolidationFlux        = 'consolidation flux'
@@ -1994,7 +1996,8 @@ Module ModuleGlobalData
             call AddPropList (PeakDirection_,           Char_PeakDirection,              ListNumber)
             call AddPropList (WindSeaPeakFrequency_,    Char_WindSeaPeakFrequency,       ListNumber)
             call AddPropList (WindSeaPeakDirection_,    Char_WindSeaPeakDirection,       ListNumber)
-
+            call AddPropList (WaveSwellHeight_     ,    Char_WaveSwellHeight,            ListNumber)
+            
             call AddPropList (ConsolidationFlux_,       Char_ConsolidationFlux,          ListNumber)
             call AddPropList (Porosity_,                Char_Porosity,                   ListNumber)
             
