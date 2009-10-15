@@ -159,7 +159,7 @@ Module ModuleInterface
     type      T_Interface
         private
         integer                                 :: InstanceID
-        character(StringLength)                 :: FileName
+        character(PathLength)                   :: FileName
         character(StringLength)                 :: SinksSourcesModel
         type(T_Size3D)                          :: Size3D
         type(T_Size2D)                          :: Size2D
