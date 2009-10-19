@@ -2006,6 +2006,10 @@ if1:    if (Me%TimeWindow) then
 
         CurrentDate => Me%FirstDate
 
+        PotTemp3D_OK  = .false.
+        Pressure3D_OK = .false.
+
+
         do while(associated(CurrentDate))
 
             Field => Me%FirstField
@@ -2455,19 +2459,19 @@ if1:    if (Me%TimeWindow) then
         enddo
         deallocate(PL, XKLEV, TS, T0)
 
-      print *,'sea pres input at weird location i=20,j=1,k=1'
-      print *,'t=',Temperature3D(20,1,1),Temperature3D(20,2,1),Temperature3D(20,3,1)
-      print *,'terrain=',Terrain(20,1),Terrain(20,2),Terrain(20,3)
+!      print *,'sea pres input at weird location i=20,j=1,k=1'
+!      print *,'t=',Temperature3D(20,1,1),Temperature3D(20,2,1),Temperature3D(20,3,1)
+!      print *,'terrain=',Terrain(20,1),Terrain(20,2),Terrain(20,3)
 
-      print *,'psfc=',ReferenceSurfacePressure(20,1), &
-                      ReferenceSurfacePressure(20,2), &
-                      ReferenceSurfacePressure(20,3)
+!      print *,'psfc=',ReferenceSurfacePressure(20,1), &
+!                      ReferenceSurfacePressure(20,2), &
+!                      ReferenceSurfacePressure(20,3)
 
-      print *,'p3d=',Pressure3D(20,1,1),Pressure3D(20,2,1),Pressure3D(20,3,1)
+!      print *,'p3d=',Pressure3D(20,1,1),Pressure3D(20,2,1),Pressure3D(20,3,1)
 
-      print *,'slp=',MeanSeaLevelPressure%Values2D(20,1),     &
-                     MeanSeaLevelPressure%Values2D(20,2),     &
-                     MeanSeaLevelPressure%Values2D(20,3)
+!      print *,'slp=',MeanSeaLevelPressure%Values2D(20,1),     &
+!                     MeanSeaLevelPressure%Values2D(20,2),     &
+!                     MeanSeaLevelPressure%Values2D(20,3)
 
     end subroutine ComputeSeaPressure_MM5
 
@@ -2637,13 +2641,13 @@ if1:    if (Me%TimeWindow) then
         END DO
         END DO
 
-        print *,'sea pres input at weird location i=20,j=1,k=1'
-        print *,'t=',t(20,1,1),t(20,2,1),t(20,3,1)
-        print *,'z=',z(20,1,1),z(20,2,1),z(20,3,1)
-        print *,'p=',p(20,1,1),p(20,2,1),p(20,3,1)
-        print *,'slp=',MeanSeaLevelPressure%Values2D(20,1),     &
-                        MeanSeaLevelPressure%Values2D(20,2),     &
-                        MeanSeaLevelPressure%Values2D(20,3)
+!        print *,'sea pres input at weird location i=20,j=1,k=1'
+!        print *,'t=',t(20,1,1),t(20,2,1),t(20,3,1)
+!        print *,'z=',z(20,1,1),z(20,2,1),z(20,3,1)
+!        print *,'p=',p(20,1,1),p(20,2,1),p(20,3,1)
+!        print *,'slp=',MeanSeaLevelPressure%Values2D(20,1),     &
+!                        MeanSeaLevelPressure%Values2D(20,2),     &
+!                        MeanSeaLevelPressure%Values2D(20,3)
 
         deallocate(level,t_surf,t_sea_level)
 
