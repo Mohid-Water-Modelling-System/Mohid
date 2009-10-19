@@ -929,6 +929,7 @@ Module ModuleWRFFormat
         KLB = Me%Size%KLB; WKLB = Me%WorkSize%KLB
         KUB = Me%Size%KUB; WKUB = Me%WorkSize%KUB
 
+        nullify(Me%FirstField)
 
         CurrentDate => Me%FirstDate
         it = 1
@@ -990,8 +991,8 @@ if0:        if(VariableIsToRead(name, MohidName)) then
                                 stop 'OpenAndReadWRFFile - ModuleWRFFormat - ERR13'
                             endif 
 
-                        enddo
-                        enddo
+                       enddo
+                       enddo
 
 
                         allocate(NewField%Values2D(ILB:IUB, JLB:JUB))
@@ -1871,7 +1872,7 @@ if1:    if (Me%TimeWindow) then
                                         (GeoPP(WILB:WIUB, WJLB:WJUB, WKLB:WKUB+1) + &
                                          GeoBS(WILB:WIUB, WJLB:WJUB, WKLB:WKUB+1)) / Gravity
 
-                    write(*,*) 'VerticalZ(20,20,0:28) =', (VerticalZ%Values3D(20,20,k), k=KLB,KUB)
+!                    write(*,*) 'VerticalZ(20,20,0:28) =', (VerticalZ%Values3D(20,20,k), k=KLB,KUB)
 
                     GeopotentialPerturbation_OK  = .false.
                     GeopotentialBaseState_OK     = .false.
