@@ -212,7 +212,7 @@ Module ModuleTimeSerie
     subroutine StartTimeSerie(TimeSerieID, ObjTime,                                      &
                               TimeSerieDataFile, PropertyList, Extension, WaterPoints3D, &
                               WaterPoints2D, WaterPoints1D, ResultFileName, Instance,    &
-                              ModelName, STAT)
+                              ModelName, CoordX, CoordY, STAT)
 
         !Arguments-------------------------------------------------------------
         integer                                     :: TimeSerieID
@@ -226,6 +226,8 @@ Module ModuleTimeSerie
         character(len=*), optional, intent(IN )     :: ResultFileName   
         character(len=*), optional, intent(IN )     :: Instance   
         character(len=*), optional, intent(IN )     :: ModelName
+        real, optional                              :: CoordX
+        real, optional                              :: CoordY        
         integer, optional,          intent(OUT)     :: STAT
                                     
         !Local-----------------------------------------------------------------
@@ -263,7 +265,7 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
                 Me%ModelName    = ModelName
                 Me%ModelNameON  = .true.
             endif
-
+            
             !Constructs EnterData
             call ConstructEnterData(Me%ObjEnterData, TimeSerieDataFile, STAT = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_) stop 'StartTimeSerie - ModuleTimeSerie - ERR10'
@@ -333,8 +335,14 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
 
             if (present(ResultFileName)) then
 
+
                 !Reads the data of only one time serie 
-                call ReadOnlyOneTimeSerieData
+                if (present(CoordX) .and. present(CoordY)) then
+                    call ReadOnlyOneTimeSerieData(ResultFileName, CoordX, CoordY)
+                else
+                    call ReadOnlyOneTimeSerieData(ResultFileName)
+                endif
+
             
             else
 
@@ -784,7 +792,11 @@ i9:         if (.not. Me%TimeSerie(iTimeSerie)%DepthON) then
 
     !--------------------------------------------------------------------------
 
-    subroutine ReadOnlyOneTimeSerieData
+    subroutine ReadOnlyOneTimeSerieData(ResultFileName, CoordX, CoordY)
+
+        !Arguments-------------------------------------------------------------
+        character(len=*)                    :: ResultFileName
+        real, optional                      :: CoordX, CoordY
 
         !External--------------------------------------------------------------
 
@@ -813,6 +825,17 @@ i9:         if (.not. Me%TimeSerie(iTimeSerie)%DepthON) then
         
         !Stores only one TimeSerie
         Me%NumberOfTimeSeries = OneTimeSerie
+        
+        
+        !Name of the Time Series
+        Me%TimeSerie(OneTimeSerie)%FromBlockFileName = ResultFileName
+        
+        !Sets CoordON
+        if (present(CoordX) .and. present(CoordY)) then
+            Me%TimeSerie(OneTimeSerie)%CoordON = .true.
+            Me%TimeSerie(OneTimeSerie)%CoordX  = CoordX
+            Me%TimeSerie(OneTimeSerie)%CoordY  = CoordY
+        endif
 
         !Searches for the first output time
         call GetData(AuxTime,                                                       &
@@ -1920,7 +1943,8 @@ do1:        do iTimeSerie = 1, Me%NumberOfTimeSeries
                 end if
 
                 !Stores the data in the buffer
-cd2:            if (CurrentTime .ge. Me%TimeSerie(iTimeSerie)%NextOutPut) then
+cd2:            if (CurrentTime .ge. Me%TimeSerie(iTimeSerie)%NextOutPut .or.           &
+                    CurrentTime .eq. Me%TimeSerie(iTimeSerie)%EndOutPut) then
                     
 do2:                do IPC = 1, Me%NumberOfProperties
 

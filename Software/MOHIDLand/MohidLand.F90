@@ -53,6 +53,8 @@ program MohidLand
     real                                :: GmtReference
     real                                :: DTPredictionInterval
 
+    !Model Name
+    character(len=StringLength)         :: ModelName
 
     !Other Stuff
     type (T_Time)                       :: InitialSystemTime, FinalSystemTime
@@ -94,7 +96,7 @@ program MohidLand
         !Constructs Time 
         call StartComputeTime (ObjComputeTime, BeginTime, EndTime, DT, VariableDT, MaxDT, STAT = STAT_CALL)
 
-        call ConstructBasin   (ObjBasinID = ObjBasin, ObjTime = ObjComputeTime, STAT = STAT_CALL)
+        call ConstructBasin   (ObjBasinID = ObjBasin, ObjTime = ObjComputeTime, ModelName = ModelName, STAT = STAT_CALL)
 
     end subroutine ConstructMohidLand
 
@@ -108,6 +110,7 @@ program MohidLand
         character(PathLength)                       :: DataFile
         integer                                     :: STAT_CALL
         integer                                     :: ObjEnterData = 0
+        integer                                     :: iflag
         character(PathLength)                       :: WatchFile, DTLogFile
 
         !Monitor Performance of the model execution?
@@ -141,9 +144,20 @@ program MohidLand
         call ReadTimeKeyWords   (ObjEnterData, FromFile, BeginTime, EndTime, DT,         &
                                  VariableDT, "Mohid Land", MaxDT, GmtReference,          &
                                  DTPredictionInterval)
+                                 
+        !Model Name
+        call GetData(ModelName,                                                          &
+                     ObjEnterData, iflag,                                                &
+                     SearchType   = FromFile,                                            &
+                     keyword      = 'MODEL_NAME',                                        &
+                     default      = 'MOHID Land Model',                                  & 
+                     ClientModule = 'MOHIDLand',                                         &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - MohidLand - ERR04'
+
 
         call KillEnterData (ObjEnterData, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - MohidLand - ERR04'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - MohidLand - ERR05'
 
     end subroutine ReadKeywords
 
@@ -201,6 +215,9 @@ program MohidLand
             if (VariableDT) then
                               
                 DT = min(NewDT, MaxDT)
+                
+                !Rounds DT to full seconds
+                DT = max(AINT(DT), 1.0)
 
                 !Fit last Iteration
                 if (CurrentTime + DT > EndTime) then

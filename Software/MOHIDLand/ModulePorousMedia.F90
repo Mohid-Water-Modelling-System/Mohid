@@ -197,10 +197,14 @@ Module ModulePorousMedia
     !Types---------------------------------------------------------------------
     type T_OutPut
         type (T_Time), pointer, dimension(:)    :: OutTime
+        type (T_Time), dimension(:), pointer    :: RestartOutTime
         integer                                 :: NextOutPut
         logical                                 :: Yes = .false.
         logical                                 :: TimeSerieON
         logical                                 :: ProfileON
+        logical                                 :: WriteRestartFile     = .false.
+        logical                                 :: RestartOverwrite     = .false.
+        integer                                 :: NextRestartOutput    = 1        
     end type T_OutPut
 
     type T_Files
@@ -326,6 +330,7 @@ Module ModulePorousMedia
     type       T_PorousMedia        
         !Instaces of other Objects
         integer                                 :: InstanceID
+        character(len=StringLength)             :: ModelName
         integer                                 :: ObjBasinGeometry         = 0
         integer                                 :: ObjTime                  = 0
         integer                                 :: ObjGeometry              = 0
@@ -437,7 +442,8 @@ Module ModulePorousMedia
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-    subroutine ConstructPorousMedia(ObjPorousMediaID,                           &
+    subroutine ConstructPorousMedia(ModelName,                                  &
+                                    ObjPorousMediaID,                           &
                                     ComputeTimeID,                              &
                                     HorizontalGridID,                           &
                                     HorizontalMapID,                            &
@@ -452,6 +458,7 @@ Module ModulePorousMedia
                                     STAT)
 
         !Arguments---------------------------------------------------------------
+        character(len=*)                                :: ModelName
         integer                                         :: ObjPorousMediaID 
         integer                                         :: ComputeTimeID
         integer                                         :: HorizontalGridID
@@ -490,6 +497,8 @@ Module ModulePorousMedia
 cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
             call AllocateInstance
+
+            Me%ModelName = ModelName
 
             !Associate External Instances
             Me%ObjTime           = AssociateInstance (mTIME_,           ComputeTimeID   )
@@ -757,6 +766,27 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                            STAT        = STAT_CALL)
         Me%OutPut%NextOutPut = 1
         if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModulePorousMedia - ERR010'
+
+        !Output for restart
+        call GetOutPutTime(Me%ObjEnterData,                                             &
+                           CurrentTime  = Me%ExtVar%Now,                                &
+                           EndTime      = Me%EndTime,                                   &
+                           keyword      = 'RESTART_FILE_OUTPUT_TIME',                   &
+                           SearchType   = FromFile,                                     &
+                           OutPutsTime  = Me%OutPut%RestartOutTime,                     &
+                           OutPutsOn    = Me%OutPut%WriteRestartFile,                   &
+                           STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR11a'
+
+        call GetData(Me%OutPut%RestartOverwrite,                                        &
+                     Me%ObjEnterData,                                                   &
+                     iflag,                                                             &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'RESTART_FILE_OVERWRITE',                           &
+                     Default      = .true.,                                             &
+                     ClientModule = 'ModulePorousMedia',                                &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)  stop 'ReadDataFile - ModuleBasin - ERR11a'
 
 
         !Directional Options---------------------------------------------------        
@@ -1923,6 +1953,7 @@ doSP:           do
                             TimeSerieLocationFile,                                      &
                             PropertyList, "srp",                                        &
                             WaterPoints3D = Me%ExtVar%WaterPoints3D,                    &
+                            ModelName = Me%ModelName,                                   &
                             STAT         = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_) stop 'ConstructTimeSerie - PorousMedia - ERR02' 
 
@@ -2851,6 +2882,15 @@ doSP:           do
             if (Me%OutPut%Yes)          call PorousMediaOutput                        
             if (Me%OutPut%TimeSerieON)  call OutPutTimeSeries
             if (Me%OutPut%ProfileON  )  call ProfileOutput
+            
+            !Restart Output
+            if (Me%Output%WriteRestartFile .and. .not. (Me%ExtVar%Now == Me%EndTime)) then
+                if(Me%ExtVar%Now >= Me%OutPut%RestartOutTime(Me%OutPut%NextRestartOutput))then
+                    call WriteFinalSoilFile
+                    Me%OutPut%NextRestartOutput = Me%OutPut%NextRestartOutput + 1
+                endif
+            endif
+
             
             if (Me%SoilOpt%CheckGlobalMass) then
                 call CalculateTotalStoredVolume
@@ -5234,13 +5274,22 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
         real                                        :: Hour_File, Minute_File, Second_File
         integer                                     :: FinalFile
         integer                                     :: STAT_CALL
+        character(LEN = PathLength)                 :: FileName
 
         !----------------------------------------------------------------------
+
+        if (Me%ExtVar%Now == Me%EndTime) then
+            FileName = Me%Files%FinalFile
+        else
+            FileName = ChangeSuffix(Me%Files%FinalFile,                                 &
+                            "_"//trim(TimeToString(Me%ExtVar%Now))//".fin")
+        endif            
+
 
         call UnitsManager(FinalFile, OPEN_FILE, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'WriteFinalSoilFile - ModulePorousMedia - ERR01'
 
-        open(Unit = FinalFile, File = Me%Files%FinalFile, Form = 'UNFORMATTED', status = 'UNKNOWN', IOSTAT = STAT_CALL)
+        open(Unit = FinalFile, File = FileName, Form = 'UNFORMATTED', status = 'UNKNOWN', IOSTAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'WriteFinalSoilFile - ModulePorousMedia - ERR02'
 
         !Writes Date

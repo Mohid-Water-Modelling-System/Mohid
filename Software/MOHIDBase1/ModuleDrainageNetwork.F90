@@ -151,7 +151,8 @@ Module ModuleDrainageNetwork
     use ModuleFunctions            , only: InterpolateValueInTime, ConstructPropertyID, ComputeT90_Chapra,  &
                                            ComputeT90_Canteras, LongWaveDownward, LongWaveUpward,           &
                                            LatentHeat, SensibleHeat, OxygenSaturation,                      &
-                                           OxygenSaturationHenry, OxygenSaturationCeQualW2, AerationFlux
+                                           OxygenSaturationHenry, OxygenSaturationCeQualW2, AerationFlux,   &
+                                           TimeToString, ChangeSuffix
     use ModuleTimeSerie            , only: StartTimeSerie, StartTimeSerieInput, WriteTimeSerieLine,         &
                                            GetTimeSerieValue, KillTimeSerie
     use ModuleStopWatch            , only: StartWatch, StopWatch
@@ -429,13 +430,17 @@ Module ModuleDrainageNetwork
     !Types---------------------------------------------------------------------
     type T_OutPut
         type (T_Time), dimension(:), pointer        :: OutTime
+        type (T_Time), dimension(:), pointer        :: RestartOutTime
         integer                                     :: NextOutPut
         logical                                     :: Yes = .false.
+        logical                                     :: WriteRestartFile     = .false.
+        logical                                     :: RestartOverwrite     = .false.
+        integer                                     :: NextRestartOutput    = 1
     end type T_OutPut
 
     type T_Files 
          character(PathLength)                      :: InputData
-         character(PathLength)                      :: Final
+         character(PathLength)                      :: FinalFile
          character(PathLength)                      :: HDFFile
          character(PathLength)                      :: Initial
          character(PathLength)                      :: Network
@@ -551,6 +556,8 @@ Module ModuleDrainageNetwork
         integer                                                 :: nProp        = 0
         integer                 , dimension (:), pointer        :: ObjTimeSerie        
         character(StringLength) , dimension (:), pointer        :: Name
+        real                    , dimension (:), pointer        :: X
+        real                    , dimension (:), pointer        :: Y        
         real, dimension(:), pointer                             :: DataLine        
     end type T_TimeSerie
 
@@ -665,6 +672,7 @@ Module ModuleDrainageNetwork
 
     type       T_DrainageNetwork
         integer                                     :: InstanceID            = 0
+        character(len=StringLength)                 :: ModelName        
         integer                                     :: ObjEnterData          = 0  
         integer                                     :: ObjDischarges         = 0
         integer                                     :: ObjTime               = 0 
@@ -811,9 +819,10 @@ Module ModuleDrainageNetwork
 
     !----------------------------------------------------------------------------
 
-    subroutine ConstructDrainageNetwork(DrainageNetworkID, TimeID, Size, CheckMass, STAT)
+    subroutine ConstructDrainageNetwork(ModelName, DrainageNetworkID, TimeID, Size, CheckMass, STAT)
 
         !Arguments---------------------------------------------------------------
+        character(len=*)                                :: ModelName
         integer                                         :: DrainageNetworkID  
         integer                                         :: TimeID
         type (T_Size2D), optional                       :: Size
@@ -843,8 +852,11 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
          
             call AllocateInstance
 
+            Me%ModelName        = ModelName
+
             !Associates module Time
             Me%ObjTime = AssociateInstance   (mTIME_, TimeID)
+
 
             !Gets Current Compute Time
             call GetComputeCurrentTime(Me%ObjTime, Me%CurrentTime, STAT = STAT_CALL)
@@ -1014,7 +1026,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                            STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR01' 
 
-        call ReadFileName('DRAINAGE_NETWORK_FIN', Me%Files%Final,               &
+        call ReadFileName('DRAINAGE_NETWORK_FIN', Me%Files%FinalFile,           &
                            Message = "Drainage Network Final File",             &
                            STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR02' 
@@ -1372,6 +1384,28 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                            OutPutsOn   = Me%OutPut%Yes,                                  &
                            STAT        = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR40' 
+
+        !Output for restart
+        call GetOutPutTime(Me%ObjEnterData,                                             &
+                           CurrentTime  = Me%CurrentTime,                               &
+                           EndTime      = Me%EndTime,                                   &
+                           keyword      = 'RESTART_FILE_OUTPUT_TIME',                   &
+                           SearchType   = FromFile,                                     &
+                           OutPutsTime  = Me%OutPut%RestartOutTime,                     &
+                           OutPutsOn    = Me%OutPut%WriteRestartFile,                   &
+                           STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleDrainageNetwork - ERR41'
+
+        call GetData(Me%OutPut%RestartOverwrite,                                        &
+                     Me%ObjEnterData,                                                   &
+                     flag,                                                              &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'RESTART_FILE_OVERWRITE',                           &
+                     Default      = .true.,                                             &
+                     ClientModule = 'ModuleBasin',                                      &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)  stop 'ReadDataFile - ModuleDrainageNetwork - ERR42'
+
 
     end subroutine ReadDataFile
     
@@ -4674,6 +4708,7 @@ if1:        if (CurrNode%nDownstreamReaches /= 0) then
             call ConstructHDF5Output 
         endif
         
+       
     end subroutine ConstructOutput
 
     !---------------------------------------------------------------------------
@@ -4844,6 +4879,8 @@ if0:    if (Me%TimeSerie%ByNodes) then
 
             allocate (Me%TimeSerie%ObjTimeSerie (1:Me%TimeSerie%nNodes))
             allocate (Me%TimeSerie%Name         (1:Me%TimeSerie%nNodes))
+            allocate (Me%TimeSerie%X            (1:Me%TimeSerie%nNodes))
+            allocate (Me%TimeSerie%Y            (1:Me%TimeSerie%nNodes))
 
             Me%TimeSerie%ObjTimeSerie = 0
             i = 0
@@ -4856,7 +4893,8 @@ if0:    if (Me%TimeSerie%ByNodes) then
                     aux = ''
                     write(aux,'(i10)') Me%Nodes(NodePos)%ID                    
                     Me%TimeSerie%Name(i)  = 'Node_'//trim(adjustl(adjustr(aux)))
-                    
+                    Me%TimeSerie%X(i)     = Me%Nodes(NodePos)%X
+                    Me%TimeSerie%Y(i)     = Me%Nodes(NodePos)%Y
                 end if
 
             end do
@@ -4909,6 +4947,9 @@ if2:        if (Me%TimeSerie%ByNodes) then
                                         PropertyList      = PropHeaderList,             &
                                         Extension         = "srn",                      &
                                         ResultFileName    = Me%TimeSerie%Name (i),      &
+                                        ModelName         = Me%ModelName,               &
+                                        CoordX            = Me%TimeSerie%X    (i),      &
+                                        CoordY            = Me%TimeSerie%Y    (i),      &
                                         STAT              = STAT_CALL)
                     if (STAT_CALL /= 0) stop 'ConstructTimeSeries - ModuleDrainageNetwork - ERR01'
                 
@@ -4962,7 +5003,8 @@ if2:        if (Me%TimeSerie%ByNodes) then
                                             TimeSerieDataFile = trim(Me%TimeSerie%Location),    &
                                             PropertyList      = ReachHeaderList,                &
                                             Extension         = "srn",                          &
-                                            ResultFileName    = Me%TimeSerie%Name (i),      &
+                                            ResultFileName    = Me%TimeSerie%Name (i),          &
+                                            ModelName         = Me%ModelName,                   &                
                                             STAT              = STAT_CALL)
                         if (STAT_CALL /= 0) stop 'ConstructTimeSeries - ModuleDrainageNetwork - ERR02'
 
@@ -4972,7 +5014,8 @@ if2:        if (Me%TimeSerie%ByNodes) then
                                             TimeSerieDataFile = trim(Me%TimeSerie%Location),    &
                                             PropertyList      = NodeHeaderList,                 &
                                             Extension         = "srn",                          &
-                                            ResultFileName    = Me%TimeSerie%Name (i),      &
+                                            ResultFileName    = Me%TimeSerie%Name (i),          &
+                                            ModelName         = Me%ModelName,                   &                
                                             STAT              = STAT_CALL)
                         if (STAT_CALL /= 0) stop 'ConstructTimeSeries - ModuleDrainageNetwork - ERR03'
 
@@ -5110,6 +5153,10 @@ if0:    if (Me%HasProperties) then
 
         !Local------------------------------------------------------------------
         integer                                             :: HDF5_CREATE, STAT_CALL
+        integer                                             :: iNode, ReachID
+        real, dimension(:), pointer                         :: NodeX, NodeY
+        integer, dimension(:), pointer                      :: NodeID, ReachIDs, UpNode, DownNode
+        
         
         Me%OutPut%NextOutPut = 1  
         
@@ -5117,7 +5164,64 @@ if0:    if (Me%HasProperties) then
 
         !Opens HDF File
         call ConstructHDF5      (Me%ObjHDF5, trim(Me%Files%HDFFile)//"5", HDF5_CREATE, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5Output - ModuleDrainageNetwork - ERR10'
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5Output - ModuleDrainageNetwork - ERR01'
+        
+        !Writes information about the Nodes / Reaches
+        !Writes the Nodes X / Y
+        allocate(NodeID(1: Me%TotalNodes))
+        allocate(NodeX (1: Me%TotalNodes))
+        allocate(NodeY (1: Me%TotalNodes))
+        
+        do iNode = 1, Me%TotalNodes
+            NodeID(iNode) = Me%Nodes(iNode)%ID
+            NodeX(iNode)  = Me%Nodes(iNode)%X
+            NodeY(iNode)  = Me%Nodes(iNode)%Y
+        enddo
+
+        allocate(UpNode  (1: Me%TotalReaches))
+        allocate(DownNode(1: Me%TotalReaches))
+        allocate(ReachIDs(1: Me%TotalReaches))
+        
+        do ReachID = 1, Me%TotalReaches
+            ReachIDs(ReachID) = ReachID
+            UpNode  (ReachID) = Me%Nodes(Me%Reaches(ReachID)%UpstreamNode)%ID
+            DownNode(ReachID) = Me%Nodes(Me%Reaches(ReachID)%DownstreamNode)%ID
+        enddo
+
+        !Nodes
+        call HDF5SetLimits  (Me%ObjHDF5, 1, Me%TotalNodes, STAT = STAT_CALL)
+
+        call HDF5WriteData   (Me%ObjHDF5, "/Nodes", "ID", "m",                          &
+                              Array1D = NodeID, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5Output - ModuleDrainageNetwork - ERR02'
+        
+        call HDF5WriteData   (Me%ObjHDF5, "/Nodes", "X", "m",                           &
+                              Array1D = NodeX, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5Output - ModuleDrainageNetwork - ERR02'
+
+        call HDF5WriteData   (Me%ObjHDF5, "/Nodes", "Y", "m",                           &
+                              Array1D = NodeY, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5Output - ModuleDrainageNetwork - ERR03'
+
+        !Reaches
+        call HDF5SetLimits  (Me%ObjHDF5, 1, Me%TotalReaches, STAT = STAT_CALL)
+        
+        call HDF5WriteData   (Me%ObjHDF5, "/Reaches", "ID", "-",                         &
+                              Array1D = ReachIDs, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5Output - ModuleDrainageNetwork - ERR04'
+
+
+        call HDF5WriteData   (Me%ObjHDF5, "/Reaches", "Up", "-",                         &
+                              Array1D = UpNode, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5Output - ModuleDrainageNetwork - ERR04'
+
+        call HDF5WriteData   (Me%ObjHDF5, "/Reaches", "Down", "-",                       &
+                              Array1D = DownNode, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5Output - ModuleDrainageNetwork - ERR05'
+
+
+        deallocate(NodeX, NodeY)
+        deallocate(DownNode, UpNode)
         
     end subroutine ConstructHDF5Output
 
@@ -6502,6 +6606,15 @@ do2 :   do while (associated(PropertyX))
         if (Me%Output%Yes) call HDF5Output
 
         if (Me%WriteMaxStationValues) call MaxStationValues 
+
+        !Restart Output
+        if (Me%Output%WriteRestartFile .and. .not. (Me%CurrentTime == Me%EndTime)) then
+            if(Me%CurrentTime >= Me%OutPut%RestartOutTime(Me%OutPut%NextRestartOutput))then
+                call WriteFinalFile
+                Me%OutPut%NextRestartOutput = Me%OutPut%NextRestartOutput + 1
+            endif
+        endif
+
 
         if (MonitorPerformance) call StopWatch ("ModuleDrainageNetwork", "ModifyDrainageNet")
 
@@ -10487,7 +10600,7 @@ if2:                if (CurrNode%nDownstreamReaches .NE. 0) then
                     iReach = iReach + 1
                 end if
             end do
-            call HDF5WriteData  (Me%ObjHDF5, "/Results/Flow", "Modulus",                 &
+            call HDF5WriteData  (Me%ObjHDF5, "/Results/Flow", "Flow",                    &
                                  "m3/s",                                                 &
                                  Array1D      = OutputMatrix,                            &
                                  OutputNumber = Me%OutPut%NextOutPut,                    &
@@ -10504,7 +10617,7 @@ if2:                if (CurrNode%nDownstreamReaches .NE. 0) then
                     iReach = iReach + 1
                 end if
             end do
-            call HDF5WriteData  (Me%ObjHDF5, "/Results/Velocity", "Modulus",             &
+            call HDF5WriteData  (Me%ObjHDF5, "/Results/Velocity", "Velocity",            &
                                  "m/s",                                                  &
                                  Array1D      = OutputMatrix,                            &
                                  OutputNumber = Me%OutPut%NextOutPut,                    &
@@ -10733,10 +10846,17 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                                                            
             nUsers = DeassociateInstance(mDrainageNetwork_,  Me%InstanceID)
 
+            
             if (nUsers == 0) then
                                
                 if (Me%WriteMaxStationValues) call MaxStationValuesOutput
 
+!                !Writes a last output of the time series
+!                if (Me%TimeSerie%nNodes .GT.0) then 
+!                    call WriteTimeSeries (0.0)
+!                    write(*,*)'Writing Time Series Last Time'
+!                endif
+                
                 deallocate (Me%RunOffVector     )
                 deallocate (Me%Nodes            )
                 deallocate (Me%Reaches          )
@@ -10933,13 +11053,21 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
         integer                                     :: FinalFile
         integer                                     :: STAT_CALL
         type (T_Property), pointer                  :: Property
+        character(LEN = PathLength)                 :: FileName
 
         !-----------------------------------------------------------------------
+
+        if (Me%CurrentTime == Me%EndTime) then
+            FileName = Me%Files%FinalFile
+        else
+            FileName = ChangeSuffix(Me%Files%FinalFile,                                 &
+                            "_"//trim(TimeToString(Me%CurrentTime))//".fin")
+        endif            
 
         call UnitsManager(FinalFile, OPEN_FILE, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - WriteFinalFile - ERR01'
 
-        open(Unit = FinalFile, File = Me%Files%Final, Form = 'UNFORMATTED', status = 'UNKNOWN', IOSTAT = STAT_CALL)
+        open(Unit = FinalFile, File = FileName, Form = 'UNFORMATTED', status = 'UNKNOWN', IOSTAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - WriteFinalFile - ERR02'
         
         call GetComputeCurrentTime(Me%ObjTime, Me%CurrentTime, STAT = STAT_CALL)

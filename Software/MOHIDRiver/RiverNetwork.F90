@@ -36,7 +36,6 @@ program RiverNetwork
     integer                                     :: ColumnCloudCover      = 0
     integer                                     :: ColumnWindVelocity    = 0
   
-    
 
     !Begin-----------------------------------------------------------------------  
     
@@ -75,7 +74,7 @@ program RiverNetwork
         if (STAT_CALL /= SUCCESS_) stop 'RiverNetwork - ConstructRiverNetwork - ERR01'
         CheckMass = .true. 
         								       
-        call ConstructDrainageNetwork (ObjDrainageNetwork, ObjTime, CheckMass = CheckMass, STAT = STAT_CALL)
+        call ConstructDrainageNetwork (ModelName, ObjDrainageNetwork, ObjTime, CheckMass = CheckMass, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'RiverNetwork - ConstructRiverNetwork - ERR02'
 
         !Check if Radiation is needed
@@ -266,7 +265,6 @@ program RiverNetwork
             if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - RiverNetwork - ERR01'
         end if
 
-
         call ReadFileName('IN_MODEL', DataFile, ModelName, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - RiverNetwork - ERR02'
 
@@ -276,7 +274,7 @@ program RiverNetwork
         call ReadTimeKeyWords   (ObjEnterData, FromFile, BeginTime, EndTime, DT,         &
                                  VariableDT, ModelName, MaxDT)
 
-        
+
     end subroutine ReadKeywords
     
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++

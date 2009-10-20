@@ -137,6 +137,7 @@ Module ModuleRunOff
    
     type  T_RunOff
         integer                                     :: InstanceID
+        character(len=StringLength)                 :: ModelName
         integer                                     :: ObjBasinGeometry         = 0
         integer                                     :: ObjTime                  = 0
         integer                                     :: ObjHorizontalGrid        = 0
@@ -219,7 +220,8 @@ Module ModuleRunOff
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-    subroutine ConstructRunOff(RunOffID,                                        &
+    subroutine ConstructRunOff(ModelName,                                       &            
+                               RunOffID,                                        &
                                ComputeTimeID,                                   &
                                HorizontalGridID,                                &
                                HorizontalMapID,                                 &
@@ -229,6 +231,7 @@ Module ModuleRunOff
                                STAT)
 
         !Arguments---------------------------------------------------------------
+        character(len=*)                                :: ModelName
         integer                                         :: RunOffID
         integer                                         :: ComputeTimeID
         integer                                         :: HorizontalGridID
@@ -259,6 +262,8 @@ Module ModuleRunOff
 cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
             call AllocateInstance
+            
+            Me%ModelName = ModelName
 
             !Associates External Instances
             Me%ObjTime            = AssociateInstance (mTIME_           , ComputeTimeID     )

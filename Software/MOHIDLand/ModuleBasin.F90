@@ -43,7 +43,8 @@ Module ModuleBasin
     use ModuleTime
     use ModuleTimeSerie
     use ModuleHDF5
-    use ModuleFunctions,      only : ReadTimeKeyWords, LatentHeat, ConstructPropertyID
+    use ModuleFunctions,      only : ReadTimeKeyWords, LatentHeat, ConstructPropertyID,  &
+                                     TimeToString, ChangeSuffix
     use ModuleFillMatrix,     only : ConstructFillMatrix, ModifyFillMatrix,              &
                                      KillFillMatrix,GetIfMatrixRemainsConstant
     use ModuleHorizontalGrid, only : ConstructHorizontalGrid, KillHorizontalGrid,        &
@@ -151,9 +152,13 @@ Module ModuleBasin
     !Types---------------------------------------------------------------------
     type T_OutPut
         type (T_Time), dimension(:), pointer        :: OutTime
-        integer                                     :: NextOutPut
+        type (T_Time), dimension(:), pointer        :: RestartOutTime
+        integer                                     :: NextOutPut           = 1
         real   , dimension(:,:), pointer            :: OutputChannels
-        logical                                     :: Yes = .false.
+        logical                                     :: Yes                  = .false.
+        logical                                     :: WriteRestartFile     = .false.
+        logical                                     :: RestartOverwrite     = .false.
+        integer                                     :: NextRestartOutput    = 1
     end type T_OutPut
 
     type T_Coupling
@@ -247,6 +252,7 @@ Module ModuleBasin
 
     type       T_Basin
         integer                                     :: InstanceID           = 0
+        character(len=StringLength)                 :: ModelName
         type (T_Size2D)                             :: Size, WorkSize
         type (T_Coupling)                           :: Coupled
         type (T_Files)                              :: Files
@@ -347,11 +353,12 @@ Module ModuleBasin
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-    subroutine ConstructBasin(ObjBasinID, ObjTime, STAT)
+    subroutine ConstructBasin(ObjBasinID, ObjTime, ModelName, STAT)
 
         !Arguments---------------------------------------------------------------
         integer                                         :: ObjBasinID 
         integer                                         :: ObjTime 
+        character(len=*)                                :: ModelName
         integer, optional, intent(OUT)                  :: STAT     
 
         !Local-------------------------------------------------------------------
@@ -391,6 +398,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
             !Returns ID
             ObjBasinID          = Me%InstanceID
+            
+            Me%ModelName        = ModelName
 
             !Associates External Instances
             Me%ObjTime           = AssociateInstance (mTIME_,   ObjTime)
@@ -863,6 +872,27 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                            STAT        = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR11'
 
+        !Output for restart
+        call GetOutPutTime(Me%ObjEnterData,                                             &
+                           CurrentTime  = Me%CurrentTime,                               &
+                           EndTime      = Me%EndTime,                                   &
+                           keyword      = 'RESTART_FILE_OUTPUT_TIME',                   &
+                           SearchType   = FromFile,                                     &
+                           OutPutsTime  = Me%OutPut%RestartOutTime,                     &
+                           OutPutsOn    = Me%OutPut%WriteRestartFile,                   &
+                           STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR11a'
+
+        call GetData(Me%OutPut%RestartOverwrite,                                        &
+                     Me%ObjEnterData,                                                   &
+                     iflag,                                                             &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'RESTART_FILE_OVERWRITE',                           &
+                     Default      = .true.,                                             &
+                     ClientModule = 'ModuleBasin',                                      &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)  stop 'ReadDataFile - ModuleBasin - ERR11a'
+
 
         !Gets TimeSerieLocationFile
         call GetData(Me%Files%TimeSerieLocation,                                         &
@@ -1094,8 +1124,6 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             allocate(Me%OutPut%OutputChannels(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
         endif
 
-        Me%OutPut%NextOutPut = 1  
-        
         call GetHDF5FileAccess  (HDF5_CREATE = HDF5_CREATE)
 
         !Opens HDF File
@@ -1207,6 +1235,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                             Me%Files%TimeSerieLocation,                                 &
                             PropertyList, "srb",                                        &
                             WaterPoints2D = Me%ExtVar%BasinPoints,                      &
+                            ModelName = Me%ModelName,                                   &
                             STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSeries - ModuleBasin - ERR01'
 
@@ -1420,10 +1449,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
     !--------------------------------------------------------------------------
 
-    subroutine ConstructCoupledModules
+    subroutine ConstructCoupledModules()
 
         !Arguments-------------------------------------------------------------
-
+        
         !Local-----------------------------------------------------------------
         integer                                     :: STAT_CALL
         logical                                     :: VariableDT
@@ -1432,7 +1461,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         !Constructs Atmosphere
         if (Me%Coupled%Atmosphere) then
-            call StartAtmosphere        (ModelName          = 'Basin',                   &
+            call StartAtmosphere        (ModelName          = Me%ModelName,              &
                                          AtmosphereID       = Me%ObjAtmosphere,          &
                                          TimeID             = Me%ObjTime,                &
                                          GridDataID         = Me%ObjGridData,            &
@@ -1448,7 +1477,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             call GetVariableDT(Me%ObjTime, VariableDT, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructCoupledModules - ModuleBasin - ERR03'
 
-            call ConstructDrainageNetwork (DrainageNetworkID = Me%ObjDrainageNetwork,    &
+            call ConstructDrainageNetwork (ModelName         = Me%ModelName,             &
+                                           DrainageNetworkID = Me%ObjDrainageNetwork,    &
                                            TimeID            = Me%ObjTime,               &
                                            Size              = Me%Size,                  &                                           
                                            CheckMass         = .true.,                   &
@@ -1459,7 +1489,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         !Constructs RunOff
         if (Me%Coupled%RunOff) then
-            call ConstructRunOff        (RunOffID           = Me%ObjRunOff,              &
+            call ConstructRunOff        (ModelName          = Me%ModelName,              &                 
+                                         RunOffID           = Me%ObjRunOff,              &
                                          ComputeTimeID      = Me%ObjTime,                &
                                          HorizontalGridID   = Me%ObjHorizontalGrid,      &
                                          HorizontalMapID    = Me%ObjHorizontalMap,       &
@@ -1473,7 +1504,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         
         !Constructs PorousMedia
         if (Me%Coupled%PorousMedia) then
-            call ConstructPorousMedia   (ObjPorousMediaID       = Me%ObjPorousMedia,        &
+            call ConstructPorousMedia   (ModelName              = Me%ModelName,             &
+                                         ObjPorousMediaID       = Me%ObjPorousMedia,        &
                                          ComputeTimeID          = Me%ObjTime,               &
                                          HorizontalGridID       = Me%ObjHorizontalGrid,     &
                                          HorizontalMapID        = Me%ObjHorizontalMap,      &
@@ -1908,6 +1940,14 @@ cd2 :           if (BlockFound) then
             !HDF 5 Output
             if (Me%Output%Yes) then
                 call HDF5OutPut       
+            endif
+            
+            !Restart Output
+            if (Me%Output%WriteRestartFile .and. .not. (Me%CurrentTime == Me%EndTime)) then
+                if(Me%CurrentTime >= Me%OutPut%RestartOutTime(Me%OutPut%NextRestartOutput))then
+                    call WriteFinalFile
+                    Me%OutPut%NextRestartOutput = Me%OutPut%NextRestartOutput + 1
+                endif
             endif
 
             !UnGets ExternalVars
@@ -4338,18 +4378,29 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
         real                                        :: Hour_File, Minute_File, Second_File
         integer                                     :: FinalFile
         integer                                     :: STAT_CALL
-
+        character(LEN = PathLength)                 :: FileName
+        
         !----------------------------------------------------------------------
 
+        !Gets Date
+        call ExtractDate(Me%CurrentTime, Year_File, Month_File, Day_File,               &
+                         Hour_File, Minute_File, Second_File)
+        
+        
+        if (Me%CurrentTime == Me%EndTime) then
+            FileName = Me%Files%FinalFile
+        else
+            FileName = ChangeSuffix(Me%Files%FinalFile,                                 &
+                            "_"//trim(TimeToString(Me%CurrentTime))//".fin")
+        endif            
+        
         call UnitsManager(FinalFile, OPEN_FILE, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModuleBasin - ERR01'
 
-        open(Unit = FinalFile, File = Me%Files%FinalFile, Form = 'UNFORMATTED', status = 'UNKNOWN', IOSTAT = STAT_CALL)
+        open(Unit = FinalFile, File = FileName, Form = 'UNFORMATTED', status = 'UNKNOWN', IOSTAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModuleBasin - ERR02'
 
         !Writes Date
-        call ExtractDate(Me%CurrentTime, Year_File, Month_File, Day_File,               &
-                         Hour_File, Minute_File, Second_File)
         write(FinalFile) Year_File, Month_File, Day_File, Hour_File, Minute_File,       &
                          Second_File
 
