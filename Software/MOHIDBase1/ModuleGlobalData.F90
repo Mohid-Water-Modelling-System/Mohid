@@ -265,6 +265,23 @@ Module ModuleGlobalData
     integer, parameter :: IonicStrength_                    = 7013
     integer, parameter :: PhosphorusAdsortionIndex_         = 7014
     
+    
+!____POM pools (for aquaculture cages)__________________________________________    
+    
+    integer, parameter :: PON1_                             = 7020
+    integer, parameter :: PON2_                             = 7021       
+    integer, parameter :: PON3_                             = 7022
+    integer, parameter :: PON4_                             = 7023
+    integer, parameter :: PON5_                             = 7024
+
+    integer, parameter :: POP1_                             = 7025
+    integer, parameter :: POP2_                             = 7026       
+    integer, parameter :: POP3_                             = 7027
+    integer, parameter :: POP4_                             = 7028
+    integer, parameter :: POP5_                             = 7029    
+     
+        
+    
     integer, parameter :: GenericProperty_                  = 77
     integer, parameter :: T90_                              = 78
     integer, parameter :: E_Coli_                           = 79
@@ -596,6 +613,7 @@ Module ModuleGlobalData
     integer, parameter :: DOPsl_                            = 5031 
     integer, parameter :: DONsl_                            = 5032
 
+
     !Macroalgae rates
     integer, parameter :: MA_GrossFact_                     = 1
     integer, parameter :: MA_TLimFact_                      = 2
@@ -788,6 +806,22 @@ Module ModuleGlobalData
     character(StringLength), private, parameter :: Char_VelocityV_           = 'velocity V'
     character(StringLength), private, parameter :: Char_VelocityW_           = 'velocity W'
     character(StringLength), private, parameter :: Char_ShearStress_         = 'shear stress'
+
+
+!_______used @ moduleWQ for POM pools (aquaculture cages)_____________________________________________________________
+
+    character(StringLength), private, parameter :: Char_PON1                  = 'pon1'
+    character(StringLength), private, parameter :: Char_PON2                  = 'pon2'
+    character(StringLength), private, parameter :: Char_PON3                  = 'pon3'
+    character(StringLength), private, parameter :: Char_PON4                  = 'pon4'
+    character(StringLength), private, parameter :: Char_PON5                  = 'pon5'
+
+    character(StringLength), private, parameter :: Char_POP1                  = 'pop1'
+    character(StringLength), private, parameter :: Char_POP2                  = 'pop2'
+    character(StringLength), private, parameter :: Char_POP3                  = 'pop3'
+    character(StringLength), private, parameter :: Char_POP4                  = 'pop4'
+    character(StringLength), private, parameter :: Char_POP5                  = 'pop5'
+
 
     ! guillaume nogueira
     character(StringLength), private, parameter :: Char_AltimLevelAnalyzed_         = 'water level analyzed for altimetry'
@@ -1812,6 +1846,23 @@ Module ModuleGlobalData
             call AddPropList (BarotropicVelocityU_ ,    Char_BarotropicVelocityU_ ,     ListNumber)
             call AddPropList (BarotropicVelocityV_ ,    Char_BarotropicVelocityV_ ,     ListNumber)
 
+
+!____POM pools (for aquaculture cages)__________________________________________    
+    
+            call AddPropList (PON1_,                    Char_PON1,                      ListNumber) 
+            call AddPropList (PON2_,                    Char_PON2,                      ListNumber)             
+            call AddPropList (PON3_,                    Char_PON3,                      ListNumber)             
+            call AddPropList (PON4_,                    Char_PON4,                      ListNumber) 
+            call AddPropList (PON5_,                    Char_PON5,                      ListNumber) 
+            
+            call AddPropList (POP1_,                    Char_POP1,                      ListNumber) 
+            call AddPropList (POP2_,                    Char_POP2,                      ListNumber)             
+            call AddPropList (POP3_,                    Char_POP3,                      ListNumber)             
+            call AddPropList (POP4_,                    Char_POP4,                      ListNumber) 
+            call AddPropList (POP5_,                    Char_POP5,                      ListNumber)             
+            
+            
+            
             ! guillaume nogueira
             call AddPropList (AltimLevelAnalyzed_,         Char_AltimLevelAnalyzed_,          ListNumber)
             call AddPropList (AltimTemperatureAnalyzed_,   Char_AltimTemperatureAnalyzed_,    ListNumber)
@@ -2189,7 +2240,13 @@ cd1 :   if ((Property == POC_                   ) .OR.  (Property == PON_       
             (Property == MacroAlgae_            ) .OR.  (Property == AnaerobicP_            ) .OR.          &
             (Property == AutotrophicP_          ) .OR.  (Property == HeterotrophicP_        ) .OR.          &
             (Property == RefreactaryOrganicP_   ) .OR.  (Property == AdsorbedInorganicP_    ) .OR.          &
-            (Property == SolubilizingN_         ) .OR.  (Property == SolubilizingC_         ) .OR.          &
+            (Property == SolubilizingN_         ) .OR.  (Property == SolubilizingC_         ) .OR.          &                     
+            (Property == PON1_                  ) .OR.  (Property == PON2_                  ) .OR.          &
+            (Property == PON3_                  ) .OR.  (Property == PON4_                  ) .OR.          &
+            (Property == PON5_                  ) .OR.  (Property == POP1_                  ) .OR.          &
+            (Property == POP2_                  ) .OR.  (Property == POP3_                  ) .OR.          &
+            (Property == POP4_                  ) .OR.  (Property == POP5_                  ) .OR.          &
+            
             (Property == SolubilizingP_         )) then
 
             Check_Particulate_Property = .TRUE.    

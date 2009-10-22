@@ -98,6 +98,7 @@ Module ModuleWaterQuality
     private ::          WQPhosphorus
     private ::              WQOrganicPhosphorus
     private ::              WQInorganicPhosphorus
+    private ::          WQPOMpools
     private ::      WQSystemResolution
    
     private ::      WQRatesCalculation
@@ -142,6 +143,16 @@ Module ModuleWaterQuality
         integer :: DissOrganicNitrogenRefractory    = null_int
         integer :: DONNonRefractory                 = null_int
         integer :: PartOrganicNitrogen              = null_int
+        integer :: PONitrogen1                      = null_int
+        integer :: PONitrogen2                      = null_int
+        integer :: PONitrogen3                      = null_int
+        integer :: PONitrogen4                      = null_int
+        integer :: PONitrogen5                      = null_int
+        integer :: POPhosphorus1                    = null_int
+        integer :: POPhosphorus2                    = null_int
+        integer :: POPhosphorus3                    = null_int
+        integer :: POPhosphorus4                    = null_int
+        integer :: POPhosphorus5                    = null_int
         integer :: PartOrganicNitrogenRefractory    = null_int
         integer :: Oxygen                           = null_int
         integer :: BOD                              = null_int
@@ -188,6 +199,7 @@ Module ModuleWaterQuality
         logical :: Oxygen     = OFF
         logical :: Salinity   = OFF  
         logical :: BOD        = OFF
+        logical :: Pompools   = OFF
     end type T_PropCalc
 
 
@@ -672,6 +684,16 @@ cd2:        if (.NOT. Me%CalcMethod%ExplicitMethod) then
         integer                             :: NumDOPr
         integer                             :: NumDOPnr
         integer                             :: NumPOP
+        integer                             :: NumPON1
+        integer                             :: NumPON2
+        integer                             :: NumPON3
+        integer                             :: NumPON4
+        integer                             :: NumPON5
+        integer                             :: NumPOP1
+        integer                             :: NumPOP2
+        integer                             :: NumPOP3
+        integer                             :: NumPOP4
+        integer                             :: NumPOP5
         integer                             :: NumAge
         integer                             :: numLarvae
         integer                             :: NumCiliate
@@ -694,7 +716,6 @@ cd2:        if (.NOT. Me%CalcMethod%ExplicitMethod) then
 
 cd0 :   if (ready_ .EQ. IDLE_ERR_) then
 
-
             numPhyto   = Me%PropIndex%Phyto
             numAM      = Me%PropIndex%Ammonia
             numNI      = Me%PropIndex%Nitrite
@@ -710,6 +731,16 @@ cd0 :   if (ready_ .EQ. IDLE_ERR_) then
             numDOPnr   = Me%PropIndex%DOPNonRefractory 
             numPOP     = Me%PropIndex%PartOrganicPhosphorus 
             numIP      = Me%PropIndex%InorganicPhosphorus 
+            numPON1    = Me%PropIndex%PONitrogen1
+            numPON2    = Me%PropIndex%PONitrogen2
+            numPON3    = Me%PropIndex%PONitrogen3
+            numPON4    = Me%PropIndex%PONitrogen4
+            numPON5    = Me%PropIndex%PONitrogen5
+            numPOP1    = Me%PropIndex%POPhosphorus1
+            numPOP2    = Me%PropIndex%POPhosphorus2
+            numPOP3    = Me%PropIndex%POPhosphorus3
+            numPOP4    = Me%PropIndex%POPhosphorus4
+            numPOP5    = Me%PropIndex%POPhosphorus5 
             numAge     = Me%PropIndex%Age
             numLarvae  = Me%PropIndex%Larvae
             NumCiliate = Me%PropIndex%Ciliate
@@ -771,6 +802,26 @@ cd0 :   if (ready_ .EQ. IDLE_ERR_) then
                 Logicalequa(NumPOP  )=.true.
                 Logicalequa(NumIP   )=.true.
                 countequa = countequa + 4
+            endif
+            
+            if(Me%Propcalc%Pompools) then
+                if (Me%PropCalc%Nitrogen) then
+                    Logicalequa(NumPON1  )=.true.
+                    Logicalequa(NumPON2  )=.true.
+                    Logicalequa(NumPON3  )=.true.
+                    Logicalequa(NumPON4  )=.true.
+                    Logicalequa(NumPON5  )=.true.
+                    countequa = countequa + 5
+                endif
+            
+                if (Me%PropCalc%Phosphorus) then
+                    Logicalequa(NumPOP1 )=.true.
+                    Logicalequa(NumPOP2 )=.true.
+                    Logicalequa(NumPOP3 )=.true.
+                    Logicalequa(NumPOP4 )=.true.
+                    Logicalequa(NumPOP5 )=.true.
+                    countequa = countequa + 5
+                endif    
             endif
 
             if (Me%PropCalc%Silica) then
@@ -1149,6 +1200,7 @@ do1:        do while (associated(EquaRateFluxX))
         if (STAT_CALL .NE. SUCCESS_)                                                                &
             stop 'Subroutine WaterQualityOptions; Module ModuleWaterQuality. ERR09.' 
 
+
         if (Me%PropCalc%Oxygen) then 
             Me%PropCalc%Salinity = .FALSE.
         else
@@ -1204,6 +1256,16 @@ do1:        do while (associated(EquaRateFluxX))
                      STAT       = STAT_CALL)                        
         if (STAT_CALL .NE. SUCCESS_)                                                                & 
             stop 'Subroutine WaterQualityOptions; Module ModuleWaterQuality. ERR14.' 
+            
+            
+        call GetData(Me%PropCalc%Pompools,                                                          &
+                     Me%ObjEnterData, flag,                                                         &
+                     SearchType = FromFile,                                                         &
+                     keyword='POMPOOLS',                                                            &
+                     ClientModule = 'ModuleWaterQuality',                                           &
+                     STAT       = STAT_CALL)                        
+        if (STAT_CALL .NE. SUCCESS_)                                                                & 
+            stop 'Subroutine WaterQualityOptions; Module ModuleWaterQuality. ERR15.'   
         
 
     end subroutine WaterQualityOptions         
@@ -1240,10 +1302,9 @@ do1:        do while (associated(EquaRateFluxX))
 
             Me%Prop%IUB                                   = Me%Prop%IUB + 1
             Me%PropIndex%DONNonRefractory                 = Me%Prop%IUB
-        endif   !Nitrogen
-
-
-
+            
+         endif   !Nitrogen  
+    
         !Phosphorus index number
         if (Me%PropCalc%Phosphorus) then   
 
@@ -1255,11 +1316,54 @@ do1:        do while (associated(EquaRateFluxX))
 
             Me%Prop%IUB                                   = Me%Prop%IUB + 1
             Me%PropIndex%DOPNonRefractory                 = Me%Prop%IUB
-
-
+            
             Me%Prop%IUB                                   = Me%Prop%IUB + 1
             Me%PropIndex%InorganicPhosphorus              = Me%Prop%IUB
-        endif   !BOD
+        endif   !Phosphorus
+
+
+        if (Me%PropCalc%Pompools) then   
+            
+            if (Me%PropCalc%Nitrogen) then   
+            
+            Me%Prop%IUB                                   = Me%Prop%IUB + 1
+            Me%PropIndex%PONitrogen1                      = Me%Prop%IUB            
+            
+            Me%Prop%IUB                                   = Me%Prop%IUB + 1
+            Me%PropIndex%PONitrogen2                      = Me%Prop%IUB 
+
+            Me%Prop%IUB                                   = Me%Prop%IUB + 1
+            Me%PropIndex%PONitrogen3                      = Me%Prop%IUB 
+            
+            Me%Prop%IUB                                   = Me%Prop%IUB + 1
+            Me%PropIndex%PONitrogen4                      = Me%Prop%IUB 
+
+            Me%Prop%IUB                                   = Me%Prop%IUB + 1
+            Me%PropIndex%PONitrogen5                      = Me%Prop%IUB                                     
+            
+            endif
+            
+            if (Me%PropCalc%Phosphorus) then   
+
+            Me%Prop%IUB                                   = Me%Prop%IUB + 1
+            Me%PropIndex%POPhosphorus1                    = Me%Prop%IUB            
+            
+            Me%Prop%IUB                                   = Me%Prop%IUB + 1
+            Me%PropIndex%POPhosphorus2                    = Me%Prop%IUB 
+
+            Me%Prop%IUB                                   = Me%Prop%IUB + 1
+            Me%PropIndex%POPhosphorus3                    = Me%Prop%IUB 
+            
+            Me%Prop%IUB                                   = Me%Prop%IUB + 1
+            Me%PropIndex%POPhosphorus4                    = Me%Prop%IUB 
+
+            Me%Prop%IUB                                   = Me%Prop%IUB + 1
+            Me%PropIndex%POPhosphorus5                    = Me%Prop%IUB
+        
+            endif
+            
+        endif   !POMpools
+
 
         !Silica index number
         if (Me%PropCalc%Silica) then   
@@ -1555,6 +1659,33 @@ cd1 :       if (aux .EQ. 1) then
                 WQOptionsConsistencyVerif = .FALSE.
             end if cd1
         end if cd6
+           
+        
+cd90 :  if (WQOptionsConsistencyVerif) then
+        
+cd91 :       if (Me%PropCalc%Pompools) then
+            
+                if ((.NOT. Me%PropCalc%Nitrogen) .AND. (.NOT. Me%PropCalc%Phosphorus)) then
+                    write(*,*) 
+                    write(*,*) 'Impossible to simulate the Water Quality with POM pools without at least one nutrient cycle (N or P).'
+                    write(*,*) 'FUNCTION WQOptionsConsistencyVerif; Module ModuleWaterQuality. WARN06a.'
+                    write(*,*) 
+                    WQOptionsConsistencyVerif = .FALSE.
+                end if
+                 
+                if (WQOptionsConsistencyVerif .AND. (.NOT. Me%PropCalc%Oxygen)) then
+                    write(*,*) 
+                    write(*,*) 'Impossible to simulate the Water Quality with POM pools without oxygen.'
+                    write(*,*) 'FUNCTION WQOptionsConsistencyVerif; Module ModuleWaterQuality. WARN06b.'
+                    write(*,*) 
+                    WQOptionsConsistencyVerif = .FALSE.
+                end if 
+                          
+             end if cd91
+                     
+        end if cd90
+                
+
 
         !----------------------------------------------------------------------
 
@@ -3888,6 +4019,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
                                            Ciliate,                           &
                                            Diatoms,                           &  !aqui
                                            Silica,                            &  !aqui
+                                           PomPools,                          &
                                            ExplicitMethod,                    &
                                            ImplicitMethod,                    &
                                            SemiImpMethod, STAT) 
@@ -3896,7 +4028,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
         integer                         :: WaterQualityID
         integer, optional, intent(OUT)  :: STAT
         logical, optional, intent(OUT)  :: Zoo,  Age, Larvae, Phyto, Nitrogen, Phosphorus, Oxygen,   &
-                                           Salinity, BOD, Bacteria, Ciliate, Diatoms, Silica 
+                                           Salinity, BOD, Bacteria, Ciliate, Diatoms, Silica, Pompools 
         logical, optional, intent(OUT)  :: ExplicitMethod, ImplicitMethod, SemiImpMethod  
 
         !External--------------------------------------------------------------
@@ -3927,6 +4059,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
             if (present(Ciliate       )) Ciliate        = Me%PropCalc%Ciliate  
             if (present(Diatoms       )) Diatoms        = Me%PropCalc%Diatoms        !aqui
             if (present(Silica        )) Silica         = Me%PropCalc%Silica         !aqui
+            if (present(Pompools      )) Pompools       = Me%PropCalc%Pompools
             if (present(ExplicitMethod)) ExplicitMethod = Me%CalcMethod%ExplicitMethod
             if (present(ImplicitMethod)) ImplicitMethod = Me%CalcMethod%ImplicitMethod
             if (present(SemiImpMethod )) SemiImpMethod  = Me%CalcMethod%SemiImpMethod    
@@ -3956,6 +4089,11 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
                                              DONNonRefractory,                 &
                                              PartOrganicNitrogen,              &
                                              PartOrganicNitrogenRefractory,    &
+                                             PONitrogen1,                      &
+                                             PONitrogen2,                      &
+                                             PONitrogen3,                      &
+                                             PONitrogen4,                      &
+                                             PONitrogen5,                      &
                                              Oxygen,                           &
                                              BOD,                              &
                                              Bacteria,                         &
@@ -3966,6 +4104,11 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
                                              DissOrganicPhosphorusRefractory,  &
                                              DOPNonRefractory,                 &
                                              PartOrganicPhosphorus,            &
+                                             POPhosphorus1,                    &
+                                             POPhosphorus2,                    &
+                                             POPhosphorus3,                    &
+                                             POPhosphorus4,                    &
+                                             POPhosphorus5,                    &
                                              InorganicPhosphorus,              &
                                              STAT)
 
@@ -3983,7 +4126,17 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
         integer, optional, intent(OUT)  :: Nitrite                          
         integer, optional, intent(OUT)  :: DissOrganicNitrogenRefractory    
         integer, optional, intent(OUT)  :: DONNonRefractory 
-        integer, optional, intent(OUT)  :: PartOrganicNitrogen              
+        integer, optional, intent(OUT)  :: PartOrganicNitrogen
+        integer, optional, intent(OUT)  :: PONitrogen1
+        integer, optional, intent(OUT)  :: PONitrogen2
+        integer, optional, intent(OUT)  :: PONitrogen3
+        integer, optional, intent(OUT)  :: PONitrogen4
+        integer, optional, intent(OUT)  :: PONitrogen5
+        integer, optional, intent(OUT)  :: POPhosphorus1
+        integer, optional, intent(OUT)  :: POPhosphorus2 
+        integer, optional, intent(OUT)  :: POPhosphorus3 
+        integer, optional, intent(OUT)  :: POPhosphorus4 
+        integer, optional, intent(OUT)  :: POPhosphorus5               
         integer, optional, intent(OUT)  :: PartOrganicNitrogenRefractory              
         integer, optional, intent(OUT)  :: Oxygen                           
         integer, optional, intent(OUT)  :: BOD    
@@ -4022,7 +4175,17 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
             if (present(Nitrite              )) Nitrite               = Me%PropIndex%Nitrite
             if (present(PartOrganicNitrogen  )) PartOrganicNitrogen   = Me%PropIndex%PartOrganicNitrogen
             if (present(PartOrganicNitrogenRefractory  ))   &
-                PartOrganicNitrogenRefractory   = Me%PropIndex%PartOrganicNitrogenRefractory
+                PartOrganicNitrogenRefractory   = Me%PropIndex%PartOrganicNitrogenRefractory             
+            if (present(PONitrogen1          )) PONitrogen1           = Me%PropIndex%PONitrogen1    
+            if (present(PONitrogen2          )) PONitrogen2           = Me%PropIndex%PONitrogen2
+            if (present(PONitrogen3          )) PONitrogen3           = Me%PropIndex%PONitrogen3
+            if (present(PONitrogen4          )) PONitrogen4           = Me%PropIndex%PONitrogen4
+            if (present(PONitrogen5          )) PONitrogen5           = Me%PropIndex%PONitrogen5
+            if (present(POPhosphorus1        )) POPhosphorus1         = Me%PropIndex%POPhosphorus1    
+            if (present(POPhosphorus2        )) POPhosphorus2         = Me%PropIndex%POPhosphorus2
+            if (present(POPhosphorus3        )) POPhosphorus3         = Me%PropIndex%POPhosphorus3
+            if (present(POPhosphorus4        )) POPhosphorus4         = Me%PropIndex%POPhosphorus4
+            if (present(POPhosphorus5        )) POPhosphorus5         = Me%PropIndex%POPhosphorus5       
             if (present(Oxygen               )) Oxygen                = Me%PropIndex%Oxygen
             if (present(BOD                  )) BOD                   = Me%PropIndex%BOD 
             if (present(Bacteria             )) Bacteria              = Me%PropIndex%Bacteria      
@@ -4740,6 +4903,7 @@ do2 :       do j = PropLB, PropUB
         if (Me%PropCalc%Diatoms   ) call WQDiatoms      (index)  !aqui
         if (Me%PropCalc%Age       ) call WQAge          (index)
         if (Me%PropCalc%Larvae    ) call WQLarvae       (index)  ! Aires
+        if (Me%PropCalc%Pompools  ) call WQPompools     (index)
 
 !
 
@@ -7989,6 +8153,8 @@ subroutine WQOrganicNitrogen(index, RefrAmmoniaMinRate,                         
         call WQDONRefractory   (index, RefrAmmoniaMinRate, PartDecompRate)
 
         call WQDONNonRefractory(index)
+        
+        
 
     !------------------------------------------------------------------------
 
@@ -8412,6 +8578,212 @@ end subroutine WQInorganicPhosphorus
     !------------------------------------------------------------------------
 
     end subroutine WQOrganicPhosphorus
+    
+    
+    
+    
+    subroutine WQPompools(index)
+
+        !Arguments---------------------------------------------------------------
+        integer, intent(IN) :: index
+
+        !Local-----------------------------------------------------------------
+        integer                             :: AM
+        integer                             :: IP
+        integer                             :: PON1, PON2, PON3, PON4, PON5
+        integer                             :: POP1, POP2, POP3, POP4, POP5
+        integer                             :: DOPr, DONre
+        integer                             :: Zoo
+        integer                             :: O
+
+        real                                :: DTDay
+        
+
+        !External--------------------------------------------------------------
+        real                :: POPDecompRate
+        real                :: PartDecompRate
+
+        !------------------------------------------------------------------------
+
+        IP      = Me%PropIndex%InorganicPhosphorus
+        AM      = Me%PropIndex%Ammonia
+        Zoo     = Me%PropIndex%Zoo
+        O       = Me%PropIndex%Oxygen
+        DOPr    = Me%PropIndex%DissOrganicPhosphorusRefractory
+        DONre   = Me%PropIndex%DissOrganicNitrogenRefractory 
+        
+        DTDay   = Me%DTDay
+        
+        if (Me%PropCalc%Nitrogen) then
+        
+            PON1    = Me%PropIndex%PONitrogen1
+            PON2    = Me%PropIndex%PONitrogen2
+            PON3    = Me%PropIndex%PONitrogen3
+            PON4    = Me%PropIndex%PONitrogen4
+            PON5    = Me%PropIndex%PONitrogen5
+        
+        end if
+        
+        if (Me%PropCalc%Phosphorus) then
+        
+            POP1    = Me%PropIndex%POPhosphorus1
+            POP2    = Me%PropIndex%POPhosphorus2
+            POP3    = Me%PropIndex%POPhosphorus3
+            POP4    = Me%PropIndex%POPhosphorus4
+            POP5    = Me%PropIndex%POPhosphorus5
+        
+        end if
+                
+        !----------------------------------------------------------------------
+    
+    !Calculation of system coeficients for POM pools------------------------------
+        
+        if (Me%PropCalc%Nitrogen) then
+        
+        PartDecompRate  = Me%KPartDecompRate * Me%TPartDecomposition                                  &
+                      **(Me%ExternalVar%Temperature(index) - 20.0)
+                      
+            Me%Matrix(PON1, PON1) =  DTDay * PartDecompRate + 1.0
+            Me%Matrix(PON2, PON2) =  DTDay * PartDecompRate + 1.0
+            Me%Matrix(PON3, PON3) =  DTDay * PartDecompRate + 1.0
+            Me%Matrix(PON4, PON4) =  DTDay * PartDecompRate + 1.0
+            Me%Matrix(PON5, PON5) =  DTDay * PartDecompRate + 1.0
+            
+    !Calculation of system coeficients---------------------------------------
+            
+            Me%Matrix(O, PON1) = DTDay * PartDecompRate * 1/Me%OMAlfaNC * Me%OxyCarbonRatio *     &
+                                 MAX(Me%ExternalVar%Mass(O, index),Me%MinOxygen)                  &
+                                 /(MAX(Me%ExternalVar%Mass(O, index),Me%MinOxygen) +0.5)
+            
+            Me%Matrix(O, PON2) = DTDay * PartDecompRate * 1/Me%OMAlfaNC * Me%OxyCarbonRatio *     &
+                                 MAX(Me%ExternalVar%Mass(O, index),Me%MinOxygen)                  &
+                                 /(MAX(Me%ExternalVar%Mass(O, index),Me%MinOxygen) +0.5)
+            
+            Me%Matrix(O, PON3) = DTDay * PartDecompRate * 1/Me%OMAlfaNC * Me%OxyCarbonRatio *     &
+                                 MAX(Me%ExternalVar%Mass(O, index),Me%MinOxygen)                  &
+                                 /(MAX(Me%ExternalVar%Mass(O, index),Me%MinOxygen) +0.5)
+            
+            Me%Matrix(O, PON4) = DTDay * PartDecompRate * 1/Me%OMAlfaNC * Me%OxyCarbonRatio *     &
+                                 MAX(Me%ExternalVar%Mass(O, index),Me%MinOxygen)                  &
+                                 /(MAX(Me%ExternalVar%Mass(O, index),Me%MinOxygen) +0.5)
+            
+            Me%Matrix(O, PON5) = DTDay * PartDecompRate * 1/Me%OMAlfaNC * Me%OxyCarbonRatio *     &
+                                 MAX(Me%ExternalVar%Mass(O, index),Me%MinOxygen)                  &
+                                 /(MAX(Me%ExternalVar%Mass(O, index),Me%MinOxygen) +0.5)
+            
+            Me%Matrix(AM, PON1  ) = - PartDecompRate * Me%PhytoAvaibleDecomp * DTDay
+            
+            Me%Matrix(AM, PON2  ) = - PartDecompRate * Me%PhytoAvaibleDecomp * DTDay
+            
+            Me%Matrix(AM, PON3  ) = - PartDecompRate * Me%PhytoAvaibleDecomp * DTDay
+            
+            Me%Matrix(AM, PON4  ) = - PartDecompRate * Me%PhytoAvaibleDecomp * DTDay
+           
+            Me%Matrix(AM, PON5  ) = - PartDecompRate * Me%PhytoAvaibleDecomp * DTDay
+            
+            
+            Me%Matrix(DONre, PON1) =-DTDay * PartDecompRate * (1.0 - Me%PhytoAvaibleDecomp)
+            
+            Me%Matrix(DONre, PON2) =-DTDay * PartDecompRate * (1.0 - Me%PhytoAvaibleDecomp)
+            
+            Me%Matrix(DONre, PON3) =-DTDay * PartDecompRate * (1.0 - Me%PhytoAvaibleDecomp)
+            
+            Me%Matrix(DONre, PON4) =-DTDay * PartDecompRate * (1.0 - Me%PhytoAvaibleDecomp)
+            
+            Me%Matrix(DONre, PON5) =-DTDay * PartDecompRate * (1.0 - Me%PhytoAvaibleDecomp)
+            
+            
+            !Independent term
+            Me%IndTerm(PON1) = Me%ExternalVar%Mass(PON1, index)
+            Me%IndTerm(PON2) = Me%ExternalVar%Mass(PON2, index)
+            Me%IndTerm(PON3) = Me%ExternalVar%Mass(PON3, index)
+            Me%IndTerm(PON4) = Me%ExternalVar%Mass(PON4, index)
+            Me%IndTerm(PON5) = Me%ExternalVar%Mass(PON5, index)
+        
+        end if
+        
+        
+        
+        
+        
+        
+        
+        
+        if (Me%PropCalc%Phosphorus) then
+                       
+            POPDecompRate = Me%POPDecompRate * Me%TPOPDecompRate                                        &
+                    **(Me%ExternalVar%Temperature(index) - 20.0)
+
+            Me%Matrix(POP1, POP1) =  DTDay * POPDecompRate + 1.0
+            Me%Matrix(POP2, POP2) =  DTDay * POPDecompRate + 1.0
+            Me%Matrix(POP3, POP3) =  DTDay * POPDecompRate + 1.0
+            Me%Matrix(POP4, POP4) =  DTDay * POPDecompRate + 1.0
+            Me%Matrix(POP5, POP5) =  DTDay * POPDecompRate + 1.0
+            
+    
+    !Calculation of system coeficients---------------------------------------
+
+        Me%Matrix(O, POP1) = DTDay * POPDecompRate * 1/Me%OMAlfaPC * Me%OxyCarbonRatio *     &
+                                 MAX(Me%ExternalVar%Mass(O, index), Me%MinOxygen)            &
+                                 /(MAX(Me%ExternalVar%Mass(O, index),Me%MinOxygen) + 0.5) 
+        
+        Me%Matrix(O, POP2) = DTDay * POPDecompRate * 1/Me%OMAlfaPC * Me%OxyCarbonRatio *     &
+                                 MAX(Me%ExternalVar%Mass(O, index), Me%MinOxygen)            &
+                                 /(MAX(Me%ExternalVar%Mass(O, index),Me%MinOxygen) + 0.5)
+        
+        Me%Matrix(O, POP3) = DTDay * POPDecompRate * 1/Me%OMAlfaPC * Me%OxyCarbonRatio *     &
+                                 MAX(Me%ExternalVar%Mass(O, index), Me%MinOxygen)            &
+                                 /(MAX(Me%ExternalVar%Mass(O, index),Me%MinOxygen) + 0.5)
+        
+        Me%Matrix(O, POP4) = DTDay * POPDecompRate * 1/Me%OMAlfaPC * Me%OxyCarbonRatio *     &
+                                 MAX(Me%ExternalVar%Mass(O, index), Me%MinOxygen)            &
+                                 /(MAX(Me%ExternalVar%Mass(O, index),Me%MinOxygen) + 0.5)
+        
+        Me%Matrix(O, POP5) = DTDay * POPDecompRate * 1/Me%OMAlfaPC * Me%OxyCarbonRatio *     &
+                                 MAX(Me%ExternalVar%Mass(O, index), Me%MinOxygen)            &
+                                 /(MAX(Me%ExternalVar%Mass(O, index),Me%MinOxygen) + 0.5)
+        
+               
+        Me%Matrix(IP, POP1)   = - DTDay * POPDecompRate * Me%PhytoAvaibleDecomp
+        
+        Me%Matrix(IP, POP2)   = - DTDay * POPDecompRate * Me%PhytoAvaibleDecomp
+        
+        Me%Matrix(IP, POP3)   = - DTDay * POPDecompRate * Me%PhytoAvaibleDecomp
+        
+        Me%Matrix(IP, POP4)   = - DTDay * POPDecompRate * Me%PhytoAvaibleDecomp
+        
+        Me%Matrix(IP, POP5)   = - DTDay * POPDecompRate * Me%PhytoAvaibleDecomp
+        
+        
+        Me%Matrix(DOPr, POP1) = - DTDay * POPDecompRate * (1.0 - Me%PhytoAvaibleDecomp)
+        
+        Me%Matrix(DOPr, POP2) = - DTDay * POPDecompRate * (1.0 - Me%PhytoAvaibleDecomp)
+        
+        Me%Matrix(DOPr, POP3) = - DTDay * POPDecompRate * (1.0 - Me%PhytoAvaibleDecomp)
+        
+        Me%Matrix(DOPr, POP4) = - DTDay * POPDecompRate * (1.0 - Me%PhytoAvaibleDecomp)
+        
+        Me%Matrix(DOPr, POP5) = - DTDay * POPDecompRate * (1.0 - Me%PhytoAvaibleDecomp)
+            
+            
+            !Independent term             
+            Me%IndTerm(POP1) = Me%ExternalVar%Mass(POP1, index)
+            Me%IndTerm(POP2) = Me%ExternalVar%Mass(POP2, index)
+            Me%IndTerm(POP3) = Me%ExternalVar%Mass(POP3, index)
+            Me%IndTerm(POP4) = Me%ExternalVar%Mass(POP4, index)
+            Me%IndTerm(POP5) = Me%ExternalVar%Mass(POP5, index)
+        
+        end if
+        
+    end subroutine WQPompools   
+    
+    
+    
+    
+    
+    
+    
+    
 
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++

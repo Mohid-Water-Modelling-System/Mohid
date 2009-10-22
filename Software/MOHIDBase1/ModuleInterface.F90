@@ -1142,6 +1142,7 @@ cd1 :           if(STAT_CALL .EQ. KEYWORD_NOT_FOUND_ERR_) then
         logical                                              :: Carbon, Sol_Bacteria
         logical                                              :: Bacteria, Ciliate 
         logical                                              :: Larvae
+        logical                                              :: Pompools
         real                                                 :: DT
         integer                                              :: STAT_CALL
 
@@ -1202,6 +1203,7 @@ cd1 :           if(STAT_CALL .EQ. KEYWORD_NOT_FOUND_ERR_) then
                                                         Bacteria         = Bacteria,        &
                                                         Ciliate          = Ciliate,         &
                                                         Larvae           = Larvae,          &
+                                                        Pompools         = Pompools,        &
                                                         STAT             = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'Check_Options - ModuleInterface - ERR03' 
 
@@ -1239,7 +1241,7 @@ cd5 :           if (Phosphorus) then
 cd6 :           if (Nitrogen) then
                     if (.not.FindProperty(PropertiesList, PON_))                    &
                         stop 'WQM needs property particulate organic nitrogen - Check_Options'
-
+                        
                     if (Bacteria .and. .not.FindProperty(PropertiesList, PONRefractory_))          &
                         stop 'WQM needs property particulate refractory organic nitrogen - Check_Options'
 
@@ -1296,6 +1298,57 @@ cd13 :          if (Silica) then
                         stop 'WQM needs property oxygen - Check_Options'
                 endif
 
+cd50 :         if(.NOT.(Pompools)) then
+
+                if (FindProperty(PropertiesList, PON1_) .OR. FindProperty(PropertiesList, PON2_) .OR. &
+                    FindProperty(PropertiesList, PON3_) .OR. FindProperty(PropertiesList, PON4_) .OR. &
+                    FindProperty(PropertiesList, PON5_) .OR. FindProperty(PropertiesList, POP1_) .OR. &
+                    FindProperty(PropertiesList, POP2_) .OR. FindProperty(PropertiesList, POP3_) .OR. &
+                    FindProperty(PropertiesList, POP4_) .OR. FindProperty(PropertiesList, POP5_))     &
+                        stop 'WQM needs the POM pools option activated - Check_Options'
+
+               end if cd50
+
+cd60 :         if (Pompools) then
+                 
+                 if (Nitrogen) then
+                    if (.not.FindProperty(PropertiesList, PON1_))                    &
+                        stop 'WQM with POM pools needs property PON1 - Check_Options'
+                    
+                    if (.not.FindProperty(PropertiesList, PON2_))                    &
+                        stop 'WQM with POM pools needs property PON2 - Check_Options'    
+                    
+                    if (.not.FindProperty(PropertiesList, PON3_))                    &
+                        stop 'WQM with POM pools needs property PON3 - Check_Options'
+                    
+                    if (.not.FindProperty(PropertiesList, PON4_))                    &
+                        stop 'WQM with POM pools needs property PON4 - Check_Options'
+                        
+                    if (.not.FindProperty(PropertiesList, PON5_))                    &
+                        stop 'WQM with POM pools needs property PON5 - Check_Options'
+                            
+                  end if
+                  
+                  if (Phosphorus) then
+                     
+                     if (.not.FindProperty(PropertiesList, POP1_))                    &
+                        stop 'WQM with POM pools needs property POP1 - Check_Options'
+                    
+                    if (.not.FindProperty(PropertiesList, POP2_))                    &
+                        stop 'WQM with POM pools needs property POP2 - Check_Options'    
+                    
+                    if (.not.FindProperty(PropertiesList, POP3_))                    &
+                        stop 'WQM with POM pools needs property POP3 - Check_Options'
+                    
+                    if (.not.FindProperty(PropertiesList, POP4_))                    &
+                        stop 'WQM with POM pools needs property POP4 - Check_Options'
+                        
+                    if (.not.FindProperty(PropertiesList, POP5_))                    &
+                        stop 'WQM with POM pools needs property POP5 - Check_Options'
+                        
+                  end if
+                  
+                end if cd60
             
             case (SedimentQualityModel)
 
@@ -2953,6 +3006,10 @@ cd10 :                      if (Me%ExternalVar%RiverPoints1D(i) == 1) then
         integer                                 :: numDONRefractory
         integer                                 :: numDONNonRefractory
         integer                                 :: numPartOrganicNitrogen, numPartOrganicNitrogenRef
+        integer                                 :: numPONitrogen1, numPONitrogen2, numPONitrogen3 
+        integer                                 :: numPONitrogen4, numPONitrogen5
+        integer                                 :: numPOPhosphorus1, numPOPhosphorus2, numPOPhosphorus3         
+        integer                                 :: numPOPhosphorus4, numPOPhosphorus5
         integer                                 :: numOxygen, numBOD
         integer                                 :: numDOPRefractory, numDOPNonRefractory
         integer                                 :: numPartOrganicPhosphorus, numInorganicPhosphorus 
@@ -2969,7 +3026,8 @@ cd10 :                      if (Me%ExternalVar%RiverPoints1D(i) == 1) then
 !        integer                                 :: numAmmoniaGas, numMethane
         integer                                 :: STAT_CALL
         logical                                 :: lZoo, lPhyto, lDiatoms 
-        logical                                 :: lNitrogen, lPhosphorus, lSilica 
+        logical                                 :: lNitrogen, lPhosphorus, lSilica
+        logical                                 :: lPompools 
         logical                                 :: lOxygen, lSalinity, lBOD
         logical                                 :: lBacteria, lCiliate
         logical                                 :: lLarvae
@@ -3004,11 +3062,21 @@ cd10 :                      if (Me%ExternalVar%RiverPoints1D(i) == 1) then
                                      DONNonRefractory                = numDONNonRefractory,     &
                                      PartOrganicNitrogen             = numPartOrganicNitrogen,  &
                                      PartOrganicNitrogenRefractory   = numPartOrganicNitrogenRef,  &
+                                     PONitrogen1                     = numPONitrogen1,          &
+                                     PONitrogen2                     = numPONitrogen2,          &
+                                     PONitrogen3                     = numPONitrogen3,          &
+                                     PONitrogen4                     = numPONitrogen4,          &
+                                     PONitrogen5                     = numPONitrogen5,          &                                
                                      Oxygen                          = numOxygen,               &
                                      BOD                             = numBOD,                  &
                                      DissOrganicPhosphorusRefractory = numDOPRefractory,        &
                                      DOPNonRefractory                = numDOPNonRefractory,     &
                                      PartOrganicPhosphorus           = numPartOrganicPhosphorus,&
+                                     POPhosphorus1                   = numPOPhosphorus1,        &
+                                     POPhosphorus2                   = numPOPhosphorus2,        &
+                                     POPhosphorus3                   = numPOPhosphorus3,        &
+                                     POPhosphorus4                   = numPOPhosphorus4,        &
+                                     POPhosphorus5                   = numPOPhosphorus5,        &
                                      InorganicPhosphorus             = numInorganicPhosphorus,  &
                                      Bacteria                        = numBacteria,             &
                                      Ciliate                         = numCiliate,              &
@@ -3028,6 +3096,7 @@ cd10 :                      if (Me%ExternalVar%RiverPoints1D(i) == 1) then
                                    BOD            = lBOD,                                       & 
                                    Bacteria       = lBacteria,                                  &
                                    Ciliate        = lCiliate,                                   &
+                                   Pompools       = lPompools,                                  &
                                    STAT           = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)stop 'FillMassTempSalinity3D - ModuleInterface - ERR02'
 
@@ -3074,6 +3143,7 @@ cd22 :              if (PropertyID== Inorganic_Phosphorus_) then
                         call InputData(Concentration, numInorganicPhosphorus)
                         Me%AddedProperties(numInorganicPhosphorus)      = .TRUE.
                     end if cd22
+                    
                 end if cd20
 
 
@@ -3106,13 +3176,76 @@ cd14 :              if (PropertyID== Ammonia_) then
 cd15 :              if (PropertyID== Nitrate_) then
                         call InputData(Concentration,numNitrate)
                         Me%AddedProperties(numNitrate)                  = .TRUE.
-                    end if cd15
+                    end if cd15                                                              
 
-cd1116 :            if (PropertyID== Nitrite_) then
+cd1126 :            if (PropertyID== Nitrite_) then
                         call InputData(Concentration,numNitrite)
                         Me%AddedProperties(numNitrite)                  = .TRUE.
-                    end if cd1116
+                    end if cd1126
                 end if cd9
+
+
+cd1110 :       if (lPompools) then
+
+cd1111 :         if (lNitrogen) then
+                    
+cd1116 :            if (PropertyID== PON1_) then
+                        call InputData(Concentration, numPONitrogen1)
+                        Me%AddedProperties(numPONitrogen1)              = .TRUE.
+                    end if cd1116                    
+
+cd1117 :             if (PropertyID== PON2_) then
+                        call InputData(Concentration, numPONitrogen2)
+                        Me%AddedProperties(numPONitrogen2)              = .TRUE.
+                    end if cd1117 
+                    
+cd1118 :            if (PropertyID== PON3_) then
+                        call InputData(Concentration, numPONitrogen3)
+                        Me%AddedProperties(numPONitrogen3)              = .TRUE.
+                    end if cd1118 
+                    
+cd1119 :             if (PropertyID== PON4_) then
+                        call InputData(Concentration, numPONitrogen4)
+                        Me%AddedProperties(numPONitrogen4)              = .TRUE.
+                    end if cd1119                                                             
+
+cd1120 :             if (PropertyID== PON5_) then
+                        call InputData(Concentration, numPONitrogen5)
+                        Me%AddedProperties(numPONitrogen5)              = .TRUE.
+                    end if cd1120   
+                 
+                 end if cd1111   
+
+cd1112 :         if (lPhosphorus) then
+                 
+cd1121 :             if (PropertyID== POP1_) then
+                        call InputData(Concentration, numPOPhosphorus1)
+                        Me%AddedProperties(numPOPhosphorus1)            = .TRUE.
+                    end if cd1121                    
+
+cd1122 :             if (PropertyID== POP2_) then
+                        call InputData(Concentration, numPOPhosphorus2)
+                        Me%AddedProperties(numPOPhosphorus2)            = .TRUE.
+                    end if cd1122 
+                    
+cd1123 :             if (PropertyID== POP3_) then
+                        call InputData(Concentration, numPOPhosphorus3)
+                        Me%AddedProperties(numPOPhosphorus3)            = .TRUE.
+                    end if cd1123 
+                    
+cd1124 :             if (PropertyID== POP4_) then
+                        call InputData(Concentration, numPOPhosphorus4)
+                        Me%AddedProperties(numPOPhosphorus4)            = .TRUE.
+                    end if cd1124                                                             
+
+cd1125 :             if (PropertyID== POP5_) then
+                        call InputData(Concentration, numPOPhosphorus5)
+                        Me%AddedProperties(numPOPhosphorus5)            = .TRUE.
+                    end if cd1125                 
+                 
+                 end if cd1112
+                                                           
+                end if cd1110
 
 
 cd7 :           if (lBOD) then
@@ -3150,7 +3283,7 @@ cd6 :           if (PropertyID== Oxygen_) then
 
                 if (lSalinity) then
                 
-cd4 :               if (PropertyID== Salinity_) then
+cd4 :           if (PropertyID== Salinity_) then
                         call UnfoldMatrix(Concentration, Me%Salinity)
                         SalinityAdded       =.TRUE.
                     end if cd4
@@ -3671,6 +3804,10 @@ cd45 :                  if (.NOT. Me%AddedProperties(i)) then
         integer                                 :: numOxygen, numBOD
         integer                                 :: numDOPRefractory, numDOPNonRefractory
         integer                                 :: numPartOrganicPhosphorus, numInorganicPhosphorus 
+        integer                                 :: numPONitrogen1, numPONitrogen2, numPONitrogen3
+        integer                                 :: numPONitrogen4, numPONitrogen5
+        integer                                 :: numPOPhosphorus1, numPOPhosphorus2, numPOPhosphorus3
+        integer                                 :: numPOPhosphorus4, numPOPhosphorus5
         integer                                 :: numBacteria, numCiliate
         integer                                 :: numLarvae
         integer                                 :: numHeterotrophicN, numHeterotrophicC
@@ -3684,7 +3821,8 @@ cd45 :                  if (.NOT. Me%AddedProperties(i)) then
 !        integer                                 :: numAmmoniaGas, numMethane 
         integer                                 :: STAT_CALL
         logical                                 :: lZoo, lPhyto, lDiatoms 
-        logical                                 :: lNitrogen, lPhosphorus, lSilica 
+        logical                                 :: lNitrogen, lPhosphorus, lSilica
+        logical                                 :: lPompools 
         logical                                 :: lOxygen, lSalinity, lBOD
         logical                                 :: lBacteria, lCiliate, lSol_Bacteria
         logical                                 :: lLarvae
@@ -3719,11 +3857,21 @@ cd45 :                  if (.NOT. Me%AddedProperties(i)) then
                                      DONNonRefractory                = numDONNonRefractory,     &
                                      PartOrganicNitrogen             = numPartOrganicNitrogen,  &
                                      PartOrganicNitrogenRefractory   = numPartOrganicNitrogenRef,  &
+                                     PONitrogen1                     = numPONitrogen1 ,         &
+                                     PONitrogen2                     = numPONitrogen2 ,         &
+                                     PONitrogen3                     = numPONitrogen3 ,         &
+                                     PONitrogen4                     = numPONitrogen4 ,         &
+                                     PONitrogen5                     = numPONitrogen5 ,         & 
                                      Oxygen                          = numOxygen,               &
                                      BOD                             = numBOD,                  &
                                      DissOrganicPhosphorusRefractory = numDOPRefractory,        &
                                      DOPNonRefractory                = numDOPNonRefractory,     &
                                      PartOrganicPhosphorus           = numPartOrganicPhosphorus,&
+                                     POPhosphorus1                   = numPOPhosphorus1 ,       &
+                                     POPhosphorus2                   = numPOPhosphorus2 ,       &
+                                     POPhosphorus3                   = numPOPhosphorus3 ,       &
+                                     POPhosphorus4                   = numPOPhosphorus4 ,       &
+                                     POPhosphorus5                   = numPOPhosphorus5 ,       &
                                      InorganicPhosphorus             = numInorganicPhosphorus,  &
                                      Bacteria                        = numBacteria,             &
                                      Ciliate                         = numCiliate,              &
@@ -3743,6 +3891,7 @@ cd45 :                  if (.NOT. Me%AddedProperties(i)) then
                                    BOD            = lBOD,                                       & 
                                    Bacteria       = lBacteria,                                  &
                                    Ciliate        = lCiliate,                                   &
+                                   Pompools       = lPompools,                                  &
                                    STAT           = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)stop 'FillMassTempSalinity1D - ModuleInterface - ERR02'
 
@@ -3789,6 +3938,7 @@ cd22 :              if (PropertyID== Inorganic_Phosphorus_) then
                         call InputData(Concentration, numInorganicPhosphorus)
                         Me%AddedProperties(numInorganicPhosphorus)      = .TRUE.
                     end if cd22
+                    
                 end if cd20
 
 
@@ -3821,13 +3971,78 @@ cd14 :              if (PropertyID== Ammonia_) then
 cd15 :              if (PropertyID== Nitrate_) then
                         call InputData(Concentration,numNitrate)
                         Me%AddedProperties(numNitrate)                  = .TRUE.
-                    end if cd15
+                    end if cd15                    
 
-cd1116 :            if (PropertyID== Nitrite_) then
+cd1113 :            if (PropertyID== Nitrite_) then
                         call InputData(Concentration,numNitrite)
                         Me%AddedProperties(numNitrite)                  = .TRUE.
-                    end if cd1116
+                    end if cd1113
                 end if cd9
+
+
+cd1110 :       if (lPompools) then
+
+cd1111 :         if (lNitrogen) then
+                    
+cd1116 :            if (PropertyID== PON1_) then
+                        call InputData(Concentration, numPONitrogen1)
+                        Me%AddedProperties(numPONitrogen1)              = .TRUE.
+                    end if cd1116                    
+
+cd1117 :             if (PropertyID== PON2_) then
+                        call InputData(Concentration, numPONitrogen2)
+                        Me%AddedProperties(numPONitrogen2)              = .TRUE.
+                    end if cd1117 
+                    
+cd1118 :            if (PropertyID== PON3_) then
+                        call InputData(Concentration, numPONitrogen3)
+                        Me%AddedProperties(numPONitrogen3)              = .TRUE.
+                    end if cd1118 
+                    
+cd1119 :             if (PropertyID== PON4_) then
+                        call InputData(Concentration, numPONitrogen4)
+                        Me%AddedProperties(numPONitrogen4)              = .TRUE.
+                    end if cd1119                                                             
+
+cd1120 :             if (PropertyID== PON5_) then
+                        call InputData(Concentration, numPONitrogen5)
+                        Me%AddedProperties(numPONitrogen5)              = .TRUE.
+                    end if cd1120   
+                 
+                 end if cd1111   
+
+cd1112 :         if (lPhosphorus) then
+                 
+cd1121 :             if (PropertyID== POP1_) then
+                        call InputData(Concentration, numPOPhosphorus1)
+                        Me%AddedProperties(numPOPhosphorus1)            = .TRUE.
+                    end if cd1121                    
+
+cd1122 :             if (PropertyID== POP2_) then
+                        call InputData(Concentration, numPOPhosphorus2)
+                        Me%AddedProperties(numPOPhosphorus2)            = .TRUE.
+                    end if cd1122 
+                    
+cd1123 :             if (PropertyID== POP3_) then
+                        call InputData(Concentration, numPOPhosphorus3)
+                        Me%AddedProperties(numPOPhosphorus3)            = .TRUE.
+                    end if cd1123 
+                    
+cd1124 :             if (PropertyID== POP4_) then
+                        call InputData(Concentration, numPOPhosphorus4)
+                        Me%AddedProperties(numPOPhosphorus4)            = .TRUE.
+                    end if cd1124                                                             
+
+cd1125 :             if (PropertyID== POP5_) then
+                        call InputData(Concentration, numPOPhosphorus5)
+                        Me%AddedProperties(numPOPhosphorus5)            = .TRUE.
+                    end if cd1125                 
+                 
+                 end if cd1112
+                                                           
+                end if cd1110
+
+
 
 
 cd7 :           if (lBOD) then
@@ -3839,21 +4054,21 @@ cd8 :           if (PropertyID== BOD_) then
 
 
 
-cd23 :          if (lBacteria) then
-cd24 :          if (PropertyID== Bacteria_) then
+cd223 :          if (lBacteria) then
+cd224 :          if (PropertyID== Bacteria_) then
                     call InputData(Concentration,numBacteria)
                     Me%AddedProperties(numBacteria) = .TRUE.
-                end if cd24
-                end if cd23
+                end if cd224
+                end if cd223
 
 
 
-cd25 :          if (lCiliate) then
-cd26 :          if (PropertyID== Ciliate_) then
+cd225 :          if (lCiliate) then
+cd226 :          if (PropertyID== Ciliate_) then
                     call InputData(Concentration,numCiliate)
                     Me%AddedProperties(numCiliate)  = .TRUE.
-                end if cd26
-                end if cd25
+                end if cd226
+                end if cd225
 
 
                 !The oxygen is always compute. If it's not defined in the waterproperties 
@@ -3882,12 +4097,12 @@ cd99:           if (PropertyID== FishFood_) then
                 end if cd99
 
 
-cd116 :         if (lDiatoms) then 
-cd117 :         if (PropertyID == Diatoms_) then
+cd216 :        if (lDiatoms) then 
+cd217 :        if (PropertyID == Diatoms_) then
                     call InputData(Concentration,numDiatoms)
                     Me%AddedProperties(numDiatoms)    = .TRUE.
-                end if cd117
-                end if cd116
+                end if cd217
+                end if cd216
 
 
 cd150 :          if (lSilica) then
@@ -4701,12 +4916,15 @@ cd45 :                  if (.NOT. Me%AddedProperties(i)) then
         integer                         :: numSiBio, numSiDiss 
         integer                         :: numDONRefractory, numDONNonRefractory
         integer                         :: numPartOrganicNitrogen
+        integer                         :: numPONitrogen1, numPONitrogen2, numPONitrogen3
+        integer                         :: numPONitrogen4, numPONitrogen5
+        integer                         :: numPOPhosphorus1, numPOPhosphorus2, numPOPhosphorus3
+        integer                         :: numPOPhosphorus4, numPOPhosphorus5      
         integer                         :: numPartOrganicNitrogenRef
         integer                         :: numOxygen, numBOD
         integer                         :: numDOPRefractory, numDOPNonRefractory
         integer                         :: numPartOrganicPhosphorus, numInorganicPhosphorus 
         integer                         :: numBacteria, numCiliate
-
         integer                         :: numHeterotrophicN, numHeterotrophicC
         integer                         :: numAutotrophicN, numAutotrophicC
         integer                         :: numAutotrophicP, numHeterotrophicP
@@ -4742,11 +4960,21 @@ cd45 :                  if (.NOT. Me%AddedProperties(i)) then
                              DONNonRefractory                 = numDONNonRefractory,     &
                              PartOrganicNitrogen              = numPartOrganicNitrogen,  &
                              PartOrganicNitrogenRefractory    = numPartOrganicNitrogenRef,  &
+                             PONitrogen1                      = numPONitrogen1 ,         &
+                             PONitrogen2                      = numPONitrogen2 ,         &
+                             PONitrogen3                      = numPONitrogen3 ,         &
+                             PONitrogen4                      = numPONitrogen4 ,         &
+                             PONitrogen5                      = numPONitrogen5 ,         & 
                              Oxygen                           = numOxygen,               &
                              BOD                              = numBOD,                  &
                              DissOrganicPhosphorusRefractory  = numDOPRefractory,        &
                              DOPNonRefractory                 = numDOPNonRefractory,     &
                              PartOrganicPhosphorus            = numPartOrganicPhosphorus,&
+                             POPhosphorus1                    = numPOPhosphorus1 ,       &
+                             POPhosphorus2                    = numPOPhosphorus2 ,       &
+                             POPhosphorus3                    = numPOPhosphorus3 ,       &
+                             POPhosphorus4                    = numPOPhosphorus4 ,       &
+                             POPhosphorus5                    = numPOPhosphorus5 ,       &
                              InorganicPhosphorus              = numInorganicPhosphorus,  &
                              Bacteria                         = numBacteria,             &
                              Ciliate                          = numCiliate,              &
@@ -4795,7 +5023,37 @@ cd1 :           if      (PropertyID== Phytoplankton_       ) then
 
                 else if (PropertyID== Nitrite_             ) then cd1
                     nProperty = numNitrite
-
+                    
+                else if (PropertyID== PON1_                ) then cd1
+                    nProperty = numPONitrogen1
+                
+                else if (PropertyID== PON2_                ) then cd1
+                    nProperty = numPONitrogen2        
+                
+                else if (PropertyID== PON3_                ) then cd1
+                    nProperty = numPONitrogen3    
+                
+                else if (PropertyID== PON4_                ) then cd1
+                    nProperty = numPONitrogen4
+                
+                else if (PropertyID== PON5_                ) then cd1
+                    nProperty = numPONitrogen5
+                    
+                else if (PropertyID== POP1_                ) then cd1
+                    nProperty = numPOPhosphorus1
+                
+                else if (PropertyID== POP2_                ) then cd1
+                    nProperty = numPOPhosphorus2        
+                
+                else if (PropertyID== POP3_                ) then cd1
+                    nProperty = numPOPhosphorus3    
+                
+                else if (PropertyID== POP4_                ) then cd1
+                    nProperty = numPOPhosphorus4
+                
+                else if (PropertyID== POP5_                ) then cd1
+                    nProperty = numPOPhosphorus5    
+                    
                 else if (PropertyID== Bacteria_            ) then cd1
                     nProperty = numBacteria
 

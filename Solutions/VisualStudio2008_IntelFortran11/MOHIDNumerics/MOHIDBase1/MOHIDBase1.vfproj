@@ -57,17 +57,17 @@
 		<Filter Name="Header Files" Filter="fi;fd"/>
 		<Filter Name="Resource Files" Filter="rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe"/>
 		<Filter Name="Source Files" Filter="f90;for;f;fpp;ftn;def;odl;idl">
-		<File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleBenthos.F90"/>
+		<File RelativePath="..\..\..\..\..\MOHID_trashbin\ModuleBenthos.F90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleCEQUALW2.F90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleDischarges.F90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleDrainageNetwork.F90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleDrawing.F90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleEnterData.F90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleFunctions.F90"/>
-		<File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleGlobalData.F90"/>
+		<File RelativePath="..\..\..\..\..\MOHID_trashbin\ModuleGlobalData.F90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleHDF5.F90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleHydroIntegration.F90"/>
-		<File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleInterface.F90"/>
+		<File RelativePath="..\..\..\..\..\MOHID_trashbin\ModuleInterface.F90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleLife.F90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleLightExtinction.F90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleLUD.F90"/>
@@ -78,5 +78,5 @@
 		<File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleTime.F90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleTimeSerie.F90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleTriangulation.F90"/>
-		<File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleWaterQuality.F90"/></Filter></Files>
+		<File RelativePath="..\..\..\..\..\MOHID_trashbin\ModuleWaterQuality.F90"/></Filter></Files>
 	<Globals/></VisualStudioProject>

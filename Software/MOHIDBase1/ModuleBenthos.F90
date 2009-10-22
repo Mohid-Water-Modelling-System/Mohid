@@ -106,6 +106,16 @@ Module ModuleBenthos
         integer                                     :: PONr             = null_int
         integer                                     :: DONnr            = null_int
         integer                                     :: Diatoms          = null_int
+        integer                                     :: PON1             = null_int
+        integer                                     :: PON2             = null_int
+        integer                                     :: PON3             = null_int
+        integer                                     :: PON4             = null_int
+        integer                                     :: PON5             = null_int
+        integer                                     :: POP1             = null_int
+        integer                                     :: POP2             = null_int
+        integer                                     :: POP3             = null_int
+        integer                                     :: POP4             = null_int
+        integer                                     :: POP5             = null_int        
     end type T_PropIndex
 
     type     T_OrganicMatter
@@ -169,6 +179,7 @@ Module ModuleBenthos
         logical                                     :: Diatoms          = .false.
         logical                                     :: Phyto            = .false.
         logical                                     :: Bacteria         = .false.
+        logical                                     :: Pompools         = .false.
     end type T_ComputeOptions
 
     type       T_Benthos
@@ -433,6 +444,15 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      ClientModule = 'ModuleBenthos',                                    &
                      STAT         = STAT_CALL)
         if(STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalVariables - ModuleBenthos - ERR100'
+        
+                call GetData(Me%ComputeOptions%Pompools,                                &
+                     Me%ObjEnterData, iflag,                                            &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'POMPOOLS',                                         &
+                     Default      = .false.,                                            &
+                     ClientModule = 'ModuleBenthos',                                    &
+                     STAT         = STAT_CALL)
+        if(STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalVariables - ModuleBenthos - ERR110'
 
     end subroutine ConstructGlobalVariables
     
@@ -836,6 +856,25 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         
             Me%Prop%IUB                 = Me%Prop%IUB + 1
             Me%PropIndex%PON            = Me%Prop%IUB
+            
+            if(Me%ComputeOptions%Pompools)then
+            
+                Me%Prop%IUB                 = Me%Prop%IUB + 1
+                Me%PropIndex%PON1           = Me%Prop%IUB
+            
+                Me%Prop%IUB                 = Me%Prop%IUB + 1
+                Me%PropIndex%PON2           = Me%Prop%IUB
+                
+                Me%Prop%IUB                 = Me%Prop%IUB + 1
+                Me%PropIndex%PON3           = Me%Prop%IUB
+            
+                Me%Prop%IUB                 = Me%Prop%IUB + 1
+                Me%PropIndex%PON4           = Me%Prop%IUB
+                
+                Me%Prop%IUB                 = Me%Prop%IUB + 1
+                Me%PropIndex%PON5           = Me%Prop%IUB
+                       
+            end if           
 
         end if
 
@@ -846,6 +885,25 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
             Me%Prop%IUB                 = Me%Prop%IUB + 1
             Me%PropIndex%POP            = Me%Prop%IUB
+            
+            if(Me%ComputeOptions%Pompools)then
+            
+                Me%Prop%IUB                 = Me%Prop%IUB + 1
+                Me%PropIndex%POP1           = Me%Prop%IUB
+            
+                Me%Prop%IUB                 = Me%Prop%IUB + 1
+                Me%PropIndex%POP2           = Me%Prop%IUB
+                
+                Me%Prop%IUB                 = Me%Prop%IUB + 1
+                Me%PropIndex%POP3           = Me%Prop%IUB
+            
+                Me%Prop%IUB                 = Me%Prop%IUB + 1
+                Me%PropIndex%POP4           = Me%Prop%IUB
+                
+                Me%Prop%IUB                 = Me%Prop%IUB + 1
+                Me%PropIndex%POP5           = Me%Prop%IUB
+                       
+            end if
 
         end if
 
@@ -905,11 +963,27 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         if(Me%ComputeOptions%Nitrogen)then
             Me%PropertyList(Me%PropIndex%Ammonia)           = Ammonia_
             Me%PropertyList(Me%PropIndex%PON)               = PON_
+            
+            if(Me%ComputeOptions%Pompools)then
+                Me%PropertyList(Me%PropIndex%PON1)               = PON1_
+                Me%PropertyList(Me%PropIndex%PON2)               = PON2_
+                Me%PropertyList(Me%PropIndex%PON3)               = PON3_
+                Me%PropertyList(Me%PropIndex%PON4)               = PON4_
+                Me%PropertyList(Me%PropIndex%PON5)               = PON5_
+            end if
         end if
 
         if(Me%ComputeOptions%Phosphorus)then
             Me%PropertyList(Me%PropIndex%Phosphate)         = Inorganic_Phosphorus_
             Me%PropertyList(Me%PropIndex%POP)               = POP_
+            
+            if(Me%ComputeOptions%Pompools)then
+                Me%PropertyList(Me%PropIndex%POP1)               = POP1_
+                Me%PropertyList(Me%PropIndex%POP2)               = POP2_
+                Me%PropertyList(Me%PropIndex%POP3)               = POP3_
+                Me%PropertyList(Me%PropIndex%POP4)               = POP4_
+                Me%PropertyList(Me%PropIndex%POP5)               = POP5_
+            end if
         end if
 
         if(Me%ComputeOptions%Silica)then
@@ -1328,6 +1402,7 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
         
         !Local-----------------------------------------------------------------
         integer                                     :: AM, PON, O2
+        integer                                     :: PON1, PON2, PON3, PON4, PON5
         real                                        :: MineralizationRate
         real                                        :: OxygenConsumption
         real                                        :: OxygenLimitation
@@ -1337,6 +1412,14 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
         AM  = Me%PropIndex%Ammonia
         PON = Me%PropIndex%PON
         O2  = Me%PropIndex%Oxygen
+        
+        if(Me%ComputeOptions%Pompools)then
+            PON1 = Me%PropIndex%PON1
+            PON2 = Me%PropIndex%PON2
+            PON3 = Me%PropIndex%PON3
+            PON4 = Me%PropIndex%PON4
+            PON5 = Me%PropIndex%PON5        
+        end if
 
         !Multiplication by 1000 because oxygen units are given in g/l
         OxygenLimitation = max(Me%ExternalVar%Oxygen(Index)*1000., Me%Oxygen%Minimum)
@@ -1355,17 +1438,60 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
         Me%Matrix(Index, PON, AM) = Me%ExternalVar%Mass(PON, Index) * Me%DTDay * &
                                     MineralizationRate * OxygenLimitation
 
-        Me%ExternalVar%Mass(AM,  Index) = Me%ExternalVar%Mass(AM , Index) + Me%Matrix(Index, PON, AM)
+        if(Me%ComputeOptions%Pompools)then
+            Me%Matrix(Index, PON1, AM) = Me%ExternalVar%Mass(PON1, Index) * Me%DTDay * &
+                                         MineralizationRate * OxygenLimitation
+            
+            Me%Matrix(Index, PON2, AM) = Me%ExternalVar%Mass(PON2, Index) * Me%DTDay * &
+                                         MineralizationRate * OxygenLimitation
+            
+            Me%Matrix(Index, PON3, AM) = Me%ExternalVar%Mass(PON3, Index) * Me%DTDay * &
+                                         MineralizationRate * OxygenLimitation
+            
+            Me%Matrix(Index, PON4, AM) = Me%ExternalVar%Mass(PON4, Index) * Me%DTDay * &
+                                         MineralizationRate * OxygenLimitation
+            
+            Me%Matrix(Index, PON5, AM) = Me%ExternalVar%Mass(PON5, Index) * Me%DTDay * &
+                                         MineralizationRate * OxygenLimitation
+        end if
 
-        Me%ExternalVar%Mass(PON, Index) = Me%ExternalVar%Mass(PON, Index) - Me%Matrix(Index, PON, AM)
 
-        !what is consumed of oxygen due to mineralization of PON
-        OxygenConsumption               = Me%Matrix(Index, PON, AM) * 1. / Me%OrganicMatter%NC_Ratio * &
-                                          32. / 12.
+        if(.NOT. Me%ComputeOptions%Pompools)then
+
+            Me%ExternalVar%Mass(AM,  Index) = Me%ExternalVar%Mass(AM , Index) + Me%Matrix(Index, PON, AM)
+
+            Me%ExternalVar%Mass(PON, Index) = Me%ExternalVar%Mass(PON, Index) - Me%Matrix(Index, PON, AM)
+
+            !what is consumed of oxygen due to mineralization of PON
+            OxygenConsumption               = Me%Matrix(Index, PON, AM) * 1. / Me%OrganicMatter%NC_Ratio * &
+                                              32. / 12.
+
+        else
+         
+            Me%ExternalVar%Mass(AM,  Index) = Me%ExternalVar%Mass(AM , Index) + Me%Matrix(Index, PON, AM) + &
+                                              Me%Matrix(Index, PON1, AM) + Me%Matrix(Index, PON2, AM)     + &
+                                              Me%Matrix(Index, PON3, AM) + Me%Matrix(Index, PON4, AM)     + &
+                                              Me%Matrix(Index, PON5, AM)  
+
+            Me%ExternalVar%Mass(PON, Index) = Me%ExternalVar%Mass(PON, Index) - Me%Matrix(Index, PON, AM)
+            
+            Me%ExternalVar%Mass(PON1, Index) = Me%ExternalVar%Mass(PON1, Index) - Me%Matrix(Index, PON1, AM)
+            Me%ExternalVar%Mass(PON2, Index) = Me%ExternalVar%Mass(PON2, Index) - Me%Matrix(Index, PON2, AM)
+            Me%ExternalVar%Mass(PON3, Index) = Me%ExternalVar%Mass(PON3, Index) - Me%Matrix(Index, PON3, AM)
+            Me%ExternalVar%Mass(PON4, Index) = Me%ExternalVar%Mass(PON4, Index) - Me%Matrix(Index, PON4, AM)
+            Me%ExternalVar%Mass(PON5, Index) = Me%ExternalVar%Mass(PON5, Index) - Me%Matrix(Index, PON5, AM)
+
+            !what is consumed of oxygen due to mineralization of PON
+            OxygenConsumption               = (Me%Matrix(Index, PON, AM) + Me%Matrix(Index, PON1, AM)  + &
+                                              Me%Matrix(Index, PON2, AM) + Me%Matrix(Index, PON3, AM)  + &
+                                              Me%Matrix(Index, PON4, AM) + Me%Matrix(Index, PON5, AM)) * &
+                                              1. / Me%OrganicMatter%NC_Ratio * 32. / 12.
+        
+        end if
 
         Me%ExternalVar%Mass(O2, Index ) = Me%ExternalVar%Mass(O2, Index ) - OxygenConsumption
 
-    
+
     end subroutine ComputeBenthicNitrogen
     
     !--------------------------------------------------------------------------
@@ -1378,6 +1504,7 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
         
         !Local-----------------------------------------------------------------
         integer                                     :: IP, POP, O2
+        integer                                     :: POP1, POP2, POP3, POP4, POP5
         real                                        :: MineralizationRate
         real                                        :: OxygenConsumption
         real                                        :: OxygenLimitation
@@ -1387,6 +1514,15 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
         IP  = Me%PropIndex%Phosphate
         POP = Me%PropIndex%POP
         O2  = Me%PropIndex%Oxygen
+        
+        if(Me%ComputeOptions%Pompools)then
+            POP1 = Me%PropIndex%POP1
+            POP2 = Me%PropIndex%POP2
+            POP3 = Me%PropIndex%POP3
+            POP4 = Me%PropIndex%POP4
+            POP5 = Me%PropIndex%POP5        
+        end if
+        
         
         !Multiplication by 1000 because oxygen units are given in g/l
         OxygenLimitation = max(Me%ExternalVar%Oxygen(Index)*1000., Me%Oxygen%Minimum)
@@ -1404,17 +1540,62 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
         !kgP * day * day-1 (what passes from POP to inorganic phosphorus)
         Me%Matrix(Index, POP, IP) = Me%ExternalVar%Mass(POP, Index) * Me%DTDay * &
                          MineralizationRate * OxygenLimitation
+        
+        
+            !------------------------------------------POM POOLS                 
+            if(Me%ComputeOptions%Pompools)then
+            
+                Me%Matrix(Index, POP1, IP) = Me%ExternalVar%Mass(POP1, Index) * Me%DTDay * &
+                                             MineralizationRate * OxygenLimitation
+                
+                Me%Matrix(Index, POP2, IP) = Me%ExternalVar%Mass(POP2, Index) * Me%DTDay * &
+                                             MineralizationRate * OxygenLimitation
+                
+                Me%Matrix(Index, POP3, IP) = Me%ExternalVar%Mass(POP3, Index) * Me%DTDay * &
+                                             MineralizationRate * OxygenLimitation
+                
+                Me%Matrix(Index, POP4, IP) = Me%ExternalVar%Mass(POP4, Index) * Me%DTDay * &
+                                             MineralizationRate * OxygenLimitation
+                                             
+                Me%Matrix(Index, POP5, IP) = Me%ExternalVar%Mass(POP5, Index) * Me%DTDay * &
+                                             MineralizationRate * OxygenLimitation                                    
+            end if
 
 
-        Me%ExternalVar%Mass(IP,  Index) = Me%ExternalVar%Mass(IP , Index) + Me%Matrix(Index, POP, IP)
+        if(.NOT. Me%ComputeOptions%Pompools)then
+        
+            Me%ExternalVar%Mass(IP,  Index) = Me%ExternalVar%Mass(IP , Index) + Me%Matrix(Index, POP, IP)
 
-        Me%ExternalVar%Mass(POP, Index) = Me%ExternalVar%Mass(POP, Index) - Me%Matrix(Index, POP, IP)
+            Me%ExternalVar%Mass(POP, Index) = Me%ExternalVar%Mass(POP, Index) - Me%Matrix(Index, POP, IP)
 
-        OxygenConsumption               = Me%Matrix(Index, POP, IP) * 1. / Me%OrganicMatter%PC_Ratio * &
-                                          32. / 12.
+            OxygenConsumption               = Me%Matrix(Index, POP, IP) * 1. / Me%OrganicMatter%PC_Ratio * &
+                                              32. / 12.
+        
+        else
+        
+            Me%ExternalVar%Mass(IP,  Index) = Me%ExternalVar%Mass(IP , Index) + Me%Matrix(Index, POP, IP) +  &
+                                              Me%Matrix(Index, POP1, IP) + Me%Matrix(Index, POP2, IP)     +  &
+                                              Me%Matrix(Index, POP3, IP) + Me%Matrix(Index, POP4, IP)     +  &
+                                              Me%Matrix(Index, POP5, IP)
 
+            Me%ExternalVar%Mass(POP, Index) = Me%ExternalVar%Mass(POP, Index) - Me%Matrix(Index, POP, IP)
+            
+            Me%ExternalVar%Mass(POP1, Index) = Me%ExternalVar%Mass(POP1, Index) - Me%Matrix(Index, POP1, IP)
+            Me%ExternalVar%Mass(POP2, Index) = Me%ExternalVar%Mass(POP2, Index) - Me%Matrix(Index, POP2, IP)
+            Me%ExternalVar%Mass(POP3, Index) = Me%ExternalVar%Mass(POP3, Index) - Me%Matrix(Index, POP3, IP)
+            Me%ExternalVar%Mass(POP4, Index) = Me%ExternalVar%Mass(POP4, Index) - Me%Matrix(Index, POP4, IP)
+            Me%ExternalVar%Mass(POP5, Index) = Me%ExternalVar%Mass(POP5, Index) - Me%Matrix(Index, POP5, IP)
+            
+
+            OxygenConsumption               = (Me%Matrix(Index, POP, IP) + Me%Matrix(Index, POP1, IP)  +  &
+                                              Me%Matrix(Index, POP2, IP) + Me%Matrix(Index, POP3, IP)  +  &
+                                              Me%Matrix(Index, POP4, IP) + Me%Matrix(Index, POP5, IP)) *  &
+                                              1. / Me%OrganicMatter%PC_Ratio * 32. / 12.
+
+        end if
+        
         Me%ExternalVar%Mass(O2, Index ) = Me%ExternalVar%Mass(O2, Index ) - OxygenConsumption
-
+                         
                          
     end subroutine ComputeBenthicPhosphorus
     
