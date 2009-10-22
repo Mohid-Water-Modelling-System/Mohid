@@ -1,82 +1,82 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <VisualStudioProject ProjectType="typeStaticLibrary" ProjectCreator="Intel Fortran" Keyword="Static Library" Version="11.0" ProjectIdGuid="{0056F7D7-347A-40DE-98B8-843CF05B5488}">
-	<Platforms>
-		<Platform Name="Win32"/></Platforms>
-	<Configurations>
-		<Configuration Name="Debug|Win32" ConfigurationType="typeStaticLibrary">
-				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" DebugInformationFormat="debugEnabled" Optimization="optimizeDisabled" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\..\..\..\ExternalLibs\HDF_1.6.8\IntelFortran11\Include" Interfaces="true" WarnInterfaces="true" LocalSavedScalarsZero="true" Traceback="true" BoundsCheck="true" RuntimeLibrary="rtMultiThreadedDebug"/>
-				<Tool Name="VFLibrarianTool"/>
-				<Tool Name="VFResourceCompilerTool"/>
-				<Tool Name="VFMidlTool" SuppressStartupBanner="true"/>
-				<Tool Name="VFCustomBuildTool"/>
-				<Tool Name="VFPreLinkEventTool"/>
-				<Tool Name="VFPreBuildEventTool"/>
-				<Tool Name="VFPostBuildEventTool"/>
-				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
-		<Configuration Name="Release|Win32" ConfigurationType="typeStaticLibrary">
-				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\..\..\..\ExternalLibs\HDF_1.6.8\IntelFortran11\Include" LocalSavedScalarsZero="true"/>
-				<Tool Name="VFLibrarianTool"/>
-				<Tool Name="VFResourceCompilerTool"/>
-				<Tool Name="VFMidlTool" SuppressStartupBanner="true"/>
-				<Tool Name="VFCustomBuildTool"/>
-				<Tool Name="VFPreLinkEventTool"/>
-				<Tool Name="VFPreBuildEventTool"/>
-				<Tool Name="VFPostBuildEventTool"/>
-				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
-		<Configuration Name="Debug Double|Win32" ConfigurationType="typeStaticLibrary">
-				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" DebugInformationFormat="debugEnabled" Optimization="optimizeDisabled" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\..\..\..\ExternalLibs\HDF_1.6.8\IntelFortran11\Include" Interfaces="true" WarnInterfaces="true" RealKIND="realKIND8" LocalSavedScalarsZero="true" Traceback="true" BoundsCheck="true" RuntimeLibrary="rtMultiThreadedDebug"/>
-				<Tool Name="VFLibrarianTool"/>
-				<Tool Name="VFResourceCompilerTool"/>
-				<Tool Name="VFMidlTool" SuppressStartupBanner="true"/>
-				<Tool Name="VFCustomBuildTool"/>
-				<Tool Name="VFPreLinkEventTool"/>
-				<Tool Name="VFPreBuildEventTool"/>
-				<Tool Name="VFPostBuildEventTool"/>
-				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
-		<Configuration Name="Release Double|Win32" ConfigurationType="typeStaticLibrary">
-				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\..\..\..\ExternalLibs\HDF_1.6.8\IntelFortran11\Include" RealKIND="realKIND8" LocalSavedScalarsZero="true"/>
-				<Tool Name="VFLibrarianTool"/>
-				<Tool Name="VFResourceCompilerTool"/>
-				<Tool Name="VFMidlTool" SuppressStartupBanner="true"/>
-				<Tool Name="VFCustomBuildTool"/>
-				<Tool Name="VFPreLinkEventTool"/>
-				<Tool Name="VFPreBuildEventTool"/>
-				<Tool Name="VFPostBuildEventTool"/>
-				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
-		<Configuration Name="Release Double OpenMP|Win32" ConfigurationType="typeStaticLibrary">
-				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\..\..\..\ExternalLibs\HDF_1.6.8\IntelFortran11\Include" OpenMP="OpenMPParallelCode" RealKIND="realKIND8" LocalSavedScalarsZero="true"/>
-				<Tool Name="VFLibrarianTool"/>
-				<Tool Name="VFResourceCompilerTool"/>
-				<Tool Name="VFMidlTool" SuppressStartupBanner="true"/>
-				<Tool Name="VFCustomBuildTool"/>
-				<Tool Name="VFPreLinkEventTool"/>
-				<Tool Name="VFPreBuildEventTool"/>
-				<Tool Name="VFPostBuildEventTool"/>
-				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration></Configurations>
-	<Files>
-		<Filter Name="Header Files" Filter="fi;fd"/>
-		<Filter Name="Resource Files" Filter="rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe"/>
-		<Filter Name="Source Files" Filter="f90;for;f;fpp;ftn;def;odl;idl">
-		<File RelativePath="..\..\..\..\..\MOHID_trashbin\ModuleBenthos.F90"/>
-		<File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleCEQUALW2.F90"/>
-		<File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleDischarges.F90"/>
-		<File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleDrainageNetwork.F90"/>
-		<File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleDrawing.F90"/>
-		<File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleEnterData.F90"/>
-		<File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleFunctions.F90"/>
-		<File RelativePath="..\..\..\..\..\MOHID_trashbin\ModuleGlobalData.F90"/>
-		<File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleHDF5.F90"/>
-		<File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleHydroIntegration.F90"/>
-		<File RelativePath="..\..\..\..\..\MOHID_trashbin\ModuleInterface.F90"/>
-		<File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleLife.F90"/>
-		<File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleLightExtinction.F90"/>
-		<File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleLUD.F90"/>
-		<File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleMacroAlgae.F90"/>
-		<File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleProfile.F90"/>
-		<File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleSedimentQuality.F90"/>
-		<File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleStopWatch.F90"/>
-		<File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleTime.F90"/>
-		<File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleTimeSerie.F90"/>
-		<File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleTriangulation.F90"/>
-		<File RelativePath="..\..\..\..\..\MOHID_trashbin\ModuleWaterQuality.F90"/></Filter></Files>
-	<Globals/></VisualStudioProject>
+    <Platforms>
+        <Platform Name="Win32"/></Platforms>
+    <Configurations>
+        <Configuration Name="Debug|Win32" ConfigurationType="typeStaticLibrary">
+                <Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" DebugInformationFormat="debugEnabled" Optimization="optimizeDisabled" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\..\..\..\ExternalLibs\HDF_1.6.8\IntelFortran11\Include" Interfaces="true" WarnInterfaces="true" LocalSavedScalarsZero="true" Traceback="true" BoundsCheck="true" RuntimeLibrary="rtMultiThreadedDebug"/>
+                <Tool Name="VFLibrarianTool"/>
+                <Tool Name="VFResourceCompilerTool"/>
+                <Tool Name="VFMidlTool" SuppressStartupBanner="true"/>
+                <Tool Name="VFCustomBuildTool"/>
+                <Tool Name="VFPreLinkEventTool"/>
+                <Tool Name="VFPreBuildEventTool"/>
+                <Tool Name="VFPostBuildEventTool"/>
+                <Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
+        <Configuration Name="Release|Win32" ConfigurationType="typeStaticLibrary">
+                <Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\..\..\..\ExternalLibs\HDF_1.6.8\IntelFortran11\Include" LocalSavedScalarsZero="true"/>
+                <Tool Name="VFLibrarianTool"/>
+                <Tool Name="VFResourceCompilerTool"/>
+                <Tool Name="VFMidlTool" SuppressStartupBanner="true"/>
+                <Tool Name="VFCustomBuildTool"/>
+                <Tool Name="VFPreLinkEventTool"/>
+                <Tool Name="VFPreBuildEventTool"/>
+                <Tool Name="VFPostBuildEventTool"/>
+                <Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
+        <Configuration Name="Debug Double|Win32" ConfigurationType="typeStaticLibrary">
+                <Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" DebugInformationFormat="debugEnabled" Optimization="optimizeDisabled" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\..\..\..\ExternalLibs\HDF_1.6.8\IntelFortran11\Include" Interfaces="true" WarnInterfaces="true" RealKIND="realKIND8" LocalSavedScalarsZero="true" Traceback="true" BoundsCheck="true" RuntimeLibrary="rtMultiThreadedDebug"/>
+                <Tool Name="VFLibrarianTool"/>
+                <Tool Name="VFResourceCompilerTool"/>
+                <Tool Name="VFMidlTool" SuppressStartupBanner="true"/>
+                <Tool Name="VFCustomBuildTool"/>
+                <Tool Name="VFPreLinkEventTool"/>
+                <Tool Name="VFPreBuildEventTool"/>
+                <Tool Name="VFPostBuildEventTool"/>
+                <Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
+        <Configuration Name="Release Double|Win32" ConfigurationType="typeStaticLibrary">
+                <Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\..\..\..\ExternalLibs\HDF_1.6.8\IntelFortran11\Include" RealKIND="realKIND8" LocalSavedScalarsZero="true"/>
+                <Tool Name="VFLibrarianTool"/>
+                <Tool Name="VFResourceCompilerTool"/>
+                <Tool Name="VFMidlTool" SuppressStartupBanner="true"/>
+                <Tool Name="VFCustomBuildTool"/>
+                <Tool Name="VFPreLinkEventTool"/>
+                <Tool Name="VFPreBuildEventTool"/>
+                <Tool Name="VFPostBuildEventTool"/>
+                <Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
+        <Configuration Name="Release Double OpenMP|Win32" ConfigurationType="typeStaticLibrary">
+                <Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\..\..\..\ExternalLibs\HDF_1.6.8\IntelFortran11\Include" OpenMP="OpenMPParallelCode" RealKIND="realKIND8" LocalSavedScalarsZero="true"/>
+                <Tool Name="VFLibrarianTool"/>
+                <Tool Name="VFResourceCompilerTool"/>
+                <Tool Name="VFMidlTool" SuppressStartupBanner="true"/>
+                <Tool Name="VFCustomBuildTool"/>
+                <Tool Name="VFPreLinkEventTool"/>
+                <Tool Name="VFPreBuildEventTool"/>
+                <Tool Name="VFPostBuildEventTool"/>
+                <Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration></Configurations>
+    <Files>
+        <Filter Name="Header Files" Filter="fi;fd"/>
+        <Filter Name="Resource Files" Filter="rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe"/>
+        <Filter Name="Source Files" Filter="f90;for;f;fpp;ftn;def;odl;idl">
+        <File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleBenthos.F90"/>
+        <File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleCEQUALW2.F90"/>
+        <File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleDischarges.F90"/>
+        <File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleDrainageNetwork.F90"/>
+        <File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleDrawing.F90"/>
+        <File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleEnterData.F90"/>
+        <File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleFunctions.F90"/>
+        <File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleGlobalData.F90"/>
+        <File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleHDF5.F90"/>
+        <File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleHydroIntegration.F90"/>
+        <File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleInterface.F90"/>
+        <File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleLife.F90"/>
+        <File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleLightExtinction.F90"/>
+        <File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleLUD.F90"/>
+        <File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleMacroAlgae.F90"/>
+        <File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleProfile.F90"/>
+        <File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleSedimentQuality.F90"/>
+        <File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleStopWatch.F90"/>
+        <File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleTime.F90"/>
+        <File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleTimeSerie.F90"/>
+        <File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleTriangulation.F90"/>
+        <File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleWaterQuality.F90"/></Filter></Files>
+    <Globals/></VisualStudioProject>
