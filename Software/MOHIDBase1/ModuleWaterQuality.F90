@@ -489,6 +489,13 @@ Module ModuleWaterQuality
         real :: FishFood_ref                                = null_real
         real :: Temperature_ref                             = null_real
         real :: Afg                                         = null_real
+        
+        real :: POMIngestVmax                               = null_real
+        real :: PONIngestKs                                 = null_real
+        real :: POPIngestKs                                 = null_real
+        real :: PON_CNratio                                 = null_real
+        real :: PON_CPratio                                 = null_real
+        
 
 
         !aqui_10
@@ -3455,6 +3462,61 @@ cd22 :      if (flag .EQ. 0) then
                                          STAT       = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)                                            &
                     stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR682.' 
+                    
+        
+        
+        !Reads the rates & constants to the POM Pools  simulation---------------
+        
+                call GetData(            Me%POMIngestVmax,                              &
+                                         Me%ObjEnterData, flag,                         &
+                                         SearchType = FromFile,                         &
+                                         keyword = 'POMINGESTVMAX',                     &
+                                         default    = 0.05,                             &
+                                         ClientModule = 'ModuleWaterQuality',           &
+                                         STAT       = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_)                                            &
+                    stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR700.'
+                
+                call GetData(            Me%PONIngestKs,                                &
+                                         Me%ObjEnterData, flag,                         &
+                                         SearchType = FromFile,                         &
+                                         keyword = 'PONINGESTKS',                       &
+                                         default    = 0.05,                             &
+                                         ClientModule = 'ModuleWaterQuality',           &
+                                         STAT       = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_)                                            &
+                    stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR701.'
+                
+                call GetData(            Me%POPIngestKs,                                &
+                                         Me%ObjEnterData, flag,                         &
+                                         SearchType = FromFile,                         &
+                                         keyword = 'POPINGESTKS',                       &
+                                         default    = 0.05,                             &
+                                         ClientModule = 'ModuleWaterQuality',           &
+                                         STAT       = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_)                                            &
+                    stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR702.'
+                
+                call GetData(            Me%PON_CNratio,                                &
+                                         Me%ObjEnterData, flag,                         &
+                                         SearchType = FromFile,                         &
+                                         keyword = 'PONCNRATIO',                        &
+                                         default    = 0.05,                             &
+                                         ClientModule = 'ModuleWaterQuality',           &
+                                         STAT       = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_)                                            &
+                    stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR703.'    
+        
+                call GetData(            Me%PON_CPratio,                                &
+                                         Me%ObjEnterData, flag,                         &
+                                         SearchType = FromFile,                         &
+                                         keyword = 'PONCPRATIO',                        &
+                                         default    = 0.05,                             &
+                                         ClientModule = 'ModuleWaterQuality',           &
+                                         STAT       = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_)                                            &
+                    stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR704.'
+        
 
         !aqui
         !Silica
@@ -6798,8 +6860,10 @@ cd7 :   if (Me%PropCalc%Oxygen) then
 
     end subroutine WQZooplankton
 
+    
     !----------------------------------------------------------------------------
 
+   
     subroutine WQLarvae(index) ! Aires Santos and João Nogueira
 
     
@@ -8580,9 +8644,10 @@ end subroutine WQInorganicPhosphorus
     end subroutine WQOrganicPhosphorus
     
     
+!------------------------------------------------------------------------    
     
     
-    subroutine WQPompools(index)
+    subroutine WQPompools(index)                             ! by M Mateus @ MARETEC oct_2009
 
         !Arguments---------------------------------------------------------------
         integer, intent(IN) :: index
@@ -8597,6 +8662,8 @@ end subroutine WQInorganicPhosphorus
         integer                             :: O
 
         real                                :: DTDay
+        real                                :: PONIngestPot, PONIngest
+        real                                :: POPIngestPot, POPIngest
         
 
         !External--------------------------------------------------------------
@@ -8613,6 +8680,12 @@ end subroutine WQInorganicPhosphorus
         DONre   = Me%PropIndex%DissOrganicNitrogenRefractory 
         
         DTDay   = Me%DTDay
+        
+        PONIngestPot       = null_real
+        PONIngest          = null_real
+        POPIngestPot       = null_real
+        POPIngest          = null_real
+        
         
         if (Me%PropCalc%Nitrogen) then
         
@@ -8642,12 +8715,20 @@ end subroutine WQInorganicPhosphorus
         
         PartDecompRate  = Me%KPartDecompRate * Me%TPartDecomposition                                  &
                       **(Me%ExternalVar%Temperature(index) - 20.0)
-                      
-            Me%Matrix(PON1, PON1) =  DTDay * PartDecompRate + 1.0
+                   
+        PONIngestPot = Me%TZooLimitationFactor * Me%POMIngestVmax *                                   &
+                      (Me%ExternalVar%Mass(PON1, index) / (Me%ExternalVar%Mass(PON1, index) + Me%PONIngestKs))
+                     
+        PONIngest    = MIN(PONIngestPot * Me%ExternalVar%Mass(Zoo, index),                            &
+                       Me%ExternalVar%Mass(PON1, index) / DTDay)  
+       
+       
+            Me%Matrix(PON1, PON1) =  DTDay * (PartDecompRate + PONIngest) + 1.0
             Me%Matrix(PON2, PON2) =  DTDay * PartDecompRate + 1.0
             Me%Matrix(PON3, PON3) =  DTDay * PartDecompRate + 1.0
             Me%Matrix(PON4, PON4) =  DTDay * PartDecompRate + 1.0
-            Me%Matrix(PON5, PON5) =  DTDay * PartDecompRate + 1.0
+            Me%Matrix(PON5, PON5) =  DTDay * PartDecompRate + 1.0              
+                                    
             
     !Calculation of system coeficients---------------------------------------
             
@@ -8682,15 +8763,18 @@ end subroutine WQInorganicPhosphorus
             Me%Matrix(AM, PON5  ) = - PartDecompRate * Me%PhytoAvaibleDecomp * DTDay
             
             
-            Me%Matrix(DONre, PON1) =-DTDay * PartDecompRate * (1.0 - Me%PhytoAvaibleDecomp)
+            Me%Matrix(DONre, PON1) = -DTDay * PartDecompRate * (1.0 - Me%PhytoAvaibleDecomp)
             
-            Me%Matrix(DONre, PON2) =-DTDay * PartDecompRate * (1.0 - Me%PhytoAvaibleDecomp)
+            Me%Matrix(DONre, PON2) = -DTDay * PartDecompRate * (1.0 - Me%PhytoAvaibleDecomp)
             
-            Me%Matrix(DONre, PON3) =-DTDay * PartDecompRate * (1.0 - Me%PhytoAvaibleDecomp)
+            Me%Matrix(DONre, PON3) = -DTDay * PartDecompRate * (1.0 - Me%PhytoAvaibleDecomp)
             
-            Me%Matrix(DONre, PON4) =-DTDay * PartDecompRate * (1.0 - Me%PhytoAvaibleDecomp)
+            Me%Matrix(DONre, PON4) = -DTDay * PartDecompRate * (1.0 - Me%PhytoAvaibleDecomp)
             
-            Me%Matrix(DONre, PON5) =-DTDay * PartDecompRate * (1.0 - Me%PhytoAvaibleDecomp)
+            Me%Matrix(DONre, PON5) = -DTDay * PartDecompRate * (1.0 - Me%PhytoAvaibleDecomp)
+            
+            
+            Me%Matrix(Zoo, PON1) = -DTDay * (PONIngest * Me%PON_CNratio)
             
             
             !Independent term
@@ -8702,19 +8786,25 @@ end subroutine WQInorganicPhosphorus
         
         end if
         
-        
-        
-        
-        
-        
+           
         
         
         if (Me%PropCalc%Phosphorus) then
+                        
+            !Calculation of system coeficients for POM pools------------------------------
                        
             POPDecompRate = Me%POPDecompRate * Me%TPOPDecompRate                                        &
                     **(Me%ExternalVar%Temperature(index) - 20.0)
-
-            Me%Matrix(POP1, POP1) =  DTDay * POPDecompRate + 1.0
+                    
+            POPIngestPot = Me%TZooLimitationFactor * Me%POMIngestVmax *                                   &
+                      (Me%ExternalVar%Mass(POP1, index) / (Me%ExternalVar%Mass(POP1, index) + Me%POPIngestKs))
+                     
+            POPIngest    = MIN(POPIngestPot * Me%ExternalVar%Mass(Zoo, index),                            &
+                           Me%ExternalVar%Mass(POP1, index) / DTDay)  
+       
+         
+         
+            Me%Matrix(POP1, POP1) =  DTDay * (POPDecompRate + POPIngest) + 1.0
             Me%Matrix(POP2, POP2) =  DTDay * POPDecompRate + 1.0
             Me%Matrix(POP3, POP3) =  DTDay * POPDecompRate + 1.0
             Me%Matrix(POP4, POP4) =  DTDay * POPDecompRate + 1.0
@@ -8764,6 +8854,9 @@ end subroutine WQInorganicPhosphorus
         Me%Matrix(DOPr, POP4) = - DTDay * POPDecompRate * (1.0 - Me%PhytoAvaibleDecomp)
         
         Me%Matrix(DOPr, POP5) = - DTDay * POPDecompRate * (1.0 - Me%PhytoAvaibleDecomp)
+        
+        
+        Me%Matrix(Zoo, POP1) = -DTDay * (POPIngest * Me%PON_CPratio)
             
             
             !Independent term             

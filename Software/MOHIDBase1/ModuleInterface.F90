@@ -1348,6 +1348,10 @@ cd60 :         if (Pompools) then
                         
                   end if
                   
+                  if (.NOT. Zoo) then
+                    stop 'WQM with POM pools needs property Zoo - Check_Options'
+                  end if 
+                  
                 end if cd60
             
             case (SedimentQualityModel)
