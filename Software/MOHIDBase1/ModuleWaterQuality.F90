@@ -1674,7 +1674,8 @@ cd91 :       if (Me%PropCalc%Pompools) then
             
                 if ((.NOT. Me%PropCalc%Nitrogen) .AND. (.NOT. Me%PropCalc%Phosphorus)) then
                     write(*,*) 
-                    write(*,*) 'Impossible to simulate the Water Quality with POM pools without at least one nutrient cycle (N or P).'
+                    write(*,*) 'Impossible to simulate the Water Quality with POM pools without'
+                    write(*,*) 'at least one nutrient cycle (N or P).'
                     write(*,*) 'FUNCTION WQOptionsConsistencyVerif; Module ModuleWaterQuality. WARN06a.'
                     write(*,*) 
                     WQOptionsConsistencyVerif = .FALSE.
