@@ -12828,7 +12828,7 @@ i1:             if (nP>0) then
         real,    dimension(:), pointer                  :: MinConc, MassVolCel, AmbientConc,AmbientGeoMass
         real,    dimension(:), pointer                  :: MassCoef
         integer, dimension(:), pointer                  :: Geometric
-        integer, dimension(:, :, :   ), pointer         :: LocalGridTracerNumber
+        integer, dimension(:, :, :, :), pointer         :: LocalGridTracerNumber
         integer                                         :: ILB, IUB, JLB, JUB, KLB, KUB
         integer                                         :: WS_ILB, WS_IUB, WS_JLB, WS_JUB
         integer                                         :: WS_KLB, WS_KUB
@@ -12888,7 +12888,7 @@ Catch:  do while (associated(CurrentOrigin))
         allocate (MassVolCel           (                           1:nProp))
         allocate (MassCOef             (                           1:nProp))
         allocate (Geometric            (                           1:nProp))        
-        allocate (LocalGridTracerNumber(ILB:IUB, JLB:JUB, KLB:KUB))
+        allocate (LocalGridTracerNumber(ILB:IUB, JLB:JUB, KLB:KUB, 1:nProp))
                
         GridVolume           (:,:,:)   = 0.        
         GridMass             (:,:,:,:) = 0.
@@ -12902,7 +12902,7 @@ Catch:  do while (associated(CurrentOrigin))
         MassVolCel           (:)       = 0.
         Geometric            (:)       = 0
         MassCoef             (:)       = 0.
-        LocalGridTracerNumber(:,:,:)   = 0.        
+        LocalGridTracerNumber(:,:,:,:) = 0.        
 
         if (Deposition .and. present(GridBottomConc)) then
             allocate (GridBottomMass(ILB:IUB, JLB:JUB, 1:nProp))
@@ -12973,12 +12973,13 @@ cd1:            if (.not. CurrentPartic%Deposited) then
 cd2:                if (CurrentPartic%Geometry%Volume <= Me%ExternalVar%VolumeZ(i, j, k)) then
 
                         GridMass  (i, j, k, :) = GridMass  (i, j, k, :) + CurrentPartic%Mass(:)
-                        LocalGridTracerNumber(i, j, k) = LocalGridTracerNumber(i, j, k) + 1
 
                         iAP = 1
                         CurrentProperty => FirstProperty
                         do while (associated(CurrentProperty))
-                            if (Geometric(iAP) == 1) then
+                            if ((Geometric(iAP) == 1) .and. (log10(CurrentPartic%Mass(iAP)) .gt. AllmostZero)) then
+                                LocalGridTracerNumber(i, j, k, iAP) = LocalGridTracerNumber(i, j, k, iAP) + 1
+                                
                                 GridGeometricMass  (i, j, k, iAP) =                         &
                                 GridGeometricMass  (i, j, k, iAP) + log10(CurrentPartic%Mass(iAP))
                             end if
@@ -13035,12 +13036,13 @@ cd2:                if (CurrentPartic%Geometry%Volume <= Me%ExternalVar%VolumeZ(
                                 MassCoef(:) = CurrentPartic%Mass(:) * Coef
 
                                 GridMass  (iV, jV, kV, :)        = GridMass  (iV, jV, kV, :) + MassCoef(:)
-                                LocalGridTracerNumber(iV, jV, kV) = LocalGridTracerNumber(iV, jV, kV) + 1
 
                                 iAP = 1
                                 CurrentProperty => FirstProperty
                                 do while (associated(CurrentProperty))
-                                    if ((Geometric(iAP) == 1) .and. (MassCoef(iAP) .gt. 0.)) then
+                                    if ((Geometric(iAP) == 1) .and. (log10(MassCoef(iAP)) .gt. AllmostZero)) then
+                                        LocalGridTracerNumber(iV, jV, kV, iAP) = LocalGridTracerNumber(iV, jV, kV, iAP) + 1
+                                        
                                         GridGeometricMass(iV, jV, kV, iAP) = GridGeometricMass  (iV, jV, kV, iAP) +   &
                                                                             log10(MassCoef(iAP))
 
@@ -13112,10 +13114,10 @@ cd2:                if (CurrentPartic%Geometry%Volume <= Me%ExternalVar%VolumeZ(
                     do while (associated(CurrentProperty))
                         MeanConc(iAP)          = GridMass  (i, j, k, iAP) / GridVolume(i, j, k)
 
-                        if ((Geometric(iAP)==1) .and. (LocalGridTracerNumber (i, j, k) > 0)) then
+                        if ((Geometric(iAP)==1) .and. (LocalGridTracerNumber (i, j, k, iAP) > 0)) then
                             GeometricMeanConc(iAP) =                                                             &
-                            (10.**(GridGeometricMass  (i, j, k, iAP) / real(LocalGridTracerNumber (i, j, k))))   &
-                            * real(LocalGridTracerNumber (i, j, k)) / GridVolume(i, j, k)
+                            (10.**(GridGeometricMass  (i, j, k, iAP) / real(LocalGridTracerNumber (i, j, k, iAP))))   &
+                            * real(LocalGridTracerNumber (i, j, k, iAP)) / GridVolume(i, j, k)
                         end if
                         iAP = iAP + 1
                         CurrentProperty => CurrentProperty%Next
@@ -13175,7 +13177,7 @@ cd2:                if (CurrentPartic%Geometry%Volume <= Me%ExternalVar%VolumeZ(
                             where (AmbientConc(:) > 0)            &
                             AmbientGeoMass(:) = log10(DiffVolCel * AmbientConc(:))                        
                 
-                            where ((Geometric(:) == 1) .and. (LocalGridTracerNumber (i, j, k) > 0))                     &
+                            where ((Geometric(:) == 1) .and. (LocalGridTracerNumber (i, j, k, :) > 0))                     &
                                 GridConc(i, j, k, :) = (    10**                                                        & 
                                                                 (                                                       &
                                                                   (                                                     &
@@ -13184,10 +13186,10 @@ cd2:                if (CurrentPartic%Geometry%Volume <= Me%ExternalVar%VolumeZ(
                                                                    GridGeometricMass  (i, j, k, :)                      &
                                                                    )                                                    &
                                                                    /                                                    &
-                                                                   (real(LocalGridTracerNumber (i, j, k)+1))            &
+                                                                   (real(LocalGridTracerNumber (i, j, k, :)+1))            &
                                                                  )                                                      &
                                                         )                                                               &
-                                                        *  (real(LocalGridTracerNumber (i, j, k)+1))                    &
+                                                        *  (real(LocalGridTracerNumber (i, j, k, :)+1))                    &
                                                         /                                                               &
                                                        Me%ExternalVar%VolumeZ(i, j, k)                                  
                            where (Geometric(:) == 0)                                                                    &
