@@ -12655,8 +12655,8 @@ doi :               do i = ILB, IUB
                     
                             if (Property%Assimilation%DecayTime(i, j, k)  < 0)              &
                                 stop "DataAssimilationProcesses; WaterProperties. ERR70"
-
-                            AuxDecay = DTProp / (CoefCold * Property%Assimilation%DecayTime(i, j, k))
+                                
+                            AuxDecay = DTProp / (Property%Assimilation%DecayTime(i, j, k))/ CoefCold
 
                             ! C(t+dt) = (C(t) + Cref*dt/Tref) / (1 + dt / Tref) -> Implicit
                             Property%Concentration(i, j, k) = (Property%Concentration(i, j, k) + &
