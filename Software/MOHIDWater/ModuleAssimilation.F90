@@ -45,7 +45,7 @@ Module ModuleAssimilation
     use ModuleGridData,         only: GetGridData, UngetGridData        
     use ModuleHorizontalGrid,   only: WriteHorizontalGrid, UnGetHorizontalGrid,             &
                                       GetGridCellArea, GetXYCellZ
-    use ModuleHorizontalMap,    only: GetWaterPoints2D, UngetHorizontalMap, GetComputeFaces2D
+    use ModuleHorizontalMap,    only: GetWaterPoints2D, UngetHorizontalMap, GetComputeFaces2D 
     use ModuleGeometry,         only: GetGeometrySize, GetGeometryDistances, UngetGeometry, &
                                       GetGeometryKFloor
     use ModuleMap,              only: GetWaterPoints3D, GetOpenPoints3D, GetComputeFaces3D, UngetMap
@@ -1220,7 +1220,7 @@ cd2 :           if (BlockFound) then
                      STAT           = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField - ModuleAssimilation - ERR200'
 
-        !By default property do not have a cold relaxation period
+        !By default cold coefficient follows a x^4 evolution
         call GetData(NewProperty%ColdOrder,                                             &
                      Me%ObjEnterData, iflag,                                            &
                      Keyword        = 'COLD_ORDER',                                     &
@@ -1229,7 +1229,6 @@ cd2 :           if (BlockFound) then
                      ClientModule   = 'ModuleAssimilation',                             &
                      STAT           = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField - ModuleAssimilation - ERR210'
-
 
         !By default property don't have time serie
         call GetData(NewProperty%TimeSerie,                                             &
@@ -1292,14 +1291,15 @@ cd2 :           if (BlockFound) then
 
         !External--------------------------------------------------------------
         integer                                 :: STAT_CALL
-        integer, dimension(:,:  ), pointer      :: WaterPoints2D 
-        integer, dimension(:,:,:), pointer      :: WaterPoints3D
+        integer, dimension(:,:  ), pointer      :: WaterPoints2D, PointsToFill2D 
+        integer, dimension(:,:,:), pointer      :: WaterPoints3D, PointsToFill3D
         integer                                 :: iflag
         logical                                 :: BlockFound
 
         !Local-----------------------------------------------------------------
         integer                                 :: SizeILB, SizeIUB, SizeJLB
         integer                                 :: SizeJUB, SizeKLB, SizeKUB
+        integer                                 :: di, dj, i, j, k
         character(len=StringLength)             :: Char_TypeZUV
 
         !----------------------------------------------------------------------
@@ -1313,10 +1313,10 @@ cd2 :           if (BlockFound) then
 
 
         call GetWaterPoints2D(Me%ObjHorizontalMap, WaterPoints2D, STAT = STAT_CALL) 
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructPropertyCoefficients - ModuleAssimilation - ERR01'
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructPropertyCoefficients - ModuleAssimilation - ERR10'
         
         call GetWaterPoints3D(Me%ObjMap, WaterPoints3D, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructPropertyCoefficients - ModuleAssimilation - ERR02'
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructPropertyCoefficients - ModuleAssimilation - ERR20'
 
 
         call ExtractBlockFromBlock(Me%ObjEnterData, ClientNumber,      &
@@ -1335,14 +1335,48 @@ cd0:        if (BlockFound) then
                              STAT           = STAT_CALL)            
                 if (STAT_CALL /= SUCCESS_) stop 'ConstructPropertyCoefficients - ModuleAssimilation - ERR03'
 
+                NewProperty%CoefField%TypeZUV = TranslateTypeZUV(Char_TypeZUV)
 
                 if (NewProperty%Dim == Dim_2D) then 
 
                     allocate(NewProperty%CoefField%R2D (SizeILB:SizeIUB, SizeJLB:SizeJUB))
+                    allocate(PointsToFill2D            (SizeILB:SizeIUB, SizeJLB:SizeJUB))
+                    
+                    if (NewProperty%CoefField%TypeZUV == TypeZ_) then
+                    
+                        di=0;dj=0
+                        
+                    else if (NewProperty%CoefField%TypeZUV == TypeU_) then
+                    
+                        di=0;dj=1                   
+                    
+                    else if (NewProperty%CoefField%TypeZUV == TypeV_) then
+                    
+                        di=1;dj=0
+                    
+                    endif
+
+                    do j = Me%WorkSize%JLB,Me%WorkSize%JUB + 1
+                    do i = Me%WorkSize%ILB,Me%WorkSize%IUB + 1
+                        
+                        if (WaterPoints2D(i-di,j-dj) == WaterPoint .or.                 &
+                            WaterPoints2D(i   ,j   ) == WaterPoint) then
+
+                            PointsToFill2D(i,j) = 1
+
+                        else
+                            
+                            PointsToFill2D(i,j) = 0
+
+                            
+                        endif
+
+                    enddo
+                    enddo 
+                    
 
                     NewProperty%CoefField%R2D(:,:) = FillValueReal
 
-                    NewProperty%CoefField%TypeZUV = TranslateTypeZUV(Char_TypeZUV)
 
                     call ConstructFillMatrix  (PropertyID           = NewProperty%CoefID,           &
                                                EnterDataID          = Me%ObjEnterData,              &
@@ -1360,7 +1394,7 @@ cd0:        if (BlockFound) then
                     
                     call FindMinimumCoef(NewProperty%CoefField%Minimum,                 &
                                          Field2D       = NewProperty%CoefField%R2D,     &
-                                         WaterPoints2D = WaterPoints2D)
+                                         WaterPoints2D = PointsToFill2D)
 
                     if(.not. NewProperty%CoefID%SolutionFromFile)then
 
@@ -1368,15 +1402,53 @@ cd0:        if (BlockFound) then
                         if (STAT_CALL /= SUCCESS_) stop 'ConstructPropertyCoefficients - ModuleAssimilation - ERR07'
                     
                     end if
+                    
+                    deallocate(PointsToFill2D)
 
 
                 else if (NewProperty%Dim == Dim_3D) then
 
                     allocate(NewProperty%CoefField%R3D (SizeILB:SizeIUB, SizeJLB:SizeJUB, SizeKLB:SizeKUB))
 
+                    allocate(PointsToFill3D            (SizeILB:SizeIUB, SizeJLB:SizeJUB, SizeKLB:SizeKUB))
+                    
+                    if (NewProperty%CoefField%TypeZUV == TypeZ_) then
+                    
+                        di=0;dj=0
+                        
+                    else if (NewProperty%CoefField%TypeZUV == TypeU_) then
+                    
+                        di=0;dj=1                   
+                    
+                    else if (NewProperty%CoefField%TypeZUV == TypeV_) then
+                    
+                        di=1;dj=0
+                    
+                    endif
+
+                    do k = Me%WorkSize%KLB,Me%WorkSize%KUB
+                    do j = Me%WorkSize%JLB,Me%WorkSize%JUB + 1
+                    do i = Me%WorkSize%ILB,Me%WorkSize%IUB + 1
+                        
+                        if (WaterPoints3D(i-di,j-dj,k) == WaterPoint .or.               &
+                            WaterPoints3D(i   ,j   ,k) == WaterPoint) then
+
+                            PointsToFill3D(i,j,k) = 1
+
+                        else
+                            
+                            PointsToFill3D(i,j,k) = 0
+
+                            
+                        endif
+
+                    enddo
+                    enddo 
+                    enddo
+
                     NewProperty%CoefField%R3D(:,:,:) = FillValueReal
 
-                    NewProperty%CoefField%TypeZUV = TranslateTypeZUV(Char_TypeZUV)
+
 
                     call ConstructFillMatrix  (PropertyID           = NewProperty%CoefID,           &
                                                EnterDataID          = Me%ObjEnterData,              &
@@ -1384,7 +1456,7 @@ cd0:        if (BlockFound) then
                                                HorizontalGridID     = Me%ObjHorizontalGrid,         &
                                                GeometryID           = Me%ObjGeometry,               &
                                                ExtractType          = FromBlockInBlock,             &
-                                               PointsToFill3D       = WaterPoints3D,                &
+                                               PointsToFill3D       = PointsToFill3D,               &
                                                Matrix3D             = NewProperty%CoefField%R3D,    &
                                                TypeZUV              = NewProperty%CoefField%TypeZUV,&
                                                STAT                 = STAT_CALL)
@@ -1395,7 +1467,7 @@ cd0:        if (BlockFound) then
 
                     call FindMinimumCoef(NewProperty%CoefField%Minimum,                 &
                                          Field3D       = NewProperty%CoefField%R3D,     &
-                                         WaterPoints3D = WaterPoints3D)
+                                         WaterPoints3D = PointsToFill3D)
 
                     if(.not. NewProperty%CoefID%SolutionFromFile)then
 
@@ -1403,6 +1475,8 @@ cd0:        if (BlockFound) then
                         if (STAT_CALL /= SUCCESS_) stop 'ConstructPropertyCoefficients - ModuleAssimilation - ERR11'
 
                     end if
+                    
+                    deallocate(PointsToFill3D)
                
                 else
 
@@ -1745,7 +1819,6 @@ cd2:        if (STAT_CALL == SUCCESS_) then
 
                 if (present(ColdOrder))                                                 &
                     ColdOrder = PropertyX%ColdOrder
-
 
                 STAT_CALL1 = SUCCESS_
 
