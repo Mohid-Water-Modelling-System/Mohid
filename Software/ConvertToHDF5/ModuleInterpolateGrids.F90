@@ -136,6 +136,7 @@ Module ModuleInterpolateGrids
         type(T_Time)                                        :: BeginTime, EndTime
         type(T_InterpolWindow)                              :: InterpolWindow
         logical                                             :: TimeWindow = .true.
+        logical                                             :: FirstProperty3D
         real,    dimension(:,:), pointer                    :: SonCenterX, SonCenterY
         integer, dimension(:,:), pointer                    :: WaterPoints2D
         integer                                             :: Count
@@ -190,6 +191,8 @@ Module ModuleInterpolateGrids
         allocate(Me)
 
         Me%ObjEnterData = AssociateInstance (mENTERDATA_, EnterDataID)
+        
+        Me%FirstProperty3D = .true. 
 
         call ReadOptions(ClientNumber)
 
@@ -757,7 +760,7 @@ Module ModuleInterpolateGrids
         integer                                 :: n
 !        real,    dimension(:,:  ), pointer      :: InValues2D, OutValues2D
         integer, dimension(:,:,:), pointer      :: WaterPoints3D        
-        logical                                 :: FirstProperty3D = .true., ExistGroup
+        logical                                 :: ExistGroup
         logical                                 :: FirstTime, ConvertThisField
         character(len=StringLength)             :: SubGroupName, SubSubGroupName, RootGroup
 
@@ -973,7 +976,7 @@ doSS:               do n = 1,Me%NumberSubSubGroups
                                                CurrentInstant   = CurrentInstant,       &
                                                NewCurrentInstant= NewCurrentInstant,    &
                                                Count            = Count,                &
-                                               FirstProperty3D  = FirstProperty3D,      &
+                                               FirstProperty3D  = Me%FirstProperty3D,   &
                                                Rank = Rank)
  
 
@@ -989,7 +992,7 @@ doSS:               do n = 1,Me%NumberSubSubGroups
                                            CurrentInstant   = CurrentInstant,           &
                                            NewCurrentInstant= NewCurrentInstant,        &
                                            Count            = Count,                    &
-                                           FirstProperty3D  = FirstProperty3D,          &   
+                                           FirstProperty3D  = Me%FirstProperty3D,       &   
                                            Rank = Rank)
                 
                 endif ifS
@@ -999,7 +1002,7 @@ doSS:               do n = 1,Me%NumberSubSubGroups
 
             FirstTime = .false.
 
-            if (Rank == 3 .and. FirstProperty3D) FirstProperty3D = .false.
+            if (Rank == 3 .and. Me%FirstProperty3D) Me%FirstProperty3D = .false.
 
         end do prop
 
