@@ -75,6 +75,8 @@ Module ModuleHDF5
     public  ::  GetHDF5GroupExist
     public  ::  GetHDF5DataSetExist
     public  ::  GetHDF5ObjectInfo
+    public  ::  GetHDF5ArrayDimensions
+    
 
 #ifdef _GUI_
     public  :: HDF5InquireFile
@@ -3167,6 +3169,86 @@ Module ModuleHDF5
     end subroutine GetHDF5GroupNumberOfItems
     
     !--------------------------------------------------------------------------
+
+
+    subroutine GetHDF5ArrayDimensions (HDF5ID, GroupName, ItemName, OutputNumber, Imax, Jmax, Kmax, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                                     :: HDF5ID
+        character(len=*)                            :: GroupName
+        character(len=*)                            :: ItemName
+        integer,  optional                          :: OutputNumber
+        integer,  optional                          :: Imax, Jmax, Kmax
+        integer, optional                           :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer(HID_T)                              :: gr_id, space_id, dset_id
+        integer(HSIZE_T), dimension(7)              :: dims, maxdims
+
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: STAT_, ready_
+        integer(HID_T)                              :: STAT_CALL
+        character(StringLength)                     :: ItemName_
+        
+
+        !Begin-----------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready (HDF5ID, ready_)
+
+        if (ready_ .EQ. IDLE_ERR_) then
+
+
+            !Creates the dataset with default properties
+            if (present(OutputNumber)) then
+                call ConstructDSName (ItemName, OutputNumber, ItemName_)
+            else
+                ItemName_ = ItemName
+            endif
+            
+           !Opens the group
+            call h5gopen_f (Me%FileID, GroupName, gr_id, STAT)
+
+            !Opens the Dataset
+            call h5dopen_f          (gr_id, ItemName_, dset_id, STAT)
+
+            !Opens data space
+            call h5dget_space_f     (dset_id, space_id, STAT)
+
+            !Gets dims
+            call h5sget_simple_extent_dims_f  (space_id, dims, maxdims, STAT) 
+
+            !Closes data space
+            call h5sclose_f         (space_id, STAT)
+
+            !Closes data set
+            call h5dclose_f         (dset_id, STAT)
+
+            !Closes the Group
+            call h5gclose_f         (gr_id, STAT)
+
+            if (present(Imax)) Imax = dims(1)
+            if (present(Jmax)) Jmax = dims(2)
+            if (present(Kmax)) Kmax = dims(3)
+
+            STAT_ = SUCCESS_
+
+        else
+
+            STAT_ = ready_
+
+        endif
+
+        if (present(STAT)) STAT = STAT_
+
+
+    end subroutine GetHDF5ArrayDimensions
+    
+    !--------------------------------------------------------------------------
+
+         
 
     subroutine GetHDF5GroupID (HDF5ID, FatherGroupName, GroupPosition, GroupName, &
                                Units, Rank, Dimensions, STAT)
