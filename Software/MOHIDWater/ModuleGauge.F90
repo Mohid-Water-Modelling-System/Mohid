@@ -34,9 +34,10 @@ Module ModuleGauge
     use ModuleEnterData
     use ModuleToga               
     use ModuleHorizontalGrid,   only : GetGridAngle, GetGridOrigin, GetHorizontalGrid,   &
-                                       UnGetHorizontalGrid
+                                       GetXYCellZ, UnGetHorizontalGrid
     use ModuleTimeSerie,        only : StartTimeSerieInput, GetTimeSerieValue, KillTimeSerie
     use ModuleFunctions,        only : RodaXY
+    use ModuleTask2000
 
     implicit none
 
@@ -64,6 +65,8 @@ Module ModuleGauge
     public  :: GetLevelEvolution
     public  :: GetIJWaterLevel
     public  :: GetIJReferenceLevel
+    public  :: GetTriangGaugesON
+    public  :: GetVelEvolution
 
     !Modifier
     public  :: GaugeLevel
@@ -91,6 +94,9 @@ Module ModuleGauge
     integer, parameter                       :: Constant = 0, Harmonics = 1,             &
                                                 TimeSerie = 2, NoEvolution = 3
 
+    !prevision method 
+    integer, parameter                       :: Task2000_ = 1, Toga_ = 2
+    
     !Type
     type T_TidalWave
         character(LEN = WaveNameLength) :: Name         = null_str
@@ -158,6 +164,10 @@ Module ModuleGauge
 
         !Instance of Module_EnterData
         integer                             :: ObjEnterData = 0
+        
+        logical                             :: Triangulation
+        
+        integer                             :: TidePrevision
        
         !Link list
         type (T_TideGauge ), pointer        :: FirstGauge 
@@ -195,7 +205,7 @@ Module ModuleGauge
 
         !Local-----------------------------------------------------------------
         integer                                     :: STAT_CALL
-        integer                                     :: NWaves
+        integer                                     :: NWaves, iflag
         logical                                     :: BlockFound
         character(LEN = WaveNameLength), pointer, dimension(:) :: WaveName
         type(T_TideGauge), pointer                  :: PresentGauge
@@ -237,13 +247,37 @@ Module ModuleGauge
                 
                 !Reads filename of the Tides file
                 call ReadFileName('IN_TIDES', Me%FileName, Message = 'Tides file', STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructGauges - ModuleGauges - ERR01' 
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructGauges - ModuleGauges - ERR10' 
 
             end if
 
             !Opens file with the construct data 
             call ConstructEnterData(Me%ObjEnterData, Me%FileName, STAT = STAT_CALL)           
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructGauges - ModuleGauges - ERR02' 
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructGauges - ModuleGauges - ERR20' 
+            
+            call GetData(Me%Triangulation,                                                  &
+                         Me%ObjEnterData, iflag,                                            &
+                         SearchType = FromFile,                                             &
+                         keyword    = 'TRIANGULATION',                                      &
+                         Default    = .true.,                                               &                                           
+                         ClientModule ='ModuleGauge',                                       &
+                         STAT       = STAT_CALL)            
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructGauges - ModuleGauges - ERR30' 
+                
+            call GetData(Me%TidePrevision,                                                  &
+                         Me%ObjEnterData, iflag,                                            &
+                         SearchType = FromFile,                                             &
+                         keyword    = 'PREVISION',                                          &
+                         Default    = Task2000_,                                            &                                           
+                         ClientModule ='ModuleGauge',                                       &
+                         STAT       = STAT_CALL)            
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructGauges - ModuleGauges - ERR35' 
+            
+            if (Me%TidePrevision /= Task2000_ .and. Me%TidePrevision /= Toga_) then
+                write(*,*) 'The tide prevision method is not known'
+                stop       'ConstructGauges - ModuleGauges - ERR38'
+            endif
+
 
             !New Gauger file format
 do2:        do 
@@ -272,17 +306,17 @@ if2 :                   if (.NOT. associated(Me%FirstGauge)) then         !If li
                         exit do2    !No more blocks
                     end if if5
                 else if (STAT_CALL .EQ. BLOCK_END_ERR_) then 
-                    stop 'ConstructGauges - ModuleGauges - ERR03' 
+                    stop 'ConstructGauges - ModuleGauges - ERR40' 
                 end if if4
             end do do2
 
 
             call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL) 
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructGauges - ModuleGauges - ERR04' 
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructGauges - ModuleGauges - ERR50' 
 
 
             call KillEnterData(Me%ObjEnterData, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructGauges - ModuleGauges - ERR05' 
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructGauges - ModuleGauges - ERR60' 
 
             !If no Gaugers were found in the new file format tryes to read former file format.
 if3 :       if (.NOT. associated(Me%FirstGauge)) then
@@ -298,7 +332,7 @@ if7 :                   if      (.NOT. associated(Me%FirstGauge)) then    !If li
                             nullify(Me%LastGauge%Next )
 
                         else if (      associated(Me%FirstGauge)) then
-                            stop 'ConstructGauges - ModuleGauges - ERR06' 
+                            stop 'ConstructGauges - ModuleGauges - ERR70' 
                         end if if7
                     else
                         exit do3    !No more blocks
@@ -309,14 +343,14 @@ if7 :                   if      (.NOT. associated(Me%FirstGauge)) then    !If li
 
 
 if8 :       if (.NOT. associated(Me%FirstGauge)) then
-                stop 'ConstructGauges - ModuleGauges - ERR07' 
+                stop 'ConstructGauges - ModuleGauges - ERR80' 
             else
                 PresentGauge => Me%FirstGauge
 do4 :           do while (associated(PresentGauge))
                     call GetNumberWaves(PresentGauge, NWaves)
 
                     allocate(WaveName(NWaves), STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'ConstructGauges - ModuleGauge - ERR09.'
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructGauges - ModuleGauge - ERR90.'
 
 
                     I = 0
@@ -330,7 +364,7 @@ do5 :               do while (associated(PresentWave))
                     end do do5
 
                     call ConstructToga(PresentGauge%ObjToga, NWaves, WaveName, STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'ConstructGauges - ModuleGauge - ERR10'
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructGauges - ModuleGauge - ERR100'
 
                     deallocate(WaveName)
                     nullify   (WaveName)
@@ -352,7 +386,7 @@ do5 :               do while (associated(PresentWave))
 
         else 
             
-            stop 'ModuleGauge - ConstructGauges - ERR99' 
+            stop 'ModuleGauge - ConstructGauges - ERR110' 
 
         end if 
 
@@ -1603,18 +1637,23 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
     
     !--------------------------------------------------------------------------
 
-    subroutine GetIJReferenceLevel(GaugeID, I, J, ReferenceLevel, STAT)
+    subroutine GetIJReferenceLevel(GaugeID, HorizontalGridID, I, J, ReferenceLevel, STAT)
 
         !Arguments-------------------------------------------------------------
         integer                         :: GaugeID
+        integer                         :: HorizontalGridID
         integer,           intent(IN )  :: I, J
         real,              intent(OUT)  :: ReferenceLevel
         integer, optional, intent(OUT)  :: STAT
 
         !Local-----------------------------------------------------------------
+        real                            :: PX, PY             
         integer                         :: STAT_, ready_
         type(T_TideGauge), pointer      :: PresentGauge
         logical                         :: Found
+        real                            :: PercI, PercJ 
+        integer                         :: Iaux, Jaux        
+        
 
         !----------------------------------------------------------------------
 
@@ -1639,6 +1678,26 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
 
                     Found = .true.
 
+                endif
+                
+                PX = PresentGauge%Metric_X
+                PY = PresentGauge%Metric_Y
+                
+                call GetXYCellZ(HorizontalGridID, PX, PY, Iaux, Jaux, STAT = STAT_)
+
+  
+                if (I == Iaux .and. J == Jaux) then
+                
+                    call GetXYCellZ(HorizontalGridID, PX, PY, Iaux, Jaux, PercI = PercI, PercJ = PercJ, STAT = STAT_)
+
+                    if (abs(PercI-0.5) < 0.02 .and. abs(PercJ-0.5) < 0.02) then
+
+                        ReferenceLevel = PresentGauge%ReferenceLevel                     
+
+                        Found = .true.
+                        
+                    endif
+                
                 endif
 
                 PresentGauge => PresentGauge%Next
@@ -1670,18 +1729,22 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
 
     !--------------------------------------------------------------------------
 
-    subroutine GetIJWaterLevel(GaugeID, I, J, WaterLevel, STAT)
+    subroutine GetIJWaterLevel(GaugeID, HorizontalGridID, I, J, WaterLevel, STAT)
 
         !Arguments-------------------------------------------------------------
         integer                         :: GaugeID
+        integer                         :: HorizontalGridID
         integer,           intent(IN )  :: I, J
         real,              intent(OUT)  :: WaterLevel
         integer, optional, intent(OUT)  :: STAT
 
         !Local-----------------------------------------------------------------
+        real                            :: PX, PY       
         integer                         :: STAT_, ready_
         type(T_TideGauge), pointer      :: PresentGauge
         logical                         :: Found
+        real                            :: PercI, PercJ 
+        integer                         :: Iaux, Jaux 
 
         !----------------------------------------------------------------------
 
@@ -1705,6 +1768,26 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
                     WaterLevel = PresentGauge%WaterLevel                    
 
                     Found      = .true.
+
+                endif
+                
+                PX = PresentGauge%Metric_X
+                PY = PresentGauge%Metric_Y                
+                
+                call GetXYCellZ(HorizontalGridID, PX, PY, Iaux, Jaux, STAT = STAT_)
+
+  
+                if (I == Iaux .and. J == Jaux) then
+
+                    call GetXYCellZ(HorizontalGridID, PX, PY, Iaux, Jaux, PercI = PercI, PercJ = PercJ, STAT = STAT_)
+
+                    if (abs(PercI-0.5) < 0.02 .and. abs(PercJ-0.5) < 0.02) then
+
+                        WaterLevel = PresentGauge%WaterLevel                    
+
+                        Found = .true.
+                        
+                    endif
 
                 endif
 
@@ -1912,7 +1995,41 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
     end subroutine GetVelEvolution
 
     !--------------------------------------------------------------------------
+    !--------------------------------------------------------------------------
 
+    subroutine GetTriangGaugesON(GaugeID, TriangulationON, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                                     :: GaugeID
+        logical,           intent(OUT)              :: TriangulationON
+        integer, optional, intent(OUT)              :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: STAT_, ready_
+ 
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(GaugeID, ready_) 
+        
+if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            TriangulationON = Me%Triangulation
+
+            STAT_ = SUCCESS_
+        else 
+            STAT_ = ready_
+        end if if1
+
+        if (present(STAT)) STAT = STAT_
+
+        !----------------------------------------------------------------------
+
+    end subroutine GetTriangGaugesON
+
+    !--------------------------------------------------------------------------
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
@@ -2048,29 +2165,32 @@ if5:            if (PresentGauge%VelEvolution == TimeSerie)  then
 
     !--------------------------------------------------------------------------
 
-    subroutine HarmonicsWaterLevel(PresentGauge, WaterLevel, Time)
+    subroutine HarmonicsWaterLevel(PresentGauge, WaterLevel, TimeIn)
 
         !Arguments-------------------------------------------------------------
         type(T_TideGauge), pointer          :: PresentGauge
-        type(T_Time), intent(IN)            :: Time
+        type(T_Time), intent(IN)            :: TimeIn
         real                                :: WaterLevel
 
-        !External--------------------------------------------------------------
+        !Local-----------------------------------------------------------------
 
         integer :: status
         integer :: NWaves
 
         real, pointer, dimension(:) :: WaveAmplitude
         real, pointer, dimension(:) :: WavePhase
-
-        !Local-----------------------------------------------------------------
+        
 
         integer :: J
 
         type(T_TidalWave), pointer :: PresentWave
 
-        real    :: WaterLevelRef
+        real                       :: WaterLevelRef
+        
+        real, dimension(1:115)     :: WaveAmplitude_, WavePhase_
+        character(LEN = WaveNameLength), dimension(1:115) :: WaveName_
 
+        
         !----------------------------------------------------------------------                         
 
 
@@ -2079,22 +2199,25 @@ if5:            if (PresentGauge%VelEvolution == TimeSerie)  then
         call GetNumberWaves(PresentGauge, NWaves)
 
         allocate(WaveAmplitude(NWaves), STAT = status)
-
         if (status /= SUCCESS_)                                                          &
-            call SetError(FATAL_, INTERNAL_, "HarmonicsWaterLevel - ModuleGauge - ERR01")
+            call SetError(FATAL_, INTERNAL_, "HarmonicsWaterLevel - ModuleGauge - ERR10")
 
         allocate(WavePhase    (NWaves), STAT = status)
 
         if (status /= SUCCESS_)                                                          &
-            call SetError(FATAL_, INTERNAL_, "HarmonicsWaterLevel - ModuleGauge - ERR02")
+            call SetError(FATAL_, INTERNAL_, "HarmonicsWaterLevel - ModuleGauge - ERR20")
 
         J = 0
         PresentWave => PresentGauge%FirstWave
-do5 :           do while (associated(PresentWave))
+do5 :   do while (associated(PresentWave))
             J = J + 1
 
-            WaveAmplitude(J) = PresentWave%Amplitude
-            WavePhase(J)     = PresentWave%Phase
+            WaveAmplitude_(J) = PresentWave%Amplitude
+            WavePhase_    (J) = PresentWave%Phase
+            WaveName_     (J) = PresentWave%Name
+
+            WaveAmplitude (J) = PresentWave%Amplitude
+            WavePhase     (J) = PresentWave%Phase
 
             PresentWave => PresentWave%Next
         end do do5
@@ -2103,33 +2226,45 @@ do5 :           do while (associated(PresentWave))
         ! The water level is the Gauge model is compute with relation to 
         ! the hydrographic zero
         WaterLevelRef = 0.
+        
+        if (Me%TidePrevision == Toga_) then
 
-        call TogaLevel(PresentGauge%ObjToga,                          &  
-                       PresentGauge%WaterLevel,                       &
-                       PresentGauge%DecimalLatitude,                  &
-                       PresentGauge%TimeReference,                    &
-                       WaterLevelRef,                                 &
-                       NWaves, WaveAmplitude, WavePhase,              &
-                       Time,                                          &
-                       STAT = status)
+            call TogaLevel(PresentGauge%ObjToga,                                        &  
+                           PresentGauge%WaterLevel,                                     &
+                           PresentGauge%DecimalLatitude,                                &
+                           PresentGauge%TimeReference,                                  &
+                           WaterLevelRef,                                               &
+                           NWaves, WaveAmplitude, WavePhase,                            &
+                           TimeIn,                                                      &
+                           STAT = status)
 
+            if (status /= SUCCESS_)                                                         &
+                call SetError(FATAL_, INTERNAL_, "HarmonicsWaterLevel - ModuleGauge - ERR30")
+                           
+        
+        else if (Me%TidePrevision == Task2000_) then
+        
+            call Task2000Level(PresentGauge%WaterLevel,                                 &
+                               PresentGauge%TimeReference,                              &
+                               NWaves, WaveAmplitude_,                                  &
+                               WavePhase_, WaveName_, TimeIn, STAT = status)
 
-        if (status /= SUCCESS_)                                                          &
-            call SetError(FATAL_, INTERNAL_, "HarmonicsWaterLevel - ModuleGauge - ERR03")
+            if (status /= SUCCESS_)                                                         &
+                call SetError(FATAL_, INTERNAL_, "HarmonicsWaterLevel - ModuleGauge - ERR40")
 
-
-        WaterLevel   = PresentGauge%WaterLevel
-
+        endif
+        
+        WaterLevel = PresentGauge%WaterLevel
 
         deallocate(WaveAmplitude, STAT = status)
 
-        if (status /= SUCCESS_)                                                          &
-            call SetError(FATAL_, INTERNAL_, "HarmonicsWaterLevel - ModuleGauge - ERR04")
+        if (status /= SUCCESS_)                                                         &
+            call SetError(FATAL_, INTERNAL_, "HarmonicsWaterLevel - ModuleGauge - ERR50")
 
         deallocate(WavePhase    , STAT = status)
 
-        if (status /= SUCCESS_)                                                          &
-            call SetError(FATAL_, INTERNAL_, "HarmonicsWaterLevel - ModuleGauge - ERR05")
+        if (status /= SUCCESS_)                                                         &
+            call SetError(FATAL_, INTERNAL_, "HarmonicsWaterLevel - ModuleGauge - ERR60")
 
         nullify   (WaveAmplitude)
         nullify   (WavePhase    )
