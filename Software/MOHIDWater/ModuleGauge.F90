@@ -37,7 +37,7 @@ Module ModuleGauge
                                        GetXYCellZ, UnGetHorizontalGrid
     use ModuleTimeSerie,        only : StartTimeSerieInput, GetTimeSerieValue, KillTimeSerie
     use ModuleFunctions,        only : RodaXY
-    use ModuleTask2000
+    use ModuleTask2000,         only : Task2000Level          
 
     implicit none
 
