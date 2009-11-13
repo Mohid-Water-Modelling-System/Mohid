@@ -1,6 +1,11 @@
         Module ModuleTask2000
 
-        use ModuleTime
+        use ModuleTime        
+        
+        private
+        
+        public :: Task2000Level
+
         
         contains
 
@@ -986,9 +991,10 @@ C
       
       end subroutine Prinrd 
 
-      real(8) function Name2Frequency(Name)
+      function Name2Frequency(Name)
 
         integer, parameter :: Ncompt = 115
+        real(8) :: Name2Frequency
       
       !Arguments---------------------------------------------
       character(*) :: Name
