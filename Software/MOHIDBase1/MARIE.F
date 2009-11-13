@@ -5,7 +5,7 @@
         private
         
         public :: Task2000Level
-
+        private :: Name2Frequency
         
         contains
 
@@ -43,7 +43,7 @@ C
       EQUIVALENCE (SI(1),ZZ(1)), (SI(101),ZA(1))
       COMMON /FR/ S,NEN
       COMMON /TH/ DELT,HRS,PONAME
-      real(8)  :: Name2Frequency
+C      real(8)  :: Name2Frequency
 C
 C DEGREES PER SOLAR HOUR OF EACH CONSTITUENT (E.G. 16 = S1, 31 = M2,
 C 36 = S2)
