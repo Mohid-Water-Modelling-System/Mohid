@@ -83,8 +83,8 @@ Global
 		{8FDBAD87-52D7-4B29-A346-CF6918785077}.Debug|Win32.Build.0 = Debug|Win32
 		{8FDBAD87-52D7-4B29-A346-CF6918785077}.Release Double OpenMP|Win32.ActiveCfg = Release Double OpenMP|Win32
 		{8FDBAD87-52D7-4B29-A346-CF6918785077}.Release Double OpenMP|Win32.Build.0 = Release Double OpenMP|Win32
-		{8FDBAD87-52D7-4B29-A346-CF6918785077}.Release Double|Win32.ActiveCfg = Release Double OpenMP|Win32
-		{8FDBAD87-52D7-4B29-A346-CF6918785077}.Release Double|Win32.Build.0 = Release Double OpenMP|Win32
+		{8FDBAD87-52D7-4B29-A346-CF6918785077}.Release Double|Win32.ActiveCfg = Release Double|Win32
+		{8FDBAD87-52D7-4B29-A346-CF6918785077}.Release Double|Win32.Build.0 = Release Double|Win32
 		{8FDBAD87-52D7-4B29-A346-CF6918785077}.Release|Win32.ActiveCfg = Release|Win32
 		{8FDBAD87-52D7-4B29-A346-CF6918785077}.Release|Win32.Build.0 = Release|Win32
 		{141470D5-4F1E-4328-828C-8767F85E9629}.Debug Double|Win32.ActiveCfg = Debug Double|Win32
