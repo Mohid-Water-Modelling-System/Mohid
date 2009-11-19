@@ -43,7 +43,6 @@ C
       EQUIVALENCE (SI(1),ZZ(1)), (SI(101),ZA(1))
       COMMON /FR/ S,NEN
       COMMON /TH/ DELT,HRS,PONAME
-C      real(8)  :: Name2Frequency
 C
 C DEGREES PER SOLAR HOUR OF EACH CONSTITUENT (E.G. 16 = S1, 31 = M2,
 C 36 = S2)
@@ -984,14 +983,14 @@ C
 C
 C ROUTINE TO PUT ARG (DEGREES) WITHIN A REASONABLE RANGE
 C
-      real(8) :: ARG
+      DOUBLE PRECISION :: ARG
 C
       IARG = int(ARG/360.0)
       ARG = ARG - real(IARG)*360.0D0
       
       end subroutine Prinrd 
 
-      real(8) function Name2Frequency(Name)
+      DOUBLE PRECISION function Name2Frequency(Name)
 
       integer, parameter :: Ncompt = 115
       
@@ -1002,7 +1001,7 @@ C
       integer      :: N, l
       character(LEN = 7), dimension(NCompt):: TideNames
       character(LEN = 7) :: AuxChar
-      real(8), dimension(NCompt ) :: TideFreq      
+      DOUBLE PRECISION, dimension(NCompt ) :: TideFreq      
 
         data TideNames/ 
      &  'SA	     ',
