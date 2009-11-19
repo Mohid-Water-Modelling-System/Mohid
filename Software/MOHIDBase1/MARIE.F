@@ -4,8 +4,8 @@
         
         private
         
-        public :: Task2000Level
-        private :: Name2Frequency
+        public  :: Task2000Level
+        private ::  Name2Frequency
         
         contains
 
@@ -991,10 +991,9 @@ C
       
       end subroutine Prinrd 
 
-      function Name2Frequency(Name)
+      real(8) function Name2Frequency(Name)
 
-        integer, parameter :: Ncompt = 115
-        real(8) :: Name2Frequency
+      integer, parameter :: Ncompt = 115
       
       !Arguments---------------------------------------------
       character(*) :: Name
