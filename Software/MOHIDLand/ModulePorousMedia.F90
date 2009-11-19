@@ -23,6 +23,7 @@
 ! STOP_ON_WRONG_DATE        : logical           1           !Stops if previous run end is different from actual
 !                                                           !Start
 ! OUTPUT_TIME               : sec. sec. sec.    -           !Output Time
+! SURFACE_OUTPUT_TIME       : sec. sec. sec.    -           !Output Time of surface layer
 ! TIME_SERIE_LOCATION       : char              -           !Path to File which defines Time Series
 ! CONTINUOUS_OUTPUT_FILE    : logical           1           !Writes "famous" iter.log
 ! CONDUTIVITYFACE           : integer           1           !Way to interpolate conducivity face
@@ -198,13 +199,16 @@ Module ModulePorousMedia
     type T_OutPut
         type (T_Time), pointer, dimension(:)    :: OutTime
         type (T_Time), dimension(:), pointer    :: RestartOutTime
+        type (T_Time), dimension(:), pointer    :: SurfaceOutTime
         integer                                 :: NextOutPut
         logical                                 :: Yes = .false.
         logical                                 :: TimeSerieON
         logical                                 :: ProfileON
         logical                                 :: WriteRestartFile     = .false.
+        logical                                 :: SurfaceOutput        = .false.
         logical                                 :: RestartOverwrite     = .false.
-        integer                                 :: NextRestartOutput    = 1        
+        integer                                 :: NextRestartOutput    = 1
+        integer                                 :: NextSurfaceOutput    = 1
     end type T_OutPut
 
     type T_Files
@@ -570,7 +574,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             !Calculates Initial GW Cell
             call CalculateUGWaterLevel
             
-            if (Me%OutPut%Yes) then
+            if (Me%OutPut%Yes .or. Me%Output%SurfaceOutput) then
                 call ConstructHDF5Output
             endif
 
@@ -786,8 +790,25 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      Default      = .true.,                                             &
                      ClientModule = 'ModulePorousMedia',                                &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)  stop 'ReadDataFile - ModuleBasin - ERR11a'
+        if (STAT_CALL /= SUCCESS_)  stop 'ReadDataFile - ModuleBasin - ERR11c'
 
+        !Output for surface output
+        call GetOutPutTime(Me%ObjEnterData,                                             &
+                           CurrentTime  = Me%ExtVar%Now,                                &
+                           EndTime      = Me%EndTime,                                   &
+                           keyword      = 'SURFACE_OUTPUT_TIME',                        &
+                           SearchType   = FromFile,                                     &
+                           OutPutsTime  = Me%OutPut%SurfaceOutTime,                     &
+                           OutPutsOn    = Me%OutPut%SurfaceOutput,                      &
+                           STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR11b'
+
+        !Checks consistency
+        if (Me%OutPut%Yes .and. Me%OutPut%SurfaceOutput) then
+            write(*,*)'Only normal output or 2D output can be active'
+            write(*,*)'OUTPUT_TIME or SURFACE_OUTPUT_TIME'
+            stop 'ReadDataFile - ModuleBasin - ERR11d'
+        endif
 
         !Directional Options---------------------------------------------------        
 
@@ -1871,10 +1892,11 @@ doSP:           do
         if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5Output - ModulePorousMedia - ERR07'
 
         !Water Points
-        call HDF5WriteData   ( Me%ObjHDF5,  "/Grid", "WaterPoints3D", "-",                  &
-                               Array3D = Me%ExtVar%WaterPoints3D, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5Output - ModulePorousMedia - ERR08'
-              
+        if (Me%OutPut%Yes) then
+            call HDF5WriteData   ( Me%ObjHDF5,  "/Grid", "WaterPoints3D", "-",                  &
+                                   Array3D = Me%ExtVar%WaterPoints3D, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5Output - ModulePorousMedia - ERR08'
+        endif              
                 
         !Flushes All pending HDF5 commands
         call HDF5FlushMemory    (Me%ObjHDF5, STAT = STAT_CALL)
@@ -1913,13 +1935,13 @@ doSP:           do
 
         !Fills up PropertyList
         PropertyList(1)  = 'Theta'
-        PropertyList(2)  = 'ThetaF'
+        PropertyList(2)  = 'relative water content'
         PropertyList(3)  = 'VelW'
         PropertyList(4)  = 'InF_Vel'
         PropertyList(5)  = 'Head'
         PropertyList(6)  = 'Conductivity'
-        PropertyList(7)  = 'Level Water Table'
-        PropertyList(8)  = 'Water Table Depth'
+        PropertyList(7)  = 'level water table'
+        PropertyList(8)  = 'water table depth'
         PropertyList(9)  = 'Hydro Pressure'
         PropertyList(10) = 'Final Head'
 !        PropertyList(11) = 'PM Water Column m'
@@ -2879,9 +2901,9 @@ doSP:           do
             call CalculateUGWaterLevel
 
             !Output
-            if (Me%OutPut%Yes)          call PorousMediaOutput                        
-            if (Me%OutPut%TimeSerieON)  call OutPutTimeSeries
-            if (Me%OutPut%ProfileON  )  call ProfileOutput
+            if (Me%OutPut%Yes .or. Me%OutPut%SurfaceOutput) call PorousMediaOutput                        
+            if (Me%OutPut%TimeSerieON)                      call OutPutTimeSeries
+            if (Me%OutPut%ProfileON  )                      call ProfileOutput
             
             !Restart Output
             if (Me%Output%WriteRestartFile .and. .not. (Me%ExtVar%Now == Me%EndTime)) then
@@ -4798,7 +4820,7 @@ doK:            do K = Me%ExtVar%KFloor(i, j), Me%WorkSize%KUB
         real, dimension(:), pointer                 :: TimePointer       
         real, dimension(:,:,:), pointer             :: Modulus3D
         real, dimension(:,:,:), pointer             :: CenterU3D, CenterV3D, CenterW3D
-        
+        real, dimension(:,:), pointer               :: SurfaceSlice
 
         !Bounds
         ILB = Me%WorkSize%ILB
@@ -4810,177 +4832,268 @@ doK:            do K = Me%ExtVar%KFloor(i, j), Me%WorkSize%KUB
         KLB = Me%WorkSize%KLB
         KUB = Me%WorkSize%KUB
 
+        !NOTE: This test below is only valid if either normal output or 2D is active. 
+        !That way during startup it is checked if only one of the output types is activated
+        !Both can't ba active at the same time beause of the TIME output
 
-        if (Me%ExtVar%Now >= Me%OutPut%OutTime(Me%OutPut%NextOutPut)) then
+        if (Me%OutPut%Yes) then
             
-            !----------------------------------------------------------------------------
-            !Common Output---------------------------------------------------------------
-            !----------------------------------------------------------------------------
+            !3D "Normal" Output
+            if (Me%ExtVar%Now >= Me%OutPut%OutTime(Me%OutPut%NextOutPut)) then
 
-            !Time
-            call ExtractDate   (Me%ExtVar%Now , AuxTime(1), AuxTime(2),         &
-                                                AuxTime(3), AuxTime(4),         &  
-                                                AuxTime(5), AuxTime(6))
-            TimePointer => AuxTime
+                !----------------------------------------------------------------------------
+                !Common Output---------------------------------------------------------------
+                !----------------------------------------------------------------------------
 
-            call HDF5SetLimits  (Me%ObjHDF5, 1, 6, STAT = STAT_CALL)            
-            if (STAT_CALL /= SUCCESS_) stop 'PorousMediaOutput - ModulePorousMedia - ERR01'
+                !Time
+                call ExtractDate   (Me%ExtVar%Now , AuxTime(1), AuxTime(2),         &
+                                                    AuxTime(3), AuxTime(4),         &  
+                                                    AuxTime(5), AuxTime(6))
+                TimePointer => AuxTime
 
-
-            call HDF5WriteData  (Me%ObjHDF5, "/Time", "Time",                   &
-                                 "YYYY/MM/DD HH:MM:SS",                         &
-                                 Array1D      = TimePointer,                    &
-                                 OutputNumber = Me%OutPut%NextOutPut,           &
-                                 STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'PorousMediaOutput - ModulePorousMedia - ERR02'
+                call HDF5SetLimits  (Me%ObjHDF5, 1, 6, STAT = STAT_CALL)            
+                if (STAT_CALL /= SUCCESS_) stop 'PorousMediaOutput - ModulePorousMedia - ERR01'
 
 
-            !Limits 
-            call HDF5SetLimits   (Me%ObjHDF5, ILB, IUB, JLB, JUB, KLB-1, KUB, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'PorousMediaOutput - ModulePorousMedia - ERR03'
+                call HDF5WriteData  (Me%ObjHDF5, "/Time", "Time",                   &
+                                     "YYYY/MM/DD HH:MM:SS",                         &
+                                     Array1D      = TimePointer,                    &
+                                     OutputNumber = Me%OutPut%NextOutPut,           &
+                                     STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'PorousMediaOutput - ModulePorousMedia - ERR02'
 
 
-            !Vertical 
-            call HDF5WriteData  ( Me%ObjHDF5,  "/Grid/VerticalZ",               & 
-                                 "Vertical",   "m"              ,               & 
-                                  Array3D      = Me%ExtVar%SZZ  ,               &
-                                  OutputNumber = Me%OutPut%NextOutPut,          &
-                                  STAT         = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModulePorousMedia - ERR01'
+                !Limits 
+                call HDF5SetLimits   (Me%ObjHDF5, ILB, IUB, JLB, JUB, KLB-1, KUB, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'PorousMediaOutput - ModulePorousMedia - ERR03'
 
 
-            !Limits 
-            call HDF5SetLimits   (Me%ObjHDF5, ILB, IUB, JLB, JUB, KLB, KUB, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'PorousMediaOutput - ModulePorousMedia - ERR03'
-
-            !Open Points
-            call HDF5WriteData   ( Me%ObjHDF5,  "/Grid/OpenPoints" ,            &
-                                  "OpenPoints", "-"                 ,           &
-                                   Array3D      = Me%ExtVar%OpenPoints3D ,      &
-                                   OutputNumber = Me%OutPut%NextOutPut,         &
-                                   STAT         = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'PorousMediaOutput - ModulePorousMedia - ERR04'
+                !Vertical 
+                call HDF5WriteData  ( Me%ObjHDF5,  "/Grid/VerticalZ",               & 
+                                     "Vertical",   "m"              ,               & 
+                                      Array3D      = Me%ExtVar%SZZ  ,               &
+                                      OutputNumber = Me%OutPut%NextOutPut,          &
+                                      STAT         = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModulePorousMedia - ERR01'
 
 
-            !----------------------------------------------------------------------------
-            !Saturated Output------------------------------------------------------------
-            !----------------------------------------------------------------------------
+                !Limits 
+                call HDF5SetLimits   (Me%ObjHDF5, ILB, IUB, JLB, JUB, KLB, KUB, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'PorousMediaOutput - ModulePorousMedia - ERR03'
+
+                !Open Points
+                call HDF5WriteData   ( Me%ObjHDF5,  "/Grid/OpenPoints" ,            &
+                                      "OpenPoints", "-"                 ,           &
+                                       Array3D      = Me%ExtVar%OpenPoints3D ,      &
+                                       OutputNumber = Me%OutPut%NextOutPut,         &
+                                       STAT         = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'PorousMediaOutput - ModulePorousMedia - ERR04'
+
+
+                !----------------------------------------------------------------------------
+                !Saturated Output------------------------------------------------------------
+                !----------------------------------------------------------------------------
+                
+                !UGWaterLevel
+                call HDF5WriteData   (Me%ObjHDF5, "/Results/WaterLevel",            &
+                                      "WaterLevel", "m",                            &
+                                      Array2D      = Me%UGWaterLevel2D,             &
+                                      OutputNumber = Me%OutPut%NextOutPut,          &
+                                      STAT         = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'PorousMediaOutput - ModulePorousMedia - ERR05'
+
+                !UGWaterDepth
+                call HDF5WriteData   (Me%ObjHDF5, "/Results/water table depth",     &
+                                      "water table depth", "m",                     &
+                                      Array2D      = Me%UGWaterDepth2D,             &
+                                      OutputNumber = Me%OutPut%NextOutPut,          &
+                                      STAT         = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'PorousMediaOutput - ModulePorousMedia - ERR05'
+
+                !----------------------------------------------------------------------------
+                !Unsaturated Output----------------------------------------------------------
+                !----------------------------------------------------------------------------
+
+                call HDF5WriteData ( Me%ObjHDF5,    "/Results/water content",       &
+                                    "water content", "m3water/m3soil"            ,  &
+                                     Array3D      =  Me%Theta             ,         &
+                                     OutputNumber =  Me%OutPut%NextOutPut    ,      &
+                                     STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModulePorousMedia - ERR01'
+                
+                call HDF5WriteData ( Me%ObjHDF5,    "/Results/relative water content",     &
+                                    "relative water content", "m3water/m3water"        ,   &
+                                     Array3D      =  Me%RC%ThetaF         ,         &
+                                     OutputNumber =  Me%OutPut%NextOutPut    ,      &
+                                     STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModulePorousMedia - ERR01'
+
+                call HDF5WriteData ( Me%ObjHDF5, "/Results/Head"            ,       &
+                                    "Head"     , 'm'                            ,   &
+                                     Array3D      = Me%Head               ,         &
+                                     OutputNumber = Me%OutPut%NextOutPut        ,   & 
+                                     STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModulePorousMedia - ERR01'
+
+                call HDF5WriteData ( Me%ObjHDF5, "/Results/FinalHead"    ,          &
+                                    "FinalHead"     , 'm'                       ,   &
+                                     Array3D      = Me%FinalHead,                   &
+                                     OutputNumber = Me%OutPut%NextOutPut,           & 
+                                     STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModulePorousMedia - ERR01'
+
+                call HDF5WriteData ( Me%ObjHDF5, "/Results/HydroPressure"    ,   &
+                                    "HydroPressure"     , 'm'                            ,   &
+                                     Array3D      = Me%HydroPressure,   &
+                                     OutputNumber = Me%OutPut%NextOutPut        ,   & 
+                                     STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModulePorousMedia - ERR01'
+
+                !Write unsat velocities
+                allocate(CenterU3D(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB, Me%Size%KLB:Me%Size%KUB), &
+                         CenterV3D(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB, Me%Size%KLB:Me%Size%KUB), &
+                         CenterW3D(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB, Me%Size%KLB:Me%Size%KUB), &
+                         Modulus3D(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB, Me%Size%KLB:Me%Size%KUB))
+                CenterU3D  = 0.0
+                CenterV3D  = 0.0
+                CenterW3D  = 0.0
+                Modulus3D  = 0.0
+                do k = KLB, KUB
+                do j = JLB, JUB
+                do i = ILB, IUB
+                    if (Me%ExtVar%WaterPoints3D(i, j, k) == 1) then
+                        CenterU3D (i, j, k) = (Me%UnsatVelU(i, j, k) + Me%UnsatVelU(i, j+1, k)) / 2.0
+                        CenterV3D (i, j, k) = (Me%UnsatVelV(i, j, k) + Me%UnsatVelV(i+1, j, k)) / 2.0
+                        CenterW3D (i, j, k) = (Me%UnsatVelW(i, j, k) + Me%UnsatVelW(i, j, k+1)) / 2.0
+                        Modulus3D (i, j, k) = sqrt(CenterU3D (i, j, k)**2.0 + CenterV3D (i, j, k)**2.0 + CenterW3D(i,j,k)**2.0)
+                    endif
+                enddo
+                enddo            
+                enddo
+
+                call HDF5WriteData ( Me%ObjHDF5, "/Results/Velocity/X",         & 
+                                    "Vel. X",    'm/s',                             &
+                                     Array3D      = CenterU3D,                      &
+                                     OutputNumber = Me%OutPut%NextOutPut,           &  
+                                     STAT         = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModulePorousMedia - ERR01'
             
-            !UGWaterLevel
-            call HDF5WriteData   (Me%ObjHDF5, "/WaterTable/WaterLevel",         &
-                                  "WaterLevel", "m",                            &
-                                  Array2D      = Me%UGWaterLevel2D,             &
-                                  OutputNumber = Me%OutPut%NextOutPut,          &
-                                  STAT         = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'PorousMediaOutput - ModulePorousMedia - ERR05'
+                call HDF5WriteData ( Me%ObjHDF5, "/Results/Velocity/Y",         & 
+                                    "Vel. Y",    'm/s',                             &
+                                     Array3D      = CenterV3D,                      &
+                                     OutputNumber = Me%OutPut%NextOutPut,           &  
+                                     STAT         = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModulePorousMedia - ERR01'
 
-            !UGWaterDepth
-            call HDF5WriteData   (Me%ObjHDF5, "/WaterTable/WaterDepth",         &
-                                  "WaterDepth", "m",                            &
-                                  Array2D      = Me%UGWaterDepth2D,             &
-                                  OutputNumber = Me%OutPut%NextOutPut,          &
-                                  STAT         = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'PorousMediaOutput - ModulePorousMedia - ERR05'
+                call HDF5WriteData ( Me%ObjHDF5, "/Results/Velocity/Z",         & 
+                                    "Vel. Z",    'm/s',                             &
+                                     Array3D      = CenterW3D,                      &
+                                     OutputNumber = Me%OutPut%NextOutPut,           &  
+                                     STAT         = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModulePorousMedia - ERR01'
 
-            !----------------------------------------------------------------------------
-            !Unsaturated Output----------------------------------------------------------
-            !----------------------------------------------------------------------------
+                call HDF5WriteData ( Me%ObjHDF5, "/Results/Velocity/Modulus",   & 
+                                    "Modulus",    'm/s',                            &
+                                     Array3D      = Modulus3D,                      &
+                                     OutputNumber = Me%OutPut%NextOutPut,           &  
+                                     STAT         = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModulePorousMedia - ERR01'
 
-            call HDF5WriteData ( Me%ObjHDF5,    "/Unsaturated/WaterContent",    &
-                                "WaterContent", "m3water/m3soil"            ,   &
-                                 Array3D      =  Me%Theta             ,   &
-                                 OutputNumber =  Me%OutPut%NextOutPut    ,      &
-                                 STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModulePorousMedia - ERR01'
+
+                deallocate (CenterU3D, CenterV3D, CenterW3D, Modulus3D)
+
+                Me%OutPut%NextOutPut = Me%OutPut%NextOutPut + 1
+
+                !----------------------------------------------------------------------------
+                !Write everything to disk----------------------------------------------------
+                !----------------------------------------------------------------------------
+
+                call HDF5FlushMemory (Me%ObjHDF5, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'PorousMediaOutput - ModulePorousMedia - ERR09'
+
+
+            endif
             
-            call HDF5WriteData ( Me%ObjHDF5,    "/Unsaturated/RelWaterContent", &
-                                "RelWaterContent", "m3water/m3water"        ,   &
-                                 Array3D      =  Me%RC%ThetaF         ,   &
-                                 OutputNumber =  Me%OutPut%NextOutPut    ,      &
-                                 STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModulePorousMedia - ERR01'
-
-            call HDF5WriteData ( Me%ObjHDF5, "/Unsaturated/Head"            ,   &
-                                "Head"     , 'm'                            ,   &
-                                 Array3D      = Me%Head               ,   &
-                                 OutputNumber = Me%OutPut%NextOutPut        ,   & 
-                                 STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModulePorousMedia - ERR01'
-
-            call HDF5WriteData ( Me%ObjHDF5, "/Unsaturated/FinalHead"    ,   &
-                                "FinalHead"     , 'm'                            ,   &
-                                 Array3D      = Me%FinalHead               ,   &
-                                 OutputNumber = Me%OutPut%NextOutPut        ,   & 
-                                 STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModulePorousMedia - ERR01'
-
-            call HDF5WriteData ( Me%ObjHDF5, "/Unsaturated/HydroPressure"    ,   &
-                                "HydroPressure"     , 'm'                            ,   &
-                                 Array3D      = Me%HydroPressure,   &
-                                 OutputNumber = Me%OutPut%NextOutPut        ,   & 
-                                 STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModulePorousMedia - ERR01'
-
-            !Write unsat velocities
-            allocate(CenterU3D(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB, Me%Size%KLB:Me%Size%KUB), &
-                     CenterV3D(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB, Me%Size%KLB:Me%Size%KUB), &
-                     CenterW3D(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB, Me%Size%KLB:Me%Size%KUB), &
-                     Modulus3D(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB, Me%Size%KLB:Me%Size%KUB))
-            CenterU3D  = 0.0
-            CenterV3D  = 0.0
-            CenterW3D  = 0.0
-            Modulus3D  = 0.0
-            do k = KLB, KUB
-            do j = JLB, JUB
-            do i = ILB, IUB
-                if (Me%ExtVar%WaterPoints3D(i, j, k) == 1) then
-                    CenterU3D (i, j, k) = (Me%UnsatVelU(i, j, k) + Me%UnsatVelU(i, j+1, k)) / 2.0
-                    CenterV3D (i, j, k) = (Me%UnsatVelV(i, j, k) + Me%UnsatVelV(i+1, j, k)) / 2.0
-                    CenterW3D (i, j, k) = (Me%UnsatVelW(i, j, k) + Me%UnsatVelW(i, j, k+1)) / 2.0
-                    Modulus3D (i, j, k) = sqrt(CenterU3D (i, j, k)**2.0 + CenterV3D (i, j, k)**2.0 + CenterW3D(i,j,k)**2.0)
-                endif
-            enddo
-            enddo            
-            enddo
-
-            call HDF5WriteData ( Me%ObjHDF5, "/Unsaturated/Velocity/X",         & 
-                                "Vel. X",    'm/s',                             &
-                                 Array3D      = CenterU3D,                      &
-                                 OutputNumber = Me%OutPut%NextOutPut,           &  
-                                 STAT         = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModulePorousMedia - ERR01'
+        endif
         
-            call HDF5WriteData ( Me%ObjHDF5, "/Unsaturated/Velocity/Y",         & 
-                                "Vel. Y",    'm/s',                             &
-                                 Array3D      = CenterV3D,                      &
-                                 OutputNumber = Me%OutPut%NextOutPut,           &  
-                                 STAT         = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModulePorousMedia - ERR01'
+        !2D Surface output
+        if (Me%OutPut%SurfaceOutput) then
+            
+            if (Me%ExtVar%Now >= Me%OutPut%SurfaceOutTime(Me%OutPut%NextSurfaceOutput)) then
 
-            call HDF5WriteData ( Me%ObjHDF5, "/Unsaturated/Velocity/Z",         & 
-                                "Vel. Z",    'm/s',                             &
-                                 Array3D      = CenterW3D,                      &
-                                 OutputNumber = Me%OutPut%NextOutPut,           &  
-                                 STAT         = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModulePorousMedia - ERR01'
 
-            call HDF5WriteData ( Me%ObjHDF5, "/Unsaturated/Velocity/Modulus",   & 
-                                "Modulus",    'm/s',                            &
-                                 Array3D      = Modulus3D,                      &
-                                 OutputNumber = Me%OutPut%NextOutPut,           &  
-                                 STAT         = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModulePorousMedia - ERR01'
+                !----------------------------------------------------------------------------
+                !Common Output---------------------------------------------------------------
+                !----------------------------------------------------------------------------
 
-            deallocate (CenterU3D, CenterV3D, CenterW3D, Modulus3D)
+                !Time
+                call ExtractDate   (Me%ExtVar%Now , AuxTime(1), AuxTime(2),         &
+                                                    AuxTime(3), AuxTime(4),         &  
+                                                    AuxTime(5), AuxTime(6))
+                TimePointer => AuxTime
 
-            !----------------------------------------------------------------------------
-            !Write everything to disk----------------------------------------------------
-            !----------------------------------------------------------------------------
+                call HDF5SetLimits  (Me%ObjHDF5, 1, 6, STAT = STAT_CALL)            
+                if (STAT_CALL /= SUCCESS_) stop 'PorousMediaOutput - ModulePorousMedia - ERR01'
 
-            call HDF5FlushMemory (Me%ObjHDF5, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'PorousMediaOutput - ModulePorousMedia - ERR09'
 
-            Me%OutPut%NextOutPut = Me%OutPut%NextOutPut + 1
+                call HDF5WriteData  (Me%ObjHDF5, "/Time", "Time",                   &
+                                     "YYYY/MM/DD HH:MM:SS",                         &
+                                     Array1D      = TimePointer,                    &
+                                     OutputNumber = Me%OutPut%NextSurfaceOutput,    &
+                                     STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'PorousMediaOutput - ModulePorousMedia - ERR02'
+
+
+                !Limits 
+                call HDF5SetLimits   (Me%ObjHDF5, ILB, IUB, JLB, JUB, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'PorousMediaOutput - ModulePorousMedia - ERR03'
+
+
+                !Write unsat velocities
+                allocate(SurfaceSlice(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+                
+                !Theta
+                do j = JLB, JUB
+                do i = ILB, IUB
+                    SurfaceSlice(i, j) =  Me%RC%ThetaF(i, j, KUB)
+                enddo            
+                enddo                
+                
+                !Please don't change the name of the data sets, since they are used by 
+                !MOHID Land Operational
+                call HDF5WriteData (Me%ObjHDF5, "/Results_2D/relative water content",               &
+                                    "relative water content",                                       &
+                                    "m3water/m3water",                                              &
+                                    Array2D      =  SurfaceSlice,                                   &
+                                    OutputNumber =  Me%OutPut%NextSurfaceOutput,                    &
+                                    STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModulePorousMedia - ERR01'
+                
+                deallocate(SurfaceSlice)
+                
+                !Please don't change the name of the data sets, since they are used by 
+                !MOHID Land Operational
+                call HDF5WriteData   (Me%ObjHDF5, "/Results_2D/water table depth",  &
+                                      "water table depth", "m",                     &
+                                      Array2D      = Me%UGWaterDepth2D,             &
+                                      OutputNumber = Me%OutPut%NextSurfaceOutput,   &
+                                      STAT         = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'PorousMediaOutput - ModulePorousMedia - ERR05'
+
+
+                Me%OutPut%NextSurfaceOutput = Me%OutPut%NextSurfaceOutput + 1
+                
+
+                !----------------------------------------------------------------------------
+                !Write everything to disk----------------------------------------------------
+                !----------------------------------------------------------------------------
+
+                call HDF5FlushMemory (Me%ObjHDF5, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'PorousMediaOutput - ModulePorousMedia - ERR09'
+    
+            
+            endif
+
 
         endif
 
@@ -5242,7 +5355,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                 call KillGridData (Me%ObjBottomTopography, STAT = STAT_)
                 if (STAT_ /= SUCCESS_) stop 'KillPorousMedia - Porousmedia - ERR01'                
                 
-                if (Me%OutPut%Yes) then                    
+                if (Me%OutPut%Yes .or. Me%Output%SurfaceOutput) then                    
                     call KillHDF5 (Me%ObjHDF5, STAT = STAT_)
                     if (STAT_ /= SUCCESS_) stop 'KillPorousMedia - Porousmedia - ERR05'
                 endif

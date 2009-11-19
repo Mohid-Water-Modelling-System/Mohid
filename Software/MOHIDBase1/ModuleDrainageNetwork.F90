@@ -10600,7 +10600,7 @@ if2:                if (CurrNode%nDownstreamReaches .NE. 0) then
                     iReach = iReach + 1
                 end if
             end do
-            call HDF5WriteData  (Me%ObjHDF5, "/Results/Flow", "Flow",                    &
+            call HDF5WriteData  (Me%ObjHDF5, "/Results/flow", "flow",                    &
                                  "m3/s",                                                 &
                                  Array1D      = OutputMatrix,                            &
                                  OutputNumber = Me%OutPut%NextOutPut,                    &
@@ -10681,7 +10681,7 @@ if2:                if (CurrNode%nDownstreamReaches .NE. 0) then
                     iReach = iReach + 1
                 endif
             end do
-            call HDF5WriteData  (Me%ObjHDF5, "/Results/WaterDepth", "WaterDepth",        &
+            call HDF5WriteData  (Me%ObjHDF5, "/Results/water depth", "water depth",      &
                                  "m",                                                    &
                                  Array1D      = OutputMatrix,                            &
                                  OutputNumber = Me%OutPut%NextOutPut,                    &
@@ -10714,7 +10714,8 @@ if2:                if (CurrNode%nDownstreamReaches .NE. 0) then
                     iReach = iReach + 1
                 endif
             end do
-            call HDF5WriteData  (Me%ObjHDF5, "/Results/PercentVolume", "PercentVolume",  &
+            call HDF5WriteData  (Me%ObjHDF5, "/Results/percentage max volume",           &
+                                 "percentage max volume",                                &
                                  "-",                                                    &
                                  Array1D      = OutputMatrix,                            &
                                  OutputNumber = Me%OutPut%NextOutPut,                    &

@@ -1197,8 +1197,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             endif
         endif
 
-        PropertyList(1)  = 'Water Column [m]'
-        PropertyList(2)  = 'Water Level [m]'
+        PropertyList(1)  = 'water column'
+        PropertyList(2)  = 'water level'
         PropertyList(3)  = 'Infil. Rate [mm/hour]'
         PropertyList(4)  = 'Precipitation Rate [mm/hour]'
         PropertyList(5)  = 'Throughfall Rate [mm/hour]'
@@ -3733,8 +3733,8 @@ etr_fao:        if (.not. RefEvapotrans%ID%SolutionFromFile) then
 
 
             !Writes the Water Column
-            call HDF5WriteData   (Me%ObjHDF5, "//Results/WaterColumn",          &
-                                  "WaterColumn", "m",                           &
+            call HDF5WriteData   (Me%ObjHDF5, "//Results/water column",         &
+                                  "water column", "m",                          &
                                   Array2D      = Me%WaterColumn,                &
                                   OutputNumber = Me%OutPut%NextOutPut,          &
                                   STAT = STAT_CALL)
@@ -3742,8 +3742,8 @@ etr_fao:        if (.not. RefEvapotrans%ID%SolutionFromFile) then
 
 
             !Writes the Water Level
-            call HDF5WriteData   (Me%ObjHDF5, "//Results/WaterLevel",           &
-                                  "WaterLevel", "m",                            &
+            call HDF5WriteData   (Me%ObjHDF5, "//Results/water level",          &
+                                  "water level", "m",                           &
                                   Array2D      = Me%WaterLevel,                 &
                                   OutputNumber = Me%OutPut%NextOutPut,          &
                                   STAT = STAT_CALL)

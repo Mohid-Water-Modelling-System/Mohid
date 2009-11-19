@@ -172,7 +172,6 @@
 ! <endvegetationtype>
             
 
-
 Module ModuleVegetation
 
     use ModuleGlobalData

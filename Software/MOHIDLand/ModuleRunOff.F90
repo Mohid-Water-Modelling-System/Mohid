@@ -248,7 +248,6 @@ Module ModuleRunOff
         integer                                         :: STAT_, STAT_CALL
 
         !------------------------------------------------------------------------
-
         STAT_ = UNKNOWN_
 
         !Assures nullification of the global variable
@@ -766,6 +765,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         JLB = Me%WorkSize%JLB
         JUB = Me%WorkSize%JUB
 
+        !TODO: OpenMP - Missing implementation
         do j = JLB, JUB + 1
         do i = ILB, IUB
 
