@@ -114,6 +114,14 @@ Module ModuleHDF5
         module procedure HDF5ReadDataI4_2D
         module procedure HDF5ReadDataI4_3D
     end interface
+    
+
+    interface HDF5WriteGlobalAttribute
+        module procedure HDF5WriteGlobalAttribute_Char
+        module procedure HDF5WriteGlobalAttribute_Int
+        module procedure HDF5WriteGlobalAttribute_R4
+        module procedure HDF5WriteGlobalAttribute_R8   
+    end interface
 
     !Parameter
     integer, parameter                              :: HDF5_CREATE_     = 1
@@ -599,17 +607,13 @@ Module ModuleHDF5
 
     !--------------------------------------------------------------------------
 
-    subroutine HDF5WriteGlobalAttribute(HDF5ID, GroupName, AttributeName, Att_Char, &
-                                        Att_Int, Att_Real, Att_Dble, STAT)
+    subroutine HDF5WriteGlobalAttribute_Char(HDF5ID, GroupName, AttributeName, Att_Char, STAT)
 
         !Arguments-------------------------------------------------------------
         integer                   , intent(in)      :: HDF5ID
         character(len=*)          , intent(in)      :: GroupName
         character(len=*)          , intent(in)      :: AttributeName
-        character(len=*), optional, intent(in)      :: Att_Char
-        integer         , optional, intent(in)      :: Att_Int
-        real(4)         , optional, intent(in)      :: Att_Real
-        real(8)         , optional, intent(in)      :: Att_Dble
+        character(len=*)          , intent(in)      :: Att_Char
         integer         , optional, intent(out)     :: STAT
 
         !Local-----------------------------------------------------------------
@@ -631,79 +635,40 @@ Module ModuleHDF5
 
             !Opens the group
             call h5gopen_f (Me%FileID, GroupName, gr_id, STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteGlobalAttribute - ModuleHDF5 - ERR00'
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteGlobalAttribute_Char - ModuleHDF5 - ERR00'
 
 
             !Creates data space for attribute
             call h5screate_f (H5S_SCALAR_F, space_id, STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteGlobalAttribute - ModuleHDF5 - ERR01'
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteGlobalAttribute_Char - ModuleHDF5 - ERR01'
 
-            if(present(Att_Char))then
+            !Copies Type
+            call h5Tcopy_f     (H5T_NATIVE_CHARACTER, new_type_id, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteGlobalAttribute_Char - ModuleHDF5 - ERR02'
 
-                !Copies Type
-                call h5Tcopy_f     (H5T_NATIVE_CHARACTER, new_type_id, STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteGlobalAttribute - ModuleHDF5 - ERR02'
+            !Sets Size
+            call h5Tset_size_f (new_type_id, len_trim(Att_Char), STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteGlobalAttribute_Char - ModuleHDF5 - ERR03'
 
-                !Sets Size
-                call h5Tset_size_f (new_type_id, len_trim(Att_Char), STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteGlobalAttribute - ModuleHDF5 - ERR03'
+            !Creates attribute
+            call h5acreate_f   (gr_id, trim(AttributeName), new_type_id, space_id, attr_id1, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteGlobalAttribute_Char - ModuleHDF5 - ERR04'
 
-                !Creates attribute
-                call h5acreate_f   (gr_id, trim(AttributeName), new_type_id, space_id, attr_id1, STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteGlobalAttribute - ModuleHDF5 - ERR04'
-
-                !Writes attribute
-                call h5awrite_f    (attr_id1, new_type_id, Att_Char, dims, STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteGlobalAttribute - ModuleHDF5 - ERR05'
-
-            elseif(present(Att_Int))then
-
-                !Creates attribute
-                call h5acreate_f   (gr_id, trim(AttributeName), H5T_NATIVE_INTEGER, space_id, attr_id1, STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteGlobalAttribute - ModuleHDF5 - ERR06'
-
-                !Writes attribute
-                call h5awrite_f    (attr_id1, H5T_NATIVE_INTEGER, Att_Int, dims, STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteGlobalAttribute - ModuleHDF5 - ERR07'
-
-            elseif(present(Att_Real))then
-            
-                !Creates attribute
-                call h5acreate_f   (gr_id, trim(AttributeName), H5T_NATIVE_REAL, space_id, attr_id1, STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteGlobalAttribute - ModuleHDF5 - ERR08'
-
-                !Writes attribute
-                call h5awrite_f    (attr_id1, H5T_NATIVE_REAL, Att_Real, dims, STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteGlobalAttribute - ModuleHDF5 - ERR09'
-
-            elseif(present(Att_Dble))then
-           
-                !Creates attribute
-                call h5acreate_f   (gr_id, trim(AttributeName), H5T_NATIVE_DOUBLE, space_id, attr_id1, STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteGlobalAttribute - ModuleHDF5 - ERR10'
-
-                !Writes attribute
-                call h5awrite_f    (attr_id1, H5T_NATIVE_DOUBLE, Att_Dble, dims, STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteGlobalAttribute - ModuleHDF5 - ERR11'
-
-            else
-
-                write(*,*)"No attribute value given"
-                if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteGlobalAttribute - ModuleHDF5 - ERR12'
-
-            endif
+            !Writes attribute
+            call h5awrite_f    (attr_id1, new_type_id, Att_Char, dims, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteGlobalAttribute_Char - ModuleHDF5 - ERR05'
 
             !Closes attribute
             call h5aclose_f (attr_id1, STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteGlobalAttribute - ModuleHDF5 - ERR13'
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteGlobalAttribute_Char - ModuleHDF5 - ERR13'
 
             !Closes dataspaces
             call h5sclose_f (space_id, STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteGlobalAttribute - ModuleHDF5 - ERR14'
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteGlobalAttribute_Char - ModuleHDF5 - ERR14'
         
             !Closes group
             call h5gclose_f(gr_id, STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteGlobalAttribute - ModuleHDF5 - ERR14'
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteGlobalAttribute_Char - ModuleHDF5 - ERR14'
 
             STAT_ = SUCCESS_
 
@@ -715,10 +680,221 @@ Module ModuleHDF5
 
         if (present(STAT)) STAT = STAT_
 
-    end subroutine HDF5WriteGlobalAttribute
+    end subroutine HDF5WriteGlobalAttribute_Char
 
     !--------------------------------------------------------------------------
+    
+    !--------------------------------------------------------------------------
 
+    subroutine HDF5WriteGlobalAttribute_Int(HDF5ID, GroupName, AttributeName, &
+                                            Att_Int, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                   , intent(in)      :: HDF5ID
+        character(len=*)          , intent(in)      :: GroupName
+        character(len=*)          , intent(in)      :: AttributeName
+        integer                   , intent(in)      :: Att_Int
+        integer         , optional, intent(out)     :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer(HID_T)                              :: space_id
+        integer(HID_T)                              :: attr_id1
+        integer(HSIZE_T), dimension(7)              :: dims
+        integer(HID_T)                              :: new_type_id, gr_id
+        integer                                     :: STAT_, ready_, STAT_CALL
+
+        !Begin-----------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready (HDF5ID, ready_)
+
+        if (ready_ .EQ. IDLE_ERR_) then
+
+            call CheckGroupExistence(Me%FileID, GroupName, .false.)
+
+            !Opens the group
+            call h5gopen_f (Me%FileID, GroupName, gr_id, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteGlobalAttribute_Int - ModuleHDF5 - ERR00'
+
+
+            !Creates data space for attribute
+            call h5screate_f (H5S_SCALAR_F, space_id, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteGlobalAttribute_Int - ModuleHDF5 - ERR01'
+
+             !Creates attribute
+            call h5acreate_f   (gr_id, trim(AttributeName), H5T_NATIVE_INTEGER, space_id, attr_id1, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteGlobalAttribute_Int - ModuleHDF5 - ERR06'
+
+            !Writes attribute
+            call h5awrite_f    (attr_id1, H5T_NATIVE_INTEGER, Att_Int, dims, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteGlobalAttribute_Int - ModuleHDF5 - ERR07'
+
+           !Closes attribute
+            call h5aclose_f (attr_id1, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteGlobalAttribute_Int - ModuleHDF5 - ERR13'
+
+            !Closes dataspaces
+            call h5sclose_f (space_id, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteGlobalAttribute_Int - ModuleHDF5 - ERR14'
+        
+            !Closes group
+            call h5gclose_f(gr_id, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteGlobalAttribute_Int - ModuleHDF5 - ERR14'
+
+            STAT_ = SUCCESS_
+
+        else
+
+            STAT_ = ready_
+
+        endif
+
+        if (present(STAT)) STAT = STAT_
+
+    end subroutine HDF5WriteGlobalAttribute_Int
+    
+    !--------------------------------------------------------------------------
+    !--------------------------------------------------------------------------
+
+    subroutine HDF5WriteGlobalAttribute_R4(HDF5ID, GroupName, AttributeName, Att_Real, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                   , intent(in)      :: HDF5ID
+        character(len=*)          , intent(in)      :: GroupName
+        character(len=*)          , intent(in)      :: AttributeName
+        real(4)                   , intent(in)      :: Att_Real
+        integer         , optional, intent(out)     :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer(HID_T)                              :: space_id
+        integer(HID_T)                              :: attr_id1
+        integer(HSIZE_T), dimension(7)              :: dims
+        integer(HID_T)                              :: new_type_id, gr_id
+        integer                                     :: STAT_, ready_, STAT_CALL
+
+        !Begin-----------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready (HDF5ID, ready_)
+
+        if (ready_ .EQ. IDLE_ERR_) then
+
+            call CheckGroupExistence(Me%FileID, GroupName, .false.)
+
+            !Opens the group
+            call h5gopen_f (Me%FileID, GroupName, gr_id, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteGlobalAttribute_R4 - ModuleHDF5 - ERR00'
+
+
+            !Creates data space for attribute
+            call h5screate_f (H5S_SCALAR_F, space_id, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteGlobalAttribute_R4 - ModuleHDF5 - ERR01'
+
+            !Creates attribute
+            call h5acreate_f   (gr_id, trim(AttributeName), H5T_NATIVE_REAL, space_id, attr_id1, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteGlobalAttribute_R4 - ModuleHDF5 - ERR08'
+
+            !Writes attribute
+            call h5awrite_f    (attr_id1, H5T_NATIVE_REAL, Att_Real, dims, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteGlobalAttribute_R4 - ModuleHDF5 - ERR09'
+
+            !Closes attribute
+            call h5aclose_f (attr_id1, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteGlobalAttribute_R4 - ModuleHDF5 - ERR13'
+
+            !Closes dataspaces
+            call h5sclose_f (space_id, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteGlobalAttribute_R4 - ModuleHDF5 - ERR14'
+        
+            !Closes group
+            call h5gclose_f(gr_id, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteGlobalAttribute_R4 - ModuleHDF5 - ERR14'
+
+            STAT_ = SUCCESS_
+
+        else
+
+            STAT_ = ready_
+
+        endif
+
+        if (present(STAT)) STAT = STAT_
+
+    end subroutine HDF5WriteGlobalAttribute_R4
+
+    !--------------------------------------------------------------------------
+    
+    subroutine HDF5WriteGlobalAttribute_R8(HDF5ID, GroupName, AttributeName, Att_Real, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                   , intent(in)      :: HDF5ID
+        character(len=*)          , intent(in)      :: GroupName
+        character(len=*)          , intent(in)      :: AttributeName
+        real(8)                   , intent(in)      :: Att_Real
+        integer         , optional, intent(out)     :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer(HID_T)                              :: space_id
+        integer(HID_T)                              :: attr_id1
+        integer(HSIZE_T), dimension(7)              :: dims
+        integer(HID_T)                              :: new_type_id, gr_id
+        integer                                     :: STAT_, ready_, STAT_CALL
+
+        !Begin-----------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready (HDF5ID, ready_)
+
+        if (ready_ .EQ. IDLE_ERR_) then
+
+            call CheckGroupExistence(Me%FileID, GroupName, .false.)
+
+            !Opens the group
+            call h5gopen_f (Me%FileID, GroupName, gr_id, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteGlobalAttribute_R8 - ModuleHDF5 - ERR00'
+
+
+            !Creates data space for attribute
+            call h5screate_f (H5S_SCALAR_F, space_id, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteGlobalAttribute_R8 - ModuleHDF5 - ERR01'
+
+            !Creates attribute
+            call h5acreate_f   (gr_id, trim(AttributeName), H5T_NATIVE_DOUBLE, space_id, attr_id1, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteGlobalAttribute_R8 - ModuleHDF5 - ERR10'
+
+            !Writes attribute
+            call h5awrite_f    (attr_id1, H5T_NATIVE_DOUBLE, Att_Real, dims, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteGlobalAttribute_R8 - ModuleHDF5 - ERR11'
+
+            !Closes attribute
+            call h5aclose_f (attr_id1, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteGlobalAttribute_R8 - ModuleHDF5 - ERR13'
+
+            !Closes dataspaces
+            call h5sclose_f (space_id, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteGlobalAttribute_R8 - ModuleHDF5 - ERR14'
+        
+            !Closes group
+            call h5gclose_f(gr_id, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteGlobalAttribute_R8 - ModuleHDF5 - ERR14'
+
+            STAT_ = SUCCESS_
+
+        else
+
+            STAT_ = ready_
+
+        endif
+
+        if (present(STAT)) STAT = STAT_
+
+    end subroutine HDF5WriteGlobalAttribute_R8
+
+    !--------------------------------------------------------------------------
+    
     subroutine HDF5WriteDataR4_1D (HDF5ID, GroupName, Name, Units,                   &
                                    Array1D, Average, Radius, OutputNumber, STAT)
 
