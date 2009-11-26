@@ -5,7 +5,14 @@
         private
         
         public  :: Task2000Level
-        private ::  Name2Frequency
+        private ::  HOURLY
+        private ::      INTIAL
+        private ::      UFSET 
+        private ::      VSET
+        private ::      UDATF
+        private ::      SHPN
+        private ::      Prinrd
+        private ::      Name2Frequency
         
         contains
 
@@ -1004,7 +1011,7 @@ C
       DOUBLE PRECISION, dimension(NCompt ) :: TideFreq      
 
         data TideNames/ 
-     &  'SA	     ',
+     &  'SA      ',
      &  'SSA	 ',
      &  'MM	     ',
      &  'MSF	 ',
