@@ -292,6 +292,7 @@ Module ModuleGeometry
     type T_External
         logical                                 :: ContinuesCompute = .false.
         logical                                 :: NonHydrostatic   = .false.
+        logical                                 :: VerifyBathym     = .true. 
         real                                    :: BathymTopoFactor = 1.0
         real, dimension(:,:,:), pointer         :: DecayTime
     end type T_External
@@ -347,7 +348,8 @@ Module ModuleGeometry
 
     subroutine ConstructGeometry(GeometryID, GridDataID, HorizontalGridID,              &
                                  HorizontalMapID, ActualTime,                           &
-                                 NewDomain, SurfaceElevation, BathymTopoFactor, STAT)
+                                 NewDomain, SurfaceElevation, BathymTopoFactor,         &
+                                 VerifyBathym, STAT)
 
         !Arguments-------------------------------------------------------------
         integer                                     :: GeometryID
@@ -357,7 +359,8 @@ Module ModuleGeometry
         type (T_Time),                 optional     :: ActualTime
         character (len=*), intent(IN), optional     :: NewDomain
         real, dimension(:,:), pointer, optional     :: SurfaceElevation
-        real,    intent(in),           optional     :: BathymTopoFactor
+        real,              intent(IN), optional     :: BathymTopoFactor
+        logical,           intent(IN), optional     :: VerifyBathym
         integer,  intent(OUT),         optional     :: STAT
         
         !Local-----------------------------------------------------------------
@@ -395,6 +398,12 @@ Module ModuleGeometry
                 Me%ExternalVar%BathymTopoFactor = BathymTopoFactor
             else
                 Me%ExternalVar%BathymTopoFactor = 1.0
+            endif
+            
+            if (present(VerifyBathym)) then
+                Me%ExternalVar%VerifyBathym = VerifyBathym
+            else
+                Me%ExternalVar%VerifyBathym = .true. 
             endif
 
             !Construct the variable common to all module
@@ -555,10 +564,15 @@ Module ModuleGeometry
 
         !Checks if Bathymetry is consistent with the tolerance depth - Fromer REBAIXA
         !and if changes bathymetry if cartasian domain type exists
-        if (present(SurfaceElevation)) then
-            call VerifyBathymetry (SurfaceElevation)
-        else
-            call VerifyBathymetry
+        
+        if (Me%ExternalVar%VerifyBathym) then
+        
+            if (present(SurfaceElevation)) then
+                call VerifyBathymetry (SurfaceElevation)
+            else
+                call VerifyBathymetry
+            endif
+            
         endif
 
         !Allocates variables
