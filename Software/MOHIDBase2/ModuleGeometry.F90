@@ -2818,7 +2818,11 @@ cd1:    if (FacesOption == MinTickness) then
             if (WaterPoints3D(i, j - 1, k) == WaterPoint .and.                            &
                 WaterPoints3D(i, j    , k) == WaterPoint) then
 
-                DWZ_Xgrad(i, j, k) = (DWZ(i, j, k) - DWZ(i, j-1, k)) / DUZ(i, j, k)
+                if (DUZ(i, j, k) > 0.) then
+                    DWZ_Xgrad(i, j, k) = (DWZ(i, j, k) - DWZ(i, j-1, k)) / DUZ(i, j, k)
+                else
+                    DWZ_Xgrad(i, j, k) = 0.
+                endif
 
             else if (WaterPoints3D(i, j - 1, k) == WaterPoint) then
  
@@ -2845,9 +2849,13 @@ cd1:    if (FacesOption == MinTickness) then
 
             if (WaterPoints3D(i - 1, j, k) == WaterPoint .and.                            &
                 WaterPoints3D(i    , j, k) == WaterPoint) then
-
-                DWZ_Ygrad(i, j, k) =  (DWZ(i, j, k) - DWZ(i-1, j, k)) / DVZ(i, j, k)
-
+                
+                if (DVZ(i, j, k) > 0.) then
+                    DWZ_Ygrad(i, j, k) =  (DWZ(i, j, k) - DWZ(i-1, j, k)) / DVZ(i, j, k)
+                else
+                    DWZ_Ygrad(i, j, k) = 0.
+                endif
+                
             else if (WaterPoints3D(i - 1, j, k) == WaterPoint) then
             
                 DWZ_Ygrad(i, j, k) = -1.
