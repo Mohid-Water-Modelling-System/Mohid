@@ -79,7 +79,8 @@ Module ModuleLagrangian
 !   OUTPUT_MAX_TRACER       : 0/1                       [0]                     !Checks if the users wants to output the maximum 
                                                                                  ! tracer concentration in each cell
 !   OVERLAY_VELOCITY        : 0/1                       [0]                     !If a adicional velocity field is to be added
-!                                                                                1 - Maximum 2 - Mean
+!   OUTPUT_TRACER_INFO      : logical                   [0]                     ! Output a file with detailed information for each tracer (extension .tro)
+!
 !
 !
 !<BeginOrigin>
@@ -194,7 +195,7 @@ Module ModuleLagrangian
 !       PARTITION_COUPLE_SED   : real                   [M/L^3]                 !Concentration of the dissolved phase in the 
 !                                                                               !intersticial water. The dissolved phase is 
 !                                                                               !admitted with a constant concentration.
-! WQM_DATA_FILE             : character                 []                      !Data File of the WQM module
+! WQM_DATA_FILE                : character              []                      !Data File of the WQM module
 !
 !<<BeginProperty>>
 !   NAME                    : char                      []                      !Name of the property
@@ -526,7 +527,8 @@ Module ModuleLagrangian
         logical                                 :: PlumeShear           = OFF
         logical                                 :: FarFieldBuoyancy     = OFF
         logical                                 :: T90Variable          = OFF
-        logical                                 :: Filtration           = OFF
+        logical                                 :: Filtration           = OFF       
+        logical                                 :: OutputTracerInfo     = OFF
     end type T_State
 
     !IO
@@ -838,6 +840,9 @@ Module ModuleLagrangian
         type (T_Origin), pointer                :: Next           => null()
         logical                                 :: Beaching       = OFF
         logical                                 :: Filtration     = OFF
+        character(PathLength)                   :: OutputTracerInfoFileName  
+        integer                                 :: troUnit  
+        
     end type T_Origin
 
     type T_ParticleGrid
@@ -920,8 +925,12 @@ Module ModuleLagrangian
         real,    pointer, dimension(:,:  )      :: SpreadingVelocityY
         real                                    :: DiffVelocity
         real                                    :: VWaterContent
+        real                                    :: MWaterContent
         real                                    :: AreaTotal
         real                                    :: OilDensity
+        real                                    :: OilViscosity
+        real                                    :: FMDispersed
+        real                                    :: FMEvaporated
         real                                    :: MDispersed
         integer                                 :: ThicknessGradient, Fay, SpreadingMethod
 
@@ -1156,11 +1165,14 @@ Module ModuleLagrangian
 
             !Constructs the Time Series
             if (Me%WritesTimeSerie) then
-                call ConstructTimeSeries  
-            endif
-
-
-
+                call ConstructTimeSeries
+            end if
+            
+            ! Opens Output Tracer Info File, if Needed
+            if (Me%State%OutputTracerInfo) then
+                call ConstructOutputTracerTimeSeries
+            end if
+            
             !Kills EnterData
             call KillEnterData(Me%ObjEnterData, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructLagrangian - ModuleLagrangian - ERR14'
@@ -1853,6 +1865,16 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_  ) then
 
         endif
 
+        !OutputTracerInfo
+        call GetData(Me%State%OutputTracerInfo,                                     &
+                     Me%ObjEnterData,                                               &
+                     flag,                                                          &
+                     SearchType   = FromFile,                                      &
+                     keyword      ='OUTPUT_TRACER_INFO',                            &
+                     ClientModule ='ModuleLagrangian',                              &
+                     Default      = .false.,                                         &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructOrigins - ModuleLagrangian - ERR235'
 
         !OVERLAY_VELOCITY
         call GetData(Me%OverLay%Overlay,                                                &
@@ -3069,8 +3091,7 @@ BX:             if (NewOrigin%EmissionSpatial == Box_) then
                     endif
 
                 endif BX
-
-                
+               
                 !Searches for Properties
 DOPROP:         do 
                     call ExtractBlockFromBlock(Me%ObjEnterData, ClientNumber,            &
@@ -3620,6 +3641,10 @@ SP:                     if (NewProperty%SedimentPartition%ON) then
 
                 endif
                 
+                if (Me%State%OutputTracerInfo) then
+                    call ReadFileName("ROOT_SRT", RootPath, STAT = STAT_CALL)
+                    NewOrigin%OutputTracerInfoFileName = trim(RootPath)//trim(NewOrigin%Name)//".tro"
+                endif
 
 
                 !Insert New Origin to the list of origins    
@@ -3675,6 +3700,7 @@ SP:                     if (NewProperty%SedimentPartition%ON) then
 
 !#endif
 
+        
         nullify(OriginalOrigin, NewOrigin)
 
     end subroutine ConstructOrigins
@@ -4549,6 +4575,74 @@ CurrOr: do while (associated(CurrentOrigin))
     end subroutine ConstructTimeSeries
 
     !--------------------------------------------------------------------------
+    
+    subroutine ConstructOutputTracerTimeSeries
+        !Arguments-------------------------------------------------------------
+
+        !Local-----------------------------------------------------------------
+        type (T_Origin), pointer                                :: CurrentOrigin
+        integer                                                 :: iProp
+        integer                                                 :: STAT_CALL
+
+
+
+        CurrentOrigin => Me%FirstOrigin
+CurrOr: do while (associated(CurrentOrigin))
+                    call UnitsManager(CurrentOrigin%troUnit, OPEN_FILE,             &
+                                      STAT = STAT_CALL)
+
+            OPEN (FILE  = trim(CurrentOrigin%OutputTracerInfoFileName), &
+                  UNIT  = CurrentOrigin%troUnit, &
+                  STATUS= "unknown", &
+                  FORM  = "formatted", IOSTAT = STAT_CALL)
+
+            If (CurrentOrigin%State%Oil) then
+            151 format(4X, A6,4X,A12, 4X, A12, 4X, A12, 4X, A3, 4X, A6, 4X, A7, 4X,  &
+                       A3, 4X, A3, 4X, A3, 4X, A12, 4X, A12, 4X, A6, 4X, A6, 4X, A3, 4X, A3, 4X, A6)
+                Write(CurrentOrigin%troUnit,151) "Number", &
+                        "Time",     &
+                        "Lat",      &   
+                        "Lon",      &
+                        "Status",   &
+                        "Type",     &
+                        "Mass",     &   
+                        "%ev",      &
+                        "%em",      &
+                        "%di",      &
+                        "visc",     &
+                        "dens",     &
+                        "Wd",       &
+                        "Cur",      &
+                        "SST",      &
+                        "Err",      &
+                        "Depth"
+            Else
+            152 format(4X, A6,4X,A12, 4X, A12, 4X, A12, 4X, A3, 4X, A7, 4X, A6, 4X, &
+                       A6, 4X, A3, 4X, A3, 4X, A6)
+                Write(CurrentOrigin%troUnit,152) "Number", &
+                        "Time",     &
+                        "Lat",      &   
+                        "Lon",      &
+                        "Status",   &
+                        "Mass",     &   
+                        "Wd",       &
+                        "Cur",      &
+                        "SST",      &
+                        "Depth"
+            
+
+                  if (STAT_CALL /= SUCCESS_) then
+                      write(*,*) 'Error opening ouput tracers info file ', &
+                                  trim(CurrentOrigin%OutputTracerInfoFileName)
+                      stop 'ConstructOutputTracerTimeSeries - ModuleLagrangian - ERR978'
+                  endif
+            endif 
+
+            CurrentOrigin => CurrentOrigin%Next
+
+        enddo CurrOr
+
+     end subroutine ConstructOutputTracerTimeSeries
 
     subroutine VerifyOriginProperties 
 
@@ -6141,6 +6235,12 @@ CurrOr: do while (associated(CurrentOrigin))
                     if (STAT_CALL /= SUCCESS_) stop 'DeleteOrigin - ModuleLagrangian - ERR02'
                 endif
 
+                ! Closes Output Tracer Info File
+                if (Me%State%OutputTracerInfo) then
+                    call UnitsManager(OriginToDelete%troUnit, CLOSE_FILE, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'DeleteOrigin - ModuleLagrangian - ERR02.5'
+                end if
+
                 !Kill TimeSerie
                 if (OriginToDelete%MovingOrigin) then
                     call KillTimeSerie(OriginToDelete%ObjTimeSerie, STAT = STAT_CALL)
@@ -6925,6 +7025,12 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
 
                 if (Me%State%Deposition) then
                     call ActualizesTauErosionGrid()
+                endif
+
+
+                !Writes Time Series !FM
+                if (Me%State%OutputTracerInfo) then
+                    call WriteOilTracerOutput()
                 endif
 
                 !Writes Particle Output
@@ -10077,9 +10183,12 @@ CurrOr: do while (associated(CurrentOrigin))
         real                                        :: AtmPressure
         real                                        :: WaveHeight, WavePeriod
         real                                        :: Factor
-        real                                        :: VWaterContent
+        real                                        :: VWaterContent, MWaterContent
         real                                        :: MDispersed
         real                                        :: OilDensity
+        real                                        :: OilViscosity
+        real                                        :: FMEvaporated
+        real                                        :: FMDispersed     
         real                                        :: AreaTotalOUT
         real                                        :: VolumeTotalOUT, VolOld
         integer                                     :: STAT_CALL
@@ -10142,8 +10251,12 @@ CurrOr: do while (associated(CurrentOrigin))
                                           WaterDensity          = WaterDensity,                   &
                                           SPM                   = SPM,                            &
                                           VWaterContent         = VWaterContent,                  &
+                                          MWaterContent         = MWaterContent,                  &
                                           MDispersed            = MDispersed,                     &
                                           OilDensity            = OilDensity,                     &
+                                          OilViscosity          = OilViscosity,                   &
+                                          FMEvaporated          = FMEvaporated,                   &
+                                          FMDispersed           = FMDispersed,                    &
                                           VolTotOilBeached      = CurrentOrigin%VolTotOilBeached, &
                                           VolTotBeached         = CurrentOrigin%VolTotBeached,    &
                                           VolumeTotalIN         = CurrentOrigin%VolumeOilTotal,   &   
@@ -10157,8 +10270,12 @@ CurrOr: do while (associated(CurrentOrigin))
 
 
                 Me%ExternalVar%VWaterContent = VWaterContent
+                Me%ExternalVar%MWaterContent = MWaterContent
                 Me%ExternalVar%MDispersed    = MDispersed
                 Me%ExternalVar%OilDensity    = OilDensity
+                Me%ExternalVar%OilViscosity  = OilViscosity
+                Me%ExternalVar%FMEvaporated  = FMEvaporated
+                Me%ExternalVar%FMDispersed   = FMDispersed
                 Me%ExternalVar%AreaTotal     = AreaTotalOUT
 
                 call OilGridConcentration  (CurrentOrigin, WaveHeight, WaterDensity)       
@@ -12800,7 +12917,7 @@ i1:             if (nP>0) then
         deallocate (GridConc3D)
         deallocate (GridConc  )
 
-    
+       
     end subroutine OutPut_TimeSeries
 
     !--------------------------------------------------------------------------
@@ -12977,12 +13094,17 @@ cd2:                if (CurrentPartic%Geometry%Volume <= Me%ExternalVar%VolumeZ(
                         iAP = 1
                         CurrentProperty => FirstProperty
                         do while (associated(CurrentProperty))
-                            if ((Geometric(iAP) == 1) .and. (log10(CurrentPartic%Mass(iAP)) .gt. AllmostZero)) then
-                                LocalGridTracerNumber(i, j, k, iAP) = LocalGridTracerNumber(i, j, k, iAP) + 1
-                                
-                                GridGeometricMass  (i, j, k, iAP) =                         &
-                                GridGeometricMass  (i, j, k, iAP) + log10(CurrentPartic%Mass(iAP))
-                            end if
+                            if (Geometric(iAP) == 1) then
+                                if (CurrentPartic%Mass(iAP) .gt. AllmostZero) then
+                                    if (log10(CurrentPartic%Mass(iAP)) .gt. AllmostZero) then
+                                        LocalGridTracerNumber(i, j, k, iAP) = LocalGridTracerNumber(i, j, k, iAP) + 1
+                                        
+                                        GridGeometricMass  (i, j, k, iAP) =                         &
+                                        GridGeometricMass  (i, j, k, iAP) + log10(CurrentPartic%Mass(iAP))
+                                    end if
+                                end if
+                             end if
+                            
                             iAP = iAP + 1
                             CurrentProperty => CurrentProperty%Next
                         enddo
@@ -13040,12 +13162,15 @@ cd2:                if (CurrentPartic%Geometry%Volume <= Me%ExternalVar%VolumeZ(
                                 iAP = 1
                                 CurrentProperty => FirstProperty
                                 do while (associated(CurrentProperty))
-                                    if ((Geometric(iAP) == 1) .and. (log10(MassCoef(iAP)) .gt. AllmostZero)) then
-                                        LocalGridTracerNumber(iV, jV, kV, iAP) = LocalGridTracerNumber(iV, jV, kV, iAP) + 1
-                                        
-                                        GridGeometricMass(iV, jV, kV, iAP) = GridGeometricMass  (iV, jV, kV, iAP) +   &
-                                                                            log10(MassCoef(iAP))
-
+                                    if (Geometric(iAP) == 1) then
+                                        if (MassCoef(iAP) .gt. AllmostZero) then
+                                            if (log10(MassCoef(iAP)) .gt. AllmostZero) then
+                                            LocalGridTracerNumber(iV, jV, kV, iAP) = LocalGridTracerNumber(iV, jV, kV, iAP) + 1
+                                            
+                                            GridGeometricMass(iV, jV, kV, iAP) = GridGeometricMass  (iV, jV, kV, iAP) +   &
+                                                                                log10(MassCoef(iAP))
+                                            end if
+                                        end if
                                     end if
                                     iAP = iAP + 1
                                     CurrentProperty => CurrentProperty%Next
@@ -13736,6 +13861,197 @@ CurrOr:     do while (associated(CurrentOrigin))
 
     end function GeographicCoordinates 
 
+    !--------------------------------------------------------------------------
+
+    subroutine WriteOilTracerOutput
+
+        !Arguments-------------------------------------------------------------
+
+        !Local-----------------------------------------------------------------
+        type (T_Partic), pointer                    :: CurrentPartic
+        type (T_Origin), pointer                    :: CurrentOrigin
+        integer                                     :: ILB, IUB, JLB, JUB, KLB, KUB
+        integer                                     :: i, j, k, Box, n, OutPutNumber
+        integer                                     :: STAT_CALL
+        real, dimension(:, :, :), pointer           :: OutputMatrix
+        integer                                     :: WS_ILB, WS_IUB, WS_JLB, WS_JUB
+        integer                                     :: WS_KLB, WS_KUB
+        real, dimension(:, :), pointer              :: OilGridThick2D 
+        real                                        :: RunPeriod
+        integer                                     :: TracerStatus
+        real, dimension(:, :, :), pointer           :: Temperature3D
+        real                                        :: WaterTemperature
+        real, dimension(:, :, :), pointer           :: Velocity_U, Velocity_V
+        real                                        :: CellI, CellJ
+        real                                        :: BalX, BalY
+        real                                        :: U, V
+        real                                        :: WindX, WindY, WindIntensityInKnots, CurrentsIntensityInKnots
+        real                                        :: CurrentsDirection, WindDirection
+        real                                        :: EmulsFactor, MassOil
+        
+        WaterTemperature = -99
+        !Shorten
+        if (Me%OverLay%OverLay) then
+            Velocity_U => Me%OverLay%VelUFinal
+            Velocity_V => Me%OverLay%VelVFinal
+        else
+            Velocity_U => Me%ExternalVar%Velocity_U
+            Velocity_V => Me%ExternalVar%Velocity_V
+        endif
+
+
+        ILB    = Me%ExternalVar%Size%ILB
+        IUB    = Me%ExternalVar%Size%IUB
+        JLB    = Me%ExternalVar%Size%JLB
+        JUB    = Me%ExternalVar%Size%JUB
+        KLB    = Me%ExternalVar%Size%KLB
+        KUB    = Me%ExternalVar%Size%KUB
+
+        WS_ILB = Me%ExternalVar%WorkSize%ILB
+        WS_IUB = Me%ExternalVar%WorkSize%IUB
+        WS_JLB = Me%ExternalVar%WorkSize%JLB
+        WS_JUB = Me%ExternalVar%WorkSize%JUB
+        WS_KLB = Me%ExternalVar%WorkSize%KLB
+        WS_KUB = Me%ExternalVar%WorkSize%KUB
+
+        RunPeriod = (Me%ExternalVar%Now - Me%ExternalVar%BeginTime) / 3600
+        
+        !Sets limits for next write operations
+        call HDF5SetLimits   (Me%ObjHDF5, WS_ILB, WS_IUB, WS_JLB, WS_JUB,     &
+                              WS_KLB, WS_KUB)
+
+        OutPutNumber = Me%OutPut%NextOutPut
+if1:    if (Me%ExternalVar%Now >= Me%OutPut%OutTime(OutPutNumber)) then 
+
+            !Allocate GridVolume, GridMass
+            allocate (OilGridThick2D (ILB:IUB, JLB:JUB))
+
+
+            !Gets the temperature from the Eulerian model
+            call GetConcentration(Me%ObjWaterProperties,                            &
+                                  ConcentrationX    = Temperature3D,                &
+                                  PropertyXIDNumber = Temperature_,                 &
+                                  STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'InternalParticOil - ModuleLagrangian - ERR01'
+
+
+            CurrentOrigin => Me%FirstOrigin
+    CurrOr: do while (associated(CurrentOrigin))
+
+                n = 0
+    
+                If (CurrentOrigin%State%Oil)   then
+                    !Just writes the output if there are particle
+                    if (CurrentOrigin%nParticle > 0) then
+                        !thickness in um
+                        OilGridThick2D = CurrentOrigin%GridThickness * 1e6                       &
+                                         * (1 - Me%ExternalVar%VWaterContent)
+                    endif
+                end if
+
+
+                Write(CurrentOrigin%troUnit,"(4X, i6)") CurrentOrigin%nParticle
+
+                 !Compute the total volume tracer by cell 
+                CurrentPartic => CurrentOrigin%FirstPartic
+    CurrPartic: do while (associated(CurrentPartic))
+                    n = n + 1
+                    MassOil               = CurrentPartic%Geometry%VolumeOil * Me%ExternalVar%OilDensity
+                    TracerStatus = 5 
+                    i  = CurrentPartic%Position%I
+                    j  = CurrentPartic%Position%J
+                    k  = CurrentPartic%Position%K
+
+                    !Cell Postition
+                    CellI = CurrentPartic%Position%CellI
+                    CellJ = CurrentPartic%Position%CellJ
+
+                    !Fraction of the cell
+                    BALX  = CellJ - int(CellJ)
+                    BALY  = CellI - int(CellI)
+
+                    !Linear Interpolation to obtain the velocity of the Water
+                    U = LinearInterpolation(Velocity_U(i,  j  ,k), Velocity_U(i,  j+1,k), BALX)
+                    V = LinearInterpolation(Velocity_V(i,  j  ,k), Velocity_V(i+1,j  ,k), BALY)
+
+                    !Velocity due wind                      
+                    if (CurrentOrigin%Movement%WindOriginON) then
+                        WindX = CurrentOrigin%Movement%WindX
+                        WindY = CurrentOrigin%Movement%WindY
+                    else
+                        WindX = Me%ExternalVar%WindX(i, j)
+                        WindY = Me%ExternalVar%WindY(i, j)
+                    endif
+                    
+                    WindIntensityInKnots    = sqrt((WindX)**2. + (WindY)**2.) * 19.4384449411995
+                    CurrentsIntensityInKnots= sqrt((U)**2. + (V)**2.) * 19.4384449411995
+                    CurrentsDirection       = atan2(u,v) * 180. / Pi + 180
+                    WindDirection           = atan2(WindX,WindY) * 180. / Pi + 180
+                    
+                    If (CurrentPartic%Beached)  TracerStatus = 10             
+                    WaterTemperature        = Temperature3D             (i, j, k)
+
+
+                100 format(4X, i6,4X,f12.2, 4X, f12.2, 4X, f12.2, 4X, i3, 4X, i6, 4X, i7, 4X,  i3, 4X, i3, 4X, i3, 4X, f12.2, 4X, f12.2, 4X, i3.3, i3.3, 4X, i3.3, i3.3, 4X, i3, 4X, i3, 4X, f6.2)
+                110 format(4X, i6,4X,f12.2, 4X, f12.2, 4X, f12.2, 4X, i3, 4X, i7, 4X, i3.3, i3.3, 4X, i3.3, i3.3, 4X, i3, 4X, i3, 4X, f6.2)
+
+                   
+                    If (CurrentOrigin%State%Oil) then
+                        Write(CurrentOrigin%troUnit,100) n, &
+                        RunPeriod, &
+                        GeographicCoordinates(CurrentPartic%Position, 1), &
+                        GeographicCoordinates(CurrentPartic%Position, 2), &
+                        TracerStatus, &
+                        int(OilGridThick2D(i,j)), &
+                        int(MassOil), &
+                        Int(Me%ExternalVar%FMEvaporated  * 100), &
+                        Int(Me%ExternalVar%VWaterContent * 100), &
+                        Int(Me%ExternalVar%FMDispersed   * 100), &
+                        Me%ExternalVar%OilViscosity, &
+                        Me%ExternalVar%OilDensity, &
+                        Int(WindDirection), &
+                        Int(WindIntensityInKnots), &
+                        Int(CurrentsIntensityInKnots), &
+                        Int(CurrentsDirection), &
+                        Int(WaterTemperature), &
+                        -99, &
+                        - CurrentPartic%Position%Z
+
+                    Else                 
+                    
+                        Write(CurrentOrigin%troUnit,110) n, &
+                        RunPeriod, &
+                        GeographicCoordinates(CurrentPartic%Position, 1), &
+                        GeographicCoordinates(CurrentPartic%Position, 2), &
+                        TracerStatus, &                  
+                        Int(CurrentPartic%Mass), &
+                        Int(WindDirection), &
+                        Int(WindIntensityInKnots), &
+                        Int(CurrentsDirection), &
+                        Int(CurrentsIntensityInKnots), &
+                        Int(WaterTemperature), &
+                        -99, &
+                        - CurrentPartic%Position%Z
+                    End if
+
+                    CurrentPartic => CurrentPartic%Next
+    
+                enddo CurrPartic
+    
+       
+            CurrentOrigin => CurrentOrigin%Next
+            enddo CurrOr
+
+            deallocate (OilGridThick2D )
+                !Ungets Concentration from the eulerian module
+            call UngetWaterProperties (Me%ObjWaterProperties, Temperature3D, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'InternalParticOil - ModuleLagrangian - ERR10'
+
+        endif if1
+
+
+    end subroutine WriteOilTracerOutput
+    
     !--------------------------------------------------------------------------
 
     subroutine WriteMonitorOutput 

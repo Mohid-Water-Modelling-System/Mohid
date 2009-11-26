@@ -2043,8 +2043,12 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
                                     WaterDensity,                                        &
                                     SPM,                                                 &
                                     VWaterContent,                                       & 
+                                    MWaterContent,                                       & 
                                     MDispersed,                                          &
                                     OilDensity,                                          &
+                                    OilViscosity,                                        &
+                                    FMDispersed,                                         &
+                                    FMEvaporated,                                        & 
                                     VolTotOilBeached,                                    &
                                     VolTotBeached,                                       &
                                     VolumeTotalIN,                                       &
@@ -2070,8 +2074,12 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
         real,              intent(IN )              :: VolumeTotalIN
         real,              intent(OUT)              :: VolumeTotalOUT
         real,              intent(OUT)              :: VWaterContent
+        real,              intent(OUT)              :: MWaterContent
         real,              intent(OUT)              :: MDispersed
         real,              intent(OUT)              :: OilDensity
+        real,              intent(OUT)              :: OilViscosity      
+        real,              intent(OUT)              :: FMDispersed      
+        real,              intent(OUT)              :: FMEvaporated      
         real,              intent(OUT)              :: AreaTotalOUT
         real,              intent(IN )              :: AreaTotal
         real,    optional, dimension(:), pointer    :: DataLineIN
@@ -2193,11 +2201,16 @@ cd4 :           if (present(DataLineIN  )) then
 
                 VolumeTotalOUT                 = Me%Var%VolumeOil 
                 VWaterContent                  = Me%Var%VWaterContent
+                MWaterContent                  = Me%Var%MWaterContent
 
                 !AreaTotalOUT, OilDensity e MDispersed necessaria para o calculo da concentracao no ModuleLagrangian
                 AreaTotalOUT                   = Me%ExternalVar%Area
                 OilDensity                     = Me%Var%Density
-                MDispersed                     = Me%Var%MDispersed            
+                MDispersed                     = Me%Var%MDispersed
+                
+                OilViscosity                    = Me%Var%Viscosity        
+                FMEvaporated                    = Me%Var%FMEvaporated        
+                FMDispersed                     = Me%Var%FMDispersed    
             end if cd2
 
 
