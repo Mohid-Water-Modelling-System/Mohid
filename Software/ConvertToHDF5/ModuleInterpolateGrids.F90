@@ -2158,6 +2158,7 @@ ifG3D:          if (Me%InterpolateGrid3D .and. FirstProperty3D) then
                                      HorizontalMapID  = Me%Aux%ObjHorizontalMap,        &
                                      ActualTime       = Me%BeginTime,                   &
                                      NewDomain        = Me%Father%GeometryFileName,     &
+                                     VerifyBathym     = .false.,                        & 
                                      STAT             = STAT_CALL)
         if(STAT_CALL .ne. SUCCESS_) stop 'ConstructAuxGrid -  ModuleInterpolateGrids - ERR60'
 
