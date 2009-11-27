@@ -343,8 +343,6 @@ Module ModuleInterfaceWaterAir
         real                                        :: Altitude                 = FillValueReal
         real                                        :: AltitudeCorrection       = FillValueReal
 
-        logical                                     :: FilterSpikes             = .false.
-
         integer                                     :: PropertiesNumber         = 0
 
         !Instance of ModuleBoxDif                   
@@ -686,16 +684,6 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         if (STAT_CALL  /= SUCCESS_)                                         &
             stop 'ConstructGlobalVariables - ModuleInterfaceWaterAir - ERR50'
             
-        call GetData(Me%FilterSpikes,                                       &
-                     Me%ObjEnterData, iflag,                                &
-                     Keyword      ='FILTER_SPIKES',                         &
-                     SearchType   = FromFile,                               &
-                     ClientModule = 'ModuleInterfaceWaterAir',              &
-                     Default      = .false.,                                &
-                     STAT         = STAT_CALL)            
-        if (STAT_CALL  /= SUCCESS_)                                         &
-            stop 'ConstructGlobalVariables - ModuleInterfaceWaterAir - ERR60'
-                        
 
     end subroutine ConstructGlobalVariables
     
@@ -2673,9 +2661,7 @@ do1 :   do while (associated(PropertyX))
         real, dimension(:,:),   pointer         :: LatentHeat
         real, dimension(:,:),   pointer         :: SensibleHeat
         real, dimension(:,:),   pointer         :: NetLongWaveRadiation
-        real                                    :: Sum, FluxAv
         integer                                 :: STAT_CALL
-        integer                                 :: i, j, ii, ji, ILB, IUB, JLB, JUB, iw
         
         !Begin-----------------------------------------------------------------
         
@@ -2695,45 +2681,6 @@ do1 :   do while (associated(PropertyX))
         PropNonSolarFlux%Field = LatentHeat + SensibleHeat + NetLongWaveRadiation
 
         nullify(LatentHeat, SensibleHeat, NetLongWaveRadiation)
-        
-        !Filter out spikes associated with instabilities in the transport of temperature       
-i1:     if (Me%FilterSpikes) then
-
-            ILB = Me%WorkSize2D%ILB
-            IUB = Me%WorkSize2D%IUB
-            JLB = Me%WorkSize2D%JLB
-            JUB = Me%WorkSize2D%JUB
-
-d1:         do j = JLB+1, JUB-1
-d2:         do i = ILB+1, IUB-1
-                
-i2:             if (Me%ExtWater%WaterPoints2D(i, j) == WaterPoint) then
-                    Sum = 0.
-                    iw  = 0
-d3:                 do ji = j-1,j+1
-d4:                 do ii = i-1,i+1
-                        if (i/= ii .and. j/=ji) then
-                            Sum = Sum + PropNonSolarFlux%Field(ii,ji) * Me%ExtWater%WaterPoints2D(ii, ji)
-                            iw  = iw  + Me%ExtWater%WaterPoints2D(ii, ji)
-                        endif
-                    enddo d4
-                    enddo d3
-                    
-                    FluxAv = Sum/real(iw) 
-                    !
-                    if (abs(PropNonSolarFlux%Field(i,j)) > 100.            .and.            &
-                        abs(PropNonSolarFlux%Field(i,j)) > 10. * abs(FluxAv)) then
-                        write(*,*) 'Change non solar radiation heat flux i=',i, ' j=',j
-                        write(*,*) 'Old value =',PropNonSolarFlux%Field(i,j)
-                        write(*,*) 'New value =',FluxAv                       
-                        
-                        PropNonSolarFlux%Field(i,j) = FluxAv                        
-                    endif
-                endif i2
-            enddo d2
-            enddo d1       
-        
-        endif i1
 
     end subroutine ComputeNonSolarFlux
 
@@ -3575,8 +3522,6 @@ do4:    do i=ILB, IUB
         integer                                 :: i,j
         real                                    :: WindVelocity, WaterTemp
         integer                                 :: ILB, IUB, JLB, JUB, KUB
-        real                                    :: Sum, FluxAv
-        integer                                 :: ii, ji, iw
         
         !Begin------------------------------------------------------------------
 
@@ -3602,27 +3547,6 @@ do4:    do i=ILB, IUB
                 
                 WaterTemp = WaterTemperature(i, j, KUB)
                 
-i10:            if (Me%FilterSpikes) then
-                                    
-i20:                if (WaterTemp <0. .or. WaterTemp >70.) then
-                        Sum = 0.
-                        iw  = 0
-d30:                    do ji = j-1,j+1
-d40:                    do ii = i-1,i+1
-                            if (i/= ii .and. j/=ji) then
-                                Sum = Sum + WaterTemperature(ii,ji,KUB) * Me%ExtWater%WaterPoints2D(ii, ji)
-                                iw  = iw  + Me%ExtWater%WaterPoints2D(ii, ji)
-                            endif
-                        enddo d40
-                        enddo d30
-                        
-                        WaterTemp = Sum/real(iw) 
-
-
-                    endif i20
-                
-                endif i10
-
                 Flux(i,j) = AerationFlux(Me%AerationEquation, WindVelocity, WaterTemp)
 
             endif
@@ -3636,45 +3560,6 @@ d40:                    do ii = i-1,i+1
         nullify(VWIND)
         nullify(WaterTemperature)
         
-        !Filter out spikes associated with instabilities in the transport of temperature       
-i1:     if (Me%FilterSpikes) then
-
-            ILB = Me%WorkSize2D%ILB
-            IUB = Me%WorkSize2D%IUB
-            JLB = Me%WorkSize2D%JLB
-            JUB = Me%WorkSize2D%JUB
-
-d1:         do j = JLB+1, JUB-1
-d2:         do i = ILB+1, IUB-1
-                
-i2:             if (Me%ExtWater%WaterPoints2D(i, j) == WaterPoint) then
-                    Sum = 0.
-                    iw  = 0
-d3:                 do ji = j-1,j+1
-d4:                 do ii = i-1,i+1
-                        if (i/= ii .and. j/=ji) then
-                            Sum = Sum + Flux(ii,ji) * Me%ExtWater%WaterPoints2D(ii, ji)
-                            iw  = iw  + Me%ExtWater%WaterPoints2D(ii, ji)
-                        endif
-                    enddo d4
-                    enddo d3
-                    
-                    FluxAv = Sum/real(iw) 
-                    !
-                    if (abs(Flux(i,j)) > 0.0001            .and.                         &
-                        abs(Flux(i,j)) > 10. * abs(FluxAv)) then
-                        write(*,*) 'Change oxygen surface flux i=',i, ' j=',j
-                        write(*,*) 'Old value =',Flux(i,j)
-                        write(*,*) 'New value =',FluxAv                       
-                        
-                        Flux(i,j) = FluxAv                        
-                    endif
-                endif i2
-            enddo d2
-            enddo d1       
-        
-        endif i1        
-
     end subroutine ModifyAerationFlux
 
     !--------------------------------------------------------------------------    
