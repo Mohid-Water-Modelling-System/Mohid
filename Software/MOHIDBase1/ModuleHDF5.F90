@@ -700,7 +700,7 @@ Module ModuleHDF5
         integer(HID_T)                              :: space_id
         integer(HID_T)                              :: attr_id1
         integer(HSIZE_T), dimension(7)              :: dims
-        integer(HID_T)                              :: new_type_id, gr_id
+        integer(HID_T)                              :: gr_id
         integer                                     :: STAT_, ready_, STAT_CALL
 
         !Begin-----------------------------------------------------------------
@@ -770,7 +770,7 @@ Module ModuleHDF5
         integer(HID_T)                              :: space_id
         integer(HID_T)                              :: attr_id1
         integer(HSIZE_T), dimension(7)              :: dims
-        integer(HID_T)                              :: new_type_id, gr_id
+        integer(HID_T)                              :: gr_id
         integer                                     :: STAT_, ready_, STAT_CALL
 
         !Begin-----------------------------------------------------------------
@@ -839,7 +839,7 @@ Module ModuleHDF5
         integer(HID_T)                              :: space_id
         integer(HID_T)                              :: attr_id1
         integer(HSIZE_T), dimension(7)              :: dims
-        integer(HID_T)                              :: new_type_id, gr_id
+        integer(HID_T)                              :: gr_id
         integer                                     :: STAT_, ready_, STAT_CALL
 
         !Begin-----------------------------------------------------------------
@@ -3364,7 +3364,6 @@ Module ModuleHDF5
 
         !Local-----------------------------------------------------------------
         integer                                     :: STAT_, ready_
-        integer(HID_T)                              :: STAT_CALL
         character(StringLength)                     :: ItemName_
         
 
