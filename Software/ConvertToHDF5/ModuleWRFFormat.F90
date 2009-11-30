@@ -3007,7 +3007,7 @@ do2:        do while(associated(Field))
                         do i = WILB, WIUB
 
                                                     !mm
-                            TotalPrecipitation   =  10.0 * ( AccConvectivePCP(i,j) + AccNonConvectivePCP (i,j) ) 
+                            TotalPrecipitation   = AccConvectivePCP(i,j) + AccNonConvectivePCP (i,j)
 
                             if (TotalPrecipitation .LE. AllmostZero) TotalPrecipitation = 0.0
 
@@ -3026,7 +3026,7 @@ do2:        do while(associated(Field))
                             OldTotalAccPrecipitation    =  OldAccConvectivePCP(i,j) + OldAccNonConvectivePCP (i,j)
 
                                                 !mm
-                            TotalPrecipitation = 10.0 * ( CurrTotalAccPrecipitation - OldTotalAccPrecipitation )
+                            TotalPrecipitation = CurrTotalAccPrecipitation - OldTotalAccPrecipitation
 
                             if (TotalPrecipitation .LE. AllmostZero) TotalPrecipitation = 0.0
 
