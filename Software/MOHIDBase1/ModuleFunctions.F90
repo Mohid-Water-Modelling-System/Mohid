@@ -99,6 +99,7 @@ Module ModuleFunctions
     public  :: OxygenSaturation
     public  :: OxygenSaturationHenry
     public  :: OxygenSaturationCeQualW2
+    public  :: CO2PartialPressure
     public  :: Density
     public  :: Sigma
     public  :: SigmaWang
@@ -2261,6 +2262,51 @@ do4 :       DO II = KLB+1, KUB+1
     end subroutine OrlanskiCelerity2D
 
     !--------------------------------------------------------------------------
+
+
+
+    !C02 Parcial Pressure in the water
+    !
+    !With the values of dissolved CO2 concentration (mg/l), temperature (oC), Salinity (ppt), and Pressure (atm)
+    !this function calculates the partial pressure of CO2 in the water
+    !
+    ! M Mateus by Nov2009
+    
+    real function CO2PartialPressure(CO2, Temperature, Salinity, Pressure)
+    
+    
+        !Arguments-------------------------------------------------------------
+
+        real, intent(IN) :: Temperature     !oC
+        real, intent(IN) :: Salinity        !ppt
+        real, intent(IN) :: Pressure        !atm
+        real, intent(IN) :: CO2             !mg/l
+
+        !Local-----------------------------------------------------------------
+
+        real :: TKelvin, Ff, Fp, K0
+        real :: CO2mass
+
+        !----------------------------------------------------------------------
+
+        TKelvin = Temperature + AbsoluteZero
+        
+        CO2mass = CO2 / 44 * 1000               !mg/l to mmol/kg
+        
+        Ff = -1636.75 + (12.0408 * TKelvin) - (0.0327957 * (TKelvin**2)) + (3.16528 * (10**(- 5)) * (TKelvin**3))
+        
+        Fp = EXP(((Ff + 2 *(57.7-0.118 * TKelvin)) * Pressure) / (82.05675 * TKelvin))
+    
+        K0 = EXP((-167.81077 + 0.023517 * Salinity) + (9345.17 / TKelvin) + (23.3585 * LOG(TKelvin)) +       &
+             (-2.3656 * (10**(-4)) * Salinity * TKelvin) + (4.7036 * ((10**(-7)))* Salinity * TKelvin))
+    
+    
+        CO2PartialPressure = (CO2mass * Fp) / K0
+    
+    end function CO2PartialPressure
+
+    !--------------------------------------------------------------------------
+
 
 
     !Saturation Oxygen concentration

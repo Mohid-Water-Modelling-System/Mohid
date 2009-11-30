@@ -221,6 +221,7 @@ Module ModuleGlobalData
     integer, parameter :: CarbonDioxide_                    = 24
     integer, parameter :: Oxygen_                           = 25 
     integer, parameter :: DissolO2PercentSat_               = 26
+    integer, parameter :: CO2PartialPressure_               = 27
 
 
     integer, parameter :: Nitrite_                          = 51
@@ -688,7 +689,8 @@ Module ModuleGlobalData
     character(StringLength), private, parameter :: Char_CarbonDioxide        = 'carbon dioxide'
     character(StringLength), private, parameter :: Char_Oxygen               = 'oxygen'
     character(StringLength), private, parameter :: Char_DissolO2PercentSat   = 'dissolved oxygen percent saturation'
-
+    character(StringLength), private, parameter :: Char_CO2PartialPressure   = 'dissolved CO2 partial pressure'
+    
     character(StringLength), private, parameter :: Char_Diatom_C             = 'diatoms carbon'
     character(StringLength), private, parameter :: Char_Diatom_N             = 'diatoms nitrogen'
     character(StringLength), private, parameter :: Char_Diatom_P             = 'diatoms phosphorus'
@@ -1734,7 +1736,8 @@ Module ModuleGlobalData
             call AddPropList (BioSilica_,               Char_BioSilica,                 ListNumber)               
             call AddPropList (CarbonDioxide_,           Char_CarbonDioxide,             ListNumber)                      
             call AddPropList (Oxygen_,                  Char_Oxygen,                    ListNumber) 
-            call AddPropList (DissolO2PercentSat_,      Char_DissolO2PercentSat,        ListNumber)  
+            call AddPropList (DissolO2PercentSat_,      Char_DissolO2PercentSat,        ListNumber)
+            call AddPropList (CO2PartialPressure_,      Char_CO2PartialPressure,        ListNumber) 
             call AddPropList (Diatom_C_,                Char_Diatom_C,                  ListNumber)     
             call AddPropList (Diatom_N_,                Char_Diatom_N,                  ListNumber)                 
             call AddPropList (Diatom_P_,                Char_Diatom_P,                  ListNumber)                 
@@ -1907,7 +1910,7 @@ Module ModuleGlobalData
             call AddPropList (ShortWaveSolarRadiationExtin_, Char_ShortWaveSolarRadiaExtin,   ListNumber)
             call AddPropList (LongWaveSolarRadiationExtin_ , Char_LongWaveSolarRadiaExtin,    ListNumber)
             
-            call AddPropList (OxygenFlux_ ,             Char_OxygenFlux ,               ListNumber)
+            call AddPropList (OxygenFlux_ ,             Char_OxygenFlux ,               ListNumber)         
             call AddPropList (WindShearVelocity_ ,      Char_WindShearVelocity ,        ListNumber)
             call AddPropList (SurfaceRadiation_ ,       Char_SurfaceRadiation ,         ListNumber)
             call AddPropList (WindStressX_,             Char_WindStressX,               ListNumber)
