@@ -62,6 +62,7 @@
 Module ModuleWRFFormat
 
     use ModuleGlobalData
+    use ModuleStopWatch
     use ModuleHDF5
     use ModuleEnterData
     use ModuleTime
@@ -842,6 +843,8 @@ Module ModuleWRFFormat
         write(*,*)
         write(*,*)'Reading WRF output file...'
 
+        if (MonitorPerformance) call StartWatch ('ModuleWRFFormat', 'OpenAndReadWRFFile')
+
         nullify(Me%FirstDate  )
 
         !Verifies if file exists
@@ -982,17 +985,17 @@ if0:        if(VariableIsToRead(name, MohidName)) then
                         status = nf90_get_var(ncid, varid, DataAux, start=(/1,1,it/), count=(/NX, NY, 1/))
                         call handle_error(status); if (status /= NF90_NOERR) stop 'OpenAndReadWRFFile - ModuleWRFFormat - ERR12'
 
-                        do j=1,NY
-                        do i=1,NX
+!                        do j=1,NY
+!                        do i=1,NX
 
-                            if (isnan(DataAux(i,j, 1, 1))) then
-                                write(*,*) 'NaN values in WRF property ', trim(name)
-                                write(*,*) 'at (i,j)    = ', i,j
-                                stop 'OpenAndReadWRFFile - ModuleWRFFormat - ERR13'
-                            endif 
+!                            if (isnan(DataAux(i,j, 1, 1))) then
+!                                write(*,*) 'NaN values in WRF property ', trim(name)
+!                                write(*,*) 'at (i,j)    = ', i,j
+!                                stop 'OpenAndReadWRFFile - ModuleWRFFormat - ERR13'
+!                            endif 
 
-                       enddo
-                       enddo
+!                       enddo
+!                       enddo
 
 
                         allocate(NewField%Values2D(ILB:IUB, JLB:JUB))
@@ -1066,19 +1069,19 @@ if0:        if(VariableIsToRead(name, MohidName)) then
                         status = nf90_get_var(ncid, varid, DataAux, start=(/1,1,1,it/), count=(/NX,NY,NZ, 1/))
                         call handle_error(status); if (status /= NF90_NOERR) stop 'OpenAndReadWRFFile - ModuleWRFFormat - ERR14'
 
-                        do k=1,NZ
-                        do j=1,NY
-                        do i=1,NX
+!                        do k=1,NZ
+!                        do j=1,NY
+!                        do i=1,NX
 
-                            if (isnan(DataAux(i,j,k,1))) then
-                                write(*,*) 'NaN values in WRF property ', trim(name)
-                                write(*,*) 'at (i,j,k)    = ', i,j,k
-                                stop 'OpenAndReadWRFFile - ModuleWRFFormat - ERR15'
-                            endif 
+!                            if (isnan(DataAux(i,j,k,1))) then
+!                                write(*,*) 'NaN values in WRF property ', trim(name)
+!                                write(*,*) 'at (i,j,k)    = ', i,j,k
+!                                stop 'OpenAndReadWRFFile - ModuleWRFFormat - ERR15'
+!                            endif 
 
-                        enddo
-                        enddo
-                        enddo
+!                        enddo
+!                        enddo
+!                        enddo
             
                         allocate(NewField%Values3D(ILB:IUB, JLB:JUB, KLB:KUB))
 
@@ -1239,6 +1242,8 @@ if0:        if(VariableIsToRead(name, MohidName)) then
 
         status = nf90_close(ncid)
         call handle_error(status); if (status /= NF90_NOERR) stop 'OpenAndReadWRFFile - ModuleWRFFormat - ERR99'
+
+        if (MonitorPerformance) call StopWatch ('ModuleWRFFormat', 'OpenAndReadWRFFile')
 
     end subroutine OpenAndReadWRFFile
     
@@ -3759,6 +3764,8 @@ do2:        do while(associated(Field))
         write(*,*)
         write(*,*)'Writing HDF5 file...'
 
+        if (MonitorPerformance) call StartWatch ('ModuleWRFFormat', 'OutputFields')
+
         call WriteMapping
 
         OutputNumber = 1
@@ -3881,6 +3888,7 @@ ifDT:       if (CurrentDate%Date .EQ. Me%FirstDate%Date .OR. dt >= Me%OutputDTIn
         call HDF5FlushMemory (Me%ObjHDF5, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)stop 'OutputFields - ModuleWRFFormat - ERR110'
 
+        if (MonitorPerformance) call StopWatch ('ModuleWRFFormat', 'OutputFields')
 
 
     end subroutine OutputFields
