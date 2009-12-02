@@ -17,6 +17,7 @@ program ConvertToHDF5
 
     use ModuleGlobalData 
     use ModuleTime
+    use ModuleStopWatch,      only : CreateWatchGroup, KillWatchGroup
     use ModuleEnterData
     use ModuleFunctions
     use ModuleHDF5
@@ -121,16 +122,30 @@ program ConvertToHDF5
         integer                                     :: ClientNumber, iflag
         logical                                     :: BlockFound
         character(len = StringLength)               :: Action
+        character(PathLength)                       :: WatchFile
 
         !Begin-----------------------------------------------------------------
-        
+
         write(*,*)
         write(*,*)'Running ConvertToHDF5...'
         write(*,*)
 
         call ConstructEnterData (ObjEnterData, DataFile, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ConvertToHDF5 - ERR10'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ConvertToHDF5 - ERR01'
 
+        call GetData(WatchFile,                                             &
+                     ObjEnterData, iflag,                                   &
+                     SearchType   = FromFile,                               &
+                     keyword      = 'OUTWATCH',                             &
+                     ClientModule = 'ConvertToHDF5',                        &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ConvertToHDF5 - ERR02'
+        if (iflag == 0)then
+            MonitorPerformance  = .false.
+        else
+            STAT_CALL = CreateWatchGroup (WatchFile)
+            MonitorPerformance  = .true.
+        endif
 
 do1 :   do
             call ExtractBlockFromBuffer(ObjEnterData, ClientNumber,                 &
@@ -350,6 +365,13 @@ if2 :           if (BlockFound) then
     !--------------------------------------------------------------------------
 
     subroutine KillConvertToHDF5
+
+        integer                             :: STAT_CALL
+
+        if (MonitorPerformance) then
+            call KillWatchGroup (STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'KillConvertToHDF5 - ConvertToHDF5 - ERR01'
+        endif
 
         call StopCPUTime
 
