@@ -2,7 +2,7 @@
 MODALL = $(addsuffix .all, $(MODULES))
 .PHONY: $(MODALL)
 $(MODALL):
-	@-$(MAKE) -C $(@:.all=) all
+	@-$(MAKE) $(MKFLAGS) -C $(@:.all=) all
 
 .PHONY: all
 all: $(MODALL)
@@ -11,7 +11,7 @@ all: $(MODALL)
 MODCLEAN = $(addsuffix .clean, $(MODULES))
 .PHONY: $(MODCLEAN)
 $(MODCLEAN):
-	@-$(MAKE) -C $(@:.clean=) clean
+	@-$(MAKE) $(MKFLAGS) -C $(@:.clean=) clean
 
 .PHONY: clean
 clean: $(MODCLEAN)
@@ -20,7 +20,7 @@ clean: $(MODCLEAN)
 MODINSTALL = $(addsuffix .install, $(MODULES))
 .PHONY: $(MODINSTALL)
 $(MODINSTALL) :
-	@-$(MAKE) -C $(@:.install=) install
+	@-$(MAKE) $(MKFLAGS) -C $(@:.install=) install
 
 .PHONY: install
 install: $(MODINSTALL)

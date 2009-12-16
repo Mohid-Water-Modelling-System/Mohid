@@ -1,4 +1,5 @@
-OBJS = $(FILES:.$(S)=.$(O))
+OBJS1 = $(FILES:.$(S)=.$(O))
+OBJS = $(OBJS1:.F=.$(O)) 
 SRCF = $(SRCDIR)
 SUFF := $(suffix $(TARGET))
 

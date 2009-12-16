@@ -51,7 +51,8 @@ FILES = \
         ModuleTriangulation.$(S) \
         ModuleHDF5.$(S) \
         ModuleDrainageNetwork.$(S) \
-        ModuleProfile.$(S)
+        ModuleProfile.$(S) \
+        MARIE.F
 TARGET = $(BASE1)
 
 #--------Makefile rules----------------
@@ -97,6 +98,9 @@ ModuleDrainageNetwork.${O} : ModuleDischarges.${O} \
                           ModuleInterface.${O}
 ModuleProfile.${O} : ModuleEnterData.${O} \
                   ModuleHDF5.${O}
+MARIE.${O} :
+	@$(CC) $(CCFLAGS) $(INCS) $(SRCDIR)/MARIE.F
+	@echo $* .................. [OK]    
 
 #--------End of dependencies list---------
 

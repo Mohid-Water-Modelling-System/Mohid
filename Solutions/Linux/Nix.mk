@@ -15,6 +15,7 @@ export CC= ifort
 export CCFLAGS  = -c -fpp -warn all -nologo -convert big_endian -D_USE_NIX# Debug: -g Profiling: -p
 export LFLAGS   = -fpp -nologo -warn all -i-static -convert big_endian -D_USE_NIX# Profiling: -p
 export LLFLAGS  =
+export MKFLAGS =
 export AR = ar rc
 export SUFFLIB = .lib
 export SUFFPROG = 
