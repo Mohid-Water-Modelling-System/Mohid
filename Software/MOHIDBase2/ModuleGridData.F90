@@ -33,12 +33,13 @@ Module ModuleGridData
     use ModuleGlobalData
     use ModuleTime              
     use ModuleEnterData 
+    use ModuleDrawing        
     use ModuleHorizontalGrid,   only: GetHorizontalGridSize, GetHorizontalGrid,         &
                                       GetGridCoordType, GetGridAngle, GetGridZone,      &
                                       GetLatitudeLongitude, GetGridOrigin,              &
                                       UnGetHorizontalGrid, GetCoordTypeList,            &
                                       WriteHorizontalGrid, GetCheckDistortion,          &
-                                      GetGridLatitudeLongitude
+                                      GetGridLatitudeLongitude, GetZCoordinates
     use ModuleHDF5,             only: ConstructHDF5, HDF5ReadData, GetHDF5FileAccess,   &
                                       GetHDF5GroupNumberOfItems, HDF5SetLimits,         &
                                       HDF5WriteData, KillHDF5
@@ -60,6 +61,7 @@ Module ModuleGridData
     public  :: GetGridData
     public  :: GetGridData2DReference
     public  :: GetMaximumValue
+    public  :: GetMaxValueInPolygon
     public  :: GetMinimumValue
     public  :: GetFillValue
     public  :: GetGridDataType
@@ -96,7 +98,9 @@ Module ModuleGridData
     end interface
 
     interface ModifyGridData
-        module procedure ModifyGridData2D
+        module procedure ModifyGridData2DIncrement
+        module procedure ModifyNewMatrixGridData2D        
+        module procedure ModifyConstantGridData2D
     end interface
 
     !Parameter-----------------------------------------------------------------
@@ -1068,6 +1072,73 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
     end subroutine GetMaximumValue
 
     !--------------------------------------------------------------------------
+    
+    !--------------------------------------------------------------------------
+
+    subroutine GetMaxValueInPolygon(GridDataID, MaximumValue, Polygon, STAT)     
+
+        !Arguments-------------------------------------------------------------
+        integer                                     :: GridDataID
+        real,              intent(OUT)              :: MaximumValue
+        type(T_Polygon),                 pointer    :: Polygon
+        integer, optional, intent(OUT)              :: STAT
+
+        !Local-----------------------------------------------------------------
+        real,  dimension(:,:), pointer              :: CoordX, CoordY
+        type (T_PointF),   pointer                  :: Point
+        integer                                     :: ready_, i, j, STAT_CALL        
+        integer                                     :: STAT_
+
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(GridDataID, ready_)    
+        
+cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+            
+            call GetZCoordinates(Me%ObjHorizontalGrid, CoordX, CoordY, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'GetMaxValueInPolygon - ModuleGridData - ERR10'
+
+            allocate(Point)
+            
+            MaximumValue = FillValueReal
+            
+            do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+            do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+            
+                Point%X = CoordX(i, j)
+                Point%Y = CoordY(i, j)                    
+                
+                if (Me%GridData2D(i, j) .GT. MaximumValue .and. IsPointInsidePolygon(Point, Polygon)) &
+                    MaximumValue = Me%GridData2D(i, j)
+                    
+            end do       
+            end do     
+            
+            deallocate(Point)
+            
+            call UnGetHorizontalGrid(Me%ObjHorizontalGrid, CoordX, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'GetMaxValueInPolygon - ModuleGridData - ERR20'
+                        
+            call UnGetHorizontalGrid(Me%ObjHorizontalGrid, CoordY, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'GetMaxValueInPolygon - ModuleGridData - ERR30'
+
+            STAT_ = SUCCESS_
+        else 
+            STAT_ = ready_
+        end if cd1
+
+
+        if (present(STAT))                                                    &
+            STAT = STAT_
+
+        !----------------------------------------------------------------------
+
+    end subroutine GetMaxValueInPolygon
+
+    !--------------------------------------------------------------------------    
 
     subroutine GetMinimumValue(GridDataID, MinimumValue, STAT)     
 
@@ -1340,15 +1411,14 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-    subroutine ModifyGridData2D(GridDataID, Increment2D, Add, STAT)     
+    subroutine ModifyGridData2DIncrement(GridDataID, Increment2D, Add, STAT)     
 
         !Arguments---------------------------------------------------------------
         integer                                     :: GridDataID
         real, pointer, dimension(:,:)               :: Increment2D
-        logical, optional, intent(IN)               :: Add
+        logical,    intent(IN)                      :: Add
         integer, optional, intent(OUT)              :: STAT
         !Local-----------------------------------------------------------------
-        logical                                     :: Add_
         integer                                     :: ready_        
         integer                                     :: i, j, STAT_
 
@@ -1362,13 +1432,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
             if (Me%Evolution%Yes) then
 
-                if (present(Add)) then
-                    Add_= Add
-                else
-                    Add_= .true.
-                endif
-
-                if (Add_) then
+                if (Add) then
 
                     do j=Me%WorkSize%JLB,Me%WorkSize%JUB
                     do i=Me%WorkSize%ILB,Me%WorkSize%IUB
@@ -1402,10 +1466,87 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
         !------------------------------------------------------------------------
 
-    end subroutine ModifyGridData2D
+    end subroutine ModifyGridData2DIncrement
 
     !----------------------------------------------------------------------------
 
+    subroutine ModifyNewMatrixGridData2D(GridDataID, NewGridData2D, STAT)     
+
+        !Arguments---------------------------------------------------------------
+        integer                                     :: GridDataID
+        real, pointer, dimension(:,:)               :: NewGridData2D
+        integer, optional, intent(OUT)              :: STAT
+        !Local-----------------------------------------------------------------
+        integer                                     :: ready_        
+        integer                                     :: i, j, STAT_
+
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(GridDataID, ready_)    
+        
+cd1 :   if (ready_ .EQ. IDLE_ERR_) then
+
+            do j=Me%WorkSize%JLB,Me%WorkSize%JUB
+            do i=Me%WorkSize%ILB,Me%WorkSize%IUB
+                Me%GridData2D(i, j) =  NewGridData2D(i, j)
+            enddo
+            enddo
+            
+            STAT_ = SUCCESS_
+
+        else 
+            STAT_ = ready_
+        end if cd1
+
+        if (present(STAT)) STAT = STAT_
+
+        !------------------------------------------------------------------------
+
+    end subroutine ModifyNewMatrixGridData2D
+
+    !----------------------------------------------------------------------------
+
+    !----------------------------------------------------------------------------
+
+    subroutine ModifyConstantGridData2D(GridDataID, ConstantValue, STAT)     
+
+        !Arguments---------------------------------------------------------------
+        integer                                     :: GridDataID
+        real                                        :: ConstantValue
+        integer, optional, intent(OUT)              :: STAT
+        !Local-----------------------------------------------------------------
+        integer                                     :: ready_        
+        integer                                     :: i, j, STAT_
+
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(GridDataID, ready_)    
+        
+cd1 :   if (ready_ .EQ. IDLE_ERR_) then
+
+            do j=Me%WorkSize%JLB,Me%WorkSize%JUB
+            do i=Me%WorkSize%ILB,Me%WorkSize%IUB
+                Me%GridData2D(i, j) =  ConstantValue
+            enddo
+            enddo
+            
+            STAT_ = SUCCESS_
+
+        else 
+            STAT_ = ready_
+        end if cd1
+
+        if (present(STAT)) STAT = STAT_
+
+        !------------------------------------------------------------------------
+
+    end subroutine ModifyConstantGridData2D
+
+    !----------------------------------------------------------------------------
 
     subroutine WriteGridData_v1 (FileName,                                          &
                                  COMENT1, COMENT2,                                  &
