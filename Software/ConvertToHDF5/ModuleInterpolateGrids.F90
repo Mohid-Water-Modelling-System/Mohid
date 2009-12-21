@@ -2122,6 +2122,8 @@ ifG3D:          if (Me%InterpolateGrid3D .and. FirstProperty3D) then
 
         !Local-------------------------------------------------------------
         real,       dimension(:,:  ), pointer   :: SurfaceElevation
+        type(T_Polygon),              pointer   :: Polygon
+        real                                    :: MaximumValue
         integer                                 :: STAT_CALL
 
         !Begin-----------------------------------------------------------------
@@ -2145,6 +2147,36 @@ ifG3D:          if (Me%InterpolateGrid3D .and. FirstProperty3D) then
                                      STAT             = STAT_CALL)
         if(STAT_CALL .ne. SUCCESS_) stop 'ConstructAuxGrid -  ModuleInterpolateGrids - ERR40'
 
+
+        allocate(Polygon     )
+        Polygon%Count = 5
+        allocate(Polygon%VerticesF(1:Polygon%Count))
+        
+        Polygon%VerticesF(1)%X = Me%InterpolWindow%Xmin
+        Polygon%VerticesF(1)%Y = Me%InterpolWindow%Ymin
+        Polygon%VerticesF(2)%X = Me%InterpolWindow%Xmin
+        Polygon%VerticesF(2)%Y = Me%InterpolWindow%Ymax
+        Polygon%VerticesF(3)%X = Me%InterpolWindow%Xmax
+        Polygon%VerticesF(3)%Y = Me%InterpolWindow%Ymax
+        Polygon%VerticesF(4)%X = Me%InterpolWindow%Xmax
+        Polygon%VerticesF(4)%Y = Me%InterpolWindow%Ymin
+        Polygon%VerticesF(5)%X = Polygon%VerticesF(1)%X 
+        Polygon%VerticesF(5)%Y = Polygon%VerticesF(1)%Y 
+        
+        call SetLimits(Polygon)
+       
+        
+        call GetMaxValueInPolygon(Me%Father%ObjBathymetry, MaximumValue, Polygon, STAT = STAT_CALL)
+        if(STAT_CALL .ne. SUCCESS_) stop 'ConstructAuxGrid -  ModuleInterpolateGrids - ERR42'    
+        
+        deallocate(Polygon%VerticesF)        
+        deallocate(Polygon     )  
+        
+              
+
+        call ModifyGridData (Me%Aux%ObjBathymetry, MaximumValue, STAT = STAT_CALL)
+        if(STAT_CALL .ne. SUCCESS_) stop 'ConstructAuxGrid -  ModuleInterpolateGrids - ERR44'    
+
         call ConstructHorizontalMap (HorizontalMapID  = Me%Aux%ObjHorizontalMap,        &
                                      GridDataID       = Me%Aux%ObjBathymetry,           &
                                      HorizontalGridID = Me%Aux%ObjHorizontalGrid,       &
@@ -2158,7 +2190,6 @@ ifG3D:          if (Me%InterpolateGrid3D .and. FirstProperty3D) then
                                      HorizontalMapID  = Me%Aux%ObjHorizontalMap,        &
                                      ActualTime       = Me%BeginTime,                   &
                                      NewDomain        = Me%Father%GeometryFileName,     &
-                                     VerifyBathym     = .false.,                        & 
                                      STAT             = STAT_CALL)
         if(STAT_CALL .ne. SUCCESS_) stop 'ConstructAuxGrid -  ModuleInterpolateGrids - ERR60'
 
@@ -3221,7 +3252,7 @@ iN:     if (NumberOfNodes >= 3) then
         deallocate(NodeY)
         deallocate(NodeZ)
 
-in2:    if (NumberOfNodes > 3) then
+in2:    if (NumberOfNodes >= 3) then
 
             !Constructs Triangulation
             call ConstructTriangulation (Me%ObjTriangulation,   &
@@ -3945,7 +3976,7 @@ dk:     do k=KLB, KUB
         NumberOfNodes =  Sum(Me%Father%WaterPoints2D(Me%Father%WorkSize2D%ILB:Me%Father%WorkSize2D%IUB, &
                                                      Me%Father%WorkSize2D%JLB:Me%Father%WorkSize2D%JUB))
 
-iN:     if (NumberOfNodes > 3) then
+iN:     if (NumberOfNodes >= 3) then
 
         allocate(Me%NodeX(NumberOfNodes))
         allocate(Me%NodeY(NumberOfNodes))
