@@ -292,7 +292,6 @@ Module ModuleGeometry
     type T_External
         logical                                 :: ContinuesCompute = .false.
         logical                                 :: NonHydrostatic   = .false.
-        logical                                 :: VerifyBathym     = .true. 
         real                                    :: BathymTopoFactor = 1.0
         real, dimension(:,:,:), pointer         :: DecayTime
     end type T_External
@@ -349,7 +348,7 @@ Module ModuleGeometry
     subroutine ConstructGeometry(GeometryID, GridDataID, HorizontalGridID,              &
                                  HorizontalMapID, ActualTime,                           &
                                  NewDomain, SurfaceElevation, BathymTopoFactor,         &
-                                 VerifyBathym, STAT)
+                                 STAT)
 
         !Arguments-------------------------------------------------------------
         integer                                     :: GeometryID
@@ -360,7 +359,6 @@ Module ModuleGeometry
         character (len=*), intent(IN), optional     :: NewDomain
         real, dimension(:,:), pointer, optional     :: SurfaceElevation
         real,              intent(IN), optional     :: BathymTopoFactor
-        logical,           intent(IN), optional     :: VerifyBathym
         integer,  intent(OUT),         optional     :: STAT
         
         !Local-----------------------------------------------------------------
@@ -400,12 +398,6 @@ Module ModuleGeometry
                 Me%ExternalVar%BathymTopoFactor = 1.0
             endif
             
-            if (present(VerifyBathym)) then
-                Me%ExternalVar%VerifyBathym = VerifyBathym
-            else
-                Me%ExternalVar%VerifyBathym = .true. 
-            endif
-
             !Construct the variable common to all module
             if (present(NewDomain)) then
                 if (present(SurfaceElevation)) then
@@ -565,16 +557,12 @@ Module ModuleGeometry
         !Checks if Bathymetry is consistent with the tolerance depth - Fromer REBAIXA
         !and if changes bathymetry if cartasian domain type exists
         
-        if (Me%ExternalVar%VerifyBathym) then
-        
-            if (present(SurfaceElevation)) then
-                call VerifyBathymetry (SurfaceElevation)
-            else
-                call VerifyBathymetry
-            endif
-            
+        if (present(SurfaceElevation)) then
+            call VerifyBathymetry (SurfaceElevation)
+        else
+            call VerifyBathymetry
         endif
-
+            
         !Allocates variables
         call AllocateVariables
 
@@ -1146,7 +1134,6 @@ cd2 :                       if (BlockLayersFound) then
                                      Default        = 0.05,                             &
                                      STAT           = STATUS)
                         if (STATUS /= SUCCESS_) stop "GetDomainsFromFile - Geometry - ERR270"
-
 
 
                         call GetData(NewDomain%MaxThicknessGrad,                        &
@@ -2024,6 +2011,8 @@ doi:    do i = ILB, IUB
 
                         LayerBottomDepthMin = LayerTopDepth + LayerThicknessMin - AllmostZero_
                         LayerBottomDepthMax = LayerTopDepth + LayerThicknessMax + AllmostZero_
+                        
+                        AuxDepth = 0.0
 
                         !To minimize roundoff errors when BathymTopoFactor = 1
                         if (Me%ExternalVar%BathymTopoFactor/=1.0) then
