@@ -33,11 +33,12 @@ Module ModuleTurbGOTM
     use ModuleGlobalData
     use ModuleTime  
     use ModuleEnterData,        only : ReadFileName
-    use ModuleFunctions,        only : TimeToString, ChangeSuffix
+    use ModuleFunctions,        only : TimeToString, ChangeSuffix, CHUNK_J, CHUNK_I, CHUNK_K
     use ModuleHorizontalMap,    only : GetBoundaries, GetWaterPoints2D, UnGetHorizontalMap
     use ModuleGeometry
     use ModuleMap
     use ModuleGOTM
+    use ModuleStopWatch,        only : StartWatch, StopWatch         
 
     Implicit none
 
@@ -459,12 +460,16 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         integer                             :: STAT_                
         integer                             :: STAT_CALL
         integer                             :: ready_            
+        integer                             :: CHUNK            
 
         !----------------------------------------------------------------------                         
 
         STAT_ = UNKNOWN_
 
         call Ready(TurbGOTMID, ready_)    
+
+        if (MonitorPerformance) &
+            call StartWatch ("ModuleTurbGOTM", "TurbGOTM")
 
 cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
@@ -548,7 +553,11 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             ! Here we associate these variables to those allocated there.
             call Associate_to_ExportGOTM (Me%ObjGOTM, Tke_1D, L_1D, eps_1D, num_1D, nuh_1D)
             
-! We don't compute turbulence coefficients at the limits of the domain. 
+            !Doesn't work CHUNK = CHUNK_J(JLB,JUB)
+            !Parallelize with private variables that are arrays doesn't work.
+            !Doesn't work !$OMP PARALLEL PRIVATE(I,J,k,Kbottom,Depth,u_taus,u_taub,z0b,z0s,nlev,NN_1D,SS_1D,P_1D,B_1D,Tke_1D,L_1D,eps_1D,num_1D,nuh_1D,h) 
+            ! We don't compute turbulence coefficients at the limits of the domain. 
+            !Doesn't work !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
 doj :       do J = JLB+1, JUB-1
 doi :       do I = ILB+1, IUB-1 
       
@@ -567,7 +576,7 @@ ifwp :          if (Me%ExternalVar%OpenPoints3D(i,j,KUB) .EQ. Openpoint) then
                     ! We must be careful with the limits of the matrix, as GOTM computes from 0 to nlev
                     ! Kbottom face correspond to 0 in GOTM notation
                     ! Level 0 is needed for boundary confitions of turbulent magnitudes...
-            
+                    
 dok :               do k=KBottom,KUB+1
                         NN_1D (k-KBottom) = dble(Me%ExternalVar%NN(i,j,k))
                         SS_1D (k-KBottom) = dble(Me%ExternalVar%SS(i,j,k))
@@ -594,7 +603,6 @@ dok2:               do k=KBottom,KUB
                                                    h,NN_1D,SS_1D,P_1D,B_1D)
                                     
             
-
 dok4 :              do k=KBottom,KUB+1
                         Me%Tke   (i,j,k) = real(Tke_1D(k-KBottom))  
                         Me%L     (i,j,k) = real(L_1D(k-KBottom  ))  
@@ -607,10 +615,18 @@ dok4 :              do k=KBottom,KUB+1
 
             end do doi
             end do doj
-          
+            !Doesn't work !$OMP END DO
+
+            !Doesn't work !$OMP END PARALLEL          
+            
             !Values at open boundary points at the limits of the domain 
             ! are set to the values of the nearest interior point. Null_gradient
             i=IUB
+                       
+            CHUNK = CHUNK_J(JLB,JUB)
+            !$OMP PARALLEL PRIVATE(J,k)
+            
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
             do j=JLB,JUB
                 if(BoundaryPoints2D(i,j) == 1) then
                     Kbottom = Me%ExternalVar%KFloorZ(I,J)
@@ -620,8 +636,15 @@ dok4 :              do k=KBottom,KUB+1
                     end do 
                 end if 
             end do
+            !$OMP END DO
+
+            !$OMP END PARALLEL          
 
             i=ILB
+            CHUNK = CHUNK_J(JLB,JUB)
+            !$OMP PARALLEL PRIVATE(j,k)
+            
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
             do j=JLB,JUB
                 if(BoundaryPoints2D(i,j) == 1) then
                     Kbottom = Me%ExternalVar%KFloorZ(I,J)
@@ -631,8 +654,15 @@ dok4 :              do k=KBottom,KUB+1
                     end do 
                 end if 
             end do
+            !$OMP END DO
+
+            !$OMP END PARALLEL          
 
             j=JUB
+            CHUNK = CHUNK_I(ILB,IUB)
+            !$OMP PARALLEL PRIVATE(i,k)
+            
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
             do i=ILB,IUB
                 if(BoundaryPoints2D(i,j) == 1) then
                     Kbottom = Me%ExternalVar%KFloorZ(I,J)
@@ -642,8 +672,14 @@ dok4 :              do k=KBottom,KUB+1
                     end do 
                 end if 
             end do
+            !$OMP END DO
+
+            !$OMP END PARALLEL          
 
             j=JLB
+            CHUNK = CHUNK_I(ILB,IUB)
+            !$OMP PARALLEL PRIVATE(i,k)            
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
             do i=ILB,IUB
                 if(BoundaryPoints2D(i,j) == 1) then
                     Kbottom = Me%ExternalVar%KFloorZ(I,J)
@@ -653,6 +689,8 @@ dok4 :              do k=KBottom,KUB+1
                     end do 
                 end if 
             end do
+            !$OMP END DO
+            !$OMP END PARALLEL          
 
             !WaterPoints3D
             call UngetMap(Me%ObjMap, Me%ExternalVar%WaterPoints3D, STAT = STAT_CALL)
@@ -702,6 +740,8 @@ dok4 :              do k=KBottom,KUB+1
 
         if (present(STAT)) STAT = STAT_
             
+        if (MonitorPerformance) &
+            call StopWatch ("ModuleTurbGOTM", "TurbGOTM")
 
     end subroutine TurbGOTM
 

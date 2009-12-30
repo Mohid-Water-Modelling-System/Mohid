@@ -3712,6 +3712,9 @@ cd3 :               if (opened) then
             deallocate(Me%SpaceIntegration%Integrate3DSpace%ComputeFacesV3D)
             deallocate(Me%SpaceIntegration%Integrate3DSpace%WaterPoints2D  )
 
+            nullify(Me%SpaceIntegration%VectorIntegrationY              )
+            nullify(Me%SpaceIntegration%VectorIntegrationX              )
+            nullify(Me%SpaceIntegration%BatMin                          )
             nullify(Me%SpaceIntegration%Integrate3DSpace%WaterLevel     )
             nullify(Me%SpaceIntegration%Integrate3DSpace%WaterFluxX     )
             nullify(Me%SpaceIntegration%Integrate3DSpace%WaterFluxY     )

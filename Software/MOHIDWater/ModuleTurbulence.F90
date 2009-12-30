@@ -3138,11 +3138,11 @@ cd3 :       if      (Me%TurbOptions%MODTURB .EQ. Constant_   .or.       &
 cd2 :       if (Me%TurbOptions%MODTURB .ne. Constant_ .and. &
                 Me%TurbOptions%MODTURB .ne. File2D_) then
 
-                CHUNK = CHUNK_K(Me%Size%KLB, Me%Size%KUB)
+                CHUNK = CHUNK_J(Me%Size%JLB, Me%Size%JUB)
+                !$OMP PARALLEL SHARED(CHUNK) PRIVATE(I,J)
 
-                !$OMP PARALLEL SHARED(CHUNK) PRIVATE(I,J,K)
-                !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
 do1 :           do K = KLB, KUB
+                !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
 do2 :           do J = JLB, JUB
 do3 :           do I = ILB, IUB
 
@@ -3154,8 +3154,9 @@ do3 :           do I = ILB, IUB
                                                             
                 end do do3
                 end do do2
-                end do do1
                 !$OMP END DO NOWAIT
+                end do do1
+
                 !$OMP END PARALLEL
 
             end if cd2
@@ -3460,6 +3461,7 @@ cd4 :       if     (Me%TurbOptions%MODVISH .EQ. Constant_   ) then
         integer :: KLB, KUB
 
         integer :: I, J, K
+        integer                                         :: CHUNK
 
         !----------------------------------------------------------------------
 
@@ -3476,8 +3478,12 @@ cd4 :       if     (Me%TurbOptions%MODVISH .EQ. Constant_   ) then
 
 !        call Richardson
 
+        if (MonitorPerformance) call StartWatch ("ModuleTurbulence", "LeendertseeModel")
+        CHUNK = CHUNK_J(JLB,JUB)
+        !$OMP PARALLEL PRIVATE(I,J,aux,Z_H,CMIST,VISC_V)
 
 do1 :   do K = KLB, KUB
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
 do2 :   do J = JLB, JUB
 do3 :   do I = ILB, IUB
             
@@ -3517,8 +3523,11 @@ cd1 :       if (Me%ExternalVar%ComputeFacesW3D(i, j, k) == Compute) then
             end if cd1
         end do do3
         end do do2
+        !$OMP END DO
         end do do1
 
+        !$OMP END PARALLEL
+        if (MonitorPerformance) call StopWatch ("ModuleTurbulence", "LeendertseeModel")
 
         !----------------------------------------------------------------------
 
@@ -3547,6 +3556,7 @@ cd1 :       if (Me%ExternalVar%ComputeFacesW3D(i, j, k) == Compute) then
         integer :: KLB, KUB
 
         integer :: I, J, K
+        integer                                         :: CHUNK
 
         !----------------------------------------------------------------------
 
@@ -3572,8 +3582,12 @@ cd1 :       if (Me%ExternalVar%ComputeFacesW3D(i, j, k) == Compute) then
         !   We have imposed rich = max (0., Me%TurbVar%Richardson(I,J,K)) to allow computations,
         !   but what's written must be taken into account!
 
-
+        if (MonitorPerformance) call StartWatch ("ModuleTurbulence", "BackhausModel")
+        CHUNK = CHUNK_J(JLB,JUB)
+        !$OMP PARALLEL PRIVATE(I,J,rich)
+        
 do1 :   do K = KLB, KUB
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
 do2 :   do J = JLB, JUB
 do3 :   do I = ILB, IUB
             
@@ -3606,8 +3620,11 @@ cd1 :       if (Me%ExternalVar%ComputeFacesW3D(i, j, k) == Compute) then
             end if cd1
         end do do3
         end do do2
+        !$OMP END DO
         end do do1
 
+        !$OMP END PARALLEL
+        if (MonitorPerformance) call StopWatch ("ModuleTurbulence", "BackhausModel")
 
         !----------------------------------------------------------------------
 
@@ -3631,7 +3648,7 @@ cd1 :       if (Me%ExternalVar%ComputeFacesW3D(i, j, k) == Compute) then
         integer :: KLB, KUB
 
         integer :: I, J, K
-
+        integer                                         :: CHUNK
         !----------------------------------------------------------------------
 
 
@@ -3644,7 +3661,12 @@ cd1 :       if (Me%ExternalVar%ComputeFacesW3D(i, j, k) == Compute) then
         KLB = Me%WorkSize%KLB
         KUB = Me%WorkSize%KUB
 
+        if (MonitorPerformance) call StartWatch ("ModuleTurbulence", "PacanowskiModel")
+        CHUNK = CHUNK_J(JLB,JUB)
+        !$OMP PARALLEL PRIVATE(I,J,RICH)
+        
 do1 :   do K = KLB, KUB
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
 do2 :   do J = JLB, JUB
 do3 :   do I = ILB, IUB
 cd1 :       if (Me%ExternalVar%ComputeFacesW3D(i, j, k) == Compute) then
@@ -3661,8 +3683,11 @@ cd1 :       if (Me%ExternalVar%ComputeFacesW3D(i, j, k) == Compute) then
             end if cd1
         end do do3
         end do do2
+        !$OMP END DO
         end do do1
 
+        !$OMP END PARALLEL
+        if (MonitorPerformance) call StopWatch ("ModuleTurbulence", "PacanowskiModel")
 
         !----------------------------------------------------------------------
 
@@ -3695,7 +3720,7 @@ cd1 :       if (Me%ExternalVar%ComputeFacesW3D(i, j, k) == Compute) then
         integer :: KLB, KUB
 
         integer :: I, J, K
-
+        integer :: CHUNK
 
         !----------------------------------------------------------------------
 
@@ -3708,10 +3733,15 @@ cd1 :       if (Me%ExternalVar%ComputeFacesW3D(i, j, k) == Compute) then
 
         KLB = Me%WorkSize%KLB
         KUB = Me%WorkSize%KUB
+     
+        if (MonitorPerformance) &
+            call StartWatch ("ModuleTurbulence", "NihoulModel")
 
-      
+        CHUNK = CHUNK_J(JLB,JUB)
+        !$OMP PARALLEL PRIVATE(I,J,Aux,Z_H,CMIST,VISC_V)
 
 do1 :   do K = KLB, KUB
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
 do2 :   do J = JLB, JUB
 do3 :   do I = ILB, IUB
             
@@ -3748,8 +3778,13 @@ cd1 :       if (Me%ExternalVar%ComputeFacesW3D(i, j, k) == Compute)        then
             end if cd1
         end do do3
         end do do2
+        !$OMP END DO
         end do do1
-
+        
+        !$OMP END PARALLEL
+        
+        if (MonitorPerformance) &
+            call StopWatch ("ModuleTurbulence", "NihoulModel")
 
         !----------------------------------------------------------------------
 
@@ -3785,10 +3820,12 @@ cd1 :       if (Me%ExternalVar%ComputeFacesW3D(i, j, k) == Compute)        then
         integer, dimension(:,:,:), pointer      :: ComputeFacesU3D, ComputeFacesV3D
         integer, dimension(:,:  ), pointer      :: KFloorZ
         real                                    :: RICH
+        integer                                 :: CHUNK
         
         !----------------------------------------------------------------------
 
-        if (MonitorPerformance) call StartWatch ("ModuleTurbulence", "Richardson")
+        if (MonitorPerformance) &
+            call StartWatch ("ModuleTurbulence", "Richardson")
 
         ILB = Me%WorkSize%ILB
         IUB = Me%WorkSize%IUB
@@ -3809,6 +3846,10 @@ cd1 :       if (Me%ExternalVar%ComputeFacesW3D(i, j, k) == Compute)        then
         ComputeFacesU3D => Me%ExternalVar%ComputeFacesU3D
         ComputeFacesV3D => Me%ExternalVar%ComputeFacesV3D        
 
+        CHUNK = CHUNK_J(JLB,JUB)
+        !$OMP PARALLEL PRIVATE(I,J,RICH,DRODZ,RO,RO_PERT,U1,V1,U2,V2,Depth,VMODK1,VMODK2)
+
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
 do2 :   do J = JLB, JUB
 do3 :   do I = ILB, IUB
 
@@ -3955,6 +3996,8 @@ do1 :       do K = kbottom, KUB-1
 
         end do do3
         end do do2
+        !$OMP END DO
+        !$OMP END PARALLEL
 
         nullify(DZZ    )
         nullify(DWZ    )
@@ -3964,8 +4007,8 @@ do1 :       do K = kbottom, KUB-1
         nullify(ComputeFacesU3D)
         nullify(ComputeFacesV3D) 
 
-        if (MonitorPerformance) call StopWatch ("ModuleTurbulence", "Richardson")
-    
+        if (MonitorPerformance) &
+            call StopWatch ("ModuleTurbulence", "Richardson")
 
     end subroutine Richardson
 
@@ -4032,11 +4075,12 @@ do1 :       do K = kbottom, KUB-1
         real, pointer, dimension(:,:)   :: MLD_Bot
         integer, pointer, dimension(:,:):: KFloorZ
 
-
-
+        integer :: CHUNK
 
         !----------------------------------------------------------------------
 
+        if (MonitorPerformance) &
+            call StartWatch ("ModuleTurbulence", "ComputeMixedLayerDepth")
         
         ILB = Me%WorkSize%ILB
         IUB = Me%WorkSize%IUB
@@ -4065,6 +4109,11 @@ do1 :       do K = kbottom, KUB-1
             
         !In the computation of mixed layer depth, care has to be taken on the indexing of szz
         !szz(0) is the water depth, so the distance from surface to face k(lower face of control volume k) is szz(k-1)
+
+        CHUNK = CHUNK_J(JLB,JUB)
+        !$OMP PARALLEL PRIVATE(I,J,k,kbottom)
+
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
 do3 :   do J = JLB, JUB
 do2 :   do I = ILB, IUB
 
@@ -4167,7 +4216,8 @@ do2 :   do I = ILB, IUB
         
         end do do2
         end do do3
-
+        !$OMP END DO
+        !$OMP END PARALLEL
 
         if (Me%StatMLD%ON) then
 
@@ -4193,8 +4243,9 @@ do2 :   do I = ILB, IUB
         if(Me%TurbOptions%MLD_Calc_Bot)                                       &
             nullify    (MLD_Bot)
 
-
-    
+        if (MonitorPerformance) &
+            call StopWatch ("ModuleTurbulence", "ComputeMixedLayerDepth")    
+            
     !----------------------------------------------------------------------
 
     end subroutine ComputeMixedLayerDepth
@@ -5124,6 +5175,8 @@ cd2:    if (Me%OutPut%Run_End) then
         real                                :: ReferenceVelocity      !Estuary
         logical                             :: calc 
 
+        integer                             :: CHUNK
+
         !----------------------------------------------------------------------
 
 
@@ -5145,7 +5198,13 @@ cd2:    if (Me%OutPut%Run_End) then
         ReferenceDepth          = Me%TurbVar%ReferenceDepth
         ReferenceVelocity       = Me%TurbVar%ReferenceVelocity
 
+        if (MonitorPerformance) &
+            call StartWatch ("ModuleTurbulence", "EstuaryModel")
 
+        CHUNK = CHUNK_J(JLB,JUB)
+        !$OMP PARALLEL PRIVATE(I,J,K,calc,VELMOD,U,V,VISHAUX)
+
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
 do2 :   do J = JLB, JUB
 do3 :   do I = ILB, IUB
             calc = .FALSE.
@@ -5189,9 +5248,13 @@ cd2 :           if (Me%ExternalVar%WaterPoints3D(I,J,K) .EQ. WaterPoint) then
 
         end do do3
         end do do2
-
+        !$OMP END DO
+        !$OMP END PARALLEL
+        
         nullify(DWZ)
 
+        if (MonitorPerformance) &
+            call StopWatch ("ModuleTurbulence", "EstuaryModel")
 
     end subroutine EstuaryModel
 
@@ -5224,6 +5287,8 @@ cd2 :           if (Me%ExternalVar%WaterPoints3D(I,J,K) .EQ. WaterPoint) then
         integer                            :: FaceU1, FaceU2, FaceU3, FaceU4, FaceU5, FaceU6
         integer                            :: FaceV1, FaceV2, FaceV3, FaceV4, FaceV5, FaceV6
 
+        integer :: CHUNK
+
         !----------------------------------------------------------------------
 
         ILB = Me%WorkSize%ILB
@@ -5247,8 +5312,14 @@ cd2 :           if (Me%ExternalVar%WaterPoints3D(I,J,K) .EQ. WaterPoint) then
         ImposedTangentialFacesV => Me%ExternalVar%ImposedTangentialFacesV
         ImposedNormalFacesV     => Me%ExternalVar%ImposedNormalFacesV
 
+        if (MonitorPerformance) &
+            call StartWatch ("ModuleTurbulence", "SmagorinskyModel")
+
+        CHUNK = CHUNK_J(JLB,JUB)
+        !$OMP PARALLEL PRIVATE(I,J,FaceU1,FaceU2,FaceU3,FaceU4,FaceU5,AUX1,AUX2,UMED1,UMED2,FaceV1,FaceV2,FaceV3,FaceV4,FaceV5,VMED1,VMED2,DXDY,dUdY,dVdX,dUdX,dVdY,ViscSmagorinsky)
 
 do1 :   do K = KLB, KUB
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
 do2 :   do J = JLB, JUB
 do3 :   do I = ILB, IUB
 cd1 :       if (Me%ExternalVar%WaterPoints3D(I,J,K) .EQ. WaterPoint) then
@@ -5345,9 +5416,12 @@ cd5 :           IF (J .EQ. JUB) THEN
 
         end do do3
         end do do2
+        !$OMP END DO
         end do do1
 
-
+        !$OMP END PARALLEL
+        if (MonitorPerformance) &
+            call StopWatch ("ModuleTurbulence", "SmagorinskyModel")
       
         nullify(VelocityX      )
         nullify(VelocityY      )
@@ -5372,9 +5446,12 @@ cd5 :           IF (J .EQ. JUB) THEN
         integer, parameter                      :: Covered  = 1
         integer                                 :: WPT, WP1, WP2, WP3, WP4
 
+        integer                                 :: CHUNK
+        
         !------------------------------------------------------------------------  
         
-        if (MonitorPerformance) call StartWatch ("ModuleTurbulence", "TurbulentViscosity_CellCorner")
+        if (MonitorPerformance) &
+            call StartWatch ("ModuleTurbulence", "TurbulentViscosity_CellCorner")
       
         ILB = Me%WorkSize%ILB
         IUB = Me%WorkSize%IUB
@@ -5384,7 +5461,12 @@ cd5 :           IF (J .EQ. JUB) THEN
         KUB = Me%WorkSize%KUB
 
         !Interpolates
+
+        CHUNK = CHUNK_J(JLB,JUB)
+        !$OMP PARALLEL PRIVATE(I,J,WP1,WP2,WP3,WP4,WPT,ViscFace1,ViscFace2)
+        
 do1 :   do k = KLB, KUB
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
 do2 :   do j = JLB, JUB
 do3 :   do i = ILB, IUB
 
@@ -5428,10 +5510,11 @@ do3 :   do i = ILB, IUB
 
         end do do3
         end do do2
+        !$OMP END DO
         end do do1
 
+        !$OMP END PARALLEL
         if (MonitorPerformance) call StopWatch ("ModuleTurbulence", "TurbulentViscosity_CellCorner")
-
 
     end subroutine TurbulentViscosity_CellCorner
 
