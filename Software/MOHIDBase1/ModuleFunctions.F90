@@ -3361,18 +3361,18 @@ end function
         integer                                     :: dij, Count, i, j, NumberOfCells
         integer                                     :: jj, ii, dijmax, dimax, djmax
         real                                        :: SumValues
-        
+       
         !Begin-----------------------------------------------------------------
 
         NumberOfCells =  Sum(ComputePoints3D(ILB:IUB, JLB:JUB, KUB))
 
         if (NumberOfCells > 0) then
-
+        
             do j = JLB, JUB
             do i = ILB, IUB
-
-            if (OutValues2D(i, j) < FillValueReal/4. .and. ComputePoints3D(i, j, KUB) == 1) then
-
+            
+                if (OutValues2D(i, j) < FillValueReal/4. .and. ComputePoints3D(i, j, KUB) == 1) then
+            
                     dimax = IUB-ILB + 1
                     djmax = JUB-JLB + 1
 
@@ -3433,19 +3433,45 @@ end function
         integer                                     :: dij, dk, Count, i, j, k, NumberOfCells
         integer                                     :: jj, ii, kk, dijmax, dimax, djmax
         real                                        :: SumValues
+        logical                                     :: NoMapping, OkMap
         
         !Begin-----------------------------------------------------------------
 
 d1:     do k = KLB, KUB
 
-            NumberOfCells =  Sum(ComputePoints3D(ILB:IUB, JLB:JUB, k))
+            if (associated(ComputePoints3D)) then
+
+                NumberOfCells =  Sum(ComputePoints3D(ILB:IUB, JLB:JUB, k))
+                NoMapping     = .false.
+            
+            else
+            
+                NoMapping     = .true. 
+                NumberOfCells = 1
+            
+            endif 
 
             if (NumberOfCells > 0) then
 
                 do j = JLB, JUB
                 do i = ILB, IUB
+                
+                    if (NoMapping) then
+                    
+                        OkMap = .true.
+                        
+                                   
+                    else
+                    
+                        if (ComputePoints3D(i, j, k) == 1) then
+                            OkMap = .true.
+                        else
+                            OkMap = .false.
+                        endif    
+                    
+                    endif
 
-                if (OutValues3D(i, j, k) < FillValueReal/4. .and. ComputePoints3D(i, j, k) == 1) then
+                    if (OutValues3D(i, j, k) < FillValueReal/4. .and. OkMap) then
 
                         dimax = IUB-ILB + 1
                         djmax = JUB-JLB + 1
@@ -3506,7 +3532,15 @@ d1:     do k = KLB, KUB
                             
                             else
 
-                                stop 'ExtraPol3DNearestCell - ModuleFunctions - ERR10'
+                                if (NoMapping) then
+                                
+                                    OutValues3D(i, j, k) = FillValueReal
+                                                                       
+                                else
+
+                                    stop 'ExtraPol3DNearestCell - ModuleFunctions - ERR10'
+                                
+                                endif
                                 
                             endif
                         endif
@@ -3537,19 +3571,43 @@ d1:     do k = KLB, KUB
         integer                                     :: dij, dk, Count, i, j, k, NumberOfCells
         integer                                     :: jj, ii, kk, dijmax, dimax, djmax
         real                                        :: SumValues
+        logical                                     :: NoMapping, OkMap
         
         !Begin-----------------------------------------------------------------
 
 d1:     do k = KLB, KUB
 
-            NumberOfCells =  Sum(ComputePoints3D(ILB:IUB, JLB:JUB, k))
+            if (associated(ComputePoints3D)) then
+
+                NumberOfCells =  Sum(ComputePoints3D(ILB:IUB, JLB:JUB, k))
+                NoMapping     = .false.            
+            else
+            
+                NoMapping     = .true. 
+                NumberOfCells = 1
+            
+            endif 
 
             if (NumberOfCells > 0) then
 
                 do j = JLB, JUB
                 do i = ILB, IUB
+                
+                    if (NoMapping) then
+                    
+                        OkMap = .true.
+                                                           
+                    else
+                    
+                        if (ComputePoints3D(i, j, k) == 1) then
+                            OkMap = .true.
+                        else
+                            OkMap = .false.
+                        endif    
+                    
+                    endif
 
-                if (OutValues3D(i, j, k) < FillValueReal/4. .and. ComputePoints3D(i, j, k) == 1) then
+                    if (OutValues3D(i, j, k) < FillValueReal/4. .and. OkMap) then
 
                         dimax = IUB-ILB + 1
                         djmax = JUB-JLB + 1
@@ -3610,8 +3668,16 @@ d1:     do k = KLB, KUB
                             
                             else
 
-                                stop 'ExtraPol3DNearestCell_8 - ModuleFunctions - ERR10'
+                                if (NoMapping) then
                                 
+                                    OutValues3D(i, j, k) = FillValueReal
+                                                                       
+                                else
+
+                                    stop 'ExtraPol3DNearestCell_8 - ModuleFunctions - ERR10'
+                                
+                                endif
+                                    
                             endif
                         endif
 
