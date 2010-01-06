@@ -2064,7 +2064,7 @@ doi:    do i = ILB, IUB
         endif
 
         !Computes KFloor%U
-        do j = JLB + 1, JUB
+        do j = JLB, JUB + 1
         do i = ILB, IUB
 
             !Water in (i,j) and in (i,j-1)? or current face is an exterior face
@@ -2080,7 +2080,7 @@ doi:    do i = ILB, IUB
 
         !Computes KFloor%V
         do j = JLB, JUB
-        do i = ILB + 1, IUB
+        do i = ILB, IUB + 1
 
             !Water in (i,j) and in (i-1,j)? or current face is an exterior face
             if ( ((Me%KFloor%Z(i,     j) > FillValueInt) .and.           &

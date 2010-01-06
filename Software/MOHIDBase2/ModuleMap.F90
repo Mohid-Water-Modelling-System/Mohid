@@ -67,6 +67,10 @@
 ! WetFaces%V          - All faces which have (in V direction):
 !                           - at least one side of the face a OpenPoints3D = 1
 !
+!
+! WaterFaces          - All faces that can have :
+!!                           - water in both sides 
+!
 ! History
 !   - Frank     Jun 99     : Creation
 !   - Frank     Jul 99     : LandBoundaryFaces3D
@@ -82,7 +86,8 @@ module ModuleMap
     use ModuleHorizontalMap,    only: GetWaterPoints2D, GetLandPoints2D,        &
                                       UnGetHorizontalMap, UpdateComputeFaces2D, &
                                       GetComputeFaces2D, GetBoundaries,         &
-                                      GetExteriorBoundaryFaces, GetBoundaryFaces     
+                                      GetExteriorBoundaryFaces,                 &
+                                      GetBoundaryFaces, GetWaterFaces2D
     use ModuleGeometry,         only: GetGeometrySize, GetGeometryKFloor,       &
                                       UnGetGeometry, GetGeometryMinWaterColumn
     use ModuleHorizontalGrid,   only: GetHorizontalGrid, GetGridCoordType,      &
@@ -116,6 +121,7 @@ module ModuleMap
     public  :: GetImposedNormalFaces
     public  :: GetImposedTangentialFaces
     public  :: GetWetFaces
+    public  :: GetWaterFaces3D
 
 
     public  :: UngetMap
@@ -185,7 +191,8 @@ module ModuleMap
         type(T_Size3D  )                    :: WorkSize
         type(T_Time    )                    :: ActualTime
         type(T_3D_INT  )                    :: ComputeFaces3D 
-        type(T_3D_INT  )                    :: LandBoundaryFaces3D
+        type(T_2D_INT  )                    :: LandBoundaryFaces3D
+        type(T_2D_INT  )                    :: WaterFaces3D                
         type(T_2D_INT  )                    :: ImposedNormalFaces
         type(T_2D_INT  )                    :: ImposedTangentialFaces
         type(T_2D_INT  )                    :: WetFaces
@@ -328,6 +335,10 @@ do2:        do i = ILB, IUB
 
             !This subroutine searches for the coastline
             call ConstructLandBoundaryFaces3D()
+
+            !This subroutine identifiy faces that can water in both sides
+            call ConstructWaterFaces3D()
+
 
             if (present(GridDataID) .AND. present(HorizontalGridID)) then
 
@@ -486,6 +497,12 @@ do2:        do i = ILB, IUB
         if (STAT /= SUCCESS_) stop 'AllocateVariables - ModuleMap - ERR14'
 
 
+        allocate(Me%WaterFaces3D%U (ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT)
+        if (STAT /= SUCCESS_) stop 'AllocateVariables - ModuleMap - ERR07'
+        allocate(Me%WaterFaces3D%V (ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT)
+        if (STAT /= SUCCESS_) stop 'AllocateVariables - ModuleMap - ERR08'
+
+
         !By default all values are zero
         Me%WaterPoints3D                    = 0
         Me%LandPoints3D                     = 0
@@ -508,6 +525,9 @@ do2:        do i = ILB, IUB
         Me%WetFaces%U(:,:,:)                = 0
         Me%WetFaces%V(:,:,:)                = 0
 
+
+        Me%WaterFaces3D%U(:,:,:)            = 0
+        Me%WaterFaces3D%V(:,:,:)            = 0
 
         !----------------------------------------------------------------------
 
@@ -562,6 +582,82 @@ do2:        do i = ILB, IUB
     end subroutine ConstructLandBoundaryFaces3D
 
         !----------------------------------------------------------------------
+        
+    subroutine ConstructWaterFaces3D()   
+
+        !Arguments--------------------------------------------------------------
+
+        !Local-----------------------------------------------------------------
+        integer, dimension(:,:), pointer:: WaterFacesU2D, WaterFacesV2D, KFloorU, KFloorV 
+        integer                         :: i, j, k
+        integer                         :: ILB, IUB, JLB, JUB, KLB, KUB, STAT_CALL
+
+        !----------------------------------------------------------------------
+
+        ILB = Me%WorkSize%ILB
+        IUB = Me%WorkSize%IUB
+
+        JLB = Me%WorkSize%JLB
+        JUB = Me%WorkSize%JUB
+
+        KLB = Me%WorkSize%KLB
+        KUB = Me%WorkSize%KUB
+        
+        call GetWaterFaces2D(Me%ObjHorizontalMap, WaterFacesU2D, &
+                                WaterFacesV2D, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructWaterFaces3D - ModuleMap - ERR10'
+        
+        !Gets KFloorU, KFloorV
+        call GetGeometryKFloor(Me%ObjGeometry, U = KFloorU, V = KFloorV, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)stop 'ConstructWaterFaces3D - ModuleMap - ERR20'
+        
+
+        do j = JLB, JUB+1
+        do i = ILB, IUB
+
+           if (WaterFacesU2D(i,j)==1) then
+                
+                do k = KFloorU(i,j), KUB
+                    Me%WaterFaces3D%U(i, j, k) = 1
+                enddo
+                
+           endif
+
+        enddo
+        enddo
+        
+        do j = JLB, JUB
+        do i = ILB, IUB + 1
+
+           if (WaterFacesV2D(i,j)==1) then
+                
+                do k = KFloorV(i,j), KUB
+                    Me%WaterFaces3D%V(i, j, k) = 1
+                enddo
+                
+           endif
+
+        enddo
+        enddo
+       
+        
+        call UnGetHorizontalMap(Me%ObjHorizontalMap, WaterFacesU2D, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructWaterFaces3D - ModuleMap - ERR30'
+
+        call UnGetHorizontalMap(Me%ObjHorizontalMap, WaterFacesV2D, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructWaterFaces3D - ModuleMap - ERR40'
+
+        call UnGetGeometry(Me%ObjGeometry, KFloorU, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructWaterFaces3D - ModuleMap - ERR50'
+
+        call UnGetGeometry(Me%ObjGeometry, KFloorV, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructWaterFaces3D - ModuleMap - ERR60'
+
+        !----------------------------------------------------------------------
+
+    end subroutine ConstructWaterFaces3D
+
+        !----------------------------------------------------------------------        
 
     subroutine CheckIsolatedCell(i, j, k, FirstIsolatedCell, IsolatedCell)  
 
@@ -2117,6 +2213,50 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
 
     end subroutine GetLandBoundaryFaces3D
 
+    !--------------------------------------------------------------------------
+
+    subroutine GetWaterFaces3D(Map_ID,WaterFacesU3D, &
+                                      WaterFacesV3D, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                                     :: Map_ID
+        integer, dimension(:, :, :)  , pointer      :: WaterFacesU3D, WaterFacesV3D
+        integer, optional, intent (OUT)             :: STAT
+
+        !External--------------------------------------------------------------
+        integer                                     :: ready_   
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: STAT_            
+
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready (Map_ID, ready_)
+        
+if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+            call Read_Lock(mMAP_, Me%InstanceID)!WaterFaces3DU
+            call Read_Lock(mMAP_, Me%InstanceID)!WaterFaces3DV
+
+            WaterFacesU3D => Me%WaterFaces3D%U
+            WaterFacesV3D => Me%WaterFaces3D%V
+
+
+            STAT_ = SUCCESS_
+
+        else
+         
+            STAT_ = ready_
+
+        end if if1
+
+        if(present(STAT))STAT = STAT_
+
+        !----------------------------------------------------------------------
+
+    end subroutine GetWaterFaces3D
 
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -2207,6 +2347,12 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                 deallocate(Me%WetFaces%V,  STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'KillMap - ModuleMap - ERR18'
 
+                deallocate(Me%WaterFaces3D%U, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'KillMap - ModuleMap - ERR30'
+
+                deallocate(Me%WaterFaces3D%V, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'KillMap - ModuleMap - ERR40'
+
 
                 nullify (Me%WaterPoints3D   ) 
                 nullify (Me%LandPoints3D    )
@@ -2227,6 +2373,9 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                 nullify (Me%WetFaces%U)
                 nullify (Me%WetFaces%V)
 
+
+                nullify (Me%WaterFaces3D%U)
+                nullify (Me%WaterFaces3D%V)
 
                 !Deallocates Instance
                 call DeallocateInstance ()

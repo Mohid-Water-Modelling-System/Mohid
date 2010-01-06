@@ -60,7 +60,11 @@
 !
 ! BoundaryFaces         - All faces which:
 !                           - have in one side a interior point and in another a boundary point
-!                         
+!
+!
+! WaterFaces            - All faces which:
+!                           - can have water in both sides
+                         
 ! IMin(:), IMax(:)      - Using these arrays it is possible to make:
 !                           - DO I = IMin(J), IMax(J)
 !                           - IMin is the first grid point with water
@@ -97,6 +101,7 @@ module ModuleHorizontalMap
     public  :: GetComputeFaces2D
     public  :: GetBoundaries
     public  :: GetExteriorBoundaryFaces
+    public  :: GetWaterFaces2D    
     public  :: GetBoundaryFaces
 
     public  :: UngetHorizontalMap
@@ -169,6 +174,7 @@ module ModuleHorizontalMap
         type(T_2D_INT  )                    :: ComputeFaces2D               !Mohid Water and Mohid Land
         type(T_2D_INT  )                    :: ExteriorBoundaryFaces        !Mohid Water
         type(T_2D_INT  )                    :: BoundaryFaces                !Mohid Water
+        type(T_2D_INT  )                    :: WaterFaces                   !Mohid Water
 
         type (T_HorizontalMap), pointer     :: Next
 
@@ -291,6 +297,10 @@ do4 :       do J = Me%Size%JLB, Me%Size%JUB
             
             !This subroutine search the matrix Bathymetry for boundary points
             call ConstructBoundary(Bathymetry)
+
+            !This subroutine defines the water faces
+            call ConstructWaterFaces
+
 
             !Ungets bathymetry
             call UngetGridData  (Me%ObjTopography, Bathymetry, STAT = STAT_CALL)
@@ -535,6 +545,8 @@ do6 :   do i = ILB+1 , IUB-1
                     Me%BoundaryPoints2D(i, j)          = 1
                     Me%ExteriorBoundaryFaces%U(i, j+1) = 1
             endif
+            
+
 
         end do do6
         end do do5
@@ -584,6 +596,56 @@ do8 :   do i = ILB+1 , IUB
     end subroutine ConstructBoundary
 
     !--------------------------------------------------------------------------
+    subroutine ConstructWaterFaces
+
+        !Arguments-------------------------------------------------------------
+        real, dimension(: ,:), pointer              :: Bathymetry
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: i, j
+        integer                                     :: ILB, IUB, JLB, JUB
+
+        !----------------------------------------------------------------------
+
+        ILB = Me%WorkSize%ILB
+        IUB = Me%WorkSize%IUB
+
+        JLB = Me%WorkSize%JLB
+        JUB = Me%WorkSize%JUB
+
+        !U direction
+        do j = JLB , JUB + 1
+        do i = ILB , IUB
+                    
+            if ((Me%WaterPoints2D(i,j-1) == WaterPoint .and.  Me%WaterPoints2D(i,j) == WaterPoint) .or. &
+                Me%ExteriorBoundaryFaces%U(i, j)  == 1) then
+             
+                Me%WaterFaces%U(i, j) = 1
+             
+            end if 
+        end do
+        enddo
+
+
+        !V direction
+        do j = JLB , JUB
+        do i = ILB , IUB + 1
+                    
+            if ((Me%WaterPoints2D(i-1,j) == WaterPoint .and.  Me%WaterPoints2D(i,j) == WaterPoint) .or. &
+                Me%ExteriorBoundaryFaces%V(i, j)  == 1) then
+             
+                Me%WaterFaces%V(i, j) = 1
+             
+            end if 
+        end do
+        enddo
+
+
+        !----------------------------------------------------------------------
+
+    end subroutine ConstructWaterFaces
+
+    !--------------------------------------------------------------------------
 
     subroutine AllocateVariables() 
 
@@ -617,6 +679,9 @@ do8 :   do i = ILB+1 , IUB
         allocate(Me%ExteriorBoundaryFaces%V     (ILB:IUB, JLB:JUB))
         allocate(Me%BoundaryFaces%U             (ILB:IUB, JLB:JUB))
         allocate(Me%BoundaryFaces%V             (ILB:IUB, JLB:JUB))
+        allocate(Me%WaterFaces%U                (ILB:IUB, JLB:JUB))
+        allocate(Me%WaterFaces%V                (ILB:IUB, JLB:JUB))
+
 
         !Allocates Imin & Imax
         allocate(Me%Imin                        (         JLB:JUB))
@@ -637,6 +702,10 @@ do8 :   do i = ILB+1 , IUB
 
         Me%BoundaryFaces%U(:,:)         = 0    
         Me%BoundaryFaces%V(:,:)         = 0
+
+        Me%WaterFaces%U(:,:)            = 0    
+        Me%WaterFaces%V(:,:)            = 0
+
 
         Me%Imin(:)                      = 0    
         Me%Imax(:)                      = 0
@@ -1464,6 +1533,51 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
 
     end subroutine GetBoundaryFaces
 
+
+    !--------------------------------------------------------------------------
+
+    subroutine GetWaterFaces2D(HorizontalMapID, WaterFaces2DU, &
+                                WaterFaces2DV, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                                     :: HorizontalMapID
+        integer, dimension(:, :)  , pointer         :: WaterFaces2DU, WaterFaces2DV
+        integer, optional, intent(OUT)              :: STAT
+    
+        !Local-----------------------------------------------------------------
+        integer                                     :: STAT_              
+        integer                                     :: ready_   
+
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(HorizontalMapID, ready_)    
+        
+cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            call Read_Lock(mHORIZONTALMAP_, Me%InstanceID)
+            WaterFaces2DU => Me%WaterFaces%U
+
+            call Read_Lock(mHORIZONTALMAP_, Me%InstanceID)
+            WaterFaces2DV => Me%WaterFaces%V
+
+
+            STAT_ = SUCCESS_
+        else 
+            STAT_ = ready_
+        end if cd1
+
+
+        if (present(STAT)) &
+            STAT = STAT_
+
+        !----------------------------------------------------------------------
+
+    end subroutine GetWaterFaces2D
+
+
     !--------------------------------------------------------------------------
 
     subroutine UngetHorizontalMap2D(HorizontalMapID, Array, STAT)
@@ -1551,7 +1665,9 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                 deallocate(Me%ExteriorBoundaryFaces%V       )
                 deallocate(Me%BoundaryFaces%U               )
                 deallocate(Me%BoundaryFaces%V               )
-
+                deallocate(Me%WaterFaces%U                  )
+                deallocate(Me%WaterFaces%V                  )
+                
                 deallocate(Me%Imin                          )
                 deallocate(Me%Imax                          )
 
