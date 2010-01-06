@@ -8897,7 +8897,7 @@ cd2:    if (PropertySon%SubModel%InterpolTime) then
         integer                                 :: STAT_CALL 
         integer                                 :: ILBSon, IUBSon, JLBSon, JUBSon, KLBSon, KUBSon
         integer                                 :: KLBFather, KUBFather
-        integer, dimension(:,:,:),  pointer     :: Open3DSon
+        integer, dimension(:,:,:),  pointer     :: Open3DSon, Null_Mapping
 
         !----------------------------------------------------------------------
 
@@ -8951,12 +8951,14 @@ cd2:    if (PropertySon%SubModel%InterpolTime) then
             if (STAT_CALL /= SUCCESS_)stop 'ReadNextOrInitialField - WaterProperties - ERR40'
             
             if (PropertySon%SubModel%Extrapolate) then
+            
+                nullify(Null_Mapping)
                
-                call ExtraPol3DNearestCell (ILBson, IUBson, JLBson, JUBson, KLBson, KUBson, &
-                                            Open3DSon, PropertySon%SubModel%Aux_Field)
+                call ExtraPol3DNearestCell (ILBson, IUBson, JLBson, JUBson, KLBFather, KUBFather, &
+                                            Null_Mapping, PropertySon%SubModel%Aux_Field)
 
-                call ExtraPol3DNearestCell (ILBson, IUBson, JLBson, JUBson, KLBson, KUBson, &
-                                            Open3DSon, PropertySon%SubModel%Aux_ZCellCenter)
+                call ExtraPol3DNearestCell (ILBson, IUBson, JLBson, JUBson, KLBFather, KUBFather, &
+                                            Null_Mapping, PropertySon%SubModel%Aux_ZCellCenter)
 
             endif            
     
@@ -12671,8 +12673,11 @@ i4 :                if (Property%SubModel%ON) then
 
                 DT_RunPeriod = Actual - Me%BeginTime
 
-                if (ColdPeriod > (Me%EndTime - Me%BeginTime)) &
-                    stop "DataAssimilationProcesses; WaterProperties. ERR50" 
+                if (ColdPeriod > (Me%EndTime - Me%BeginTime) .and. Me%FirstIteration) then
+                    write(*,*) "DataAssimilationProcesses; WaterProperties. WRN50" 
+                    write(*,*) trim(Property%ID%Name)
+                    write(*,*) "Cold Assimilation period larger than simulation period"
+                endif     
 
 
                 if (ColdPeriod <= DT_RunPeriod) then

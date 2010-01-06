@@ -5369,7 +5369,7 @@ cd21:   if (Baroclinic) then
         call GetData(Me%ComputeOptions%BaroclinicMethod,                                & 
                      Me%ObjEnterData, iflag,                                            & 
                      Keyword    = 'BAROCLINIC_METHOD',                                  &
-                     Default    = Leibniz2,                                             &
+                     Default    = Leibniz,                                              &
                      SearchType = FromFile,                                             &
                      ClientModule ='ModuleHydrodynamic',                                &
                      STAT       = STAT_CALL)            
@@ -17545,6 +17545,7 @@ cd21:   if (InitialField .and. .not. Me%ComputeOptions%Continuous) then
         integer                                     :: FatherHorizontalGrid
 
         !Local-----------------------------------------------------------------
+        integer, dimension(:,:,:), pointer          :: Null_Mapping
         integer                                     :: ComputeZ, ComputeU, ComputeV
         integer                                     :: status
         integer                                     :: ILBSon, IUBSon, JLBSon, JUBSon, KLBSon, KUBSon
@@ -17564,6 +17565,8 @@ cd21:   if (InitialField .and. .not. Me%ComputeOptions%Continuous) then
         IUBson    = Me%WorkSize%IUB
         JLBson    = Me%WorkSize%JLB
         JUBson    = Me%WorkSize%JUB
+        
+        nullify(Null_Mapping)
 
         call GetComputeZUV(Me%ObjHorizontalGrid, ComputeZ, ComputeU, ComputeV, STAT = status)
         if (status /= SUCCESS_)                                                     &
@@ -17652,10 +17655,10 @@ cd2:        if (InitialField) then  !.and. .not. Me%ComputeOptions%Continuous) t
                 if (Me%SubModel%Extrapolate) then
                 
                     call ExtraPol3DNearestCell_8(ILBson, IUBson, JLBson, JUBson + 1,     &
-                                                KLBson, KUBson, Compute3DUSon, Me%SubModel%Aux_qX)
+                                                KLBFather, KUBFather, Null_Mapping, Me%SubModel%Aux_qX)
 
                     call ExtraPol3DNearestCell_8(ILBson, IUBson + 1 , JLBson, JUBson,    & 
-                                                KLBson, KUBson, Compute3DVSon, Me%SubModel%Aux_qY)
+                                                KLBFather, KUBFather, Null_Mapping, Me%SubModel%Aux_qY)
                                
                 endif
                                 
@@ -17704,16 +17707,16 @@ cd2:        if (InitialField) then  !.and. .not. Me%ComputeOptions%Continuous) t
             if (Me%SubModel%Extrapolate) then
             
                 call ExtraPol3DNearestCell(ILBson, IUBson, JLBson, JUBson + 1,     &
-                                            KLBson, KUBson, Compute3DUSon, Me%SubModel%Aux_U)
+                                            KLBFather, KUBFather, Null_Mapping, Me%SubModel%Aux_U)
 
                 call ExtraPol3DNearestCell(ILBson, IUBson + 1 , JLBson, JUBson,    & 
-                                            KLBson, KUBson, Compute3DVSon, Me%SubModel%Aux_V)
+                                            KLBFather, KUBFather, Null_Mapping, Me%SubModel%Aux_V)
 
                 call ExtraPol3DNearestCell(ILBson, IUBson, JLBson, JUBson + 1,     &
-                                            KLBson, KUBson, Compute3DUSon, Me%SubModel%Aux_DUZ)
+                                            KLBFather, KUBFather, Null_Mapping, Me%SubModel%Aux_DUZ)
 
                 call ExtraPol3DNearestCell(ILBson, IUBson + 1 , JLBson, JUBson,    & 
-                                            KLBson, KUBson, Compute3DVSon, Me%SubModel%Aux_DVZ)
+                                            KLBFather, KUBFather, Null_Mapping, Me%SubModel%Aux_DVZ)
                            
             endif
                                           
@@ -29672,8 +29675,10 @@ cd2:    if      (Me%Direction%XY == DirectionX_) then
 
         DT_RunPeriod = CurrentTime - BeginTime
 
-        if (ColdPeriod > (EndTime - BeginTime))                                          &
-            call SetError (FATAL_, INTERNAL_, "ModifyRelaxAceleration - Hydrodynamic - ERR30")
+        if (ColdPeriod > (EndTime - BeginTime) .and. Me%FirstIteration) then 
+            write(*,*) "ModifyRelaxAceleration - Hydrodynamic - WRN30"
+            write(*,*) "Cold Relaxation Aceleration period larger than simulation period"
+        endif               
 
 cd4:    if (ColdPeriod <= DT_RunPeriod) then
             CoefCold = 1

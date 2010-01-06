@@ -45,10 +45,10 @@ Module ModuleAssimilation
     use ModuleGridData,         only: GetGridData, UngetGridData        
     use ModuleHorizontalGrid,   only: WriteHorizontalGrid, UnGetHorizontalGrid,             &
                                       GetGridCellArea, GetXYCellZ
-    use ModuleHorizontalMap,    only: GetWaterPoints2D, UngetHorizontalMap, GetComputeFaces2D 
+    use ModuleHorizontalMap,    only: GetWaterPoints2D, UngetHorizontalMap, GetWaterFaces2D 
     use ModuleGeometry,         only: GetGeometrySize, GetGeometryDistances, UngetGeometry, &
                                       GetGeometryKFloor
-    use ModuleMap,              only: GetWaterPoints3D, GetOpenPoints3D, GetComputeFaces3D, UngetMap
+    use ModuleMap,              only: GetWaterPoints3D, GetOpenPoints3D, GetWaterFaces3D, UngetMap
     use ModuleFillMatrix,       only: ConstructFillMatrix, GetDefaultValue, KillFillMatrix, &
                                       ModifyFillMatrix
     use ModuleFunctions,        only: ConstructPropertyID, Density, Sigma
@@ -880,8 +880,8 @@ cd2 :           if (BlockFound) then
 
         !External--------------------------------------------------------------
         integer                                 :: STAT_CALL, i, j, k
-        integer, dimension(:,:  ), pointer      :: WaterPoints2D, ComputeFaces2D_U, ComputeFaces2D_V, PointsToFill2D
-        integer, dimension(:,:,:), pointer      :: WaterPoints3D, ComputeFaces3D_U, ComputeFaces3D_V, PointsToFill3D 
+        integer, dimension(:,:  ), pointer      :: WaterPoints2D, WaterFaces2D_U, WaterFaces2D_V, PointsToFill2D
+        integer, dimension(:,:,:), pointer      :: WaterPoints3D, WaterFaces3D_U, WaterFaces3D_V, PointsToFill3D 
         real,    dimension(:,:  ), pointer      :: Matrix2D
         real,    dimension(:,:,:), pointer      :: Matrix3D
 
@@ -905,16 +905,16 @@ cd2 :           if (BlockFound) then
         call GetWaterPoints2D(Me%ObjHorizontalMap, WaterPoints2D, STAT = STAT_CALL) 
         if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField - ModuleAssimilation - ERR10'
 
-        call GetComputeFaces2D(Me%ObjHorizontalMap,                                               &
-                               ComputeFaces2DU = ComputeFaces2D_U,      &
-                               ComputeFaces2DV = ComputeFaces2D_V,      &
+        call GetWaterFaces2D(Me%ObjHorizontalMap,                                               &
+                               WaterFaces2DU = WaterFaces2D_U,      &
+                               WaterFaces2DV = WaterFaces2D_V,      &
                                STAT            = STAT_CALL)
 
         if (STAT_CALL /= SUCCESS_) stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR20'
 
-        call GetComputeFaces3D(Me%ObjMap,                                               &
-                               ComputeFacesU3D = ComputeFaces3D_U,                      &
-                               ComputeFacesV3D = ComputeFaces3D_V,                      &
+        call GetWaterFaces3D(Me%ObjMap,                                               &
+                               WaterFacesU3D = WaterFaces3D_U,                      &
+                               WaterFacesV3D = WaterFaces3D_V,                      &
                                STAT            = STAT_CALL)
 
         if (STAT_CALL /= SUCCESS_) stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR30'
@@ -980,12 +980,12 @@ cd2 :           if (BlockFound) then
 
                     else if (NewProperty%Field%TypeZUV == TypeU_) then
 
-                        PointsToFill2D => ComputeFaces2D_U
+                        PointsToFill2D => WaterFaces2D_U
                         Matrix2D       => NewProperty%Field%R2D
 
                     else if (NewProperty%Field%TypeZUV == TypeV_) then
 
-                        PointsToFill2D => ComputeFaces2D_V
+                        PointsToFill2D => WaterFaces2D_V
                         Matrix2D       => NewProperty%Field%R2D
 
                     else
@@ -1090,12 +1090,12 @@ cd2 :           if (BlockFound) then
 
                     else if (NewProperty%Field%TypeZUV == TypeU_) then
 
-                        PointsToFill3D => ComputeFaces3D_U
+                        PointsToFill3D => WaterFaces3D_U
                         Matrix3D       => NewProperty%Field%R3D
 
                     else if (NewProperty%Field%TypeZUV == TypeV_) then
 
-                        PointsToFill3D => ComputeFaces3D_V
+                        PointsToFill3D => WaterFaces3D_V
                         Matrix3D       => NewProperty%Field%R3D
 
                     else
@@ -1258,17 +1258,17 @@ cd2 :           if (BlockFound) then
         call UngetHorizontalMap(Me%ObjHorizontalMap, WaterPoints2D, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField - ModuleAssimilation - ERR240'
 
-        call UngetHorizontalMap(Me%ObjHorizontalMap, ComputeFaces2D_U, STAT = STAT_CALL)
+        call UngetHorizontalMap(Me%ObjHorizontalMap, WaterFaces2D_U, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField - ModuleAssimilation - ERR250'
 
-        call UngetHorizontalMap(Me%ObjHorizontalMap, ComputeFaces2D_V, STAT = STAT_CALL)
+        call UngetHorizontalMap(Me%ObjHorizontalMap, WaterFaces2D_V, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField - ModuleAssimilation - ERR260'
 
         
-        call UnGetMap(Me%ObjMap, ComputeFaces3D_U, STAT = STAT_CALL)
+        call UnGetMap(Me%ObjMap, WaterFaces3D_U, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR270'
 
-        call UnGetMap(Me%ObjMap, ComputeFaces3D_V, STAT = STAT_CALL)
+        call UnGetMap(Me%ObjMap, WaterFaces3D_V, STAT = STAT_CALL)
 
         if (STAT_CALL /= SUCCESS_) stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR280'
 
@@ -3206,8 +3206,8 @@ do2 :   do j=JLB, JUB
         
         !Local-----------------------------------------------------------------
         integer                                 :: STAT_CALL, i, j, k
-        integer, dimension(:,:  ), pointer      :: WaterPoints2D, ComputeFaces2D_U, ComputeFaces2D_V, PointsToFill2D
-        integer, dimension(:,:,:), pointer      :: WaterPoints3D, ComputeFaces3D_U, ComputeFaces3D_V, PointsToFill3D 
+        integer, dimension(:,:  ), pointer      :: WaterPoints2D, WaterFaces2D_U, WaterFaces2D_V, PointsToFill2D
+        integer, dimension(:,:,:), pointer      :: WaterPoints3D, WaterFaces3D_U, WaterFaces3D_V, PointsToFill3D 
         real,    dimension(:,:  ), pointer      :: Matrix2D
         real,    dimension(:,:,:), pointer      :: Matrix3D
          
@@ -3222,16 +3222,16 @@ do2 :   do j=JLB, JUB
         call GetWaterPoints3D(Me%ObjMap, WaterPoints3D, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'AssimilationFromFile - ModuleAssimilation - ERR01'
 
-        call GetComputeFaces2D(Me%ObjHorizontalMap,                                               &
-                               ComputeFaces2DU = ComputeFaces2D_U,      &
-                               ComputeFaces2DV = ComputeFaces2D_V,      &
+        call GetWaterFaces2D(Me%ObjHorizontalMap,                                               &
+                               WaterFaces2DU = WaterFaces2D_U,      &
+                               WaterFaces2DV = WaterFaces2D_V,      &
                                STAT            = STAT_CALL)
 
         if (STAT_CALL /= SUCCESS_) stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR90'
 
-        call GetComputeFaces3D(Me%ObjMap,                                               &
-                               ComputeFacesU3D = ComputeFaces3D_U,                      &
-                               ComputeFacesV3D = ComputeFaces3D_V,                      &
+        call GetWaterFaces3D(Me%ObjMap,                                               &
+                               WaterFacesU3D = WaterFaces3D_U,                      &
+                               WaterFacesV3D = WaterFaces3D_V,                      &
                                STAT            = STAT_CALL)
 
 
@@ -3262,12 +3262,12 @@ cd1:    if (Me%ActualTime > PropertyX%LastActualization) then
 
                     else if (PropertyX%Field%TypeZUV == TypeU_) then
 
-                        PointsToFill2D => ComputeFaces2D_U
+                        PointsToFill2D => WaterFaces2D_U
                         Matrix2D       => PropertyX%Field%R2D
 
                     else if (PropertyX%Field%TypeZUV == TypeV_) then
 
-                        PointsToFill2D => ComputeFaces2D_V
+                        PointsToFill2D => WaterFaces2D_V
                         Matrix2D       => PropertyX%Field%R2D
 
                     else
@@ -3349,12 +3349,12 @@ cd1:    if (Me%ActualTime > PropertyX%LastActualization) then
 
                     else if (PropertyX%Field%TypeZUV == TypeU_) then
 
-                        PointsToFill3D => ComputeFaces3D_U
+                        PointsToFill3D => WaterFaces3D_U
                         Matrix3D       => PropertyX%Field%R3D
 
                     else if (PropertyX%Field%TypeZUV == TypeV_) then
 
-                        PointsToFill3D => ComputeFaces3D_V
+                        PointsToFill3D => WaterFaces3D_V
                         Matrix3D       => PropertyX%Field%R3D
 
                     else
@@ -3437,19 +3437,19 @@ cd1:    if (Me%ActualTime > PropertyX%LastActualization) then
         call UngetHorizontalMap(Me%ObjHorizontalMap, WaterPoints2D, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'AssimilationFromFile - ModuleAssimilation - ERR01'
 
-        call UngetHorizontalMap(Me%ObjHorizontalMap, ComputeFaces2D_U, STAT = STAT_CALL)
+        call UngetHorizontalMap(Me%ObjHorizontalMap, WaterFaces2D_U, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'AssimilationFromFile - ModuleAssimilation - ERR01'
 
-        call UngetHorizontalMap(Me%ObjHorizontalMap, ComputeFaces2D_V, STAT = STAT_CALL)
+        call UngetHorizontalMap(Me%ObjHorizontalMap, WaterFaces2D_V, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'AssimilationFromFile - ModuleAssimilation - ERR01'
 
         call UngetMap(Me%ObjMap, WaterPoints3D, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'AssimilationFromFile - ModuleAssimilation - ERR01'
 
-        call UngetMap(Me%ObjMap, ComputeFaces3D_U, STAT = STAT_CALL)
+        call UngetMap(Me%ObjMap, WaterFaces3D_U, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'AssimilationFromFile - ModuleAssimilation - ERR01'
 
-        call UngetMap(Me%ObjMap, ComputeFaces3D_V, STAT = STAT_CALL)
+        call UngetMap(Me%ObjMap, WaterFaces3D_V, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'AssimilationFromFile - ModuleAssimilation - ERR01'
 
     end subroutine AssimilationFromFile
