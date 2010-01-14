@@ -11659,9 +11659,12 @@ CurrOr: do while (associated(CurrentOrigin))
         real                                        :: AtmPressure
         real                                        :: WaveHeight, WavePeriod
         real                                        :: Factor
-        real                                        :: VWaterContent
+        real                                        :: VWaterContent, MWaterContent
         real                                        :: MDispersed
         real                                        :: OilDensity
+        real                                        :: OilViscosity
+        real                                        :: FMEvaporated
+        real                                        :: FMDispersed     
         real                                        :: AreaTotalOUT
         real                                        :: VolumeTotalOUT, VolOld
         integer                                     :: STAT_CALL
@@ -11725,11 +11728,15 @@ CurrOr: do while (associated(CurrentOrigin))
                                           WaterDensity          = WaterDensity,                   &
                                           SPM                   = SPM,                            &
                                           VWaterContent         = VWaterContent,                  &
+                                          MWaterContent         = MWaterContent,                  &
                                           MDispersed            = MDispersed,                     &
                                           OilDensity            = OilDensity,                     &
+                                          OilViscosity          = OilViscosity,                   &
+                                          FMEvaporated          = FMEvaporated,                   &
+                                          FMDispersed           = FMDispersed,                    &
                                           VolTotOilBeached      = CurrentOrigin%VolTotOilBeached, &
                                           VolTotBeached         = CurrentOrigin%VolTotBeached,    &
-                                          VolumeTotalIN         = CurrentOrigin%VolumeTotal,      &   
+                                          VolumeTotalIN         = CurrentOrigin%VolumeOilTotal,   &   
                                           VolumeTotalOUT        = VolumeTotalOUT,                 &     
                                           AreaTotal             = CurrentOrigin%AreaTotal,        & 
                                           AreaTotalOUT          = AreaTotalOUT,                   & 
