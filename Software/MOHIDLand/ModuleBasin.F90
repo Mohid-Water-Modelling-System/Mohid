@@ -60,30 +60,43 @@ Module ModuleBasin
                                      GetBasinPoints, GetRiverPoints, UngetBasin
     use ModuleAtmosphere,     only : StartAtmosphere, ModifyAtmosphere,                  &
                                      GetAtmosphereProperty, GetAtmosphereDTPrediction,   &
+                                     GetAtmospherePropertiesIDByIdx,                     &
+                                     GetAtmospherenProperties,                           &
                                      UnGetAtmosphere, KillAtmosphere
     use ModuleRunOff,         only : ConstructRunOff, ModifyRunOff, GetOverLandFlow,     &
                                      GetFlowToChannels, GetNextRunOffDT,                 &
-                                     GetFlowAtBoundary, UnGetRunOff, KillRunOff                                    
+                                     GetFlowAtBoundary, UnGetRunOff, KillRunOff
+    use ModuleRunoffProperties,                                                          &
+                              only : ConstructRunoffProperties,                          &
+                                     ModifyRunoffProperties,                             &
+                                     KillRunoffProperties, GetRPConcentration,           &
+                                     GetRPnProperties,                                   &
+                                     GetRPPropertiesIDByIdx, SetDNConcRP,                &
+                                     UngetRunoffProperties, SetBasinConcRP                                                                         
     use ModuleDrainageNetwork,only : ConstructDrainageNetwork, FillOutPutMatrix,         &
                                      ModifyDrainageNetwork,                              &
-                                     GetHasProperties, GetnProperties,                   &
+                                     GetHasProperties, GetDNnProperties,                 &
                                      GetHasToxicity,GetNeedsRadiation,                   &
                                      GetNeedsAtmosphere, SetAtmosphereDrainageNet,       &
-                                     GetPropertiesIDByIdx, GetNextDrainageNetDT,         &
+                                     GetDNPropertiesIDByIdx, GetNextDrainageNetDT,       &
                                      GetVolumes, GetPropHasBottomFluxes,                 &
-                                     GetChannelsNodeLength, UnGetDrainageNetwork,        &
+                                     GetChannelsNodeLength,GetChannelsID,GetDNConcentration,&
+                                     SetPMPConcDN,SetRPConcDN, UnGetDrainageNetwork,     &
                                      KillDrainageNetwork
     use ModulePorousMedia,    only : ConstructPorousMedia, ModifyPorousMedia,            &
                                      KillPorousMedia, GetGWFlowToChannels,               &
                                      GetInfiltration, GetEfectiveEVTP,                   &
                                      GetTotalStoredVolume, GetEvaporation,               &
-                                     GetNextPorousMediaDT, UngetPorousMedia
+                                     GetNextPorousMediaDT, UngetPorousMedia, GetGWLayer
     use ModulePorousMediaProperties,                                                     &
                               only : ConstructPorousMediaProperties,                     &
                                      ModifyPorousMediaProperties,                        &
-                                     KillPorousMediaProperties, GetConcentration,        &
+                                     KillPorousMediaProperties, GetPMPConcentration,     &
                                      SetVegetationPMProperties, GetPMPCoupled,           &
-                                     SetWindVelocity, UngetPorousMediaProperties
+                                     SetWindVelocity, GetPMPnProperties,                 &
+                                     GetPMPPropertiesIDByIdx, SetDNConcPMP,              &
+                                     UngetPorousMediaProperties,                         &
+                                     SetInfColConcPMP
     use ModuleVegetation,     only : ConstructVegetation, ModifyVegetation,              &
                                      KillVegetation, GetLeafAreaIndex,                   &
                                      GetSpecificLeafStorage, GetEVTPCropCoefficient,     &
@@ -92,7 +105,7 @@ Module ModuleBasin
                                      GetVegetationDT, GetRootDepth, GetNutrientFraction, &
                                      UnGetVegetation, UnGetVegetationSoilFluxes
     use ModuleStopWatch      ,only : StartWatch, StopWatch
-
+    use ModuleGeometry,       only : GetGeometrySize
     implicit none
 
     private 
@@ -165,6 +178,7 @@ Module ModuleBasin
         logical                                     :: Atmosphere
         logical                                     :: Evapotranspiration
         logical                                     :: RunOff
+        logical                                     :: RunOffProperties
         logical                                     :: DrainageNetwork
         logical                                     :: PorousMedia
         logical                                     :: PorousMediaProperties
@@ -179,7 +193,7 @@ Module ModuleBasin
         integer, dimension(:,:), pointer            :: OpenPoints2D
         integer, dimension(:,:), pointer            :: BoundaryPoints2D
         real   , dimension(:,:), pointer            :: GridCellArea
-        real   , dimension(:,:), pointer            :: Topography
+        real(8), dimension(:,:), pointer            :: Topography
         real   , dimension(:,:), pointer            :: LeafAreaIndex 
         real   , dimension(:,:), pointer            :: SpecificLeafStorage
         real   , dimension(:,:), pointer            :: CropCoefficient
@@ -277,6 +291,7 @@ Module ModuleBasin
         logical                                     :: ConstructTranspiration
         real(8), dimension(:,:), pointer            :: WaterLevel             => null()
         real(8), dimension(:,:), pointer            :: WaterColumn            => null()
+        real(8), dimension(:,:), pointer            :: WaterColumnOld         => null()
         real(8), dimension(:,:), pointer            :: WaterColumnRemoved     => null()
         real(8), dimension(:,:), pointer            :: CanopyStorageCapacity  => null()
         real(8), dimension(:,:), pointer            :: CanopyStorage          => null()
@@ -324,8 +339,10 @@ Module ModuleBasin
         integer                                     :: ObjHorizontalMap         = 0
         integer                                     :: ObjGridData              = 0
         integer                                     :: ObjBasinGeometry         = 0
+        integer                                     :: ObjGeometry              = 0  !only for getting KUB. given by construct porous media
         integer                                     :: ObjAtmosphere            = 0
         integer                                     :: ObjRunOff                = 0
+        integer                                     :: ObjRunOffProperties      = 0
         integer                                     :: ObjDrainageNetwork       = 0
         integer                                     :: ObjPorousMedia           = 0
         integer                                     :: ObjVegetation            = 0
@@ -334,6 +351,9 @@ Module ModuleBasin
         integer                                     :: ObjTimeSerieBasin        = 0
         integer                                     :: ObjPorousMediaProperties = 0
         type (T_Basin), pointer                     :: Next
+
+        !Used by PorousMediaProperties        
+        real(8), dimension(:,:), pointer            :: WaterColumnEvaporated    => null() !in meters (m)
     end type  T_Basin
 
     !Global Module Variables
@@ -829,6 +849,18 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      ClientModule = 'ModuleBasin',                                       &
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR09'
+        
+        if (Me%Coupled%RunOff) then
+            !Verifies if the user wants to simulate OverLand RunOff propertie transport
+            call GetData(Me%Coupled%RunOffProperties,                                        & 
+                         Me%ObjEnterData, iflag,                                             &
+                         SearchType   = FromFile,                                            &
+                         keyword      = 'RUN_OFF_PROPERTIES',                                &
+                         default      = OFF,                                                 &
+                         ClientModule = 'ModuleBasin',                                       &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR09.5'
+        endif
 
         !A Drainage Network is coupled?
         call GetData(Me%Coupled%DrainageNetwork,                                         &
@@ -985,9 +1017,32 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             endif             
             
             Me%ConstructTranspiration   = .false.
-            Me%ConstructEvaporation     = .true.
-
+            if (Me%Coupled%Evapotranspiration) then
+                Me%ConstructEvaporation     = .true.
+            else
+                Me%ConstructEvaporation     = .false.
+            endif
         endif
+
+        if (Me%Coupled%PorousMediaProperties) then
+            if(.not. Me%Coupled%RunoffProperties) then
+                write(*,*)'If using porous media properties also need runoff properties active '
+                write(*,*)'Check basin data file in RUN_OFF_PROPERTIES'
+                stop 'VerifyOptions - ModuleBasin - ERR06'  
+            endif
+        endif
+        
+        if (Me%Coupled%PorousMediaProperties .and. .not. Me%Coupled%PorousMedia) then
+            write(*,*)'If using porous media properties also need porous media active '
+            write(*,*)'Check basin data file in POROUS_MEDIA'
+            stop 'VerifyOptions - ModuleBasin - ERR07'  
+        endif            
+
+        if (Me%Coupled%RunoffProperties .and. .not. Me%Coupled%Runoff) then
+            write(*,*)'If using runoff properties also need runoff active '
+            write(*,*)'Check basin data file in RUN_OFF'
+            stop 'VerifyOptions - ModuleBasin - ERR08'  
+        endif            
 
     end subroutine VerifyOptions
 
@@ -1124,6 +1179,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             allocate(Me%OutPut%OutputChannels(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
         endif
 
+        Me%OutPut%NextOutPut = 1  
+        
         call GetHDF5FileAccess  (HDF5_CREATE = HDF5_CREATE)
 
         !Opens HDF File
@@ -1352,6 +1409,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         allocate(Me%WaterLevel              (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB)) 
         allocate(Me%WaterColumn             (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB)) 
+        allocate(Me%WaterColumnOld          (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB)) 
         allocate(Me%WaterColumnRemoved      (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB)) 
         if (Me%Coupled%Vegetation) then
             allocate(Me%CanopyStorageCapacity   (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB)) 
@@ -1378,7 +1436,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         allocate(Me%AccRainHour             (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
         allocate(Me%RainStartTime           (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
         allocate(Me%RainDuration            (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
-
+        allocate(Me%WaterColumnEvaporated   (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB)) 
+        
+       
         if (Me%Coupled%Snow) allocate(Me%SnowPack (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB)) 
 
         allocate(Me%TimeSeriesBuffer    (21))
@@ -1386,6 +1446,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         Me%WaterLevel               = FillValueReal
         Me%WaterColumn              = FillValueReal
+        Me%WaterColumnOld           = FillValueReal
+        
         if (Me%Coupled%Vegetation) then
             Me%CanopyStorageCapacity    = FillValueReal
             Me%CanopyStorage            = 0.0
@@ -1410,6 +1472,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         Me%AccEVPCanopy             = 0.0
         Me%PotentialInfCol          = 0.0
         Me%FlowProduction           = null_real
+        Me%WaterColumnEvaporated    = 0.0
+
         
         if (Me%Coupled%Snow) Me%SnowPack = FillValueReal
         
@@ -1456,7 +1520,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         !Local-----------------------------------------------------------------
         integer                                     :: STAT_CALL
         logical                                     :: VariableDT
-        integer                                     :: GeometryID, MapID
+!        integer                                     :: GeometryID 
+        integer                                     :: MapID
         !Begin-----------------------------------------------------------------
 
         !Constructs Atmosphere
@@ -1477,29 +1542,45 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             call GetVariableDT(Me%ObjTime, VariableDT, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructCoupledModules - ModuleBasin - ERR03'
 
-            call ConstructDrainageNetwork (ModelName         = Me%ModelName,             &
-                                           DrainageNetworkID = Me%ObjDrainageNetwork,    &
-                                           TimeID            = Me%ObjTime,               &
-                                           Size              = Me%Size,                  &                                           
-                                           CheckMass         = .true.,                   &
+            call ConstructDrainageNetwork (ModelName         = Me%ModelName,                     &
+                                           DrainageNetworkID = Me%ObjDrainageNetwork,            &
+                                           TimeID            = Me%ObjTime,                       &
+                                           Size              = Me%Size,                          &                                           
+                                           CheckMass         = .true.,                           &
+                                           CoupledPMP        = Me%Coupled%PorousMediaProperties, &
+                                           CoupledRP         = Me%Coupled%RunoffProperties,      &
                                            STAT              = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructCoupledModules - ModuleBasin - ERR04'
         endif
 
 
-        !Constructs RunOff
-        if (Me%Coupled%RunOff) then
-            call ConstructRunOff        (ModelName          = Me%ModelName,              &                 
-                                         RunOffID           = Me%ObjRunOff,              &
-                                         ComputeTimeID      = Me%ObjTime,                &
-                                         HorizontalGridID   = Me%ObjHorizontalGrid,      &
-                                         HorizontalMapID    = Me%ObjHorizontalMap,       &
-                                         GridDataID         = Me%ObjGridData,            &
-                                         BasinGeometryID    = Me%ObjBasinGeometry,       &
-                                         DrainageNetworkID  = Me%ObjDrainageNetwork,     &
-                                         STAT               = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructCoupledModules - ModuleBasin - ERR05'
-        endif
+!        !Constructs RunOff
+!        if (Me%Coupled%RunOff) then
+!            call ConstructRunOff        (ModelName          = Me%ModelName,              &                 
+!                                         RunOffID           = Me%ObjRunOff,              &
+!                                         ComputeTimeID      = Me%ObjTime,                &
+!                                         HorizontalGridID   = Me%ObjHorizontalGrid,      &
+!                                         HorizontalMapID    = Me%ObjHorizontalMap,       &
+!                                         GridDataID         = Me%ObjGridData,            &
+!                                         BasinGeometryID    = Me%ObjBasinGeometry,       &
+!                                         DrainageNetworkID  = Me%ObjDrainageNetwork,     &
+!                                         STAT               = STAT_CALL)
+!            if (STAT_CALL /= SUCCESS_) stop 'ConstructCoupledModules - ModuleBasin - ERR05'
+!
+!            !Constructs RunoffProperties 
+!            if (Me%Coupled%RunoffProperties) then
+!                call ConstructRunoffProperties        (ObjRunoffPropertiesID      = Me%ObjRunoffProperties,       &
+!                                                       ComputeTimeID              = Me%ObjTime,                   &
+!                                                       HorizontalGridID           = Me%ObjHorizontalGrid,         &
+!                                                       HorizontalMapID            = Me%ObjHorizontalMap,          &
+!                                                       BasinGeometryID            = Me%ObjBasinGeometry,          &
+!                                                       RunoffID                   = Me%ObjRunoff,                 &
+!                                                       GeometryID                 = Me%ObjGeometryID,             &
+!                                                       STAT                       = STAT_CALL)
+!                if (STAT_CALL /= SUCCESS_) stop 'ConstructCoupledModules - ModuleBasin - ERR07'
+!            endif
+!            
+!        endif
 
         
         !Constructs PorousMedia
@@ -1515,7 +1596,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                          CheckGlobalMass        = .true.,                   &
                                          ConstructEvaporation   = Me%ConstructEvaporation,  &
                                          ConstructTranspiration = Me%ConstructTranspiration,&
-                                         GeometryID             = GeometryID,               &
+                                         GeometryID             = Me%ObjGeometry,           &
                                          MapID                  = MapID,                    &
                                          STAT                   = STAT_CALL)
            if (STAT_CALL /= SUCCESS_) stop 'ConstructCoupledModules - ModuleBasin - ERR06'
@@ -1526,14 +1607,47 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 call ConstructPorousMediaProperties   (ObjPorousMediaPropertiesID = Me%ObjPorousMediaProperties,  &
                                                        ComputeTimeID              = Me%ObjTime,                   &
                                                        HorizontalGridID           = Me%ObjHorizontalGrid,         &
+                                                       HorizontalMapID            = Me%ObjHorizontalMap,          &
                                                        BasinGeometryID            = Me%ObjBasinGeometry,          &
                                                        PorousMediaID              = Me%ObjPorousMedia,            &
-                                                       GeometryID                 = GeometryID,                   &
+                                                       GeometryID                 = Me%ObjGeometry,               &
                                                        MapID                      = MapID,                        &
+                                                       CoupledDN                  = Me%Coupled%DrainageNetwork,   &
                                                        STAT                       = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ConstructCoupledModules - ModuleBasin - ERR07'
             endif
         endif
+
+        !Constructs RunOff
+        if (Me%Coupled%RunOff) then
+            call ConstructRunOff        (ModelName          = Me%ModelName,              &                 
+                                         RunOffID           = Me%ObjRunOff,              &
+                                         ComputeTimeID      = Me%ObjTime,                &
+                                         HorizontalGridID   = Me%ObjHorizontalGrid,      &
+                                         HorizontalMapID    = Me%ObjHorizontalMap,       &
+                                         GridDataID         = Me%ObjGridData,            &
+                                         BasinGeometryID    = Me%ObjBasinGeometry,       &
+                                         DrainageNetworkID  = Me%ObjDrainageNetwork,     &
+                                         STAT               = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructCoupledModules - ModuleBasin - ERR05'
+
+            !Constructs RunoffProperties 
+            if (Me%Coupled%RunoffProperties) then
+                call ConstructRunoffProperties        (ObjRunoffPropertiesID      = Me%ObjRunoffProperties,       &
+                                                       ComputeTimeID              = Me%ObjTime,                   &
+                                                       HorizontalGridID           = Me%ObjHorizontalGrid,         &
+                                                       HorizontalMapID            = Me%ObjHorizontalMap,          &
+                                                       BasinGeometryID            = Me%ObjBasinGeometry,          &
+                                                       RunoffID                   = Me%ObjRunoff,                 &
+ !                                                      GeometryID                 = Me%ObjGeometry,               &
+ !                                                      CoupledPMP                 = Me%Coupled%PorousMediaProperties, &
+                                                       CoupledDN                  = Me%Coupled%DrainageNetwork,   &
+                                                       STAT                       = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructCoupledModules - ModuleBasin - ERR07'
+            endif
+            
+        endif
+
         
         !Constructs Vegetation
         if (Me%Coupled%Vegetation) then
@@ -1545,7 +1659,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                          AtmosphereID       = Me%ObjAtmosphere,              &
                                          PorousMediaID      = Me%ObjPorousMedia,             &
                                          MappingPoints      = Me%ExtVar%BasinPoints,         &
-                                         GeometryID         = GeometryID,                    &
+                                         GeometryID         = Me%ObjGeometry,                &
+                                         BasinGeometryID    = Me%ObjBasinGeometry,           &
                                          CoupledAtmosphere  = Me%Coupled%Atmosphere,         &
                                          STAT               = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructCoupledModules - ModuleBasin - ERR08'
@@ -1817,6 +1932,7 @@ cd2 :           if (BlockFound) then
         character (Len = StringLength)              :: WarningString
         character (Len = StringLength)              :: LockToWhichModules
         character (Len = StringLength)              :: UnLockToWhichModules
+        real, dimension(:,:), pointer               :: WCEvapMass, InfilExfilMass, RainMass
 
         !----------------------------------------------------------------------
 
@@ -1827,7 +1943,7 @@ cd2 :           if (BlockFound) then
         call Ready(ObjBasinID, ready_)
 
         if (ready_ .EQ. IDLE_ERR_) then
-
+            
             call GetComputeCurrentTime  (Me%ObjTime, Me%CurrentTime, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ModifyBasin - ModuleBasin - ERR01'
 
@@ -1852,6 +1968,10 @@ cd2 :           if (BlockFound) then
                 WarningString = 'AtmosphereProcesses'
                 call ActualizeWaterColumn (WarningString) 
                 
+                if (Me%Coupled%RunoffProperties) then
+                    call ActualizeWaterColumnConcentration(WarningString) 
+                endif
+                
             endif
 
             !Updates Vegetation 
@@ -1874,7 +1994,8 @@ cd2 :           if (BlockFound) then
                 if (Me%Coupled%PorousMediaProperties) then
 
                     call PorousMediaPropertiesProcesses     
-                 
+                    call ActualizeWaterColumnConcentration(WarningString) 
+                    
                 endif           
                
             else
@@ -1892,6 +2013,10 @@ cd2 :           if (BlockFound) then
                 !Actualizes the WaterColumn
                 WarningString = 'PorousMediaProcesses 2'
                 call ActualizeWaterColumn (WarningString) 
+
+                if (Me%Coupled%RunoffProperties) then
+                    call ActualizeWaterColumnConcentration(WarningString) 
+                endif
                 
             endif
             
@@ -1903,6 +2028,10 @@ cd2 :           if (BlockFound) then
                 !Actualizes the WaterColumn
                 WarningString = 'SimpleInfiltration'
                 call ActualizeWaterColumn (WarningString) 
+                
+                if (Me%Coupled%RunoffProperties) then
+                    call ActualizeWaterColumnConcentration(WarningString) 
+                endif                
             endif
             
             !Overland Flow
@@ -1912,6 +2041,12 @@ cd2 :           if (BlockFound) then
                 !Actualizes the WaterColumn
                 WarningString = 'OverLandProcesses'
                 call ActualizeWaterColumn (WarningString) 
+
+                if (Me%Coupled%RunoffProperties) then
+
+                    call RunoffPropertiesProcesses     
+
+                endif
 
             endif
 
@@ -2253,7 +2388,7 @@ cd2 :           if (BlockFound) then
         real,    parameter                          :: LatentHeatOfVaporization = 2.5e6         ![J/kg]
         real,    parameter                          :: ReferenceDensity         = 1000.         ![kg/m3]
         real                                        :: LatentHeat_
-        real                                        :: EvaporationRate, dH
+        real(8)                                     :: EvaporationRate, dH
         type(T_BasinProperty),pointer               :: RefEvapotrans
 
 
@@ -2334,6 +2469,12 @@ cd2 :           if (BlockFound) then
                     if (Me%VerifyGlobalMass) then
                         Me%MB%EvapFromGround = Me%MB%EvapFromGround + dH * Me%ExtVar%GridCellArea(i, j)
                     endif
+                    
+                    Me%WaterColumnEvaporated(i, j) = dH
+                        
+                else
+                    
+                    Me%WaterColumnEvaporated(i, j) = 0.0
                         
                 endif
                 
@@ -2506,10 +2647,10 @@ etr_fao:        if (.not. RefEvapotrans%ID%SolutionFromFile) then
             
             if (Me%Coupled%PorousMediaProperties) then
             
-                call GetConcentration(PorousMediaPropertiesID = Me%ObjPorousMediaProperties,  &
-                                      ConcentrationX          = Nitrate,                      &
-                                      PropertyXIDNumber       = Nitrate_,                     &
-                                      STAT                    = STAT_CALL)        
+                call GetPMPConcentration(PorousMediaPropertiesID = Me%ObjPorousMediaProperties,  &
+                                         ConcentrationX          = Nitrate,                      &
+                                         PropertyXIDNumber       = Nitrate_,                     &
+                                         STAT                    = STAT_CALL)        
                 if (STAT_CALL /= SUCCESS_) then
                     write (*,*) 'Trying to model nitrogen in vegetation but nitrate property not'
                     write (*,*) 'defined in porousmediaproperties. Check options'                
@@ -2536,10 +2677,10 @@ etr_fao:        if (.not. RefEvapotrans%ID%SolutionFromFile) then
 
             if (Me%Coupled%PorousMediaProperties) then
 
-                call GetConcentration(PorousMediaPropertiesID = Me%ObjPorousMediaProperties,  &
-                                      ConcentrationX          = InorganicPhosphorus,          &
-                                      PropertyXIDNumber       = Inorganic_Phosphorus_,        &
-                                      STAT                    = STAT_CALL)        
+                call GetPMPConcentration(PorousMediaPropertiesID = Me%ObjPorousMediaProperties,  &
+                                         ConcentrationX          = InorganicPhosphorus,          &
+                                         PropertyXIDNumber       = Inorganic_Phosphorus_,        &
+                                         STAT                    = STAT_CALL)        
                 if (STAT_CALL /= SUCCESS_) then
                     write (*,*) 'Trying to model phosphorus in vegetation but inorganic phosphorus '
                     write (*,*) 'property not defined in porousmediaproperties. Check options'                
@@ -2758,9 +2899,16 @@ etr_fao:        if (.not. RefEvapotrans%ID%SolutionFromFile) then
         real, dimension(:, :), pointer              :: CloudCover
         real, dimension(:, :), pointer              :: RelativeHumidity
         real, dimension(:, :), pointer              :: WindSpeed
-        integer                                     :: ILB, IUB, JLB, JUB, i, j
+        integer                                     :: ILB, IUB, JLB, JUB, i, j, k
         integer                                     :: STAT_CALL
-        logical                                     :: NeedAtmosphere, NeedsRadiation
+        logical                                     :: NeedAtmosphere, NeedsRadiation, PropAdvDiff
+        integer                                     :: nProperties, iProp 
+        integer                                     :: PropID
+        real, dimension(:, :   ), pointer           :: PMPConcentration2D
+        real, dimension(:, :, :), pointer           :: PMPConcentration
+        real, dimension(:, :   ), pointer           :: RPConcentration
+        integer, dimension(:, :), pointer           :: GWLayer
+        
 
         if (MonitorPerformance) call StartWatch ("ModuleBasin", "DrainageNetworkProcesses")
 
@@ -2795,6 +2943,98 @@ etr_fao:        if (.not. RefEvapotrans%ID%SolutionFromFile) then
             
         endif
         
+        if (Me%Coupled%PorousMediaProperties) then
+        
+            call GetPMPnProperties (Me%ObjPorousMediaProperties, nProperties, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'DrainageNetworkProcesses - ModuleBasin - ERR02'
+
+            do iProp = 1, nProperties
+
+                call GetPMPPropertiesIDByIdx(PorousMediaPropertiesID = Me%ObjPorousMediaProperties, &
+                                             Idx                     = iProp,                       &
+                                             ID                      = PropID,                      &
+                                             PropAdvDiff             = PropAdvDiff,                 &
+                                             STAT                    = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'DrainageNetworkProcesses - ModuleBasin - ERR03' 
+                
+                if (PropAdvDiff) then
+                
+                    call GetPMPConcentration(PorousMediaPropertiesID = Me%ObjPorousMediaProperties,  &
+                                             ConcentrationX          = PMPConcentration,             &
+                                             PropertyXIDNumber       = PropID,                       &
+                                             STAT                    = STAT_CALL)        
+                    if (STAT_CALL /= SUCCESS_) stop 'DrainageNetworkProcesses - ModuleBasin - ERR04'
+                    
+                    call GetGWLayer   (Me%ObjPorousMedia, GWlayer, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'DrainageNetworkProcesses - ModuleBasin - ERR05'
+                    
+                    allocate(PMPConcentration2D(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+                    PMPConcentration2D = FillValueReal                    
+                    
+                    !2D conc for drainage network
+                    do j = JLB, JUB
+                    do i = ILB, IUB
+                        if (Me%ExtVar%BasinPoints(i, j) == BasinPoint) then
+                            k = GWLayer(i,j)
+                            PMPConcentration2D (i,j) = PMPConcentration(i,j,k)
+                        endif
+                    enddo
+                    enddo          
+
+                    call UnGetPorousMedia   (Me%ObjPorousMedia, GWlayer, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'DrainageNetworkProcesses - ModuleBasin - ERR05.5'
+                    
+                    call SetPMPConcDN             (DrainageNetworkID       = Me%ObjDrainageNetwork,        &
+                                                   ConcentrationX          = PMPConcentration2D,           &
+                                                   PropertyXIDNumber       = PropID,                       &
+                                                   STAT                    = STAT_CALL)        
+                    if (STAT_CALL /= SUCCESS_) stop 'DrainageNetworkProcesses - ModuleBasin - ERR06'
+                    
+                    deallocate (PMPConcentration2D)
+                    
+                    call UngetPorousMediaProperties(Me%ObjPorousMediaProperties, PMPConcentration, STAT_CALL)        
+                    if (STAT_CALL /= SUCCESS_) stop 'DrainageNetworkProcesses - ModuleBasin - ERR06.1'
+                
+                endif
+                
+            enddo                      
+        endif
+
+        if (Me%Coupled%RunoffProperties) then
+        
+            call GetRPnProperties (Me%ObjRunoffProperties, nProperties, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'DrainageNetworkProcesses - ModuleBasin - ERR06.2'
+
+            do iProp = 1, nProperties
+
+                call GetRPPropertiesIDByIdx(RunoffPropertiesID = Me%ObjRunoffProperties,            &
+                                             Idx                     = iProp,                       &
+                                             ID                      = PropID,                      &
+                                             PropAdvDiff             = PropAdvDiff,                 &
+                                             STAT                    = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'DrainageNetworkProcesses - ModuleBasin - ERR06.3' 
+                
+                if (PropAdvDiff) then
+                
+                    call GetRPConcentration(RunoffPropertiesID       = Me%ObjRunoffProperties,       &
+                                             ConcentrationX          = RPConcentration,              &
+                                             PropertyXIDNumber       = PropID,                       &
+                                             STAT                    = STAT_CALL)        
+                    if (STAT_CALL /= SUCCESS_) stop 'DrainageNetworkProcesses - ModuleBasin - ERR06.4'
+                    
+                    call SetRPConcDN             (DrainageNetworkID        = Me%ObjDrainagenetwork,        &
+                                                   ConcentrationX          = RPConcentration,              &
+                                                   PropertyXIDNumber       = PropID,                       &
+                                                   STAT                    = STAT_CALL)        
+                    if (STAT_CALL /= SUCCESS_) stop 'DrainageNetworkProcesses - ModuleBasin - ERR06.5'
+                    
+                    call UngetRunoffProperties(Me%ObjRunoffProperties, RPConcentration, STAT_CALL)        
+                    if (STAT_CALL /= SUCCESS_) stop 'DrainageNetworkProcesses - ModuleBasin - ERR06.6'
+                
+                endif
+                
+            enddo                      
+        endif
 
         !Check if Radiation is needed
         call GetNeedsRadiation (Me%ObjDrainageNetwork, NeedsRadiation, STAT_CALL)
@@ -2940,28 +3180,37 @@ etr_fao:        if (.not. RefEvapotrans%ID%SolutionFromFile) then
         
         else 
 
-            !If no vegetation, there is no transpiration. 
-            !And potential evapotranspiration is all in form of potential evaporation
-            call SearchProperty(RefEvapotrans, RefEvapotrans_        , .true., STAT = STAT_CALL)        
+            if (Me%Coupled%Evapotranspiration) then
+                !If no vegetation, there is no transpiration. 
+                !And potential evapotranspiration is all in form of potential evaporation
+                call SearchProperty(RefEvapotrans, RefEvapotrans_        , .true., STAT = STAT_CALL)        
 
-            !m/s
-            PotentialEvaporation => RefEvapotrans%Field
+                !m/s
+                PotentialEvaporation => RefEvapotrans%Field
+                
+                
+                call ModifyPorousMedia (ObjPorousMediaID     = Me%ObjPorousMedia,                  &
+                                        InfiltrationColumn   = Me%PotentialInfCol,                 &
+                                        PotentialEvaporation = PotentialEvaporation,               &
+                                        STAT                 = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'PorousMediaProcesses - ModuleBasin - ERR21' 
             
+            else
+                
+                call ModifyPorousMedia (ObjPorousMediaID     = Me%ObjPorousMedia,                  &
+                                        InfiltrationColumn   = Me%PotentialInfCol,                 &
+                                        STAT                 = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'PorousMediaProcesses - ModuleBasin - ERR022' 
             
-            call ModifyPorousMedia (ObjPorousMediaID     = Me%ObjPorousMedia,                  &
-                                    InfiltrationColumn   = Me%PotentialInfCol,                 &
-                                    PotentialEvaporation = PotentialEvaporation,               &
-                                    STAT                 = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'PorousMediaProcesses - ModuleBasin - ERR03' 
-
+            endif                
         
         endif
 
         call GetInfiltration   (Me%ObjPorousMedia, Infiltration, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'PorousMediaProcesses - ModuleBasin - ERR02'
+        if (STAT_CALL /= SUCCESS_) stop 'PorousMediaProcesses - ModuleBasin - ERR023'
 
         call GetEfectiveEVTP   (Me%ObjPorousMedia, EfectiveEVTP, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'PorousMediaProcesses - ModuleBasin - ERR02a'
+        if (STAT_CALL /= SUCCESS_) stop 'PorousMediaProcesses - ModuleBasin - ERR024'
 
         !Updates Water column
         do j = Me%WorkSize%JLB, Me%WorkSize%JUB
@@ -3066,12 +3315,138 @@ etr_fao:        if (.not. RefEvapotrans%ID%SolutionFromFile) then
         logical                                    :: GrowthModel
         real, dimension(:,:), pointer               :: WindVelocity
         real                                        :: VegetationDT
+        real, dimension (:), pointer               :: DNConcentration 
+        real, dimension (:,:), pointer             :: RPConcentration
+        real, dimension (:,:), pointer             :: AtmConcentration, InfColConcentration
+        integer, dimension(:, :), pointer          :: ChannelsID
+        integer                                    :: nProperties, iProp, PropID
+        logical                                    :: PropAdvDiff, PropRain, PropIrri
 
         !Begin-----------------------------------------------------------------
 
         if (MonitorPerformance) call StartWatch ("ModuleBasin", "PorousMediaPropertiesProcesses")
-        
 
+        !Compute mass balance due to rain. 
+        call GetRPnProperties (Me%ObjRunoffProperties, nProperties, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'PorousMediaPropertiesProcesses - ModuleBasin - ERR103.2'
+
+        do iProp = 1, nProperties
+
+            call GetRPPropertiesIDByIdx(RunoffPropertiesID = Me%ObjRunoffProperties,            &
+                                         Idx                     = iProp,                       &
+                                         ID                      = PropID,                      &
+                                         PropAdvDiff             = PropAdvDiff,                 &
+                                         STAT                    = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'PorousMediaPropertiesProcesses - ModuleBasin - ERR103.3' 
+            
+            if (PropAdvDiff) then
+
+                allocate (InfColConcentration(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+                InfColConcentration = FillValueReal
+
+            
+                call GetRPConcentration(RunoffPropertiesID       = Me%ObjRunoffProperties,       &
+                                         ConcentrationX          = RPConcentration,              &
+                                         PropertyXIDNumber       = PropID,                       &
+                                         STAT                    = STAT_CALL)        
+                if (STAT_CALL /= SUCCESS_) stop 'PorousMediaPropertiesProcesses - ModuleBasin - ERR103.4'
+                
+                if (Me%Coupled%Atmosphere) then
+
+                    call GetAtmosphereProperty(AtmosphereID       = Me%ObjAtmosphere,       &
+                                               Scalar             = AtmConcentration,       &
+                                               ID                 = PropID,                 &
+                                               STAT               = STAT_CALL)        
+                    if (STAT_CALL /= SUCCESS_) stop 'PorousMediaPropertiesProcesses - ModuleBasin - ERR10.5'
+                
+                endif
+                
+                call ComputePropertyInfilColumn (AtmConcentration, RPConcentration, InfColConcentration)
+                
+                call SetInfColConcPMP         (PorousMediaPropertiesID = Me%ObjPorousMediaProperties,  &
+                                               ConcentrationX          = InfColConcentration,          &
+                                               PropertyXIDNumber       = PropID,                       &
+                                               STAT                    = STAT_CALL)        
+                if (STAT_CALL /= SUCCESS_) stop 'PorousMediaPropertiesProcesses - ModuleBasin - ERR0.5'
+
+                deallocate (InfColConcentration)        
+                
+                call UngetAtmosphere (Me%ObjAtmosphere, AtmConcentration, STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'PorousMediaPropertiesProcesses - ModuleBasin - ERR0.7'   
+                
+                call UngetRunoffProperties (Me%ObjRunoffProperties, RPConcentration, STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'PorousMediaPropertiesProcesses - ModuleBasin - ERR103.6'
+            
+            endif
+            
+        enddo  
+        
+!        if (Me%Coupled%Atmosphere) then
+!        
+!            call GetAtmospherenProperties (Me%ObjAtmosphere, nProperties, STAT = STAT_CALL)
+!            if (STAT_CALL /= SUCCESS_) stop 'PorousMediaPropertiesProcesses - ModuleBasin - ERR00.1'
+!
+!            do iProp = 1, nProperties
+!
+!                call GetAtmospherePropertiesIDByIdx(AtmosphereID            = Me%ObjAtmosphere,            &
+!                                                    Idx                     = iProp,                       &
+!                                                    ID                      = PropID,                      &
+!                                                    PropRain                = PropRain,                    &
+!                                                    PropIrri                = PropIrri,                    &
+!                                                    STAT                    = STAT_CALL)
+!                if (STAT_CALL /= SUCCESS_) stop 'PorousMediaPropertiesProcesses - ModuleBasin - ERR0.2' 
+!                
+!                if (PropRain .or. PropIrri) then
+!                    
+!                    allocate (InfColConcentration(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+!                    InfColConcentration = FillValueReal
+!                    
+!                    call GetAtmosphereProperty(AtmosphereID       = Me%ObjAtmosphere,       &
+!                                               Scalar             = AtmConcentration,       &
+!                                               ID                 = PropID,                 &
+!                                               STAT               = STAT_CALL)        
+!                    if (STAT_CALL /= SUCCESS_) stop 'PorousMediaPropertiesProcesses - ModuleBasin - ERR0.3'
+!                    
+!!                    if (Me%Coupled%RunoffProperties) then
+!                        call GetRPConcentration   (RunoffPropertiesID = Me%ObjRunoffProperties, &
+!                                                   ConcentrationX     = RPConcentration,        &
+!                                                   PropertyXIDNumber  = PropID,                 &
+!                                                   STAT               = STAT_CALL)        
+!                        if (STAT_CALL /= SUCCESS_) stop 'PorousMediaPropertiesProcesses - ModuleBasin - ERR0.4'
+!!                    else
+!!                        allocate (RPConcentration(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+!!                        RPConcentration = FillValueReal
+!!                    
+!!                        call ComputePropertyWaterColumn(AtmConcentration, RPConcentration)
+!!                    endif
+!                    
+!                    call ComputePropertyInfilColumn (AtmConcentration, RPConcentration, InfColConcentration)
+!                    
+!                    call SetInfColConcPMP         (PorousMediaPropertiesID = Me%ObjPorousMediaProperties,  &
+!                                                   ConcentrationX          = InfColConcentration,          &
+!                                                   PropertyXIDNumber       = PropID,                       &
+!                                                   STAT                    = STAT_CALL)        
+!                    if (STAT_CALL /= SUCCESS_) stop 'PorousMediaPropertiesProcesses - ModuleBasin - ERR0.5'
+!
+!!                    if (Me%Coupled%RunoffProperties) then
+!                        call UngetRunoffProperties (Me%ObjRunoffProperties, RPConcentration, STAT_CALL)
+!                        if (STAT_CALL /= SUCCESS_) stop 'PorousMediaPropertiesProcesses - ModuleBasin - ERR0.6'
+!!                    else
+!!                        deallocate(RPConcentration)
+!!                    endif
+!
+!                    
+!                    call UngetAtmosphere (Me%ObjAtmosphere, AtmConcentration, STAT_CALL)
+!                    if (STAT_CALL /= SUCCESS_) stop 'PorousMediaPropertiesProcesses - ModuleBasin - ERR0.7'   
+!                    
+!                    deallocate (InfColConcentration)               
+!                
+!                endif
+!                
+!            enddo                  
+!        
+!        endif
+        
         !Vegetation organic matter and nutrient fluxes to/from soil
         if (Me%Coupled%Vegetation) then
 
@@ -3252,12 +3627,102 @@ etr_fao:        if (.not. RefEvapotrans%ID%SolutionFromFile) then
                                   STAT                       = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'PorousMediaPropertiesProcesses - ModuleBasin - ERR0103'
 
+            call UngetAtmosphere (Me%ObjAtmosphere, WindVelocity, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'PorousMediaPropertiesProcesses - ModuleBasin - ERR103.1'   
+
         endif
 
-        call ModifyPorousMediaProperties(ObjPorousMediaPropertiesID = Me%ObjPorousMediaProperties,       &
+
+!        if (Me%Coupled%RunoffProperties) then
+!        
+!            call GetRPnProperties (Me%ObjRunoffProperties, nProperties, STAT = STAT_CALL)
+!            if (STAT_CALL /= SUCCESS_) stop 'PorousMediaPropertiesProcesses - ModuleBasin - ERR103.2'
+!
+!            do iProp = 1, nProperties
+!
+!                call GetRPPropertiesIDByIdx(RunoffPropertiesID = Me%ObjRunoffProperties,            &
+!                                             Idx                     = iProp,                       &
+!                                             ID                      = PropID,                      &
+!                                             PropAdvDiff             = PropAdvDiff,                 &
+!                                             STAT                    = STAT_CALL)
+!                if (STAT_CALL /= SUCCESS_) stop 'PorousMediaPropertiesProcesses - ModuleBasin - ERR103.3' 
+!                
+!                if (PropAdvDiff) then
+!                
+!                    call GetRPConcentration(RunoffPropertiesID       = Me%ObjRunoffProperties,       &
+!                                             ConcentrationX          = RPConcentration,              &
+!                                             PropertyXIDNumber       = PropID,                       &
+!                                             STAT                    = STAT_CALL)        
+!                    if (STAT_CALL /= SUCCESS_) stop 'PorousMediaPropertiesProcesses - ModuleBasin - ERR103.4'
+!                    
+!                    call SetRPConcPMP             (PorousMediaPropertiesID = Me%ObjPorousMediaProperties,  &
+!                                                   ConcentrationX          = RPConcentration,              &
+!                                                   PropertyXIDNumber       = PropID,                       &
+!                                                   STAT                    = STAT_CALL)        
+!                    if (STAT_CALL /= SUCCESS_) stop 'PorousMediaPropertiesProcesses - ModuleBasin - ERR103.6'
+!
+!                    call UngetRunoffProperties (Me%ObjRunoffProperties, RPConcentration, STAT_CALL)
+!                    if (STAT_CALL /= SUCCESS_) stop 'PorousMediaPropertiesProcesses - ModuleBasin - ERR103.7'
+!                
+!                endif
+!                
+!            enddo                      
+!        endif
+        
+        if (Me%Coupled%DrainageNetwork) then
+            
+            call GetChannelsID   (Me%ObjDrainageNetwork, ChannelsID, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'PorousMediaPropertiesProcesses - ModuleBasin - ERR0104'              
+            
+            call GetDNnProperties (Me%ObjDrainageNetwork, nProperties, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'PorousMediaPropertiesProcesses - ModuleBasin - ERR0105'
+
+            do iProp = 1, nProperties
+
+                call GetDNPropertiesIDByIdx(DrainageNetworkID = Me%ObjDrainageNetwork,                 &
+                                            Idx               = iProp,                                 &
+                                            ID                = PropID,                                &
+                                            PropAdvDiff       = PropAdvDiff,                           &
+                                            STAT              = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'PorousMediaPropertiesProcesses - ModuleBasin - ERR106' 
+
+                if (PropAdvDiff) then
+                                        
+                    call GetDNConcentration   (DrainageNetworkID = Me%ObjDrainageNetwork,                  &
+                                               ConcentrationX    = DNConcentration,                        &
+                                               PropertyXIDNumber = PropID,                                 &
+                                               STAT              = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'PorousMediaPropertiesProcesses - ModuleBasin - ERR0107'
+
+                
+                    call SetDNConcPMP (PorousMediaPropertiesID = Me%ObjPorousMediaProperties,               &
+                                       PropertyID                 = PropID,                                 &
+                                       DNConcentration            = DNConcentration,                        &
+                                       ChannelsID                 = ChannelsID,                             &
+                                       STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'PorousMediaPropertiesProcesses - ModuleBasin - ERR0108'   
+
+                    call UngetDrainageNetwork (Me%ObjDrainageNetwork, DNConcentration, STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'PorousMediaPropertiesProcesses - ModuleBasin - ERR103.7'
+                
+                endif   
+
+                call UnGetDrainageNetwork (Me%ObjDrainageNetwork, DNConcentration, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ReadUnLockExternalVar - ModulePorousMediaProperties - ERR109'
+                
+            enddo   
+            
+            call UnGetDrainageNetwork (Me%ObjDrainageNetwork, ChannelsID, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadUnLockExternalVar - ModulePorousMediaProperties - ERR109a'      
+             
+        endif
+        
+        call ModifyPorousMediaProperties(ObjPorousMediaPropertiesID = Me%ObjPorousMediaProperties,  &
+!        								 ThroughFall                = Me%ThroughFall,               &
+!        								 WCEvaporated               = Me%WaterColumnEvaporated,     &
                                          STAT                       = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'PorousMediaPropertiesProcesses - ModuleBasin - ERR0110' 
-           
+        
         
         !Unlock
         if (Me%Coupled%Vegetation) then
@@ -3330,6 +3795,261 @@ etr_fao:        if (.not. RefEvapotrans%ID%SolutionFromFile) then
 
     !--------------------------------------------------------------------------
 
+    subroutine ComputePropertyInfilColumn (AtmConcentration, RPConcentration, InfColConcentration)
+    
+    	!Arguments-------------------------------------------------------------
+        real, dimension(:,:), pointer, optional  :: AtmConcentration    !IN
+        real, dimension(:,:), pointer            :: RPConcentration     !IN
+        real, dimension(:,:), pointer            :: InfColConcentration !OUT
+        
+        !Local-----------------------------------------------------------------
+		real                                :: RainVolume, MassOnRain
+		real                                :: WaterColumnVolume, MassOnWaterColumn
+		real                                :: InfColumnVolume, MassOnInfColumn
+		integer                             :: i,j,CHUNK
+
+		integer                             :: STAT_
+
+        !----------------------------------------------------------------------       
+        
+        !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+        do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+            if (Me%ExtVar%BasinPoints(i,j) == BasinPoint) then             
+
+                if (present(AtmConcentration)) then
+                    !mass of the property on rain
+                    !m3        =  m * m2
+                    RainVolume = Me%ThroughFall(i, j) * Me%ExtVar%GridCellArea(i, j)
+                    !g         =     g/m3       *           m                     m2 
+                    MassOnRain = AtmConcentration(i,j) * (Me%ThroughFall(i, j) * Me%ExtVar%GridCellArea(i, j))
+                else
+                    RainVolume = 0.0
+                    MassOnRain = 0.0
+                endif
+                
+                !mass of the property in water column
+                !m3 = m * m2
+                WaterColumnVolume = (Me%PotentialInfCol(i,j) - Me%ThroughFall(i, j)) * Me%ExtVar%GridCellArea(i, j)
+                !g = g/m3 * m3
+                MassOnWaterColumn = RPConcentration(i,j) * WaterColumnVolume
+                
+                !mass of the property in infiltration column
+                MassOnInfColumn   = MassOnRain + MassOnWaterColumn
+                InfColumnVolume   = RainVolume + WaterColumnVolume
+                
+                !Compute infiltration column concetration 
+                if (Me%PotentialInfCol(i,j) .gt. 0.0) then
+                    !g/m3 = g  /  m3
+                    InfColConcentration(i, j) = MassOnInfColumn / InfColumnVolume
+                else
+                    InfColConcentration(i,j) = 0.0
+                endif
+                
+               
+            endif
+        enddo
+        enddo
+        !!$OMP END DO 
+        
+        !!$OMP END PARALLEL
+    
+    
+    end subroutine ComputePropertyInfilColumn
+
+    !--------------------------------------------------------------------------
+
+
+    subroutine RunoffPropertiesProcesses
+
+        !Arguments-------------------------------------------------------------
+        !Local-----------------------------------------------------------------
+        integer                                     :: STAT_CALL
+        logical                                    :: CoupledSedimentQuality, PropAdvDiff
+        real, dimension(:,:), pointer               :: WindVelocity
+        real, dimension(:, :   ), pointer           :: PMPConcentration2D
+        real, dimension(:, :, :), pointer           :: PMPConcentration
+        real, dimension (:), pointer               :: DNConcentration
+        integer, dimension(:, :), pointer          :: ChannelsID
+        integer                                    :: nProperties, iProp, PropID, j, i, k
+        type (T_Size3D)                            :: WorkSize3D
+        real, dimension(:, :), pointer             :: Infiltration, InfiltrationFlux
+        !Begin-----------------------------------------------------------------
+
+        if (MonitorPerformance) call StartWatch ("ModuleBasin", "RunoffPropertiesProcesses")
+        
+        !sediment quality needs wind velocity
+!        call GetRPCoupled (RunoffPropertiesID          = Me%ObjRunoffProperties,                    &
+!                            SoilQuality                = CoupledSedimentQuality,                         &       
+!                            STAT                       = STAT_CALL)
+!        if (STAT_CALL /= SUCCESS_) stop 'RunoffPropertiesProcesses - ModuleBasin - ERR0101'
+!        
+!        if (CoupledSedimentQuality) then
+!
+!            !Wind Velocity
+!            call GetAtmosphereProperty  (Me%ObjAtmosphere, WindVelocity, ID = WindModulus_, STAT = STAT_CALL)
+!            if (STAT_CALL /= SUCCESS_) stop 'RunoffPropertiesProcesses - ModuleBasin - ERR0102'
+!
+!
+!            call SetWindVelocity (RunoffPropertiesID        = Me%ObjRunoffProperties,              &
+!                                  WindModulus                = WindVelocity,                             &       
+!                                  STAT                       = STAT_CALL)
+!            if (STAT_CALL /= SUCCESS_) stop 'RunoffPropertiesProcesses - ModuleBasin - ERR0103'
+!
+!        endif
+        
+!        if (Me%Coupled%PorousMedia) then
+!        
+!            call GetInfiltration   (Me%ObjPorousMedia, Infiltration, STAT = STAT_CALL)
+!            if (STAT_CALL /= SUCCESS_) stop 'RunoffPropertiesProcesses - ModuleBasin - ERR0103.1'              
+!            
+!            allocate(InfiltrationFlux(Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB        ))
+!            InfiltrationFlux = null_real
+!            
+!            do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+!            do i = Me%WorkSize%ILB, Me%WorkSize%IUB 
+!            
+!                if (Me%ExtVar%BasinPoints (i, j) == 1) then
+!                    !m3/s = m * m2 / s
+!                    InfiltrationFlux(i,j) = - Infiltration(i, j) * Me%ExtVar%GridCellArea(i, j) / Me%CurrentDT
+!                    
+!                endif
+!            
+!            enddo
+!            enddo           
+!            
+!            call SetInfiltrationRP(RunoffPropertiesID         = Me%ObjRunoffProperties,                  &
+!                                   InfiltrationFlux           = InfiltrationFlux,                        &
+!                                   STAT = STAT_CALL)
+!            if (STAT_CALL /= SUCCESS_) stop 'RunoffPropertiesProcesses - ModuleBasin - ERR0103.2'      
+!            
+!            deallocate (InfiltrationFlux)
+!            
+!            call UnGetPorousMedia   (Me%ObjPorousMedia, Infiltration, STAT = STAT_CALL)
+!            if (STAT_CALL /= SUCCESS_) stop 'RunoffPropertiesProcesses - ModuleBasin - ERR0103.3'    
+!        
+!        endif
+
+!        if (Me%Coupled%PorousMediaProperties) then
+!        
+!            call GetPMPnProperties (Me%ObjPorousMediaProperties, nProperties, STAT = STAT_CALL)
+!            if (STAT_CALL /= SUCCESS_) stop 'RunoffPropertiesProcesses - ModuleBasin - ERR02'
+!
+!            do iProp = 1, nProperties
+!
+!                call GetPMPPropertiesIDByIdx(PorousMediaPropertiesID = Me%ObjPorousMediaProperties, &
+!                                             Idx                     = iProp,                       &
+!                                             ID                      = PropID,                      &
+!                                             PropAdvDiff             = PropAdvDiff,                 &
+!                                             STAT                    = STAT_CALL)
+!                if (STAT_CALL /= SUCCESS_) stop 'RunoffPropertiesProcesses - ModuleBasin - ERR03' 
+!                
+!                if (PropAdvDiff) then
+!                
+!                    call GetPMPConcentration(PorousMediaPropertiesID = Me%ObjPorousMediaProperties,  &
+!                                             ConcentrationX          = PMPConcentration,             &
+!                                             PropertyXIDNumber       = PropID,                       &
+!                                             STAT                    = STAT_CALL)        
+!                    if (STAT_CALL /= SUCCESS_) stop 'RunoffPropertiesProcesses - ModuleBasin - ERR04'
+!
+!                    !Geometry Size
+!                    call GetGeometrySize    (Me%ObjGeometry,             &    
+!                                             WorkSize =    WorkSize3D,   &
+!                                             STAT = STAT_CALL)
+!                    if (STAT_CALL /= SUCCESS_) stop 'RunoffPropertiesProcesses - ModuleBasin - ERR05'
+!                    
+!                    allocate(PMPConcentration2D(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+!                    PMPConcentration2D = FillValueReal
+!                    
+!                    !2D conc for runoff properties
+!                    do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+!                    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+!                        if (Me%ExtVar%BasinPoints(i, j) == BasinPoint) then
+!                            k = WorkSize3D%KUB
+!                            PMPConcentration2D (i,j) = PMPConcentration(i,j,k)
+!                        endif
+!                    enddo
+!                    enddo          
+!                    
+!                    call SetPMPConcRP(RunoffPropertiesID      = Me%ObjRunoffProperties,       &
+!                                      PMPConcentration        = PMPConcentration2D,           &
+!                                      PropertyXIDNumber       = PropID,                       &
+!                                      STAT                    = STAT_CALL)        
+!                    if (STAT_CALL /= SUCCESS_) stop 'RunoffPropertiesProcesses - ModuleBasin - ERR06'
+!                    
+!                    deallocate(PMPConcentration2D)
+!                    
+!                    call UngetPorousMediaProperties (Me%ObjPorousMediaProperties, PMPConcentration, STAT_CALL)
+!                    if (STAT_CALL /= SUCCESS_) stop 'RunoffPropertiesProcesses - ModuleBasin - ERR07'
+!                
+!                endif
+!                
+!            enddo                      
+!        endif        
+        
+        if (Me%Coupled%DrainageNetwork) then
+            
+            call GetChannelsID   (Me%ObjDrainageNetwork, ChannelsID, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'RunoffPropertiesProcesses - ModuleBasin - ERR0104'              
+            
+            call GetDNnProperties (Me%ObjDrainageNetwork, nProperties, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'RunoffPropertiesProcesses - ModuleBasin - ERR0105'
+
+            do iProp = 1, nProperties
+            
+                call GetDNPropertiesIDByIdx(DrainageNetworkID = Me%ObjDrainageNetwork,                 &
+                                            Idx               = iProp,                                 &
+                                            ID                = PropID,                                &
+                                            PropAdvDiff       = PropAdvDiff,                           &
+                                            STAT              = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'RunoffPropertiesProcesses - ModuleBasin - ERR106' 
+                
+                if (PropAdvDiff) then                        
+                    call GetDNConcentration   (DrainageNetworkID = Me%ObjDrainageNetwork,                  &
+                                               ConcentrationX    = DNConcentration,                        &
+                                               PropertyXIDNumber = PropID,                                 &
+                                               STAT              = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'RunoffPropertiesProcesses - ModuleBasin - ERR0107'
+
+                
+                    call SetDNConcRP (RunoffPropertiesID          = Me%ObjRunoffProperties,                  &
+                                       PropertyID                 = PropID,                                 &
+                                       DNConcentration            = DNConcentration,                        &
+                                       ChannelsID                 = ChannelsID,                             &
+                                       STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'RunoffPropertiesProcesses - ModuleBasin - ERR0108'      
+                endif
+
+                call UnGetDrainageNetwork (Me%ObjDrainageNetwork, DNConcentration, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ReadUnLockExternalVar - RunoffPropertiesProcesses - ERR109'
+                
+            enddo   
+            
+            call UnGetDrainageNetwork (Me%ObjDrainageNetwork, ChannelsID, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadUnLockExternalVar - RunoffPropertiesProcesses - ERR109a'      
+             
+        endif
+        
+        call ModifyRunoffProperties(ObjRunoffPropertiesID           = Me%ObjRunoffProperties,  &
+ !       								 ThroughFall                = Me%ThroughFall,               &
+ !       								 WCEvaporated               = Me%WaterColumnEvaporated,     &
+                                         STAT                       = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'RunoffPropertiesProcesses - ModuleBasin - ERR0110' 
+           
+        
+!        if (CoupledSedimentQuality) then
+!            !Wind Velocity
+!            call UnGetAtmosphere  (Me%ObjAtmosphere, WindVelocity, STAT = STAT_CALL)
+!            if (STAT_CALL /= SUCCESS_) stop 'RunoffPropertiesProcesses - ModuleBasin - ERR0162'
+!        endif
+
+        if (MonitorPerformance) call StopWatch ("ModuleBasin", "RunoffPropertiesProcesses")
+
+
+    end subroutine RunoffPropertiesProcesses
+
+    !--------------------------------------------------------------------------
+
     subroutine ActualizeWaterColumn (WarningString)
 
         !Arguments-------------------------------------------------------------
@@ -3344,6 +4064,8 @@ etr_fao:        if (.not. RefEvapotrans%ID%SolutionFromFile) then
         do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
             if (Me%ExtVar%BasinPoints(i, j) == BasinPoint) then
+                Me%WaterColumnOld(i,j) = Me%WaterColumn(i,j)
+                
                 Me%WaterColumn(i, j) = Me%WaterLevel(i, j) - Me%ExtVar%Topography(i, j)                
 
                 if (Me%WaterColumn(i, j) < 0.0) then
@@ -3367,6 +4089,193 @@ etr_fao:        if (.not. RefEvapotrans%ID%SolutionFromFile) then
     end subroutine ActualizeWaterColumn
 
     !--------------------------------------------------------------------------
+
+    subroutine ActualizeWaterColumnConcentration (WarningString)
+
+        !Arguments-------------------------------------------------------------
+        character (Len = *), intent(in)             :: WarningString
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: i, j, STAT_CALL
+        integer                                     :: nProperties, iProp 
+        integer                                     :: PropID
+        real(8), dimension(:, :   ), pointer        :: RPConcentration, NewRPConcentration
+        logical                                     :: PropAdvDiff
+        real(8)                                     :: PropertyMassOld, PropertyMassNew
+        real(8), dimension(:,:), pointer            :: MassInFlow
+        !Begin-----------------------------------------------------------------
+        
+        if (MonitorPerformance) call StartWatch ("ModuleBasin", "ActualizeWaterColumnConcentration")
+        
+
+        call GetRPnProperties (Me%ObjRunoffProperties, nProperties, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ActualizeWaterColumnConcentration - ModuleBasin - ERR1'
+
+        do iProp = 1, nProperties
+
+            call GetRPPropertiesIDByIdx(RunoffPropertiesID       = Me%ObjRunoffProperties,      &
+                                         Idx                     = iProp,                       &
+                                         ID                      = PropID,                      &
+                                         PropAdvDiff             = PropAdvDiff,                 &
+                                         STAT                    = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ActualizeWaterColumnConcentration - ModuleBasin - ERR10' 
+            
+            if (PropAdvDiff) then
+                
+                allocate(MassInFlow(Me%WorkSize%ILB:Me%WorkSize%IUB,Me%WorkSize%JLB:Me%WorkSize%JUB))
+                MassInFlow = null_real
+                allocate(NewRPConcentration(Me%WorkSize%ILB:Me%WorkSize%IUB,Me%WorkSize%JLB:Me%WorkSize%JUB))
+                NewRPConcentration = null_real
+                
+                call GetRPConcentration(RunoffPropertiesID       = Me%ObjRunoffProperties,       &
+                                         ConcentrationX          = RPConcentration,              &
+                                         PropertyXIDNumber       = PropID,                       &
+                                         STAT                    = STAT_CALL)        
+                if (STAT_CALL /= SUCCESS_) stop 'ActualizeWaterColumnConcentration - ModuleBasin - ERR20'
+
+        
+                do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+                do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+
+                    if (Me%ExtVar%BasinPoints(i, j) == BasinPoint) then
+                        !g = g/m3 * (m * m2)
+                        PropertyMassOld = RPConcentration(i,j) * (Me%WaterColumnOld(i,j) * Me%ExtVar%GridCellArea(i,j))
+                        
+                        call ComputeMassInFlow (WarningString, RPConcentration, PropID, MassInFlow)
+                        
+                        PropertyMassNew = PropertyMassOld + MassInFlow(i,j)
+                        
+                        if (Me%WaterColumn(i,j) .gt. 0.0) then
+                            !g/m3 = g / (m * m2)
+                            NewRPConcentration(i,j) = PropertyMassNew / (Me%WaterColumn(i,j) * Me%ExtVar%GridCellArea(i,j))
+                        else
+                            NewRPConcentration(i,j) = 0.0
+                        endif                
+
+                    endif
+
+                enddo
+                enddo
+ 
+                call UngetRunoffProperties(Me%ObjRunoffProperties, RPConcentration, STAT_Call)
+                if (STAT_CALL /= SUCCESS_) stop 'ActualizeWaterColumnConcentration - ModuleBasin - ERR40'
+
+                call SetBasinConcRP (RunoffPropertiesID        = Me%ObjRunoffProperties,       &
+                                       BasinConcentration      = NewRPConcentration,           &
+                                       PropertyXIDNumber       = PropID,                       &
+                                       STAT                    = STAT_CALL)        
+                if (STAT_CALL /= SUCCESS_) stop 'ActualizeWaterColumnConcentration - ModuleBasin - ERR30'
+                
+                deallocate(MassInFlow)
+                deallocate(NewRPConcentration)
+                
+            endif
+            
+        enddo
+
+        if (MonitorPerformance) call StopWatch ("ModuleBasin", "ActualizeWaterColumnConcentration")
+
+    end subroutine ActualizeWaterColumnConcentration
+
+    !--------------------------------------------------------------------------
+
+    subroutine ComputeMassInFlow(WarningString, RPConcentration, PropID, MassInFlow)
+    
+        !Arguments-------------------------------------------------------------
+        character (Len = *), intent(in)             :: WarningString
+        real, dimension(:,:), pointer, intent(out)  :: MassInFlow
+        real, dimension(:, :   ), pointer           :: RPConcentration
+        real, dimension(:, : ,:), pointer           :: PMPConcentration
+        real, dimension(:, :   ), pointer           :: AtmConcentration
+        integer                                     :: PropID,i,j, k, STAT_CALL
+        type (T_Size3D)                             :: WorkSize3D        
+        !Local-----------------------------------------------------------------
+        
+        !Evaporation from WC does not take mass
+        if(WarningString == 'AtmosphereProcesses') then
+            MassInFlow = 0.0
+        
+        elseif(WarningString == 'PorousMediaProcesses') then
+            
+            call GetPMPConcentration(PorousMediaPropertiesID = Me%ObjPorousMediaProperties,  &
+                                     ConcentrationX          = PMPConcentration,             &
+                                     PropertyXIDNumber       = PropID,                       &
+                                     STAT                    = STAT_CALL)        
+            if (STAT_CALL /= SUCCESS_) stop 'ComputeMassInFlow - ModuleBasin - ERR04'
+            
+            !Geometry Size
+            call GetGeometrySize    (Me%ObjGeometry,             &    
+                                     WorkSize =    WorkSize3D,   &
+                                     STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ComputeMassInFlow - ModuleBasin - ERR05'
+            
+         
+            do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+            do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+                if (Me%ExtVar%BasinPoints(i, j) == BasinPoint) then
+                   
+                    if(Me%FlowProduction(i,j) .lt. 0.0) then ! removing mass from WC
+                        
+                        !g = g/m3 * (m * m2)
+                        MassInFlow(i,j) = RPConcentration(i,j) * (Me%FlowProduction(i,j) * Me%ExtVar%GridCellArea(i,j))
+                    
+                    else ! adding mass to WC or zero
+                        
+                        k = WorkSize3D%KUB
+                        MassInFlow(i,j) = PMPConcentration (i,j,k) * (Me%FlowProduction(i,j) * Me%ExtVar%GridCellArea(i,j))
+                    endif
+                endif
+            enddo
+            enddo          
+
+            call UngetPorousMediaProperties(Me%ObjPorousMediaProperties, PMPConcentration, STAT_CALL)        
+            if (STAT_CALL /= SUCCESS_) stop 'ComputeMassInFlow - ModuleBasin - ERR06'
+
+        
+        elseif (WarningString == 'PorousMediaProcesses 2') then
+        
+            if (Me%Coupled%Atmosphere) then
+            
+                call GetAtmosphereProperty(AtmosphereID       = Me%ObjAtmosphere,       &
+                                           Scalar             = AtmConcentration,       &
+                                           ID                 = PropID,                 &
+                                           STAT               = STAT_CALL)        
+                if (STAT_CALL /= SUCCESS_) stop 'ComputeMassInFlow - ModuleBasin - ERR07'                    
+        
+                do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+                do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+                    if (Me%ExtVar%BasinPoints(i,j) == BasinPoint) then             
+                        !mass of the property on rain
+                        !g         =     g/m3       *           m                     m2 
+                        MassInFlow(i,j) = AtmConcentration(i,j) * (Me%ThroughFall(i, j) * Me%ExtVar%GridCellArea(i, j))
+                    endif
+                enddo
+                enddo
+
+                call UngetAtmosphere (Me%ObjAtmosphere, AtmConcentration, STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ComputeMassInFlow - ModuleBasin - ERR08'  
+                
+            endif 
+
+        elseif (WarningString == 'SimpleInfiltration') then
+
+            do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+            do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+                if (Me%ExtVar%BasinPoints(i,j) == BasinPoint) then             
+                    !mass removed by infiltration
+                    !g         =     g/m3       *           m/s   *    s  *     m2 
+                    MassInFlow(i,j) = - RPConcentration(i,j) * Me%SI%InfRate%Field(i, j) * Me%CurrentDT * Me%ExtVar%GridCellArea(i,j)
+                endif
+            enddo
+            enddo
+
+        endif
+           
+             
+    end subroutine
+    
+    !--------------------------------------------------------------------------
+    
 
     subroutine RemoveWaterColumn
 
@@ -4268,8 +5177,14 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                 if (nUsers == 0)           stop 'KillBasin - ModuleBasin - ERR01'
 
                 if (Me%Coupled%Runoff) then
+                    if (Me%Coupled%RunoffProperties) then
+                        call KillRunoffProperties (Me%ObjRunoffProperties, STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'KillBasin - ModuleBasin - ERR03d'
+                    endif                    
+                    
                     call KillRunOff         (Me%ObjRunOff,      STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'KillBasin - ModuleBasin - ERR02'
+                    
                 endif
                 
                 if (Me%Coupled%Vegetation) then

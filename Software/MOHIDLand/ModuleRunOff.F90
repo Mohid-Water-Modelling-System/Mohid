@@ -72,6 +72,11 @@ Module ModuleRunOff
     public  ::  GetFlowToChannels
     public  ::  GetFlowAtBoundary
     public  ::  GetFlowDischarge
+    public  ::  GetRunoffWaterColumn
+    public  ::  GetRunoffWaterColumnOld
+!    public  ::  GetRunoffWaterVolume 
+!    public  ::  GetRunoffWaterVolumeOld    
+    public  ::  GetRunoffCenterVelocity
     public  ::  GetNextRunOffDT
     public  ::  UnGetRunOff
     
@@ -154,6 +159,7 @@ Module ModuleRunOff
         real(8), dimension(:,:), pointer            :: myWaterLevel             => null()
         real(8), dimension(:,:), pointer            :: myWaterColumn            => null()
         real(8), dimension(:,:), pointer            :: myWaterVolume            => null()
+        real(8), dimension(:,:), pointer            :: myWaterColumnIni         => null()
         real(8), dimension(:,:), pointer            :: myWaterVolumeOld         => null()
         real,    dimension(:,:), pointer            :: lFlowToChannels          => null() !Instantaneous Flow To Channels
         real,    dimension(:,:), pointer            :: iFlowToChannels          => null() !Integrated Flow
@@ -709,10 +715,12 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         allocate(Me%myWaterLevel         (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
         allocate(Me%myWaterColumn        (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
         allocate(Me%myWaterVolume        (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
+        allocate(Me%myWaterColumnIni     (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
         allocate(Me%myWaterVolumeOld     (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
         Me%myWaterLevel            = null_real
         Me%myWaterColumn           = null_real
         Me%myWaterVolume           = null_real
+        Me%myWaterColumnIni        = null_real
         Me%myWaterVolumeOld        = null_real
 
         allocate(Me%iFlowX               (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
@@ -985,6 +993,165 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
     end subroutine GetFlowDischarge    
     
     !--------------------------------------------------------------------------
+    
+        subroutine GetRunoffWaterColumn (ObjRunOffID, WaterColumn, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                                         :: ObjRunOffID
+        real, dimension(:, :), pointer                  :: WaterColumn
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                         :: STAT_, ready_
+
+        !----------------------------------------------------------------------
+
+        call Ready(ObjRunOffID, ready_)    
+        
+cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            call Read_Lock(mRUNOFF_, Me%InstanceID)
+            WaterColumn => Me%MyWaterColumn
+
+            STAT_ = SUCCESS_
+        else 
+            STAT_ = ready_
+        end if cd1
+
+        if (present(STAT)) STAT = STAT_
+
+    end subroutine GetRunoffWaterColumn
+
+    !--------------------------------------------------------------------------
+
+        subroutine GetRunoffWaterColumnOld (ObjRunOffID, WaterColumnOld, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                                         :: ObjRunOffID
+        real, dimension(:, :), pointer                  :: WaterColumnOld
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                         :: STAT_, ready_
+
+        !----------------------------------------------------------------------
+
+        call Ready(ObjRunOffID, ready_)    
+        
+cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            call Read_Lock(mRUNOFF_, Me%InstanceID)
+            WaterColumnOld => Me%MyWaterColumnIni
+
+            STAT_ = SUCCESS_
+        else 
+            STAT_ = ready_
+        end if cd1
+
+        if (present(STAT)) STAT = STAT_
+
+    end subroutine GetRunoffWaterColumnOld
+
+    !--------------------------------------------------------------------------
+
+!     subroutine GetRunoffWaterVolume (ObjRunOffID, WaterVolume, STAT)
+!
+!        !Arguments-------------------------------------------------------------
+!        integer                                         :: ObjRunOffID
+!        real, dimension(:, :), pointer                  :: WaterVolume
+!        integer, intent(OUT), optional                  :: STAT
+!
+!        !Local-----------------------------------------------------------------
+!        integer                                         :: STAT_, ready_
+!
+!        !----------------------------------------------------------------------
+!
+!        call Ready(ObjRunOffID, ready_)    
+!        
+!cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
+!            (ready_ .EQ. READ_LOCK_ERR_)) then
+!
+!            call Read_Lock(mRUNOFF_, Me%InstanceID)
+!            WaterVolume => Me%MyWaterVolume
+!
+!            STAT_ = SUCCESS_
+!        else 
+!            STAT_ = ready_
+!        end if cd1
+!
+!        if (present(STAT)) STAT = STAT_
+!
+!    end subroutine GetRunoffWaterVolume
+!
+!    !--------------------------------------------------------------------------
+!    
+!    
+!     subroutine GetRunoffWaterVolumeOld (ObjRunOffID, WaterVolumeOld, STAT)
+!
+!        !Arguments-------------------------------------------------------------
+!        integer                                         :: ObjRunOffID
+!        real, dimension(:, :), pointer                  :: WaterVolumeOld
+!        integer, intent(OUT), optional                  :: STAT
+!
+!        !Local-----------------------------------------------------------------
+!        integer                                         :: STAT_, ready_
+!
+!        !----------------------------------------------------------------------
+!
+!        call Ready(ObjRunOffID, ready_)    
+!        
+!cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
+!            (ready_ .EQ. READ_LOCK_ERR_)) then
+!
+!            call Read_Lock(mRUNOFF_, Me%InstanceID)
+!            WaterVolumeOld => Me%MyWaterVolumeIni
+!
+!            STAT_ = SUCCESS_
+!        else 
+!            STAT_ = ready_
+!        end if cd1
+!
+!        if (present(STAT)) STAT = STAT_
+!
+!    end subroutine GetRunoffWaterVolumeOld
+!
+!    !--------------------------------------------------------------------------
+
+    subroutine GetRunoffCenterVelocity (ObjRunOffID, VelX, VelY, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                                         :: ObjRunOffID
+        real, dimension(:, :), pointer                  :: VelX, VelY
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                         :: STAT_, ready_
+
+        !----------------------------------------------------------------------
+
+        call Ready(ObjRunOffID, ready_)    
+        
+cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            call Read_Lock(mRUNOFF_, Me%InstanceID)
+            VelX => Me%CenterVelocityX
+
+            call Read_Lock(mRUNOFF_, Me%InstanceID)
+            VelY => Me%CenterVelocityY
+
+            STAT_ = SUCCESS_
+        else 
+            STAT_ = ready_
+        end if cd1
+
+        if (present(STAT)) STAT = STAT_
+
+    end subroutine GetRunoffCenterVelocity
+
+    !--------------------------------------------------------------------------
         
     subroutine GetNextRunOffDT (ObjRunOffID, DT, STAT)
 
@@ -1085,7 +1252,9 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
             !Time Stuff
             call GetComputeCurrentTime  (Me%ObjTime, Me%ExtVar%Now, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ModifyRunOff - ModuleRunOff - ERR01'
-            
+
+            !Stores initial values
+            Me%myWaterColumnIni = WaterColumn            
 
             Restart     = .true.
             do while (Restart)
@@ -2401,7 +2570,9 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
 
                 nUsers = DeassociateInstance (mHORIZONTALMAP_,  Me%ObjHorizontalMap)
                 if (nUsers == 0) stop 'KillRunOff - RunOff - ERR09'
-
+                
+                deallocate(Me%myWaterColumnIni)
+                
                 deallocate (Me%iFlowX)
                 deallocate (Me%iFlowY)
                 deallocate (Me%lFlowX)

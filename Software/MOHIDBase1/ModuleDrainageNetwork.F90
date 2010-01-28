@@ -237,17 +237,20 @@ Module ModuleDrainageNetwork
     public  :: GetChannelsNodeLength
     public  :: GetChannelsOpenProcess
     public  :: GetHasProperties
-    public  :: GetnProperties
-    public  :: GetPropertiesIDByIdx   
+    public  :: GetDNnProperties
+    public  :: GetDNPropertiesIDByIdx   
     public  :: GetHasToxicity
     public  :: GetPropHasBottomFluxes
     public  :: GetNeedsRadiation
     public  :: GetNeedsAtmosphere
     public  :: GetNextDrainageNetDT
     public  :: GetVolumes
+    public  :: GetDNConcentration
     public  :: UnGetDrainageNetwork
     public  :: SetAtmosphereDrainageNet     !To be called from MOHID Land
     public  :: SetAtmosphereRiverNet        !To be called from River Network
+    public  :: SetPMPConcDN
+    public  :: SetRPConcDN
     private :: SearchProperty
         
     !Modifier
@@ -329,6 +332,7 @@ Module ModuleDrainageNetwork
         module procedure UnGetDrainageNetworkR4
         module procedure UnGetDrainageNetworkI4
         module procedure UnGetDrainageNetworkA4
+        module procedure UnGetDrainageNetwork1DR4
     end interface
 
 
@@ -563,6 +567,8 @@ Module ModuleDrainageNetwork
 
     type       T_ExtVar
         real                                        :: DT
+        logical                                     :: CoupledPMP = .false.
+        logical                                     :: CoupledRP = .false.
     end type T_ExtVar
 
     type T_Downstream
@@ -628,6 +634,8 @@ Module ModuleDrainageNetwork
         real, dimension (:), pointer                :: ConcentrationOld         => null()
         real, dimension (:), pointer                :: InitialConcentration     => null()
         real, dimension (:), pointer                :: InitialConcentrationOld  => null()
+!        real, dimension (:), pointer                :: ConcentrationGWLayer     => null()
+!        real, dimension (:), pointer                :: ConcentrationRP          => null()                
         real, dimension (:), pointer                :: MassCreated              => null()   !kg
         real, dimension (:), pointer                :: OverLandConc             => null()
         real, dimension (:), pointer                :: GWaterConc               => null()
@@ -819,14 +827,16 @@ Module ModuleDrainageNetwork
 
     !----------------------------------------------------------------------------
 
-    subroutine ConstructDrainageNetwork(ModelName, DrainageNetworkID, TimeID, Size, CheckMass, STAT)
+    subroutine ConstructDrainageNetwork(ModelName, DrainageNetworkID, TimeID, Size,   &
+                                        CheckMass, CoupledPMP, CoupledRP, STAT)
 
         !Arguments---------------------------------------------------------------
         character(len=*)                                :: ModelName
         integer                                         :: DrainageNetworkID  
         integer                                         :: TimeID
         type (T_Size2D), optional                       :: Size
-        logical, optional                               :: CheckMass     
+        logical, optional                               :: CheckMass
+        logical, optional                               :: CoupledPMP, CoupledRP     
         integer, optional, intent(OUT)                  :: STAT     
 
         !Local-------------------------------------------------------------------
@@ -856,7 +866,13 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
             !Associates module Time
             Me%ObjTime = AssociateInstance   (mTIME_, TimeID)
-
+            
+            if (present(CoupledPMP)) then
+                Me%ExtVar%CoupledPMP = CoupledPMP
+            endif
+            if (present(CoupledRP)) then
+                Me%ExtVar%CoupledRP  = CoupledRP
+            endif
 
             !Gets Current Compute Time
             call GetComputeCurrentTime(Me%ObjTime, Me%CurrentTime, STAT = STAT_CALL)
@@ -3131,7 +3147,7 @@ cd2 :           if (BlockFound) then
         allocate (NewProperty%Load                     (1:Me%TotalNodes))
         allocate (NewProperty%MassInKg                 (1:Me%TotalNodes))
             
-
+       
         NewProperty%Concentration           = 0.0
         NewProperty%ConcentrationOld        = 0.0
         NewProperty%InitialConcentration    = 0.0
@@ -3207,8 +3223,18 @@ cd2 :           if (BlockFound) then
                      STAT           = STAT_CALL)              
         if (STAT_CALL .NE. SUCCESS_)                                            &
             stop 'ModuleDrainageNetwork - ConstructPropertyValues - ERR02a' 
-        NewProperty%OverLandConc = OverLandConcentration
-
+        
+        if (Me%ExtVar%CoupledRP) then
+            if (iflag .ne. 0) then
+                write(*,*)'Using Module RunoffProperties for overland concentration'
+                write(*,*)'keyword OVERLAND_CONCENTRATION in each property is redundant'
+                write(*,*)'and not consistent, please remove it.'
+                stop 'ModuleDrainageNetwork - ConstructPropertyValues - ERR02b'
+            endif
+        else
+            NewProperty%OverLandConc = OverLandConcentration
+        endif
+        
         call GetData(GWaterConcentration,                                       &
                      Me%ObjEnterData, iflag,                                    &
                      Keyword        = 'GROUNDWATER_CONCENTRATION',              &
@@ -3217,8 +3243,18 @@ cd2 :           if (BlockFound) then
                      Default        = 0.0,                                      &
                      STAT           = STAT_CALL)              
         if (STAT_CALL .NE. SUCCESS_)                                            &
-            stop 'ModuleDrainageNetwork - ConstructPropertyValues - ERR02a' 
-        NewProperty%GWaterConc = GWaterConcentration
+            stop 'ModuleDrainageNetwork - ConstructPropertyValues - ERR02c' 
+        
+        if (Me%ExtVar%CoupledPMP) then
+            if (iflag .ne. 0) then
+                write(*,*)'Using Module PorousMediaProperties for groundwater concentration.'
+                write(*,*)'keyword GROUNDWATER_CONCENTRATION in each property is redundant'
+                write(*,*)'and not consistent, please remove it.'
+                stop 'ModuleDrainageNetwork - ConstructPropertyValues - ERR02d'
+            endif
+        else        
+            NewProperty%GWaterConc = GWaterConcentration
+        endif
 
         call GetData(DWaterConcentration,                                       &
                      Me%ObjEnterData, iflag,                                    &
@@ -3228,7 +3264,7 @@ cd2 :           if (BlockFound) then
                      Default        = OverLandConcentration,                    &
                      STAT           = STAT_CALL)              
         if (STAT_CALL .NE. SUCCESS_)                                            &
-            stop 'ModuleDrainageNetwork - ConstructPropertyValues - ERR02a' 
+            stop 'ModuleDrainageNetwork - ConstructPropertyValues - ERR02e' 
         NewProperty%DWaterConc = DWaterConcentration
 
 
@@ -5772,9 +5808,66 @@ if0:    if (Me%HasProperties) then
     end subroutine GetHasProperties
 
     !---------------------------------------------------------------------------
-    !---------------------------------------------------------------------------
 
-    subroutine GetnProperties (DrainageNetworkID, nProperties, STAT)
+    subroutine GetDNConcentration(DrainageNetworkID, ConcentrationX, PropertyXIDNumber, &
+                                PropertyXUnits, STAT)
+
+        !Arguments---------------------------------------------------------------
+        integer                                     :: DrainageNetworkID
+        real, pointer, dimension(:)                 :: ConcentrationX
+        character(LEN = *), optional, intent(OUT)   :: PropertyXUnits
+        integer,                      intent(IN )   :: PropertyXIDNumber
+        integer,            optional, intent(OUT)   :: STAT
+
+        !Local-------------------------------------------------------------------
+        integer                                     :: ready_          
+        integer                                     :: STAT_CALL              
+        type(T_Property), pointer                   :: PropertyX
+        integer                                     :: UnitsSize
+        integer                                     :: STAT_    
+
+        !------------------------------------------------------------------------
+
+
+        STAT_ = UNKNOWN_
+
+        call Ready(DrainageNetworkID, ready_) 
+        
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+            call Read_Lock(mDRAINAGENETWORK_, Me%InstanceID) 
+
+            nullify(PropertyX)
+
+            call SearchProperty(PropertyX, PropertyXIDNumber = PropertyXIDNumber, STAT = STAT_CALL)
+
+            if (STAT_CALL == SUCCESS_) then
+                ConcentrationX => PropertyX%concentration
+
+                if (present(PropertyXUnits)) then 
+                   UnitsSize      = LEN (PropertyXUnits)
+                   PropertyXUnits = PropertyX%ID%Units(1:UnitsSize)
+                end if
+
+                STAT_ = SUCCESS_
+            else
+                write(*,*) 'Looking for Property in Drainage Network', GetPropertyName(PropertyXIDNumber)
+                write(*,*) 'but not found. Link between WQ in modules can not be done.'
+                stop 'GetDNConcentration - ModuleDrainageNetwork - ERR010'
+                STAT_ = STAT_CALL
+            end if
+        else
+            STAT_ = ready_
+        end if
+
+
+        if (present(STAT))STAT = STAT_
+            
+    end subroutine GetDNConcentration
+
+    !--------------------------------------------------------------------------------
+
+    subroutine GetDNnProperties (DrainageNetworkID, nProperties, STAT)
 
         !Arguments--------------------------------------------------------------
         integer                                         :: DrainageNetworkID
@@ -5799,17 +5892,18 @@ if0:    if (Me%HasProperties) then
 
         if (present(STAT)) STAT = STAT_CALL
 
-    end subroutine GetnProperties
+    end subroutine GetDNnProperties
 
     !---------------------------------------------------------------------------
     !---------------------------------------------------------------------------
 
-    subroutine GetPropertiesIDByIdx (DrainageNetworkID, Idx, ID, OutputName, STAT)
+    subroutine GetDNPropertiesIDByIdx (DrainageNetworkID, Idx, ID,PropAdvDiff, OutputName, STAT)
 
         !Arguments--------------------------------------------------------------
         integer                                         :: DrainageNetworkID
         integer, intent(IN)                             :: Idx
-        type (T_PropertyID), intent(OUT)                :: ID
+        integer, intent(OUT)                            :: ID
+        logical, intent(OUT)                            :: PropAdvDiff
         integer, intent(OUT), optional                  :: STAT
         character (Len = StringLength), optional        :: OutputName
 
@@ -5830,8 +5924,10 @@ if0:    if (Me%HasProperties) then
                 CurrProp => CurrProp%Next
             enddo
 
-            ID        = CurrProp%ID
-
+            ID          = CurrProp%ID%IDNumber
+            PropAdvDiff = CurrProp%ComputeOptions%AdvectionDiffusion
+            
+            
             if (present (OutputName)) then
                 if (CurrProp%OutputName == 'NAME') then
                     OutputName = CurrProp%ID%Name
@@ -5847,7 +5943,7 @@ if0:    if (Me%HasProperties) then
 
         if (present(STAT)) STAT = STAT_CALL
 
-    end subroutine GetPropertiesIDByIdx
+    end subroutine GetDNPropertiesIDByIdx
 
     !---------------------------------------------------------------------------
     !---------------------------------------------------------------------------
@@ -6089,6 +6185,38 @@ if0:    if (Me%HasProperties) then
 
     !---------------------------------------------------------------------------
 
+    subroutine UnGetDrainageNetwork1DR4 (ObjDrainageNetworkID, Array, STAT)
+
+        !Arguments--------------------------------------------------------------
+        integer                                         :: ObjDrainageNetworkID
+        real, dimension(:), pointer                     :: Array
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local------------------------------------------------------------------
+        integer                                         :: STAT_, ready_
+
+        !-----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(ObjDrainageNetworkID, ready_)
+
+        if (ready_ .EQ. READ_LOCK_ERR_) then
+
+            nullify(Array)
+            call Read_Unlock(mDRAINAGENETWORK_, Me%InstanceID, "UnGetDrainageNetwork")
+
+            STAT_ = SUCCESS_
+        else               
+            STAT_ = ready_
+        end if
+
+        if (present(STAT)) STAT = STAT_
+
+    end subroutine UnGetDrainageNetwork1DR4
+
+    !---------------------------------------------------------------------------    
+
     subroutine UnGetDrainageNetworkI4 (ObjDrainageNetworkID, Array, STAT)
 
         !Arguments--------------------------------------------------------------
@@ -6243,6 +6371,115 @@ if0:    if (Me%HasProperties) then
     end subroutine SetAtmosphereDrainageNet 
 
     !---------------------------------------------------------------------------
+    
+    subroutine SetPMPConcDN   (DrainageNetworkID, ConcentrationX,      &
+                                                PropertyXIDNumber, STAT)
+
+        !Arguments--------------------------------------------------------------
+        integer                                         :: DrainageNetworkID
+        real, dimension(:, :), pointer                  :: ConcentrationX
+        integer                                         :: PropertyXIDNumber
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local------------------------------------------------------------------
+        integer                                         :: NodeID
+        type (T_Node), pointer                          :: CurrNode
+        integer                                         :: STAT_, ready_
+        type(T_Property), pointer                       :: PropertyX
+
+        !-----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(DrainageNetworkID, ready_)
+
+        if (ready_ .EQ. IDLE_ERR_)then
+            
+          
+            nullify(PropertyX)
+
+            call SearchProperty(PropertyX, PropertyXIDNumber = PropertyXIDNumber, STAT = STAT_)
+
+            if (STAT_ == SUCCESS_) then
+            
+                do NodeID = 1, Me%TotalNodes
+                    CurrNode => Me%Nodes(NodeID)
+                    
+!                    PropertyX%ConcentrationGWLayer (NodeID) = ConcentrationX     (CurrNode%GridI, CurrNode%GridJ)
+                    PropertyX%GWaterConc (NodeID) = ConcentrationX     (CurrNode%GridI, CurrNode%GridJ)
+
+                enddo                
+
+            else
+                write(*,*) 'Looking for Porous Media Property in Drainage Network', GetPropertyName(PropertyXIDNumber)
+                write(*,*) 'but not found. Link between WQ in modules can not be done.'
+                stop 'SetPMPConcDN - ModuleDrainageNetwork - ERR010'
+            end if
+
+        else
+            STAT_ = ready_
+        end if
+
+        STAT = STAT_
+
+    end subroutine SetPMPConcDN
+
+    !---------------------------------------------------------------------------
+
+    subroutine SetRPConcDN   (DrainageNetworkID, ConcentrationX,      &
+                                                PropertyXIDNumber, STAT)
+
+        !Arguments--------------------------------------------------------------
+        integer                                         :: DrainageNetworkID
+        real, dimension(:, :), pointer                  :: ConcentrationX
+        integer                                         :: PropertyXIDNumber
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local------------------------------------------------------------------
+        integer                                         :: NodeID
+        type (T_Node), pointer                          :: CurrNode
+        integer                                         :: STAT_, ready_
+        type(T_Property), pointer                       :: PropertyX
+
+        !-----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(DrainageNetworkID, ready_)
+
+        if (ready_ .EQ. IDLE_ERR_)then
+            
+           
+            nullify(PropertyX)
+
+            call SearchProperty(PropertyX, PropertyXIDNumber = PropertyXIDNumber, STAT = STAT_)
+
+            if (STAT_ == SUCCESS_) then
+            
+                do NodeID = 1, Me%TotalNodes
+                    CurrNode => Me%Nodes(NodeID)
+                    
+ !                   PropertyX%ConcentrationRP (NodeID) = ConcentrationX     (CurrNode%GridI, CurrNode%GridJ)
+                    PropertyX%OverLandConc (NodeID) = ConcentrationX     (CurrNode%GridI, CurrNode%GridJ)
+
+                enddo                
+
+            else
+                write(*,*) 'Looking for Runoff Property in Drainage Network', GetPropertyName(PropertyXIDNumber)
+                write(*,*) 'but not found. Link between WQ in modules can not be done.'
+                stop 'SetPMPConcDN - ModuleDrainageNetwork - ERR010'
+            end if
+
+        else
+            STAT_ = ready_
+        end if
+
+        STAT = STAT_
+
+    end subroutine SetRPConcDN
+
+    !---------------------------------------------------------------------------
+    
 
     subroutine SearchProperty(PropertyX, PropertyXIDNumber, PrintWarning, STAT)
 
@@ -8311,7 +8548,7 @@ do2:            do while (Iterate)
             Property%ConcentrationOld = Property%Concentration
             Property => Property%Next
         enddo
-
+        
         !Transports Properties
         call Advection_Diffusion      (LocalDT)
 
@@ -10135,10 +10372,11 @@ do2:        do j = i+1, i+5
                 if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - WriteTimeSeriesByProp - ERR02'       
 
             enddo do2
+            
+            i=i+5
 
         endif if2
 
-        i=i+5
 
         !Properties-------------------------------------------------------------
 if3:    if (Me%TimeSerie%nProp .GT.BaseTimeSeries) then
@@ -10908,7 +11146,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                         deallocate (Property%TotalConc               )
                         deallocate (Property%Load                    )
                         deallocate (Property%MassInKg                )
-
+                        
                         if(Property%ComputeOptions%BottomFluxes)then
                             deallocate (Property%BottomConc     )
                             deallocate (Property%ErosionRate    )

@@ -115,17 +115,23 @@ Module ModulePorousMedia
 
     !Selector
     public  ::  GetNextPorousMediaDT
+    public  ::  GetPotentialInfiltration
     public  ::  GetInfiltration
     public  ::  GetEfectiveEVTP
     public  ::  GetGWFlowToChannels
+    public  ::  GetGWLayer
     public  ::  GetTotalStoredVolume
     public  ::  GetFluxU
     public  ::  GetFluxV
-    public  ::  GetFluxWOld
-    public  ::  GetUnsatWOld
+    public  ::  GetFluxW
+    public  ::  GetUnsatU
+    public  ::  GetUnsatV
+    public  ::  GetUnsatW
+    public  ::  GetWaterColumn
     public  ::  GetWaterContent
     public  ::  GetHead
     public  ::  GetThetaR
+    public  ::  GetThetaS
     public  ::  GetOldWaterContent
     public  ::  GetThetaField
     public  ::  GetComputeSoilField
@@ -169,6 +175,7 @@ Module ModulePorousMedia
         module procedure UnGetPorousMedia_R1
         module procedure UnGetPorousMedia_RI
         module procedure UnGetPorousMedia_AI
+        module procedure UnGetPorousMedia_AI2D
     end interface UnGetPorousMedia
 
     !Parameter-------------------------------------------------------------------
@@ -258,6 +265,7 @@ Module ModulePorousMedia
         real, dimension(:,:), pointer           :: RootFeddesH3
         real, dimension(:,:), pointer           :: RootFeddesH4
         
+        real(8), dimension(:,:  ), pointer      :: InfiltrationColumn
         real, dimension(:,:,:), pointer         :: TranspirationFlux        
         real, dimension(:,:  ), pointer         :: PotentialEvaporationFlux         
         logical                                 :: ConstructEvaporation
@@ -382,9 +390,8 @@ Module ModulePorousMedia
         real(8), dimension(:,:,:), pointer      :: FluxU                    => null()
         real(8), dimension(:,:,:), pointer      :: FluxV                    => null()
         real(8), dimension(:,:,:), pointer      :: FluxW                    => null()
-        real(8), dimension(:,:,:), pointer      :: FluxWOld                    => null()
+        real(8), dimension(:,:,:), pointer      :: FluxWFinal               => null()  !Flux Corrected with the routine Vertical continuity
         real,    dimension(:,:  ), pointer      :: EvaporationFlux          => null()
-!        real(8), dimension(:,:,:), pointer      :: TranspirationFlux        => null() !Lúcia fluxo de água perdida por transpiração
         !Flow Properties
         real,    pointer, dimension(:,:,:)      :: Theta                    => null() !water content on each cell [m3/m3]                
         real,    pointer, dimension(:,:,:)      :: Head                     => null() !Suction Head on each cell 
@@ -427,6 +434,12 @@ Module ModulePorousMedia
         type (T_Property), pointer              :: FirstProperty    => null()
                 
         type(T_PorousMedia), pointer            :: Next             => null()
+        
+        !Accumulated fluxes for Average flux computation (for Advection diffusion) 
+        real(8), dimension(:,:,:), pointer      :: FluxUAcc       => null()
+        real(8), dimension(:,:,:), pointer      :: FluxVAcc       => null()
+        real(8), dimension(:,:,:), pointer      :: FluxWAcc       => null()
+        real(8), dimension(:,:,:), pointer      :: FluxWAccFinal  => null()        
     end type  T_PorousMedia
 
     !Global Module Variables
@@ -1250,7 +1263,11 @@ do1:     do
         allocate(Me%FluxU               (ILB:IUB,JLB:JUB,KLB:KUB))
         allocate(Me%FluxV               (ILB:IUB,JLB:JUB,KLB:KUB))
         allocate(Me%FluxW               (ILB:IUB,JLB:JUB,KLB:KUB))
-        allocate(Me%FluxWOld            (ILB:IUB,JLB:JUB,KLB:KUB))
+        allocate(Me%FluxWFinal          (ILB:IUB,JLB:JUB,KLB:KUB))
+        allocate(Me%FluxUAcc            (ILB:IUB,JLB:JUB,KLB:KUB))
+        allocate(Me%FluxVAcc            (ILB:IUB,JLB:JUB,KLB:KUB))
+        allocate(Me%FluxWAcc            (ILB:IUB,JLB:JUB,KLB:KUB))
+        allocate(Me%FluxWAccFinal       (ILB:IUB,JLB:JUB,KLB:KUB))
         
         if (Me%ExtVar%ConstructEvaporation) then
             allocate(Me%EvaporationFlux     (ILB:IUB,JLB:JUB        ))
@@ -1266,7 +1283,7 @@ do1:     do
         Me%FluxU                = 0.0
         Me%FluxV                = 0.0
         Me%FluxW                = 0.0
-        Me%FluxWOld             = 0.0
+        Me%FluxWFinal           = 0.0
         if (Me%ExtVar%ConstructEvaporation) then
             Me%EvaporationFlux      = 0.0
         endif
@@ -1279,6 +1296,10 @@ do1:     do
         Me%iFlowToChannels     = 0.0
         Me%lFlowToChannels     = 0.0
 
+        Me%FluxUAcc      = 0.0
+        Me%FluxVAcc      = 0.0
+        Me%FluxWAcc      = 0.0
+        Me%FluxWAccFinal = 0.0
     end subroutine AllocateVariables
 
     !--------------------------------------------------------------------------
@@ -2091,6 +2112,36 @@ doSP:           do
     end subroutine GetNextPorousMediaDT
 
     !--------------------------------------------------------------------------
+    
+    subroutine GetPotentialInfiltration (ObjPorousMediaID, PotInfiltration, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                                         :: ObjPorousMediaID
+        real(8), dimension(:, :), pointer               :: PotInfiltration
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                         :: STAT_, ready_
+        
+        call Ready(ObjPorousMediaID, ready_)    
+        
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            call Read_Lock(mPorousMedia_, Me%InstanceID)
+            
+            PotInfiltration => Me%ExtVar%InfiltrationColumn
+
+            STAT_ = SUCCESS_
+        else 
+            STAT_ = ready_
+        end if
+
+        if (present(STAT)) STAT = STAT_
+
+    end subroutine GetPotentialInfiltration
+
+    !--------------------------------------------------------------------------    
 
     subroutine GetInfiltration (ObjPorousMediaID, Infiltration, STAT)
 
@@ -2183,6 +2234,37 @@ doSP:           do
 
     !--------------------------------------------------------------------------
 
+    subroutine GetGWLayer (ObjPorousMediaID, GWLayer, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                                         :: ObjPorousMediaID
+        integer, dimension(:,:), pointer                :: GWLayer
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                         :: STAT_, ready_
+        
+
+        call Ready(ObjPorousMediaID, ready_)    
+        
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            call Read_Lock(mPorousMedia_, Me%InstanceID)
+            
+            GWLayer => Me%UGCell
+
+            STAT_ = SUCCESS_
+        else 
+            STAT_ = ready_
+        end if
+
+        if (present(STAT)) STAT = STAT_
+
+    end subroutine GetGWLayer
+
+    !--------------------------------------------------------------------------
+
     subroutine GetTotalStoredVolume (ObjPorousMediaID, TotalStoredVolume, LossToGround, STAT)
 
         !Arguments-------------------------------------------------------------
@@ -2261,7 +2343,7 @@ doSP:           do
 
             call Read_Lock(mPorousMedia_, Me%InstanceID)
             
-            FlowU => Me%FluxU
+            FlowU => Me%FluxUAcc
 
             STAT_ = SUCCESS_
         else 
@@ -2291,7 +2373,7 @@ doSP:           do
 
             call Read_Lock(mPorousMedia_, Me%InstanceID)
             
-            FlowV => Me%FluxV
+            FlowV => Me%FluxVAcc
 
             STAT_ = SUCCESS_
         else 
@@ -2304,11 +2386,11 @@ doSP:           do
 
     !--------------------------------------------------------------------------
 
-    subroutine GetFluxWOld (ObjPorousMediaID, FlowWOld, STAT)
+    subroutine GetFluxW (ObjPorousMediaID, FluxWFinal, STAT)
 
         !Arguments-------------------------------------------------------------
         integer                                         :: ObjPorousMediaID
-        real(8), dimension(:,:,:), pointer              :: FlowWOld
+        real(8), dimension(:,:,:), pointer              :: FluxWFinal
         integer, intent(OUT), optional                  :: STAT
 
         !Local-----------------------------------------------------------------
@@ -2321,7 +2403,11 @@ doSP:           do
 
             call Read_Lock(mPorousMedia_, Me%InstanceID)
             
-            FlowWOld => Me%FluxWold
+            ! Lucia
+            !FlowWOld => Me%FluxWold
+            
+            !changed by Eduardo Jauch
+            FluxWFinal => Me%FluxWAccFinal
 
             STAT_ = SUCCESS_
         else 
@@ -2330,11 +2416,73 @@ doSP:           do
 
         if (present(STAT)) STAT = STAT_
 
-    end subroutine GetFluxWOld
+    end subroutine GetFluxW
 
     !--------------------------------------------------------------------------
 
-    subroutine GetUnsatWOld (ObjPorousMediaID, UnsatW, STAT)
+    subroutine GetUnsatV (ObjPorousMediaID, UnsatV, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                                         :: ObjPorousMediaID
+        real,dimension(:,:,:), pointer                  :: UnsatV                        
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                         :: STAT_, ready_
+        
+        call Ready(ObjPorousMediaID, ready_)    
+        
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            call Read_Lock(mPorousMedia_, Me%InstanceID)
+            
+            !UnsatW => Me%UnsatVelWOld
+            UnsatV => Me%UnsatVelV
+
+            STAT_ = SUCCESS_
+        else 
+            STAT_ = ready_
+        end if
+
+        if (present(STAT)) STAT = STAT_
+
+    end subroutine GetUnsatV
+    
+    !--------------------------------------------------------------------------
+
+    subroutine GetUnsatU (ObjPorousMediaID, UnsatU, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                                         :: ObjPorousMediaID
+        real,dimension(:,:,:), pointer                  :: UnsatU                        
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                         :: STAT_, ready_
+        
+        call Ready(ObjPorousMediaID, ready_)    
+        
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            call Read_Lock(mPorousMedia_, Me%InstanceID)
+            
+            !UnsatW => Me%UnsatVelWOld
+            UnsatU => Me%UnsatVelU
+
+            STAT_ = SUCCESS_
+        else 
+            STAT_ = ready_
+        end if
+
+        if (present(STAT)) STAT = STAT_
+
+    end subroutine GetUnsatU
+    
+    !--------------------------------------------------------------------------
+
+    subroutine GetUnsatW (ObjPorousMediaID, UnsatW, STAT)
 
         !Arguments-------------------------------------------------------------
         integer                                         :: ObjPorousMediaID
@@ -2351,7 +2499,7 @@ doSP:           do
 
             call Read_Lock(mPorousMedia_, Me%InstanceID)
             
-            UnsatW => Me%UnsatVelWOld
+            UnsatW => Me%UnsatVelW
 
             STAT_ = SUCCESS_
         else 
@@ -2360,10 +2508,38 @@ doSP:           do
 
         if (present(STAT)) STAT = STAT_
 
-    end subroutine GetUnsatWOld
+    end subroutine GetUnsatW
 
     !---------------------------------------------------------------------------
 
+    subroutine GetWaterColumn (ObjPorousMediaID, WaterColumn, STAT)
+    
+        !Arguments-------------------------------------------------------------
+        integer                          :: ObjPorousMediaID
+        real,    pointer, dimension(:,:) :: WaterColumn
+        integer, intent(OUT), optional   :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer :: STAT_, ready_
+        
+        call Ready(ObjPorousMediaID, ready_)    
+        
+        if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            call Read_Lock(mPorousMedia_, Me%InstanceID)
+            
+            WaterColumn => Me%WaterColumn
+
+            STAT_ = SUCCESS_
+        else 
+            STAT_ = ready_
+        end if
+
+        if (present(STAT)) STAT = STAT_    
+    
+    end subroutine GetWaterColumn
+
+    !---------------------------------------------------------------------------
 
     subroutine GetWaterContent (ObjPorousMediaID, WC, STAT)
 
@@ -2412,7 +2588,7 @@ doSP:           do
 
             call Read_Lock(mPorousMedia_, Me%InstanceID)
             
-            WCold => Me%CV%ThetaOld
+            WCold => Me%CV%ThetaIni !Me%CV%ThetaOld
 
             STAT_ = SUCCESS_
         else 
@@ -2484,6 +2660,37 @@ doSP:           do
 
 
     end subroutine GetThetaR
+
+    !--------------------------------------------------------------------------
+
+    subroutine GetThetaS (ObjPorousMediaID, ThetaS, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                                         :: ObjPorousMediaID
+        real,    pointer, dimension(:,:,:)              :: ThetaS
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                         :: STAT_, ready_
+        
+        call Ready(ObjPorousMediaID, ready_)    
+        
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            call Read_Lock(mPorousMedia_, Me%InstanceID)
+            
+            ThetaS => Me%RC%ThetaS
+
+            STAT_ = SUCCESS_
+        else 
+            STAT_ = ready_
+        end if
+
+        if (present(STAT)) STAT = STAT_
+
+
+    end subroutine GetThetaS
 
     !--------------------------------------------------------------------------
 
@@ -2811,8 +3018,8 @@ doSP:           do
 
         if (ready_ .EQ. READ_LOCK_ERR_) then
 
-            array = 0
-            call Read_Unlock(mPorousMedia_, Me%InstanceID, "UnGetPorousMedia_RI")
+            nullify(Array)
+            call Read_Unlock(mPorousMedia_, Me%InstanceID, "UnGetPorousMedia_AI")
 
             STAT_ = SUCCESS_
         else               
@@ -2822,6 +3029,38 @@ doSP:           do
         if (present(STAT)) STAT = STAT_
 
         end subroutine UnGetPorousMedia_AI
+
+    ! ---------------------------------------------------------------------!
+
+     subroutine UnGetPorousMedia_AI2D(ObjPorousMediaID, Array, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                                         :: ObjPorousMediaID
+        integer, pointer, dimension(:,:)                :: Array
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                         :: STAT_, ready_
+
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(ObjPorousMediaID, ready_)
+
+        if (ready_ .EQ. READ_LOCK_ERR_) then
+
+            nullify(Array)
+            call Read_Unlock(mPorousMedia_, Me%InstanceID, "UnGetPorousMedia_AI2D")
+
+            STAT_ = SUCCESS_
+        else               
+            STAT_ = ready_
+        end if
+
+        if (present(STAT)) STAT = STAT_
+
+        end subroutine UnGetPorousMedia_AI2D
 
     ! ---------------------------------------------------------------------!
       
@@ -2894,6 +3133,7 @@ doSP:           do
                 Me%ExtVar%PotentialEvaporationFlux   => PotentialEvaporation
             endif
             
+            Me%ExtVar%InfiltrationColumn => InfiltrationColumn
        
             !Calculate flow in unsaturated part of soil
             call VariableSaturatedFlow (InfiltrationColumn)
@@ -2957,11 +3197,21 @@ doSP:           do
 !        call SetMatrixValue (Me%EfectiveEVTP2,     Me%Size2D, dble(0.0),         Me%ExtVar%BasinPoints)       
         call SetMatrixValue (Me%iFlowToChannels,  Me%Size2D, Zero,              Me%ExtVar%BasinPoints)
         
+!        call SetMatrixValue (Me%FluxWAcc, Me%Size, dble(0.0), Me%ExtVar%WaterPoints3D) 
+!        call SetMatrixValue (Me%FluxVAcc, Me%Size, dble(0.0), Me%ExtVar%WaterPoints3D) 
+!        call SetMatrixValue (Me%FluxUAcc, Me%Size, dble(0.0), Me%ExtVar%WaterPoints3D) 
+!        call SetMatrixValue (Me%FluxWAccFinal, Me%Size, dble(0.0), Me%ExtVar%WaterPoints3D) 
+        
         iteration         = 1
         Niteration        = 1
         Me%CV%CurrentDT   = Me%ExtVar%DT / Niteration
         SumDT             = 0.0
         StrongVariation   = .false.
+
+        Me%FluxWAcc = 0.
+        Me%FluxVAcc = 0.
+        Me%FluxUAcc = 0.
+        Me%FluxWAccFinal = 0.
         
 dConv:  do while (iteration <= Niteration)
         
@@ -2974,9 +3224,6 @@ dConv:  do while (iteration <= Niteration)
             !Calculates Water velocity
             call SoilWaterVelocity
            
-            ! actualizes the flux in the previous time for advection processes
-            call SetMatrixValue (Me%FluxWOld,      Me%Size,   Me%FluxW,          Me%ExtVar%WaterPoints3D)
-            
             !Calculates Water Flux
             call SoilWaterFlux
             
@@ -3014,6 +3261,17 @@ dConv:  do while (iteration <= Niteration)
                 call SetMatrixValue (Me%EfectiveEVTP,   Me%Size2D, dble(0.0),           Me%ExtVar%BasinPoints)
                 call SetMatrixValue (Me%iFlowToChannels,Me%Size2D, Zero,                Me%ExtVar%BasinPoints)
                 
+                !Resets Accumulated flows
+!                call SetMatrixValue (Me%FluxWAcc, Me%Size, dble(0.0), Me%ExtVar%WaterPoints3D) 
+!                call SetMatrixValue (Me%FluxVAcc, Me%Size, dble(0.0), Me%ExtVar%WaterPoints3D) 
+!                call SetMatrixValue (Me%FluxUAcc, Me%Size, dble(0.0), Me%ExtVar%WaterPoints3D) 
+!                call SetMatrixValue (Me%FluxWAccFinal, Me%Size, dble(0.0), Me%ExtVar%WaterPoints3D)  
+
+                Me%FluxWAcc = 0.
+                Me%FluxVAcc = 0.
+                Me%FluxUAcc = 0.
+                Me%FluxWAccFinal = 0.
+                              
             else
                 
                 call VerticalContinuity
@@ -3027,6 +3285,10 @@ dConv:  do while (iteration <= Niteration)
                 !Advection of Properties
 !                call CalculateAdvection
                 
+                !Accumulate flows
+                call AccumulateFlows
+                
+                
                 SumDT       = SumDT + Me%CV%CurrentDT
                 iteration   = iteration + 1
                 
@@ -3038,6 +3300,9 @@ dConv:  do while (iteration <= Niteration)
             
         enddo dConv
         
+        call CalculateMeanFlows (Niteration)
+        call InsertInfiltrationOnFluxMatrix
+        
         call LogDT (Niteration)
         
         call PredictDT(Niteration)
@@ -3048,6 +3313,120 @@ dConv:  do while (iteration <= Niteration)
     
     !--------------------------------------------------------------------------
     
+    subroutine InsertInfiltrationOnFluxMatrix
+    
+        !Local-----------------------------------------------------------------
+        integer :: i, j, k
+        real    :: infiltration_flux
+
+        !----------------------------------------------------------------------
+        
+        k = Me%WorkSize%KUB + 1
+        
+        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+        do i = Me%WorkSize%ILB, Me%WorkSize%IUB 
+        
+            if (Me%ExtVar%BasinPoints (i, j) == 1) then
+        
+                infiltration_flux = Me%Infiltration(i, j) * Me%ExtVar%Area(i, j) / Me%ExtVar%DT
+                Me%FluxWAccFinal(i, j, k) = Me%FluxWAccFinal(i, j, k) - Infiltration_flux
+                
+            endif
+        
+        enddo
+        enddo           
+        
+        !----------------------------------------------------------------------
+    
+    end subroutine InsertInfiltrationOnFluxMatrix
+    
+    !--------------------------------------------------------------------------
+    
+    subroutine CalculateMeanFlows (iterations)
+    
+        !Arguments-------------------------------------------------------------
+        integer :: iterations
+
+        !Local-----------------------------------------------------------------
+        integer :: i, j, k
+
+        !----------------------------------------------------------------------
+        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+        do i = Me%WorkSize%ILB, Me%WorkSize%IUB            
+        do k = Me%WorkSize%KLB, Me%WorkSize%KUB
+        
+            if (Me%ExtVar%ComputeFacesU3D(I,J,K) .EQ. Compute) then
+                
+               Me%FluxUAcc(i, j, k) = Me%FluxUAcc(i, j, k) / iterations                 
+            
+            endif
+            
+            if (Me%ExtVar%ComputeFacesV3D(I,J,K) .EQ. Compute) then
+            
+                Me%FluxVAcc(i, j, k) = Me%FluxVAcc(i, j, k) / iterations   
+            
+            endif
+
+            if (Me%ExtVar%ComputeFacesW3D(I,J,K) .EQ. Compute) then
+            
+                Me%FluxWAcc(i, j, k) = Me%FluxWAcc(i, j, k) / iterations
+                Me%FluxWAccFinal(i, j, k) = Me%FluxWAccFinal(i, j, k) / iterations
+            
+            endif
+            
+        enddo
+        enddo
+        enddo
+        
+        Me%FluxWAcc(i, j, Me%WorkSize%KUB+1) = Me%FluxWAcc(i, j, Me%WorkSize%KUB+1) / iterations
+             
+        !----------------------------------------------------------------------
+        
+    
+    end subroutine CalculateMeanFlows
+    
+    subroutine AccumulateFlows
+
+        !Local-----------------------------------------------------------------
+        integer :: i, j, k
+
+        !----------------------------------------------------------------------
+        
+        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+        do i = Me%WorkSize%ILB, Me%WorkSize%IUB            
+        do k = Me%WorkSize%KLB, Me%WorkSize%KUB
+        
+            if (Me%ExtVar%ComputeFacesU3D(I,J,K) .EQ. Compute) then
+                
+               Me%FluxUAcc(i, j, k) = Me%FluxUAcc(i, j, k) + Me%FluxU(i, j, k)                 
+            
+            endif
+            
+            if (Me%ExtVar%ComputeFacesV3D(I,J,K) .EQ. Compute) then
+            
+                Me%FluxVAcc(i, j, k) = Me%FluxVAcc(i, j, k) + Me%FluxV(i, j, k)    
+            
+            endif
+
+            if (Me%ExtVar%ComputeFacesW3D(I,J,K) .EQ. Compute) then
+            
+                Me%FluxWAcc(i, j, k) = Me%FluxWAcc(i, j, k) + Me%FluxW(i, j, k)
+                Me%FluxWAccFinal(i, j, k) = Me%FluxWAccFinal(i, j, k) + Me%FluxWFinal(i, j, k)
+            
+            endif
+            
+        enddo
+        enddo
+        enddo
+        
+        Me%FluxWAcc(i, j, Me%WorkSize%KUB+1) = Me%FluxWAcc(i, j, Me%WorkSize%KUB+1) + Me%FluxW(i, j, Me%WorkSize%KUB+1)
+             
+        !----------------------------------------------------------------------
+        
+    end subroutine AccumulateFlows
+    
+    !--------------------------------------------------------------------------
+
     subroutine EffectiveVelocity
 
         !Arguments-------------------------------------------------------------
@@ -3314,9 +3693,9 @@ dConv:  do while (iteration <= Niteration)
         do I = Me%WorkSize%ILB, Me%WorkSize%IUB            
             if (Me%ExtVar%ComputeFacesW3D(I,J,K) .EQ. Compute) then
                 if (Me%ExtVar%ComputeFacesW3D(I,J,K) .EQ. Compute) then
-                    
-                    
-                    Me%FluxW    (i,j,k) = Me%UnsatVelW(i,j,k) * Me%ExtVar%Area(i,j)
+                                        
+                    Me%FluxW(i,j,k)      = Me%UnsatVelW(i,j,k) * Me%ExtVar%Area(i,j)
+                    Me%FluxWFinal(i,j,k) = Me%FluxW(i,j,k)
 
                 end if
             end if
@@ -4322,66 +4701,38 @@ cd2 :   if (Mapping(i, j) == 1) then
         do I = Me%WorkSize%ILB, Me%WorkSize%IUB
             if (Me%ExtVar%BasinPoints(I,J) == 1) then
             
-                ExcessVolume = 0.0
-                do K = Me%WorkSize%KUB, Me%ExtVar%KFloor(i, j), - 1
+                do k = Me%WorkSize%KUB, (Me%ExtVar%KFloor(i, j)+1), -1               
                     if (Me%Theta(i,j,k) .gt. Me%RC%ThetaS(i,j,k)) then
                         !If cell is oversaturated, set to saturation and put water downwards
-                        ExcessVolume = ExcessVolume + (Me%Theta(i,j,k) - Me%RC%ThetaS (i,j,k)) * Me%ExtVar%CellVolume(i,j,k)
-                        Me%Theta(i, j, k) = Me%RC%ThetaS (i,j,k)
-                    else
-                        !Restore Volume ?
-                        if (ExcessVolume > 0.0) then
-                        
-                            !Space in cell
-                            AvaliableVolume = (Me%RC%ThetaS (i,j,k) - Me%Theta(i,j,k)) * Me%ExtVar%CellVolume(i,j,k)
-                            
-                            if (AvaliableVolume > ExcessVolume) then
-                                !Enough space avaliabe. Put all volume here
-                                Me%Theta(i,j,k) = (Me%Theta(i,j,k) * Me%ExtVar%CellVolume(i,j,k) + ExcessVolume) / &
-                                                   Me%ExtVar%CellVolume(i,j,k)
-                                ExcessVolume    = 0.0
-                            else
-                                !Not enough space avaliable. Saturate cell and shift other volume down
-                                Me%Theta(i,j,k) = Me%RC%ThetaS (i,j,k)
-                                ExcessVolume    = ExcessVolume - AvaliableVolume
-                            endif
-                        endif
+                        ExcessVolume         = (Me%Theta(i,j,k) - Me%RC%ThetaS (i,j,k)) * Me%ExtVar%CellVolume(i,j,k)
+                        Me%Theta(i,j,k-1)    = ((Me%Theta(i,j,k-1) * Me%ExtVar%CellVolume(i,j,k-1)) + ExcessVolume) / Me%ExtVar%CellVolume(i,j,k-1)
+                        Me%FluxWFinal(i,j,k) = Me%FluxWFinal(i,j,k) + (-ExcessVolume / Me%CV%CurrentDT)                       
+                        Me%Theta(i,j,k)      = Me%RC%ThetaS (i,j,k)
                     endif
                 enddo
                 
                 !Invert process and put the rest upwards
-                do K = Me%ExtVar%KFloor(i, j), Me%WorkSize%KUB
+                do k = Me%ExtVar%KFloor(i, j), Me%WorkSize%KUB-1
                     if (Me%Theta(i,j,k) .gt. Me%RC%ThetaS(i,j,k)) then
-                        !If cell is oversaturated, set to saturation and put water downwards
-                        ExcessVolume = ExcessVolume + (Me%Theta(i,j,k) - Me%RC%ThetaS (i,j,k)) * Me%ExtVar%CellVolume(i,j,k)
-                        Me%Theta(i, j, k) = Me%RC%ThetaS (i,j,k)
-                    else
-                        !Restore Volume ?
-                        if (ExcessVolume > 0.0) then
-                        
-                            !Space in cell
-                            AvaliableVolume = (Me%RC%ThetaS (i,j,k) - Me%Theta(i,j,k)) * Me%ExtVar%CellVolume(i,j,k)
-                            
-                            if (AvaliableVolume > ExcessVolume) then
-                                !Enough space avaliabe. Put all volume here
-                                Me%Theta(i,j,k) = (Me%Theta(i,j,k) * Me%ExtVar%CellVolume(i,j,k) + ExcessVolume) / &
-                                                   Me%ExtVar%CellVolume(i,j,k)
-                                ExcessVolume    = 0.0
-                            else
-                                !Not enough space avaliable. Saturate cell and shift other volume down
-                                Me%Theta(i,j,k) = Me%RC%ThetaS (i,j,k)
-                                ExcessVolume    = ExcessVolume - AvaliableVolume
-                            endif
-                        endif
+                        !If cell is oversaturated, set to saturation and put water upwards
+                        ExcessVolume           = (Me%Theta(i,j,k) - Me%RC%ThetaS (i,j,k)) * Me%ExtVar%CellVolume(i,j,k)
+                        Me%Theta(i,j,k+1)      = ((Me%Theta(i,j,k+1) * Me%ExtVar%CellVolume(i,j,k+1)) + ExcessVolume) / Me%ExtVar%CellVolume(i,j,k+1)
+                        Me%FluxWFinal(i,j,k+1) = Me%FluxWFinal(i,j,k+1) + (ExcessVolume / Me%CV%CurrentDT)                       
+                        Me%Theta(i,j,k)        = Me%RC%ThetaS (i,j,k)
                     endif
                 enddo
                 
                 
                 !Put remaing volume to watercolumn
-                if (ExcessVolume > 0.0) then
-                    dh                    = ExcessVolume / Me%ExtVar%Area(i, j)
-                    Me%WaterColumn  (i,j) = Me%WaterColumn(i,j)   + dh
-                    Me%Infiltration (i,j) = Me%Infiltration (i,j) - dh
+                k = Me%WorkSize%KUB
+                if (Me%Theta(i,j,k) .gt. Me%RC%ThetaS(i,j,k)) then
+                    !If cell is oversaturated, set to saturation and put water on water column
+                    ExcessVolume           = ((Me%Theta(i,j,k) - Me%RC%ThetaS (i,j,k)) * Me%ExtVar%CellVolume(i,j,k))
+                    Me%FluxWFinal(i,j,k+1) = Me%FluxWFinal(i,j,k+1) + (ExcessVolume / Me%CV%CurrentDT)                                           
+                    dh                     = ExcessVolume  / Me%ExtVar%Area(i, j)
+                    Me%WaterColumn  (i,j)  = Me%WaterColumn(i,j) + dh
+                    Me%Infiltration (i,j)  = Me%Infiltration (i,j) - dh
+                    Me%Theta(i,j,k)        = Me%RC%ThetaS (i,j,k)
                 endif
             endif
         enddo

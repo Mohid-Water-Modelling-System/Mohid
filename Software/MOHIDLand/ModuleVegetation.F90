@@ -27,6 +27,13 @@
 !Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 !
 !------------------------------------------------------------------------------
+
+!Units in vegetation
+!   N, P, biomass  : kg/ha
+!   Transpiration  : m3/s
+!   LAI            : m2leafs/m2area
+
+
 !DataFile
 !         [Keyword]                 [Format]  [Units]  [Default]  [Short Description]
 ! VEGETATION_ID_FILE               : string      -        [-]     !Vegetation distribution grid path
@@ -51,10 +58,10 @@
 !
 ! WATER_UPTAKE_METHOD              : integer     -        [1]     !1- according to root profile; 2-SWAT based (exponential 
 !                                                                  and tresholds)
-!   LIMIT_TRANSP_WATER_VEL         : 0/1         -        [0]     !Read if TRANSPIRATION_METHOD == 1.
-!   ROOT_PROFILE                   : integer     -        [1]     !Read if TRANSPIRATION_METHOD == 1: 
+!   LIMIT_TRANSP_WATER_VEL         : 0/1         -        [0]     !Read if WATER_UPTAKE_METHOD == 1.
+!   ROOT_PROFILE                   : integer     -        [1]     !Read if WATER_UPTAKE_METHOD == 1: 
 !                                                                   !1-Triangular; 2-Constant; 3-Exponential(SWAT like)
-!   WATER_UPTAKE_STRESS_METHOD     : integer     -        [1]     !Read if TRANSPIRATION_METHOD == 1: 1-Feddes; 2-VanGenuchten
+!   WATER_UPTAKE_STRESS_METHOD     : integer     -        [1]     !Read if WATER_UPTAKE_METHOD == 1: 1-Feddes; 2-VanGenuchten
 !
 ! NUTRIENT_UPTAKE_METHOD           : integer     -        [2]     !1- uptake is: conc * water uptake; 2- SWAT based 
 !                                                                  (independent of water uptake)
@@ -216,7 +223,7 @@ Module ModuleVegetation
     private ::              ConstructPropertyOutput  
     private ::          AddProperty
     private ::      CheckOptionsConsistence 
-    private ::      ConstructVegetationGrid
+    private ::      ConstructVegetationGrids
     private ::      ConstructVegetationParameters
     private ::          ReadTimingDatabase
     private ::          ReadGrowthDatabase
@@ -224,7 +231,7 @@ Module ModuleVegetation
     private ::          ReadFertilizationDatabase
     private ::      ConstructTimeSerie
     private ::      ConstructHDF
-    private ::          Open_HDF5_Output_File 
+    private ::          ConstructHDF5Output 
     private ::      ConstructLog                 
 
     !Selector
@@ -343,7 +350,8 @@ Module ModuleVegetation
         real, dimension(:,:,:), pointer                 :: SZZ
         integer, dimension(:,:), pointer                :: KFloor
         integer, dimension(:,:  ), pointer              :: OpenPoints2D         
-        integer, dimension(:,:  ), pointer              :: MappingPoints2D      
+        integer, dimension(:,:  ), pointer              :: MappingPoints2D
+        integer, dimension(:,:  ), pointer              :: BasinPoints       
         real, dimension(:,:  ), pointer                 :: Topography           
         real, dimension(:,:  ), pointer                 :: AirTemperature                 !ºC
         real, dimension(:,:  ), pointer                 :: SolarRadiation                 !W/m2
@@ -505,12 +513,11 @@ Module ModuleVegetation
         logical                                         :: WaterUptakeOld  
         real                                            :: VegetationDT
         real                                            :: IntegrationDT 
-        logical                                         :: IsPlantGrowing
+ !       logical                                         :: IsPlantGrowing
         logical                                         :: ChangeLAISenescence
         logical                                         :: ChangeCanopyHeight
         real                                            :: PlantingHUBase, PlantHUatMaturity
-        real                                            :: PotentialHUBase, PotentialHUTotal
-        real                                            :: NitrogenInSoil, PhosphorusInSoil
+ !       real                                            :: PotentialHUBase
         real                                            :: WaterUptakeCompensationFactor
         real                                            :: NitrogenDistributionParameter
         real                                            :: PhosphorusDistributionParameter
@@ -769,6 +776,7 @@ Module ModuleVegetation
                                    PorousMediaID,                   &
                                    MappingPoints,                   &
                                    GeometryID,                      &
+                                   BasinGeometryID,                 &
                                    CoupledAtmosphere,               &
                                    STAT)
 
@@ -782,6 +790,7 @@ Module ModuleVegetation
         integer                                         :: PorousMediaID
         integer, dimension(:, :), pointer               :: MappingPoints
         integer                                         :: GeometryID
+        integer                                         :: BasinGeometryID
         logical                                         :: CoupledAtmosphere
         integer, optional, intent(OUT)                  :: STAT     
 
@@ -811,6 +820,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             Me%ObjHorizontalGrid = AssociateInstance (mHORIZONTALGRID_, HorizontalGridID)
             Me%ObjHorizontalMap  = AssociateInstance (mHORIZONTALMAP_,  HorizontalMapID )
             Me%ObjGeometry       = AssociateInstance (mGEOMETRY_,       GeometryID      )
+            Me%ObjBasinGeometry  = AssociateInstance (mBASINGEOMETRY_,  BasinGeometryID )
             Me%ObjAtmosphere     = AssociateInstance (mATMOSPHERE_,     AtmosphereID    )
             Me%ObjPorousMedia    = AssociateInstance (mPOROUSMEDIA_,    PorousMediaID   )
             
@@ -836,7 +846,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             !Grid operations
             call AllocateVariables
             
-            call ConstructVegetationGrid
+            call ConstructVegetationGrids
 
             call CheckRootDepth
 
@@ -954,7 +964,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         !External--------------------------------------------------------------
         integer                                 :: STAT_CALL, iflag
         real                                    :: auxFactor, Erroraux, DTaux, ModelDT
-
+        real                                    :: PotentialHUTotal
         !Begin------------------------------------------------------------------
 
         call GetComputeTimeLimits(Me%ObjTime, BeginTime = Me%BeginTime,                 &
@@ -964,9 +974,6 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         !Actualize the time
         Me%ActualTime  = Me%BeginTime
         Me%NextCompute = Me%ActualTime
-
-        ! Sets the last output equal to zero 
-        call SetDate(Me%LastOutPutHDF5, 0, 0, 0, 0, 0, 0)
 
         call GetHorizontalGridSize(Me%ObjHorizontalGrid,                                &
                                    Size     = Me%Size2D,                                &
@@ -1135,30 +1142,36 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
 
         !Tests with initial conditions for one cell. Model in the future should try to contruct initial conditions for grid
-        call GetData(Me%ComputeOptions%IsPlantGrowing,                                  &
-                     Me%ObjEnterData, iflag,                                            &
-                     Keyword        = 'ISPLANTGROWING',                                 &
-                     Default        = .false.,                                          &
-                     SearchType     = FromFile,                                         &
-                     ClientModule   = 'ModuleVegetation',                               &
-                     STAT           = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR0130'
-        call GetData(Me%ComputeOptions%PotentialHUTotal,                                &
+ !       call GetData(Me%ComputeOptions%IsPlantGrowing,                                  &
+ !                    Me%ObjEnterData, iflag,                                            &
+ !                    Keyword        = 'ISPLANTGROWING',                                 &
+ !                    Default        = .false.,                                          &
+ !                    SearchType     = FromFile,                                         &
+ !                    ClientModule   = 'ModuleVegetation',                               &
+ !                    STAT           = STAT_CALL)
+ !       if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR0130'
+ !       call GetData(Me%ComputeOptions%PotentialHUBASE,                                 &
+ !                    Me%ObjEnterData, iflag,                                            &
+ !                    Keyword        = 'POTENTIALHUBASE',                                &
+ !                    Default        = 0.,                                               &
+ !                    SearchType     = FromFile,                                         &
+ !                    ClientModule   = 'ModuleVegetation',                               &
+ !                    STAT           = STAT_CALL)
+ !       if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR0140'
+        call GetData(PotentialHUTotal,                                                  &
                      Me%ObjEnterData, iflag,                                            &
                      Keyword        = 'POTENTIALHUTOTAL',                               &
                      Default        = 0.,                                               &
                      SearchType     = FromFile,                                         &
                      ClientModule   = 'ModuleVegetation',                               &
                      STAT           = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR0140'
-        call GetData(Me%ComputeOptions%PotentialHUBASE,                                 &
-                     Me%ObjEnterData, iflag,                                            &
-                     Keyword        = 'POTENTIALHUBASE',                                &
-                     Default        = 0.,                                               &
-                     SearchType     = FromFile,                                         &
-                     ClientModule   = 'ModuleVegetation',                               &
-                     STAT           = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR0141'
+        if (iflag /= 0) then
+            write(*,*) 
+            write(*,*) 'Potential Annual HU  for the simulation is now defined in'
+            write(*,*) ' <begin_TotalPotentialHU>/<end_TotalPotentialHU> block'
+            write(*,*) 'and not with POTENTIALHUTOTAL keyword'    
+            stop 'ConstructGlobalVariables - ModuleVegetation - ERR0141'
+        endif
 
 
         call GetData(Me%ComputeOptions%Grazing,                                         &
@@ -1559,7 +1572,14 @@ cd2 :           if (BlockFound) then
                 if (NewProperty%Field(i, j) < 0.) then
 
                     NewProperty%Field(i, j) = 0.
-                    
+                
+                elseif (NewProperty%Evolution == SWAT .and. NewProperty%Field(i, j) > 0.) then
+
+                    write(*,*) 
+                    write(*,*) 'Vegetation growth model is active and'
+                    write(*,*) 'Property values are greater than 0.'
+                    write(*,*) 'By default there is no plant growing at the beggining of the simulation'
+                    stop 'CheckFieldConsistence - ModuleVegetation - ERR010'                                       
                 end if
 
             else
@@ -2331,6 +2351,7 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
         integer                                             :: ILB, IUB, JLB, JUB
         integer                                             :: KLB, KUB, JulDay  
         integer                                             :: STAT_CALL
+        real                                                :: InitialHUBase
         !Begin-----------------------------------------------------------------
 
 
@@ -2414,7 +2435,9 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
 !            if (.not. Me%ComputeOptions%Continuous) then
             if (.not. Me%ComputeOptions%Continuous .or.                              &
                 (Me%ComputeOptions%Continuous .and. .not. Me%ComputeOptions%StopOnWrongDate)) then
-                Me%IsPlantGrowing       (:,:) = Me%ComputeOptions%IsPlantGrowing         
+                !By default Plant is not growing - it woud require to know the already heat units accumulated
+                !and nutrients
+                Me%IsPlantGrowing       (:,:) = .false.         
             endif            
             
            
@@ -2439,7 +2462,13 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
             if (.not. Me%ComputeOptions%Continuous .or.                              &
                 (Me%ComputeOptions%Continuous .and. .not. Me%ComputeOptions%StopOnWrongDate)) then
 !            if (.not. Me%ComputeOptions%Continuous) then
-                Me%HeatUnits%PotentialHUBase (:,:) = Me%ComputeOptions%PotentialHUBASE
+                !!Construct fraction of HU at the beggining of simulation
+                !Estimated based on fraction of the year - assumes that HU are equally distributed in the year
+                !just to get one idea of where in the year (in terms of HU) the simulation starts
+                !HU base is used to see when is time to plant
+                call JulianDay(Me%ExternalVar%Now, JulDay)
+                InitialHUBase = JulDay / 365.
+                Me%HeatUnits%PotentialHUBase (:,:) = InitialHUBase
                 Me%HeatUnits%PotentialHUBase_Old(:,:) = 0.0 
                 Me%HeatUnits%PlantHUAccumulated (:,:) = 0.0             
                 Me%HeatUnits%PlantHUAccumulated_Old (:,:) = 0.0             
@@ -3105,15 +3134,13 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
                                OutPutsOn   = Me%OutPut%HDF_ON,               &
                                OutPutsNumber = Me%OutPut%Number,             &
                                STAT        = STAT_CALL)
-
+            Me%OutPut%NextOutPut = 1
             if (STAT_CALL /= SUCCESS_)                                       &
                 stop 'ConstructHDF - ModuleVegetation - ERR01' 
 
             if (Me%OutPut%HDF_ON) then
 
-                Me%OutPut%NextOutPut = 1
-
-                call Open_HDF5_OutPut_File
+                call ConstructHDF5Output
 
             else
                 write(*,*)'Keyword OUTPUT_TIME must be defined if at least'
@@ -3127,7 +3154,7 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
 
     !--------------------------------------------------------------------------
     
-    subroutine Open_HDF5_OutPut_File
+    subroutine ConstructHDF5Output
 
         !Arguments-------------------------------------------------------------
 
@@ -3145,12 +3172,15 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
         JLB = Me%WorkSize%JLB
         JUB = Me%WorkSize%JUB
 
-
-        Me%OutPut%NextOutPut = 1  
-        
+       
         !Gets a pointer to Topography
         call GetGridData        (Me%ObjGridData, Me%ExternalVar%Topography, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5Output - ModuleVegetation - ERR01'
+        
+        !Gets Basin Points
+        call GetBasinPoints (Me%ObjBasinGeometry, Me%ExternalVar%BasinPoints, STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5Output - ModuleVegetation - ERR01.1'        
+        
         
         call GetHDF5FileAccess  (HDF5_CREATE = HDF5_CREATE)
 
@@ -3161,7 +3191,7 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
       
         !Write the Horizontal Grid
         call WriteHorizontalGrid(Me%ObjHorizontalGrid, Me%ObjHDF5, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5Output - ModuleVegetation - ERR03'
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5Output - ModuleVegetation - ERR02'
 
 
         !Sets limits for next write operations
@@ -3169,38 +3199,88 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
         if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5Output - ModuleVegetation - ERR05'
         
         !Writes the Grid
-        call HDF5WriteData   (Me%ObjHDF5, "/Grid", "Topography", "m",           &
+        call HDF5WriteData   (Me%ObjHDF5, "/Grid", "Bathymetry", "m",           &
                               Array2D = Me%ExternalVar%Topography, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5Output - ModuleVegetation - ERR06'
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5Output - ModuleVegetation - ERR05'
 
         !WriteBasinPoints
         call HDF5WriteData   (Me%ObjHDF5, "/Grid", "BasinPoints", "-",          &
-                              Array2D = Me%ExternalVar%MappingPoints2D, STAT = STAT_CALL)
+                              Array2D = Me%ExternalVar%BasinPoints, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5Output - ModuleVegetation - ERR07'
 
         !Flushes All pending HDF5 commands
         call HDF5FlushMemory (Me%ObjHDF5, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5Output - ModuleVegetation - ERR08'       
 
+
+        !Unget Basin Points
+        call UnGetBasin (Me%ObjBasinGeometry, Me%ExternalVar%BasinPoints, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5Output - ModuleVegetation - ERR08.1'
+
         !UnGets Topography
         call UnGetGridData      (Me%ObjGridData, Me%ExternalVar%Topography, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5Output - ModuleVegetation - ERR09'
 
 
-    end subroutine Open_HDF5_OutPut_File
+    end subroutine ConstructHDF5Output
 
    !--------------------------------------------------------------------------
 
-    subroutine ConstructVegetationGrid
+    subroutine ConstructVegetationGrids
 
         !External--------------------------------------------------------------
         integer                                 :: STAT_CALL
-        integer                                 :: ObjGD, i, j, ivt
+        integer                                 :: ObjGD, i, j, ivt, ClientNumber
+        logical                                 :: BlockFound
         real, dimension(:,:), pointer           :: AuxID
-        
+        type (T_PropertyID)                     :: PotentialHUID
         !Begin------------------------------------------------------------------
 
+        
+        !! Construct Potential Annual HU
+        call RewindBuffer(Me%ObjEnterData, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructVegetationGrids - ModuleVegetation - ERR10'
 
+        !Constructs Potential Total HU in one year
+        call ExtractBlockFromBuffer(Me%ObjEnterData,                                        &
+                                    ClientNumber    = ClientNumber,                         &
+                                    block_begin     = '<begin_TotalPotentialHU>',           &
+                                    block_end       = '<end_TotalPotentialHU>',             &
+                                    BlockFound      = BlockFound,                           &   
+                                    STAT            = STAT_CALL)
+        if (STAT_CALL == SUCCESS_) then
+            if (.not. BlockFound) then
+                write(*,*)'Missing Block <begin_TotalPotentialHU> / <end_TotalPotentialHU>'
+                stop 'ConstructVegetationGrids - ModuleVegetation - ERR20'
+            endif
+
+            !Gets a pointer to OpenPoints2D
+            call GetBasinPoints  (Me%ObjHorizontalMap, Me%ExternalVar%BasinPoints, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Write_FinalVegetation_HDF - ModuleVegetation - ERR02'
+            
+            call ConstructFillMatrix  ( PropertyID           = PotentialHUID,                       &
+                                        EnterDataID          = Me%ObjEnterData,                     &
+                                        TimeID               = Me%ObjTime,                          &
+                                        HorizontalGridID     = Me%ObjHorizontalGrid,                &
+                                        ExtractType          = FromBlock,                           &
+                                        PointsToFill2D       = Me%ExternalVar%BasinPoints,          &
+                                        Matrix2D             = Me%HeatUnits%PotentialHUTotal,       &
+                                        TypeZUV              = TypeZ_,                              &
+                                        STAT                 = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructVegetationGrids - ModuleVegetation - ERR30'
+            
+            call KillFillMatrix       (PotentialHUID%ObjFillMatrix, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructVegetationGrids - ModuleVegetation - ERR40'
+
+            call UngetBasin (Me%ObjHorizontalMap, Me%ExternalVar%BasinPoints, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Write_FinalVegetation_HDF - ModuleVegetation - ERR200'
+
+        else
+            stop 'ConstructVegetationGrids - ModuleVegetation - ERR50'
+        endif                
+        
+        
+        
         !Gets Vegetation IDs
         ObjGD = 0
         call ConstructGridData  (ObjGD, Me%ObjHorizontalGrid, FileName = Me%Files%VegetationIDFile, STAT = STAT_CALL)
@@ -3241,7 +3321,7 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
         call KillGridData (ObjGD, STAT = STAT_CALL)   
         if (STAT_CALL /= SUCCESS_) stop 'ConstructVegetationGrid - ModuleVegetation - ERR09'
 
-    end subroutine ConstructVegetationGrid
+    end subroutine ConstructVegetationGrids
 
    !--------------------------------------------------------------------------
 
@@ -5305,7 +5385,7 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
             
 
                 !Output
-                if (Me%OutPut%HDF_ON)          call Modify_OutputHDF                        
+                if (Me%OutPut%HDF_ON)           call Modify_OutputHDF                        
                 if (Me%OutPut%TimeSerie_ON)     call Modify_OutPutTimeSeries
 
 
@@ -5819,7 +5899,7 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
         integer                                         :: JulDay, JulDay_Old 
         !SandBoxTest-----------------------------------------------------------
 !        Me%ExternalVar%Integration%AverageAirTempDuringDT(i,j) = Me%ExternalVar%AirTemperature(i,j)
-        Me%HeatUnits%PotentialHUTotal(i,j) = Me%ComputeOptions%PotentialHUTotal !5475. !15ºC * 365 days
+!        Me%HeatUnits%PotentialHUTotal(i,j) = Me%ComputeOptions%PotentialHUTotal !5475. !15ºC * 365 days
         !----------------------------------------------------------------------
 
         Me%HeatUnits%PotentialHUBase_Old(i,j) = Me%HeatUnits%PotentialHUBase(i,j)
@@ -6056,7 +6136,7 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
         PlantHUVariation = 0.
         if (PlantHUatMaturity .gt. 0.1) then
             AccumulatedTemperature = AverageTempDuringDT * (Me%ComputeOptions%VegetationDT/86400.)
-            PlantHUVariation = (AverageTempDuringDT - PlantBaseTemperature) / PlantHUatMaturity
+            PlantHUVariation = (AccumulatedTemperature - PlantBaseTemperature) / PlantHUatMaturity
         end if
         if (PlantHUVariation .lt. 0.) then
             PlantHUVariation = 0.
@@ -7001,14 +7081,14 @@ do3:                do k = KUB, KLB, -1
              
                         CellVolume = Me%ExternalVar%CellVolume(i,j,k)
                         
-                        !    KgN/ha             =  ugN/m3H20 * 1E-9kg/ug *  m3/s * s / (m2) * 10000m2/ha 
-                        PotentialNitrogenUptake = Me%ExternalVar%SoilNitrate(i,j,k) * 1E-9                    &
+                        !    KgN/ha             =  gN/m3H20 * 1E-6kg/g *  m3/s * s / (m2) * 10000m2/ha 
+                        PotentialNitrogenUptake = Me%ExternalVar%SoilNitrate(i,j,k) * 1E-6                    &
                                                   * Me%Fluxes%WaterUptakeLayer(i,j,k)                         &
                                                   * Me%ComputeOptions%VegetationDT                            &
                                                   / (GridCellArea) * 10000
     
-                        !      kgN/ha        = ugN/m3H20 * 1E-9kg/ug * m3H20/m3cell * m3cell / (m2) * 10000m2/ha                     
-                        LayerNitrogenContent = Me%ExternalVar%SoilNitrate(i,j,k) * 1E-9                       &
+                        !      kgN/ha        =  gN/m3H20 * 1E-6kg/g * m3H20/m3cell * m3cell / (m2) * 10000m2/ha                     
+                        LayerNitrogenContent = Me%ExternalVar%SoilNitrate(i,j,k) * 1E-6                       &
                                                 * Me%ExternalVar%SoilWaterContent(i,j,k)                      &
                                                 * (CellVolume) / (GridCellArea) * 10000
 
@@ -7454,14 +7534,14 @@ do3 :               do k = KUB, KLB, -1
                         CellVolume = Me%ExternalVar%CellVolume(i,j,k)
 
                         
-                        !    KgP/ha               =  ugN/m3H20 * 1E-9kg/ug * m3/s * s / (m2) * 10000m2/ha 
-                        PotentialPhosphorusUptake = Me%ExternalVar%SoilPhosphorus(i,j,k) * 1E-9                    &
+                        !    KgP/ha               =   gN/m3H20 * 1E-6kg/g * m3/s * s / (m2) * 10000m2/ha 
+                        PotentialPhosphorusUptake = Me%ExternalVar%SoilPhosphorus(i,j,k) * 1E-6                    &
                                                     * Me%Fluxes%WaterUptakeLayer(i,j,k)                            &
                                                     * Me%ComputeOptions%VegetationDT                               &
                                                     / (GridCellArea) * 10000
         
-                        !      kgP/ha          = ugP/m3H20 * 1E-9kg/mg * m3H20/m3cell * m3cell / (m2) * 10000m2/ha                     
-                        LayerPhosphorusContent = Me%ExternalVar%SoilPhosphorus(i,j,k)  * 1E-9                                &
+                        !      kgP/ha          =  gP/m3H20 * 1E-6kg/g * m3H20/m3cell * m3cell / (m2) * 10000m2/ha                     
+                        LayerPhosphorusContent = Me%ExternalVar%SoilPhosphorus(i,j,k)  * 1E-6                                &
                                                  * Me%ExternalVar%SoilWaterContent(i,j,k)                                    &
                                                  * (CellVolume) / (GridCellArea) * 10000
 
@@ -10239,105 +10319,98 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         !Local-----------------------------------------------------------------
         type (T_Property), pointer                  :: PropertyX
         integer                                     :: STAT_CALL
-        type(T_Time)                                :: Actual, LastTime, EndTime
+        type(T_Time)                                :: Actual
         integer                                     :: OutPutNumber
         real, dimension(6), target                  :: AuxTime
-        real, dimension(:), pointer                 :: TimePtr
-             
+        real, dimension(:), pointer                 :: TimePointer
+        integer                                     :: ILB, IUB, JLB, JUB                 
         !Begin----------------------------------------------------------------
 
-        Actual   = Me%ExternalVar%Now
-        EndTime  = Me%EndTime
-        LastTime = Me%LastOutPutHDF5
-         
+        Actual   = Me%ExternalVar%Now        
         OutPutNumber = Me%OutPut%NextOutput
+        !Bounds
+        ILB = Me%WorkSize%ILB
+        IUB = Me%WorkSize%IUB
 
-TNum:   if (OutPutNumber <= Me%OutPut%Number)            then 
-TOut:       if (Actual .GE. Me%OutPut%OutTime(OutPutNumber)) then 
-                
-                call ExtractDate   (Actual, AuxTime(1), AuxTime(2), AuxTime(3),          &
-                                    AuxTime(4), AuxTime(5), AuxTime(6))
+        JLB = Me%WorkSize%JLB
+        JUB = Me%WorkSize%JUB
 
-First:          if (LastTime.LT.Actual) then 
-                    
-                    !Writes Time
-                    TimePtr => AuxTime
-                    call HDF5SetLimits  (Me%ObjHDF5, 1, 6, STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'OutPutHDF - ModuleVegetation - ERR00'
-
-                    call HDF5WriteData  (Me%ObjHDF5, "/Time", "Time", "YYYY/MM/DD HH:MM:SS",      &
-                                         Array1D = TimePtr, OutputNumber = OutPutNumber, STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'OutPutHDF - ModuleVegetation - ERR01'
-           
-                    Me%LastOutPutHDF5 = Actual
-       
-                endif First
-
-                !Sets limits for next write operations
-                call HDF5SetLimits   (Me%ObjHDF5,                                &
-                                      Me%WorkSize%ILB,                           &
-                                      Me%WorkSize%IUB,                           &
-                                      Me%WorkSize%JLB,                           &
-                                      Me%WorkSize%JUB,                           &
-                                      STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'OutPutHDF - ModuleVegetation - ERR02'
-
-                !Writes the Open Points
-                call HDF5WriteData   (Me%ObjHDF5, "//Grid/OpenPoints",              &
-                                      "OpenPoints", "-",                            &
-                                      Array2D = Me%ExternalVar%OpenPoints2D,        &
-                                      OutputNumber = OutPutNumber,                  &
-                                      STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'OutPutHDF - ModuleVegetation - ERR03'
-
-
-                PropertyX => Me%FirstProperty
-                do while (associated(PropertyX))
-
-                    if (PropertyX%OutputHDF) then
- 
-                        call HDF5WriteData   (Me%ObjHDF5,                                    &
-                                              "/Results/"//trim(PropertyX%ID%Name),          &
-                                              trim(PropertyX%ID%Name),                       &
-                                              trim(PropertyX%ID%Units),                      &
-                                              Array2D = PropertyX%Field,                     &
-                                              OutputNumber = OutPutNumber,                   &
-                                              STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'OutPutHDF - ModuleVegetation - ERR04'
-
-                    endif
-
-                    PropertyX => PropertyX%Next
-
-                enddo
-
-!                if (Me%ComputeOptions%Evolution%ModelSWAT) then
-    !                call HDF5WriteData  (Me%ObjHDF5, "/Results/"//"HUAccumulated",          &
-    !                                     "HUAccumulated", "-",                              &
-    !                                     Array2D      = Me%HeatUnits%PlantHUAccumulated,    &
-    !                                     OutputNumber = OutPutNumber,                       &
-    !                                     STAT         = STAT_CALL)                      
-    !                if (STAT_CALL /= SUCCESS_)                                              &
-    !                    stop 'OutPutHDF - ModuleVegetation - ERR05'                 
-!                endif
-
-                call HDF5WriteData  (Me%ObjHDF5, "/Results/"//"WaterUptake",&
-                                     "WaterUptake", "m3/s",                                  &
-                                     Array2D      = Me%Fluxes%WaterUptake,                   &
-                                     OutputNumber = OutPutNumber,                            &
-                                     STAT         = STAT_CALL)                      
-                if (STAT_CALL /= SUCCESS_)                                                   &
-                    stop 'OutPutHDF - ModuleVegetation - ERR05'                 
-
-
-                Me%OutPut%NextOutput = OutPutNumber + 1
-
-                !Writes everything to disk
-                call HDF5FlushMemory (Me%ObjHDF5, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'OutPutHDF - ModuleVegetation - ERR06'
+        if (Actual .GE. Me%OutPut%OutTime(OutPutNumber)) then 
             
-            endif  TOut
-        endif  TNum
+            call ExtractDate   (Actual, AuxTime(1), AuxTime(2), AuxTime(3),          &
+                                AuxTime(4), AuxTime(5), AuxTime(6))
+            
+            TimePointer => AuxTime
+
+            call HDF5SetLimits  (Me%ObjHDF5, 1, 6, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'OutPutHDF - ModuleVegetation - ERR00'
+
+            call HDF5WriteData  (Me%ObjHDF5, "/Time", "Time",                   &
+                                 "YYYY/MM/DD HH:MM:SS",                         &
+                                 Array1D      = TimePointer,                    &
+                                 OutputNumber = OutputNumber,                   &
+                                 STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'OutPutHDF - ModuleVegetation - ERR01'
+
+            !Sets limits for next write operations
+            call HDF5SetLimits   (Me%ObjHDF5, ILB, IUB, JLB, JUB, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'OutPutHDF - ModuleVegetation - ERR02'
+
+            !Writes the Open Points
+            call HDF5WriteData   (Me%ObjHDF5, "/Grid/OpenPoints",              &
+                                  "OpenPoints", "-",                            &
+                                  Array2D = Me%ExternalVar%OpenPoints2D,        &
+                                  OutputNumber = OutPutNumber,                  &
+                                  STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'OutPutHDF - ModuleVegetation - ERR03'
+
+
+            PropertyX => Me%FirstProperty
+            do while (associated(PropertyX))
+
+                if (PropertyX%OutputHDF) then
+
+                    call HDF5WriteData   (Me%ObjHDF5,                                    &
+                                          "/Results/"//PropertyX%ID%Name,                &
+                                          PropertyX%ID%Name,                             &
+                                          PropertyX%ID%Units,                            &
+                                          Array2D = PropertyX%Field,                     &
+                                          OutputNumber = OutPutNumber,                   &
+                                          STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'OutPutHDF - ModuleVegetation - ERR04'
+
+                endif
+
+                PropertyX => PropertyX%Next
+
+            enddo
+
+            if (Me%ComputeOptions%Evolution%ModelSWAT) then
+                call HDF5WriteData  (Me%ObjHDF5, "//Results/HUAccumulated",          &
+                                     "HUAccumulated", "-",                              &
+                                     Array2D      = Me%HeatUnits%PlantHUAccumulated,    &
+                                     OutputNumber = OutPutNumber,                       &
+                                     STAT         = STAT_CALL)                      
+                if (STAT_CALL /= SUCCESS_)                                              &
+                    stop 'OutPutHDF - ModuleVegetation - ERR05'                 
+            endif
+
+            call HDF5WriteData  (Me%ObjHDF5, "/Results/WaterUptake",&
+                                 "WaterUptake", "m3/s",                                  &
+                                 Array2D      = Me%Fluxes%WaterUptake,                   &
+                                 OutputNumber = OutPutNumber,                            &
+                                 STAT         = STAT_CALL)                      
+            if (STAT_CALL /= SUCCESS_)                                                   &
+                stop 'OutPutHDF - ModuleVegetation - ERR06'                 
+            
+            !Writes everything to disk
+            call HDF5FlushMemory (Me%ObjHDF5, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'OutPutHDF - ModuleVegetation - ERR06'
+
+            Me%OutPut%NextOutput = OutPutNumber + 1
+
+        
+        endif
 
     end subroutine Modify_OutPutHDF
 
@@ -10627,6 +10700,9 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                 nUsers = DeassociateInstance (mGEOMETRY_, Me%ObjGeometry)
                 if (nUsers == 0) stop 'KillVegetation - ModuleVegetation - ERR05'
 
+                nUsers = DeassociateInstance (mBasinGEOMETRY_, Me%ObjBasinGeometry)
+                if (nUsers == 0) stop 'KillVegetation - ModuleVegetation - ERR05.1'
+
                 nUsers = DeassociateInstance (mATMOSPHERE_, Me%ObjAtmosphere)
                 if (nUsers == 0) stop 'KillVegetation - ModuleVegetation - ERR06'
 
@@ -10710,7 +10786,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
         if (STAT_CALL /= SUCCESS_) stop 'Write_FinalVegetation_HDF - ModuleVegetation - ERR01'
 
         !Gets a pointer to OpenPoints2D
-        call GetOpenPoints2D  (Me%ObjHorizontalMap, Me%ExternalVar%OpenPoints2D, STAT = STAT_CALL)
+        call GetBasinPoints  (Me%ObjHorizontalMap, Me%ExternalVar%BasinPoints, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Write_FinalVegetation_HDF - ModuleVegetation - ERR02'
 
         !Gets File Access Code
@@ -10756,15 +10832,15 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
 
 
         !Writes the Grid
-        call HDF5WriteData   (ObjHDF5, "/Grid", "Topography", "m",                       &
+        call HDF5WriteData   (ObjHDF5, "//Grid/Topography", "Topography", "m",           &
                               Array2D = Me%ExternalVar%Topography,                       &
                               STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                       &
             stop 'Write_FinalVegetation_HDF - ModuleVegetation - ERR30'
 
 
-        call HDF5WriteData  (ObjHDF5, "/Grid", "OpenPoints",                             &
-                             "-", Array2D = Me%ExternalVar%OpenPoints2D,                 &
+        call HDF5WriteData  (ObjHDF5, "//Grid/BasinPoints", "BasinPoints",               &
+                             "-", Array2D = Me%ExternalVar%BasinPoints,                &
                              STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                       &
             stop 'Write_FinalVegetation_HDF - ModuleVegetation - ERR110'
@@ -10895,7 +10971,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
 
         endif
   
-        call UngetHorizontalMap (Me%ObjHorizontalMap, Me%ExternalVar%OpenPoints2D, STAT = STAT_CALL)
+        call UngetBasin (Me%ObjHorizontalMap, Me%ExternalVar%BasinPoints, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Write_FinalVegetation_HDF - ModuleVegetation - ERR200'
   
         !UnGets Topography

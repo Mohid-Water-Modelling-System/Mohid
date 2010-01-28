@@ -77,6 +77,8 @@ Module ModuleAtmosphere
     public  :: GetAtmosphereProperty
     private ::      SearchProperty
     public  :: AtmospherePropertyExists
+    public  :: GetAtmospherenProperties
+    public  :: GetAtmospherePropertiesIDByIdx
     public  :: GetAtmosphereDTPrediction
 
     public  :: UngetAtmosphere
@@ -100,6 +102,7 @@ Module ModuleAtmosphere
     private ::      ModifyCo2AtmosphericPressure
     private ::      ModifyO2AtmosphericPressure
     private ::      ModifyPropByIrri
+    private ::      ModifyPropByRain
     private ::      ModifySunHours
     private ::      ModifyCloudCover
     private ::      ModifyRelativeHumidity
@@ -177,6 +180,7 @@ Module ModuleAtmosphere
         real                                        :: RandomValue
         logical                                     :: HasRandomComponent   = .false.
         logical                                     :: PropAddedByIrri      = .false.
+        logical                                     :: PropAddedByRain      = .false.
         logical                                     :: FirstActualization   = .true.
         real                                        :: RandomComponent      = FillValueReal
         logical                                     :: TimeSerie            = .false.
@@ -219,7 +223,10 @@ Module ModuleAtmosphere
         integer                                     :: LastCalculateRandomCloud = null_int
         integer                                     :: PropertiesNumber         = FillValueInt
         integer                                     :: CurrentIndex             = 2
-
+        
+        logical                                     :: PropsAddedByRain         = .false.
+        logical                                     :: PropsAddedByIrri         = .false.
+        
         !Instance of Module HDF5
         integer                                     :: ObjHDF5 = 0
 
@@ -1009,8 +1016,23 @@ cd2 :           if (BlockFound) then
                      ClientModule = 'ModuleAtmosphere',                         &
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)stop 'Construct_PropertyValues - ModuleAtmosphere - ERR12'
+        if (NewProperty%PropAddedByIrri) then
+            Me%PropsAddedByIrri = .true.
+        endif
 
-
+        !By default property aren't added by precipitation
+        NewProperty%PropAddedByRain = .false.
+        call GetData(NewProperty%PropAddedByRain,                               &
+                     Me%ObjEnterData, iflag,                                    &
+                     SearchType   = FromBlock,                                  &
+                     keyword      ='PRECIPITATION',                             &
+                     ClientModule = 'ModuleAtmosphere',                         &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)stop 'Construct_PropertyValues - ModuleAtmosphere - ERR13'
+        if (NewProperty%PropAddedByRain) then
+            Me%PropsAddedByRain = .true.
+        endif
+        
         if (NewProperty%ID%IDNumber == WindDirection_) then
 
 
@@ -1031,7 +1053,7 @@ cd2 :           if (BlockFound) then
 
 
         endif
- 
+
         !----------------------------------------------------------------------
 
     end subroutine Construct_PropertyValues
@@ -1321,6 +1343,77 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                               &
     end function AtmospherePropertyExists
 
     !--------------------------------------------------------------------------
+
+    subroutine GetAtmospherenProperties (AtmosphereID, nProperties, STAT)
+
+        !Arguments--------------------------------------------------------------
+        integer                                         :: AtmosphereID
+        integer                                         :: nProperties
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local------------------------------------------------------------------
+        integer                                         :: STAT_CALL, ready_
+        !-----------------------------------------------------------------------
+
+
+        STAT_CALL = UNKNOWN_
+
+        call Ready(AtmosphereID, ready_)
+
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
+            nProperties       = Me%PropertiesNumber
+            STAT_CALL = SUCCESS_
+        else 
+            STAT_CALL = ready_
+        end if
+
+        if (present(STAT)) STAT = STAT_CALL
+
+    end subroutine GetAtmospherenProperties
+
+    !---------------------------------------------------------------------------
+    !---------------------------------------------------------------------------
+
+    subroutine GetAtmospherePropertiesIDByIdx (AtmosphereID, Idx, ID,PropRain,PropIrri, STAT)
+
+        !Arguments--------------------------------------------------------------
+        integer                                         :: AtmosphereID
+        integer, intent(IN)                             :: Idx
+        integer, intent(OUT)                            :: ID
+        logical, intent(OUT)                            :: PropRain, PropIrri
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local------------------------------------------------------------------
+        integer                                         :: STAT_CALL, ready_, i
+        type (T_Property), pointer                      :: CurrProp
+
+        !-----------------------------------------------------------------------
+
+        STAT_CALL = UNKNOWN_
+
+        call Ready(AtmosphereID, ready_)
+
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            CurrProp => Me%FirstAtmosphereProp
+            do i = 1, idx - 1
+                CurrProp => CurrProp%Next
+            enddo
+
+            ID        = CurrProp%ID%IDNumber
+            PropRain  = CurrProp%PropAddedByRain
+            PropIrri  = CurrProp%PropAddedByIrri
+            
+            STAT_CALL = SUCCESS_
+        else 
+            STAT_CALL = ready_
+        end if
+
+        if (present(STAT)) STAT = STAT_CALL
+
+    end subroutine GetAtmospherePropertiesIDByIdx
+
+    !---------------------------------------------------------------------------
 
     subroutine GetAtmosphereDTPrediction (AtmosphereID, PredictedDT, DTForNextEvent, STAT)
 
@@ -1614,8 +1707,14 @@ cd0:    if (ready_ .EQ. IDLE_ERR_) then
 
 
             call ModifyRandom
-
-            call ModifyPropByIrri
+            
+            if (Me%PropsAddedByIrri) then
+                call ModifyPropByIrri
+            endif
+            
+            if (Me%PropsAddedByRain) then
+                call ModifyPropByRain
+            endif
 
             call ModifyOutPut
 
@@ -2020,6 +2119,42 @@ do2 :   do while (associated(PropertyX))
         endif
 
     end subroutine ModifyPrecipitation
+
+    !--------------------------------------------------------------------------
+
+    subroutine ModifyPropByRain
+
+        !Arguments-------------------------------------------------------------
+        type(T_Property), pointer                   :: PropertyX
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: STAT_CALL
+
+        !Begin-----------------------------------------------------------------
+
+        PropertyX => Me%FirstAtmosphereProp
+
+do1 :   do while (associated(PropertyX)) 
+
+            if (PropertyX%PropAddedByRain) then
+
+                if (PropertyX%ID%SolutionFromFile) then
+
+                    call ModifyFillMatrix (FillMatrixID   = PropertyX%ID%ObjFillMatrix,     &
+                                           Matrix2D       = PropertyX%Field,                &
+                                           PointsToFill2D = Me%ExternalVar%MappingPoints2D, &
+                                           STAT           = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'ModifyPropByRain - ModuleAtmosphere - ERR01'
+
+                endif
+                
+            endif
+
+            PropertyX => PropertyX%Next
+
+        end do do1
+
+    end subroutine ModifyPropByRain
 
     !--------------------------------------------------------------------------
 

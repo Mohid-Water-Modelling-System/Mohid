@@ -70,7 +70,7 @@ Module ModuleGlobalData
     end interface SetError
 
     !Parameter-----------------------------------------------------------------
-    integer, parameter  :: MaxModules           =  73
+    integer, parameter  :: MaxModules           =  75
 
 #ifdef _INCREASE_MAXINSTANCES
     integer, parameter  :: MaxInstances         = 1000
@@ -634,6 +634,68 @@ Module ModuleGlobalData
     integer, parameter ::  COHSED_MEDIUM_                   = 9103
     integer, parameter ::  COHSED_COARSE_                   = 9104
     integer, parameter ::  VSS_                             = 9111
+    
+    !PhreeqC properties ------------------------------------------
+    
+    !Solution properties
+    integer, parameter :: SolutionMagnesium_               = 10000
+    integer, parameter :: SolutionCalcium_                 = 10001
+    integer, parameter :: SolutionSodium_                  = 10002
+    integer, parameter :: SolutionNitrogenGas_             = 10003
+    integer, parameter :: SolutionOxygenGas_               = 10004
+    integer, parameter :: SolutionAmmonia_                 = 10005
+    integer, parameter :: SolutionNitrate_                 = 10006
+    integer, parameter :: SolutionNitrite_                 = 10007
+    integer, parameter :: SolutionChlorine_                = 10008
+    integer, parameter :: SolutionCarbon_                  = 10009
+    
+    !rain concentrantion properties
+    integer, parameter :: RainMagnesium_                   = 10201
+    integer, parameter :: RainCalcium_                     = 10202
+    integer, parameter :: RainSodium_                      = 10203 
+    integer, parameter :: RainChlorine_                    = 10204
+    integer, parameter :: RainAmmonia_                     = 10205
+    
+    !Exchange properties
+    integer, parameter :: eCaX2_                           = 10301
+    integer, parameter :: eMgX2_                           = 10302
+    integer, parameter :: eNaX_                            = 10303
+    integer, parameter :: eNH4X_                           = 10304
+    
+    !Species properties
+    integer, parameter :: sCa2_                            = 10501
+    integer, parameter :: sCaOH_                           = 10502
+    integer, parameter :: sH2_                             = 10503
+    integer, parameter :: sMg2_                            = 10504
+    integer, parameter :: sMgOH_                           = 10505
+    integer, parameter :: sNH4_                            = 10506
+    integer, parameter :: sNH3_                            = 10507
+    integer, parameter :: sN2_                             = 10508
+    integer, parameter :: sNO2_                            = 10509
+    integer, parameter :: sNO3_                            = 10510
+    integer, parameter :: sNa_                             = 10511
+    integer, parameter :: sNaOH_                           = 10512
+    integer, parameter :: sO2_                             = 10513
+    
+    !MasterSpecies Mass Properties
+    integer, parameter :: msmSolutionCalcium_              = 10800
+    integer, parameter :: msmSolutionMagnesium_            = 10801
+    integer, parameter :: msmSolutionSodium_               = 10802
+    integer, parameter :: msmSolutionAmmonia_              = 10803     
+    
+    !Gas phase properties
+    integer, parameter :: GasN2_                           = 11000
+    integer, parameter :: GasCO2_                          = 11001
+    
+    !Phases properties
+    integer, parameter :: Calcite_                         = 11500 !CaCO3
+    integer, parameter :: Dolomite_                        = 11501 !CaMg(CO3)2
+    integer, parameter :: Aragonite_                       = 11502 !CaCO3
+    integer, parameter :: Halite_                          = 11503 !NaCl
+
+    !Other PhreeqC properties
+    integer, parameter :: pE_                              = 12000
+    
 
 
     !Spatial emission discharge
@@ -652,6 +714,55 @@ Module ModuleGlobalData
     integer, parameter :: DischDepth_                       = 3
     integer, parameter :: DischLayer_                       = 4
     integer, parameter :: DischUniform_                     = 5
+
+!_______________________________________________________________________________________________
+
+      
+    !Name of PhreeqC properties
+    character(StringLength), private, parameter :: Char_SolutionMagnesium    = 'solution magnesium'
+    character(StringLength), private, parameter :: Char_SolutionCalcium      = 'solution calcium'
+    character(StringLength), private, parameter :: Char_SolutionSodium       = 'solution sodium'
+    character(StringLength), private, parameter :: Char_SolutionNitrogenGas  = 'solution nitrogen gas'
+    character(StringLength), private, parameter :: Char_SolutionOxygenGas    = 'solution oxygen gas'
+    character(StringLength), private, parameter :: Char_SolutionAmmonia      = 'solution ammonia'
+    character(StringLength), private, parameter :: Char_SolutionNitrate      = 'solution nitrate'
+    character(StringLength), private, parameter :: Char_SolutionNitrite      = 'solution nitrite'
+    character(StringLength), private, parameter :: Char_SolutionChlorine     = 'solution chlorine'
+    character(StringLength), private, parameter :: Char_GasN2                = 'gas n2'
+    character(StringLength), private, parameter :: Char_GasCO2               = 'gas co2'
+    character(StringLength), private, parameter :: Char_pE                   = 'pE'
+    character(StringLength), private, parameter :: Char_eCaX2                = 'CaX2'
+    character(StringLength), private, parameter :: Char_eMgX2                = 'MgX2'
+    character(StringLength), private, parameter :: Char_eNaX                 = 'NaX'
+    character(StringLength), private, parameter :: Char_eNH4X                = 'AmmoniaX' !'NH4X'
+    character(StringLength), private, parameter :: Char_sCa2                 = 'Ca+2'
+    character(StringLength), private, parameter :: Char_sCaOH                = 'CaOH+'
+    character(StringLength), private, parameter :: Char_sH2                  = 'H2'
+    character(StringLength), private, parameter :: Char_sMg2                 = 'Mg+2'
+    character(StringLength), private, parameter :: Char_sMgOH                = 'MgOH+'
+    character(StringLength), private, parameter :: Char_sNH4                 = 'Ammonia+' !'NH4+'
+    character(StringLength), private, parameter :: Char_sNH3                 = 'NH3'
+    character(StringLength), private, parameter :: Char_sN2                  = 'N2'
+    character(StringLength), private, parameter :: Char_sNO2                 = 'NO2-'
+    character(StringLength), private, parameter :: Char_sNO3                 = 'NO3-'
+    character(StringLength), private, parameter :: Char_sNa                  = 'Na+'
+    character(StringLength), private, parameter :: Char_sNaOH                = 'NaOH+'
+    character(StringLength), private, parameter :: Char_sO2                  = 'O2'
+    character(StringLength), private, parameter :: Char_msmSolutionCalcium   = 'solution calcium mass'
+    character(StringLength), private, parameter :: Char_msmSolutionMagnesium = 'solution magnesium mass'
+    character(StringLength), private, parameter :: Char_msmSolutionSodium    = 'solution sodium mass'
+    character(StringLength), private, parameter :: Char_msmSolutionAmmonia   = 'solution ammonia mass'
+    character(StringLength), private, parameter :: Char_Calcite              = 'calcite'
+    character(StringLength), private, parameter :: Char_Dolomite             = 'dolomite'
+    character(StringLength), private, parameter :: Char_Aragonite            = 'aragonite'
+    character(StringLength), private, parameter :: Char_Halite               = 'halite' 
+    character(StringLength), private, parameter :: char_SolutionCarbon       = 'solution carbon' 
+    character(StringLength), private, parameter :: char_RainMagnesium        = 'rain magnesium' 
+    character(StringLength), private, parameter :: char_RainCalcium          = 'rain calcium' 
+    character(StringLength), private, parameter :: char_RainSodium           = 'rain sodium' 
+    character(StringLength), private, parameter :: char_RainChlorine         = 'rain chlorine'
+    character(StringLength), private, parameter :: char_RainAmmonia          = 'rain ammonia'
+
 
 !_______________________________________________________________________________________________
 
@@ -983,6 +1094,7 @@ Module ModuleGlobalData
     character(StringLength), parameter          :: BenthosModel             = 'Benthos'
     character(StringLength), parameter          :: TempqsimModel            = 'Tempqsim'
     character(StringLength), parameter          :: MacroAlgaeModel          = 'MacroAlgae'
+    character(StringLength), parameter          :: PhreeqCModel             = 'PhreeqCModel'
 
     !Water air interface
     character(StringLength), private, parameter :: Char_LatentHeat               = 'latent heat'
@@ -1299,6 +1411,8 @@ Module ModuleGlobalData
     integer, parameter ::  mNETCDF_                 = 71
     integer, parameter ::  mSEQUENTIALASSIMILATION_ = 72
     integer, parameter ::  mPOROUSMEDIAPROPERTIES_  = 73
+    integer, parameter ::  mPHREEQC_                = 74
+    integer, parameter ::  mRUNOFFPROPERTIES_       = 75
 
     type T_Size1D
         integer                 :: ILB            = null_int
@@ -1379,7 +1493,8 @@ Module ModuleGlobalData
           T_Module(mVEGETATION_             , "Vegetation"),        T_Module(mRESERVOIROPTIMIZATION_  , "ReservoirOptimization"), &
           T_Module(mMACROALGAE_             , "MacroAlgae"),        T_Module(mBFM_                    , "BFM"),                   &
           T_Module(mNETCDF_                 , "NETCDF"),            T_Module(mSEQUENTIALASSIMILATION_ , "SequentialAssimilation"),& 
-          T_Module(mPOROUSMEDIAPROPERTIES_ ,  "PorousMediaProperties") /)
+          T_Module(mPOROUSMEDIAPROPERTIES_  , "PorousMediaProperties"), T_Module(mPHREEQC_            , "PhreeqC"),               &
+          T_Module(mRUNOFFPROPERTIES_       , "RunoffProperties") /)
 
     !Variables
     logical, dimension(MaxModules)                                  :: RegisteredModules = .false.
@@ -2076,6 +2191,51 @@ Module ModuleGlobalData
             call AddPropList (COHSED_COARSE_,           Char_Cohsed_coarse,              ListNumber)
             call AddPropList (VSS_,                     Char_VSS,                        ListNumber)
 
+            !PhreeqC temporary code for tests
+            call AddPropList (SolutionMagnesium_,       Char_SolutionMagnesium,          ListNumber)
+            call AddPropList (SolutionCalcium_,         Char_SolutionCalcium,            ListNumber)
+            call AddPropList (SolutionSodium_,          Char_SolutionSodium,             ListNumber)
+            call AddPropList (SolutionNitrogenGas_,     Char_SolutionNitrogenGas,        ListNumber)
+            call AddPropList (SolutionOxygenGas_,       Char_SolutionOxygenGas,          ListNumber)
+            call AddPropList (SolutionAmmonia_,         Char_SolutionAmmonia,            ListNumber)
+            call AddPropList (SolutionNitrate_,         Char_SolutionNitrate,            ListNumber)
+            call AddPropList (SolutionNitrite_,         Char_SolutionNitrite,            ListNumber)
+            call AddPropList (SolutionChlorine_,        Char_SolutionChlorine,           ListNumber)
+            call AddPropList (GasN2_,                   Char_GasN2,                      ListNumber)
+            call AddPropList (GasCO2_,                  Char_GasCO2,                     ListNumber)
+            call AddPropList (pE_,                      Char_pE,                         ListNumber)
+            call AddPropList (eCaX2_,                   Char_eCaX2,                      ListNumber)
+            call AddPropList (eMgX2_,                   Char_eMgX2,                      ListNumber)
+            call AddPropList (eNaX_,                    Char_eNaX,                       ListNumber)
+            call AddPropList (eNH4X_,                   Char_eNH4X,                      ListNumber)
+            call AddPropList (sCa2_,                    Char_sCa2,                       ListNumber)
+            call AddPropList (sCaOH_,                   Char_sCaOH,                      ListNumber)
+            call AddPropList (sH2_,                     Char_sH2,                        ListNumber)
+            call AddPropList (sMg2_,                    Char_sMg2,                       ListNumber)
+            call AddPropList (sMgOH_,                   Char_sMgOH,                      ListNumber)
+            call AddPropList (sNH4_,                    Char_sNH4,                       ListNumber)
+            call AddPropList (sNH3_,                    Char_sNH3,                       ListNumber)
+            call AddPropList (sN2_,                     Char_sN2,                        ListNumber)
+            call AddPropList (sNO2_,                    Char_sNO2,                       ListNumber)
+            call AddPropList (sNO3_,                    Char_sNO3,                       ListNumber)
+            call AddPropList (sNa_,                     Char_sNa,                        ListNumber)
+            call AddPropList (sNaOH_,                   Char_sNaOH,                      ListNumber)
+            call AddPropList (sO2_,                     Char_sO2,                        ListNumber)
+            call AddPropList (msmSolutionCalcium_,      Char_msmSolutionCalcium,         ListNumber)
+            call AddPropList (msmSolutionMagnesium_,    Char_msmSolutionMagnesium,       ListNumber)
+            call AddPropList (msmSolutionSodium_,       Char_msmSolutionSodium,          ListNumber)
+            call AddPropList (msmSolutionAmmonia_,      Char_msmSolutionAmmonia,         ListNumber)
+            call AddPropList (Calcite_,                 Char_Calcite,                    ListNumber)
+            call AddPropList (Dolomite_,                Char_Dolomite,                   ListNumber)
+            call AddPropList (Aragonite_,               Char_Aragonite,                  ListNumber)
+            call AddPropList (Halite_,                  Char_Halite,                     ListNumber)
+            call AddPropList (SolutionCarbon_,          Char_SolutionCarbon,             ListNumber) 
+            call AddPropList (RainMagnesium_,           Char_RainMagnesium,              ListNumber) 
+            call AddPropList (RainCalcium_,             Char_RainCalcium,                ListNumber) 
+            call AddPropList (RainSodium_,              Char_RainSodium,                 ListNumber)
+            call AddPropList (RainChlorine_,            Char_RainChlorine,               ListNumber)  
+            call AddPropList (RainAmmonia_,             Char_RainAmmonia,                ListNumber)  
+            !END of PhreeqC temporary code for tests
 
             !Place to add new properties to the names list
         
