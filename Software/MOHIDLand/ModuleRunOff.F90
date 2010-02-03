@@ -998,7 +998,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
 
         !Arguments-------------------------------------------------------------
         integer                                         :: ObjRunOffID
-        real, dimension(:, :), pointer                  :: WaterColumn
+        real(8), dimension(:, :), pointer               :: WaterColumn
         integer, intent(OUT), optional                  :: STAT
 
         !Local-----------------------------------------------------------------
@@ -1029,7 +1029,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
 
         !Arguments-------------------------------------------------------------
         integer                                         :: ObjRunOffID
-        real, dimension(:, :), pointer                  :: WaterColumnOld
+        real(8), dimension(:, :), pointer               :: WaterColumnOld
         integer, intent(OUT), optional                  :: STAT
 
         !Local-----------------------------------------------------------------

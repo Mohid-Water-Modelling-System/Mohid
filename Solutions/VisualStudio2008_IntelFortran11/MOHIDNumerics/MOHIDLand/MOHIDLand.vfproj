@@ -69,8 +69,11 @@
 		<Filter Name="Source Files" Filter="f90;for;f;fpp;ftn;def;odl;idl">
 		<File RelativePath="..\..\..\..\Software\MOHIDLand\ModuleBasin.f90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDLand\ModulePorousMedia.f90"/>
-		<File RelativePath="..\..\..\..\Software\MOHIDLand\ModulePorousMediaProperties.F90"/>
+		<File RelativePath="..\..\..\..\Software\MOHIDLand\ModulePorousMediaProperties.F90">
+			<FileConfiguration Name="Release Double OpenMP|Win32">
+				<Tool Name="VFFortranCompilerTool" Preprocess="preprocessYes"/></FileConfiguration></File>
 		<File RelativePath="..\..\..\..\Software\MOHIDLand\ModuleRunOff.f90"/>
+		<File RelativePath="..\..\..\..\Software\MOHIDLand\ModuleRunoffProperties.F90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDLand\ModuleVegetation.f90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDLand\MohidLand.f90"/></Filter></Files>
 	<Globals/></VisualStudioProject>

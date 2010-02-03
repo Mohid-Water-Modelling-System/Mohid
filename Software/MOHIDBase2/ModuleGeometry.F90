@@ -66,9 +66,9 @@ Module ModuleGeometry
                                       GetGridLatitudeLongitude, GetCoordTypeList,       &
                                       GetCheckDistortion, UnGetHorizontalGrid
 #ifdef _USE_SEQASSIMILATION
-    use ModuleFunctions,        only: SetMatrixValue, Chunk_J
+    use ModuleFunctions,        only: SetMatrixValue, Chunk_J, Chunk_K
 #else
-    use ModuleFunctions,        only: Chunk_J   
+    use ModuleFunctions,        only: Chunk_J, Chunk_K   
 #endif _USE_SEQASSIMILATION
 
     use ModuleHDF5
@@ -3127,18 +3127,18 @@ cd1:    if (FacesOption == MinTickness) then
 
         if (MonitorPerformance) call StartWatch ("ModuleGeometry", "StoreVolumeZOld")
 
-        CHUNK = Chunk_J(JLB,JUB)
+        CHUNK = Chunk_K(JLB,JUB)
         !$OMP PARALLEL PRIVATE(i,j,k) 
 
-        do k = KLB, KUB
         !$OMP DO SCHEDULE(STATIC, CHUNK)
+        do k = KLB, KUB
         do j = JLB, JUB
         do i = ILB, IUB
             Me%Volumes%VolumeZOld(i, j ,k) = Me%Volumes%VolumeZ(i, j ,k) 
         enddo
         enddo
-        !$OMP END DO
         enddo
+        !$OMP END DO
 
         !$OMP END PARALLEL
 

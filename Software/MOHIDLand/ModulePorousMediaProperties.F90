@@ -316,10 +316,10 @@ Module ModulePorousMediaProperties
 
     type T_Property
         type (T_PropertyID)                     :: ID
-        real(8), dimension(:,:,:), pointer      :: Concentration            => null()
-        real(8), dimension(:,:,:), pointer      :: ConcentrationOld         => null()
-        real(8), dimension(:,:), pointer        :: ConcentrationOnInfColumn      => null()
-        real(8), dimension(:,:), pointer        :: ConcentrationDN               => null()
+        real, dimension(:,:,:), pointer         :: Concentration            => null()
+        real, dimension(:,:,:), pointer         :: ConcentrationOld         => null()
+        real, dimension(:,:), pointer           :: ConcentrationOnInfColumn      => null()
+        real, dimension(:,:), pointer           :: ConcentrationDN               => null()
         real, pointer, dimension(:,:,:)         :: Mass_Created
         real(8),    pointer, dimension(:,:,:)   :: ViscosityU
         real(8),    pointer, dimension(:,:,:)   :: ViscosityV

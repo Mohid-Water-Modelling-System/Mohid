@@ -76,9 +76,13 @@ Module ModulePorousMedia
     use ModuleProfile,          only : StartProfile, WriteProfile, KillProfile
     use ModuleGridData,         only : ConstructGridData, GetGridData, UngetGridData,    &
                                        KillGridData           
-    use ModuleTimeSerie,        only : StartTimeSerie, WriteTimeSerie, KillTimeSerie         
+    use ModuleTimeSerie,        only : StartTimeSerie, WriteTimeSerie, KillTimeSerie,    &
+                                       GetNumberOfTimeSeries, GetTimeSerieLocation,      &
+                                       TryIgnoreTimeSerie, CorrectsCellsTimeSerie,       &
+                                       GetTimeSerieName
     use ModuleHorizontalGrid,   only : GetHorizontalGrid, GetGridCellArea,               &
-                                       WriteHorizontalGrid, UnGetHorizontalGrid
+                                       WriteHorizontalGrid, UnGetHorizontalGrid,         &
+                                       GetXYCellZ
     use ModuleBasinGeometry,    only : GetBasinPoints, GetRiverPoints, GetCellSlope,     &
                                        UnGetBasin
     use ModuleGeometry,         only : ConstructGeometry, GetGeometrySize,               &
@@ -1940,6 +1944,12 @@ doSP:           do
         integer                                             :: STAT_CALL
         integer                                             :: iflag, i
         character(len=StringLength)                         :: TimeSerieLocationFile
+        integer                                             :: TimeSerieNumber, dn, Id, Jd
+        real                                                :: CoordX, CoordY
+        logical                                             :: CoordON, IgnoreOK
+        character(len=StringLength)                         :: TimeSerieName
+        
+        
         !Begin-----------------------------------------------------------------
         
         nProperties = 10
@@ -2002,6 +2012,62 @@ doSP:           do
 
         !Deallocates PropertyList
         deallocate(PropertyList)
+       
+        
+        !Corrects if necessary the cell of the time serie based in the time serie coordinates
+        call GetNumberOfTimeSeries(Me%ObjTimeSerie, TimeSerieNumber, STAT  = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - PorousMedia - ERR03'
+
+        do dn = 1, TimeSerieNumber
+
+            call GetTimeSerieLocation(Me%ObjTimeSerie, dn,                              &  
+                                      CoordX   = CoordX,                                &
+                                      CoordY   = CoordY,                                & 
+                                      CoordON  = CoordON,                               &
+                                      STAT     = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - PorousMedia - ERR04'
+            
+            call GetTimeSerieName(Me%ObjTimeSerie, dn, TimeSerieName, STAT  = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - PorousMedia - ERR04'
+            
+i1:         if (CoordON) then
+                call GetXYCellZ(Me%ObjHorizontalGrid, CoordX, CoordY, Id, Jd, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - PorousMedia - ERR05'
+
+                if (Id < 0 .or. Jd < 0) then
+                
+                    call TryIgnoreTimeSerie(Me%ObjTimeSerie, dn, IgnoreOK, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - PorousMedia - ERR06'
+
+                    if (IgnoreOK) then
+                        write(*,*) 'Time Serie outside the domain - ',trim(TimeSerieName),' - ',trim(Me%ModelName)
+                        cycle
+                    else
+                        stop 'ConstructTimeSerie - PorousMedia - ERR07'
+                    endif
+
+                endif
+
+
+                call CorrectsCellsTimeSerie(Me%ObjTimeSerie, dn, Id, Jd, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - PorousMedia - ERR08'
+
+            endif i1
+
+            call GetTimeSerieLocation(Me%ObjTimeSerie, dn,                              &  
+                                      LocalizationI   = Id,                             &
+                                      LocalizationJ   = Jd,                             & 
+                                      STAT     = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - PorousMedia - ERR09'
+
+            if (Me%ExtVar%WaterPoints3D(Id, Jd, Me%WorkSize%KUB) /= WaterPoint) then
+                 write(*,*) 'Time Serie in a land cell - ',trim(TimeSerieName),' - ',trim(Me%ModelName)
+            endif
+
+
+        enddo
+        
+       
        
     end subroutine ConstructTimeSerie
 
@@ -2516,7 +2582,7 @@ doSP:           do
     
         !Arguments-------------------------------------------------------------
         integer                          :: ObjPorousMediaID
-        real,    pointer, dimension(:,:) :: WaterColumn
+        real(8), pointer, dimension(:,:) :: WaterColumn
         integer, intent(OUT), optional   :: STAT
 
         !Local-----------------------------------------------------------------

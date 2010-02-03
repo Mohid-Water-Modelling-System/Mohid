@@ -44,13 +44,13 @@ Module ModuleBasin
     use ModuleTimeSerie
     use ModuleHDF5
     use ModuleFunctions,      only : ReadTimeKeyWords, LatentHeat, ConstructPropertyID,  &
-                                     TimeToString, ChangeSuffix
+                                     TimeToString, ChangeSuffix, CHUNK_J
     use ModuleFillMatrix,     only : ConstructFillMatrix, ModifyFillMatrix,              &
                                      KillFillMatrix,GetIfMatrixRemainsConstant
     use ModuleHorizontalGrid, only : ConstructHorizontalGrid, KillHorizontalGrid,        &
                                      WriteHorizontalGrid, GetHorizontalGridSize,         &
                                      GetGridCellArea, UnGetHorizontalGrid,               &
-                                     GetHorizontalGrid
+                                     GetHorizontalGrid, GetXYCellZ
     use ModuleHorizontalMap,  only : ConstructHorizontalMap, KillHorizontalMap,          &
                                      UpdateComputeFaces2D, GetOpenPoints2D,              &
                                      GetBoundaries, UngetHorizontalMap 
@@ -1229,6 +1229,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         real, dimension(6), target                          :: AuxTime
         integer                                             :: i, AuxInt
         character(PathLength)                               :: AuxChar
+        integer                                             :: TimeSerieNumber, dn, Id, Jd
+        real                                                :: CoordX, CoordY
+        logical                                             :: CoordON, IgnoreOK
+        character(len=StringLength)                         :: TimeSerieName
 
 
         !Time Serie of properties variable in the Basin    
@@ -1387,6 +1391,62 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      
                      
         endif
+
+
+        !Corrects if necessary the cell of the time serie based in the time serie coordinates
+        call GetNumberOfTimeSeries(Me%ObjTimeSerie, TimeSerieNumber, STAT  = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleBasin - ERR03'
+
+        do dn = 1, TimeSerieNumber
+
+            call GetTimeSerieLocation(Me%ObjTimeSerie, dn,                              &  
+                                      CoordX   = CoordX,                                &
+                                      CoordY   = CoordY,                                & 
+                                      CoordON  = CoordON,                               &
+                                      STAT     = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleBasin - ERR04'
+            
+            call GetTimeSerieName(Me%ObjTimeSerie, dn, TimeSerieName, STAT  = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleBasin - ERR04'
+            
+i1:         if (CoordON) then
+                call GetXYCellZ(Me%ObjHorizontalGrid, CoordX, CoordY, Id, Jd, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleBasin - ERR05'
+
+                if (Id < 0 .or. Jd < 0) then
+                
+                    call TryIgnoreTimeSerie(Me%ObjTimeSerie, dn, IgnoreOK, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleBasin - ERR06'
+
+                    if (IgnoreOK) then
+                        write(*,*) 'Time Serie outside the domain - ',trim(TimeSerieName),' - ',trim(Me%ModelName)
+                        cycle
+                    else
+                        stop 'ConstructTimeSerie - ModuleBasin - ERR07'
+                    endif
+
+                endif
+
+
+                call CorrectsCellsTimeSerie(Me%ObjTimeSerie, dn, Id, Jd, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleBasin - ERR08'
+
+            endif i1
+
+            call GetTimeSerieLocation(Me%ObjTimeSerie, dn,                              &  
+                                      LocalizationI   = Id,                             &
+                                      LocalizationJ   = Jd,                             & 
+                                      STAT     = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleBasin - ERR09'
+
+            if (Me%ExtVar%BasinPoints(Id, Jd) /= WaterPoint) then
+                 write(*,*) 'Time Serie in a land cell - ',trim(TimeSerieName),' - ',trim(Me%ModelName)
+            endif
+
+
+        enddo
+
+
 
     end subroutine ConstructTimeSeries
 
@@ -4056,10 +4116,15 @@ etr_fao:        if (.not. RefEvapotrans%ID%SolutionFromFile) then
         character (Len = *), intent(in)             :: WarningString
 
         !Local-----------------------------------------------------------------
-        integer                                     :: i, j
+        integer                                     :: i, j, CHUNK
+
+        CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
 
         if (MonitorPerformance) call StartWatch ("ModuleBasin", "ActualizeWaterColumn")
 
+        !$OMP PARALLEL PRIVATE(I,J, WarningString)
+
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
         do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
@@ -4083,6 +4148,11 @@ etr_fao:        if (.not. RefEvapotrans%ID%SolutionFromFile) then
 
         enddo
         enddo
+        !$OMP END DO
+
+
+        !$OMP END PARALLEL
+
 
         if (MonitorPerformance) call StopWatch ("ModuleBasin", "ActualizeWaterColumn")
 
@@ -5090,10 +5160,10 @@ etr_fao:        if (.not. RefEvapotrans%ID%SolutionFromFile) then
         end if
 
         ID_DT = 0
-        if (AtmosfereDT < NewDT) then
-            NewDT = AtmosfereDT
-            ID_DT = 1
-        endif
+!        if (AtmosfereDT < NewDT) then
+!            NewDT = AtmosfereDT
+!            ID_DT = 1
+!        endif
         
         if (DNetDT      < NewDT) then
             NewDT = DNetDT
@@ -5128,6 +5198,7 @@ etr_fao:        if (.not. RefEvapotrans%ID%SolutionFromFile) then
         !endif
         
         if (NewDT < 10.0) then
+            call WriteDTLog ('ModuleBasin < 10', ID_DT, NewDT)
             NewDT = 10.0
             ID_DT = 7
         endif
