@@ -172,8 +172,8 @@ Module ModulePorousMediaProperties
         real,    dimension(:,:,:), pointer          :: UnSatW
         real,    dimension(:,:,:), pointer          :: UnSatV
         real,    dimension(:,:,:), pointer          :: UnSatU
-        real(8), pointer, dimension(:,:,:)          :: WaterContent
-        real(8), pointer, dimension(:,:,:)          :: WaterContentOld
+        real,    pointer, dimension(:,:,:)          :: WaterContent
+        real,    pointer, dimension(:,:,:)          :: WaterContentOld
 !        real(8), pointer, dimension(:,:)            :: WaterColumn
         real(8), pointer, dimension(:,:)            :: InfiltrationColumn
         real(8), pointer, dimension(:,:,:)          :: CellVolume
@@ -196,7 +196,7 @@ Module ModulePorousMediaProperties
         real   , pointer, dimension(:,:  )          :: DYY        
         real   , pointer, dimension(:,:  )          :: Topography  
         real ,   pointer, dimension(:,:,:)          :: SZZ
-        real(8), pointer, dimension(:,:)            :: FlowToChannels
+        real,    pointer, dimension(:,:)            :: FlowToChannels
         integer, pointer, dimension(:,:)            :: GWLayer
         
         !from vegetation
@@ -321,16 +321,17 @@ Module ModulePorousMediaProperties
         real, dimension(:,:), pointer           :: ConcentrationOnInfColumn      => null()
         real, dimension(:,:), pointer           :: ConcentrationDN               => null()
         real, pointer, dimension(:,:,:)         :: Mass_Created
-        real(8),    pointer, dimension(:,:,:)   :: ViscosityU
-        real(8),    pointer, dimension(:,:,:)   :: ViscosityV
+        real(8)                                 :: TotalStoredMass
+        real, pointer, dimension(:,:,:)         :: ViscosityU
+        real, pointer, dimension(:,:,:)         :: ViscosityV
 !        real,    pointer, dimension(:,:,:)      :: DiffusivityW          
         type (T_Property), pointer              :: Next, Prev                     => null()
         logical                                 :: Particulate
         type (T_Evolution)                      :: Evolution
-        real(8), pointer, dimension(:,:,:)      :: Diffusivity
-        real(8), pointer, dimension(:,:,:)      :: Diff_Turbulence_H
-        real(8), pointer, dimension(:,:,:)      :: Diff_Turbulence_V
-        real(8), pointer, dimension(:,:,:)      :: Viscosity
+        real, pointer, dimension(:,:,:)         :: Diffusivity
+        real, pointer, dimension(:,:,:)         :: Diff_Turbulence_H
+        real, pointer, dimension(:,:,:)         :: Diff_Turbulence_V
+        real, pointer, dimension(:,:,:)         :: Viscosity
 
         logical                                 :: Old     = .false.
         real                                    :: MinValue        = FillValueReal
@@ -378,7 +379,6 @@ Module ModulePorousMediaProperties
         integer                                     :: ObjInterfaceSoilChemistry = 0 
 #endif        
         type (T_ExtVar)                             :: ExtVar
-        logical                                     :: CheckGlobalMass      
         type (T_Files)                              :: Files
         type (T_OutPut)                             :: OutPut
         type (T_Property), pointer                  :: FirstProperty    => null() !Lúcia
@@ -397,18 +397,10 @@ Module ModulePorousMediaProperties
         type (T_Size3D)                             :: Size, WorkSize
         type (T_Size2D)                             :: Size2D
 
-        real(8), dimension(:, :, :),  pointer       :: Matrix  
-        
-          
         type(T_Property_3D)                         :: Disper_Trans
         type(T_Property_3D)                         :: Disper_Longi
                
-        real(8), pointer, dimension(:,:,:)          :: MassFluxesX
-        real(8), pointer, dimension(:,:,:)          :: MassFluxesY
-        real(8), pointer, dimension(:,:,:)          :: MassFluxesZ
-
         integer                                     :: AdvDiff_Module        ! 1 - PorousMediaProperties, 2 - AdvectionDiffusion
-        integer                                     :: AdvDiff_Test
         integer                                     :: AdvDiff_SpatialMethod ! 1 - Upwind; 2-Central Differences
         logical                                     :: AdvDiff_Explicit      !
         logical                                     :: AdvDiff_CheckCoefs    !
@@ -418,7 +410,8 @@ Module ModulePorousMediaProperties
         real,    pointer, dimension(:,:,:)          :: DifusionNumber
         real,    pointer, dimension(:,:,:)          :: ReynoldsMNumber    
         
-       
+        logical                                     :: CheckGlobalMass       
+        
         real(8), pointer, dimension(:,:,:)          :: WaterVolume
         real(8), pointer, dimension(:,:,:)          :: WaterVolumeOld                
         real(8), pointer, dimension(:,:,:)          :: WaterVolumeCorr
@@ -453,6 +446,7 @@ Module ModulePorousMediaProperties
                                               GeometryID,                                 &
                                               MapID,                                      &
                                               CoupledDN,                                  &
+                                              CheckGlobalMass,                            &
                                               STAT)
      
         !Arguments---------------------------------------------------------------
@@ -465,6 +459,7 @@ Module ModulePorousMediaProperties
         integer                                         :: GeometryID
         integer                                         :: MapID
         logical, optional                               :: CoupledDN
+        logical                                         :: CheckGlobalMass
         integer, optional, intent(OUT)                  :: STAT 
         !External----------------------------------------------------------------
         integer                                         :: ready_         
@@ -502,7 +497,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             if (present(CoupledDN)) then
                 Me%ExtVar%CoupledDN = CoupledDN
             endif
-            
+            Me%CheckGlobalMass       = CheckGlobalMass
             
             call ReadFileNames
 
@@ -558,6 +553,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                              STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ConstructPorousMediaProperties - ModulePorousMediaProperties - ERR50'
 
+            endif
+
+            if (Me%CheckGlobalMass) then
+                call CalculateTotalStoredMass
             endif
 
             !Returns ID
@@ -1799,14 +1798,6 @@ cd1:    if (Me%AdvDiff_Module == AdvDif_ModuleAD_) then
             if (PropertyX%TimeSerie) then
                 PropertyList(n)  = trim(PropertyX%ID%Name)
                 n=n+1
-            endif
-            PropertyX=>PropertyX%Next
-        enddo
-
-        !Property names for infil column
-        PropertyX  => Me%FirstProperty
-        do while (associated(PropertyX))
-            if (PropertyX%TimeSerie) then
                 PropertyList(n)  = trim(PropertyX%ID%Name) //'_in_InfilColumn'
                 n=n+1
             endif
@@ -2747,6 +2738,53 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.     &
 
     !--------------------------------------------------------------------------------
 
+    subroutine GetPMPTotalStoredMass(PorousMediaPropertiesID, TotalStoredMass, PropertyXIDNumber, STAT)
+
+        !Arguments---------------------------------------------------------------
+        integer                                     :: PorousMediaPropertiesID
+        real(8)                                     :: TotalStoredMass
+        integer,                      intent(IN )   :: PropertyXIDNumber
+        integer,            optional, intent(OUT)   :: STAT
+
+        !Local-------------------------------------------------------------------
+        integer                                     :: ready_          
+        integer                                     :: STAT_CALL              
+        type(T_Property), pointer                   :: PropertyX
+        integer                                     :: STAT_    
+
+        !------------------------------------------------------------------------
+
+
+        STAT_ = UNKNOWN_
+
+        call Ready(PorousMediaPropertiesID, ready_) 
+        
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+            call Read_Lock(mPOROUSMEDIAPROPERTIES_, Me%InstanceID) 
+
+            nullify(PropertyX)
+
+            call Search_Property(PropertyX, PropertyXID = PropertyXIDNumber, STAT = STAT_CALL)
+            if (STAT_CALL == SUCCESS_) then
+                
+                TotalStoredMass = PropertyX%TotalStoredMass
+
+                STAT_ = SUCCESS_
+            else
+                STAT_ = STAT_CALL
+            end if
+        else
+            STAT_ = ready_
+        end if
+
+
+        if (present(STAT))STAT = STAT_
+            
+    end subroutine GetPMPTotalStoredMass
+
+    !--------------------------------------------------------------------------------
+
     subroutine SetWindVelocity (PorousMediaPropertiesID, WindModulus, STAT)
                                   
         !Arguments--------------------------------------------------------------
@@ -3342,6 +3380,10 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.     &
     !       call ProfileOutput    em teste no construct e no kill
 
             call Actualize_Time_Evolution
+
+            if (Me%CheckGlobalMass) then
+                call CalculateTotalStoredMass
+            endif
         
             call ReadUnlockExternalVar
 
@@ -3365,7 +3407,8 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.     &
 
         !External--------------------------------------------------------------
         integer                              :: i, j, k, CHUNK
-        real, pointer, dimension(:,:,:)      :: ThetaOld, Porosity
+        real, pointer, dimension(:,:,:)      :: ThetaOld
+        real, pointer, dimension(:,:,:)      :: Porosity
         real                                 :: WaterContent_Face, Porosity_Face
 
         !Begin----------------------------------------------------------------------
@@ -3627,12 +3670,6 @@ do1:    do while (associated(PropertyX))
     
         !External--------------------------------------------------------------
         integer                             :: STAT_CALL    
-        real(8), pointer, dimension(:,:,:)  :: AdvFluxX
-        real(8), pointer, dimension(:,:,:)  :: AdvFluxY
-        real(8), pointer, dimension(:,:,:)  :: AdvFluxZ
-        real(8), pointer, dimension(:,:,:)  :: DifFluxX
-        real(8), pointer, dimension(:,:,:)  :: DifFluxY
-        real(8), pointer, dimension(:,:,:)  :: DifFluxZ
 
         !Local-----------------------------------------------------------------
         type(T_Property), pointer           :: Property
@@ -3642,7 +3679,6 @@ do1:    do while (associated(PropertyX))
         real                                :: AdvectionV_imp_exp  
         real                                :: DiffusionV_imp_exp  
         real                                :: AdvectionH_imp_exp  
-        real(8)                             :: f
         real(8), dimension(:,:,:), pointer  :: FluxW
 
         !----------------------------------------------------------------------      
@@ -4352,7 +4388,8 @@ do3:        do K = Me%WorkSize%KUB, Me%WorkSize%KLB, -1
         real(8)                                     :: cofA,cofB,cofC, cofD, cofInterfaceDN
         real(8)                                     :: ConcTop, ConcInInterfaceDN
         real(8), pointer, dimension(:,:,:)          :: FluxW, FluxU, FluxV
-        real   , pointer, dimension(:,:,:)          :: DWZ, DZZ, Theta, ThetaOld, Porosity
+        real   , pointer, dimension(:,:,:)          :: DWZ, DZZ, Porosity
+        real   , pointer, dimension(:,:,:)          :: Theta, ThetaOld 
         logical                                     :: ComputeCofC, ComputeCofD
         !Begin-----------------------------------------------------------------
    
@@ -4577,7 +4614,7 @@ do3:        do K = Me%WorkSize%KUB, Me%WorkSize%KLB, -1
         real(8)                                     :: cofB, cofInterfaceDN
         real(8)                                     :: ConcTop, ConcInInterfaceDN
         real(8), pointer, dimension(:,:,:)          :: FluxW, FluxU, FluxV
-        real   , pointer, dimension(:,:,:)          :: DWZ, DZZ, Theta, ThetaOld, Porosity !, DZE, DZI
+        real   , pointer, dimension(:,:,:)          :: DWZ, DZZ, Porosity, Theta, ThetaOld !, DZE, DZI
         real   , pointer, dimension(:,:  )          :: DZX, DZY, DXX, DYY !, DVX, DUY
         logical                                     :: ComputeCofC_W, ComputeCofD_W
         !Begin-----------------------------------------------------------------
@@ -4892,9 +4929,9 @@ do3:        do K = Me%WorkSize%KUB, Me%WorkSize%KLB, -1
         type (T_Property), pointer                  :: CurrProperty
         !Local-----------------------------------------------------------------
         integer                                     :: I,J,K, CHUNK
-        real   , pointer, dimension(:,:  )          :: WaterCol
-        real   , pointer, dimension(:,:,:)          :: ThetaOld, Porosity
-        real(8), pointer, dimension(:,:,:)          :: UnsatW, FluxW, UnsatU, UnsatV
+        real(8), pointer, dimension(:,:  )          :: WaterCol
+        real   , pointer, dimension(:,:,:)          :: Porosity, UnsatW, UnsatU, UnsatV, ThetaOld
+        real(8), pointer, dimension(:,:,:)          :: FluxW 
         real                                        :: WaterContent_Face, Porosity_Face
         real                                        :: DiffCoef        
         !Begin-----------------------------------------------------------------
@@ -5619,6 +5656,64 @@ First:          if (LastTime.LT.Actual) then
         1000 format(f5.0, f5.0, f5.0, f5.0, f5.0, f12.5, i3, i3, i3, 8f13.8)
 
     end subroutine LogCoefs
+
+    !--------------------------------------------------------------------------
+
+    subroutine CalculateTotalStoredMass
+
+        !Arguments-------------------------------------------------------------
+        !Local-----------------------------------------------------------------
+        integer                                     :: i, j, k, STAT_CALL
+        type (T_Property), pointer                  :: CurrProperty
+        !Begin-----------------------------------------------------------------
+        
+        CurrProperty => Me%FirstProperty
+        
+        call GetWaterPoints3D   (Me%ObjMap, Me%ExtVar%WaterPoints3D, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'CalculateTotalStoredMass - ModulePorousMediaProperties - ERR10'        
+        
+        call GetWaterContent    (Me%ObjPorousMedia, Me%ExtVar%WaterContent, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'CalculateTotalStoredMass - ModulePorousMediaProperties - ERR020'
+
+        call GetGeometryVolumes(Me%ObjGeometry,                                         &
+                                VolumeZ    = Me%ExtVar%CellVolume,                      &
+                                STAT       = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'CalculateTotalStoredMass - ModulePorousMediaProperties - ERR030'
+        
+        do while (associated(CurrProperty)) 
+
+            CurrProperty%TotalStoredMass = 0.0
+
+            do k = Me%WorkSize%KLB, Me%WorkSize%KUB
+            do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+            do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+                        
+                if (Me%ExtVar%WaterPoints3D(i, j, k) == 1) then
+                    !kg = kg + (m3H20/m3cell * m3cell * g/m3 * 1E-3 kg/g
+                    CurrProperty%TotalStoredMass = CurrProperty%TotalStoredMass                       &
+                                                   + ( Me%ExtVar%WaterContent(i,j,k)* Me%ExtVar%CellVolume(i,j,k)   &
+                                                       * CurrProperty%Concentration(i,j,k) * 1E-3    )
+                endif
+
+            enddo
+            enddo
+            enddo
+            
+            CurrProperty => CurrProperty%Next
+        end do 
+        
+        call UnGetMap                   (Me%ObjMap, Me%ExtVar%WaterPoints3D, STAT = STAT_CALL) 
+        if (STAT_CALL /= SUCCESS_) stop 'CalculateTotalStoredMass - ModulePorousMediaProperties - ERR040'
+
+        call UnGetPorousMedia           (Me%ObjPorousMedia, Me%ExtVar%WaterContent, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'CalculateTotalStoredMass - ModulePorousMediaProperties - ERR050'
+
+        call UnGetGeometry              (Me%ObjGeometry, Me%ExtVar%CellVolume,  STAT = STAT_CALL )        
+        if (STAT_CALL /= SUCCESS_) stop 'CalculateTotalStoredMass - ModulePorousMediaProperties - ERR060'
+
+
+    end subroutine CalculateTotalStoredMass
+
 
     !--------------------------------------------------------------------------
 

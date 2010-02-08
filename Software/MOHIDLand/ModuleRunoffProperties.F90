@@ -162,19 +162,19 @@ Module ModuleRunoffProperties
         ! from Runoff
         real,    dimension(:,:), pointer           :: CenterVelV
         real,    dimension(:,:), pointer           :: CenterVelU
-        real(8), dimension(:,:), pointer           :: FlowToChannels
+        real,    dimension(:,:), pointer           :: FlowToChannels
         real(8), pointer, dimension(:,:)            :: WaterColumn
         real(8), pointer, dimension(:,:)            :: WaterColumnOld
         real(8), pointer, dimension(:,:)            :: CellVolume
         real(8), pointer, dimension(:,:)            :: CellWaterMass
-        real(8), dimension(:,:), pointer            :: FluxU
-        real(8), dimension(:,:), pointer            :: FluxV
-        real(8), pointer, dimension(:,:  )          :: Area
+        real,    dimension(:,:), pointer            :: FluxU
+        real,    dimension(:,:), pointer            :: FluxV
+        real,    pointer, dimension(:,:  )          :: Area
         real                                        :: DT
-        real(8), pointer, dimension(:,:  )          :: DZY
-        real(8), pointer, dimension(:,:  )          :: DZX
-        real(8), pointer, dimension(:,:  )          :: DXX
-        real(8), pointer, dimension(:,:  )          :: DYY        
+        real,   pointer, dimension(:,:  )          :: DZY
+        real,   pointer, dimension(:,:  )          :: DZX
+        real,   pointer, dimension(:,:  )          :: DXX
+        real,   pointer, dimension(:,:  )          :: DYY        
 !        real(8), pointer, dimension(:,:  )          :: DUY
 !        real(8), pointer, dimension(:,:  )          :: DVY
 !        real   , pointer, dimension(:,:  )          :: Topography  
@@ -262,21 +262,21 @@ Module ModuleRunoffProperties
 
     type T_Property
         type (T_PropertyID)                     :: ID
-        real(8), dimension(:,:), pointer        :: Concentration            => null()
-        real(8), dimension(:,:), pointer        :: ConcentrationOld         => null()
-        real(8), dimension(:,:), pointer        :: ConcentrationDN               => null()
+        real, dimension(:,:), pointer           :: Concentration            => null()
+        real, dimension(:,:), pointer           :: ConcentrationOld         => null()
+        real, dimension(:,:), pointer           :: ConcentrationDN          => null()
 
         real(8), dimension(:,:), pointer        :: MassOnWaterColumn    => null()
 
         real, pointer, dimension(:,:)           :: Mass_Created
-        real(8),    pointer, dimension(:,:)     :: ViscosityU
-        real(8),    pointer, dimension(:,:)     :: ViscosityV
+        real,    pointer, dimension(:,:)        :: ViscosityU
+        real,    pointer, dimension(:,:)        :: ViscosityV
         type (T_Property), pointer              :: Next, Prev                     => null()
         logical                                 :: Particulate
         type (T_Evolution)                      :: Evolution
-        real(8), pointer, dimension(:,:)        :: Diff_Turbulence_H
-        real(8), pointer, dimension(:,:)        :: Viscosity
-        real(8), pointer, dimension(:,:)        :: Diffusivity
+        real, pointer, dimension(:,:)           :: Diff_Turbulence_H
+        real, pointer, dimension(:,:)           :: Viscosity
+        real, pointer, dimension(:,:)           :: Diffusivity
 
         logical                                 :: Old     = .false.
         real                                    :: MinValue        = FillValueReal
@@ -2273,7 +2273,7 @@ cd0:    if (Exist) then
 
         !Arguments---------------------------------------------------------------
         integer                                     :: RunoffPropertiesID
-        real, pointer, dimension(:,:)             :: ConcentrationX
+        real, pointer, dimension(:,:)               :: ConcentrationX
         character(LEN = *), optional, intent(OUT)   :: PropertyXUnits
         integer,                      intent(IN )   :: PropertyXIDNumber
         integer,            optional, intent(OUT)   :: STAT
@@ -2422,7 +2422,7 @@ cd0:    if (Exist) then
 
         !Arguments--------------------------------------------------------------
         integer                                         :: RunoffPropertiesID
-        real(8), dimension(:, :), pointer               :: BasinConcentration
+        real,    dimension(:, :), pointer               :: BasinConcentration
         integer                                         :: PropertyXIDNumber
         integer, intent(OUT), optional                  :: STAT
 
@@ -3302,8 +3302,8 @@ cd0:    if (Exist) then
         real(8)                                     :: cofA_V,cofB_V,cofC_V, CofB
         real(8)                                     :: cofInterfaceDN, ConcInInterfaceDN
         real                                        :: ConcTop
-        real(8), pointer, dimension(:,:)            :: FluxU, FluxV
-        real(8), pointer, dimension(:,:  )          :: DZX, DZY, DXX, DYY
+        real, pointer, dimension(:,:)               :: FluxU, FluxV
+        real, pointer, dimension(:,:  )             :: DZX, DZY, DXX, DYY
         real(8), pointer, dimension(:,:)            :: WaterColumn, WaterColumnOld
         integer                                     :: STAT_
         !Begin-----------------------------------------------------------------

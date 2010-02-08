@@ -193,7 +193,7 @@ Module ModuleBasin
         integer, dimension(:,:), pointer            :: OpenPoints2D
         integer, dimension(:,:), pointer            :: BoundaryPoints2D
         real   , dimension(:,:), pointer            :: GridCellArea
-        real(8), dimension(:,:), pointer            :: Topography
+        real   , dimension(:,:), pointer            :: Topography
         real   , dimension(:,:), pointer            :: LeafAreaIndex 
         real   , dimension(:,:), pointer            :: SpecificLeafStorage
         real   , dimension(:,:), pointer            :: CropCoefficient
@@ -1673,6 +1673,7 @@ i1:         if (CoordON) then
                                                        GeometryID                 = Me%ObjGeometry,               &
                                                        MapID                      = MapID,                        &
                                                        CoupledDN                  = Me%Coupled%DrainageNetwork,   &
+                                                       CheckGlobalMass            = .true.,                       &
                                                        STAT                       = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ConstructCoupledModules - ModuleBasin - ERR07'
             endif
@@ -4169,7 +4170,7 @@ etr_fao:        if (.not. RefEvapotrans%ID%SolutionFromFile) then
         integer                                     :: i, j, STAT_CALL
         integer                                     :: nProperties, iProp 
         integer                                     :: PropID
-        real(8), dimension(:, :   ), pointer        :: RPConcentration, NewRPConcentration
+        real,    dimension(:, :   ), pointer        :: RPConcentration, NewRPConcentration
         logical                                     :: PropAdvDiff
         real(8)                                     :: PropertyMassOld, PropertyMassNew
         real(8), dimension(:,:), pointer            :: MassInFlow
@@ -4253,7 +4254,7 @@ etr_fao:        if (.not. RefEvapotrans%ID%SolutionFromFile) then
     
         !Arguments-------------------------------------------------------------
         character (Len = *), intent(in)             :: WarningString
-        real, dimension(:,:), pointer, intent(out)  :: MassInFlow
+        real(8), dimension(:,:), pointer, intent(out)  :: MassInFlow
         real, dimension(:, :   ), pointer           :: RPConcentration
         real, dimension(:, : ,:), pointer           :: PMPConcentration
         real, dimension(:, :   ), pointer           :: AtmConcentration

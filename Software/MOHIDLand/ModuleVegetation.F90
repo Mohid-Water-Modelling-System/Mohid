@@ -194,7 +194,7 @@ Module ModuleVegetation
                                      InterpolateValueInTime
     use ModuleHorizontalGrid, only : GetHorizontalGridSize, GetGridCellArea, WriteHorizontalGrid, &
                                      UngetHorizontalGrid, GetGridLatitudeLongitude
-    use ModuleHorizontalMap,  only : GetOpenPoints2D, UngetHorizontalMap
+!    use ModuleHorizontalMap,  only : GetOpenPoints2D, UngetHorizontalMap
     use ModuleFillMatrix,     only : ConstructFillMatrix, GetDefaultValue, ModifyFillMatrix,      &
                                      KillFillMatrix, GetIfMatrixRemainsConstant
     use ModuleTimeSerie,      only : StartTimeSerie, WriteTimeSerie, KillTimeSerie,               &
@@ -349,7 +349,7 @@ Module ModuleVegetation
         real, dimension(:,:,:), pointer                 :: DWZ
         real, dimension(:,:,:), pointer                 :: SZZ
         integer, dimension(:,:), pointer                :: KFloor
-        integer, dimension(:,:  ), pointer              :: OpenPoints2D         
+        !integer, dimension(:,:  ), pointer              :: OpenPoints2D         
         integer, dimension(:,:  ), pointer              :: MappingPoints2D
         integer, dimension(:,:  ), pointer              :: BasinPoints       
         real, dimension(:,:  ), pointer                 :: Topography           
@@ -390,7 +390,7 @@ Module ModuleVegetation
     
     type T_Property
         type(T_PropertyID)                              :: ID
-        real, dimension(:,:), pointer                   :: Field
+        real, dimension(:,:), pointer                   :: Field                => null()
         logical                                         :: Old
         logical                                         :: OutputHDF
         logical                                         :: TimeSerie
@@ -652,16 +652,16 @@ Module ModuleVegetation
     end type T_Fluxes
 
     type T_StateVariables
-        type(T_Property), pointer                       :: TotalPlantNitrogen
-        type(T_Property), pointer                       :: TotalPlantPhosphorus
-        type(T_Property), pointer                       :: TotalPlantBiomass
-        type(T_Property), pointer                       :: RootBiomass
-        type(T_Property), pointer                       :: RootDepth
-        type(T_Property), pointer                       :: LeafAreaIndex
-        type(T_Property), pointer                       :: SpecificLeafStorage
-        type(T_Property), pointer                       :: EVTPCropCoefficient
+        real, dimension(:,:  ), pointer                       :: TotalPlantNitrogen
+        real, dimension(:,:  ), pointer                       :: TotalPlantPhosphorus
+        real, dimension(:,:  ), pointer                       :: TotalPlantBiomass
+        real, dimension(:,:  ), pointer                       :: RootBiomass
+        real, dimension(:,:  ), pointer                       :: RootDepth
+        real, dimension(:,:  ), pointer                       :: LeafAreaIndex
+        real, dimension(:,:  ), pointer                       :: SpecificLeafStorage
+        real, dimension(:,:  ), pointer                       :: EVTPCropCoefficient
         
-        type(T_Property), pointer                       :: CanopyHeight
+        real, dimension(:,:  ), pointer                       :: CanopyHeight
 
 
     end type T_StateVariables
@@ -2064,15 +2064,15 @@ cd0:    if (Exist) then
                     write(*,*    ) 'root biomass must be modeled in this conditions.'
                     write(*,*    ) 'Check EVOLUTION keyword consistency in all properties blocks.'
                     stop 'CheckOptionsConsistence - ModuleVegetation - ERR070'
-                elseif (STAT_CALL /= SUCCESS_ .and. Management) then
-                    write(*,*    )
-                    write(*,*    ) 'root biomass is a mandatory Property'
-                    write(*,*    ) 'if you want to run vegetation model and want to model'
-                    write(*,*    ) 'management practices (e.g. hatvest where aerial biomass must be known'
-                    stop 'CheckOptionsConsistence - ModuleVegetation - ERR071'
+                endif
+            elseif (STAT_CALL /= SUCCESS_ .and. Management) then
+                write(*,*    )
+                write(*,*    ) 'root biomass is a mandatory Property'
+                write(*,*    ) 'if you want to run vegetation model and want to model'
+                write(*,*    ) 'management practices (e.g. hatvest where aerial biomass must be known'
+                stop 'CheckOptionsConsistence - ModuleVegetation - ERR071'
 
-                endif                                                      
-            endif
+            endif                                                      
             
             NitrogenFound    = Me%ComputeOptions%ModelNitrogen
             PhosphorusFound  = Me%ComputeOptions%ModelPhosphorus
@@ -2326,11 +2326,12 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
        !A PropertyX was found
        if (associated(PropertyX)) then
             STAT_ = SUCCESS_  
-        else
+       else
             if (present(PrintWarning)) then
                 if (PrintWarning) write (*,*)'Property Not Found in Module Vegetation: ', &
                                               trim(GetPropertyName(PropertyXIDNumber))
             endif
+            
             STAT_  = NOT_FOUND_ERR_  
         end if
 
@@ -2352,6 +2353,7 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
         integer                                             :: KLB, KUB, JulDay  
         integer                                             :: STAT_CALL
         real                                                :: InitialHUBase
+        type (T_property), pointer                          :: PropertyX
         !Begin-----------------------------------------------------------------
 
 
@@ -2365,18 +2367,45 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
         KLB = Me%Size%KLB
         KUB = Me%Size%KUB
         
-       
-
-        call SearchProperty(Me%StateVariables%TotalPlantBiomass   , TotalPlantBiomass_    , .false., STAT = STAT_CALL)        
-        call SearchProperty(Me%StateVariables%TotalPlantNitrogen  , TotalPlantNitrogen_   , .false., STAT = STAT_CALL)        
-        call SearchProperty(Me%StateVariables%TotalPlantPhosphorus, TotalPlantPhosphorus_ , .false., STAT = STAT_CALL)        
-        call SearchProperty(Me%StateVariables%RootBiomass         , RootBiomass_          , .false., STAT = STAT_CALL)        
-        call SearchProperty(Me%StateVariables%RootDepth           , RootDepth_            , .false., STAT = STAT_CALL)        
-        call SearchProperty(Me%StateVariables%LeafAreaIndex       , LeafAreaIndex_        , .false., STAT = STAT_CALL)        
-        call SearchProperty(Me%StateVariables%CanopyHeight        , CanopyHeight_         , .false., STAT = STAT_CALL)         
-        call SearchProperty(Me%StateVariables%SpecificLeafStorage , SpecificLeafStorage_  , .false., STAT = STAT_CALL)        
-        call SearchProperty(Me%StateVariables%EVTPCropCoefficient , EVTPCropCoefficient_  , .false., STAT = STAT_CALL)        
-
+!        allocate(Me%StateVariables%TotalPlantBiomass       (ILB:IUB,JLB:JUB))
+!        allocate(Me%StateVariables%TotalPlantNitrogen      (ILB:IUB,JLB:JUB))
+!        allocate(Me%StateVariables%TotalPlantPhosphorus    (ILB:IUB,JLB:JUB))
+!        allocate(Me%StateVariables%RootBiomass             (ILB:IUB,JLB:JUB))
+!        allocate(Me%StateVariables%RootDepth               (ILB:IUB,JLB:JUB))
+!        allocate(Me%StateVariables%LeafAreaIndex           (ILB:IUB,JLB:JUB))
+!        allocate(Me%StateVariables%CanopyHeight            (ILB:IUB,JLB:JUB))
+!        allocate(Me%StateVariables%SpecificLeafStorage     (ILB:IUB,JLB:JUB))
+!        allocate(Me%StateVariables%EVTPCropCoefficient     (ILB:IUB,JLB:JUB))
+!        
+!        Me%StateVariables%TotalPlantBiomass                (:,:) = FillValueReal
+!        Me%StateVariables%TotalPlantNitrogen               (:,:) = FillValueReal
+!        Me%StateVariables%TotalPlantPhosphorus             (:,:) = FillValueReal
+!        Me%StateVariables%RootBiomass                      (:,:) = FillValueReal
+!        Me%StateVariables%RootDepth                        (:,:) = FillValueReal
+!        Me%StateVariables%LeafAreaIndex                    (:,:) = FillValueReal
+!        Me%StateVariables%CanopyHeight                     (:,:) = FillValueReal
+!        Me%StateVariables%SpecificLeafStorage              (:,:) = FillValueReal
+!        Me%StateVariables%EVTPCropCoefficient              (:,:) = FillValueReal
+        
+        call SearchProperty(PropertyX  , TotalPlantBiomass_    , .false., STAT = STAT_CALL)
+        if (STAT_CALL == SUCCESS_)       Me%StateVariables%TotalPlantBiomass => PropertyX%Field        
+        call SearchProperty(PropertyX  , TotalPlantNitrogen_   , .false., STAT = STAT_CALL)        
+        if (STAT_CALL == SUCCESS_)       Me%StateVariables%TotalPlantNitrogen => PropertyX%Field
+        call SearchProperty(PropertyX  , TotalPlantPhosphorus_ , .false., STAT = STAT_CALL)        
+        if (STAT_CALL == SUCCESS_)       Me%StateVariables%TotalPlantPhosphorus => PropertyX%Field
+        call SearchProperty(PropertyX  , RootBiomass_          , .false., STAT = STAT_CALL)
+        if (STAT_CALL == SUCCESS_)       Me%StateVariables%RootBiomass => PropertyX%Field
+        call SearchProperty(PropertyX  , RootDepth_            , .false., STAT = STAT_CALL)        
+        if (STAT_CALL == SUCCESS_)       Me%StateVariables%RootDepth => PropertyX%Field
+        call SearchProperty(PropertyX  , LeafAreaIndex_        , .false., STAT = STAT_CALL)        
+        if (STAT_CALL == SUCCESS_)       Me%StateVariables%LeafAreaIndex => PropertyX%Field
+        call SearchProperty(PropertyX  , CanopyHeight_         , .false., STAT = STAT_CALL)         
+        if (STAT_CALL == SUCCESS_)       Me%StateVariables%CanopyHeight => PropertyX%Field
+        call SearchProperty(PropertyX  , SpecificLeafStorage_  , .false., STAT = STAT_CALL)        
+        if (STAT_CALL == SUCCESS_)       Me%StateVariables%SpecificLeafStorage => PropertyX%Field
+        call SearchProperty(PropertyX  , EVTPCropCoefficient_  , .false., STAT = STAT_CALL)        
+        if (STAT_CALL == SUCCESS_)       Me%StateVariables%EVTPCropCoefficient => PropertyX%Field
+        
         allocate(Me%VegetationID                                          (ILB:IUB,JLB:JUB))
         Me%VegetationID (:,:) = FillValueInt
 
@@ -4612,7 +4641,7 @@ cd0:    if (Exist) then
                     Me%Growth%TreeComingFromContinuous(i,j) = .true.
                 endif                
                 
-                if(Me%StateVariables%TotalPlantBiomass%Field(i,j) .gt. 0.0) then
+                if(Me%StateVariables%TotalPlantBiomass(i,j) .gt. 0.0) then
                     
                     Me%IsPlantGrowing(i,j) = .true.
                     
@@ -4699,7 +4728,7 @@ cd0:    if (Exist) then
 
             call Read_Lock(mVEGETATION_, Me%InstanceID)
 
-            Scalar  => Me%StateVariables%LeafAreaIndex%Field
+            Scalar  => Me%StateVariables%LeafAreaIndex
 
             STAT_ = SUCCESS_
         else 
@@ -4735,7 +4764,7 @@ cd0:    if (Exist) then
 
             call Read_Lock(mVEGETATION_, Me%InstanceID)
 
-            Scalar  => Me%StateVariables%SpecificLeafStorage%Field
+            Scalar  => Me%StateVariables%SpecificLeafStorage
 
             STAT_ = SUCCESS_
         else 
@@ -4771,7 +4800,7 @@ cd0:    if (Exist) then
 
             call Read_Lock(mVEGETATION_, Me%InstanceID)
 
-            Scalar  => Me%StateVariables%EVTPCropCoefficient%Field
+            Scalar  => Me%StateVariables%EVTPCropCoefficient
 
             STAT_ = SUCCESS_
         else 
@@ -4807,7 +4836,7 @@ cd0:    if (Exist) then
 
             call Read_Lock(mVEGETATION_, Me%InstanceID)
 
-            Scalar  => Me%StateVariables%RootDepth%Field
+            Scalar  => Me%StateVariables%RootDepth
 
             STAT_ = SUCCESS_
         else 
@@ -6365,7 +6394,7 @@ cd1:            if (.not. UptakeAllowed .or. PotTP .le. 0.01) then
 !                    endif
                     
                     !                               m
-                    RootDepth    = Me%StateVariables%RootDepth%Field(i,j)
+                    RootDepth    = Me%StateVariables%RootDepth(i,j)
 !                    RootDepth     = PropRootDepth%Field(i,j)
 
                     GridCellArea = Me%ExternalVar%GridCellArea(i,j)
@@ -6392,9 +6421,12 @@ do3 :               do k = KUB, KLB, -1
                         endif
                      
                         NormalizationParameter = 1. - exp(-10.0)
-                        if (RootDepth .le. 1e-5) then
-                            !       mm
-                            PotentialWaterUptake = PotTP/NormalizationParameter
+                        if (RootDepth .eq. 0.0) then
+                            !    mm
+                            PotentialWaterUptake = 0.0
+!                        elseif (RootDepth .le. 1e-5) then
+!                            !       mm
+!                            PotentialWaterUptake = PotTP/NormalizationParameter
                         else
                             !      mm
                             BottomUptake = PotTP *(1.0 - exp(-10.0 * BottomDepth/RootDepth))/NormalizationParameter
@@ -6559,7 +6591,7 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                 !m = m/s * s
                 TotalCol    = Me%ExternalVar%Integration%AveragePotTPDuringDT(i,j) * Me%ComputeOptions%VegetationDT    
                 !  m
-                RootDepth    = Me%StateVariables%RootDepth%Field(i,j)
+                RootDepth    = Me%StateVariables%RootDepth(i,j)
                 BottomDepth = 0.0                   
             
 cd1:            if (.not. UptakeAllowed .or. TotalCol .eq. 0.0 .or. RootDepth .eq. 0.0) then
@@ -6838,8 +6870,8 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
                     !   kgN/ha
                     OptimalNContent = 0.
-                    TotalPlantBiomass  = Me%StateVariables%TotalPlantBiomass%Field(i,j)
-                    TotalPlantNitrogen = Me%StateVariables%TotalPlantNitrogen%Field(i,j)
+                    TotalPlantBiomass  = Me%StateVariables%TotalPlantBiomass(i,j)
+                    TotalPlantNitrogen = Me%StateVariables%TotalPlantNitrogen(i,j)
                     OptimalNContent = Me%PlantNitrogenFraction(i,j) * TotalPlantBiomass
                     if (OptimalNContent .lt. TotalPlantNitrogen) then
                         OptimalNContent = TotalPlantNitrogen
@@ -6863,7 +6895,7 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                         BottomDepth = 0.0
                         FoundRoot = .false.
                         !                               m
-                        RootDepth             = Me%StateVariables%RootDepth%Field(i,j)
+                        RootDepth             = Me%StateVariables%RootDepth(i,j)
                         SumDemand             = 0.
                         SumUptake             = 0.
                         GridCellArea          = Me%ExternalVar%GridCellArea(i,j)
@@ -6889,12 +6921,16 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                             endif
                  
                             NormalizationParameter = 1. - exp(-DistributionParameter)
-                            !   kgN/ha
-                            BottomUptake = NitrogenDemand *(1.0 - exp(-DistributionParameter * BottomDepth/RootDepth))     &
-                                            /NormalizationParameter
-                            TopUptake = NitrogenDemand *(1.0 - exp(-DistributionParameter * TopDepth/RootDepth))           &
-                                            /NormalizationParameter
-                            PotentialNitrogenUptake = BottomUptake - TopUptake
+                            if (RootDepth .eq. 0.0) then
+                                PotentialNitrogenUptake = 0.0
+                            else
+                                !   kgN/ha
+                                BottomUptake = NitrogenDemand *(1.0 - exp(-DistributionParameter * BottomDepth/RootDepth))     &
+                                                /NormalizationParameter
+                                TopUptake = NitrogenDemand *(1.0 - exp(-DistributionParameter * TopDepth/RootDepth))           &
+                                                /NormalizationParameter
+                                PotentialNitrogenUptake = BottomUptake - TopUptake
+                            endif
 
                             DemandNotMetInUpperLayers = SumDemand - SumUptake
                             !Demand in next iteration
@@ -6902,8 +6938,8 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
                             CellVolume = Me%ExternalVar%CellVolume(i,j,k)
         
-                            !      kgN/ha        = ugN/m3H20 * 1E-9kg/ug * m3H20/m3cell * m3cell / (m2) * 10000m2/ha                     
-                            LayerNitrogenContent = Me%ExternalVar%SoilNitrate(i,j,k) * 1E-9                       &
+                            !      kgN/ha        = gN/m3H20 * 1E-6kg/g * m3H20/m3cell * m3cell / (m2) * 10000m2/ha                     
+                            LayerNitrogenContent = Me%ExternalVar%SoilNitrate(i,j,k) * 1E-6                       &
                                                     * Me%ExternalVar%SoilWaterContent(i,j,k)                      &
                                                     * (CellVolume) / (GridCellArea) * 10000
 
@@ -7039,8 +7075,8 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
                         !   kgN/ha
                         OptimalNContent = 0.
-                        TotalPlantBiomass  = Me%StateVariables%TotalPlantBiomass%Field(i,j)
-                        TotalPlantNitrogen = Me%StateVariables%TotalPlantNitrogen%Field(i,j)
+                        TotalPlantBiomass  = Me%StateVariables%TotalPlantBiomass(i,j)
+                        TotalPlantNitrogen = Me%StateVariables%TotalPlantNitrogen(i,j)
                         OptimalNContent = Me%PlantNitrogenFraction(i,j) * TotalPlantBiomass
                         if (OptimalNContent .lt. TotalPlantNitrogen) then
                             OptimalNContent = TotalPlantNitrogen
@@ -7058,7 +7094,7 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                     BottomDepth = 0.0
                     FoundRoot = .false.
                     !                               m
-                    RootDepth             = Me%StateVariables%RootDepth%Field(i,j)
+                    RootDepth             = Me%StateVariables%RootDepth(i,j)
                     SumUptake             = 0.
                     GridCellArea          = Me%ExternalVar%GridCellArea(i,j)
 
@@ -7285,8 +7321,8 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
                     !   kgP/ha
                     OptimalPContent      = 0.
-                    TotalPlantBiomass    = Me%StateVariables%TotalPlantBiomass%Field(i,j)
-                    TotalPlantPhosphorus = Me%StateVariables%TotalPlantPhosphorus%Field(i,j)
+                    TotalPlantBiomass    = Me%StateVariables%TotalPlantBiomass(i,j)
+                    TotalPlantPhosphorus = Me%StateVariables%TotalPlantPhosphorus(i,j)
                     OptimalPContent = Me%PlantPhosphorusFraction(i,j) * TotalPlantBiomass
                     if (OptimalPContent .lt. TotalPlantPhosphorus) then
                         OptimalPContent = TotalPlantPhosphorus
@@ -7311,7 +7347,7 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                         BottomDepth  = 0.0
                         FoundRoot = .false.
                         !                               m
-                        RootDepth    = Me%StateVariables%RootDepth%Field(i,j)
+                        RootDepth    = Me%StateVariables%RootDepth(i,j)
                         SumDemand    = 0.
                         SumUptake    = 0.
                         GridCellArea = Me%ExternalVar%GridCellArea(i,j)
@@ -7337,12 +7373,16 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                             endif
                      
                             NormalizationParameter = 1. - exp(-DistributionParameter)
-                            !   kgP/ha
-                            BottomUptake = PhosphorusDemand *(1.0 - exp(-DistributionParameter * BottomDepth/RootDepth))           &
-                                           /NormalizationParameter
-                            TopUptake = PhosphorusDemand *(1.0 - exp(-DistributionParameter * TopDepth/RootDepth))                 &
-                                            /NormalizationParameter
-                            PotentialPhosphorusUptake = BottomUptake - TopUptake
+                            if (RootDepth .eq. 0.0) then
+                                PotentialPhosphorusUptake = 0.0
+                            else
+                                !   kgP/ha
+                                BottomUptake = PhosphorusDemand *(1.0 - exp(-DistributionParameter * BottomDepth/RootDepth))           &
+                                               /NormalizationParameter
+                                TopUptake = PhosphorusDemand *(1.0 - exp(-DistributionParameter * TopDepth/RootDepth))                 &
+                                                /NormalizationParameter
+                                PotentialPhosphorusUptake = BottomUptake - TopUptake
+                            endif
   
                             DemandNotMetInUpperLayers = SumDemand - SumUptake
                             !Demand in next iteration
@@ -7350,8 +7390,8 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
                             CellVolume = Me%ExternalVar%CellVolume(i,j,k)
             
-                            !      kgP/ha          = ugP/m3H20 * 1E-9kg/ug  * m3H20/m3cell * m3cell / (m2) * 10000m2/ha                     
-                            LayerPhosphorusContent = Me%ExternalVar%SoilPhosphorus(i,j,k)  * 1E-9                                &
+                            !      kgP/ha          = gP/m3H20 * 1E-6kg/g  * m3H20/m3cell * m3cell / (m2) * 10000m2/ha                     
+                            LayerPhosphorusContent = Me%ExternalVar%SoilPhosphorus(i,j,k)  * 1E-6                                &
                                                      * Me%ExternalVar%SoilWaterContent(i,j,k)                                    &
                                                      * (CellVolume) / (GridCellArea) * 10000
 
@@ -7489,8 +7529,8 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
                         !   kgP/ha
                         OptimalPContent      = 0.
-                        TotalPlantBiomass    = Me%StateVariables%TotalPlantBiomass%Field(i,j)
-                        TotalPlantPhosphorus = Me%StateVariables%TotalPlantPhosphorus%Field(i,j)
+                        TotalPlantBiomass    = Me%StateVariables%TotalPlantBiomass(i,j)
+                        TotalPlantPhosphorus = Me%StateVariables%TotalPlantPhosphorus(i,j)
                         OptimalPContent = Me%PlantPhosphorusFraction(i,j) * TotalPlantBiomass
                         if (OptimalPContent .lt. TotalPlantPhosphorus) then
                             OptimalPContent = TotalPlantPhosphorus
@@ -7510,7 +7550,7 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                     BottomDepth  = 0.0
                     FoundRoot = .false.
                     !                               m
-                    RootDepth    = Me%StateVariables%RootDepth%Field(i,j)
+                    RootDepth    = Me%StateVariables%RootDepth(i,j)
                     SumUptake    = 0.
                     GridCellArea = Me%ExternalVar%GridCellArea(i,j)
     
@@ -7755,7 +7795,7 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                     BiomassEnergyRatioHigh =   Me%VegetationTypes(VegetationID)%GrowthDatabase%BiomassEnergyRatioHigh
                     RUEDeclineRate         =   Me%VegetationTypes(VegetationID)%GrowthDatabase%RUEDeclineRate
                     !  m2/m2
-                    LAI                    =   Me%StateVariables%LeafAreaIndex%Field(i,j)
+                    LAI                    =   Me%StateVariables%LeafAreaIndex(i,j)
     !                LAI                    =   PropLeafAreaIndex%Field(i,j)
                     !  MJ/m2               =   W/m2 * s * 1e-6MJ/J
                     SolarRadiation         =   Me%ExternalVar%Integration%AverageRadiationDuringDT(i,j) * Me%ComputeOptions%VegetationDT * 1e-6
@@ -8068,7 +8108,7 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                         call ComputeGlobalStress(i,j)
                         GlobalStress = Me%Growth%GlobalStress(i,j)
                     
-                        LAI = Me%StateVariables%LeafAreaIndex%Field(i,j)
+                        LAI = Me%StateVariables%LeafAreaIndex(i,j)
     !                    LAI = PropLeafAreaIndex%Field(i,j)
 
                         DeltaLAI = (DeltaFractionLAIMax * LAIMax * (1.0 - exp(5.0 * (LAI - LAIMax)))) * sqrt(GlobalStress)
@@ -8348,8 +8388,8 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             ActualHarvestIndex = OptimalHarvestIndex
         endif
 
-        TotalPlantBiomass = Me%StateVariables%TotalPlantBiomass%Field(i,j)
-        AerialBiomass     = TotalPlantBiomass - Me%StateVariables%RootBiomass%Field(i,j)
+        TotalPlantBiomass = Me%StateVariables%TotalPlantBiomass(i,j)
+        AerialBiomass     = TotalPlantBiomass - Me%StateVariables%RootBiomass(i,j)
         Yeld              = 0.0
         Residue           = 0.0
 
@@ -8413,7 +8453,7 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         !StateVariables Fluxes
         Me%Fluxes%BiomassRemovedInHarvest(i,j)    = Yeld + Clip
         
-        TotalPlantBiomass        = Me%StateVariables%TotalPlantBiomass%Field(i,j)
+        TotalPlantBiomass        = Me%StateVariables%TotalPlantBiomass(i,j)
         
         !For HU update
         BiomassHarvestedFraction = (Yeld + Clip) / TotalPlantBiomass
@@ -8423,7 +8463,7 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
         if (Me%ComputeOptions%ModelNitrogen) then
 
-            TotalPlantNitrogen       = Me%StateVariables%TotalPlantNitrogen%Field(i,j)
+            TotalPlantNitrogen       = Me%StateVariables%TotalPlantNitrogen(i,j)
             NitrogenFractionInYeld   = Me%VegetationTypes(Me%VegetationID(i,j))%GrowthDatabase%NitrogenFractionInYeld
             
             !Nutrient yeld
@@ -8448,7 +8488,7 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
         if (Me%ComputeOptions%ModelPhosphorus) then
         
-            TotalPlantPhosphorus     = Me%StateVariables%TotalPlantPhosphorus%Field(i,j)
+            TotalPlantPhosphorus     = Me%StateVariables%TotalPlantPhosphorus(i,j)
             PhosphorusFractionInYeld = Me%VegetationTypes(Me%VegetationID(i,j))%GrowthDatabase%PhosphorusFractionInYeld
             
             !Nutrient yeld
@@ -8603,8 +8643,8 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             ActualHarvestIndex = OptimalHarvestIndex
         endif
 
-        TotalPlantBiomass = Me%StateVariables%TotalPlantBiomass%Field(i,j)
-        AerialBiomass     = TotalPlantBiomass - Me%StateVariables%RootBiomass%Field(i,j)
+        TotalPlantBiomass = Me%StateVariables%TotalPlantBiomass(i,j)
+        AerialBiomass     = TotalPlantBiomass - Me%StateVariables%RootBiomass(i,j)
         Yeld              = 0.0
         Residue           = 0.0
 
@@ -8633,13 +8673,13 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         !!Biomass to soil. The fraction not removed by yeld because plant will die
         Me%Fluxes%ToSoil%ManagementBiomassToSoil(i,j) = Residue
         !The remaining biomass in soil - Not accounted in SWAT because N and P to soil come from all plant
-        Me%Fluxes%ToSoil%ManagementRootBiomassLeftInSoil(i,j) = Me%StateVariables%RootBiomass%Field(i,j)
+        Me%Fluxes%ToSoil%ManagementRootBiomassLeftInSoil(i,j) = Me%StateVariables%RootBiomass(i,j)
 
         if (Me%ComputeOptions%ModelNitrogen) then        
             
             NitrogenYeld   = 0.0
             NitrogenFractionInYeld   = Me%VegetationTypes(Me%VegetationID(i,j))%GrowthDatabase%NitrogenFractionInYeld            
-            TotalPlantNitrogen       = Me%StateVariables%TotalPlantNitrogen%Field(i,j)
+            TotalPlantNitrogen       = Me%StateVariables%TotalPlantNitrogen(i,j)
             
             NitrogenYeld   = Yeld * NitrogenFractionInYeld
             NitrogenYeld   = min (NitrogenYeld,   0.9 * TotalPlantNitrogen)
@@ -8659,7 +8699,7 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
             PhosphorusYeld = 0.0
             PhosphorusFractionInYeld = Me%VegetationTypes(Me%VegetationID(i,j))%GrowthDatabase%PhosphorusFractionInYeld
-            TotalPlantPhosphorus     = Me%StateVariables%TotalPlantPhosphorus%Field(i,j)
+            TotalPlantPhosphorus     = Me%StateVariables%TotalPlantPhosphorus(i,j)
 
             PhosphorusYeld = Yeld * PhosphorusFractionInYeld
             PhosphorusYeld = min (PhosphorusYeld, 0.9 * TotalPlantPhosphorus)
@@ -8747,26 +8787,26 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 !        ncrops(nro(j),icr(j),j) = ncrops(nro(j),icr(j),j) + 1
 !      endif
 
-        AerialBiomass     = Me%StateVariables%TotalPlantBiomass%Field(i,j) - Me%StateVariables%RootBiomass%Field(i,j)
+        AerialBiomass     = Me%StateVariables%TotalPlantBiomass(i,j) - Me%StateVariables%RootBiomass(i,j)
         Residue           = 0.0
 
         !Biomass to soil
         Residue = AerialBiomass
         Me%Fluxes%ToSoil%ManagementBiomassToSoil(i,j) = Residue
         !The remaining biomass in soil - Not accounted in SWAT because N and P to soil come from all plant
-        Me%Fluxes%ToSoil%ManagementRootBiomassLeftInSoil(i,j) = Me%StateVariables%RootBiomass%Field(i,j)
+        Me%Fluxes%ToSoil%ManagementRootBiomassLeftInSoil(i,j) = Me%StateVariables%RootBiomass(i,j)
 
 !      sol_rsd(1,j) = sol_rsd(1,j) + resnew
 !      sol_rsd(1,j) = Max(sol_rsd(1,j),0.)
 
         if (Me%ComputeOptions%ModelNitrogen) then
             !Nitrogen to soil
-            Me%Fluxes%ToSoil%ManagementNitrogenToSoil(i,j) = Me%StateVariables%TotalPlantNitrogen%Field(i,j)
+            Me%Fluxes%ToSoil%ManagementNitrogenToSoil(i,j) = Me%StateVariables%TotalPlantNitrogen(i,j)
         endif
         
         if (Me%ComputeOptions%ModelPhosphorus) then
             !Phosphorus to soil
-            Me%Fluxes%ToSoil%ManagementPhosphorusToSoil(i,j) = Me%StateVariables%TotalPlantPhosphorus%Field(i,j)
+            Me%Fluxes%ToSoil%ManagementPhosphorusToSoil(i,j) = Me%StateVariables%TotalPlantPhosphorus(i,j)
         endif
 
         !Biomass or nutrients fluxes for plant are not computed because plant dies.
@@ -9005,7 +9045,7 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                     
                             BiomassFracRemovedInDormancy =                                          &
                             Me%VegetationTypes(VegetationID)%GrowthDatabase%BiomassFracRemovedInDormancy
-                            TotalPlantBiomass = Me%StateVariables%TotalPlantBiomass%Field(i,j)
+                            TotalPlantBiomass = Me%StateVariables%TotalPlantBiomass(i,j)
 
                             BiomassRemovedInDormancy    = TotalPlantBiomass * BiomassFracRemovedInDormancy
 
@@ -9254,7 +9294,7 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             !----------------------------------------------------------------------
                 
                     GrazingMinimumBiomass = Me%VegetationTypes(Me%VegetationID(i,j))%ManagementDatabase%GrazingMinimumBiomass
-                    TotalPlantBiomass     = Me%StateVariables%TotalPlantBiomass%Field(i,j)
+                    TotalPlantBiomass     = Me%StateVariables%TotalPlantBiomass(i,j)
                 
                     BiomassRemovedInDormancy = 0.0
                     if (Me%ComputeOptions%Dormancy) then
@@ -9306,7 +9346,7 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                     
                         if (Me%ComputeOptions%ModelNitrogen) then
                         
-                            TotalPlantNitrogen    = Me%StateVariables%TotalPlantNitrogen%Field(i,j)
+                            TotalPlantNitrogen    = Me%StateVariables%TotalPlantNitrogen(i,j)
 
                             NitrogenRemovedInDormancy = 0.0
                             if (Me%ComputeOptions%Dormancy .and. Me%PlantGoingDormant(i,j)) then
@@ -9337,7 +9377,7 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                         endif
                         if (Me%ComputeOptions%ModelPhosphorus) then
 
-                            TotalPlantPhosphorus  = Me%StateVariables%TotalPlantNitrogen%Field(i,j)
+                            TotalPlantPhosphorus  = Me%StateVariables%TotalPlantNitrogen(i,j)
 
                             PhosphorusRemovedInDormancy = 0.0
                             if (Me%ComputeOptions%Dormancy) then
@@ -9606,17 +9646,18 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
 
                 if (Me%ComputeOptions%ModelPlantBiomass) then
-                    PlantBiomass      = Me%StateVariables%TotalPlantBiomass%Field(i,j)
+                    PlantBiomass      = Me%StateVariables%TotalPlantBiomass(i,j)
                     BiomassGrowth     = Me%Fluxes%BiomassGrowth(i,j)
                 endif
 
                 if (Me%ComputeOptions%ModelNitrogen) then
-                    PlantNitrogen     = Me%StateVariables%TotalPlantNitrogen%Field(i,j)
+                    PlantNitrogen     = Me%StateVariables%TotalPlantNitrogen(i,j)
                     NitrogenUptake    = Me%Fluxes%NitrogenUptake(i,j)
                 endif
-
+                
+!                write(*,*), Me%ComputeOptions%ModelPhosphorus
                 if (Me%ComputeOptions%ModelPhosphorus) then
-                    PlantPhosphorus   = Me%StateVariables%TotalPlantPhosphorus%Field(i,j)
+                    PlantPhosphorus   = Me%StateVariables%TotalPlantPhosphorus(i,j)
                     PhosphorusUptake  = Me%Fluxes%PhosphorusUptake(i,j)
                 endif
             
@@ -9656,13 +9697,13 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                 end if
 
                 if (Me%ComputeOptions%ModelPlantBiomass) then
-                    Me%StateVariables%TotalPlantBiomass%Field(i,j)    = PlantBiomass
+                    Me%StateVariables%TotalPlantBiomass(i,j)    = PlantBiomass
                 endif
                 if (Me%ComputeOptions%ModelNitrogen) then
-                    Me%StateVariables%TotalPlantNitrogen%Field(i,j)   = PlantNitrogen
+                    Me%StateVariables%TotalPlantNitrogen(i,j)   = PlantNitrogen
                 endif
                 if (Me%ComputeOptions%ModelPhosphorus) then
-                    Me%StateVariables%TotalPlantPhosphorus%Field(i,j) = PlantPhosphorus
+                    Me%StateVariables%TotalPlantPhosphorus(i,j) = PlantPhosphorus
                 endif
 
             endif
@@ -9680,13 +9721,12 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         !Arguments-------------------------------------------------------------
         !Local-----------------------------------------------------------------
         integer, dimension(:,:), pointer                   :: MappingPoints
-        integer                                         :: i, j
+        integer                                         :: i, j, STAT_CALL
         logical                                         :: PlantKilled
         real                                            :: MaxRootDepth, RootBiomassFraction
         integer                                         :: VegetationID, PlantType
         !Begin-----------------------------------------------------------------
-
-
+        
         MappingPoints => Me%ExternalVar%MappingPoints2D
 
 do1:    do j = Me%WorkSize%JLB, Me%WorkSize%JUB
@@ -9710,23 +9750,22 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                 if (PlantKilled .or. Me%PlantingOccurred(i,j)) then
         
                     if(Me%ComputeOptions%ModelRootBiomass) then
-                        Me%StateVariables%RootBiomass%Field(i,j) = 0.0
+                        Me%StateVariables%RootBiomass(i,j) = 0.0
                     endif
-                    Me%StateVariables%RootDepth%Field(i,j)   = 0.0
+                    Me%StateVariables%RootDepth(i,j)   = 0.0
 
                 else
 
                     !!Root Biomass
-                    if(Me%ComputeOptions%ModelRootBiomass) then
+                    if (Me%ComputeOptions%ModelRootBiomass) then
                         
                         RootBiomassFraction = 0.4 - 0.2 * Me%HeatUnits%PlantHUAccumulated(i,j)
     
                         if (RootBiomassFraction .lt. 0.0) then
                             RootBiomassFraction = 0.0
                         endif
+                        Me%StateVariables%RootBiomass(i,j) = RootBiomassFraction * Me%StateVariables%TotalPlantBiomass(i,j)
 
-                        Me%StateVariables%RootBiomass%Field(i,j) = RootBiomassFraction * Me%StateVariables%TotalPlantBiomass%Field(i,j)
-                
                     endif
 
                     !!Root Depth
@@ -9740,18 +9779,18 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                     select case (PlantType)
                         case (1, 2, 4, 5)
             
-                            Me%StateVariables%RootDepth%Field(i,j) = 2.5 * Me%HeatUnits%PlantHUAccumulated (i,j) * MaxRootDepth
+                            Me%StateVariables%RootDepth(i,j) = 2.5 * Me%HeatUnits%PlantHUAccumulated (i,j) * MaxRootDepth
             
-                            if (Me%StateVariables%RootDepth%Field(i,j) .gt. MaxRootDepth) then
-                                Me%StateVariables%RootDepth%Field(i,j) = MaxRootDepth
+                            if (Me%StateVariables%RootDepth(i,j) .gt. MaxRootDepth) then
+                                Me%StateVariables%RootDepth(i,j) = MaxRootDepth
                             endif
 
-                            if (Me%StateVariables%RootDepth%Field(i,j) .lt. 0.01) then
-                                Me%StateVariables%RootDepth%Field(i,j) = 0.01
+                            if (Me%StateVariables%RootDepth(i,j) .lt. 0.01) then
+                                Me%StateVariables%RootDepth(i,j) = 0.01
                             endif
                         case default
             
-                            Me%StateVariables%RootDepth%Field(i,j) = MaxRootDepth
+                            Me%StateVariables%RootDepth(i,j) = MaxRootDepth
 
                     end select
             
@@ -9809,18 +9848,18 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                 
                     if (PlantKilled .or. Me%PlantingOccurred(i,j)) then
 
-                        Me%StateVariables%LeafAreaIndex%Field(i,j) = 0.0
+                        Me%StateVariables%LeafAreaIndex(i,j) = 0.0
 
                     elseif (PlantGoingDormant) then
                     
                         LAIMinDormant = Me%VegetationTypes(Me%VegetationID(i,j))%GrowthDatabase%LAIMinDormant
-                        if (Me%StateVariables%LeafAreaIndex%Field(i,j) .gt. LAIMinDormant) then
-                            Me%StateVariables%LeafAreaIndex%Field(i,j) = LAIMinDormant
+                        if (Me%StateVariables%LeafAreaIndex(i,j) .gt. LAIMinDormant) then
+                            Me%StateVariables%LeafAreaIndex(i,j) = LAIMinDormant
                         endif
                 
                     else
 
-                        LAI               = Me%StateVariables%LeafAreaIndex%Field(i,j)
+                        LAI               = Me%StateVariables%LeafAreaIndex(i,j)
                         DBLAIMax          = Me%VegetationTypes(Me%VegetationID(i,j))%GrowthDatabase%LAIMax    
                         PlantType         = Me%VegetationTypes(Me%VegetationID(i,j))%GrowthDatabase%PlantType
 
@@ -9843,13 +9882,13 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             
                             LAIGrowth = Me%Fluxes%LAIGrowth(i,j)
 
-                            Me%StateVariables%LeafAreaIndex%Field(i,j) = LAI + LAIGrowth                                       &
+                            Me%StateVariables%LeafAreaIndex(i,j) = LAI + LAIGrowth                                       &
                                                                     - (LAI * BiomassGrazedFraction)                            &
                                                                     - (LAI * BiomassHarvestedFraction)
                 
                             if(.not. Me%ComputeOptions%ChangeLAISenescence) then
 
-                                Me%LAIBeforeSenescence(i,j) = Me%StateVariables%LeafAreaIndex%Field(i,j)
+                                Me%LAIBeforeSenescence(i,j) = Me%StateVariables%LeafAreaIndex(i,j)
                             endif
 
                         elseif (Me%LAISenescence(i,j) .and. LAI .ne. 0.0) then
@@ -9860,13 +9899,13 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
                                 !LAI Computed from maximum value reached and not from last (SWAT theory). If grazing or 
                                 !harvesting occurr during senescence LAI is increased due to the computation formulation.
-                                Me%StateVariables%LeafAreaIndex%Field(i,j) = Me%LAIBeforeSenescence(i,j) * LAIDeclineFraction  &
+                                Me%StateVariables%LeafAreaIndex(i,j) = Me%LAIBeforeSenescence(i,j) * LAIDeclineFraction  &
                                                                         - (LAI * BiomassGrazedFraction)                        &
                                                                         - (LAI * BiomassHarvestedFraction)
                             else
                                 !LAI computed from last value. It avoids erorrs when grazing or harvesting occurrs 
                                 !during senescence.
-                                Me%StateVariables%LeafAreaIndex%Field(i,j) = (LAI * LAIDeclineFraction)                        &
+                                Me%StateVariables%LeafAreaIndex(i,j) = (LAI * LAIDeclineFraction)                        &
                                                                         - (LAI * BiomassGrazedFraction)                        &
                                                                         - (LAI * BiomassHarvestedFraction)
                             endif
@@ -9879,17 +9918,17 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                         endif
 
 
-                        if (Me%StateVariables%LeafAreaIndex%Field(i,j) .gt. LAIMax) then
+                        if (Me%StateVariables%LeafAreaIndex(i,j) .gt. LAIMax) then
             
-                            Me%StateVariables%LeafAreaIndex%Field(i,j) = LAIMax
+                            Me%StateVariables%LeafAreaIndex(i,j) = LAIMax
         
                         endif
                     
                         !If in the future a leaf flux is computed explicitly than LAI can not be
                         !taken to zero here. If mass flux .gt. LAI then flux is LAI
-                        if (Me%StateVariables%LeafAreaIndex%Field(i,j) .lt. 0.0) then
+                        if (Me%StateVariables%LeafAreaIndex(i,j) .lt. 0.0) then
             
-                            Me%StateVariables%LeafAreaIndex%Field(i,j) = 0.0
+                            Me%StateVariables%LeafAreaIndex(i,j) = 0.0
         
                         endif
         
@@ -9897,7 +9936,7 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
                  else
         
-                    Me%StateVariables%LeafAreaIndex%Field(i,j) = 0.0
+                    Me%StateVariables%LeafAreaIndex(i,j) = 0.0
 
                 endif
 
@@ -9944,7 +9983,7 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
                 if (Me%ComputeOptions%Management .and. PlantKilled) then
 
-                    Me%StateVariables%CanopyHeight%Field(i,j) = 0.0
+                    Me%StateVariables%CanopyHeight(i,j) = 0.0
 
                 else
 
@@ -9954,7 +9993,7 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                     !!Compute new canopy height
                     if (PlantType == 7) then
             
-                        Me%StateVariables%CanopyHeight%Field(i,j) = MaxCanopyHeight * Me%Growth%TreeFractionToMaturity(i,j)
+                        Me%StateVariables%CanopyHeight(i,j) = MaxCanopyHeight * Me%Growth%TreeFractionToMaturity(i,j)
         
                     else
 
@@ -9963,7 +10002,7 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                         !Change canopy was enabled because after reaching its maximum, crop canopy height was not affected  
                         !by harvest(or grazing but grazing can be consider only to remove leafs and not reduce stem height)
                         Me%ChangeCanopyEnabled(i,j) = .false.
-                        if (Me%StateVariables%CanopyHeight%Field(i,j) .gt. NearMaximum .and. &
+                        if (Me%StateVariables%CanopyHeight(i,j) .gt. NearMaximum .and. &
                             Me%ComputeOptions%ChangeCanopyHeight) then
                             Me%ChangeCanopyEnabled(i,j) = .true.
                         endif
@@ -9984,24 +10023,24 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                                 endif
                             endif
             
-                            CanopyHeight = Me%StateVariables%CanopyHeight%Field(i,j)
+                            CanopyHeight = Me%StateVariables%CanopyHeight(i,j)
             
-                            Me%StateVariables%CanopyHeight%Field(i,j) = CanopyHeight                                      &
+                            Me%StateVariables%CanopyHeight(i,j) = CanopyHeight                                      &
 !                                                                    - CanopyHeight * BiomassGrazedFraction         &
                                                                     - CanopyHeight * BiomassHarvestedFraction
                     
                             !If in the future a height reduction is computed explicitly than canopy height can not be
                             !taken to zero here. If mass flux .gt. canopy height then flux is canopy height                                
-                            if (Me%StateVariables%CanopyHeight%Field(i,j) .lt. 0.0) then
+                            if (Me%StateVariables%CanopyHeight(i,j) .lt. 0.0) then
     
-                                Me%StateVariables%CanopyHeight%Field(i,j) = 0.0
+                                Me%StateVariables%CanopyHeight(i,j) = 0.0
 
                             endif    
                 
                         else                        
                 
 
-                            Me%StateVariables%CanopyHeight%Field(i,j) = MaxCanopyHeight * sqrt(Me%PlantLAIMaxFraction(i,j))
+                            Me%StateVariables%CanopyHeight(i,j) = MaxCanopyHeight * sqrt(Me%PlantLAIMaxFraction(i,j))
             
                         endif 
 
@@ -10356,13 +10395,20 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             call HDF5SetLimits   (Me%ObjHDF5, ILB, IUB, JLB, JUB, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'OutPutHDF - ModuleVegetation - ERR02'
 
-            !Writes the Open Points
-            call HDF5WriteData   (Me%ObjHDF5, "/Grid/OpenPoints",              &
-                                  "OpenPoints", "-",                            &
-                                  Array2D = Me%ExternalVar%OpenPoints2D,        &
-                                  OutputNumber = OutPutNumber,                  &
-                                  STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'OutPutHDF - ModuleVegetation - ERR03'
+!            call GetBasinPoints  (Me%ObjHorizontalMap, Me%ExternalVar%BasinPoints, STAT = STAT_CALL)
+!            if (STAT_CALL /= SUCCESS_) stop 'Write_FinalVegetation_HDF - ModuleVegetation - ERR02'
+!
+!            !Writes the Open Points
+!            call HDF5WriteData   (Me%ObjHDF5, "/Grid/BasinPoints",              &
+!                                  "BasinPoints", "-",                            &
+!!                                  Array2D = Me%ExternalVar%OpenPoints2D,        &
+!                                  Array2D = Me%ExternalVar%BasinPoints,         &
+!                                  OutputNumber = OutPutNumber,                  &
+!                                  STAT = STAT_CALL)
+!            if (STAT_CALL /= SUCCESS_) stop 'OutPutHDF - ModuleVegetation - ERR03'
+!
+!            call UngetBasin (Me%ObjHorizontalMap, Me%ExternalVar%BasinPoints, STAT = STAT_CALL)
+!            if (STAT_CALL /= SUCCESS_) stop 'Write_FinalVegetation_HDF - ModuleVegetation - ERR200'
 
 
             PropertyX => Me%FirstProperty
@@ -11412,9 +11458,9 @@ cd1:    if (ObjVegetation_ID > 0) then
             if (STAT_CALL /= SUCCESS_)                                                            &
                 call SetError(FATAL_, INTERNAL_, "ReadLockExternalVar; ModuleVegetation - ERR0100")
 
-            !Gets a pointer to OpenPoints2D
-            call GetOpenPoints2D  (Me%ObjHorizontalMap, Me%ExternalVar%OpenPoints2D, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - ModuleVegetation - ERR110'
+!            !Gets a pointer to OpenPoints2D
+!            call GetOpenPoints2D  (Me%ObjHorizontalMap, Me%ExternalVar%OpenPoints2D, STAT = STAT_CALL)
+!            if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - ModuleVegetation - ERR110'
             
 
         endif
@@ -11469,8 +11515,8 @@ cd1:    if (ObjVegetation_ID > 0) then
             if (STAT_CALL /= SUCCESS_)                                                                   &
                 call SetError(FATAL_, INTERNAL_, "ReadUnLockExternalVar; ModuleVegetation - ERR060")
 
-            call UngetHorizontalMap (Me%ObjHorizontalMap, Me%ExternalVar%OpenPoints2D, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ReadUnLockExternalVar - ModuleVegetation - ERR70'
+!            call UngetHorizontalMap (Me%ObjHorizontalMap, Me%ExternalVar%OpenPoints2D, STAT = STAT_CALL)
+!            if (STAT_CALL /= SUCCESS_) stop 'ReadUnLockExternalVar - ModuleVegetation - ERR70'
 
 
         endif

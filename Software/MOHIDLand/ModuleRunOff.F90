@@ -99,8 +99,10 @@ Module ModuleRunOff
 
     !Interfaces----------------------------------------------------------------
     private :: UnGetRunOff2D_R4
+    private :: UnGetRunOff2D_R8
     interface  UnGetRunOff
         module procedure UnGetRunOff2D_R4
+        module procedure UnGetRunOff2D_R8
     end interface  UnGetRunOff
     
     !Parameters----------------------------------------------------------------
@@ -1189,7 +1191,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
 
         !Arguments-------------------------------------------------------------
         integer                                         :: ObjRunOffID
-        real, dimension(:, :), pointer                  :: Array
+        real(4), dimension(:, :), pointer               :: Array
         integer, intent(OUT), optional                  :: STAT
 
         !Local-----------------------------------------------------------------
@@ -1214,6 +1216,38 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
         if (present(STAT)) STAT = STAT_
 
     end subroutine UnGetRunOff2D_R4
+
+    !--------------------------------------------------------------------------
+
+    subroutine UnGetRunOff2D_R8(ObjRunOffID, Array, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                                         :: ObjRunOffID
+        real(8), dimension(:, :), pointer               :: Array
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                         :: STAT_, ready_
+
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(ObjRunOffID, ready_)
+
+        if (ready_ .EQ. READ_LOCK_ERR_) then
+
+            nullify(Array)
+            call Read_Unlock(mRUNOFF_, Me%InstanceID, "UnGetRunOff2D_R8")
+
+            STAT_ = SUCCESS_
+        else               
+            STAT_ = ready_
+        end if
+
+        if (present(STAT)) STAT = STAT_
+
+    end subroutine UnGetRunOff2D_R8
         
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++

@@ -131,7 +131,7 @@ Module ModulePorousMedia
     public  ::  GetUnsatU
     public  ::  GetUnsatV
     public  ::  GetUnsatW
-    public  ::  GetWaterColumn
+!    public  ::  GetWaterColumn
     public  ::  GetWaterContent
     public  ::  GetHead
     public  ::  GetThetaR
