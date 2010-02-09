@@ -40,6 +40,10 @@ Module ModuleInterface
     use ModuleMacroAlgae
     use ModuleEnterData, only: ReadFileName
 
+#ifdef _PHREEQC_    
+    use ModulePhreeqC
+#endif   
+
 #ifdef _BFM_    
     use ModuleBFM
 #endif
@@ -71,6 +75,8 @@ Module ModuleInterface
     public  :: GetRateFlux
 
     public  :: GetWQRatio
+    
+    public  :: GetPhreeqCID
 
     !Destructor 
     public  :: KillInterface
@@ -186,6 +192,10 @@ Module ModuleInterface
         real,    pointer, dimension(:    )      :: DissolvedToParticulate
         real,    pointer, dimension(:    )      :: SoilDryDensity
         real,    pointer, dimension(:    )      :: pH
+#ifdef _PHREEQC_        
+        real,    pointer, dimension(:    )      :: pE
+        real,    pointer, dimension(:    )      :: SolutionVolume        
+#endif        
         real,    pointer, dimension(:    )      :: IonicStrength
         real,    pointer, dimension(:    )      :: PhosphorusAdsortionIndex
         real,    pointer, dimension(:    )      :: WindVelocity
@@ -215,6 +225,11 @@ Module ModuleInterface
 #endif    
         !Instance of ModuleMacroAlgae
         integer                                 :: ObjMacroAlgae        = 0
+
+#ifdef _PHREEQC_
+        !Instance of ModulePhreeqC
+        integer                                 :: ObjPhreeqC           = 0
+#endif   
 
         !Collection of instances                
         type(T_Interface),          pointer     :: Next        
@@ -769,6 +784,28 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 Me%ShearStress        = FillValueReal
                 Me%SPMFlux           = FillValueReal
 
+
+#ifdef _PHREEQC_
+            case (PhreeqCModel)
+                                               
+                allocate (Me%SolutionVolume(ArrayLB:ArrayUB), STAT = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR26'
+                
+                allocate (Me%pH(ArrayLB:ArrayUB), STAT = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR27'
+                
+                allocate (Me%pE(ArrayLB:ArrayUB), STAT = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR28'
+
+                allocate (Me%Temperature(ArrayLB:ArrayUB), STAT = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR29B'
+
+                Me%SolutionVolume  = FillValueReal
+                Me%pH              = FillValueReal
+                Me%pE              = FillValueReal
+                Me%Temperature     = FillValueReal
+#endif
+
             case default
                 write(*,*) 
                 write(*,*) 'Defined sinks and sources model was not recognised.'
@@ -868,6 +905,15 @@ cd1 :           if(STAT_CALL .EQ. KEYWORD_NOT_FOUND_ERR_) then
                 call ReadFileName('MACROALGAE_DATA',Me%FileName, Message = Message, STAT = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)stop 'ReadInterfaceFilesName - Module Interface - ERR08' 
 
+#ifdef _PHREEQC_
+                
+            case (PhreeqCModel)
+            
+                Message = trim('PhreeqC Data File')
+                call ReadFileName('PHREEQC_DATA', Me%FileName, Message = Message, STAT = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_)stop 'ReadInterfaceFilesName - Module Interface - ERR10' 
+            
+#endif
             case default
                 write(*,*) 
                 write(*,*) 'Defined sinks and sources model was not recognised.'
@@ -1111,7 +1157,29 @@ cd1 :           if(STAT_CALL .EQ. KEYWORD_NOT_FOUND_ERR_) then
                 call GetDTMacroAlgae(Me%ObjMacroAlgae, DTSecond = DT, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'StartSinksSourcesModel - ModuleInterface - ERR020'
 
+#ifdef _PHREEQC_
 
+            case (PhreeqCModel)
+            
+                !Construct PhreeqC Model
+                call StartPhreeqC (Me%ObjPhreeqC, FileName = Me%FileName, STAT = STAT_CALL)
+                    
+                !ToDo: Because I don't know the number of properties, maybe this is inappropriated               
+                !Get number of properties involved
+!                call GetPhreeqCSize(Me%ObjPhreeqC,   &
+!                                    PropLB = PropLB, &
+!                                    PropUB = PropUB, &
+!                                    STAT   = STAT_CALL)
+!                if (STAT_CALL /= SUCCESS_) stop 'StartSinksSourcesModel - ModuleInterface - ERR21'
+!                
+!                !Store number of properties involved
+!                Me%Prop%ILB = PropLB
+!                Me%Prop%IUB = PropUB
+
+                call GetPhreeqCDT(Me%ObjPhreeqC, DTSecond = DT, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'StartSinksSourcesModel - ModuleInterface - ERR22'
+                
+#endif
             case default
                 write(*,*) 
                 write(*,*) 'Defined sinks and sources model was not recognised.'
@@ -1125,8 +1193,8 @@ cd1 :           if(STAT_CALL .EQ. KEYWORD_NOT_FOUND_ERR_) then
     
     
     !--------------------------------------------------------------------------
-   
-   
+     
+
     subroutine Check_Options(PropertiesList)
 
         !Arguments-------------------------------------------------------------
@@ -1153,7 +1221,9 @@ cd1 :           if(STAT_CALL .EQ. KEYWORD_NOT_FOUND_ERR_) then
         integer, dimension(:), pointer                       :: MacroAlgaeList
         integer                                              :: i,PropLB, PropUB
         integer, dimension(:), pointer                       :: BenthosList, LifeList
-
+#ifdef _PHREEQC_
+        integer, dimension(:), pointer                       :: PhreeqCList
+#endif
 #ifdef _BFM_  
         integer, dimension(:), pointer                       :: BFMList
 #endif
@@ -1688,7 +1758,44 @@ cd14 :          if (Phosphorus) then
                 if (STAT_CALL /= SUCCESS_) stop 'Check_Options - ModuleInterface - ERR20'
 
 
+#ifdef _PHREEQC_
 
+            case (PhreeqCModel)
+
+                !Get PhreeqC model time step
+                call GetPhreeqCDT(Me%ObjPhreeqC, DTSecond = DT, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'Check_Options - ModuleInterface - ERR21' 
+        
+                !Run period in seconds
+                RunPeriod = EndTime - Me%ExternalVar%Now
+
+                !The run period must be a multiple of the SedimentQuality DT
+                auxFactor = RunPeriod / DT
+
+                ErrorAux  = auxFactor - int(auxFactor)
+                
+                if (ErrorAux /= 0) then
+                    Dtlag = int(ErrorAux * DT)
+                    write(*,*) 
+                    write(*,*) 'DTSECONDS is not multiple of the run period.'
+                    write(*,*) 'PhreeqC wont be computed in the last', Dtlag, ' seconds.'
+                    write(*,*) 'Check_Options - ModuleInterface - WRN06.'
+                endif
+                
+                if (.NOT. FindProperty(PropertiesList, Temperature_)) &
+                    stop 'PhreeqC needs property "temperature" - Check_Options'
+
+                if (.NOT. FindProperty(PropertiesList, pH_)) &
+                    stop 'PhreeqC needs property "ph" - Check_Options'
+
+                if (.NOT. FindProperty(PropertiesList, pE_)) &
+                    stop 'PhreeqC needs property "pe" - Check_Options'
+                
+                !Store number of properties involved
+                Me%Prop%ILB = 1
+                Me%Prop%IUB = SIZE(PropertiesList) - 3                       
+
+#endif
             case default
                 write(*,*) 
                 write(*,*) 'Defined sinks and sources model was not recognised.'
@@ -1750,6 +1857,38 @@ cd14 :          if (Phosphorus) then
     end subroutine GetWQRatio
     !--------------------------------------------------------------------------
    
+    !--------------------------------------------------------------------------
+    subroutine GetPhreeqCID (InterfaceID,  PhreeqCID, STAT)
+    
+        !Arguments-----------------------------------------------------------------
+        integer                                         :: InterfaceID
+        integer,            intent(OUT)                 :: PhreeqCID
+        integer, optional,  intent(OUT)                 :: STAT
+        
+        !External--------------------------------------------------------------
+        integer                                         :: ready_, STAT_CALL
+
+        !Local-----------------------------------------------------------------
+        integer                                         :: STAT_
+
+        !----------------------------------------------------------------------
+        STAT_ = UNKNOWN_
+        
+        call Ready(InterfaceID, ready_)
+        
+        if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
+            PhreeqCID = Me%ObjPhreeqC
+            STAT_ = SUCCESS_                    
+        end if
+        
+        if (present(STAT)) STAT = STAT_
+
+        !----------------------------------------------------------------------
+            
+    end subroutine GetPhreeqCID 
+    !--------------------------------------------------------------------------
+   
+    !--------------------------------------------------------------------------
     subroutine GetRateFlux3D(InterfaceID,                            & 
                              FirstProp,                              &
                              SecondProp,                             &
@@ -2018,6 +2157,9 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
                                   LightExtCoefField, WaterPercentage,                   &
                                   DissolvedToParticulate3D, SoilDryDensity, Salinity,   &
                                   pH, IonicStrength, PhosphorusAdsortionIndex,          &
+#ifdef _PHREEQC_                                  
+                                  SolutionVolume,                                       &
+#endif                                   
                                   WindVelocity,  DTProp, STAT)
                                  
         !Arguments-------------------------------------------------------------
@@ -2032,6 +2174,10 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
         real,    optional, dimension(:,:,:), pointer    :: SoilDryDensity
         real,    optional, dimension(:,:,:), pointer    :: Salinity
         real,    optional, dimension(:,:,:), pointer    :: pH
+#ifdef _PHREEQC_                                         
+        real,    optional, dimension(:,:,:), pointer    :: SolutionVolume
+!        real,    optional, dimension(:,:,:), pointer    :: pE
+#endif         
         real,    optional, dimension(:,:,:), pointer    :: IonicStrength
         real,    optional, dimension(:,:,:), pointer    :: PhosphorusAdsortionIndex
         real,    optional, dimension(:,:,:), pointer    :: WindVelocity
@@ -2250,6 +2396,24 @@ cd4 :           if (ReadyToCompute) then
                                                   STAT                  = STAT_CALL)
                             if (STAT_CALL /= SUCCESS_) stop 'Modify_Interface3D - ModuleInterface - ERR08'
 
+#ifdef _PHREEQC_
+                        case(PhreeqcModel)
+                         
+                            call UnfoldMatrix(SolutionVolume, Me%SolutionVolume)
+
+                            call ModifyPhreeqC(Me%ObjPhreeqC,      &
+                                               Me%Mass,            & 
+                                               Me%SolutionVolume,  &
+                                               Me%Temperature,     &
+                                               Me%pH,              &
+                                               Me%pE,              &
+                                               Me%Array%ILB,       &
+                                               Me%Array%IUB,       &
+                                               Me%OpenPoints,      &                                               
+                                               STAT = STAT_CALL)
+                            if (STAT_CALL /= SUCCESS_) stop 'Modify_Interface3D - ModuleInterface - ERR14'
+
+#endif
                     end select
 
 do7 :               do prop  = PropLB,  PropUB
@@ -2398,7 +2562,32 @@ cd14 :                       if (Me%ExternalVar%WaterPoints3D(i, j, k) == 1) the
                         end do 
                         end do 
                         end do 
+                        
+#ifdef _PHREEQC_
 
+                    case(PhreeqcModel)
+                         
+                        call GetPhreeqCDT(Me%ObjPhreeqC, DTSecond = DT, STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'Modify_Interface3D - ModuleInterface - ERR15'                
+
+do18:                   do k = KLB, KUB
+do19:                   do j = JLB, JUB
+do20:                   do i = ILB, IUB
+
+cd15:                       if (Me%ExternalVar%WaterPoints3D(i, j, k) == 1) then
+
+                                Index = Index + 1
+                                Concentration(i, j, k) = Concentration( i, j, k) +                     &
+                                                         Me%ConcentrationIncrement(nProperty, Index) * &
+                                                         DTProp / DT 
+                                                         
+                            end if cd15
+                            
+                        end do do20
+                        end do do19
+                        end do do18
+
+#endif                   
                 end select
 
             end if cd5
@@ -3043,6 +3232,10 @@ cd10 :                      if (Me%ExternalVar%RiverPoints1D(i) == 1) then
         logical                                 :: SalinityAdded = .false.
         logical                                 :: FishFoodAdded = .false.
         logical                                 :: AlkalinityAdded = .false.
+#ifdef _PHREEQC_
+        logical                                 :: pHAdded = .false.
+        logical                                 :: pEAdded = .false.
+#endif        
         !----------------------------------------------------------------------
 
         PropLB  = Me%Prop%ILB
@@ -3718,7 +3911,46 @@ cd45 :                  if (.NOT. Me%AddedProperties(i)) then
                     if (Ready) Me%AddedProperties = .FALSE.
                 end if
 
+#ifdef _PHREEQC_
+            !ToDo: Need changes
+            case (PhreeqCModel)
 
+                select case (PropertyID)
+                    case (Temperature_)
+                        call UnfoldMatrix(Concentration, Me%Temperature)
+                        TemperatureAdded =.TRUE.                    
+                    case (pH_)
+                        call UnfoldMatrix(Concentration, Me%pH)
+                        pHAdded =.TRUE.                                        
+                    case (pE_)
+                        call UnfoldMatrix(Concentration, Me%pE)
+                        pEAdded =.TRUE.                                        
+                    case default
+                        call GetPhreeqCPropIndex(Me%ObjPhreeqC, PropertyID, IndexNumber, STAT=STAT_CALL)
+                        if (STAT_CALL == SUCCESS_) then
+                        
+                            call InputData(Concentration, IndexNumber)
+                            Me%AddedProperties(IndexNumber) = .true.
+                            
+                        else if ((STAT_CALL .NE. SUCCESS_) .AND. (STAT_CALL .NE. NOT_FOUND_ERR_)) then
+                            stop 'FillMassTempSalinity3D - ModuleInterface - ERR07' 
+                        end if
+                end select            
+                
+                if (TemperatureAdded .AND. pHAdded .AND. pEAdded) then
+                    Ready = .TRUE.
+
+                    do i = PropLB, PropUB                       
+                        if (.NOT. Me%AddedProperties(i)) then                        
+                            Ready = .false.
+                            exit                             
+                        end if                         
+                    end do 
+                
+                    if (Ready) Me%AddedProperties = .false.
+                    
+                end if
+#endif
         end select
 
         !----------------------------------------------------------------------
@@ -5336,6 +5568,25 @@ cd1 :           if      (PropertyID== Phytoplankton_       ) then
                     
                 end if
                 
+#ifdef _PHREEQC_
+            !ToDo: Need to change
+            case (PhreeqCModel)
+                
+                select case (PropertyID)
+                case (Temperature_, pH_, pE_)
+                    nProperty = 0
+                case default
+                    call GetPhreeqCPropIndex(Me%ObjPhreeqC, PropertyID, nProperty, STAT_CALL)
+                    
+                    if (STAT_CALL .NE. SUCCESS_) then 
+                        
+                        write(*,*) 
+                        write(*,*) 'Inconsistency between Interface and PhreeqC Model.'
+                        stop       'PropertyIndexNumber - ModuleInterface - ERR23'
+
+                    end if            
+                end select
+#endif                        
         end select
 
         PropertyIndexNumber = nProperty
@@ -5421,7 +5672,13 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                         
                         call KillMacroAlgae(Me%ObjMacroAlgae, STAT = STAT_CALL)
                         if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR04.4'
-
+                        
+#ifdef _PHREEQC_
+                    case(PhreeqCModel)
+                    
+                        call KillPhreeqC (Me%ObjPhreeqC, STAT = STAT_CALL)
+                        if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR04.5'
+#endif
                 end select
 
                 if(associated(Me%Salinity))then
@@ -5488,6 +5745,24 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                     if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR13'
                 end if
                 
+#ifdef _PHREEQC_
+
+                if(associated(Me%SolutionVolume))then
+                    deallocate(Me%SolutionVolume, STAT = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR16'
+                end if
+             
+                if(associated(Me%pH))then
+                    deallocate(Me%pH, STAT = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR17'
+                end if
+                
+                if(associated(Me%pE))then
+                    deallocate(Me%pE, STAT = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR18'
+                end if
+                
+#endif                
                 
                 deallocate(Me%Mass, STAT = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR14'

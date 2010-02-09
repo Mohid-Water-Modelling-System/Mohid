@@ -5161,10 +5161,10 @@ etr_fao:        if (.not. RefEvapotrans%ID%SolutionFromFile) then
         end if
 
         ID_DT = 0
-!        if (AtmosfereDT < NewDT) then
-!            NewDT = AtmosfereDT
-!            ID_DT = 1
-!        endif
+        if (AtmosfereDT < NewDT) then
+            NewDT = AtmosfereDT
+            ID_DT = 1
+        endif
         
         if (DNetDT      < NewDT) then
             NewDT = DNetDT
