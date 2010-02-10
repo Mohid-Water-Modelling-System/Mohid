@@ -76,7 +76,9 @@ Module ModuleInterface
 
     public  :: GetWQRatio
     
+#ifdef _PHREEQC_       
     public  :: GetPhreeqCID
+#endif
 
     !Destructor 
     public  :: KillInterface
@@ -1857,6 +1859,7 @@ cd14 :          if (Phosphorus) then
     end subroutine GetWQRatio
     !--------------------------------------------------------------------------
    
+#ifdef _PHREEQC_    
     !--------------------------------------------------------------------------
     subroutine GetPhreeqCID (InterfaceID,  PhreeqCID, STAT)
     
@@ -1887,6 +1890,7 @@ cd14 :          if (Phosphorus) then
             
     end subroutine GetPhreeqCID 
     !--------------------------------------------------------------------------
+#endif
    
     !--------------------------------------------------------------------------
     subroutine GetRateFlux3D(InterfaceID,                            & 
