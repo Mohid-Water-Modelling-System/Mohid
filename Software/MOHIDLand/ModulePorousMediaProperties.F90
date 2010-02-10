@@ -3719,6 +3719,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.     &
 
         !Local-----------------------------------------------------------------
         integer                                     :: STAT_, ready_,STAT_CALL
+        type(T_Property), pointer                   :: PropertyX
         !----------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
@@ -3736,6 +3737,16 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.     &
             if (STAT_CALL /= SUCCESS_) stop 'ModifyPorousMediaProperties - ModulePorousMediaProperties - ERR03'
                       
             call ReadLockExternalVar
+            
+
+            PropertyX => Me%FirstProperty
+
+            do while(associated(PropertyX))
+                
+                call SetMatrixValue (PropertyX%ConcentrationOld, Me%Size, PropertyX%Concentration, Me%ExtVar%WaterPoints3D)                
+                PropertyX => PropertyX%Next
+                
+            end do                        
             
             !Eduardo Jauch
             !Actualize properties if evolution from file
@@ -4985,7 +4996,7 @@ do3:        do K = Me%WorkSize%KUB, Me%WorkSize%KLB, -1
         !!!$OMP END DO
         !!!$OMP END PARALLEL
                         
-        call SetMatrixValue (CurrProperty%ConcentrationOld,      Me%Size,   CurrProperty%Concentration,          Me%ExtVar%WaterPoints3D)
+!        call SetMatrixValue (CurrProperty%ConcentrationOld,      Me%Size,   CurrProperty%Concentration,          Me%ExtVar%WaterPoints3D)
 
 
     end subroutine ModifyAdvectionDiffusion_W
