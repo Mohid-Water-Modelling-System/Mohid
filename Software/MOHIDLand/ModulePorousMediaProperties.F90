@@ -43,7 +43,13 @@ Module ModulePorousMediaProperties
                                          GetUnsatU, UnGetPorousMedia,                      &
                                          GetThetaS, GetGWFlowToChannels,                   &
                                          GetGWLayer, GetPotentialInfiltration
-    use ModuleInterface,          only : ConstructInterface, Modify_Interface, GetPhreeqCID
+                                         
+#ifdef _PHREEQC_                                          
+    use ModuleInterface,          only : ConstructInterface, Modify_Interface, GetPhreeqCID 
+#else
+    use ModuleInterface,          only : ConstructInterface, Modify_Interface     
+#endif
+                                         
     use ModuleAdvectionDiffusion, only : StartAdvectionDiffusion, AdvectionDiffusion,      &
                                          GetAdvFlux, GetDifFlux, GetBoundaryConditionList, &
                                          UngetAdvectionDiffusion, KillAdvectionDiffusion
@@ -71,6 +77,7 @@ Module ModulePorousMediaProperties
     private ::              Construct_PropertyEvolution
     private ::                  ReadAdvectionDiffusionParameters
     private ::                  ConstructPropertyDiffusivity
+#ifdef _PHREEQC_    
     private ::                  ReadChemistryParameters
     private ::                      ReadChemistrySolutionGroupParameters
     private ::                      ReadChemistryPhasesGroupParameters
@@ -78,6 +85,7 @@ Module ModulePorousMediaProperties
     private ::                      ReadChemistryGasPhaseGroupParameters
     private ::                      ReadChemistrySurfaceGroupParameters
     private ::                      ReadChemistrySpeciesGroupParameters    
+#endif    
     private ::              Construct_PropertyOutPut    
     private ::      ConstructHDF
     private ::      ConstructTimeSerie
