@@ -128,6 +128,8 @@ Module ModuleOpenBoundary
 
         !Impose the inverted barometer effect 
         logical                             :: InvertBarometer
+        logical                             :: InvertBaromSomeBound
+        real, pointer, dimension(:,:)       :: InvertBarometerCells        
 
         !This coefficient is zero if the water level is the real one
         !Any slow start is consider in this case
@@ -170,6 +172,8 @@ Module ModuleOpenBoundary
                                      InitialReferenceLevel,                   &
                                      SlowStartCoef,                           &
                                      InvertBarometer,                         &
+                                     InvertBaromSomeBound,                    &
+                                     InvertBarometerCells,                    &
                                      STAT)
 
         !Arguments-------------------------------------------------------------
@@ -177,9 +181,12 @@ Module ModuleOpenBoundary
         integer                                     :: HorizontalGridID
         integer                                     :: HorizontalMapID
         integer                                     :: TimeID
-        logical, intent(IN)                         :: Compute_Tide, InvertBarometer
+        logical, intent(IN)                         :: Compute_Tide
         real,    intent(IN)                         :: InitialReferenceLevel
         real,    intent(IN)                         :: SlowStartCoef
+        logical, intent(IN)                         :: InvertBarometer
+        logical, intent(IN)                         :: InvertBaromSomeBound
+        real,    pointer, dimension(:,:)            :: InvertBarometerCells                                      
         integer, optional, intent(OUT)              :: STAT     
 
         !Local-----------------------------------------------------------------
@@ -250,6 +257,8 @@ Module ModuleOpenBoundary
             Me%StartTime             = CurrentTime
             
             Me%InvertBarometer       = InvertBarometer
+            Me%InvertBaromSomeBound  = InvertBaromSomeBound
+            Me%InvertBarometerCells => InvertBarometerCells
 
 
 cd1:        if (Me%Compute_Tide) then   
@@ -1188,11 +1197,13 @@ cd24:                       if (STAT_CALL == NOT_FOUND_ERR_) then
                  BoundaryFacesU2D(i  , j+1) == Boundary .or. &
                  BoundaryFacesV2D(i  , j  ) == Boundary .or. &
                  BoundaryFacesV2D(i+1, j  ) == Boundary) then
-
-                !Inverted barometer effect
-                Me%ImposedElevation(i, j) = Me%ImposedElevation(i, j) + AtmosphericCoef * &
-                                           (1.e5 - AtmosphericPressure(i,j)) /( 1.e3 * Gravity) 
-                
+                 
+                if (.not. Me%InvertBaromSomeBound .or. (Me%InvertBaromSomeBound .and. Me%InvertBarometerCells(i, j) > 0. )) then
+                    
+                    !Inverted barometer effect
+                    Me%ImposedElevation(i, j) = Me%ImposedElevation(i, j) + AtmosphericCoef * &
+                                               (101325 - AtmosphericPressure(i,j)) /( 1.e3 * Gravity) 
+                endif                                
             endif
 
         enddo
