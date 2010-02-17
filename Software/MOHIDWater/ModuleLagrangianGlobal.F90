@@ -1039,10 +1039,16 @@ Module ModuleLagrangianGlobal
     type T_ExternalVar
 
         !ObjOil
+        !real,    pointer, dimension(:,:  )      :: SpreadingVelocityX
+        !real,    pointer, dimension(:,:  )      :: SpreadingVelocityY
         real                                    :: DiffVelocity
         real                                    :: VWaterContent
+        real                                    :: MWaterContent
         real                                    :: AreaTotal
         real                                    :: OilDensity
+        real                                    :: OilViscosity
+        real                                    :: FMDispersed
+        real                                    :: FMEvaporated
         real                                    :: MDispersed
         integer                                 :: ThicknessGradient, Fay, SpreadingMethod
 
@@ -11747,8 +11753,12 @@ CurrOr: do while (associated(CurrentOrigin))
 
 
                 Me%ExternalVar%VWaterContent = VWaterContent
+                Me%ExternalVar%MWaterContent = MWaterContent
                 Me%ExternalVar%MDispersed    = MDispersed
                 Me%ExternalVar%OilDensity    = OilDensity
+                Me%ExternalVar%OilViscosity  = OilViscosity
+                Me%ExternalVar%FMEvaporated  = FMEvaporated
+                Me%ExternalVar%FMDispersed   = FMDispersed
                 Me%ExternalVar%AreaTotal     = AreaTotalOUT
 
                 call OilGridConcentration  (CurrentOrigin, WaveHeight, WaterDensity)       
@@ -17174,4 +17184,3 @@ end Module ModuleLagrangianGlobal
 !MOHID Water Modelling System.
 !Copyright (C) 1985, 1998, 2002, 2005. Instituto Superior Técnico, Technical University of Lisbon. 
 !----------------------------------------------------------------------------------------------------------
-
