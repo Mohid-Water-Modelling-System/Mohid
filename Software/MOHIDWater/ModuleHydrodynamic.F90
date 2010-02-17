@@ -7,7 +7,7 @@
 ! MODULE        : ModuleHydrodynamic
 ! URL           : http://www.mohid.com
 ! AFFILIATION   : IST/MARETEC, Marine Modelling Group
-! DATE          : Jun 2003
+! DATE          : Fev 2010
 ! REVISION      : Paulo Leitão - v4.0
 ! DESCRIPTION   : Module responsbile for computing non-turbulent hydrodynamic processes
 !
@@ -1052,7 +1052,11 @@ Module ModuleHydrodynamic
         real    :: AtmospherePeriod     ! This period will substitute the SmoothInitial period
         real    :: AtmosphereCoef       ! This is the coefficient bounded by [0 1] to multiply
                                         ! the atmospheric forces with.
-        logical :: InvertBarometer                                           
+        logical :: InvertBarometer     
+        logical :: InvertBaromSomeBound
+        real, pointer, dimension(:,:)    :: InvertBarometerCells          
+        
+                                              
         integer :: Wind
         real    :: SmoothInitialPeriod
         logical :: AtmPressure
@@ -2511,6 +2515,7 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
         !Arguments-------------------------------------------------------------
 
         !Local-----------------------------------------------------------------
+        type(T_PropertyID) :: GenericID
 
         integer :: FromFile
         integer :: STAT_CALL, iflag, BarotropicRadia, SIMPLE_GEOG, GEOG, ICOORD_TIP
@@ -2545,9 +2550,11 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
         
         integer :: VelTangentialBoundary, VelNormalBoundary, ComputeWind
 
-        integer :: WorkKUB, AuxInt
+        integer :: ClientNumber, WorkKUB, AuxInt
 
-        character(LEN = StringLength)            :: String
+        character(LEN = StringLength)  :: BeginBlock, EndBlock, String
+        
+        logical :: BlockFound
 
         !Begin-----------------------------------------------------------------
         
@@ -3942,9 +3949,91 @@ cd21:   if (Baroclinic) then
                      STAT       = STAT_CALL)            
 
         if (STAT_CALL /= SUCCESS_)                                                      &
-            call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR505')
+            call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR501')
 
-        if (Me%ComputeOptions%InvertBarometer) Me%State%Surface = .true.             
+        if (Me%ComputeOptions%InvertBarometer) then
+            Me%State%Surface = .true.             
+        
+            !<BeginKeyword>
+                !Keyword          : INVERTED_BAROMETER_CELLS
+                !<BeginDescription>       
+                   ! 
+                   !Check if the user wants to restrain to specific cells in the open boundary the inverted barometer approximation 
+                   !This can be usefull imposing the invert barometer approximation in specific boundaries.
+                   ! 
+                !<EndDescription>
+                !Type             : logical
+                !Default          : .false. 
+                !File keyword     : IN_DAD3D 
+                !Search Type      : From File
+            !<EndKeyword>
+
+            call GetData(Me%ComputeOptions%InvertBaromSomeBound,                            & 
+                         Me%ObjEnterData, iflag,                                            & 
+                         Keyword    = 'INVERTED_BAROMETER_CELLS',                           &
+                         Default    = .false.,                                              &
+                         SearchType = FromFile,                                             &
+                         ClientModule ='ModuleHydrodynamic',                                &
+                         STAT       = STAT_CALL)            
+
+            if (STAT_CALL /= SUCCESS_)                                                      &
+                call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR502')
+                
+            if (Me%ComputeOptions%InvertBaromSomeBound) then 
+            
+                allocate(Me%ComputeOptions%InvertBarometerCells(Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
+                
+                Me%ComputeOptions%InvertBarometerCells(:,:) = 0. 
+            
+                BeginBlock = "<begin_InvertBarometerCells>"
+                EndBlock   = "<end_InvertBarometerCells>"
+
+                !Searches for InvertBarometerCells 
+                call ExtractBlockFromBuffer (Me%ObjEnterData, ClientNumber,                     &
+                                             BeginBlock, EndBlock,                              &
+                                             BlockFound, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'Construct_Numerical_Options  - ModuleHydrodynamic - ERR503'
+
+                if (BlockFound) then
+
+                    !Gets WaterPoints2D
+                    call GetWaterPoints2D(Me%ObjHorizontalMap,                                  &
+                                          Me%External_Var%WaterPoints2D, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_)                                                  &
+                        stop 'Construct_Numerical_Options  - ModuleHydrodynamic - ERR504'
+
+                    call ConstructPropertyID  (GenericID, Me%ObjEnterData, FromBlock)
+
+                    call ConstructFillMatrix  (PropertyID           = GenericID,                    &
+                                               EnterDataID          = Me%ObjEnterData,              &
+                                               TimeID               = Me%ObjTime,                   &
+                                               HorizontalGridID     = Me%ObjHorizontalGrid,         &
+                                               ExtractType          = FromBlock,                    &
+                                               PointsToFill2D       = Me%External_Var%WaterPoints2D,&
+                                               Matrix2D             = Me%ComputeOptions%InvertBarometerCells,&
+                                               TypeZUV              = TypeZ_,                       &
+                                               STAT                 = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'Construct_Numerical_Options  - ModuleHydrodynamic - ERR505'
+                    
+                    !UnGets WaterPoints2D
+                    call UnGetHorizontalMap(Me%ObjHorizontalMap,                                &                      
+                                          Me%External_Var%WaterPoints2D, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_)                                                  &
+                        stop 'Construct_Numerical_Options  - ModuleHydrodynamic - ERR506'
+
+                    call KillFillMatrix(GenericID%ObjFillMatrix, STAT = STAT_CALL)
+
+                    call RewindBuffer(Me%ObjEnterData, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'Construct_Numerical_Options  - ModuleHydrodynamic - ERR507'
+
+                    call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL) 
+                    if (STAT_CALL /= SUCCESS_) stop 'Construct_Numerical_Options  - ModuleHydrodynamic - ERR508'
+                    
+                endif
+            
+            endif                
+        
+        endif
 
         !<BeginKeyword>
             !Keyword          : WIND
@@ -5854,7 +5943,7 @@ cd3:            if (Me%ComputeOptions%Continuous) then
 
         if (.not. Me%ComputeOptions%Compute_Tide .and.                                  &
                   Me%TidePotential%Compute )                                            &
-            call SetError(WARNING_, KEYWORD_, 'Verify_Numerical_Options - Hydrodynamic - ERR21.') 
+            call SetError(WARNING_, KEYWORD_, 'Verify_Numerical_Options - Hydrodynamic - WRN21.') 
 
 
 
@@ -7242,16 +7331,18 @@ cd5 :           if (opened) then
 
         !The open boundary module must be initialised here because the OpenBoundary is
         !used in this subroutine to estimate the initial water level.
-        call ConstructOpenBoundary(Me%ObjOpenBoundary,                  &
-                                   Me%ObjHorizontalGrid,                &
-                                   Me%ObjHorizontalMap,                 &
-                                   Me%ObjTime,                          &
-                                   Me%ComputeOptions%Compute_Tide,      &
-                                   Me%WaterLevel%Default,               &
-                                   Me%ComputeOptions%TideSlowStartCoef, &
-                                   Me%ComputeOptions%InvertBarometer,   &
+        call ConstructOpenBoundary(Me%ObjOpenBoundary,                                  &
+                                   Me%ObjHorizontalGrid,                                &
+                                   Me%ObjHorizontalMap,                                 &
+                                   Me%ObjTime,                                          &
+                                   Me%ComputeOptions%Compute_Tide,                      &
+                                   Me%WaterLevel%Default,                               &
+                                   Me%ComputeOptions%TideSlowStartCoef,                 &
+                                   Me%ComputeOptions%InvertBarometer,                   &
+                                   Me%ComputeOptions%InvertBaromSomeBound,              &
+                                   Me%ComputeOptions%InvertBarometerCells,              &
                                    STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                      &
+        if (STAT_CALL /= SUCCESS_)                                                      &       
             stop 'Subroutine ConstructHydrodynamicProperties; ModuleHydrodynamic. ERR10.'  
 
 
@@ -40065,6 +40156,10 @@ ic1:    if (Me%CyclicBoundary%ON) then
 
         if (Me%OutPut%TimeSerieON .or. Me%OutPut%hdf5ON .or. Me%OutPut%ProfileON) &
             call KillMatrixesOutput
+            
+
+        if (Me%ComputeOptions%InvertBaromSomeBound)                                     &
+            deallocate(Me%ComputeOptions%InvertBarometerCells)            
 
        !----------------------------------------------------------------------
 
@@ -40324,7 +40419,7 @@ cd1:    if (HydrodynamicID > 0) then
 
 !Manuel
         call GetVerticalViscosity(Me%ObjTurbulence,                         &
-                                  VerticalViscosityCenter =                              &
+                                  VerticalViscosity =                              &
                                   Me%External_Var%Vertical_Viscosity,       &
                                   STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                       &
