@@ -172,6 +172,8 @@ Module ModuleTurbulence
     end interface UngetTurbulence
 
     !Parameter-----------------------------------------------------------------
+    !Physical parameters 
+    real,    parameter :: KinematicViscosity = 1.3e-6     !Kinematic viscosity [m2/s]
 
     !Constants                          
     real,    parameter :: CNH           = -0.8           !NIHOUL constant
@@ -1197,7 +1199,7 @@ case1 : select case  (Me%TurbOptions%MODTURB)
                             SearchType   = FromFile,                    &
                             keyword      = 'Background_Viscosity',      &
                             ClientModule = 'ModuleTurbulence',          &
-                            default      = 1.3e-6,                      &
+                            default      = KinematicViscosity,          &
                             STAT         = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'InicVerticalModels - ModuleTurbulence - ERR06'
                  
@@ -2412,13 +2414,13 @@ cd2 :       if (present(HorizontalCornerViscosity)) then
 
     !--------------------------------------------------------------------------
 
-    subroutine GetVerticalViscosity(TurbulenceID, VerticalViscosityCenter, STAT)
+    subroutine GetVerticalViscosity(TurbulenceID, VerticalViscosity, STAT)
 
         !Arguments-------------------------------------------------------------
               
         integer, optional, intent(OUT)  :: STAT
        
-        real, dimension(:,:,:), pointer :: VerticalViscosityCenter
+        real, dimension(:,:,:), pointer :: VerticalViscosity
 
         integer                         :: TurbulenceID
 
@@ -2441,7 +2443,7 @@ cd1 :   if ((ready_ == IDLE_ERR_     ) .OR.                                   &
 
                 call Read_Lock(mTURBULENCE_, Me%InstanceID)
 
-                VerticalViscosityCenter => Me%Viscosity%Vertical
+                VerticalViscosity => Me%Viscosity%Vertical
 
             STAT_ = SUCCESS_
 
@@ -2987,7 +2989,7 @@ cd1 :   if (ready_ == IDLE_ERR_)then
         integer                                         :: ILB, IUB
         integer                                         :: JLB, JUB
         integer                                         :: KLB, KUB
-        integer                                         :: I, J, K
+        integer                                         :: I, J, K, kbottom
         integer                                         :: CHUNK
 
         !----------------------------------------------------------------------                         
@@ -3139,23 +3141,27 @@ cd2 :       if (Me%TurbOptions%MODTURB .ne. Constant_ .and. &
                 Me%TurbOptions%MODTURB .ne. File2D_) then
 
                 CHUNK = CHUNK_J(Me%Size%JLB, Me%Size%JUB)
-                !$OMP PARALLEL SHARED(CHUNK) PRIVATE(I,J)
+                !$OMP PARALLEL SHARED(CHUNK) PRIVATE(I,J,K)
 
-do1 :           do K = KLB, KUB
                 !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
 do2 :           do J = JLB, JUB
 do3 :           do I = ILB, IUB
 
-                    if(Me%ExternalVar%WaterPoints3D(i,j,k) == WaterPoint)then
+                    if(Me%ExternalVar%WaterPoints3D(i,j,KUB) == WaterPoint)then
+ 
+                        kbottom = Me%ExternalVar%KFloorZ(i, j)
+ 
+do1 :                   do K = kbottom, KUB+1
                     
-                        Me%Viscosity%Vertical(i,j,k) = Me%Viscosity%Vertical(i,j,k) + &
-                                                       Me%Viscosity%Background
+                            Me%Viscosity%Vertical(i,j,k) = Me%Viscosity%Vertical(i,j,k) + &
+                                                           Me%Viscosity%Background
+                        end do do1
                     end if
                                                             
                 end do do3
                 end do do2
                 !$OMP END DO NOWAIT
-                end do do1
+
 
                 !$OMP END PARALLEL
 
@@ -3460,7 +3466,7 @@ cd4 :       if     (Me%TurbOptions%MODVISH .EQ. Constant_   ) then
         integer :: JLB, JUB
         integer :: KLB, KUB
 
-        integer :: I, J, K
+        integer :: I, J, K, kbottom
         integer                                         :: CHUNK
 
         !----------------------------------------------------------------------
@@ -3480,51 +3486,50 @@ cd4 :       if     (Me%TurbOptions%MODVISH .EQ. Constant_   ) then
 
         if (MonitorPerformance) call StartWatch ("ModuleTurbulence", "LeendertseeModel")
         CHUNK = CHUNK_J(JLB,JUB)
-        !$OMP PARALLEL PRIVATE(I,J,aux,Z_H,CMIST,VISC_V)
+        !$OMP PARALLEL PRIVATE(I,J,aux,Z_H,CMIST,VISC_V,K,kbottom)
 
-do1 :   do K = KLB, KUB
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
 do2 :   do J = JLB, JUB
 do3 :   do I = ILB, IUB
             
-cd1 :       if (Me%ExternalVar%ComputeFacesW3D(i, j, k) == Compute) then
+cd1 :       if (Me%ExternalVar%WaterPoints3D(i, j, KUB)   == WaterPoint)         then
+
+                kbottom = Me%ExternalVar%KFloorZ(i, j)
+
+do1 :           do K = kbottom, KUB+1
+
 
 
 !Manuel !Vertical Prandtl number was BEFORE calculated in Richardson PRandtl = gama* e**(-gam2*Rich)
 !       If changed it should be moved to a subroutine where VErtPRandtl number is calculated from different parametrizations
 
-                Aux = max (0., Me%TurbVar%Richardson(I,J,K)) !Nihoul formula only makes sense for positive Rich
+                    Aux = max (0., Me%TurbVar%Richardson(I,J,K)) !Nihoul formula only makes sense for positive Rich
 
-                Me%TurbVar%VertPrandtlNumber(I,J,K) = GAMA * Exp(-GAMA2 *  Aux) ! Nihoul, 1984 
+                    Me%TurbVar%VertPrandtlNumber(I,J,K) = GAMA * Exp(-GAMA2 *  Aux) ! Nihoul, 1984 
 
-                Z_H =Me%ExternalVar%Bathymetry(I,J) -     &
-                      Me%ExternalVar%SZZ(I,J,K)                              
-!                     &- Me%ExternalVar%DWZ(I,J,K)/2.)        & !Z_H nas faces , nao e?
-!                    / Me%ExternalVar%HT(I,J)
+                    Z_H =Me%ExternalVar%Bathymetry(I,J) -     &
+                          Me%ExternalVar%SZZ(I,J,K)                              
+    !                     &- Me%ExternalVar%DWZ(I,J,K)/2.)        & !Z_H nas faces , nao e?
+    !                    / Me%ExternalVar%HT(I,J)
 
-                CMIST = CVK * (Z_H + Me%ExternalVar%BottomRugosity) &
-                              * SQRT(1.0 - Z_H/ Me%ExternalVar%HT(I,J))  
-                                                
-                CMIST = CMIST * EXP(CNH * Aux) 
+                    CMIST = CVK * (Z_H + Me%ExternalVar%BottomRugosity) &
+                                  * SQRT(1.0 - Z_H/ Me%ExternalVar%HT(I,J))  
+                                                    
+                    CMIST = CMIST * EXP(CNH * Aux) 
 
-                Me%TurbVar%MixingLengthZ(I,J,K) = MIN(CMIST, Me%TurbVar%MAXMixingLength)
+                    Me%TurbVar%MixingLengthZ(I,J,K) = MIN(CMIST, Me%TurbVar%MAXMixingLength)
 
-                VISC_V =(Me%TurbVar%MixingLengthZ(I,J,K) * Me%TurbVar%MixingLengthZ(I,J,K)) &
-                       * SQRT(Me%TurbVar%FPRANDTL(I,J,K))
-                
-                Me%Viscosity%Vertical(I,J,K) = VISC_V 
+                    VISC_V =(Me%TurbVar%MixingLengthZ(I,J,K) * Me%TurbVar%MixingLengthZ(I,J,K)) &
+                           * SQRT(Me%TurbVar%FPRANDTL(I,J,K))
+                    
+                    Me%Viscosity%Vertical(I,J,K) = VISC_V * Me%TurbVar%VertPrandtlNumber(i,j,k)
 
-                Me%Diffusivity%Vertical(i, j, k)      = Me%Viscosity%Vertical(i,j,k)   &
-                                                                       *Me%TurbVar%VertPrandtlNumber(i,j,k)
-                
-! Manolo. This is done from file 
-! Me%Viscosity%Vertical(I,J,K) = VISC_V + MolecularViscosity     !correccao pela visc. molec
-
+                end do do1
+               
             end if cd1
         end do do3
         end do do2
         !$OMP END DO
-        end do do1
 
         !$OMP END PARALLEL
         if (MonitorPerformance) call StopWatch ("ModuleTurbulence", "LeendertseeModel")
@@ -3555,7 +3560,7 @@ cd1 :       if (Me%ExternalVar%ComputeFacesW3D(i, j, k) == Compute) then
         integer :: JLB, JUB
         integer :: KLB, KUB
 
-        integer :: I, J, K
+        integer :: I, J, K, kbottom
         integer                                         :: CHUNK
 
         !----------------------------------------------------------------------
@@ -3584,15 +3589,19 @@ cd1 :       if (Me%ExternalVar%ComputeFacesW3D(i, j, k) == Compute) then
 
         if (MonitorPerformance) call StartWatch ("ModuleTurbulence", "BackhausModel")
         CHUNK = CHUNK_J(JLB,JUB)
-        !$OMP PARALLEL PRIVATE(I,J,rich)
+        !$OMP PARALLEL PRIVATE(I,J,rich, K, kbottom)
         
-do1 :   do K = KLB, KUB
+
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
 do2 :   do J = JLB, JUB
 do3 :   do I = ILB, IUB
             
-cd1 :       if (Me%ExternalVar%ComputeFacesW3D(i, j, k) == Compute) then
+cd1 :       if (Me%ExternalVar%WaterPoints3D(i, j, KUB)   == WaterPoint)         then
 
+                kbottom = Me%ExternalVar%KFloorZ(i, j)
+
+do1 :           do K = kbottom, KUB+1
+                
 !cd2 :           if (Me%TurbVar%Richardson(I,J,K) .LT. (-0.99/CBK1)) then
 !                    write(*,*           ) 
 !                    write(*,*           ) 'Backhaus vertical viscosity model can not be applied in areas with'
@@ -3602,26 +3611,26 @@ cd1 :       if (Me%ExternalVar%ComputeFacesW3D(i, j, k) == Compute) then
 !                    stop                  'Subroutine BackhausModel; module ModuleTurbulence. ERR01.'
 !                end if cd2
                  
-                 rich = max (0., Me%TurbVar%Richardson(I,J,K))
+                    rich = max (0., Me%TurbVar%Richardson(I,J,K))
 
                
 !                Me%TurbVar%VertPrandtlNumber(I,J,K) = GAMA * Exp(-GAMA2 *     &
 !                                                         Me%TurbVar%Richardson(I,J,K) ) ! Nihoul, 1984 
                 
-                Me%Viscosity%Vertical(I,J,K) =  &
+                    Me%Viscosity%Vertical(I,J,K) =  &
 !                CBK3  + ! CBK3 is only a background viscosity                                       
                           CBK4 * Me%ExternalVar%HT(I,J) * ABS(Me%TurbVar%VMOD(I,J,K)) &
                           * (1.0 + CBK1 * rich)**CBK2
 
-               Me%Diffusivity%Vertical(i, j, k)      = Me%Viscosity%Vertical(i,j,k)   &
+                    Me%Diffusivity%Vertical(i, j, k)      = Me%Viscosity%Vertical(i,j,k)   &
                           * (1.0 + rich)**CBK5
 
-
+                end do do1
             end if cd1
         end do do3
         end do do2
         !$OMP END DO
-        end do do1
+
 
         !$OMP END PARALLEL
         if (MonitorPerformance) call StopWatch ("ModuleTurbulence", "BackhausModel")
@@ -3647,7 +3656,7 @@ cd1 :       if (Me%ExternalVar%ComputeFacesW3D(i, j, k) == Compute) then
         integer :: JLB, JUB
         integer :: KLB, KUB
 
-        integer :: I, J, K
+        integer :: I, J, K, KBottom
         integer                                         :: CHUNK
         !----------------------------------------------------------------------
 
@@ -3663,28 +3672,31 @@ cd1 :       if (Me%ExternalVar%ComputeFacesW3D(i, j, k) == Compute) then
 
         if (MonitorPerformance) call StartWatch ("ModuleTurbulence", "PacanowskiModel")
         CHUNK = CHUNK_J(JLB,JUB)
-        !$OMP PARALLEL PRIVATE(I,J,RICH)
+        !$OMP PARALLEL PRIVATE(I,J,K,kbottom,RICH)
         
-do1 :   do K = KLB, KUB
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
 do2 :   do J = JLB, JUB
 do3 :   do I = ILB, IUB
-cd1 :       if (Me%ExternalVar%ComputeFacesW3D(i, j, k) == Compute) then
+            
+cd1 :       if (Me%ExternalVar%WaterPoints3D(i, j, KUB)   == WaterPoint)         then
 
-               RICH = max(0., Me%TurbVar%Richardson(I,J,K))
-              
-               Me%Viscosity%Vertical(I,J,K)           =             &
-!                CPW3 +                &   !CPW3 is the molecular viscosity
-                    CPW4 * (1.0 + CPW1 * RICH)**ICPW2
+                kbottom = Me%ExternalVar%KFloorZ(i, j)
 
-               Me%Diffusivity%Vertical(i, j, k)      =    &
-                   Me%Viscosity%Vertical(I,J,K)  / (1.0 + CPW1 * RICH)           
+do1 :           do K = kbottom, KUB+1
+
+                   RICH = max(0., Me%TurbVar%Richardson(I,J,K))
+                  
+                   Me%Viscosity%Vertical(I,J,K) =  CPW4 * (1.0 + CPW1 * RICH)**ICPW2
+
+                   Me%Diffusivity%Vertical(i, j, k)      =    &
+                       Me%Viscosity%Vertical(I,J,K)  / (1.0 + CPW1 * RICH)           
+
+                end do do1
 
             end if cd1
         end do do3
         end do do2
         !$OMP END DO
-        end do do1
 
         !$OMP END PARALLEL
         if (MonitorPerformance) call StopWatch ("ModuleTurbulence", "PacanowskiModel")
@@ -3719,7 +3731,7 @@ cd1 :       if (Me%ExternalVar%ComputeFacesW3D(i, j, k) == Compute) then
         integer :: JLB, JUB
         integer :: KLB, KUB
 
-        integer :: I, J, K
+        integer :: I, J, K, kbottom
         integer :: CHUNK
 
         !----------------------------------------------------------------------
@@ -3738,48 +3750,48 @@ cd1 :       if (Me%ExternalVar%ComputeFacesW3D(i, j, k) == Compute) then
             call StartWatch ("ModuleTurbulence", "NihoulModel")
 
         CHUNK = CHUNK_J(JLB,JUB)
-        !$OMP PARALLEL PRIVATE(I,J,Aux,Z_H,CMIST,VISC_V)
+        !$OMP PARALLEL PRIVATE(I,J,Aux,Z_H,CMIST,VISC_V,K,kbottom)
 
-do1 :   do K = KLB, KUB
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
 do2 :   do J = JLB, JUB
 do3 :   do I = ILB, IUB
             
-cd1 :       if (Me%ExternalVar%ComputeFacesW3D(i, j, k) == Compute)        then
-                !Vertical Prandtl number was BEFORE calculated in subroutine Richardson PRandtl = gama* e**(-gam2*Rich)
-                ! If changed it should be moved to a subroutine where VErtPRandtl number is calculated from different 
-                ! parametrizations
-                Aux = max(0., Me%TurbVar%Richardson(I,J,K))
-                Me%TurbVar%VertPrandtlNumber(I,J,K) = GAMA * Exp(-GAMA2 *  Aux) ! Nihoul, 1984 
+cd1 :       if (Me%ExternalVar%WaterPoints3D(i, j, KUB)   == WaterPoint)         then
+
+                kbottom = Me%ExternalVar%KFloorZ(i, j)
+
+do1 :           do K = kbottom, KUB+1
+
+                    !Vertical Prandtl number was BEFORE calculated in subroutine Richardson PRandtl = gama* e**(-gam2*Rich)
+                    ! If changed it should be moved to a subroutine where VErtPRandtl number is calculated from different 
+                    ! parametrizations
+                    Aux = max(0., Me%TurbVar%Richardson(I,J,K))
+                    Me%TurbVar%VertPrandtlNumber(I,J,K) = GAMA * Exp(-GAMA2 *  Aux) ! Nihoul, 1984 
 
 
-                !Z_H computed at centers
-                !Z_H distance to bottom
-                Z_H =(Me%ExternalVar%Bathymetry(I,J) -    &
-                      Me%ExternalVar%SZZ(I,J,K))
-!                      Me%ExternalVar%DWZ(I,J,K)/2.)       &   !Manolo. Comentar? Z_H deberia estar nas faces??
-!                    / Me%ExternalVar%HT(I,J)
+                    !Z_H computed at centers
+                    !Z_H distance to bottom
+                    Z_H =(Me%ExternalVar%Bathymetry(I,J) -    &
+                          Me%ExternalVar%SZZ(I,J,K-1))
+    !                      Me%ExternalVar%DWZ(I,J,K)/2.)       &   !Manolo. Comentar? Z_H deberia estar nas faces??
+    !                    / Me%ExternalVar%HT(I,J)
 
-                CMIST = CVK * (Z_H+ Me%ExternalVar%BottomRugosity) * (1.0 - DELTA * Z_H / Me%ExternalVar%HT(I,J))
-                CMIST = CMIST * EXP(CNH * Aux)  
-                Me%TurbVar%MixingLengthZ(I,J,K) = MIN(CMIST, Me%TurbVar%MAXMixingLength)
+                    CMIST = CVK * (Z_H+ Me%ExternalVar%BottomRugosity) * (1.0 - DELTA * Z_H / Me%ExternalVar%HT(I,J))
+                    CMIST = CMIST * EXP(CNH * Aux)  
+                    Me%TurbVar%MixingLengthZ(I,J,K) = MIN(CMIST, Me%TurbVar%MAXMixingLength)
 
 
-                VISC_V =(Me%TurbVar%MixingLengthZ(I,J,K) * Me%TurbVar%MixingLengthZ(I,J,K)) &
-                       * SQRT(Me%TurbVar%FPRANDTL(I,J,K))
+                    VISC_V =(Me%TurbVar%MixingLengthZ(I,J,K) * Me%TurbVar%MixingLengthZ(I,J,K)) &
+                           * SQRT(Me%TurbVar%FPRANDTL(I,J,K))
+                    
+                    Me%Viscosity%Vertical  (I,J,K) = VISC_V * Me%TurbVar%VertPrandtlNumber(i,j,k)
+                    
+                end do do1
                 
-                Me%Viscosity%Vertical(I,J,K) = VISC_V
-
-                 Me%Diffusivity%Vertical(i, j, k)      = VISC_V                        &
-                                                                       *Me%TurbVar%VertPrandtlNumber(i,j,k)
-
-!Manolo                Me%Viscosity%Vertical(I,J,K) = VISC_V + MolecularViscosity     !correccao pela visc. molec
-
             end if cd1
         end do do3
         end do do2
         !$OMP END DO
-        end do do1
         
         !$OMP END PARALLEL
         
