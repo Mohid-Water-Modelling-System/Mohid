@@ -1800,8 +1800,9 @@ do1 :   do while (associated(PropertyX))
             if (STAT_CALL /= SUCCESS_) stop 'CheckOptionsWater - ModuleInterfaceWaterAir - ERR140'
 
             Me%ExtOptions%Precipitation = AtmospherePropertyExists(Me%ObjAtmosphere, Precipitation_)
-            Me%ExtOptions%Irrigation    = AtmospherePropertyExists(Me%ObjAtmosphere, Irrigation_   )
- 
+            Me%ExtOptions%Irrigation    = AtmospherePropertyExists(Me%ObjAtmosphere, Irrigation_   )         
+            
+
         endif
 
 
@@ -3873,7 +3874,7 @@ PropX:          do while (associated(PropertyX))
 
         !Local-----------------------------------------------------------------
         type(T_Property), pointer               :: PropertyX, PropertyY
-        real, pointer, dimension(:,:)           :: AtmPressure
+        real, pointer, dimension(:,:)           :: AtmPressure, Precipitation
 
         !Begin-----------------------------------------------------------------
 
@@ -3982,6 +3983,35 @@ PropX:          do while (associated(PropertyX))
                                          STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) &
                     stop 'SetSubModulesModifier - ModuleInterfaceWaterAir - ERR70'
+                    
+                if (Me%ExtOptions%Precipitation) then
+                    
+                    call GetAtmosphereProperty(AtmosphereID = Me%ObjAtmosphere,         &
+                                               Scalar       = Precipitation,            &
+                                               ID           = Precipitation_,           &
+                                               STAT         = STAT_CALL)
+                    if (STAT_CALL .eq. SUCCESS_) then
+
+                        call SetSurfaceFlux(Me%ObjWaterProperties,                      &
+                                            Precipitation_,                             &
+                                            Precipitation,                              &
+                                            STAT = STAT_CALL)
+
+                        if (STAT_CALL /= SUCCESS_) &
+                            stop 'SetSubModulesModifier - ModuleInterfaceWaterAir - ERR75'                
+                    else
+
+                        stop 'SetSubModulesModifier - ModuleInterfaceWaterAir - ERR77'                                            
+                    
+                    endif
+                    
+                   call UnGetAtmosphere(Me%ObjAtmosphere, Precipitation, &
+                                        STAT         = STAT_CALL)
+                   if (STAT_CALL /= SUCCESS_) &
+                        stop 'SetSubModulesModifier - ModuleInterfaceWaterAir - ERR79'
+                    
+                
+                endif                    
             endif
 
         endif
