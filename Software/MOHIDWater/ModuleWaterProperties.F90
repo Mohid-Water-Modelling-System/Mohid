@@ -235,7 +235,7 @@ Module ModuleWaterProperties
                                           GetMLD_Surf, UnGetTurbulence
     use ModuleHydrodynamic,         only: GetWaterFluxes, GetWaterLevel, GetDischargesFluxes,   &
                                           UngetHydrodynamic, GetHydroAltimAssim, GetVertical1D, &
-                                          GetXZFlow  
+                                          GetXZFlow, GetHydrodynamicAirOptions 
 
     implicit none 
 
@@ -865,6 +865,8 @@ Module ModuleWaterProperties
 
     type       T_ExtSurface
         real,    pointer, dimension(:,:  )      :: Evaporation
+        real,    pointer, dimension(:,:  )      :: Precipitation
+        logical                                 :: PrecipitationON
         real,    pointer, dimension(:,:  )      :: OxygenFlux
         real,    pointer, dimension(:,:  )      :: CarbonDioxideFlux
         real,    pointer, dimension(:,:  )      :: WindShearVelocity
@@ -4331,7 +4333,7 @@ case1 : select case(PropertyID)
         !Local-----------------------------------------------------------------
         integer                                 :: iflag
         real                                    :: ErrorAux, auxFactor, DTaux
-        logical                                 :: VariableDT
+        logical                                 :: VariableDT, Dummy
         character(LEN = StringLength)           :: AuxName
         !----------------------------------------------------------------------
 
@@ -4641,6 +4643,22 @@ case1 : select case(PropertyID)
 
         if (NewProperty%evolution%SurfaceFluxes)                                         &
             NewProperty%Evolution%Variable = .true.
+            
+        if (NewProperty%evolution%SurfaceFluxes .and. .not. Me%ExtSurface%PrecipitationON) then
+        
+            call GetHydrodynamicAirOptions (Me%ObjHydrodynamic,                         & 
+                                            SurfaceWaterFluxYes =                       &
+                                            Me%ExtSurface%PrecipitationON,              &
+                                            WindYes = Dummy,             &
+                                            AtmPressureYes = Dummy,      &
+                                            MslpYes = Dummy,             &
+                                            STAT = STAT_CALL)
+
+            
+            if (STAT_CALL .NE. SUCCESS_)                                                &
+                stop 'Subroutine Construct_PropertyEvolution - ModuleWaterProperties - ERR135'
+        
+        endif 
 
         !<BeginKeyword>
             !Keyword          : BOTTOM_FLUXES
@@ -11550,6 +11568,9 @@ case1 :     select case(Property%ID%IDNumber)
                     !the heat surface fluxes must be compute in a different way from
                     !the other properties
                     call ComputeSurfaceHeatFluxes (Property)
+                    
+                    
+                    
                 
 !                case(Salinity_) 
 
@@ -12303,12 +12324,27 @@ do3:            do k = kbottom, KUB
 
                     !The water temperature can not be below 0ºC
                     if (AuxT < - Temperature%Concentration(i, j, k)) AuxT = 0
-
+                    
                     ![Celsius]  =  [Celsius]  + [Celsius]                        
                     Temperature%Concentration(i, j, k) =                                &
                         Temperature%Concentration(i, j, k) + AuxT
 
                 enddo do3
+                
+                if (Me%ExtSurface%PrecipitationON .and. associated(Me%ExtSurface%Precipitation)) then
+                
+                    ![ºC] = [ºC] + [ºC] [m/s] * [s] / [m]
+                    Temperature%Concentration(i, j, KUB) =  Temperature%Concentration(i, j, KUB) + &
+                    !For now the water percipitation temperature is assumed equal to SST but
+                    !in the future must be assumed equal to the air temperature
+                    ! It is necessary to create a Heat Precipitation Flux associated in the Interface Water Air Module 
+                                                          Temperature%Concentration(i, j, KUB) * &
+                                                          Me%ExtSurface%Precipitation(i, j) *    & 
+                                                          Temperature%Evolution%DTinterval /   &
+                                                          Me%ExternalVar%DWZ(i, j, KUB) 
+                
+                
+                endif
 
             endif cd1
 
@@ -16188,6 +16224,10 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
                 case(Evaporation_)
 
                     Me%ExtSurface%Evaporation           => Flux
+
+                case(Precipitation_)
+
+                    Me%ExtSurface%Precipitation         => Flux
 
                 case(OxygenFlux_)
 
