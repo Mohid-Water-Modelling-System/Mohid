@@ -410,13 +410,13 @@ Module ModuleDrainageNetwork
     integer, parameter                              :: ChannelControled_    = 2
 
     !TimeSerie hydrodynamic properties
-    character(StringLength), parameter              :: Char_WaterDepth           = trim(adjustl('water depth'))
-    character(StringLength), parameter              :: Char_WaterLevel           = trim(adjustl('water level'))
+    character(StringLength), parameter              :: Char_WaterDepth           = trim(adjustl('channel water depth'))
+    character(StringLength), parameter              :: Char_WaterLevel           = trim(adjustl('channel water level'))
     character(StringLength), parameter              :: Char_PercentageMaxVolume  = trim(adjustl('percentage max volume'))
     character(StringLength), parameter              :: Char_VerticalArea         = trim(adjustl('vertical area'))
     character(StringLength), parameter              :: Char_FlowToChannels       = trim(adjustl('flow to channels'))
     character(StringLength), parameter              :: Char_Volume               = trim(adjustl('volume'))
-    character(StringLength), parameter              :: Char_Flow                 = trim(adjustl('flow'))
+    character(StringLength), parameter              :: Char_Flow                 = trim(adjustl('channel flow'))    !Changed name to distingush from other flow types
     character(StringLength), parameter              :: Char_Velocity             = trim(adjustl('velocity'))
     character(StringLength), parameter              :: Char_GWFlowToChannels     = trim(adjustl('GW flow to channels'))
     character(StringLength), parameter              :: Char_PoolDepth            = trim(adjustl('pool water depth'))
@@ -10838,7 +10838,7 @@ if2:                if (CurrNode%nDownstreamReaches .NE. 0) then
                     iReach = iReach + 1
                 end if
             end do
-            call HDF5WriteData  (Me%ObjHDF5, "/Results/flow", "flow",                    &
+            call HDF5WriteData  (Me%ObjHDF5, "/Results/channel flow", "channel flow",    &
                                  "m3/s",                                                 &
                                  Array1D      = OutputMatrix,                            &
                                  OutputNumber = Me%OutPut%NextOutPut,                    &
@@ -10919,7 +10919,8 @@ if2:                if (CurrNode%nDownstreamReaches .NE. 0) then
                     iReach = iReach + 1
                 endif
             end do
-            call HDF5WriteData  (Me%ObjHDF5, "/Results/water depth", "water depth",      &
+            call HDF5WriteData  (Me%ObjHDF5, "/Results/channel water depth",             &
+                                 "channel water depth",                                  &  
                                  "m",                                                    &
                                  Array1D      = OutputMatrix,                            &
                                  OutputNumber = Me%OutPut%NextOutPut,                    &
