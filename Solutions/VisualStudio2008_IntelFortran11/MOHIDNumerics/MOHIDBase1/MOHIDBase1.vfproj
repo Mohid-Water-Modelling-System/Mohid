@@ -83,8 +83,6 @@
 		<File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleLightExtinction.F90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleLUD.F90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleMacroAlgae.F90"/>
-		<File RelativePath="..\..\..\..\Software\MOHIDBase1\ModulePhreeqC.F90"/>
-		<File RelativePath="..\..\..\..\Software\MOHIDBase1\ModulePhreeqCData.F90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleProfile.F90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleSedimentQuality.F90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleStopWatch.F90"/>
