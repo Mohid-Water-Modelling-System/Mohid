@@ -128,6 +128,8 @@
 !   OXYGEN_SATURATION           : 0/1               [0]         !Check if the user wants to assume oxygen in the 
 !                                                               !water column equal to saturation
 !   CO2_PPRESSURE_OUTPUT        : 0/1               [0]         !Optinal HDF output for CO2 (partial pressure in the water)
+!   O2_SATURATION_OUTPUT        : 0/1               [0]         !Optinal HDF output for O2 (saturation in the water)
+      
 !   LIGHT_EXTINCTION            : 0/1               [0]         !Property is accounted to compute light extinction coef.
 !       EXTINCTION_PARAMETER    : real              [0]         !Property specific coefficient to compute total 
 !                                                               !light extinction coef.
@@ -215,7 +217,7 @@ Module ModuleWaterProperties
                                           SigmaMel96PressureCorrection, SigmaJMD95PressureCorrection, &
                                           ConstructPropertyID, MPIKind,OxygenSaturationCeQualW2,&
                                           OxygenSaturation,OxygenSaturationHenry,               &
-                                          CO2PartialPressure,                                   &
+                                          CO2PartialPressure, CO2_K0,                           &
                                           SpecificHeatUNESCO, ComputeT90_Chapra,                &
                                           ComputeT90_Canteras, SetMatrixValue, CHUNK_J, CHUNK_K, &
                                           InterpolateProfileR8, TimeToString, ChangeSuffix, ExtraPol3DNearestCell 
@@ -225,7 +227,7 @@ Module ModuleWaterProperties
                                           SigmaMel96PressureCorrection, SigmaJMD95PressureCorrection, &
                                           ConstructPropertyID,OxygenSaturationCeQualW2,         &
                                           OxygenSaturation,OxygenSaturationHenry,               &
-                                          CO2PartialPressure,                                   &
+                                          CO2PartialPressure, CO2_K0,                           &
                                           SpecificHeatUNESCO, ComputeT90_Chapra,                &
                                           ComputeT90_Canteras, SetMatrixValue, CHUNK_J, CHUNK_K, &
                                           InterpolateProfileR8, TimeToString, ChangeSuffix, ExtraPol3DNearestCell 
@@ -325,6 +327,7 @@ Module ModuleWaterProperties
     public  :: GetWaterPropertiesSubModulesID
     public  :: GetWaterPropertiesAirOptions
     public  :: GetWaterPropertiesBottomOptions
+    public  :: GetPropertySurfaceFlux
 #ifdef _USE_SEQASSIMILATION
     public  :: GetWaterPropertiesIDArray
     public  :: GetWaterSeqAssimilation
@@ -624,7 +627,8 @@ Module ModuleWaterProperties
         integer                                 :: T90Var_Method        = FillValueInt
         logical                                 :: LagSinksSources
         logical                                 :: OxygenSaturation     = .false. 
-        logical                                 :: CO2_PP_Output        = .false.   
+        logical                                 :: CO2_PP_Output        = .false.
+        logical                                 :: O2_Sat_Output        = .false.   
         type (T_Filtration                   )  :: Filtration           !aqui
         type (T_Reinitialize                 )  :: Reinitialize
         type (T_AdvectionDiffusion_Parameters)  :: Advec_Difus_Parameters
@@ -658,6 +662,7 @@ Module ModuleWaterProperties
          logical                                :: RestartOverwrite     = .false.
          logical                                :: SurfaceOutputs       = .false.
          real,    pointer, dimension(:,:,:)     :: Aux3D
+         real,    pointer, dimension(:,:)       :: Aux2D
     end type T_OutPut
     
     type      T_OutW
@@ -705,6 +710,7 @@ Module ModuleWaterProperties
         character(len=Pathlength)               :: StatisticsFile
         integer                                 :: StatisticID
         real, pointer, dimension(:,:,:)         :: Concentration
+        real, pointer, dimension(:,:  )         :: SurfaceFlux
         real, pointer, dimension(:,:,:)         :: Mass_Created
         real, pointer, dimension(:,:,:)         :: Mass_Destroid
         real, pointer, dimension(:,:  )         :: BottomFlux
@@ -914,7 +920,8 @@ Module ModuleWaterProperties
         logical                                 :: FirstIteration = .true.
         
         logical                                 :: OxygenSaturation = .false.
-        logical                                 :: CO2_PP_Output    = .false.      
+        logical                                 :: CO2_PP_Output    = .false.
+        logical                                 :: O2_Sat_Output    = .false.      
         
 #ifdef _USE_SEQASSIMILATION
         integer, pointer, dimension(:)          :: PropertiesID
@@ -3386,6 +3393,7 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
 
         nullify(NewProperty%Concentration        )
         nullify(NewProperty%Mass_Created         )
+        nullify(NewProperty%SurfaceFlux          )
         nullify(NewProperty%Mass_Destroid        )        
         nullify(NewProperty%Assimilation%Field   )
         nullify(NewProperty%Prev,NewProperty%Next)
@@ -3800,6 +3808,17 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
         if (STAT_CALL .NE. SUCCESS_)                                                     &
             stop 'Construct_PropertyValues - ModuleWaterProperties - ERR01' 
         NewProperty%Concentration(:,:,:) = FillValueReal
+
+        !To store oxygen and CO2 fluxes across the water-air interface 
+        if(CarbonDioxide_ .OR. Oxygen_) then
+        
+        allocate(NewProperty%SurfaceFlux(ILB:IUB, JLB:JUB), STAT = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_)                                                     &
+            stop 'Construct_PropertyValues - ModuleWaterProperties - ERR02' 
+        NewProperty%Surfaceflux(:,:) = FillValueReal
+        
+        endif
+
 
         allocate (NewProperty%Assimilation%Field(ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT_CALL)            
         if (STAT_CALL .NE. SUCCESS_)                                                     &
@@ -4993,7 +5012,22 @@ case1 : select case(PropertyID)
             if (STAT_CALL /= SUCCESS_)                                              &
                 stop 'Subroutine Construct_PropertyEvolution - ModuleWaterProperties - ERR270'
 
-        endif    
+        endif
+        
+        
+        if (NewProperty%ID%IDNumber == Oxygen_) then
+            call GetData(NewProperty%evolution%O2_Sat_Output,                           &
+                             Me%ObjEnterData,                                           &
+                             iflag,                                                     &
+                             SearchType   = FromBlock,                                  &
+                             keyword      ='O2_SATURATION_OUTPUT',                      &
+                             ClientModule ='ModuleWaterProperties',                     &
+                             Default      = .false.,                                    &    
+                             STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                              &
+                stop 'Subroutine Construct_PropertyEvolution - ModuleWaterProperties - ERR280'
+
+        endif   
 
 
 
@@ -7477,6 +7511,9 @@ cd2 :       if (BlockFound) then
             nullify (Me%OutPut%Aux3D)
             allocate(Me%OutPut%Aux3D(ILB:IUB,JLB:JUB,KLB:KUB))
             
+            nullify (Me%OutPut%Aux2D)
+            allocate(Me%OutPut%Aux2D(ILB:IUB,JLB:JUB))
+
         end if
 
         call GetOutPutTime(Me%ObjEnterData,                                         &
@@ -7571,7 +7608,19 @@ cd2 :       if (BlockFound) then
                 nullify (Me%OutPut%Aux3D)
                 allocate(Me%OutPut%Aux3D(ILB:IUB,JLB:JUB,KLB:KUB))            
                 
-            endif           
+            endif     
+            
+            if (.not.associated(Me%OutPut%Aux2D)) then
+            
+                ILB = Me%Size%ILB 
+                IUB = Me%Size%IUB 
+                JLB = Me%Size%JLB 
+                JUB = Me%Size%JUB 
+                               
+                nullify (Me%OutPut%Aux2D)
+                allocate(Me%OutPut%Aux2D(ILB:IUB,JLB:JUB))            
+                
+            endif       
 
         end if
            
@@ -7660,7 +7709,7 @@ case1 :     select case(Property%ID%IDNumber)
 
                         !Search the salinity
                         call Search_Property(PropAux, PropertyXID = Salinity_, STAT = STAT_CALL)
-                        if (STAT_CALL == SUCCESS_) then
+                        if (STAT_CALL == SUCCESS_ .AND. Property%evolution%O2_Sat_Output) then
                         
                             Me%OutPut%DO_PercentSat   = .true.
                             Me%OutPut%AditionalFields = .true.
@@ -11536,8 +11585,8 @@ do3:                                do k = kbottom, KUB
         type (T_Time)                               :: Actual
         integer                                     :: STAT_CALL
         integer                                     :: ILB, IUB, JLB, JUB, KUB, i, j
-        real                                        :: DOSAT
-        real                                        :: Palt
+        real                                        :: DOSAT, CO2PP
+        real                                        :: Palt, pressure, teste
 
         !Begin----------------------------------------------------------------------
 
@@ -11568,11 +11617,9 @@ case1 :     select case(Property%ID%IDNumber)
                     !the heat surface fluxes must be compute in a different way from
                     !the other properties
                     call ComputeSurfaceHeatFluxes (Property)
-                    
-                    
-                    
                 
 !                case(Salinity_) 
+                 
 
                 case (Oxygen_)
 
@@ -11602,9 +11649,11 @@ case1 :     select case(Property%ID%IDNumber)
                                                          PropSalinity%Concentration(i,j,KUB))
 
                                 !New Concentration
+                                Property%SurfaceFlux(i, j) = Me%ExtSurface%OxygenFlux(i, j)                     * &
+                                                             (DOSAT - Property%Concentration(i,j,KUB))
+                                
                                 Property%Concentration(i, j, KUB) = Property%Concentration(i, j, KUB)           + &
-                                                                    Me%ExtSurface%OxygenFlux(i, j)              * &
-                                                                    (DOSAT - Property%Concentration(i,j,KUB))   * &
+                                                                    Property%SurfaceFlux(i, j)                  * &
                                                                     Property%Evolution%DTInterval               * &
                                                                     Me%ExternalVar%gridCellArea(i, j)           / &
                                                                     Me%ExternalVar%VolumeZ(i,j,KUB)
@@ -11622,9 +11671,11 @@ case1 :     select case(Property%ID%IDNumber)
                                 DOSAT = OxygenSaturationHenry(PropTemperature%Concentration(i,j,KUB))
 
                                 !New Concentration
+                                Property%SurfaceFlux(i, j) = Me%ExtSurface%OxygenFlux(i, j)                     * &
+                                                             (DOSAT - Property%Concentration(i,j,KUB))
+                                
                                 Property%Concentration(i, j, KUB) = Property%Concentration(i, j, KUB)           + &
-                                                                    Me%ExtSurface%OxygenFlux(i, j)              * &
-                                                                    (DOSAT - Property%Concentration(i,j,KUB))   * &
+                                                                    Property%SurfaceFlux(i, j)                  * &
                                                                     Property%Evolution%DTInterval               * &
                                                                     Me%ExternalVar%gridCellArea(i, j)           / &
                                                                     Me%ExternalVar%VolumeZ(i,j,KUB)
@@ -11648,9 +11699,11 @@ case1 :     select case(Property%ID%IDNumber)
                                                                  Palt)
            
                                 !New Concentration
+                                Property%SurfaceFlux(i, j) = Me%ExtSurface%OxygenFlux(i, j)                     * &
+                                                             (DOSAT - Property%Concentration(i,j,KUB))
+                                
                                 Property%Concentration(i, j, KUB) = Property%Concentration(i, j, KUB)           + &
-                                                                    Me%ExtSurface%OxygenFlux(i, j)              * &
-                                                                    (DOSAT - Property%Concentration(i,j,KUB))   * &
+                                                                    Property%SurfaceFlux(i, j)                  * &
                                                                     Property%Evolution%DTInterval               * &
                                                                     Me%ExternalVar%gridCellArea(i, j)           / &
                                                                     Me%ExternalVar%VolumeZ(i,j,KUB)
@@ -11660,8 +11713,59 @@ case1 :     select case(Property%ID%IDNumber)
 
                     endif
 
-                case default
+
+                case (CarbonDioxide_)
+
+                    !Search the temperature
+                    call Search_Property(PropTemperature, PropertyXID = Temperature_, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) then
+                        write(*,*)'Cant calculate oxygen flux through surface without temperature'
+                        stop 'Surface_Processes - ModuleWaterProperties - ERR04'
+                    endif
+
+                    !Search the salinity
+                    call Search_Property(PropSalinity, PropertyXID = Salinity_, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) then
+                        write(*,*)'Cant calculate oxygen flux through surface without salinity'
+                        stop 'Surface_Processes - ModuleWaterProperties - ERR05'
+                    endif
+
+                    Pressure = 0.01
+
+                    do j=JLB, JUB
+                    do i=ILB, IUB
                     
+                        if (Me%ExternalVar%OpenPoints3D(i, j, KUB) == OpenPoint) then
+                        
+                            !CO2 partial pressure on water
+                            CO2PP = CO2PartialPressure(Property%Concentration(i,j,KUB),    &
+                                    PropTemperature%Concentration(i,j,KUB),                &
+                                    PropSalinity%Concentration(i,j,KUB),                   &
+                                    Pressure)
+                                    
+                            !New Concentration
+                            Property%SurfaceFlux(i, j) =  0.24 * 1E-3 * 1025.                               *  &  !units conversion (cm h-1 to m s-1)
+                                                          Me%ExtSurface%CarbonDioxideFlux(i, j)             *  &  !gas transfer velocity, k (m s-1)
+                                                          CO2_K0(PropTemperature%Concentration(i,j,KUB),       &  !K0 (mol kg-1 atm-1)
+                                                          PropSalinity%Concentration(i,j,KUB))              *  &   
+                                                          (CO2PP - 378.)                                           !mmol m-2 s-1
+                                       
+                            
+                            Property%Concentration(i, j, KUB) = Property%Concentration(i, j, KUB)                 -  &  !in mg l-1
+                                                                (Property%SurfaceFlux(i, j)                       *  &
+                                                                Property%Evolution%DTInterval                     *  &
+                                                                Me%ExternalVar%gridCellArea(i, j)                 /  &
+                                                                Me%ExternalVar%VolumeZ(i,j,KUB))                  *  &  
+                                                                (44. / 1000.)                                           !convert mmol m-3 to mg l-1
+                                          
+                                                                
+                        endif
+                                        
+                    enddo
+                    enddo
+                    
+                    
+                case default
 
             end select case1
 
@@ -14104,15 +14208,46 @@ First:              if (FirstTime) then
                     endif First
                     
 
-                    call HDF5WriteData  (ObjHDF5, "/Results/"//PropertyX%ID%Name, PropertyX%ID%Name, &
-                                         PropertyX%ID%Units, Array3D =  PropertyX%Concentration,        &
-                                         OutputNumber = OutPutNumber, STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'OutPut_Results_HDF - ModuleWaterProperties - ERR09'
+
+                    if (PropertyX%ID%IDNumber .EQ. Oxygen_ .AND. Me%OutPut%DO_PercentSat) then
+                    
+                        call HDF5WriteData(ObjHDF5,                                          &
+                                           "/Results/Oxygen/"//PropertyX%ID%Name,            &
+                                           PropertyX%ID%Name,                                &
+                                           PropertyX%ID%Units,                               &
+                                           Array3D      = PropertyX%Concentration,           &
+                                           OutputNumber = OutPutNumber, STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'OutPut_Results_HDF - ModuleWaterProperties - ERR09a'
+                        
+                    else
+                    
+                        if (PropertyX%ID%IDNumber .EQ. CarbonDioxide_ .AND. Me%OutPut%CO2_PartialPressure) then
+                        
+                            call HDF5WriteData(ObjHDF5,                                          &
+                                               "/Results/Carbon Dioxide/"//PropertyX%ID%Name,    &
+                                               PropertyX%ID%Name,                                &
+                                               PropertyX%ID%Units,                               &
+                                               Array3D      = PropertyX%Concentration,           &
+                                               OutputNumber = OutPutNumber, STAT = STAT_CALL)
+                            if (STAT_CALL /= SUCCESS_) stop 'OutPut_Results_HDF - ModuleWaterProperties - ERR09a'
+                        
+                        else
+                                          
+                            call HDF5WriteData  (ObjHDF5, "/Results/"//PropertyX%ID%Name, PropertyX%ID%Name,    &
+                                                 PropertyX%ID%Units, Array3D =  PropertyX%Concentration,        &
+                                                 OutputNumber = OutPutNumber, STAT = STAT_CALL)
+                            if (STAT_CALL /= SUCCESS_) stop 'OutPut_Results_HDF - ModuleWaterProperties - ERR09c'
+                        
+                        endif
+                        
+                    endif
+                    
+
 
 
                     if (PropertyX%Evolution%Filtration%On) then
 
-                        call HDF5WriteData(ObjHDF5,                                      &
+                        call HDF5WriteData(ObjHDF5,                                         &
                                            "/Results/Filtration/"//PropertyX%ID%Name,       &
                                            PropertyX%ID%Name,                               &
                                            PropertyX%ID%Units,                              &
@@ -14121,7 +14256,8 @@ First:              if (FirstTime) then
                         if (STAT_CALL /= SUCCESS_) stop 'OutPut_Results_HDF - ModuleWaterProperties - ERR09'
                     
                     endif
-
+                    
+                  
                     if (FirstTime) FirstTime = .false.
 
                     !Writes everything to disk
@@ -14354,10 +14490,10 @@ First:              if (FirstTime) then
         !Local-----------------------------------------------------------------
         type (T_Property), pointer                  :: PropSalinity, PropTemperature, PropOxygen, PropCO2
         real,   dimension(:,:,:), pointer           :: ShortWaveAverage, ShortWaveExtinctionField
-        character (Len = StringLength)              :: PropName
+        character (Len = StringLength)              :: PropName, PropName2
         real                                        :: DOSAT, Palt, CO2PP, Pressure
         integer                                     :: STAT_CALL, ObjHDF5
-        integer                                     :: WILB, WIUB, WJLB, WJUB, WKUB, i, j, k, kbottom
+        integer                                     :: WILB, WIUB, WJLB, WJUB, WKLB, WKUB, i, j, k, kbottom
 
         !Begin----------------------------------------------------------------------
 
@@ -14369,7 +14505,7 @@ First:              if (FirstTime) then
 
             WJLB = Me%OutW%OutPutWindows(iW)%JLB
             WJUB = Me%OutW%OutPutWindows(iW)%JUB
-
+            
             ObjHDF5 = Me%OutW%ObjHDF5(iW)
             
         else
@@ -14379,17 +14515,17 @@ First:              if (FirstTime) then
 
             WJLB = Me%WorkSize%JLB 
             WJUB = Me%WorkSize%JUB 
-            
+           
             ObjHDF5 = Me%ObjHDF5
  
         endif
                 
-        
-
 
         WKUB = Me%WorkSize%KUB
 
         call SetMatrixValue(Me%OutPut%Aux3D, Me%Size, 0.)
+        
+        call SetMatrixValue(Me%OutPut%Aux2D, T_Size2D(WILB, WIUB, WJLB, WJUB), 0.)
 
         if (Me%OutPut%DO_PercentSat .OR. Me%OutPut%CO2_PartialPressure) then
             !Search the temperature
@@ -14431,6 +14567,8 @@ i3:         if (me%DoSatType.eq.Apha) then
                             Me%OutPut%Aux3D(i, j, k) = PropOxygen%Concentration(i, j, k) / DOSAT * 100.
 
                         enddo
+                        
+                        Me%OutPut%Aux2D(i, j) = PropOxygen%SurfaceFlux(i, j)
 
                     endif
                 enddo
@@ -14453,6 +14591,8 @@ i3:         if (me%DoSatType.eq.Apha) then
                             Me%OutPut%Aux3D(i, j, k) = PropOxygen%Concentration(i, j, k) / DOSAT * 100.
 
                         enddo
+                        
+                        Me%OutPut%Aux2D(i, j) = PropOxygen%SurfaceFlux(i, j)
 
                     endif
                 enddo
@@ -14480,6 +14620,8 @@ i3:         if (me%DoSatType.eq.Apha) then
                             Me%OutPut%Aux3D(i, j, k) = PropOxygen%Concentration(i, j, k) / DOSAT * 100.
 
                         enddo
+                        
+                        Me%OutPut%Aux2D(i, j) = PropOxygen%SurfaceFlux(i, j)
 
                     endif
                 enddo
@@ -14487,12 +14629,20 @@ i3:         if (me%DoSatType.eq.Apha) then
             endif i3
 
             PropName = trim(GetPropertyName(DissolO2PercentSat_))
+            
+            PropName2 = trim(GetPropertyName(SpecificOxygenFlux_)) 
 
-            call HDF5WriteData  (ObjHDF5, "/Results/"//PropName, PropName,'%',       &
+            call HDF5WriteData  (ObjHDF5, "/Results/Oxygen/"//PropName, PropName,'%',       &
                                  Array3D = Me%OutPut%Aux3D,                             &
                                  OutputNumber = OutPutNumber, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'OutPutHDF_AditionalFields - ModuleWaterProperties - ERR40'
-
+            
+           
+            call HDF5WriteData  (ObjHDF5, "/Results/Oxygen/"//PropName2, PropName2,'mg m-2 s-1',   &
+                                Array2D = Me%OutPut%Aux2D,                                         &
+                                OutputNumber = OutPutNumber, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'OutPutHDF_AditionalFields - ModuleWaterProperties - ERR45'
+                     
             nullify(PropOxygen)
 
         endif i1
@@ -14532,7 +14682,7 @@ i2:     if (Me%OutPut%Radiation) then
                 stop 'OutPutHDF_AditionalFields - ModuleWaterProperties - ERR120'
             endif
             
-            Pressure = 1.      ! set to constant 
+            Pressure = 0.01      ! set to constant 
             
             do j=WJLB, WJUB
             do i=WILB, WIUB
@@ -14552,6 +14702,8 @@ i2:     if (Me%OutPut%Radiation) then
                             Me%OutPut%Aux3D(i, j, k) = CO2PP
 
                         enddo
+                    
+                    Me%OutPut%Aux2D(i, j) = PropCO2%SurfaceFlux(i, j)
 
                     endif
                enddo
@@ -14559,11 +14711,19 @@ i2:     if (Me%OutPut%Radiation) then
             
                
           PropName = trim(GetPropertyName(CO2PartialPressure_))
+          
+          PropName2 = trim(GetPropertyName(SpecificCarbonDioxideFlux_))
+          
 
-            call HDF5WriteData  (ObjHDF5, "/Results/"//PropName, PropName,'%',          &
+            call HDF5WriteData  (ObjHDF5, "/Results/Carbon Dioxide/"//PropName, PropName,'uatm',       &
                                  Array3D = Me%OutPut%Aux3D,                             &
                                  OutputNumber = OutPutNumber, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'OutPutHDF_AditionalFields - ModuleWaterProperties - ERR100'
+            
+            call HDF5WriteData  (ObjHDF5, "/Results/Carbon Dioxide/"//PropName2, PropName2,'mmol m-2 s-1',  &
+                                 Array2D = Me%OutPut%Aux2D,                             &
+                                 OutputNumber = OutPutNumber, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'OutPutHDF_AditionalFields - ModuleWaterProperties - ERR110'
 
             nullify(PropCO2)     
           
@@ -14579,6 +14739,10 @@ i2:     if (Me%OutPut%Radiation) then
         
         if (Me%OutPut%CO2_PartialPressure) then
             nullify(PropCO2   )
+        endif
+        
+        if (Me%OutPut%DO_PercentSat) then
+            nullify(PropOxygen   )
         endif
         
 
@@ -15990,6 +16154,72 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
 
     !----------------------------------------------------------------------
 
+    
+      subroutine GetPropertySurfaceFlux(WaterPropertiesID, OxygenSurfaceFlux, CarbonDioxideSurfaceFlux, STAT)
+
+        !Arguments---------------------------------------------------------------
+        integer                                                 :: WaterPropertiesID
+        real, pointer, dimension(:,:), optional, intent(OUT)    :: OxygenSurfaceFlux
+        real, pointer, dimension(:,:), optional, intent(OUT)    :: CarbonDioxideSurfaceFlux
+        integer,            optional, intent(OUT)               :: STAT
+
+        !Local-------------------------------------------------------------------
+        integer                                     :: ready_          
+        integer                                     :: STAT_CALL              
+        type(T_Property), pointer                   :: PropertyX
+        integer                                     :: UnitsSize
+        integer                                     :: STAT_    
+
+        !------------------------------------------------------------------------
+
+
+        STAT_ = UNKNOWN_
+
+        call Ready(WaterPropertiesID, ready_) 
+        
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+            
+    !        call Read_Lock(mWATERPROPERTIES_, Me%InstanceID) 
+            
+            nullify(PropertyX)
+             
+            if (present(OxygenSurfaceFlux)) then           
+
+                call Search_Property(PropertyX, PropertyXID = Oxygen_, STAT = STAT_CALL)
+
+                if (STAT_CALL == SUCCESS_) then
+                     OxygenSurfaceFlux => PropertyX%SurfaceFlux
+                endif
+                
+            endif
+            
+            
+            if (present(CarbonDioxideSurfaceFlux)) then           
+
+                call Search_Property(PropertyX, PropertyXID = CarbonDioxide_, STAT = STAT_CALL)
+
+                if (STAT_CALL == SUCCESS_) then
+                     CarbonDioxideSurfaceFlux => PropertyX%SurfaceFlux
+                endif
+                
+             endif
+                       
+           STAT_ = STAT_CALL
+    
+        else
+            STAT_ = ready_
+        end if
+
+
+        if (present(STAT))STAT = STAT_
+            
+    end subroutine GetPropertySurfaceFlux
+   
+    
+    
+    
+
 #ifdef _USE_SEQASSIMILATION
 
     subroutine UngetWaterProperties1D_I4(WaterPropertiesID, Array, STAT)
@@ -17316,6 +17546,13 @@ cd9 :               if (associated(PropertyX%Assimilation%Field)) then
                     if (STAT_CALL /= SUCCESS_) &
                         stop 'KillWaterProperties - ModuleWaterProperties - ERR385'
                     nullify   (Me%OutPut%Aux3D)
+                end if
+                
+                if (associated(Me%OutPut%Aux2D)) then
+                    deallocate(Me%OutPut%Aux2D, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) &
+                        stop 'KillWaterProperties - ModuleWaterProperties - ERR385'
+                    nullify   (Me%OutPut%Aux2D)
                 end if                
 
                 !FreeVerticalMovement

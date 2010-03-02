@@ -399,6 +399,8 @@ Module ModuleGlobalData
     integer, parameter :: LongWaveSolarRadiation_           = 517
     integer, parameter :: ShortWaveSolarRadiationExtin_     = 518
     integer, parameter :: LongWaveSolarRadiationExtin_      = 519
+    integer, parameter :: SpecificOxygenFlux_               = 520
+    integer, parameter :: SpecificCarbonDioxideFlux_        = 521
 
 
 
@@ -1111,6 +1113,9 @@ Module ModuleGlobalData
     character(StringLength), private, parameter :: Char_LongWaveSolarRadiaExtin  = 'long wave solar radiation extinction'
 
     character(StringLength), private, parameter :: Char_OxygenFlux               = 'oxygen flux'
+    character(StringLength), private, parameter :: Char_SpecificOxygenFlux       = 'specific oxygen flux'
+    character(StringLength), private, parameter :: Char_CarbonDioxideFlux        = 'carbon dioxide flux'
+    character(StringLength), private, parameter :: Char_SpecificCarbonDioxideFlux= 'specific carbon dioxide flux'
     character(StringLength), private, parameter :: Char_WindShearVelocity        = 'wind shear velocity'
     character(StringLength), private, parameter :: Char_SurfaceRadiation         = 'surface radiation'
     character(StringLength), private, parameter :: Char_WindStressX              = 'wind stress X'
@@ -1118,7 +1123,6 @@ Module ModuleGlobalData
     character(StringLength), private, parameter :: Char_SurfaceWaterFlux         = 'surface water flux'
     character(StringLength), private, parameter :: Char_NonSolarFlux             = 'non solar flux'
     character(StringLength), private, parameter :: Char_TurbulentKineticEnergy   = 'turbulent kinetic energy'
-    character(StringLength), private, parameter :: Char_CarbonDioxideFlux        = 'carbon dioxide flux'
     character(StringLength), private, parameter :: Char_Albedo                   = 'albedo'
 
     !Atmosphere
@@ -2029,16 +2033,18 @@ Module ModuleGlobalData
             call AddPropList (ShortWaveSolarRadiationExtin_, Char_ShortWaveSolarRadiaExtin,   ListNumber)
             call AddPropList (LongWaveSolarRadiationExtin_ , Char_LongWaveSolarRadiaExtin,    ListNumber)
             
-            call AddPropList (OxygenFlux_ ,             Char_OxygenFlux ,               ListNumber)         
-            call AddPropList (WindShearVelocity_ ,      Char_WindShearVelocity ,        ListNumber)
-            call AddPropList (SurfaceRadiation_ ,       Char_SurfaceRadiation ,         ListNumber)
-            call AddPropList (WindStressX_,             Char_WindStressX,               ListNumber)
-            call AddPropList (WindStressY_,             Char_WindStressY,               ListNumber)
-            call AddPropList (SurfaceWaterFlux_ ,       Char_SurfaceWaterFlux ,         ListNumber)
-            call AddPropList (NonSolarFlux_ ,           Char_NonSolarFlux ,             ListNumber)
-            call AddPropList (TurbulentKineticEnergy_,  Char_TurbulentKineticEnergy,    ListNumber)
-            call AddPropList (CarbonDioxideFlux_ ,      Char_CarbonDioxideFlux,         ListNumber)
-            call AddPropList (Albedo_ ,                 Char_Albedo,                    ListNumber)
+            call AddPropList (OxygenFlux_ ,                Char_OxygenFlux ,               ListNumber)
+            call AddPropList (SpecificOxygenFlux_ ,        Char_SpecificOxygenFlux ,       ListNumber)         
+            call AddPropList (WindShearVelocity_ ,         Char_WindShearVelocity ,        ListNumber)
+            call AddPropList (SurfaceRadiation_ ,          Char_SurfaceRadiation ,         ListNumber)
+            call AddPropList (WindStressX_,                Char_WindStressX,               ListNumber)
+            call AddPropList (WindStressY_,                Char_WindStressY,               ListNumber)
+            call AddPropList (SurfaceWaterFlux_ ,          Char_SurfaceWaterFlux ,         ListNumber)
+            call AddPropList (NonSolarFlux_ ,              Char_NonSolarFlux ,             ListNumber)
+            call AddPropList (TurbulentKineticEnergy_,     Char_TurbulentKineticEnergy,    ListNumber)
+            call AddPropList (CarbonDioxideFlux_ ,         Char_CarbonDioxideFlux,         ListNumber)
+            call AddPropList (SpecificCarbonDioxideFlux_ , Char_SpecificCarbonDioxideFlux, ListNumber)
+            call AddPropList (Albedo_ ,                    Char_Albedo,                    ListNumber)
 
 
             call AddPropList (WindVelocityX_,           Char_WindVelocityX          ,      ListNumber)

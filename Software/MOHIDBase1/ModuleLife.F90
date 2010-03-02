@@ -2969,11 +2969,11 @@ i1:             if (CalcPoint) then
         POSi    = Me%PropIndex%BioSilica
         O2      = Me%PropIndex%Oxygen
 
- !       If (Me%BioChemPar%CO2_on) then 
+        If (Me%BioChemPar%CO2_on) then 
 
             CO2     = Me%PropIndex%CarbonDioxide
 
- !       end if
+        end if
 
 
         AverageRadiation = Me%ExternalVar%ShortWaveAverage(index) 

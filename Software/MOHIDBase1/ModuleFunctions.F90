@@ -100,6 +100,7 @@ Module ModuleFunctions
     public  :: OxygenSaturationHenry
     public  :: OxygenSaturationCeQualW2
     public  :: CO2PartialPressure
+    public  :: CO2_K0
     public  :: Density
     public  :: Sigma
     public  :: SigmaWang
@@ -2268,17 +2269,16 @@ do4 :       DO II = KLB+1, KUB+1
     !C02 Parcial Pressure in the water
     !
     !With the values of dissolved CO2 concentration (mg/l), temperature (oC), Salinity (ppt), and Pressure (atm)
-    !this function calculates the partial pressure of CO2 in the water
+    !this function calculates the partial pressure of CO2 in the water (uatm)
     !
     ! M Mateus by Nov2009
     
-    real function CO2PartialPressure(CO2, Temperature, Salinity, Pressure)
-    
+    real function CO2PartialPressure(CO2, Temperature, Salinity, Pressure)   !uatm
     
         !Arguments-------------------------------------------------------------
 
         real, intent(IN) :: Temperature     !oC
-        real, intent(IN) :: Salinity        !ppt
+        real, intent(IN) :: Salinity
         real, intent(IN) :: Pressure        !atm
         real, intent(IN) :: CO2             !mg/l
 
@@ -2289,23 +2289,40 @@ do4 :       DO II = KLB+1, KUB+1
 
         !----------------------------------------------------------------------
 
-        TKelvin = Temperature + AbsoluteZero
+        TKelvin = Temperature + 273.15
         
-        CO2mass = CO2 / 44 * 1000               !mg/l to mmol/kg
+        CO2mass = (CO2 / 44 / 1025)               !mg/l to mol/kg    water density = 1025 kg m-3
         
-        Ff = -1636.75 + (12.0408 * TKelvin) - (0.0327957 * (TKelvin**2)) + (3.16528 * (10**(- 5)) * (TKelvin**3))
+        Ff = -1636.75 + 12.0408 * TKelvin - 0.0327957 * (TKelvin**2) + 3.16528 * (1E-5) * (TKelvin**3)
         
         Fp = EXP(((Ff + 2 *(57.7-0.118 * TKelvin)) * Pressure) / (82.05675 * TKelvin))
     
-        K0 = EXP((-167.81077 + 0.023517 * Salinity) + (9345.17 / TKelvin) + (23.3585 * LOG(TKelvin)) +       &
-             (-2.3656 * (10**(-4)) * Salinity * TKelvin) + (4.7036 * ((10**(-7)))* Salinity * TKelvin))
+        K0 = CO2_K0(Temperature, Salinity)
     
-    
-        CO2PartialPressure = (CO2mass * Fp) / K0
+        CO2PartialPressure = (CO2mass / (Fp * K0)) * 1E6
     
     end function CO2PartialPressure
 
     !--------------------------------------------------------------------------
+
+    
+    real function CO2_K0(Temperature, Salinity)   !mol Kg-1 atm-1
+        
+        !Arguments-------------------------------------------------------------
+        real, intent(IN) :: Temperature     !oC
+        real, intent(IN) :: Salinity
+        
+        !Local-----------------------------------------------------------------
+        real :: TKelvin
+        
+        !----------------------------------------------------------------------
+
+        TKelvin = Temperature + 273.15
+        
+            CO2_K0 = EXP(-60.2409 + 93.4517 * 100 / TKelvin + 23.3585 * LOG(TKelvin / 100) + Salinity * &
+                     (0.023517 - 0.023656 * TKelvin / 100 + 0.0047036 * (TKelvin / 100)**2))
+        
+       end function CO2_K0
 
 
 

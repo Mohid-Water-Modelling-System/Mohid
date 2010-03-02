@@ -3597,6 +3597,7 @@ cd3:    if (OutPutsOn) then
             ! This information is important to compute the number of outputs after the last specific 
             ! output 
 
+
             ExtraTime_Seconds = EndTime - (CurrentTime + AuxDT(ReadValuesNumber - 1))
 
             if (ExtraTime_Seconds < 0)                                                   &

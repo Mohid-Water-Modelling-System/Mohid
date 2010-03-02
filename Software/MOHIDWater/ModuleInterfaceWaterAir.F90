@@ -51,7 +51,8 @@ Module ModuleInterfaceWaterAir
                                           GetTimeSerieLocation, CorrectsCellsTimeSerie,         &
                                           GetNumberOfTimeSeries, TryIgnoreTimeSerie
     use ModuleWaterProperties,      only: GetDensity, GetConcentration, UnGetWaterProperties,   &
-                                          GetWaterPropertiesAirOptions, SetSurfaceFlux
+                                          GetWaterPropertiesAirOptions, SetSurfaceFlux,         &
+                                          GetPropertySurfaceFlux
     use ModuleHydrodynamic,         only: GetHydrodynamicAirOptions,SetAtmosphericPressure,     &
                                           SetSurfaceWaterFlux, SetWindStress
 
@@ -226,6 +227,8 @@ Module ModuleInterfaceWaterAir
         logical                                     :: NonSolarFlux                 = .false.
         logical                                     :: OxygenFlux                   = .false.
         logical                                     :: CarbonDioxideFlux            = .false.
+        logical                                     :: SpecificOxygenFlux           = .false.
+        logical                                     :: SpecificCarbonDioxideFlux    = .false.        
         logical                                     :: WindShearVelocity            = .false.
         logical                                     :: TurbulentKineticEnergy       = .false.
         logical                                     :: SurfaceRadiation             = .false.
@@ -286,6 +289,7 @@ Module ModuleInterfaceWaterAir
          type(T_Evolution)                          :: Evolution
          logical                                    :: TimeSerie            = .false.
          logical                                    :: BoxTimeSerie         = .false.
+         logical                                    :: CEQUALW2             = .false.
          logical                                    :: OutputHDF            = .false.
          logical                                    :: Constant             = .false.
          type(T_Property), pointer                  :: Next
@@ -304,6 +308,7 @@ Module ModuleInterfaceWaterAir
     type       T_Coupled
          type(T_Coupling)                           :: TimeSerie
          type(T_Coupling)                           :: BoxTimeSerie
+         type(T_Coupling)                           :: CEQUALW2
     end type T_Coupled
 
     type       T_Rugosity
@@ -1650,7 +1655,13 @@ do1 :   do while (associated(PropertyX))
 
         call Search_Property(PropertyX, CarbonDioxideFlux_,      STAT = STAT_CALL)
         if (STAT_CALL == SUCCESS_) Me%IntOptions%CarbonDioxideFlux      = ON
+        
+        call Search_Property(PropertyX, SpecificOxygenFlux_,     STAT = STAT_CALL)
+        if (STAT_CALL == SUCCESS_) Me%IntOptions%SpecificOxygenFlux     = ON
 
+        call Search_Property(PropertyX, SpecificCarbonDioxideFlux_,  STAT = STAT_CALL)
+        if (STAT_CALL == SUCCESS_) Me%IntOptions%SpecificCarbonDioxideFlux  = ON
+        
         call Search_Property(PropertyX, WindShearVelocity_,      STAT = STAT_CALL)
         if (STAT_CALL == SUCCESS_) Me%IntOptions%WindShearVelocity      = ON
 
@@ -1783,12 +1794,14 @@ do1 :   do while (associated(PropertyX))
 
             call Search_Property(PropertyX, OxygenFlux_, .true., STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'CheckOptionsWater - ModuleInterfaceWaterAir - ERR120'
+            
         endif
 
         if (Me%ExtOptions%CarbonDioxideFluxYes) then
 
             call Search_Property(PropertyX, CarbonDioxideFlux_, .true., STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'CheckOptionsWater - ModuleInterfaceWaterAir - ERR130'
+            if (STAT_CALL /= SUCCESS_) stop 'CheckOptionsWater - ModuleInterfaceWaterAir - ERR130'         
+           
         endif
 
 
@@ -2046,7 +2059,54 @@ do1 :   do while (associated(PropertyX))
             endif
 
         endif
+        
+        
+        call Search_Property(PropertyX, CarbonDioxideFlux_, .false., STAT = STAT_CALL)
+        if (STAT_CALL == SUCCESS_) then
+            
+            if (.not. AtmospherePropertyExists(Me%ObjAtmosphere, WindVelocityX_))then
+                write(*,*) 'Missing WindVelocity X in Module Atmosphere '
+                stop 'CheckOptionsAir - ModuleInterfaceWaterAir - ERR121'
+            endif
 
+            if (.not. AtmospherePropertyExists(Me%ObjAtmosphere, WindVelocityY_))then
+                write(*,*) 'Missing WindVelocity Y in Module Atmosphere '
+                stop 'CheckOptionsAir - ModuleInterfaceWaterAir - ERR122'
+            endif
+
+        endif
+
+
+        call Search_Property(PropertyX, SpecificOxygenFlux_, .false., STAT = STAT_CALL)
+        if (STAT_CALL == SUCCESS_) then
+            
+            if (.not. AtmospherePropertyExists(Me%ObjAtmosphere, WindVelocityX_))then
+                write(*,*) 'Missing WindVelocity X in Module Atmosphere '
+                stop 'CheckOptionsAir - ModuleInterfaceWaterAir - ERR123'
+            endif
+
+            if (.not. AtmospherePropertyExists(Me%ObjAtmosphere, WindVelocityY_))then
+                write(*,*) 'Missing WindVelocity Y in Module Atmosphere '
+                stop 'CheckOptionsAir - ModuleInterfaceWaterAir - ERR124'
+            endif
+
+        endif
+        
+        
+        call Search_Property(PropertyX, SpecificCarbonDioxideFlux_, .false., STAT = STAT_CALL)
+        if (STAT_CALL == SUCCESS_) then
+            
+            if (.not. AtmospherePropertyExists(Me%ObjAtmosphere, WindVelocityX_))then
+                write(*,*) 'Missing WindVelocity X in Module Atmosphere '
+                stop 'CheckOptionsAir - ModuleInterfaceWaterAir - ERR125'
+            endif
+
+            if (.not. AtmospherePropertyExists(Me%ObjAtmosphere, WindVelocityY_))then
+                write(*,*) 'Missing WindVelocity Y in Module Atmosphere '
+                stop 'CheckOptionsAir - ModuleInterfaceWaterAir - ERR126'
+            endif
+
+        endif
 
 
         call Search_Property(PropertyX, SurfaceRadiation_, .false., STAT = STAT_CALL)
@@ -3456,32 +3516,46 @@ do4:    do i=ILB, IUB
         if (STAT_CALL /= SUCCESS_)stop 'ModifyCarbonDioxideFlux - ModuleInterfaceWaterAir - ERR01'
 
 
-        !Surface temperature of the waterbody
-        WaterTemperature   => Me%ExtWater%WaterTemperature
 
-        call ModifyAerationFlux(PropCarbonDioxide%Field)
-
-        do j = JLB, JUB
-        do i = ILB, IUB
-
-            if (Me%ExtWater%WaterPoints2D(i, j) == WaterPoint) then
-
-                PropCarbonDioxide%Field(i,j)= PropCarbonDioxide%Field(i,j) * 0.923              * &
-                                              (0.286 * exp(-0.0314*(WaterTemperature(i,j,KUB))) * &
-                                               Me%AltitudeCorrection)
-
-            endif
-
-        enddo
-        enddo
+        If (Me%Coupled%CEQUALW2%Yes) then
         
+            !Surface temperature of the waterbody
+            WaterTemperature   => Me%ExtWater%WaterTemperature
 
-        call UnGetWaterProperties(Me%ObjWaterProperties, Me%ExtWater%WaterTemperature, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ModifyCarbonDioxideFlux - ModuleInterfaceWaterAir - ERR02'
+            call ModifyAerationFlux(PropCarbonDioxide%Field)
+
+            do j = JLB, JUB
+            do i = ILB, IUB
+
+                if (Me%ExtWater%WaterPoints2D(i, j) == WaterPoint) then
+
+                    PropCarbonDioxide%Field(i,j)= PropCarbonDioxide%Field(i,j) * 0.923              * &
+                                                  (0.286 * exp(-0.0314*(WaterTemperature(i,j,KUB))) * &
+                                                   Me%AltitudeCorrection)
+
+                endif
+
+            enddo
+            enddo
+            
+
+            call UnGetWaterProperties(Me%ObjWaterProperties, Me%ExtWater%WaterTemperature, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ModifyCarbonDioxideFlux - ModuleInterfaceWaterAir - ERR02'
 
 
-        !Nullify auxiliar variables
-        nullify(WaterTemperature)
+            !Nullify auxiliar variables
+            nullify(WaterTemperature)
+        
+        else
+        
+            call ModifyAerationFlux(PropCarbonDioxide%Field)
+
+            call UnGetWaterProperties(Me%ObjWaterProperties, Me%ExtWater%WaterTemperature, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ModifyCarbonDioxideFlux - ModuleInterfaceWaterAir - ERR03'
+        
+        
+        endif
+        
 
     end subroutine ModifyCarbonDioxideFlux
 
@@ -3834,14 +3908,19 @@ PropX:          do while (associated(PropertyX))
 
                     if(PropertyX%OutputHDF)then
 
-                        call HDF5WriteData  (Me%ObjHDF5, "/Results/"//PropertyX%ID%Name, &
-                                             PropertyX%ID%Name, PropertyX%ID%Units,      &
-                                             Array2D      = PropertyX%Field,             &
-                                             OutputNumber = OutPutNumber,                &
-                                             STAT         = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_)                                       &
-                            stop 'OutPut_Results_HDF - ModuleInterfaceWaterAir - ERR06'
-
+                        if (PropertyX%ID%IDNumber /= SpecificOxygenFlux_ ) then
+                            
+                            call HDF5WriteData  (Me%ObjHDF5, "/Results/"//PropertyX%ID%Name, &
+                                                 PropertyX%ID%Name, PropertyX%ID%Units,      &
+                                                 Array2D      = PropertyX%Field,             &
+                                                 OutputNumber = OutPutNumber,                &
+                                                 STAT         = STAT_CALL)
+                            if (STAT_CALL /= SUCCESS_)                                       &
+                                stop 'OutPut_Results_HDF - ModuleInterfaceWaterAir - ERR06a'
+                           
+                         endif
+                           
+                                                 
                         !Writes everything to disk
                         call HDF5FlushMemory (Me%ObjHDF5, STAT = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_) &

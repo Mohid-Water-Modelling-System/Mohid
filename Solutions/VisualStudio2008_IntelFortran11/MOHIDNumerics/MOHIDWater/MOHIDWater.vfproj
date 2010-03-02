@@ -14,7 +14,7 @@
 				<Tool Name="VFPostBuildEventTool"/>
 				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
 		<Configuration Name="Release|Win32">
-				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\..\..\..\Solutions\VisualStudio2008_IntelFortran11\MOHIDNumerics\MOHIDBase1\Release;..\..\..\..\Solutions\VisualStudio2008_IntelFortran11\MOHIDNumerics\MOHIDBase2\Release"/>
+				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\..\..\..\Solutions\VisualStudio2008_IntelFortran11\MOHIDNumerics\MOHIDBase1\Release;..\..\..\..\Solutions\VisualStudio2008_IntelFortran11\MOHIDNumerics\MOHIDBase2\Release" FloatingPointExceptionHandling="fpe0" Traceback="true"/>
 				<Tool Name="VFLinkerTool" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" AdditionalLibraryDirectories="..\..\..\..\Solutions\VisualStudio2008_IntelFortran11\MOHIDNumerics\MOHIDBase1\Release;..\..\..\..\Solutions\VisualStudio2008_IntelFortran11\MOHIDNumerics\MOHIDBase2\Release;..\..\..\..\ExternalLibs\HDF_1.6.8\IntelFortran11\Lib;..\..\..\..\ExternalLibs\Zlib_1.2\dll;..\..\..\..\ExternalLibs\SZlib_2.1\dll" SubSystem="subSystemConsole" StackReserveSize="64000000" AdditionalDependencies="MOHIDBase1.lib MOHIDBase2.lib hdf5.lib  hdf5_fortran.lib hdf5_f90cstub.lib zlib1.lib szlibdll.lib"/>
 				<Tool Name="VFResourceCompilerTool"/>
 				<Tool Name="VFMidlTool" SuppressStartupBanner="true"/>
@@ -88,5 +88,6 @@
 		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleTurbGOTM.F90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleTurbulence.F90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleWaterProperties.F90"/>
-		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleWaves.F90"/></Filter></Files>
+		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleWaves.F90"/>
+		<File RelativePath=".\program_log.txt"/></Filter></Files>
 	<Globals/></VisualStudioProject>
