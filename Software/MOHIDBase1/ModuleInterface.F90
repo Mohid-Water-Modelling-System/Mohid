@@ -40,7 +40,8 @@ Module ModuleInterface
     use ModuleMacroAlgae
     use ModuleEnterData, only: ReadFileName
 
-#ifdef _PHREEQC_    
+#ifdef _PHREEQC_ 
+    use ModulePhreeqCData   
     use ModulePhreeqC
 #endif   
 
@@ -196,7 +197,8 @@ Module ModuleInterface
         real,    pointer, dimension(:    )      :: pH
 #ifdef _PHREEQC_        
         real,    pointer, dimension(:    )      :: pE
-        real,    pointer, dimension(:    )      :: SolutionVolume        
+        real,    pointer, dimension(:    )      :: SolutionVolume  
+        real,    pointer, dimension(:    )      :: SolidMass   
 #endif        
         real,    pointer, dimension(:    )      :: IonicStrength
         real,    pointer, dimension(:    )      :: PhosphorusAdsortionIndex
@@ -801,11 +803,15 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
                 allocate (Me%Temperature(ArrayLB:ArrayUB), STAT = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR29B'
+                
+                allocate (Me%SolidMass(ArrayLB:ArrayUB), STAT = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR29C'                
 
                 Me%SolutionVolume  = FillValueReal
                 Me%pH              = FillValueReal
                 Me%pE              = FillValueReal
                 Me%Temperature     = FillValueReal
+                Me%SolidMass       = FillValueReal
 #endif
 
             case default
@@ -1223,9 +1229,6 @@ cd1 :           if(STAT_CALL .EQ. KEYWORD_NOT_FOUND_ERR_) then
         integer, dimension(:), pointer                       :: MacroAlgaeList
         integer                                              :: i,PropLB, PropUB
         integer, dimension(:), pointer                       :: BenthosList, LifeList
-#ifdef _PHREEQC_
-        integer, dimension(:), pointer                       :: PhreeqCList
-#endif
 #ifdef _BFM_  
         integer, dimension(:), pointer                       :: BFMList
 #endif
@@ -1869,7 +1872,7 @@ cd14 :          if (Phosphorus) then
         integer, optional,  intent(OUT)                 :: STAT
         
         !External--------------------------------------------------------------
-        integer                                         :: ready_, STAT_CALL
+        integer                                         :: ready_
 
         !Local-----------------------------------------------------------------
         integer                                         :: STAT_
@@ -2162,7 +2165,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
                                   DissolvedToParticulate3D, SoilDryDensity, Salinity,   &
                                   pH, IonicStrength, PhosphorusAdsortionIndex,          &
 #ifdef _PHREEQC_                                  
-                                  SolutionVolume,                                       &
+                                  SolutionVolume, ConversionSelector, SolidMass,        &
 #endif                                   
                                   WindVelocity,  DTProp, STAT)
                                  
@@ -2180,6 +2183,8 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
         real,    optional, dimension(:,:,:), pointer    :: pH
 #ifdef _PHREEQC_                                         
         real,    optional, dimension(:,:,:), pointer    :: SolutionVolume
+        real,    optional, dimension(:,:,:), pointer    :: SolidMass
+        integer, optional                               :: ConversionSelector
 !        real,    optional, dimension(:,:,:), pointer    :: pE
 #endif         
         real,    optional, dimension(:,:,:), pointer    :: IonicStrength
@@ -2404,18 +2409,39 @@ cd4 :           if (ReadyToCompute) then
                         case(PhreeqcModel)
                          
                             call UnfoldMatrix(SolutionVolume, Me%SolutionVolume)
+                            
+                            if (present(SolidMass)) then
+                            
+                                call UnfoldMatrix(SolidMass, Me%SolidMass)
+                                call ModifyPhreeqC(PhreeqCID = Me%ObjPhreeqC,               &
+                                                   PropertiesValues = Me%Mass,              & 
+                                                   SolutionVolume = Me%SolutionVolume,      &
+                                                   SolutionTemperature = Me%Temperature,    &
+                                                   SolutionpH = Me%pH,                      &
+                                                   SolutionpE = Me%pE,                      &
+                                                   SolidMass = Me%SolidMass,                &
+                                                   CellsArrayLB = Me%Array%ILB,             &
+                                                   CellsArrayUB = Me%Array%IUB,             &
+                                                   OpenPoints = Me%OpenPoints,              & 
+                                                   ConversionSelector = ConversionSelector, &
+                                                   STAT = STAT_CALL)
+                                if (STAT_CALL /= SUCCESS_) stop 'Modify_Interface3D - ModuleInterface - ERR14'
 
-                            call ModifyPhreeqC(Me%ObjPhreeqC,      &
-                                               Me%Mass,            & 
-                                               Me%SolutionVolume,  &
-                                               Me%Temperature,     &
-                                               Me%pH,              &
-                                               Me%pE,              &
-                                               Me%Array%ILB,       &
-                                               Me%Array%IUB,       &
-                                               Me%OpenPoints,      &                                               
-                                               STAT = STAT_CALL)
-                            if (STAT_CALL /= SUCCESS_) stop 'Modify_Interface3D - ModuleInterface - ERR14'
+                            else
+
+                                call ModifyPhreeqC(PhreeqCID = Me%ObjPhreeqC,               &
+                                                   PropertiesValues = Me%Mass,              &   
+                                                   SolutionVolume = Me%SolutionVolume,      &
+                                                   SolutionTemperature = Me%Temperature,    &
+                                                   SolutionpH = Me%pH,                      &
+                                                   SolutionpE = Me%pE,                      &
+                                                   CellsArrayLB = Me%Array%ILB,             &
+                                                   CellsArrayUB = Me%Array%IUB,             &
+                                                   OpenPoints = Me%OpenPoints,              & 
+                                                   ConversionSelector = ConversionSelector, &
+                                                   STAT = STAT_CALL)
+                                if (STAT_CALL /= SUCCESS_) stop 'Modify_Interface3D - ModuleInterface - ERR14'
+                            endif
 
 #endif
                     end select
@@ -3239,6 +3265,7 @@ cd10 :                      if (Me%ExternalVar%RiverPoints1D(i) == 1) then
 #ifdef _PHREEQC_
         logical                                 :: pHAdded = .false.
         logical                                 :: pEAdded = .false.
+        logical                                 :: SoilDryDensityAdded = .false.
 #endif        
         !----------------------------------------------------------------------
 
@@ -3922,13 +3949,19 @@ cd45 :                  if (.NOT. Me%AddedProperties(i)) then
                 select case (PropertyID)
                     case (Temperature_)
                         call UnfoldMatrix(Concentration, Me%Temperature)
-                        TemperatureAdded =.TRUE.                    
+                        TemperatureAdded = .TRUE.                    
                     case (pH_)
                         call UnfoldMatrix(Concentration, Me%pH)
-                        pHAdded =.TRUE.                                        
+                        pHAdded = .TRUE.                                        
                     case (pE_)
                         call UnfoldMatrix(Concentration, Me%pE)
-                        pEAdded =.TRUE.                                        
+                        pEAdded = .TRUE. 
+!                    case (SoilDryDensity_)
+!                        !SoilDryDensity will be used only in these cases:
+!                        if ((PhreeqCSimOptions%Exchanger .EQ. 1) .OR. (PhreeqCSimOptions%SolidPhase)) then
+!                            call UnfoldMatrix(Concentration, Me%SoilDryDensity)
+!                        endif
+!                        SoilDryDensityAdded = .TRUE.                                                            
                     case default
                         call GetPhreeqCPropIndex(Me%ObjPhreeqC, PropertyID, IndexNumber, STAT=STAT_CALL)
                         if (STAT_CALL == SUCCESS_) then
@@ -3941,7 +3974,7 @@ cd45 :                  if (.NOT. Me%AddedProperties(i)) then
                         end if
                 end select            
                 
-                if (TemperatureAdded .AND. pHAdded .AND. pEAdded) then
+                if (TemperatureAdded .AND. pHAdded .AND. pEAdded) then ! .AND. SoilDryDensityAdded) then
                     Ready = .TRUE.
 
                     do i = PropLB, PropUB                       
@@ -5765,6 +5798,11 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                     deallocate(Me%pE, STAT = STAT_CALL)
                     if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR18'
                 end if
+                
+                if(associated(Me%SolidMass))then
+                    deallocate(Me%SolidMass, STAT = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR18A'
+                end if                
                 
 #endif                
                 

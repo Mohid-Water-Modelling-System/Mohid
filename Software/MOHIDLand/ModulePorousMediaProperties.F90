@@ -15,8 +15,11 @@
 
 !
 !Units in porous media properties
-!   Transported properties (soluble)  : g/m3 (or mg/l)  (needs to convert concentrations to SedimentQuality and PREEQC at entrance and exit)
-!   Adsorbed properties (non soluble) : ug/kgsoil       (needs to convert concentrations to PREEQC at entrance and exit)
+!   Transported properties (soluble)  : g/m3 (or mg/l)                     (needs to convert concentrations to SedimentQuality and PREEQC at entrance and exit)
+!   Adsorbed properties (non soluble) : mg/kgsoil                          (needs to convert concentrations to PREEQC at entrance and exit)
+!   Solid Phases (non soluble)        : mg/kgsoil                          (used in PhreeqC to make equilibrium with soil solution)
+!   Gas Phases (non soluble)          : mol (mass); atm (partial pressure) (used in PhreeqC to make equilibrium with soil solution)
+!   Soil Dry Density                  : kg/m3                              
 !
 ! <beginproperty>
 !   ADVECTION_DIFFUSION         : 0/1               [0]         !Property advection - diffusion
@@ -86,7 +89,7 @@ Module ModulePorousMediaProperties
     private ::                  ConstructPropertyDiffusivity
 #ifdef _PHREEQC_    
     private ::                  ReadChemistryParameters
-    private ::                      ReadChemistrySolutionGroupParameters
+    private ::                      ReadChemistryConcentrationGroupParameters
     private ::                      ReadChemistryPhasesGroupParameters
     private ::                      ReadChemistrySolidPhaseGroupParameters
     private ::                      ReadChemistryGasPhaseGroupParameters
@@ -416,6 +419,10 @@ Module ModulePorousMediaProperties
 #ifdef _PHREEQC_        
         integer                                     :: ObjPhreeqC                = 0
         integer                                     :: ObjInterfaceSoilChemistry = 0 
+        type (T_PhreeqCOptions)                     :: PhreeqCOptions
+        real,    pointer, dimension(:,:,:)          :: CellSolutionVolume
+        real,    pointer, dimension(:,:,:)          :: CellSoilMass
+        type (T_Property), pointer                  :: PropertySoilDryDensity
 #endif        
         type (T_ExtVar)                             :: ExtVar
         type (T_Files)                              :: Files
@@ -823,6 +830,14 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         allocate (Me%WaterVolumeCorr          (ILB:IUB,JLB:JUB,KLB:KUB))
     !    allocate (Me%WaterVolumeOldCorr       (ILB:IUB,JLB:JUB,KLB:KUB))
         allocate (Me%FluxWCorr                (ILB:IUB,JLB:JUB,KLB:KUB))
+        
+#ifdef _PHREEQC_
+        allocate (Me%CellSolutionVolume      (ILB:IUB,JLB:JUB,KLB:KUB))
+        allocate (Me%CellSoilMass            (ILB:IUB,JLB:JUB,KLB:KUB))
+        
+        Me%CellSolutionVolume = 0.
+        Me%CellSoilMass       = 0.
+#endif                      
         
         Me%WaterVolume          = 0.
         Me%WaterVolumeOld       = 0.
@@ -1283,7 +1298,7 @@ cd2 :           if (BlockFound) then
                      Default      = 0,                             &
                      ClientModule = 'ModulePorousMediaProperties', &
                      STAT         = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_) stop 'ReadChemistryParameters - ModulePorousMediaProperties - ERR002'
+        if (STAT_CALL .NE. SUCCESS_) stop 'ReadChemistryParameters - ModulePorousMediaProperties - ERR001'
         
         call GetData(NewProperty%Chemistry%PhreeqCName,            &
                      Me%ObjEnterData, iflag,                       &
@@ -1292,34 +1307,42 @@ cd2 :           if (BlockFound) then
                      Default      = '',                            &
                      ClientModule = 'ModulePorousMediaProperties', &
                      STAT         = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_ .OR. (iflag .EQ. 0 .AND. NewProperty%Chemistry%Group .NE. 0)) stop 'ReadChemistryParameters - ModulePorousMediaProperties - ERR001'        
+        if (STAT_CALL .NE. SUCCESS_ .OR. (iflag .EQ. 0 .AND. NewProperty%Chemistry%Group .NE. 0)) stop 'ReadChemistryParameters - ModulePorousMediaProperties - ERR002'        
         
-        
-        call GetData(NewProperty%Chemistry%Charge,                 &
+        call GetData(NewProperty%Chemistry%DoNotChange,            &
                      Me%ObjEnterData, iflag,                       &
                      SearchType   = FromBlock,                     &
-                     keyword      = 'PHREEQC_CHARGE',              &
+                     keyword      = 'PHREEQC_DO_NOT_CHANGE',       &
                      Default      = 0,                             &
                      ClientModule = 'ModulePorousMediaProperties', &
                      STAT         = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_) stop 'ReadChemistryParameters - ModulePorousMediaProperties - ERR004'
+        if (STAT_CALL .NE. SUCCESS_) stop 'ReadChemistryParameters - ModulePorousMediaProperties - ERR003'        
+        
+!        call GetData(NewProperty%Chemistry%Charge,                 &
+!                     Me%ObjEnterData, iflag,                       &
+!                     SearchType   = FromBlock,                     &
+!                     keyword      = 'PHREEQC_CHARGE',              &
+!                     Default      = 0,                             &
+!                     ClientModule = 'ModulePorousMediaProperties', &
+!                     STAT         = STAT_CALL)
+!        if (STAT_CALL .NE. SUCCESS_) stop 'ReadChemistryParameters - ModulePorousMediaProperties - ERR004'
                
         select case (NewProperty%Chemistry%Group)
-        case (0) !NO GROUP - pH, pE, Temperature, Density, etc
+        case (OTHER) !NO GROUP - pH, pE, Temperature, Density, etc
             !Do nothing
-        case (1) !SOLUTION - Only Concentration properties
-            call ReadChemistrySolutionGroupParameters (NewProperty)
-        case (2) !PHASES
+        case (CONCENTRATION) !CONCENTRATION - Only Concentration properties
+            call ReadChemistryConcentrationGroupParameters (NewProperty)
+        case (PHASE) !PHASES
             call ReadChemistryPhasesGroupParameters (NewProperty)
-        case (3) !SOLID PHASE
-            call ReadChemistrySolidPhaseGroupParameters (NewProperty)
-        case (4) !GAS PHASE
-            call ReadChemistryGasPhaseGroupParameters (NewProperty)
-        case (5) !SURFACE
+!        case (3) !SOLID PHASE
+!            call ReadChemistrySolidPhaseGroupParameters (NewProperty)
+!        case (4) !GAS PHASE
+!            call ReadChemistryGasPhaseGroupParameters (NewProperty)
+        case (SURFACE) !SURFACE
             call ReadChemistrySurfaceGroupParameters (NewProperty)
-        case (6) !SPECIES
+        case (SPECIES) !SPECIES
             call ReadChemistrySpeciesGroupParameters (NewProperty)
-        case (7) !EXCHANGE
+        case (EXCHANGE) !EXCHANGE
             call ReadChemistryExchangeGroupParameters (NewProperty)
         case default
             !ToDo: If the group does not exist, must raise an exception and warn the user
@@ -1329,7 +1352,7 @@ cd2 :           if (BlockFound) then
     
     !--------------------------------------------------------------------------
 
-    subroutine ReadChemistrySolutionGroupParameters (NewProperty)
+    subroutine ReadChemistryConcentrationGroupParameters (NewProperty)
     
         !Arguments-------------------------------------------------------------
         type(T_property), pointer :: NewProperty
@@ -1346,7 +1369,7 @@ cd2 :           if (BlockFound) then
                      Default      = 0,                             &
                      ClientModule = 'ModulePorousMediaProperties', &
                      STAT         = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_) stop 'ReadChemistrySolutionGroupParameters - ModulePorousMediaProperties - ERR001'
+        if (STAT_CALL .NE. SUCCESS_) stop 'ReadChemistryConcentrationGroupParameters - ModulePorousMediaProperties - ERR001'
 
         call GetData(NewProperty%Chemistry%GFW,                    &
                      Me%ObjEnterData, iflag,                       &
@@ -1354,7 +1377,7 @@ cd2 :           if (BlockFound) then
                      keyword      = 'PHREEQC_GFW',                 &
                      ClientModule = 'ModulePorousMediaProperties', &
                      STAT         = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_) stop 'ReadChemistrySolutionGroupParameters - ModulePorousMediaProperties - ERR002'
+        if (STAT_CALL .NE. SUCCESS_) stop 'ReadChemistryConcentrationGroupParameters - ModulePorousMediaProperties - ERR002'
         if (iflag .EQ. 0) then
             NewProperty%Chemistry%UseGFW = 0
         else              
@@ -1368,7 +1391,7 @@ cd2 :           if (BlockFound) then
                          keyword      = 'PHREEQC_AS',                  &
                          ClientModule = 'ModulePorousMediaProperties', &
                          STAT         = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_) stop 'ReadChemistrySolutionGroupParameters - ModulePorousMediaProperties - ERR003'
+            if (STAT_CALL .NE. SUCCESS_) stop 'ReadChemistryConcentrationGroupParameters - ModulePorousMediaProperties - ERR003'
             if (iflag .EQ. 0) then
                 NewProperty%Chemistry%UseAs = 0
             else              
@@ -1376,38 +1399,38 @@ cd2 :           if (BlockFound) then
             end if
         end if
         
-        call GetData(NewProperty%Chemistry%RedoxPair%Element1,         & 
-                     Me%ObjEnterData, iflag,                        &
+        call GetData(NewProperty%Chemistry%RedoxPair%Element1,     & 
+                     Me%ObjEnterData, iflag,                       &
                      SearchType   = FromBlock,                     &
                      keyword      = 'PHREEQC_REDOX_ELEMENT_1',     & 
                      ClientModule = 'ModulePorousMediaProperties', &
                      STAT         = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_) stop 'ReadChemistrySolutionGroupParameters; Module ModulePhreeqC. ERR004.'          
+        if (STAT_CALL .NE. SUCCESS_) stop 'ReadChemistryConcentrationGroupParameters; Module ModulePhreeqC. ERR004.'          
         if (iflag .NE. 0) then        
-            call GetData(NewProperty%Chemistry%RedoxPair%Valence1,         & 
-                         Me%ObjEnterData, iflag,                        &
+            call GetData(NewProperty%Chemistry%RedoxPair%Valence1,     & 
+                         Me%ObjEnterData, iflag,                       &
                          SearchType   = FromBlock,                     &
-                         keyword      = 'REDOX_PAIR_VALENCE_1',        & 
+                         keyword      = 'PHREEQC_REDOX_VALENCE_1',     & 
                          ClientModule = 'ModulePorousMediaProperties', &
                          STAT         = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_ .OR. iflag .EQ. 0) stop 'ReadChemistrySolutionGroupParameters; Module ModulePhreeqC. ERR005.'                      
+            if (STAT_CALL .NE. SUCCESS_ .OR. iflag .EQ. 0) stop 'ReadChemistryConcentrationGroupParameters; Module ModulePhreeqC. ERR005.'                      
 
-            call GetData(NewProperty%Chemistry%RedoxPair%Element2,         & 
-                         Me%ObjEnterData, iflag,                        &
+            call GetData(NewProperty%Chemistry%RedoxPair%Element2,     & 
+                         Me%ObjEnterData, iflag,                       &
                          SearchType   = FromBlock,                     &
-                         keyword      = 'REDOX_PAIR_ELEMENT_2',        & 
+                         keyword      = 'PHREEQC_REDOX_ELEMENT_2',     & 
                          ClientModule = 'ModulePorousMediaProperties', &
                          STAT         = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_ .OR. iflag .EQ. 0) stop 'ReadChemistrySolutionGroupParameters; Module ModulePhreeqC. ERR006.'                      
+            if (STAT_CALL .NE. SUCCESS_ .OR. iflag .EQ. 0) stop 'ReadChemistryConcentrationGroupParameters; Module ModulePhreeqC. ERR006.'                      
 
             ! Valence 2 ------------------------------------------------------
-            call GetData(NewProperty%Chemistry%RedoxPair%Valence2,         & 
-                         Me%ObjEnterData, iflag,                        &
+            call GetData(NewProperty%Chemistry%RedoxPair%Valence2,     & 
+                         Me%ObjEnterData, iflag,                       &
                          SearchType   = FromBlock,                     &
-                         keyword      = 'REDOX_PAIR_VALENCE_2',        & 
+                         keyword      = 'PHREEQC_REDOX_VALENCE_2',     & 
                          ClientModule = 'ModulePorousMediaProperties', &
                          STAT         = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_ .OR. iflag .EQ. 0) stop 'ReadChemistrySolutionGroupParameters; Module ModulePhreeqC. ERR007.'                      
+            if (STAT_CALL .NE. SUCCESS_ .OR. iflag .EQ. 0) stop 'ReadChemistryConcentrationGroupParameters; Module ModulePhreeqC. ERR007.'                      
             NewProperty%Chemistry%UseRedox = 1
         else
             NewProperty%Chemistry%UseRedox = 0        
@@ -1419,7 +1442,7 @@ cd2 :           if (BlockFound) then
                      keyword      = 'PHREEQC_PHASE_NAME',          &
                      ClientModule = 'ModulePorousMediaProperties', &
                      STAT         = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_) stop 'ReadChemistrySolutionGroupParameters - ModulePorousMediaProperties - ERR008'
+        if (STAT_CALL .NE. SUCCESS_) stop 'ReadChemistryConcentrationGroupParameters - ModulePorousMediaProperties - ERR008'
         if (iflag .NE. 0) then
             NewProperty%Chemistry%usePhase = 1
             
@@ -1430,7 +1453,7 @@ cd2 :           if (BlockFound) then
                          default      = 0.0,                           &
                          ClientModule = 'ModulePorousMediaProperties', &
                          STAT         = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_) stop 'ReadChemistrySolutionGroupParameters - ModulePorousMediaProperties - ERR009'
+            if (STAT_CALL .NE. SUCCESS_) stop 'ReadChemistryConcentrationGroupParameters - ModulePorousMediaProperties - ERR009'
  
         else
             NewProperty%Chemistry%UsePhase = 0
@@ -1442,11 +1465,11 @@ cd2 :           if (BlockFound) then
                      keyword      = 'PHREEQC_DENSITY',             &
                      ClientModule = 'ModulePorousMediaProperties', &
                      STAT         = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_ .OR. iflag .EQ. 0) stop 'ReadChemistrySolutionGroupParameters - ModulePorousMediaProperties - ERR010'
+        if (STAT_CALL .NE. SUCCESS_ .OR. iflag .EQ. 0) stop 'ReadChemistryConcentrationGroupParameters - ModulePorousMediaProperties - ERR010'
          
         !----------------------------------------------------------------------
 
-    end subroutine ReadChemistrySolutionGroupParameters
+    end subroutine ReadChemistryConcentrationGroupParameters
     
     !--------------------------------------------------------------------------
 
@@ -1460,6 +1483,15 @@ cd2 :           if (BlockFound) then
         integer                   :: iflag
     
         !----------------------------------------------------------------------
+        call GetData(NewProperty%Chemistry%PhaseType,              &
+                     Me%ObjEnterData, iflag,                       &
+                     SearchType   = FromBlock,                     &
+                     keyword      = 'PHREEQC_PHASE_TYPE',          &
+                     Default      = 1,                             &
+                     ClientModule = 'ModulePorousMediaProperties', &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'ReadChemistryPhasesGroupParameters - ModulePorousMediaProperties - ERR001'
+                
         call GetData(NewProperty%Chemistry%SI,                     &
                      Me%ObjEnterData, iflag,                       &
                      SearchType   = FromBlock,                     &
@@ -1467,7 +1499,7 @@ cd2 :           if (BlockFound) then
                      Default      = 0.0,                           &
                      ClientModule = 'ModulePorousMediaProperties', &
                      STAT         = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_) stop 'ReadChemistryPhasesGroupParameters - ModulePorousMediaProperties - ERR001'
+        if (STAT_CALL .NE. SUCCESS_) stop 'ReadChemistryPhasesGroupParameters - ModulePorousMediaProperties - ERR002'
         if (NewProperty%Chemistry%SI .NE. 0.0) then            
             call GetData(NewProperty%Chemistry%AlternativeFormula,     &
                          Me%ObjEnterData, iflag,                       &
@@ -1475,7 +1507,7 @@ cd2 :           if (BlockFound) then
                          keyword      = 'PHREEQC_ALTERNATIVE_FORMULA', &
                          ClientModule = 'ModulePorousMediaProperties', &
                          STAT         = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_) stop 'ReadChemistryPhasesGroupParameters - ModulePorousMediaProperties - ERR002'
+            if (STAT_CALL .NE. SUCCESS_) stop 'ReadChemistryPhasesGroupParameters - ModulePorousMediaProperties - ERR003'
             if (iflag .NE. 0) then
                 NewProperty%Chemistry%UseAlternativeFormula = 1 
                 NewProperty%Chemistry%UseAlternativePhase   = 0
@@ -1487,13 +1519,26 @@ cd2 :           if (BlockFound) then
                              keyword      = 'PHREEQC_ALTERNATIVE_PHASE',   &
                              ClientModule = 'ModulePorousMediaProperties', &
                              STAT         = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_) stop 'ReadChemistryPhasesGroupParameters - ModulePorousMediaProperties - ERR003'
+                if (STAT_CALL .NE. SUCCESS_) stop 'ReadChemistryPhasesGroupParameters - ModulePorousMediaProperties - ERR004'
                 if (iflag .NE. 0) then
                     NewProperty%Chemistry%UseAlternativePhase = 1
                 else
                     NewProperty%Chemistry%UseAlternativePhase = 0
                 endif
             endif
+        endif
+        
+        call GetData(NewProperty%Chemistry%GFW,                    &
+                     Me%ObjEnterData, iflag,                       &
+                     SearchType   = FromBlock,                     &
+                     keyword      = 'PHREEQC_GFW',                 &
+                     ClientModule = 'ModulePorousMediaProperties', &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'ReadChemistryPhasesGroupParameters - ModulePorousMediaProperties - ERR005'
+        if (iflag .EQ. 0) then
+            NewProperty%Chemistry%UseGFW = 0
+        else              
+            NewProperty%Chemistry%UseGFW = 1
         endif
         
         call GetData(NewProperty%Chemistry%ForceEquality,          &
@@ -1503,7 +1548,7 @@ cd2 :           if (BlockFound) then
                      Default      = 0,                             &
                      ClientModule = 'ModulePorousMediaProperties', &
                      STAT         = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_) stop 'ReadChemistryPhasesGroupParameters - ModulePorousMediaProperties - ERR004'
+        if (STAT_CALL .NE. SUCCESS_) stop 'ReadChemistryPhasesGroupParameters - ModulePorousMediaProperties - ERR006'
         
         call GetData(NewProperty%Chemistry%DissolveOnly,           &
                      Me%ObjEnterData, iflag,                       &
@@ -1512,9 +1557,10 @@ cd2 :           if (BlockFound) then
                      Default      = 0,                             &
                      ClientModule = 'ModulePorousMediaProperties', &
                      STAT         = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_) stop 'ReadChemistryPhasesGroupParameters - ModulePorousMediaProperties - ERR005'
-                 
+        if (STAT_CALL .NE. SUCCESS_) stop 'ReadChemistryPhasesGroupParameters - ModulePorousMediaProperties - ERR007'                 
+
         !----------------------------------------------------------------------
+        
     end subroutine ReadChemistryPhasesGroupParameters
     
     !--------------------------------------------------------------------------
@@ -1568,7 +1614,23 @@ cd2 :           if (BlockFound) then
         
         !Local-----------------------------------------------------------------
         integer                   :: STAT_CALL
+        integer                   :: iflag
     
+        !----------------------------------------------------------------------
+
+        call GetData(NewProperty%Chemistry%GFW,                    &
+                     Me%ObjEnterData, iflag,                       &
+                     SearchType   = FromBlock,                     &
+                     keyword      = 'PHREEQC_GFW',                 &
+                     ClientModule = 'ModulePorousMediaProperties', &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'ReadChemistrySpeciesGroupParameters - ModulePorousMediaProperties - ERR001'
+        if (iflag .EQ. 0) then
+            NewProperty%Chemistry%UseGFW = 0
+        else              
+            NewProperty%Chemistry%UseGFW = 1
+        endif
+
         !----------------------------------------------------------------------
 
     end subroutine
@@ -1609,7 +1671,20 @@ cd2 :           if (BlockFound) then
                 NewProperty%Chemistry%UseKinetic = 0
             endif
         endif
-                        
+             
+        call GetData(NewProperty%Chemistry%GFW,                    &
+                     Me%ObjEnterData, iflag,                       &
+                     SearchType   = FromBlock,                     &
+                     keyword      = 'PHREEQC_GFW',                 &
+                     ClientModule = 'ModulePorousMediaProperties', &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'ReadChemistryExchangeGroupParameters - ModulePorousMediaProperties - ERR003'
+        if (iflag .EQ. 0) then
+            NewProperty%Chemistry%UseGFW = 0
+        else              
+            NewProperty%Chemistry%UseGFW = 1
+        endif
+                         
         !----------------------------------------------------------------------
     end subroutine ReadChemistryExchangeGroupParameters            
 #endif
@@ -2983,13 +3058,14 @@ cd0:    if (Exist) then
         !Local-----------------------------------------------------------------
         type(T_Property), pointer :: PropertyX
         integer                   :: PhreeqCID, STAT_CALL
+        logical                   :: found
     
         !Begin-----------------------------------------------------------------           
                 
         PropertyX => Me%FirstProperty
         do while (associated(PropertyX))
             if (PropertyX%Evolution%SoilChemistry) then  
-                if (.NOT. (PropertyX%ID%IDNumber .EQ. Temperature_ .OR. PropertyX%ID%IDNumber .EQ. pH_ .OR. PropertyX%ID%IDNumber .EQ. pE_)) then           
+                if (.NOT. (PropertyX%ID%IDNumber .EQ. Temperature_ .OR. PropertyX%ID%IDNumber .EQ. pH_ .OR. PropertyX%ID%IDNumber .EQ. pE_ .OR. PropertyX%ID%IDNumber .EQ. SoilDryDensity_)) then           
                     call GetPhreeqCID(Me%ObjInterfaceSoilChemistry, PhreeqCID, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'SetupSoilChemistry - ModulePorousMediaProperties - ERR01'
 
@@ -2997,8 +3073,34 @@ cd0:    if (Exist) then
                     if (STAT_CALL /= SUCCESS_) stop 'SetupSoilChemistry - ModulePorousMediaProperties - ERR02'
                 endif
             endif
+            
             PropertyX => PropertyX%Next
         enddo
+        
+        call GetPhreeqCOptions(PhreeqCID, Me%PhreeqCOptions, STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'SetupSoilChemistry - ModulePorousMediaProperties - ERR03'
+    
+        if (Me%PhreeqCOptions%UseExchanger .EQ. 1 .OR. Me%PhreeqCOptions%UseSolidPhase .EQ. 1) then
+
+            found = .false.
+            PropertyX => Me%FirstProperty
+            do while (associated(PropertyX) .AND. (.NOT. found))
+                if (PropertyX%ID%IDNumber .EQ. SoilDryDensity_) then
+                    Me%PropertySoilDryDensity => PropertyX  
+                    
+                    !Done to ensure that this property will not be sended to PhreeqC
+                    Me%PropertySoilDryDensity%Evolution%SoilChemistry = .false.
+                    
+                    found = .true.
+                        
+                endif
+
+                PropertyX => PropertyX%Next
+            enddo
+
+            if (.not. found) stop 'PhreeqC needs property soil dry density - PorousMediaProperties - SetupSoilChemistry'
+        
+        end if
     
     end subroutine SetupSoilChemistry
    
@@ -5749,34 +5851,32 @@ cd1 :       if (Property%Evolution%MinConcentration) then
         !Local----------------------------------------------------------------- 
         type (T_Property), pointer                   :: PropertyX, pH, pE, density
         integer                                      :: I, J, K
-        real             , pointer, dimension(:,:,:) :: Theta
-        real(8)          , pointer, dimension(:,:,:) :: Volume
+        real             , pointer, dimension(:,:,:) :: CellTheta
+        real             , pointer, dimension(:,:,:) :: CellThetaS
+        real(8)          , pointer, dimension(:,:,:) :: CellVolume
         
         !Begin-----------------------------------------------------------------
         if (MonitorPerformance) call StartWatch ("ModulePorousMediaProperties", "SoilChemistryProcesses")
 
-        Theta  => Me%ExtVar%WaterContent
-        Volume => Me%ExtVar%Cellvolume
+        CellTheta  => Me%ExtVar%WaterContent
+        CellVolume => Me%ExtVar%CellVolume
+        CellThetaS => Me%ExtVar%ThetaS
         
-        
-!        call SearchProperty(pH, pH_ , .false., STAT = STAT_CALL)                
-!        if (STAT_CALL /= SUCCESS_) then
-!            write(*,*) 'property pH not found in porous media properties'
-!            stop 'SoilChemistryProcesses - ModulePorousMediaProperties - ERR01'
-!        endif
-!        call SearchProperty(pE, pE_ , .false., STAT = STAT_CALL)                
-!        if (STAT_CALL /= SUCCESS_) then
-!            write(*,*) 'property pE not found in porous media properties'
-!            stop 'SoilChemistryProcesses - ModulePorousMediaProperties - ERR02'
-!        endif
-                
         do K = Me%WorkSize%KLB, Me%WorkSize%KUB
         do J = Me%WorkSize%JLB, Me%WorkSize%JUB
         do I = Me%WorkSize%ILB, Me%WorkSize%IUB
         
             if (Me%ExtVar%WaterPoints3D(I,J,K) == WaterPoint) then
                         
-                Me%Volume(I, J, K) = Theta(I, J, K) * Volume(I, J, K)
+                !            m3                =          %         *        m3
+                Me%CellSolutionVolume(I, J, K) = CellTheta(I, J, K) * CellVolume(I, J, K)
+                
+                if (Me%PhreeqCOptions%UseExchanger .EQ. 1 .OR. Me%PhreeqCOptions%UseSolidPhase .EQ. 1) then
+                    
+                    !          kg            =                      kg/m3                       * (1 -          %         ) *         m3
+                    Me%CellSoilMass(I, J, K) = Me%PropertySoilDryDensity%Concentration(I, J, K) * (1 - CellThetaS(I, J, K)) * CellVolume(I, J, K) 
+                    
+                end if
                         
             end if
                     
@@ -5791,15 +5891,38 @@ cd1 :       if (Property%Evolution%MinConcentration) then
 
             do while(associated(PropertyX))
                 
-                call Modify_Interface(InterfaceID     = Me%ObjInterfaceSoilChemistry,  &
-                                      PropertyID      = PropertyX%ID%IDNumber,         &
-                                      SolutionVolume  = Me%Volume,                     &  
-                                      Concentration   = PropertyX%Concentration,       &
-                                      WaterPoints3D   = Me%ExtVar%WaterPoints3D,       &
-                                      OpenPoints3D    = Me%ExtVar%OpenPoints3D,        &
-                                      STAT            = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_) &
-                    stop 'SoilChemistryProcesses - ModulePorousMediaProperties - ERR05'
+                if (.NOT. PropertyX%ID%IDNumber .EQ. SoilDryDensity_) then
+                
+                    if (Me%PhreeqCOptions%UseExchanger .EQ. 1 .OR. Me%PhreeqCOptions%UseSolidPhase .EQ. 1) then
+
+                        call Modify_Interface(InterfaceID        = Me%ObjInterfaceSoilChemistry,  &
+                                              PropertyID         = PropertyX%ID%IDNumber,         &
+                                              SolutionVolume     = Me%CellSolutionVolume,         &
+                                              ConversionSelector = mPOROUSMEDIAPROPERTIES_,       &  
+                                              SolidMass          = Me%CellSoilMass,               &
+                                              Concentration      = PropertyX%Concentration,       &
+                                              WaterPoints3D      = Me%ExtVar%WaterPoints3D,       &
+                                              OpenPoints3D       = Me%ExtVar%OpenPoints3D,        &
+                                              STAT               = STAT_CALL)
+                        if (STAT_CALL .NE. SUCCESS_) &
+                            stop 'SoilChemistryProcesses - ModulePorousMediaProperties - ERR001'
+                        
+                    else
+
+                        call Modify_Interface(InterfaceID        = Me%ObjInterfaceSoilChemistry,  &
+                                              PropertyID         = PropertyX%ID%IDNumber,         &
+                                              SolutionVolume     = Me%CellSolutionVolume,         &
+                                              ConversionSelector = mPOROUSMEDIAPROPERTIES_,       &  
+                                              Concentration      = PropertyX%Concentration,       &
+                                              WaterPoints3D      = Me%ExtVar%WaterPoints3D,       &
+                                              OpenPoints3D       = Me%ExtVar%OpenPoints3D,        &
+                                              STAT               = STAT_CALL)
+                        if (STAT_CALL .NE. SUCCESS_) &
+                            stop 'SoilChemistryProcesses - ModulePorousMediaProperties - ERR002'
+                        
+                    end if
+                                             
+                end if
                 
                 PropertyX => PropertyX%Next
                 
@@ -5810,6 +5933,7 @@ cd1 :       if (Property%Evolution%MinConcentration) then
 
         end if
 
+
         PropertyX => Me%FirstProperty
 
         do while(associated(PropertyX))
@@ -5819,7 +5943,7 @@ cd1 :       if (Property%Evolution%MinConcentration) then
                 if (Me%ExtVar%Now .GE. PropertyX%Evolution%NextCompute) then
                 
                     select case (PropertyX%ID%IDNumber)
-                    case (Temperature_, pH_, pE_)
+                    case (Temperature_, pH_, pE_, SoilDryDensity_)
                     case default
                         call Modify_Interface(InterfaceID   = Me%ObjInterfaceSoilChemistry,     &
                                               PropertyID    = PropertyX%ID%IDNumber,            &
@@ -5828,7 +5952,7 @@ cd1 :       if (Property%Evolution%MinConcentration) then
                                               DTProp        = PropertyX%Evolution%DTInterval,   &
                                               STAT          = STAT_CALL)
                         if (STAT_CALL .NE. SUCCESS_)                                            &
-                            stop 'SoilChemistryProcesses - ModulePorousMediaProperties - ERR03'
+                            stop 'SoilChemistryProcesses - ModulePorousMediaProperties - ERR002'
                     end select
 
                 end if
@@ -6331,6 +6455,10 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
  !       deallocate (Me%WaterVolumeOldCorr)
         deallocate (Me%FluxWCorr)
       
+#ifdef _PHREEQC_
+        deallocate (Me%CellSolutionVolume)
+        deallocate (Me%CellSoilMass)    
+#endif      
     
     end subroutine DeallocateVariables 
 

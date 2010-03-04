@@ -50,11 +50,13 @@ Module ModulePhreeqC
                 
     !Selector
     public  :: SetPhreeqCProperty
-    private ::      SetSolutionProperty
+    private ::      SetSpeciesProperty
+    private ::      SetConcentrationProperty
     private ::      SetPhaseProperty
     private ::      SetExchangeProperty 
     public  :: GetPhreeqCDT 
-    public  :: GetPhreeqCPropIndex    
+    public  :: GetPhreeqCPropIndex  
+    public  :: GetPhreeqCOptions  
     public  :: UngetPhreeqC           
                         
     !Modifier
@@ -74,87 +76,19 @@ Module ModulePhreeqC
         
     !Constants-----------------------------------------------------------------
     integer, parameter :: MaxStrLength  = StringLength !StringLength is defined in ModuleGlobalData 
-    integer, parameter :: maxProperties = 25    
-    
-    integer, parameter :: SOLUTION    = 1
-    integer, parameter :: PHASE       = 2
-    integer, parameter :: SOLID_PHASE = 3
-    integer, parameter :: GAS_PHASE   = 4
-    integer, parameter :: SURFACE     = 5
-    integer, parameter :: SPECIES     = 6
-    integer, parameter :: EXCHANGE    = 7
-    
-    !Solution units (for concentration properties)
-    integer, parameter :: mol_l     = 1
-    integer, parameter :: mmol_l    = 2
-    integer, parameter :: umol_l    = 3
-    integer, parameter :: g_l       = 4
-    integer, parameter :: mg_l      = 5 !default for user input data
-    integer, parameter :: ug_l      = 6
-    integer, parameter :: eq_l      = 7
-    integer, parameter :: meq_l     = 8
-    integer, parameter :: ueq_l     = 9
-    integer, parameter :: mol_kgs   = 10
-    integer, parameter :: mmol_kgs  = 11
-    integer, parameter :: umol_kgs  = 12
-    integer, parameter :: g_kgs     = 13
-    integer, parameter :: mg_kgs    = 14
-    integer, parameter :: ug_kgs    = 15
-    integer, parameter :: eq_kgs    = 16
-    integer, parameter :: meq_kgs   = 17
-    integer, parameter :: ueq_kgs   = 18
-    integer, parameter :: mol_kgw   = 19 !default for use with phreeqc
-    integer, parameter :: mmol_kgw  = 20
-    integer, parameter :: umol_kgw  = 21
-    integer, parameter :: g_kgw     = 22
-    integer, parameter :: mg_kgw    = 23
-    integer, parameter :: ug_kgw    = 24
-    integer, parameter :: eq_kgw    = 25
-    integer, parameter :: meq_kgw   = 26
-    integer, parameter :: ueq_kgw   = 27
-    
-    !Phase/Exchange units
-    integer, parameter :: mol       = 29 !default for use with phreeqc
-    integer, parameter :: mmol      = 30 
-    integer, parameter :: umol      = 31
-    
-    !Phase units
-    integer, parameter :: g_kgsoil  = 32
-    integer, parameter :: mg_kgsoil = 33 !default for user solid phases
-    integer, parameter :: ug_kgsoil = 34
-            
+    integer, parameter :: MaxProperties = 25    
+       
+
     !Types---------------------------------------------------------------------            
-    type T_PhreeqCUnits
-        integer             :: MasterSpecies = mg_l
-        integer             :: Species       = mg_l
-        integer             :: Alkalinity    = mg_l
-        integer             :: SolidPhases   = ug_kgsoil !Check to see if this is reasonable
-        integer             :: Exchangers    = ug_kgsoil
-    end type T_PhreeqCUnits
-        
+       
     type T_PhreeqCProperty
         integer                     :: PropertyID
         integer                     :: PhreeqCInputID
         integer                     :: PhreeqCResultID
         type(T_ChemistryParameters) :: Params
-        real                        :: Mass
+        real                        :: PropertyValue !Used to store temporary cell value for the property
         real                        :: Volume
     end type T_PhreeqCProperty
-        
-        
-    type T_PhreeqCOptions
-        character(len=2048)  :: Database                  !Path for database
-        character(len=2048)  :: DatabaseAux  = ''         !Path for auxiliary database
-        logical              :: PrintAlways  = .false.    !For DEBUG    
-        real                 :: DTSeconds    = null_real 
-        real                 :: DTDay        = null_real
-        real                 :: HPlusDensity              !g/L
-        real                 :: WaterDensity              !g/L
-        type(T_RedoxPair)    :: Redox
-        type(T_PhreeqCUnits) :: Units
-        integer              :: pHCharge
-        integer              :: pECharge
-    end type T_PhreeqCOptions
     
     type T_External
         real, pointer, dimension(:,:) :: PropertiesValues
@@ -162,6 +96,7 @@ Module ModulePhreeqC
         real, pointer, dimension(:  ) :: SolutionTemperature
         real, pointer, dimension(:  ) :: SolutionpH
         real, pointer, dimension(:  ) :: SolutionpE
+        real, pointer, dimension(:  ) :: SolidMass
     end type T_External
     
     type T_Calculations
@@ -172,7 +107,6 @@ Module ModulePhreeqC
         real :: MassOfSolution
         real :: VolumeOfSolution
         real :: DensityOfSolution
-        real :: Factor
     end type T_Calculations
     
     type T_PhreeqC
@@ -185,8 +119,7 @@ Module ModulePhreeqC
         type(T_External)                                  :: Ext                  !Pointers to Water Mass, Properties Values and other required data 
         type(T_PhreeqCProperty), dimension(MaxProperties) :: Properties           !Info about each property
         integer                                           :: PropertyCount        !Number of properties
-        type(T_Calculations)                              :: CalcData             !Temporary data for calculations
-        
+        type(T_Calculations)                              :: CalcData             !Temporary data for calculations       
     end type T_PhreeqC
 
 
@@ -203,207 +136,520 @@ Module ModulePhreeqC
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-    interface to subroutine pm_start [ALIAS:'?pm_start@@YAXPAH0@Z'](a, b)
-	    integer*4 a [REFERENCE]
-	    integer*4 b [REFERENCE]
-    end
-         
-    interface to subroutine pm_solution_redox [ALIAS: '?pm_solution_redox@@YAXPAHPADPAN120HH@Z'](a, b, c, d, e, f)
-      integer*4        a [REFERENCE]
-      character(Len=*) b [REFERENCE]
-      real*8           c [REFERENCE]
-      character(Len=*) d [REFERENCE]
-      real*8           e [REFERENCE]
-      integer*4        f [REFERENCE]
-    end
+    interface 
+        subroutine pm_start [ALIAS:'?pm_start@@YAXPAH0@Z'](a, b)
+	        integer*4 a [REFERENCE]
+	        integer*4 b [REFERENCE]
+	    end
+	    
+        subroutine pm_conc_use [ALIAS:'?pm_conc_use@@YAXPAH0000000@Z'] (a, b, c, d, e, f, g, h)
+            integer*4 a [REFERENCE] 
+            integer*4 b [REFERENCE] 
+            integer*4 c [REFERENCE]
+            integer*4 d [REFERENCE]
+            integer*4 e [REFERENCE] 
+            integer*4 f [REFERENCE] 
+            integer*4 g [REFERENCE]
+            integer*4 h [REFERENCE]
+        end
+        
+        subroutine pm_conc_as [ALIAS:'?pm_conc_as@@YAXPAHPAD0H@Z'] (a, b, c)
+            integer*4        a [REFERENCE] 
+            character(Len=*) b [REFERENCE] 
+            integer*4        c [REFERENCE]
+        end
+        
+        subroutine pm_use_ppa [ALIAS:'?pm_use_ppa@@YAXPAH00@Z'] (a, b, c)
+            integer*4 a [REFERENCE] 
+            integer*4 b [REFERENCE] 
+            integer*4 c [REFERENCE]
+        end          
+
+        subroutine pm_use_exa [ALIAS:'?pm_use_exa@@YAXPAH00@Z'] (a, b, c)
+            integer*4 a [REFERENCE] 
+            integer*4 b [REFERENCE] 
+            integer*4 c [REFERENCE]
+        end
+
+        subroutine pm_use_sa [ALIAS:'?pm_use_sa@@YAXPAH00@Z'] (a, b, c)
+            integer*4 a [REFERENCE] 
+            integer*4 b [REFERENCE] 
+            integer*4 c [REFERENCE]
+        end        
+        
+        subroutine pm_set_use [ALIAS:'?pm_set_use@@YAXPAH000000@Z'] (a, b, c, d, e, f, g)
+            integer*4 a [REFERENCE] 
+            integer*4 b [REFERENCE] 
+            integer*4 c [REFERENCE]
+            integer*4 d [REFERENCE] 
+            integer*4 e [REFERENCE]
+            integer*4 f [REFERENCE] 
+            integer*4 g [REFERENCE] 
+        end        
+                
+        subroutine pm_get_species_index [ALIAS:'?pm_get_species_index@@YAXPAHPAD00H@Z'] (a, b, c, d)
+            integer*4        a [REFERENCE] 
+            character(Len=*) b [REFERENCE] 
+            integer*4        c [REFERENCE]
+            integer*4        d [REFERENCE]
+        end
     
-    interface to subroutine pm_conc_add [ALIAS:'?pm_conc_add@@YAXPAHPADPAN0H@Z'] (a, b, c, d)
-      integer*4        a [REFERENCE] 
-      character(Len=*) b [REFERENCE]
-      real*8           c [REFERENCE]
-      integer*4        d [REFERENCE]
-    end 
+        subroutine pm_run_model [ALIAS:'?pm_run_model@@YAXPAH00@Z'](a, b, c)
+	        integer*4 a [REFERENCE]
+	        integer*4 b [REFERENCE]
+	        integer*4 c [REFERENCE]
+	    end
+
+        subroutine pm_setup_model [ALIAS:'?pm_setup_model@@YAXPAH0@Z'](a, b)
+	        integer*4 a [REFERENCE]
+	        integer*4 b [REFERENCE]
+	    end
+
+        subroutine pm_read_database [ALIAS:'?pm_read_database@@YAXPAHPAD0@Z'] (a, b, c)
+            integer*4        a [REFERENCE] 
+            character(Len=*) b [REFERENCE] 
+            integer*4        c [REFERENCE]
+        end
+
+        subroutine pm_kill [ALIAS:'?pm_kill@@YAXPAH0@Z'](a, b)
+	        integer*4 a [REFERENCE]
+	        integer*4 b [REFERENCE]
+	    end        
+    end interface
+       
+    interface pm_solution_redox
+        subroutine pm_solution_redoxA [ALIAS: '?pm_solution_redox@@YAXPAHPADPAM120HH@Z'](a1, a2, a3, a4, a5, a6)
+            integer*4        a1 [REFERENCE]
+            character(Len=*) a2 [REFERENCE]
+            real*4           a3 [REFERENCE]
+            character(Len=*) a4 [REFERENCE]
+            real*4           a5 [REFERENCE]
+            integer*4        a6 [REFERENCE]
+        end
+        
+        subroutine pm_solution_redoxB [ALIAS: '?pm_solution_redox@@YAXPAHPADPAN120HH@Z'](b1, b2, b3, b4, b5, b6)
+            integer*4        b1 [REFERENCE]
+            character(Len=*) b2 [REFERENCE]
+            real*8           b3 [REFERENCE]
+            character(Len=*) b4 [REFERENCE]
+            real*8           b5 [REFERENCE]
+            integer*4        b6 [REFERENCE]
+        end
+        
+        subroutine pm_solution_redoxC [ALIAS: '?pm_solution_redox@@YAXPAHPADPAO120HH@Z'](c1, c2, c3, c4, c5, c6)
+            integer*4        c1 [REFERENCE]
+            character(Len=*) c2 [REFERENCE]
+            real*16          c3 [REFERENCE]
+            character(Len=*) c4 [REFERENCE]
+            real*16          c5 [REFERENCE]
+            integer*4        c6 [REFERENCE]
+        end        
+    end interface       
     
-    interface to subroutine pm_conc_use [ALIAS:'?pm_conc_use@@YAXPAH0000000@Z'] (a, b, c, d, e, f, g, h)
-      integer*4 a [REFERENCE] 
-      integer*4 b [REFERENCE] 
-      integer*4 c [REFERENCE]
-      integer*4 d [REFERENCE]
-      integer*4 e [REFERENCE] 
-      integer*4 f [REFERENCE] 
-      integer*4 g [REFERENCE]
-      integer*4 h [REFERENCE]
-    end 
+    interface pm_conc_add
+        subroutine pm_conc_addA [ALIAS:'?pm_conc_add@@YAXPAHPADPAM0H@Z'] (a1, a2, a3, a4)
+            integer*4        a1 [REFERENCE] 
+            character(Len=*) a2 [REFERENCE]
+            real*4           a3 [REFERENCE]
+            integer*4        a4 [REFERENCE]
+        end
+        
+        subroutine pm_conc_addB [ALIAS:'?pm_conc_add@@YAXPAHPADPAN0H@Z'] (b1, b2, b3, b4)
+            integer*4        b1 [REFERENCE] 
+            character(Len=*) b2 [REFERENCE]
+            real*8           b3 [REFERENCE]
+            integer*4        b4 [REFERENCE]
+        end
+        
+        subroutine pm_conc_addC [ALIAS:'?pm_conc_add@@YAXPAHPADPAO0H@Z'] (c1, c2, c3, c4)
+            integer*4        c1 [REFERENCE] 
+            character(Len=*) c2 [REFERENCE]
+            real*16          c3 [REFERENCE]
+            integer*4        c4 [REFERENCE]
+        end
+    end interface
     
-    interface to subroutine pm_conc_as [ALIAS:'?pm_conc_as@@YAXPAHPAD0H@Z'] (a, b, c)
-      integer*4        a [REFERENCE] 
-      character(Len=*) b [REFERENCE] 
-      integer*4        c [REFERENCE]
-    end 
+    interface pm_conc_gfw
+        subroutine pm_conc_gfwA [ALIAS:'?pm_conc_gfw@@YAXPAHPAM0@Z'] (a1, a2, a3)
+            integer*4 a1 [REFERENCE] 
+            real*4    a2 [REFERENCE] 
+            integer*4 a3 [REFERENCE]
+        end
+        
+        subroutine pm_conc_gfwB [ALIAS:'?pm_conc_gfw@@YAXPAHPAN0@Z'] (b1, b2, b3)
+            integer*4 b1 [REFERENCE] 
+            real*8    b2 [REFERENCE] 
+            integer*4 b3 [REFERENCE]
+        end
+                
+        subroutine pm_conc_gfwC [ALIAS:'?pm_conc_gfw@@YAXPAHPAO0@Z'] (c1, c2, c3)
+            integer*4 c1 [REFERENCE] 
+            real*16   c2 [REFERENCE] 
+            integer*4 c3 [REFERENCE]
+        end    
+    end interface
 
-    interface to subroutine pm_conc_gfw [ALIAS:'?pm_conc_gfw@@YAXPAHPAN0@Z'] (a, b, c)
-      integer*4 a [REFERENCE] 
-      real*8    b [REFERENCE] 
-      integer*4 c [REFERENCE]
-    end 
+    interface pm_conc_phase
+        subroutine pm_conc_phaseA [ALIAS:'?pm_conc_phase@@YAXPAHPADPAM0@Z'] (a1, a2, a3, a4)
+            integer*4        a1 [REFERENCE] 
+            character(Len=*) a2 [REFERENCE] 
+            real*4           a3 [REFERENCE]
+            integer*4        a4 [REFERENCE]
+        end
 
-    interface to subroutine pm_conc_phase [ALIAS:'?pm_conc_phase@@YAXPAHPADPAN0@Z'] (a, b, c, d)
-      integer*4        a [REFERENCE] 
-      character(Len=*) b [REFERENCE] 
-      real*8           c [REFERENCE]
-      integer*4        d [REFERENCE]
-    end 
+        subroutine pm_conc_phaseB [ALIAS:'?pm_conc_phase@@YAXPAHPADPAN0@Z'] (b1, b2, b3, b4)
+            integer*4        b1 [REFERENCE] 
+            character(Len=*) b2 [REFERENCE] 
+            real*8           b3 [REFERENCE]
+            integer*4        b4 [REFERENCE]
+        end
 
-    interface to subroutine pm_conc_redox [ALIAS:'?pm_conc_redox@@YAXPAHPADPAN120HH@Z'] (a, b, c, d, e, f)
-      integer*4        a [REFERENCE] 
-      character(Len=*) b [REFERENCE] 
-      real*8           c [REFERENCE]
-      character(Len=*) d [REFERENCE] 
-      real*8           e [REFERENCE]
-      integer*4        f [REFERENCE]
-    end 
+        subroutine pm_conc_phaseC [ALIAS:'?pm_conc_phase@@YAXPAHPADPAO0@Z'] (c1, c2, c3, c4)
+            integer*4        c1 [REFERENCE] 
+            character(Len=*) c2 [REFERENCE] 
+            real*16          c3 [REFERENCE]
+            integer*4        c4 [REFERENCE]
+        end
+    end interface
 
-    interface to subroutine pm_conc_save [ALIAS:'?pm_conc_save@@YAXPAH00PAN0@Z'] (a, b, c, d, e)
-      integer*4 a [REFERENCE] 
-      integer*4 b [REFERENCE] 
-      integer*4 c [REFERENCE]
-      real*8    d [REFERENCE]
-      integer*4 e [REFERENCE]
-    end 
+    interface pm_conc_redox
+        subroutine pm_conc_redoxA [ALIAS:'?pm_conc_redox@@YAXPAHPADPAM120HH@Z'] (a1, a2, a3, a4, a5, a6)
+            integer*4        a1 [REFERENCE] 
+            character(Len=*) a2 [REFERENCE] 
+            real*4           a3 [REFERENCE]
+            character(Len=*) a4 [REFERENCE] 
+            real*4           a5 [REFERENCE]
+            integer*4        a6 [REFERENCE]
+        end
+        
+        subroutine pm_conc_redoxB [ALIAS:'?pm_conc_redox@@YAXPAHPADPAN120HH@Z'] (b1, b2, b3, b4, b5, b6)
+            integer*4        b1 [REFERENCE] 
+            character(Len=*) b2 [REFERENCE] 
+            real*8           b3 [REFERENCE]
+            character(Len=*) b4 [REFERENCE] 
+            real*8           b5 [REFERENCE]
+            integer*4        b6 [REFERENCE]
+        end
 
-    interface to subroutine pm_use_ppa [ALIAS:'?pm_use_ppa@@YAXPAH00@Z'] (a, b, c)
-      integer*4 a [REFERENCE] 
-      integer*4 b [REFERENCE] 
-      integer*4 c [REFERENCE]
-    end 
+        subroutine pm_conc_redoxC [ALIAS:'?pm_conc_redox@@YAXPAHPADPAO120HH@Z'] (c1, c2, c3, c4, c5, c6)
+            integer*4        c1 [REFERENCE] 
+            character(Len=*) c2 [REFERENCE] 
+            real*16          c3 [REFERENCE]
+            character(Len=*) c4 [REFERENCE] 
+            real*16          c5 [REFERENCE]
+            integer*4        c6 [REFERENCE]
+        end
+    end interface
 
-    interface to subroutine pm_use_exa [ALIAS:'?pm_use_exa@@YAXPAH00@Z'] (a, b, c)
-      integer*4 a [REFERENCE] 
-      integer*4 b [REFERENCE] 
-      integer*4 c [REFERENCE]
-    end 
+    interface pm_conc_save
+        subroutine pm_conc_saveA [ALIAS:'?pm_conc_save@@YAXPAH00PAM0@Z'] (a1, a2, a3, a4, a5)
+            integer*4 a1 [REFERENCE] 
+            integer*4 a2 [REFERENCE] 
+            integer*4 a3 [REFERENCE]
+            real*4    a4 [REFERENCE]
+            integer*4 a5 [REFERENCE]
+        end
 
-    interface to subroutine pm_use_sa [ALIAS:'?pm_use_sa@@YAXPAH00@Z'] (a, b, c)
-      integer*4 a [REFERENCE] 
-      integer*4 b [REFERENCE] 
-      integer*4 c [REFERENCE]
-    end 
+        subroutine pm_conc_saveB [ALIAS:'?pm_conc_save@@YAXPAH00PAN0@Z'] (b1, b2, b3, b4, b5)
+            integer*4 b1 [REFERENCE] 
+            integer*4 b2 [REFERENCE] 
+            integer*4 b3 [REFERENCE]
+            real*8    b4 [REFERENCE]
+            integer*4 b5 [REFERENCE]
+        end
 
-    interface to subroutine pm_ppa_pp [ALIAS:'?pm_ppa_pp@@YAXPAHPAD1PAN20000HH@Z'] (a, b, c, d, e, f, g, h, i)
-      integer*4        a [REFERENCE] 
-      character(Len=*) b [REFERENCE] 
-      character(Len=*) c [REFERENCE]
-      real*8           d [REFERENCE]
-      real*8           e [REFERENCE] 
-      integer*4        f [REFERENCE] 
-      integer*4        g [REFERENCE]
-      integer*4        h [REFERENCE]
-      integer*4        i [REFERENCE]
-    end 
+        subroutine pm_conc_saveC [ALIAS:'?pm_conc_save@@YAXPAH00PAO0@Z'] (c1, c2, c3, c4, c5)
+            integer*4 c1 [REFERENCE] 
+            integer*4 c2 [REFERENCE] 
+            integer*4 c3 [REFERENCE]
+            real*16   c4 [REFERENCE]
+            integer*4 c5 [REFERENCE]
+        end
+    end interface
 
-    interface to subroutine pm_exa_exchanger [ALIAS:'?pm_exa_exchanger@@YAXPAHPAD01PAN00HH@Z'] (a, b, c, d, e, f, g)
-      integer*4        a [REFERENCE] 
-      character(Len=*) b [REFERENCE] 
-      integer*4        c [REFERENCE]
-      character(Len=*) d [REFERENCE] 
-      real*8           e [REFERENCE]
-      integer*4        f [REFERENCE]
-      integer*4        g [REFERENCE]
-    end 
-
-    interface to subroutine pm_sa_options [ALIAS:'?pm_sa_options@@YAXPAH00PAN00@Z'] (a, b, c, d, e, f)
-      integer*4        a [REFERENCE] 
-      integer*4        b [REFERENCE] 
-      integer*4        c [REFERENCE]
-      real*8           d [REFERENCE] 
-      integer*4        e [REFERENCE]
-      integer*4        f [REFERENCE]
-    end 
-
-    interface to subroutine pm_sa_surface [ALIAS:'?pm_sa_surface@@YAXPAH0PAD1PAN22000HH@Z'] (a, b, c, d, e, f, g, h)
-      integer*4        a [REFERENCE] 
-      integer*4        b [REFERENCE] 
-      character(Len=*) c [REFERENCE]
-      character(Len=*) d [REFERENCE]
-      real*8           e [REFERENCE] 
-      real*8           f [REFERENCE] 
-      real*8           g [REFERENCE]
-      integer*4        h [REFERENCE]
-    end 
-
-    interface to subroutine pm_get_species_index [ALIAS:'?pm_get_species_index@@YAXPAHPAD00H@Z'] (a, b, c, d)
-      integer*4        a [REFERENCE] 
-      character(Len=*) b [REFERENCE] 
-      integer*4        c [REFERENCE]
-      integer*4        d [REFERENCE]
-    end 
+    interface pm_ppa_pp 
+        subroutine pm_ppa_ppA [ALIAS:'?pm_ppa_pp@@YAXPAHPAD1PAM20000HH@Z'] (a1, a2, a3, a4, a5, a6, a7, a8, a9)
+            integer*4        a1 [REFERENCE] 
+            character(Len=*) a2 [REFERENCE] 
+            character(Len=*) a3 [REFERENCE]
+            real*4           a4 [REFERENCE]
+            real*4           a5 [REFERENCE] 
+            integer*4        a6 [REFERENCE] 
+            integer*4        a7 [REFERENCE]
+            integer*4        a8 [REFERENCE]
+            integer*4        a9 [REFERENCE]
+        end
     
-    interface to subroutine pm_run_model [ALIAS:'?pm_run_model@@YAXPAH0@Z'](a, b)
-	    integer*4 a [REFERENCE]
-	    integer*4 b [REFERENCE]
-    end
+        subroutine pm_ppa_ppB [ALIAS:'?pm_ppa_pp@@YAXPAHPAD1PAN20000HH@Z'] (b1, b2, b3, b4, b5, b6, b7, b8, b9)
+            integer*4        b1 [REFERENCE] 
+            character(Len=*) b2 [REFERENCE] 
+            character(Len=*) b3 [REFERENCE]
+            real*8           b4 [REFERENCE]
+            real*8           b5 [REFERENCE] 
+            integer*4        b6 [REFERENCE] 
+            integer*4        b7 [REFERENCE]
+            integer*4        b8 [REFERENCE]
+            integer*4        b9 [REFERENCE]
+        end
 
-    interface to subroutine pm_setup_model [ALIAS:'?pm_setup_model@@YAXPAH0@Z'](a, b)
-	    integer*4 a [REFERENCE]
-	    integer*4 b [REFERENCE]
-    end
+        subroutine pm_ppa_ppC [ALIAS:'?pm_ppa_pp@@YAXPAHPAD1PAO20000HH@Z'] (c1, c2, c3, c4, c5, c6, c7, c8, c9)
+            integer*4        c1 [REFERENCE] 
+            character(Len=*) c2 [REFERENCE] 
+            character(Len=*) c3 [REFERENCE]
+            real*16          c4 [REFERENCE]
+            real*16          c5 [REFERENCE] 
+            integer*4        c6 [REFERENCE] 
+            integer*4        c7 [REFERENCE]
+            integer*4        c8 [REFERENCE]
+            integer*4        c9 [REFERENCE]
+        end
+    end interface
 
-    interface to subroutine pm_read_database [ALIAS:'?pm_read_database@@YAXPAHPAD0@Z'] (a, b, c)
-      integer*4        a [REFERENCE] 
-      character(Len=*) b [REFERENCE] 
-      integer*4        c [REFERENCE]
-    end 
+    interface pm_exa_exchanger
+        subroutine pm_exa_exchangerA [ALIAS:'?pm_exa_exchanger@@YAXPAHPAD01PAM00HH@Z'] (a1, a2, a3, a4, a5, a6, a7)
+            integer*4        a1 [REFERENCE] 
+            character(Len=*) a2 [REFERENCE] 
+            integer*4        a3 [REFERENCE]
+            character(Len=*) a4 [REFERENCE] 
+            real*4           a5 [REFERENCE]
+            integer*4        a6 [REFERENCE]
+            integer*4        a7 [REFERENCE]
+        end
 
-    interface to subroutine pm_kill [ALIAS:'?pm_kill@@YAXPAH0@Z'](a, b)
-	    integer*4 a [REFERENCE]
-	    integer*4 b [REFERENCE]
-    end       
-    
-    interface to subroutine pm_set_required_data [ALIAS:'?pm_set_required_data@@YAXPAHPAN110@Z'] (a, b, c, d, e)
-      integer*4        a [REFERENCE] 
-      real*8           b [REFERENCE] 
-      real*8           c [REFERENCE] 
-      real*8           d [REFERENCE] 
-      integer*4        e [REFERENCE]
-    end 
+        subroutine pm_exa_exchangerB [ALIAS:'?pm_exa_exchanger@@YAXPAHPAD01PAN00HH@Z'] (b1, b2, b3, b4, b5, b6, b7)
+            integer*4        b1 [REFERENCE] 
+            character(Len=*) b2 [REFERENCE] 
+            integer*4        b3 [REFERENCE]
+            character(Len=*) b4 [REFERENCE] 
+            real*8           b5 [REFERENCE]
+            integer*4        b6 [REFERENCE]
+            integer*4        b7 [REFERENCE]
+        end
 
-    interface to subroutine pm_set_input_value [ALIAS:'?pm_set_input_value@@YAXPAH00PAN0@Z'] (a, b, c, d, e)
-      integer*4        a [REFERENCE] 
-      integer*4        b [REFERENCE] 
-      integer*4        c [REFERENCE] 
-      real*8           d [REFERENCE] 
-      integer*4        e [REFERENCE]
-    end 
+        subroutine pm_exa_exchangerC [ALIAS:'?pm_exa_exchanger@@YAXPAHPAD01PAO00HH@Z'] (c1, c2, c3, c4, c5, c6, c7)
+            integer*4        c1 [REFERENCE] 
+            character(Len=*) c2 [REFERENCE] 
+            integer*4        c3 [REFERENCE]
+            character(Len=*) c4 [REFERENCE] 
+            real*16          c5 [REFERENCE]
+            integer*4        c6 [REFERENCE]
+            integer*4        c7 [REFERENCE]
+        end
+    end interface
 
-    interface to subroutine pm_get_result_value [ALIAS:'?pm_get_result_value@@YAXPAH00PAN0@Z'] (a, b, c, d, e)
-      integer*4        a [REFERENCE] 
-      integer*4        b [REFERENCE] 
-      integer*4        c [REFERENCE] 
-      real*8           d [REFERENCE] 
-      integer*4        e [REFERENCE]
-    end 
+    interface pm_sa_options
+        subroutine pm_sa_optionsA [ALIAS:'?pm_sa_options@@YAXPAH00PAM00@Z'] (a1, a2, a3, a4, a5, a6)
+            integer*4        a1 [REFERENCE] 
+            integer*4        a2 [REFERENCE] 
+            integer*4        a3 [REFERENCE]
+            real*4           a4 [REFERENCE] 
+            integer*4        a5 [REFERENCE]
+            integer*4        a6 [REFERENCE]
+        end
 
-    interface to subroutine pm_get_data [ALIAS:'?pm_get_data@@YAXPAHPAN110@Z'] (a, b, c, d, e)
-      integer*4        a [REFERENCE] 
-      real*8           b [REFERENCE] 
-      real*8           c [REFERENCE] 
-      real*8           d [REFERENCE] 
-      integer*4        e [REFERENCE]
-    end 
+        subroutine pm_sa_optionsB [ALIAS:'?pm_sa_options@@YAXPAH00PAN00@Z'] (b1, b2, b3, b4, b5, b6)
+            integer*4        b1 [REFERENCE] 
+            integer*4        b2 [REFERENCE] 
+            integer*4        b3 [REFERENCE]
+            real*8           b4 [REFERENCE] 
+            integer*4        b5 [REFERENCE]
+            integer*4        b6 [REFERENCE]
+        end
 
-    interface to subroutine pm_set_ph [ALIAS: '?pm_set_ph@@YAXPAH0PAN0@Z'] (a, b, c, d)
-      integer*4        a [REFERENCE]
-      integer*4        b [REFERENCE]
-      real*8           c [REFERENCE]
-      integer*4        d [REFERENCE]
-    end
+        subroutine pm_sa_optionsC [ALIAS:'?pm_sa_options@@YAXPAH00PAO00@Z'] (c1, c2, c3, c4, c5, c6)
+            integer*4        c1 [REFERENCE] 
+            integer*4        c2 [REFERENCE] 
+            integer*4        c3 [REFERENCE]
+            real*16          c4 [REFERENCE] 
+            integer*4        c5 [REFERENCE]
+            integer*4        c6 [REFERENCE]
+        end
+    end interface
 
-    interface to subroutine pm_set_pe [ALIAS: '?pm_set_pe@@YAXPAH000@Z'] (a, b, c, d)
-      integer*4        a [REFERENCE]
-      integer*4        b [REFERENCE]
-      real*8           c [REFERENCE]
-      integer*4        d [REFERENCE]
-    end
+    interface pm_sa_surface
+        subroutine pm_sa_surfaceA [ALIAS:'?pm_sa_surface@@YAXPAH0PAD1PAM22000HH@Z'] (a1, a2, a3, a4, a5, a6, a7, a8)
+            integer*4        a1 [REFERENCE] 
+            integer*4        a2 [REFERENCE] 
+            character(Len=*) a3 [REFERENCE]
+            character(Len=*) a4 [REFERENCE]
+            real*4           a5 [REFERENCE] 
+            real*4           a6 [REFERENCE] 
+            real*4           a7 [REFERENCE]
+            integer*4        a8 [REFERENCE]
+        end
+
+        subroutine pm_sa_surfaceB [ALIAS:'?pm_sa_surface@@YAXPAH0PAD1PAN22000HH@Z'] (b1, b2, b3, b4, b5, b6, b7, b8)
+            integer*4        b1 [REFERENCE] 
+            integer*4        b2 [REFERENCE] 
+            character(Len=*) b3 [REFERENCE]
+            character(Len=*) b4 [REFERENCE]
+            real*8           b5 [REFERENCE] 
+            real*8           b6 [REFERENCE] 
+            real*8           b7 [REFERENCE]
+            integer*4        b8 [REFERENCE]
+        end
+
+        subroutine pm_sa_surfaceC [ALIAS:'?pm_sa_surface@@YAXPAH0PAD1PAO22000HH@Z'] (c1, c2, c3, c4, c5, c6, c7, c8)
+            integer*4        c1 [REFERENCE] 
+            integer*4        c2 [REFERENCE] 
+            character(Len=*) c3 [REFERENCE]
+            character(Len=*) c4 [REFERENCE]
+            real*16          c5 [REFERENCE] 
+            real*16          c6 [REFERENCE] 
+            real*16          c7 [REFERENCE]
+            integer*4        c8 [REFERENCE]
+        end
+    end interface
+
+    interface pm_set_required_data
+        subroutine pm_set_required_dataA [ALIAS:'?pm_set_required_data@@YAXPAHPAM110@Z'] (a1, a2, a3, a4, a5)
+            integer*4        a1 [REFERENCE] 
+            real*4           a2 [REFERENCE] 
+            real*4           a3 [REFERENCE] 
+            real*4           a4 [REFERENCE] 
+            integer*4        a5 [REFERENCE]
+        end
+
+        subroutine pm_set_required_dataB [ALIAS:'?pm_set_required_data@@YAXPAHPAN110@Z'] (b1, b2, b3, b4, b5)
+            integer*4        b1 [REFERENCE] 
+            real*8           b2 [REFERENCE] 
+            real*8           b3 [REFERENCE] 
+            real*8           b4 [REFERENCE] 
+            integer*4        b5 [REFERENCE]
+        end
+
+        subroutine pm_set_required_dataC [ALIAS:'?pm_set_required_data@@YAXPAHPAO110@Z'] (c1, c2, c3, c4, c5)
+            integer*4        c1 [REFERENCE] 
+            real*16          c2 [REFERENCE] 
+            real*16          c3 [REFERENCE] 
+            real*16          c4 [REFERENCE] 
+            integer*4        c5 [REFERENCE]
+        end
+    end interface
+
+    interface pm_set_input_value
+        subroutine pm_set_input_valueA [ALIAS:'?pm_set_input_value@@YAXPAH00PAM0@Z'] (a1, a2, a3, a4, a5)
+            integer*4        a1 [REFERENCE] 
+            integer*4        a2 [REFERENCE] 
+            integer*4        a3 [REFERENCE] 
+            real*4           a4 [REFERENCE] 
+            integer*4        a5 [REFERENCE]
+        end           
+
+        subroutine pm_set_input_valueB [ALIAS:'?pm_set_input_value@@YAXPAH00PAN0@Z'] (b1, b2, b3, b4, b5)
+            integer*4        b1 [REFERENCE] 
+            integer*4        b2 [REFERENCE] 
+            integer*4        b3 [REFERENCE] 
+            real*8           b4 [REFERENCE] 
+            integer*4        b5 [REFERENCE]
+        end           
+
+        subroutine pm_set_input_valueC [ALIAS:'?pm_set_input_value@@YAXPAH00PAO0@Z'] (c1, c2, c3, c4, c5)
+            integer*4        c1 [REFERENCE] 
+            integer*4        c2 [REFERENCE] 
+            integer*4        c3 [REFERENCE] 
+            real*16          c4 [REFERENCE] 
+            integer*4        c5 [REFERENCE]
+        end           
+    end interface
+
+    interface pm_get_result_value
+        subroutine pm_get_result_valueA [ALIAS:'?pm_get_result_value@@YAXPAH00PAM0@Z'] (a1, a2, a3, a4, a5)
+            integer*4        a1 [REFERENCE] 
+            integer*4        a2 [REFERENCE] 
+            integer*4        a3 [REFERENCE] 
+            real*4           a4 [REFERENCE] 
+            integer*4        a5 [REFERENCE]
+        end
+        
+        subroutine pm_get_result_valueB [ALIAS:'?pm_get_result_value@@YAXPAH00PAN0@Z'] (b1, b2, b3, b4, b5)
+            integer*4        b1 [REFERENCE] 
+            integer*4        b2 [REFERENCE] 
+            integer*4        b3 [REFERENCE] 
+            real*8           b4 [REFERENCE] 
+            integer*4        b5 [REFERENCE]
+        end
+        
+        subroutine pm_get_result_valueC [ALIAS:'?pm_get_result_value@@YAXPAH00PAO0@Z'] (c1, c2, c3, c4, c5)
+            integer*4        c1 [REFERENCE] 
+            integer*4        c2 [REFERENCE] 
+            integer*4        c3 [REFERENCE] 
+            real*16          c4 [REFERENCE] 
+            integer*4        c5 [REFERENCE]
+        end
+    end interface
+
+    interface pm_get_data
+        subroutine pm_get_dataA [ALIAS:'?pm_get_data@@YAXPAHPAM110@Z'] (a1, a2, a3, a4, a5)
+            integer*4        a1 [REFERENCE] 
+            real*4           a2 [REFERENCE] 
+            real*4           a3 [REFERENCE] 
+            real*4           a4 [REFERENCE] 
+            integer*4        a5 [REFERENCE]
+        end
+
+        subroutine pm_get_dataB [ALIAS:'?pm_get_data@@YAXPAHPAN110@Z'] (b1, b2, b3, b4, b5)
+            integer*4        b1 [REFERENCE] 
+            real*8           b2 [REFERENCE] 
+            real*8           b3 [REFERENCE] 
+            real*8           b4 [REFERENCE] 
+            integer*4        b5 [REFERENCE]
+        end
+
+        subroutine pm_get_dataC [ALIAS:'?pm_get_data@@YAXPAHPAO110@Z'] (c1, c2, c3, c4, c5)
+            integer*4        c1 [REFERENCE] 
+            real*16          c2 [REFERENCE] 
+            real*16          c3 [REFERENCE] 
+            real*16          c4 [REFERENCE] 
+            integer*4        c5 [REFERENCE]
+        end
+    end interface
+
+    interface pm_set_ph
+        subroutine pm_set_phA [ALIAS: '?pm_set_ph@@YAXPAH0PAM0@Z'] (a1, a2, a3, a4)
+            integer*4        a1 [REFERENCE]
+            integer*4        a2 [REFERENCE]
+            real*4           a3 [REFERENCE]
+            integer*4        a4 [REFERENCE]
+        end
+
+        subroutine pm_set_phB [ALIAS: '?pm_set_ph@@YAXPAH0PAN0@Z'] (b1, b2, b3, b4)
+            integer*4        b1 [REFERENCE]
+            integer*4        b2 [REFERENCE]
+            real*8           b3 [REFERENCE]
+            integer*4        b4 [REFERENCE]
+        end
+
+        subroutine pm_set_phC [ALIAS: '?pm_set_ph@@YAXPAH0PAO0@Z'] (c1, c2, c3, c4)
+            integer*4        c1 [REFERENCE]
+            integer*4        c2 [REFERENCE]
+            real*16          c3 [REFERENCE]
+            integer*4        c4 [REFERENCE]
+        end
+    end interface
+
+    interface pm_set_pe
+        subroutine pm_set_peA [ALIAS: '?pm_set_pe@@YAXPAH0PAM0@Z'] (a1, a2, a3, a4)
+            integer*4        a1 [REFERENCE]
+            integer*4        a2 [REFERENCE]
+            real*4           a3 [REFERENCE]
+            integer*4        a4 [REFERENCE]
+        end
+        
+        subroutine pm_set_peB [ALIAS: '?pm_set_pe@@YAXPAH0PAN0@Z'] (b1, b2, b3, b4)
+            integer*4        b1 [REFERENCE]
+            integer*4        b2 [REFERENCE]
+            real*8           b3 [REFERENCE]
+            integer*4        b4 [REFERENCE]
+        end
+
+        subroutine pm_set_peC [ALIAS: '?pm_set_pe@@YAXPAH0PAO0@Z'] (c1, c2, c3, c4)
+            integer*4        c1 [REFERENCE]
+            integer*4        c2 [REFERENCE]
+            real*16          c3 [REFERENCE]
+            integer*4        c4 [REFERENCE]
+        end
+    end interface
 
     contains
 
@@ -531,7 +777,6 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         Me%CalcData%MassOfWater        = 0
         Me%CalcData%VolumeOfWater      = 0
         Me%CalcData%MassOfSolution     = 0
-        Me%CalcData%factor             = 0
         
         !----------------------------------------------------------------------
 
@@ -545,7 +790,6 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         character(LEN = *)             :: FileName      
         
         !Local-----------------------------------------------------------------
-        integer :: zero = 0
         integer :: STAT_
         
         !Begin-----------------------------------------------------------------
@@ -595,14 +839,14 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      STAT         = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_) stop 'Subroutine ReadPhreeqCOptions; Module ModulePhreeqC. ERR003.' 
 
-!        call GetData(Me%PhreeqCOptions%PrintAlways  , &
-!                     Me%ObjEnterData, flag          , &
-!                     SearchType   = FromFile        , &
-!                     keyword      = 'PRINT_ALWAYS'  , &
-!                     default      = 0               , &
-!                     ClientModule = 'ModulePhreeqC' , &
-!                     STAT         = STAT_CALL)
-!        if (STAT_CALL .NE. SUCCESS_) stop 'Subroutine ReadPhreeqCOptions; Module ModulePhreeqC. ERR004.' 
+        call GetData(Me%PhreeqCOptions%PrintInput   , &
+                     Me%ObjEnterData, flag          , &
+                     SearchType   = FromFile        , &
+                     keyword      = 'PRINT_INPUT'   , &
+                     default      = .false.         , &
+                     ClientModule = 'ModulePhreeqC' , &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'Subroutine ReadPhreeqCOptions; Module ModulePhreeqC. ERR004.' 
         
         call GetData(Me%PhreeqCOptions%HPlusDensity , &
                      Me%ObjEnterData, flag          , &
@@ -685,7 +929,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      STAT         = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_) stop 'Subroutine ReadPhreeqCOptions; Module ModulePhreeqC. ERR014.'        
 
-        if (Me%PhreeqCOptions%pECharge .AND. Me%PhreeqCOptions%pHCharge) &
+        if ((Me%PhreeqCOptions%pECharge .EQ. 1) .AND. (Me%PhreeqCOptions%pHCharge .EQ. 1)) &
             stop 'Subroutine ReadPhreeqCOptions; Module ModulePhreeqC. ERR015.'
         
         call GetData(Me%PhreeqCOptions%DTSeconds    , &
@@ -761,8 +1005,6 @@ cd1:   if (flag .EQ. 0) then
         !Local-----------------------------------------------------------------
         integer :: ready_              
         integer :: STAT_ !Auxiliar local variable
-        real    :: zero = 0.0
-        integer :: status
         
         !----------------------------------------------------------------------
         STAT_ = UNKNOWN_
@@ -777,9 +1019,12 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
             Me%Properties(Me%PropertyCount)%PropertyID = PropertyID        
 
             select case (Property%Group)
-                case (0) !No group
-                case (SOLUTION)
-                    call SetSolutionProperty(Me%Properties(Me%PropertyCount))
+                case (0) 
+                    !Do nothing. 
+                case (SPECIES)
+                    call SetSpeciesProperty(Me%Properties(Me%PropertyCount))                    
+                case (CONCENTRATION)
+                    call SetConcentrationProperty(Me%Properties(Me%PropertyCount))
                 case (PHASE)
                     call SetPhaseProperty(Me%Properties(Me%PropertyCount))
                 case (EXCHANGE)
@@ -805,7 +1050,29 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
     
 
     !--------------------------------------------------------------------------
-    subroutine SetSolutionProperty (Property)
+    subroutine SetSpeciesProperty (Property)
+    
+        !Arguments-------------------------------------------------------------
+        type(T_PhreeqCProperty) :: Property
+
+        !Local-----------------------------------------------------------------
+        real    :: zero = 0.0
+        integer :: status
+        
+        !----------------------------------------------------------------------
+
+        Property%PhreeqCInputID = -1
+        call pm_get_species_index(Me%PhreeqCInstanceID, trim(Property%Params%PhreeqCName)//char(0), Property%PhreeqCResultID, status)
+        if (status .EQ. 0) stop 'Subroutine SetSpeciesProperty; Module ModulePhreeqC. ERR001.'                      
+                             
+        !----------------------------------------------------------------------                    
+    
+    end subroutine SetSpeciesProperty
+    !--------------------------------------------------------------------------
+    
+    
+    !--------------------------------------------------------------------------
+    subroutine SetConcentrationProperty (Property)
     
         !Arguments-------------------------------------------------------------
         type(T_PhreeqCProperty) :: Property
@@ -835,7 +1102,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
                            
         if (Property%Params%UsePhase .EQ. 1) call pm_conc_phase(Me%PhreeqCInstanceID, trim(Property%Params%PhaseName)//char(0), & 
                                                          Property%Params%SI, status)
-        if (status .EQ. 0) stop 'Subroutine SetSolutionProperty; Module ModulePhreeqC. ERR006.'                      
+        if (status .EQ. 0) stop 'Subroutine SetSolutionProperty; Module ModulePhreeqC. ERR005.'                      
                     
         if (Property%Params%UseRedox .EQ. 1) call pm_conc_redox(Me%PhreeqCInstanceID,                       &
                                                          trim(Property%Params%RedoxPair%Element1)//char(0), &
@@ -843,17 +1110,17 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
                                                          trim(Property%Params%RedoxPair%Element2)//char(0), &
                                                          Property%Params%RedoxPair%Valence2,                &   
                                                          status)
-    if (status .EQ. 0) stop 'Subroutine SetSolutionProperty; Module ModulePhreeqC. ERR007.'                      
+        if (status .EQ. 0) stop 'Subroutine SetSolutionProperty; Module ModulePhreeqC. ERR006.'                      
                                                                                   
         !Now, save the solution property in the definitive structure
         call pm_conc_save (Me%PhreeqCInstanceID, Property%PhreeqCInputID, Property%PhreeqCResultID, database_gfw, status)
-        if (status .EQ. 0) stop 'Subroutine SetSolutionProperty; Module ModulePhreeqC. ERR008.'  
+        if (status .EQ. 0) stop 'Subroutine SetSolutionProperty; Module ModulePhreeqC. ERR007.'  
         
         if (Property%Params%UseGFW .EQ. 0) Property%Params%GFW = database_gfw                   
          
         !----------------------------------------------------------------------                    
 
-    end subroutine SetSolutionProperty
+    end subroutine SetConcentrationProperty
     !--------------------------------------------------------------------------
 
     !--------------------------------------------------------------------------
@@ -864,6 +1131,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
 
         !Local-----------------------------------------------------------------
         real                    :: zero = 0.0
+        real                    :: SI
         integer                 :: STAT_
         character(StringLength) :: Alternative
         
@@ -877,12 +1145,21 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
             Alternative = ''
         endif
        
+        if (Property%Params%PhaseType .EQ. SOLID_PHASE) then
+            Me%PhreeqCOptions%UseSolidPhase = 1
+            SI = Property%Params%SI
+        else
+            Me%PhreeqCOptions%UseGasPhase = 1
+            SI = log10(Property%Params%SI)
+        end if
+       
         !Pass to PhreeqC Object
         call pm_ppa_pp(Me%PhreeqCInstanceID, trim(Property%Params%PhreeqCName)//char(0), trim(Alternative)//char(0), &
-                       Property%Params%SI, zero, Property%Params%ForceEquality, Property%Params%DissolveOnly, Property%PhreeqCInputID, STAT_)                       
+                       SI, zero, Property%Params%ForceEquality, Property%Params%DissolveOnly, Property%PhreeqCInputID, STAT_)                       
         if (STAT_ .EQ. 0) stop 'Subroutine SetPhaseProperty; Module ModulePhreeqC. ERR001.' 
             
-        Property%Params%PhreeqCResultID = Property%Params%PhreeqCInputID                   
+        Property%PhreeqCResultID = Property%PhreeqCInputID   
+        
         !----------------------------------------------------------------------
     
     end subroutine SetPhaseProperty
@@ -898,7 +1175,6 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
         !Local-----------------------------------------------------------------
         real                    :: zero = 0.0
         integer                 :: STAT_
-        integer                 :: PhreeqCIndex
         character(StringLength) :: Formula
         
         !Begin-----------------------------------------------------------------
@@ -915,12 +1191,14 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
         endif
         
         ! Pass to PhreeqC Object    
-        call pm_exa_exchanger(Me%PhreeqCInstanceID, trim(Formula)//char(0), Property%Params%ExType, &
-                              trim(Property%Params%Has)//char(0), zero, Property%Params%PhreeqCInputID, STAT_)
+        call pm_exa_exchanger(Me%PhreeqCInstanceID, trim(Property%Params%PhreeqCName)//char(0), Property%Params%ExType, &
+                              trim(Formula)//char(0), zero, Property%PhreeqCInputID, STAT_)
         if (STAT_ .EQ. 0) stop 'Subroutine SetExchangeProperty; Module ModulePhreeqC. ERR001.'
          
-        call pm_get_species_index(Me%PhreeqCInstanceID, trim(Formula)//char(0), Property%PhreeqCResultID, STAT_) 
-        if (STAT_ .EQ. 0) stop 'Subroutine SetExchangeProperty; Module ModulePhreeqC. ERR002.'        
+        call pm_get_species_index(Me%PhreeqCInstanceID, trim(Property%Params%PhreeqCName)//char(0), Property%PhreeqCResultID, STAT_) 
+        if (STAT_ .EQ. 0) stop 'Subroutine SetExchangeProperty; Module ModulePhreeqC. ERR002.' 
+        
+        Me%PhreeqCOptions%UseExchanger = 1       
         !----------------------------------------------------------------------
     
     end subroutine SetExchangeProperty
@@ -1020,6 +1298,45 @@ cd1:    if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
     end subroutine GetPhreeqCPropIndex
     !--------------------------------------------------------------------------    
     
+    
+    !--------------------------------------------------------------------------    
+    subroutine GetPhreeqCOptions (PhreeqCID, PhreeqCOptions, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                                       :: PhreeqCID
+        type(T_PhreeqCOptions),           intent(OUT) :: PhreeqCOptions
+        integer,                optional, intent(OUT) :: STAT
+ 
+        !External--------------------------------------------------------------
+        integer :: ready_              
+
+        !Local-----------------------------------------------------------------
+        integer :: STAT_              !Auxiliar local variable
+        
+        !----------------------------------------------------------------------
+        STAT_ = UNKNOWN_
+
+        call Ready(PhreeqCID, ready_)    
+        
+cd1:    if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            PhreeqCOptions = Me%PhreeqCOptions
+                
+            STAT_ = SUCCESS_            
+
+        else 
+        
+            STAT_ = ready_
+            
+        end if cd1
+
+        if (present(STAT)) STAT = STAT_
+        !----------------------------------------------------------------------
+        
+    end subroutine GetPhreeqCOptions
+    !--------------------------------------------------------------------------    
+
+    
     !--------------------------------------------------------------------------    
     subroutine UnGetPhreeqC(PhreeqCID, Array, STAT)
 
@@ -1070,9 +1387,11 @@ cd1:    if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
                               SolutionTemperature, &
                               SolutionpH,          &
                               SolutionpE,          &
+                              SolidMass,           &
                               CellsArrayLB,        &
                               CellsArrayUB,        &
                               OpenPoints,          &
+                              ConversionSelector,  &
                               STAT)  
 
         !Arguments---------------------------------------------------------------
@@ -1082,15 +1401,19 @@ cd1:    if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
         real,               pointer, dimension(:  ) :: SolutionTemperature
         real,               pointer, dimension(:  ) :: SolutionpH
         real,               pointer, dimension(:  ) :: SolutionpE
-        integer,            intent(IN)              :: CellsArrayLB, CellsArrayUB
+        real,    optional,  pointer, dimension(:  ) :: SolidMass
+        integer,            intent(IN)              :: CellsArrayLB, CellsArrayUB        
         integer, optional,  pointer, dimension(:  ) :: OpenPoints
+        integer, optional                           :: ConversionSelector
         integer, optional,  intent(OUT)             :: STAT
 
         !Local-------------------------------------------------------------------
         integer                                     :: STAT_  
         logical                                     :: CalcPoint        
         integer                                     :: CellIndex
-        integer                                     :: ready_   
+        integer                                     :: ready_ 
+        integer                                     :: ConversionSelector_ 
+        integer                                     :: UsePhase 
 
         !------------------------------------------------------------------------                         
             
@@ -1099,21 +1422,43 @@ cd1:    if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
         call Ready(PhreeqCID, ready_)
 
 cd1 :   if (ready_ .EQ. IDLE_ERR_) then
+            
+            if ((Me%PhreeqCOptions%UseSolidPhase .eq. 1) .or. (Me%PhreeqCOptions%UseGasPhase .eq. 1)) then
+                UsePhase = 1
+            else
+                UsePhase = 0
+            endif
+            call pm_set_use(Me%PhreeqCInstanceID, UsePhase, Me%PhreeqCOptions%UseGas, Me%PhreeqCOptions%UseSolidSolution, &
+                            Me%PhreeqCOptions%UseSurface, Me%PhreeqCOptions%UseExchanger, STAT_)
+            if (STAT_ .EQ. 0) stop 'Subroutine ModifyPhreeqC; module ModulePhreeqC. ERR001.'
+
+            if (present(ConversionSelector)) then 
+                ConversionSelector_ = ConversionSelector
+            else
+                ConversionSelector_ = mPOROUSMEDIAPROPERTIES_ 
+            end if
 
             Me%Ext%PropertiesValues => PropertiesValues
-            if (.NOT. associated(Me%Ext%PropertiesValues)) stop 'Subroutine ModifyPhreeqC; Module ModulePhreeqC. ERR001.'
+            if (.NOT. associated(Me%Ext%PropertiesValues)) stop 'Subroutine ModifyPhreeqC; Module ModulePhreeqC. ERR002.'
 
             Me%Ext%SolutionVolume => SolutionVolume
-            if (.NOT. associated(Me%Ext%SolutionVolume)) stop 'Subroutine ModifyPhreeqC; Module ModulePhreeqC. ERR002.'
+            if (.NOT. associated(Me%Ext%SolutionVolume)) stop 'Subroutine ModifyPhreeqC; Module ModulePhreeqC. ERR003.'
                 
             Me%Ext%SolutionTemperature => SolutionTemperature
-            if (.NOT. associated(Me%Ext%SolutionTemperature)) stop 'Subroutine ModifyPhreeqC; Module ModulePhreeqC. ERR003.'
+            if (.NOT. associated(Me%Ext%SolutionTemperature)) stop 'Subroutine ModifyPhreeqC; Module ModulePhreeqC. ERR004.'
 
             Me%Ext%SolutionpH => SolutionpH
-            if (.NOT. associated(Me%Ext%SolutionpH)) stop 'Subroutine ModifyPhreeqC; Module ModulePhreeqC. ERR004.'
+            if (.NOT. associated(Me%Ext%SolutionpH)) stop 'Subroutine ModifyPhreeqC; Module ModulePhreeqC. ERR005.'
 
             Me%Ext%SolutionpE => SolutionpE
-            if (.NOT. associated(Me%Ext%SolutionpE)) stop 'Subroutine ModifyPhreeqC; Module ModulePhreeqC. ERR005.'            
+            if (.NOT. associated(Me%Ext%SolutionpE)) stop 'Subroutine ModifyPhreeqC; Module ModulePhreeqC. ERR006.'            
+            
+            if (present(SolidMass)) then
+                Me%Ext%SolidMass => SolidMass
+                if (.NOT. associated(Me%Ext%SolidMass)) stop 'Subroutine ModifyPhreeqC; Module ModulePhreeqC. ERR007.'            
+            else
+                nullify(Me%Ext%SolidMass)
+            end if
             
 do1 :       do CellIndex = CellsArrayLB, CellsArrayUB
             
@@ -1131,7 +1476,7 @@ do1 :       do CellIndex = CellsArrayLB, CellsArrayUB
                     CalcPoint = .true.
                 endif
 
-                if (CalcPoint) call MakeCalculations(CellIndex)
+                if (CalcPoint) call MakeCalculations(CellIndex, ConversionSelector_)
                               
             end do do1
                      
@@ -1148,6 +1493,7 @@ do1 :       do CellIndex = CellsArrayLB, CellsArrayUB
         nullify(Me%Ext%SolutionTemperature)
         nullify(Me%Ext%SolutionpH)
         nullify(Me%Ext%SolutionpE)
+        nullify(Me%Ext%solidMass)
 
         if (present(STAT)) STAT = STAT_
 
@@ -1157,14 +1503,16 @@ do1 :       do CellIndex = CellsArrayLB, CellsArrayUB
     !----------------------------------------------------------------------------
 
     !----------------------------------------------------------------------------
-    subroutine MakeCalculations(CellIndex)
+    subroutine MakeCalculations(CellIndex, ConversionSelector)
 
         !Argument----------------------------------------------------------------
         integer, intent(IN) :: CellIndex 
+        integer, intent(IN) :: ConversionSelector
 
         !Local-------------------------------------------------------------------
         integer :: PropertyIndex
         integer :: STAT_
+        integer :: PrintInput
         real    :: ph, pe
 
         !Begin-------------------------------------------------------------------  
@@ -1182,47 +1530,70 @@ do1 :       do CellIndex = CellsArrayLB, CellsArrayUB
                                   Me%CalcData%DensityOfSolution,         & 
                                   STAT_)                                
         if (STAT_ .EQ. 0) stop 'Subroutine MakeCalculations; module ModulePhreeqC. ERR003.'                                  
-
-        !Convert input units from MOHID format to PhreeqC format
-        call ConvertInputs (CellIndex)
-             
+            
         !Pass to PhreeqCObject all the properties
 do1:    do PropertyIndex = 1, Me%PropertyCount !'i' is the index for the current property
           
             select case (Me%Properties(PropertyIndex)%Params%Group)
-                case (1, 2, 3, 4, 5, 7)
+                case (CONCENTRATION, PHASE, GAS, SURFACE, EXCHANGE)
+                
+                    !Convert input units from MOHID format to PhreeqC format
+                    select case (ConversionSelector)
+                        case (mPOROUSMEDIAPROPERTIES_)
+                            call ConvertInputs (CellIndex, PropertyIndex)
+                        case default
+                            call ConvertInputs (CellIndex, PropertyIndex)
+                    end select
+                
                     call pm_set_input_value (Me%PhreeqCInstanceID,                              & 
                                              Me%Properties(PropertyIndex)%PhreeqCInputID,       &
                                              Me%Properties(PropertyIndex)%Params%Group,         &
                                              Me%Ext%PropertiesValues(PropertyIndex, CellIndex), &
                                              STAT_)
                     if (STAT_ .EQ. 0) stop 'Subroutine MakeCalculations; module ModulePhreeqC. ERR004.'
+                case (OTHER, SPECIES)
+                    !Do nothing
                 case default 
                     stop 'Subroutine MakeCalculations; module ModulePhreeqC. ERR005.'
                 end select
         end do do1
         
         !Run model       
-        call pm_run_model (Me%PhreeqCInstanceID, STAT_) 
+        if (Me%PhreeqCOptions%PrintInput) then
+            PrintInput = 1
+        else
+            PrintInput = 0
+        end if
+        
+        call pm_run_model (Me%PhreeqCInstanceID, PrintInput, STAT_) 
         if (STAT_ .EQ. 0) &
             stop 'Subroutine MakeCalculations; module ModulePhreeqC. ERR006.'
         
+        call pm_get_data(Me%PhreeqCInstanceID, Me%CalcData%MassOfWater, ph, pe, STAT_)
+        if (STAT_ .EQ. 0) stop 'Subroutine MakeCalculations; module ModulePhreeqC. ERR008.'                    
+        
 do2:    do PropertyIndex = 1, Me%PropertyCount
 
-            call pm_get_result_value (Me%PhreeqCInstanceID,                               & 
-                                      Me%Properties(PropertyIndex)%PhreeqCResultID,       &
-                                      Me%Properties(PropertyIndex)%Params%Group,          &
-                                      Me%Ext%PropertiesValues(PropertyIndex, CellIndex), &
-                                      STAT_)
-            if (STAT_ .EQ. 0) stop 'Subroutine MakeCalculations; module ModulePhreeqC. ERR007.'            
-        
+            if (Me%Properties(PropertyIndex)%Params%DoNotChange .NE. 1) then
+
+                call pm_get_result_value (Me%PhreeqCInstanceID,                              & 
+                                          Me%Properties(PropertyIndex)%PhreeqCResultID,      &
+                                          Me%Properties(PropertyIndex)%Params%Group,         &
+                                          Me%Ext%PropertiesValues(PropertyIndex, CellIndex), &
+                                          STAT_)
+                if (STAT_ .EQ. 0) stop 'Subroutine MakeCalculations; module ModulePhreeqC. ERR007.'            
+            
+                select case (ConversionSelector)
+                    case (mPOROUSMEDIAPROPERTIES_)
+                        call ConvertResults (CellIndex, Me%CalcData%MassOfWater, PropertyIndex)
+                    case default
+                        call ConvertResults (CellIndex, Me%CalcData%MassOfWater, PropertyIndex)
+                end select
+
+            end if
+                    
         end do do2
-        
-        call pm_get_data(Me%PhreeqCInstanceID, Me%CalcData%MassOfWater, ph, pe, STAT_)
-        if (STAT_ .EQ. 0) stop 'Subroutine MakeCalculations; module ModulePhreeqC. ERR008.'            
-        
-        call ConvertResults (CellIndex, ph)
-        
+                                
         !------------------------------------------------------------------------
        
     end subroutine MakeCalculations
@@ -1235,17 +1606,15 @@ do2:    do PropertyIndex = 1, Me%PropertyCount
         integer, intent(IN) :: CellIndex
 
         !Local-------------------------------------------------------------------
-        integer :: STAT_
         integer :: PropertyIndex
-        real    :: SolutionVolume_L
         
         !Begin-------------------------------------------------------------------       
-        !      L         =                m3                * 1000
-        SolutionVolume_L = Me%Ext%SolutionVolume(CellIndex) * 1000
+        !              L             =                m3                * 1000
+        Me%CalcData%VolumeOfSolution = Me%Ext%SolutionVolume(CellIndex) * 1000
 
         !Find the mass of Solution H+ using pH
         !Considering the GFW of H+ as aprox. 1, and the activity of H+ same as concentration of H+, the result of the expression below gives the mass (in grams) of H+ directly 
-        Me%CalcData%MassOfAllSolutes = (10 ** (-Me%Ext%SolutionpH(CellIndex))) * SolutionVolume_L
+        Me%CalcData%MassOfAllSolutes = (10 ** (-Me%Ext%SolutionpH(CellIndex))) * Me%CalcData%VolumeOfSolution
         
         !With the mass of H+, find the volume of H+ (uses H+ density given by the user or the 0.09 g/L default)
         !             L                =               g              /               g/L
@@ -1254,15 +1623,15 @@ do2:    do PropertyIndex = 1, Me%PropertyCount
         !Second, find the mass and volume of all other solutes (solution concentration properties)
 do1:    do PropertyIndex = 1, Me%PropertyCount
 
-            if (Me%Properties(PropertyIndex)%Params%Group .EQ. SOLUTION) then !The units of solution concentrations MUST be in the mg/L format
+            if (Me%Properties(PropertyIndex)%Params%Group .EQ. CONCENTRATION) then !The units of solution concentrations MUST be in the mg/L format
                 
-                !                g                = 0.001 *                      mg/L                         *        L        
-                Me%Properties(PropertyIndex)%Mass = 0.001 * Me%Ext%PropertiesValues(PropertyIndex, CellIndex) * SolutionVolume_L
+                !                g                 = 0.001 *                      mg/L                         *              L        
+                Me%Properties(PropertyIndex)%PropertyValue = 0.001 * Me%Ext%PropertiesValues(PropertyIndex, CellIndex) * Me%CalcData%VolumeOfSolution
                 !            g               =              g               +                 g
-                Me%CalcData%MassOfAllSolutes = Me%CalcData%MassOfAllSolutes + Me%Properties(PropertyIndex)%Mass 
+                Me%CalcData%MassOfAllSolutes = Me%CalcData%MassOfAllSolutes + Me%Properties(PropertyIndex)%PropertyValue 
                 
-                !                L                  =                   g               /                      g/L
-                Me%Properties(PropertyIndex)%Volume = Me%Properties(PropertyIndex)%Mass / Me%Properties(PropertyIndex)%Params%Density
+                !                L                  =                   g                /                      g/L
+                Me%Properties(PropertyIndex)%Volume = Me%Properties(PropertyIndex)%PropertyValue / Me%Properties(PropertyIndex)%Params%Density
                 !             L                =               L                +       L
                 Me%CalcData%VolumeOfAllSolutes = Me%CalcData%VolumeOfAllSolutes + Me%Properties(PropertyIndex)%Volume
                 
@@ -1271,8 +1640,8 @@ do1:    do PropertyIndex = 1, Me%PropertyCount
         end do do1 
         
         !Find the volume of water
-        !          L              =        L         -               L
-        Me%CalcData%VolumeOfWater = SolutionVolume_L - Me%CalcData%VolumeOfAllSolutes
+        !          L              =              L               -               L
+        Me%CalcData%VolumeOfWater = Me%CalcData%VolumeOfSolution - Me%CalcData%VolumeOfAllSolutes
         
         !Find the mass of water
         !          kg           =             L             *                g/L              * 0.001
@@ -1283,123 +1652,175 @@ do1:    do PropertyIndex = 1, Me%PropertyCount
         Me%CalcData%MassOfSolution = Me%CalcData%MassOfWater + (0.001 * Me%CalcData%MassOfAllSolutes)
         
         !Find Solution Density
-        !            kg/L             =             kg             /       L
-        Me%CalcData%DensityOfSolution = Me%CalcData%MassOfSolution / SolutionVolume_L
+        !            kg/L             =             kg             /             L
+        Me%CalcData%DensityOfSolution = Me%CalcData%MassOfSolution / Me%CalcData%VolumeOfSolution
         
-        !Find Factor
-        !      kg/kg       =            kg           /            kg
-        Me%CalcData%Factor = Me%CalcData%MassOfWater / Me%CalcData%MassOfSolution
-
         !------------------------------------------------------------------------       
         
     end subroutine CalculateSolutionParameters
     !----------------------------------------------------------------------------
     
     !----------------------------------------------------------------------------
-    subroutine ConvertInputs (CellIndex)
+    subroutine ConvertInputs (CellIndex, PropertyIndex)
         !For now, the input units for each group are fixed.
         !In the future, if possible, this will be made more flexible
 
         !Argument----------------------------------------------------------------
         integer, intent(IN) :: CellIndex
-
-        !Local-------------------------------------------------------------------
-        integer                     :: STAT_ 
-        integer                     :: PropertyIndex
+        integer, intent(IN) :: PropertyIndex       
 
         !------------------------------------------------------------------------       
                                        
-do1:    do PropertyIndex = 1, Me%PropertyCount
-            
-            select case (Me%Properties(PropertyIndex)%Params%Group)
-                case (SOLUTION) !The input units for SOLUTION concentration properties MUST be mg/L
-                                                        
-                    if (.NOT.((Me%Properties(PropertyIndex)%Params%PhreeqCName .EQ. 'H(1)') .OR. (Me%Properties(PropertyIndex)%Params%PhreeqCName .EQ. 'E'))) then   
-                                                                                         
-                        !The factor turns the molality of a solution as if the solution has 1kg of water
-                        !                    mol/kgw                      = (                   g              /                   g/mol                ) / (          kg            *       factor      )
-                        Me%Ext%PropertiesValues(PropertyIndex, CellIndex) = (Me%Properties(PropertyIndex)%Mass / Me%Properties(PropertyIndex)%Params%GFW) / (Me%CalcData%MassOfWater * Me%CalcData%Factor)
-                        
-                    end if  
+        select case (Me%Properties(PropertyIndex)%Params%Group)
+            case (CONCENTRATION) !The input units for CONCENTRATION concentration properties MUST be mg/L
+                                                    
+                if (.NOT.((Me%Properties(PropertyIndex)%Params%PhreeqCName .EQ. 'H(1)') .OR. (Me%Properties(PropertyIndex)%Params%PhreeqCName .EQ. 'E'))) then   
+                                                                                     
+                    !The factor turns the molality of a solution as if the solution has 1kg of water
+                    !                    mol/kgw                      = (                 g                 /                   g/mol                ) /          kgw           
+                    Me%Ext%PropertiesValues(PropertyIndex, CellIndex) = (Me%Properties(PropertyIndex)%PropertyValue / Me%Properties(PropertyIndex)%Params%GFW) / Me%CalcData%MassOfWater
                     
-                case (PHASE)
+                end if  
                 
-                case (EXCHANGE)
-                               
-                case default                                                      
+            case (PHASE)
+                
+                if (Me%Properties(PropertyIndex)%Params%PhaseType .EQ. SOLID_PHASE) then !It's a solid pure phase
 
-            end select
-                    
-        end do do1               
+                    if (.NOT. associated(Me%Ext%SolidMass)) stop 'Subroutine ConvertInputs; Module ModulePhreeqC. ERR001.'
                 
+                    !                     mols                        = (                        mg/kgs                    / 1000 *            kgs              /                   g/mol                )            
+                    Me%Ext%PropertiesValues(PropertyIndex, CellIndex) = (Me%Ext%PropertiesValues(PropertyIndex, CellIndex) / 1000 * Me%Ext%SolidMass(CellIndex) / Me%Properties(PropertyIndex)%Params%GFW)
+                    
+                else !it's a gas pure phase
+                
+                    !                      mols                       =                      mols
+                    !Me%Ext%PropertiesValues(PropertyIndex, CellIndex) = Me%Ext%PropertiesValues(PropertyIndex, CellIndex)
+                    
+                    !For now, the "moles" of the gas at disposition are always 10 moles and the volume is "ignored"
+                    !Basically, at the partial pressure given there is an "infinite supply" of the gas.
+                    !This must be changed in the future...
+                    
+                end if
+            
+            case (EXCHANGE)
+
+                if (.NOT. associated(Me%Ext%SolidMass)) stop 'Subroutine ConvertInputs; Module ModulePhreeqC. ERR002.'
+                                               
+                    !                     mols                        = (                       mg/kgs                     *             kgs             / 1000 /                   g/mol                )            
+                    Me%Ext%PropertiesValues(PropertyIndex, CellIndex) = (Me%Ext%PropertiesValues(PropertyIndex, CellIndex) * Me%Ext%SolidMass(CellIndex) / 1000 / Me%Properties(PropertyIndex)%Params%GFW)
+
+            case default                                                      
+
+                stop 'Subroutine ConvertInputs; module ModulePhreeqC. ERR003.'
+                
+        end select
+                    
         !------------------------------------------------------------------------       
         
     end subroutine ConvertInputs
     !----------------------------------------------------------------------------
     
     !----------------------------------------------------------------------------
-    subroutine ConvertResults (CellIndex, pH)
+    subroutine ConvertResults (CellIndex, MassOfWater, PropertyIndex)
         !For now, the input units for each group are fixed.
         !In the future, if possible, this will be made more flexible
 
         !Argument----------------------------------------------------------------
         integer, intent(IN) :: CellIndex
-        real,    intent(IN) :: pH
+        real,    intent(IN) :: MassOfWater
+        integer, intent(IN) :: PropertyIndex
 
-        !Local-------------------------------------------------------------------
-        integer                     :: PropertyIndex
+        !------------------------------------------------------------------------  
+                     
+        select case (Me%Properties(PropertyIndex)%Params%Group)                
+            case (CONCENTRATION, SPECIES) 
+                      
+!                !                      mg/L                       =    kgw      *                     mol/kgw                       *                   g/mol                 * 1000 /              L
+!                Me%Ext%PropertiesValues(PropertyIndex, CellIndex) = MassOfWater * Me%Ext%PropertiesValues(PropertyIndex, CellIndex) * Me%Properties(PropertyIndex)%Params%GFW * 1000 / Me%CalcData%VolumeOfSolution
+                !                      mg/L                       =                      mols                         *                   g/mol                 * 1000 /              L
+                Me%Ext%PropertiesValues(PropertyIndex, CellIndex) = Me%Ext%PropertiesValues(PropertyIndex, CellIndex) * Me%Properties(PropertyIndex)%Params%GFW * 1000 / Me%CalcData%VolumeOfSolution           
+           
+            case (PHASE)
+                            
+                if (Me%Properties(PropertyIndex)%Params%PhaseType .EQ. SOLID_PHASE) then
 
-        !------------------------------------------------------------------------       
+                    if (.NOT. associated(Me%Ext%SolidMass)) stop 'Subroutine ConvertInputs; Module ModulePhreeqC. ERR001.'
+                
+                    !                    mg/kgs                       = (                    mols                          *                  g/mol                  * 1000 /             kgs            )
+                    Me%Ext%PropertiesValues(PropertyIndex, CellIndex) = (Me%Ext%PropertiesValues(PropertyIndex, CellIndex) * Me%Properties(PropertyIndex)%Params%GFW * 1000 / Me%Ext%SolidMass(CellIndex))
+                    
+                else
+                                       
+                    !For now, partial pressure is a FIXED parameter and do not change beteen DT's.
+                    !Also the number of "moles" and volume do not change (the first is 10 moles and the second is ignored)
+                    Me%Ext%PropertiesValues(PropertyIndex, CellIndex) = Me%Ext%PropertiesValues(PropertyIndex, CellIndex)   
+                                     
+                end if
+            
+            case (EXCHANGE)
+            
+                    !                     mg/kgs                      = (                    mols                          *                     g/mol               * 1000 /             kgs            )            
+                    Me%Ext%PropertiesValues(PropertyIndex, CellIndex) = (Me%Ext%PropertiesValues(PropertyIndex, CellIndex) * Me%Properties(PropertyIndex)%Params%GFW * 1000 / Me%Ext%SolidMass(CellIndex))
+                    
+            case (OTHER)
+                !Do nothing
+                
+            case default
+                
+                !ToDo: Put an error message here
+                
+        end select
+
                 
         !          L              = kg / (0.001 *              g/L              )
-        Me%CalcData%VolumeOfWater = 1  / (0.001 * Me%PhreeqCOptions%WaterDensity)
-                
-        !Find the mass of Solution H+ using pH
-        !Considering the GFW of H+ as aprox. 1, and the activity of H+ same as concentration of H+, the result of the expression below gives the mass (in grams) of H+ directly
-        Me%CalcData%MassOfAllSolutes = 10 ** (-Me%Ext%SolutionpH(CellIndex))
-        
-        !With the mass of H+, find the volume of H+ (uses H+ density given by the user or the 0.09 g/L default)
-        !             L                =               g              /               g/L
-        Me%CalcData%VolumeOfAllSolutes = Me%CalcData%MassOfAllSolutes / Me%PhreeqCOptions%HPlusDensity
-                
-                
-do1:    do PropertyIndex = 1, Me%PropertyCount
-
-            if (Me%Properties(PropertyIndex)%Params%Group .EQ. SOLUTION) then 
-                            
-                !                g                = 1 kgw *                     mol/kgw                       *                   g/mol                 
-                Me%Properties(PropertyIndex)%Mass = 1     * Me%Ext%PropertiesValues(PropertyIndex, CellIndex) * Me%Properties(PropertyIndex)%Params%GFW 
-                !            g               =              g               +                 g
-                Me%CalcData%MassOfAllSolutes = Me%CalcData%MassOfAllSolutes + Me%Properties(PropertyIndex)%Mass 
-                
-                !                L                  =                   g               /                      g/L
-                Me%Properties(PropertyIndex)%Volume = Me%Properties(PropertyIndex)%Mass / Me%Properties(PropertyIndex)%Params%Density
-                !             L                =               L                +       L
-                Me%CalcData%VolumeOfAllSolutes = Me%CalcData%VolumeOfAllSolutes + Me%Properties(PropertyIndex)%Volume
-                
-            end if
-
-        end do do1                 
-                    
-        !           g              = 1000 g  +              g
-        Me%CalcData%MassOfSolution = 1000    + Me%CalcData%MassOfAllSolutes
-        
-        !            L               =             L             +               L
-        Me%CalcData%VolumeOfSolution = Me%CalcData%VolumeOfWater + Me%CalcData%VolumeOfAllSolutes
-         
-        !           g/L               =              g             /              L
-        Me%CalcData%DensityOfSolution = Me%CalcData%MassOfSolution / Me%CalcData%VolumeOfSolution 
-               
-do2:    do PropertyIndex = 1, Me%PropertyCount
-
-            if (Me%Properties(PropertyIndex)%Params%Group .EQ. SOLUTION) then 
-            
-                !                   mg/L                          = 1000 *               g                  /              L  
-                Me%Ext%PropertiesValues(PropertyIndex, CellIndex) = 1000 * Me%Properties(PropertyIndex)%Mass / Me%CalcData%VolumeOfSolution
-                                            
-            end if
-
-        end do do2                 
+!        Me%CalcData%VolumeOfWater = 1  / (0.001 * Me%PhreeqCOptions%WaterDensity)
+!                
+!        !Find the mass of Solution H+ using pH
+!        !Considering the GFW of H+ as aprox. 1, and the activity of H+ same as concentration of H+, the result of the expression below gives the mass (in grams) of H+ directly
+!        Me%CalcData%MassOfAllSolutes = 10 ** (-Me%Ext%SolutionpH(CellIndex))
+!        
+!        !With the mass of H+, find the volume of H+ (uses H+ density given by the user or the 0.09 g/L default)
+!        !             L                =               g              /               g/L
+!        Me%CalcData%VolumeOfAllSolutes = Me%CalcData%MassOfAllSolutes / Me%PhreeqCOptions%HPlusDensity
+!                
+!                
+!do1:    do PropertyIndex = 1, Me%PropertyCount
+!
+!            if (Me%Properties(PropertyIndex)%Params%Group .EQ. CONCENTRATION) then 
+!                            
+!                !                g                = 1 kgw *                     mol/kgw                       *                   g/mol                 
+!                Me%Properties(PropertyIndex)%Mass = 1     * Me%Ext%PropertiesValues(PropertyIndex, CellIndex) * Me%Properties(PropertyIndex)%Params%GFW 
+!                !            g               =              g               +                 g
+!                Me%CalcData%MassOfAllSolutes = Me%CalcData%MassOfAllSolutes + Me%Properties(PropertyIndex)%Mass 
+!                
+!                !                L                  =                   g               /                      g/L
+!                Me%Properties(PropertyIndex)%Volume = Me%Properties(PropertyIndex)%Mass / Me%Properties(PropertyIndex)%Params%Density
+!                !             L                =               L                +       L
+!                Me%CalcData%VolumeOfAllSolutes = Me%CalcData%VolumeOfAllSolutes + Me%Properties(PropertyIndex)%Volume
+!                
+!            end if
+!
+!        end do do1                 
+!                    
+!        !           g              = 1000 g  +              g
+!        Me%CalcData%MassOfSolution = 1000    + Me%CalcData%MassOfAllSolutes
+!        
+!        !            L               =             L             +               L
+!        Me%CalcData%VolumeOfSolution = Me%CalcData%VolumeOfWater + Me%CalcData%VolumeOfAllSolutes
+!         
+!        !           g/L               =              g             /              L
+!        Me%CalcData%DensityOfSolution = Me%CalcData%MassOfSolution / Me%CalcData%VolumeOfSolution 
+!               
+!do2:    do PropertyIndex = 1, Me%PropertyCount
+!
+!            if (Me%Properties(PropertyIndex)%Params%Group .EQ. CONCENTRATION) then 
+!            
+!                !                   mg/L                          = 1000 *               g                  /              L  
+!                Me%Ext%PropertiesValues(PropertyIndex, CellIndex) = 1000 * Me%Properties(PropertyIndex)%Mass / Me%CalcData%VolumeOfSolution
+!                                            
+!            end if
+!
+!        end do do2                 
         
         !------------------------------------------------------------------------       
                 

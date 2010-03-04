@@ -856,91 +856,72 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         JLB = Me%Size%JLB
         JUB = Me%Size%JUB
 
-        !This test must be here and not inside Construct property because it looks for the desired properties 
-        call SearchProperty(NewProperty, PropertyXIDNumber = TSS_, STAT = STAT_CALL)
-        !give a warning, if TSS is not chosen as property
-        !cohesive sediment concentration must be taken in this case instead!!!
-        if (STAT_CALL /= SUCCESS_) then
-            write(*,*) 'Bottom Fluxes are activated, but TSS is not chosen as property'
-            write(*,*) 'Cohesive sediment will be taken to calculate erosion rates!'
-        endif             
-!            if (Me%ComputeOptions%CalcFractionSediment)then
-!                call SearchProperty(PropertyX, PropertyXIDNumber = COHSED_FINE_, STAT = STAT_CALL)
-!                if (STAT_CALL == SUCCESS_) then
-!                    allocate (Me%ShearStress (Me%TotalReaches))            
-!                    Me%ShearStress = 0.0
-!                else
-!                    call SearchProperty(PropertyX, PropertyXIDNumber = COHSED_MEDIUM_, STAT = STAT_CALL)
-!                    if (STAT_CALL == SUCCESS_) then
-!                        allocate (Me%ShearStress (Me%TotalReaches))            
-!                        Me%ShearStress = 0.0
-!                    else
-!                        call SearchProperty(PropertyX, PropertyXIDNumber = COHSED_COARSE_, STAT = STAT_CALL)
-!                        if (STAT_CALL == SUCCESS_) then
-!                            allocate (Me%ShearStress (Me%TotalReaches))            
-!                            Me%ShearStress = 0.0
-!                        else
-!                            write (*,*)
-!                            write (*,*) 'Bottom Fluxes needs at least one Cohesive Sediment Fraction'
-!                            stop        'ConstructSubModules - ModuleDrainageNetwork - ERR02_Wassim'
-!                        end if
-!                    end if
-!                end if
-!            else
-        call SearchProperty(NewProperty, PropertyXIDNumber = Cohesive_Sediment_, STAT = STAT_CALL)
-        if (STAT_CALL == SUCCESS_) then
-            allocate (Me%ShearStress(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB), STAT = STAT_CALL)
-            Me%ShearStress = 0.0
-!                allocate (Me%ShearStressY(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB), STAT = STAT_CALL)
-!                Me%ShearStressY = 0.0
-            
-        else
-            write (*,*)
-            write (*,*) 'Bottom Fluxes needs Cohesive_Sediment_'
-            stop        'AllocateVariables - ModuleRunoffProperties - ERR0100'
-        end if
-!            end if  
+        if(Me%Coupled%BottomFluxes) then
+            !This test must be here and not inside Construct property because it looks for the desired properties 
+            call SearchProperty(NewProperty, PropertyXIDNumber = TSS_, STAT = STAT_CALL)
+            !give a warning, if TSS is not chosen as property
+            !cohesive sediment concentration must be taken in this case instead!!!
+            if (STAT_CALL /= SUCCESS_) then
+                write(*,*) 'Bottom Fluxes are activated, but TSS is not chosen as property'
+                write(*,*) 'Cohesive sediment will be taken to calculate erosion rates!'
+            endif             
+    !            if (Me%ComputeOptions%CalcFractionSediment)then
+    !                call SearchProperty(PropertyX, PropertyXIDNumber = COHSED_FINE_, STAT = STAT_CALL)
+    !                if (STAT_CALL == SUCCESS_) then
+    !                    allocate (Me%ShearStress (Me%TotalReaches))            
+    !                    Me%ShearStress = 0.0
+    !                else
+    !                    call SearchProperty(PropertyX, PropertyXIDNumber = COHSED_MEDIUM_, STAT = STAT_CALL)
+    !                    if (STAT_CALL == SUCCESS_) then
+    !                        allocate (Me%ShearStress (Me%TotalReaches))            
+    !                        Me%ShearStress = 0.0
+    !                    else
+    !                        call SearchProperty(PropertyX, PropertyXIDNumber = COHSED_COARSE_, STAT = STAT_CALL)
+    !                        if (STAT_CALL == SUCCESS_) then
+    !                            allocate (Me%ShearStress (Me%TotalReaches))            
+    !                            Me%ShearStress = 0.0
+    !                        else
+    !                            write (*,*)
+    !                            write (*,*) 'Bottom Fluxes needs at least one Cohesive Sediment Fraction'
+    !                            stop        'ConstructSubModules - ModuleDrainageNetwork - ERR02_Wassim'
+    !                        end if
+    !                    end if
+    !                end if
+    !            else
+            call SearchProperty(NewProperty, PropertyXIDNumber = Cohesive_Sediment_, STAT = STAT_CALL)
+            if (STAT_CALL == SUCCESS_) then
+                allocate (Me%ShearStress(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB), STAT = STAT_CALL)
+                Me%ShearStress = 0.0
+    !                allocate (Me%ShearStressY(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB), STAT = STAT_CALL)
+    !                Me%ShearStressY = 0.0
+                
+            else
+                write (*,*)
+                write (*,*) 'Bottom Fluxes needs Cohesive_Sediment_'
+                stop        'AllocateVariables - ModuleRunoffProperties - ERR0100'
+            end if
+    !            end if  
 
-        if (Me%Coupled%SplashErosionFluxes) then
-            
-            allocate(Me%RainKineticRate(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB), STAT = STAT_CALL)
-		    if (STAT_CALL .NE. SUCCESS_)stop 'Construct_PropertyEvolution - ModuleRunoffProperties - ERR130'
-            Me%RainKineticRate = 0.0
+            if (Me%Coupled%SplashErosionFluxes) then
+                
+                allocate(Me%RainKineticRate(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB), STAT = STAT_CALL)
+		        if (STAT_CALL .NE. SUCCESS_)stop 'Construct_PropertyEvolution - ModuleRunoffProperties - ERR130'
+                Me%RainKineticRate = 0.0
 
-            allocate(Me%ExtVar%ThroughFall(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB), STAT = STAT_CALL)
-		    if (STAT_CALL .NE. SUCCESS_)stop 'Construct_PropertyEvolution - ModuleRunoffProperties - ERR150'
-            Me%ExtVar%ThroughFall = FillValueReal
+                allocate(Me%ExtVar%ThroughFall(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB), STAT = STAT_CALL)
+		        if (STAT_CALL .NE. SUCCESS_)stop 'Construct_PropertyEvolution - ModuleRunoffProperties - ERR150'
+                Me%ExtVar%ThroughFall = FillValueReal
 
-            allocate(Me%ExtVar%CanopyHeight(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB), STAT = STAT_CALL)
-		    if (STAT_CALL .NE. SUCCESS_)stop 'Construct_PropertyEvolution - ModuleRunoffProperties - ERR160'
-            Me%ExtVar%CanopyHeight = FillValueReal
+                allocate(Me%ExtVar%CanopyHeight(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB), STAT = STAT_CALL)
+		        if (STAT_CALL .NE. SUCCESS_)stop 'Construct_PropertyEvolution - ModuleRunoffProperties - ERR160'
+                Me%ExtVar%CanopyHeight = FillValueReal
 
-            allocate(Me%ExtVar%CanopyDrainage(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB), STAT = STAT_CALL)
-		    if (STAT_CALL .NE. SUCCESS_)stop 'Construct_PropertyEvolution - ModuleRunoffProperties - ERR170'
-            Me%ExtVar%CanopyDrainage = FillValueReal
-           
-        endif
-
+                allocate(Me%ExtVar%CanopyDrainage(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB), STAT = STAT_CALL)
+		        if (STAT_CALL .NE. SUCCESS_)stop 'Construct_PropertyEvolution - ModuleRunoffProperties - ERR170'
+                Me%ExtVar%CanopyDrainage = FillValueReal
                
-        !Water Content---------------------------------------------------------
-!       allocate (Me%DifusionNumber          (ILB:IUB,JLB:JUB))
-!        allocate (Me%ReynoldsMNumber         (ILB:IUB,JLB:JUB))
-!        allocate (Me%ExtVar%WindVelocity   (ILB:IUB,JLB:JUB))
-        
-!#ifdef _PHREEQC_
-!        allocate (Me%ExtVar%CellWaterMass    (ILB:IUB,JLB:JUB,))
-!#endif        
-
- !       allocate (Me%WaterVolume          (ILB:IUB,JLB:JUB))
-!        allocate (Me%WaterVolumeOld       (ILB:IUB,JLB:JUB))
-!        allocate (Me%WaterVolumeCorr          (ILB:IUB,JLB:JUB))
-    !    allocate (Me%WaterVolumeOldCorr       (ILB:IUB,JLB:JUB,KLB:KUB))
-        
-       
- !       Me%WaterVolume          = 0.
- !       Me%WaterVolumeOld       = 0.
-!        Me%WaterVolumeCorr      = 0.
-        
+            endif
+        endif
 
     end subroutine AllocateVariables
 
