@@ -69,6 +69,7 @@ Module ModuleRunOff
 
     !Selector
     public  ::  GetOverLandFlow
+    public  ::  GetManning
     public  ::  GetFlowToChannels
     public  ::  GetFlowAtBoundary
     public  ::  GetFlowDischarge
@@ -1154,6 +1155,50 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
     end subroutine GetRunoffCenterVelocity
 
     !--------------------------------------------------------------------------
+    
+    subroutine GetManning (ObjRunOffID, Manning, ManningX, ManningY, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                                         :: ObjRunOffID
+        real, dimension(:, :), pointer, optional        :: Manning, ManningX, ManningY
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                         :: STAT_, ready_
+
+        !----------------------------------------------------------------------
+
+        call Ready(ObjRunOffID, ready_)    
+        
+cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+            
+            if (present(Manning)) then
+                call Read_Lock(mRUNOFF_, Me%InstanceID)
+                Manning => Me%OverlandCoefficient
+            endif
+
+            if (present(ManningX)) then
+                call Read_Lock(mRUNOFF_, Me%InstanceID)
+                ManningX => Me%OverlandCoefficientX
+            endif
+
+            if (present(ManningY)) then
+                call Read_Lock(mRUNOFF_, Me%InstanceID)
+                ManningY => Me%OverlandCoefficientY
+            endif
+            
+            STAT_ = SUCCESS_
+        else 
+            STAT_ = ready_
+        end if cd1
+
+        if (present(STAT)) STAT = STAT_
+
+    end subroutine GetManning
+
+    !--------------------------------------------------------------------------    
+    
         
     subroutine GetNextRunOffDT (ObjRunOffID, DT, STAT)
 

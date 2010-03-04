@@ -240,6 +240,7 @@ Module ModuleVegetation
     public  :: GetEVTPCropCoefficient
     public  :: GetVegetationDT
     public  :: GetRootDepth
+    public  :: GetCanopyHeight
     public  :: GetTranspiration
     public  :: GetVegetationOptions
     public  :: GetNutrientFraction
@@ -4848,7 +4849,43 @@ cd0:    if (Exist) then
     end subroutine GetRootDepth
     
     !--------------------------------------------------------------------------
+    
+        subroutine GetCanopyHeight(VegetationID, Scalar, STAT)
+                                  
+        !Arguments--------------------------------------------------------------
+        integer                                     :: VegetationID
+        real, dimension(:,:), pointer               :: Scalar
+        integer, optional, intent(OUT)              :: STAT
 
+        !Local-----------------------------------------------------------------
+        integer                                     :: ready_        
+        integer                                     :: STAT_
+        
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(VegetationID, ready_) 
+
+        
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            call Read_Lock(mVEGETATION_, Me%InstanceID)
+
+            Scalar  => Me%StateVariables%CanopyHeight
+
+            STAT_ = SUCCESS_
+        else 
+            STAT_ = ready_
+        end if 
+
+        if (present(STAT)) STAT = STAT_
+
+    end subroutine GetCanopyHeight
+    
+    !--------------------------------------------------------------------------
+    
     subroutine GetNutrientFraction(VegetationID, NitrogenFraction, PhosphorusFraction, STAT)
                                   
         !Arguments--------------------------------------------------------------
@@ -4944,6 +4981,7 @@ cd0:    if (Exist) then
                                     Dormancy,                                  &
                                     Fertilization,                             &
                                     GrowthModel,                               &
+                                    ModelCanopyHeight,                         &
                                     STAT)
                                   
         !Arguments--------------------------------------------------------------
@@ -4956,6 +4994,7 @@ cd0:    if (Exist) then
         logical, optional                 :: Dormancy
         logical, optional                 :: Fertilization
         logical, optional                 :: GrowthModel
+        logical, optional                 :: ModelCanopyHeight
 
         integer, optional, intent(OUT)              :: STAT
 
@@ -4983,6 +5022,7 @@ cd0:    if (Exist) then
             if(present(Dormancy              )) Dormancy              = Me%ComputeOptions%Dormancy
             if(present(Fertilization         )) Fertilization         = Me%ComputeOptions%Fertilization
             if(present(GrowthModel           )) GrowthModel           = Me%ComputeOptions%Evolution%GrowthModelNeeded
+            if(present(ModelCanopyHeight     )) ModelCanopyHeight     = Me%ComputeOptions%ModelCanopyHeight
 
             STAT_ = SUCCESS_
         else 

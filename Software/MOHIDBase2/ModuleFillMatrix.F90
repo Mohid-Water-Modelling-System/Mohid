@@ -47,7 +47,7 @@ Module ModuleFillMatrix
     use ModuleGeometry,         only : GetGeometryDistances, UnGetGeometry
     use ModuleHDF5,             only : ConstructHDF5, HDF5ReadData, GetHDF5GroupID,      &
                                        GetHDF5FileAccess, GetHDF5GroupNumberOfItems,     &
-                                       HDF5SetLimits, KillHDF5
+                                       HDF5SetLimits, GetHDF5ArrayDimensions, KillHDF5
 
     implicit none
 
@@ -122,6 +122,7 @@ Module ModuleFillMatrix
     integer, parameter                              :: ReadHDF          = 7
     integer, parameter                              :: AnalyticProfile  = 8
     integer, parameter                              :: ProfileTimeSerie = 9
+    integer, parameter                              :: Sponge           = 10
 
     !Variable from file
     integer, parameter                              :: None             = 1
@@ -159,6 +160,12 @@ Module ModuleFillMatrix
         character(PathLength)                       :: FileName
         integer                                     :: GridDataID
     end type T_ASCIIFile
+
+    type T_Sponge
+        real                                        :: OutValue
+        integer                                     :: Cells
+        logical                                     :: Growing
+    end type T_Sponge
 
     type T_TimeSerie
         character(PathLength)                       :: FileName
@@ -235,6 +242,7 @@ Module ModuleFillMatrix
         type (T_Boxes    )                          :: Boxes
         type (T_TimeSerie)                          :: TimeSerie
         type (T_ASCIIFile)                          :: ASCIIFile
+        type (T_Sponge   )                          :: Sponge
         type (T_HDF      )                          :: HDF
         type (T_ProfileTimeSerie)                   :: ProfileTimeSerie
         integer                                     :: ObjEnterData         = 0 
@@ -582,6 +590,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                     Me%InitializationMethod = ReadTimeSerie
                 case ("Profile_Timeserie",  "PROFILE_TIMESERIE",    "profile_timeserie",    "Profile_TimeSerie")
                     Me%InitializationMethod = ProfileTimeSerie
+                case ("Sponge",  "SPONGE",    "sponge")
+                    Me%InitializationMethod = Sponge
                 case default
                     write(*,*)'Invalid option for keyword INITIALIZATION_METHOD'
                     stop 'ReadOptions - ModuleFillMatrix - ERR04'
@@ -719,6 +729,15 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                             call ConstructSpaceASCIIFile (ExtractType, PointsToFill3D = PointsToFill3D)
                         endif
 
+
+                    case(Sponge)
+                        
+                        if (Me%Dim == Dim2D) then
+                            call ConstructSponge (ExtractType, PointsToFill2D = PointsToFill2D)
+                        else
+                            call ConstructSponge (ExtractType, PointsToFill3D = PointsToFill3D)
+                        endif
+
                     case(Profile)
 
                         if (Me%Dim == Dim2D) then
@@ -780,7 +799,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 else
                     call ConstructProfileTimeSerie (PointsToFill3D, ExtractType)
                 endif
-
+                
         end select
 
 
@@ -2098,6 +2117,250 @@ i23:        if (Me%ProfileTimeSerie%CyclicTimeON) then
 
     !--------------------------------------------------------------------------
 
+    !--------------------------------------------------------------------------
+
+    subroutine ConstructSponge (ExtractType, PointsToFill2D, PointsToFill3D)
+
+        !Arguments-------------------------------------------------------------
+        integer                                         :: ExtractType
+        integer, dimension(:, :),    pointer, optional  :: PointsToFill2D
+        integer, dimension(:, :, :), pointer, optional  :: PointsToFill3D
+
+        !Local----------------------------------------------------------------
+        real, dimension(:),       pointer           :: AuxT
+        integer, dimension(4,4)                     :: dij
+        integer, dimension(4)                       :: AuxI
+        real                                        :: Aux
+        integer                                     :: STAT_CALL, i, j, k, l, sp
+        integer                                     :: ILB, IUB, JLB, JUB, KLB, KUB
+        integer                                     :: iflag
+
+        !Begin----------------------------------------------------------------
+
+
+
+        if (Me%Dim == Dim2D) then
+        
+            JLB = Me%Worksize2D%JLB
+            JUB = Me%Worksize2D%JUB
+            ILB = Me%Worksize2D%ILB
+            IUB = Me%Worksize2D%IUB
+            KLB = 1
+            KUB = 1
+                        
+        else
+        
+            JLB = Me%Worksize3D%JLB
+            JUB = Me%Worksize3D%JUB
+            ILB = Me%Worksize3D%ILB
+            IUB = Me%Worksize3D%IUB
+            KLB = Me%Worksize3D%KLB
+            KUB = Me%Worksize3D%KUB
+            
+        endif
+
+        !Gets the sponge value in the model open boundary
+        call GetData(Me%Sponge%OutValue,                                                &
+                     Me%ObjEnterData , iflag,                                           &
+                     SearchType   = ExtractType,                                        &
+                     keyword      = 'SPONGE_OUT',                                       &
+                     Default      = 1.e5,                                               &
+                     ClientModule = 'ModuleFillMatrix',                                 &
+                     STAT         = STAT_CALL)                                      
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructSponge - ModuleFillMatrix - ERR20'
+        
+        
+
+        !Gets the number of sponge cells
+        call GetData(Me%Sponge%Cells,                                                   &
+                     Me%ObjEnterData , iflag,                                           &
+                     SearchType   = ExtractType,                                        &
+                     keyword      = 'SPONGE_CELLS',                                     &
+                     Default      = 10,                                                 &
+                     ClientModule = 'ModuleFillMatrix',                                 &
+                     STAT         = STAT_CALL)                                      
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructSponge - ModuleFillMatrix - ERR30'
+
+        if (Me%DefaultValue < Me%Sponge%OutValue) then
+        
+            Me%Sponge%Growing = .true.
+            
+        else
+        
+            Me%Sponge%Growing = .false.
+        
+        endif
+        
+        
+        allocate(AuxT(Me%Sponge%Cells))
+        
+        do sp = 1, Me%Sponge%Cells
+
+            AuxT(sp) = log(Me%Sponge%OutValue) * real(Me%Sponge%Cells - sp) /real(Me%Sponge%Cells - 1) + &
+                       log(Me%DefaultValue)  * real(sp - 1)               /real(Me%Sponge%Cells - 1)
+                 
+            AuxT(sp) = exp(AuxT(sp))
+            
+        enddo
+        
+        dij(:,:) = 0
+
+dsp:    do sp = 1, Me%Sponge%Cells
+            
+            AuxI(1) = ILB + sp - 1
+            AuxI(2) = IUB - sp + 1
+            AuxI(3) = JLB + sp - 1
+            AuxI(4) = JUB - sp + 1
+            
+            
+            dij(1,1) = 1 - sp
+            dij(2,2) = sp - 1
+            dij(3,3) = 1 - sp
+            dij(4,4) = sp - 1
+            
+            
+            Aux     = AuxT(sp)
+
+dk:         do k =  KLB,  KUB
+
+                !Southern and Northen boundary
+    dj:         do j = JLB, JUB
+                                
+    dl:             do l=1,2
+                    
+                        i = AuxI(l)
+                        
+                        if (CheckSponge(PointsToFill2D, PointsToFill3D, sp, dij(l,1), dij(l,2), 0, 0, i, j, k)) then
+                            call FillSponge(PointsToFill2D, PointsToFill3D, Aux, i, j, k)
+                        endif
+                
+                    enddo dl                
+                 
+                enddo dj
+                
+                !Western and Eastern boundary
+di:             do i = ILB, IUB
+                                                
+dl2:                do l=3,4
+                    
+                        j = AuxI(l)
+                        
+                        if (CheckSponge(PointsToFill2D, PointsToFill3D, sp, 0, 0, dij(l,3), dij(l,4), i, j, k)) then
+                            call FillSponge(PointsToFill2D, PointsToFill3D, Aux, i, j, k)
+                        endif
+
+                    enddo dl2        
+                        
+                enddo di
+                
+            enddo dk
+            
+        enddo dsp
+
+        deallocate(AuxT)
+
+    end subroutine ConstructSponge
+
+    !--------------------------------------------------------------------------
+    
+    subroutine FillSponge(PointsToFill2D, PointsToFill3D, Aux, i, j, k)
+    
+        !Arguments-------------------------------------------------------------
+        integer, dimension(:, :),    pointer, optional  :: PointsToFill2D
+        integer, dimension(:, :, :), pointer, optional  :: PointsToFill3D
+        real                                            :: Aux
+        integer                                         :: i, j, k
+
+        !Local-----------------------------------------------------------------            
+
+        !Begin-----------------------------------------------------------------    
+    
+i2:     if (Me%Dim == Dim2D) then
+
+i3:         if (PointsToFill2D(i, j) == WaterPoint) then
+
+ig:             if    (       Me%Sponge%Growing .and. Aux >  Me%Matrix2D(i, j)) then
+                
+                    Me%Matrix2D(i, j) = Aux
+                
+                elseif (.not. Me%Sponge%Growing .and. Aux <  Me%Matrix2D(i, j)) then ig
+            
+                    Me%Matrix2D(i, j) = Aux
+                    
+                endif ig
+                
+            endif i3
+            
+        else i2
+                                    
+       
+i4:         if (PointsToFill3D(i, j, k) == WaterPoint) then
+
+i5:             if (      Me%Sponge%Growing .and. Aux >  Me%Matrix3D(i, j, k)) then
+                
+                    Me%Matrix3D(i, j, k) = Aux
+                
+                elseif (.not. Me%Sponge%Growing .and. Aux <  Me%Matrix3D(i, j, k)) then i5
+            
+                    Me%Matrix3D(i, j, k) = Aux
+                
+                endif i5
+            
+            endif i4
+                
+        endif  i2      
+    
+    end subroutine FillSponge
+
+    !--------------------------------------------------------------------------    
+
+    !--------------------------------------------------------------------------
+    
+    function CheckSponge(PointsToFill2D, PointsToFill3D, sp, di1, di2, dj1, dj2, i, j, k)
+    
+        !Arguments-------------------------------------------------------------
+        integer, dimension(:, :),    pointer, optional  :: PointsToFill2D
+        integer, dimension(:, :, :), pointer, optional  :: PointsToFill3D
+        real                                            :: Aux
+        integer                                         :: sp, di1, di2, dj1, dj2, i, j, k
+        logical                                         :: CheckSponge
+
+        !Local-----------------------------------------------------------------            
+
+
+        !Begin-----------------------------------------------------------------    
+    
+i2:     if (Me%Dim == Dim2D) then
+
+            if (sum(PointsToFill2D(i+di1:i+di2, j+dj1:j+dj2)) == sp) then
+                
+                CheckSponge = .true.
+                
+            else
+            
+                CheckSponge = .false.
+                
+            endif
+            
+        else i2
+                                    
+       
+            if (sum(PointsToFill3D(i+di1:i+di2, j+dj1:j+dj2,k)) == sp) then
+                
+                CheckSponge = .true.
+                
+            else
+            
+                CheckSponge = .false.
+
+            endif        
+
+        endif  i2      
+    
+    end function CheckSponge
+
+    !--------------------------------------------------------------------------    
+
     subroutine ConstructSpaceTimeSerie (ExtractType)
 
         !Arguments-------------------------------------------------------------
@@ -2313,7 +2576,6 @@ i0:     if(Me%Dim == Dim2D)then
 
         call ConstructHDF5 (Me%HDF%ObjHDF5, trim(Me%HDF%FileName), HDF5_READ, STAT = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_) stop 'ConstructHDFInput - ModuleFillMatrix - ERR120'
-
 
         call GetHDF5GroupNumberOfItems(Me%HDF%ObjHDF5, "/Time", &
                                        Me%HDF%NumberOfInstants, STAT = STAT_CALL)
@@ -2707,14 +2969,29 @@ i4:         if(Me%Dim == Dim2D)then
         real, dimension(:,:), pointer           :: Field
         
         !Local-----------------------------------------------------------------
-        integer                                 :: STAT_CALL
+        integer                                 :: STAT_CALL, Imax, Jmax
 
         !Begin-----------------------------------------------------------------
         
+        call GetHDF5ArrayDimensions(Me%HDF%ObjHDF5, trim(Me%HDF%VGroupPath),            &
+                          trim(Me%HDF%FieldName), OutputNumber = Instant,               &
+                          Imax = Imax, Jmax = Jmax, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)stop 'ReadHDF5Values2D - ModuleFillMatrix - ERR10'                                   
+        
+        if ((Imax /= Me%WorkSize2D%IUB - Me%WorkSize2D%ILB + 1) .or.                    &
+            (Jmax /= Me%WorkSize2D%JUB - Me%WorkSize2D%JLB + 1)) then
+            
+            write (*,*) trim(Me%HDF%VGroupPath)
+            write (*,*) trim(Me%HDF%FieldName)
+            write (*,*) 'miss match between the HDF5 input file and model domain'
+            stop 'ReadHDF5Values2D - ModuleFillMatrix - ERR20'                                   
+
+        endif
+
         call HDF5SetLimits  (Me%HDF%ObjHDF5, Me%WorkSize2D%ILB, Me%WorkSize2D%IUB,      &
                              Me%WorkSize2D%JLB, Me%WorkSize2D%JUB, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)stop 'ReadHDF5Values2D - ModuleFillMatrix - ERR10'
-        
+        if (STAT_CALL /= SUCCESS_)stop 'ReadHDF5Values2D - ModuleFillMatrix - ERR30'
+
 
         call HDF5ReadData(Me%HDF%ObjHDF5, trim(Me%HDF%VGroupPath),                      &
                           trim(Me%HDF%FieldName),                                       &
@@ -2742,6 +3019,7 @@ i4:         if(Me%Dim == Dim2D)then
         real, dimension(:,:,:), pointer         :: Field
 
         !Local-----------------------------------------------------------------
+        integer                                 :: Imax, Jmax, Kmax
         integer                                 :: STAT_CALL, i, j, k, ILB, IUB, JLB, JUB, KLB, KUB
 
         !Begin-----------------------------------------------------------------
@@ -2761,15 +3039,34 @@ i4:         if(Me%Dim == Dim2D)then
                      
             Me%HDF%ReadField3D => Field
         endif
+        
+        
+        call GetHDF5ArrayDimensions(Me%HDF%ObjHDF5, trim(Me%HDF%VGroupPath),            &
+                          trim(Me%HDF%FieldName), OutputNumber = Instant,               &
+                          Imax = Imax, Jmax = Jmax, Kmax = Kmax, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)stop 'ReadHDF5Values2D - ModuleFillMatrix - ERR10'                                   
+        
+        if ((Imax /= IUB - ILB + 1) .or.                                                &
+            (Jmax /= JUB - JLB + 1) .or.                                                &
+            (Kmax /= KUB - KLB + 1)) then
+            
+            write (*,*) trim(Me%HDF%VGroupPath)
+            write (*,*) trim(Me%HDF%FieldName)
+            write (*,*) 'miss match between the HDF5 input file and model domain'
+            stop 'ReadHDF5Values3D - ModuleFillMatrix - ERR20'                                   
+
+        endif
+      
 
 
         call HDF5SetLimits  (Me%HDF%ObjHDF5, ILB, IUB, JLB, JUB, KLB, KUB, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)stop 'ReadHDF5Values3D - ModuleFillMatrix - ERR10'
+        if (STAT_CALL /= SUCCESS_)stop 'ReadHDF5Values3D - ModuleFillMatrix - ERR30'
+        
              
         call HDF5ReadData(Me%HDF%ObjHDF5, trim(Me%HDF%VGroupPath),                      &
                           trim(Me%HDF%FieldName),                                       &
                           Array3D = Me%HDF%ReadField3D, OutputNumber = Instant, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)stop 'ReadHDF5Values3D - ModuleFillMatrix - ERR02'
+        if (STAT_CALL /= SUCCESS_)stop 'ReadHDF5Values3D - ModuleFillMatrix - ERR40'
 
         if (Me%HDF%From2Dto3D) then    
            

@@ -3,13 +3,13 @@
 !------------------------------------------------------------------------------
 !
 ! TITLE         : Mohid Model
-! PROJECT       : Mohid Base 1
+! PROJECT       : Mohid Land
 ! MODULE        : PorousMediaProperties
 ! URL           : http://www.mohid.com
 ! AFFILIATION   : IST/MARETEC, Marine Modelling Group
-! DATE          : May 2003
-! REVISION      : Luis Fernandes - v4.0
-! DESCRIPTION   : Module to serve as PorousMediaProperties to create new modules
+! DATE          : Fev 2010
+! REVISION      : 
+! DESCRIPTION   : Module to serve as PorousMediaProperties
 !
 !------------------------------------------------------------------------------
 
@@ -18,6 +18,13 @@
 !   Transported properties (soluble)  : g/m3 (or mg/l)  (needs to convert concentrations to SedimentQuality and PREEQC at entrance and exit)
 !   Adsorbed properties (non soluble) : ug/kgsoil       (needs to convert concentrations to PREEQC at entrance and exit)
 !
+! <beginproperty>
+!   ADVECTION_DIFFUSION         : 0/1               [0]         !Property advection - diffusion
+!   SOIL_CHEMISTRY              : 0/1               [0]         !Use PREEQC model to change property (source/sink model)
+!   SOIL_QUALITY                : 0/1               [0]         !Use SedimentQuality model to change property (source/sink model)
+! <endproperty>
+
+
 Module ModulePorousMediaProperties
 
     use ModuleGlobalData
@@ -793,7 +800,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         !Local-----------------------------------------------------------------        
         integer                                         :: ILB, IUB, JLB,  JUB 
         integer                                         :: KLB, KUB 
-        integer                                         :: STAT_CALL
+
         !Bounds
         ILB = Me%Size%ILB
         IUB = Me%Size%IUB
@@ -1072,16 +1079,15 @@ cd2 :           if (BlockFound) then
                      ClientModule = 'ModulePorousMediaProeprties',                       &
                      STAT         = STAT_CALL)
         if(STAT_CALL .NE. SUCCESS_) stop 'Construct_PropertyState - ModulePorousMediaProeprties - ERR01'
-        if(iflag == 0)              stop 'Construct_PropertyState - ModulePorousMediaProeprties - ERR02'
 
-        !Not used the function so this text was commented
-!        if (NewProperty%Particulate)then
-!            if(.not. Check_Particulate_Property(NewProperty%ID%IDNumber)) then 
-!                write(*,*) 'Property '//trim(NewProperty%ID%Name)// 'is not'
-!                write(*,*) 'recognised as PARTICULATE'
-!                stop 'Construct_PropertyState - ModulePorousMediaProeprties - ERR03'
-!            end if
-!        endif
+        if (NewProperty%Particulate)then
+            if(.not. Check_Particulate_Property(NewProperty%ID%IDNumber)) then 
+                write(*,*) 'Property '//trim(NewProperty%ID%Name)// 'is not'
+                write(*,*) 'recognised as PARTICULATE'
+                stop 'Construct_PropertyState - ModulePorousMediaProeprties - ERR03'
+            end if
+        endif
+        
 
     end subroutine Construct_PropertyState
 
@@ -1110,6 +1116,12 @@ cd2 :           if (BlockFound) then
                      STAT         = STAT_CALL)
         if(STAT_CALL .NE. SUCCESS_)                                                      &
             stop 'Construct_PropertyEvolution - ModulePorousMediaProperties - ERR10'
+
+        if (NewProperty%Evolution%AdvectionDiffusion .and. NewProperty%Particulate) then
+            write(*,*) 'Property '//trim(NewProperty%ID%Name)// 'is Particulate'
+            write(*,*) 'and can not have ADVECTION_DIFFUSION on'
+            stop 'Construct_PropertyEvolution - ModulePorousMediaProeprties - ERR15'      
+        endif  
 
         if (NewProperty%Evolution%AdvectionDiffusion) then
             Me%Coupled%AdvectionDiffusion = .true.
@@ -2210,7 +2222,7 @@ cd1:    if (Me%AdvDiff_Module == AdvDif_ModuleAD_) then
         !Constructs TimeSerie
         call StartTimeSerie(Me%ObjTimeSerie, Me%ObjTime,                                &
                             TimeSerieLocationFile,                                      &
-                            PropertyList, "srp",                                        &
+                            PropertyList, "spp",                                        &
                             WaterPoints3D = Me%ExtVar%WaterPoints3D,                    &
                             STAT         = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_) stop 'ConstructTimeSerie - PorousMediaProperties - ERR02' 
@@ -3433,11 +3445,11 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.     &
             else
                 write(*,*) 'Looking for Drainage Network Property in Porous Media Properties', GetPropertyName(PropertyID)
                 write(*,*) 'but not found. Link between WQ in modules can not be done.'
-                stop 'SetPMPConcDrainageNetwork - ModuleDrainageNetwork - ERR010'
+                stop 'SetDNConcPMP - ModulePorousMediaProperties - ERR010'
             end if
 
             call UnGetBasin (Me%ObjBasinGeometry, Me%ExtVar%RiverPoints, STAT = STAT_)
-            if (STAT_ /= SUCCESS_) stop 'ReadUnLockExternalVar - ModulePorousMediaProperties - ERR040'               
+            if (STAT_ /= SUCCESS_) stop 'SetDNConcPMP - ModulePorousMediaProperties - ERR040'               
 
 
         else
@@ -3967,7 +3979,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.     &
 
         !Local--------------------------------------------------------------
         type (T_Property), pointer         :: PropertyX
-        integer                            :: i, j, k, CHUNK
+        integer                            :: i, j, k !, CHUNK
         real(8), dimension(:,:,:), pointer :: WaterVolume
         real(8)                            :: InfVolume, MassOnFluxW
 
@@ -4097,12 +4109,9 @@ do1:    do while (associated(PropertyX))
         type(T_Property), pointer           :: Property
         type (T_Time)                       :: Actual
         real                                :: ImpExp_AdvXX, ImpExp_AdvYY           
-        integer                             :: i, j, k
         real                                :: AdvectionV_imp_exp  
         real                                :: DiffusionV_imp_exp  
         real                                :: AdvectionH_imp_exp  
-        real(8), dimension(:,:,:), pointer  :: FluxW
-
         !----------------------------------------------------------------------      
         Actual = Me%ExtVar%Now
 
@@ -4809,8 +4818,8 @@ do3:        do K = Me%WorkSize%KUB, Me%WorkSize%KLB, -1
         real(8)                                     :: aux 
         real(8)                                     :: cofA,cofB,cofC, cofD, cofInterfaceDN
         real(8)                                     :: ConcTop, ConcInInterfaceDN
-        real(8), pointer, dimension(:,:,:)          :: FluxW, FluxU, FluxV
-        real   , pointer, dimension(:,:,:)          :: DWZ, DZZ, Porosity
+        real(8), pointer, dimension(:,:,:)          :: FluxW
+        real   , pointer, dimension(:,:,:)          :: DWZ, DZZ
         real   , pointer, dimension(:,:,:)          :: Theta, ThetaOld 
         logical                                     :: ComputeCofC, ComputeCofD
         !Begin-----------------------------------------------------------------
@@ -5036,7 +5045,7 @@ do3:        do K = Me%WorkSize%KUB, Me%WorkSize%KLB, -1
         real(8)                                     :: cofB, cofInterfaceDN
         real(8)                                     :: ConcTop, ConcInInterfaceDN
         real(8), pointer, dimension(:,:,:)          :: FluxW, FluxU, FluxV
-        real   , pointer, dimension(:,:,:)          :: DWZ, DZZ, Porosity, Theta, ThetaOld !, DZE, DZI
+        real   , pointer, dimension(:,:,:)          :: DWZ, DZZ, Theta, ThetaOld !, DZE, DZI
         real   , pointer, dimension(:,:  )          :: DZX, DZY, DXX, DYY !, DVX, DUY
         logical                                     :: ComputeCofC_W, ComputeCofD_W
         !Begin-----------------------------------------------------------------
@@ -5353,7 +5362,6 @@ do3:        do K = Me%WorkSize%KUB, Me%WorkSize%KLB, -1
         integer                                     :: I,J,K, CHUNK
         real(8), pointer, dimension(:,:  )          :: WaterCol
         real   , pointer, dimension(:,:,:)          :: Porosity, UnsatW, UnsatU, UnsatV, ThetaOld
-        real(8), pointer, dimension(:,:,:)          :: FluxW 
         real                                        :: WaterContent_Face, Porosity_Face
         real                                        :: DiffCoef        
         !Begin-----------------------------------------------------------------
