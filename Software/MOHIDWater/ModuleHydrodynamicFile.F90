@@ -29,7 +29,7 @@
 !------------------------------------------------------------------------------
 ! Module Hydrodynamic File
 !
-!   - Output File structure
+!   - Output File  structure
 !
 !       - Header (written by WriteHeader)
 !           - Time limits of the run
