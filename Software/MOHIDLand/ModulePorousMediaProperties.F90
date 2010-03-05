@@ -212,7 +212,7 @@ Module ModulePorousMediaProperties
         real,    dimension(:,:,:), pointer          :: UnSatU
         real,    pointer, dimension(:,:,:)          :: WaterContent
         real,    pointer, dimension(:,:,:)          :: WaterContentOld
-!        real(8), pointer, dimension(:,:)            :: WaterColumn
+        real(8), pointer, dimension(:,:)            :: WaterColumn
         real(8), pointer, dimension(:,:)            :: InfiltrationColumn
         real(8), pointer, dimension(:,:,:)          :: CellVolume        
         real(8), dimension(:,:,:), pointer          :: FluxU
@@ -3833,10 +3833,12 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.     &
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
     subroutine ModifyPorousMediaProperties(ObjPorousMediaPropertiesID,          &
+                                           WaterColumn,                         &
                                            STAT)
 
         !Arguments-------------------------------------------------------------
         integer                                     :: ObjPorousMediaPropertiesID
+        real(8), dimension(:,:), pointer            :: WaterColumn
         integer, intent(OUT), optional              :: STAT
 
         !Local-----------------------------------------------------------------
@@ -3860,6 +3862,8 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.     &
                       
             call ReadLockExternalVar
             
+            !Water column in after the dt to see if there will be diffusion
+            Me%ExtVar%WaterColumn => WaterColumn
 
             PropertyX => Me%FirstProperty
 
@@ -5474,7 +5478,8 @@ do3:        do K = Me%WorkSize%KUB, Me%WorkSize%KLB, -1
 
         ThetaOld  => Me%ExtVar%WaterContentOld
         Porosity  => Me%ExtVar%ThetaS
-        WaterCol  => Me%ExtVar%InfiltrationColumn
+        WaterCol  => Me%ExtVar%WaterColumn         !diffusion on top boundary only occurs if there will be water at the end of the time step in runoff
+!        WaterCol  => Me%ExtVar%InfiltrationColumn
         UnsatW    => Me%ExtVar%UnsatW
         DiffCoef  = CurrProperty%Evolution%AdvDiff%Molecular_Diff_Coef
         
@@ -5500,6 +5505,7 @@ do3:        do K = Me%WorkSize%KUB, Me%WorkSize%KLB, -1
                 Porosity_Face     = min(Porosity(i,j,k),Porosity(i,j,k-1))
                 
                 !Only compute diffusivity in compute faces W (faces tath are not boundaries), else is zero
+                !m2/s = m2/s + m/s * m
                 CurrProperty%Diffusivity(i,j,k)  = Me%ExtVar%ComputeFacesW3D(i,j,k  ) *                                             &
                                                     (DiffCoef * Tortuosity(WaterContent_Face, Porosity_Face))                        &
                                                      +(abs(UnsatW(i,j,k  )) * Me%Disper_Longi%Field(i,j,k) / WaterContent_Face)
@@ -5513,6 +5519,7 @@ do3:        do K = Me%WorkSize%KUB, Me%WorkSize%KLB, -1
                     Porosity_Face     = min(Porosity(i,j,k),Porosity(i,j-1,k))
                     
                     !Only compute diffusivity in compute faces U (faces tath are not boundaries), else is zero
+                    !m2/s = m2/s + m/s * m
                     CurrProperty%ViscosityU(i,j,k)  = Me%ExtVar%ComputeFacesU3D(i,j,k  ) *                                         &
                                                         (DiffCoef * Tortuosity(WaterContent_Face, Porosity_Face))                    &
                                                          +(abs(UnsatU(i,j,k  )) * Me%Disper_Trans%Field(i,j,k) / WaterContent_Face)
@@ -5544,10 +5551,11 @@ do3:        do K = Me%WorkSize%KUB, Me%WorkSize%KLB, -1
                 !UpperFace computation
                 WaterContent_Face = ThetaOld(i,j,k)
                 Porosity_Face     = Porosity(i,j,k)
-                !Only compute diffusivity in compute faces W and if there is transport in the interface
+                !Only compute diffusivity in top face if there is water in the runoff at the end of the timestep
                 if (WaterCol(i,j) .gt. 0.) then
+                    !m2/s = m2/s + ((m3/s) /m2) * m
                     CurrProperty%Diffusivity(i,j,k+1)  =  (DiffCoef * Tortuosity(WaterContent_Face, Porosity_Face))             &
-                                                          +(abs(UnsatW(i,j,k  )) * Me%Disper_Longi%Field(i,j,k) / WaterContent_Face)
+                                                          +(abs(Me%ExtVar%FluxW(i,j,k+1)/Me%ExtVar%Area(i,j)) * Me%Disper_Longi%Field(i,j,k) / WaterContent_Face)
                 else
                     CurrProperty%Diffusivity(i,j,k+1)  = 0.0
                 endif

@@ -3441,7 +3441,7 @@ etr_fao:        if (.not. RefEvapotrans%ID%SolutionFromFile) then
                     
                 else
                 
-                    call ComputePropertyInfilColumn (RPConcentration = RPConcentration, InfColConcentration = InfColConcentration)
+                    InfColConcentration => RPConcentration
                 
                 endif
                 
@@ -3799,6 +3799,7 @@ etr_fao:        if (.not. RefEvapotrans%ID%SolutionFromFile) then
         endif
         
         call ModifyPorousMediaProperties(ObjPorousMediaPropertiesID = Me%ObjPorousMediaProperties,  &
+                                         WaterColumn                = Me%WaterColumn,               &
 !        								 ThroughFall                = Me%ThroughFall,               &
 !        								 WCEvaporated               = Me%WaterColumnEvaporated,     &
                                          STAT                       = STAT_CALL)
@@ -3879,7 +3880,7 @@ etr_fao:        if (.not. RefEvapotrans%ID%SolutionFromFile) then
     subroutine ComputePropertyInfilColumn (AtmConcentration, RPConcentration, InfColConcentration)
     
     	!Arguments-------------------------------------------------------------
-        real, dimension(:,:), pointer, optional  :: AtmConcentration    !IN
+        real, dimension(:,:), pointer            :: AtmConcentration    !IN
         real, dimension(:,:), pointer            :: RPConcentration     !IN
         real, dimension(:,:), pointer            :: InfColConcentration !OUT
         
@@ -3896,16 +3897,11 @@ etr_fao:        if (.not. RefEvapotrans%ID%SolutionFromFile) then
         do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             if (Me%ExtVar%BasinPoints(i,j) == BasinPoint) then             
 
-                if (present(AtmConcentration)) then
-                    !mass of the property on rain
-                    !m3        =  m * m2
-                    RainVolume = Me%ThroughFall(i, j) * Me%ExtVar%GridCellArea(i, j)
-                    !g         =     g/m3       *           m                     m2 
-                    MassOnRain = AtmConcentration(i,j) * (Me%ThroughFall(i, j) * Me%ExtVar%GridCellArea(i, j))
-                else
-                    RainVolume = 0.0
-                    MassOnRain = 0.0
-                endif
+                !mass of the property on rain
+                !m3        =  m * m2
+                RainVolume = Me%ThroughFall(i, j) * Me%ExtVar%GridCellArea(i, j)
+                !g         =     g/m3       *           m                     m2 
+                MassOnRain = AtmConcentration(i,j) * (Me%ThroughFall(i, j) * Me%ExtVar%GridCellArea(i, j))
                 
                 !mass of the property in water column
                 !m3 = m * m2
@@ -4323,7 +4319,7 @@ etr_fao:        if (.not. RefEvapotrans%ID%SolutionFromFile) then
         !Arguments-------------------------------------------------------------
         character (Len = *), intent(in)             :: WarningString
         real(8), dimension(:,:), pointer, intent(out)  :: MassInFlow
-        real, dimension(:, :   ), pointer           :: RPConcentration
+        real, dimension(:, :   ), pointer           :: RPConcentration, InfColConcentration
         real, dimension(:, : ,:), pointer           :: PMPConcentration
         real, dimension(:, :   ), pointer           :: AtmConcentration
         integer                                     :: PropID,i,j, k, STAT_CALL
@@ -4346,7 +4342,7 @@ etr_fao:        if (.not. RefEvapotrans%ID%SolutionFromFile) then
         elseif(WarningString == 'PorousMediaProcesses') then
 
             !Flux with PorousMedia - the balance between rain and infiltration
-            
+
             if (Me%Coupled%Atmosphere .and. (AtmospherePropertyExists (Me%ObjAtmosphere, PropID))) then
                 
                 call GetAtmosphereProperty(AtmosphereID       = Me%ObjAtmosphere,       &
@@ -4354,12 +4350,24 @@ etr_fao:        if (.not. RefEvapotrans%ID%SolutionFromFile) then
                                            ID                 = PropID,                 &
                                            STAT               = STAT_CALL)        
                 if (STAT_CALL /= SUCCESS_) stop 'ComputeMassInFlow - ModuleBasin - ERR05.6'               
-            
+                
             endif            
             
             !Particulate properties do not enter the soil or exit (particulate do not have advection diffusion in soil)
             if (.not. Particulate) then
-            
+
+                allocate (InfColConcentration(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+                InfColConcentration = FillValueReal
+                
+                if (Me%Coupled%Atmosphere .and. (AtmospherePropertyExists (Me%ObjAtmosphere, PropID))) then
+                    
+                    !Update conc in infiltration column - this sub is called twice, here and before PorousMediaProperties
+                    call ComputePropertyInfilColumn (AtmConcentration, RPConcentration, InfColConcentration)
+                    
+                else
+                    InfColConcentration => RPConcentration
+                endif            
+                
                 call GetPMPConcentration(PorousMediaPropertiesID = Me%ObjPorousMediaProperties,  &
                                          ConcentrationX          = PMPConcentration,             &
                                          PropertyXIDNumber       = PropID,                       &
@@ -4384,7 +4392,7 @@ etr_fao:        if (.not. RefEvapotrans%ID%SolutionFromFile) then
                         if(Infiltration(i,j) .gt. 0.0) then ! positive infiltration - removing mass from WC
                             
                             !g = g/m3 * (m * m2)
-                            MassInFlow(i,j) = RPConcentration(i,j) * (Infiltration(i,j) * Me%ExtVar%GridCellArea(i,j))
+                            MassInFlow(i,j) = InfColConcentration(i,j) * (Infiltration(i,j) * Me%ExtVar%GridCellArea(i,j))
                         
                         else ! negative infiltration (exfiltration) - adding mass to WC or zero
                             
@@ -4406,6 +4414,8 @@ etr_fao:        if (.not. RefEvapotrans%ID%SolutionFromFile) then
                     endif
                 enddo
                 enddo          
+                
+                deallocate (InfColConcentration)
 
                 call UnGetPorousMedia     (Me%ObjPorousMedia, Infiltration, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ComputeMassInFlow - ModuleBasin - ERR05.7'
@@ -4414,20 +4424,20 @@ etr_fao:        if (.not. RefEvapotrans%ID%SolutionFromFile) then
                 if (STAT_CALL /= SUCCESS_) stop 'ComputeMassInFlow - ModuleBasin - ERR06'
 
             else
-                !Particulate properties do not enter soil but for now may come from rain - for testing
-                do j = Me%WorkSize%JLB, Me%WorkSize%JUB
-                do i = Me%WorkSize%ILB, Me%WorkSize%IUB
-                    if (Me%ExtVar%BasinPoints(i,j) == BasinPoint) then             
-                        !mass of the property on rain
-                        if (Me%Coupled%Atmosphere .and. (AtmospherePropertyExists (Me%ObjAtmosphere, PropID))) then
+
+                if (Me%Coupled%Atmosphere .and. (AtmospherePropertyExists (Me%ObjAtmosphere, PropID))) then            
+                    !Particulate properties do not enter soil but for now may come from rain - for testing
+                    do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+                    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+                        if (Me%ExtVar%BasinPoints(i,j) == BasinPoint) then             
+                            !mass of the property on rain
                             !g         =     g/m3       *           m                     m2 
                             MassInFlow(i,j) = AtmConcentration(i,j) * (Me%ThroughFall(i, j) * Me%ExtVar%GridCellArea(i, j))
-                        else
-                            MassInFlow(i,j) = 0.0
+
                         endif
-                    endif
-                enddo
-                enddo                
+                    enddo
+                    enddo
+                endif                
             endif
 
             if (Me%Coupled%Atmosphere .and. (AtmospherePropertyExists (Me%ObjAtmosphere, PropID))) then
