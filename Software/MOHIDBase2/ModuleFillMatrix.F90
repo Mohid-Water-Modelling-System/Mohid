@@ -645,7 +645,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      STAT           = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleFillMatrix - ERR06b'
 
-        if (Me%NoInterpol .EQ. .false.) then
+        if (.not. Me%NoInterpol) then
 
             !Accumulitve Property (e.g. Rain from gauges) !this keyword name should be changed because is
             !not describing well what is the computation. However a lot of people use it already...
@@ -2321,7 +2321,6 @@ i5:             if (      Me%Sponge%Growing .and. Aux >  Me%Matrix3D(i, j, k)) t
         !Arguments-------------------------------------------------------------
         integer, dimension(:, :),    pointer, optional  :: PointsToFill2D
         integer, dimension(:, :, :), pointer, optional  :: PointsToFill3D
-        real                                            :: Aux
         integer                                         :: sp, di1, di2, dj1, dj2, i, j, k
         logical                                         :: CheckSponge
 
