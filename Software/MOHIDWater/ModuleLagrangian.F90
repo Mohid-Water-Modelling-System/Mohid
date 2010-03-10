@@ -77,9 +77,10 @@ Module ModuleLagrangian
 !   BOXES_BEACHING_PROB     : real(Boxes Number)        []                      !List of Inbox Beaching Probability
 !   OUTPUT_CONC             : 1/2                       [1]                     !OutPut Integration Type
 !   OUTPUT_MAX_TRACER       : 0/1                       [0]                     !Checks if the users wants to output the maximum 
-                                                                                 ! tracer concentration in each cell
+                                                                                !tracer concentration in each cell
 !   OVERLAY_VELOCITY        : 0/1                       [0]                     !If a adicional velocity field is to be added
-!   OUTPUT_TRACER_INFO      : logical                   [0]                     ! Output a file with detailed information for each tracer (extension .tro)
+!   OUTPUT_TRACER_INFO      : logical                   [0]                     !Output a file with detailed information for 
+!                                                                               !each tracer (extension .tro)
 !
 !
 !
@@ -4581,7 +4582,6 @@ CurrOr: do while (associated(CurrentOrigin))
 
         !Local-----------------------------------------------------------------
         type (T_Origin), pointer                                :: CurrentOrigin
-        integer                                                 :: iProp
         integer                                                 :: STAT_CALL
 
 
@@ -13873,7 +13873,6 @@ CurrOr:     do while (associated(CurrentOrigin))
         integer                                     :: ILB, IUB, JLB, JUB, KLB, KUB
         integer                                     :: i, j, k, Box, n, OutPutNumber
         integer                                     :: STAT_CALL
-        real, dimension(:, :, :), pointer           :: OutputMatrix
         integer                                     :: WS_ILB, WS_IUB, WS_JLB, WS_JUB
         integer                                     :: WS_KLB, WS_KUB
         real, dimension(:, :), pointer              :: OilGridThick2D 
@@ -13887,7 +13886,7 @@ CurrOr:     do while (associated(CurrentOrigin))
         real                                        :: U, V
         real                                        :: WindX, WindY, WindIntensityInKnots, CurrentsIntensityInKnots
         real                                        :: CurrentsDirection, WindDirection
-        real                                        :: EmulsFactor, MassOil
+        real                                        :: MassOil
         
         WaterTemperature = -99
         !Shorten
