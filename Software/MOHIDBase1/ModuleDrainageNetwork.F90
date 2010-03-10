@@ -416,7 +416,7 @@ Module ModuleDrainageNetwork
     character(StringLength), parameter              :: Char_VerticalArea         = trim(adjustl('vertical area'))
     character(StringLength), parameter              :: Char_FlowToChannels       = trim(adjustl('flow to channels'))
     character(StringLength), parameter              :: Char_Volume               = trim(adjustl('volume'))
-    character(StringLength), parameter              :: Char_Flow                 = trim(adjustl('channel flow'))    !Changed name to distingush from other flow types
+    character(StringLength), parameter              :: Char_Flow                 = trim(adjustl('channel flow'))
     character(StringLength), parameter              :: Char_Velocity             = trim(adjustl('velocity'))
     character(StringLength), parameter              :: Char_GWFlowToChannels     = trim(adjustl('GW flow to channels'))
     character(StringLength), parameter              :: Char_PoolDepth            = trim(adjustl('pool water depth'))
