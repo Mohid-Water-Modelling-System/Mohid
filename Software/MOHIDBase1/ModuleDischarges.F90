@@ -226,6 +226,7 @@ Module ModuleDischarges
         integer                                 :: CaptationID                      = FillValueInt
         logical                                 :: ON                               = .false.
         logical                                 :: AssociateFlow                    = .false.
+        real                                    :: FlowFraction                     = 1.0
     end type  T_FromCaptation
 
     type      T_ByPass 
@@ -1264,6 +1265,27 @@ i3:     if (NewDischarge%ByPass%ON) then
                          ClientModule = 'ModuleDischarges',                             &
                          STAT         = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR250'
+
+
+            if(NewDischarge%FromCaptation%AssociateFlow)then
+
+                call GetData(NewDischarge%FromCaptation%FlowFraction,                   &
+                             Me%ObjEnterData, flag,                                     &
+                             FromBlock,                                                 &
+                             keyword      = 'FLOW_FRACTION',                            &
+                             default      = 1.0,                                        &
+                             ClientModule = 'ModuleDischarges',                         &
+                             STAT         = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR250'
+
+                if(NewDischarge%FromCaptation%FlowFraction < 0)then
+
+                    write(*,*)"Discharge flow percentage of the water captation cannot be negative"
+                    write(*,*)"Discharge name ", trim(adjustl(NewDischarge%ID%Name))
+                
+                end if
+
+            end if
 
         end if
 
@@ -2491,6 +2513,7 @@ cd3 :       if (STAT_CALL/=SUCCESS_) then
         logical                                     :: TimeCycle
         integer                                     :: STAT_CALL
         logical                                     :: AssociateCaptationFlowON
+        real                                        :: FlowFraction
         !----------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
@@ -2511,7 +2534,8 @@ cd3 :       if (STAT_CALL/=SUCCESS_) then
 
             if(DischargeX%FromCaptation%ON .and. DischargeX%FromCaptation%AssociateFlow)then
 
-                AssociateCaptationFlowON = ON
+                AssociateCaptationFlowON    = ON
+                FlowFraction                = DischargeX%FromCaptation%FlowFraction
 
                 !DischargeX becomes the captation (flow is multiplied by -1.0 after it is determined
                 call Search_Discharge(DischargeX, STAT_CALL, DischargeXIDNumber=DischargeX%FromCaptation%CaptationID)
@@ -2593,7 +2617,7 @@ cd2:        if (DischargeX%DischargeType == Normal .and. DischargeX%WaterFlow%Va
                     !If the discharge comes from a captation then the flow
                     !from the captation must be negative, so that the flow
                     !of the discharge is positive
-                    Flow = Flow * (-1.0)
+                    Flow = Flow * (-1.0) * FlowFraction
                 else 
                     write(*,*)"Discharge has flow based on captation"
                     write(*,*)"However, captation flow is positive and should be negative"
