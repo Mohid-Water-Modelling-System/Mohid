@@ -3810,12 +3810,13 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
         NewProperty%Concentration(:,:,:) = FillValueReal
 
         !To store oxygen and CO2 fluxes across the water-air interface 
-        if(CarbonDioxide_ .OR. Oxygen_) then
+        if(NewProperty%ID%IDNumber == CarbonDioxide_ .OR. &
+           NewProperty%ID%IDNumber == Oxygen_) then
         
-        allocate(NewProperty%SurfaceFlux(ILB:IUB, JLB:JUB), STAT = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_)                                                     &
-            stop 'Construct_PropertyValues - ModuleWaterProperties - ERR02' 
-        NewProperty%Surfaceflux(:,:) = FillValueReal
+            allocate(NewProperty%SurfaceFlux(ILB:IUB, JLB:JUB), STAT = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_)                                                     &
+                stop 'Construct_PropertyValues - ModuleWaterProperties - ERR02' 
+            NewProperty%Surfaceflux(:,:) = FillValueReal
         
         endif
 
@@ -11586,7 +11587,7 @@ do3:                                do k = kbottom, KUB
         integer                                     :: STAT_CALL
         integer                                     :: ILB, IUB, JLB, JUB, KUB, i, j
         real                                        :: DOSAT, CO2PP
-        real                                        :: Palt, pressure, teste
+        real                                        :: Palt, pressure
 
         !Begin----------------------------------------------------------------------
 
@@ -11738,25 +11739,28 @@ case1 :     select case(Property%ID%IDNumber)
                         if (Me%ExternalVar%OpenPoints3D(i, j, KUB) == OpenPoint) then
                         
                             !CO2 partial pressure on water
-                            CO2PP = CO2PartialPressure(Property%Concentration(i,j,KUB),    &
-                                    PropTemperature%Concentration(i,j,KUB),                &
-                                    PropSalinity%Concentration(i,j,KUB),                   &
+                            CO2PP = CO2PartialPressure(Property%Concentration(i,j,KUB), &
+                                    PropTemperature%Concentration(i,j,KUB),             &
+                                    PropSalinity%Concentration(i,j,KUB),                &
                                     Pressure)
                                     
-                            !New Concentration
-                            Property%SurfaceFlux(i, j) =  0.24 * 1E-3 * 1025.                               *  &  !units conversion (cm h-1 to m s-1)
-                                                          Me%ExtSurface%CarbonDioxideFlux(i, j)             *  &  !gas transfer velocity, k (m s-1)
-                                                          CO2_K0(PropTemperature%Concentration(i,j,KUB),       &  !K0 (mol kg-1 atm-1)
-                                                          PropSalinity%Concentration(i,j,KUB))              *  &   
-                                                          (CO2PP - 378.)                                           !mmol m-2 s-1
+                            !0.24 * 1E-3 * 1025.  -> units conversion (cm h-1 to m s-1)
+                            !CarbonDioxideFlux    -> gas transfer velocity, k (m s-1)
+                            !CO2_K0               -> mol kg-1 atm-1)
+                            !SurfaceFlux          -> mmol m-2 s-1
+                            Property%SurfaceFlux(i, j) =  0.24 * 1E-3 * 1025.                           *  & 
+                                                          Me%ExtSurface%CarbonDioxideFlux(i, j)         *  & 
+                                                          CO2_K0(PropTemperature%Concentration(i,j,KUB),   & 
+                                                                 PropSalinity%Concentration(i,j,KUB))   *  & 
+                                                          (CO2PP - 378.)                                     
                                        
-                            
-                            Property%Concentration(i, j, KUB) = Property%Concentration(i, j, KUB)                 -  &  !in mg l-1
-                                                                (Property%SurfaceFlux(i, j)                       *  &
-                                                                Property%Evolution%DTInterval                     *  &
-                                                                Me%ExternalVar%gridCellArea(i, j)                 /  &
-                                                                Me%ExternalVar%VolumeZ(i,j,KUB))                  *  &  
-                                                                (44. / 1000.)                                           !convert mmol m-3 to mg l-1
+                            !New Concentration
+                            Property%Concentration(i, j, KUB) = Property%Concentration(i, j, KUB)       -  &  !in mg l-1
+                                                                (Property%SurfaceFlux(i, j)             *  &
+                                                                Property%Evolution%DTInterval           *  &
+                                                                Me%ExternalVar%gridCellArea(i, j)       /  &
+                                                                Me%ExternalVar%VolumeZ(i,j,KUB))        *  &  
+                                                                (44. / 1000.) !convert mmol m-3 to mg l-1
                                           
                                                                 
                         endif
@@ -14493,7 +14497,7 @@ First:              if (FirstTime) then
         character (Len = StringLength)              :: PropName, PropName2
         real                                        :: DOSAT, Palt, CO2PP, Pressure
         integer                                     :: STAT_CALL, ObjHDF5
-        integer                                     :: WILB, WIUB, WJLB, WJUB, WKLB, WKUB, i, j, k, kbottom
+        integer                                     :: WILB, WIUB, WJLB, WJUB, WKUB, i, j, k, kbottom
 
         !Begin----------------------------------------------------------------------
 
@@ -16155,20 +16159,19 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
     !----------------------------------------------------------------------
 
     
-      subroutine GetPropertySurfaceFlux(WaterPropertiesID, OxygenSurfaceFlux, CarbonDioxideSurfaceFlux, STAT)
+    subroutine GetPropertySurfaceFlux(WaterPropertiesID, OxygenSurfaceFlux, CarbonDioxideSurfaceFlux, STAT)
 
         !Arguments---------------------------------------------------------------
         integer                                                 :: WaterPropertiesID
-        real, pointer, dimension(:,:), optional, intent(OUT)    :: OxygenSurfaceFlux
-        real, pointer, dimension(:,:), optional, intent(OUT)    :: CarbonDioxideSurfaceFlux
+        real, pointer, dimension(:,:), optional                 :: OxygenSurfaceFlux
+        real, pointer, dimension(:,:), optional                 :: CarbonDioxideSurfaceFlux
         integer,            optional, intent(OUT)               :: STAT
 
         !Local-------------------------------------------------------------------
-        integer                                     :: ready_          
-        integer                                     :: STAT_CALL              
-        type(T_Property), pointer                   :: PropertyX
-        integer                                     :: UnitsSize
-        integer                                     :: STAT_    
+        integer                                                 :: ready_          
+        integer                                                 :: STAT_CALL              
+        type(T_Property), pointer                               :: PropertyX
+        integer                                                 :: STAT_    
 
         !------------------------------------------------------------------------
 
