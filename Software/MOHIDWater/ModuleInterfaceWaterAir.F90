@@ -3374,24 +3374,29 @@ cd1:    if(Me%DefineCDWIND)then
 
                 if (Me%ExtWater%WaterPoints2D(i, j) == WaterPoint) then
                     
-                    !Compute the square root 
+                    !Compute the velocity modulus
                     VM = sqrt(UWIND(i,j)**2. + VWIND(i,j)**2.)  
                     
-                    !Large & Pond, 1981 
-                    if ( VM < 10 .and. VM >= 4) then
+                    !Compute the wind drag coefficient based on Large & Pond, 1981 
+                    if (VM < 4.)then
 
-                        CDWIND = 1.14e-3
+                        !The Large & Pond, 1981 formulation is not valid for wind lower than 4 m/s
+                        !A constant value is assumed   
+                        CDWIND = 0.0012 
+                    
+                    elseif (VM >=  4  .and. VM <  11.)then
 
-                    else if ( VM <= 26 .and. VM >= 10) then
+                        CDWIND = 0.0012
 
-                        CDWIND = (4.4e-4 + 6.3e-5 * VM)
+                    elseif (VM >= 11. .and. VM <= 26.)then
 
-                    else
+                        CDWIND = (0.00049 + 0.000065 * VM)                   
 
-                        !write(*,*) 'The Large & Pond, 1981 formulation is not valid for this wind=', VM    
-                        !stop 'ComputeTauWind - ModuleInterfaceWaterAir - ERR04.'       
-                        !Manuel. Even when wind < 4, a drag coefficient is needed.                     
-                        CDWIND = 1.14e-3                        
+                    elseif (VM > 26.) then
+                        
+                        !The Large & Pond, 1981 formulation is not valid for wind higher than 26 m/s
+                        !A constant value is assumed   
+                        CDWIND = 0.00218
 
                     endif
                     
