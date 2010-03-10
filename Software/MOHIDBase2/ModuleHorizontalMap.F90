@@ -598,9 +598,6 @@ do8 :   do i = ILB+1 , IUB
     !--------------------------------------------------------------------------
     subroutine ConstructWaterFaces
 
-        !Arguments-------------------------------------------------------------
-        real, dimension(: ,:), pointer              :: Bathymetry
-
         !Local-----------------------------------------------------------------
         integer                                     :: i, j
         integer                                     :: ILB, IUB, JLB, JUB
