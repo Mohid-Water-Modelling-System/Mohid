@@ -58,6 +58,8 @@ Module ModuleDischarges
     private ::                  Construct_Property
     private ::                      Construct_PropertyValues
     private ::                      Add_Property
+    private :: ConstructCaptationDischarges
+    private :: ConstructLog
 
 
     !Selector
@@ -70,7 +72,10 @@ Module ModuleDischarges
     public  :: GetDischargeParameters
     public  :: GetDischargeConcentration
     public  :: GetByPassON
+    public  :: GetDischargeFromCaptationON
+    public  :: GetCaptationConcentration
     private ::    Search_Discharge
+    private ::    Search_Discharge_ByName
     private ::    Search_Property
     public  :: GetDischargeSpatialEmission
     public  :: GetDischargeFlowDistribuiton
@@ -146,7 +151,9 @@ Module ModuleDischarges
         real                                    :: scalar         = FillValueReal
         logical                                 :: TimeSerieON
         integer                                 :: TimeSerie      = 0
-        logical                                 :: PropTimeSerie  = .false. 
+        logical                                 :: PropTimeSerie  = .false.
+        logical                                 :: FromCaptation  = .false.
+        real                                    :: IncreaseValue  = FillValueReal 
         type (T_Property), pointer              :: Next,Prev
     end type T_Property
 
@@ -214,8 +221,14 @@ Module ModuleDischarges
 
     end  type T_Localization
 
+    type      T_FromCaptation
+        character(len=PathLength)               :: CaptationName                    = null_str
+        integer                                 :: CaptationID                      = FillValueInt
+        logical                                 :: ON                               = .false.
+        logical                                 :: AssociateFlow                    = .false.
+    end type  T_FromCaptation
 
-    type       T_ByPass 
+    type      T_ByPass 
          integer                                :: i, j
          logical                                :: ON, OneWay
          integer                                :: Side
@@ -239,7 +252,8 @@ Module ModuleDischarges
          type(T_Property           ), pointer   :: CurrProperty     => null()
          type(T_IndividualDischarge), pointer   :: Next             => null()
          type(T_IndividualDischarge), pointer   :: Prev             => null()
-         type(T_ByPass             )            :: ByPass           
+         type(T_ByPass             )            :: ByPass
+         type(T_FromCaptation      )            :: FromCaptation       
          logical                                :: IgnoreON
     end type T_IndividualDischarge    
 
@@ -345,6 +359,7 @@ cd1 :       if      ( STAT_CALL .EQ. FILE_NOT_FOUND_ERR_) then
             ! Constructs the discharge list 
             call Construct_DischargeList
 
+            call ConstructCaptationDischarges
 
             !User Feed-Back
             call ConstructLog
@@ -469,7 +484,6 @@ cd2 :           if (BlockFound) then
     end subroutine Construct_DischargeList
 
     !--------------------------------------------------------------------------
-
 
     !--------------------------------------------------------------------------
     !This subroutine reads all the information needed to construct a new property.           
@@ -1216,9 +1230,43 @@ i3:     if (NewDischarge%ByPass%ON) then
             if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR210'
 
         endif i3         
-        !----------------------------------------------------------------------
 
-        !----------------------------------------------------------------------
+        call GetData(NewDischarge%FromCaptation%ON,                                     &
+                     Me%ObjEnterData, flag,                                             &
+                     FromBlock,                                                         &
+                     keyword      = 'FROM_CAPTATION',                                   &
+                     default      = .false.,                                            &
+                     ClientModule = 'ModuleDischarges',                                 &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR220'
+
+        if(NewDischarge%FromCaptation%ON)then
+
+            call GetData(NewDischarge%FromCaptation%CaptationName,                      &
+                         Me%ObjEnterData, flag,                                         &
+                         FromBlock,                                                     &
+                         keyword      = 'CAPTATION_NAME',                               &
+                         ClientModule = 'ModuleDischarges',                             &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR240'
+
+            if(flag == 0)then
+                write(*,*)"Must define CAPTATION_NAME"
+                write(*,*)"in discharge ", trim(adjustl(NewDischarge%ID%Name))
+                stop 'Construct_FlowValues - ModuleDischarges - ERR240'
+            endif
+
+            call GetData(NewDischarge%FromCaptation%AssociateFlow,                      &
+                         Me%ObjEnterData, flag,                                         &
+                         FromBlock,                                                     &
+                         keyword      = 'FLOW_FROM_CAPTATION',                          &
+                         default      = .false.,                                        &
+                         ClientModule = 'ModuleDischarges',                             &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR250'
+
+        end if
+
 
      End Subroutine Construct_FlowValues  
 
@@ -1374,8 +1422,6 @@ cd2 :           if (BlockFound) then
         integer                                     :: flag, STAT_CALL
 
         !----------------------------------------------------------------------
-
-
    
         call GetData(NewProperty%ConcColumn,                                            &
                      Me%ObjEnterData,                                                   &
@@ -1390,7 +1436,7 @@ cd2 :           if (BlockFound) then
             NewProperty%Variable = .false.
         endif
 
-        if (NewProperty%Variable) then
+ifvar:  if (NewProperty%Variable) then
 
             call GetData(FileName,                                                       &
                          Me%ObjEnterData,                                                &
@@ -1419,24 +1465,69 @@ cd2 :           if (BlockFound) then
                 endif
             endif
 
-        endif
+        endif ifvar
+
+
+        call GetData(NewProperty%FromCaptation,                                         &
+                     Me%ObjEnterData, flag,                                             &
+                     FromBlockInBlock,                                                  &
+                     keyword      = 'PROP_FROM_CAPTATION',                              &
+                     default      = .false.,                                            &
+                     ClientModule = 'ModuleDischarges',                                 &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Construct_PropertyValues - ModuleDischarges - ERR21'
+
+
+        if(NewProperty%FromCaptation)then
+
+            if(.not. NewDischarge%FromCaptation%ON)then
+                
+                write(*,*)"Property concentration cannot be determined from captation"
+                write(*,*)"because discharge is not based on captation"
+                write(*,*)"Property  : ", trim(adjustl(NewProperty%ID%Name))
+                write(*,*)"Discharge : ", trim(adjustl(NewDischarge%ID%Name))
+                stop      'Construct_PropertyValues - ModuleDischarges - ERR30'
+
+            end if
+
+            call GetData(NewProperty%IncreaseValue,                                     &
+                         Me%ObjEnterData, flag,                                         &
+                         FromBlockInBlock,                                              &
+                         keyword      = 'INCREASE_VALUE',                               &
+                         default      = 0.0,                                            &
+                         ClientModule = 'ModuleDischarges',                             &
+                         STAT         = STAT_CALL)
+            if(STAT_CALL /= SUCCESS_) stop 'Construct_PropertyValues - ModuleDischarges - ERR40'
+            
+            if(flag .eq. 0)then
+
+                write(*,*)"Discharge from captation property. Please define INCREASE_VALUE for :"
+                write(*,*)trim(NewProperty%ID%Name)
+                write(*,*)"Discharge name : ", trim(NewDischarge%ID%Name)
+                stop 'Construct_PropertyValues - ModuleDischarges -  ERR50'
+
+            end if 
+
+        end if
 
         !By default the property value in the domain is zero
-        call GetData(NewProperty%scalar,                                                 &
-                     Me%ObjEnterData,                                                    &
-                     flag,                                                               &
-                     FromBlockinBlock,                                                   &
-                     keyword      ='DEFAULTVALUE',                                       &
-                     ClientModule ='ModuleDischarges',                                   &
+        call GetData(NewProperty%scalar,                                                &
+                     Me%ObjEnterData,                                                   &
+                     flag,                                                              &
+                     FromBlockinBlock,                                                  &
+                     keyword      ='DEFAULTVALUE',                                      &
+                     ClientModule ='ModuleDischarges',                                  &
                      default      = 0.0)
                      
-        if((.not. NewProperty%Variable) .and. (flag .eq. 0))then
+        if((.not. NewProperty%Variable) .and. (.not. NewProperty%FromCaptation) .and. (flag .eq. 0))then
+
             write(*,*)"Please define concentration default value for property :"
             write(*,*)trim(NewProperty%ID%Name)
             write(*,*)"Discharge name : ", trim(NewDischarge%ID%Name)
-            stop 'Construct_PropertyValues - ModuleDischarges -  ERR30'
+            stop 'Construct_PropertyValues - ModuleDischarges -  ERR60'
+
         end if
- 
+
 
         !----------------------------------------------------------------------
 
@@ -1474,6 +1565,39 @@ cd2 :           if (BlockFound) then
         !----------------------------------------------------------------------
 
     end subroutine Add_Property 
+
+    !--------------------------------------------------------------------------
+
+    subroutine ConstructCaptationDischarges
+
+        !Arguments-------------------------------------------------------------
+
+        !Local-----------------------------------------------------------------
+        type(T_IndividualDischarge), pointer        :: CurrentDischarge
+        type(T_IndividualDischarge), pointer        :: Captation
+        integer                                     :: STAT_CALL
+
+        CurrentDischarge => Me%FirstDischarge
+        do while (associated (CurrentDischarge))
+
+            if(CurrentDischarge%FromCaptation%ON)then
+
+                call Search_Discharge_ByName(Captation, STAT_CALL, trim(adjustl(CurrentDischarge%FromCaptation%CaptationName)))
+                if (STAT_CALL/=SUCCESS_) then 
+                    write(*,*)'Can not find discharge with name ', trim(adjustl(CurrentDischarge%FromCaptation%CaptationName)), '.'
+                    stop      'Subroutine GetDischargesGridLocalization; Module ModuleDischarges. ERR01.'
+                else
+                    CurrentDischarge%FromCaptation%CaptationID = Captation%ID%IDNumber
+                endif
+
+            end if
+
+
+            CurrentDischarge => CurrentDischarge%Next
+        enddo
+
+
+    end subroutine ConstructCaptationDischarges
 
     !--------------------------------------------------------------------------
 
@@ -1717,6 +1841,51 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
         !----------------------------------------------------------------------
 
     end subroutine GetByPassON
+
+
+    !--------------------------------------------------------------------------
+
+    subroutine GetDischargeFromCaptationON(DischargesID, DischargeIDNumber, DischargeFromCaptationON, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                                         :: DischargesID
+        integer,           intent(IN )                  :: DischargeIDNumber
+        logical,           intent(OUT)                  :: DischargeFromCaptationON
+        integer, optional, intent(OUT)                  :: STAT
+
+        !Local-----------------------------------------------------------------
+        type(T_IndividualDischarge), pointer            :: DischargeX
+        integer                                         :: STAT_CALL, STAT_, ready_
+
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(DischargesID, ready_)    
+        
+cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            call Search_Discharge(DischargeX, STAT_CALL, DischargeXIDNumber=DischargeIDNumber)
+            if (STAT_CALL/=SUCCESS_) then 
+                write(*,*) 'Can not find discharge number ', DischargeIDNumber, '.'
+                stop       'Subroutine GetDischargesGridLocalization; Module ModuleDischarges. ERR01.'
+            endif
+
+            DischargeFromCaptationON = DischargeX%FromCaptation%ON
+                    
+            STAT_ = SUCCESS_
+        else 
+            STAT_ = ready_
+        end if cd1
+
+
+        if (present(STAT)) STAT = STAT_
+
+        !----------------------------------------------------------------------
+
+    end subroutine GetDischargeFromCaptationON
+
 
     !--------------------------------------------------------------------------
 
@@ -2299,6 +2468,7 @@ cd3 :       if (STAT_CALL/=SUCCESS_) then
     end Subroutine GetDischargeFlowDistribuiton
 
     !--------------------------------------------------------------------------
+    
     Subroutine GetDischargeWaterFlow(DischargesID, TimeX, DischargeIDNumber,            &
                                      SurfaceElevation, Flow, SurfaceElevation2, STAT)
 
@@ -2320,7 +2490,7 @@ cd3 :       if (STAT_CALL/=SUCCESS_) then
         real                                        :: H, C, A
         logical                                     :: TimeCycle
         integer                                     :: STAT_CALL
-
+        logical                                     :: AssociateCaptationFlowON
         !----------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
@@ -2333,11 +2503,28 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
 
 
             call Search_Discharge(DischargeX, STAT_CALL, DischargeXIDNumber=DischargeIDNumber)
-
 cd3 :       if (STAT_CALL/=SUCCESS_) then 
                 write(*,*) ' can not find discharge number ',DischargeIDNumber
-                    stop       'Subroutine GetDischargeWaterFlow; Module ModuleDischarges. ERR01.'
+                stop       'SetDischargeWaterFlow - ModuleDischarges - ERR01'
             end if cd3
+
+
+            if(DischargeX%FromCaptation%ON .and. DischargeX%FromCaptation%AssociateFlow)then
+
+                AssociateCaptationFlowON = ON
+
+                !DischargeX becomes the captation (flow is multiplied by -1.0 after it is determined
+                call Search_Discharge(DischargeX, STAT_CALL, DischargeXIDNumber=DischargeX%FromCaptation%CaptationID)
+cd31:           if (STAT_CALL/=SUCCESS_) then 
+                    write(*,*) 'Can not find captation discharge number ', DischargeIDNumber
+                    stop       'SetDischargeWaterFlow - ModuleDischarges - ERR02'
+                end if cd31
+
+            else
+
+                AssociateCaptationFlowON = OFF
+
+            end if
 
 
 cd2:        if (DischargeX%DischargeType == Normal .and. DischargeX%WaterFlow%Variable) then
@@ -2399,6 +2586,24 @@ cd2:        if (DischargeX%DischargeType == Normal .and. DischargeX%WaterFlow%Va
                 Flow = DischargeX%WaterFlow%Scalar
 
             end if cd2
+
+            if(AssociateCaptationFlowON)then
+
+                if(Flow <= 0)then 
+                    !If the discharge comes from a captation then the flow
+                    !from the captation must be negative, so that the flow
+                    !of the discharge is positive
+                    Flow = Flow * (-1.0)
+                else 
+                    write(*,*)"Discharge has flow based on captation"
+                    write(*,*)"However, captation flow is positive and should be negative"
+                    stop 'GetDischargeWaterFlow - ModuleDischarges - ERR03'
+                end if 
+               
+
+            end if
+
+
 
             nullify(DischargeX)
 
@@ -2579,6 +2784,7 @@ cd3 :       if (STAT_CALL /= SUCCESS_) then
     end subroutine GetDischargeON
 
     !--------------------------------------------------------------------------
+
     subroutine GetDischargeConcentration(DischargesID, TimeX,DischargeIDNumber,          &
                                          Concentration, PropertyIDNumber, STAT)
 
@@ -2599,7 +2805,8 @@ cd3 :       if (STAT_CALL /= SUCCESS_) then
         integer                                     :: ready_
         integer                                     :: STAT_
         integer                                     :: STAT_CALL
-
+        logical                                     :: PropertyFromCaptation
+        real                                        :: PropertyIncreaseValue
         !----------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
@@ -2610,23 +2817,46 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
             (ready_ .EQ. READ_LOCK_ERR_)) then
 
             call Search_Discharge(DischargeX, STAT_CALL, DischargeXIDNumber=DischargeIDNumber)
-
             if (STAT_CALL/=SUCCESS_) then 
                 write(*,*) ' can not find discharge number ',DischargeIDNumber
-                stop  'Sub. GetDischargeConcentration - ModuleDischarges - ERR01'
+                stop  'GetDischargeConcentration - ModuleDischarges - ERR01'
             endif
              
-
             call Search_Property(DischargeX, PropertyX, STAT_CALL, PropertyXIDNumber=PropertyIDNumber)
-
             if (STAT_CALL/=SUCCESS_) then 
                 !If the proeprty is not found the program don't stop is return a error 
                 !not found
                 if (STAT_CALL /= NOT_FOUND_ERR_) then 
-                    stop  'Sub. GetDischargeConcentration - ModuleDischarges - ERR05'
+                    stop  'GetDischargeConcentration - ModuleDischarges - ERR02'
                 endif
-
             endif
+
+            if(PropertyX%FromCaptation)then
+
+                PropertyFromCaptation = ON
+                PropertyIncreaseValue = PropertyX%IncreaseValue
+
+
+                !DischargeX becomes the captation discharge
+                call Search_Discharge(DischargeX, STAT_CALL, DischargeXIDNumber=DischargeX%FromCaptation%CaptationID)
+                    if (STAT_CALL/=SUCCESS_) then 
+                    write(*,*) 'Can not find captation discharge number ', DischargeIDNumber
+                    stop       'GetDischargeConcentration - ModuleDischarges - ERR03'
+                end if
+
+                call Search_Property(DischargeX, PropertyX, STAT_CALL, PropertyXIDNumber=PropertyIDNumber)
+                if (STAT_CALL/=SUCCESS_) then 
+                    !If the proeprty is not found the program don't stop is return a error 
+                    !not found
+                    if (STAT_CALL /= NOT_FOUND_ERR_) then 
+                        stop  'GetDischargeConcentration - ModuleDischarges - ERR04'
+                    endif
+                endif
+            else
+
+                PropertyFromCaptation = OFF
+
+            end if
 
 
             
@@ -2653,6 +2883,10 @@ cd2 :       if (STAT_CALL == SUCCESS_) then
                     Concentration = PropertyX%Scalar
 
                 endif
+
+                if(PropertyFromCaptation)then
+                    Concentration = Concentration + PropertyIncreaseValue
+                end if
              
 
                 nullify(PropertyX)
@@ -2689,6 +2923,96 @@ cd2 :       if (STAT_CALL == SUCCESS_) then
     end Subroutine GetDischargeConcentration
 
     !--------------------------------------------------------------------------
+
+
+    subroutine GetCaptationConcentration(DischargesID, DischargeIDNumber, PropertyIDNumber,  &
+                                         CaptI, CaptJ, CaptK, ConcentrationIncrease, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                                     :: DischargesID
+        integer,           intent(IN)               :: DischargeIDNumber
+        integer,           intent(OUT)              :: CaptI, CaptJ, CaptK
+        real,              intent(OUT)              :: ConcentrationIncrease
+        integer,           intent(IN)               :: PropertyIDNumber
+
+        integer, optional, intent(OUT)              :: STAT
+
+        !Local-----------------------------------------------------------------
+        type(T_IndividualDischarge), pointer        :: DischargeX
+        type(T_IndividualDischarge), pointer        :: CaptationX
+        type(T_Property),            pointer        :: PropertyX
+        integer                                     :: ready_
+        integer                                     :: STAT_
+        integer                                     :: STAT_CALL
+
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(DischargesID, ready_)    
+        
+cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            call Search_Discharge(DischargeX, STAT_CALL, DischargeXIDNumber=DischargeIDNumber)
+            if (STAT_CALL/=SUCCESS_) then 
+                write(*,*) ' can not find discharge number ',DischargeIDNumber
+                stop  'GetCaptationConcentration - ModuleDischarges - ERR01'
+            endif
+             
+            call Search_Property(DischargeX, PropertyX, STAT_CALL, PropertyXIDNumber=PropertyIDNumber)
+            if (STAT_CALL/=SUCCESS_) then 
+                !If the proeprty is not found the program don't stop is return a error 
+                !not found
+                if (STAT_CALL /= NOT_FOUND_ERR_) then 
+                    stop  'GetCaptationConcentration - ModuleDischarges - ERR02'
+                endif
+            endif
+
+            if(PropertyX%FromCaptation)then
+
+                ConcentrationIncrease = PropertyX%IncreaseValue
+
+                call Search_Discharge(CaptationX, STAT_CALL, DischargeXIDNumber=DischargeX%FromCaptation%CaptationID)
+                if (STAT_CALL/=SUCCESS_) then 
+                    write(*,*) ' can not find discharge number ',DischargeIDNumber
+                    stop  'GetCaptationConcentration - ModuleDischarges - ERR03'
+                endif
+
+                CaptI = CaptationX%Localization%GridCoordinates%I
+                CaptJ = CaptationX%Localization%GridCoordinates%J
+                CaptK = CaptationX%Localization%GridCoordinates%K
+
+                nullify(CaptationX)
+
+            else
+
+                stop  'GetCaptationConcentration - ModuleDischarges - ERR03'
+
+            end if
+
+            nullify(PropertyX)
+
+            nullify(DischargeX)
+
+            STAT_ = SUCCESS_
+
+        else 
+
+            STAT_ = ready_
+
+        end if cd1
+
+
+        if (present(STAT))                                                    &
+            STAT = STAT_
+
+        !----------------------------------------------------------------------
+
+    end Subroutine GetCaptationConcentration
+
+    !--------------------------------------------------------------------------
+
 
 
 
@@ -2731,6 +3055,35 @@ cd2 :       if (STAT_CALL == SUCCESS_) then
         enddo
 
     end subroutine Search_Discharge
+
+    !--------------------------------------------------------------------------
+
+    subroutine Search_Discharge_ByName(DischargeX, STAT_, DischargeXIDName)
+
+        !Arguments--------------------------------------------------------------
+        type(T_IndividualDischarge),  pointer         :: DischargeX
+        integer,                      intent (OUT)    :: STAT_
+        character(len=*),             intent (IN)     :: DischargeXIDName
+
+        !Begin-----------------------------------------------------------------
+
+        STAT_  = NOT_FOUND_ERR_
+
+        DischargeX => Me%FirstDischarge
+
+        do while (associated(DischargeX)) 
+            if (DischargeX%ID%Name == DischargeXIDName) then
+                STAT_ = SUCCESS_
+                Me%CurrentDischarge => DischargeX
+                exit
+            else
+                DischargeX => DischargeX%Next
+            endif
+        enddo
+
+
+
+    end subroutine Search_Discharge_ByName
 
     !--------------------------------------------------------------------------
 
