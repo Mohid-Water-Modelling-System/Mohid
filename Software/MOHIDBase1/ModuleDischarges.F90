@@ -58,7 +58,7 @@ Module ModuleDischarges
     private ::                  Construct_Property
     private ::                      Construct_PropertyValues
     private ::                      Add_Property
-    private :: ConstructCaptationDischarges
+    private :: ConstructIntakeDischarges
     private :: ConstructLog
 
 
@@ -72,8 +72,8 @@ Module ModuleDischarges
     public  :: GetDischargeParameters
     public  :: GetDischargeConcentration
     public  :: GetByPassON
-    public  :: GetDischargeFromCaptationON
-    public  :: GetCaptationConcentration
+    public  :: GetDischargeFromIntakeON
+    public  :: GetIntakeConcentration
     private ::    Search_Discharge
     private ::    Search_Discharge_ByName
     private ::    Search_Property
@@ -152,7 +152,7 @@ Module ModuleDischarges
         logical                                 :: TimeSerieON
         integer                                 :: TimeSerie      = 0
         logical                                 :: PropTimeSerie  = .false.
-        logical                                 :: FromCaptation  = .false.
+        logical                                 :: FromIntake     = .false.
         real                                    :: IncreaseValue  = FillValueReal 
         type (T_Property), pointer              :: Next,Prev
     end type T_Property
@@ -221,13 +221,13 @@ Module ModuleDischarges
 
     end  type T_Localization
 
-    type      T_FromCaptation
-        character(len=PathLength)               :: CaptationName                    = null_str
-        integer                                 :: CaptationID                      = FillValueInt
+    type      T_FromIntake
+        character(len=PathLength)               :: IntakeName                       = null_str
+        integer                                 :: IntakeID                         = FillValueInt
         logical                                 :: ON                               = .false.
         logical                                 :: AssociateFlow                    = .false.
         real                                    :: FlowFraction                     = 1.0
-    end type  T_FromCaptation
+    end type  T_FromIntake
 
     type      T_ByPass 
          integer                                :: i, j
@@ -254,7 +254,7 @@ Module ModuleDischarges
          type(T_IndividualDischarge), pointer   :: Next             => null()
          type(T_IndividualDischarge), pointer   :: Prev             => null()
          type(T_ByPass             )            :: ByPass
-         type(T_FromCaptation      )            :: FromCaptation       
+         type(T_FromIntake         )            :: FromIntake       
          logical                                :: IgnoreON
     end type T_IndividualDischarge    
 
@@ -360,7 +360,7 @@ cd1 :       if      ( STAT_CALL .EQ. FILE_NOT_FOUND_ERR_) then
             ! Constructs the discharge list 
             call Construct_DischargeList
 
-            call ConstructCaptationDischarges
+            call ConstructIntakeDischarges
 
             !User Feed-Back
             call ConstructLog
@@ -1232,55 +1232,55 @@ i3:     if (NewDischarge%ByPass%ON) then
 
         endif i3         
 
-        call GetData(NewDischarge%FromCaptation%ON,                                     &
+        call GetData(NewDischarge%FromIntake%ON,                                        &
                      Me%ObjEnterData, flag,                                             &
                      FromBlock,                                                         &
-                     keyword      = 'FROM_CAPTATION',                                   &
+                     keyword      = 'FROM_INTAKE',                                      &
                      default      = .false.,                                            &
                      ClientModule = 'ModuleDischarges',                                 &
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR220'
 
-        if(NewDischarge%FromCaptation%ON)then
+        if(NewDischarge%FromIntake%ON)then
 
-            call GetData(NewDischarge%FromCaptation%CaptationName,                      &
+            call GetData(NewDischarge%FromIntake%IntakeName,                            &
                          Me%ObjEnterData, flag,                                         &
                          FromBlock,                                                     &
-                         keyword      = 'CAPTATION_NAME',                               &
+                         keyword      = 'INTAKE_NAME',                                  &
                          ClientModule = 'ModuleDischarges',                             &
                          STAT         = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR240'
+            if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR230'
 
             if(flag == 0)then
-                write(*,*)"Must define CAPTATION_NAME"
+                write(*,*)"Must define INTAKE_NAME"
                 write(*,*)"in discharge ", trim(adjustl(NewDischarge%ID%Name))
                 stop 'Construct_FlowValues - ModuleDischarges - ERR240'
             endif
 
-            call GetData(NewDischarge%FromCaptation%AssociateFlow,                      &
+            call GetData(NewDischarge%FromIntake%AssociateFlow,                         &
                          Me%ObjEnterData, flag,                                         &
                          FromBlock,                                                     &
-                         keyword      = 'FLOW_FROM_CAPTATION',                          &
+                         keyword      = 'FLOW_FROM_INTAKE',                             &
                          default      = .false.,                                        &
                          ClientModule = 'ModuleDischarges',                             &
                          STAT         = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR250'
 
 
-            if(NewDischarge%FromCaptation%AssociateFlow)then
+            if(NewDischarge%FromIntake%AssociateFlow)then
 
-                call GetData(NewDischarge%FromCaptation%FlowFraction,                   &
+                call GetData(NewDischarge%FromIntake%FlowFraction,                      &
                              Me%ObjEnterData, flag,                                     &
                              FromBlock,                                                 &
                              keyword      = 'FLOW_FRACTION',                            &
                              default      = 1.0,                                        &
                              ClientModule = 'ModuleDischarges',                         &
                              STAT         = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR250'
+                if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR260'
 
-                if(NewDischarge%FromCaptation%FlowFraction < 0)then
+                if(NewDischarge%FromIntake%FlowFraction < 0)then
 
-                    write(*,*)"Discharge flow percentage of the water captation cannot be negative"
+                    write(*,*)"Discharge flow percentage of the water intake cannot be negative"
                     write(*,*)"Discharge name ", trim(adjustl(NewDischarge%ID%Name))
                 
                 end if
@@ -1490,22 +1490,22 @@ ifvar:  if (NewProperty%Variable) then
         endif ifvar
 
 
-        call GetData(NewProperty%FromCaptation,                                         &
+        call GetData(NewProperty%FromIntake,                                            &
                      Me%ObjEnterData, flag,                                             &
                      FromBlockInBlock,                                                  &
-                     keyword      = 'PROP_FROM_CAPTATION',                              &
+                     keyword      = 'PROP_FROM_INTAKE',                                 &
                      default      = .false.,                                            &
                      ClientModule = 'ModuleDischarges',                                 &
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Construct_PropertyValues - ModuleDischarges - ERR21'
 
 
-        if(NewProperty%FromCaptation)then
+        if(NewProperty%FromIntake)then
 
-            if(.not. NewDischarge%FromCaptation%ON)then
+            if(.not. NewDischarge%FromIntake%ON)then
                 
-                write(*,*)"Property concentration cannot be determined from captation"
-                write(*,*)"because discharge is not based on captation"
+                write(*,*)"Property concentration cannot be determined from intake"
+                write(*,*)"because discharge is not based on intake"
                 write(*,*)"Property  : ", trim(adjustl(NewProperty%ID%Name))
                 write(*,*)"Discharge : ", trim(adjustl(NewDischarge%ID%Name))
                 stop      'Construct_PropertyValues - ModuleDischarges - ERR30'
@@ -1523,7 +1523,7 @@ ifvar:  if (NewProperty%Variable) then
             
             if(flag .eq. 0)then
 
-                write(*,*)"Discharge from captation property. Please define INCREASE_VALUE for :"
+                write(*,*)"Discharge from intake property. Please define INCREASE_VALUE for :"
                 write(*,*)trim(NewProperty%ID%Name)
                 write(*,*)"Discharge name : ", trim(NewDischarge%ID%Name)
                 stop 'Construct_PropertyValues - ModuleDischarges -  ERR50'
@@ -1541,7 +1541,7 @@ ifvar:  if (NewProperty%Variable) then
                      ClientModule ='ModuleDischarges',                                  &
                      default      = 0.0)
                      
-        if((.not. NewProperty%Variable) .and. (.not. NewProperty%FromCaptation) .and. (flag .eq. 0))then
+        if((.not. NewProperty%Variable) .and. (.not. NewProperty%FromIntake) .and. (flag .eq. 0))then
 
             write(*,*)"Please define concentration default value for property :"
             write(*,*)trim(NewProperty%ID%Name)
@@ -1590,26 +1590,26 @@ ifvar:  if (NewProperty%Variable) then
 
     !--------------------------------------------------------------------------
 
-    subroutine ConstructCaptationDischarges
+    subroutine ConstructIntakeDischarges
 
         !Arguments-------------------------------------------------------------
 
         !Local-----------------------------------------------------------------
         type(T_IndividualDischarge), pointer        :: CurrentDischarge
-        type(T_IndividualDischarge), pointer        :: Captation
+        type(T_IndividualDischarge), pointer        :: Intake
         integer                                     :: STAT_CALL
 
         CurrentDischarge => Me%FirstDischarge
         do while (associated (CurrentDischarge))
 
-            if(CurrentDischarge%FromCaptation%ON)then
+            if(CurrentDischarge%FromIntake%ON)then
 
-                call Search_Discharge_ByName(Captation, STAT_CALL, trim(adjustl(CurrentDischarge%FromCaptation%CaptationName)))
+                call Search_Discharge_ByName(Intake, STAT_CALL, trim(adjustl(CurrentDischarge%FromIntake%IntakeName)))
                 if (STAT_CALL/=SUCCESS_) then 
-                    write(*,*)'Can not find discharge with name ', trim(adjustl(CurrentDischarge%FromCaptation%CaptationName)), '.'
+                    write(*,*)'Can not find discharge with name ', trim(adjustl(CurrentDischarge%FromIntake%IntakeName)), '.'
                     stop      'Subroutine GetDischargesGridLocalization; Module ModuleDischarges. ERR01.'
                 else
-                    CurrentDischarge%FromCaptation%CaptationID = Captation%ID%IDNumber
+                    CurrentDischarge%FromIntake%IntakeID = Intake%ID%IDNumber
                 endif
 
             end if
@@ -1619,7 +1619,7 @@ ifvar:  if (NewProperty%Variable) then
         enddo
 
 
-    end subroutine ConstructCaptationDischarges
+    end subroutine ConstructIntakeDischarges
 
     !--------------------------------------------------------------------------
 
@@ -1867,12 +1867,12 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
 
     !--------------------------------------------------------------------------
 
-    subroutine GetDischargeFromCaptationON(DischargesID, DischargeIDNumber, DischargeFromCaptationON, STAT)
+    subroutine GetDischargeFromIntakeON(DischargesID, DischargeIDNumber, DischargeFromIntakeON, STAT)
 
         !Arguments-------------------------------------------------------------
         integer                                         :: DischargesID
         integer,           intent(IN )                  :: DischargeIDNumber
-        logical,           intent(OUT)                  :: DischargeFromCaptationON
+        logical,           intent(OUT)                  :: DischargeFromIntakeON
         integer, optional, intent(OUT)                  :: STAT
 
         !Local-----------------------------------------------------------------
@@ -1894,7 +1894,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
                 stop       'Subroutine GetDischargesGridLocalization; Module ModuleDischarges. ERR01.'
             endif
 
-            DischargeFromCaptationON = DischargeX%FromCaptation%ON
+            DischargeFromIntakeON = DischargeX%FromIntake%ON
                     
             STAT_ = SUCCESS_
         else 
@@ -1906,7 +1906,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
 
         !----------------------------------------------------------------------
 
-    end subroutine GetDischargeFromCaptationON
+    end subroutine GetDischargeFromIntakeON
 
 
     !--------------------------------------------------------------------------
@@ -2512,7 +2512,7 @@ cd3 :       if (STAT_CALL/=SUCCESS_) then
         real                                        :: H, C, A
         logical                                     :: TimeCycle
         integer                                     :: STAT_CALL
-        logical                                     :: AssociateCaptationFlowON
+        logical                                     :: AssociateIntakeFlowON
         real                                        :: FlowFraction
         !----------------------------------------------------------------------
 
@@ -2532,21 +2532,21 @@ cd3 :       if (STAT_CALL/=SUCCESS_) then
             end if cd3
 
 
-            if(DischargeX%FromCaptation%ON .and. DischargeX%FromCaptation%AssociateFlow)then
+            if(DischargeX%FromIntake%ON .and. DischargeX%FromIntake%AssociateFlow)then
 
-                AssociateCaptationFlowON    = ON
-                FlowFraction                = DischargeX%FromCaptation%FlowFraction
+                AssociateIntakeFlowON    = ON
+                FlowFraction                = DischargeX%FromIntake%FlowFraction
 
-                !DischargeX becomes the captation (flow is multiplied by -1.0 after it is determined
-                call Search_Discharge(DischargeX, STAT_CALL, DischargeXIDNumber=DischargeX%FromCaptation%CaptationID)
+                !DischargeX becomes the intake (flow is multiplied by -1.0 after it is determined
+                call Search_Discharge(DischargeX, STAT_CALL, DischargeXIDNumber=DischargeX%FromIntake%IntakeID)
 cd31:           if (STAT_CALL/=SUCCESS_) then 
-                    write(*,*) 'Can not find captation discharge number ', DischargeIDNumber
+                    write(*,*) 'Can not find intake discharge number ', DischargeIDNumber
                     stop       'SetDischargeWaterFlow - ModuleDischarges - ERR02'
                 end if cd31
 
             else
 
-                AssociateCaptationFlowON = OFF
+                AssociateIntakeFlowON = OFF
 
             end if
 
@@ -2611,16 +2611,16 @@ cd2:        if (DischargeX%DischargeType == Normal .and. DischargeX%WaterFlow%Va
 
             end if cd2
 
-            if(AssociateCaptationFlowON)then
+            if(AssociateIntakeFlowON)then
 
                 if(Flow <= 0)then 
-                    !If the discharge comes from a captation then the flow
-                    !from the captation must be negative, so that the flow
+                    !If the discharge comes from an intake then the flow
+                    !from the intake must be negative, so that the flow
                     !of the discharge is positive
                     Flow = Flow * (-1.0) * FlowFraction
                 else 
-                    write(*,*)"Discharge has flow based on captation"
-                    write(*,*)"However, captation flow is positive and should be negative"
+                    write(*,*)"Discharge has flow based on intake"
+                    write(*,*)"However, intake flow is positive and should be negative"
                     stop 'GetDischargeWaterFlow - ModuleDischarges - ERR03'
                 end if 
                
@@ -2829,7 +2829,7 @@ cd3 :       if (STAT_CALL /= SUCCESS_) then
         integer                                     :: ready_
         integer                                     :: STAT_
         integer                                     :: STAT_CALL
-        logical                                     :: PropertyFromCaptation
+        logical                                     :: PropertyFromIntake
         real                                        :: PropertyIncreaseValue
         !----------------------------------------------------------------------
 
@@ -2855,16 +2855,16 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
                 endif
             endif
 
-            if(PropertyX%FromCaptation)then
+            if(PropertyX%FromIntake)then
 
-                PropertyFromCaptation = ON
-                PropertyIncreaseValue = PropertyX%IncreaseValue
+                PropertyFromIntake      = ON
+                PropertyIncreaseValue   = PropertyX%IncreaseValue
 
 
-                !DischargeX becomes the captation discharge
-                call Search_Discharge(DischargeX, STAT_CALL, DischargeXIDNumber=DischargeX%FromCaptation%CaptationID)
+                !DischargeX becomes the      discharge
+                call Search_Discharge(DischargeX, STAT_CALL, DischargeXIDNumber=DischargeX%FromIntake%IntakeID)
                     if (STAT_CALL/=SUCCESS_) then 
-                    write(*,*) 'Can not find captation discharge number ', DischargeIDNumber
+                    write(*,*) 'Can not find intake discharge number ', DischargeIDNumber
                     stop       'GetDischargeConcentration - ModuleDischarges - ERR03'
                 end if
 
@@ -2878,7 +2878,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
                 endif
             else
 
-                PropertyFromCaptation = OFF
+                PropertyFromIntake = OFF
 
             end if
 
@@ -2908,7 +2908,7 @@ cd2 :       if (STAT_CALL == SUCCESS_) then
 
                 endif
 
-                if(PropertyFromCaptation)then
+                if(PropertyFromIntake)then
                     Concentration = Concentration + PropertyIncreaseValue
                 end if
              
@@ -2949,13 +2949,13 @@ cd2 :       if (STAT_CALL == SUCCESS_) then
     !--------------------------------------------------------------------------
 
 
-    subroutine GetCaptationConcentration(DischargesID, DischargeIDNumber, PropertyIDNumber,  &
-                                         CaptI, CaptJ, CaptK, ConcentrationIncrease, STAT)
+    subroutine GetIntakeConcentration(DischargesID, DischargeIDNumber, PropertyIDNumber,  &
+                                      IntakeI, IntakeJ, IntakeK, ConcentrationIncrease, STAT)
 
         !Arguments-------------------------------------------------------------
         integer                                     :: DischargesID
         integer,           intent(IN)               :: DischargeIDNumber
-        integer,           intent(OUT)              :: CaptI, CaptJ, CaptK
+        integer,           intent(OUT)              :: IntakeI, IntakeJ, IntakeK
         real,              intent(OUT)              :: ConcentrationIncrease
         integer,           intent(IN)               :: PropertyIDNumber
 
@@ -2963,7 +2963,7 @@ cd2 :       if (STAT_CALL == SUCCESS_) then
 
         !Local-----------------------------------------------------------------
         type(T_IndividualDischarge), pointer        :: DischargeX
-        type(T_IndividualDischarge), pointer        :: CaptationX
+        type(T_IndividualDischarge), pointer        :: IntakeX
         type(T_Property),            pointer        :: PropertyX
         integer                                     :: ready_
         integer                                     :: STAT_
@@ -2981,7 +2981,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
             call Search_Discharge(DischargeX, STAT_CALL, DischargeXIDNumber=DischargeIDNumber)
             if (STAT_CALL/=SUCCESS_) then 
                 write(*,*) ' can not find discharge number ',DischargeIDNumber
-                stop  'GetCaptationConcentration - ModuleDischarges - ERR01'
+                stop  'GetIntakeConcentration - ModuleDischarges - ERR01'
             endif
              
             call Search_Property(DischargeX, PropertyX, STAT_CALL, PropertyXIDNumber=PropertyIDNumber)
@@ -2989,29 +2989,29 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
                 !If the proeprty is not found the program don't stop is return a error 
                 !not found
                 if (STAT_CALL /= NOT_FOUND_ERR_) then 
-                    stop  'GetCaptationConcentration - ModuleDischarges - ERR02'
+                    stop  'GetIntakeConcentration - ModuleDischarges - ERR02'
                 endif
             endif
 
-            if(PropertyX%FromCaptation)then
+            if(PropertyX%FromIntake)then
 
                 ConcentrationIncrease = PropertyX%IncreaseValue
 
-                call Search_Discharge(CaptationX, STAT_CALL, DischargeXIDNumber=DischargeX%FromCaptation%CaptationID)
+                call Search_Discharge(IntakeX, STAT_CALL, DischargeXIDNumber=DischargeX%FromIntake%IntakeID)
                 if (STAT_CALL/=SUCCESS_) then 
                     write(*,*) ' can not find discharge number ',DischargeIDNumber
-                    stop  'GetCaptationConcentration - ModuleDischarges - ERR03'
+                    stop  'GetIntakeConcentration - ModuleDischarges - ERR03'
                 endif
 
-                CaptI = CaptationX%Localization%GridCoordinates%I
-                CaptJ = CaptationX%Localization%GridCoordinates%J
-                CaptK = CaptationX%Localization%GridCoordinates%K
+                IntakeI = IntakeX%Localization%GridCoordinates%I
+                IntakeJ = IntakeX%Localization%GridCoordinates%J
+                IntakeK = IntakeX%Localization%GridCoordinates%K
 
-                nullify(CaptationX)
+                nullify(IntakeX)
 
             else
 
-                stop  'GetCaptationConcentration - ModuleDischarges - ERR03'
+                stop  'GetIntakeConcentration - ModuleDischarges - ERR04'
 
             end if
 
@@ -3033,7 +3033,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
 
         !----------------------------------------------------------------------
 
-    end Subroutine GetCaptationConcentration
+    end Subroutine GetIntakeConcentration
 
     !--------------------------------------------------------------------------
 

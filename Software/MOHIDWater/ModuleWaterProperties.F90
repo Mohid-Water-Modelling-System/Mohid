@@ -168,8 +168,8 @@ Module ModuleWaterProperties
                                           GetDischargeWaterFlow, GetDischargeConcentration,     &
                                           GetByPassON, GetDischargesIDName,                     &
                                           GetDischargeFlowDistribuiton, UnGetDischarges,        &
-                                          GetDischargeON, GetDischargeFromCaptationON,          &
-                                          GetCaptationConcentration, Kill_Discharges
+                                          GetDischargeON, GetDischargeFromIntakeON,             &
+                                          GetIntakeConcentration, Kill_Discharges
     use ModuleTimeSerie,            only: StartTimeSerie, StartTimeSerieInput, WriteTimeSerie,  &
                                           GetNumberOfTimeSeries, GetTimeSerieLocation,          &
                                           CorrectsCellsTimeSerie, TryIgnoreTimeSerie,           &
@@ -12486,7 +12486,7 @@ do3:            do k = kbottom, KUB
         integer                                     :: DischVertical
         real                                        :: WaterLevelByPass
         integer                                     :: ib, jb
-        logical                                     :: ByPassON, IgnoreOK, DischargeFromCaptationON
+        logical                                     :: ByPassON, IgnoreOK, DischargeFromIntakeON
 
         real,    dimension(:    ), pointer          :: DistributionCoef
         integer, dimension(:    ), pointer          :: VectorI, VectorJ, VectorK
@@ -12494,7 +12494,7 @@ do3:            do k = kbottom, KUB
         integer                                     :: nCells, n, AuxCell
         integer                                     :: FlowDistribution
         real                                        :: ConcentrationIncrease
-        integer                                     :: CaptI, CaptJ, CaptK
+        integer                                     :: IntakeI, IntakeJ, IntakeK
 
                  
         !Begin------------------------------------------------------------
@@ -12571,7 +12571,7 @@ dd:     do dis = 1, Me%Discharge%Number
             call GetByPassON(Me%ObjDischarges, dis, ByPassON, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'WaterPropDischarges - ModuleWaterProperties - ERR75'
 
-            call GetDischargeFromCaptationON(Me%ObjDischarges, dis, DischargeFromCaptationON, STAT = STAT_CALL)
+            call GetDischargeFromIntakeON(Me%ObjDischarges, dis, DischargeFromIntakeON, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'WaterPropDischarges - ModuleWaterProperties - ERR76'
 
             if (ByPassON) then
@@ -12654,17 +12654,18 @@ dn:         do n=1, nCells
                                 !and added explicitly in another
                                 PropertyX%DischConc(AuxCell) = PropertyX%Concentration(i, j, k)
                             
-                            elseif (DischargeFromCaptationON) then i2
+                            elseif (DischargeFromIntakeON) then i2
                                 
-                                !Get the captation location and the concentration increase
-                                call GetCaptationConcentration(Me%ObjDischarges, dis,   &
-                                                               PropertyX%ID%IDNumber,   &
-                                                               CaptI, CaptJ, CaptK,     &
-                                                               ConcentrationIncrease,   &
-                                                               STAT = STAT_CALL)
+                                !Get the Intake location and the concentration increase
+                                call GetIntakeConcentration(Me%ObjDischarges, dis,      &
+                                                            PropertyX%ID%IDNumber,      &
+                                                            IntakeI, IntakeJ, IntakeK,  &
+                                                            ConcentrationIncrease,      &
+                                                            STAT = STAT_CALL)
                                 if (STAT_CALL/=SUCCESS_) stop 'WaterPropDischarges - ModuleWaterProperties - ERR89'
 
-                                PropertyX%DischConc(AuxCell) = PropertyX%Concentration(CaptI, CaptJ, CaptK) + ConcentrationIncrease
+                                PropertyX%DischConc(AuxCell) = PropertyX%Concentration(IntakeI, IntakeJ, IntakeK) + &
+                                                               ConcentrationIncrease
 
                             else   i2
 
