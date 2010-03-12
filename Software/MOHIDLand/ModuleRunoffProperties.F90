@@ -215,9 +215,9 @@ Module ModuleRunoffProperties
         !from basin
 !        real,    dimension(:,:  ), pointer          :: WindVelocity2D  !m/s
 !        real,    dimension(:,:  ), pointer          :: WindVelocity  !km/day
-        real,    dimension(:,:  ), pointer          :: ThroughFall
-        real,    dimension(:,:  ), pointer          :: CanopyHeight
-        real,    dimension(:,:  ), pointer          :: CanopyDrainage
+        real(8),    dimension(:,:  ), pointer       :: ThroughFall
+        real,       dimension(:,:  ), pointer       :: CanopyHeight
+        real(8),    dimension(:,:  ), pointer       :: CanopyDrainage
      end type T_ExtVar
 
     type T_OutPut
@@ -3505,8 +3505,8 @@ cd0:    if (Exist) then
 
         !Arguments--------------------------------------------------------------
         integer                                         :: RunoffPropertiesID
-        real,    dimension(:, :), pointer               :: ThroughFall, CanopyHeight
-        real,    dimension(:, :), pointer               :: CanopyDrainage
+        real(8),    dimension(:, :), pointer            :: CanopyDrainage, ThroughFall
+        real,       dimension(:, :), pointer            :: CanopyHeight
         integer, intent(OUT), optional                  :: STAT
 
         !Local------------------------------------------------------------------
@@ -4955,8 +4955,9 @@ cd0:    if (Exist) then
        
        !Local-----------------------------------------------------------------
         type (T_Property) , pointer                 :: Property
-        real, dimension(:,:), pointer               :: BottomSedimentConc, WaterColumn
-        real, dimension(:,:), pointer               :: ThroughFall, CanopyHeight, CanopyDrainage
+        real(8), dimension(:,:), pointer            :: ThroughFall, WaterColumn
+        real, dimension(:,:), pointer               :: CanopyHeight, BottomSedimentConc
+        real(8), dimension(:,:), pointer            :: CanopyDrainage
         real                                        :: KE_Leaf_Drainage, KE_ThroughFall
         real                                        :: SplashRate, CanopyDrain, DirectRain, DirectRainRate        
         real                                        :: SplashErodedMass, RainKineticEnergy, SplashConc
@@ -5122,7 +5123,8 @@ if2:                if (Me%ExtVar%BasinPoints(i,j) == BasinPoint) then
         real                                        :: WetPerimeter_U, WetPerimeter_V
         real                                        :: HydraulicRadius
         real, dimension(:,:), pointer               :: CenterVelocityX, CenterVelocityY
-        real, dimension(:,:), pointer               :: DUX, DVY, WaterColumn
+        real, dimension(:,:), pointer               :: DUX, DVY
+        real(8), dimension(:,:), pointer            :: WaterColumn
         real, dimension(:,:), pointer               :: Manning
         !----------------------------------------------------------------------
         
@@ -5213,7 +5215,8 @@ if2:                if (Me%ExtVar%BasinPoints(i,j) == BasinPoint) then
 
         !Local-----------------------------------------------------------------
         type (T_Property) , pointer                 :: Property
-        real, dimension(:,:), pointer               :: BottomSedimentConc, WaterColumn
+        real, dimension(:,:), pointer               :: BottomSedimentConc
+        real(8), dimension(:,:), pointer            :: WaterColumn
         real                                        :: ErosionRate, WaterVolume
         real                                        :: ErodedConc, ErodedMass        
         real                                        :: BottomArea
@@ -5313,7 +5316,7 @@ if3:                    if (Me%ShearStress (i,j) > Me%ErosionCriticalShear%Field
 
         !Local-----------------------------------------------------------------
         type (T_Property) , pointer                 :: Property
-        real, dimension(:,:), pointer               :: WaterColumn
+        real(8), dimension(:,:), pointer            :: WaterColumn
         real, dimension(:,:), pointer               :: WaterSedimentConc
         real                                        :: WaterVolume, BottomArea
         real                                        :: DepositionRate, DepositedMass        

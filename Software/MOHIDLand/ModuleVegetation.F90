@@ -3265,50 +3265,52 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
         real, dimension(:,:), pointer           :: AuxID
         type (T_PropertyID)                     :: PotentialHUID
         !Begin------------------------------------------------------------------
-
         
-        !! Construct Potential Annual HU
-        call RewindBuffer(Me%ObjEnterData, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructVegetationGrids - ModuleVegetation - ERR10'
-
-        !Constructs Potential Total HU in one year
-        call ExtractBlockFromBuffer(Me%ObjEnterData,                                        &
-                                    ClientNumber    = ClientNumber,                         &
-                                    block_begin     = '<begin_TotalPotentialHU>',           &
-                                    block_end       = '<end_TotalPotentialHU>',             &
-                                    BlockFound      = BlockFound,                           &   
-                                    STAT            = STAT_CALL)
-        if (STAT_CALL == SUCCESS_) then
-            if (.not. BlockFound) then
-                write(*,*)'Missing Block <begin_TotalPotentialHU> / <end_TotalPotentialHU>'
-                stop 'ConstructVegetationGrids - ModuleVegetation - ERR20'
-            endif
-
-            !Gets a pointer to OpenPoints2D
-            call GetBasinPoints  (Me%ObjHorizontalMap, Me%ExternalVar%BasinPoints, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'Write_FinalVegetation_HDF - ModuleVegetation - ERR02'
-            
-            call ConstructFillMatrix  ( PropertyID           = PotentialHUID,                       &
-                                        EnterDataID          = Me%ObjEnterData,                     &
-                                        TimeID               = Me%ObjTime,                          &
-                                        HorizontalGridID     = Me%ObjHorizontalGrid,                &
-                                        ExtractType          = FromBlock,                           &
-                                        PointsToFill2D       = Me%ExternalVar%BasinPoints,          &
-                                        Matrix2D             = Me%HeatUnits%PotentialHUTotal,       &
-                                        TypeZUV              = TypeZ_,                              &
-                                        STAT                 = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructVegetationGrids - ModuleVegetation - ERR30'
-            
-            call KillFillMatrix       (PotentialHUID%ObjFillMatrix, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructVegetationGrids - ModuleVegetation - ERR40'
-
-            call UngetBasin (Me%ObjHorizontalMap, Me%ExternalVar%BasinPoints, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'Write_FinalVegetation_HDF - ModuleVegetation - ERR200'
-
-        else
-            stop 'ConstructVegetationGrids - ModuleVegetation - ERR50'
-        endif                
+        if (Me%ComputeOptions%Evolution%GrowthModelNeeded) then
         
+            !! Construct Potential Annual HU
+            call RewindBuffer(Me%ObjEnterData, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructVegetationGrids - ModuleVegetation - ERR10'
+
+            !Constructs Potential Total HU in one year
+            call ExtractBlockFromBuffer(Me%ObjEnterData,                                        &
+                                        ClientNumber    = ClientNumber,                         &
+                                        block_begin     = '<begin_TotalPotentialHU>',           &
+                                        block_end       = '<end_TotalPotentialHU>',             &
+                                        BlockFound      = BlockFound,                           &   
+                                        STAT            = STAT_CALL)
+            if (STAT_CALL == SUCCESS_) then
+                if (.not. BlockFound) then
+                    write(*,*)'Missing Block <begin_TotalPotentialHU> / <end_TotalPotentialHU>'
+                    stop 'ConstructVegetationGrids - ModuleVegetation - ERR20'
+                endif
+
+                !Gets a pointer to OpenPoints2D
+                call GetBasinPoints  (Me%ObjHorizontalMap, Me%ExternalVar%BasinPoints, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'Write_FinalVegetation_HDF - ModuleVegetation - ERR02'
+                
+                call ConstructFillMatrix  ( PropertyID           = PotentialHUID,                       &
+                                            EnterDataID          = Me%ObjEnterData,                     &
+                                            TimeID               = Me%ObjTime,                          &
+                                            HorizontalGridID     = Me%ObjHorizontalGrid,                &
+                                            ExtractType          = FromBlock,                           &
+                                            PointsToFill2D       = Me%ExternalVar%BasinPoints,          &
+                                            Matrix2D             = Me%HeatUnits%PotentialHUTotal,       &
+                                            TypeZUV              = TypeZ_,                              &
+                                            STAT                 = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructVegetationGrids - ModuleVegetation - ERR30'
+                
+                call KillFillMatrix       (PotentialHUID%ObjFillMatrix, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructVegetationGrids - ModuleVegetation - ERR40'
+
+                call UngetBasin (Me%ObjHorizontalMap, Me%ExternalVar%BasinPoints, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'Write_FinalVegetation_HDF - ModuleVegetation - ERR200'
+
+            else
+                stop 'ConstructVegetationGrids - ModuleVegetation - ERR50'
+            endif                
+        
+        endif
         
         
         !Gets Vegetation IDs
