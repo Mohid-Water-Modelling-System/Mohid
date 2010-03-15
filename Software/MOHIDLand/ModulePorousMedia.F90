@@ -394,10 +394,10 @@ Module ModulePorousMedia
         real(8), dimension(:,:,:), pointer      :: FluxU                    => null()
         real(8), dimension(:,:,:), pointer      :: FluxV                    => null()
         real(8), dimension(:,:,:), pointer      :: FluxW                    => null()
-        real(8), dimension(:,:,:), pointer      :: FluxWFinal               => null()  !Flux Corrected with the routine Vertical continuity
+        real(8), dimension(:,:,:), pointer      :: FluxWFinal               => null()  !Flux Corrected with Vertical continuity
         real,    dimension(:,:  ), pointer      :: EvaporationFlux          => null()
         !Flow Properties
-        real,    pointer, dimension(:,:,:)      :: Theta                    => null() !water content on each cell [m3/m3]                
+        real,    pointer, dimension(:,:,:)      :: Theta                    => null() !water content on each cell [m3/m3]
         real,    pointer, dimension(:,:,:)      :: Head                     => null() !Suction Head on each cell 
         real,    pointer, dimension(:,:,:)      :: HydroPressure            => null() !Hydrostatic pressure
         real,    pointer, dimension(:,:,:)      :: FinalHead                => null() !Sum of Suction, Hydrostatic and Topography
@@ -3639,7 +3639,8 @@ dConv:  do while (iteration <= Niteration)
 
                         
                         Coef = 0.5 * Me%ExtVar%DWZ(i, j, k) * (1.0 - CenterVelocityW / Me%SatK(i, j, k)) * &
-                               LinearInterpolation(Me%RC%ThetaS(i, j, k) * Me%CV%ThetaHydroCoef, 0.0, Me%RC%ThetaS(i, j, k), 1.0, Me%Theta(i, j, k))
+                               LinearInterpolation(Me%RC%ThetaS(i, j, k) * Me%CV%ThetaHydroCoef, 0.0,      &
+                               Me%RC%ThetaS(i, j, k), 1.0, Me%Theta(i, j, k))
 
                         AccumPressure = AccumPressure + Coef
                         Me%HydroPressure(i,j,k) = AccumPressure
@@ -4577,7 +4578,8 @@ cd1 :   if (Mapping(i, j) == 1) then
             else if (Me%Theta(i,j,k) < Me%RC%ThetaR(i,j,k) + Me%CV%LimitThetaLo) then
             
                 !This creates mass...
-                Me%RC%ThetaF    (i, j, k) = Me%CV%LimitThetaLo / (Me%SoilTypes(Me%SoilID(I,J,K))%ThetaS - Me%SoilTypes(Me%SoilID(I,J,K))%ThetaR)
+                Me%RC%ThetaF    (i, j, k) = Me%CV%LimitThetaLo / (Me%SoilTypes(Me%SoilID(I,J,K))%ThetaS   &
+                                                                 - Me%SoilTypes(Me%SoilID(I,J,K))%ThetaR)
                 Me%CalculateHead(i, j, k) = .true.
                 
                 call SetError(WARNING_, INTERNAL_, "Mass Created, SoilParameters", OFF)
@@ -4610,7 +4612,8 @@ cd2 :   if (Mapping(i, j) == 1) then
                 !Over saturation
                 if (Me%RC%ThetaF(i, j, k) > 1.0) then
 
-                    Me%Head   (i, j, k) = Me%SoilTypes(Me%SoilID(I,J,K))%OverSatSlope * (Me%Theta (i, j, k) - Me%RC%ThetaS (i, j, k))
+                    Me%Head   (i, j, k) = Me%SoilTypes(Me%SoilID(I,J,K))%OverSatSlope * (Me%Theta (i, j, k)   &
+                                          - Me%RC%ThetaS (i, j, k))
                     Me%UnSatK (i, j, k) = Me%SatK(i, j, k)
 
                 !0 < Theta < 1
@@ -4757,11 +4760,11 @@ cd2 :   if (Mapping(i, j) == 1) then
         !Local-----------------------------------------------------------------
         integer                                     :: i, j, k
         integer                                     :: chunk
-        real                                        :: ExcessVolume, AvaliableVolume, dh
+        real                                        :: ExcessVolume, dh
         
         CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
 
-        !$OMP PARALLEL PRIVATE(I,J,K, ExcessVolume, AvaliableVolume, dh)
+        !$OMP PARALLEL PRIVATE(I,J,K, ExcessVolume, dh)
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
         do J = Me%WorkSize%JLB, Me%WorkSize%JUB
         do I = Me%WorkSize%ILB, Me%WorkSize%IUB
@@ -4771,7 +4774,8 @@ cd2 :   if (Mapping(i, j) == 1) then
                     if (Me%Theta(i,j,k) .gt. Me%RC%ThetaS(i,j,k)) then
                         !If cell is oversaturated, set to saturation and put water downwards
                         ExcessVolume         = (Me%Theta(i,j,k) - Me%RC%ThetaS (i,j,k)) * Me%ExtVar%CellVolume(i,j,k)
-                        Me%Theta(i,j,k-1)    = ((Me%Theta(i,j,k-1) * Me%ExtVar%CellVolume(i,j,k-1)) + ExcessVolume) / Me%ExtVar%CellVolume(i,j,k-1)
+                        Me%Theta(i,j,k-1)    = ((Me%Theta(i,j,k-1) * Me%ExtVar%CellVolume(i,j,k-1)) + ExcessVolume)   &
+                                               / Me%ExtVar%CellVolume(i,j,k-1)
                         Me%FluxWFinal(i,j,k) = Me%FluxWFinal(i,j,k) + (-ExcessVolume / Me%CV%CurrentDT)                       
                         Me%Theta(i,j,k)      = Me%RC%ThetaS (i,j,k)
                     endif
@@ -4782,7 +4786,8 @@ cd2 :   if (Mapping(i, j) == 1) then
                     if (Me%Theta(i,j,k) .gt. Me%RC%ThetaS(i,j,k)) then
                         !If cell is oversaturated, set to saturation and put water upwards
                         ExcessVolume           = (Me%Theta(i,j,k) - Me%RC%ThetaS (i,j,k)) * Me%ExtVar%CellVolume(i,j,k)
-                        Me%Theta(i,j,k+1)      = ((Me%Theta(i,j,k+1) * Me%ExtVar%CellVolume(i,j,k+1)) + ExcessVolume) / Me%ExtVar%CellVolume(i,j,k+1)
+                        Me%Theta(i,j,k+1)      = ((Me%Theta(i,j,k+1) * Me%ExtVar%CellVolume(i,j,k+1)) + ExcessVolume)   &
+                                                 / Me%ExtVar%CellVolume(i,j,k+1)
                         Me%FluxWFinal(i,j,k+1) = Me%FluxWFinal(i,j,k+1) + (ExcessVolume / Me%CV%CurrentDT)                       
                         Me%Theta(i,j,k)        = Me%RC%ThetaS (i,j,k)
                     endif
@@ -4794,7 +4799,7 @@ cd2 :   if (Mapping(i, j) == 1) then
                 if (Me%Theta(i,j,k) .gt. Me%RC%ThetaS(i,j,k)) then
                     !If cell is oversaturated, set to saturation and put water on water column
                     ExcessVolume           = ((Me%Theta(i,j,k) - Me%RC%ThetaS (i,j,k)) * Me%ExtVar%CellVolume(i,j,k))
-                    Me%FluxWFinal(i,j,k+1) = Me%FluxWFinal(i,j,k+1) + (ExcessVolume / Me%CV%CurrentDT)                                           
+                    Me%FluxWFinal(i,j,k+1) = Me%FluxWFinal(i,j,k+1) + (ExcessVolume / Me%CV%CurrentDT)
                     dh                     = ExcessVolume  / Me%ExtVar%Area(i, j)
                     Me%WaterColumn  (i,j)  = Me%WaterColumn(i,j) + dh
                     Me%Infiltration (i,j)  = Me%Infiltration (i,j) - dh
@@ -5025,8 +5030,10 @@ doK:            do K = Me%ExtVar%KFloor(i, j), Me%WorkSize%KUB
                         ![m3/s]                    [m2]   [m/s]                     
                         Me%lFlowToChannels(i, j) = -1.0 * Area * Me%UnSatK(i, j, Me%UGCell(i,j))
 
-                        if (-1. * Me%lFlowToChannels(i, j) * Me%ExtVar%DT > (ChannelsWaterLevel(i, j) - ChannelsBottomLevel(i, j)) * Area) then
-                            Me%lFlowToChannels(i, j) = -0.5 * (ChannelsWaterLevel(i, j) - ChannelsBottomLevel(i, j)) * Area / Me%ExtVar%DT
+                        if (-1. * Me%lFlowToChannels(i, j) * Me%ExtVar%DT > (ChannelsWaterLevel(i, j)      &
+                            - ChannelsBottomLevel(i, j)) * Area) then
+                            Me%lFlowToChannels(i, j) = -0.5 * (ChannelsWaterLevel(i, j)                    &
+                                                       - ChannelsBottomLevel(i, j)) * Area / Me%ExtVar%DT
                             call SetError(WARNING_, INTERNAL_, "Flow to channel corrected. FLOW TO CHANNEL", OFF)
                         endif
                         
@@ -5161,8 +5168,10 @@ doK:            do K = Me%ExtVar%KFloor(i, j), Me%WorkSize%KUB
                 !If the channel looses water (infiltration), then set max flux so that volume in channel does not get 
                 !negative
                 if (dH < 0) then
-                    if (-1. * Me%lFlowToChannels(i, j) * Me%ExtVar%DT > (ChannelsWaterLevel(i, j) - ChannelsBottomLevel(i, j)) * Area) then
-                        Me%lFlowToChannels(i, j) = -0.5 * (ChannelsWaterLevel(i, j) - ChannelsBottomLevel(i, j)) * Area / Me%ExtVar%DT
+                    if (-1. * Me%lFlowToChannels(i, j) * Me%ExtVar%DT >                          &
+                        (ChannelsWaterLevel(i, j) - ChannelsBottomLevel(i, j)) * Area) then
+                        Me%lFlowToChannels(i, j) = -0.5 * (ChannelsWaterLevel(i, j) - ChannelsBottomLevel(i, j))   &
+                                                   * Area / Me%ExtVar%DT
                         write(*,*)'FlowToChannels corrected - ModulePorousMedia'
                     endif
                 endif

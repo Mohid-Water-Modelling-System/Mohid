@@ -43,11 +43,11 @@
 !                                                                 ! is called (vegetation DT)
 !
 ! WATER_STRESS                     : 0/1         -        1       !Connects/disconnects water limitation on plant growth
-! NITROGEN_STRESS                  : 0/1         -        1       !Connects/disconnects nitrogen limitation on plant growth
-! PHOSPHORUS_STRESS                : 0/1         -        1       !Connects/disconnects phosphorus limitation on plant growth
-! TEMPERATURE_STRESS               : 0/1         -        1       !Connects/disconnects temperature limitation on plant growth
+! NITROGEN_STRESS                  : 0/1         -        1       !Connects/disconnects N limitation on plant growth
+! PHOSPHORUS_STRESS                : 0/1         -        1       !Connects/disconnects P limitation on plant growth
+! TEMPERATURE_STRESS               : 0/1         -        1       !Connects/disconnects temp. limitation on plant growth
 ! ADJUST_RUE_FOR_CO2               : 0/1         -        1       !Connects/disconnects CO2 limitation on plant growth
-! ADJUST_RUE_FOR_VPD               : 0/1         -        1       !Connects/disconnects Vapour Pressure Deficit limitation on 
+! ADJUST_RUE_FOR_VPD               : 0/1         -        1       !Connects/disconnects Vapour Pressure Deficit limitation
 !                                                                  plant growth
 !
 ! GRAZING                          : 0/1         -        [0]     !Connects/disconnects grazing
@@ -56,12 +56,12 @@
 ! FERTILIZATION                    : 0/1         -        [0]     !Connects/disconnects fertilization     
 ! NUTRIENT_FLUXES_WITH_SOIL        : 0/1         -        [1]     !Connects/disconnects nutrient fluxes with soil
 !
-! WATER_UPTAKE_METHOD              : integer     -        [1]     !1- according to root profile; 2-SWAT based (exponential 
+! WATER_UPTAKE_METHOD              : integer     -        [1]     !1- according to root profile; 2-SWAT based (exponential
 !                                                                  and tresholds)
 !   LIMIT_TRANSP_WATER_VEL         : 0/1         -        [0]     !Read if WATER_UPTAKE_METHOD == 1.
 !   ROOT_PROFILE                   : integer     -        [1]     !Read if WATER_UPTAKE_METHOD == 1: 
 !                                                                   !1-Triangular; 2-Constant; 3-Exponential(SWAT like)
-!   WATER_UPTAKE_STRESS_METHOD     : integer     -        [1]     !Read if WATER_UPTAKE_METHOD == 1: 1-Feddes; 2-VanGenuchten
+!   WATER_UPTAKE_STRESS_METHOD     : integer     -        [1]     !Read if WATER_UPTAKE_METHOD == 1;1-Feddes;2-VanGenuchten
 !
 ! NUTRIENT_UPTAKE_METHOD           : integer     -        [2]     !1- uptake is: conc * water uptake; 2- SWAT based 
 !                                                                  (independent of water uptake)
@@ -75,11 +75,11 @@
 !
 !
 !    
-! ATMOSPHERE_CO2                   : real       ppm      [330.]   !Atmosphere CO2 concetrations - should be atmosphere property               
-! WATER_UPTAKE_COMPENSATION_FACTOR : real        -        [0.]    !Factor for uptake compensation from lower layers if computed  
-!                                                                   !layer demand is not met
-!                                                                   !If zero there will exist no compensation. If 1. total demand  
-!                                                                   !no met may come from lower layers
+! ATMOSPHERE_CO2                   : real       ppm      [330.]   !Atmosphere CO2 concetrations - should be atmosphere prop
+! WATER_UPTAKE_COMPENSATION_FACTOR : real        -        [0.]    !Factor for uptake compensation from lower layers if
+!                                                                   !computed layer demand is not met
+!                                                                   !If zero there will exist no compensation. If 1. total
+!                                                                   !demand no met may come from lower layers
 ! NITROGEN_DISTRIBUTION_PARAMETER  : real                [-20.]
 ! PHOSPHORUS_DISTRIBUTION_PARAMETER: real                [-20.]
 !
@@ -856,7 +856,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             endif
             
             !Initial conditions read if "real" continuous simulation
-            if (Me%ComputeOptions%Continuous .and. Me%ComputeOptions%StopOnWrongDate .and. Me%ComputeOptions%Evolution%ModelSWAT) then
+            if (Me%ComputeOptions%Continuous .and. Me%ComputeOptions%StopOnWrongDate    &
+            .and. Me%ComputeOptions%Evolution%ModelSWAT) then
                 call ReadInitialHDF
                 call ReadInitialFile
 !                call CheckPlantGrowing
@@ -3676,7 +3677,8 @@ HF:     if (STAT_CALL == SUCCESS_ .and. DatabaseFound) then
             if (iflag /= 1) then
                 FailRead = FailRead + 1
                 if (FailRead == 2) then
-                    write(*,*)'Missing HU or julian day in planting timing parameters definition -', trim(Me%VegetationTypes(ivt)%Name)
+                    write(*,*)'Missing HU or julian day in planting timing'
+                    write(*,*)' parameters definition -', trim(Me%VegetationTypes(ivt)%Name)
                     stop 'ReadTimingDatabase - ModuleVegetation - ERR35'
                 endif
             endif
@@ -4158,7 +4160,7 @@ HF:     if (STAT_CALL == SUCCESS_ .and. DatabaseFound) then
                              keyword        = 'GRAZING_BIOMASS',                                                          &
                              ClientModule   = 'ModuleVegetation',                                                         &
                              STAT           = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_) stop 'ReadManagementAndGrazeDatabase - ModuleVegetation - ERR80'                               
+                if (STAT_CALL .NE. SUCCESS_) stop 'ReadManagementAndGrazeDatabase - ModuleVegetation - ERR80'
 
                 call GetData(Me%VegetationTypes(ivt)%ManagementDatabase%TramplingBiomass, Me%ObjEnterData,  iflag,        &
                              SearchType     = FromBlockInBlock,                                                           &
@@ -4307,7 +4309,7 @@ HF:     if (STAT_CALL == SUCCESS_ .and. DatabaseFound) then
                          STAT           = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_) stop 'ReadFertilizationDatabase - ModuleVegetation - ERR80'                               
 
-            call GetData(Me%VegetationTypes(ivt)%FertilizerDatabase%FertilizerFracApplyedInSurface, Me%ObjEnterData,  iflag,        &
+            call GetData(Me%VegetationTypes(ivt)%FertilizerDatabase%FertilizerFracApplyedInSurface, Me%ObjEnterData,  iflag,   &
                          SearchType     = FromBlockInBlock,                                                           &
                          Default        = -99.,                                                                       &
                          keyword        = 'FERTILIZER_FRACTION_IN_SURFACE',                                           &
@@ -5563,24 +5565,24 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
                
                     
                         if (Me%ExternalVar%Now .ge. Me%NextCompute) then
-                            Me%ExternalVar%Integration%AverageAirTemPDuringDT(i,j)      = Me%ExternalVar%Integration%SumTemperature(i,j) &
-                                                                                          / Me%nIterations
-                            Me%ExternalVar%Integration%AverageAirHumidityDuringDT(i,j)  = Me%ExternalVar%Integration%SumHumidity(i,j)    &
-                                                                                          / Me%nIterations
-                            Me%ExternalVar%Integration%AverageRadiationDuringDT(i,j)    = Me%ExternalVar%Integration%SumRadiation(i,j)   &
-                                                                                          / Me%nIterations
+                            Me%ExternalVar%Integration%AverageAirTemPDuringDT(i,j)      = &
+                                  Me%ExternalVar%Integration%SumTemperature(i,j) / Me%nIterations
+                            Me%ExternalVar%Integration%AverageAirHumidityDuringDT(i,j)  = &
+                                  Me%ExternalVar%Integration%SumHumidity(i,j)   / Me%nIterations
+                            Me%ExternalVar%Integration%AverageRadiationDuringDT(i,j)    = &
+                                  Me%ExternalVar%Integration%SumRadiation(i,j)   / Me%nIterations
                             Me%ExternalVar%Integration%SumTemperature(i,j) = 0.0
                             Me%ExternalVar%Integration%SumHumidity   (i,j) = 0.0
-                            Me%ExternalVar%Integration%SumRadiation  (i,j) = 0.0                                                           
+                            Me%ExternalVar%Integration%SumRadiation  (i,j) = 0.0 
                         endif
                     endif
 
                     ! Transpiration always needed
-                    Me%ExternalVar%Integration%SumPotTP(i,j) = Me%ExternalVar%Integration%SumPotTP(i,j)                                  &
+                    Me%ExternalVar%Integration%SumPotTP(i,j) = Me%ExternalVar%Integration%SumPotTP(i,j)                          &
                                                                + Me%ExternalVar%PotentialTranspiration(i,j)
                 
                     if (Me%ExternalVar%Now .ge. Me%NextCompute) then
-                        Me%ExternalVar%Integration%AveragePotTPDuringDT(i,j)  = Me%ExternalVar%Integration%SumPotTP(i,j)                 &
+                        Me%ExternalVar%Integration%AveragePotTPDuringDT(i,j)  = Me%ExternalVar%Integration%SumPotTP(i,j)        &
                                                                                  / Me%nIterations      
                         Me%ExternalVar%Integration%SumPotTP(i,j) = 0.0
                     
@@ -6524,7 +6526,8 @@ do3 :               do k = KUB, KLB, -1
                         !  mm
                         SumUptake = SumUptake + EffectiveWaterUptake
                         !    m3/s                         =          mm          *    m/mm *   m2   *     1/DT
-                        Me%Fluxes%WaterUptakeLayer(i,j,k) = EffectiveWaterUptake *  (1./1000.) * GridCellArea * (1./Me%ComputeOptions%VegetationDT)
+                        Me%Fluxes%WaterUptakeLayer(i,j,k) = EffectiveWaterUptake *  (1./1000.) * GridCellArea    &
+                                                             * (1./Me%ComputeOptions%VegetationDT)
 
                     enddo do3
         
@@ -6754,8 +6757,8 @@ do3 :               do k = KUB, KLB, -1
 
                                 ColToTransp          =  Factor * TotalCol * (RootHeightInCell / RootDepth)
 
-                            !Same method as first but fraction computed with layer numbers - if root exists inside layer implicitily 
-                            !occupies all layer. 
+                            !Same method as first but fraction computed with layer numbers - if root exists inside layer 
+                            !implicitily occupies all layer. 
                             !Removed because it would need more variables to compute and the geometry is the same as first option.
                 !           elseif (RootProfile == 3) then !linear root distribution
                 !   
@@ -6766,7 +6769,7 @@ do3 :               do k = KUB, KLB, -1
                 !                a =10
                 !                ColToEvap = Factor*TotalCol*a*exp(-a*(Me%ExtVar%RootDepth(i,j)-deep2))
 
-                                TranspirationDistribution = (1.0 - exp(-10.0 * BottomDepth/RootDepth))/(1.0 - exp(-10.0))                   &
+                                TranspirationDistribution = (1.0 - exp(-10.0 * BottomDepth/RootDepth))/(1.0 - exp(-10.0))         &
                                                            - (1.0 - exp(-10.0 * TopDepth/RootDepth))/(1.0 - exp(-10.0))
 
                                 ColToTransp = Factor * TotalCol * TranspirationDistribution
@@ -6788,7 +6791,7 @@ do3 :               do k = KUB, KLB, -1
                                 TranspVolume    = WaterVolume
                             endif        
                         
-                            SoilVolume  = (Me%ExternalVar%SoilWaterContent(i,j,k) - Me%ExternalVar%ResidualWaterContent(i,j,k))           &
+                            SoilVolume  = (Me%ExternalVar%SoilWaterContent(i,j,k) - Me%ExternalVar%ResidualWaterContent(i,j,k))  &
                                             * Me%ExternalVar%CellVolume(i,j,k)                
 
                             TranspVolume = min(TranspVolume, SoilVolume)
@@ -6980,7 +6983,7 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
                             CellVolume = Me%ExternalVar%CellVolume(i,j,k)
         
-                            !      kgN/ha        = gN/m3H20 * 1E-6kg/g * m3H20/m3cell * m3cell / (m2) * 10000m2/ha                     
+                            !      kgN/ha        = gN/m3H20 * 1E-6kg/g * m3H20/m3cell * m3cell / (m2) * 10000m2/ha 
                             LayerNitrogenContent = Me%ExternalVar%SoilNitrate(i,j,k) * 1E-6                       &
                                                     * Me%ExternalVar%SoilWaterContent(i,j,k)                      &
                                                     * (CellVolume) / (GridCellArea) * 10000
@@ -7009,7 +7012,7 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                                     call ComputeNutrientStress(PredictedNitrogenBiomass,OptimalNContent,Stress)
                             
                                 
-                                elseif (Me%ComputeOptions%NutrientStressMethod .eq. NutrientStressUptake) then                                
+                                elseif (Me%ComputeOptions%NutrientStressMethod .eq. NutrientStressUptake) then
                                     
                                     !SWAT stress update
                                     if (NitrogenDemand .gt. 1e-5) then
@@ -7197,7 +7200,7 @@ do3:                do k = KUB, KLB, -1
                                     call ComputeNutrientStress(PredictedNitrogenBiomass,OptimalNContent,Stress)
                             
                                 
-                                elseif (Me%ComputeOptions%NutrientStressMethod .eq. NutrientStressUptake) then                                
+                                elseif (Me%ComputeOptions%NutrientStressMethod .eq. NutrientStressUptake) then
                                     
                                     !SWAT stress update
                                     if (NitrogenDemand .gt. 1e-5) then
@@ -7419,9 +7422,9 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                                 PotentialPhosphorusUptake = 0.0
                             else
                                 !   kgP/ha
-                                BottomUptake = PhosphorusDemand *(1.0 - exp(-DistributionParameter * BottomDepth/RootDepth))           &
+                                BottomUptake = PhosphorusDemand *(1.0 - exp(-DistributionParameter * BottomDepth/RootDepth))    &
                                                /NormalizationParameter
-                                TopUptake = PhosphorusDemand *(1.0 - exp(-DistributionParameter * TopDepth/RootDepth))                 &
+                                TopUptake = PhosphorusDemand *(1.0 - exp(-DistributionParameter * TopDepth/RootDepth))          &
                                                 /NormalizationParameter
                                 PotentialPhosphorusUptake = BottomUptake - TopUptake
                             endif
@@ -7432,7 +7435,7 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
                             CellVolume = Me%ExternalVar%CellVolume(i,j,k)
             
-                            !      kgP/ha          = gP/m3H20 * 1E-6kg/g  * m3H20/m3cell * m3cell / (m2) * 10000m2/ha                     
+                            !      kgP/ha          = gP/m3H20 * 1E-6kg/g  * m3H20/m3cell * m3cell / (m2) * 10000m2/ha 
                             LayerPhosphorusContent = Me%ExternalVar%SoilPhosphorus(i,j,k)  * 1E-6                                &
                                                      * Me%ExternalVar%SoilWaterContent(i,j,k)                                    &
                                                      * (CellVolume) / (GridCellArea) * 10000
@@ -7462,7 +7465,7 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                                     call ComputeNutrientStress(PredictedPhosphorusBiomass,OptimalPContent,Stress)
                             
                                 
-                                elseif (Me%ComputeOptions%NutrientStressMethod .eq. NutrientStressUptake) then                                
+                                elseif (Me%ComputeOptions%NutrientStressMethod .eq. NutrientStressUptake) then
                                     
                                     !SWAT stress update (adapted from nitrogen)
                                     if (PhosphorusDemand .gt. 1e-6) then
@@ -7622,7 +7625,7 @@ do3 :               do k = KUB, KLB, -1
                                                     * Me%ComputeOptions%VegetationDT                               &
                                                     / (GridCellArea) * 10000
         
-                        !      kgP/ha          =  gP/m3H20 * 1E-6kg/g * m3H20/m3cell * m3cell / (m2) * 10000m2/ha                     
+                        !      kgP/ha          =  gP/m3H20 * 1E-6kg/g * m3H20/m3cell * m3cell / (m2) * 10000m2/ha 
                         LayerPhosphorusContent = Me%ExternalVar%SoilPhosphorus(i,j,k)  * 1E-6                                &
                                                  * Me%ExternalVar%SoilWaterContent(i,j,k)                                    &
                                                  * (CellVolume) / (GridCellArea) * 10000
@@ -7653,7 +7656,7 @@ do3 :               do k = KUB, KLB, -1
                                     call ComputeNutrientStress(PredictedPhosphorusBiomass,OptimalPContent,Stress)
                             
                                 
-                                elseif (Me%ComputeOptions%NutrientStressMethod .eq. NutrientStressUptake) then                                
+                                elseif (Me%ComputeOptions%NutrientStressMethod .eq. NutrientStressUptake) then
                                     
                                     !SWAT stress update (adapted from nitrogen)
                                     if (PhosphorusDemand .gt. 1e-6) then
@@ -7840,7 +7843,8 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                     LAI                    =   Me%StateVariables%LeafAreaIndex(i,j)
     !                LAI                    =   PropLeafAreaIndex%Field(i,j)
                     !  MJ/m2               =   W/m2 * s * 1e-6MJ/J
-                    SolarRadiation         =   Me%ExternalVar%Integration%AverageRadiationDuringDT(i,j) * Me%ComputeOptions%VegetationDT * 1e-6
+                    SolarRadiation         =   Me%ExternalVar%Integration%AverageRadiationDuringDT(i,j)  &
+                                               * Me%ComputeOptions%VegetationDT * 1e-6
                     PlantType              =   Me%VegetationTypes(VegetationID)%GrowthDatabase%PlantType
        
                     !! calculate optimal biomass
@@ -7872,12 +7876,13 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                     if (Me%ComputeOptions%AdjustRUEForVPD) then
                         !! adjust radiation-use efficiency for vapor pressure deficit. 
                         !Compute VPD (KPa). Equations in ModuleBasin adapted to average atmosphere values
-                        SaturatedVapourPressure  = 0.6108 * exp (17.27 * Me%ExternalVar%Integration%AverageAirTempDuringDT(i,j)              &
+                        SaturatedVapourPressure  = 0.6108 * exp (17.27 * Me%ExternalVar%Integration%AverageAirTempDuringDT(i,j)  &
                                                     / (Me%ExternalVar%Integration%AverageAirTempDuringDT(i,j) + 237.3))
         
-                        ActualVapourPressure     = SaturatedVapourPressure * Me%ExternalVar%Integration%AverageAirHumidityDuringDT(i, j)  
+                        ActualVapourPressure  = SaturatedVapourPressure  &
+                                               * Me%ExternalVar%Integration%AverageAirHumidityDuringDT(i, j)  
         
-                        VapourPressureDeficit    = SaturatedVapourPressure - ActualVapourPressure
+                        VapourPressureDeficit = SaturatedVapourPressure - ActualVapourPressure
         
                         !!assumes vapor pressure threshold of 1.0 kPa
                         if (VapourPressureDeficit > 1.0) then
@@ -9228,7 +9233,7 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                 JulDay_Old = Me%ExternalVar%JulianDay_Old
 
                 GrazingStartJulianDate = Me%VegetationTypes(Me%VegetationID(i,j))%ManagementDatabase%GrazingStartJulianDay 
-                GrazingStartPlantHU    =>Me%VegetationTypes(Me%VegetationID(i,j))%ManagementDatabase%GrazingStartPlantHU                 
+                GrazingStartPlantHU    =>Me%VegetationTypes(Me%VegetationID(i,j))%ManagementDatabase%GrazingStartPlantHU
                 DT_day                 = Me%ComputeOptions%VegetationDT / (60 * 60 * 24)
                 HUAcc                  = Me%HeatUnits%PlantHUAccumulated(i,j)
                 HUAcc_Old              = Me%HeatUnits%PlantHUAccumulated_Old(i,j)
@@ -9719,11 +9724,14 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
                 else
 
-                    PlantBiomass    = PlantBiomass + BiomassGrowth - BiomassGrazed - BiomassRemovedInHarvest - BiomassRemovedInDormancy
+                    PlantBiomass    = PlantBiomass + BiomassGrowth - BiomassGrazed - BiomassRemovedInHarvest             &
+                                      - BiomassRemovedInDormancy
                 
-                    PlantNitrogen   = PlantNitrogen + NitrogenUptake - NitrogenGrazed - NitrogenRemovedInHarvest - NitrogenRemovedInDormancy
+                    PlantNitrogen   = PlantNitrogen + NitrogenUptake - NitrogenGrazed - NitrogenRemovedInHarvest         &
+                                      - NitrogenRemovedInDormancy
 
-                    PlantPhosphorus = PlantPhosphorus + PhosphorusUptake - PhosphorusGrazed - PhosphorusRemovedInHarvest - PhosphorusRemovedInDormancy
+                    PlantPhosphorus = PlantPhosphorus + PhosphorusUptake - PhosphorusGrazed - PhosphorusRemovedInHarvest &
+                                      - PhosphorusRemovedInDormancy
                 
   
                 endif
@@ -9763,7 +9771,7 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         !Arguments-------------------------------------------------------------
         !Local-----------------------------------------------------------------
         integer, dimension(:,:), pointer                   :: MappingPoints
-        integer                                         :: i, j, STAT_CALL
+        integer                                         :: i, j !, STAT_CALL
         logical                                         :: PlantKilled
         real                                            :: MaxRootDepth, RootBiomassFraction
         integer                                         :: VegetationID, PlantType
@@ -10072,7 +10080,7 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                                                                     - CanopyHeight * BiomassHarvestedFraction
                     
                             !If in the future a height reduction is computed explicitly than canopy height can not be
-                            !taken to zero here. If mass flux .gt. canopy height then flux is canopy height                                
+                            !taken to zero here. If mass flux .gt. canopy height then flux is canopy height  
                             if (Me%StateVariables%CanopyHeight(i,j) .lt. 0.0) then
     
                                 Me%StateVariables%CanopyHeight(i,j) = 0.0
@@ -10141,7 +10149,8 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                 NTreshold              = Me%VegetationTypes(Me%VegetationID(i,j))%FertilizerDatabase%Auto%NTreshold
                 PTreshold              = Me%VegetationTypes(Me%VegetationID(i,j))%FertilizerDatabase%Auto%PTreshold
                 ExplicitPhosphorus     = Me%VegetationTypes(Me%VegetationID(i,j))%FertilizerDatabase%Auto%ExplicitPhosphorus
-                FertilizationJulianDay = Me%VegetationTypes(Me%VegetationID(i,j))%FertilizerDatabase%Scheduled%FertilizationJulianDay
+                FertilizationJulianDay = &
+                       Me%VegetationTypes(Me%VegetationID(i,j))%FertilizerDatabase%Scheduled%FertilizationJulianDay
                 FertilizationHU        = Me%VegetationTypes(Me%VegetationID(i,j))%FertilizerDatabase%Scheduled%FertilizationHU
                 NeedNitrogen           = .false.
                 NeedPhosphorus         = .false.
@@ -10302,7 +10311,8 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                 FertilizerAmount = 0.0
             endif
             
-            FertilizerFracApplyedInSurface = Me%VegetationTypes(Me%VegetationID(i,j))%FertilizerDatabase%FertilizerFracApplyedInSurface
+            FertilizerFracApplyedInSurface = &
+                  Me%VegetationTypes(Me%VegetationID(i,j))%FertilizerDatabase%FertilizerFracApplyedInSurface
             AmmoniaFracInMineralN          = Me%VegetationTypes(Me%VegetationID(i,j))%FertilizerDatabase%AmmoniaFracInMineralN
             OrganicNFracInFertilizer       = Me%VegetationTypes(Me%VegetationID(i,j))%FertilizerDatabase%OrganicNFracInFertilizer
             MineralPFracInFertilizer       = Me%VegetationTypes(Me%VegetationID(i,j))%FertilizerDatabase%MineralPFracInFertilizer
@@ -10374,7 +10384,8 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                 FertilizerAmount = 0.0
             endif
             
-            FertilizerFracApplyedInSurface = Me%VegetationTypes(Me%VegetationID(i,j))%FertilizerDatabase%FertilizerFracApplyedInSurface
+            FertilizerFracApplyedInSurface = &
+                 Me%VegetationTypes(Me%VegetationID(i,j))%FertilizerDatabase%FertilizerFracApplyedInSurface
             MineralPFracInFertilizer       = Me%VegetationTypes(Me%VegetationID(i,j))%FertilizerDatabase%MineralPFracInFertilizer
             OrganicPFracInFertilizer       = Me%VegetationTypes(Me%VegetationID(i,j))%FertilizerDatabase%OrganicPFracInFertilizer
             
@@ -10572,13 +10583,16 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             !Averaged Atmosphere properties 
             if (Me%ComputeOptions%AtmospherePropertiesOutput) then
 
-                call WriteTimeSerie (Me%ObjTimeSerieAtm, Data2D = Me%ExternalVar%Integration%AverageAirTemPDuringDT, STAT = STAT_CALL)
+                call WriteTimeSerie (Me%ObjTimeSerieAtm, Data2D = Me%ExternalVar%Integration%AverageAirTemPDuringDT,     &
+                                     STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModuleVegetation - ERR020'     
 
-                call WriteTimeSerie (Me%ObjTimeSerieAtm, Data2D = Me%ExternalVar%Integration%AverageAirHumidityDuringDT, STAT = STAT_CALL)
+                call WriteTimeSerie (Me%ObjTimeSerieAtm, Data2D = Me%ExternalVar%Integration%AverageAirHumidityDuringDT, &
+                                     STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModuleVegetation - ERR021'     
 
-                call WriteTimeSerie (Me%ObjTimeSerieAtm, Data2D = Me%ExternalVar%Integration%AverageRadiationDuringDT, STAT = STAT_CALL)
+                call WriteTimeSerie (Me%ObjTimeSerieAtm, Data2D = Me%ExternalVar%Integration%AverageRadiationDuringDT,   &
+                                     STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModuleVegetation - ERR022'     
 
                 if (Me%ComputeOptions%ModelPlantBiomass) then
@@ -10599,38 +10613,48 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
                 if (Me%ComputeOptions%Fertilization) then
                     if (Me%ComputeOptions%ModelNitrogen) then
-                        call WriteTimeSerie (Me%ObjTimeSerieToSoil, Data2D = Me%Fluxes%ToSoil%FertilNitrateToSoilSurface, STAT = STAT_CALL)
+                        call WriteTimeSerie (Me%ObjTimeSerieToSoil, Data2D = Me%Fluxes%ToSoil%FertilNitrateToSoilSurface,    &
+                                             STAT = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModuleVegetation - ERR031'     
 
-                        call WriteTimeSerie (Me%ObjTimeSerieToSoil, Data2D = Me%Fluxes%ToSoil%FertilNitrateToSoilSubSurface, STAT = STAT_CALL)
+                        call WriteTimeSerie (Me%ObjTimeSerieToSoil, Data2D = Me%Fluxes%ToSoil%FertilNitrateToSoilSubSurface, &
+                                             STAT = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModuleVegetation - ERR032'     
  
-                        call WriteTimeSerie (Me%ObjTimeSerieToSoil, Data2D = Me%Fluxes%ToSoil%FertilAmmoniaToSoilSurface, STAT = STAT_CALL)
+                        call WriteTimeSerie (Me%ObjTimeSerieToSoil, Data2D = Me%Fluxes%ToSoil%FertilAmmoniaToSoilSurface,    &
+                                             STAT = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModuleVegetation - ERR033'     
 
-                        call WriteTimeSerie (Me%ObjTimeSerieToSoil, Data2D = Me%Fluxes%ToSoil%FertilAmmoniaToSoilSubSurface, STAT = STAT_CALL)
+                        call WriteTimeSerie (Me%ObjTimeSerieToSoil, Data2D = Me%Fluxes%ToSoil%FertilAmmoniaToSoilSubSurface, &
+                                             STAT = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModuleVegetation - ERR034'     
 
-                        call WriteTimeSerie (Me%ObjTimeSerieToSoil, Data2D = Me%Fluxes%ToSoil%FertilOrganicNToSoilSurface, STAT = STAT_CALL)
+                        call WriteTimeSerie (Me%ObjTimeSerieToSoil, Data2D = Me%Fluxes%ToSoil%FertilOrganicNToSoilSurface,    &
+                                             STAT = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModuleVegetation - ERR035'     
 
-                        call WriteTimeSerie (Me%ObjTimeSerieToSoil, Data2D = Me%Fluxes%ToSoil%FertilOrganicNToSoilSubSurface, STAT = STAT_CALL)
+                        call WriteTimeSerie (Me%ObjTimeSerieToSoil, Data2D = Me%Fluxes%ToSoil%FertilOrganicNToSoilSubSurface, &
+                                             STAT = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModuleVegetation - ERR036'   
 
                         call WriteTimeSerie (Me%ObjTimeSerieToSoil, Data2D = Me%AnnualNitrogenFertilized, STAT = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModuleVegetation - ERR036.5'   
                     endif
                     if (Me%ComputeOptions%ModelPhosphorus) then
-                        call WriteTimeSerie (Me%ObjTimeSerieToSoil, Data2D = Me%Fluxes%ToSoil%FertilOrganicPToSoilSurface, STAT = STAT_CALL)
+                        call WriteTimeSerie (Me%ObjTimeSerieToSoil, Data2D = Me%Fluxes%ToSoil%FertilOrganicPToSoilSurface,    &
+                                             STAT = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModuleVegetation - ERR037'     
                     
-                        call WriteTimeSerie (Me%ObjTimeSerieToSoil, Data2D = Me%Fluxes%ToSoil%FertilOrganicPToSoilSubSurface, STAT = STAT_CALL)
+                        call WriteTimeSerie (Me%ObjTimeSerieToSoil, Data2D = Me%Fluxes%ToSoil%FertilOrganicPToSoilSubSurface, &
+                                             STAT = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModuleVegetation - ERR038'     
     
-                        call WriteTimeSerie (Me%ObjTimeSerieToSoil, Data2D = Me%Fluxes%ToSoil%FertilMineralPToSoilSurface, STAT = STAT_CALL)
+                        call WriteTimeSerie (Me%ObjTimeSerieToSoil, Data2D = Me%Fluxes%ToSoil%FertilMineralPToSoilSurface,    &
+                                             STAT = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModuleVegetation - ERR039'     
                     
-                        call WriteTimeSerie (Me%ObjTimeSerieToSoil, Data2D = Me%Fluxes%ToSoil%FertilMineralPToSoilSubSurface, STAT = STAT_CALL)
+                        call WriteTimeSerie (Me%ObjTimeSerieToSoil, Data2D = Me%Fluxes%ToSoil%FertilMineralPToSoilSubSurface, &
+                                             STAT = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModuleVegetation - ERR040'     
     
                         call WriteTimeSerie (Me%ObjTimeSerieToSoil, Data2D = Me%AnnualPhosphorusFertilized, STAT = STAT_CALL)
@@ -10638,44 +10662,54 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                     endif
                 endif
                 if (Me%ComputeOptions%Management) then
-                    call WriteTimeSerie (Me%ObjTimeSerieToSoil, Data2D = Me%Fluxes%ToSoil%ManagementBiomassToSoil, STAT = STAT_CALL)
+                    call WriteTimeSerie (Me%ObjTimeSerieToSoil, Data2D = Me%Fluxes%ToSoil%ManagementBiomassToSoil,       &
+                                         STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModuleVegetation - ERR041'     
 
-                    call WriteTimeSerie (Me%ObjTimeSerieToSoil, Data2D = Me%Fluxes%ToSoil%ManagementRootBiomassLeftInSoil, STAT = STAT_CALL)
+                    call WriteTimeSerie (Me%ObjTimeSerieToSoil, Data2D = Me%Fluxes%ToSoil%ManagementRootBiomassLeftInSoil, &
+                                         STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModuleVegetation - ERR042'     
 
                     if (Me%ComputeOptions%ModelNitrogen) then
-                        call WriteTimeSerie (Me%ObjTimeSerieToSoil, Data2D = Me%Fluxes%ToSoil%ManagementNitrogenToSoil, STAT = STAT_CALL)
+                        call WriteTimeSerie (Me%ObjTimeSerieToSoil, Data2D = Me%Fluxes%ToSoil%ManagementNitrogenToSoil,   &
+                                             STAT = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModuleVegetation - ERR043'     
                     endif
                     if (Me%ComputeOptions%ModelPhosphorus) then
-                        call WriteTimeSerie (Me%ObjTimeSerieToSoil, Data2D = Me%Fluxes%ToSoil%ManagementPhosphorusToSoil, STAT = STAT_CALL)
+                        call WriteTimeSerie (Me%ObjTimeSerieToSoil, Data2D = Me%Fluxes%ToSoil%ManagementPhosphorusToSoil, &
+                                             STAT = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModuleVegetation - ERR044'     
                     endif
                 endif                
                 if (Me%ComputeOptions%Grazing) then
-                    call WriteTimeSerie (Me%ObjTimeSerieToSoil, Data2D = Me%Fluxes%ToSoil%GrazingBiomassToSoil, STAT = STAT_CALL)
+                    call WriteTimeSerie (Me%ObjTimeSerieToSoil, Data2D = Me%Fluxes%ToSoil%GrazingBiomassToSoil,           &
+                                         STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModuleVegetation - ERR045'     
                 
                     if (Me%ComputeOptions%ModelNitrogen) then
-                        call WriteTimeSerie (Me%ObjTimeSerieToSoil, Data2D = Me%Fluxes%ToSoil%GrazingNitrogenToSoil, STAT = STAT_CALL)
+                        call WriteTimeSerie (Me%ObjTimeSerieToSoil, Data2D = Me%Fluxes%ToSoil%GrazingNitrogenToSoil,      &
+                                             STAT = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModuleVegetation - ERR046'     
                     endif
                     if (Me%ComputeOptions%ModelPhosphorus) then
-                        call WriteTimeSerie (Me%ObjTimeSerieToSoil, Data2D = Me%Fluxes%ToSoil%GrazingPhosphorusToSoil, STAT = STAT_CALL)
+                        call WriteTimeSerie (Me%ObjTimeSerieToSoil, Data2D = Me%Fluxes%ToSoil%GrazingPhosphorusToSoil,    &
+                                             STAT = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModuleVegetation - ERR047'     
                     endif
                 endif   
                 if (Me%ComputeOptions%Dormancy) then
-                    call WriteTimeSerie (Me%ObjTimeSerieToSoil, Data2D = Me%Fluxes%ToSoil%DormancyBiomassToSoil, STAT = STAT_CALL)
+                    call WriteTimeSerie (Me%ObjTimeSerieToSoil, Data2D = Me%Fluxes%ToSoil%DormancyBiomassToSoil,          &
+                                         STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModuleVegetation - ERR048'     
                 
                     if (Me%ComputeOptions%ModelNitrogen) then
-                        call WriteTimeSerie (Me%ObjTimeSerieToSoil, Data2D = Me%Fluxes%ToSoil%DormancyNitrogenToSoil, STAT = STAT_CALL)
+                        call WriteTimeSerie (Me%ObjTimeSerieToSoil, Data2D = Me%Fluxes%ToSoil%DormancyNitrogenToSoil,     &
+                                             STAT = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModuleVegetation - ERR049'     
                     endif
                     if (Me%ComputeOptions%ModelPhosphorus) then
-                        call WriteTimeSerie (Me%ObjTimeSerieToSoil, Data2D = Me%Fluxes%ToSoil%DormancyPhosphorusToSoil, STAT = STAT_CALL)
+                        call WriteTimeSerie (Me%ObjTimeSerieToSoil, Data2D = Me%Fluxes%ToSoil%DormancyPhosphorusToSoil,   &
+                                             STAT = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModuleVegetation - ERR050'     
                     endif
                 endif  

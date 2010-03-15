@@ -12,7 +12,7 @@
 ! DESCRIPTION   : Module to serve as Runoff Properties 
 !
 !------------------------------------------------------------------------------
-
+!
 !
 !Units in runoff properties
 !   Transported properties (soluble)             : g/m3 (or mg/l)  
@@ -22,8 +22,8 @@
 ! <beginproperty>
 !   PARTICULATE                 : 0/1               [0]         !Property physical state: 0 - Dissolved ; 1 - Particulate
 !     EROSION                   : 0/1               [0]         !Compute erosion (source/sink term) - only read if PARTICULATE : 1
-!     DEPOSITION                : 0/1               [0]         !Compute deposition (source/sink term) - only read if PARTICULATE : 1
-!       WS_TYPE                 : integer           [1]         !1 - constant; 2 - Concentration function - only read if DEPOSITION : 1
+!     DEPOSITION                : 0/1               [0]         !Compute deposition (source/sink) - only read if PARTICULATE : 1
+!       WS_TYPE                 : integer           [1]         !1 -constant;2 -concentration function - only read if DEPOSITION : 1
 !         WS_VALUE              : real                          !Fall velocity value - only read if WS_TYPE : 1
 !   ADVECTION_DIFFUSION         : 0/1               [0]         !Property advection - diffusion
 !   SOIL_CHEMISTRY              : 0/1               [0]         !Use PREEQC model to change property (source/sink model)
@@ -35,6 +35,8 @@
 !       USE_SED_REF_CONC        : 0/1               [0]         !Use cohesive sediment concentration as a reference
 !           SED_REF_CONC        : real              [1]         !Reference cohesive sediment concentration to partition
 ! <endproperty>
+!
+!------------------------------------------------------------------------------
 
 Module ModuleRunoffProperties
 
@@ -481,7 +483,7 @@ Module ModuleRunoffProperties
                                               RunoffID,                                   &
 !                                              GeometryID,                                 &
                                               GridDataID,                                 &
-                                              InitialWaterColumn,                         &                                                
+                                              InitialWaterColumn,                         &
                                               CoupledDN,                                  &
                                               STAT)
      
@@ -587,8 +589,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 !                call CoupleSoilChemistry
 !            endif
 !#endif
-            
-!            if (Me%Coupled%AdvectionDiffusion .and. Me%ComputeOptions%AdvDiff_Module == AdvDif_ModuleAD_) then !Uses AdvectionDiffusion module
+!            !Uses AdvectionDiffusion module
+!            if (Me%Coupled%AdvectionDiffusion .and. Me%ComputeOptions%AdvDiff_Module == AdvDif_ModuleAD_) then 
 !            
 !                call StartAdvectionDiffusion(Me%ObjAdvectionDiffusion, &
 !                                             Me%ObjGeometry,           &
@@ -716,17 +718,17 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadGlobalOptions - ModuleRunoffProperties - ERR40'
 
+        !Uses ModuleRunoffProperties for Advection-Diffusion calculation
+        if (Me%ComputeOptions%AdvDiff_Module == AdvDif_ModuleRP_) then 
 
-		if (Me%ComputeOptions%AdvDiff_Module == AdvDif_ModuleRP_) then !Uses ModuleRunoffProperties for Advection-Diffusion calculation
-
-	        call GetData(Me%ComputeOptions%AdvDiff_SpatialMethod,      &   !Lúcia
-	                     Me%ObjEnterData, iflag,                       &
-	                     SearchType   = FromFile,                      &
-	                     keyword      = 'ADVDIFF_SPATIAL_METHOD',      &
-	                     Default      = AdvDif_CentralDif_,            &
-	                     ClientModule = 'ModuleRunoffProperties', &
-	                     STAT         = STAT_CALL)
-	        if (STAT_CALL /= SUCCESS_) stop 'ReadGlobalOptions - ModuleRunoffProperties - ERR50'
+            call GetData(Me%ComputeOptions%AdvDiff_SpatialMethod,      &   !Lúcia
+                         Me%ObjEnterData, iflag,                       &
+                         SearchType   = FromFile,                      &
+                         keyword      = 'ADVDIFF_SPATIAL_METHOD',      &
+                         Default      = AdvDif_CentralDif_,            &
+                         ClientModule = 'ModuleRunoffProperties', &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadGlobalOptions - ModuleRunoffProperties - ERR50'
 
             call GetData(Me%ComputeOptions%AdvDiff_CheckCoefs,         &   !Eduardo
                          Me%ObjEnterData, iflag,                       &
@@ -741,12 +743,13 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                          Me%ObjEnterData, iflag,                                              &
                          SearchType = FromFile,                                               &
                          keyword    = 'ADVDIFF_DIFF_METHOD',                                  &
-                         Default    = AdvDif_Diff_Jury_,                                      &                                           
+                         Default    = AdvDif_Diff_Jury_,                                      &
                          ClientModule ='ModuleRunoffProperties',                              &
                          STAT       = STAT_CALL)            
             if (STAT_CALL /= SUCCESS_) stop 'ReadGlobalOptions - ModuleRunoffProeprties - ERR085'            
-
-		elseif (Me%ComputeOptions%AdvDiff_Module == AdvDif_ModuleAD_) then  ! Uses ModuleAdvectionDiffusion for Advection-Diffusion calculation
+        
+        ! Uses ModuleAdvectionDiffusion for Advection-Diffusion calculation
+        elseif (Me%ComputeOptions%AdvDiff_Module == AdvDif_ModuleAD_) then  
 
 !	        call GetData(Me%AdvDiff_Explicit,                          &
 !	                     Me%ObjEnterData, iflag,                       &
@@ -756,14 +759,14 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 !	                     ClientModule = 'ModuleRunoffProperties', &
 !	                     STAT         = STAT_CALL)
 !	        if (STAT_CALL .NE. SUCCESS_)  &
-	            stop 'ReadGlobalOptions - ModuleRunoffProperties - ERR90'
+                stop 'ReadGlobalOptions - ModuleRunoffProperties - ERR90'
         
         else
-	        write(*,*)'Advection diffusion module to be used unrecognized,'
-	        write(*,*)'Please check ADVDIFF_MODULE keyword'
-	        stop 'ReadGlobalOptions - ModuleRunoffProperties - ERR100'        
+            write(*,*)'Advection diffusion module to be used unrecognized,'
+            write(*,*)'Please check ADVDIFF_MODULE keyword'
+            stop 'ReadGlobalOptions - ModuleRunoffProperties - ERR100'        
         
-		endif
+        endif
 
         !Min water column for chezy computation - used if erosion active
         call GetData(Me%HminChezy,                                                  &
@@ -905,19 +908,19 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             if (Me%Coupled%SplashErosionFluxes) then
                 
                 allocate(Me%RainKineticRate(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB), STAT = STAT_CALL)
-		        if (STAT_CALL .NE. SUCCESS_)stop 'Construct_PropertyEvolution - ModuleRunoffProperties - ERR130'
+                if (STAT_CALL .NE. SUCCESS_)stop 'Construct_PropertyEvolution - ModuleRunoffProperties - ERR130'
                 Me%RainKineticRate = 0.0
 
                 allocate(Me%ExtVar%ThroughFall(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB), STAT = STAT_CALL)
-		        if (STAT_CALL .NE. SUCCESS_)stop 'Construct_PropertyEvolution - ModuleRunoffProperties - ERR150'
+                if (STAT_CALL .NE. SUCCESS_)stop 'Construct_PropertyEvolution - ModuleRunoffProperties - ERR150'
                 Me%ExtVar%ThroughFall = FillValueReal
 
                 allocate(Me%ExtVar%CanopyHeight(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB), STAT = STAT_CALL)
-		        if (STAT_CALL .NE. SUCCESS_)stop 'Construct_PropertyEvolution - ModuleRunoffProperties - ERR160'
+                if (STAT_CALL .NE. SUCCESS_)stop 'Construct_PropertyEvolution - ModuleRunoffProperties - ERR160'
                 Me%ExtVar%CanopyHeight = FillValueReal
 
                 allocate(Me%ExtVar%CanopyDrainage(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB), STAT = STAT_CALL)
-		        if (STAT_CALL .NE. SUCCESS_)stop 'Construct_PropertyEvolution - ModuleRunoffProperties - ERR170'
+                if (STAT_CALL .NE. SUCCESS_)stop 'Construct_PropertyEvolution - ModuleRunoffProperties - ERR170'
                 Me%ExtVar%CanopyDrainage = FillValueReal
                
             endif
@@ -1213,7 +1216,7 @@ cd2 :           if (BlockFound) then
         
         if (NewProperty%Evolution%AdvectionDiffusion) then
 
-            call ReadAdvectionDiffusionParameters (NewProperty)
+            call ReadAdvectionDiffusionParam (NewProperty)
         
         end if
 
@@ -1437,20 +1440,20 @@ cd2 :           if (BlockFound) then
 
     !--------------------------------------------------------------------------
     
-    subroutine ReadAdvectionDiffusionParameters (NewProperty)
+    subroutine ReadAdvectionDiffusionParam (NewProperty)
 
         !Arguments-------------------------------------------------------------
         type(T_property), pointer :: NewProperty
 
         !External--------------------------------------------------------------
         integer                   :: STAT_CALL
-        integer                   :: MassConservation
-        integer                   :: ImposedValue
-        integer                   :: NullGradient, CyclicBoundary
-        integer                   :: Orlanski, MassConservNullGrad
+!        integer                   :: MassConservation
+!        integer                   :: ImposedValue
+!        integer                   :: NullGradient, CyclicBoundary
+!        integer                   :: Orlanski, MassConservNullGrad
 
         !Local-----------------------------------------------------------------
-        integer                   :: iflag, BoundaryCondition
+        integer                   :: iflag !, BoundaryCondition
 
         !----------------------------------------------------------------------
 
@@ -1634,9 +1637,9 @@ cd1:    if (Me%ComputeOptions%AdvDiff_Module == AdvDif_ModuleAD_) then
 !
 !	        endif
 
-		endif cd1
+        endif cd1
 
-    end subroutine ReadAdvectionDiffusionParameters
+    end subroutine ReadAdvectionDiffusionParam
 
     !--------------------------------------------------------------------------
     
@@ -1673,7 +1676,8 @@ cd1:    if (Me%ComputeOptions%AdvDiff_Module == AdvDif_ModuleAD_) then
 !            if (STAT_CALL .NE. SUCCESS_)stop 'ConstructPropertyDiffusivity - ModuleRunoffProperties - ERR40'
 !            NewProperty%Diff_Turbulence_V = 0.                   
             
-       elseif (Me%ComputeOptions%AdvDiff_Module == AdvDif_ModuleRP_) then !explicit calculation inside module porous media properties
+        !explicit calculation inside module porous media properties            
+        elseif (Me%ComputeOptions%AdvDiff_Module == AdvDif_ModuleRP_) then 
             allocate (NewProperty%ViscosityU (ILB:IUB, JLB:JUB), STAT = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)stop 'ConstructPropertyDiffusivity - ModuleRunoffProperties - ERR60'
             
@@ -1994,7 +1998,7 @@ cd1:    if (Me%ComputeOptions%AdvDiff_Module == AdvDif_ModuleAD_) then
             
             allocate(NewProperty%BottomConcentration(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB), STAT = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)stop 'Construct_PropertyEvolution - ModuleRunoffProperties - ERR33'
-			NewProperty%BottomConcentration   (:,:) = FillValueReal 
+            NewProperty%BottomConcentration   (:,:) = FillValueReal 
 
             allocate(NewProperty%TotalConcentration(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB), STAT = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)stop 'Construct_PropertyEvolution - ModuleRunoffProperties - ERR33.5'
@@ -2057,7 +2061,7 @@ cd1:    if (Me%ComputeOptions%AdvDiff_Module == AdvDif_ModuleAD_) then
                 Me%Coupled%DepositionFluxes = .true.
 
                 allocate (NewProperty%DepositionRate (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB), STAT = STAT_CALL)
-			    if (STAT_CALL .NE. SUCCESS_)stop 'Construct_PropertyEvolution - ModuleRunoffProperties - ERR34.1'
+                if (STAT_CALL .NE. SUCCESS_)stop 'Construct_PropertyEvolution - ModuleRunoffProperties - ERR34.1'
                 NewProperty%DepositionRate= 0.0
                 
                 allocate (NewProperty%Ws             (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB), STAT = STAT_CALL)
@@ -2117,7 +2121,7 @@ cd1:    if (Me%ComputeOptions%AdvDiff_Module == AdvDif_ModuleAD_) then
                                  STAT         = STAT_CALL)
                     if (STAT_CALL .NE. SUCCESS_) stop 'ModuleRunoffProperties - ConstructPropertyValues - ERR90' 
                    
-					!See ModuleFreeVerticalMovement
+                    !See ModuleFreeVerticalMovement
                     call GetData(NewProperty%KL1,                                               &
                                  Me%ObjEnterData, iflag,                                        &
                                  SearchType   = FromBlock,                                      &
@@ -2153,7 +2157,7 @@ cd1:    if (Me%ComputeOptions%AdvDiff_Module == AdvDif_ModuleAD_) then
                 Me%Coupled%SplashErosionFluxes = .true.
                 
                 allocate(NewProperty%SplashRate(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB), STAT = STAT_CALL)
-			    if (STAT_CALL .NE. SUCCESS_)stop 'Construct_PropertyEvolution - ModuleRunoffProperties - ERR140'
+                if (STAT_CALL .NE. SUCCESS_)stop 'Construct_PropertyEvolution - ModuleRunoffProperties - ERR140'
                 NewProperty%SplashRate = 0.0
 
                
@@ -2207,8 +2211,8 @@ cd1:    if (Me%ComputeOptions%AdvDiff_Module == AdvDif_ModuleAD_) then
 !            if (STAT_CALL /= SUCCESS_) stop 'Construct_PropertyValues - ModuleRunoffProperties - ERR151'            
             
             !initial concentration based on initial water column
-	        do j=Me%WorkSize%JLB, Me%WorkSize%JUB
-	        do i=Me%WorkSize%ILB, Me%WorkSize%IUB                    
+            do j=Me%WorkSize%JLB, Me%WorkSize%JUB
+            do i=Me%WorkSize%ILB, Me%WorkSize%IUB                    
                 if (Me%ExtVar%BasinPoints(i,j) == BasinPoint) then 
                     if (Me%ExtVar%InitialWaterColumn .gt. 0.0) then
                         NewProperty%ConcentrationOld(i,j) = NewProperty%Concentration(i,j)           
@@ -2218,7 +2222,8 @@ cd1:    if (Me%ComputeOptions%AdvDiff_Module == AdvDif_ModuleAD_) then
                     endif
                     if (NewProperty%Particulate) then
                         !kg/m2 = (g/m3 * (m * m2) * 1E-3 kg/g) / m2 + kg/m2
-                        NewProperty%TotalConcentration(i,j) = NewProperty%Concentration(i,j) * Me%ExtVar%InitialWaterColumn * 1E-3   & ! * m2 /m2
+                        NewProperty%TotalConcentration(i,j) = NewProperty%Concentration(i,j)          &
+                                                              * Me%ExtVar%InitialWaterColumn * 1E-3   &
                                                               + NewProperty%BottomConcentration(i,j)
                     endif
                 endif
@@ -2325,21 +2330,23 @@ cd1:    if (Me%ComputeOptions%AdvDiff_Module == AdvDif_ModuleAD_) then
         
         if (Me%Coupled%BottomFluxes .and. Me%Coupled%ErosionFluxes) then
             
-            call Read_Property_2D (Me%ErosionCriticalShear, FromBlock, "<begin_critical_shear_erosion>", "<end_critical_shear_erosion>")
+            call Read_Property_2D (Me%ErosionCriticalShear, FromBlock, "<begin_critical_shear_erosion>",     &
+                                    "<end_critical_shear_erosion>")
 
             call Read_Property_2D (Me%ErosionCoefficient, FromBlock, "<begin_erosion_coefficient>", "<end_erosion_coefficient>")
         
         endif
 
 
-		if (Me%Coupled%BottomFluxes .and. Me%Coupled%DepositionFluxes) then
+        if (Me%Coupled%BottomFluxes .and. Me%Coupled%DepositionFluxes) then
             
-            call Read_Property_2D (Me%DepositionCriticalShear, FromBlock, "<begin_critical_shear_deposition>", "<end_critical_shear_deposition>")
+            call Read_Property_2D (Me%DepositionCriticalShear, FromBlock, "<begin_critical_shear_deposition>", &
+                                    "<end_critical_shear_deposition>")
        
         endif  
         
         
-		if (Me%Coupled%BottomFluxes .and. Me%Coupled%SplashErosionFluxes) then
+        if (Me%Coupled%BottomFluxes .and. Me%Coupled%SplashErosionFluxes) then
             
 !            call Read_Property_2D (Me%StoneFraction, FromBlock, "<begin_Soil_StoneFraction>", "<end_Soil_StoneFraction>")
 !            call Read_Property_2D (Me%ClayFraction, FromBlock, "<begin_Soil_ClayFraction>", "<end_Soil_ClayFraction>")
@@ -2354,7 +2361,7 @@ cd1:    if (Me%ComputeOptions%AdvDiff_Module == AdvDif_ModuleAD_) then
         
             do J = Me%WorkSize%JLB, Me%WorkSize%JUB
             do I = Me%WorkSize%ILB, Me%WorkSize%IUB
-                if (Me%ExtVar%BasinPoints(i,j)) then
+                if (Me%ExtVar%BasinPoints(i,j) == BasinPoint) then
                     if (Me%DepositionCriticalShear%Field(i,j) >= Me%ErosionCriticalShear%Field(i,j)) then
                         write (*,*) 'critical shear for erosion must be higher than critical shear for deposition in cell ', i , j
                         stop 'ModuleRunoffProperties - ConstructData2D - ERR10' 
@@ -3390,8 +3397,8 @@ cd0:    if (Exist) then
             call SearchProperty(PropertyX, PropertyXIDNumber = PropertyID, STAT = STAT_)
             if (STAT_ == SUCCESS_) then
             
-		        do j=Me%WorkSize%JLB, Me%WorkSize%JUB
-		        do i=Me%WorkSize%ILB, Me%WorkSize%IUB                    
+                do j=Me%WorkSize%JLB, Me%WorkSize%JUB
+                do i=Me%WorkSize%ILB, Me%WorkSize%IUB                    
                     if (Me%ExtVar%RiverPoints(i,j) == WaterPoint) then
                         PropertyX%ConcentrationDN (i,j) = DNConcentration (ChannelsID(i,j))
                     endif
@@ -3458,20 +3465,21 @@ cd0:    if (Exist) then
                                          STAT = STAT_ )    
                 if (STAT_ /= SUCCESS_) stop 'SetBasinConcRP - ModuleRunoffProperties - ERR010'
             
-		        do j=Me%WorkSize%JLB, Me%WorkSize%JUB
-		        do i=Me%WorkSize%ILB, Me%WorkSize%IUB                    
+                do j=Me%WorkSize%JLB, Me%WorkSize%JUB
+                do i=Me%WorkSize%ILB, Me%WorkSize%IUB                    
                     if (Me%ExtVar%BasinPoints(i,j) == BasinPoint) then
                         
                         PropertyX%Concentration (i,j) = BasinConcentration (i,j)
                         
                         if (PropertyX%Particulate) then
                             !Kg/m2 = ((Kg/m2 * m2) + (g * 1E-3kg/g)) / m2 
-                            PropertyX%BottomConcentration(i,j) = (PropertyX%BottomConcentration(i,j) * Me%ExtVar%Area(i, j)                &
+                            PropertyX%BottomConcentration(i,j) = (PropertyX%BottomConcentration(i,j) * Me%ExtVar%Area(i, j)   &
                                                                   + MassToBottom(i,j) * 1E-3) / Me%ExtVar%Area(i, j)
                             WaterVolume = WaterColumn(i,j) * Me%ExtVar%Area(i, j)
                             ![kg/m2] = [g/m3]* [m3] * [1E-3kg/g] /[m2] + [kg/m2]
-                            PropertyX%TotalConcentration (i,j) = PropertyX%Concentration (i,j) * 1E-3 * WaterVolume / Me%ExtVar%Area(i, j) &
-                                                                 + PropertyX%BottomConcentration (i,j)                                                                        
+                            PropertyX%TotalConcentration (i,j) = PropertyX%Concentration (i,j) * 1E-3 * WaterVolume            &
+                                                                 / Me%ExtVar%Area(i, j) &
+                                                                 + PropertyX%BottomConcentration (i,j) 
                         endif
                     endif
                 enddo
@@ -3523,8 +3531,8 @@ cd0:    if (Exist) then
             call GetBasinPoints   (Me%ObjBasinGeometry, Me%ExtVar%BasinPoints, STAT = STAT_)
             if (STAT_ /= SUCCESS_) stop 'SetBasinToRPSplash - ModuleRunoffProperties - ERR01'            
 
-	        do j=Me%WorkSize%JLB, Me%WorkSize%JUB
-	        do i=Me%WorkSize%ILB, Me%WorkSize%IUB                    
+            do j=Me%WorkSize%JLB, Me%WorkSize%JUB
+            do i=Me%WorkSize%ILB, Me%WorkSize%IUB                    
                 if (Me%ExtVar%BasinPoints(i,j) == BasinPoint) then
 
                     Me%ExtVar%ThroughFall(i,j)    = ThroughFall(i,j)
@@ -3818,16 +3826,18 @@ cd0:    if (Exist) then
 
                 !sources and sinks from porous media and Drainage network
 !                call InterfaceFluxes
-                
-				if (Me%ComputeOptions%AdvDiff_Module == AdvDif_ModuleRP_) then !Advection and Diffusion from ModuleRunoffProperties
+
+                !Advection and Diffusion from ModuleRunoffProperties
+                if (Me%ComputeOptions%AdvDiff_Module == AdvDif_ModuleRP_) then 
                     
                     call AdvectionDiffusionProcesses_RP
- 
-!               elseif (Me%ComputeOptions%AdvDiff_Module == AdvDif_ModuleAD_) then !Advection and Diffusion from ModuleAdvectionDiffusion
+                    
+                !Advection and Diffusion from ModuleAdvectionDiffusion
+!               elseif (Me%ComputeOptions%AdvDiff_Module == AdvDif_ModuleAD_) then 
 !            
 !                   call AdvectionDiffusionProcesses_AD
 
-    	        endif
+                endif
             
             endif
 
@@ -3937,7 +3947,8 @@ cd0:    if (Exist) then
 
         !Local----------------------------------------------------------------------
         integer                    :: i, j, CHUNK
-        real                       :: VelMedU, VelMedV, VelMedW, VelU, VelV
+!        real                       :: VelMedU, VelMedV, VelMedW, VelU, VelV
+        real                       :: VelU, VelV
 
         !Begin----------------------------------------------------------------------
 
@@ -3950,8 +3961,10 @@ cd0:    if (Exist) then
 
             if (Me%ExtVar%BasinPoints(i, j) == BasinPoint) then
                 
-!                VelMedU = 0.5 * (Me%ExtVar%UnsatU(i,j,k) * Me%ExtVar%ComputeFacesU3D(I,J,K) +  Me%ExtVar%UnsatU(i,j+1,k) * Me%ExtVar%ComputeFacesU3D(I,J+1,K))
-!                VelMedV = 0.5 * (Me%ExtVar%UnsatV(i,j,k) * Me%ExtVar%ComputeFacesV3D(I,J,K) +  Me%ExtVar%UnsatV(i+1,j,k) * Me%ExtVar%ComputeFacesV3D(I+1,J+,K))
+!                VelMedU = 0.5 * (Me%ExtVar%UnsatU(i,j,k) * Me%ExtVar%ComputeFacesU3D(I,J,K) +  Me%ExtVar%UnsatU(i,j+1,k)  &
+!                           * Me%ExtVar%ComputeFacesU3D(I,J+1,K))
+!                VelMedV = 0.5 * (Me%ExtVar%UnsatV(i,j,k) * Me%ExtVar%ComputeFacesV3D(I,J,K) +  Me%ExtVar%UnsatV(i+1,j,k)   &
+!                            * Me%ExtVar%ComputeFacesV3D(I+1,J+,K))
 ! 
 
 !                !m2/s = m * m/s
@@ -3961,7 +3974,7 @@ cd0:    if (Exist) then
                 VelV = 0.5 * (Me%ExtVar%CenterVelV(i,j)+Me%ExtVar%CenterVelV(i-1,j))
                 !m2/s = m * m/s
                 PropertyX%Diff_Turbulence_H(i,j) = Me%Disper_Longi%Field(i,j) *                              &
-		                                                 abs(VelV + VelU  / 2.)
+                                                         abs(VelV + VelU  / 2.)
                
             endif
 
@@ -4308,7 +4321,7 @@ cd0:    if (Exist) then
          
          endif
         
-       	if (Me%Coupled%BottomFluxes .and. Me%Coupled%DepositionFluxes) then
+        if (Me%Coupled%BottomFluxes .and. Me%Coupled%DepositionFluxes) then
              
              if (Me%DepositionCriticalShear%ID%SolutionFromFile) then
 
@@ -4322,7 +4335,7 @@ cd0:    if (Exist) then
          
          endif    
          
-       	if (Me%Coupled%BottomFluxes .and. Me%Coupled%SplashErosionFluxes) then
+        if (Me%Coupled%BottomFluxes .and. Me%Coupled%SplashErosionFluxes) then
              
 !             if (Me%StoneFraction%ID%SolutionFromFile) then
 !
@@ -4359,7 +4372,7 @@ cd0:    if (Exist) then
     
     end subroutine ActualizePropertiesFromFile
     
-	!-------------------------------------------------------------------------    
+    !-------------------------------------------------------------------------    
 
  !   subroutine InterfaceFluxes
         !Local--------------------------------------------------------------------
@@ -4499,7 +4512,7 @@ cd0:    if (Exist) then
         integer                                     :: i, j!, CHUNK
         real(8)                                     :: Area_Vertical, Area_Top_U, Area_Top_V
         real(8)                                     :: Area_Bottom_U, Area_Bottom_V
-        real(8)                                     :: AdvTermB_Top, AdvTermC
+!        real(8)                                     :: AdvTermB_Top, AdvTermC
         real(8)                                     :: AdvTermA_U, AdvTermA_V
         real(8)                                     :: AdvTermB_Top_U, AdvTermB_Top_V
         real(8)                                     :: AdvTermB_Bottom_U, AdvTermB_Bottom_V
@@ -4524,9 +4537,9 @@ cd0:    if (Exist) then
         elseif (Me%ComputeOptions%AdvDiff_DiffMethod == AdvDif_Diff_Old_) then !old formulation to couple module advection diffusion
             call ModifyDiffusivity_Old(CurrProperty)
         else
-	        write(*,*)'Diffusion method to be used unrecognized,'
-	        write(*,*)'Please check ADVDIFF_DIFF_METHOD keyword'
-	        stop 'ModifyAdvectionDiffusion - ModuleRunoffProperties - ERR10'                            
+            write(*,*)'Diffusion method to be used unrecognized,'
+            write(*,*)'Please check ADVDIFF_DIFF_METHOD keyword'
+            stop 'ModifyAdvectionDiffusion - ModuleRunoffProperties - ERR10'                            
         endif
         
         
@@ -4686,7 +4699,8 @@ cd0:    if (Exist) then
 
                 if (CurrProperty%Particulate) then
                     ![kg/m2] = [g/m3]* [m * m2] * [1E-3kg/g] /[m2] + [kg/m2]
-                    CurrProperty%TotalConcentration (i,j) = ((CurrProperty%Concentration (i,j) * 1E-3 * WaterColumn(i,j)* Me%ExtVar%Area(i, j))  &
+                    CurrProperty%TotalConcentration (i,j) = ((CurrProperty%Concentration (i,j) * 1E-3 * WaterColumn(i,j)       &
+                                                             * Me%ExtVar%Area(i, j))  &
                                                              / Me%ExtVar%Area(i, j)) + CurrProperty%BottomConcentration (i,j)   
                 endif      
                 
@@ -4918,14 +4932,14 @@ cd0:    if (Exist) then
 
         if (MonitorPerformance) call StartWatch ("ModuleRunoffProperties", "ModifyBottomFluxes")
 
-       	if (Me%Coupled%SplashErosionFluxes) then
-		
+        if (Me%Coupled%SplashErosionFluxes) then
+        
             call ModifySplashErosionFluxes
 
         endif
 
             
-      	call ModifyShearStress
+        call ModifyShearStress
 
 !        if (Me%ComputeOptions%ErosionDepositionModel == Krone_) then
             if (Me%Coupled%ErosionFluxes) then
@@ -5008,7 +5022,8 @@ if2:                if (Me%ExtVar%BasinPoints(i,j) == BasinPoint) then
                                 ![mm] = [m] * 1E3 mm/m
                                 CanopyDrain = CanopyDrainage(i,j) * 1E3
                                ! [J.m-2] = [mm] . [J.m-2.mm-1] ! units not clearly defined using canopy height in [m]) 
-                               !! see RPC Morgan 2007 in Earth Surface Processes and Landforms and RPC Morgan 1998 in Earth Surface Processes and Landforms
+                               !! see RPC Morgan 2007 in Earth Surface Processes and Landforms and RPC Morgan 1998 in Earth 
+                               !Surface Processes and Landforms
                                 KE_Leaf_Drainage = CanopyDrain * (( 15.8 * CanopyHeight(i,j)**0.5 ) - 5.87)
                                
                             endif 
@@ -5019,14 +5034,16 @@ if2:                if (Me%ExtVar%BasinPoints(i,j) == BasinPoint) then
                             
                             if (Me%ComputeOptions%Splash_ErosiveRainMethod == 1) then
                                 ! [J.m-2]  =  [mm] . [J.m-2.mm-1] ! units not clearly defined using erosive rain in [mm.h-1]) 
-                                !! see RPC Morgan 2007 in Earth Surface Processes and Landforms and RPC Morgan 1998 in Earth Surface Processes and Landforms                            
+                                !! see RPC Morgan 2007 in Earth Surface Processes and Landforms and RPC Morgan 1998 in Earth 
+                                !Surface Processes and Landforms                            
                                 KE_ThroughFall = DirectRain * ( 8.95 + 8.44 * log10(Me%Splash_ErosiveRainValue))
                             else
                                 ![mm.h-1] = [mm] * [s] * 3600 s/h
                                 DirectRainRate   = DirectRain * Me%ExtVar%DT * 3600.
                                
                                 ! [J.m-2]  =  [mm] . [J.m-2.mm-1] ! units not clearly defined using rain in [mm.h-1]) 
-                                !! see RPC Morgan 2007 in Earth Surface Processes and Landforms and RPC Morgan 1998 in Earth Surface Processes and Landforms
+                                !! see RPC Morgan 2007 in Earth Surface Processes and Landforms and RPC Morgan 1998 in Earth 
+                                !Surface Processes and Landforms
                                 !KE_ThroughFall = ThroughFall * ( 8.95 + 8.44 * log10(Me%ErosiveRain%Field(i,j)) )
                                 if (DirectRainRate .gt. 0.0) then
                                     KE_ThroughFall = DirectRain * ( 8.95 + 8.44 * log10(DirectRainRate))
@@ -5046,7 +5063,8 @@ if2:                if (Me%ExtVar%BasinPoints(i,j) == BasinPoint) then
                             Me%RainKineticRate  (i,j) =  RainKineticEnergy / Me%ExtVar%DT
 
                             ! [kg.m-2] =  [g.J-1] . [] . [1E-3kg/g] . [] * [J.m-2] 
-    !                        SplashFlux = (Me%Kclay%Field(i,j) * Me%ClayFraction%Field(i,j) * 1E-3 * (1 - Me%StoneFraction%Field(i,j)) * Me%RainKineticEnergy(i,j))
+    !                        SplashFlux = (Me%Kclay%Field(i,j) * Me%ClayFraction%Field(i,j) * 1E-3 *   &
+!                            (1 - Me%StoneFraction%Field(i,j)) * Me%RainKineticEnergy(i,j))
                             
                             ! [kg.m-2.s-1] =  [g.J-1] * [1E-3kg/g] * [J.s-1.m-2] * [kg/m2 Prop]/[kg/m2 Sed] 
                             SplashRate = (Me%Kclay%Field(i,j) * 1E-3 * Me%RainKineticRate(i,j))   &
@@ -5119,9 +5137,9 @@ if2:                if (Me%ExtVar%BasinPoints(i,j) == BasinPoint) then
         !Local-----------------------------------------------------------------
         integer                                     :: STAT_CALL, i, j
         real                                        :: Chezy, CenterVelocity
-        real                                        :: Area_U, Area_V
-        real                                        :: WetPerimeter_U, WetPerimeter_V
-        real                                        :: HydraulicRadius
+!        real                                        :: Area_U, Area_V
+!        real                                        :: WetPerimeter_U, WetPerimeter_V
+!        real                                        :: HydraulicRadius
         real, dimension(:,:), pointer               :: CenterVelocityX, CenterVelocityY
         real, dimension(:,:), pointer               :: DUX, DVY
         real(8), dimension(:,:), pointer            :: WaterColumn
@@ -5132,7 +5150,8 @@ if2:                if (Me%ExtVar%BasinPoints(i,j) == BasinPoint) then
             DUX            => Me%ExtVar%DUX
             DVY            => Me%ExtVar%DVY
             !The new water column computed in module runoff will be used - water column where center velocity field was computed
-            !In cells that loose all water in the time step shear will be zero (and center velocity from runoff) but in fact they had flux field
+            !In cells that loose all water in the time step shear will be zero (and center velocity from runoff) 
+            !but in fact they had flux field
             !and a shear 
             WaterColumn => Me%ExtVar%WaterColumn
             
@@ -5161,7 +5180,8 @@ if2:                if (Me%ExtVar%BasinPoints(i,j) == BasinPoint) then
 !                    HydraulicRadius = 0.5 * ((Area_U / WetPerimeter_U) + (Area_U / WetPerimeter_U))             
                     
 !                    if (HydraulicRadius > AllmostZero) then
-!                        !Need to Check manning units!!! in order to work manning^2 should be [m^(-4/3) * s2] but is said that manning is [m^-1/3 * s]
+!                        !Need to Check manning units!!! in order to work manning^2 should be 
+                         ![m^(-4/3) * s2] but is said that manning is [m^-1/3 * s]
 !                        ![-]  = [m/s2] * [m^-4/3 * s2] / [m]^1/3 
 !                        Chezy = Gravity * Manning(i,j)**2.0 / (HydraulicRadius** (1./3.))
 !                    else 
@@ -5169,7 +5189,8 @@ if2:                if (Me%ExtVar%BasinPoints(i,j) == BasinPoint) then
 !                    end if
 
                     if (WaterColumn(i,j) > Me%HminChezy) then
-                        !Need to Check manning units!!! in order to work manning^2 should be [m^(-4/3) * s2] but is said that manning is [m^-1/3 * s]
+                        !Need to Check manning units!!! in order to work manning^2 should be [m^(-4/3) * s2] 
+                        !but is said that manning is [m^-1/3 * s]
                         ![-]  = [m/s2] * [m^-4/3 * s2] / [m]^1/3 
                         Chezy = Gravity * Manning(i,j)**2.0 / (WaterColumn(i,j)** (1./3.))
                     else 
@@ -5294,7 +5315,7 @@ if3:                    if (Me%ShearStress (i,j) > Me%ErosionCriticalShear%Field
                             
                             ![kg/m2] = [g/m3]* [m3] * [1E-3kg/g] /[m2] + [kg/m2]
                             Property%TotalConcentration (i,j) = Property%Concentration (i,j) * 1E-3 * WaterVolume / BottomArea &
-                                                                + Property%BottomConcentration (i,j)                                              
+                                                                + Property%BottomConcentration (i,j) 
                                                               
                         end if if3
                     end if if2
@@ -5307,10 +5328,10 @@ if3:                    if (Me%ShearStress (i,j) > Me%ErosionCriticalShear%Field
             Property => Property%Next
         enddo
 
-   	end subroutine ComputeErosionFluxes
-	!---------------------------------------------------------------------------
-  	
-  	subroutine ComputeDepositionFluxes
+    end subroutine ComputeErosionFluxes
+    !---------------------------------------------------------------------------
+    
+    subroutine ComputeDepositionFluxes
         
         !Arguments-------------------------------------------------------------
 
@@ -5340,7 +5361,7 @@ if3:                    if (Me%ShearStress (i,j) > Me%ErosionCriticalShear%Field
 if1:        if (Property%Particulate                                       &
                 .AND. (Property%ID%IDNumber /= VSS_ .AND. Property%ID%IDNumber /= TSS_)) then
                 
-				Property%DepositionRate = 0.0
+                Property%DepositionRate = 0.0
                 
                 do j = Me%WorkSize%JLB, Me%WorkSize%JUB
                 do i = Me%WorkSize%ILB, Me%WorkSize%IUB
@@ -5378,8 +5399,8 @@ if3:                    if (Me%ShearStress (i,j) < Me%DepositionCriticalShear%Fi
                             
                             ![g] = [kg.m-2.s-1] * 1E3[g/kg] * [m2] * [s]
                             DepositedMass = DepositionRate * 1E3 * BottomArea *  Me%ExtVar%DT
-							
-							![m3] = [m] * [m2]
+                            
+                            ![m3] = [m] * [m2]
                             WaterVolume = WaterColumn(i,j) * BottomArea                    
                             
                             ![g] = [g.m-3] * [m3]
@@ -5407,12 +5428,13 @@ if3:                    if (Me%ShearStress (i,j) < Me%DepositionCriticalShear%Fi
                             
                             ![kg/m2] = [kg/m2] + ([g] * 1E-3 kg/g) / [m2]
                             Property%BottomConcentration (i,j) = Property%BottomConcentration (i,j)       &
-                                                                 + (DepositedMass * 1E-3) / BottomArea                                                           
+                                                                 + (DepositedMass * 1E-3) / BottomArea  
                             
                             Property%DepositionRate (i,j) = DepositionRate
                             
                             ![kg/m2] = [g/m3]* [m3] * [1E-3kg/g] /[m2] + [kg/m2]
-                            Property%TotalConcentration (i,j) = Property%Concentration (i,j) * 1E-3 * WaterVolume / Me%ExtVar%Area(i,j) &
+                            Property%TotalConcentration (i,j) = Property%Concentration (i,j) * 1E-3 * WaterVolume   &
+                                                                / Me%ExtVar%Area(i,j)                               &
                                                                 + Property%BottomConcentration (i,j)                          
                         
                         end if if3
@@ -5799,7 +5821,7 @@ cd1 :       if (Property%Evolution%MinConcentration) then
 !                
 !                call Modify_Interface(InterfaceID   = Me%ObjInterfaceSoilChemistry , &
 !                                      PropertyID    = PropertyX%ID%IDNumber        , &
-!                                      WaterMass     = Me%ExtVar%CellWaterMass      , &                                                                       
+!                                      WaterMass     = Me%ExtVar%CellWaterMass      , &
 !                                      Concentration = PropertyX%Concentration      , &
 !                                      WaterPoints2D = Me%ExtVar%BasinPoints      , &
 !                                      pH            = pH%Concentration             , &
@@ -6657,11 +6679,3 @@ end module ModuleRunoffProperties
 
 !MOHID Water Modelling System.
 !Copyright (C) 1985, 1998, 2002, 2006. MARETEC, Instituto Superior Técnico, Technical University of Lisbon. 
-
-
-
-
-
-
-
-

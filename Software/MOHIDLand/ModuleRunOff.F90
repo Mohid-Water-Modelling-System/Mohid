@@ -610,7 +610,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             !Gets the root path from the file nomfich.dat
             call ReadFileName("ROOT_SRT", Me%MaxFlowModulusFile, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR02a'
-            Me%MaxFlowModulusFile = trim(adjustl(Me%MaxFlowModulusFile))//"MaxRunOff.dat"                                                     
+            Me%MaxFlowModulusFile = trim(adjustl(Me%MaxFlowModulusFile))//"MaxRunOff.dat"
         end if
 
         !Write Max Channels Level  
@@ -627,7 +627,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             !Gets the root path from the file nomfich.dat
             call ReadFileName("ROOT_SRT", Me%MaxWaterColumnFile, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR02a'
-            Me%MaxWaterColumnFile = trim(adjustl(Me%MaxWaterColumnFile))//"MaxWaterColumn.dat"                                                     
+            Me%MaxWaterColumnFile = trim(adjustl(Me%MaxWaterColumnFile))//"MaxWaterColumn.dat"
         end if
 
 
@@ -1363,7 +1363,7 @@ doIter:         do while (iter <= Niter)
 
                     !Inputs Water from discharges
                     if (Me%Discharges) then
-                        call ModifyWaterDischarges  (LocalDT, iter)                
+                        call ModifyWaterDischarges  (LocalDT)                
                     endif
 
                     !Calculates Flow Direction
@@ -1456,11 +1456,11 @@ doIter:         do while (iter <= Niter)
     
     !---------------------------------------------------------------------------
 
-    subroutine ModifyWaterDischarges (LocalDT, iter)
+    subroutine ModifyWaterDischarges (LocalDT)
 
         !Arguments--------------------------------------------------------------
         real                                    :: LocalDT
-        integer                                 :: iter
+!        integer                                 :: iter
 
         !Local------------------------------------------------------------------
         integer                                 :: iDis, nDischarges
@@ -1591,7 +1591,8 @@ doIter:         do while (iter <= Niter)
                         !Me%lFlowX(i, j) = -1.0 * FlowRouting(Me%Routing, WCA, Me%ExtVar%DYY(i, j), 
                         !Slope, Me%OverlandCoefficientX(i,j))
 
-                        Me%lFlowX(i, j) = -1.0 * FlowRouting(Me%Routing, WCR, Me%ExtVar%DYY(i, j), Slope, Me%OverlandCoefficientX(i,j))
+                        Me%lFlowX(i, j) = -1.0 * FlowRouting(Me%Routing, WCR, Me%ExtVar%DYY(i, j), Slope,        &
+                                                             Me%OverlandCoefficientX(i,j))
                     
                         !Estimate max flow (considering both cell the same area)
                         MaxFlow = - 0.5 * (Me%myWaterLevel(i, j) - Me%myWaterLevel(i, j-1)) * Me%ExtVar%GridCellArea(i, j) / LocalDT
@@ -1724,7 +1725,8 @@ doIter:         do while (iter <= Niter)
                         !Me%lFlowY(i, j) = -1.0 * FlowRouting(Me%Routing, WCA, Me%ExtVar%DXX(i, j), 
                         !Slope, Me%OverlandCoefficientY(i,j))
 
-                        Me%lFlowY(i, j) = -1.0 * FlowRouting(Me%Routing, WCR, Me%ExtVar%DXX(i, j), Slope, Me%OverlandCoefficientY(i,j))
+                        Me%lFlowY(i, j) = -1.0 * FlowRouting(Me%Routing, WCR, Me%ExtVar%DXX(i, j), Slope,      &
+                                                             Me%OverlandCoefficientY(i,j))
                     
                         !Estimate max flow (considering both cell the same area)
                         MaxFlow = - 0.5 * (Me%myWaterLevel(i, j) - Me%myWaterLevel(i-1, j)) * Me%ExtVar%GridCellArea(i, j) / LocalDT
@@ -1957,7 +1959,8 @@ doIter:         do while (iter <= Niter)
                     WCR           = ChannelsWaterLevel (i, j) - Me%ExtVar%Topography(i, j)
                     
                     !Volume above Topography
-                    VolExcess    = ChannelsBankSlope(i,j) * WCR * WCR * ChannelsNodeLength(i, j) + WCR * ChannelsSurfaceWidth(i, j) * ChannelsNodeLength(i, j) + &
+                    VolExcess    = ChannelsBankSlope(i,j) * WCR * WCR * ChannelsNodeLength(i, j)       &
+                                    + WCR * ChannelsSurfaceWidth(i, j) * ChannelsNodeLength(i, j) +    &
                                     Me%myWaterColumn(i, j) * Me%ExtVar%GridCellArea(i, j)
 
                     if (ChannelsBankSlope(i,j) <= AlmostZero) then
@@ -2055,7 +2058,8 @@ doIter:         do while (iter <= Niter)
             do j = Me%WorkSize%JLB, Me%WorkSize%JUB
             do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                 if (Me%myWaterVolumeOld(i, j) / Me%ExtVar%GridCellArea(i, j) > 0.01) then
-                    if (abs(Me%myWaterVolume(i, j) - Me%myWaterVolumeOld(i, j)) / Me%myWaterVolumeOld(i, j) > Me%StabilizeFactor) then
+                    if (abs(Me%myWaterVolume(i, j) - Me%myWaterVolumeOld(i, j)) / Me%myWaterVolumeOld(i, j)     &
+                         > Me%StabilizeFactor) then
                         Restart = .true.
                         return
                     endif
@@ -2180,7 +2184,8 @@ doIter:         do while (iter <= Niter)
         !Sets Boundary values
         do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         do i = Me%WorkSize%ILB, Me%WorkSize%IUB
-            if (Me%ExtVar%BoundaryPoints2D(i, j) == 1 .and. (j == Me%WorkSize%JLB .or. j == Me%WorkSize%JUB .or. i == Me%WorkSize%ILB .or. i == Me%WorkSize%IUB)) then
+            if (Me%ExtVar%BoundaryPoints2D(i, j) == 1 .and. (j == Me%WorkSize%JLB .or. j == Me%WorkSize%JUB    &
+                 .or. i == Me%WorkSize%ILB .or. i == Me%WorkSize%IUB)) then
 
                 !Necessary Variation in height            
                 dh = Me%myWaterColumn (i, j) - Me%BoundaryValue
