@@ -5938,7 +5938,7 @@ cd3:            if (Me%ComputeOptions%Continuous) then
 
         if (Me%ComputeOptions%TideSlowStartCoef > 0. .and.                              &
             Me%ComputeOptions%Continuous)                                               & 
-            call SetError(FATAL_, INTERNAL_, 'Verify_Numerical_Options - Hydrodynamic - ERR20a.') 
+            call SetError(WARNING_, INTERNAL_, 'Verify_Numerical_Options - Hydrodynamic - ERR20a.') 
 
 
         if (.not. Me%ComputeOptions%Compute_Tide .and.                                  &

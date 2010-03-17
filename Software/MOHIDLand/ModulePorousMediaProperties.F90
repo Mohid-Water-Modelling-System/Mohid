@@ -682,6 +682,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         call ReadFileName ('POROUS_PROP_FIN', Me%Files%FinalFile, "PorousMedia Final File", STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModulePorousMediaProperties - ERR01c'
    
+        !Reads the name of the file where to store final data
+        call ReadFileName ('POROUS_PROP_INI', Me%Files%InitialFile, "PorousMedia Initial File", STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModulePorousMediaProperties - ERR01d'
 
     end subroutine ReadFileNames
     

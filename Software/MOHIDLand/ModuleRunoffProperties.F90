@@ -674,6 +674,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         !Reads the name of the file where to store final data
         call ReadFileName ('RUNOFF_PROP_FIN', Me%Files%FinalFile, "Runoff Final File", STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunoffProperties - ERR01c'
+
+        !Reads the name of the file where to read restart options
+        call ReadFileName ('RUNOFF_PROP_INI', Me%Files%InitialFile, "Runoff Initial File", STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunoffProperties - ERR01d'
    
 
     end subroutine ReadFileNames
