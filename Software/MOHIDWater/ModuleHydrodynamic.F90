@@ -5937,9 +5937,13 @@ cd3:            if (Me%ComputeOptions%Continuous) then
             call SetError(FATAL_, INTERNAL_, 'Verify_Numerical_Options - Hydrodynamic - ERR20.') 
 
         if (Me%ComputeOptions%TideSlowStartCoef > 0. .and.                              &
-            Me%ComputeOptions%Continuous)                                               & 
-            call SetError(WARNING_, INTERNAL_, 'Verify_Numerical_Options - Hydrodynamic - ERR20a.') 
-
+            Me%ComputeOptions%Continuous) then 
+                write(*,*) 'Hot Start is ON' 
+                write(*,*) 'SLOWSTART keyword present'
+                write(*,*) 'SlowStart period is set to zero by default in all Hot Start's' 
+                Me%ComputeOptions%TideSlowStartCoef = 0.
+                call SetError(WARNING_, INTERNAL_, 'Verify_Numerical_Options - Hydrodynamic - WRN20a.') 
+        endif
 
         if (.not. Me%ComputeOptions%Compute_Tide .and.                                  &
                   Me%TidePotential%Compute )                                            &
