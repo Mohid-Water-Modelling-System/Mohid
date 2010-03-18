@@ -1047,7 +1047,7 @@ SF:             if (StartInputFound) then
                     write(*,*)"Input WaterPoint From file does not match Bathymetry"
                     write(*,*)"Point i = ", i
                     write(*,*)"Point j = ", j
-                    stop 'StartHydrodynamicFileInput - ModuleHydrodynamicFile - ERR05'
+                    write(*,*)'StartHydrodynamicFileInput - ModuleHydrodynamicFile - WRN05'
                 endif
             enddo
             enddo
