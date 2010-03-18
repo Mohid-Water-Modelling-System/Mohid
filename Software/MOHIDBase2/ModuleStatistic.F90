@@ -32,6 +32,7 @@ Module ModuleStatistic
     use ModuleTime                  
     use ModuleStopWatch, only: StartWatch, StopWatch
     use ModuleEnterData
+    use ModuleFunctions
     use ModuleHDF5             
 
     implicit none 
@@ -2801,7 +2802,10 @@ doClass:        do iClass = 1, Me%Classification%nClasses
         character(len=StringLength)                 :: AuxChar, AuxChar1, AuxChar2
         real, dimension(:, :, :), pointer           :: AuxMatrix3D
         real, dimension(:, :   ), pointer           :: AuxMatrix2D
-        real                                        :: Aux
+        real                                        :: Aux, d1, d2
+        real(8), dimension(:), allocatable          :: P,C
+        real(8)                                     :: Px,Cx,Error
+        integer                                     :: nc, status, n
 
         !Shorten
         ILB = Me%ExternalVar%WorkSize%ILB
@@ -3467,27 +3471,71 @@ doClass:        do iClass = 1, Me%Classification%nClasses
                 Me%Methodology==Value3DStatLayers_) then
             
                 !By default all domain belongs to the first class
-                AuxMatrix3D(:,:,:) = 1.
+                AuxMatrix3D(:,:,:) = 0.
+                
+                nc = Me%Classification%nClasses
+                
+                allocate(C(nc+1),P(nc+1))
+                
+                C(1) = Me%Classification%Classes(1, 1)
+                
+                P(1) = 0. 
+                
+                do iClass = 1, nc 
+                
+                    C(iClass+1) = Me%Classification%Classes(iClass, 2)
+                    
+                enddo
+                
+                Px = Me%Classification%Percentil                
 
                 do k = KLB, KUB
                 do j = JLB, JUB
                 do i = ILB, IUB
-                Aux = 0.
-doClass1:       do iClass = 1, Me%Classification%nClasses
 
-                    Aux = Aux + Me%Classification%Frequency(i, j, k, iClass) * 100.
+doClass1:       do iClass = 1, nc
 
-                    if (Aux <= Me%Classification%Percentil) then
-                        AuxMatrix3D(i, j, k) = float(iClass)
-                    else
-                        exit doClass1
-                    endif
-                
+                    P(iClass + 1) = P(iClass) + Me%Classification%Frequency(i, j, k, iClass) * 100.
+
                 enddo doClass1
+                
+                
+                
+                !Land point 
+                if (P(nc + 1) == 0.) then
+                    Cx = FillValueReal                
+                    
+                else if (Px > P(nc + 1)) then
+                    Cx = C(nc + 1)
+                    write(*,*) 'WriteValuesToFileHDF5 - ModuleStatistic - WRN35'
+                    write(*,*) 'Percentil out of range please add more classes' 
+                    write(*,*) 'Cell i=',i, ' j', j, ' k', k
+
+                else                
+                    ! polynomail interpolation 
+                    !call polint(P(1:nc+1),C(1:nc+1),nc+1,Px,Cx,Error, STAT = status)
+                    
+                    !if large incertanty or a error is return - linear interpolation 
+                    !if (Error > abs(C(nc+1) - C(1))/100. .or. status /= SUCCESS_) then
+                        do n = 1,nc+1
+                            if (Px>=P(n) .and. Px<=P(n+1)) then
+                                d1 = Px - P(n)
+                                d2 = P(n+1) - Px
+                                Cx = (C(n) * d2 + C(n+1) * d1) / (d2 + d1)
+                                exit
+                            endif 
+                        enddo
+                    !endif
+                    
+                endif
+                
+                AuxMatrix3D(i, j, k) = Cx 
+                
                 enddo
                 enddo
                 enddo
 
+                deallocate(C,P)
 
                 call HDF5WriteData   (Me%ObjHDF5, trim(Me%GroupName)//trim(Me%Name)//"/Classes",            &
                                       trim(adjustl(AuxChar)),                                               &
