@@ -5484,16 +5484,20 @@ i5:         if      (TVD_Limitation == MinMod) then
 !P(xai) = yai, i = 1, . . . , n, then the returned value y = P(x).
 
 
-    subroutine polint(xa,ya,n,x,y,dy)
+    subroutine polint(xa,ya,n,x,y,dy, STAT)
         !Arguments---------------------------------------------------
         integer, intent(IN) ::  n
         real(8), intent(IN) ::  x,xa(n),ya(n)
         real(8), intent(OUT)::  dy,y
+        integer, intent(OUT), optional :: STAT
+        
         !Largest anticipated value of n.
         integer, PARAMETER  :: NMAX=10
         !Local-------------------------------------------------------
         integer :: i,m,ns
         real    :: den,dif,dift,ho,hp,w,c(NMAX),d(NMAX)
+        
+        STAT = SUCCESS_
 
         ns=1
         dif=abs(x-xa(1))
@@ -5514,12 +5518,23 @@ d2:         do i=1,n-m ! we loop over the current c’s and d’s and update them.
                 hp=xa(i+m)-x
                 w=c(i+1)-d(i)
                 den=ho-hp
-                if(den.eq.0.) stop "failure in polint"
+                if(abs(den)<1e-12) then
+                    if (present(STAT)) then 
+                        STAT = UNKNOWN_
+                        exit
+                    else
+                        stop "failure in polint"
+                    endif
+                    
+                endif 
                 !This error can occur only if two input xa’s are (to within roundoff) identical.
                 den=w/den
                 d(i)=hp*den ! Here the c’s and d’s are updated.
                 c(i)=ho*den
             enddo d2
+            
+            if (STAT /= SUCCESS_) exit 
+            
             if (2*ns.lt.n-m)then !After each column in the tableau is completed, we decide
                                  !which correction, c or d, we want to add to our accumulating
                                  !value of y, i.e., which path to take through
