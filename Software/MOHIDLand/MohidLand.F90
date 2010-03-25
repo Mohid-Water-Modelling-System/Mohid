@@ -215,9 +215,16 @@ program MohidLand
             if (VariableDT) then
                               
                 DT = min(NewDT, MaxDT)
-                
-                !Rounds DT to full seconds
-                DT = max(AINT(DT), 1.0)
+
+!                !This code eventually leads to a "DT lock". Ex. If the initial value is 10 and the NewDT value 
+!                !is 10.5, the DT will forever be locked with 10
+!                !Rounds DT to full seconds
+!                DT = max(AINT(DT), 1.0)
+                if (DT > AINT(DT)) then
+                   DT = AINT(DT) + 1.0
+                else
+                   DT = max(DT, 1.0)
+                endif
 
                 !Fit last Iteration
                 if (CurrentTime + DT > EndTime) then
@@ -231,8 +238,7 @@ program MohidLand
             else
 
                 !Fit last Iteration
-                if (CurrentTime .GE. EndTime) exit                
-    
+                if (CurrentTime .GE. EndTime) exit                    
 
             endif 
 
