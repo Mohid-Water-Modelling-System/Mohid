@@ -76,7 +76,8 @@
 ! MAX_BUFFER_SIZE           : 1000
 ! COMPUTE_RESIDUAL          : 1 
 ! DT_OUTPUT_TIME            : 1200
-! TIME_SERIE_BY_NODES       : 0/1               [0]         !Keyword to see if the user wants the time series to be written by nodes, i.e.,
+! TIME_SERIE_BY_NODES       : 0/1               [0]         !Keyword to see if the user wants the time series to be written by 
+                                                            !nodes, i.e.,
                                                             !One file per node, with all variables in the headers list
                                                             !if FALSE, its one file per variable with nodes in the headers.
 
@@ -249,8 +250,9 @@ Module ModuleDrainageNetwork
     public  :: UnGetDrainageNetwork
     public  :: SetAtmosphereDrainageNet     !To be called from MOHID Land
     public  :: SetAtmosphereRiverNet        !To be called from River Network
-    public  :: SetPMPConcDN
-    public  :: SetRPConcDN
+    public  :: SetPMPConcDN                 !DrainageNetwork gets the conc from Porous Media Properties
+    public  :: SetRPConcDN                  !DrainageNetwork gets the conc from Runoff Properties
+    public  :: SetGWFlowLayersToDN          !DrainageNetwork gets the Porous Media layers limits for GWFlow (faster process)
     private :: SearchProperty
         
     !Modifier
@@ -348,8 +350,7 @@ Module ModuleDrainageNetwork
     
     character(LEN = StringLength), parameter        :: block_begin          = '<beginproperty>'
     character(LEN = StringLength), parameter        :: block_end            = '<endproperty>'
-
-           
+    
     !CrossSections
     integer, parameter                              :: Trapezoidal          = 1
     integer, parameter                              :: TrapezoidalFlood     = 2
@@ -639,6 +640,7 @@ Module ModuleDrainageNetwork
         real, dimension (:), pointer                :: MassCreated              => null()   !kg
         real, dimension (:), pointer                :: OverLandConc             => null()
         real, dimension (:), pointer                :: GWaterConc               => null()
+        real, dimension (:, :, :), pointer          :: GWaterConcLayers         => null()   !for computation by layers
         real, dimension (:), pointer                :: DWaterConc               => null()
         real, dimension (:), pointer                :: BottomConc               => null()   !kg m-2
         real, dimension (:), pointer                :: MassInKg                 => null()   !kg (run with Benthos)
@@ -727,8 +729,13 @@ Module ModuleDrainageNetwork
         real                                        :: NumericalScheme
         real,    dimension(:)  , pointer            :: RunOffVector         => null()
         real,    dimension(:)  , pointer            :: GroundVector         => null()
+        real,    dimension(:,:,:), pointer          :: GroundVectorLayers   => null()
         real,    dimension(:)  , pointer            :: DiffuseVector        => null()
         real,    dimension(:)  , pointer            :: TransmissionFlow     => null()
+        
+        logical                                     :: GWFlowByLayers
+        integer, dimension(:), pointer              :: GWFlowBottomLayer
+        integer, dimension(:), pointer              :: GWFlowTopLayer
 
         real,    dimension(:,:), pointer            :: ChannelsWaterLevel   => null()
         real,    dimension(:,:), pointer            :: ChannelsBottomLevel  => null()
@@ -3879,12 +3886,14 @@ ifB:    if (NewProperty%ComputeOptions%BottomFluxes) then
 
         allocate (Me%RunOffVector       (Me%TotalNodes))
         allocate (Me%GroundVector       (Me%TotalNodes))
+        allocate (Me%GWFlowBottomLayer  (Me%TotalNodes))
+        allocate (Me%GWFlowTopLayer     (Me%TotalNodes))
         allocate (Me%DiffuseVector      (Me%TotalNodes))
         allocate (Me%ComputeFaces       (Me%TotalNodes))
         allocate (Me%OpenPointsFlow     (Me%TotalNodes))
         allocate (Me%OpenPointsProcess  (Me%TotalNodes))
         allocate (Me%RiverPoints        (Me%TotalNodes))
-
+        
         if (Me%ComputeOptions%TransmissionLosses) then
             allocate (Me%TransmissionFlow (Me%TotalNodes))
             Me%TransmissionFlow = 0.0
@@ -3896,7 +3905,9 @@ ifB:    if (NewProperty%ComputeOptions%BottomFluxes) then
         endif
 
         Me%RunOffVector     = 0.0  
-        Me%GroundVector     = 0.0  
+        Me%GroundVector     = 0.0
+        Me%GWFlowBottomLayer = null_int
+        Me%GWFlowTopLayer    = null_int
         Me%DiffuseVector    = 0.0
         Me%ComputeFaces     = 0  
         Me%OpenPointsFlow   = 0  
@@ -4308,7 +4319,7 @@ if1:        if (CurrNode%nDownstreamReaches /= 0) then
                 CurrNode%VolumeNew  = 0.0 + PoolVolume
             else
                 !Pools are always full in the beginning
-                PoolVolume            = 1.0 * CurrNode%CrossSection%PoolDepth * CurrNode%CrossSection%BottomWidth * CurrNode%Length               
+                PoolVolume            = 1.0 * CurrNode%CrossSection%PoolDepth * CurrNode%CrossSection%BottomWidth * CurrNode%Length 
                 CurrNode%VerticalArea = CurrNode%SingCoef * CurrNode%VerticalArea
                 !CurrNode%WetPerimeter = CurrNode%SingCoef * CurrNode%WetPerimeter
                 CurrNode%VolumeNew    = CurrNode%VerticalArea * CurrNode%Length + PoolVolume
@@ -6372,12 +6383,13 @@ if0:    if (Me%HasProperties) then
 
     !---------------------------------------------------------------------------
     
-    subroutine SetPMPConcDN   (DrainageNetworkID, ConcentrationX,      &
+    subroutine SetPMPConcDN   (DrainageNetworkID, ConcentrationX2D, ConcentrationX3D, &
                                                 PropertyXIDNumber, STAT)
 
         !Arguments--------------------------------------------------------------
         integer                                         :: DrainageNetworkID
-        real, dimension(:, :), pointer                  :: ConcentrationX
+        real, dimension(:, :), pointer, optional        :: ConcentrationX2D
+        real, dimension(:, :, :), pointer, optional     :: ConcentrationX3D
         integer                                         :: PropertyXIDNumber
         integer, intent(OUT), optional                  :: STAT
 
@@ -6401,14 +6413,17 @@ if0:    if (Me%HasProperties) then
             call SearchProperty(PropertyX, PropertyXIDNumber = PropertyXIDNumber, STAT = STAT_)
 
             if (STAT_ == SUCCESS_) then
-            
-                do NodeID = 1, Me%TotalNodes
-                    CurrNode => Me%Nodes(NodeID)
-                    
-!                    PropertyX%ConcentrationGWLayer (NodeID) = ConcentrationX     (CurrNode%GridI, CurrNode%GridJ)
-                    PropertyX%GWaterConc (NodeID) = ConcentrationX     (CurrNode%GridI, CurrNode%GridJ)
+                
+                if (present(ConcentrationX2D)) then
+                    do NodeID = 1, Me%TotalNodes
+                        CurrNode => Me%Nodes(NodeID)
+                        
+                        PropertyX%GWaterConc (NodeID) = ConcentrationX2D     (CurrNode%GridI, CurrNode%GridJ)
 
-                enddo                
+                    enddo
+                elseif (present(ConcentrationX3D)) then
+                    PropertyX%GWaterConcLayers => ConcentrationX3D
+                endif               
 
             else
                 write(*,*) 'Looking for Porous Media Property in Drainage Network', GetPropertyName(PropertyXIDNumber)
@@ -6479,7 +6494,47 @@ if0:    if (Me%HasProperties) then
     end subroutine SetRPConcDN
 
     !---------------------------------------------------------------------------
-    
+
+    subroutine SetGWFlowLayersToDN   (DrainageNetworkID, GWFlowBottomLayer,        &
+                                      GWFlowTopLayer, STAT)
+
+        !Arguments--------------------------------------------------------------
+        integer                                         :: DrainageNetworkID
+        integer, dimension(:, :), pointer               :: GWFlowBottomLayer
+        integer, dimension(:, :), pointer               :: GWFlowTopLayer
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local------------------------------------------------------------------
+        integer                                         :: NodeID
+        type (T_Node), pointer                          :: CurrNode
+        integer                                         :: STAT_, ready_
+
+        !-----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(DrainageNetworkID, ready_)
+
+        if (ready_ .EQ. IDLE_ERR_)then
+            
+                
+            do NodeID = 1, Me%TotalNodes
+                CurrNode => Me%Nodes(NodeID)
+                
+                Me%GWFlowTopLayer (NodeID)    = GWFlowTopLayer     (CurrNode%GridI, CurrNode%GridJ)
+                Me%GWFlowBottomLayer (NodeID) = GWFlowBottomLayer  (CurrNode%GridI, CurrNode%GridJ)
+
+            enddo
+            STAT_ = SUCCESS_ 
+        else
+            STAT_ = ready_
+        end if
+
+        STAT = STAT_
+
+    end subroutine SetGWFlowLayersToDN
+
+    !---------------------------------------------------------------------------    
 
     subroutine SearchProperty(PropertyX, PropertyXIDNumber, PrintWarning, STAT)
 
@@ -6563,12 +6618,13 @@ do2 :   do while (associated(PropertyX))
     !---------------------------------------------------------------------------
 
     subroutine ModifyDrainageNetWithGrid(DrainageNetworkID, OLFlowToChannels,            & 
-                                         GWFlowToChannels, DiffuseFlow, STAT)
+                                         GWFlowToChannels, GWFlowToChannelsLayer, DiffuseFlow, STAT)
 
         !Arguments--------------------------------------------------------------
         integer                                     :: DrainageNetworkID          
         real, dimension(:, :), pointer              :: OLFlowToChannels
         real, dimension(:, :), pointer              :: GWFlowToChannels
+        real, dimension(:, :, :), pointer, optional :: GWFlowToChannelsLayer
         real, dimension(:, :), pointer              :: DiffuseFlow
         integer, intent(OUT)          , optional    :: STAT
 
@@ -6576,7 +6632,6 @@ do2 :   do while (associated(PropertyX))
         type (T_Node), pointer                      :: CurrNode
         integer                                     :: STAT_CALL, ready_
         integer                                     :: NodeID
-
         !-----------------------------------------------------------------------
 
         STAT_CALL = UNKNOWN_
@@ -6584,21 +6639,30 @@ do2 :   do while (associated(PropertyX))
         call Ready(DrainageNetworkID, ready_)
         
         if (ready_ .EQ. IDLE_ERR_) then
-           
-            !UpdateRunOffFluxes
+            
+            !Update RunOff and GW Fluxes
             do NodeID = 1, Me%TotalNodes            
                 CurrNode => Me%Nodes (NodeID)
                 Me%RunOffVector(NodeID) = OLFlowToChannels(CurrNode%GridI, CurrNode%GridJ)
+                
                 if (associated(GWFlowToChannels)) then             
                     Me%GroundVector(NodeID) = GWFlowToChannels(CurrNode%GridI, CurrNode%GridJ)
                 endif
+                
+                if (present(GWFlowToChannelsLayer)) then 
+                    Me%GWFlowByLayers     = .true.            
+                    Me%GroundVectorLayers => GWFlowToChannelsLayer
+                endif 
+                
                 if (associated(DiffuseFlow)) then
                     Me%DiffuseVector(NodeID) = DiffuseFlow(CurrNode%GridI, CurrNode%GridJ)
                 endif
             enddo
-
+            
+            
             call ModifyDrainageNetLocal
-                      
+            
+                     
             STAT_CALL = SUCCESS_
         else               
             STAT_CALL = ready_
@@ -6691,7 +6755,8 @@ do2 :   do while (associated(PropertyX))
                 if (CurrReach%VerticalArea .LE. AlmostZero) then
                     CurrReach%HydroFriction = 0.0
                 else                        
-                    CurrReach%HydroFriction = CurrReach%Manning * CurrReach%FlowNew / (CurrReach%VerticalArea * CurrReach%HydraulicRadius**(2./3.) )
+                    CurrReach%HydroFriction = CurrReach%Manning * CurrReach%FlowNew / (CurrReach%VerticalArea        &
+                                              * CurrReach%HydraulicRadius**(2./3.) )
                     CurrReach%HydroFriction = gA * CurrReach%HydroFriction**2
                 endif
                                         
@@ -7265,7 +7330,7 @@ do2 :   do while (associated(PropertyX))
         real                                        :: LocalDT
 
         !Local------------------------------------------------------------------
-        integer                                     :: NodeID
+        integer                                     :: NodeID, K
         type (T_Node), pointer                      :: CurrNode
         type (T_Property), pointer                  :: Property
 
@@ -7317,21 +7382,42 @@ do2 :   do while (associated(PropertyX))
         nullify (Property)
         Property => Me%FirstProperty
         do while (associated (Property))
-            do NodeID = 1, Me%TotalNodes
-                CurrNode => Me%Nodes (NodeID)
-                call DischargeProperty (Me%GroundVector (NodeID), Property%GWaterConc(NodeID),  &
-                                        CurrNode%VolumeNew,   Property%Concentration(NodeID),   &
-                                        Property%IScoefficient, LocalDT,                        &    
-                                        Check_Particulate_Property(Property%ID%IDNumber))
-            enddo
+            !exchange only dissolved properties between soil and river
+            if (.not. Check_Particulate_Property(Property%ID%IDNumber)) then
+                do NodeID = 1, Me%TotalNodes
+                    CurrNode => Me%Nodes (NodeID)
+                    !not compute for phantom node - it has not flow associated in porous media
+                    !and no limites for K defined
+                    if (CurrNode%nDownstreamReaches .gt. 0) then
+                        if (.not. Me%GWFlowByLayers) then
+                            call DischargeProperty (Me%GroundVector (NodeID), Property%GWaterConc(NodeID),  &
+                                                    CurrNode%VolumeNew,   Property%Concentration(NodeID),   &
+                                                    Property%IScoefficient, LocalDT, .false.)
+                            
+                            CurrNode%VolumeNew = CurrNode%VolumeNew + (Me%GroundVector (NodeID) * LocalDT)
+                        else
+                            do K = Me%GWFlowBottomLayer(NodeID), Me%GWFlowTopLayer(NodeID)
+                                call DischargeProperty (Me%GroundVectorLayers (CurrNode%GridI, CurrNode%GridJ, k),    &
+                                                        Property%GWaterConcLayers(CurrNode%GridI, CurrNode%GridJ, k), &
+                                                        CurrNode%VolumeNew,   Property%Concentration(NodeID),         &
+                                                        Property%IScoefficient, LocalDT, .false.) 
+                                                        
+                                CurrNode%VolumeNew = CurrNode%VolumeNew                                               &
+                                                     + (Me%GroundVectorLayers (CurrNode%GridI, CurrNode%GridJ, k)     &
+                                                     * LocalDT) 
+                            enddo
+                        endif
+                    endif
+                enddo
+            endif
             Property => Property%Next
         enddo
 
-        !Actualize VolumeNew
-        do NodeID = 1, Me%TotalNodes
-            CurrNode => Me%Nodes (NodeID)
-            CurrNode%VolumeNew = CurrNode%VolumeNew + (Me%GroundVector (NodeID) * LocalDT)
-        enddo        
+!        !Actualize VolumeNew
+!        do NodeID = 1, Me%TotalNodes
+!            CurrNode => Me%Nodes (NodeID)
+!            CurrNode%VolumeNew = CurrNode%VolumeNew + (Me%GroundVector (NodeID) * LocalDT)
+!        enddo        
     
         !Discharges DiffuseFlow
         nullify (Property)
@@ -11098,6 +11184,8 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
 !                endif
                 
                 deallocate (Me%RunOffVector     )
+                deallocate (Me%GroundVector     )
+                deallocate (Me%DiffuseVector    )
                 deallocate (Me%Nodes            )
                 deallocate (Me%Reaches          )
                 deallocate (Me%ComputeFaces     )

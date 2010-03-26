@@ -54,7 +54,9 @@ Module ModulePorousMediaProperties
                                          GetFluxV, GetFluxW, GetUnsatW, GetUnsatV,         &
                                          GetUnsatU, UnGetPorousMedia,                      &
                                          GetThetaS, GetGWFlowToChannels,                   &
-                                         GetGWLayer, GetPotentialInfiltration
+                                         GetGWLayerOld, GetPotentialInfiltration,          &
+                                         GetGWFlowToChannelsByLayer, GetGWToChannelsLayers,  &
+                                         GetGWFlowOption
                                          
 #ifdef _PHREEQC_                                          
     use ModuleInterface,          only : ConstructInterface, Modify_Interface, GetPhreeqCID 
@@ -159,6 +161,9 @@ Module ModulePorousMediaProperties
 
     real,    parameter :: WaterReferenceDensity = 1000. ![kg/m3]
     
+    !For integration with options from GWflow to river (if flow is by layer or complete)
+    integer, parameter :: Layer_ = 2
+    
     integer, parameter :: DirectionX = 1
     integer, parameter :: DirectionY = 2
 
@@ -236,7 +241,10 @@ Module ModulePorousMediaProperties
         real   , pointer, dimension(:,:  )          :: Topography  
         real ,   pointer, dimension(:,:,:)          :: SZZ
         real,    pointer, dimension(:,:)            :: FlowToChannels
-        integer, pointer, dimension(:,:)            :: GWLayer
+        real,    pointer, dimension(:,:,:)          :: FlowToChannelsLayer
+        integer, pointer, dimension(:,:)            :: GWFlowBottomLayer
+        integer, pointer, dimension(:,:)            :: GWFlowTopLayer
+        integer, pointer, dimension(:,:)            :: GWLayerOld
         
         !from vegetation
         logical                                     :: ComputeVegInterfaceFluxes 
@@ -452,7 +460,7 @@ Module ModulePorousMediaProperties
         integer                                     :: AdvDiff_SpatialMethod ! 1 - Upwind; 2-Central Differences
         logical                                     :: AdvDiff_Explicit      !
         logical                                     :: AdvDiff_CheckCoefs    !
-        logical                                     :: AdvDiff_ComputeTransport3D
+!        logical                                     :: AdvDiff_ComputeTransport3D
         integer                                     :: AdvDiff_DiffMethod    !  1 - Jury based, 2 - AdvectionDiffusion    
         !--For PorousMediaProperties Advection-Diffusion Method
         real,    pointer, dimension(:,:,:)          :: DifusionNumber
@@ -745,25 +753,23 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                          STAT         = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ReadGlobalOptions - ModulePorousMediaProeprties - ERR50'
 
-            call GetData(Me%AdvDiff_ComputeTransport3D,                                      &   
+!            call GetData(Me%AdvDiff_ComputeTransport3D,                                      &   
+!                         Me%ObjEnterData, iflag,                                              &
+!                         SearchType = FromFile,                                               &
+!                         keyword    = 'ADVDIFF_3D',                                           &
+!                         Default    = .true.,                                                 &
+!                         ClientModule ='ModulePorousMediaProperties',                         &
+!                         STAT       = STAT_CALL)            
+!            if (STAT_CALL /= SUCCESS_) stop 'ReadGlobalOptions - ModulePorousMediaProeprties - ERR60'
+            
+            call GetData(Me%AdvDiff_DiffMethod,                                               &   
                          Me%ObjEnterData, iflag,                                              &
                          SearchType = FromFile,                                               &
-                         keyword    = 'ADVDIFF_3D',                                           &
-                         Default    = .false.,                                                &
+                         keyword    = 'ADVDIFF_DIFF_METHOD',                                  &
+                         Default    = AdvDif_Diff_Jury_,                                      &
                          ClientModule ='ModulePorousMediaProperties',                         &
                          STAT       = STAT_CALL)            
-            if (STAT_CALL /= SUCCESS_) stop 'ReadGlobalOptions - ModulePorousMediaProeprties - ERR60'
-            
-            if (Me%AdvDiff_ComputeTransport3D) then
-                call GetData(Me%AdvDiff_DiffMethod,                                               &   
-                             Me%ObjEnterData, iflag,                                              &
-                             SearchType = FromFile,                                               &
-                             keyword    = 'ADVDIFF_DIFF_METHOD',                                  &
-                             Default    = AdvDif_Diff_Jury_,                                      &
-                             ClientModule ='ModulePorousMediaProperties',                         &
-                             STAT       = STAT_CALL)            
-                if (STAT_CALL /= SUCCESS_) stop 'ReadGlobalOptions - ModulePorousMediaProeprties - ERR070'            
-            endif
+            if (STAT_CALL /= SUCCESS_) stop 'ReadGlobalOptions - ModulePorousMediaProeprties - ERR070'            
             
             call GetData(Me%AdvDiff_CheckCoefs,                        &   !Eduardo
                          Me%ObjEnterData, iflag,                       &
@@ -1935,7 +1941,7 @@ cd1:    if (Me%AdvDiff_Module == AdvDif_ModuleAD_) then
             NewProperty%Diff_Turbulence_V = 0.                   
             
        !explicit calculation inside module porous media properties
-       elseif (Me%AdvDiff_Module == AdvDif_ModulePMP_ .and. Me%AdvDiff_ComputeTransport3D) then 
+       elseif (Me%AdvDiff_Module == AdvDif_ModulePMP_) then 
             allocate (NewProperty%ViscosityU (ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)stop 'ConstructPropertyDiffusivity - ModulePorousMediaProperties - ERR60'
             
@@ -2345,11 +2351,7 @@ do1:     do
             end if
         enddo do1
         
-        if (.not. Me%AdvDiff_ComputeTransport3D) then
-            write (Me%Files%AsciiUnit, FMT=*) 'YY     MM   DD   HH   MM     SS     i   j   k    Coefa   Coefb  Coefc  CoefD '
-        else
-            write (Me%Files%AsciiUnit, FMT=*) 'YY MM DD HH MM  SS  i j k  cofA_W cofB cofC_W cofD_W cofA_U cofC_U cofA_V cofC_V '
-        endif
+        write (Me%Files%AsciiUnit, FMT=*) 'YY MM DD HH MM  SS  i j k  cofA_W cofB cofC_W cofD_W cofA_U cofC_U cofA_V cofC_V '
     
     end subroutine ConstructAsciiFile
     
@@ -4897,15 +4899,13 @@ do3:        do K = Me%WorkSize%KUB, Me%WorkSize%KLB, -1
 
             if (PropertyX%Evolution%AdvectionDiffusion) then
 
-                if (Me%AdvDiff_ComputeTransport3D) then
-                    
                     call ModifyAdvectionDiffusion_3D(PropertyX)
                 
-                else
-                    !1D vertical
-                    call ModifyAdvectionDiffusion_W(PropertyX)
-                
-                endif
+!                else
+!                    !1D vertical
+!                    call ModifyAdvectionDiffusion_W(PropertyX)
+!                
+!                endif
 
             endif
 
@@ -4966,11 +4966,14 @@ do3:        do K = Me%WorkSize%KUB, Me%WorkSize%KLB, -1
                 
                 Me%Volume(i,j,k)= Theta(i,j,k)*Me%ExtVar%Cellvolume(i,j,k)
 
+                !s/m3
+                aux      = (Me%ExtVar%DT/Me%Volume(i,j,k))
+
                !!!FLUXES WITH Drainage Network
                CofInterfaceDN    = 0.0
                ConcInInterfaceDN = 0.0
                 if (Me%ExtVar%CoupledDN) then
-                    if(K == Me%ExtVar%GWLayer(i,j)) then
+                    if(K == Me%ExtVar%GWLayerOld(i,j)) then
                        !Flux between river and runoff
                         if (Me%ExtVar%RiverPoints(I,J) == BasinPoint) then                        
                             
@@ -5001,9 +5004,6 @@ do3:        do K = Me%WorkSize%KUB, Me%WorkSize%KLB, -1
                 
                 !!FLUXES IN X AND Y DIRECTION                
                 if (Me%AdvDiff_SpatialMethod==AdvDif_CentralDif_) then ! diferenças centrais
-
-                    !s/m3
-                    aux      = (Me%ExtVar%DT/Me%Volume(i,j,k))
 
                     if (K == Me%WorkSize%KUB) then
                         ComputeCofD = .true.
@@ -5043,9 +5043,6 @@ do3:        do K = Me%WorkSize%KUB, Me%WorkSize%KLB, -1
                        
 
                 elseif (Me%AdvDiff_SpatialMethod==AdvDif_Upwind_) then ! upwind
-
-                    !s/m3
-                    aux      = (Me%ExtVar%DT/Me%Volume(i,j,k))
 
                     if (K == Me%WorkSize%KUB) then
                         ComputeCofD = .true.
@@ -5146,7 +5143,7 @@ do3:        do K = Me%WorkSize%KUB, Me%WorkSize%KLB, -1
 
         !Local-----------------------------------------------------------------
         type (T_Property), pointer                  :: CurrProperty
-        integer                                     :: i, j, k!, CHUNK
+        integer                                     :: i, j, k, STAT_CALL !, CHUNK
         real(8)                                     :: Area_Top_W, Area_Bottom_W, Area_Top_U, Area_Bottom_U
         real(8)                                     :: Area_Top_V, Area_Bottom_V
         real(8)                                     :: AdvTermA_W, AdvTermA_U, AdvTermA_V
@@ -5166,6 +5163,7 @@ do3:        do K = Me%WorkSize%KUB, Me%WorkSize%KLB, -1
         real   , pointer, dimension(:,:,:)          :: DWZ, DZZ, Theta, ThetaOld !, DZE, DZI
         real   , pointer, dimension(:,:  )          :: DZX, DZY, DXX, DYY !, DVX, DUY
         logical                                     :: ComputeCofC_W, ComputeCofD_W
+        integer                                     :: GWFlowLink
         !Begin-----------------------------------------------------------------
    
         !!CHUNK = CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)
@@ -5199,7 +5197,9 @@ do3:        do K = Me%WorkSize%KUB, Me%WorkSize%KLB, -1
         Theta     => Me%ExtVar%WaterContent
         ThetaOld  => Me%ExtVar%WaterContentOld
         
-
+        call GetGWFlowOption (Me%ObjPorousMedia, GWFlowLink, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop ' ModifyAdvectionDiffusion - ModulePorousMediaProperties - ERR01'
+        
         !!!$OMP PARALLEL PRIVATE(I,J,K)
         !!!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
         do K = Me%WorkSize%KLB, Me%WorkSize%KUB
@@ -5219,27 +5219,52 @@ do3:        do K = Me%WorkSize%KUB, Me%WorkSize%KLB, -1
 !                Area_Bottom_V      = DXX(i,j  ) * DZI(i,j,k  )
                 
                 Me%Volume(i,j,k)= Theta(i,j,k) * Me%ExtVar%Cellvolume(i,j,k)
+                !Auxuliar value for transport - units of flow-1
+                !s/m3
+                aux             = (Me%ExtVar%DT/Me%Volume(i,j,k))
 
                !!!FLUXES WITH Drainage Network
                CofInterfaceDN    = 0.0
                ConcInInterfaceDN = 0.0
-                if (Me%ExtVar%CoupledDN) then 
-                    if(K == Me%ExtVar%GWLayer(i,j)) then
-                       !Flux between river and runoff
+               if (Me%ExtVar%CoupledDN) then 
+                
+                    if (GWFlowLink == Layer_) then
+                        !Flux between river and runoff in layers
                         if (Me%ExtVar%RiverPoints(I,J) == BasinPoint) then                        
+                            if((K .ge. Me%ExtVar%GWFlowBottomLayer(i,j)) .and. (K .le. Me%ExtVar%GWFlowTopLayer(i,j))) then
+                                ! Positive flow -> looses mass
+                                cofInterfaceDN = - aux * Me%ExtVar%FlowToChannelsLayer(i,j,k)
+                                
+                                ! mass going to channel -> conc from soil
+                                if (Me%ExtVar%FlowToChannelsLayer(i,j,k) .gt. 0.0) then
+                                    ConcInInterfaceDN =  CurrProperty%ConcentrationOld(i,j,k)
+                                
+                                !mass coming from channel -> conc from DN
+                                elseif (Me%ExtVar%FlowToChannelsLayer(i,j,k) .lt. 0.0) then
+                                    ConcInInterfaceDN = CurrProperty%ConcentrationDN(i,j)
+                                endif
                             
-                            ! Positive flow -> looses mass
-                            cofInterfaceDN = - aux * Me%ExtVar%FlowToChannels(i,j)
-                            
-                            ! mass going to channel -> conc from soil
-                            if (Me%ExtVar%FlowToChannels(i,j) .gt. 0.0) then
-                                ConcInInterfaceDN =  CurrProperty%ConcentrationOld(i,j,k)
-                            
-                            !mass coming from channel -> conc from DN
-                            elseif (Me%ExtVar%FlowToChannels(i,j) .lt. 0.0) then
-                                ConcInInterfaceDN = CurrProperty%ConcentrationDN(i,j)
                             endif
+                        endif
                         
+                     else
+
+                        !Flux between river and runoff one value for each soil column
+                        !water removed or added in top cell of saturated zone
+                        if (Me%ExtVar%RiverPoints(I,J) == BasinPoint) then                        
+                            if (K == Me%ExtVar%GWlayerOld(i,j)) then
+                                ! Positive flow -> looses mass
+                                cofInterfaceDN = - aux * Me%ExtVar%FlowToChannels(i,j)
+                                
+                                ! mass going to channel -> conc from soil
+                                if (Me%ExtVar%FlowToChannels(i,j) .gt. 0.0) then
+                                    ConcInInterfaceDN =  CurrProperty%ConcentrationOld(i,j,k)
+                                
+                                !mass coming from channel -> conc from DN
+                                elseif (Me%ExtVar%FlowToChannels(i,j) .lt. 0.0) then
+                                    ConcInInterfaceDN = CurrProperty%ConcentrationDN(i,j)
+                                endif
+                            endif
                         endif
                     endif
                 endif
@@ -5255,9 +5280,6 @@ do3:        do K = Me%WorkSize%KUB, Me%WorkSize%KLB, -1
                 
                 !!FLUXES IN X AND Y DIRECTION 
                 if (Me%AdvDiff_SpatialMethod==AdvDif_CentralDif_) then ! diferenças centrais
-
-                    !s/m3
-                    aux      = (Me%ExtVar%DT/Me%Volume(i,j,k))
 
                     if (K == Me%WorkSize%KUB) then
                         ComputeCofD_W = .true.
@@ -5305,9 +5327,6 @@ do3:        do K = Me%WorkSize%KUB, Me%WorkSize%KLB, -1
                     
                         
                 elseif (Me%AdvDiff_SpatialMethod==AdvDif_Upwind_) then ! upwind
-
-                    !s/m3
-                    aux      = (Me%ExtVar%DT/Me%Volume(i,j,k))
 
                     if (K == Me%WorkSize%KUB) then
                         ComputeCofD_W = .true.
@@ -5502,10 +5521,8 @@ do3:        do K = Me%WorkSize%KUB, Me%WorkSize%KLB, -1
         UnsatW    => Me%ExtVar%UnsatW
         DiffCoef  = CurrProperty%Evolution%AdvDiff%Molecular_Diff_Coef
         
-        if (Me%AdvDiff_ComputeTransport3D) then 
-            UnsatU    => Me%ExtVar%UnsatU
-            UnsatV    => Me%ExtVar%UnsatV
-        endif
+        UnsatU    => Me%ExtVar%UnsatU
+        UnsatV    => Me%ExtVar%UnsatV
         
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
         do K = Me%WorkSize%KLB, Me%WorkSize%KUB
@@ -5529,32 +5546,30 @@ do3:        do K = Me%WorkSize%KUB, Me%WorkSize%KLB, -1
                                                     (DiffCoef * Tortuosity(WaterContent_Face, Porosity_Face))                    &
                                                      +(abs(UnsatW(i,j,k  )) * Me%Disper_Longi%Field(i,j,k) / WaterContent_Face)
                 
-                if (Me%AdvDiff_ComputeTransport3D) then 
-                    if (Me%ExtVar%WaterPoints3D(I,J-1,K) /= WaterPoint) then
-                        WaterContent_Face = ThetaOld(i,j,k)
-                    else                                                                                       
-                        WaterContent_Face = min(ThetaOld(i,j,k),ThetaOld(i,j-1,k))
-                    endif
-                    Porosity_Face     = min(Porosity(i,j,k),Porosity(i,j-1,k))
-                    
-                    !Only compute diffusivity in compute faces U (faces tath are not boundaries), else is zero
-                    !m2/s = m2/s + m/s * m
-                    CurrProperty%ViscosityU(i,j,k)  = Me%ExtVar%ComputeFacesU3D(i,j,k  ) *                                       &
-                                                        (DiffCoef * Tortuosity(WaterContent_Face, Porosity_Face))                &
-                                                         +(abs(UnsatU(i,j,k  )) * Me%Disper_Trans%Field(i,j,k) / WaterContent_Face)
-                    if (Me%ExtVar%WaterPoints3D(I-1,J,K) /= WaterPoint) then
-                        WaterContent_Face = ThetaOld(i,j,k)
-                    else                                                           
-                        WaterContent_Face = min(ThetaOld(i,j,k),ThetaOld(i-1,j,k))
-                    endif
-                    Porosity_Face     = min(Porosity(i,j,k),Porosity(i-1,j,k))
-                    
-                    !Only compute diffusivity in compute faces V (faces tath are not boundaries), else is zero
-                    CurrProperty%ViscosityV(i,j,k)  = Me%ExtVar%ComputeFacesV3D(i,j,k  ) *                                       &
-                                                        (DiffCoef * Tortuosity(WaterContent_Face, Porosity_Face))                &
-                                                         +(abs(UnsatV(i,j,k  )) * Me%Disper_Trans%Field(i,j,k) / WaterContent_Face)
+                if (Me%ExtVar%WaterPoints3D(I,J-1,K) /= WaterPoint) then
+                    WaterContent_Face = ThetaOld(i,j,k)
+                else                                                                                       
+                    WaterContent_Face = min(ThetaOld(i,j,k),ThetaOld(i,j-1,k))
                 endif
-                                                         
+                Porosity_Face     = min(Porosity(i,j,k),Porosity(i,j-1,k))
+                
+                !Only compute diffusivity in compute faces U (faces tath are not boundaries), else is zero
+                !m2/s = m2/s + m/s * m
+                CurrProperty%ViscosityU(i,j,k)  = Me%ExtVar%ComputeFacesU3D(i,j,k  ) *                                       &
+                                                    (DiffCoef * Tortuosity(WaterContent_Face, Porosity_Face))                &
+                                                     +(abs(UnsatU(i,j,k  )) * Me%Disper_Trans%Field(i,j,k) / WaterContent_Face)
+                if (Me%ExtVar%WaterPoints3D(I-1,J,K) /= WaterPoint) then
+                    WaterContent_Face = ThetaOld(i,j,k)
+                else                                                           
+                    WaterContent_Face = min(ThetaOld(i,j,k),ThetaOld(i-1,j,k))
+                endif
+                Porosity_Face     = min(Porosity(i,j,k),Porosity(i-1,j,k))
+                
+                !Only compute diffusivity in compute faces V (faces tath are not boundaries), else is zero
+                CurrProperty%ViscosityV(i,j,k)  = Me%ExtVar%ComputeFacesV3D(i,j,k  ) *                                       &
+                                                    (DiffCoef * Tortuosity(WaterContent_Face, Porosity_Face))                &
+                                                     +(abs(UnsatV(i,j,k  )) * Me%Disper_Trans%Field(i,j,k) / WaterContent_Face)
+                                                     
 
             endif                                                                        
         enddo
@@ -6595,7 +6610,7 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
     subroutine ReadLockExternalVar                
 
         !Local-----------------------------------------------------------------
-        integer                                     :: STAT_CALL
+        integer                                     :: STAT_CALL, GWFlowLink
         !Begin-----------------------------------------------------------------
 
         call GetOldWaterContent (Me%ObjPorousMedia, Me%ExtVar%WaterContentOld, STAT = STAT_CALL)
@@ -6604,20 +6619,17 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
         call GetWaterContent    (Me%ObjPorousMedia, Me%ExtVar%WaterContent, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - ModulePorousMediaProperties - ERR020'
 
-        if ((Me%AdvDiff_Module == AdvDif_ModulePMP_ .and. Me%AdvDiff_ComputeTransport3D)       &
-                .or. Me%AdvDiff_Module == AdvDif_ModuleAD_) then 
-            call GetFluxU           (Me%ObjPorousMedia, Me%ExtVar%FluxU, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - ModulePorousMediaProperties - ERR030'
+        call GetFluxU           (Me%ObjPorousMedia, Me%ExtVar%FluxU, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - ModulePorousMediaProperties - ERR030'
 
-            call GetFluxV           (Me%ObjPorousMedia, Me%ExtVar%FluxV, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - ModulePorousMediaProperties - ERR040'
-            
-            call GetUnsatV          (Me%ObjPorousMedia, Me%ExtVar%UnsatV, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - ModulePorousMediaProperties - ERR061'
+        call GetFluxV           (Me%ObjPorousMedia, Me%ExtVar%FluxV, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - ModulePorousMediaProperties - ERR040'
+        
+        call GetUnsatV          (Me%ObjPorousMedia, Me%ExtVar%UnsatV, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - ModulePorousMediaProperties - ERR061'
 
-            call GetUnsatU          (Me%ObjPorousMedia, Me%ExtVar%UnsatU, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - ModulePorousMediaProperties - ERR062'   
-        endif  
+        call GetUnsatU          (Me%ObjPorousMedia, Me%ExtVar%UnsatU, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - ModulePorousMediaProperties - ERR062'   
         
         call GetFluxW           (Me%ObjPorousMedia, Me%ExtVar%FluxW, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - ModulePorousMediaProperties - ERR050'
@@ -6663,7 +6675,7 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
                                   STAT        = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - ModulePorousMediaProperties - ERR100'
 
-        if (Me%AdvDiff_Module == AdvDif_ModulePMP_ .and. Me%AdvDiff_ComputeTransport3D) then
+        if (Me%AdvDiff_Module == AdvDif_ModulePMP_ ) then
 
 !            call GetGeometryDistances (Me%ObjGeometry,                                      &
 !                                      DZE         = Me%ExtVar%DZE,                          &
@@ -6691,23 +6703,33 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
                                STAT            = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - ModulePorousMediaProperties - ERR120'
 
-        if ((Me%AdvDiff_Module == AdvDif_ModulePMP_ .and. Me%AdvDiff_ComputeTransport3D)      &
-            .or. Me%AdvDiff_Module == AdvDif_ModuleAD_) then
-            call GetComputeFaces3D(Me%ObjMap,                                               &
-                                   ComputeFacesU3D = Me%ExtVar%ComputeFacesU3D,             &
-                                   ComputeFacesV3D = Me%ExtVar%ComputeFacesV3D,             &
-                                   STAT            = STAT_CALL)
-           if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - ModulePorousMediaProperties - ERR130'
-        endif
+
+        call GetComputeFaces3D(Me%ObjMap,                                               &
+                               ComputeFacesU3D = Me%ExtVar%ComputeFacesU3D,             &
+                               ComputeFacesV3D = Me%ExtVar%ComputeFacesV3D,             &
+                               STAT            = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - ModulePorousMediaProperties - ERR130'
         
         if (Me%ExtVar%CoupledDN) then
             call GetRiverPoints   (Me%ObjBasinGeometry, Me%ExtVar%RiverPoints, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - ModulePorousMediaProperties - ERR0140'
 
-            call GetGWFlowToChannels   (Me%ObjPorousMedia, Me%ExtVar%FlowToChannels, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - ModulePorousMediaProperties - ERR150'
+            call GetGWFlowOption (Me%ObjPorousMedia, GWFlowLink, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop ' ModifyAdvectionDiffusion - ModulePorousMediaProperties - ERR01'
+            
+            if (GWFlowLink /= Layer_) then
+                call GetGWFlowToChannels   (Me%ObjPorousMedia, Me%ExtVar%FlowToChannels, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - ModulePorousMediaProperties - ERR150'
+            else
+                call GetGWFlowToChannelsByLayer   (Me%ObjPorousMedia, Me%ExtVar%FlowToChannelsLayer, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - ModulePorousMediaProperties - ERR151'
+            endif
+            
+            call GetGWToChannelsLayers   (Me%ObjPorousMedia, Me%ExtVar%GWFlowBottomLayer, Me%ExtVar%GWFlowTopLayer, &
+                                          STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - ModulePorousMediaProperties - ERR152'
 
-            call GetGWLayer   (Me%ObjPorousMedia, Me%ExtVar%GWlayer, STAT = STAT_CALL)
+            call GetGWLayerOld   (Me%ObjPorousMedia, Me%ExtVar%GWlayerOld, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - ModulePorousMediaProperties - ERR160'
         endif
         
@@ -6718,7 +6740,7 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
     subroutine ReadUnLockExternalVar
 
         !Local-----------------------------------------------------------------
-        integer                                     :: STAT_CALL
+        integer                                     :: STAT_CALL, GWFlowLink
         !Begin-----------------------------------------------------------------
 
         call UnGetPorousMedia           (Me%ObjPorousMedia, Me%ExtVar%WaterContentOld, STAT = STAT_CALL)
@@ -6727,20 +6749,18 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
         call UnGetPorousMedia           (Me%ObjPorousMedia, Me%ExtVar%WaterContent, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadUnLockExternalVar - ModulePorousMediaProperties - ERR020'
 
-        if ((Me%AdvDiff_Module == AdvDif_ModulePMP_ .and. Me%AdvDiff_ComputeTransport3D)   &
-            .or. Me%AdvDiff_Module == AdvDif_ModuleAD_) then 
-            call UnGetPorousMedia           (Me%ObjPorousMedia, Me%ExtVar%FluxU, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ReadUnLockExternalVar - ModulePorousMediaProperties - ERR030'
 
-            call UnGetPorousMedia           (Me%ObjPorousMedia, Me%ExtVar%FluxV, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ReadUnLockExternalVar - ModulePorousMediaProperties - ERR040'
-            
-            call UnGetPorousMedia           (Me%ObjPorousMedia, Me%ExtVar%UnsatV, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ReadUnLockExternalVar - ModulePorousMediaProperties - ERR061'
-            
-            call UnGetPorousMedia           (Me%ObjPorousMedia, Me%ExtVar%UnsatU, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ReadUnLockExternalVar - ModulePorousMediaProperties - ERR064'
-        endif
+        call UnGetPorousMedia           (Me%ObjPorousMedia, Me%ExtVar%FluxU, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadUnLockExternalVar - ModulePorousMediaProperties - ERR030'
+
+        call UnGetPorousMedia           (Me%ObjPorousMedia, Me%ExtVar%FluxV, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadUnLockExternalVar - ModulePorousMediaProperties - ERR040'
+        
+        call UnGetPorousMedia           (Me%ObjPorousMedia, Me%ExtVar%UnsatV, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadUnLockExternalVar - ModulePorousMediaProperties - ERR061'
+        
+        call UnGetPorousMedia           (Me%ObjPorousMedia, Me%ExtVar%UnsatU, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadUnLockExternalVar - ModulePorousMediaProperties - ERR064'
         
         call UnGetPorousMedia           (Me%ObjPorousMedia, Me%ExtVar%FluxW, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadUnLockExternalVar - ModulePorousMediaProperties - ERR050'
@@ -6783,7 +6803,7 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
         if (STAT_CALL /= SUCCESS_) stop 'ReadUnlockExternalVar - ModulePorousMediaProperties - ERR111'
 
 
-        if (Me%AdvDiff_Module == AdvDif_ModulePMP_ .and. Me%AdvDiff_ComputeTransport3D) then
+        if (Me%AdvDiff_Module == AdvDif_ModulePMP_) then
 
 !            call UnGetGeometry              (Me%ObjGeometry, Me%ExtVar%DZI,  STAT = STAT_CALL )        
 !            if (STAT_CALL /= SUCCESS_) stop 'ReadUnlockExternalVar - ModulePorousMediaProperties - ERR111.1'
@@ -6817,23 +6837,34 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
         call UnGetMap                   (Me%ObjMap, Me%ExtVar%ComputeFacesW3D, STAT = STAT_CALL) 
         if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - ModulePorousMediaProperties - ERR130'
         
-        if ((Me%AdvDiff_Module == AdvDif_ModulePMP_ .and. Me%AdvDiff_ComputeTransport3D)      &
-            .or. Me%AdvDiff_Module == AdvDif_ModuleAD_) then
-            call UnGetMap                   (Me%ObjMap, Me%ExtVar%ComputeFacesU3D, STAT = STAT_CALL) 
-            if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - ModulePorousMediaProperties - ERR140'
+        call UnGetMap                   (Me%ObjMap, Me%ExtVar%ComputeFacesU3D, STAT = STAT_CALL) 
+        if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - ModulePorousMediaProperties - ERR140'
 
-            call UnGetMap                   (Me%ObjMap, Me%ExtVar%ComputeFacesV3D, STAT = STAT_CALL) 
-            if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - ModulePorousMediaProperties - ERR150'
-        endif       
+        call UnGetMap                   (Me%ObjMap, Me%ExtVar%ComputeFacesV3D, STAT = STAT_CALL) 
+        if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - ModulePorousMediaProperties - ERR150'
 
         if (Me%ExtVar%CoupledDN) then
             call UnGetBasin (Me%ObjBasinGeometry, Me%ExtVar%RiverPoints, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ReadUnLockExternalVar - ModulePorousMediaProperties - ERR0160'               
 
-            call UnGetPorousMedia (Me%ObjPorousMedia, Me%ExtVar%FlowToChannels, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ReadUnLockExternalVar - ModulePorousMediaProperties - ERR0170'               
+            call GetGWFlowOption (Me%ObjPorousMedia, GWFlowLink, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop ' ModifyAdvectionDiffusion - ModulePorousMediaProperties - ERR01'
+            
+            if (GWFlowLink /= Layer_) then
+                call UnGetPorousMedia (Me%ObjPorousMedia, Me%ExtVar%FlowToChannels, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ReadUnLockExternalVar - ModulePorousMediaProperties - ERR0170'               
+            else
+                call UnGetPorousMedia (Me%ObjPorousMedia, Me%ExtVar%FlowToChannelsLayer, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ReadUnLockExternalVar - ModulePorousMediaProperties - ERR0171'               
+            endif
+            
+            call UnGetPorousMedia (Me%ObjPorousMedia, Me%ExtVar%GWFlowBottomLayer, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadUnLockExternalVar - ModulePorousMediaProperties - ERR0172'               
 
-            call UnGetPorousMedia (Me%ObjPorousMedia, Me%ExtVar%GWlayer, STAT = STAT_CALL)
+            call UnGetPorousMedia (Me%ObjPorousMedia, Me%ExtVar%GWFlowTopLayer, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadUnLockExternalVar - ModulePorousMediaProperties - ERR0173'               
+
+            call UnGetPorousMedia (Me%ObjPorousMedia, Me%ExtVar%GWlayerOld, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ReadUnLockExternalVar - ModulePorousMediaProperties - ERR0180'      
         
         endif

@@ -83,12 +83,14 @@ Module ModuleBasin
                                      GetVolumes, GetPropHasBottomFluxes,                 &
                                      GetChannelsNodeLength,GetChannelsID,GetDNConcentration,&
                                      SetPMPConcDN,SetRPConcDN, UnGetDrainageNetwork,     &
-                                     KillDrainageNetwork
+                                     KillDrainageNetwork, SetGWFlowLayersToDN
     use ModulePorousMedia,    only : ConstructPorousMedia, ModifyPorousMedia,            &
                                      KillPorousMedia, GetGWFlowToChannels,               &
                                      GetInfiltration, GetEfectiveEVTP,                   &
                                      GetTotalStoredVolume, GetEvaporation,               &
-                                     GetNextPorousMediaDT, UngetPorousMedia, GetGWLayer
+                                     GetNextPorousMediaDT, UngetPorousMedia, GetGWLayer, &
+                                     GetGWFlowOption, GetGWFlowToChannelsByLayer,        &
+                                     GetGWToChannelsLayers
     use ModulePorousMediaProperties,                                                     &
                               only : ConstructPorousMediaProperties,                     &
                                      ModifyPorousMediaProperties,                        &
@@ -163,6 +165,8 @@ Module ModuleBasin
     !Separate evapotranspiration
     integer, parameter                              :: SingleEvapoTranspiration   = 1
     integer, parameter                              :: SeparateEvapoTranspiration = 2
+    !Gw link between porous media and drainage network
+    integer, parameter                              :: Layer_ = 3
 
     !Types---------------------------------------------------------------------
     type T_OutPut
@@ -1606,7 +1610,7 @@ i1:         if (CoordON) then
 
             call GetVariableDT(Me%ObjTime, VariableDT, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructCoupledModules - ModuleBasin - ERR03'
-
+            
             call ConstructDrainageNetwork (ModelName         = Me%ModelName,                     &
                                            DrainageNetworkID = Me%ObjDrainageNetwork,            &
                                            TimeID            = Me%ObjTime,                       &
@@ -1617,7 +1621,6 @@ i1:         if (CoordON) then
                                            STAT              = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructCoupledModules - ModuleBasin - ERR04'
         endif
-
 
 !        !Constructs RunOff
 !        if (Me%Coupled%RunOff) then
@@ -1664,8 +1667,8 @@ i1:         if (CoordON) then
                                          GeometryID             = Me%ObjGeometry,           &
                                          MapID                  = MapID,                    &
                                          STAT                   = STAT_CALL)
-           if (STAT_CALL /= SUCCESS_) stop 'ConstructCoupledModules - ModuleBasin - ERR06'
-        
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructCoupledModules - ModuleBasin - ERR06'
+
                
             !Constructs PorousMediaProperties 
             if (Me%Coupled%PorousMediaProperties) then
@@ -1734,8 +1737,7 @@ i1:         if (CoordON) then
             if (STAT_CALL /= SUCCESS_) stop 'ConstructCoupledModules - ModuleBasin - ERR08'
         endif
 
-        
-        
+       
         !Constructs Simple Infiltration
         if (Me%Coupled%SimpleInfiltration) then
             call ConstructSimpleInfiltration ()
@@ -2963,6 +2965,9 @@ etr_fao:        if (.not. RefEvapotrans%ID%SolutionFromFile) then
         !Local-----------------------------------------------------------------
         real, dimension(:, :), pointer              :: OLFlowToChannels
         real, dimension(:, :), pointer              :: GWFlowToChannels
+        real, dimension(:, :, :), pointer           :: GWFlowToChannelsLayer
+        integer, dimension(:, :), pointer           :: GWFlowBottomLayer
+        integer, dimension(:, :), pointer           :: GWFlowTopLayer
         real, dimension(:, :), pointer              :: SolarRadiation
         real, dimension(:, :), pointer              :: AirTemperature
         real, dimension(:, :), pointer              :: CloudCover
@@ -2972,7 +2977,7 @@ etr_fao:        if (.not. RefEvapotrans%ID%SolutionFromFile) then
         integer                                     :: STAT_CALL
         logical                                     :: NeedAtmosphere, NeedsRadiation, PropAdvDiff
         integer                                     :: nProperties, iProp 
-        integer                                     :: PropID
+        integer                                     :: PropID, GW_Link
         real, dimension(:, :   ), pointer           :: PMPConcentration2D
         real, dimension(:, :, :), pointer           :: PMPConcentration
         real, dimension(:, :   ), pointer           :: RPConcentration
@@ -2992,8 +2997,35 @@ etr_fao:        if (.not. RefEvapotrans%ID%SolutionFromFile) then
 
         nullify(GWFlowToChannels)
         if (Me%Coupled%PorousMedia) then
+        
+            call GetGWFlowOption (ObjPorousMediaID    = Me%ObjPorousMedia,                  &
+                                  DrainageNetworkLink = GW_Link,                            &
+                                  STAT                = STAT_CALL)        
+            if (STAT_CALL /= SUCCESS_) stop 'DrainageNetworkProcesses - ModuleBasin - ERR01a'        
+    
+
             call GetGWFlowToChannels    (Me%ObjPorousMedia, GWFlowToChannels, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'DrainageNetworkProcesses - ModuleBasin - ERR01a'
+            if (STAT_CALL /= SUCCESS_) stop 'DrainageNetworkProcesses - ModuleBasin - ERR01b'
+            
+            if (GW_Link == Layer_) then 
+
+                call GetGWFlowToChannelsByLayer    (Me%ObjPorousMedia, GWFlowToChannelsLayer, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'DrainageNetworkProcesses - ModuleBasin - ERR01c'
+                
+                call GetGWToChannelsLayers (ObjPorousMediaID        = Me%ObjPorousMedia,        &
+                                            GWToChannelsBottomLayer = GWFlowBottomLayer,        &
+                                            GWToChannelsTopLayer    = GWFlowTopLayer,           &
+                                            STAT                    = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'DrainageNetworkProcesses - ModuleBasin - ERR01d' 
+                
+                call SetGWFlowLayersToDN  (DrainageNetworkID    = Me%ObjDrainageNetwork,        &
+                                           GWFlowBottomLayer    = GWFlowBottomLayer,            &
+                                           GWFlowTopLayer       = GWFlowTopLayer,               &
+                                           STAT                 = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'DrainageNetworkProcesses - ModuleBasin - ERR01e' 
+                                           
+            endif
+            
         endif
         
         Me%MB%OLFlowToRiver = 0.0
@@ -3037,37 +3069,52 @@ etr_fao:        if (.not. RefEvapotrans%ID%SolutionFromFile) then
                                              STAT                    = STAT_CALL)        
                     if (STAT_CALL /= SUCCESS_) stop 'DrainageNetworkProcesses - ModuleBasin - ERR04'
                     
-                    call GetGWLayer   (Me%ObjPorousMedia, GWlayer, STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'DrainageNetworkProcesses - ModuleBasin - ERR05'
-                    
-                    allocate(PMPConcentration2D(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
-                    PMPConcentration2D = FillValueReal                    
-                    
-                    !2D conc for drainage network
-                    do j = JLB, JUB
-                    do i = ILB, IUB
-                        if (Me%ExtVar%BasinPoints(i, j) == BasinPoint) then
-                            k = GWLayer(i,j)
-                            PMPConcentration2D (i,j) = PMPConcentration(i,j,k)
-                        endif
-                    enddo
-                    enddo          
+                    !check if flow computation by layers
+                    if (GW_Link /= Layer_) then 
+                        call GetGWLayer   (Me%ObjPorousMedia, GWlayer, STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'DrainageNetworkProcesses - ModuleBasin - ERR05'
+                        
+                        allocate(PMPConcentration2D(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+                        PMPConcentration2D = FillValueReal                    
+                        
+                        !2D conc for drainage network
+                        do j = JLB, JUB
+                        do i = ILB, IUB
+                            if (Me%ExtVar%BasinPoints(i, j) == BasinPoint) then
+                                k = GWLayer(i,j)
+                                PMPConcentration2D (i,j) = PMPConcentration(i,j,k)
+                            endif
+                        enddo
+                        enddo          
 
-                    call UnGetPorousMedia   (Me%ObjPorousMedia, GWlayer, STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'DrainageNetworkProcesses - ModuleBasin - ERR05.5'
+                        call UnGetPorousMedia   (Me%ObjPorousMedia, GWlayer, STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'DrainageNetworkProcesses - ModuleBasin - ERR06'
+                        
+                        !Send conc from PMP to drainage network
+                        call SetPMPConcDN             (DrainageNetworkID       = Me%ObjDrainageNetwork,        &
+                                                       ConcentrationX2D        = PMPConcentration2D,           &
+                                                       PropertyXIDNumber       = PropID,                       &
+                                                       STAT                    = STAT_CALL)        
+                        if (STAT_CALL /= SUCCESS_) stop 'DrainageNetworkProcesses - ModuleBasin - ERR07'
+                        
+                        deallocate (PMPConcentration2D)
+                        
+                        call UngetPorousMediaProperties(Me%ObjPorousMediaProperties, PMPConcentration, STAT_CALL)        
+                        if (STAT_CALL /= SUCCESS_) stop 'DrainageNetworkProcesses - ModuleBasin - ERR08'
                     
-                    !Send conc from PMP to drainage network
-                    call SetPMPConcDN             (DrainageNetworkID       = Me%ObjDrainageNetwork,        &
-                                                   ConcentrationX          = PMPConcentration2D,           &
-                                                   PropertyXIDNumber       = PropID,                       &
-                                                   STAT                    = STAT_CALL)        
-                    if (STAT_CALL /= SUCCESS_) stop 'DrainageNetworkProcesses - ModuleBasin - ERR06'
-                    
-                    deallocate (PMPConcentration2D)
-                    
-                    call UngetPorousMediaProperties(Me%ObjPorousMediaProperties, PMPConcentration, STAT_CALL)        
-                    if (STAT_CALL /= SUCCESS_) stop 'DrainageNetworkProcesses - ModuleBasin - ERR06.1'
-                
+                    else
+
+                        !Send conc from PMP to drainage network - 3D
+                        call SetPMPConcDN             (DrainageNetworkID       = Me%ObjDrainageNetwork,        &
+                                                       ConcentrationX3D        = PMPConcentration,             &
+                                                       PropertyXIDNumber       = PropID,                       &
+                                                       STAT                    = STAT_CALL)        
+                        if (STAT_CALL /= SUCCESS_) stop 'DrainageNetworkProcesses - ModuleBasin - ERR09'                    
+ 
+                         call UngetPorousMediaProperties(Me%ObjPorousMediaProperties, PMPConcentration, STAT_CALL)        
+                        if (STAT_CALL /= SUCCESS_) stop 'DrainageNetworkProcesses - ModuleBasin - ERR09a'
+                        
+                    endif
                 endif
                 
             enddo                      
@@ -3076,7 +3123,7 @@ etr_fao:        if (.not. RefEvapotrans%ID%SolutionFromFile) then
         if (Me%Coupled%RunoffProperties) then
         
             call GetRPnProperties (Me%ObjRunoffProperties, nProperties, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'DrainageNetworkProcesses - ModuleBasin - ERR06.2'
+            if (STAT_CALL /= SUCCESS_) stop 'DrainageNetworkProcesses - ModuleBasin - ERR010'
 
             do iProp = 1, nProperties
 
@@ -3085,7 +3132,7 @@ etr_fao:        if (.not. RefEvapotrans%ID%SolutionFromFile) then
                                              ID                      = PropID,                      &
                                              PropAdvDiff             = PropAdvDiff,                 &
                                              STAT                    = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'DrainageNetworkProcesses - ModuleBasin - ERR06.3' 
+                if (STAT_CALL /= SUCCESS_) stop 'DrainageNetworkProcesses - ModuleBasin - ERR020' 
                 
                 !Particulate and not particulate properties (in water phase)with advection diffusion may interact 
                 !with drainage network
@@ -3096,17 +3143,17 @@ etr_fao:        if (.not. RefEvapotrans%ID%SolutionFromFile) then
                                              ConcentrationX          = RPConcentration,              &
                                              PropertyXIDNumber       = PropID,                       &
                                              STAT                    = STAT_CALL)        
-                    if (STAT_CALL /= SUCCESS_) stop 'DrainageNetworkProcesses - ModuleBasin - ERR06.4'
+                    if (STAT_CALL /= SUCCESS_) stop 'DrainageNetworkProcesses - ModuleBasin - ERR030'
                     
                     !And send it to drainage network
                     call SetRPConcDN             (DrainageNetworkID        = Me%ObjDrainagenetwork,        &
                                                    ConcentrationX          = RPConcentration,              &
                                                    PropertyXIDNumber       = PropID,                       &
                                                    STAT                    = STAT_CALL)        
-                    if (STAT_CALL /= SUCCESS_) stop 'DrainageNetworkProcesses - ModuleBasin - ERR06.5'
+                    if (STAT_CALL /= SUCCESS_) stop 'DrainageNetworkProcesses - ModuleBasin - ERR040'
                     
                     call UngetRunoffProperties(Me%ObjRunoffProperties, RPConcentration, STAT_CALL)        
-                    if (STAT_CALL /= SUCCESS_) stop 'DrainageNetworkProcesses - ModuleBasin - ERR06.6'
+                    if (STAT_CALL /= SUCCESS_) stop 'DrainageNetworkProcesses - ModuleBasin - ERR050'
                 
                 endif
                 
@@ -3123,10 +3170,10 @@ etr_fao:        if (.not. RefEvapotrans%ID%SolutionFromFile) then
 
             !SolarRadiation
             call GetAtmosphereProperty  (Me%ObjAtmosphere, SolarRadiation, ID = SolarRadiation_, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'DrainageNetworkProcesses - ModuleBasin - ERR010'
+            if (STAT_CALL /= SUCCESS_) stop 'DrainageNetworkProcesses - ModuleBasin - ERR060'
 
             call SetAtmosphereDrainageNet (Me%ObjDrainageNetwork, TopRadiation = SolarRadiation, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'DrainageNetworkProcesses - ModuleBasin - ERR011'
+            if (STAT_CALL /= SUCCESS_) stop 'DrainageNetworkProcesses - ModuleBasin - ERR070'
         
         endif
 
@@ -3134,19 +3181,19 @@ etr_fao:        if (.not. RefEvapotrans%ID%SolutionFromFile) then
 
             !AirTemperature
             call GetAtmosphereProperty  (Me%ObjAtmosphere, AirTemperature, ID = AirTemperature_, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'DrainageNetworkProcesses - ModuleBasin - ERR012'
+            if (STAT_CALL /= SUCCESS_) stop 'DrainageNetworkProcesses - ModuleBasin - ERR080'
 
             !CloudCover
             call GetAtmosphereProperty  (Me%ObjAtmosphere, CloudCover, ID = CloudCover_, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'DrainageNetworkProcesses - ModuleBasin - ERR013'
+            if (STAT_CALL /= SUCCESS_) stop 'DrainageNetworkProcesses - ModuleBasin - ERR090'
 
             !RelativeHumidity
             call GetAtmosphereProperty  (Me%ObjAtmosphere, RelativeHumidity, ID = RelativeHumidity_, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'DrainageNetworkProcesses - ModuleBasin - ERR014'
+            if (STAT_CALL /= SUCCESS_) stop 'DrainageNetworkProcesses - ModuleBasin - ERR0100'
 
             !WindSpeed
             call GetAtmosphereProperty  (Me%ObjAtmosphere, WindSpeed, ID = WindModulus_, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'DrainageNetworkProcesses - ModuleBasin - ERR015'
+            if (STAT_CALL /= SUCCESS_) stop 'DrainageNetworkProcesses - ModuleBasin - ERR0110'
 
             call SetAtmosphereDrainageNet (Me%ObjDrainageNetwork,                           &
                                            AirTemperature      = AirTemperature,            &
@@ -3154,20 +3201,29 @@ etr_fao:        if (.not. RefEvapotrans%ID%SolutionFromFile) then
                                            RelativeHumidity    = RelativeHumidity,          &
                                            WindSpeed           = WindSpeed,                 &
                                            STAT                = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'DrainageNetworkProcesses - ModuleBasin - ERR016'   
+            if (STAT_CALL /= SUCCESS_) stop 'DrainageNetworkProcesses - ModuleBasin - ERR0120'   
 
         endif
-
-        !Runs DrainageNetwork
-        call ModifyDrainageNetwork  ( Me%ObjDrainageNetwork, OLFlowToChannels,          &
-                                      GWFlowToChannels, DiffuseFlow = Me%DiffuseFlow,   &
-                                      STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'DrainageNetworkProcesses - ModuleBasin - ERR17'     
         
+        if (GW_Link /= Layer_) then 
+            !Runs DrainageNetwork with GW flow given by one value for each river cell
+            call ModifyDrainageNetwork  ( Me%ObjDrainageNetwork, OLFlowToChannels = OLFlowToChannels,          &
+                                          GWFlowToChannels = GWFlowToChannels, DiffuseFlow = Me%DiffuseFlow,   &
+                                          STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'DrainageNetworkProcesses - ModuleBasin - ERR130'     
+        else
+            !Runs DrainageNetwork with GW flow given by layers for each river cell
+            call ModifyDrainageNetwork  ( Me%ObjDrainageNetwork, OLFlowToChannels = OLFlowToChannels,                    &
+                                          GWFlowToChannels = GWFlowToChannels,                                           &
+                                          GWFlowToChannelsLayer = GWFlowToChannelsLayer, DiffuseFlow = Me%DiffuseFlow,   &
+                                          STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'DrainageNetworkProcesses - ModuleBasin - ERR140'     
+        endif    
+                    
         !Ungets
         if (NeedAtmosphere .or. NeedsRadiation) then
             call UnGetAtmosphere  (Me%ObjAtmosphere, SolarRadiation,    STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'DrainageNetworkProcesses - ModuleBasin - ERR06'
+            if (STAT_CALL /= SUCCESS_) stop 'DrainageNetworkProcesses - ModuleBasin - ERR150'
         endif
 
         !Ungets
@@ -3175,27 +3231,39 @@ etr_fao:        if (.not. RefEvapotrans%ID%SolutionFromFile) then
             
             !AirTemperature
             call UnGetAtmosphere  (Me%ObjAtmosphere, AirTemperature,    STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'DrainageNetworkProcesses - ModuleBasin - ERR06'
+            if (STAT_CALL /= SUCCESS_) stop 'DrainageNetworkProcesses - ModuleBasin - ERR160'
 
             !CloudCover
             call UnGetAtmosphere  (Me%ObjAtmosphere, CloudCover,        STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'DrainageNetworkProcesses - ModuleBasin - ERR06'
+            if (STAT_CALL /= SUCCESS_) stop 'DrainageNetworkProcesses - ModuleBasin - ERR170'
 
             !RelativeHumidity
             call UnGetAtmosphere  (Me%ObjAtmosphere, RelativeHumidity, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'DrainageNetworkProcesses - ModuleBasin - ERR06'
+            if (STAT_CALL /= SUCCESS_) stop 'DrainageNetworkProcesses - ModuleBasin - ERR180'
 
             !WindSpeed
             call UnGetAtmosphere  (Me%ObjAtmosphere, WindSpeed,         STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'DrainageNetworkProcesses - ModuleBasin - ERR06'
+            if (STAT_CALL /= SUCCESS_) stop 'DrainageNetworkProcesses - ModuleBasin - ERR190'
         endif
 
         call UnGetRunOff            (Me%ObjRunOff, OLFlowToChannels, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'DrainageNetworkProcesses - ModuleBasin - ERR06' 
+        if (STAT_CALL /= SUCCESS_) stop 'DrainageNetworkProcesses - ModuleBasin - ERR200' 
 
         if (Me%Coupled%PorousMedia) then
+            
             call UnGetPorousMedia       (Me%ObjPorousMedia, GWFlowToChannels, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'DrainageNetworkProcesses - ModuleBasin - ERR07' 
+            if (STAT_CALL /= SUCCESS_) stop 'DrainageNetworkProcesses - ModuleBasin - ERR210' 
+            
+            if (GW_Link == Layer_) then 
+                call UnGetPorousMedia       (Me%ObjPorousMedia, GWFlowToChannelsLayer, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'DrainageNetworkProcesses - ModuleBasin - ERR220' 
+
+                call UnGetPorousMedia       (Me%ObjPorousMedia, GWFlowBottomLayer, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'DrainageNetworkProcesses - ModuleBasin - ERR230' 
+            
+                call UnGetPorousMedia       (Me%ObjPorousMedia, GWFlowTopLayer, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'DrainageNetworkProcesses - ModuleBasin - ERR240' 
+            endif
         endif
 
         if (MonitorPerformance) call StopWatch ("ModuleBasin", "DrainageNetworkProcesses")

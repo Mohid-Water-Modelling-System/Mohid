@@ -123,7 +123,11 @@ Module ModulePorousMedia
     public  ::  GetInfiltration
     public  ::  GetEfectiveEVTP
     public  ::  GetGWFlowToChannels
+    public  ::  GetGWFlowToChannelsByLayer
+    public  ::  GetGWFlowOption
+    public  ::  GetGWToChannelsLayers
     public  ::  GetGWLayer
+    public  ::  GetGWLayerOld
     public  ::  GetTotalStoredVolume
     public  ::  GetFluxU
     public  ::  GetFluxV
@@ -156,7 +160,7 @@ Module ModulePorousMedia
     private ::          SoilParameters
     private ::          VerticalContinuity
     private ::          variation_test
-    private ::      ExchangeWithDrainageNetwork
+!    private ::      ExchangeWithDrainageNetwork
     private ::      PorousMediaOutput
     private ::          OutPutTimeSeries
     private ::      CalculateTotalStoredVolume
@@ -205,6 +209,10 @@ Module ModulePorousMedia
 
     !Waterlevel
     character(LEN = StringLength), parameter :: char_waterlevel   = trim(adjustl('waterlevel'       ))
+
+    !Drainage Network link formulations - for tests
+    integer, parameter :: ByCell_    = 1
+    integer, parameter :: ByLayer_   = 2
 
     !Types---------------------------------------------------------------------
     type T_OutPut
@@ -294,6 +302,7 @@ Module ModulePorousMedia
         logical :: LimitEVAPWaterVelocity
         logical :: LimitEVAPHead
         real    :: HeadLimit
+        integer :: DNLink
     end type T_SoilOptions
 
     type T_SoilType
@@ -375,10 +384,15 @@ Module ModulePorousMedia
         real,    dimension(:,:), pointer        :: UGWaterLevel2D           => null()
         real,    dimension(:,:), pointer        :: UGWaterDepth2D           => null()
         integer, dimension(:,:), pointer        :: UGCell                   => null()
+        integer, dimension(:,:), pointer        :: UGCell_Old               => null()
         
         !Exchange with channels
         real,    dimension(:,:), pointer        :: lFlowToChannels          => null()
+        real,    dimension(:,:,:), pointer      :: lFlowToChannelsLayer     => null()
         real,    dimension(:,:), pointer        :: iFlowToChannels          => null()
+        real,    dimension(:,:,:), pointer      :: iFlowToChannelsLayer     => null()
+        integer, dimension(:,:), pointer        :: FlowToChannelsTopLayer   => null()
+        integer, dimension(:,:), pointer        :: FlowToChannelsBottomLayer => null()
 
         !Velocities
         real,    dimension(:,:,:), pointer      :: UnsatVelU                => null()
@@ -873,6 +887,15 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      STAT       = STAT_CALL)            
         if (STAT_CALL /= SUCCESS_) stop 'GetUnSaturatedOptions - ModulePorousMedia - ERR17'
 
+        call GetData(Me%SoilOpt%DNLink,                                         &
+                     Me%ObjEnterData, iflag,                                    &
+                     SearchType = FromFile,                                     &
+                     keyword    = 'DN_LINK',                                    &
+                     Default    = ByLayer_,                                     &                                           
+                     ClientModule ='ModulePorousMedia',                         &
+                     STAT       = STAT_CALL)            
+        if (STAT_CALL /= SUCCESS_) stop 'GetSoilOptions - ModulePorousMedia - ERR20'
+
         !Number of iterations below which the DT is reduce (lower optimal iteration range)
         call GetData(Me%CV%MinIter,                                             &
                      Me%ObjEnterData, iflag,                                    &
@@ -1197,6 +1220,7 @@ do1:     do
         allocate(Me%UGWaterLevel2D  (ILB:IUB,JLB:JUB)) 
         allocate(Me%UGWaterDepth2D  (ILB:IUB,JLB:JUB))
         allocate(Me%UGCell          (ILB:IUB,JLB:JUB)) 
+        allocate(Me%UGCell_Old      (ILB:IUB,JLB:JUB)) 
         allocate(Me%WaterColumn     (ILB:IUB,JLB:JUB))
         allocate(Me%Infiltration    (ILB:IUB,JLB:JUB))
         allocate(Me%EfectiveEVTP    (ILB:IUB,JLB:JUB))
@@ -1214,6 +1238,7 @@ do1:     do
         Me%UGWaterLevel2D       = null_real
         Me%UGWaterDepth2D       = null_real
         Me%UGCell               = null_int
+        Me%UGCell_Old           = null_int
         Me%WaterColumn          = null_real
         Me%Infiltration         = null_real
         Me%EfectiveEVTP         = null_real
@@ -1296,9 +1321,17 @@ do1:     do
 
         !Flow to Channel
         allocate(Me%iFlowToChannels                 (ILB:IUB,JLB:JUB))
+        allocate(Me%iFlowToChannelsLayer    (ILB:IUB,JLB:JUB,KLB:KUB))
         allocate(Me%lFlowToChannels                 (ILB:IUB,JLB:JUB))
-        Me%iFlowToChannels     = 0.0
-        Me%lFlowToChannels     = 0.0
+        allocate(Me%lFlowToChannelsLayer    (ILB:IUB,JLB:JUB,KLB:KUB))
+        allocate(Me%FlowToChannelsTopLayer          (ILB:IUB,JLB:JUB))
+        allocate(Me%FlowToChannelsBottomLayer       (ILB:IUB,JLB:JUB))
+        Me%iFlowToChannels      = 0.0
+        Me%iFlowToChannelsLayer = 0.0
+        Me%lFlowToChannels      = 0.0
+        Me%lFlowToChannelsLayer = 0.0
+        Me%FlowToChannelsBottomLayer = null_int
+        Me%FlowToChannelsTopLayer    = null_int       
 
         Me%FluxUAcc      = 0.0
         Me%FluxVAcc      = 0.0
@@ -1953,6 +1986,9 @@ doSP:           do
         !Begin-----------------------------------------------------------------
         
         nProperties = 10
+        if (Me%SoilOpt%DNLink == ByLayer_) then
+            nProperties = nProperties + 2
+        endif
         if (Me%ExtVar%ConstructEvaporation) then
             nProperties = nProperties + 1
         endif
@@ -1967,23 +2003,29 @@ doSP:           do
         !Fills up PropertyList
         PropertyList(1)  = 'Theta'
         PropertyList(2)  = 'relative water content'
-        PropertyList(3)  = 'VelW'
-        PropertyList(4)  = 'InF_Vel'
-        PropertyList(5)  = 'Head'
-        PropertyList(6)  = 'Conductivity'
-        PropertyList(7)  = 'level water table'
-        PropertyList(8)  = 'water table depth'
-        PropertyList(9)  = 'Hydro Pressure'
-        PropertyList(10) = 'Final Head'
+        PropertyList(3)  = 'VelW [m/s]'
+        PropertyList(4)  = 'InF_Vel [m/s]'
+        PropertyList(5)  = 'Head [m]'
+        PropertyList(6)  = 'Conductivity [m/s]'
+        PropertyList(7)  = 'level water table [m]'
+        PropertyList(8)  = 'water table depth [m]'
+        PropertyList(9)  = 'Hydro Pressure [m]'
+        PropertyList(10) = 'Final Head [m]'
 !        PropertyList(11) = 'PM Water Column m'
         i = 10
+        if (Me%SoilOpt%DNLink == ByLayer_) then
+            i = i + 1
+            PropertyList(i)  = 'GW flow to river layer [m3/s]'
+            i = i + 1
+            PropertyList(i)  = 'GW flow to river total [m3/s]'
+        endif        
         if (Me%ExtVar%ConstructEvaporation) then
             i = i + 1
-            PropertyList(i) = 'Surface Evaporation Flux m3/s'
+            PropertyList(i) = 'Surface Evaporation Flux [m3/s]'
         endif
         if (Me%ExtVar%ConstructTranspiration) then
             i = i + 1
-            PropertyList(i) = 'Transpiration Flux m3/s'
+            PropertyList(i) = 'Transpiration Flux [m3/s]'
         endif
 
         call GetData(TimeSerieLocationFile,                                             &
@@ -2300,6 +2342,102 @@ i1:         if (CoordON) then
 
     !--------------------------------------------------------------------------
 
+    subroutine GetGWFlowToChannelsByLayer (ObjPorousMediaID, FlowToChannelsLayer, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                                         :: ObjPorousMediaID
+        real, dimension(:, :, :), pointer               :: FlowToChannelsLayer
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                         :: STAT_, ready_
+        
+
+        call Ready(ObjPorousMediaID, ready_)    
+        
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            call Read_Lock(mPorousMedia_, Me%InstanceID)
+            
+            FlowToChannelsLayer => Me%iFlowToChannelsLayer
+
+            STAT_ = SUCCESS_
+        else 
+            STAT_ = ready_
+        end if
+
+        if (present(STAT)) STAT = STAT_
+
+    end subroutine GetGWFlowToChannelsByLayer
+
+    !--------------------------------------------------------------------------
+
+    subroutine GetGWToChannelsLayers (ObjPorousMediaID, GWToChannelsBottomLayer, GWToChannelsTopLayer, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                                         :: ObjPorousMediaID
+        integer, dimension(:, :), pointer               :: GWToChannelsBottomLayer
+        integer, dimension(:, :), pointer               :: GWToChannelsTopLayer
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                         :: STAT_, ready_
+        
+
+        call Ready(ObjPorousMediaID, ready_)    
+        
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            call Read_Lock(mPorousMedia_, Me%InstanceID)
+            
+            GWToChannelsBottomLayer => Me%FlowToChannelsBottomLayer
+
+            call Read_Lock(mPorousMedia_, Me%InstanceID)
+            
+            GWToChannelsTopLayer => Me%FlowToChannelsTopLayer
+
+            STAT_ = SUCCESS_
+        else 
+            STAT_ = ready_
+        end if
+
+        if (present(STAT)) STAT = STAT_
+
+    end subroutine GetGWToChannelsLayers
+
+    !--------------------------------------------------------------------------
+
+    subroutine GetGWFlowOption (ObjPorousMediaID, DrainageNetworkLink, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                                         :: ObjPorousMediaID
+        integer                                         :: DrainageNetworkLink
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                         :: STAT_, ready_
+        
+
+        call Ready(ObjPorousMediaID, ready_)    
+        
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            DrainageNetworkLink = Me%SoilOpt%DNLink
+
+            STAT_ = SUCCESS_
+        else 
+            STAT_ = ready_
+        end if
+
+        if (present(STAT)) STAT = STAT_
+
+    end subroutine GetGWFlowOption
+
+    !--------------------------------------------------------------------------
+
     subroutine GetGWLayer (ObjPorousMediaID, GWLayer, STAT)
 
         !Arguments-------------------------------------------------------------
@@ -2328,6 +2466,37 @@ i1:         if (CoordON) then
         if (present(STAT)) STAT = STAT_
 
     end subroutine GetGWLayer
+
+    !--------------------------------------------------------------------------
+
+    subroutine GetGWLayerOld (ObjPorousMediaID, GWLayerOld, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                                         :: ObjPorousMediaID
+        integer, dimension(:,:), pointer                :: GWLayerOld
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                         :: STAT_, ready_
+        
+
+        call Ready(ObjPorousMediaID, ready_)    
+        
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            call Read_Lock(mPorousMedia_, Me%InstanceID)
+            
+            GWLayerOld => Me%UGCell_Old
+
+            STAT_ = SUCCESS_
+        else 
+            STAT_ = ready_
+        end if
+
+        if (present(STAT)) STAT = STAT_
+
+    end subroutine GetGWLayerOld
 
     !--------------------------------------------------------------------------
 
@@ -3260,8 +3429,8 @@ i1:         if (CoordON) then
         !Time Integrated Values
         call SetMatrixValue (Me%Infiltration,     Me%Size2D, dble(0.0),         Me%ExtVar%BasinPoints)
         call SetMatrixValue (Me%EfectiveEVTP,     Me%Size2D, dble(0.0),         Me%ExtVar%BasinPoints)
-!        call SetMatrixValue (Me%EfectiveEVTP2,     Me%Size2D, dble(0.0),         Me%ExtVar%BasinPoints)       
         call SetMatrixValue (Me%iFlowToChannels,  Me%Size2D, Zero,              Me%ExtVar%BasinPoints)
+        call SetMatrixValue (Me%iFlowToChannelsLayer,  Me%Size, Zero,         Me%ExtVar%WaterPoints3D)
         
 !        call SetMatrixValue (Me%FluxWAcc, Me%Size, dble(0.0), Me%ExtVar%WaterPoints3D) 
 !        call SetMatrixValue (Me%FluxVAcc, Me%Size, dble(0.0), Me%ExtVar%WaterPoints3D) 
@@ -3295,7 +3464,17 @@ dConv:  do while (iteration <= Niteration)
             
             !Calculates Flux to channels
             if (Me%ObjDrainageNetwork /= 0) then
-                call ExchangeWithDrainageNetwork ()
+!                call ExchangeWithDrainageNetwork ()
+!                if (Me%SoilOpt%DNLink == Original_) then
+!                    call ExchangeWithDrainageNet_Orig
+                if (Me%SoilOpt%DNLink == ByCell_) then
+                    call ExchangeWithDrainageNet_Corr
+                elseif (Me%SoilOpt%DNLink == ByLayer_) then
+                    call ExchangeWithDrainageNet_Layer
+                else
+                    write(*,*)'Error in method for Drainage Network link in Modukle Porous Media'
+                    stop 'VariableSaturatedFlow - ModulePorousMedia ERR01'
+                endif
             endif
             
             if (Me%EvaporationExists) then
@@ -3326,6 +3505,7 @@ dConv:  do while (iteration <= Niteration)
                 call SetMatrixValue (Me%Infiltration,   Me%Size2D, dble(0.0),           Me%ExtVar%BasinPoints)
                 call SetMatrixValue (Me%EfectiveEVTP,   Me%Size2D, dble(0.0),           Me%ExtVar%BasinPoints)
                 call SetMatrixValue (Me%iFlowToChannels,Me%Size2D, Zero,                Me%ExtVar%BasinPoints)
+                call SetMatrixValue (Me%iFlowToChannelsLayer,Me%Size, Zero,           Me%ExtVar%WaterPoints3D)
                 
                 !Resets Accumulated flows
 !                call SetMatrixValue (Me%FluxWAcc, Me%Size, dble(0.0), Me%ExtVar%WaterPoints3D) 
@@ -4237,20 +4417,37 @@ dConv:  do while (iteration <= Niteration)
         
         !Vertical Flux
         
+!        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+!        do K = Me%WorkSize%KLB, Me%WorkSize%KUB
+!        do J = Me%WorkSize%JLB, Me%WorkSize%JUB
+!        do I = Me%WorkSize%ILB, Me%WorkSize%IUB
+!            if (Me%ExtVar%WaterPoints3D(I,J,K) == WaterPoint) then
+!                Me%Theta(i, j, k) = (Me%Theta(i, j, k) * Me%ExtVar%CellVolume(i, j, k) +        &
+!                                     (Me%FluxW(i,j,k)  * Me%ExtVar%ComputeFacesW3D(i,j,k) -     &
+!                                      Me%FluxW(i,j,k+1)* Me%ExtVar%ComputeFacesW3D(i,j,k+1)) *  &
+!                                      Me%CV%CurrentDT) / Me%ExtVar%CellVolume(i, j, k)
+!            endif
+!        enddo
+!        enddo
+!        enddo
+!        !$OMP END DO
+        
+        !Flux W may be corrected in river points on the saturated zone to compensate exchange with river
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
         do K = Me%WorkSize%KLB, Me%WorkSize%KUB
         do J = Me%WorkSize%JLB, Me%WorkSize%JUB
         do I = Me%WorkSize%ILB, Me%WorkSize%IUB
             if (Me%ExtVar%WaterPoints3D(I,J,K) == WaterPoint) then
                 Me%Theta(i, j, k) = (Me%Theta(i, j, k) * Me%ExtVar%CellVolume(i, j, k) +        &
-                                     (Me%FluxW(i,j,k)  * Me%ExtVar%ComputeFacesW3D(i,j,k) -     &
-                                      Me%FluxW(i,j,k+1)* Me%ExtVar%ComputeFacesW3D(i,j,k+1)) *  &
+                                     (Me%FluxWFinal(i,j,k)  * Me%ExtVar%ComputeFacesW3D(i,j,k) -     &
+                                      Me%FluxWFinal(i,j,k+1)* Me%ExtVar%ComputeFacesW3D(i,j,k+1)) *  &
                                       Me%CV%CurrentDT) / Me%ExtVar%CellVolume(i, j, k)
             endif
         enddo
         enddo
         enddo
         !$OMP END DO
+
         
         !Evapotranspiration
         
@@ -4302,20 +4499,38 @@ dConv:  do while (iteration <= Niteration)
         enddo
         !$OMP END DO
         
+        if (Me%SoilOpt%DNLink == ByCell_) then
+            !Exchange with River
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            do J = Me%WorkSize%JLB, Me%WorkSize%JUB
+            do I = Me%WorkSize%ILB, Me%WorkSize%IUB
+                if (Me%ExtVar%RiverPoints(i,j) == WaterPoint) then
+                    k = Me%UGCell(i,j)
+                    Me%Theta(i, j, k) = (Me%Theta(i, j, k) * Me%ExtVar%CellVolume(i, j, k) -                &
+                                         Me%lFlowToChannels(i, j) * Me%CV%CurrentDT) /                      &
+                                         Me%ExtVar%CellVolume(i, j, k)
+                endif
+            enddo
+            enddo
+            !$OMP END DO
         
-        !Exchange with River
-        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
-        do J = Me%WorkSize%JLB, Me%WorkSize%JUB
-        do I = Me%WorkSize%ILB, Me%WorkSize%IUB
-            if (Me%ExtVar%RiverPoints(i,j) == WaterPoint) then
-                k = Me%UGCell(i,j)
-                Me%Theta(i, j, k) = (Me%Theta(i, j, k) * Me%ExtVar%CellVolume(i, j, k) -                &
-                                     Me%lFlowToChannels(i, j) * Me%CV%CurrentDT) /                      &
-                                     Me%ExtVar%CellVolume(i, j, k)
-            endif
-        enddo
-        enddo
-        !$OMP END DO
+        elseif (Me%SoilOpt%DNLink == ByLayer_) then
+
+            !Exchange with River
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            do J = Me%WorkSize%JLB, Me%WorkSize%JUB
+            do I = Me%WorkSize%ILB, Me%WorkSize%IUB
+                if (Me%ExtVar%RiverPoints(i,j) == WaterPoint) then
+                    do k = Me%FlowToChannelsBottomLayer(i,j), Me%FlowToChannelsTopLayer(i,j)
+                        Me%Theta(i, j, k) = (Me%Theta(i, j, k) * Me%ExtVar%CellVolume(i, j, k) -                &
+                                             Me%lFlowToChannelsLayer(i, j, k) * Me%CV%CurrentDT) /              &
+                                             Me%ExtVar%CellVolume(i, j, k)
+                    enddo
+                endif
+            enddo
+            enddo
+            !$OMP END DO
+        endif
         
         !$OMP END PARALLEL
         
@@ -4512,8 +4727,8 @@ dConv:  do while (iteration <= Niteration)
     end subroutine UpdateEfectiveEVTP
 
     !--------------------------------------------------------------------------
-    
-    subroutine IntegrateFlow(SumDT)
+
+    subroutine IntegrateFlow_Old(SumDT)
     
         !Arguments-------------------------------------------------------------
         real                                        :: SumDT
@@ -4531,6 +4746,45 @@ dConv:  do while (iteration <= Niteration)
                 Me%iFlowToChannels(i, j) = (Me%iFlowToChannels(i, j) * SumDT +                  &
                                             Me%lFlowToChannels(i, j) * Me%CV%CurrentDT) /       &
                                            (SumDT + Me%CV%CurrentDT)
+            endif
+            
+        enddo
+        enddo
+
+    end subroutine IntegrateFlow_Old
+
+    !--------------------------------------------------------------------------
+    
+    subroutine IntegrateFlow(SumDT)
+    
+        !Arguments-------------------------------------------------------------
+        real                                        :: SumDT
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: i, j, k
+        integer                                     :: chunk
+     
+        CHUNK = CHUNK_J(Me%WorkSize%KLB, Me%WorkSize%JUB)
+
+        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+        do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+
+            if (Me%ExtVar%RiverPoints (i,j) == 1) then
+                if (Me%SoilOpt%DNLink == ByCell_) then
+
+                    Me%iFlowToChannels(i, j) = (Me%iFlowToChannels(i, j) * SumDT +                                  &
+                                                        Me%lFlowToChannels(i, j) * Me%CV%CurrentDT) /               &
+                                                       (SumDT + Me%CV%CurrentDT)
+                elseif (Me%SoilOpt%DNLink == ByLayer_) then    
+                    do k = Me%FlowToChannelsBottomLayer(i,j), Me%FlowToChannelsTopLayer(i,j)
+                        Me%iFlowToChannelsLayer(i, j, k) = (Me%iFlowToChannelsLayer(i, j, k) * SumDT +                  &
+                                                            Me%lFlowToChannelsLayer(i, j, k) * Me%CV%CurrentDT) /       &
+                                                           (SumDT + Me%CV%CurrentDT)
+                        Me%iFlowToChannels(i, j) = (Me%iFlowToChannels(i, j) * SumDT +                                  &
+                                                            Me%lFlowToChannels(i, j) * Me%CV%CurrentDT) /               &
+                                                           (SumDT + Me%CV%CurrentDT)
+                    enddo
+                endif 
             endif
             
         enddo
@@ -4874,6 +5128,8 @@ doK:            do K = Me%ExtVar%KFloor(i, j), Me%WorkSize%KUB
                 
                 Me%UGWaterLevel2D(i, j) = CellBottomLevel + DZInCell
                 Me%UGWaterDepth2D(i, j) = Me%ExtVar%Topography(i, j) -Me%UGWaterLevel2D(i, j)
+                !PMP need the same UGCell that PM used for computing DN flux
+                Me%UGCell_Old    (i,j)  = Me%UGCell (i, j)
                 Me%UGCell        (i, j) = k
                 
             endif
@@ -5082,20 +5338,236 @@ doK:            do K = Me%ExtVar%KFloor(i, j), Me%WorkSize%KUB
     end subroutine ExchangeWithDrainageNetwork2
     
     !--------------------------------------------------------------------------
-
-    subroutine ExchangeWithDrainageNetwork
+    
+    subroutine ExchangeWithDrainageNet_Layer
 
         !Arguments-------------------------------------------------------------
         
         !Local-----------------------------------------------------------------
         integer                                     :: i, j, k, STAT_CALL
-        real                                        :: dH, Area
-        real                                        :: MinHead, FieldTheta, MaxVolume
+        real                                        :: dH, dX, TotalArea, LayerArea
+        real                                        :: MinHead, FieldTheta, TopHeightInCell
+        real                                        :: InfiltrationVolume, ChannelsVolume
+        real                                        :: MaxFlow, VerticalFluxVariation
         real,   dimension(:, :), pointer            :: ChannelsWaterLevel
         real,   dimension(:, :), pointer            :: ChannelsBottomLevel 
         real,   dimension(:, :), pointer            :: ChannelsBottomWidth
         real,   dimension(:, :), pointer            :: ChannelsNodeLength
         integer,dimension(:, :), pointer            :: ChannelsOpenProcess
+        logical                                     :: FoundUpperFlowCell, FoundLowerFlowCell
+        !Begin----------------------------------------------------------------
+
+        call GetChannelsWaterLevel  (Me%ObjDrainageNetwork, ChannelsWaterLevel, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ExchangeWithDrainageNetwork - ModulePorousMedia - ERR01'
+
+        call GetChannelsBottomLevel (Me%ObjDrainageNetwork, ChannelsBottomLevel, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ExchangeWithDrainageNetwork - ModulePorousMedia - ERR02'
+
+        call GetChannelsBottomWidth (Me%ObjDrainageNetwork, ChannelsBottomWidth, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ExchangeWithDrainageNetwork - ModulePorousMedia - ERR03'
+
+        call GetChannelsOpenProcess (Me%ObjDrainageNetwork, ChannelsOpenProcess, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ExchangeWithDrainageNetwork - ModulePorousMedia - ERR04'
+
+        call GetChannelsNodeLength  (Me%ObjDrainageNetwork, ChannelsNodeLength, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ExchangeWithDrainageNetwork - ModulePorousMedia - ERR05'
+        
+       
+        !!Computation of TotalFlow
+do1:    do J = Me%WorkSize%JLB, Me%WorkSize%JUB
+do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
+
+            if (Me%ExtVar%RiverPoints(i, j) == OpenPoint) then
+                
+                if (ChannelsBottomLevel(i,j) < Me%ExtVar%BottomTopoG(i, j)) then
+                    write (*,*) 
+                    write (*,*) 'Bottom River section is lower than soil profile in cell', i,j
+                    write (*,*) 'Increase bottom soil depth or decrease river depth'
+                    stop 'ExchangeWithDrainageNetwork - ModulePorousMedia - ERR06'
+                endif
+                    
+                !Computing Area for flux - is always two times the lateral area and one time the bottom area
+                TotalArea  = (2. * (ChannelsWaterLevel(i, j) - ChannelsBottomLevel(i, j))  &
+                              + ChannelsBottomWidth(i, j)) * ChannelsNodeLength(i, j)
+                
+                !Computing height gradient dH [m]
+                !Negative dh -> Flux from channels to porous media
+                !Positive dh -> Flux from porous media to channels 
+                dH    = Me%UGWaterLevel2D(i, j) - ChannelsWaterLevel(i, j)                
+                
+                !spatial step for Height Gradient (dH) [m]
+                dX = max(ChannelsBottomWidth(i, j) / 2.0, 1.0)
+                
+                ![m3/s]                   = [m/m] * [m2] * [m/s] * [] 
+                Me%lFlowToChannels(i, j) = (dH / dX ) * TotalArea * Me%UnSatK(i, j, Me%UGCell(i,j)) * Me%SoilOpt%HCondFactor
+
+                !If the channel looses water (infiltration), then set max flux so that volume in channel does not get 
+                !negative                
+                if (dH < 0) then
+                    ![m3]
+                    ChannelsVolume     = (ChannelsWaterLevel(i, j) - ChannelsBottomLevel(i, j)) * TotalArea
+                    InfiltrationVolume = -1. * Me%lFlowToChannels(i, j) * Me%ExtVar%DT                
+                    
+                    if (InfiltrationVolume > ChannelsVolume) then
+                        Me%lFlowToChannels(i, j) = -0.5 * ChannelsVolume / Me%ExtVar%DT
+                        write(*,*)'FlowToChannels corrected - ModulePorousMedia'
+                    endif
+                
+                !If soil looses water set flow so that cell stays at least with field theta
+                elseif (dH > 0) then
+                    k           = Me%UGCell(i,j)
+                    MinHead     = -0.5 * Me%ExtVar%DWZ(i, j, k)
+                    FieldTheta  = Theta_(MinHead, Me%SoilID(i,j,k))
+                    !m3/s   = (-) * m3 / s
+                    MaxFlow   = (Me%RC%ThetaS (i,j,k) - FieldTheta) * Me%ExtVar%CellVolume(i,j,k) / Me%ExtVar%DT
+
+                    if (Me%lFlowToChannels(i,j) > MaxFlow) then
+                        Me%lFlowToChannels(i,j) = MaxFlow
+                    endif
+                endif
+                
+            else
+
+                Me%lFlowToChannels(i, j) = 0.0
+
+            endif
+
+        enddo do2
+        enddo do1
+
+       !!Computation of Flow by layers - from total flow computed above.
+        call SetMatrixValue (Me%lFlowToChannelsLayer, Me%Size, 0.0, Me%ExtVar%WaterPoints3D)
+       
+do3:    do J = Me%WorkSize%JLB, Me%WorkSize%JUB
+do4:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
+            if (Me%ExtVar%RiverPoints(i, j) == OpenPoint) then
+                
+                FoundLowerFlowCell    = .false.
+                FoundUpperFlowCell    = .false.
+                VerticalFluxVariation = 0.0
+                !Search for lower and upper cell computation - water column in river
+                !And compute area for flow inside layer
+do5:            do K = Me%WorkSize%KLB, Me%WorkSize%KUB
+                    
+                    if (.not. FoundLowerFlowCell) then
+                        if((-Me%ExtVar%SZZ(i,j,k-1) .le. ChannelsBottomLevel(i, j)) .and.          &
+                           (-Me%ExtVar%SZZ(i,j,k  ) .gt. ChannelsBottomLevel(i, j))) then
+                        
+                            FoundLowerFlowCell                = .true.
+                            Me%FlowToChannelsBottomLayer(i,j) = k
+                            
+                            !Area for bottom river inside cell (2*height in cell + bottom width) * length
+                            TopHeightInCell = min(-Me%ExtVar%SZZ(i,j,k), ChannelsWaterLevel(i, j))
+                            LayerArea       = (2 * (TopHeightInCell - ChannelsBottomLevel(i, j))     &
+                                              + ChannelsBottomWidth(i, j)) * ChannelsNodeLength(i, j)
+                            
+                            !Check if Top channel height is also inside the channel bottom cell
+                            if (ChannelsWaterLevel(i, j) .lt. -Me%ExtVar%SZZ(i,j,k)) then
+                                FoundUpperFlowCell             = .true.
+                                Me%FlowToChannelsTopLayer(i,j) = k
+                            endif
+                            
+                        else
+                            !Cell Lower than channel bottom
+                            LayerArea = 0.0
+                        endif
+                    else
+                        if (.not. FoundUpperFlowCell) then
+                            if((-Me%ExtVar%SZZ(i,j,k-1) .lt. ChannelsWaterLevel(i, j)) .and.          &
+                               (-Me%ExtVar%SZZ(i,j,k  ) .ge. ChannelsWaterLevel(i, j))) then
+                            
+                                FoundUpperFlowCell             = .true.
+                                Me%FlowToChannelsTopLayer(i,j) = k
+                                
+                                !Area for river inside cell (2*height in cell) * length
+                                LayerArea = (2 * (ChannelsWaterLevel(i, j) - (-Me%ExtVar%SZZ(i,j,k-1)))) * ChannelsNodeLength(i, j)
+                                
+                            else
+                                !cells between river bottom and water level
+                                !Area for river inside cell (2*cellheight) * length
+                                LayerArea = 2 * (Me%ExtVar%DWZ(i,j,k)) * ChannelsNodeLength(i, j)
+                            
+                            endif
+                        else
+                            if (K .gt. Me%UGCell(i,j)) then
+                                !if found top river cell and higher than GW cell do not need to continue 
+                                !(all computations may cease).
+                                exit do5
+                            else
+                                !cells higher than river level - no flow 
+                                LayerArea = 0.0
+                            endif
+                        endif
+                    endif
+                    
+                    !Water level greater than soil top - top k undefined
+                    if (ChannelsWaterLevel(i, j) .gt. -Me%ExtVar%SZZ(i,j,Me%WorkSize%KUB)) then
+                        Me%FlowToChannelsTopLayer(i,j) = Me%WorkSize%KUB
+                    endif
+                    
+                    !Total area computed above - area related to total flow: Me%lFlowToChannels(i,j)
+                    TotalArea  = (2. * (ChannelsWaterLevel(i, j) - ChannelsBottomLevel(i, j))  &
+                                  + ChannelsBottomWidth(i, j)) * ChannelsNodeLength(i, j)  
+                                                  
+                    !The layer flow is proportional to the [layer area] / [total flow area]
+                    ![m3/s] = [m3/s] * [m2l]/[m2total]
+                    Me%lFlowToChannelsLayer(i, j, k) = Me%lFlowToChannels(i,j) * (LayerArea / TotalArea)
+                    
+                    !if flow is computed in saturated area then vertical flows have to be compensated so
+                    !that water content is maintained
+                    !This will result in a transport in vertical up to the groundwater top cell
+                    if ((K .ge. Me%FlowToChannelsBottomLayer(i,j)) .and. (K .lt. Me%UGCell(i,j))) then
+                        
+                        !Vertical flux (upper face) has to compensate the lower face flux and the flux with river. 
+                        !if flow to channels positive (to river) vertical flow is negative (downwards to compensate exit)
+                        !if flow to channels negative (to soil) vertical flow is positive (upwards to compensate entrance)
+                        ![m3/s] in iteration (dt is the same for both fluxes)
+                        VerticalFluxVariation = VerticalFluxVariation - Me%lFlowToChannelsLayer(i, j, k)
+                        Me%FluxWFinal(i,j,k+1)  = Me%FluxWFinal(i,j,k+1) + VerticalFluxVariation
+                    endif
+                
+                enddo do5
+            
+            endif
+
+        enddo do4
+        enddo do3
+
+        
+        call UnGetDrainageNetwork (Me%ObjDrainageNetwork, ChannelsWaterLevel, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ExchangeWithDrainageNetwork - ModulePorousMedia - ERR06'
+
+        call UnGetDrainageNetwork (Me%ObjDrainageNetwork, ChannelsBottomLevel, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ExchangeWithDrainageNetwork - ModulePorousMedia - ERR07'
+
+        call UnGetDrainageNetwork (Me%ObjDrainageNetwork, ChannelsBottomWidth, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ExchangeWithDrainageNetwork - ModulePorousMedia - ERR08'
+
+        call UnGetDrainageNetwork (Me%ObjDrainageNetwork, ChannelsOpenProcess, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ExchangeWithDrainageNetwork - ModulePorousMedia - ERR09'
+
+        call UnGetDrainageNetwork (Me%ObjDrainageNetwork, ChannelsNodeLength, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ExchangeWithDrainageNetwork - ModulePorousMedia - ERR10'
+
+    end subroutine ExchangeWithDrainageNet_Layer
+
+    !--------------------------------------------------------------------------
+    
+    subroutine ExchangeWithDrainageNet_Corr
+
+        !Arguments-------------------------------------------------------------
+        
+        !Local-----------------------------------------------------------------
+        integer                                     :: i, j, k, STAT_CALL
+        real                                        :: dH, dX, Area
+        real                                        :: MinHead, FieldTheta, MaxFlow
+        real,   dimension(:, :), pointer            :: ChannelsWaterLevel
+        real,   dimension(:, :), pointer            :: ChannelsBottomLevel 
+        real,   dimension(:, :), pointer            :: ChannelsBottomWidth
+        real,   dimension(:, :), pointer            :: ChannelsNodeLength
+        integer,dimension(:, :), pointer            :: ChannelsOpenProcess
+        real                                        :: ChannelsVolume, InfiltrationVolume
+        !Begin-----------------------------------------------------------------
 
         call GetChannelsWaterLevel  (Me%ObjDrainageNetwork, ChannelsWaterLevel, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ExchangeWithDrainageNetwork - ModulePorousMedia - ERR01'
@@ -5116,74 +5588,52 @@ doK:            do K = Me%ExtVar%KFloor(i, j), Me%WorkSize%KUB
         do I = Me%WorkSize%ILB, Me%WorkSize%IUB
 
             if (Me%ExtVar%RiverPoints(i, j) == OpenPoint) then
-            
-            
-                !Channel will loose water
-                if (ChannelsWaterLevel(i, j) > Me%UGWaterLevel2D(i, j)) then
-
-                    !The Area is always two times the lateral area and
-                    !one time the bottom area
-                    Area  = (2. * (ChannelsWaterLevel(i, j) - ChannelsBottomLevel(i, j))  & 
-                                 + ChannelsBottomWidth(i, j)) * ChannelsNodeLength(i, j) 
-
-                    if (Me%UGWaterLevel2D(i, j) > ChannelsBottomLevel(i, j)) then
-
-                        !Negative dh -> Flux from channels to porous media
-                        dH    = Me%UGWaterLevel2D(i, j) - ChannelsWaterLevel(i, j) 
-
-                    else
-
-                        !Negative dh -> Flux from channels to porous media
-                        dH    = ChannelsBottomLevel(i, j) - ChannelsWaterLevel(i, j)
-
-                    endif
-
-                else
-            
-                    !REVER AQUI
-                    if (Me%UGWaterLevel2D(i, j) - Me%ExtVar%BottomTopoG(i, j) > MinUGThickness) then
-
-                        !Postive dh -> Flux from porous media to channels
-                        !This logical has to be rechecked - What happens if channels are deeper then soil layer??????
-                        dH   = Me%UGWaterLevel2D(i, j) - max(ChannelsWaterLevel(i, j), Me%ExtVar%BottomTopoG(i, j))
-                        !2* Lateral Area + Bottom Area 
-                        Area = (2. * (Me%UGWaterLevel2D(i, j) - ChannelsBottomLevel(i, j)) + &
-                                ChannelsBottomWidth(i, j)) * ChannelsNodeLength(i, j)
-
-                    else
-
-                        dH   = 0.0
-                        Area = 0.0
-
-                    endif
-
+                
+                if (ChannelsBottomLevel(i,j) < Me%ExtVar%BottomTopoG(i, j)) then
+                    write (*,*) 
+                    write (*,*) 'Bottom River section is lower than soil profile in cell', i,j
+                    write (*,*) 'Increase bottom soil depth or decrease river depth'
+                    stop 'ExchangeWithDrainageNetwork - ModulePorousMedia - ERR06'
                 endif
-
-                !Positive Flow to channel when Channel "gains" water
-                ![m3/s]                  [m]  [m2]   [m/s]                     [m]
-                Me%lFlowToChannels(i, j) = dH * Area * Me%SoilOpt%HCondFactor * Me%UnSatK(i, j, Me%UGCell(i,j)) / &
-                                           max(ChannelsBottomWidth(i, j) / 2.0, 1.0)
-                !Me%lFlowToChannels(i, j) = Area * Me%SatK(i, j, Me%UGCell(i,j))
+                    
+                !Computing Area for flux - is always two times the lateral area and one time the bottom area
+                Area  = (2. * (ChannelsWaterLevel(i, j) - ChannelsBottomLevel(i, j))  &
+                            + ChannelsBottomWidth(i, j)) * ChannelsNodeLength(i, j)
+                
+                !Computing height gradient dH [m]
+                !Negative dh -> Flux from channels to porous media
+                !Positive dh -> Flux from porous media to channels 
+                dH    = Me%UGWaterLevel2D(i, j) - ChannelsWaterLevel(i, j)                
+                
+                !spatial step for Height Gradient (dH) [m]
+                dX = max(ChannelsBottomWidth(i, j) / 2.0, 1.0)
+                
+                ![m3/s]                   = [m/m] * [m2] * [m/s] * [] 
+                Me%lFlowToChannels(i, j) = (dH / dX ) * Area * Me%UnSatK(i, j, Me%UGCell(i,j)) * Me%SoilOpt%HCondFactor
 
                 !If the channel looses water (infiltration), then set max flux so that volume in channel does not get 
-                !negative
+                !negative                
                 if (dH < 0) then
-                    if (-1. * Me%lFlowToChannels(i, j) * Me%ExtVar%DT >                          &
-                        (ChannelsWaterLevel(i, j) - ChannelsBottomLevel(i, j)) * Area) then
-                        Me%lFlowToChannels(i, j) = -0.5 * (ChannelsWaterLevel(i, j) - ChannelsBottomLevel(i, j))   &
-                                                   * Area / Me%ExtVar%DT
+                    ![m3]
+                    ChannelsVolume     = (ChannelsWaterLevel(i, j) - ChannelsBottomLevel(i, j)) * Area
+                    InfiltrationVolume = -1. * Me%lFlowToChannels(i, j) * Me%ExtVar%DT                
+                    
+                    if (InfiltrationVolume > ChannelsVolume) then
+                        Me%lFlowToChannels(i, j) = -0.5 * ChannelsVolume / Me%ExtVar%DT
                         write(*,*)'FlowToChannels corrected - ModulePorousMedia'
                     endif
-                endif
                 
                 !If soil looses water set flow so that cell stays at least with field theta
-                !THIS DOESN'T WORK
-                if (dH > 0) then
+                elseif (dH > 0) then
                     k           = Me%UGCell(i,j)
                     MinHead     = -0.5 * Me%ExtVar%DWZ(i, j, k)
                     FieldTheta  = Theta_(MinHead, Me%SoilID(i,j,k))
-                    MaxVolume   = (Me%RC%ThetaS (i,j,k) - Me%Theta(i,j,k)) * Me%ExtVar%CellVolume(i,j,k)
-                    Me%lFlowToChannels(i,j) = min(Me%lFlowToChannels(i,j), MaxVolume / Me%ExtVar%DT)
+                    !m3/s   = (-) * m3 / s
+                    MaxFlow   = (Me%RC%ThetaS (i,j,k) - FieldTheta) * Me%ExtVar%CellVolume(i,j,k) / Me%ExtVar%DT
+
+                    if (Me%lFlowToChannels(i,j) > MaxFlow) then
+                        Me%lFlowToChannels(i,j) = MaxFlow
+                    endif
                 endif
                 
 
@@ -5197,23 +5647,155 @@ doK:            do K = Me%ExtVar%KFloor(i, j), Me%WorkSize%KUB
         enddo
         
         call UnGetDrainageNetwork (Me%ObjDrainageNetwork, ChannelsWaterLevel, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ExchangeWithDrainageNetwork - ModulePorousMedia - ERR06'
-
-        call UnGetDrainageNetwork (Me%ObjDrainageNetwork, ChannelsBottomLevel, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ExchangeWithDrainageNetwork - ModulePorousMedia - ERR07'
 
-        call UnGetDrainageNetwork (Me%ObjDrainageNetwork, ChannelsBottomWidth, STAT = STAT_CALL)
+        call UnGetDrainageNetwork (Me%ObjDrainageNetwork, ChannelsBottomLevel, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ExchangeWithDrainageNetwork - ModulePorousMedia - ERR08'
 
-        call UnGetDrainageNetwork (Me%ObjDrainageNetwork, ChannelsOpenProcess, STAT = STAT_CALL)
+        call UnGetDrainageNetwork (Me%ObjDrainageNetwork, ChannelsBottomWidth, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ExchangeWithDrainageNetwork - ModulePorousMedia - ERR09'
 
-        call UnGetDrainageNetwork (Me%ObjDrainageNetwork, ChannelsNodeLength, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ExchangeWithDrainageNetwork - ModulePorousMedia - ERR10'
+        call UnGetDrainageNetwork (Me%ObjDrainageNetwork, ChannelsOpenProcess, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ExchangeWithDrainageNetwork - ModulePorousMedia - ERR010'
 
-    end subroutine ExchangeWithDrainageNetwork
+        call UnGetDrainageNetwork (Me%ObjDrainageNetwork, ChannelsNodeLength, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ExchangeWithDrainageNetwork - ModulePorousMedia - ERR11'
+
+    end subroutine ExchangeWithDrainageNet_Corr
 
     !--------------------------------------------------------------------------
+
+   subroutine ExchangeWithDrainageNet_Orig
+
+       !Arguments-------------------------------------------------------------
+       
+       !Local-----------------------------------------------------------------
+       integer                                     :: i, j, k, STAT_CALL
+       real                                        :: dH, Area
+       real                                        :: MinHead, FieldTheta, MaxVolume
+       real,   dimension(:, :), pointer            :: ChannelsWaterLevel
+       real,   dimension(:, :), pointer            :: ChannelsBottomLevel
+       real,   dimension(:, :), pointer            :: ChannelsBottomWidth
+       real,   dimension(:, :), pointer            :: ChannelsNodeLength
+       integer,dimension(:, :), pointer            :: ChannelsOpenProcess
+
+       call GetChannelsWaterLevel  (Me%ObjDrainageNetwork, ChannelsWaterLevel, STAT = STAT_CALL)
+       if (STAT_CALL /= SUCCESS_) stop 'ExchangeWithDrainageNetwork - ModulePorousMedia - ERR01'
+
+       call GetChannelsBottomLevel (Me%ObjDrainageNetwork, ChannelsBottomLevel, STAT = STAT_CALL)
+       if (STAT_CALL /= SUCCESS_) stop 'ExchangeWithDrainageNetwork - ModulePorousMedia - ERR02'
+
+       call GetChannelsBottomWidth (Me%ObjDrainageNetwork, ChannelsBottomWidth, STAT = STAT_CALL)
+       if (STAT_CALL /= SUCCESS_) stop 'ExchangeWithDrainageNetwork - ModulePorousMedia - ERR03'
+
+       call GetChannelsOpenProcess (Me%ObjDrainageNetwork, ChannelsOpenProcess, STAT = STAT_CALL)
+       if (STAT_CALL /= SUCCESS_) stop 'ExchangeWithDrainageNetwork - ModulePorousMedia - ERR04'
+
+       call GetChannelsNodeLength  (Me%ObjDrainageNetwork, ChannelsNodeLength, STAT = STAT_CALL)
+       if (STAT_CALL /= SUCCESS_) stop 'ExchangeWithDrainageNetwork - ModulePorousMedia - ERR05'
+
+       do J = Me%WorkSize%JLB, Me%WorkSize%JUB
+       do I = Me%WorkSize%ILB, Me%WorkSize%IUB
+
+           if (Me%ExtVar%RiverPoints(i, j) == OpenPoint) then
+           
+           
+               !Channel will loose water
+               if (ChannelsWaterLevel(i, j) > Me%UGWaterLevel2D(i, j)) then
+
+                   !The Area is always two times the lateral area and
+                   !one time the bottom area
+                   Area  = (2. * (ChannelsWaterLevel(i, j) - ChannelsBottomLevel(i, j))  &
+                                + ChannelsBottomWidth(i, j)) * ChannelsNodeLength(i, j)
+
+                   if (Me%UGWaterLevel2D(i, j) > ChannelsBottomLevel(i, j)) then
+
+                       !Negative dh -> Flux from channels to porous media
+                       dH    = Me%UGWaterLevel2D(i, j) - ChannelsWaterLevel(i, j)
+
+                   else
+
+                       !Negative dh -> Flux from channels to porous media
+                       dH    = ChannelsBottomLevel(i, j) - ChannelsWaterLevel(i, j)
+
+                   endif
+
+               else
+           
+                   !REVER AQUI
+                   if (Me%UGWaterLevel2D(i, j) - Me%ExtVar%BottomTopoG(i, j) > MinUGThickness) then
+
+                       !Postive dh -> Flux from porous media to channels
+                       !This logical has to be rechecked - What happens if channels are deeper then soil layer??????
+                       dH   = Me%UGWaterLevel2D(i, j) - max(ChannelsWaterLevel(i, j), Me%ExtVar%BottomTopoG(i, j))
+                       !2* Lateral Area + Bottom Area
+                       Area = (2. * (Me%UGWaterLevel2D(i, j) - ChannelsBottomLevel(i, j)) + &
+                               ChannelsBottomWidth(i, j)) * ChannelsNodeLength(i, j)
+
+                   else
+
+                       dH   = 0.0
+                       Area = 0.0
+
+                   endif
+
+               endif
+
+               !Positive Flow to channel when Channel "gains" water
+               ![m3/s]                  [m]  [m2]   [m/s]                     [m]
+               Me%lFlowToChannels(i, j) = dH * Area * Me%SoilOpt%HCondFactor * Me%UnSatK(i, j, Me%UGCell(i,j)) / &
+                                          max(ChannelsBottomWidth(i, j) / 2.0, 1.0)
+               !Me%lFlowToChannels(i, j) = Area * Me%SatK(i, j, Me%UGCell(i,j))
+
+               !If the channel looses water (infiltration), then set max flux so that volume in channel does not get
+               !negative
+               if (dH < 0) then
+                   if (-1. * Me%lFlowToChannels(i, j) * Me%ExtVar%DT >            &
+                   (ChannelsWaterLevel(i, j) - ChannelsBottomLevel(i, j)) * Area) then
+                       Me%lFlowToChannels(i, j) = -0.5 * (ChannelsWaterLevel(i, j) - ChannelsBottomLevel(i, j)) &
+                       * Area / Me%ExtVar%DT
+                       write(*,*)'FlowToChannels corrected - ModulePorousMedia'
+                   endif
+               endif
+               
+               !If soil looses water set flow so that cell stays at least with field theta
+               !THIS DOESN'T WORK
+               if (dH > 0) then
+                   k           = Me%UGCell(i,j)
+                   MinHead     = -0.5 * Me%ExtVar%DWZ(i, j, k)
+                   FieldTheta  = Theta_(MinHead, Me%SoilID(i,j,k))
+                   MaxVolume   = (Me%RC%ThetaS (i,j,k) - Me%Theta(i,j,k)) * Me%ExtVar%CellVolume(i,j,k)
+                   Me%lFlowToChannels(i,j) = min(Me%lFlowToChannels(i,j), MaxVolume / Me%ExtVar%DT)
+               endif
+               
+
+           else
+
+               Me%lFlowToChannels(i, j) = 0.0
+
+           endif
+
+       enddo
+       enddo
+       
+       call UnGetDrainageNetwork (Me%ObjDrainageNetwork, ChannelsWaterLevel, STAT = STAT_CALL)
+       if (STAT_CALL /= SUCCESS_) stop 'ExchangeWithDrainageNetwork - ModulePorousMedia - ERR06'
+
+       call UnGetDrainageNetwork (Me%ObjDrainageNetwork, ChannelsBottomLevel, STAT = STAT_CALL)
+       if (STAT_CALL /= SUCCESS_) stop 'ExchangeWithDrainageNetwork - ModulePorousMedia - ERR07'
+
+       call UnGetDrainageNetwork (Me%ObjDrainageNetwork, ChannelsBottomWidth, STAT = STAT_CALL)
+       if (STAT_CALL /= SUCCESS_) stop 'ExchangeWithDrainageNetwork - ModulePorousMedia - ERR08'
+
+       call UnGetDrainageNetwork (Me%ObjDrainageNetwork, ChannelsOpenProcess, STAT = STAT_CALL)
+       if (STAT_CALL /= SUCCESS_) stop 'ExchangeWithDrainageNetwork - ModulePorousMedia - ERR09'
+
+       call UnGetDrainageNetwork (Me%ObjDrainageNetwork, ChannelsNodeLength, STAT = STAT_CALL)
+       if (STAT_CALL /= SUCCESS_) stop 'ExchangeWithDrainageNetwork - ModulePorousMedia - ERR10'
+
+   end subroutine ExchangeWithDrainageNet_Orig
+
+   !--------------------------------------------------------------------------
 
     function BuckinghamDarcyEquation(con, hinf, hsup, delta)
     real ::  BuckinghamDarcyEquation
@@ -5554,69 +6136,82 @@ doK:            do K = Me%ExtVar%KFloor(i, j), Me%WorkSize%KUB
         call WriteTimeSerie(Me%ObjTimeSerie,                                            &
                             Data3D = Me%RC%ThetaF,                                &
                             STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModulePorousMedia - ERR02'
+        if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModulePorousMedia - ERR010'
 
         !velocity for now......
         call WriteTimeSerie(Me%ObjTimeSerie,                                            &
                             Data3D = Me%UnsatVelW ,                                     &
                             STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModulePorousMedia - ERR02'
+        if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModulePorousMedia - ERR020'
 
         !infiltration velocity for now
         call WriteTimeSerie(Me%ObjTimeSerie,                                            &
                             Data2D = Me%InfiltrationVelocity,                           &
                             STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModulePorousMedia - ERR02'
+        if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModulePorousMedia - ERR030'
         
 
         !Head
         call WriteTimeSerie(Me%ObjTimeSerie,                                            &
                             Data3D = Me%Head,                                     &
                             STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModulePorousMedia - ERR03'
+        if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModulePorousMedia - ERR040'
 
         !Conductivity
         call WriteTimeSerie(Me%ObjTimeSerie,                                            &
                             Data3D = Me%UnSatK,                                   &
                             STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModulePorousMedia - ERR04'
+        if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModulePorousMedia - ERR050'
 
         !Level Water Table
         call WriteTimeSerie(Me%ObjTimeSerie,                                            &
                             Data2D = Me%UGWaterLevel2D,                                 &
                             STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModulePorousMedia - ERR07'
+        if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModulePorousMedia - ERR060'
 
         !Depth Water Table
         call WriteTimeSerie(Me%ObjTimeSerie,                                            &
                             Data2D = Me%UGWaterDepth2D,                                 &
                             STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModulePorousMedia - ERR07'
+        if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModulePorousMedia - ERR070'
 
         !Hydro Pressure
         call WriteTimeSerie(Me%ObjTimeSerie,                                            &
                             Data3D = Me%HydroPressure,                                  &
                             STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModulePorousMedia - ERR08'
+        if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModulePorousMedia - ERR080'
 
         !Final Head
         call WriteTimeSerie(Me%ObjTimeSerie,                                            &
                             Data3D = Me%FinalHead,                                      &
                             STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModulePorousMedia - ERR08'
+        if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModulePorousMedia - ERR090'
 
         !Porous Media Water column - to compare to Basin water column
 !        call WriteTimeSerie(Me%ObjTimeSerie,                                            &
 !                            Data2D = Me%WaterColumn,                                    &
 !                            STAT = STAT_CALL)
 !        if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModulePorousMedia - ERR08'
+
+        if (Me%SoilOpt%DNLink == ByLayer_) then
+            !Flow to channels by layer
+            call WriteTimeSerie(Me%ObjTimeSerie,                                            &
+                                Data3D = Me%iFlowToChannelsLayer,                           &
+                                STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModulePorousMedia - ERR091'
+            !Flow to channels total
+            call WriteTimeSerie(Me%ObjTimeSerie,                                            &
+                                Data2D = Me%iFlowToChannels,                                &
+                                STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModulePorousMedia - ERR092'            
+        endif
         
         if (Me%ExtVar%ConstructEvaporation) then
             !Evaporation
             call WriteTimeSerie(Me%ObjTimeSerie,                                        &
                                 Data2D = Me%EvaporationFlux,                            &
                                 STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModulePorousMedia - ERR09'
+            if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModulePorousMedia - ERR0100'
         endif
 
         if (Me%ExtVar%ConstructTranspiration) then
@@ -5624,7 +6219,7 @@ doK:            do K = Me%ExtVar%KFloor(i, j), Me%WorkSize%KUB
             call WriteTimeSerie(Me%ObjTimeSerie,                                        &
                                 Data3D = Me%ExtVar%TranspirationFlux,                   &
                                 STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModulePorousMedia - ERR10'        
+            if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModulePorousMedia - ERR110'        
         endif
 
 
