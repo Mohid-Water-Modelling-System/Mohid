@@ -284,6 +284,8 @@ Module ModuleBasin
         logical                                     :: VerifyGlobalMass     = .false.
         logical                                     :: Calibrating1D        = .false.
         logical                                     :: ConcentrateRain      = .false.
+        logical                                     :: EvaporateFromWaterColumn = .true.
+        logical                                     :: EvaporateFromCanopy      = .true.
         real                                        :: RainAverageDuration  = 600.0
         real                                        :: WCRemovalTime        = 600.
         real                                        :: DTDuringRain
@@ -642,7 +644,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      Me%ObjEnterData, iflag,                                             &
                      SearchType   = FromFile,                                            &
                      keyword      = 'WATER_COLUMN_COEF',                                 &
-                     default      = 0.0,                                                 & 
+                     default      = 1.0,                                                 &  !Eduardo Jauch: Changed from 0.0 to 1.0 in 26/03/2010
                      ClientModule = 'ModuleBasin',                                       &
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR01'
@@ -746,7 +748,27 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      ClientModule = 'ModuleBasin',                                       &
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR95'
-        
+
+        !
+        call GetData(Me%EvaporateFromWaterColumn,                                        &
+                     Me%ObjEnterData, iflag,                                             &
+                     SearchType   = FromFile,                                            &
+                     keyword      = 'EVAPORATE_FROM_WATER_COLUMN',                       &
+                     default      = .true.,                                              &
+                     ClientModule = 'ModuleBasin',                                       &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR95A'
+       
+        !
+        call GetData(Me%EvaporateFromCanopy,                                             &
+                     Me%ObjEnterData, iflag,                                             &
+                     SearchType   = FromFile,                                            &
+                     keyword      = 'EVAPORATE_FROM_CANOPY',                             &
+                     default      = .true.,                                              &
+                     ClientModule = 'ModuleBasin',                                       &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR95B'
+
         if (Me%DiffuseWaterSource) then
             call GetData(Me%FlowPerCapita,                                               &
                          Me%ObjEnterData, iflag,                                         &
@@ -2507,7 +2529,7 @@ cd2 :           if (BlockFound) then
                 ![m/s]          = [J/m2/s] / [J/kg] / [kg/m3] 
                 EvaporationRate = LatentHeat_ / LatentHeatOfVaporization / ReferenceDensity 
                 
-                if (Me%Coupled%Vegetation) then
+                if (Me%Coupled%Vegetation .and. Me%EvaporateFromCanopy) then
                     !dH
                     dH              = min(dble(EvaporationRate * Me%CurrentDT), Me%CanopyStorage(i, j))
                 
@@ -2526,7 +2548,7 @@ cd2 :           if (BlockFound) then
                 endif
                 
                 !Also EVAP from watercolumn - important for 1D cases to avoid accumulation of Water on the surface
-                if (Me%WaterLevel (i, j) > Me%ExtVar%Topography(i, j)) then
+                if (Me%WaterLevel (i, j) > Me%ExtVar%Topography(i, j) .and. Me%EvaporateFromWaterColumn) then
                     !dH
                     dH              = min(dble(EvaporationRate * Me%CurrentDT), Me%WaterLevel (i, j) - Me%ExtVar%Topography(i, j))
 

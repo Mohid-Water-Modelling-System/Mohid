@@ -3265,7 +3265,7 @@ cd10 :                      if (Me%ExternalVar%RiverPoints1D(i) == 1) then
 #ifdef _PHREEQC_
         logical                                 :: pHAdded = .false.
         logical                                 :: pEAdded = .false.
-        logical                                 :: SoilDryDensityAdded = .false.
+!        logical                                 :: SoilDryDensityAdded = .false.
 #endif        
         !----------------------------------------------------------------------
 

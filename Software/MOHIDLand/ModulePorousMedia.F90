@@ -297,10 +297,11 @@ Module ModulePorousMedia
         logical :: CheckGlobalMass
         logical :: StartWithFieldCapacity
         logical :: ComputeSoilField
-        logical :: RemoveWater              !Lúcia
+        logical :: RemoveWater              !Lúcia - Not used.
         real    :: HCondFactor
         logical :: LimitEVAPWaterVelocity
         logical :: LimitEVAPHead
+        logical :: IgnoreWaterColumnOnEvap
         real    :: HeadLimit
         integer :: DNLink
     end type T_SoilOptions
@@ -731,6 +732,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      STAT       = STAT_CALL)            
         if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModulePorousMedia - ERR04'
 
+        !This keyword is not used anywhere
         call GetData(Me%SoilOpt%RemoveWater,                                            &   
                      Me%ObjEnterData, iflag,                                            &
                      SearchType = FromFile,                                             &
@@ -747,7 +749,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      Default        = .false.,                                          &
                      ClientModule   ='ModulePorousMedia',                               &
                      STAT           = STAT_CALL)             
-        if (STAT_CALL /= SUCCESS_) stop 'GetUnSaturatedOptions - ModulePorousMedia - ERR06'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModulePorousMedia - ERR06'
 
         if (Me%SoilOpt%LimitEVAPHead) then
                 
@@ -787,6 +789,14 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         endif
 
+        call GetData(Me%SoilOpt%IgnoreWaterColumnOnEvap,                                &     
+                     Me%ObjEnterData, iflag,                                            &
+                     SearchType     = FromFile,                                         &
+                     keyword        ='IGNORE_WATER_COLUMN_ON_EVAP',                     &
+                     Default        = .false.,                                          &
+                     ClientModule   ='ModulePorousMedia',                               &
+                     STAT           = STAT_CALL)             
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModulePorousMedia - ERR09A'
 
         !Output Options--------------------------------------------------------
 
@@ -3796,6 +3806,7 @@ dConv:  do while (iteration <= Niteration)
         real                                        :: AccumPressure, Coef
         real                                        :: CenterVelocityW
         integer                                     :: KUB
+        !real                                        :: factor
 
         CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
         
@@ -3818,9 +3829,15 @@ dConv:  do while (iteration <= Niteration)
                         CenterVelocityW  = (Me%UnsatVelW(i, j, k) + Me%UnsatVelW(i, j, k+1)) / 2.0
 
                         
-                        Coef = 0.5 * Me%ExtVar%DWZ(i, j, k) * (1.0 - CenterVelocityW / Me%SatK(i, j, k)) * &
-                               LinearInterpolation(Me%RC%ThetaS(i, j, k) * Me%CV%ThetaHydroCoef, 0.0,      &
-                               Me%RC%ThetaS(i, j, k), 1.0, Me%Theta(i, j, k))
+                        if (abs(CenterVelocityW) > Me%SatK(i, j, k)) then
+                            Coef = 0.0
+                        else
+                            Coef = 0.5 * Me%ExtVar%DWZ(i, j, k) * (1.0 + CenterVelocityW / Me%SatK(i, j, k)) * &
+                                   LinearInterpolation(Me%RC%ThetaS(i, j, k) * Me%CV%ThetaHydroCoef, 0.0, Me%RC%ThetaS(i, j, k), 1.0, Me%Theta(i, j, k))**3
+                        end if
+
+!                        Coef = 0.5 * Me%ExtVar%DWZ(i, j, k) * (1.0 - CenterVelocityW / Me%SatK(i, j, k)) * &
+!                               LinearInterpolation(Me%RC%ThetaS(i, j, k) * Me%CV%ThetaHydroCoef, 0.0, Me%RC%ThetaS(i, j, k), 1.0, Me%Theta(i, j, k))
 
                         AccumPressure = AccumPressure + Coef
                         Me%HydroPressure(i,j,k) = AccumPressure
@@ -4302,7 +4319,7 @@ dConv:  do while (iteration <= Niteration)
         
             if (Me%ExtVar%WaterPoints3D(i,j,Me%WorkSize%KUB) == 1) then
         
-                if (Me%WaterColumn(i, j) < AllmostZero) then             
+                if ((Me%SoilOpt%IgnoreWaterColumnOnEvap) .or. (Me%WaterColumn(i, j) < AllmostZero)) then             
                    
                     k = Me%WorkSize%KUB   ! evaporation just at the surface
                     

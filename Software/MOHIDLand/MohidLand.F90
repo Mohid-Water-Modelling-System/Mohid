@@ -198,7 +198,6 @@ program MohidLand
             call GetComputeCurrentTime(ObjComputeTime, CurrentTime, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ModifyMohidLand - MohidLand - ERR02'
             
-            
             if (VariableDT) then
                                 
                 NewDT = min(DT * 1.50, MaxDT)
@@ -223,7 +222,7 @@ program MohidLand
                 if (DT > AINT(DT)) then
                    DT = AINT(DT) + 1.0
                 else
-                   DT = max(DT, 1.0)
+                   DT = max(AINT(DT), 1.0)
                 endif
 
                 !Fit last Iteration
