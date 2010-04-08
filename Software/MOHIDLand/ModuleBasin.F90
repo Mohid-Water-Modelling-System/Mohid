@@ -165,6 +165,10 @@ Module ModuleBasin
     !Separate evapotranspiration
     integer, parameter                              :: SingleEvapoTranspiration   = 1
     integer, parameter                              :: SeparateEvapoTranspiration = 2
+    !Surface evaporation method
+    integer, parameter                              :: LatentHeatMethod         = 1
+    integer, parameter                              :: ET0Method                = 2
+    integer, parameter                              :: NoEvaporation            = 3
     !Gw link between porous media and drainage network
     integer, parameter                              :: Layer_ = 3
 
@@ -284,8 +288,10 @@ Module ModuleBasin
         logical                                     :: VerifyGlobalMass     = .false.
         logical                                     :: Calibrating1D        = .false.
         logical                                     :: ConcentrateRain      = .false.
-        logical                                     :: EvaporateFromWaterColumn = .true.
-        logical                                     :: EvaporateFromCanopy      = .true.
+        logical                                     :: EvapFromWaterColumn
+        logical                                     :: EvapFromCanopy
+        integer                                     :: EvapMethod
+        real                                        :: RefEvapotranspirationConstant
         real                                        :: RainAverageDuration  = 600.0
         real                                        :: WCRemovalTime        = 600.
         real                                        :: DTDuringRain
@@ -329,6 +335,7 @@ Module ModuleBasin
         real,    dimension(:,:), pointer            :: DiffuseFlow            => null()
         real                                        :: InitialWaterColumn
         real                                        :: WaterColumnCoef
+        real                                        :: ETConversionFactor       = 1
         type (T_MassBalance)                        :: MB
         type (T_IntegratedFlow)                     :: DailyFlow            
         type (T_IntegratedFlow)                     :: MonthlyFlow            
@@ -627,7 +634,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         !Constructs the DataFile
         call ConstructEnterData (Me%ObjEnterData, Me%Files%ConstructData, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR00'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR010'
 
         !Basin Initial Water Column
         call GetData(Me%InitialWaterColumn,                                              &
@@ -637,7 +644,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      default      = 0.0,                                                 & 
                      ClientModule = 'ModuleBasin',                                       &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR01'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR020'
 
         !Basin Initial Water Column
         call GetData(Me%WaterColumnCoef,                                                 &
@@ -647,7 +654,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      default      = 1.0,                                                 &  !Eduardo Jauch: Changed from 0.0 to 1.0 in 26/03/2010
                      ClientModule = 'ModuleBasin',                                       &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR01'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR030'
 
 
         !Continuous Computation
@@ -658,7 +665,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      default      = .false.,                                             &
                      ClientModule = 'ModuleBasin',                                       &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR02'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR040'
 
         call GetData(Me%StopOnWrongDate,                                                 &
                      Me%ObjEnterData, iflag,                                             &
@@ -667,7 +674,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      default      = .true.,                                              &
                      ClientModule = 'ModuleBasin',                                       &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR03'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR050'
 
         !Verify Global Mass
         call GetData(Me%VerifyGlobalMass,                                                &
@@ -677,7 +684,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      default      = .false.,                                             &
                      ClientModule = 'ModuleBasin',                                       &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR04'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR060'
 
         !Calibrating 1D column?
         call GetData(Me%Calibrating1D,                                                   &
@@ -687,7 +694,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      default      = .false.,                                             &
                      ClientModule = 'ModuleBasin',                                       &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR04a'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR070'
 
         !How much to remove for the watercolumn 
         if (Me%Calibrating1D) then
@@ -698,7 +705,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                          default      = 600.,                                             &
                          ClientModule = 'ModuleBasin',                                    &
                          STAT         = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR04b'
+            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR080'
         endif
 
         !DT During Rain
@@ -709,7 +716,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      default      = 60.0,                                                &
                      ClientModule = 'ModuleBasin',                                       &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR04a'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR090'
 
         !Concentrate Rain for subhourly steps
         call GetData(Me%ConcentrateRain,                                                 &
@@ -719,7 +726,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      default      = .false.,                                             &
                      ClientModule = 'ModuleBasin',                                       &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR04b'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR100'
         
         !How long does rain last...
         if (Me%ConcentrateRain) then
@@ -730,11 +737,11 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                          default      = 600.00,                                          &
                          ClientModule = 'ModuleBasin',                                   &
                          STAT         = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR04c'
+            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR110'
             
             if (1.5 * Me%RainAverageDuration + Me%DTDuringRain > 3600.0) then
                 write(*,*)'1.5 * RainAverageDuration + DT During Rain cannot exceed 3600s'
-                stop 'ReadDataFile - ModuleBasin - ERR04d'
+                stop 'ReadDataFile - ModuleBasin - ERR0120'
             endif
             
         endif
@@ -747,28 +754,51 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      default      = .false.,                                             &
                      ClientModule = 'ModuleBasin',                                       &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR95'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR130'
 
-        !
-        call GetData(Me%EvaporateFromWaterColumn,                                        &
+        call GetData(Me%EvapMethod,                                                      &
                      Me%ObjEnterData, iflag,                                             &
                      SearchType   = FromFile,                                            &
-                     keyword      = 'EVAPORATE_FROM_WATER_COLUMN',                       &
-                     default      = .true.,                                              &
+                     keyword      = 'EVAP_METHOD',                                       &
+                     default      = ET0Method,                                           & !ET0Method
                      ClientModule = 'ModuleBasin',                                       &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR95A'
-       
-        !
-        call GetData(Me%EvaporateFromCanopy,                                             &
-                     Me%ObjEnterData, iflag,                                             &
-                     SearchType   = FromFile,                                            &
-                     keyword      = 'EVAPORATE_FROM_CANOPY',                             &
-                     default      = .true.,                                              &
-                     ClientModule = 'ModuleBasin',                                       &
-                     STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR95B'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR140'
 
+        if (Me%EvapMethod .NE. NoEvaporation) then
+            !
+            call GetData(Me%EvapFromWaterColumn,                                             &
+                         Me%ObjEnterData, iflag,                                             &
+                         SearchType   = FromFile,                                            &
+                         keyword      = 'EVAP_FROM_WATER_COLUMN',                            &
+                         default      = .true.,                                              &
+                         ClientModule = 'ModuleBasin',                                       &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR150'
+           
+            !
+            call GetData(Me%EvapFromCanopy,                                                  &
+                         Me%ObjEnterData, iflag,                                             &
+                         SearchType   = FromFile,                                            &
+                         keyword      = 'EVAP_FROM_CANOPY',                                  &
+                         default      = .true.,                                              &
+                         ClientModule = 'ModuleBasin',                                       &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR160'
+        
+            if ((.NOT. Me%EvapFromWaterColumn) .AND. (.NOT. Me%EvapFromCanopy)) then
+            
+                Me%EvapMethod = NoEvaporation 
+                                
+            endif
+        
+        else
+        
+            Me%EvapFromWaterColumn = .false.
+            Me%EvapFromCanopy      = .false.
+        
+        endif
+        
         if (Me%DiffuseWaterSource) then
             call GetData(Me%FlowPerCapita,                                               &
                          Me%ObjEnterData, iflag,                                         &
@@ -777,7 +807,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                          default      = 0.0,                                             &
                          ClientModule = 'ModuleBasin',                                   &
                          STAT         = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR96'
+            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR170'
 
             call GetData(Me%PopDensityFile,                                              &
                          Me%ObjEnterData, iflag,                                         &
@@ -785,7 +815,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                          keyword      = 'POPULATION_DENSITY',                            &
                          ClientModule = 'ModuleBasin',                                   &
                          STAT         = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR97'
+            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR180'
             if (iflag == 0) then
                 write(*,*)'Population Density file not given - keyword POPULATION_DENSITY'
                 stop 'ReadDataFile - ModuleBasin - ERR98'
@@ -803,13 +833,13 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      default      = 0.6,                                                 &
                      ClientModule = 'ModuleBasin',                                       &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR40'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR190'
 
         !Reads file name of initial condition file
         if (Me%Continuous) then
             call ReadFileName('BASIN_INI', Me%Files%InitialFile,                         &
                                Message = "Basin Initial File", STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR05'
+            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR200'
         endif
 
         !Verifies if the user wants to use the Atmosphere Condition
@@ -820,7 +850,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      default      = ON,                                                  &
                      ClientModule = 'ModuleBasin',                                       &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR06'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR210'
 
         !Verifies if the user wants to use the Atmosphere Condition
         call GetData(Me%Coupled%Evapotranspiration,                                      &
@@ -830,7 +860,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      default      = OFF,                                                 &
                      ClientModule = 'ModuleBasin',                                       &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR07'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR220'
 
         if (Me%Coupled%Evapotranspiration) then
             !Verifies which method user wants for evapotranspiration (1-EvapoTranspiration  
@@ -842,10 +872,15 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                          default      = SingleEvapotranspiration,                            &
                          ClientModule = 'ModuleBasin',                                       &
                          STAT         = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR10b'
+            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR230'
         endif
 
-
+        if ((Me%EvapoTranspirationMethod .EQ. 1) .AND. (Me%EvapMethod .NE. NoEvaporation)) then
+                write(*,*)  
+                write(*,*) 'If EVAPOTRANSPIRATION_METHOD = 1, then '
+                write(*,*) 'EVAP_METHOD must be set to 3 (NoEvaporation)'
+                stop 'ReadDataFile - ModuleBasin - ERR240'        
+        endif
 
         !Verifies if the user wants to simulate Infiltration
         call GetData(Me%Coupled%PorousMedia,                                             &
@@ -855,7 +890,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      default      = ON,                                                  &
                      ClientModule = 'ModuleBasin',                                       &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR08'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR250'
 
         if (Me%Coupled%PorousMedia) then
             ! verifies if the user wants to simulate transport of properties
@@ -866,7 +901,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                          default      = OFF,                                                 &
                          ClientModule = 'ModuleBasin',                                       &
                          STAT         = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR08'
+            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR260'
         endif
 
         !Verifies if the user wants to simulate OverLand RunOff
@@ -877,7 +912,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      default      = ON,                                                  &
                      ClientModule = 'ModuleBasin',                                       &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR09'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR270'
         
         if (Me%Coupled%RunOff) then
             !Verifies if the user wants to simulate OverLand RunOff propertie transport
@@ -888,7 +923,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                          default      = OFF,                                                 &
                          ClientModule = 'ModuleBasin',                                       &
                          STAT         = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR09.5'
+            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR0280'
         endif
 
         !A Drainage Network is coupled?
@@ -899,7 +934,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      default      = ON,                                                  &
                      ClientModule = 'ModuleBasin',                                       &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR10'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR290'
 
         !The Vegetation Module is coupled_
         call GetData(Me%Coupled%Vegetation,                                              &
@@ -909,7 +944,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      default      = ON,                                                  &
                      ClientModule = 'ModuleBasin',                                       &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR10a'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR300'
 
         !Verifies if the user wants to use simple 
         call GetData(Me%Coupled%SimpleInfiltration,                                      &
@@ -919,7 +954,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      default      = OFF,                                                 &
                      ClientModule = 'ModuleBasin',                                       &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR10b'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR310'
 
 
         !Gets Output Time 
@@ -931,7 +966,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                            OutPutsTime = Me%OutPut%OutTime,                              &
                            OutPutsOn   = Me%OutPut%Yes,                                  &
                            STAT        = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR11'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR320'
 
         !Output for restart
         call GetOutPutTime(Me%ObjEnterData,                                             &
@@ -942,7 +977,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                            OutPutsTime  = Me%OutPut%RestartOutTime,                     &
                            OutPutsOn    = Me%OutPut%WriteRestartFile,                   &
                            STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR11a'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR330'
 
         call GetData(Me%OutPut%RestartOverwrite,                                        &
                      Me%ObjEnterData,                                                   &
@@ -952,7 +987,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      Default      = .true.,                                             &
                      ClientModule = 'ModuleBasin',                                      &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)  stop 'ReadDataFile - ModuleBasin - ERR11a'
+        if (STAT_CALL /= SUCCESS_)  stop 'ReadDataFile - ModuleBasin - ERR340'
 
 
         !Gets TimeSerieLocationFile
@@ -963,7 +998,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      ClientModule = 'ModuleBasin',                                       &
                      Default      = Me%Files%ConstructData,                              &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR12'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR350'
 
         !Output daily flow values?
         call GetData(Me%DailyFlow%On,                                                    &
@@ -973,7 +1008,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      default      = OFF,                                                 &
                      ClientModule = 'ModuleBasin',                                       &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR13'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR360'
 
         !Output monthly flow values?
         call GetData(Me%MonthlyFlow%On,                                                  &
@@ -983,7 +1018,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      default      = OFF,                                                 &
                      ClientModule = 'ModuleBasin',                                       &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR14'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR370'
 
         !Verifies if the user wants to have precipitations has snow
         call GetData(Me%Coupled%Snow,                                                    &
@@ -993,7 +1028,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      default      = OFF,                                                 &
                      ClientModule = 'ModuleBasin',                                       &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR15'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR380'
 
 
 
@@ -1786,6 +1821,7 @@ i1:         if (CoordON) then
         integer                                     :: STAT_CALL, ErrorCount
         logical                                     :: BlockFound
         type (T_BasinProperty), pointer             :: PropertyX    => null()
+        integer                                     :: i, j
 
         !----------------------------------------------------------------------
 
@@ -1826,6 +1862,52 @@ cd2 :           if (BlockFound) then
             
             if (ErrorCount /= SUCCESS_) stop 'ConstructPropertyList - ModuleBasin - ERR03'
             
+            !Define the conversion factor for ET0 based on the UNITS given by the user
+            if (trim(adjustl(PropertyX%ID%Units)) .EQ. "mm/d") then
+                Me%ETConversionFactor = 1. / 86400000.
+            elseif (trim(adjustl(PropertyX%ID%Units)) .EQ. "mm/h") then 
+                Me%ETConversionFactor = 1. / 3600000.
+            elseif (trim(adjustl(PropertyX%ID%Units)) .EQ. "mm/s") then 
+                Me%ETConversionFactor = 1. / 1000.
+            elseif (trim(adjustl(PropertyX%ID%Units)) .EQ. "cm/d") then 
+                Me%ETConversionFactor = 1. / 8640000.
+            elseif (trim(adjustl(PropertyX%ID%Units)) .EQ. "cm/h") then 
+                Me%ETConversionFactor = 1. / 360000.
+            elseif (trim(adjustl(PropertyX%ID%Units)) .EQ. "cm/s") then 
+                Me%ETConversionFactor = 1. / 100.
+            elseif (trim(adjustl(PropertyX%ID%Units)) .EQ. "m/d") then 
+                Me%ETConversionFactor = 1. / 86400.
+            elseif (trim(adjustl(PropertyX%ID%Units)) .EQ. "m/h") then 
+                Me%ETConversionFactor = 1. / 3600.
+            elseif (trim(adjustl(PropertyX%ID%Units)) .EQ. "m/s") then 
+                Me%ETConversionFactor = 1.
+            else 
+                write(*,*)  
+                write(*,*) 'Unknown unit for reference evapotranspiration property. '
+                write(*,*) 'The available units (L/T) are: '
+                write(*,*) 'L: mm, cm, m '
+                write(*,*) 'T: d (for days), h (for hours), s (for seconds) '
+                stop 'ConstructPropertyList - ModuleBasin - ERR04'
+            endif
+            
+            if (PropertyX%Constant) then
+            
+                do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+                do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+                        
+                    if (Me%ExtVar%BasinPoints(i, j) == WaterPoint) then
+                        
+                        PropertyX%Field(i, j) = PropertyX%Field(i, j) * Me%ETConversionFactor
+                        
+                        if (.NOT. PropertyX%ID%SolutionFromFile) then           
+                            Me%RefEvapotranspirationConstant = PropertyX%Field(i, j)
+                        endif
+                    endif
+                    
+                enddo
+                enddo
+                
+            endif            
         endif
         
     end subroutine ConstructPropertyList
@@ -2200,7 +2282,6 @@ cd2 :           if (BlockFound) then
         !Local-----------------------------------------------------------------
         integer                                     :: STAT_CALL
         real, dimension(:, :), pointer              :: PrecipitationFlux
-        type (T_BasinProperty), pointer             :: RefEvapotrans
         character (Len = StringLength)              :: LockToWhichModules
         character (Len = StringLength)              :: UnLockToWhichModules
         !Begin-----------------------------------------------------------------
@@ -2227,12 +2308,8 @@ cd2 :           if (BlockFound) then
         call DividePrecipitation(PrecipitationFlux)
 
 
-        if (Me%Coupled%Evapotranspiration) then
-            call SearchProperty(RefEvapotrans, RefEvapotrans_        , .true., STAT = STAT_CALL)        
-
-            if(.not. RefEvapotrans%Constant) then
-                call CalcPotEvapoTranspiration
-            endif   
+        if (Me%Coupled%Evapotranspiration) then            
+            call CalcPotEvapoTranspiration
         endif
 
         if (Me%Coupled%Vegetation) then 
@@ -2481,7 +2558,12 @@ cd2 :           if (BlockFound) then
         real,    parameter                          :: ReferenceDensity         = 1000.         ![kg/m3]
         real                                        :: LatentHeat_
         real(8)                                     :: EvaporationRate, dH
-        type(T_BasinProperty),pointer               :: RefEvapotrans
+        type(T_BasinProperty), pointer              :: RefEvapotrans
+        logical                                     :: EvaporateFromCanopy      = .false.
+        logical                                     :: EvaporateFromWaterColumn = .false.
+        logical                                     :: CalcET0                  = .false.
+        real                                        :: Evaporation
+        real, dimension(:,:), pointer               :: EvaporationMatrix => null()
 
 
        
@@ -2505,84 +2587,33 @@ cd2 :           if (BlockFound) then
         call GetAtmosphereProperty  (Me%ObjAtmosphere, RelativeHumidity, ID = RelativeHumidity_, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'CalcPotEvapoTranspiration - ModuleBasin - ERR05'
 
-        call SearchProperty(RefEvapotrans, RefEvapotrans_        , .true., STAT = STAT_CALL)        
+        call SearchProperty(RefEvapotrans, RefEvapotrans_, .true., STAT = STAT_CALL)        
 
         if (RefEvapotrans%ID%SolutionFromFile) then
             call ModifyFillMatrix (FillMatrixID   = RefEvapotrans%ID%ObjFillMatrix,          &
                                    Matrix2D       = RefEvapotrans%Field,                     &
-                                   PointsToFill2D = Me%ExtVar%BasinPoints,      &
+                                   PointsToFill2D = Me%ExtVar%BasinPoints,                   &
                                    STAT           = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'CalcPotEvapoTranspiration - ModuleBasin - ERR01'
+            
+        elseif (RefEvapotrans%Constant) then
+        
+            RefEvapotrans%Field = Me%RefEvapotranspirationConstant    
+        
         endif 
         
         !Calculates evaporation from canopy / Watercolumn on the ground
         Me%MB%EvapFromVegetation = 0.0
         Me%MB%EvapFromGround     = 0.0
+                
+        CalcET0             = .NOT. (RefEvapotrans%ID%SolutionFromFile .OR. RefEvapotrans%Constant)
+                
         do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         do i = Me%WorkSize%ILB, Me%WorkSize%IUB
-            if (Me%ExtVar%BasinPoints(i, j) == WaterPoint) then
 
-                ![J/m2/s]
-                LatentHeat_ = -1.0 * LatentHeat (ReferenceDensity, AirTemperature(i, j), AirTemperature(i, j),     &
-                                                 RelativeHumidity(i, j), WindModulus(i,j))
-                                
-                ![m/s]          = [J/m2/s] / [J/kg] / [kg/m3] 
-                EvaporationRate = LatentHeat_ / LatentHeatOfVaporization / ReferenceDensity 
-                
-                if (Me%Coupled%Vegetation .and. Me%EvaporateFromCanopy) then
-                    !dH
-                    dH              = min(dble(EvaporationRate * Me%CurrentDT), Me%CanopyStorage(i, j))
-                
-                    !Accumulated EVAP from Canopy
-                    Me%AccEVPCanopy(i, j) = Me%AccEVPCanopy(i, j) + dH
-                
-                    !New Canopy Storage
-                    Me%CanopyStorage(i, j) = Me%CanopyStorage(i, j) - dH
-                
-                    !Sistem loss
-                    if (Me%VerifyGlobalMass) then
-                        Me%MB%EvapFromVegetation = Me%MB%EvapFromVegetation +                         &
-                                                   dH * Me%ExtVar%GridCellArea(i, j) * Me%CoveredFraction(i, j)
-                    endif
-
-                endif
-                
-                !Also EVAP from watercolumn - important for 1D cases to avoid accumulation of Water on the surface
-                if (Me%WaterLevel (i, j) > Me%ExtVar%Topography(i, j) .and. Me%EvaporateFromWaterColumn) then
-                    !dH
-                    dH              = min(dble(EvaporationRate * Me%CurrentDT), Me%WaterLevel (i, j) - Me%ExtVar%Topography(i, j))
-
-                    Me%AccEVTP(i, j) = Me%AccEVTP(i, j) + dH
-                    
-                    !New Water Level
-                    Me%WaterLevel(i, j) = Me%WaterLevel(i, j) - dH
-
-                    !Evaporation from Ground
-                    if (Me%VerifyGlobalMass) then
-                        Me%MB%EvapFromGround = Me%MB%EvapFromGround + dH * Me%ExtVar%GridCellArea(i, j)
-                    endif
-                    
-                    Me%WaterColumnEvaporated(i, j) = dH
-                        
-                else
-                    
-                    Me%WaterColumnEvaporated(i, j) = 0.0
-                        
-                endif
-                
-            endif
-        enddo
-        enddo
-        
+            if (Me%ExtVar%BasinPoints(i, j) .EQ. WaterPoint) then
                
-
-        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
-        do i = Me%WorkSize%ILB, Me%WorkSize%IUB
-
-            if (Me%ExtVar%BasinPoints(i, j) == WaterPoint) then
-
-
-etr_fao:        if (.not. RefEvapotrans%ID%SolutionFromFile) then
+etr_fao:        if (CalcET0) then
             
                     !Calculate Psicrometric constant
                     !Calculation of the atmospheric pressure based on the heigth simplification of the ideal gas law
@@ -2623,15 +2654,19 @@ etr_fao:        if (.not. RefEvapotrans%ID%SolutionFromFile) then
                                             (SSVPC + psiconst * (1. + 0.34 * WindModulus(i,j)))
                 endif etr_fao
                                                             
-                !m/s - Porous media consistency
-                RefEvapotrans%Field(i, j)  = max(RefEvapotrans%Field(i, j) / 1000. / 3600., 0.0)
+                !m/s - Porous media consistency. If constant, already converted in the construction of the property
+                if (.NOT. RefEvapotrans%Constant) then
+                
+                    RefEvapotrans%Field(i, j)  = max(RefEvapotrans%Field(i, j) * Me%ETConversionFactor, 0.0)
+                    
+                endif
 
                 if (Me%Coupled%Vegetation) then
                     
                     !m/s
                     Me%CropEvapotrans(i, j) = RefEvapotrans%Field(i, j) * Me%ExtVar%CropCoefficient(i, j)
 
-                    if (Me%EvapoTranspirationMethod == SeparateEvapoTranspiration) then
+                    if (Me%EvapoTranspirationMethod .EQ. SeparateEvapoTranspiration) then
                         
                         !m/s
                         Me%PotentialTranspiration(i, j) = Me%CropEvapotrans(i, j)                      &
@@ -2643,11 +2678,148 @@ etr_fao:        if (.not. RefEvapotrans%ID%SolutionFromFile) then
                 
                 endif
 
-            endif   
-
+            endif
+            
         enddo
         enddo
         
+        EvaporateFromCanopy = Me%Coupled%Vegetation .AND. Me%EvapFromCanopy               
+        
+        if (Me%EvapMethod .EQ. LatentHeatMethod) then
+        
+            do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+            do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+
+                if (Me%ExtVar%BasinPoints(i, j) .EQ. WaterPoint) then
+
+                    LatentHeat_ = -1.0 * LatentHeat (ReferenceDensity, AirTemperature(i, j), AirTemperature(i, j), &
+                                                     RelativeHumidity(i, j), WindModulus(i,j))                
+                    ![m/s]          = [J/m2/s] / [J/kg] / [kg/m3] 
+                    EvaporationRate = LatentHeat_ / LatentHeatOfVaporization / ReferenceDensity 
+        
+                    if (EvaporateFromCanopy) then
+                                       
+                        !dH
+                        dH = min(dble(EvaporationRate * Me%CurrentDT), Me%CanopyStorage(i, j))
+                    
+                        !Accumulated EVAP from Canopy
+                        Me%AccEVPCanopy(i, j) = Me%AccEVPCanopy(i, j) + dH
+                    
+                        !New Canopy Storage
+                        Me%CanopyStorage(i, j) = Me%CanopyStorage(i, j) - dH
+                    
+                        !Sistem loss
+                        if (Me%VerifyGlobalMass) then
+                            Me%MB%EvapFromVegetation = Me%MB%EvapFromVegetation +                                   &
+                                                       dH * Me%ExtVar%GridCellArea(i, j) * Me%CoveredFraction(i, j)
+                        endif
+                        
+                    endif 
+                    
+                    !Also EVAP from watercolumn - important for 1D cases to avoid accumulation of Water on the surface
+                    if (EvaporateFromWaterColumn) then
+                    
+                        !dH
+                        dH = min(dble(EvaporationRate * Me%CurrentDT), Me%WaterLevel (i, j) - Me%ExtVar%Topography(i, j))
+
+                        Me%AccEVTP(i, j) = Me%AccEVTP(i, j) + dH
+                        
+                        !New Water Level
+                        Me%WaterLevel(i, j) = Me%WaterLevel(i, j) - dH
+
+                        !Evaporation from Ground
+                        if (Me%VerifyGlobalMass) then
+                            Me%MB%EvapFromGround = Me%MB%EvapFromGround + dH * Me%ExtVar%GridCellArea(i, j)
+                        endif
+                        
+                        Me%WaterColumnEvaporated(i, j) = dH   
+                                             
+                    else                    
+                    
+                        Me%WaterColumnEvaporated(i, j) = 0.0   
+                                             
+                    endif 
+                        
+                endif
+                
+            enddo
+            enddo
+        
+        else if (Me%EvapMethod .EQ. ET0Method) then
+               
+               
+            if (Me%Coupled%Vegetation) then                   
+                if (Me%EvapoTranspirationMethod .EQ. SeparateEvapoTranspiration) then                        
+                    EvaporationMatrix => Me%PotentialEvaporation
+                else                        
+                    EvaporationMatrix => Me%CropEvapotrans
+                endif                
+            else                
+                EvaporationMatrix => RefEvapotrans%Field
+            endif              
+               
+            do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+            do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+
+                Evaporation = EvaporationMatrix(i, j) * Me%CurrentDT
+
+                if (Me%ExtVar%BasinPoints(i, j) .EQ. WaterPoint) then
+        
+                    if (EvaporateFromCanopy) then
+                                       
+                        !dH
+                        dH = min(Evaporation, Me%CanopyStorage(i, j))
+                    
+                        !Accumulated EVAP from Canopy
+                        Me%AccEVPCanopy(i, j) = Me%AccEVPCanopy(i, j) + dH
+                    
+                        !New Canopy Storage
+                        Me%CanopyStorage(i, j) = Me%CanopyStorage(i, j) - dH
+                    
+                        !Sistem loss
+                        if (Me%VerifyGlobalMass) then
+                            Me%MB%EvapFromVegetation = Me%MB%EvapFromVegetation +                                   &
+                                                       dH * Me%ExtVar%GridCellArea(i, j) * Me%CoveredFraction(i, j)
+                        endif
+                        
+                    endif 
+                    
+                    Evaporation = min(Evaporation - dH, 0.0)
+                    
+                    !Also EVAP from watercolumn - important for 1D cases to avoid accumulation of Water on the surface
+                    if (EvaporateFromWaterColumn) then
+                    
+                        !dH
+                        dH = min(Evaporation, Me%WaterLevel (i, j) - Me%ExtVar%Topography(i, j))
+
+                        Me%AccEVTP(i, j) = Me%AccEVTP(i, j) + dH
+                        
+                        !New Water Level
+                        Me%WaterLevel(i, j) = Me%WaterLevel(i, j) - dH
+
+                        !Evaporation from Ground
+                        if (Me%VerifyGlobalMass) then
+                            Me%MB%EvapFromGround = Me%MB%EvapFromGround + dH * Me%ExtVar%GridCellArea(i, j)
+                        endif
+                        
+                        Me%WaterColumnEvaporated(i, j) = dH   
+                                             
+                    else                    
+                    
+                        Me%WaterColumnEvaporated(i, j) = 0.0   
+                                             
+                    endif 
+                    
+                    Evaporation = min(Evaporation - dH, 0.0)               
+                    EvaporationMatrix(i, j) = max(((EvaporationMatrix(i, j) * Me%CurrentDT) - Evaporation) / Me%CurrentDT, 0.0)                    
+                                           
+                endif
+                                
+            enddo
+            enddo        
+        
+        endif
+                
          !Gets Horizontal Sun Radiation [W/m2]
         call UnGetAtmosphere  (Me%ObjAtmosphere, SolarRadiation,    STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'CalcPotEvapoTranspiration - ModuleBasin - ERR06'

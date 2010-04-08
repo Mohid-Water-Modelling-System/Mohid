@@ -4986,13 +4986,13 @@ cd2 :   if (Mapping(i, j) == 1) then
 
         !Local-----------------------------------------------------------------        
         integer                                     :: I, J, K
-        integer                                     :: nStrongs
+        !integer                                     :: nStrongs
 
         !----------------------------------------------------------------------               
 
         if (MonitorPerformance) call StartWatch ("ModulePorousMedia", "variation_test")
 
-        nStrongs = 0
+        !nStrongs = 0
 
         !Tests variations
         do J = Me%WorkSize%JLB, Me%WorkSize%JUB
@@ -5005,18 +5005,25 @@ cd2 :   if (Mapping(i, j) == 1) then
                 !in the same way.... 
                 do K = Me%ExtVar%KFloor(i, j), Me%WorkSize%KUB - 1
                     if (abs(Me%CV%ThetaOld(I,J,K)-Me%Theta(I,J,K)) > Me%CV%ThetaTolerance) then
-                        nStrongs = nStrongs + 1
+                    
+                        !nStrongs = nStrongs + 1
+                        StrongVariation = .true.
+                    
+                        if (MonitorPerformance) call StopWatch ("ModulePorousMedia", "variation_test")                   
+                        return
+                        
                     endif
                 enddo
             endif
         enddo
         enddo
         
-        if (nStrongs > 0) then
-            StrongVariation = .true.
-        else
-            StrongVariation = .false.
-        endif
+        StrongVariation = .false.
+!        if (nStrongs > 0) then
+!            StrongVariation = .true.
+!        else
+!            StrongVariation = .false.
+!        endif
         
         if (MonitorPerformance) call StopWatch ("ModulePorousMedia", "variation_test")
 
