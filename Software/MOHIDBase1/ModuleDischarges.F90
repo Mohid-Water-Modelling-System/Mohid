@@ -2854,37 +2854,35 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
                     stop  'GetDischargeConcentration - ModuleDischarges - ERR02'
                 endif
             endif
-
-            if(PropertyX%FromIntake)then
-
-                PropertyFromIntake      = ON
-                PropertyIncreaseValue   = PropertyX%IncreaseValue
-
-
-                !DischargeX becomes the      discharge
-                call Search_Discharge(DischargeX, STAT_CALL, DischargeXIDNumber=DischargeX%FromIntake%IntakeID)
-                    if (STAT_CALL/=SUCCESS_) then 
-                    write(*,*) 'Can not find intake discharge number ', DischargeIDNumber
-                    stop       'GetDischargeConcentration - ModuleDischarges - ERR03'
-                end if
-
-                call Search_Property(DischargeX, PropertyX, STAT_CALL, PropertyXIDNumber=PropertyIDNumber)
-                if (STAT_CALL/=SUCCESS_) then 
-                    !If the proeprty is not found the program don't stop is return a error 
-                    !not found
-                    if (STAT_CALL /= NOT_FOUND_ERR_) then 
-                        stop  'GetDischargeConcentration - ModuleDischarges - ERR04'
-                    endif
-                endif
-            else
-
-                PropertyFromIntake = OFF
-
-            end if
-
-
             
 cd2 :       if (STAT_CALL == SUCCESS_) then
+
+                if(PropertyX%FromIntake)then
+
+                    PropertyFromIntake      = ON
+                    PropertyIncreaseValue   = PropertyX%IncreaseValue
+
+
+                    !DischargeX becomes the      discharge
+                    call Search_Discharge(DischargeX, STAT_CALL, DischargeXIDNumber=DischargeX%FromIntake%IntakeID)
+                        if (STAT_CALL/=SUCCESS_) then 
+                        write(*,*) 'Can not find intake discharge number ', DischargeIDNumber
+                        stop       'GetDischargeConcentration - ModuleDischarges - ERR03'
+                    end if
+
+                    call Search_Property(DischargeX, PropertyX, STAT_CALL, PropertyXIDNumber=PropertyIDNumber)
+                    if (STAT_CALL/=SUCCESS_) then 
+                        !If the proeprty is not found the program don't stop is return a error 
+                        !not found
+                        if (STAT_CALL /= NOT_FOUND_ERR_) then 
+                            stop  'GetDischargeConcentration - ModuleDischarges - ERR04'
+                        endif
+                    endif
+                else
+
+                    PropertyFromIntake = OFF
+
+                end if
                                                                          
                 if (PropertyX%Variable) then
 
