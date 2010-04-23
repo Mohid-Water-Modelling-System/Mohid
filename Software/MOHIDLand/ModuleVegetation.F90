@@ -1300,7 +1300,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         call GetData(Me%ComputeOptions%VegetationDT,                                     &
                      Me%ObjEnterData, iflag,                                             &
                      keyword      = 'VEGETATION_DT',                                     &
-                     Default      = 86400.,                                              &
+                     Default      = ModelDT,                                              &
                      SearchType   = FromFile,                                            &
                      ClientModule = 'ModuleVegetation',                                  &
                      STAT         = STAT_CALL)
@@ -1890,20 +1890,22 @@ cd0:    if (Exist) then
                     endif
             endif                
         else
-            if (.not. Me%ComputeOptions%Evolution%GrowthModelNeeded) then
-                write(*,*    ) 
-                write(*,*    ) 'Fatal error ! Water stress and growth model disconnected' 
-                write(*,*    ) 'To use vegetation readed from file can not disconnect water.'
-                write(*,*    ) 'Check WATER_STRESS keyword in vegetation data file' 
-                stop 'CheckOptionsConsistence - ModuleVegetation - ERR020'
-            endif        
-            if (Me%ComputeOptions%NutrientUptakeMethod .eq. NutrientUptake_TranspConc) then
-                write(*,*    ) 
-                write(*,*    ) 'Fatal error ! Water uptake is disconnected and nutrient uptake method' 
-                write(*,*    ) 'is dependent on water uptake. Check WATER_STRESS and NUTRIENT_UPTAKE_METHOD'
-                write(*,*    ) 'keywords in vegetation data file' 
-                stop 'CheckOptionsConsistence - ModuleVegetation - ERR020.1'
-            endif                
+!            if (.not. Me%ComputeOptions%Evolution%GrowthModelNeeded) then
+!                write(*,*    ) 
+!                write(*,*    ) 'Fatal error ! Water stress and growth model disconnected' 
+!                write(*,*    ) 'To use vegetation readed from file can not disconnect water.'
+!                write(*,*    ) 'Check WATER_STRESS keyword in vegetation data file' 
+!                stop 'CheckOptionsConsistence - ModuleVegetation - ERR020'
+!            endif        
+             if (Me%ComputeOptions%ModelNitrogen .or. Me%ComputeOptions%ModelPhosphorus) then
+                if (Me%ComputeOptions%NutrientUptakeMethod .eq. NutrientUptake_TranspConc) then
+                    write(*,*    ) 
+                    write(*,*    ) 'Fatal error ! Water uptake is disconnected and nutrient uptake method' 
+                    write(*,*    ) 'is dependent on water uptake. Check WATER_STRESS and NUTRIENT_UPTAKE_METHOD'
+                    write(*,*    ) 'keywords in vegetation data file' 
+                    stop 'CheckOptionsConsistence - ModuleVegetation - ERR020.1'
+                endif  
+            endif              
         endif
         
         if (.not. Me%ComputeOptions%Evolution%GrowthModelNeeded) then
@@ -2259,15 +2261,26 @@ cd0:    if (Exist) then
             endif                      
         
         else
+
+            if (Me%ComputeOptions%VegetationDT == Me%ExternalVar%DT) then
+                write(*,*)
+                write(*,*)'Vegetation DT is model DT. Using growth model is sugested to use'
+                write(*,*)'daily step (86400 s)'
+                write(*,*)
+            endif
             
             write(*,*    ) 'Vegetation Growth Model not Used'
             write(*,*    ) '---Root readed from file'
             write(*,*    ) '---LAI  readed from file'
-            write(*,*    ) '---Water Uptake             : ON'
-            if (Me%ComputeOptions%TranspirationMethod .eq. 1) then
-                write(*,*    ) '   ---WaterUptakeMethod     : 1'
+            if (Me%ComputeOptions%ModelWater) then
+                write(*,*    ) '---Water Uptake             : ON'
+                if (Me%ComputeOptions%TranspirationMethod .eq. 1) then
+                    write(*,*    ) '   ---WaterUptakeMethod     : 1'
+                else
+                    write(*,*    ) '   ---WaterUptakeMethod     : 2'
+                endif
             else
-                write(*,*    ) '   ---WaterUptakeMethod     : 2'
+                write(*,*    ) '---Water Uptake             : OFF'
             endif
             write(*,*    ) '---Biomass Growth           : OFF'
             if (Me%ComputeOptions%ModelNitrogen) then
@@ -2415,8 +2428,8 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
         allocate(Me%Fluxes%WaterUptake                                    (ILB:IUB,JLB:JUB))  
         allocate(Me%Fluxes%WaterUptakeLayer                       (ILB:IUB,JLB:JUB,KLB:KUB))  
 !        allocate(Me%Fluxes%FromSoil%WaterUptakeFromSoil                   (ILB:IUB,JLB:JUB))  
-!        Me%Fluxes%WaterUptake                                             (:,:  ) = 0.0 
-!        Me%Fluxes%WaterUptakeLayer                                        (:,:,:) = 0.0 
+        Me%Fluxes%WaterUptake                                             (:,:  ) = 0.0 
+        Me%Fluxes%WaterUptakeLayer                                        (:,:,:) = 0.0 
         allocate(Me%Growth%WaterStress                                    (ILB:IUB,JLB:JUB)) 
         Me%Growth%WaterStress                                             (:,:  ) = 1.0
 
@@ -2431,15 +2444,15 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
         if (Me%ComputeOptions%ModelNitrogen) then
             allocate(Me%Fluxes%NitrogenUptake                             (ILB:IUB,JLB:JUB))
             allocate(Me%Fluxes%NitrogenUptakeLayer                (ILB:IUB,JLB:JUB,KLB:KUB))  
-!            Me%Fluxes%NitrogenUptake                                      (:,:  ) = 0.0 
-!            Me%Fluxes%NitrogenUptakeLayer                                 (:,:,:) = 0.0 
+            Me%Fluxes%NitrogenUptake                                      (:,:  ) = 0.0 
+            Me%Fluxes%NitrogenUptakeLayer                                 (:,:,:) = 0.0 
         endif
 
         if (Me%ComputeOptions%ModelPhosphorus) then
             allocate(Me%Fluxes%PhosphorusUptake                           (ILB:IUB,JLB:JUB))
             allocate(Me%Fluxes%PhosphorusUptakeLayer              (ILB:IUB,JLB:JUB,KLB:KUB))  
-!            Me%Fluxes%PhosphorusUptake                                    (:,:  ) = 0.0 
-!            Me%Fluxes%PhosphorusUptakeLayer                               (:,:,:) = 0.0 
+            Me%Fluxes%PhosphorusUptake                                    (:,:  ) = 0.0 
+            Me%Fluxes%PhosphorusUptakeLayer                               (:,:,:) = 0.0 
         endif
 
                 
@@ -5442,7 +5455,9 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
                     
                     !Do not use vegetation growth model. Only water uptake is modeled for now
                     !Use readed vegetation properties (LAI, root depth) to uptake water
-                    call WaterUptake
+                    if (Me%ComputeOptions%ModelWater) then
+                        call WaterUptake
+                    endif
                     
                     !Uptake nitrogen - soil nitrogen concentration with water uptake volume
                     if (Me%ComputeOptions%ModelNitrogen) then
@@ -6983,8 +6998,8 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
                             CellVolume = Me%ExternalVar%CellVolume(i,j,k)
         
-                            !      kgN/ha        = gN/m3H20 * 1E-6kg/g * m3H20/m3cell * m3cell / (m2) * 10000m2/ha 
-                            LayerNitrogenContent = Me%ExternalVar%SoilNitrate(i,j,k) * 1E-6                       &
+                            !      kgN/ha        = gN/m3H20 * 1E-3kg/g * m3H20/m3cell * m3cell / (m2) * 10000m2/ha 
+                            LayerNitrogenContent = Me%ExternalVar%SoilNitrate(i,j,k) * 1E-3                       &
                                                     * Me%ExternalVar%SoilWaterContent(i,j,k)                      &
                                                     * (CellVolume) / (GridCellArea) * 10000
 
@@ -7162,14 +7177,14 @@ do3:                do k = KUB, KLB, -1
              
                         CellVolume = Me%ExternalVar%CellVolume(i,j,k)
                         
-                        !    KgN/ha             =  gN/m3H20 * 1E-6kg/g *  m3/s * s / (m2) * 10000m2/ha 
-                        PotentialNitrogenUptake = Me%ExternalVar%SoilNitrate(i,j,k) * 1E-6                    &
+                        !    KgN/ha             =  gN/m3H20 * 1E-3kg/g *  m3/s * s / (m2) * 10000m2/ha 
+                        PotentialNitrogenUptake = Me%ExternalVar%SoilNitrate(i,j,k) * 1E-3                    &
                                                   * Me%Fluxes%WaterUptakeLayer(i,j,k)                         &
                                                   * Me%ComputeOptions%VegetationDT                            &
                                                   / (GridCellArea) * 10000
     
-                        !      kgN/ha        =  gN/m3H20 * 1E-6kg/g * m3H20/m3cell * m3cell / (m2) * 10000m2/ha                     
-                        LayerNitrogenContent = Me%ExternalVar%SoilNitrate(i,j,k) * 1E-6                       &
+                        !      kgN/ha        =  gN/m3H20 * 1E-3kg/g * m3H20/m3cell * m3cell / (m2) * 10000m2/ha                     
+                        LayerNitrogenContent = Me%ExternalVar%SoilNitrate(i,j,k) * 1E-3                       &
                                                 * Me%ExternalVar%SoilWaterContent(i,j,k)                      &
                                                 * (CellVolume) / (GridCellArea) * 10000
 

@@ -91,10 +91,12 @@ Module ModuleRunoffProperties
 !    private ::      StartAdvectionDiffusion
 
     !Selector
+    public  :: GetRPMassBalance
     public  :: GetRPnProperties
     public  :: GetRPPropertiesIDByIdx 
     public  :: GetRPOptions   
     public  :: GetRPConcentration
+    public  :: CheckRPProperty
     public  :: SetDNConcRP       !RP gets DN conc 
     public  :: SetBasinConcRP    !RP gets Basin WC conc (updated each time a module changes water column)
     public  :: SetBasinToRPSplash !RP gets through fall and canopy height to compute splash erosion
@@ -293,6 +295,11 @@ Module ModuleRunoffProperties
         type (T_AdvectionDiffusion)             :: AdvDiff
         type (T_Partition                    )  :: Partition
     end type T_Evolution
+
+    type T_MassBalance
+        real(8)                                 :: TotalStoredMass
+        real(8)                                 :: DNExchangeMass
+    end type T_MassBalance
     
     type T_Files
         character(PathLength)                   :: InitialFile
@@ -341,6 +348,7 @@ Module ModuleRunoffProperties
         type (T_Property), pointer              :: Next, Prev                     => null()
         logical                                 :: Particulate
         type (T_Evolution)                      :: Evolution
+        type (T_MassBalance)                    :: MB
         real, pointer, dimension(:,:)           :: Diff_Turbulence_H
         real, pointer, dimension(:,:)           :: Viscosity
         real, pointer, dimension(:,:)           :: Diffusivity
@@ -485,6 +493,7 @@ Module ModuleRunoffProperties
                                               GridDataID,                                 &
                                               InitialWaterColumn,                         &
                                               CoupledDN,                                  &
+                                              CheckGlobalMass,                            &
                                               STAT)
      
         !Arguments---------------------------------------------------------------
@@ -498,6 +507,7 @@ Module ModuleRunoffProperties
         integer                                         :: GridDataID
         real                                            :: InitialWaterColumn
         logical, optional                               :: CoupledDN 
+        logical                                         :: CheckGlobalMass
         integer, optional, intent(OUT)                  :: STAT 
         !External----------------------------------------------------------------
         integer                                         :: ready_         
@@ -530,7 +540,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             Me%ObjRunoff         = AssociateInstance (mRUNOFF_,              RunoffID   )
 !            Me%ObjGeometry       = AssociateInstance (mGEOMETRY_,       GeometryID      )
             Me%ObjGridData       = AssociateInstance (mGRIDDATA_,       GridDataID      )
-        
+            
+            Me%CheckGlobalMass = CheckGlobalMass
 
             if (present(CoupledDN)) then
                 Me%ExtVar%CoupledDN  = CoupledDN
@@ -601,6 +612,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 !                if (STAT_CALL /= SUCCESS_) stop 'ConstructRunoffProperties - ModuleRunoffProperties - ERR50'
 !
 !            endif
+
+            if (Me%CheckGlobalMass) then
+                call CalculateTotalStoredMass
+            endif
 
             !Returns ID
             ObjRunoffPropertiesID          = Me%InstanceID
@@ -3431,7 +3446,7 @@ cd0:    if (Exist) then
 
     subroutine SetBasinConcRP   (RunoffPropertiesID, BasinConcentration,         &
                                                 PropertyXIDNumber, MassToBottom, & 
-                                                WaterColumn, STAT)
+                                                STAT)
 
         !Arguments--------------------------------------------------------------
         integer                                         :: RunoffPropertiesID
@@ -3439,11 +3454,10 @@ cd0:    if (Exist) then
         integer                                         :: PropertyXIDNumber
         integer, intent(OUT), optional                  :: STAT
         real(8), dimension(:, :), pointer               :: MassToBottom
-        real(8), dimension(:, :), pointer               :: WaterColumn
 
         !Local------------------------------------------------------------------
         integer                                         :: j ,i
-        integer                                         :: STAT_, ready_
+        integer                                         :: STAT_, STAT_CALL, ready_
         type(T_Property), pointer                       :: PropertyX
         real(8)                                         :: WaterVolume
 
@@ -3455,19 +3469,22 @@ cd0:    if (Exist) then
 
         if (ready_ .EQ. IDLE_ERR_)then
 
-            call GetBasinPoints   (Me%ObjBasinGeometry, Me%ExtVar%BasinPoints, STAT = STAT_)
-            if (STAT_ /= SUCCESS_) stop 'SetBasinConcRP - ModuleRunoffProperties - ERR01'            
+            call GetBasinPoints   (Me%ObjBasinGeometry, Me%ExtVar%BasinPoints, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'SetBasinConcRP - ModuleRunoffProperties - ERR01'            
            
             nullify(PropertyX)
 
-            call SearchProperty(PropertyX, PropertyXIDNumber = PropertyXIDNumber, STAT = STAT_)
+            call SearchProperty(PropertyX, PropertyXIDNumber = PropertyXIDNumber, STAT = STAT_CALL)
 
-            if (STAT_ == SUCCESS_) then
+            if (STAT_CALL == SUCCESS_) then
 
                 call GetGridCellArea    (Me%ObjHorizontalGrid,                                     & 
                                          GridCellArea = Me%ExtVar%Area,                            & 
-                                         STAT = STAT_ )    
-                if (STAT_ /= SUCCESS_) stop 'SetBasinConcRP - ModuleRunoffProperties - ERR010'
+                                         STAT = STAT_CALL )    
+                if (STAT_CALL /= SUCCESS_) stop 'SetBasinConcRP - ModuleRunoffProperties - ERR010'
+
+                call GetRunoffWaterColumn     (Me%ObjRunoff, Me%ExtVar%WaterColumn, STAT = STAT_CALL) 
+                if (STAT_CALL /= SUCCESS_) stop 'SetBasinConcRP - ModuleRunoffProperties - ERR20'
             
                 do j=Me%WorkSize%JLB, Me%WorkSize%JUB
                 do i=Me%WorkSize%ILB, Me%WorkSize%IUB                    
@@ -3479,7 +3496,7 @@ cd0:    if (Exist) then
                             !Kg/m2 = ((Kg/m2 * m2) + (g * 1E-3kg/g)) / m2 
                             PropertyX%BottomConcentration(i,j) = (PropertyX%BottomConcentration(i,j) * Me%ExtVar%Area(i, j)   &
                                                                   + MassToBottom(i,j) * 1E-3) / Me%ExtVar%Area(i, j)
-                            WaterVolume = WaterColumn(i,j) * Me%ExtVar%Area(i, j)
+                            WaterVolume = Me%ExtVar%WaterColumn(i,j) * Me%ExtVar%Area(i, j)
                             ![kg/m2] = [g/m3]* [m3] * [1E-3kg/g] /[m2] + [kg/m2]
                             PropertyX%TotalConcentration (i,j) = PropertyX%Concentration (i,j) * 1E-3 * WaterVolume            &
                                                                  / Me%ExtVar%Area(i, j) &
@@ -3488,6 +3505,9 @@ cd0:    if (Exist) then
                     endif
                 enddo
                 enddo            
+
+                call UnGetRunoff           (Me%ObjRunoff, Me%ExtVar%WaterColumn, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'SetBasinConcRP - ModuleRunoffProperties - ERR040'
         
                 call UnGetHorizontalGrid        (Me%ObjHorizontalGrid,Me%ExtVar%Area,STAT = STAT_)   
                 if (STAT_ /= SUCCESS_) stop 'SetBasinConcRP - ModuleRunoffProperties - ERR020'
@@ -3500,7 +3520,9 @@ cd0:    if (Exist) then
 
             call UnGetBasin   (Me%ObjBasinGeometry, Me%ExtVar%BasinPoints, STAT = STAT_)
             if (STAT_ /= SUCCESS_) stop 'SetBasinConcRP - ModuleRunoffProperties - ERR030'
-
+            
+            STAT_ = SUCCESS_
+            
         else
             STAT_ = ready_
         end if
@@ -3560,7 +3582,50 @@ cd0:    if (Exist) then
 
     !---------------------------------------------------------------------------
 
-   
+    subroutine GetRPMassBalance (RunoffPropertiesID,                        &
+                                  PropertyID,                               &
+                                  TotalStoredMass,                          &
+                                  DNExchangeMass,                           &
+                                  STAT)
+
+        !Arguments--------------------------------------------------------------
+        integer                                         :: RunoffPropertiesID
+        integer                                         :: PropertyID
+        real, optional                                  :: TotalStoredMass
+        real, optional                                  :: DNExchangeMass
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local------------------------------------------------------------------
+        integer                                         :: STAT_CALL, ready_, STAT_
+        type (T_Property), pointer                      :: PropertyX
+        !-----------------------------------------------------------------------
+
+
+        STAT_CALL = UNKNOWN_
+
+        call Ready(RunoffPropertiesID, ready_)
+
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
+            
+            call SearchProperty(PropertyX, PropertyXIDNumber = PropertyID, STAT = STAT_)
+            if (STAT_ == SUCCESS_) then 
+                if (present (TotalStoredMass)) TotalStoredMass = PropertyX%MB%TotalStoredMass
+                if (present (DNExchangeMass))  DNExchangeMass  = PropertyX%MB%DNExchangeMass
+                
+                STAT_CALL = SUCCESS_
+            else
+                stop 'GetRPMassBalance - ModuleRunoffProperties - ERR01'
+            endif
+        else 
+            STAT_CALL = ready_
+        end if
+
+        if (present(STAT)) STAT = STAT_CALL
+
+    end subroutine GetRPMassBalance
+
+    !---------------------------------------------------------------------------
+
     subroutine GetRPnProperties (RunoffPropertiesID, nProperties, STAT)
 
         !Arguments--------------------------------------------------------------
@@ -3623,7 +3688,7 @@ cd0:    if (Exist) then
             if (present(Particulate)) then
                 Particulate = CurrProp%Particulate
             endif
-            
+
             STAT_CALL = SUCCESS_
         else 
             STAT_CALL = ready_
@@ -3632,6 +3697,54 @@ cd0:    if (Exist) then
         if (present(STAT)) STAT = STAT_CALL
 
     end subroutine GetRPPropertiesIDByIdx
+
+    !---------------------------------------------------------------------------
+
+    subroutine CheckRPProperty (RunoffPropertiesID,                         &
+                                  PropertyID,                               &
+                                  STAT)
+
+        !Arguments--------------------------------------------------------------
+        integer                                         :: RunoffPropertiesID
+        integer                                         :: PropertyID
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local------------------------------------------------------------------
+        integer                                         :: STAT_CALL, ready_, STAT_
+        type (T_Property), pointer                      :: PropertyX
+        !-----------------------------------------------------------------------
+
+
+        STAT_CALL = UNKNOWN_
+
+        call Ready(RunoffPropertiesID, ready_)
+
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
+            
+            call SearchProperty(PropertyX, PropertyXIDNumber = PropertyID, STAT = STAT_)
+            if (STAT_ == SUCCESS_) then 
+                if (.not. PropertyX%Evolution%AdvectionDiffusion) then
+                    write(*,*)
+                    write(*,*)'Property', GetPropertyName(PropertyID)
+                    write(*,*)'has advection diffusion inactive in RunoffProperties Module'
+                    write(*,*)'and it is unconsistent with activation in other Modules'
+                    stop 'CheckRPProperty - ModuleRunoffProperties - ERR01' 
+                else               
+                    STAT_CALL = SUCCESS_
+                endif
+            else
+                write(*,*)
+                write(*,*)'Could not find property', GetPropertyName(PropertyID)
+                write(*,*)'in RunoffProperties Module'
+                stop 'CheckRPProperty - ModuleRunoffProperties - ERR010'
+            endif
+        else 
+            STAT_CALL = ready_
+        end if
+
+        if (present(STAT)) STAT = STAT_CALL
+
+    end subroutine CheckRPProperty
 
     !---------------------------------------------------------------------------
 
@@ -3816,6 +3929,11 @@ cd0:    if (Exist) then
             do while (associated(PropertyX))
 
                 call SetMatrixValue (PropertyX%ConcentrationOld, Me%Size, PropertyX%Concentration, Me%ExtVar%BasinPoints)
+
+                if (Me%CheckGlobalMass) then
+                    PropertyX%MB%TotalStoredMass     = 0.0
+                    PropertyX%MB%DNExchangeMass      = 0.0
+                endif
                 
                 PropertyX => PropertyX%Next
                 
@@ -3876,6 +3994,10 @@ cd0:    if (Exist) then
 
 
             call Actualize_Time_Evolution
+
+            if (Me%CheckGlobalMass) then
+                call CalculateTotalStoredMass
+            endif
         
             call ReadUnlockExternalVar
 
@@ -3958,7 +4080,7 @@ cd0:    if (Exist) then
 
         CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
         
-        !$OMP PARALLEL PRIVATE(I,J)
+        !$OMP PARALLEL PRIVATE(I,J, VelU, VelV)
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
         do j=Me%WorkSize%JLB, Me%WorkSize%JUB
         do i=Me%WorkSize%ILB, Me%WorkSize%IUB
@@ -4573,7 +4695,11 @@ cd0:    if (Exist) then
                     !s/m3 = s / (m * m2)
                     aux      = (Me%ExtVar%DT/(WaterColumn(i,j)* Area_Vertical))
                    
-                   !!!FLUXES WITH Drainage Network (not done yet the bottom flux to DN)
+                   !!!FLUXES WITH Porous Media (infiltration/exfiltration) are not treated here (but in basin)
+                   !!!because Module Basin handles the WC height and concentrations changes and ModuleRunoff
+                   !!!and Module Runoff Properties only transport water horizontally (the remaining water)
+                   
+                   !!!FLUXES WITH Drainage Network 
                    CofInterfaceDN    = 0.0
                    ConcInInterfaceDN = 0.0
                     if (Me%ExtVar%CoupledDN) then
@@ -4585,11 +4711,30 @@ cd0:    if (Exist) then
                             
                             ! mass going to channel -> conc from runoff
                             if (Me%ExtVar%FlowToChannels(i,j) .gt. 0.0) then
+                                
                                 ConcInInterfaceDN =  CurrProperty%ConcentrationOld(i,j)
+                            
+                                if (Me%CheckGlobalMass) then
+                                    !Global Mass Exchange
+                                    ![kg] = [kg] + [m3/s] * [g/m3] * [1e-3kg/g]* [s] 
+                                    CurrProperty%MB%DNExchangeMass =  CurrProperty%MB%DNExchangeMass                   &
+                                      + (Me%ExtVar%FlowToChannels(i,j) * CurrProperty%ConcentrationOld(i,j)            &
+                                         * 1e-3 * Me%ExtVar%DT)
+                                endif                            
                             
                             !mass coming from channel -> conc from DN
                             elseif (Me%ExtVar%FlowToChannels(i,j) .lt. 0.0) then
+                                
                                 ConcInInterfaceDN = CurrProperty%ConcentrationDN(i,j)
+
+                                if (Me%CheckGlobalMass) then
+                                    !Global Mass Exchange
+                                    ![kg] = [kg] + [m3/s] * [g/m3] * [1e-3kg/g]* [s] 
+                                    CurrProperty%MB%DNExchangeMass =  CurrProperty%MB%DNExchangeMass                   &
+                                      + (Me%ExtVar%FlowToChannels(i,j) * CurrProperty%ConcentrationDN(i,j)            &
+                                         * 1e-3 * Me%ExtVar%DT)
+                                endif                                  
+                                
                             endif
                         
                         endif
@@ -6215,6 +6360,64 @@ First:          if (LastTime.LT.Actual) then
     end subroutine OutPut_HDF
 
     !----------------------------------------------------------------------------
+    
+    subroutine CalculateTotalStoredMass
+
+        !Arguments-------------------------------------------------------------
+        !Local-----------------------------------------------------------------
+        integer                                     :: i, j, STAT_CALL
+        type (T_Property), pointer                  :: CurrProperty
+        real                                        :: BottomMass
+        !Begin-----------------------------------------------------------------
+        
+        call GetBasinPoints   (Me%ObjBasinGeometry, Me%ExtVar%BasinPoints, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'CalculateTotalStoredMass - ModuleRunoffProperties - ERR01'        
+
+        call GetRunoffWaterColumn     (Me%ObjRunoff, Me%ExtVar%WaterColumn, STAT = STAT_CALL) 
+        if (STAT_CALL /= SUCCESS_) stop 'CalculateTotalStoredMass - ModuleRunoffProperties - ERR10'
+
+        call GetGridCellArea    (Me%ObjHorizontalGrid,                                     & 
+                                 GridCellArea = Me%ExtVar%Area,                            & 
+                                 STAT = STAT_CALL )    
+        if (STAT_CALL /= SUCCESS_) stop 'CalculateTotalStoredMass - ModuleRunoffProperties - ERR020'
+        
+        CurrProperty => Me%FirstProperty
+        
+        do while (associated(CurrProperty)) 
+
+            do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+            do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+                        
+                if (Me%ExtVar%BasinPoints(i, j) == 1) then
+                    BottomMass = 0.0
+                    if (CurrProperty%Particulate) then
+                        !kg = kg/m2 * m2
+                        BottomMass = CurrProperty%BottomConcentration(i,j) * Me%ExtVar%Area(i,j)
+                    endif
+                    !kg = kg + kg + [m * m2] * [g/m3] * [1E-3 kg/g])
+                    CurrProperty%MB%TotalStoredMass = CurrProperty%MB%TotalStoredMass  + Bottommass           &
+                                                      + (Me%ExtVar%WaterColumn(i,j)* Me%ExtVar%Area(i,j)      &
+                                                       * CurrProperty%Concentration(i,j) * 1E-3    )
+                        
+                endif
+
+            enddo
+            enddo
+            
+            CurrProperty => CurrProperty%Next
+        end do 
+
+        call UnGetHorizontalGrid        (Me%ObjHorizontalGrid,Me%ExtVar%Area,STAT = STAT_CALL)   
+        if (STAT_CALL /= SUCCESS_) stop 'CalculateTotalStoredMass - ModuleRunoffProperties - ERR030'
+
+        call UnGetRunoff           (Me%ObjRunoff, Me%ExtVar%WaterColumn, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'CalculateTotalStoredMass - ModuleRunoffProperties - ERR040'
+
+        call UngetBasin           (Me%ObjBasinGeometry, Me%ExtVar%BasinPoints, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'CalculateTotalStoredMass - ModuleRunoffProperties - ERR050'        
+        
+
+    end subroutine CalculateTotalStoredMass
 
     !----------------------------------------------------------------------------
 

@@ -111,10 +111,12 @@ Module ModulePorousMediaProperties
     private ::      StartAdvectionDiffusion
 
     !Selector
+    public  :: GetPMPMassBalance
     public  :: GetPMPnProperties
     public  :: GetPMPPropertiesIDByIdx    
     public  :: GetPMPConcentration
     public  :: GetPMPCoupled
+    public  :: CheckPMPProperty
     public  :: SetDNConcPMP              !PMP gets conc from Drainage network
     public  :: SetInfColConcPMP          !PMP gets infcol conc from basin
     public  :: SetVegetationPMProperties !PMP gets conc from vegetation
@@ -126,7 +128,7 @@ Module ModulePorousMediaProperties
     private ::      ActualizePropertiesFromFile
     private ::      InterfaceFluxes
     private ::      AdvectionDiffusionProcesses_PMP !Explicit in porous media properties module
-    private ::          ModifyAdvectionDiffusion_W  !Vertical direction
+!    private ::          ModifyAdvectionDiffusion_W  !Vertical direction
     private ::          ModifyAdvectionDiffusion_3D 
     private ::      AdvectionDiffusionProcesses_AD  !Using Module Advection Diffusion
     private ::          ComputeVolumes  
@@ -349,9 +351,13 @@ Module ModulePorousMediaProperties
         type (T_Partition                    )  :: Partition
     end type T_Evolution
     
-
-
-
+    type T_MassBalance
+        real(8)                                 :: TotalStoredMass
+        real(8)                                 :: TranspiredMass
+        real(8)                                 :: DNExchangeMass
+        real(8)                                 :: RPExchangeMass
+    end type T_MassBalance
+    
     type T_Files
         character(PathLength)                   :: InitialFile
         character(PathLength)                   :: DataFile
@@ -382,6 +388,7 @@ Module ModulePorousMediaProperties
         type (T_Property), pointer              :: Next, Prev                     => null()
         logical                                 :: Particulate
         type (T_Evolution)                      :: Evolution
+        type (T_MassBalance)                    :: MB
         real, pointer, dimension(:,:,:)         :: Diffusivity
         real, pointer, dimension(:,:,:)         :: Diff_Turbulence_H
         real, pointer, dimension(:,:,:)         :: Diff_Turbulence_V
@@ -3635,9 +3642,109 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.     &
         STAT = STAT_        
                      
     end subroutine SetInfColConcPMP
-
-    !--------------------------------------------------------------------------- 
     
+    !---------------------------------------------------------------------------
+
+    subroutine GetPMPMassBalance (PorousMediaPropertiesID,                  &
+                                  PropertyID,                               &
+                                  TotalStoredMass,                          &
+                                  TranspiredMass,                           &
+                                  DNExchangeMass,                           &
+                                  RPExchangeMass,                           &
+                                  STAT)
+
+        !Arguments--------------------------------------------------------------
+        integer                                         :: PorousMediaPropertiesID
+        integer                                         :: PropertyID
+        real, optional                                  :: TotalStoredMass, TranspiredMass
+        real, optional                                  :: DNExchangeMass, RPExchangeMass
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local------------------------------------------------------------------
+        integer                                         :: STAT_CALL, ready_, STAT_
+        type (T_Property), pointer                      :: PropertyX
+        !-----------------------------------------------------------------------
+
+
+        STAT_CALL = UNKNOWN_
+
+        call Ready(PorousMediaPropertiesID, ready_)
+
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
+           
+            nullify(PropertyX) 
+           
+            call SearchProperty(PropertyX, PropertyXIDNumber = PropertyID, STAT = STAT_)
+            if (STAT_ == SUCCESS_) then 
+                if (present (TotalStoredMass)) TotalStoredMass = PropertyX%MB%TotalStoredMass
+                if (present (TranspiredMass))  TranspiredMass  = PropertyX%MB%TranspiredMass
+                if (present (DNExchangeMass))  DNExchangeMass  = PropertyX%MB%DNExchangeMass
+                if (present (RPExchangeMass))  RPExchangeMass  = PropertyX%MB%RPExchangeMass
+                
+                STAT_CALL = SUCCESS_
+            else
+                stop 'GetPMPMassBalance - ModulePorousMediaProperties - ERR01'
+            endif
+        else 
+            STAT_CALL = ready_
+        end if
+
+        if (present(STAT)) STAT = STAT_CALL
+
+    end subroutine GetPMPMassBalance
+
+    !---------------------------------------------------------------------------
+
+    subroutine CheckPMPProperty (PorousMediaPropertiesID,                    &
+                                  PropertyID,                               &
+                                  STAT)
+
+        !Arguments--------------------------------------------------------------
+        integer                                         :: PorousMediaPropertiesID
+        integer                                         :: PropertyID
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local------------------------------------------------------------------
+        integer                                         :: STAT_CALL, ready_, STAT_
+        type (T_Property), pointer                      :: PropertyX
+        !-----------------------------------------------------------------------
+
+
+        STAT_CALL = UNKNOWN_
+
+        call Ready(PorousMediaPropertiesID, ready_)
+
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
+            
+            nullify(PropertyX) 
+
+            call SearchProperty(PropertyX, PropertyXIDNumber = PropertyID, STAT = STAT_)
+            if (STAT_ == SUCCESS_) then 
+                if (.not. PropertyX%Evolution%AdvectionDiffusion) then
+                    write(*,*)
+                    write(*,*)'Property', GetPropertyName(PropertyID)
+                    write(*,*)'has advection diffusion inactive in PorousMediaProperties Module'
+                    write(*,*)'and it is unconsistent with activation in other Modules'
+                    stop 'CheckPMPProperty - ModulePorousMediaProperties - ERR01' 
+                else               
+                    STAT_CALL = SUCCESS_
+                endif
+            else
+                write(*,*)
+                write(*,*)'Could not find property', GetPropertyName(PropertyID)
+                write(*,*)'in PorousMediaProperties Module'
+                stop 'CheckPMPProperty - ModulePorousMediaProperties - ERR010'
+            endif
+        else 
+            STAT_CALL = ready_
+        end if
+
+        if (present(STAT)) STAT = STAT_CALL
+
+    end subroutine CheckPMPProperty
+
+    !---------------------------------------------------------------------------
+
     subroutine GetPMPnProperties (PorousMediaPropertiesID, nProperties, STAT)
 
         !Arguments--------------------------------------------------------------
@@ -3886,6 +3993,14 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.     &
             do while(associated(PropertyX))
                 
                 call SetMatrixValue (PropertyX%ConcentrationOld, Me%Size, PropertyX%Concentration, Me%ExtVar%WaterPoints3D)
+                
+                if (Me%CheckGlobalMass) then
+                    PropertyX%MB%TotalStoredMass     = 0.0
+                    PropertyX%MB%TranspiredMass      = 0.0
+                    PropertyX%MB%DNExchangeMass      = 0.0
+                    PropertyX%MB%RPExchangeMass      = 0.0
+                endif
+                
                 PropertyX => PropertyX%Next
                 
             end do                        
@@ -4616,9 +4731,9 @@ do3:        do K = Me%WorkSize%KUB, Me%WorkSize%KLB, -1
 
                             if (Me%ExtVar%ModelNitrogen) then
                     
-                                !      gN       = KgN/ha * 1E6g/kg * (m2) * 1ha/10000m2                     
-                                FertilizationNitrate  = Me%ExtVar%FertilNitrateSubSurface(i,j) * 1e6 * Area / 10000.
-                                FertilizationAmmonia  = Me%ExtVar%FertilAmmoniaSubSurface(i,j) * 1e6 * Area / 10000.
+                                !      gN       = KgN/ha * 1E3g/kg * (m2) * 1ha/10000m2                     
+                                FertilizationNitrate  = Me%ExtVar%FertilNitrateSubSurface(i,j) * 1e3 * Area / 10000.
+                                FertilizationAmmonia  = Me%ExtVar%FertilAmmoniaSubSurface(i,j) * 1e3 * Area / 10000.
                                 !      ugN       = KgN/ha * 1E9ug/kg * (m2) * 1ha/10000m2 
                                 FertilizationOrganicN = Me%ExtVar%FertilOrganicNSubSurface(i,j) * 1e9 * Area / 10000.
                     
@@ -4658,7 +4773,7 @@ do3:        do K = Me%WorkSize%KUB, Me%WorkSize%KLB, -1
                             ManagementRootNotCarbon   = ManagementRootNotCarbon + ManagementRootPhosphorus
                         endif
                 
-                        !     mg
+                        !     ug
                         ManagementRootCarbon = ManagementRootBiomass - ManagementRootNotCarbon
 
                     endif
@@ -4668,15 +4783,15 @@ do3:        do K = Me%WorkSize%KUB, Me%WorkSize%KLB, -1
                 !Plant Uptake (occurrs in all layers until root end )
                 if (Me%ExtVar%ModelNitrogen) then
                     
-                    !      gN       = KgN/ha * 1E6g/kg * (m2) * 1ha/10000m2                     
-                    NitrogenUptake = Me%ExtVar%NitrogenUptake(i,j,k) * 1e6 * Area / 10000.
+                    !      gN       = KgN/ha * 1E3g/kg * (m2) * 1ha/10000m2                     
+                    NitrogenUptake = Me%ExtVar%NitrogenUptake(i,j,k) * 1e3 * Area / 10000.
                     
                 endif
 
                 if (Me%ExtVar%ModelPhosphorus) then
                     
-                    !      gP       = KgP/ha * 1E6g/kg * (m2) * 1ha/10000m2                     
-                    PhosphorusUptake = Me%ExtVar%PhosphorusUptake(i,j,k) * 1e6 * Area / 10000.
+                    !      gP       = KgP/ha * 1E3g/kg * (m2) * 1ha/10000m2                     
+                    PhosphorusUptake = Me%ExtVar%PhosphorusUptake(i,j,k) * 1e3 * Area / 10000.
 
                 endif
 
@@ -4742,6 +4857,12 @@ do3:        do K = Me%WorkSize%KUB, Me%WorkSize%KLB, -1
                                                             - NitrogenUptake) * ModelDT / VegDT) / CellWaterVolume)
 
 
+                        if (Me%CheckGlobalMass) then
+                            !kg = [kg] + [g] * [1e-3kg/g] * [s model/s veg]
+                            Property%MB%TranspiredMass = Property%MB%TranspiredMass + (NitrogenUptake                            &
+                                                                 * 1E-3 * ModelDT / VegDT)
+                        endif
+
                         call SearchProperty (Property, Ammonia_        , .false., STAT = STAT_CALL)    
                         if (STAT_CALL /= SUCCESS_) stop 'InterfaceFluxes - ModulePorousMediaProperties - ERR130'
 
@@ -4756,6 +4877,13 @@ do3:        do K = Me%WorkSize%KUB, Me%WorkSize%KLB, -1
                         !         g/m3                = g/m3 + g / m3H20 
                         Property%ConcentrationOld (i,j,k) = Property%ConcentrationOld (i,j,k) - (((NitrogenUptake)               &
                                                            * ModelDT / VegDT) / CellWaterVolume)
+
+                        if (Me%CheckGlobalMass) then
+                            !kg = [kg] + [g] * [1e-3kg/g] * [s model/s veg]
+                            Property%MB%TranspiredMass = Property%MB%TranspiredMass + (NitrogenUptake                            &
+                                                                *  1E-3 * ModelDT / VegDT)
+                        endif
+                                                           
                     endif
 
                 endif
@@ -4789,6 +4917,13 @@ do3:        do K = Me%WorkSize%KUB, Me%WorkSize%KLB, -1
                         !         g/m3                    = g/m3 + g / m3H20  
                         Property%ConcentrationOld (i,j,k) = Property%ConcentrationOld (i,j,k) + (((FertilizationMineralP         &
                                                             - PhosphorusUptake) * ModelDT / VegDT) / CellWaterVolume)   
+
+                        if (Me%CheckGlobalMass) then
+                            !kg = [kg] + [g] * [1e-3kg/g] * [s model/s veg]
+                            Property%MB%TranspiredMass = Property%MB%TranspiredMass + (PhosphorusUptake                          &
+                                                                *  1E-3 * ModelDT / VegDT)
+                        endif                                                            
+                                                            
                     else
                         
                         call SearchProperty (Property, Inorganic_Phosphorus_        , .false., STAT = STAT_CALL)    
@@ -4796,7 +4931,14 @@ do3:        do K = Me%WorkSize%KUB, Me%WorkSize%KLB, -1
 
                         !         g/m3                    = g/m3 + g / m3H20  
                         Property%ConcentrationOld (i,j,k) = Property%ConcentrationOld (i,j,k) - (((PhosphorusUptake)             &
-                                                           * ModelDT / VegDT) / CellWaterVolume)                        
+                                                           * ModelDT / VegDT) / CellWaterVolume) 
+                                                           
+                                                           
+                        if (Me%CheckGlobalMass) then
+                            !kg = [kg] + [g] * [1e-3kg/g] * [s model/s veg]
+                            Property%MB%TranspiredMass = Property%MB%TranspiredMass + (PhosphorusUptake                          &
+                                                                * 1E-3 * ModelDT / VegDT)
+                        endif                                                                                      
                      
                     endif             
 
@@ -4927,219 +5069,219 @@ do3:        do K = Me%WorkSize%KUB, Me%WorkSize%KLB, -1
     !-----------------------------------------------------------------------------
 
 
-    subroutine ModifyAdvectionDiffusion_W (PropertyX)
-    
-        !Arguments-------------------------------------------------------------
-        type (T_Property), pointer                  :: PropertyX
-
-
-        !Local-----------------------------------------------------------------
-        type (T_Property), pointer                  :: CurrProperty
-        integer                                     :: i, j, k!, CHUNK
-        real(8)                                     :: Area, AdvTermB_Top, AdvTermC
-        real(8)                                     :: AdvTermD, AdvTermB_Bottom
-        real(8)                                     :: AdvTermA
-        real(8)                                     :: DifTerm_Top, Difterm_Bottom
-        real(8)                                     :: aux 
-        real(8)                                     :: cofA,cofB,cofC, cofD, cofInterfaceDN
-        real(8)                                     :: ConcTop, ConcInInterfaceDN
-        real(8), pointer, dimension(:,:,:)          :: FluxW
-        real   , pointer, dimension(:,:,:)          :: DWZ, DZZ
-        real   , pointer, dimension(:,:,:)          :: Theta, ThetaOld 
-        logical                                     :: ComputeCofC, ComputeCofD
-        !Begin-----------------------------------------------------------------
-   
-        !!CHUNK = CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)
-
-        CurrProperty => PropertyX
-        
-        call ModifyDiffusivity_New(CurrProperty)
-       
-        FluxW     => Me%ExtVar%FluxW
-    
-        DWZ       => Me%ExtVar%DWZ
-        DZZ       => Me%ExtVar%DZZ
-        Theta     => Me%ExtVar%WaterContent
-        ThetaOld  => Me%ExtVar%WaterContentOld
-        
-
-        !!!$OMP PARALLEL PRIVATE(I,J,K)
-        !!!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
-        do K = Me%WorkSize%KLB, Me%WorkSize%KUB
-        do J = Me%WorkSize%JLB, Me%WorkSize%JUB
-        do I = Me%WorkSize%ILB, Me%WorkSize%IUB
-            if (Me%ExtVar%WaterPoints3D(I,J,K) == WaterPoint) then
-                
-                Area      = Me%ExtVar%Area(i, j)
-                
-                Me%Volume(i,j,k)= Theta(i,j,k)*Me%ExtVar%Cellvolume(i,j,k)
-
-                !s/m3
-                aux      = (Me%ExtVar%DT/Me%Volume(i,j,k))
-
-               !!!FLUXES WITH Drainage Network
-               CofInterfaceDN    = 0.0
-               ConcInInterfaceDN = 0.0
-                if (Me%ExtVar%CoupledDN) then
-                    if(K == Me%ExtVar%GWLayerOld(i,j)) then
-                       !Flux between river and runoff
-                        if (Me%ExtVar%RiverPoints(I,J) == BasinPoint) then                        
-                            
-                            ! Positive flow -> looses mass
-                            cofInterfaceDN = - aux * Me%ExtVar%FlowToChannels(i,j)
-                            
-                            ! mass going to channel -> conc from soil
-                            if (Me%ExtVar%FlowToChannels(i,j) .gt. 0.0) then
-                                ConcInInterfaceDN =  CurrProperty%ConcentrationOld(i,j,k)
-                            
-                            !mass coming from channel -> conc from DN
-                            elseif (Me%ExtVar%FlowToChannels(i,j) .lt. 0.0) then
-                                ConcInInterfaceDN = CurrProperty%ConcentrationDN(i,j)
-                            endif
-                        
-                        endif
-                    endif
-                endif
-
-                !!TRANSPIRATION FLUXES IN POROUSMEDIA (Done in Routine VegetationInterfaceFluxes)
-                    !Nitrate or Ortophosphate may be disconnected from transpiration flow (if SWAT orginal equations choosed)
-                    !so TranspirationFlow * aux * Conc(i,j,k) may not be the uptake term
-                    !in the future compute in ModuleVegetation fluxes as g/s (in routine get) instead of kg/ha
-                    !and add here VegetationUptakeTerm = -[Nitrate or Ortophosphate flux] * aux  [g/s * s/m3 = g/m3]
-                    !Mass sources from vegetation can still remain in Routine VegetationInterfaceFluxes
-                
-                !!EVAPORATION FLUXES IN POROUSMEDIA (Not needed to be accounted because it is not a mass flux)
-                
-                !!FLUXES IN X AND Y DIRECTION                
-                if (Me%AdvDiff_SpatialMethod==AdvDif_CentralDif_) then ! diferenças centrais
-
-                    if (K == Me%WorkSize%KUB) then
-                        ComputeCofD = .true.
-                        ComputeCofC = .false.
-                        cofC             = 0.0
-                        DZZ(i,j,k)       = (DWZ(i,j,k)/2.) + (Me%ExtVar%InfiltrationColumn(i,j) / 2.)
-!                        ConcTop          = CurrProperty%ConcentrationOnWaterColumn(i,j)
-                        ConcTop          = CurrProperty%ConcentrationOnInfColumn(i,j)
-                        
-                        if (FluxW(i,j,k+1) .lt. 0.0) then !Negative - downwards, entering the soil 
-                            AdvTermB_Top = 0.0
-                            AdvTermD     = (aux * FluxW(i,j,k+1))
-                            ! g/m3 = g / (m3/s * s)
-!                            ConcTop  = CurrProperty%MassOnFluxW(i, j) / (abs(FluxW(i,j,k+1)) * Me%ExtVar%DT)
-                            
-                        else !Positive (upwards, exiting the soil) or zero
-                            AdvTermB_Top = (aux * FluxW(i,j,k+1))
-                            AdvTermD     = 0.0
-                            !g/m3
-!                            ConcTop  = PropertyX%ConcentrationOnWaterColumn(i, j)
-                            
-                        endif                      
-                    else 
-                        ComputeCofD = .false.
-                        ComputeCofC = .true.
-                        cofD             = 0.0
-
-                        AdvTermB_Top     = (aux * FluxW(i,j,k+1) / 2.)
-                        AdvTermC         = (aux * FluxW(i,j,k+1) / 2.)
-                    endif
-                    
-                    AdvTermA = (aux * FluxW(i,j,k) / 2.)
-                   !AdvTermB_Top    = already defined
-                    AdvTermB_Bottom = (aux * FluxW(i,j,k  ) / 2.)
-                   !AdvTermC        = already defined
-                   !AdvTermD        = already defined
-                       
-
-                elseif (Me%AdvDiff_SpatialMethod==AdvDif_Upwind_) then ! upwind
-
-                    if (K == Me%WorkSize%KUB) then
-                        ComputeCofD = .true.
-                        ComputeCofC = .false.
-                        cofC             = 0.0
-                        DZZ(i,j,k)       = (DWZ(i,j,k)/2.) + (Me%ExtVar%InfiltrationColumn(i,j) / 2.)
-!                        ConcTop  = CurrProperty%ConcentrationOnWaterColumn(i, j)
-                        ConcTop          = CurrProperty%ConcentrationOnInfColumn(i,j)
-                        
-                    else 
-                        ComputeCofD = .false.
-                        ComputeCofC = .true.
-                        cofD             = 0.0
-                    endif
-                    
-                    if (FluxW(i,j,k) .lt. 0.0) then !Bottom face, Negative - downwards
-                        AdvTermA        = 0.0
-                        AdvTermB_Bottom = aux * FluxW(i,j,k)
-                    else !Positive - upwards or zero.
-                        AdvTermA        = aux * FluxW(i,j,k)
-                        AdvTermB_Bottom = 0.0
-                    endif
-
-                    if (FluxW(i,j,k+1) .lt. 0.0) then !Top face, Negative - downwards
-                        AdvTermC        = aux * FluxW(i,j,k+1)
-                        AdvTermD        = aux * FluxW(i,j,k+1)
-                        AdvTermB_Top    = 0.0
-                    else !Positive - upwards or zero.
-                        AdvTermC        = 0.0
-                        AdvTermD        = 0.0
-                        AdvTermB_Top    = aux * FluxW(i,j,k+1)
-                    endif
-                        
-                endif
-                
-                DifTerm_Top    = CurrProperty%Diffusivity(i,j,k+1) * Area * aux / DZZ(i,j,k  )
-                DifTerm_Bottom = CurrProperty%Diffusivity(i,j,k  ) * Area * aux / DZZ(i,j,k-1)
-                
-                cofA =  AdvTermA                                                                  &
-                        + DifTerm_Bottom 
-            
-                cofB = ThetaOld(i,j,k)/Theta(i,j,k)                                               &
-                       - AdvTermB_Top                                                             &
-                       + AdvTermB_Bottom                                                          &
-                       - DifTerm_Bottom                                                           &
-                       - DifTerm_Top
-                
-                if (ComputeCofC) then    
-                    cofC = - AdvTermC                                                             &
-                           + DifTerm_Top
-                endif
-                
-                if (ComputeCofD) then    
-                    cofD = - AdvTermD                                                             &
-                           + DifTerm_Top
-                endif
-                
-                !Concentration computation based on the coefs (upwind or central differences)
-                CurrProperty%Concentration(i,j,k)= cofA  * CurrProperty%ConcentrationOld(i,j,k-1) &
-                                                  * Me%ExtVar%ComputeFacesW3D(i,j,k  )            &
-                                                  + cofB * CurrProperty%ConcentrationOld(i,j,k  ) &
-                                                  + cofC * CurrProperty%ConcentrationOld(i,j,k+1) &
-                                                  * Me%ExtVar%ComputeFacesW3D(i,j,k+1)            &
-                                                  + cofD * ConcTop                                &
-                                                  + CofInterfaceDN * ConcInInterfaceDN                       
-                
-    
-                Me%DifusionNumber(i,j,k) = cofB
-
-                Me%ReynoldsMNumber(i,j,k)= cofA
-                
-
-                !Check if any of the coeffs get a negative value. If true, stop program
-                if ((Me%AdvDiff_CheckCoefs) .AND. ((cofA < 0.0) .OR. (cofB < 0.0) .OR. (cofC < 0.0) .OR. (cofD < 0.0))) then
-                    
-                    call LogCoefs(i,j,k,cofA,cofB,cofC,cofD)
-    
-                endif
-              
-            endif
-        enddo
-        enddo
-        enddo
-        !!!$OMP END DO
-        !!!$OMP END PARALLEL
-                        
-
-
-    end subroutine ModifyAdvectionDiffusion_W
+!    subroutine ModifyAdvectionDiffusion_W (PropertyX)
+!    
+!        !Arguments-------------------------------------------------------------
+!        type (T_Property), pointer                  :: PropertyX
+!
+!
+!        !Local-----------------------------------------------------------------
+!        type (T_Property), pointer                  :: CurrProperty
+!        integer                                     :: i, j, k!, CHUNK
+!        real(8)                                     :: Area, AdvTermB_Top, AdvTermC
+!        real(8)                                     :: AdvTermD, AdvTermB_Bottom
+!        real(8)                                     :: AdvTermA
+!        real(8)                                     :: DifTerm_Top, Difterm_Bottom
+!        real(8)                                     :: aux 
+!        real(8)                                     :: cofA,cofB,cofC, cofD, cofInterfaceDN
+!        real(8)                                     :: ConcTop, ConcInInterfaceDN
+!        real(8), pointer, dimension(:,:,:)          :: FluxW
+!        real   , pointer, dimension(:,:,:)          :: DWZ, DZZ
+!        real   , pointer, dimension(:,:,:)          :: Theta, ThetaOld 
+!        logical                                     :: ComputeCofC, ComputeCofD
+!        !Begin-----------------------------------------------------------------
+!   
+!        !!CHUNK = CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)
+!
+!        CurrProperty => PropertyX
+!        
+!        call ModifyDiffusivity_New(CurrProperty)
+!       
+!        FluxW     => Me%ExtVar%FluxW
+!    
+!        DWZ       => Me%ExtVar%DWZ
+!        DZZ       => Me%ExtVar%DZZ
+!        Theta     => Me%ExtVar%WaterContent
+!        ThetaOld  => Me%ExtVar%WaterContentOld
+!        
+!
+!        !!!$OMP PARALLEL PRIVATE(I,J,K)
+!        !!!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+!        do K = Me%WorkSize%KLB, Me%WorkSize%KUB
+!        do J = Me%WorkSize%JLB, Me%WorkSize%JUB
+!        do I = Me%WorkSize%ILB, Me%WorkSize%IUB
+!            if (Me%ExtVar%WaterPoints3D(I,J,K) == WaterPoint) then
+!                
+!                Area      = Me%ExtVar%Area(i, j)
+!                
+!                Me%Volume(i,j,k)= Theta(i,j,k)*Me%ExtVar%Cellvolume(i,j,k)
+!
+!                !s/m3
+!                aux      = (Me%ExtVar%DT/Me%Volume(i,j,k))
+!
+!               !!!FLUXES WITH Drainage Network
+!               CofInterfaceDN    = 0.0
+!               ConcInInterfaceDN = 0.0
+!                if (Me%ExtVar%CoupledDN) then
+!                    if(K == Me%ExtVar%GWLayerOld(i,j)) then
+!                       !Flux between river and runoff
+!                        if (Me%ExtVar%RiverPoints(I,J) == BasinPoint) then                        
+!                            
+!                            ! Positive flow -> looses mass
+!                            cofInterfaceDN = - aux * Me%ExtVar%FlowToChannels(i,j)
+!                            
+!                            ! mass going to channel -> conc from soil
+!                            if (Me%ExtVar%FlowToChannels(i,j) .gt. 0.0) then
+!                                ConcInInterfaceDN =  CurrProperty%ConcentrationOld(i,j,k)
+!                            
+!                            !mass coming from channel -> conc from DN
+!                            elseif (Me%ExtVar%FlowToChannels(i,j) .lt. 0.0) then
+!                                ConcInInterfaceDN = CurrProperty%ConcentrationDN(i,j)
+!                            endif
+!                        
+!                        endif
+!                    endif
+!                endif
+!
+!                !!TRANSPIRATION FLUXES IN POROUSMEDIA (Done in Routine VegetationInterfaceFluxes)
+!                    !Nitrate or Ortophosphate may be disconnected from transpiration flow (if SWAT orginal equations choosed)
+!                    !so TranspirationFlow * aux * Conc(i,j,k) may not be the uptake term
+!                    !in the future compute in ModuleVegetation fluxes as g/s (in routine get) instead of kg/ha
+!                    !and add here VegetationUptakeTerm = -[Nitrate or Ortophosphate flux] * aux  [g/s * s/m3 = g/m3]
+!                    !Mass sources from vegetation can still remain in Routine VegetationInterfaceFluxes
+!                
+!                !!EVAPORATION FLUXES IN POROUSMEDIA (Not needed to be accounted because it is not a mass flux)
+!                
+!                !!FLUXES IN X AND Y DIRECTION                
+!                if (Me%AdvDiff_SpatialMethod==AdvDif_CentralDif_) then ! diferenças centrais
+!
+!                    if (K == Me%WorkSize%KUB) then
+!                        ComputeCofD = .true.
+!                        ComputeCofC = .false.
+!                        cofC             = 0.0
+!                        DZZ(i,j,k)       = (DWZ(i,j,k)/2.) + (Me%ExtVar%InfiltrationColumn(i,j) / 2.)
+!!                        ConcTop          = CurrProperty%ConcentrationOnWaterColumn(i,j)
+!                        ConcTop          = CurrProperty%ConcentrationOnInfColumn(i,j)
+!                        
+!                        if (FluxW(i,j,k+1) .lt. 0.0) then !Negative - downwards, entering the soil 
+!                            AdvTermB_Top = 0.0
+!                            AdvTermD     = (aux * FluxW(i,j,k+1))
+!                            ! g/m3 = g / (m3/s * s)
+!!                            ConcTop  = CurrProperty%MassOnFluxW(i, j) / (abs(FluxW(i,j,k+1)) * Me%ExtVar%DT)
+!                            
+!                        else !Positive (upwards, exiting the soil) or zero
+!                            AdvTermB_Top = (aux * FluxW(i,j,k+1))
+!                            AdvTermD     = 0.0
+!                            !g/m3
+!!                            ConcTop  = PropertyX%ConcentrationOnWaterColumn(i, j)
+!                            
+!                        endif                      
+!                    else 
+!                        ComputeCofD = .false.
+!                        ComputeCofC = .true.
+!                        cofD             = 0.0
+!
+!                        AdvTermB_Top     = (aux * FluxW(i,j,k+1) / 2.)
+!                        AdvTermC         = (aux * FluxW(i,j,k+1) / 2.)
+!                    endif
+!                    
+!                    AdvTermA = (aux * FluxW(i,j,k) / 2.)
+!                   !AdvTermB_Top    = already defined
+!                    AdvTermB_Bottom = (aux * FluxW(i,j,k  ) / 2.)
+!                   !AdvTermC        = already defined
+!                   !AdvTermD        = already defined
+!                       
+!
+!                elseif (Me%AdvDiff_SpatialMethod==AdvDif_Upwind_) then ! upwind
+!
+!                    if (K == Me%WorkSize%KUB) then
+!                        ComputeCofD = .true.
+!                        ComputeCofC = .false.
+!                        cofC             = 0.0
+!                        DZZ(i,j,k)       = (DWZ(i,j,k)/2.) + (Me%ExtVar%InfiltrationColumn(i,j) / 2.)
+!!                        ConcTop  = CurrProperty%ConcentrationOnWaterColumn(i, j)
+!                        ConcTop          = CurrProperty%ConcentrationOnInfColumn(i,j)
+!                        
+!                    else 
+!                        ComputeCofD = .false.
+!                        ComputeCofC = .true.
+!                        cofD             = 0.0
+!                    endif
+!                    
+!                    if (FluxW(i,j,k) .lt. 0.0) then !Bottom face, Negative - downwards
+!                        AdvTermA        = 0.0
+!                        AdvTermB_Bottom = aux * FluxW(i,j,k)
+!                    else !Positive - upwards or zero.
+!                        AdvTermA        = aux * FluxW(i,j,k)
+!                        AdvTermB_Bottom = 0.0
+!                    endif
+!
+!                    if (FluxW(i,j,k+1) .lt. 0.0) then !Top face, Negative - downwards
+!                        AdvTermC        = aux * FluxW(i,j,k+1)
+!                        AdvTermD        = aux * FluxW(i,j,k+1)
+!                        AdvTermB_Top    = 0.0
+!                    else !Positive - upwards or zero.
+!                        AdvTermC        = 0.0
+!                        AdvTermD        = 0.0
+!                        AdvTermB_Top    = aux * FluxW(i,j,k+1)
+!                    endif
+!                        
+!                endif
+!                
+!                DifTerm_Top    = CurrProperty%Diffusivity(i,j,k+1) * Area * aux / DZZ(i,j,k  )
+!                DifTerm_Bottom = CurrProperty%Diffusivity(i,j,k  ) * Area * aux / DZZ(i,j,k-1)
+!                
+!                cofA =  AdvTermA                                                                  &
+!                        + DifTerm_Bottom 
+!            
+!                cofB = ThetaOld(i,j,k)/Theta(i,j,k)                                               &
+!                       - AdvTermB_Top                                                             &
+!                       + AdvTermB_Bottom                                                          &
+!                       - DifTerm_Bottom                                                           &
+!                       - DifTerm_Top
+!                
+!                if (ComputeCofC) then    
+!                    cofC = - AdvTermC                                                             &
+!                           + DifTerm_Top
+!                endif
+!                
+!                if (ComputeCofD) then    
+!                    cofD = - AdvTermD                                                             &
+!                           + DifTerm_Top
+!                endif
+!                
+!                !Concentration computation based on the coefs (upwind or central differences)
+!                CurrProperty%Concentration(i,j,k)= cofA  * CurrProperty%ConcentrationOld(i,j,k-1) &
+!                                                  * Me%ExtVar%ComputeFacesW3D(i,j,k  )            &
+!                                                  + cofB * CurrProperty%ConcentrationOld(i,j,k  ) &
+!                                                  + cofC * CurrProperty%ConcentrationOld(i,j,k+1) &
+!                                                  * Me%ExtVar%ComputeFacesW3D(i,j,k+1)            &
+!                                                  + cofD * ConcTop                                &
+!                                                  + CofInterfaceDN * ConcInInterfaceDN                       
+!                
+!    
+!                Me%DifusionNumber(i,j,k) = cofB
+!
+!                Me%ReynoldsMNumber(i,j,k)= cofA
+!                
+!
+!                !Check if any of the coeffs get a negative value. If true, stop program
+!                if ((Me%AdvDiff_CheckCoefs) .AND. ((cofA < 0.0) .OR. (cofB < 0.0) .OR. (cofC < 0.0) .OR. (cofD < 0.0))) then
+!                    
+!                    call LogCoefs(i,j,k,cofA,cofB,cofC,cofD)
+!    
+!                endif
+!              
+!            endif
+!        enddo
+!        enddo
+!        enddo
+!        !!!$OMP END DO
+!        !!!$OMP END PARALLEL
+!                        
+!
+!
+!    end subroutine ModifyAdvectionDiffusion_W
     
     !---------------------------------------------------------------------------
 
@@ -5208,6 +5350,7 @@ do3:        do K = Me%WorkSize%KUB, Me%WorkSize%KLB, -1
         call GetGWFlowOption (Me%ObjPorousMedia, GWFlowLink, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop ' ModifyAdvectionDiffusion - ModulePorousMediaProperties - ERR01'
         
+       
         !!!$OMP PARALLEL PRIVATE(I,J,K)
         !!!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
         do K = Me%WorkSize%KLB, Me%WorkSize%KUB
@@ -5245,11 +5388,30 @@ do3:        do K = Me%WorkSize%KUB, Me%WorkSize%KLB, -1
                                 
                                 ! mass going to channel -> conc from soil
                                 if (Me%ExtVar%FlowToChannelsLayer(i,j,k) .gt. 0.0) then
+                                    
                                     ConcInInterfaceDN =  CurrProperty%ConcentrationOld(i,j,k)
+                                    
+                                    if (Me%CheckGlobalMass) then
+                                        !Global Mass Exchange
+                                        ![kg] = [kg] + [m3/s] * [g/m3] * [1e-3kg/g]* [s] 
+                                        CurrProperty%MB%DNExchangeMass =  CurrProperty%MB%DNExchangeMass                   &
+                                          + (Me%ExtVar%FlowToChannelsLayer(i,j,k) * CurrProperty%ConcentrationOld(i,j,k)   &
+                                             * 1e-3 * Me%ExtVar%DT)
+                                    endif
                                 
                                 !mass coming from channel -> conc from DN
                                 elseif (Me%ExtVar%FlowToChannelsLayer(i,j,k) .lt. 0.0) then
+                                    
                                     ConcInInterfaceDN = CurrProperty%ConcentrationDN(i,j)
+                                    
+                                    if (Me%CheckGlobalMass) then
+                                        !Global Mass Exchange
+                                        ![kg] = [kg] + [m3/s] * [g/m3] * [1e-3kg/g]* [s] 
+                                        CurrProperty%MB%DNExchangeMass =  CurrProperty%MB%DNExchangeMass                   &
+                                          + (Me%ExtVar%FlowToChannelsLayer(i,j,k) * CurrProperty%ConcentrationDN(i,j)      &
+                                             * 1e-3 * Me%ExtVar%DT)  
+                                    endif                                  
+                                    
                                 endif
                             
                             endif
@@ -5266,11 +5428,30 @@ do3:        do K = Me%WorkSize%KUB, Me%WorkSize%KLB, -1
                                 
                                 ! mass going to channel -> conc from soil
                                 if (Me%ExtVar%FlowToChannels(i,j) .gt. 0.0) then
+                                    
                                     ConcInInterfaceDN =  CurrProperty%ConcentrationOld(i,j,k)
+
+                                    if (Me%CheckGlobalMass) then
+                                        !Global Mass Exchange
+                                        ![kg] = [kg] + [m3/s] * [g/m3] * [1e-3kg/g]* [s] 
+                                        CurrProperty%MB%DNExchangeMass =  CurrProperty%MB%DNExchangeMass                   &
+                                          + (Me%ExtVar%FlowToChannels(i,j) * CurrProperty%ConcentrationOld(i,j,k)          &
+                                             * 1e-3 * Me%ExtVar%DT)
+                                    endif
                                 
                                 !mass coming from channel -> conc from DN
                                 elseif (Me%ExtVar%FlowToChannels(i,j) .lt. 0.0) then
+                                    
                                     ConcInInterfaceDN = CurrProperty%ConcentrationDN(i,j)
+
+                                    if (Me%CheckGlobalMass) then
+                                        !Global Mass Exchange
+                                        ![kg] = [kg] + [m3/s] * [g/m3] * [1e-3kg/g]* [s] 
+                                        CurrProperty%MB%DNExchangeMass =  CurrProperty%MB%DNExchangeMass                   &
+                                          + (Me%ExtVar%FlowToChannels(i,j) * CurrProperty%ConcentrationDN(i,j)             &
+                                             * 1e-3 * Me%ExtVar%DT)  
+                                    endif                 
+                                    
                                 endif
                             endif
                         endif
@@ -5343,7 +5524,6 @@ do3:        do K = Me%WorkSize%KUB, Me%WorkSize%KLB, -1
                         DZZ(i,j,k)       = DWZ(i,j,k)/2. + Me%ExtVar%InfiltrationColumn(i,j) / 2.
 !                       ConcTop  = CurrProperty%ConcentrationOnWaterColumn(i, j)
                         ConcTop          = CurrProperty%ConcentrationOnInfColumn(i,j)
-                        
 
                     else 
                         ComputeCofD_W = .false.
@@ -5491,6 +5671,25 @@ do3:        do K = Me%WorkSize%KUB, Me%WorkSize%KLB, -1
                     call LogCoefs (i,j,k,cofA_W,cofB,cofC_W,cofD_W,cofA_U,cofC_U,cofA_V,cofC_V)
                
                 endif
+                
+                !Infiltration/Exfiltration integrated
+                if (Me%CheckGlobalMass) then
+                    if (K == Me%WorkSize%KUB) then
+                        if (FluxW(i,j,k+1) .lt. 0.0) then !Negative - downwards, entering the soil 
+                            !Global Mass Exchange
+                            ![kg] = [kg] + [m3/s] * [g/m3] * [1e-3kg/g]* [s] 
+                            CurrProperty%MB%RPExchangeMass =  CurrProperty%MB%RPExchangeMass                         &
+                                                             - (FluxW(i,j,k+1) * ConcTop * 1e-3 * Me%ExtVar%DT)  
+                        
+                        else !Positive (upwards, exiting the soil) or zero
+                            !Global Mass Exchange
+                            ![kg] = [kg] + [m3/s] * [g/m3] * [1e-3kg/g]* [s] 
+                            CurrProperty%MB%RPExchangeMass =  CurrProperty%MB%RPExchangeMass                          &
+                                                             - (FluxW(i,j,k+1) * CurrProperty%ConcentrationOld(i,j,k) &
+                                                             * 1e-3 * Me%ExtVar%DT)  
+                        endif
+                    endif
+                endif    
               
             endif
         enddo
@@ -6291,17 +6490,16 @@ First:          if (LastTime.LT.Actual) then
         
         do while (associated(CurrProperty)) 
 
-            CurrProperty%TotalStoredMass = 0.0
-
             do k = Me%WorkSize%KLB, Me%WorkSize%KUB
             do j = Me%WorkSize%JLB, Me%WorkSize%JUB
             do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                         
                 if (Me%ExtVar%WaterPoints3D(i, j, k) == 1) then
                     !kg = kg + (m3H20/m3cell * m3cell * g/m3 * 1E-3 kg/g
-                    CurrProperty%TotalStoredMass = CurrProperty%TotalStoredMass                       &
-                                                   + ( Me%ExtVar%WaterContent(i,j,k)* Me%ExtVar%CellVolume(i,j,k)   &
+                    CurrProperty%MB%TotalStoredMass = CurrProperty%MB%TotalStoredMass                                  &
+                                                      + ( Me%ExtVar%WaterContent(i,j,k)* Me%ExtVar%CellVolume(i,j,k)   &
                                                        * CurrProperty%Concentration(i,j,k) * 1E-3    )
+                        
                 endif
 
             enddo

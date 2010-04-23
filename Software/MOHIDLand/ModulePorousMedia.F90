@@ -128,7 +128,7 @@ Module ModulePorousMedia
     public  ::  GetGWToChannelsLayers
     public  ::  GetGWLayer
     public  ::  GetGWLayerOld
-    public  ::  GetTotalStoredVolume
+    public  ::  GetPorousMediaTotalStoredVolume
     public  ::  GetFluxU
     public  ::  GetFluxV
     public  ::  GetFluxW
@@ -146,6 +146,7 @@ Module ModulePorousMedia
     public  ::  GetLimitThetaLow
     public  ::  GetUnsatK
     public  ::  GetEvaporation
+    public  ::  GetTranspiration
     public  ::  UnGetPorousMedia
     
     !Modifier
@@ -2510,7 +2511,7 @@ i1:         if (CoordON) then
 
     !--------------------------------------------------------------------------
 
-    subroutine GetTotalStoredVolume (ObjPorousMediaID, TotalStoredVolume, LossToGround, STAT)
+    subroutine GetPorousMediaTotalStoredVolume (ObjPorousMediaID, TotalStoredVolume, LossToGround, STAT)
 
         !Arguments-------------------------------------------------------------
         integer                                         :: ObjPorousMediaID
@@ -2537,7 +2538,7 @@ i1:         if (CoordON) then
 
         if (present(STAT)) STAT = STAT_
 
-    end subroutine GetTotalStoredVolume
+    end subroutine GetPorousMediaTotalStoredVolume
 
     !-------------------------------------------------------------------------
     subroutine GetGeometryInstance (ObjPorousMediaID, GeometryID, STAT)
@@ -3000,6 +3001,37 @@ i1:         if (CoordON) then
     end subroutine GetEvaporation
 
     !--------------------------------------------------------------------------
+    
+    subroutine GetTranspiration (ObjPorousMediaID, Transpiration, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                                         :: ObjPorousMediaID
+        real   ,    pointer, dimension(:,:,:)           :: Transpiration
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                         :: STAT_, ready_
+        
+        call Ready(ObjPorousMediaID, ready_)    
+        
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            call Read_Lock(mPorousMedia_, Me%InstanceID)
+            
+            Transpiration => Me%ExtVar%TranspirationFlux
+
+            STAT_ = SUCCESS_
+        else 
+            STAT_ = ready_
+        end if
+
+        if (present(STAT)) STAT = STAT_
+
+
+    end subroutine GetTranspiration
+
+    !--------------------------------------------------------------------------    
 
     subroutine GetThetaField (ObjPorousMediaID, ThetaField, STAT)
 
@@ -3833,11 +3865,13 @@ dConv:  do while (iteration <= Niteration)
                             Coef = 0.0
                         else
                             Coef = 0.5 * Me%ExtVar%DWZ(i, j, k) * (1.0 + CenterVelocityW / Me%SatK(i, j, k)) * &
-                                   LinearInterpolation(Me%RC%ThetaS(i, j, k) * Me%CV%ThetaHydroCoef, 0.0, Me%RC%ThetaS(i, j, k), 1.0, Me%Theta(i, j, k))**3
+                                   LinearInterpolation(Me%RC%ThetaS(i, j, k) * Me%CV%ThetaHydroCoef, 0.0,      &
+                                   Me%RC%ThetaS(i, j, k), 1.0, Me%Theta(i, j, k))**3
                         end if
 
 !                        Coef = 0.5 * Me%ExtVar%DWZ(i, j, k) * (1.0 - CenterVelocityW / Me%SatK(i, j, k)) * &
-!                               LinearInterpolation(Me%RC%ThetaS(i, j, k) * Me%CV%ThetaHydroCoef, 0.0, Me%RC%ThetaS(i, j, k), 1.0, Me%Theta(i, j, k))
+!                               LinearInterpolation(Me%RC%ThetaS(i, j, k) * Me%CV%ThetaHydroCoef, 0.0,      &
+!                                Me%RC%ThetaS(i, j, k), 1.0, Me%Theta(i, j, k))
 
                         AccumPressure = AccumPressure + Coef
                         Me%HydroPressure(i,j,k) = AccumPressure

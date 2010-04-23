@@ -247,6 +247,8 @@ Module ModuleDrainageNetwork
     public  :: GetNextDrainageNetDT
     public  :: GetVolumes
     public  :: GetDNConcentration
+    public  :: GetDNMassBalance             !To Basin get the property mass balance values
+    public  :: CheckDNProperty             
     public  :: UnGetDrainageNetwork
     public  :: SetAtmosphereDrainageNet     !To be called from MOHID Land
     public  :: SetAtmosphereRiverNet        !To be called from River Network
@@ -626,6 +628,12 @@ Module ModuleDrainageNetwork
          type(T_Coupling)                           :: Benthos
     end type T_Coupled
 
+    type T_MassBalance
+        real(8)                                     :: TotalStoredMass
+        real(8)                                     :: TotalDischargeMass
+        real(8)                                     :: TotalOutFlowMass
+    end type T_MassBalance
+
     type        T_Property
         type (T_PropertyID)                         :: ID
         type (T_ComputeOptions)                     :: ComputeOptions
@@ -661,6 +669,8 @@ Module ModuleDrainageNetwork
 
         !Toxicity
         type (T_Toxicity)                           :: Toxicity
+        
+        type (T_MassBalance)                        :: MB
 
         real                                        :: IScoefficient
         real                                        :: ExtinctionCoefficient
@@ -852,6 +862,8 @@ Module ModuleDrainageNetwork
         integer                                         :: STAT_CALL
         integer                                         :: ready_         
         type (T_Node), pointer                          :: CurrNode
+        type(T_Property), pointer                       :: Property
+        real                                            :: BottomMass
 
         !------------------------------------------------------------------------
 
@@ -970,11 +982,37 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             
             if (Me%CheckMass) then
                 Me%TotalStoredVolume = 0.0
+                Property => Me%FirstProperty
+                do while (associated(Property))
+                    Property%MB%TotalStoredMass    = 0.0
+                    Property => Property%Next
+                enddo
+                
                 do NodeID = 1, Me%TotalNodes
                     if (Me%Nodes(NodeID)%nDownStreamReaches /= 0) then
                         Me%TotalStoredVolume = Me%TotalStoredVolume + Me%Nodes(NodeID)%VolumeNew
                     endif
-                end do
+                
+                    Property => Me%FirstProperty
+                    do while (associated(Property))
+                        
+                        CurrNode => Me%Nodes(NodeID)
+                        BottomMass = 0.0
+                        if (Check_Particulate_Property(Property%ID%IDNumber)) then
+                            ![kg] = [kg/m2] * [m2]
+                            BottomMass = Property%BottomConc(NodeID) * CurrNode%CrossSection%BottomWidth * CurrNode%Length
+                        endif
+                        
+                        ![kg] = [kg] + [kg] + [g/m3] * [m3] * [1e-3kg/g]
+                        Property%MB%TotalStoredMass = Property%MB%TotalStoredMass  +  BottomMass  &
+                                                      + Property%Concentration (NodeID)           &
+                                                      * Property%ISCoefficient                    &
+                                                      * Me%Nodes(NodeID)%VolumeNew
+                        
+                        Property => Property%Next
+                    enddo
+                enddo                
+                
             end if
             
 
@@ -3214,6 +3252,18 @@ cd2 :           if (BlockFound) then
         call GetData(NewProperty%InitialValue,                                  &
                      Me%ObjEnterData, iflag,                                    &
                      Keyword        = 'DEFAULT_VALUE',                          &
+                     ClientModule   = 'ModuleDrainageNetwork',                  &
+                     SearchType     = FromBlock,                                &
+                     STAT           = STAT_CALL)              
+        if (iflag /= 0) then
+            write(*,*)'The keyword DEFAULT_VALUE in Drainage Network file'
+            write(*,*)'is obsolete. Use DEFAULTVALUE instead'
+            stop 'ModuleDrainageNetwork - ConstructPropertyValues - ERR01.5'         
+        endif
+        
+        call GetData(NewProperty%InitialValue,                                  &
+                     Me%ObjEnterData, iflag,                                    &
+                     Keyword        = 'DEFAULTVALUE',                           &
                      ClientModule   = 'ModuleDrainageNetwork',                  &
                      SearchType     = FromBlock,                                &
                      Default        = 0.0,                                      &
@@ -5908,13 +5958,14 @@ if0:    if (Me%HasProperties) then
     !---------------------------------------------------------------------------
     !---------------------------------------------------------------------------
 
-    subroutine GetDNPropertiesIDByIdx (DrainageNetworkID, Idx, ID,PropAdvDiff, OutputName, STAT)
+    subroutine GetDNPropertiesIDByIdx (DrainageNetworkID, Idx, ID,PropAdvDiff, Particulate, OutputName, STAT)
 
         !Arguments--------------------------------------------------------------
         integer                                         :: DrainageNetworkID
         integer, intent(IN)                             :: Idx
         integer, intent(OUT)                            :: ID
         logical, intent(OUT)                            :: PropAdvDiff
+        logical, intent(OUT), optional                  :: Particulate
         integer, intent(OUT), optional                  :: STAT
         character (Len = StringLength), optional        :: OutputName
 
@@ -5938,6 +5989,9 @@ if0:    if (Me%HasProperties) then
             ID          = CurrProp%ID%IDNumber
             PropAdvDiff = CurrProp%ComputeOptions%AdvectionDiffusion
             
+            if (present (Particulate)) then
+                Particulate = Check_Particulate_Property(CurrProp%ID%IDNumber)
+            endif
             
             if (present (OutputName)) then
                 if (CurrProp%OutputName == 'NAME') then
@@ -5957,8 +6011,55 @@ if0:    if (Me%HasProperties) then
     end subroutine GetDNPropertiesIDByIdx
 
     !---------------------------------------------------------------------------
-    !---------------------------------------------------------------------------
+ 
+     subroutine CheckDNProperty (DrainangeNetworkID,                        &
+                                  PropertyID,                               &
+                                  STAT)
 
+        !Arguments--------------------------------------------------------------
+        integer                                         :: DrainangeNetworkID
+        integer                                         :: PropertyID
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local------------------------------------------------------------------
+        integer                                         :: STAT_CALL, ready_, STAT_
+        type (T_Property), pointer                      :: PropertyX
+        !-----------------------------------------------------------------------
+
+
+        STAT_CALL = UNKNOWN_
+
+        call Ready(DrainangeNetworkID, ready_)
+
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
+            
+            call SearchProperty(PropertyX, PropertyXIDNumber = PropertyID, STAT = STAT_)
+            if (STAT_ == SUCCESS_) then 
+                if (.not. PropertyX%ComputeOptions%AdvectionDiffusion) then
+                    write(*,*)
+                    write(*,*)'Property', GetPropertyName(PropertyID)
+                    write(*,*)'has advection diffusion inactive in Drainage Network Module'
+                    write(*,*)'and it is unconsistent with activation in other Modules'
+                    stop 'CheckDNProperty - ModuleDraianageNetwork - ERR01' 
+                else               
+                    STAT_CALL = SUCCESS_
+                endif
+            else
+                write(*,*)
+                write(*,*)'Could not find property', GetPropertyName(PropertyID)
+                write(*,*)'in DraianageNetwork Module'
+                stop 'CheckDNProperty - ModuleDraianageNetwork - ERR010'
+            endif
+        else 
+            STAT_CALL = ready_
+        end if
+
+        if (present(STAT)) STAT = STAT_CALL
+
+    end subroutine CheckDNProperty
+
+    !---------------------------------------------------------------------------
+ 
     subroutine GetHasToxicity (DrainageNetworkID, HasToxicity, STAT)
 
         !Arguments--------------------------------------------------------------
@@ -6162,6 +6263,49 @@ if0:    if (Me%HasProperties) then
     end subroutine GetVolumes
 
     !---------------------------------------------------------------------------
+    !---------------------------------------------------------------------------
+
+    subroutine GetDNMassBalance(DrainageNetworkID, PropertyID, TotalDischargeMass,       &
+                          TotalOutFlowMass, TotalStoredMass, STAT)
+
+        !Arguments--------------------------------------------------------------
+        integer                                         :: DrainageNetworkID
+        integer                                         :: PropertyID
+        real(8), intent(OUT), optional                  :: TotalDischargeMass
+        real(8), intent(OUT), optional                  :: TotalOutFlowMass
+        real(8), intent(OUT), optional                  :: TotalStoredMass
+!        real(8), intent(OUT), optional                  :: TotalOverTopMass
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local------------------------------------------------------------------
+        integer                                         :: STAT_CALL, STAT_, ready_
+        type (T_Property), pointer                      :: PropertyX
+        !-----------------------------------------------------------------------
+
+        STAT_CALL = UNKNOWN_
+
+        call Ready(DrainageNetworkID, ready_)
+
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
+        
+            call SearchProperty(PropertyX, PropertyXIDNumber = PropertyID, STAT = STAT_)
+            if (STAT_ == SUCCESS_) then 
+                if (present (TotalDischargeMass   )) TotalDischargeMass   = PropertyX%MB%TotalDischargeMass
+                if (present (TotalOutFlowMass     )) TotalOutFlowMass     = PropertyX%MB%TotalOutFlowMass
+                if (present (TotalStoredMass      )) TotalStoredMass      = PropertyX%MB%TotalStoredMass
+!                if (present (TotalOverTopMass     )) TotalOverTopMass     = Property%MB%TotalOverTopMass
+                STAT_CALL = SUCCESS_
+            else
+                stop 'GetDNMassBalance - ModuleRunoffProperties - ERR01'            
+            endif
+        else 
+            STAT_CALL = ready_
+        end if
+
+        if (present(STAT)) STAT = STAT_CALL
+    
+    end subroutine GetDNMassBalance
+
     !---------------------------------------------------------------------------
 
     subroutine UnGetDrainageNetworkR4 (ObjDrainageNetworkID, Array, STAT)
@@ -6722,7 +6866,9 @@ do2 :   do while (associated(PropertyX))
         logical                                     :: Restart       
         type (T_Property), pointer                  :: Property
         type(T_Reach), pointer                      :: CurrReach
-        type(T_Node), pointer                       :: UpNode, DownNode
+        type(T_Node), pointer                       :: UpNode, DownNode, CurrNode
+        real                                        :: BottomMass
+        !Begin-------------------------------------------------------------------
        
         if (MonitorPerformance) call StartWatch ("ModuleDrainageNetwork", "ModifyDrainageNet")
 
@@ -6733,6 +6879,20 @@ do2 :   do while (associated(PropertyX))
         Me%TotalFlowVolume   = 0.0
         Me%TotalInputVolume  = 0.0
         Me%TotalOverTopVolume= 0.0
+        
+        if (Me%CheckMass) then
+            Property => Me%FirstProperty
+            do while (associated(Property))
+                Property%MB%TotalStoredMass    = 0.0
+                Property%MB%TotalDischargeMass = 0.0
+                Property%MB%TotalOutFlowMass   = 0.0
+!                Property%MB%TotalOverTopMass   = 0.0
+                
+                Property => Property%Next
+            enddo
+        endif
+        
+        
         call StoreInitialValues
 
         !Gets Current Time
@@ -6771,7 +6931,7 @@ do2 :   do while (associated(PropertyX))
         do while (iter <= Niter)
 
             !Transmission Losses - Should be used when running MOHID River Network only
-            if (Me%ComputeOptions%TransmissionLosses) then
+            if (.not. Me%HasGrid .and. Me%ComputeOptions%TransmissionLosses) then
                 call ModifyTransmissionLosses   (LocalDT)
             endif
 
@@ -6867,8 +7027,25 @@ do2 :   do while (associated(PropertyX))
                 if (Me%Nodes(NodeID)%nDownStreamReaches /= 0) then
                     Me%TotalStoredVolume = Me%TotalStoredVolume + Me%Nodes(NodeID)%VolumeNew
                 endif
+                Property => Me%FirstProperty
+                do while (associated(Property))
+                    
+                    CurrNode => Me%Nodes(NodeID)
+                    BottomMass = 0.0
+                    if (Check_Particulate_Property(Property%ID%IDNumber)) then
+                        ![kg] = [kg/m2] * [m2]
+                        BottomMass = Property%BottomConc(NodeID) * CurrNode%CrossSection%BottomWidth * CurrNode%Length
+                    endif                
+                    
+                    ![kg] = [kg] + [g/m3] * [m3] * [1e-3kg/g]
+                    Property%MB%TotalStoredMass = Property%MB%TotalStoredMass + BottomMass &
+                                                  + Property%Concentration (NodeID)        &
+                                                  * Property%ISCoefficient                 &
+                                                  * Me%Nodes(NodeID)%VolumeNew
+                    Property => Property%Next
+                enddo                                    
+!                endif
             end do
-
         end if
 
         if (Me%OutputHydro) then
@@ -7308,6 +7485,12 @@ do2 :   do while (associated(PropertyX))
                     call DischargeProperty (Me%DischargesFlow(iDis), Me%DischargesConc(iDis, iProp),        &
                                             CurrNode%VolumeNew, Property%Concentration(NodePos),            &
                                             Property%IScoefficient, LocalDT, .false.)
+                                            
+                    if (Me%CheckMass) then
+                        !kg = kg + m3/s * s * g/m3 * 1e-3kg/g
+                        Property%MB%TotalDischargeMass = Property%MB%TotalDischargeMass + (Me%DischargesFlow(iDis)           &
+                                                         * LocalDT * Me%DischargesConc(iDis, iProp) * Property%IScoefficient)
+                    endif
 
                 end if
                 Property => Property%Next
@@ -7333,6 +7516,7 @@ do2 :   do while (associated(PropertyX))
         integer                                     :: NodeID, K
         type (T_Node), pointer                      :: CurrNode
         type (T_Property), pointer                  :: Property
+        real                                        :: GWConc
 
         !-----------------------------------------------------------------------
 
@@ -7378,46 +7562,63 @@ do2 :   do while (associated(PropertyX))
             CurrNode%VolumeNew = CurrNode%VolumeNew + (Me%RunOffVector (NodeID) * LocalDT)
         enddo        
 
-        !Discharges GroundWaterFlow
+        !Discharges GroundWaterFlow - Particulate property will not exit
         nullify (Property)
         Property => Me%FirstProperty
         do while (associated (Property))
-            !exchange only dissolved properties between soil and river
-            if (.not. Check_Particulate_Property(Property%ID%IDNumber)) then
-                do NodeID = 1, Me%TotalNodes
-                    CurrNode => Me%Nodes (NodeID)
-                    !not compute for phantom node - it has not flow associated in porous media
-                    !and no limites for K defined
-                    if (CurrNode%nDownstreamReaches .gt. 0) then
-                        if (.not. Me%GWFlowByLayers) then
-                            call DischargeProperty (Me%GroundVector (NodeID), Property%GWaterConc(NodeID),  &
-                                                    CurrNode%VolumeNew,   Property%Concentration(NodeID),   &
-                                                    Property%IScoefficient, LocalDT, .false.)
+            do NodeID = 1, Me%TotalNodes
+                CurrNode => Me%Nodes (NodeID)
+                !not compute for phantom node - it has not flow associated in porous media
+                !and no limits for K defined
+                if (CurrNode%nDownstreamReaches .gt. 0) then
+                    if (.not. Me%GWFlowByLayers) then
+                        
+                        !if property particulate and flow going to river, conc matrix value is zero (not changed
+                        !since the allocation because PMP particulate properties are not linked to DN)
+                        call DischargeProperty (Me%GroundVector (NodeID), Property%GWaterConc(NodeID),  &
+                                                CurrNode%VolumeNew,   Property%Concentration(NodeID),   &
+                                                Property%IScoefficient, LocalDT,                        &
+                                                Check_Particulate_Property(Property%ID%IDNumber))
+                        
+                    else
+                        do K = Me%GWFlowBottomLayer(NodeID), Me%GWFlowTopLayer(NodeID)
                             
-                            CurrNode%VolumeNew = CurrNode%VolumeNew + (Me%GroundVector (NodeID) * LocalDT)
-                        else
-                            do K = Me%GWFlowBottomLayer(NodeID), Me%GWFlowTopLayer(NodeID)
-                                call DischargeProperty (Me%GroundVectorLayers (CurrNode%GridI, CurrNode%GridJ, k),    &
-                                                        Property%GWaterConcLayers(CurrNode%GridI, CurrNode%GridJ, k), &
-                                                        CurrNode%VolumeNew,   Property%Concentration(NodeID),         &
-                                                        Property%IScoefficient, LocalDT, .false.) 
-                                                        
-                                CurrNode%VolumeNew = CurrNode%VolumeNew                                               &
-                                                     + (Me%GroundVectorLayers (CurrNode%GridI, CurrNode%GridJ, k)     &
-                                                     * LocalDT) 
-                            enddo
-                        endif
+                            !if property particulate and flow going to river, conc matrix value should be zero 
+                            !but this matrix is not allocated in DN because is 3D (only a pointer and exists for dissolved).
+                            if ((Check_Particulate_Property(Property%ID%IDNumber)) .and.                         &
+                                (Me%GroundVectorLayers (CurrNode%GridI, CurrNode%GridJ, k) .gt. 0.0)) then
+                                GWConc = 0.0
+                            else
+                                GWConc = Property%GWaterConcLayers(CurrNode%GridI, CurrNode%GridJ, k)
+                            endif
+                            
+                            call DischargeProperty (Me%GroundVectorLayers (CurrNode%GridI, CurrNode%GridJ, k),    &
+                                                    GWConc,                                                       &
+                                                    CurrNode%VolumeNew,   Property%Concentration(NodeID),         &
+                                                    Property%IScoefficient, LocalDT,                              &
+                                                    Check_Particulate_Property(Property%ID%IDNumber)) 
+                                                    
+                        enddo
                     endif
-                enddo
-            endif
+                endif
+            enddo
             Property => Property%Next
         enddo
 
-!        !Actualize VolumeNew
-!        do NodeID = 1, Me%TotalNodes
-!            CurrNode => Me%Nodes (NodeID)
-!            CurrNode%VolumeNew = CurrNode%VolumeNew + (Me%GroundVector (NodeID) * LocalDT)
-!        enddo        
+        !Actualize VolumeNew
+        do NodeID = 1, Me%TotalNodes
+            CurrNode => Me%Nodes (NodeID)
+            if (.not. Me%GWFlowByLayers) then
+                CurrNode%VolumeNew = CurrNode%VolumeNew + (Me%GroundVector (NodeID) * LocalDT)
+            else
+                do K = Me%GWFlowBottomLayer(NodeID), Me%GWFlowTopLayer(NodeID)
+                
+                    CurrNode%VolumeNew = CurrNode%VolumeNew                                               &
+                                         + (Me%GroundVectorLayers (CurrNode%GridI, CurrNode%GridJ, k)     &
+                                         * LocalDT)             
+                enddo
+            endif
+        enddo        
     
         !Discharges DiffuseFlow
         nullify (Property)
@@ -7457,6 +7658,14 @@ do2 :   do while (associated(PropertyX))
             if (CurrNode%WaterDepth > CurrNode%CrossSection%Height) then
                 
                 Me%TotalOverTopVolume   = Me%TotalOverTopVolume + (CurrNode%VolumeNew - CurrNode%VolumeMax)
+                
+!                Property => Me%FirstProperty
+!                do while (associated(Property))
+!                    !kg = kg + (m3 * g/m3 * 1e-3 kg/g)
+!                    Property%MB%TotalOverTopMass = Property%MB%TotalOverTopMass + ((CurrNode%VolumeNew - CurrNode%VolumeMax)  &
+!                                                   * Property%Concentration(CurrNode) * Property%ISCoefficient)
+!                    Property => Property%Next
+!                enddo
 
                 CurrNode%WaterDepth     = CurrNode%CrossSection%Height
                 CurrNode%VolumeNew      = CurrNode%VolumeMax
@@ -8623,7 +8832,10 @@ do2:            do while (Iterate)
 
         !Local------------------------------------------------------------------
         type (T_Property), pointer                  :: Property
-
+!        type (T_Reach), pointer                     :: CurrReach
+!        integer                                     :: CurrNode
+        !Begin------------------------------------------------------------------
+        
         if (MonitorPerformance) call StartWatch ("ModuleDrainageNetwork", "TransportProperties")
 
        
@@ -8637,7 +8849,7 @@ do2:            do while (Iterate)
         
         !Transports Properties
         call Advection_Diffusion      (LocalDT)
-
+        
         !Set MinimumConcentration of Properties - This will create Mass
         call SetMinimumConcentration 
         
@@ -8657,6 +8869,7 @@ do2:            do while (Iterate)
         type (T_Property), pointer              :: Property
         type (T_Node    ), pointer              :: CurrNode
         real                                    :: Advection, Diffusion
+        real                                    :: AdvOutFlow, DifOutFlow
         integer                                 :: NodeID
 
         if (MonitorPerformance) call StartWatch ("ModuleDrainageNetwork", "Advection_Diffusion")
@@ -8667,8 +8880,14 @@ do2:            do while (Iterate)
 
         do while (associated (Property))
 
+            if (Me%CheckMass) then
+                !Mass Outflow
+                AdvOutFlow = 0.0
+                DifOutFlow = 0.0
+            endif
+            
             if (Property%ComputeOptions%AdvectionDiffusion) then
-
+                
                 do NodeID = 1, Me%TotalNodes
 
                     if (Me%OpenPointsFlow (NodeID) == OpenPoint) then
@@ -8676,18 +8895,26 @@ do2:            do while (Iterate)
                         CurrNode => Me%Nodes (NodeID)
                 
                         !Sai - Entra
-                        call ComputeAdvection  (Advection, Property, NodeID)  !kgX/s
-                        call ComputeDiffusion  (Diffusion, Property, NodeID)  !kgX/s               
+                        call ComputeAdvection  (Advection, Property, NodeID, AdvOutFlow)  !gX/s
+                        call ComputeDiffusion  (Diffusion, Property, NodeID, DifOutFlow)  !gX/s               
 
+!                        !New Concentration    
+!                        Property%Concentration (NodeID) = (Property%ConcentrationOld (NodeID) * CurrNode%VolumeOld - &
+!                                                           LocalDT * (Advection + Diffusion )) / CurrNode%VolumeNew
                         !New Concentration    
-                        Property%Concentration (NodeID) = (Property%ConcentrationOld (NodeID) * CurrNode%VolumeOld - &
-                                                           LocalDT * (Advection + Diffusion )) / CurrNode%VolumeNew
-
+                        Property%Concentration (NodeID) = (Property%ConcentrationOld (NodeID) * CurrNode%VolumeOld + &
+                                                           LocalDT * (-Advection + Diffusion )) / CurrNode%VolumeNew
+                                                           
                     end if
                 end do
-
+                
             endif
-
+            
+            if (Me%CheckMass) then
+                !kg = g/s * s * 1-3kg/g
+                Property%MB%TotalOutFlowMass = Property%MB%TotalOutFlowMass + (AdvOutFlow + DifOutFlow) * LocalDT * 1e-3
+            endif
+            
             Property => Property%Next
         
         end do
@@ -8700,22 +8927,23 @@ do2:            do while (Iterate)
     !---------------------------------------------------------------------------
     !---------------------------------------------------------------------------
 
-    subroutine ComputeAdvection  (AdvectionFlux, Property, NodePos)  
+    subroutine ComputeAdvection  (AdvectionFlux, Property, NodePos, AdvOutFlow)  
 
         !Arguments--------------------------------------------------------------
         real                                    :: AdvectionFlux  !kg/s     
         type (T_Property), pointer              :: Property
         integer                                 :: NodePos
-
+        real                                    :: AdvOutflow
         !Local------------------------------------------------------------------
         type (T_Node    ), pointer              :: CurrNode              
-        type (T_Reach   ), pointer              :: DownReach, UpReach
+        type (T_Reach   ), pointer              :: DownReach, UpReach, OutletReach
         integer                                 :: i
         real                                    :: DownProp, UpProp
         real                                    :: DownFlux, UpFlux
+        !Begin------------------------------------------------------------------
 
-
-        !AdvectionFlux = (Conc.Q)_Sai - (Conc.Q)_Entra 
+!        !AdvectionFlux = (Conc.Q)_Sai - (Conc.Q)_Entra 
+        !AdvectionFlux = (Conc.Q)_Down - (Conc.Q)_Up !Revision 6/4/2010 David
         
         CurrNode => Me%Nodes(NodePos)
 
@@ -8733,6 +8961,17 @@ do2:            do while (Iterate)
                                                                             
             DownFlux    =  DownFlux + DownReach%FlowNew * DownProp
         end do
+        
+        if (Me%CheckMass) then
+            OutletReach => Me%Reaches (Me%OutletReachPos)               
+            if (NodePos == OutletReach%UpstreamNode) then
+                !Flow exiting
+                if (DownFlux .gt. 0.0) then
+                    !g/s
+                    AdvOutflow = DownFlux
+                endif
+            endif
+        endif
            
         !UpFlux
         UpFlux = 0.0
@@ -8753,27 +8992,26 @@ do2:            do while (Iterate)
 
     end subroutine ComputeAdvection
 
-
-
     !---------------------------------------------------------------------------
     !---------------------------------------------------------------------------
     
-    subroutine  ComputeDiffusion  (DiffusionFlux, Property, NodePos)
+    subroutine  ComputeDiffusion  (DiffusionFlux, Property, NodePos, DifOutFlow)
 
         !Arguments--------------------------------------------------------------
         real                                    :: DiffusionFlux  ![]/s     
         type (T_Property), pointer              :: Property
         integer                                 :: NodePos
-
+        real                                    :: DifOutFlow
         !Local------------------------------------------------------------------
         type (T_Node    ), pointer              :: CurrNode, DownNode, UpNode              
-        type (T_Reach   ), pointer              :: DownReach, UpReach
+        type (T_Reach   ), pointer              :: DownReach, UpReach, OutletReach
         integer                                 :: DownNodePos, UpNodePos, i
         real                                    :: DownFlux, UpFlux
         real                                    :: GradProp, DownVerticalArea, UpVerticalArea
 
 
-        !DiffusionFlux = (-Difusivity * grad (Conc) * A)_Sai - (-Difusivity * grad (Conc) * A)_Entra 
+!        !DiffusionFlux = (-Difusivity * grad (Conc) * A)_Sai - (-Difusivity * grad (Conc) * A)_Entra 
+        !DiffusionFlux = (Difusivity * grad (Conc) * A)_Down - (Difusivity * grad (Conc) * A)_Up  !Revision 6/4/2010 David
         
         CurrNode => Me%Nodes(NodePos)
 
@@ -8786,13 +9024,31 @@ if1:    if (Property%Diffusion_Scheme == CentralDif) then
                 DownNode    => Me%Nodes (DownNodePos)
 
                 if (Me%OpenPointsFlow(DownNodePos) == OpenPoint) then
-                    GradProp    = (Property%ConcentrationOld (NodePos) - Property%ConcentrationOld (DownNodePos)) &
+
+!                    GradProp    = (Property%ConcentrationOld (NodePos) - Property%ConcentrationOld (DownNodePos)) &
+!                                / DownReach%Length
+                    GradProp    = (Property%ConcentrationOld (DownNodePos) - Property%ConcentrationOld (NodePos)) &
                                 / DownReach%Length
+
                     DownVerticalArea = ( CurrNode%VerticalArea + DownNode%VerticalArea ) / 2.
-                    DownFlux    =  DownFlux - Property%Diffusivity * GradProp * DownVerticalArea
+
+!                    DownFlux    =  DownFlux - Property%Diffusivity * GradProp * DownVerticalArea
+                    DownFlux    =  DownFlux + Property%Diffusivity * GradProp * DownVerticalArea
+
                 endif
 
             end do
+ 
+             if (Me%CheckMass) then
+                OutletReach => Me%Reaches (Me%OutletReachPos)               
+                if (NodePos == OutletReach%UpstreamNode) then
+                    !Diffusion exiting
+                    if (DownFlux .lt. 0.0) then
+                        !g/s
+                        DifOutflow = - DownFlux
+                    endif
+                endif
+            endif
  
             UpFlux = 0.0
             do i = 1, CurrNode%nUpstreamReaches
@@ -8807,7 +9063,9 @@ if1:    if (Property%Diffusion_Scheme == CentralDif) then
 
                     UpVerticalArea = ( CurrNode%VerticalArea + UpNode%VerticalArea ) / 2.
 
-                    UpFlux    =  UpFlux - Property%Diffusivity * GradProp * UpVerticalArea
+!                    UpFlux    =  UpFlux - Property%Diffusivity * GradProp * UpVerticalArea
+                    UpFlux    =  UpFlux + Property%Diffusivity * GradProp * UpVerticalArea
+
                 endif
             end do
 
@@ -8819,8 +9077,8 @@ if1:    if (Property%Diffusion_Scheme == CentralDif) then
                 
         end if if1        
         
-        DiffusionFlux = UpFlux + DownFlux         
-
+!        DiffusionFlux = UpFlux + DownFlux         
+        DiffusionFlux = DownFlux - UpFlux         
 
     end subroutine  ComputeDiffusion
     
