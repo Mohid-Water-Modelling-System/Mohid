@@ -90,6 +90,7 @@ Module ModuleFunctions
     public  :: SensibleHeat
 
     public  :: AerationFlux
+    public  :: AerationFlux_CO2
 
     !Diffusion routines
     public  :: ComputeDiffusion3D
@@ -4897,8 +4898,10 @@ cd1 :   if (PhytoLightLimitationFactor .LT. 0.0) then
 
     end function SensibleHeat
 
+
+
     !--------------------------------------------------------------------------
-    !Several Formulations to calculate Aeration Flux (Oxygen, CarbonDioxide)
+    !Several Formulations to calculate Aeration Flux (Oxygen)
     real function AerationFlux (AerationEquation, WindVelocity, WaterTemperature)
 
         !Arguments-------------------------------------------------------------
@@ -5010,6 +5013,56 @@ cd1 :   if (PhytoLightLimitationFactor .LT. 0.0) then
         return
 
     end function AerationFlux
+
+
+
+    !--------------------------------------------------------------------------
+    !Several Formulations to calculate Aeration Flux (Carbon Dioxide)
+    real function AerationFlux_CO2 (CO2AerationEquation, WindVelocity, WaterVelocity, WaterTemperature)
+    
+        !Arguments-------------------------------------------------------------
+            integer                                     :: CO2AerationEquation
+            real                                        :: WindVelocity, WaterVelocity, WaterTemperature, WaterDepth
+            real                                        :: fTS, Alfa, k
+            
+            !Local-----------------------------------------------------------------
+    
+    
+        WaterDepth = 1
+    
+        select case(CO2AerationEquation)
+        
+            case(Borges_et_al_2004)
+            
+            fTS = 2073.1 - (125.62 * WaterTemperature) + (3.6276 * (WaterTemperature**2.)) - (0.043219 * (WaterTemperature**3.))
+          
+            Alfa = (600/fTS)**(1./2.)
+            
+            k = (1. + 1.719 * ((WaterVelocity * 100/WaterDepth)**(1./2.)) + 2.58 * WindVelocity) * Alfa
+                        
+            case(Carini_et_al_1996)
+            
+            
+            case(Raimond_Cole_2001)
+            
+            
+            case(OConnor_Dobbins_1958)
+            
+            
+        
+            case default
+
+                write(*,*)'Unknown Aeration method'
+                stop 'AerationFlux_CO2 - ModuleFunctions - ERR01'
+
+        end select
+            
+        AerationFlux_CO2 = k / (100. * 3600.)     !conversion from cm/h to m/s
+        return
+        
+    end function AerationFlux_CO2 
+
+
 
     !------------------------------------------------------------------------
 

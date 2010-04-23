@@ -1321,7 +1321,7 @@ Module ModuleGlobalData
 
        
 
-    !Methods to compute oxygen and carbon dioxide fluxes
+    !Methods to compute oxygen
     integer, parameter                          :: Broecker_et_al_1978      = 1
     integer, parameter                          :: Gelda_et_al_1996         = 2
     integer, parameter                          :: Banks_Herrera_1977       = 3
@@ -1336,6 +1336,12 @@ Module ModuleGlobalData
     integer, parameter                          :: Yu_et_al_1977            = 12
     integer, parameter                          :: Weiler_1974              = 13
 
+    !Methods to compute carbon dioxide fluxes
+    integer, parameter                          :: Borges_et_al_2004        = 1
+    integer, parameter                          :: Carini_et_al_1996        = 2      
+    integer, parameter                          :: Raimond_Cole_2001        = 3
+    integer, parameter                          :: OConnor_Dobbins_1958     = 4
+    
 
     !Number of input instances of the lagrangian module 
     integer, parameter                          :: TotalLagInst_            = 11    

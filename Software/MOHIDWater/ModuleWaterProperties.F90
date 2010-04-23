@@ -11754,7 +11754,7 @@ case1 :     select case(Property%ID%IDNumber)
                                                           Me%ExtSurface%CarbonDioxideFlux(i, j)         *  & 
                                                           CO2_K0(PropTemperature%Concentration(i,j,KUB),   & 
                                                                  PropSalinity%Concentration(i,j,KUB))   *  & 
-                                                          (CO2PP - 378.)                                     
+                                                          (CO2PP - 387.)                                     
                                        
                             !New Concentration
                             Property%Concentration(i, j, KUB) = Property%Concentration(i, j, KUB)       -  &  !in mg l-1

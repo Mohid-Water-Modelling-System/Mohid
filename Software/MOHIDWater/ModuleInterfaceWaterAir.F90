@@ -35,7 +35,8 @@ Module ModuleInterfaceWaterAir
     use ModuleHDF5             
     use ModuleFunctions,            only: SaturatedVaporPressure, ConstructPropertyID,          &
                                           LatentHeat, SensibleHeat, LongWaveDownward,           &
-                                          LongWaveUpward, AerationFlux, SetMatrixValue
+                                          LongWaveUpward, AerationFlux, AerationFlux_CO2,       &
+                                          SetMatrixValue
     use ModuleEnterData,            only: ConstructEnterData, GetData, ExtractBlockFromBuffer,  &
                                           Block_Unlock, GetOutPutTime, ReadFileName,            &
                                           KillEnterData             
@@ -54,7 +55,8 @@ Module ModuleInterfaceWaterAir
                                           GetWaterPropertiesAirOptions, SetSurfaceFlux,         &
                                           GetPropertySurfaceFlux
     use ModuleHydrodynamic,         only: GetHydrodynamicAirOptions,SetAtmosphericPressure,     &
-                                          SetSurfaceWaterFlux, SetWindStress
+                                          SetSurfaceWaterFlux, SetWindStress,                   &
+                                          GetHorizontalVelocity, UngetHydrodynamic
 
 #ifndef _LAGRANGIAN_                                         
 #ifdef  _LAGRANGIAN_GLOBAL_                                         
@@ -126,6 +128,7 @@ Module ModuleInterfaceWaterAir
     private ::          ModifyOxygenFlux
     private ::          ModifyCarbonDioxideFlux
     private ::              ModifyAerationFlux
+    private ::              ModifyCO2AerationFlux
     private ::          ModifySurfaceRadiation
     private ::              ComputeSurfaceRadiation
     private ::          ModifyNonSolarFlux
@@ -238,6 +241,8 @@ Module ModuleInterfaceWaterAir
     private :: T_Ext_Water
     type       T_Ext_Water
         real,    pointer, dimension(:,:,:)          :: WaterTemperature
+        real,    pointer, dimension(:,:,:)          :: WaterVelocity
+        real,    pointer, dimension(:,:,:)          :: WaterDepth
         real,    pointer, dimension(:,:,:)          :: Density
         integer, pointer, dimension(:,:  )          :: WaterPoints2D
         integer, pointer, dimension(:,:,:)          :: WaterPoints3D
@@ -345,6 +350,7 @@ Module ModuleInterfaceWaterAir
         logical                                     :: DefineCDWIND             = .false.
         real(8), pointer, dimension(:,:)            :: Scalar2D
         integer                                     :: AerationEquation         = FillValueInt
+        integer                                     :: CO2AerationEquation      = FillValueInt
         real                                        :: Altitude                 = FillValueReal
         real                                        :: AltitudeCorrection       = FillValueReal
 
@@ -688,7 +694,17 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      STAT         = STAT_CALL)            
         if (STAT_CALL  /= SUCCESS_)                                         &
             stop 'ConstructGlobalVariables - ModuleInterfaceWaterAir - ERR50'
-            
+        
+        call GetData(Me%CO2AerationEquation,                                &
+                     Me%ObjEnterData, iflag,                                &
+                     Keyword      ='CO2_AERATION_METHOD',                   &
+                     SearchType   = FromFile,                               &
+                     ClientModule = 'ModuleInterfaceWaterAir',              &
+                     Default      = Borges_et_al_2004,                      &
+                     STAT         = STAT_CALL)            
+        if (STAT_CALL  /= SUCCESS_)                                         &
+            stop 'ConstructGlobalVariables - ModuleInterfaceWaterAir - ERR60'
+        
 
     end subroutine ConstructGlobalVariables
     
@@ -2515,7 +2531,7 @@ do1 :   do while (associated(PropertyX))
             call Search_Property(PropertyX, OxygenFlux_,             STAT = STAT_CALL)
             if (STAT_CALL == SUCCESS_) call ModifyOxygenFlux            (PropertyX)
         endif
-       
+           
         if(Me%IntOptions%CarbonDioxideFlux)then
             call Search_Property(PropertyX, CarbonDioxideFlux_,      STAT = STAT_CALL)
             if (STAT_CALL == SUCCESS_) call ModifyCarbonDioxideFlux  (PropertyX)
@@ -3491,81 +3507,8 @@ do4:    do i=ILB, IUB
 
     end subroutine ComputeTKEWind 
     
-    !---------------------------------------------------------------------------
-    
-    subroutine ModifyCarbonDioxideFlux(PropCarbonDioxide)
+  !-------------------------------------------------------------------------- 
 
-        !Arguments--------------------------------------------------------------
-        type (T_Property),         pointer :: PropCarbonDioxide
-
-        !External---------------------------------------------------------------
-        integer                            :: STAT_CALL
-
-        !Local------------------------------------------------------------------
-        integer                            :: ILB, IUB, JLB, JUB, KUB
-        real,    dimension(:,:,:), pointer :: WaterTemperature
-        integer                            :: i, j
-        
-        !Begin------------------------------------------------------------------
-
-        ILB = Me%WorkSize2D%ILB 
-        IUB = Me%WorkSize2D%IUB 
-        JLB = Me%WorkSize2D%JLB 
-        JUB = Me%WorkSize2D%JUB 
-        KUB = Me%WorkSize3D%KUB
-
-        call GetConcentration(WaterPropertiesID = Me%ObjWaterProperties,            &
-                              ConcentrationX    = Me%ExtWater%WaterTemperature,     &
-                              PropertyXIDNumber = Temperature_,                     &
-                              STAT              = STAT_CALL)        
-        if (STAT_CALL /= SUCCESS_)stop 'ModifyCarbonDioxideFlux - ModuleInterfaceWaterAir - ERR01'
-
-
-
-        If (Me%Coupled%CEQUALW2%Yes) then
-        
-            !Surface temperature of the waterbody
-            WaterTemperature   => Me%ExtWater%WaterTemperature
-
-            call ModifyAerationFlux(PropCarbonDioxide%Field)
-
-            do j = JLB, JUB
-            do i = ILB, IUB
-
-                if (Me%ExtWater%WaterPoints2D(i, j) == WaterPoint) then
-
-                    PropCarbonDioxide%Field(i,j)= PropCarbonDioxide%Field(i,j) * 0.923              * &
-                                                  (0.286 * exp(-0.0314*(WaterTemperature(i,j,KUB))) * &
-                                                   Me%AltitudeCorrection)
-
-                endif
-
-            enddo
-            enddo
-            
-
-            call UnGetWaterProperties(Me%ObjWaterProperties, Me%ExtWater%WaterTemperature, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ModifyCarbonDioxideFlux - ModuleInterfaceWaterAir - ERR02'
-
-
-            !Nullify auxiliar variables
-            nullify(WaterTemperature)
-        
-        else
-        
-            call ModifyAerationFlux(PropCarbonDioxide%Field)
-
-            call UnGetWaterProperties(Me%ObjWaterProperties, Me%ExtWater%WaterTemperature, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ModifyCarbonDioxideFlux - ModuleInterfaceWaterAir - ERR03'
-        
-        
-        endif
-        
-
-    end subroutine ModifyCarbonDioxideFlux
-
-    !-------------------------------------------------------------------------- 
-    
     subroutine ModifyOxygenFlux(PropertyO2)
 
         !Arguments--------------------------------------------------------------
@@ -3602,6 +3545,7 @@ do4:    do i=ILB, IUB
         integer                                 :: i,j
         real                                    :: WindVelocity, WaterTemp
         integer                                 :: ILB, IUB, JLB, JUB, KUB
+        type(T_Property), pointer               :: PropertyX
         
         !Begin------------------------------------------------------------------
 
@@ -3628,7 +3572,7 @@ do4:    do i=ILB, IUB
                 WaterTemp = WaterTemperature(i, j, KUB)
                 
                 Flux(i,j) = AerationFlux(Me%AerationEquation, WindVelocity, WaterTemp)
-
+               
             endif
 
         end do
@@ -3641,8 +3585,157 @@ do4:    do i=ILB, IUB
         nullify(WaterTemperature)
         
     end subroutine ModifyAerationFlux
+    
 
-    !--------------------------------------------------------------------------    
+    !---------------------------------------------------------------------------
+    
+    subroutine ModifyCarbonDioxideFlux(PropCarbonDioxide)
+
+        !Arguments--------------------------------------------------------------
+        type (T_Property),         pointer :: PropCarbonDioxide
+
+        !External---------------------------------------------------------------
+        integer                            :: STAT_CALL
+
+        !Local------------------------------------------------------------------
+        integer                            :: ILB, IUB, JLB, JUB, KUB
+        real,    dimension(:,:,:), pointer :: WaterTemperature
+        integer                            :: i, j
+        
+        !Begin------------------------------------------------------------------
+
+        ILB = Me%WorkSize2D%ILB 
+        IUB = Me%WorkSize2D%IUB 
+        JLB = Me%WorkSize2D%JLB 
+        JUB = Me%WorkSize2D%JUB 
+        KUB = Me%WorkSize3D%KUB
+
+        call GetConcentration(WaterPropertiesID = Me%ObjWaterProperties,            &
+                              ConcentrationX    = Me%ExtWater%WaterTemperature,     &
+                              PropertyXIDNumber = Temperature_,                     &
+                              STAT              = STAT_CALL)        
+        if (STAT_CALL /= SUCCESS_)stop 'ModifyCarbonDioxideFlux - ModuleInterfaceWaterAir - ERR10'
+
+
+        If (Me%Coupled%CEQUALW2%Yes) then
+        
+            !Surface temperature of the waterbody
+            WaterTemperature   => Me%ExtWater%WaterTemperature
+
+            call ModifyCO2AerationFlux(PropCarbonDioxide%Field)
+
+            do j = JLB, JUB
+            do i = ILB, IUB
+
+                if (Me%ExtWater%WaterPoints2D(i, j) == WaterPoint) then
+
+                    PropCarbonDioxide%Field(i,j)= PropCarbonDioxide%Field(i,j) * 0.923              * &
+                                                  (0.286 * exp(-0.0314*(WaterTemperature(i,j,KUB))) * &
+                                                   Me%AltitudeCorrection)
+
+                endif
+
+            enddo
+            enddo
+            
+
+            call UnGetWaterProperties(Me%ObjWaterProperties, Me%ExtWater%WaterTemperature, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ModifyCarbonDioxideFlux - ModuleInterfaceWaterAir - ERR040'
+
+
+            !Nullify auxiliar variables
+            nullify(WaterTemperature)
+        
+        else
+        
+            call ModifyCO2AerationFlux(PropCarbonDioxide%Field)
+
+            call UnGetWaterProperties(Me%ObjWaterProperties, Me%ExtWater%WaterTemperature, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ModifyCarbonDioxideFlux - ModuleInterfaceWaterAir - ERR050'
+            
+        
+        endif
+        
+
+    end subroutine ModifyCarbonDioxideFlux
+
+   !-------------------------------------------------------------------------- 
+    
+    
+    subroutine ModifyCO2AerationFlux(Flux)
+
+        !Arguments-------------------------------------------------------------
+        real,    dimension(:,:  ),    pointer   :: Flux
+
+        !Local------------------------------------------------------------------
+        real,    dimension(:,:  ),    pointer   :: UWIND, VWIND
+        real,    dimension(:,:,:),    pointer   :: WaterTemperature
+        real,    dimension(:,:,:),    pointer   :: Velocity_U, Velocity_V
+        integer                                 :: i,j
+        real                                    :: WindVelocity, WaterVel, WaterTemp
+        integer                                 :: ILB, IUB, JLB, JUB, KUB, STAT_CALL
+        type(T_Property), pointer               :: PropertyX
+        
+        !Begin------------------------------------------------------------------
+
+        ILB = Me%WorkSize2D%ILB 
+        IUB = Me%WorkSize2D%IUB 
+        JLB = Me%WorkSize2D%JLB 
+        JUB = Me%WorkSize2D%JUB 
+        KUB = Me%WorkSize3D%KUB
+
+        !Surface temperature of the waterbody
+        WaterTemperature => Me%ExtWater%WaterTemperature
+        UWIND            => Me%LocalAtm%WindVelocityX%Field
+        VWIND            => Me%LocalAtm%WindVelocityY%Field
+        
+        
+        call GetHorizontalVelocity(HydrodynamicID      = Me%ObjHydrodynamic,        &
+                                   Velocity_U          = Velocity_U,                &
+                                   Velocity_V          = Velocity_V,                &
+                                   STAT                = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ModifyCarbonDioxideFlux - ModifyCO2AerationFlux - ERR10'
+
+
+        !The formulation is taken from CE-QUAL-W2 v3.1
+        do j = JLB, JUB
+        do i = ILB, IUB
+
+            if (Me%ExtWater%WaterPoints2D(i, j) == WaterPoint) then
+
+                !Module of the wind velocity 
+                WindVelocity = sqrt(UWIND(i,j)**2. + VWIND(i,j)**2.)
+                
+                WaterTemp = WaterTemperature(i, j, KUB)
+                
+                WaterVel  = SQRT(Velocity_U(i, j, KUB)**2. + Velocity_V(i, j, KUB)**2.)
+                
+                Flux(i,j) = AerationFlux_CO2(Me%CO2AerationEquation, WindVelocity, WaterVel, WaterTemp)
+               
+            endif
+
+        end do
+        end do
+ 
+             
+        call UngetHydrodynamic(Me%ObjHydrodynamic, Velocity_U, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ModifyCarbonDioxideFlux - ModifyCO2AerationFlux - ERR020'    
+        
+        call UngetHydrodynamic(Me%ObjHydrodynamic, Velocity_V, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ModifyCarbonDioxideFlux - ModifyCO2AerationFlux - ERR030'     
+
+
+        !Nullify auxiliar variables
+        nullify(UWIND)
+        nullify(VWIND)
+        nullify(Velocity_U)
+        nullify(Velocity_V)
+        nullify(WaterTemperature)
+
+        
+    end subroutine ModifyCO2AerationFlux
+    
+    !--------------------------------------------------------------------------  
 
     subroutine ModifyWindShearVelocity (PropWindShearVelocity)
 
