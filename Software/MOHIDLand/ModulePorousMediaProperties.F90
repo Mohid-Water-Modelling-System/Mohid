@@ -3656,8 +3656,8 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.     &
         !Arguments--------------------------------------------------------------
         integer                                         :: PorousMediaPropertiesID
         integer                                         :: PropertyID
-        real, optional                                  :: TotalStoredMass, TranspiredMass
-        real, optional                                  :: DNExchangeMass, RPExchangeMass
+        real(8), optional                               :: TotalStoredMass, TranspiredMass
+        real(8), optional                               :: DNExchangeMass, RPExchangeMass
         integer, intent(OUT), optional                  :: STAT
 
         !Local------------------------------------------------------------------

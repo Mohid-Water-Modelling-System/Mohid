@@ -3032,7 +3032,7 @@ cd2 :           if (BlockFound) then
         logical                                     :: EvaporateFromCanopy      = .false.
         logical                                     :: EvaporateFromWaterColumn = .false.
         logical                                     :: CalcET0                  = .false.
-        real                                        :: Evaporation
+        real(8)                                     :: Evaporation
         real, dimension(:,:), pointer               :: EvaporationMatrix => null()
         !Begin-----------------------------------------------------------------
 
@@ -3261,7 +3261,7 @@ etr_fao:        if (CalcET0) then
                     endif 
                     
                     !m
-                    Evaporation = min(Evaporation - dH, 0.0)
+                    Evaporation = min(Evaporation - dH, dble(0.0))
                     
                     !Also EVAP from watercolumn - important for 1D cases to avoid accumulation of Water on the surface
                     if (EvaporateFromWaterColumn) then
@@ -3287,9 +3287,10 @@ etr_fao:        if (CalcET0) then
                                              
                     endif 
                     !m
-                    Evaporation = min(Evaporation - dH, 0.0) 
+                    Evaporation = min(Evaporation - dH, dble(0.0)) 
                     !m/s              
-                    EvaporationMatrix(i, j) = max(((EvaporationMatrix(i, j) * Me%CurrentDT) - Evaporation) / Me%CurrentDT, 0.0)
+                    EvaporationMatrix(i, j) = max(((EvaporationMatrix(i, j) * Me%CurrentDT) - Evaporation)      &
+                                                    / Me%CurrentDT, dble(0.0))
                                            
                 endif
                                 
@@ -5269,8 +5270,8 @@ etr_fao:        if (CalcET0) then
         character (Len = StringLength)               :: Time
         !Local-----------------------------------------------------------------
         integer                                     :: STAT_CALL
-        real (8)                                    :: PMPTotalStoredMass, RPTotalStoredMass
-        real (8)                                    :: DNTotalStoredMass
+        real(8)                                     :: PMPTotalStoredMass, RPTotalStoredMass
+        real(8)                                     :: DNTotalStoredMass
         type (T_BasinProperty), pointer             :: PropertyX
         !Begin-----------------------------------------------------------------
 
@@ -5532,7 +5533,7 @@ etr_fao:        if (CalcET0) then
             do while (associated (Property))
                 if (Property%Inherited) then
                     call WriteTimeSerie (Me%ObjTimeSerie,                                   &
-                                         Data2D = Property%VegetationConc,                  &
+                                         Data2D_8 = Property%VegetationConc,                &
                                          STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'TimeSerieOutput - ModuleBasin - ERR120'                    
                 endif

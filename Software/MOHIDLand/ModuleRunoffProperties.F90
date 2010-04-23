@@ -3591,8 +3591,8 @@ cd0:    if (Exist) then
         !Arguments--------------------------------------------------------------
         integer                                         :: RunoffPropertiesID
         integer                                         :: PropertyID
-        real, optional                                  :: TotalStoredMass
-        real, optional                                  :: DNExchangeMass
+        real(8), optional                               :: TotalStoredMass
+        real(8), optional                               :: DNExchangeMass
         integer, intent(OUT), optional                  :: STAT
 
         !Local------------------------------------------------------------------
