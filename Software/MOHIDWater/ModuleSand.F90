@@ -2580,7 +2580,8 @@ cd0:    if (EXIST) then
                 FAKTW= 0.
                 
                 If (Me%ExternalVar%WavePeriod(i,j).GT.0..AND.Me%ExternalVar%WaveHeight(I,J).GT.0.)Then
-                    ZW    = AA*(VelQ/Me%ExternalVar%VelMod(I,J))**.9*(Me%ExternalVar%VelMod(I,J)*Me%ExternalVar%WavePeriod(i,j)/Me%ExternalVar%WaveHeight(I,J))**1.05
+                    ZW    = AA*(VelQ/Me%ExternalVar%VelMod(I,J))**.9*                                   &
+                            (Me%ExternalVar%VelMod(I,J)*Me%ExternalVar%WavePeriod(i,j)/Me%ExternalVar%WaveHeight(I,J))**1.05
 
                     ZW    = Min(ZW,25.)
                     Res3  = (Clim/Depth)**ZW-(Clim/Depth)**1.2
@@ -2966,7 +2967,8 @@ cd0:    if (EXIST) then
                     varT=delT
                     do g=2,50
                         if(varT.LE.TW) then                                                                       
-                          varI(g)=(sqrt(abs(Uc**2.0+(cos(phi)*Ubw*sin(2.*Pi*varT/TW))**2.0+2.0*Uc*cos(phi)*Ubw*sin(2.*Pi*varT/TW))))**3.
+                          varI(g)=(sqrt(abs(Uc**2.0+(cos(phi)*Ubw*sin(2.*Pi*varT/TW))**2.0+2.0*Uc*cos(phi)*&
+                                  Ubw*sin(2.*Pi*varT/TW))))**3.
                           VelInst=VelInst+(varI(g)+varI(g-1))/2*delT
                           varT=varT+delT
                         else
