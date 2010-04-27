@@ -34,6 +34,7 @@ FILES = \
     ModulePorousMedia.$(S) \
     ModulePorousMediaProperties.$(S) \
     ModuleRunOff.$(S) \
+    ModuleRunoffProperties.$(S) \
     ModuleVegetation.$(S) \
     MohidLand.$(S)
 TARGET = $(LAND)
@@ -47,7 +48,8 @@ include ../Makefiles/Makefiles.mk
 #--------Dependencies list-------------
 
 ModulePorousMediaProperties.${O} : ModulePorousMedia.${O}
-ModuleBasin.${O} :  ModuleRunOff.${O} \
+ModuleRunoffProperties.${O} : ModuleRunOff.${O}
+ModuleBasin.${O} :  ModuleRunoffProperties.${O} \
                     ModulePorousMediaProperties.${O} \
                     ModuleVegetation.${O}
 
