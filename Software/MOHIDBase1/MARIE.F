@@ -12,7 +12,7 @@
         private ::      UDATF
         private ::      SHPN
         private ::      Prinrd
-        private ::      Name2Frequency
+        public  ::      Name2Frequency
         
         contains
 
