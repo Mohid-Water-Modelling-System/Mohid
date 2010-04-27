@@ -1197,13 +1197,15 @@ cd24:                       if (STAT_CALL == NOT_FOUND_ERR_) then
                  BoundaryFacesU2D(i  , j+1) == Boundary .or. &
                  BoundaryFacesV2D(i  , j  ) == Boundary .or. &
                  BoundaryFacesV2D(i+1, j  ) == Boundary) then
-                 
-                if (.not. Me%InvertBaromSomeBound .or. (Me%InvertBaromSomeBound .and. Me%InvertBarometerCells(i, j) > 0. )) then
+                                 
+                if (Me%InvertBaromSomeBound) then 
+                    if(Me%InvertBarometerCells(i, j) > 0. ) cycle
+                endif
                     
-                    !Inverted barometer effect
-                    Me%ImposedElevation(i, j) = Me%ImposedElevation(i, j) + AtmosphericCoef * &
-                                               (101325 - AtmosphericPressure(i,j)) /( 1.e3 * Gravity) 
-                endif                                
+                !Inverted barometer effect
+                Me%ImposedElevation(i, j) = Me%ImposedElevation(i, j) + AtmosphericCoef * &
+                                            (101325 - AtmosphericPressure(i,j)) /( 1.e3 * Gravity) 
+                             
             endif
 
         enddo
