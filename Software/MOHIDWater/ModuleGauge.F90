@@ -259,7 +259,7 @@ Module ModuleGauge
                          Me%ObjEnterData, iflag,                                            &
                          SearchType = FromFile,                                             &
                          keyword    = 'TRIANGULATION',                                      &
-                         Default    = .true.,                                               &                                           
+                         Default    = .true.,                                               &
                          ClientModule ='ModuleGauge',                                       &
                          STAT       = STAT_CALL)            
             if (STAT_CALL /= SUCCESS_) stop 'ConstructGauges - ModuleGauges - ERR30' 
@@ -268,7 +268,7 @@ Module ModuleGauge
                          Me%ObjEnterData, iflag,                                            &
                          SearchType = FromFile,                                             &
                          keyword    = 'PREVISION',                                          &
-                         Default    = Task2000_,                                            &                                           
+                         Default    = Task2000_,                                            &
                          ClientModule ='ModuleGauge',                                       &
                          STAT       = STAT_CALL)            
             if (STAT_CALL /= SUCCESS_) stop 'ConstructGauges - ModuleGauges - ERR35' 
