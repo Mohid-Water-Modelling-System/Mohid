@@ -1252,18 +1252,20 @@ SF:             if (StartInputFound) then
         if (Me%State%SpaceIntegration) then
 
             Me%SpaceIntegration%Integrate3DSpace%WindowWorkSize%ILB = 1
-            Me%SpaceIntegration%Integrate3DSpace%WindowWorkSize%IUB = int((Me%TimeIntegration%Integrate3DTime%WindowWorkSize%IUB -          &
-                                                                                            Me%TimeIntegration%Integrate3DTime%WindowWorkSize%ILB + 1)       &
-                                                                                          / Me%SpaceIntegration%Integrate3DSpace%IntegrationStep)
+            Me%SpaceIntegration%Integrate3DSpace%WindowWorkSize%IUB =                   &
+                  int((Me%TimeIntegration%Integrate3DTime%WindowWorkSize%IUB -          &
+                       Me%TimeIntegration%Integrate3DTime%WindowWorkSize%ILB + 1)       &
+                     / Me%SpaceIntegration%Integrate3DSpace%IntegrationStep)
 
             Me%SpaceIntegration%Integrate3DSpace%WindowSize%ILB     = Me%SpaceIntegration%Integrate3DSpace%WindowWorkSize%ILB - 1
             Me%SpaceIntegration%Integrate3DSpace%WindowSize%IUB     = Me%SpaceIntegration%Integrate3DSpace%WindowWorkSize%IUB + 1
 
         !-----------------------------
             Me%SpaceIntegration%Integrate3DSpace%WindowWorkSize%JLB = 1
-            Me%SpaceIntegration%Integrate3DSpace%WindowWorkSize%JUB = int((Me%TimeIntegration%Integrate3DTime%WindowWorkSize%JUB -          &
-                                                                                            Me%TimeIntegration%Integrate3DTime%WindowWorkSize%JLB + 1)       &
-                                                                                          / Me%SpaceIntegration%Integrate3DSpace%IntegrationStep)
+            Me%SpaceIntegration%Integrate3DSpace%WindowWorkSize%JUB =                   &
+                  int((Me%TimeIntegration%Integrate3DTime%WindowWorkSize%JUB -          &
+                       Me%TimeIntegration%Integrate3DTime%WindowWorkSize%JLB + 1)       &
+                     / Me%SpaceIntegration%Integrate3DSpace%IntegrationStep)
 
             Me%SpaceIntegration%Integrate3DSpace%WindowSize%JLB     = Me%SpaceIntegration%Integrate3DSpace%WindowWorkSize%JLB - 1
             Me%SpaceIntegration%Integrate3DSpace%WindowSize%JUB     = Me%SpaceIntegration%Integrate3DSpace%WindowWorkSize%JUB + 1
