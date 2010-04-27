@@ -4935,7 +4935,7 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
                                                 MinimumMass          = PropertyX%Mass_Min)
 
 
-                                ![kg/m2] = [kg/m2] - [kg/m2 * kg/m2s * s]
+                                ![kg/m2] = [kg/m2] - [kg/m2/s * s]
                                 PotentialNewMass                     = PropertyX%Mass_Available(i,j)       - &
                                                                        PropertyX%ErosionFlux(i,j)          * &
                                                                        PropertyX%Evolution%DTInterval
