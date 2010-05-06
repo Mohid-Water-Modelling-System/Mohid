@@ -19,3 +19,9 @@ E/ Can I contribute with improvements of the code?
 Not directly, but you can submit patches to the code in the codeplex site. We'll check them out and, hopefully, insert them in the new release of the code ;)
 
 2009/07/16 G.R.
+
+F/ How can I activate pre-processor definitions such as _USE_MPI?
+Simply edit your Editme.mk and uncomment the commented line containing the desired
+pre-processor definition. Then clean and build the makefile over again.
+
+2010/05/06 G.R.

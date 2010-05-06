@@ -17,3 +17,22 @@ export ZLIBINC = /usr/lib64
 
 #Where is the libnetcdf.a (with --enable-fortran) in your system?
 export NETCDFINC = /usr/lib64
+
+#Uncomment the desired pre-processing definitions
+#If you don't know what these mean, then leave them commented ;)
+FPP_DEFINES := ""
+#FPP_DEFINES := ${FPP_DEFINES} -D_INCREASE_MAXINSTANCES
+##FPP_DEFINES := ${FPP_DEFINES} -D_SHORT_LINE_LENGTH
+##FPP_DEFINES := ${FPP_DEFINES} -D_LONG_LINE_LENGTH
+#FPP_DEFINES := ${FPP_DEFINES} -D_EXTRA_LONG_LINE_LENGTH
+#FPP_DEFINES := ${FPP_DEFINES} -D_EXTRA_SHORT_LINE_LENGTH
+#FPP_DEFINES := ${FPP_DEFINES} -D_USE_MPI
+#FPP_DEFINES := ${FPP_DEFINES} -D_LAGRANGIAN_
+#FPP_DEFINES := ${FPP_DEFINES} -D_WAVES_
+#FPP_DEFINES := ${FPP_DEFINES} -DOVERLAP
+#FPP_DEFINES := ${FPP_DEFINES} -D_SEDIMENT_
+#FPP_DEFINES := ${FPP_DEFINES} -D_AIR_
+#FPP_DEFINES := ${FPP_DEFINES} -D_LAGRANGIAN_GLOBAL_
+
+export FPP_DEFINES
+
