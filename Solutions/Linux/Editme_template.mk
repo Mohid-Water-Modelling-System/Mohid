@@ -18,9 +18,10 @@ export ZLIBINC = /usr/lib64
 #Where is the libnetcdf.a (with --enable-fortran) in your system?
 export NETCDFINC = /usr/lib64
 
-#Uncomment the desired pre-processing definitions
-#If you don't know what these mean, then leave them commented ;)
-FPP_DEFINES := ""
+#Uncomment the desired pre-processing definitiions
+#_NO_NETCDF is activated by default.
+FPP_DEFINES := 
+FPP_DEFINES := -D_NO_NETCDF
 #FPP_DEFINES := ${FPP_DEFINES} -D_INCREASE_MAXINSTANCES
 ##FPP_DEFINES := ${FPP_DEFINES} -D_SHORT_LINE_LENGTH
 ##FPP_DEFINES := ${FPP_DEFINES} -D_LONG_LINE_LENGTH

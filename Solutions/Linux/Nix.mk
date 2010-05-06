@@ -38,6 +38,9 @@ export WATER = MohidWater$(SUFFPROG)
 export SRCLAND = ../../../Software/MOHIDLand
 export LAND = MohidLand$(SUFFPROG)
 
+export SRCCONVERT = ../../../Software/ConvertToHDF5
+export CONVERT = ConvertToHDF5$(SUFFPROG)
+
 # HDF5 lib
 export LHDF5FORTRAN = libhdf5_fortran.a
 export LHDF5 = libhdf5.a
@@ -72,7 +75,8 @@ MODULES = \
           MohidLand \
           MohidWater \
           Mohid_Base_2 \
-          Mohid_Base_1
+          Mohid_Base_1 \
+          ConvertToHDF5
 
 #------Makefile rules---------------
 
@@ -83,4 +87,5 @@ include Makefiles/Makemodules.mk
 Mohid_Base_2.all : Mohid_Base_1.all
 MohidLand.all : Mohid_Base_2.all
 MohidWater.all : Mohid_Base_2.all
+ConvertToHDF5.all : Mohid_Base_2.all
 

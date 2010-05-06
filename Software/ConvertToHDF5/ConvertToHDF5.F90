@@ -23,37 +23,43 @@ program ConvertToHDF5
     use ModuleHDF5
     use ModuleMM5Format
     use ModuleEUCenterFormat
+#ifndef _NO_NETCDF
     use ModuleERA40Format
     use ModuleARPSFormat
-    use ModuleARPSToWW3
     use ModuleMercatorFormat
+    use ModuleARPSToWW3
     use ModuleHYCOMFormat
+#endif
     use ModuleLevitusFormat
     use ModuleHellermanRosensteinAscii
     use ModuleTecnoceanAscii
+#ifndef _NO_NETCDF
     use ModuleCowamaAsciiWind
+#endif
     use ModuleSWAN
     use ModuleHDF5ToASCIIandBIN
     use ModuleGFSasciiWind
-#ifdef _USE_PROJ4    
+#ifdef _USE_PROJ4 
     use ModuleWRFFormat
 #endif
-
 #ifdef _USE_MODIS
 !    use ModuleConvertModisL3Mapped
 !    use ModuleConvertModisL3_V2
     use ModuleConvertModisL2
     use ModuleConvertOceanColorL2
 #endif
+#ifndef _NO_NETCDF
     use ModuleWOAFormat
+#endif
     use ModuleInterpolateGrids
     use ModuleGlueHDF5Files
     use ModulePatchHDF5Files
+#ifndef _NO_NETCDF
     use ModuleCFFormat
     use ModuleCFPolcomFormat
     use ModuleAladinFormat
     use ModuleMOG2DFormat
-
+#endif
 
     implicit none
 
@@ -175,47 +181,48 @@ if2 :           if (BlockFound) then
                     select case(Action)
 
 
+#ifndef _NO_NETCDF
                         case(ConvertEUCenterFormatToHDF5)
 
                             call ConvertEUCenterFormat(ObjEnterData, STAT = STAT_CALL)
                             if(STAT_CALL .ne. SUCCESS_) stop 'ReadOptions - ConvertToHDF5 - ERR50'
-
+#endif
                         
                         case(ConvertMM5FormatToHDF5)
                             
                             call ConvertMM5Format(ObjEnterData, ClientNumber, STAT = STAT_CALL)
                             if(STAT_CALL .ne. SUCCESS_) stop 'ReadOptions - ConvertToHDF5 - ERR60'
 
-
+#ifndef _NO_NETCDF
                         case(ConvertToARPSFormat)
 
                             call ConvertARPSFormat(ObjEnterData, STAT = STAT_CALL)
                             if(STAT_CALL .ne. SUCCESS_) stop 'ReadOptions - ConvertToHDF5 - ERR70'
-
-
+#endif
+#ifndef _NO_NETCDF
                         case(ConvertARPSToWW3Format)
 
                             call ConvertARPSWW3Format(ObjEnterData, STAT = STAT_CALL)
                             if(STAT_CALL .ne. SUCCESS_) stop 'ReadOptions - ConvertToHDF5 - ERR80'
-
-
+#endif
+#ifndef _NO_NETCDF
                         case(ConvertERA40FormatToHDF5)
                             
                             call ConvertERA40Format(ObjEnterData, STAT = STAT_CALL)
                             if(STAT_CALL .ne. SUCCESS_) stop 'ReadOptions - ConvertToHDF5 - ERR90'
-
-
+#endif
+#ifndef _NO_NETCDF
                         case(ConvertToMercatorFormat)
                             
                             call ConvertMercatorFormat(ObjEnterData, ClientNumber, STAT = STAT_CALL)
                             if(STAT_CALL .ne. SUCCESS_) stop 'ReadOptions - ConvertToHDF5 - ERR100'
-
-
+#endif
+#ifndef _NO_NETCDF
                         case(ConvertToHYCOMFormat)
                             
                             call ConvertHYCOMFormat(ObjEnterData, STAT = STAT_CALL)
                             if(STAT_CALL .ne. SUCCESS_) stop 'ReadOptions - ConvertToHDF5 - ERR110'
-
+#endif
 
                         case(ConvertToLevitusFormat)
                             
@@ -233,12 +240,12 @@ if2 :           if (BlockFound) then
                             
                             call ConvertTecnoceanAscii(ObjEnterData, ClientNumber, STAT = STAT_CALL)
                             if(STAT_CALL .ne. SUCCESS_) stop 'ReadOptions - ConvertToHDF5 - ERR135'
-
+#ifndef _NO_NETCDF
                         case(ConvertToCowama)
                             
                             call ConvertCowamaAsciiWind(ObjEnterData, ClientNumber, STAT = STAT_CALL)
                             if(STAT_CALL .ne. SUCCESS_) stop 'ReadOptions - ConvertToHDF5 - ERR138'
-
+#endif
 
                         case(ConvertToAndFromSWAN)
                             
@@ -285,54 +292,53 @@ if2 :           if (BlockFound) then
 !                            call StartConvertModisL3(ObjEnterData, ClientNumber,  STAT = STAT_CALL)
 !                           if(STAT_CALL .ne. SUCCESS_) stop 'ReadOptions - ConvertToHDF5 - ERR190'
 #endif
+#ifndef _NO_NETCDF
                         case (ConvertToWOAFormat)
 
                           call ConvertWOAFormat(ObjEnterData, ClientNumber, STAT = STAT_CALL)
                           if(STAT_CALL .ne. SUCCESS_) stop 'ReadOptions - ConvertToHDF5 - ERR195'
-
+#endif
 
                         case(PatchHD5Files)
 
                             call StartPatchHDF5Files(ObjEnterData, ClientNumber, STAT = STAT_CALL)
                             if(STAT_CALL .ne. SUCCESS_) stop 'ReadOptions - ConvertToHDF5 - ERR200'
-
+#ifndef _NO_NETCDF
                         case(ConvertToCFFormat)
 
                             call ConvertCFFormat(ObjEnterData, STAT = STAT_CALL)
-
-
                             if(STAT_CALL .ne. SUCCESS_) stop 'ReadOptions - ConvertToHDF5 - ERR205'
-
+#endif
+#ifndef _NO_NETCDF
                         case(ConvertToCFPolcomFormat)
 
                             call ConvertCFPolcomFormat(ObjEnterData, STAT = STAT_CALL)
-
-
                             if(STAT_CALL .ne. SUCCESS_) stop 'ReadOptions - ConvertToHDF5 - ERR206'
-
-
+#endif
+#ifndef _NO_NETCDF
                         case(ConvertToAladinFormat)
                             
                             call ConvertAladinFormat(ObjEnterData, ClientNumber, STAT = STAT_CALL)
                             if(STAT_CALL .ne. SUCCESS_) stop 'ReadOptions - ConvertToHDF5 - ERR207'
-
-
+#endif
+#ifndef _NO_NETCDF
                         case(ConvertMOG2DFormatToHDF5)
                             
                             call ConvertMOG2DFormat(ObjEnterData, ClientNumber, STAT = STAT_CALL)
                             if(STAT_CALL .ne. SUCCESS_) stop 'ReadOptions - ConvertToHDF5 - ERR208'
-
+#endif
                         case(ConvertGFS_from_ASCII2HDF)
                             
                             call ConvertGFSasciiWind(ObjEnterData, ClientNumber, STAT = STAT_CALL)
                             if(STAT_CALL .ne. SUCCESS_) stop 'ReadOptions - ConvertToHDF5 - ERR209'
+#ifndef _NO_NETCDF
 #ifdef _USE_PROJ4
                         case(ConvertWRFFormatToHDF5)
                             
                             call ConvertWRFFormat(ObjEnterData, ClientNumber, STAT = STAT_CALL)
                             if(STAT_CALL .ne. SUCCESS_) stop 'ReadOptions - ConvertToHDF5 - ERR210'
 #endif
-
+#endif
                         case default
                             
                             stop 'Option not known - ReadOptions - ConvertToHDF5 - ERR299'
