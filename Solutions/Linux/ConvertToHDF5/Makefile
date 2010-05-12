@@ -33,6 +33,7 @@ ifeq ($(IS_NETCDF),true)
 endif
 
 LIBS = $(BASELIBS)
+
 SRCDIR = $(SRCCONVERT)
 
 NCFILES :=
