@@ -242,6 +242,7 @@ Module ModuleVegetation
     public  :: GetRootDepth
     public  :: GetCanopyHeight
     public  :: GetTranspiration
+    public  :: GetTranspirationBottomLayer
     public  :: GetVegetationOptions
     public  :: GetNutrientFraction
 !    public  :: GetFeddesH
@@ -293,6 +294,7 @@ Module ModuleVegetation
     private :: UngetVegetation3D
     interface  UngetVegetation
         module procedure UngetVegetation2D
+        module procedure UngetVegetation2D_I
         module procedure UngetVegetation3D
     end interface UngetVegetation
 
@@ -727,6 +729,7 @@ Module ModuleVegetation
         real, dimension(:,:  ), pointer                 :: LAIDeclineFraction
         real, dimension(:,:), pointer                   :: DayLength
         real, dimension(:,:), pointer                   :: MinimumDayLength
+        integer, dimension(:,:), pointer                :: TranspirationBottomLayer
 
         !global counter
         real, dimension(:,:), pointer                   :: DaysOfGrazing                    !counter to days of grazing
@@ -1099,7 +1102,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             call GetData(Me%ComputeOptions%NutrientUptakeMethod,                            &
                          Me%ObjEnterData, iflag,                                            &
                          Keyword        = 'NUTRIENT_UPTAKE_METHOD',                         &
-                         Default        = NutrientUptakeSWAT,                               &
+                         Default        = NutrientUptake_TranspConc,                        &
                          SearchType     = FromFile,                                         &
                          ClientModule   = 'ModuleVegetation',                               &
                          STAT           = STAT_CALL)
@@ -1108,7 +1111,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             call GetData(Me%ComputeOptions%NutrientStressMethod,                            &
                          Me%ObjEnterData, iflag,                                            &
                          Keyword        = 'NUTRIENT_STRESS_METHOD',                         &
-                         Default        = NutrientStressSWAT,                               &
+                         Default        = NutrientStressUptake,                             &
                          SearchType     = FromFile,                                         &
                          ClientModule   = 'ModuleVegetation',                               &
                          STAT           = STAT_CALL)
@@ -2193,9 +2196,9 @@ cd0:    if (Exist) then
             
             if(Me%ComputeOptions%ModelWater) then
                 if (Me%ComputeOptions%TranspirationMethod .eq. 1) then
-                    write(*,*    ) '   ---WaterUptake Method    : 1'
+                    write(*,*    ) '   ---WaterUptake Method    : Feddes'
                 else
-                    write(*,*    ) '   ---WaterUptake Method    : 2'
+                    write(*,*    ) '   ---WaterUptake Method    : SWAT based'
                 endif
             endif
             if (Me%ComputeOptions%ModelPlantBiomass) then
@@ -2215,16 +2218,17 @@ cd0:    if (Exist) then
             endif
             if(Me%ComputeOptions%ModelNitrogen .or. Me%ComputeOptions%ModelPhosphorus) then
                 if (Me%ComputeOptions%NutrientUptakeMethod .eq. 1) then
-                    write(*,*    ) '   ---NutrientUptake Method : 1'
+                    write(*,*    ) '   ---NutrientUptake Method : Q*Conc'
                 else
-                    write(*,*    ) '   ---NutrientUptake Method : 2'
+                    write(*,*    ) '   ---NutrientUptake Method : SWAT based'
+                    write(*,*    ) '       WARNING - This option gives mass errors'
                 endif
             endif
             if(Me%ComputeOptions%ModelNitrogen .or. Me%ComputeOptions%ModelPhosphorus) then
                 if (Me%ComputeOptions%NutrientStressMethod .eq. 1) then
-                    write(*,*    ) '   ---NutrientStress Method : 1'
+                    write(*,*    ) '   ---NutrientStress Method : Actual/Pot'
                 else
-                    write(*,*    ) '   ---NutrientStress Method : 2'
+                    write(*,*    ) '   ---NutrientStress Method : SWAT based'
                 endif
             endif
             if (Me%ComputeOptions%ModelTemperatureStress) then
@@ -2275,9 +2279,9 @@ cd0:    if (Exist) then
             if (Me%ComputeOptions%ModelWater) then
                 write(*,*    ) '---Water Uptake             : ON'
                 if (Me%ComputeOptions%TranspirationMethod .eq. 1) then
-                    write(*,*    ) '   ---WaterUptakeMethod     : 1'
+                    write(*,*    ) '   ---WaterUptakeMethod     : Fedded'
                 else
-                    write(*,*    ) '   ---WaterUptakeMethod     : 2'
+                    write(*,*    ) '   ---WaterUptakeMethod     : SWAT based'
                 endif
             else
                 write(*,*    ) '---Water Uptake             : OFF'
@@ -2432,7 +2436,12 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
         Me%Fluxes%WaterUptakeLayer                                        (:,:,:) = 0.0 
         allocate(Me%Growth%WaterStress                                    (ILB:IUB,JLB:JUB)) 
         Me%Growth%WaterStress                                             (:,:  ) = 1.0
-
+        allocate(Me%TranspirationBottomLayer                              (ILB:IUB,JLB:JUB))
+        if (Me%ComputeOptions%ModelWater) then
+            Me%TranspirationBottomLayer = KLB
+        else
+            Me%TranspirationBottomLayer = FillValueInt
+        endif
 
         allocate(Me%Growth%TemperatureStress                          (ILB:IUB,JLB:JUB)) 
         allocate(Me%Growth%NitrogenStress                             (ILB:IUB,JLB:JUB)) 
@@ -4989,7 +4998,45 @@ cd0:    if (Exist) then
 
     !--------------------------------------------------------------------------
 
+    subroutine GetTranspirationBottomLayer(VegetationID, Scalar, STAT)
+                                  
+        !Arguments--------------------------------------------------------------
+        integer                                     :: VegetationID
+        integer, dimension(:,:), pointer, optional  :: Scalar
+        integer, optional, intent(OUT)              :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: ready_        
+        integer                                     :: STAT_
+        
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(VegetationID, ready_) 
+
+        
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            call Read_Lock(mVEGETATION_, Me%InstanceID)
+
+            Scalar  => Me%TranspirationBottomLayer
+
+            STAT_ = SUCCESS_
+        else 
+            STAT_ = ready_
+        end if 
+
+        if (present(STAT)) STAT = STAT_
+
+
+    end subroutine GetTranspirationBottomLayer
+
+    !--------------------------------------------------------------------------
+
     subroutine GetVegetationOptions(VegetationID,                              &
+                                    ModelWater,                                &
                                     ModelNitrogen,                             &
                                     ModelPhosphorus,                           &
                                     NutrientFluxesWithSoil,                    &
@@ -5003,6 +5050,7 @@ cd0:    if (Exist) then
                                   
         !Arguments--------------------------------------------------------------
         integer                           :: VegetationID
+        logical, optional                 :: ModelWater
         logical, optional                 :: ModelNitrogen
         logical, optional                 :: ModelPhosphorus
         logical, optional                 :: NutrientFluxesWithSoil
@@ -5030,7 +5078,7 @@ cd0:    if (Exist) then
             (ready_ .EQ. READ_LOCK_ERR_)) then
 
 !            call Read_Lock(mVEGETATION_, Me%InstanceID)
-
+            if(present(ModelWater            )) ModelWater            = Me%ComputeOptions%ModelWater
             if(present(ModelNitrogen         )) ModelNitrogen         = Me%ComputeOptions%ModelNitrogen
             if(present(ModelPhosphorus       )) ModelPhosphorus       = Me%ComputeOptions%ModelPhosphorus
             if(present(NutrientFluxesWithSoil)) NutrientFluxesWithSoil= Me%ComputeOptions%NutrientFluxesWithSoil
@@ -5335,6 +5383,42 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
 
 
     end subroutine UngetVegetation2D    
+
+   !----------------------------------------------------------------------
+
+    subroutine UngetVegetation2D_I(VegetationID, Array, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                         :: VegetationID
+        integer, pointer, dimension(:,:) :: Array
+        integer, optional, intent (OUT) :: STAT
+   
+        !External--------------------------------------------------------------
+        integer                         :: ready_   
+
+        !Local-----------------------------------------------------------------
+        integer                         :: STAT_
+        
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(VegetationID, ready_) 
+
+cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
+            nullify(Array)
+
+            call Read_UnLock(mVegetation_, Me%InstanceID, "UngetVegetation2D_I")
+
+            STAT_ = SUCCESS_
+        else 
+            STAT_ = ready_
+        end if cd1
+
+        if (present(STAT)) STAT = STAT_
+
+
+    end subroutine UngetVegetation2D_I    
 
    !----------------------------------------------------------------------
 
@@ -6466,7 +6550,8 @@ cd1:            if (.not. UptakeAllowed .or. PotTP .le. 0.01) then
 do3 :               do k = KUB, KLB, -1
             
                         if (FoundRoot) then
-                            exit do3
+                            Me%TranspirationBottomLayer(i,j) = k - 1
+                            exit do3                           
                         endif
             
                         !Potential Water uptake is computed with the difference between top and bottom cell uptakes
@@ -6674,6 +6759,7 @@ cd1:            if (.not. UptakeAllowed .or. TotalCol .eq. 0.0 .or. RootDepth .e
 do3 :               do k = KUB, KLB, -1
     
                         if (FoundRoot) then
+                            Me%TranspirationBottomLayer(i,j) = k - 1
                             exit do3
                         endif
 
@@ -11219,7 +11305,9 @@ do1 :   do while(associated(PropertyX))
         !Soil Fluxes
         deallocate(Me%Fluxes%WaterUptake                                   )  
         deallocate(Me%Fluxes%WaterUptakeLayer                              )  
-!        deallocate(Me%Fluxes%FromSoil%WaterUptakeFromSoil                 )  
+!        deallocate(Me%Fluxes%FromSoil%WaterUptakeFromSoil                 ) 
+        deallocate(Me%TranspirationBottomLayer                             )
+         
         if(Me%ComputeOptions%ModelNitrogen) then
             deallocate(Me%Fluxes%NitrogenUptake                            )  
             deallocate(Me%Fluxes%NitrogenUptakeLayer                       )  

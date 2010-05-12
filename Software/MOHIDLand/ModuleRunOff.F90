@@ -178,8 +178,8 @@ Module ModuleRunOff
         real,    dimension(:,:), pointer            :: iFlowBoundary            => null() !Integrated Flow to impose BC
         real,    dimension(:,:), pointer            :: lFlowDischarge           => null() !Instantaneous Flow of discharges
         real,    dimension(:,:), pointer            :: iFlowDischarge           => null() !Instantaneous Flow of discharges
-        real,    dimension(:,:), pointer            :: lFlowX, lFlowY           => null() !Instantaneous OverLandFlow (LocalDT   )
-        real,    dimension(:,:), pointer            :: iFlowX, iFlowY           => null() !Integrated    OverLandFlow (AfterSumDT)
+        real(8), dimension(:,:), pointer            :: lFlowX, lFlowY           => null() !Instantaneous OverLandFlow (LocalDT   )
+        real(8), dimension(:,:), pointer            :: iFlowX, iFlowY           => null() !Integrated    OverLandFlow (AfterSumDT)
         real,    dimension(:,:), pointer            :: OverLandCoefficient      => null() !Manning or Chezy
         real,    dimension(:,:), pointer            :: OverLandCoefficientX     => null() !Manning or Chezy
         real,    dimension(:,:), pointer            :: OverLandCoefficientY     => null() !Manning or Chezy
@@ -1036,7 +1036,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         !Arguments-------------------------------------------------------------
         integer                                         :: ObjRunOffID
-        real, dimension(:, :), pointer                  :: FlowX, FlowY
+        real(8), dimension(:, :), pointer               :: FlowX, FlowY
         integer, intent(OUT), optional                  :: STAT
 
         !Local-----------------------------------------------------------------

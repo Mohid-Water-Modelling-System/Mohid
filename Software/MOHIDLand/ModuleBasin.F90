@@ -112,7 +112,7 @@ Module ModuleBasin
                                      SetSoilConcVegetation, GetVegetationOptions,        &
                                      GetVegetationDT, GetRootDepth, GetNutrientFraction, &
                                      UnGetVegetation, UnGetVegetationSoilFluxes,         &
-                                     GetCanopyHeight
+                                     GetCanopyHeight, GetTranspirationBottomLayer
     use ModuleStopWatch      ,only : StartWatch, StopWatch
     use ModuleGeometry,       only : GetGeometrySize
     implicit none
@@ -4333,14 +4333,14 @@ etr_fao:        if (CalcET0) then
         logical                                    :: Fertilization
         logical                                    :: NutrientFluxesWithSoil
         logical                                    :: CoupledSedimentQuality
-        logical                                    :: ModelNitrogen
+        logical                                    :: ModelNitrogen, ModelWater
         logical                                    :: ModelPhosphorus
         logical                                    :: GrowthModel
         real, dimension(:,:), pointer               :: WindVelocity
         real                                        :: VegetationDT
         real, dimension (:), pointer               :: DNConcentration 
         real, dimension (:,:), pointer             :: RPConcentration
-        integer, dimension(:, :), pointer          :: ChannelsID
+        integer, dimension(:, :), pointer          :: ChannelsID, TranspirationBottomLayer
         integer                                    :: nProperties, iProp, PropID
         logical                                    :: PropAdvDiff, PropParticulate !, PropRain, PropIrri
         !Begin-----------------------------------------------------------------
@@ -4396,6 +4396,7 @@ etr_fao:        if (CalcET0) then
                                       Management             = Management,                       &
                                       Dormancy               = Dormancy,                         &
                                       Fertilization          = Fertilization,                    &
+                                      ModelWater             = ModelWater,                       &
                                       ModelNitrogen          = ModelNitrogen,                    &
                                       ModelPhosphorus        = ModelPhosphorus,                  &
                                       GrowthModel            = GrowthModel,                      &
@@ -4417,7 +4418,11 @@ etr_fao:        if (CalcET0) then
                                                SoilFluxesActive         = SoilFluxesActive,                &  
                                                STAT                     = STAT_CALL)               
                 if (STAT_CALL /= SUCCESS_) stop 'PorousMediaPropertiesProcesses - ModuleBasin - ERR010'
-
+                
+                call GetTranspirationBottomLayer(VegetationID            = Me%ObjVegetation,                &
+                                                Scalar                   = TranspirationBottomLayer,        &
+                                                STAT                     = STAT_CALL)               
+                if (STAT_CALL /= SUCCESS_) stop 'PorousMediaPropertiesProcesses - ModuleBasin - ERR015'
                 
                 !Set to porous media properties the information needed from vegetation                
                 call SetVegetationPMProperties(PorousMediaPropertiesID  = Me%ObjPorousMediaProperties,     &
@@ -4426,18 +4431,21 @@ etr_fao:        if (CalcET0) then
                                                PhosphorusUptake         = PhosphorusUptake,                &
                                                SoilFluxesActive         = SoilFluxesActive,                &
                                                RootDepth                = RootDepth,                       &
+                                               ModelWater               = ModelWater,                      &
                                                ModelNitrogen            = ModelNitrogen,                   &
                                                ModelPhosphorus          = ModelPhosphorus,                 &
                                                GrowthModel              = GrowthModel,                     &
                                                CoupledVegetation        = .true.,                          &
                                                VegetationDT             = VegetationDT,                    &
+                                               TranspirationBottomLayer = TranspirationBottomLayer,        &
                                                STAT                     = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'PorousMediaPropertiesProcesses - ModuleBasin - ERR020'
 
                 call UnGetVegetation  (Me%ObjVegetation, RootDepth, STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'PorousMediaPropertiesProcesses - ModuleBasin - ERR021'
                                 
-
+                call UnGetVegetation  (Me%ObjVegetation, TranspirationBottomLayer, STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'PorousMediaPropertiesProcesses - ModuleBasin - ERR021.5'
 
                 if (GrowthModel) then
 
