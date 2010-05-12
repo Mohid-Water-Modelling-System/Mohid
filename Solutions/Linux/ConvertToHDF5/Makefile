@@ -26,38 +26,50 @@
 #
 #------------------------------------------------------------------------------
 
-INCS = -I$(HDF5) -I$(BASE1INC) -I$(BASE2INC)
+INCS := -I$(HDF5) -I$(BASE1INC) -I$(BASE2INC)
+
+ifeq ($(IS_NETCDF),true)
+    INCS := $(INCS) -I$(NETCDFINC)
+endif
+
 LIBS = $(BASELIBS)
 SRCDIR = $(SRCCONVERT)
+
+NCFILES :=
+NCFILES := $(NCFILES) ModuleAladinFormat.$(S)
+NCFILES := $(NCFILES) ModuleARPSFormat.$(S) 
+NCFILES := $(NCFILES) ModuleARPSToWW3.$(S)
+NCFILES := $(NCFILES) ModuleCFFormat.$(S)
+NCFILES := $(NCFILES) ModuleCFPolcomFormat.$(S)
+NCFILES := $(NCFILES) ModuleCOWAMAAsciiWind.$(S)
+NCFILES := $(NCFILES) ModuleERA40Format.$(S)
+NCFILES := $(NCFILES) ModuleHYCOMFormat.$(S)
+NCFILES := $(NCFILES) ModuleMERCATORFormat.$(S)
+NCFILES := $(NCFILES) ModuleMOG2DFormat.$(S) 
+NCFILES := $(NCFILES) ModuleWOAFormat.$(S)
+NCFILES := $(NCFILES) ModuleWRFFormat.$(S)
+NCFILES := $(NCFILES) ncdflib.$(S)
+
 FILES := 
 FILES := $(FILES) ConvertToHDF5.$(S)
-#FILES := $(FILES) ModuleAladinFormat.$(S)
-#FILES := $(FILES) ModuleARPSFormat.$(S)
-#FILES := $(FILES) ModuleARPSToWW3.$(S)
-#FILES := $(FILES) ModuleCFFormat.$(S)
-#FILES := $(FILES) ModuleCFPolcomormat.$(S)
 #FILES := $(FILES) ModuleConvertModisL2.$(S)
 #FILES := $(FILES) ModuleConvertModisL3Mapped.$(S)
 #FILES := $(FILES) ModuleConvertOceanColorL2.$(S)
-#FILES := $(FILES) ModuleCOWAMAASCIIWind.$(S)
-#FILES := $(FILES) ModuleERA40Format.$(S)
 FILES := $(FILES) ModuleEUCenterFormat.$(S)
 FILES := $(FILES) ModuleGFSasciiWind.$(S)
 FILES := $(FILES) ModuleGlueHDF5Files.$(S)
 FILES := $(FILES) ModuleHDF5ToASCIIandBIN.$(S)
 FILES := $(FILES) ModuleHellermanRosensteinAscii.$(S)
-#FILES := $(FILES) ModuleHYCOMFormat.$(S)
 FILES := $(FILES) ModuleInterpolateGrids.$(S)
 FILES := $(FILES) ModuleLevitusFormat.$(S)
-#FILES := $(FILES) ModuleMERCATORFormat.$(S)
 FILES := $(FILES) ModuleMM5Format.$(S)
-#FILES := $(FILES) ModuleMOG2DFormat.$(S)
 FILES := $(FILES) ModulePatchHDF5Files.$(S)
 FILES := $(FILES) ModuleSWAN.$(S)
 FILES := $(FILES) ModuleTecnoceanAscii.$(S)
-#FILES := $(FILES) ModuleWOAFormat.$(S)
-#FILES := $(FILES) ModuleWRFFormat.$(S)
-#FILES := $(FILES) ncdflib.$(S)
+
+ifeq ($(IS_NETCDF),true)
+    FILES := $(FILES) $(NCFILES)
+endif
 
 TARGET = $(CONVERT)
 
@@ -69,33 +81,43 @@ include ../Makefiles/Makefiles.mk
 
 #--------Dependencies list-------------
 
+NCCONVERTDEPEND :=
+NCCONVERTDEPEND := $(NCCONVERTDEPEND) ModuleAladinFormat.$(O)
+NCCONVERTDEPEND := $(NCCONVERTDEPEND) ModuleARPSFormat.$(O)
+NCCONVERTDEPEND := $(NCCONVERTDEPEND) ModuleARPSToWW3.$(O)
+NCCONVERTDEPEND := $(NCCONVERTDEPEND) ModuleCFFormat.$(O)
+NCCONVERTDEPEND := $(NCCONVERTDEPEND) ModuleCFPolcomFormat.$(O)
+NCCONVERTDEPEND := $(NCCONVERTDEPEND) ModuleCOWAMAAsciiWind.$(O)
+NCCONVERTDEPEND := $(NCCONVERTDEPEND) ModuleERA40Format.$(O)
+NCCONVERTDEPEND := $(NCCONVERTDEPEND) ModuleHYCOMFormat.$(O)
+NCCONVERTDEPEND := $(NCCONVERTDEPEND) ModuleMERCATORFormat.$(O)
+NCCONVERTDEPEND := $(NCCONVERTDEPEND) ModuleMOG2DFormat.$(O)
+NCCONVERTDEPEND := $(NCCONVERTDEPEND) ModuleWOAFormat.$(O)
+NCCONVERTDEPEND := $(NCCONVERTDEPEND) ModuleWRFFormat.$(O)
+
 CONVERTDEPEND := 
-#CONVERTDEPEND := $(CONVERTDEPEND) ModuleAladinFormat.$(O)
-#CONVERTDEPEND := $(CONVERTDEPEND) ModuleARPSFormat.$(O)
-#CONVERTDEPEND := $(CONVERTDEPEND) ModuleARPSToWW3.$(O)
-#CONVERTDEPEND := $(CONVERTDEPEND) ModuleCFFormat.$(O)
-#CONVERTDEPEND := $(CONVERTDEPEND) ModuleCFPolcomormat.$(O)
 #CONVERTDEPEND := $(CONVERTDEPEND) ModuleConvertModisL2.$(O)
 #CONVERTDEPEND := $(CONVERTDEPEND) ModuleConvertModisL3Mapped.$(O)
 #CONVERTDEPEND := $(CONVERTDEPEND) ModuleConvertOceanColorL2.$(O)
-#CONVERTDEPEND := $(CONVERTDEPEND) ModuleCOWAMAASCIIWind.$(O)
-#CONVERTDEPEND := $(CONVERTDEPEND) ModuleERA40Format.$(O)
 CONVERTDEPEND := $(CONVERTDEPEND) ModuleEUCenterFormat.$(O)
 CONVERTDEPEND := $(CONVERTDEPEND) ModuleGFSasciiWind.$(O)
 CONVERTDEPEND := $(CONVERTDEPEND) ModuleGlueHDF5Files.$(O)
 CONVERTDEPEND := $(CONVERTDEPEND) ModuleHDF5ToASCIIandBIN.$(O)
 CONVERTDEPEND := $(CONVERTDEPEND) ModuleHellermanRosensteinAscii.$(O)
-#CONVERTDEPEND := $(CONVERTDEPEND) ModuleHYCOMFormat.$(O)
 CONVERTDEPEND := $(CONVERTDEPEND) ModuleInterpolateGrids.$(O)
 CONVERTDEPEND := $(CONVERTDEPEND) ModuleLevitusFormat.$(O)
-#CONVERTDEPEND := $(CONVERTDEPEND) ModuleMERCATORFormat.$(O)
 CONVERTDEPEND := $(CONVERTDEPEND) ModuleMM5Format.$(O)
-#CONVERTDEPEND := $(CONVERTDEPEND) ModuleMOG2DFormat.$(O)
 CONVERTDEPEND := $(CONVERTDEPEND) ModulePatchHDF5Files.$(O)
 CONVERTDEPEND := $(CONVERTDEPEND) ModuleSWAN.$(O)
 CONVERTDEPEND := $(CONVERTDEPEND) ModuleTecnoceanAscii.$(O)
-#CONVERTDEPEND := $(CONVERTDEPEND) ModuleWOAFormat.$(O)
-#CONVERTDEPEND := $(CONVERTDEPEND) ModuleWRFFormat.$(O)
+
+ifeq ($(IS_NETCDF),true)
+    CONVERTDEPEND := $(CONVERTDEPEND) $(NCCONVERTDEPEND)
+endif
+
+ifeq ($(IS_NETCDF),true)
+    $(NCCONVERTDEPEND) : ncdflib.$(O)
+endif
 
 #ModuleCFFormat.${O} : ncdflib.${O}
 ConvertToHDF5.${O} : $(CONVERTDEPEND)

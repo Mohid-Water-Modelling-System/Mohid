@@ -18,10 +18,22 @@ export ZLIBINC = /usr/lib64
 #Where is the libnetcdf.a (with --enable-fortran) in your system?
 export NETCDFINC = /usr/lib64
 
+#Activate the extra modules that require the netcdf libraries in the ConvertToHdf5 tool
+#Two valid options
+# true
+# false
+#Un-comment your choice
+#export IS_NETCDF = true
+export IS_NETCDF = false
+
 #Uncomment the desired pre-processing definitiions
 #_NO_NETCDF is activated by default.
 FPP_DEFINES := 
-FPP_DEFINES := -D_NO_NETCDF
+
+ifeq ($(IS_NETCDF),false)
+    FPP_DEFINES := -D_NO_NETCDF
+endif
+
 #FPP_DEFINES := ${FPP_DEFINES} -D_INCREASE_MAXINSTANCES
 ##FPP_DEFINES := ${FPP_DEFINES} -D_SHORT_LINE_LENGTH
 ##FPP_DEFINES := ${FPP_DEFINES} -D_LONG_LINE_LENGTH
@@ -36,4 +48,3 @@ FPP_DEFINES := -D_NO_NETCDF
 #FPP_DEFINES := ${FPP_DEFINES} -D_LAGRANGIAN_GLOBAL_
 
 export FPP_DEFINES
-

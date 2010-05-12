@@ -52,6 +52,7 @@ FILES = \
         ModuleHDF5.$(S) \
         ModuleDrainageNetwork.$(S) \
         ModuleProfile.$(S) \
+        proj4.$(S) \
         MARIE.F
 TARGET = $(BASE1)
 

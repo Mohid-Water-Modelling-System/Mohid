@@ -25,3 +25,9 @@ Simply edit your Editme.mk and uncomment the commented line containing the desir
 pre-processor definition. Then clean and build the makefile over again.
 
 2010/05/06 G.R.
+
+G/ How can I activate the extra modules (e.g: in ConvertToHdf5) that require the netcdf libraries?
+1 - Firstly, install the netcdf libraries with the fortran interface and
+locate their whereabouts (path) in your computer.
+2 - Edit the Editme.mk file and correct the path to the netcdf libraries
+3 - Activate to "true" the variable IS_NETCDF in the Editme.mk file
