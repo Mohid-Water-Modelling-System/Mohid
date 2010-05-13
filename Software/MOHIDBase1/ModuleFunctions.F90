@@ -5550,7 +5550,7 @@ i5:         if      (TVD_Limitation == MinMod) then
         integer :: i,m,ns
         real    :: den,dif,dift,ho,hp,w,c(NMAX),d(NMAX)
         
-        STAT = SUCCESS_
+        if(present(STAT))STAT = SUCCESS_
 
         ns=1
         dif=abs(x-xa(1))
@@ -5586,7 +5586,9 @@ d2:         do i=1,n-m ! we loop over the current c’s and d’s and update them.
                 c(i)=ho*den
             enddo d2
             
-            if (STAT /= SUCCESS_) exit 
+            if(present(STAT))then
+                if (STAT /= SUCCESS_) exit 
+            endif
             
             if (2*ns.lt.n-m)then !After each column in the tableau is completed, we decide
                                  !which correction, c or d, we want to add to our accumulating
