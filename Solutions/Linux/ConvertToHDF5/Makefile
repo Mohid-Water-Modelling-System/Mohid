@@ -48,7 +48,7 @@ NCFILES := $(NCFILES) ModuleHYCOMFormat.$(S)
 NCFILES := $(NCFILES) ModuleMERCATORFormat.$(S)
 NCFILES := $(NCFILES) ModuleMOG2DFormat.$(S) 
 NCFILES := $(NCFILES) ModuleWOAFormat.$(S)
-NCFILES := $(NCFILES) ModuleWRFFormat.$(S)
+#NCFILES := $(NCFILES) ModuleWRFFormat.$(S)
 NCFILES := $(NCFILES) ncdflib.$(S)
 
 FILES := 

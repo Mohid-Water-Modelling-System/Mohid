@@ -11,7 +11,7 @@ $(TARGET) : $(OBJS) $(LIBS)
 ifeq ($(SUFF),$(SUFFLIB))
 	@$(AR) $@ $^
 else
-	@$(CC) $(LFLAGS) -o $@ $^ $(LLFLAGS)
+	$(CC) $(LFLAGS) -o $@ $^ $(LLFLAGS)
 endif
 	@echo Finished building $@.
 
