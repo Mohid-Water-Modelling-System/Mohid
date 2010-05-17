@@ -3988,15 +3988,13 @@ dConv:  do while (iteration <= Niteration)
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
         do K = Me%WorkSize%KLB, Me%WorkSize%KUB
         do J = Me%WorkSize%JLB, Me%WorkSize%JUB
-        do I = Me%WorkSize%ILB, Me%WorkSize%IUB            
-            if (Me%ExtVar%ComputeFacesW3D(I,J,K) .EQ. Compute) then
-                if (Me%ExtVar%ComputeFacesW3D(I,J,K) .EQ. Compute) then
-                                        
+        do I = Me%WorkSize%ILB, Me%WorkSize%IUB
+                    
+            if (Me%ExtVar%ComputeFacesW3D(I,J,K) .EQ. Compute) then                                       
                     Me%FluxW(i,j,k)      = Me%UnsatVelW(i,j,k) * Me%ExtVar%Area(i,j)
                     Me%FluxWFinal(i,j,k) = Me%FluxW(i,j,k)
-
-                end if
             end if
+            
         end do
         end do
         end do

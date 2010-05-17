@@ -70,7 +70,7 @@ Module ModuleGlobalData
     end interface SetError
 
     !Parameter-----------------------------------------------------------------
-    integer, parameter  :: MaxModules           =  75
+    integer, parameter  :: MaxModules           =  76
 
 #ifdef _INCREASE_MAXINSTANCES
     integer, parameter  :: MaxInstances         = 1000
@@ -699,6 +699,8 @@ Module ModuleGlobalData
     !Other PhreeqC properties
     integer, parameter :: pE_                              = 12000
     
+    !ChainReactions 
+    integer, parameter :: SoilVolumetricDensity_           = 13000
 
     !Spatial emission discharge
     integer, parameter :: DischPoint_                       = 1
@@ -1208,6 +1210,8 @@ Module ModuleGlobalData
     character(StringLength), private, parameter :: Char_Cohsed_coarse            = 'cohesive sediment coarse'
     character(StringLength), private, parameter :: Char_VSS                      = 'VSS'
 
+    !ChainReactions
+    character(StringLength), private, parameter :: Char_SoilVolumetricDensity    = 'soil volumetric density'
 
 
     !Mapping
@@ -1423,6 +1427,7 @@ Module ModuleGlobalData
     integer, parameter ::  mPOROUSMEDIAPROPERTIES_  = 73
     integer, parameter ::  mPHREEQC_                = 74
     integer, parameter ::  mRUNOFFPROPERTIES_       = 75
+    integer, parameter ::  mCHAINREACTIONS_         = 76
 
     type T_Size1D
         integer                 :: ILB            = null_int
@@ -1504,7 +1509,7 @@ Module ModuleGlobalData
           T_Module(mMACROALGAE_             , "MacroAlgae"),            T_Module(mBFM_                    , "BFM"),                   &
           T_Module(mNETCDF_                 , "NETCDF"),                T_Module(mSEQUENTIALASSIMILATION_ , "SequentialAssimilation"),& 
           T_Module(mPOROUSMEDIAPROPERTIES_  , "PorousMediaProperties"), T_Module(mPHREEQC_                , "PhreeqC"),               &
-          T_Module(mRUNOFFPROPERTIES_       , "RunoffProperties") /)
+          T_Module(mRUNOFFPROPERTIES_       , "RunoffProperties"),      T_Module(mCHAINREACTIONS_         , "ChainReactions") /)
 
     !Variables
     logical, dimension(MaxModules)                                  :: RegisteredModules = .false.
@@ -1814,8 +1819,8 @@ Module ModuleGlobalData
         enddo
 
         if(GetPropertyIDNumber == UNKNOWN_)then
-            write(*,*)'Unknown property'
-            stop 'GetPropertyIDNumber - ModuleGlobalData - ERR01'
+            write(*,*)'Unknown property: ', PropertyName
+            stop 'GetPropertyIDNumber - ModuleGlobalData - ERR010'
         end if
 
         !----------------------------------------------------------------------
@@ -2252,6 +2257,7 @@ Module ModuleGlobalData
             call AddPropList (RainChlorine_,            Char_RainChlorine,               ListNumber)  
             call AddPropList (RainAmmonia_,             Char_RainAmmonia,                ListNumber)  
             !END of PhreeqC temporary code for tests
+            call AddPropList (SoilVolumetricDensity_,   Char_SoilVolumetricDensity,      ListNumber)  
 
             !Place to add new properties to the names list
         
