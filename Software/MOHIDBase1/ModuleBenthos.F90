@@ -94,28 +94,29 @@ Module ModuleBenthos
     end type T_External
 
     type       T_PropIndex
-        integer                                     :: Ammonia          = null_int        
-        integer                                     :: Phosphate        = null_int
-        integer                                     :: DissolvedSilica  = null_int
-        integer                                     :: BioSilica        = null_int
-        integer                                     :: PON              = null_int         
-        integer                                     :: POP              = null_int
-        integer                                     :: Oxygen           = null_int
-        integer                                     :: Phyto            = null_int
-        integer                                     :: Bacteria         = null_int
-        integer                                     :: PONr             = null_int
-        integer                                     :: DONnr            = null_int
-        integer                                     :: Diatoms          = null_int
-        integer                                     :: PON1             = null_int
-        integer                                     :: PON2             = null_int
-        integer                                     :: PON3             = null_int
-        integer                                     :: PON4             = null_int
-        integer                                     :: PON5             = null_int
-        integer                                     :: POP1             = null_int
-        integer                                     :: POP2             = null_int
-        integer                                     :: POP3             = null_int
-        integer                                     :: POP4             = null_int
-        integer                                     :: POP5             = null_int        
+        integer                                     :: Ammonia           = null_int        
+        integer                                     :: Phosphate         = null_int
+        integer                                     :: DissolvedSilica   = null_int
+        integer                                     :: BioSilica         = null_int
+        integer                                     :: PON               = null_int         
+        integer                                     :: POP               = null_int
+        integer                                     :: Oxygen            = null_int
+        integer                                     :: Phyto             = null_int
+        integer                                     :: Bacteria          = null_int
+        integer                                     :: PONr              = null_int
+        integer                                     :: DONnr             = null_int
+        integer                                     :: Diatoms           = null_int
+        integer                                     :: PON1              = null_int
+        integer                                     :: PON2              = null_int
+        integer                                     :: PON3              = null_int
+        integer                                     :: PON4              = null_int
+        integer                                     :: PON5              = null_int
+        integer                                     :: POP1              = null_int
+        integer                                     :: POP2              = null_int
+        integer                                     :: POP3              = null_int
+        integer                                     :: POP4              = null_int
+        integer                                     :: POP5              = null_int        
+        integer                                     :: SuspensionFeeders = null_int  ! G.R.      
     end type T_PropIndex
 
     type     T_OrganicMatter
@@ -172,14 +173,20 @@ Module ModuleBenthos
         real                                        :: MortalityRate    = null_real 
     end type T_Diatoms
 
+    type     T_SuspensionFeeders ! G.R.
+        real                                        :: RespirationRate  = null_real 
+        real                                        :: MortalityRate    = null_real 
+    end type T_SuspensionFeeders
+
     type     T_ComputeOptions
-        logical                                     :: Nitrogen         = .false.
-        logical                                     :: Phosphorus       = .false.
-        logical                                     :: Silica           = .false.
-        logical                                     :: Diatoms          = .false.
-        logical                                     :: Phyto            = .false.
-        logical                                     :: Bacteria         = .false.
-        logical                                     :: Pompools         = .false.
+        logical                                     :: Nitrogen          = .false.
+        logical                                     :: Phosphorus        = .false.
+        logical                                     :: Silica            = .false.
+        logical                                     :: Diatoms           = .false.
+        logical                                     :: Phyto             = .false.
+        logical                                     :: Bacteria          = .false.
+        logical                                     :: Pompools          = .false.
+        logical                                     :: SuspensionFeeders = .false. ! G.R
     end type T_ComputeOptions
 
     type       T_Benthos
@@ -200,6 +207,7 @@ Module ModuleBenthos
         type(T_Bact          )                      :: Bact
         type(T_Oxygen        )                      :: Oxygen
         type(T_OrganicMatter )                      :: OrganicMatter
+        type(T_SuspensionFeeders )                  :: SuspensionFeeders ! G.R. 
         type(T_External      )                      :: ExternalVar
         type(T_ComputeOptions)                      :: ComputeOptions
         type(T_Benthos       ),     pointer         :: Next
