@@ -1247,7 +1247,6 @@ Module ModuleCFPolcomFormat
 
            allocate(Me%WaterPoints3D(Me%Size%ILB:Me%Size%IUB,&
                                Me%Size%JLB:Me%Size%JUB, Me%Size%KLB:Me%Size%KUB))
-        if (STAT_CALL /= SUCCESS_)stop 'OutPutFields Subroutine - ModuleCFFFormat - ERR01'
      
        ! Mascara tierra-agua 
 
