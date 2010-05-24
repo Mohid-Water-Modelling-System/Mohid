@@ -1005,7 +1005,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         call GetData(Me%ComputeOptions%ModelTemperatureStress,                          &
                      Me%ObjEnterData, iflag,                                            &
                      Keyword        = 'TEMPERATURE_STRESS',                             &
-                     Default        = .true.,                                           &
+                     Default        = .false.,                                          &
                      SearchType     = FromFile,                                         &
                      ClientModule   = 'ModuleVegetation',                               &
                      STAT           = STAT_CALL)
@@ -1014,7 +1014,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         call GetData(Me%ComputeOptions%ModelNitrogen,                                   &
                      Me%ObjEnterData, iflag,                                            &
                      Keyword        = 'NITROGEN_STRESS',                                &
-                     Default        = .true.,                                           &
+                     Default        = .false.,                                          &
                      SearchType     = FromFile,                                         &
                      ClientModule   = 'ModuleVegetation',                               &
                      STAT           = STAT_CALL)
@@ -1023,7 +1023,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         call GetData(Me%ComputeOptions%ModelPhosphorus,                                 &
                      Me%ObjEnterData, iflag,                                            &
                      Keyword        = 'PHOSPHORUS_STRESS',                              &
-                     Default        = .true.,                                           &
+                     Default        = .false.,                                          &
                      SearchType     = FromFile,                                         &
                      ClientModule   = 'ModuleVegetation',                               &
                      STAT           = STAT_CALL)
@@ -1216,7 +1216,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR0181'
 
         
-        if (Me%ComputeOptions%ModelNitrogen .or. Me%ComputeOptions%ModelNitrogen) then
+        if (Me%ComputeOptions%ModelNitrogen .or. Me%ComputeOptions%ModelPhosphorus) then
             call GetData(Me%ComputeOptions%NutrientFluxesWithSoil,                          &
                          Me%ObjEnterData, iflag,                                            &
                          Keyword        = 'NUTRIENT_FLUXES_WITH_SOIL',                      &
@@ -1871,6 +1871,14 @@ cd0:    if (Exist) then
             write(*,*    ) 'properties block.'
             stop 'CheckOptionsConsistence - ModuleVegetation - ERR000'
         endif
+        
+        if ((Me%ComputeOptions%Evolution%GrowthModelNeeded) .and. (Me%ComputeOptions%VegetationDT .ne. 86400.)) then
+            write(*,*)
+            write(*,*)'Using growth model is sugested to use'
+            write(*,*)'a daily step (86400 s) Check VEGETATION_DT keyword'
+            write(*,*)
+            stop 'CheckOptionsConsistence - ModuleVegetation - ERR001'
+        endif
 
         call GetComputeSoilField(Me%ObjPorousMedia, Me%ExternalVar%ComputeSoilField, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'CheckOptionsConsistence - ModuleVegetation - ERR05'   
@@ -2266,20 +2274,13 @@ cd0:    if (Exist) then
         
         else
 
-            if (Me%ComputeOptions%VegetationDT == Me%ExternalVar%DT) then
-                write(*,*)
-                write(*,*)'Vegetation DT is model DT. Using growth model is sugested to use'
-                write(*,*)'daily step (86400 s)'
-                write(*,*)
-            endif
-            
             write(*,*    ) 'Vegetation Growth Model not Used'
             write(*,*    ) '---Root readed from file'
             write(*,*    ) '---LAI  readed from file'
             if (Me%ComputeOptions%ModelWater) then
                 write(*,*    ) '---Water Uptake             : ON'
                 if (Me%ComputeOptions%TranspirationMethod .eq. 1) then
-                    write(*,*    ) '   ---WaterUptakeMethod     : Fedded'
+                    write(*,*    ) '   ---WaterUptakeMethod     : Feddes'
                 else
                     write(*,*    ) '   ---WaterUptakeMethod     : SWAT based'
                 endif

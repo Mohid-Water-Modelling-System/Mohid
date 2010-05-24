@@ -443,7 +443,7 @@ Module ModulePorousMediaProperties
         type (T_Time)                           :: SoilChemistry_NextCompute
 #endif        
 
-        logical                                 :: ChainReactions       = .false. !Simple generic reactions with ZERO and FIRST order rate
+        logical                                 :: ChainReactions       = .false. !Simple generic reactions ZERO & FIRST order rate
 
         logical                                 :: AdvectionDiffusion   = .false.
         logical                                 :: Partition            = .false.
@@ -505,9 +505,9 @@ Module ModulePorousMediaProperties
         real,    pointer, dimension(:,:,:)          :: CellSoilMass
         type (T_Property), pointer                  :: PropertySoilDryDensity
 #endif        
-        real,    pointer, dimension(:,:,:)          :: CellSolutionVolume            !Used by both SoilChemistry and ChainReactions modules
+        real,    pointer, dimension(:,:,:)          :: CellSolutionVolume            !Used by SoilChemistry & ChainReactions modules
         
-        integer, pointer, dimension(:)              :: PropertiesList                !List with ID of all properties used by PorousMediaProperties
+        integer, pointer, dimension(:)              :: PropertiesList                !List with ID of all properties used
  
         type (T_ExtVar)                             :: ExtVar
         type (T_Files)                              :: Files

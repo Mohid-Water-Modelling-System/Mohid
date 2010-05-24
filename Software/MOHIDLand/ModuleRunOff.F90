@@ -338,8 +338,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 if (STAT_CALL /= SUCCESS_) stop 'ModuleRunOff - ConstructRunOff - ERR02' 
             endif
             
-
-            call ConstructHDF5Output
+            if (Me%OutPut%Yes) then
+                call ConstructHDF5Output
+            endif
 
             !Reads conditions from previous run
             if (Me%Continuous) call ReadInitialFile
@@ -1724,8 +1725,10 @@ doIter:         do while (iter <= Niter)
                 Me%NextDT = Me%ExtVar%DT / 2.0
             endif
 
-            !Output Results       
-            call RunOffOutput
+            !Output Results
+            if (Me%OutPut%Yes) then                   
+                call RunOffOutput
+            endif
 
             if (Me%ObjDrainageNetwork /= 0 .and. Me%WriteMaxWaterColumn) &
                 call OutputOutputMaxWaterColumn
@@ -3011,10 +3014,11 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                     if (nUsers == 0) stop 'KillRunOff - RunOff - ERR01'
                 endif
 
-    
-                call KillHDF5 (Me%ObjHDF5, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'KillRunOff - ModuleRunOff - ERR05'
-
+                if (Me%OutPut%Yes) then
+                    call KillHDF5 (Me%ObjHDF5, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'KillRunOff - ModuleRunOff - ERR05'
+                endif
+                
                 if (Me%Discharges) then
                     call Kill_Discharges(Me%ObjDischarges, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'KillRunOff - ModuleRunOff - ERR05a'

@@ -305,6 +305,7 @@ Module ModulePorousMedia
         logical :: IgnoreWaterColumnOnEvap
         real    :: HeadLimit
         integer :: DNLink
+        logical :: ComputeHydroPressure
     end type T_SoilOptions
 
     type T_SoilType
@@ -338,6 +339,7 @@ Module ModulePorousMedia
         real         :: LimitThetaLo
         real         :: LimitThetaHi
         real         :: ThetaHydroCoef      = null_real
+        real         :: VelHydroCoef        = null_real
 
         real,    pointer, dimension(:,:,:) :: ThetaOld
         real,    pointer, dimension(:,:,:) :: ThetaIni
@@ -400,7 +402,7 @@ Module ModulePorousMedia
         real,    dimension(:,:,:), pointer      :: UnsatVelU                => null()
         real,    dimension(:,:,:), pointer      :: UnsatVelV                => null()
         real,    dimension(:,:,:), pointer      :: UnsatVelW                => null()
-        real,    dimension(:,:,:), pointer      :: UnsatVelWOld             => null()
+        real,    dimension(:,:,:), pointer      :: UnsatVelWFinal           => null()
 
         !infiltration 
         real,   pointer, dimension(:,:)         :: InfiltrationVelocity     => null()
@@ -907,6 +909,15 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      STAT       = STAT_CALL)            
         if (STAT_CALL /= SUCCESS_) stop 'GetSoilOptions - ModulePorousMedia - ERR20'
 
+        call GetData(Me%SoilOpt%ComputeHydroPressure,                           &
+                     Me%ObjEnterData, iflag,                                    &
+                     SearchType = FromFile,                                     &
+                     keyword    = 'COMPUTE_HYDRO_PRESSURE',                     &
+                     Default    = .true.,                                       &                                           
+                     ClientModule ='ModulePorousMedia',                         &
+                     STAT       = STAT_CALL)            
+        if (STAT_CALL /= SUCCESS_) stop 'GetUnSaturatedOptions - ModulePorousMedia - ERR22'
+
         !Number of iterations below which the DT is reduce (lower optimal iteration range)
         call GetData(Me%CV%MinIter,                                             &
                      Me%ObjEnterData, iflag,                                    &
@@ -1024,6 +1035,16 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      STAT           = STAT_CALL)             
         if (STAT_CALL /= SUCCESS_)                                              &
             call SetError(FATAL_, KEYWORD_, "ConvergeOptions; ModulePorousMedia. ERR12") 
+
+        call GetData(Me%CV%VelHydroCoef,                                      &
+                     Me%ObjEnterData, iflag,                                    &
+                     SearchType     = FromFile,                                 &
+                     keyword        ='VEL_HYDRO_COEF',                          &
+                     Default        = 1.00,                                     &
+                     ClientModule   ='ModulePorousMedia',                       &
+                     STAT           = STAT_CALL)             
+        if (STAT_CALL /= SUCCESS_)                                              &
+            call SetError(FATAL_, KEYWORD_, "ConvergeOptions; ModulePorousMedia. ERR13") 
         
     
     end subroutine ReadDataFile
@@ -1298,7 +1319,7 @@ do1:     do
         allocate(Me%UnsatVelU           (ILB:IUB,JLB:JUB,KLB:KUB))
         allocate(Me%UnsatVelV           (ILB:IUB,JLB:JUB,KLB:KUB))
         allocate(Me%UnsatVelW           (ILB:IUB,JLB:JUB,KLB:KUB))
-        allocate(Me%UnsatVelWOld        (ILB:IUB,JLB:JUB,KLB:KUB))
+        allocate(Me%UnsatVelWFinal      (ILB:IUB,JLB:JUB,KLB:KUB))
         
         allocate(Me%FluxU               (ILB:IUB,JLB:JUB,KLB:KUB))
         allocate(Me%FluxV               (ILB:IUB,JLB:JUB,KLB:KUB))
@@ -1318,7 +1339,7 @@ do1:     do
         Me%UnsatVelU            = 0.0
         Me%UnsatVelV            = 0.0
         Me%UnsatVelW            = 0.0
-        Me%UnsatVelWOld         = 0.0
+        Me%UnsatVelWFinal       = 0.0
         
         Me%FluxU                = 0.0
         Me%FluxV                = 0.0
@@ -1996,10 +2017,13 @@ doSP:           do
         
         !Begin-----------------------------------------------------------------
         
-        nProperties = 10
-        if (Me%SoilOpt%DNLink == ByLayer_) then
-            nProperties = nProperties + 2
-        endif
+        nProperties = 11
+        if (Me%ObjDrainageNetwork /= 0) then
+            nProperties = nProperties + 1
+            if (Me%SoilOpt%DNLink == ByLayer_) then
+                nProperties = nProperties + 1
+            endif
+        endif       
         if (Me%ExtVar%ConstructEvaporation) then
             nProperties = nProperties + 1
         endif
@@ -2015,20 +2039,23 @@ doSP:           do
         PropertyList(1)  = 'Theta'
         PropertyList(2)  = 'relative water content'
         PropertyList(3)  = 'VelW [m/s]'
-        PropertyList(4)  = 'InF_Vel [m/s]'
-        PropertyList(5)  = 'Head [m]'
-        PropertyList(6)  = 'Conductivity [m/s]'
-        PropertyList(7)  = 'level water table [m]'
-        PropertyList(8)  = 'water table depth [m]'
-        PropertyList(9)  = 'Hydro Pressure [m]'
-        PropertyList(10) = 'Final Head [m]'
-!        PropertyList(11) = 'PM Water Column m'
-        i = 10
-        if (Me%SoilOpt%DNLink == ByLayer_) then
+        PropertyList(4)  = 'VelW_Corr [m/s]'
+        PropertyList(5)  = 'InF_Vel [m/s]'
+        PropertyList(6)  = 'Head [m]'
+        PropertyList(7)  = 'Conductivity [m/s]'
+        PropertyList(8)  = 'level water table [m]'
+        PropertyList(9)  = 'water table depth [m]'
+        PropertyList(10)  = 'Hydro Pressure [m]'
+        PropertyList(11) = 'Final Head [m]'
+!        PropertyList(12) = 'PM Water Column m'
+        i = 11
+        if (Me%ObjDrainageNetwork /= 0) then
             i = i + 1
-            PropertyList(i)  = 'GW flow to river layer [m3/s]'
-            i = i + 1
-            PropertyList(i)  = 'GW flow to river total [m3/s]'
+            PropertyList(i)  = 'GW flow to river total [m3/s]'        
+            if( Me%SoilOpt%DNLink == ByLayer_) then
+                i = i + 1
+                PropertyList(i)  = 'GW flow to river layer [m3/s]'
+            endif
         endif        
         if (Me%ExtVar%ConstructEvaporation) then
             i = i + 1
@@ -3449,14 +3476,14 @@ i1:         if (CoordON) then
     end subroutine ModifyPorousMedia
 
     !--------------------------------------------------------------------------
-    
+
     subroutine VariableSaturatedFlow(InfiltrationColumn)
     
         !Arguments-------------------------------------------------------------
         real(8), dimension(:,:), pointer            :: InfiltrationColumn
         
         !Local-----------------------------------------------------------------
-        logical                                     :: StrongVariation            
+        logical                                     :: StrongVariation !, OverSaturation            
         integer                                     :: Niteration, iteration
         real                                        :: SumDT
         real                                        :: Zero = 0.0
@@ -3484,6 +3511,7 @@ i1:         if (CoordON) then
         Me%CV%CurrentDT   = Me%ExtVar%DT / Niteration
         SumDT             = 0.0
         StrongVariation   = .false.
+!        OverSaturation    = .false.
 
         Me%FluxWAcc = 0.
         Me%FluxVAcc = 0.
@@ -3498,6 +3526,13 @@ dConv:  do while (iteration <= Niteration)
             !Calculates Face Conductivities
             call Condutivity_Face
             
+            call ComputeFinalHead
+            
+            !correct final head because of excess water
+!            if (OverSaturation) then
+!                call CorrectFinalHead
+!            endif
+            
             !Calculates Water velocity
             call SoilWaterVelocity
            
@@ -3506,9 +3541,6 @@ dConv:  do while (iteration <= Niteration)
             
             !Calculates Flux to channels
             if (Me%ObjDrainageNetwork /= 0) then
-!                call ExchangeWithDrainageNetwork ()
-!                if (Me%SoilOpt%DNLink == Original_) then
-!                    call ExchangeWithDrainageNet_Orig
                 if (Me%SoilOpt%DNLink == ByCell_) then
                     call ExchangeWithDrainageNet_Corr
                 elseif (Me%SoilOpt%DNLink == ByLayer_) then
@@ -3524,7 +3556,9 @@ dConv:  do while (iteration <= Niteration)
             endif
             
             !Calculates New Theta
-            call CalculateNewTheta
+!            OverSaturation = .false.
+!            call CalculateNewTheta  (OverSaturation)
+            call CalculateNewTheta  ()
 
             call variation_test     (StrongVariation)
 
@@ -3600,7 +3634,8 @@ dConv:  do while (iteration <= Niteration)
     end subroutine VariableSaturatedFlow
     
     !--------------------------------------------------------------------------
-    
+
+   
     subroutine InsertInfiltrationOnFluxMatrix
     
         !Local-----------------------------------------------------------------
@@ -3666,12 +3701,12 @@ dConv:  do while (iteration <= Niteration)
         enddo
         enddo
         
-        Me%FluxWAcc(i, j, Me%WorkSize%KUB+1) = Me%FluxWAcc(i, j, Me%WorkSize%KUB+1) / iterations
+!        Me%FluxWAcc(i, j, Me%WorkSize%KUB+1) = Me%FluxWAcc(i, j, Me%WorkSize%KUB+1) / iterations
              
-        !----------------------------------------------------------------------
-        
     
     end subroutine CalculateMeanFlows
+ 
+    !--------------------------------------------------------------------------
     
     subroutine AccumulateFlows
 
@@ -3752,14 +3787,13 @@ dConv:  do while (iteration <= Niteration)
         !Local-------------------------------------------------------------------
         integer                                     :: I, J, K                
         integer                                     :: Chunk
-
         !------------------------------------------------------------------------          
 
         CHUNK = CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)
         
         if (MonitorPerformance) call StartWatch ("ModulePorousMedia", "SoilWaterVelocity")
 
-        call FinalHead
+!        call FinalHead
 
         !$OMP PARALLEL PRIVATE(I,J,K)
 
@@ -3771,6 +3805,7 @@ dConv:  do while (iteration <= Niteration)
             do I = Me%WorkSize%ILB, Me%WorkSize%IUB            
 
                 if (Me%ExtVar%ComputeFacesV3D(I,J,K) .EQ. Compute) then
+
                     Me%UnsatVelV(I,J,K) = BuckinghamDarcyEquation               &
                                        (con      = Me%UnsatK_Y(I,  J,K),        &
                                         hinf     = Me%FinalHead (I-1,J,K),      &
@@ -3779,6 +3814,7 @@ dConv:  do while (iteration <= Niteration)
                 end if
 
                 if (Me%ExtVar%ComputeFacesU3D(I,J,K) .EQ. Compute) then
+                    
                     Me%UnsatVelU(I,J,K) = BuckinghamDarcyEquation               &
                                        (con      = Me%UnsatK_X(I,J,K  ),        &
                                         hinf     = Me%FinalHead (I,J-1,K),      &
@@ -3798,19 +3834,16 @@ dConv:  do while (iteration <= Niteration)
         
             if (Me%ExtVar%ComputeFacesW3D(I,J,K) .EQ. Compute) then
             
-!               Me%UnsatVelWold(I,J,K) = Me%UnsatVelW(I,J,K)
-                
                 Me%UnsatVelW(I,J,K) = BuckinghamDarcyEquation           &
                                    (con      = Me%UnsatK_Z(I,J,K  ),    &
                                     hinf     = Me%FinalHead (I,J,K-1),  &
                                     hsup     = Me%FinalHead (I,J,K  ),  &
                                     delta    = Me%ExtVar%DZZ (I,J,K-1))
+                Me%UnsatVelWFinal(I,J,K) = Me%UnsatVelW(I,J,K)
             else
 
-!               Me%UnsatVelWold(I,J,K) = Me%UnsatVelW(I,J,K)
-
                 Me%UnsatVelW(I,J,K) = 0.0
-
+                Me%UnsatVelWFinal(I,J,K) = Me%UnsatVelW(I,J,K)
             end if
         end do
         end do
@@ -3828,7 +3861,7 @@ dConv:  do while (iteration <= Niteration)
 
     !--------------------------------------------------------------------------
     
-    subroutine FinalHead
+    subroutine ComputeFinalHead
 
         !Arguments-------------------------------------------------------------
 
@@ -3836,55 +3869,107 @@ dConv:  do while (iteration <= Niteration)
         integer                                     :: i, j, k
         integer                                     :: CHUNK
         real                                        :: AccumPressure, Coef
+        real                                        :: InterpolTheta !, InterpolVel
+        logical                                     :: InterpolCoef
+        real                                        :: HydroCoef, ThetaMinForHydro
         real                                        :: CenterVelocityW
-        integer                                     :: KUB
         !real                                        :: factor
 
         CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
         
-        KUB   = Me%WorkSize%KUB
-
-        !$OMP PARALLEL PRIVATE(I,J,K,AccumPressure, Coef)
+       
+        if (.not. Me%SoilOpt%ComputeHydroPressure) then
+            call SetMatrixValue (Me%HydroPressure, Me%Size, 0.0)
+        endif
+        
+        !$OMP PARALLEL PRIVATE(I,J,K,AccumPressure,Coef,InterpolCoef,ThetaMinForHydro,CenterVelocityW,HydroCoef,InterpolTheta)
         !$OMP DO SCHEDULE    (DYNAMIC, CHUNK)
         do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
             if (Me%ExtVar%BasinPoints (i, j) == 1) then
-            
-                !Initial pressure = watercolumn - move downwards
-                AccumPressure = Me%WaterColumn(i, j)
-                do k = Me%WorkSize%KUB, Me%ExtVar%KFloor(i, j), -1
                 
-                    if (Me%Theta(i, j, k) > Me%RC%ThetaS(i, j, k) * Me%CV%ThetaHydroCoef) then
+                if (Me%SoilOpt%ComputeHydroPressure) then
                     
-                        !Velocity at the center of the cell
-                        CenterVelocityW  = (Me%UnsatVelW(i, j, k) + Me%UnsatVelW(i, j, k+1)) / 2.0
-
+                    !Initial pressure = watercolumn - move downwards
+                    AccumPressure = Me%WaterColumn(i, j)
+                    
+                    do k = Me%WorkSize%KUB, Me%ExtVar%KFloor(i, j), -1
                         
-                        if (abs(CenterVelocityW) > Me%SatK(i, j, k)) then
-                            Coef = 0.0
+                        InterpolCoef = .true.
+
+                        !Minimum theta for hydro pressure computation - to overcome instabilities in 2D
+                        !In surface only compute hyd. press. in real saturation to avoid infiltration errors
+                        if (K .eq. Me%WorkSize%KUB) then
+                            ThetaMinForHydro = Me%RC%ThetaS(i, j, k)
+                            InterpolCoef = .false.
                         else
-                            Coef = 0.5 * Me%ExtVar%DWZ(i, j, k) * (1.0 + CenterVelocityW / Me%SatK(i, j, k)) * &
-                                   LinearInterpolation(Me%RC%ThetaS(i, j, k) * Me%CV%ThetaHydroCoef, 0.0,      &
-                                   Me%RC%ThetaS(i, j, k), 1.0, Me%Theta(i, j, k))**3
-                        end if
-
-!                        Coef = 0.5 * Me%ExtVar%DWZ(i, j, k) * (1.0 - CenterVelocityW / Me%SatK(i, j, k)) * &
-!                               LinearInterpolation(Me%RC%ThetaS(i, j, k) * Me%CV%ThetaHydroCoef, 0.0,      &
-!                                Me%RC%ThetaS(i, j, k), 1.0, Me%Theta(i, j, k))
-
-                        AccumPressure = AccumPressure + Coef
-                        Me%HydroPressure(i,j,k) = AccumPressure
-                        AccumPressure = AccumPressure + Coef
+                            ThetaMinForHydro = Me%RC%ThetaS(i, j, k) * Me%CV%ThetaHydroCoef
+                            if (ThetaMinForHydro .ge. Me%RC%ThetaS(i, j, k)) then
+                                InterpolCoef = .false.
+                            endif                            
+                        endif
                         
-                    else
+                        if (Me%Theta(i, j, k) .ge. ThetaMinForHydro) then
+                        
+                            !Velocity at the center of the cell
+                            CenterVelocityW  = (Me%UnsatVelWFinal(i, j, k) + Me%UnsatVelWFinal(i, j, k+1)) / 2.0
 
-                        Me%HydroPressure(i,j,k) = 0.0
-                        AccumPressure = 0.0
+                            !Hydrostatic term dependent on velocity (vel < 0 descending)
+                            !If velocity < 0 and >= Saturation Cond. then cells do not feel hydr pressure and are free falling
+                            !If velocity < 0 and <  Saturation Cond. then cells start felling the weight of the water on top
+                            !If velocity closer to 0 then the cells fell the hydr pressure that is the sat column height above
+                            !If velocity > 0 hydr pressure increases with velocity
+                            if ((CenterVelocityW .lt. 0.0) .and.                                                        &
+                                (Abs(CenterVelocityW) .gt. Me%CV%VelHydroCoef * (Me%SatK(i, j, k) - AlmostZero))) then
+                                
+                                    !There is no hydrostatic effect - water free falling and accumulated pressure is no longer felt
+                                    HydroCoef     = 0.0
+                                    AccumPressure = 0.0
+                                
+                           
+                            else  !velocity negative and smaller than SatK, positive or zero
+                                
+                                !if vel negative
+                                !|vel| -> zero - Coef almost 1 - aprox. hydrostatic - hyd. press. almost saturated height above
+                                !|vel| -> SatK - Coef almost 0 - water almost free falling and hyd. press. almost zero 
+
+                                !vel = zero - Coef = 1 - hydrostatic - hydro pressure is the saturated height above cell
+                                
+                                !if vel positive, bigger positive velocity bigger hydrostatic effect 
+                                
+                                HydroCoef =  1.0 + (CenterVelocityW / Me%SatK(i, j, k)) 
+                           
+                            end if
+                            
+                            !Interpolation with 0 value if Theta is ThetaMinForHydro and 1.0 if Theta is ThetaS
+                            !It is used to overcome instabilities in 2D
+                            if (InterpolCoef) then
+                                InterpolTheta = (LinearInterpolation(ThetaMinForHydro,0.0,Me%RC%ThetaS(i,j,k),1.0,        &
+                                                 Me%Theta(i,j,k)))**3
+                            else
+                                InterpolTheta = 1.0
+                            endif
+                            
+                            Coef = 0.5 * Me%ExtVar%DWZ(i, j, k) * HydroCoef * InterpolTheta
+                                   
+    !                        Coef = 0.5 * Me%ExtVar%DWZ(i, j, k) * (1.0 - CenterVelocityW / Me%SatK(i, j, k)) * &
+    !                               LinearInterpolation(Me%RC%ThetaS(i, j, k) * Me%CV%ThetaHydroCoef, 0.0,      &
+    !                                Me%RC%ThetaS(i, j, k), 1.0, Me%Theta(i, j, k))
+
+                            AccumPressure = AccumPressure + Coef
+                            Me%HydroPressure(i,j,k) = AccumPressure
+                            AccumPressure = AccumPressure + Coef
+                            
+                        else
+
+                            Me%HydroPressure(i,j,k) = 0.0
+                            AccumPressure = 0.0
+                        
+                        endif
                     
-                    endif
-                
-                enddo
+                    enddo
+                endif
                 
                 !Final Head = Topography + Hydropressure + Soil Suction
                 do k = Me%ExtVar%KFloor(i, j), Me%WorkSize%KUB
@@ -3898,7 +3983,7 @@ dConv:  do while (iteration <= Niteration)
         !$OMP END DO NOWAIT
         !$OMP END PARALLEL
 
-    end subroutine FinalHead
+    end subroutine ComputeFinalHead
 
     !----------------------------------------------------------------------------
     
@@ -3908,7 +3993,7 @@ dConv:  do while (iteration <= Niteration)
 
         !Local-----------------------------------------------------------------
         integer                                     :: i, j, KUB
-        real                                        :: hsup_aux
+        real                                        :: hsup_aux, DeltaSup_aux
         
         KUB = Me%WorkSize%KUB
         
@@ -3917,24 +4002,27 @@ dConv:  do while (iteration <= Niteration)
 
             if (Me%ExtVar%BasinPoints (i, j) == 1) then
 
-                Me%UnsatVelWold(I,J,KUB+1) = Me%UnsatVelW(I,J,KUB+1)
-                                    
                 hsup_aux = Me%ExtVar%Topography(i, j) + Me%WaterColumn(i, j)
             
-                Me%UnsatVelW(i, j, KUB+1) = -1.0 * BuckinghamDarcyEquation                      &
+                DeltaSup_aux = Me%ExtVar%DWZ(i, j, KUB)/2.0 + Me%WaterColumn(i, j)
+                
+                Me%UnsatVelW(i, j, KUB+1) = BuckinghamDarcyEquation                             &
                                                (con      = Me%SatK (i, j, KUB),                 &
                                                 hinf     = Me%FinalHead(i, j, KUB),             &
-                                                hsup     = hsup_aux,                &
-                                                delta    = Me%ExtVar%DWZ(i, j, KUB)/2.0)
- 
+                                                hsup     = hsup_aux,                            &
+!                                                delta    = Me%ExtVar%DWZ(i, j, KUB)/2.0)
+                                                delta    = DeltaSup_aux)
 
+ 
+                Me%UnsatVelWFinal(I,J,KUB+1) = Me%UnsatVelW(I,J,KUB+1)
                     
                                                                    
-                if (Me%UnsatVelW(i, j, KUB+1) > Me%WaterColumn(i, j) / Me%CV%CurrentDT) then  
+                if (-1.0 * Me%UnsatVelW(i, j, KUB+1) > Me%WaterColumn(i, j) / Me%CV%CurrentDT) then  
                     
-                    Me%UnsatVelWold(I,J,KUB+1) = Me%UnsatVelW(I,J,KUB+1)
+                    Me%UnsatVelW(i, j, KUB+1)  = -1.0 * Me%WaterColumn(i, j) / Me%CV%CurrentDT
 
-                    Me%UnsatVelW(i, j, KUB+1)  = Me%WaterColumn(i, j) / Me%CV%CurrentDT
+                    Me%UnsatVelWFinal(I,J,KUB+1) = Me%UnsatVelW(I,J,KUB+1)
+
                
                 endif
 
@@ -4415,10 +4503,10 @@ dConv:  do while (iteration <= Niteration)
 
     !--------------------------------------------------------------------------
 
-    subroutine CalculateNewTheta
+    subroutine CalculateNewTheta()
 
         !Arguments-------------------------------------------------------------  
-
+!        logical                             :: OverSaturation
         !Local-----------------------------------------------------------------        
         integer                             :: CHUNK, I, J, K
         
@@ -4539,49 +4627,71 @@ dConv:  do while (iteration <= Niteration)
         do I = Me%WorkSize%ILB, Me%WorkSize%IUB
             if (Me%ExtVar%BasinPoints(i,j) == WaterPoint) then
                 k = Me%WorkSize%KUB
-                Me%Theta(i, j, k) = (Me%Theta(i, j, k) * Me%ExtVar%CellVolume(i, j, k) +                &
-                                     Me%UnsatVelW(i, j, k+1) * Me%ExtVar%Area(i, j) *                   &
-                                     (1.0 - Me%ImpermeableFraction(i, j)) * Me%CV%CurrentDT) /             &
+!                Me%Theta(i, j, k) = (Me%Theta(i, j, k) * Me%ExtVar%CellVolume(i, j, k) +                &
+!                                     Me%UnsatVelW(i, j, k+1) * Me%ExtVar%Area(i, j) *                   &
+!                                     (1.0 - Me%ImpermeableFraction(i, j)) * Me%CV%CurrentDT) /             &
+!                                     Me%ExtVar%CellVolume(i, j, k)
+                Me%Theta(i, j, k) = (Me%Theta(i, j, k) * Me%ExtVar%CellVolume(i, j, k) -                &
+                                     Me%UnsatVelWFinal(i, j, k+1) * Me%ExtVar%Area(i, j) *              &
+                                     (1.0 - Me%ImpermeableFraction(i, j)) * Me%CV%CurrentDT) /          &
                                      Me%ExtVar%CellVolume(i, j, k)
+
             endif
         enddo
         enddo
         !$OMP END DO
         
-        if (Me%SoilOpt%DNLink == ByCell_) then
-            !Exchange with River
-            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
-            do J = Me%WorkSize%JLB, Me%WorkSize%JUB
-            do I = Me%WorkSize%ILB, Me%WorkSize%IUB
-                if (Me%ExtVar%RiverPoints(i,j) == WaterPoint) then
-                    k = Me%UGCell(i,j)
-                    Me%Theta(i, j, k) = (Me%Theta(i, j, k) * Me%ExtVar%CellVolume(i, j, k) -                &
-                                         Me%lFlowToChannels(i, j) * Me%CV%CurrentDT) /                      &
-                                         Me%ExtVar%CellVolume(i, j, k)
-                endif
-            enddo
-            enddo
-            !$OMP END DO
-        
-        elseif (Me%SoilOpt%DNLink == ByLayer_) then
-
-            !Exchange with River
-            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
-            do J = Me%WorkSize%JLB, Me%WorkSize%JUB
-            do I = Me%WorkSize%ILB, Me%WorkSize%IUB
-                if (Me%ExtVar%RiverPoints(i,j) == WaterPoint) then
-                    do k = Me%FlowToChannelsBottomLayer(i,j), Me%FlowToChannelsTopLayer(i,j)
+        if (Me%ObjDrainageNetwork /= 0) then
+            if (Me%SoilOpt%DNLink == ByCell_) then
+                !Exchange with River
+                !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+                do J = Me%WorkSize%JLB, Me%WorkSize%JUB
+                do I = Me%WorkSize%ILB, Me%WorkSize%IUB
+                    if (Me%ExtVar%RiverPoints(i,j) == WaterPoint) then
+                        k = Me%UGCell(i,j)
                         Me%Theta(i, j, k) = (Me%Theta(i, j, k) * Me%ExtVar%CellVolume(i, j, k) -                &
-                                             Me%lFlowToChannelsLayer(i, j, k) * Me%CV%CurrentDT) /              &
+                                             Me%lFlowToChannels(i, j) * Me%CV%CurrentDT) /                      &
                                              Me%ExtVar%CellVolume(i, j, k)
-                    enddo
-                endif
-            enddo
-            enddo
-            !$OMP END DO
+                    endif
+                enddo
+                enddo
+                !$OMP END DO
+            
+            elseif (Me%SoilOpt%DNLink == ByLayer_) then
+
+                !Exchange with River
+                !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+                do J = Me%WorkSize%JLB, Me%WorkSize%JUB
+                do I = Me%WorkSize%ILB, Me%WorkSize%IUB
+                    if (Me%ExtVar%RiverPoints(i,j) == WaterPoint) then
+                        do k = Me%FlowToChannelsBottomLayer(i,j), Me%FlowToChannelsTopLayer(i,j)
+                            Me%Theta(i, j, k) = (Me%Theta(i, j, k) * Me%ExtVar%CellVolume(i, j, k) -                &
+                                                 Me%lFlowToChannelsLayer(i, j, k) * Me%CV%CurrentDT) /              &
+                                                 Me%ExtVar%CellVolume(i, j, k)
+                        enddo
+                    endif
+                enddo
+                enddo
+                !$OMP END DO
+            endif
         endif
         
         !$OMP END PARALLEL
+        
+!        !Check over saturation for routine that corrects final head
+!        do K = Me%WorkSize%KLB, Me%WorkSize%KUB
+!        do J = Me%WorkSize%JLB, Me%WorkSize%JUB
+!        do I = Me%WorkSize%ILB, Me%WorkSize%IUB
+!            if (Me%ExtVar%WaterPoints3D(I,J,K) == WaterPoint) then
+!                if (Me%Theta(i, j, k) .gt. Me%RC%ThetaS(i, j, k) ) then
+!                    OverSaturation = .true.
+!                    if (MonitorPerformance) call StopWatch ("ModulePorousMedia", "CalculateNewTheta")
+!                    return
+!                endif
+!            endif
+!        enddo
+!        enddo
+!        enddo
         
         if (MonitorPerformance) call StopWatch ("ModulePorousMedia", "CalculateNewTheta")
         
@@ -4604,69 +4714,12 @@ dConv:  do while (iteration <= Niteration)
         call UpdateEfectiveEVTP
         
         !Integrates Flow
-        call IntegrateFlow (SumDT)
+        if (Me%ObjDrainageNetwork /= 0) then
+            call IntegrateFlow (SumDT)
+        endif
 
     end subroutine IntegrateValuesInTime
 
-    !--------------------------------------------------------------------------
-    ! esta função é para desaparecer do porous Media porque passou para o PorousMediaProperties
-    subroutine CalculateAdvection
-    
-        !Arguments-------------------------------------------------------------
-
-        !Local-----------------------------------------------------------------
-        type (T_Property), pointer                  :: CurrProperty
-        integer                                     :: i, j, k, CHUNK
-        real                                        :: OldMass, NewMass
-        
-        CHUNK = CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)
-
-        !$OMP PARALLEL PRIVATE(I,J,K, OldMass, NewMass)
-        
-        CurrProperty => Me%FirstProperty
-        do while (associated(CurrProperty))
-        
-            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
-            do K = Me%WorkSize%KLB, Me%WorkSize%KUB
-            do J = Me%WorkSize%JLB, Me%WorkSize%JUB
-            do I = Me%WorkSize%ILB, Me%WorkSize%IUB
-                if (Me%ExtVar%WaterPoints3D(I,J,K) == WaterPoint) then
-                
-                    !Old Mass
-                    OldMass = Me%CV%ThetaOld(i, j, k) * Me%ExtVar%CellVolume(i, j, k) * &
-                              CurrProperty%ConcentrationOld(i, j, k)
-
-                    !New Mass                              
-                    NewMass = OldMass + Me%FluxU(i, j,   k) * CurrProperty%ConcentrationOld(i, j-1, k) - &
-                                        Me%FluxU(i, j+1, k) * CurrProperty%ConcentrationOld(i, j+1, k) + &
-                                        Me%FluxV(i, j,   k) * CurrProperty%ConcentrationOld(i-1, j, k) - &
-                                        Me%FluxV(i+1, j, k) * CurrProperty%ConcentrationOld(i+1, j, k) + &
-                                        Me%FluxW(i, j,   k) * CurrProperty%ConcentrationOld(i, j, k-1) - &
-                                        Me%FluxW(i, j, k+1) * CurrProperty%ConcentrationOld(i, j, k+1)
-                                        
-                    !UpperBoundary
-                    NewMass = NewMass + Me%UnsatVelW(i, j, Me%WorkSize%KUB+1) * (1.0 - Me%ImpermeableFraction(i, j)) *    &
-                                        Me%ExtVar%Area(i, j) * CurrProperty%UpperConcentration(i, j)
-                    
-                    !New Concentration
-                    CurrProperty%Concentration(i, j, k) = NewMass / (Me%Theta(i, j, k) * Me%ExtVar%CellVolume(i, j, k))
-                    
-                    
-                
-                endif
-            enddo
-            enddo
-            enddo
-            !$OMP END DO
-           
-        
-            CurrProperty => CurrProperty%Next
-        enddo
-
-        !$OMP END PARALLEL
-
-    end subroutine CalculateAdvection
-    
     !--------------------------------------------------------------------------
 
     subroutine UpdateWaterColumnInfiltration 
@@ -4692,7 +4745,12 @@ dConv:  do while (iteration <= Niteration)
             if (Me%ExtVar%BasinPoints (i,j) == 1) then
                 
                 !Variation in height
-                dh                  = Me%UnsatVelW(i, j, Me%WorkSize%KUB+1) * (1.0 - Me%ImpermeableFraction(i, j)) * &
+!                dh                  = Me%UnsatVelW(i, j, Me%WorkSize%KUB+1) * (1.0 - Me%ImpermeableFraction(i, j)) * &
+!                                      Me%CV%CurrentDT
+                
+                !m/s * m2AreaPerm * s = m3 H20 in flux
+                !m3 H20 / m2AreaTotal = m uniformly distributed in area
+                dh                  = -1.0 * Me%UnsatVelWFinal(i, j, Me%WorkSize%KUB+1) * (1.0 - Me%ImpermeableFraction(i, j)) * &
                                       Me%CV%CurrentDT
                 
                 !Just reduce water column due to Infiltration (PermeableFraction only)
@@ -4915,8 +4973,9 @@ cd2 :   if (Mapping(i, j) == 1) then
                 !Over saturation
                 if (Me%RC%ThetaF(i, j, k) > 1.0) then
 
-                    Me%Head   (i, j, k) = Me%SoilTypes(Me%SoilID(I,J,K))%OverSatSlope * (Me%Theta (i, j, k)   &
-                                          - Me%RC%ThetaS (i, j, k))
+!                    Me%Head   (i, j, k) = Me%SoilTypes(Me%SoilID(I,J,K))%OverSatSlope * (Me%Theta (i, j, k)   &
+!                                          - Me%RC%ThetaS (i, j, k))
+                    Me%Head   (i, j, k) = 0.0
                     Me%UnSatK (i, j, k) = Me%SatK(i, j, k)
 
                 !0 < Theta < 1
@@ -5070,11 +5129,12 @@ cd2 :   if (Mapping(i, j) == 1) then
         !Local-----------------------------------------------------------------
         integer                                     :: i, j, k
         integer                                     :: chunk
-        real                                        :: ExcessVolume, dh
+        real                                        :: ExcessVolume !, dh
+
         
         CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
 
-        !$OMP PARALLEL PRIVATE(I,J,K, ExcessVolume, dh)
+        !$OMP PARALLEL PRIVATE(I,J,K, ExcessVolume)
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
         do J = Me%WorkSize%JLB, Me%WorkSize%JUB
         do I = Me%WorkSize%ILB, Me%WorkSize%IUB
@@ -5086,7 +5146,9 @@ cd2 :   if (Mapping(i, j) == 1) then
                         ExcessVolume         = (Me%Theta(i,j,k) - Me%RC%ThetaS (i,j,k)) * Me%ExtVar%CellVolume(i,j,k)
                         Me%Theta(i,j,k-1)    = ((Me%Theta(i,j,k-1) * Me%ExtVar%CellVolume(i,j,k-1)) + ExcessVolume)   &
                                                / Me%ExtVar%CellVolume(i,j,k-1)
-                        Me%FluxWFinal(i,j,k) = Me%FluxWFinal(i,j,k) + (-ExcessVolume / Me%CV%CurrentDT)                       
+                        Me%FluxWFinal(i,j,k) = Me%FluxWFinal(i,j,k) + (-ExcessVolume / Me%CV%CurrentDT)
+                        !m/s
+                        Me%UnsatVelWFinal(i,j,k)  = Me%FluxWFinal(i,j,k) / Me%ExtVar%Area(i,j)
                         Me%Theta(i,j,k)      = Me%RC%ThetaS (i,j,k)
                     endif
                 enddo
@@ -5098,21 +5160,35 @@ cd2 :   if (Mapping(i, j) == 1) then
                         ExcessVolume           = (Me%Theta(i,j,k) - Me%RC%ThetaS (i,j,k)) * Me%ExtVar%CellVolume(i,j,k)
                         Me%Theta(i,j,k+1)      = ((Me%Theta(i,j,k+1) * Me%ExtVar%CellVolume(i,j,k+1)) + ExcessVolume)   &
                                                  / Me%ExtVar%CellVolume(i,j,k+1)
-                        Me%FluxWFinal(i,j,k+1) = Me%FluxWFinal(i,j,k+1) + (ExcessVolume / Me%CV%CurrentDT)                       
+                        Me%FluxWFinal(i,j,k+1) = Me%FluxWFinal(i,j,k+1) + (ExcessVolume / Me%CV%CurrentDT)  
+                        !m/s 
+                        Me%UnsatVelWFinal(i,j,k+1)  = Me%FluxWFinal(i,j,k+1) / Me%ExtVar%Area(i,j)
                         Me%Theta(i,j,k)        = Me%RC%ThetaS (i,j,k)
                     endif
                 enddo
                 
-                
                 !Put remaing volume to watercolumn
                 k = Me%WorkSize%KUB
                 if (Me%Theta(i,j,k) .gt. Me%RC%ThetaS(i,j,k)) then
+                    
+                    if (Me%ImpermeableFraction(i, j) == 1.0) then
+                        write (*,*)
+                        write (*,*) 'Error. Trying to expel water from soil - mandatory to avoid'
+                        write (*,*) 'over saturation - but the cell is impermeable. In cell', i, j 
+                    endif
+                    
                     !If cell is oversaturated, set to saturation and put water on water column
                     ExcessVolume           = ((Me%Theta(i,j,k) - Me%RC%ThetaS (i,j,k)) * Me%ExtVar%CellVolume(i,j,k))
-                    Me%FluxWFinal(i,j,k+1) = Me%FluxWFinal(i,j,k+1) + (ExcessVolume / Me%CV%CurrentDT)
-                    dh                     = ExcessVolume  / Me%ExtVar%Area(i, j)
-                    Me%WaterColumn  (i,j)  = Me%WaterColumn(i,j) + dh
-                    Me%Infiltration (i,j)  = Me%Infiltration (i,j) - dh
+!                    Me%FluxWFinal(i,j,k+1) = Me%FluxWFinal(i,j,k+1) + (ExcessVolume / Me%CV%CurrentDT)
+                    Me%FluxWFinal(i,j,k+1) = (Me%UnsatVelWFinal(i,j,k+1) * Me%ExtVar%Area(i,j)                        &
+                                              * (1.0 - Me%ImpermeableFraction(i, j)))                                 &
+                                              + (ExcessVolume / Me%CV%CurrentDT)
+                    !m/s
+                    Me%UnsatVelWFinal(i,j,k+1)  = Me%FluxWFinal(i,j,k+1) /                                            &
+                                                  (Me%ExtVar%Area(i,j) * (1.0 - Me%ImpermeableFraction(i, j)))
+!                    dh                     = ExcessVolume  / Me%ExtVar%Area(i, j)
+!                    Me%WaterColumn  (i,j)  = Me%WaterColumn(i,j) + dh
+!                    Me%Infiltration (i,j)  = Me%Infiltration (i,j) - dh
                     Me%Theta(i,j,k)        = Me%RC%ThetaS (i,j,k)
                 endif
             endif
@@ -5125,6 +5201,62 @@ cd2 :   if (Mapping(i, j) == 1) then
 
     !--------------------------------------------------------------------------
 
+    subroutine CorrectFinalHead
+    
+        !Arguments-------------------------------------------------------------
+    
+        !Local-----------------------------------------------------------------
+        integer                                     :: i, j, k
+        !integer                                     :: chunk
+        real                                        :: ExcessFlow, TotalAreaForFlow
+        real                                        :: Distance, ExcessPressure
+
+        
+!        CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+
+!        !$OMP PARALLEL PRIVATE(I,J,K, ExcessVolume, dh)
+!        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+        do J = Me%WorkSize%JLB, Me%WorkSize%JUB
+        do I = Me%WorkSize%ILB, Me%WorkSize%IUB
+            if (Me%ExtVar%BasinPoints(I,J) == 1) then
+            
+                do k = Me%WorkSize%KUB, (Me%ExtVar%KFloor(i, j)), -1               
+                
+                    !dQ = dv * Atotal = -k dP/dxi
+                    !dP/dxi = 
+                    
+                    if (Me%Theta(i,j,k) .gt. Me%RC%ThetaS(i,j,k)) then
+                        !m3/s
+                        ExcessFlow         = (Me%Theta(i,j,k) - Me%RC%ThetaS (i,j,k)) * Me%ExtVar%CellVolume(i,j,k)   &
+                                              / Me%CV%CurrentDT
+                        !m2                                              
+                        TotalAreaForFlow   = Me%ExtVar%AreaU(i,j,k  )   * Me%ExtVar%ComputeFacesU3D(i,j,k)              &
+                                             + Me%ExtVar%AreaU(i,j+1,k) * Me%ExtVar%ComputeFacesU3D(i,j+1,k)            &
+                                             + Me%ExtVar%AreaV(i,j,k  ) * Me%ExtVar%ComputeFacesV3D(i,j,k)              &
+                                             + Me%ExtVar%AreaV(i+1,j,k) * Me%ExtVar%ComputeFacesV3D(i+1,j,k)            &
+                                             + Me%ExtVar%Area(i,j     ) * Me%ExtVar%ComputeFacesW3D(i,j,k)              &
+                                             + Me%ExtVar%Area(i,j     ) * Me%ExtVar%ComputeFacesW3D(i,j,k+1)                     
+                        
+                        !Distance for Pressure dissipation
+                        Distance           = Me%ExtVar%CellVolume(i,j,k) / TotalAreaForFlow
+                        
+                        !m = (m3/s * m ) / (m/s * m2)
+                        ExcessPressure     = (ExcessFlow * Distance) / (Me%SatK(i,j,k) * TotalAreaForFlow)
+                        
+                        Me%FinalHead(i,j,k) = Me%FinalHead(i,j,k) + ExcessPressure
+                        
+                    endif
+                enddo
+            endif
+        enddo
+        enddo
+!        !$OMP END DO NOWAIT
+!        !$OMP END PARALLEL
+
+    end subroutine CorrectFinalHead
+
+    !--------------------------------------------------------------------------
+    
     subroutine LogDT (iteration)
 
         !Arguments-------------------------------------------------------------
@@ -5580,6 +5712,9 @@ do5:            do K = Me%WorkSize%KLB, Me%WorkSize%KUB
                         ![m3/s] in iteration (dt is the same for both fluxes)
                         VerticalFluxVariation = VerticalFluxVariation - Me%lFlowToChannelsLayer(i, j, k)
                         Me%FluxWFinal(i,j,k+1)  = Me%FluxWFinal(i,j,k+1) + VerticalFluxVariation
+                        
+                        !m/s = m/s + (m3/s / m2)
+                        Me%UnsatVelWFinal(i,j,k+1)  = Me%UnsatVelWFinal(i,j,k+1) + (Me%FluxWFinal(i,j,k+1) / Me%ExtVar%Area(i,j))
                     endif
                 
                 enddo do5
@@ -6028,7 +6163,8 @@ do5:            do K = Me%WorkSize%KLB, Me%WorkSize%KUB
                     if (Me%ExtVar%WaterPoints3D(i, j, k) == 1) then
                         CenterU3D (i, j, k) = (Me%UnsatVelU(i, j, k) + Me%UnsatVelU(i, j+1, k)) / 2.0
                         CenterV3D (i, j, k) = (Me%UnsatVelV(i, j, k) + Me%UnsatVelV(i+1, j, k)) / 2.0
-                        CenterW3D (i, j, k) = (Me%UnsatVelW(i, j, k) + Me%UnsatVelW(i, j, k+1)) / 2.0
+!                        CenterW3D (i, j, k) = (Me%UnsatVelW(i, j, k) + Me%UnsatVelW(i, j, k+1)) / 2.0
+                        CenterW3D (i, j, k) = (Me%UnsatVelWFinal(i, j, k) + Me%UnsatVelWFinal(i, j, k+1)) / 2.0
                         Modulus3D (i, j, k) = sqrt(CenterU3D (i, j, k)**2.0 + CenterV3D (i, j, k)**2.0 + CenterW3D(i,j,k)**2.0)
                     endif
                 enddo
@@ -6200,6 +6336,11 @@ do5:            do K = Me%WorkSize%KLB, Me%WorkSize%KUB
                             STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModulePorousMedia - ERR020'
 
+        call WriteTimeSerie(Me%ObjTimeSerie,                                            &
+                            Data3D = Me%UnsatVelWFinal ,                                &
+                            STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModulePorousMedia - ERR020'
+
         !infiltration velocity for now
         call WriteTimeSerie(Me%ObjTimeSerie,                                            &
                             Data2D = Me%InfiltrationVelocity,                           &
@@ -6249,17 +6390,22 @@ do5:            do K = Me%WorkSize%KLB, Me%WorkSize%KUB
 !                            STAT = STAT_CALL)
 !        if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModulePorousMedia - ERR08'
 
-        if (Me%SoilOpt%DNLink == ByLayer_) then
-            !Flow to channels by layer
-            call WriteTimeSerie(Me%ObjTimeSerie,                                            &
-                                Data3D = Me%iFlowToChannelsLayer,                           &
-                                STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModulePorousMedia - ERR091'
+        if (Me%ObjDrainageNetwork /= 0) then
+        
             !Flow to channels total
             call WriteTimeSerie(Me%ObjTimeSerie,                                            &
                                 Data2D = Me%iFlowToChannels,                                &
                                 STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModulePorousMedia - ERR092'            
+            if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModulePorousMedia - ERR092' 
+                           
+            if (Me%SoilOpt%DNLink == ByLayer_) then
+                !Flow to channels by layer
+                call WriteTimeSerie(Me%ObjTimeSerie,                                            &
+                                    Data3D = Me%iFlowToChannelsLayer,                           &
+                                    STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModulePorousMedia - ERR091'
+   
+            endif
         endif
         
         if (Me%ExtVar%ConstructEvaporation) then
