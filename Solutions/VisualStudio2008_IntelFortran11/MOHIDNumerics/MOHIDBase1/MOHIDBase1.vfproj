@@ -67,7 +67,6 @@
 		<Filter Name="Header Files" Filter="fi;fd"/>
 		<Filter Name="Resource Files" Filter="rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe"/>
 		<Filter Name="Source Files" Filter="f90;for;f;fpp;ftn;def;odl;idl">
-		<File RelativePath="..\..\..\..\Software\MOHIDBase1\MARIE.F"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleBenthos.F90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleCEQUALW2.F90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleDischarges.F90"/>
@@ -86,6 +85,7 @@
 		<File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleProfile.F90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleSedimentQuality.F90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleStopWatch.F90"/>
+		<File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleTask2000.F"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleTime.F90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleTimeSerie.F90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleTriangulation.F90"/>

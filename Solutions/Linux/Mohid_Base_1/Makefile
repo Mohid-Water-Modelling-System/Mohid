@@ -53,7 +53,7 @@ FILES = \
         ModuleDrainageNetwork.$(S) \
         ModuleProfile.$(S) \
         proj4.$(S) \
-        MARIE.F
+        ModuleTask2000.F
 TARGET = $(BASE1)
 
 #--------Makefile rules----------------
@@ -99,8 +99,8 @@ ModuleDrainageNetwork.${O} : ModuleDischarges.${O} \
                           ModuleInterface.${O}
 ModuleProfile.${O} : ModuleEnterData.${O} \
                   ModuleHDF5.${O}
-MARIE.${O} :
-	@$(CC) $(CCFLAGS) $(INCS) $(SRCDIR)/MARIE.F
+ModuleTask2000.${O} :
+	@$(CC) $(CCFLAGS) $(INCS) $(SRCDIR)/ModuleTask2000.F
 	@echo $* .................. [OK]    
 
 #--------End of dependencies list---------
