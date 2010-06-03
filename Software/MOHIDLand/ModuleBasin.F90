@@ -3374,6 +3374,8 @@ etr_fao:        if (CalcET0) then
         real, dimension(:,:), pointer               :: AtmConcentration
         real(8)                                     :: VegetationOldMass, RainMassToVeg
         real(8)                                     :: DrainageMassFromVeg, VegetationNewMass
+        real(8)                                     :: VegetationNewVolume, RainVolume
+        real(8)                                     :: DrainageVolume
         integer                                     :: STAT_CALL, i,j
         !Begin-----------------------------------------------------------------
         
@@ -3413,28 +3415,58 @@ etr_fao:        if (CalcET0) then
                         if (WarningString == "WaterMix") then
                             
                             !Mass from Rain
+                            !m3 = m * m2plant
+                            RainVolume          = Me%RainCovered(i,j) * Me%CoveredFraction(i, j)                              &
+                                                   * Me%ExtVar%GridCellArea(i, j) 
                             !g = (m * m2plant) * g/m3
-                            RainMassToVeg       = Me%RainCovered(i,j) * Me%CoveredFraction(i, j)                               &
-                                                   * Me%ExtVar%GridCellArea(i, j) * AtmConcentration(i,j)
-                            !Mass drained to soil
-                            !g = (m * m2cel) * g/m3 - Canopy drainage is height in cell area
-                            DrainageMassFromVeg = Me%CanopyDrainage(i,j)                                                      &
-                                                   * Me%ExtVar%GridCellArea(i, j) * Property%VegetationConc(i,j)
+                            RainMassToVeg       = RainVolume * AtmConcentration(i,j)
+                                                   
+                            !m3
+                            VegetationNewVolume = OldVolumeOnLeafs + RainVolume                                                   
+                            !g
+                            VegetationNewMass   = VegetationOldMass + RainMassToVeg
+                                                   
+                            if (VegetationNewVolume .gt. 0.0) then
+                                !g/m3 = g / (m * m2)
+                                Property%VegetationConc(i,j) = VegetationNewMass / VegetationNewVolume
+                            else
+                                Property%VegetationConc(i,j) = 0.0
+                            endif                                                   
                             
-                            VegetationNewMass   = VegetationOldMass + RainMassToVeg - DrainageMassFromVeg
+                            !Mass drained to soil
+                            !m3 = m * m2plant
+                            DrainageVolume      = Me%CanopyDrainage(i,j) * Me%ExtVar%GridCellArea(i, j)
+                            !g = (m * m2cel) * g/m3 - Canopy drainage is height in cell area
+                            DrainageMassFromVeg = DrainageVolume * Property%VegetationConc(i,j)
+
+                            !m3
+                            VegetationNewVolume = VegetationNewVolume - DrainageVolume
+                            !g
+                            VegetationNewMass   = VegetationNewMass - DrainageMassFromVeg
+
+                            if (VegetationNewVolume .gt. 0.0) then
+                                !g/m3 = g / (m * m2)
+                                Property%VegetationConc(i,j) = VegetationNewMass / VegetationNewVolume
+                            else
+                                Property%VegetationConc(i,j) = 0.0
+                            endif 
                         
                         !compute new concentration after routine ComputePotentialEvapotranspiration
                         elseif (WarningString == "Evaporation") then 
+                            
                             VegetationNewMass = VegetationOldMass
+                        
+                            if (Me%CanopyStorage(i, j) .gt. 0.0) then
+                                !g/m3 = g / (m * m2)
+                                Property%VegetationConc(i,j) = VegetationNewMass / (Me%CanopyStorage(i, j)                    &
+                                                               * Me%CoveredFraction(i, j) * Me%ExtVar%GridCellArea(i, j))
+                            else
+                                Property%VegetationConc(i,j) = 0.0
+                            endif                        
+                        
                         endif
                         
-                        if (Me%CanopyStorage(i, j) .gt. 0.0) then
-                            !g/m3 = g / (m * m2)
-                            Property%VegetationConc(i,j) = VegetationNewMass / (Me%CanopyStorage(i, j)                    &
-                                                           * Me%CoveredFraction(i, j) * Me%ExtVar%GridCellArea(i, j))
-                        else
-                            Property%VegetationConc(i,j) = 0.0
-                        endif
+
                     endif
                 enddo
                 enddo
@@ -4403,6 +4435,21 @@ etr_fao:        if (CalcET0) then
                                       STAT                   = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'PorousMediaPropertiesProcesses - ModuleBasin - ERR01'
 
+            call GetTranspirationBottomLayer(VegetationID            = Me%ObjVegetation,                &
+                                            Scalar                   = TranspirationBottomLayer,        &
+                                            STAT                     = STAT_CALL)               
+            if (STAT_CALL /= SUCCESS_) stop 'PorousMediaPropertiesProcesses - ModuleBasin - ERR01.2'
+
+            call SetVegetationPMProperties(PorousMediaPropertiesID  = Me%ObjPorousMediaProperties,     &
+                                           CoupledVegetation        = .true.,                          &
+                                           ModelWater               = ModelWater,                      &
+                                           TranspirationBottomLayer = TranspirationBottomLayer,        &
+                                           STAT                     = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'PorousMediaPropertiesProcesses - ModuleBasin - ERR01.5'
+
+            call UnGetVegetation  (Me%ObjVegetation, TranspirationBottomLayer, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'PorousMediaPropertiesProcesses - ModuleBasin - ERR01.7'
+
             
             if (NutrientFluxesWithSoil) then
 
@@ -4419,10 +4466,7 @@ etr_fao:        if (CalcET0) then
                                                STAT                     = STAT_CALL)               
                 if (STAT_CALL /= SUCCESS_) stop 'PorousMediaPropertiesProcesses - ModuleBasin - ERR010'
                 
-                call GetTranspirationBottomLayer(VegetationID            = Me%ObjVegetation,                &
-                                                Scalar                   = TranspirationBottomLayer,        &
-                                                STAT                     = STAT_CALL)               
-                if (STAT_CALL /= SUCCESS_) stop 'PorousMediaPropertiesProcesses - ModuleBasin - ERR015'
+
                 
                 !Set to porous media properties the information needed from vegetation                
                 call SetVegetationPMProperties(PorousMediaPropertiesID  = Me%ObjPorousMediaProperties,     &
@@ -4431,22 +4475,16 @@ etr_fao:        if (CalcET0) then
                                                PhosphorusUptake         = PhosphorusUptake,                &
                                                SoilFluxesActive         = SoilFluxesActive,                &
                                                RootDepth                = RootDepth,                       &
-                                               ModelWater               = ModelWater,                      &
                                                ModelNitrogen            = ModelNitrogen,                   &
                                                ModelPhosphorus          = ModelPhosphorus,                 &
                                                GrowthModel              = GrowthModel,                     &
-                                               CoupledVegetation        = .true.,                          &
                                                VegetationDT             = VegetationDT,                    &
-                                               TranspirationBottomLayer = TranspirationBottomLayer,        &
                                                STAT                     = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'PorousMediaPropertiesProcesses - ModuleBasin - ERR020'
 
                 call UnGetVegetation  (Me%ObjVegetation, RootDepth, STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'PorousMediaPropertiesProcesses - ModuleBasin - ERR021'
                                 
-                call UnGetVegetation  (Me%ObjVegetation, TranspirationBottomLayer, STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'PorousMediaPropertiesProcesses - ModuleBasin - ERR021.5'
-
                 if (GrowthModel) then
 
                    

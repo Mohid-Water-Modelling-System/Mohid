@@ -3914,31 +3914,39 @@ dConv:  do while (iteration <= Niteration)
                         
                             !Velocity at the center of the cell
                             CenterVelocityW  = (Me%UnsatVelWFinal(i, j, k) + Me%UnsatVelWFinal(i, j, k+1)) / 2.0
+!                            CenterVelocityW  = (Me%UnsatVelW(i, j, k) + Me%UnsatVelW(i, j, k+1)) / 2.0
 
                             !Hydrostatic term dependent on velocity (vel < 0 descending)
                             !If velocity < 0 and >= Saturation Cond. then cells do not feel hydr pressure and are free falling
                             !If velocity < 0 and <  Saturation Cond. then cells start felling the weight of the water on top
                             !If velocity closer to 0 then the cells fell the hydr pressure that is the sat column height above
                             !If velocity > 0 hydr pressure increases with velocity
-                            if ((CenterVelocityW .lt. 0.0) .and.                                                        &
-                                (Abs(CenterVelocityW) .gt. Me%CV%VelHydroCoef * (Me%SatK(i, j, k) - AlmostZero))) then
+                            if (CenterVelocityW .lt. 0.0) then
+                            
+                                if (Abs(CenterVelocityW) .gt. Me%CV%VelHydroCoef * (Me%SatK(i, j, k) - AlmostZero)) then
                                 
                                     !There is no hydrostatic effect - water free falling and accumulated pressure is no longer felt
                                     HydroCoef     = 0.0
                                     AccumPressure = 0.0
                                 
                            
-                            else  !velocity negative and smaller than SatK, positive or zero
+                                else  !velocity negative and smaller than SatK, positive or zero
                                 
-                                !if vel negative
-                                !|vel| -> zero - Coef almost 1 - aprox. hydrostatic - hyd. press. almost saturated height above
-                                !|vel| -> SatK - Coef almost 0 - water almost free falling and hyd. press. almost zero 
+                                    !if vel negative
+                                    !|vel| -> zero - Coef almost 1 - aprox. hydrostatic - hyd. press. almost saturated height above
+                                    !|vel| -> SatK - Coef almost 0 - water almost free falling and hyd. press. almost zero 
 
-                                !vel = zero - Coef = 1 - hydrostatic - hydro pressure is the saturated height above cell
+                                    !vel = zero - Coef = 1 - hydrostatic - hydro pressure is the saturated height above cell
+                                    
+                                    !if vel positive, bigger positive velocity bigger hydrostatic effect 
                                 
-                                !if vel positive, bigger positive velocity bigger hydrostatic effect 
+                                    HydroCoef =  1.0 + (CenterVelocityW / Me%SatK(i, j, k)) 
+                                    
+                                endif
+                           
+                            else
                                 
-                                HydroCoef =  1.0 + (CenterVelocityW / Me%SatK(i, j, k)) 
+                                HydroCoef = 1.0 + (CenterVelocityW / Me%SatK(i, j, k)) 
                            
                             end if
                             
@@ -4786,11 +4794,11 @@ dConv:  do while (iteration <= Niteration)
      
         !Begin-----------------------------------------------------------------
         
-        CHUNK = CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)
+        !CHUNK = CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)
 
         if (Me%TranspirationExists) then
-            !$OMP PARALLEL SHARED(CHUNK) PRIVATE(I,J,K)
-            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            !!$OMP PARALLEL SHARED(CHUNK) PRIVATE(I,J,K)
+            !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
             do K = Me%WorkSize%KLB,     Me%WorkSize%KUB
             do J = Me%WorkSize%JLB,     Me%WorkSize%JUB
             do I = Me%WorkSize%ILB,     Me%WorkSize%IUB
@@ -4805,8 +4813,8 @@ dConv:  do while (iteration <= Niteration)
             enddo            
             enddo  
               
-            !$OMP END DO
-            !$OMP END PARALLEL     
+            !!$OMP END DO
+            !!$OMP END PARALLEL     
         
         endif
         

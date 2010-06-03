@@ -507,7 +507,7 @@ Module ModulePorousMediaProperties
 #endif        
         real,    pointer, dimension(:,:,:)          :: CellSolutionVolume            !Used by SoilChemistry & ChainReactions modules
         
-        integer, pointer, dimension(:)              :: PropertiesList                !List with ID of all properties used
+        integer, pointer, dimension(:)              :: PropertiesList                !List with ID of all properties used 
  
         type (T_ExtVar)                             :: ExtVar
         type (T_Files)                              :: Files
