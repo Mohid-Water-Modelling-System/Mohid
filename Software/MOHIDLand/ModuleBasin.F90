@@ -44,7 +44,7 @@ Module ModuleBasin
     use ModuleTimeSerie
     use ModuleHDF5
     use ModuleFunctions,      only : ReadTimeKeyWords, LatentHeat, ConstructPropertyID,  &
-                                     TimeToString, ChangeSuffix, CHUNK_J
+                                     TimeToString, ChangeSuffix, CHUNK_J, SetMatrixValue
     use ModuleFillMatrix,     only : ConstructFillMatrix, ModifyFillMatrix,              &
                                      KillFillMatrix,GetIfMatrixRemainsConstant
     use ModuleHorizontalGrid, only : ConstructHorizontalGrid, KillHorizontalGrid,        &
@@ -281,6 +281,8 @@ Module ModuleBasin
         logical                                     :: Particulate
         type (T_PropMassBalance)                    :: MB
         real(8), dimension(:,:), pointer            :: VegetationConc       => null()
+        real(8), dimension(:,:), pointer            :: VegetationDrainage   => null()
+        real(8), dimension(:,:), pointer            :: VegetationOldMass    => null()
         logical                                     :: Inherited            = .false. 
         real                                        :: VegTotalStoredMass   = 0.       
     end type T_BasinProperty    
@@ -1519,7 +1521,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             PropertyX => Me%FirstProperty
             do while (associated (PropertyX))
                 if (PropertyX%Inherited) then
-                    i = i + 1
+                    i = i + 2
                 endif
                 PropertyX => PropertyX%Next
             enddo
@@ -1541,11 +1543,11 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         PropertyList(7)  = 'Water Column Removed'
         i = 8
         if (Me%Coupled%Vegetation) then
-            PropertyList(i)  = 'Potential Crop EVTP'
-            i = i + 1
             PropertyList(i) = 'Canopy Capacity [m]'
             i = i + 1
             PropertyList(i) = 'Canopy Storage [m]'
+            i = i + 1
+            PropertyList(i)  = 'Potential Crop EVTP [mm/h]'
             i = i + 1
         
             if (Me%EvapoTranspirationMethod == SeparateEvapoTranspiration) then        
@@ -1562,7 +1564,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             PropertyX => Me%FirstProperty
             do while (associated (PropertyX))
                 if (PropertyX%Inherited) then
-                    PropertyList(i) = 'Leaf Vegetation '//trim(PropertyX%ID%Name)//'[mg/l]'
+                    PropertyList(i) = 'Leaf Conc '//trim(PropertyX%ID%Name)//'[mg/l]'
+                    i = i + 1
+                    PropertyList(i) = 'Leaf Mass '//trim(PropertyX%ID%Name)//'[g]'
                     i = i + 1
                 endif
                 PropertyX => PropertyX%Next
@@ -2196,6 +2200,12 @@ cd2 :           if (BlockFound) then
                         if (Me%Coupled%Vegetation) then
                             allocate (NewProperty%VegetationConc(Me%WorkSize%ILB:Me%WorkSize%IUB, Me%WorkSize%JLB:Me%WorkSize%JUB))
                             NewProperty%VegetationConc = 0.0
+                            allocate (NewProperty%VegetationDrainage(Me%WorkSize%ILB:Me%WorkSize%IUB,                         &
+                                                                     Me%WorkSize%JLB:Me%WorkSize%JUB))
+                            NewProperty%VegetationDrainage = 0.0
+                            allocate (NewProperty%VegetationOldMass(Me%WorkSize%ILB:Me%WorkSize%IUB,                         &
+                                                                     Me%WorkSize%JLB:Me%WorkSize%JUB))
+                            NewProperty%VegetationOldMass = 0.0                            
                         endif
                     
                         ! Add new Property to the Basin List 
@@ -3153,7 +3163,10 @@ etr_fao:        if (CalcET0) then
         enddo
         enddo
         
-        EvaporateFromCanopy = Me%Coupled%Vegetation .AND. Me%EvapFromCanopy               
+        EvaporateFromCanopy = Me%Coupled%Vegetation .AND. Me%EvapFromCanopy 
+        
+        !Pointer so that mass balance right even if there is no evaporation
+        call SetMatrixValue (Me%CanopyStorageOld, Me%Size, Me%CanopyStorage)
         
         if (Me%EvapMethod .EQ. LatentHeatMethod) then
         
@@ -3174,8 +3187,6 @@ etr_fao:        if (CalcET0) then
                     
                         !Accumulated EVAP from Canopy
                         Me%AccEVPCanopy(i, j) = Me%AccEVPCanopy(i, j) + dH
-                        
-                        Me%CanopyStorageOld(i,j)= Me%CanopyStorage(i, j)
                         
                         !New Canopy Storage
                         Me%CanopyStorage(i, j) = Me%CanopyStorage(i, j) - dH
@@ -3240,7 +3251,7 @@ etr_fao:        if (CalcET0) then
                 Evaporation = EvaporationMatrix(i, j) * Me%CurrentDT
 
                 if (Me%ExtVar%BasinPoints(i, j) .EQ. WaterPoint) then
-        
+
                     if (EvaporateFromCanopy) then
                                        
                         !dH
@@ -3406,13 +3417,13 @@ etr_fao:        if (CalcET0) then
 
                     if (Me%ExtVar%BasinPoints(i, j) == WaterPoint) then
                         
-                        OldVolumeOnLeafs = Me%CoveredFractionOld(i, j) * Me%CanopyStorageOld(i, j) * Me%ExtVar%GridCellArea(i, j)
-                        
-                        !g = m3 * g/m3
-                        VegetationOldMass   = OldVolumeOnLeafs * Property%VegetationConc(i,j)
-                        
                         !Mix after routine DividePrecipitation
                         if (WarningString == "WaterMix") then
+                            
+                            !At this point old volume has to be the one from previous time step - covered fraction old
+                            !and canopystorage before the mix with rain and removal from drainage
+                            OldVolumeOnLeafs = Me%CoveredFractionOld(i, j) * Me%CanopyStorageOld(i, j)                        &
+                                               * Me%ExtVar%GridCellArea(i, j)
                             
                             !Mass from Rain
                             !m3 = m * m2plant
@@ -3424,8 +3435,9 @@ etr_fao:        if (CalcET0) then
                             !m3
                             VegetationNewVolume = OldVolumeOnLeafs + RainVolume                                                   
                             !g
-                            VegetationNewMass   = VegetationOldMass + RainMassToVeg
-                                                   
+                            VegetationNewMass   = Property%VegetationOldMass(i,j) + RainMassToVeg
+                            
+                            !Update veg conc with rain because the drainage flux needs a new conc
                             if (VegetationNewVolume .gt. 0.0) then
                                 !g/m3 = g / (m * m2)
                                 Property%VegetationConc(i,j) = VegetationNewMass / VegetationNewVolume
@@ -3433,28 +3445,42 @@ etr_fao:        if (CalcET0) then
                                 Property%VegetationConc(i,j) = 0.0
                             endif                                                   
                             
-                            !Mass drained to soil
+                            !Mass drained to soil - with the new veg conc.
                             !m3 = m * m2plant
                             DrainageVolume      = Me%CanopyDrainage(i,j) * Me%ExtVar%GridCellArea(i, j)
+                            
                             !g = (m * m2cel) * g/m3 - Canopy drainage is height in cell area
                             DrainageMassFromVeg = DrainageVolume * Property%VegetationConc(i,j)
+                            
+                            Property%VegetationDrainage(i,j) = DrainageMassFromVeg
+
+                            if (Me%VerifyGlobalMass) then
+                                !output for vegetation leafs
+                                !kg = kg + ((m*m2cell * g/m3 * 1e-3 kg/g) - Canopy drainage is height in cell area
+                                Property%MB%VegDrainedMass   = Property%MB%VegDrainedMass + DrainageMassFromVeg * 1e-3
+                            endif
 
                             !m3
                             VegetationNewVolume = VegetationNewVolume - DrainageVolume
+                            
                             !g
                             VegetationNewMass   = VegetationNewMass - DrainageMassFromVeg
-
+                            
+                            !Update the new conc now with drainage flux
                             if (VegetationNewVolume .gt. 0.0) then
                                 !g/m3 = g / (m * m2)
                                 Property%VegetationConc(i,j) = VegetationNewMass / VegetationNewVolume
                             else
                                 Property%VegetationConc(i,j) = 0.0
                             endif 
+                            
+                            Property%VegetationOldMass(i,j) = VegetationNewMass
                         
                         !compute new concentration after routine ComputePotentialEvapotranspiration
                         elseif (WarningString == "Evaporation") then 
                             
-                            VegetationNewMass = VegetationOldMass
+                            !Mass does not change with evaporation
+                            VegetationNewMass = Property%VegetationOldMass(i,j)
                         
                             if (Me%CanopyStorage(i, j) .gt. 0.0) then
                                 !g/m3 = g / (m * m2)
@@ -3539,11 +3565,11 @@ etr_fao:        if (CalcET0) then
                             
                             Property%MB%TotalRainMass = Property%MB%UncoveredRainMass + Property%MB%CoveredRainMass
                                                                                      
-                            !output for vegetation leafs
-                            !kg = kg + ((m*m2cell * g/m3 * 1e-3 kg/g) - Canopy drainage is height in cell area
-                            Property%MB%VegDrainedMass   = Property%MB%VegDrainedMass + (Me%CanopyDrainage(i,j)              &
-                                                           * Me%ExtVar%GridCellArea(i, j) * Property%VegetationConc(i,j)     &
-                                                           * 1e-3)
+!                            !output for vegetation leafs
+!                            !kg = kg + ((m*m2cell * g/m3 * 1e-3 kg/g) - Canopy drainage is height in cell area
+!                            Property%MB%VegDrainedMass   = Property%MB%VegDrainedMass + (Me%CanopyDrainage(i,j)              &
+!                                                           * Me%ExtVar%GridCellArea(i, j) * Property%VegetationConc(i,j)     &
+!                                                           * 1e-3)
                                                            
                             Property%MB%RunoffInputMass   = Property%MB%VegDrainedMass + Property%MB%UncoveredRainMass
                                 
@@ -5039,7 +5065,7 @@ etr_fao:        if (CalcET0) then
                 allocate(NewRPConcentration(Me%WorkSize%ILB:Me%WorkSize%IUB,Me%WorkSize%JLB:Me%WorkSize%JUB))
                 NewRPConcentration = null_real
 
-                !Get the most recent conc from RP
+                !Get the most recent conc. from RP
                 call GetRPConcentration(RunoffPropertiesID       = Me%ObjRunoffProperties,       &
                                          ConcentrationX          = RPConcentration,              &
                                          PropertyXIDNumber       = PropID,                       &
@@ -5069,7 +5095,13 @@ etr_fao:        if (CalcET0) then
                             !deposition driven by complete infiltration of water column (WC totally infiltrated in time step) 
                             if ((PropParticulate) .and. (Me%ExtUpdate%WatercolumnOld(i,j) .gt. AlmostZero)) then
                                 MassToBottom(i,j) = PropertyMassOld
-                            endif                            
+                            endif  
+                            
+                            !IT IS NEEDED A FORMULATION SIMILAR FOR DISSOLVED PROPERTIES IF EVAPORATION REMOVES ALL WATER
+                            !COLUMN IN ONE TIME STEP. THIS MAY BE DONE WITH MASS MATRIX HERE AND IN RUNOFFPROPERTIES
+                            !The problem is that RunoffProperties has to update mass even if cell returned no water because
+                            !the water may have been removed by infiltration.
+                                                      
                         endif                
                         
                       
@@ -5143,10 +5175,13 @@ etr_fao:        if (CalcET0) then
                             
                             call SearchProperty(Property, PropID, .true., STAT = STAT_CALL) 
                             if (STAT_CALL /= SUCCESS_) stop 'ComputeMassInFlow - ModuleBasin - ERR07.5'
+
+                            !g         
+                            MassInDrainage = Property%VegetationDrainage(i,j) 
                              
-                            !g         =     (g/m3) * m *  m2cell - - Canopy drainage is height in cell area 
-                            MassInDrainage = Property%VegetationConc(i,j) * Me%CanopyDrainage(i, j)                     &
-                                              * Me%ExtVar%GridCellArea(i, j) 
+!                            !g         =     (g/m3) * m *  m2cell - - Canopy drainage is height in cell area 
+!                            MassInDrainage = Property%VegetationConc(i,j) * Me%CanopyDrainage(i, j)                     &
+!                                              * Me%ExtVar%GridCellArea(i, j) 
                                           
                             MassInFlow(i,j) = MassInRain +  MassInDrainage                 
                         
@@ -5270,7 +5305,7 @@ etr_fao:        if (CalcET0) then
         !Local-----------------------------------------------------------------
         integer                                     :: i, j, STAT_CALL
         
-        Me%ExtUpdate%WaterColumnOld => Me%ExtUpdate%WaterColumn
+        !Me%ExtUpdate%WaterColumnOld => Me%ExtUpdate%WaterColumn
         
         do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         do i = Me%WorkSize%ILB, Me%WorkSize%IUB
@@ -5437,7 +5472,7 @@ etr_fao:        if (CalcET0) then
         real, dimension(6), target                  :: AuxTime
         type (T_BasinProperty), pointer             :: RefEvapotrans
         real, dimension(:,:), pointer               :: PotentialTranspiration, PotentialEvaporation
-        real, dimension(:,:), pointer               :: PotentialEvapoTranspiration
+        real, dimension(:,:), pointer               :: PotentialEvapoTranspiration, CropEvapotrans
         real, dimension(:,:), pointer               :: ActualTranspiration, ActualEvaporation
         real, dimension(:,:), pointer               :: ActualTP, ActualEVAP
         type (T_BasinProperty), pointer             :: Property
@@ -5490,13 +5525,8 @@ etr_fao:        if (CalcET0) then
         if (STAT_CALL /= SUCCESS_) stop 'TimeSerieOutput - ModuleBasin - ERR01'
 
         if (Me%Coupled%Vegetation) then
-            
-            !Potential Crop Evapotranspiration
-            call WriteTimeSerie (Me%ObjTimeSerie,                                   &
-                                 Data2D = Me%CropEvapotrans,            &
-                                 STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'TimeSerieOutput - ModuleBasin - ERR07'            
-            
+
+           
             !Canopy Capacity 
             call WriteTimeSerie (TimeSerieID = Me%ObjTimeSerie,                     &
                                  Data2D_8    = Me%CanopyStorageCapacity,            &                             
@@ -5509,6 +5539,26 @@ etr_fao:        if (CalcET0) then
                                  STAT        = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'TimeSerieOutput - ModuleBasin - ERR09'
 
+
+           allocate(CropEvapotrans(Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
+
+            !Convert Units to mm/h
+            do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+            do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+                if (Me%ExtVar%BasinPoints(i, j) == BasinPoint) then
+                    !m/s * 1000 mm/m * 3600 s/h = mm/h
+                    CropEvapotrans(i,j)   = Me%CropEvapotrans(i,j) * 1000. * 3600.
+                endif
+            enddo
+            enddo
+            
+            !Potential Crop Evapotranspiration
+            call WriteTimeSerie (Me%ObjTimeSerie,                                   &
+                                 Data2D = CropEvapotrans,                           &
+                                 STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'TimeSerieOutput - ModuleBasin - ERR07'            
+
+            deallocate (CropEvapotrans)
 
             if (Me%EvapoTranspirationMethod == SeparateEvapoTranspiration) then
 
@@ -5581,7 +5631,12 @@ etr_fao:        if (CalcET0) then
                     call WriteTimeSerie (Me%ObjTimeSerie,                                   &
                                          Data2D_8 = Property%VegetationConc,                &
                                          STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'TimeSerieOutput - ModuleBasin - ERR120'                    
+                    if (STAT_CALL /= SUCCESS_) stop 'TimeSerieOutput - ModuleBasin - ERR120'  
+                    call WriteTimeSerie (Me%ObjTimeSerie,                                   &
+                                         Data2D_8 = Property%VegetationOldMass,             &
+                                         STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'TimeSerieOutput - ModuleBasin - ERR130' 
+                                      
                 endif
                 Property => Property%Next
             enddo            
@@ -6367,6 +6422,9 @@ etr_fao:        if (CalcET0) then
         do while (associated(CurrProperty)) 
 
             if (CurrProperty%Inherited) then
+                
+                CurrProperty%VegTotalStoredMass = 0.0
+
                 do j = Me%WorkSize%JLB, Me%WorkSize%JUB
                 do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                             

@@ -2859,7 +2859,7 @@ do1:    do while(associated(Property))
         nProperties = 0
         do while (associated(PropertyX))
             if (PropertyX%TimeSerie) then
-                nProperties = nProperties + 2
+                nProperties = nProperties + 4
             endif
             PropertyX => PropertyX%Next
         enddo
@@ -2872,10 +2872,14 @@ do1:    do while(associated(Property))
         PropertyX  => Me%FirstProperty
         do while (associated(PropertyX))
             if (PropertyX%TimeSerie) then
-                PropertyList(n)  = trim(PropertyX%ID%Name)
+                PropertyList(n)  = trim(PropertyX%ID%Name) //' [mg/l]'
                 n=n+1
-                PropertyList(n)  = trim(PropertyX%ID%Name) //'_in_InfilColumn'
+                PropertyList(n)  = trim(PropertyX%ID%Name) //'_in_InfilColumn [mg/l]'
                 n=n+1
+                PropertyList(n)  = trim(PropertyX%ID%Name) //'_Diffusivity [m2/s]'
+                n=n+1
+                PropertyList(n)  = trim(PropertyX%ID%Name) //'_DiffusivitySurface [m2/s]'
+                n=n+1                
             endif
             PropertyX=>PropertyX%Next
         enddo
@@ -5787,89 +5791,51 @@ doi4 :      do i = ILB, IUB
         if (MonitorPerformance) call StartWatch ("ModulePorousMediaProperties", "VerticalDiffusion")
 
 
-        if (DiffusionV_Imp_Exp == ExplicitScheme) then
-        
-            CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
-          
-            !$OMP PARALLEL PRIVATE(i,j,k,AuxK,Aux1,Aux2)
+        CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+      
+        !$OMP PARALLEL PRIVATE(i,j,k,AuxK,Aux1,Aux2)
 
-do2 :       do k = Me%WorkSize%KLB, Me%WorkSize%KUB
-            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
-do3 :       do j = Me%WorkSize%JLB, Me%WorkSize%JUB
-do1 :       do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+do2 :   do k = Me%WorkSize%KLB, Me%WorkSize%KUB
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+do3 :   do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+do1 :   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
-                if (Me%ExtVar%ComputeFacesW3D(i, j, k  ) == 1)  then
-                
-                    ! [m^2/s * m * m / m]
-                    AuxK  =  CurrProperty%Diffusivity(i,j,k  )                              &
-                           * Me%ExtVar%Area          (i,j    )                              &
-                           / Me%ExtVar%DZZ           (i,j,k-1)
-
-                    ![m^3/s * s / m^3]
-                    Aux1 = AuxK * dble(Me%ExtVar%DT) / (Me%ExtVar%WaterContent(i, j, k-1) * Me%ExtVar%Cellvolume(i,j,k))
-                    Aux2 = AuxK * dble(Me%ExtVar%DT) / (Me%ExtVar%WaterContent(i, j, k  ) * Me%ExtVar%Cellvolume(i,j,k))
-
-                    Me%TICOEF3(i,j,k-1) = Me%TICOEF3(i,j,k-1) + Aux1 *                                  &
-                                         (CurrProperty%Concentration(i,j,k)-CurrProperty%Concentration(i,j,k-1))
-
-
-                    Me%TICOEF3(i,j,k  ) = Me%TICOEF3(i,j,k  ) - Aux2 *                                  &
-                                         (CurrProperty%Concentration(i,j,k)-CurrProperty%Concentration(i,j,k-1))
-
-                endif
-
-            end do do1
-            end do do3
-            !$OMP END DO
-            end do do2
-
-            !$OMP END PARALLEL
+            if (Me%ExtVar%ComputeFacesW3D(i, j, k  ) == 1)  then
             
+                ! [m^2/s * m * m / m]
+                AuxK  =  CurrProperty%Diffusivity(i,j,k  )                              &
+                       * Me%ExtVar%Area          (i,j    )                              &
+                       / Me%ExtVar%DZZ           (i,j,k-1)
+
+                ![m^3/s * s / m^3]
+                Aux1 = AuxK * dble(Me%ExtVar%DT) / Me%WaterVolume(i, j, k-1)
+                Aux2 = AuxK * dble(Me%ExtVar%DT) / Me%WaterVolume(i, j, k  ) 
+
+                Me%COEF3%E(i,j,k-1) = Me%COEF3%E(i,j,k-1) + Aux1 * DiffusionV_Imp_Exp
+
+                Me%COEF3%F(i,j,k-1) = Me%COEF3%F(i,j,k-1) - Aux1 * DiffusionV_Imp_Exp
+
+                Me%TICOEF3(i,j,k-1) = Me%TICOEF3(i,j,k-1) + Aux1                                               &
+                                     * (CurrProperty%Concentration(i,j,k)-CurrProperty%Concentration(i,j,k-1)) &
+                                     * (1. - DiffusionV_Imp_Exp)
+
+                Me%COEF3%D(i,j,k  ) = Me%COEF3%D(i,j,k  ) - Aux2 * DiffusionV_Imp_Exp
+
+                Me%COEF3%E(i,j,k  ) = Me%COEF3%E(i,j,k  ) + Aux2 * DiffusionV_Imp_Exp
+
+                Me%TICOEF3(i,j,k  ) = Me%TICOEF3(i,j,k  ) - Aux2                                               &
+                                     * (CurrProperty%Concentration(i,j,k)-CurrProperty%Concentration(i,j,k-1)) &
+                                     * (1. - DiffusionV_Imp_Exp)
+
+            endif
+
+        end do do1
+        end do do3
+        !$OMP END DO
+        end do do2
+
+        !$OMP END PARALLEL
             
-        elseif (DiffusionV_Imp_Exp == ImplicitScheme) then
-
-            CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
-          
-            !$OMP PARALLEL PRIVATE(i,j,k,AuxK,Aux1,Aux2)
-
-do5 :       do k = Me%WorkSize%KLB, Me%WorkSize%KUB
-            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
-do6 :       do j = Me%WorkSize%JLB, Me%WorkSize%JUB
-do4 :       do i = Me%WorkSize%ILB, Me%WorkSize%IUB
-
-                if (Me%ExtVar%ComputeFacesW3D(i, j, k  ) == 1)  then
-                
-                    ! [m^2/s * m * m / m]
-                    AuxK  =  CurrProperty%Diffusivity(i,j,k  )                              &
-                           * Me%ExtVar%Area          (i,j    )                              &
-                           / Me%ExtVar%DZZ           (i,j,k-1)
-
-                    ![m^3/s * s / m^3]
-                    Aux1 = AuxK * dble(Me%ExtVar%DT) / (Me%ExtVar%WaterContent(i, j, k-1) * Me%ExtVar%Cellvolume(i,j,k))
-                    Aux2 = AuxK * dble(Me%ExtVar%DT) / (Me%ExtVar%WaterContent(i, j, k  ) * Me%ExtVar%Cellvolume(i,j,k))
-
-                    Me%COEF3%E(i,j,k-1) = Me%COEF3%E(i,j,k-1) + Aux1 
-
-                    Me%COEF3%F(i,j,k-1) = Me%COEF3%F(i,j,k-1) - Aux1 
-
-
-
-                    Me%COEF3%D(i,j,k  ) = Me%COEF3%D(i,j,k  ) - Aux2 
-
-                    Me%COEF3%E(i,j,k  ) = Me%COEF3%E(i,j,k  ) + Aux2 
-
-
-                endif
-
-            end do do4
-            end do do6
-            !$OMP END DO
-            end do do5
-
-            !$OMP END PARALLEL
-
-        endif
-        
         
         if (MonitorPerformance) call StopWatch ("ModulePorousMediaProperties", "VerticalDiffusion")
 
@@ -6376,7 +6342,7 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         type (T_Property), pointer                  :: CurrProperty
         real(8), pointer, dimension(:,:,:)          :: FluxW
         integer                                     :: i, j, k, CHUNK
-        real                                        :: aux, TopDiffusion
+        real                                        :: aux, TopDiffusion, DZZ
 
         !Begin-----------------------------------------------------------------
         
@@ -6399,8 +6365,10 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                 !s/m3
                 aux             = (Me%ExtVar%DT/(Me%ExtVar%WaterContent(i,j,k) * Me%ExtVar%Cellvolume(i,j,k)))
                 
+                DZZ = 0.5 * (Me%ExtVar%DWZ(i,j,k) + Me%ExtVar%WaterColumn(i,j))
+                
                 ! - = m2/s * m2 /m * s/m3
-                TopDiffusion = CurrProperty%Diffusivity(i,j,k+1) * Me%ExtVar%Area(i,j) * aux / Me%ExtVar%DZZ(i,j,k  )
+                TopDiffusion = CurrProperty%Diffusivity(i,j,k+1) * Me%ExtVar%Area(i,j) * aux / DZZ
                 
                 !positive flow  -> exiting soil
                 Me%COEFExpl%CoefInterfRunoff(i,j,k) = - aux * FluxW(i,j,k+1) + TopDiffusion
@@ -7591,10 +7559,11 @@ cd2 :       if (Actual.GE.Property%Evolution%NextCompute) then
     subroutine OutPut_TimeSeries
 
         !External--------------------------------------------------------------
-        integer                                 :: STAT_CALL
+        integer                                 :: STAT_CALL, i, j
 
         !Local-----------------------------------------------------------------
         type (T_Property), pointer              :: PropertyX
+        real, dimension(:,:), pointer           :: SurfaceDiffusivity
 
         !----------------------------------------------------------------------
 
@@ -7614,9 +7583,29 @@ cd2 :       if (Actual.GE.Property%Evolution%NextCompute) then
                                     STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_)                              &
                     stop 'OutPut_TimeSeries - ModulePorousMediaProperties - ERR02'
+                
+                call WriteTimeSerie(Me%ObjTimeSerie,                    &
+                                    Data3D = PropertyX%Diffusivity,     &
+                                    STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)                              &
+                    stop 'OutPut_TimeSeries - ModulePorousMediaProperties - ERR03'
+                
+                allocate(SurfaceDiffusivity(Me%WorkSize%ILB:Me%WorkSize%IUB, Me%WorkSize%JLB:Me%WorkSize%JUB))
+                
+                !Only For Debug
+                do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+                do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+                    SurfaceDiffusivity(i, j) =  PropertyX%Diffusivity(i, j, Me%WorkSize%KUB +1)
+                enddo            
+                enddo         
 
-            
-
+                call WriteTimeSerie(Me%ObjTimeSerie,                    &
+                                    Data2D = SurfaceDiffusivity,        &
+                                    STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)                              &
+                    stop 'OutPut_TimeSeries - ModulePorousMediaProperties - ERR04'
+                    
+                deallocate(SurfaceDiffusivity)
             endif
             PropertyX=>PropertyX%Next
         enddo

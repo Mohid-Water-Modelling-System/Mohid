@@ -314,6 +314,7 @@ Module ModuleRunoffProperties
     type T_Property
         type (T_PropertyID)                     :: ID
         real, dimension(:,:), pointer           :: Concentration            => null()
+!        real, dimension(:,:), pointer           :: Mass                     => null()
         real, dimension(:,:), pointer           :: ConcentrationOld         => null()
         real, dimension(:,:), pointer           :: BottomConcentration      => null()
         real                                    :: BottomMinConc
@@ -1969,6 +1970,11 @@ cd2 :           if (BlockFound) then
         if (STAT_CALL .NE. SUCCESS_)stop 'Construct_PropertyValues - ModuleRunoffProperties - ERR10'
         NewProperty%Concentration(:,:) = FillValueReal
 
+!        allocate(NewProperty%Mass(ILB:IUB, JLB:JUB), STAT = STAT_CALL)
+!        if (STAT_CALL .NE. SUCCESS_)stop 'Construct_PropertyValues - ModuleRunoffProperties - ERR15'
+!        NewProperty%Mass(:,:) = FillValueReal
+
+
         allocate(NewProperty%ConcentrationOld(ILB:IUB, JLB:JUB), STAT = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)stop 'Construct_PropertyValues - ModuleRunoffProperties - ERR20'
         NewProperty%ConcentrationOld(:,:) = FillValueReal
@@ -2223,16 +2229,25 @@ cd2 :           if (BlockFound) then
 
 !            call GetRunoffWaterColumn     (Me%ObjRunoff, Me%ExtVar%WaterColumn, STAT = STAT_CALL) 
 !            if (STAT_CALL /= SUCCESS_) stop 'Construct_PropertyValues - ModuleRunoffProperties - ERR151'            
+
+            call GetGridCellArea    (Me%ObjHorizontalGrid,                                     & 
+                                     GridCellArea = Me%ExtVar%Area,                            & 
+                                     STAT = STAT_CALL )    
+            if (STAT_CALL /= SUCCESS_) stop 'Construct_PropertyValues - ModuleRunoffProperties - ERR0152'
             
             !initial concentration based on initial water column
             do j=Me%WorkSize%JLB, Me%WorkSize%JUB
             do i=Me%WorkSize%ILB, Me%WorkSize%IUB                    
                 if (Me%ExtVar%BasinPoints(i,j) == BasinPoint) then 
                     if (Me%ExtVar%InitialWaterColumn .gt. 0.0) then
-                        NewProperty%ConcentrationOld(i,j) = NewProperty%Concentration(i,j)           
-                    else
-                        NewProperty%Concentration(i,j) = 0.0
                         NewProperty%ConcentrationOld(i,j) = NewProperty%Concentration(i,j)
+                        !g = g/m3 * m * m2
+!                        NewProperty%Mass(i,j)             = NewProperty%Concentration(i,j) * Me%ExtVar%InitialWaterColumn &
+!                                                            * Me%ExtVar%Area(i,j)
+                    else
+                        NewProperty%Concentration(i,j)    = 0.0
+                        NewProperty%ConcentrationOld(i,j) = NewProperty%Concentration(i,j)
+!                        NewProperty%Mass(i,j)             = 0.0 
                     endif
                     if (NewProperty%Particulate) then
                         !kg/m2 = (g/m3 * (m * m2) * 1E-3 kg/g) / m2 + kg/m2
@@ -2249,6 +2264,8 @@ cd2 :           if (BlockFound) then
 !            call UnGetRunoff     (Me%ObjRunoff, Me%ExtVar%WaterColumn, STAT = STAT_CALL) 
 !            if (STAT_CALL /= SUCCESS_) stop 'Construct_PropertyValues - ModuleRunoffProperties - ERR152'            
 
+            call UnGetHorizontalGrid        (Me%ObjHorizontalGrid,Me%ExtVar%Area,STAT = STAT_CALL)   
+            if (STAT_CALL /= SUCCESS_) stop 'Construct_PropertyValues - ModuleRunoffProperties - ERR0153'
 
             call CheckFieldConsistence (NewProperty)
 
@@ -2828,7 +2845,7 @@ cd0:    if (Exist) then
             PropertyName = trim(adjustl(NewProperty%ID%name))
 
             NewProperty%Concentration(:,:) = FillValueReal
-
+!            NewProperty%Mass(:,:) = FillValueReal
 
             ! Reads from HDF file the Property concentration and open boundary values
             call HDF5SetLimits  (ObjHDF5, WorkILB, WorkIUB,                              &
@@ -2844,6 +2861,13 @@ cd0:    if (Exist) then
             if (STAT_CALL /= SUCCESS_)                                                   &
                 stop 'ReadOldConcBoundariesHDF - ModuleRunoffProperties - ERR03'
 
+
+!            call HDF5ReadData   (ObjHDF5, "/Concentration/"//NewProperty%ID%Name,        &
+!                                 NewProperty%ID%Name,                                    &
+!                                 Array2D = NewProperty%Mass,                             &
+!                                 STAT    = STAT_CALL)
+!            if (STAT_CALL /= SUCCESS_)                                                   &
+!                stop 'ReadOldConcBoundariesHDF - ModuleRunoffProperties - ERR03'
 
             call KillHDF5 (ObjHDF5, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                                   &
@@ -3290,12 +3314,14 @@ cd0:    if (Exist) then
 !    end subroutine GetRPCoupled
 !    !--------------------------------------------------------------------------
     
-    subroutine GetRPConcentration(RunoffPropertiesID, ConcentrationX, PropertyXIDNumber, &
+    subroutine GetRPConcentration(RunoffPropertiesID, ConcentrationX, &  !MassX, 
+                                PropertyXIDNumber,                    &
                                 PropertyXUnits, STAT)
 
         !Arguments---------------------------------------------------------------
         integer                                     :: RunoffPropertiesID
         real, pointer, dimension(:,:)               :: ConcentrationX
+!        real, pointer, dimension(:,:), optional     :: MassX
         character(LEN = *), optional, intent(OUT)   :: PropertyXUnits
         integer,                      intent(IN )   :: PropertyXIDNumber
         integer,            optional, intent(OUT)   :: STAT
@@ -3324,6 +3350,7 @@ cd0:    if (Exist) then
             if (STAT_CALL == SUCCESS_) then
                 
                 ConcentrationX => PropertyX%Concentration
+!                if (present(MassX)) MassX => PropertyX%Mass
 
                 if (present(PropertyXUnits)) then 
                    UnitsSize      = LEN (PropertyXUnits)
@@ -3439,13 +3466,14 @@ cd0:    if (Exist) then
 
     !---------------------------------------------------------------------------
 
-    subroutine SetBasinConcRP   (RunoffPropertiesID, BasinConcentration,         &
-                                                PropertyXIDNumber, MassToBottom, & 
+    subroutine SetBasinConcRP   (RunoffPropertiesID, BasinConcentration, & !BasinMass, &
+                                                PropertyXIDNumber, MassToBottom,   & 
                                                 STAT)
 
         !Arguments--------------------------------------------------------------
         integer                                         :: RunoffPropertiesID
         real,    dimension(:, :), pointer               :: BasinConcentration
+!        real,    dimension(:, :), pointer, optional     :: BasinMass
         integer                                         :: PropertyXIDNumber
         integer, intent(OUT), optional                  :: STAT
         real(8), dimension(:, :), pointer               :: MassToBottom
@@ -3486,6 +3514,7 @@ cd0:    if (Exist) then
                     if (Me%ExtVar%BasinPoints(i,j) == BasinPoint) then
                         
                         PropertyX%Concentration (i,j) = BasinConcentration (i,j)
+!                        PropertyX%Mass (i,j)          = BasinMass (i,j)
                         
                         if (PropertyX%Particulate) then
                             !Kg/m2 = ((Kg/m2 * m2) + (g * 1E-3kg/g)) / m2 
