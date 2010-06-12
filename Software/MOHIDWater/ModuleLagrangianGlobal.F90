@@ -9630,6 +9630,11 @@ iOpen2D:                    if  (Me%EulerModel(em)%OpenPoints3D(CurrentPartic%Po
                 CurrentPartic%KillPartic) then
                 MovePartic = .false.
             endif 
+            
+            if (MovePartic .and. NewPosition%ModelID < 0) then
+                MovePartic = .false.
+            endif
+            
 
 iFKP:       if (MovePartic) then
 
