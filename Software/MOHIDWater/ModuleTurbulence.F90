@@ -361,6 +361,7 @@ Module ModuleTurbulence
         type(T_External   )                         :: ExternalVar
         type(T_TurbVar    )                         :: TurbVar
     
+        logical                                     :: FirstIteration = .true.
 
         !Instance of Module_Time
         integer                                     :: ObjTime              = 0
@@ -3275,6 +3276,8 @@ cd4 :       if     (Me%TurbOptions%MODVISH .EQ. Constant_   ) then
             nullify(Me%ExternalVar%VelocityX)
             nullify(Me%ExternalVar%VelocityY)
             nullify(Me%ExternalVar%Chezy    )
+            
+            Me%FirstIteration = .false. 
 
             STAT_ = SUCCESS_
         else               
@@ -4354,17 +4357,15 @@ do2 :   do I = ILB, IUB
                 kd = GetLayer4Level(Me%ObjGeometry, id, jd, DepthLevel, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'OutPut_TimeSeries - ModuleTurbulence - ERR50'
 
+                call CorrectsCellsTimeSerie(Me%ObjTimeSerie, dn,  k = kd, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'OutPut_TimeSeries - ModuleTurbulence - ERR60'               
+                
+                if (Me%ExternalVar%WaterPoints3D(id, jd, kd) /= WaterPoint .and. Me%FirstIteration) then
 
-                if (Me%ExternalVar%WaterPoints3D(id, jd, kd) == WaterPoint) then
+                    write(*,*) 'Time serie station I=',Id, 'J=',Jd,'K=',kd,'is located in land' 
+                    write(*,*) 'OutPut_TimeSeries - ModuleWaterProperties - WRN100'
 
-                    call CorrectsCellsTimeSerie(Me%ObjTimeSerie, dn,  k = kd, STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'OutPut_TimeSeries - ModuleTurbulence - ERR60'
-
-                else
-                    
-                    stop 'OutPut_TimeSeries - ModuleTurbulence - ERR70'
-
-                endif
+                endif                
             endif
 
 
