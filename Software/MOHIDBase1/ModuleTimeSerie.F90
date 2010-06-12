@@ -1421,8 +1421,8 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
 
                 case ('DAYS')
                     Conversion_Seconds = 86400.
-                    if (Me%TimeCycle .and. Me%DataValues /= 31) then
-                        write(*,*)'For DAY cycle you must supply 31 values'
+                    if (Me%TimeCycle .and. Me%DataValues /= 366) then
+                        write(*,*)'For DAY cycle you must supply 366 values - Julian days'
                         stop 'StartTimeSerieInput - ModuleTimeSerie - ERR13'
                     endif
 
@@ -2772,7 +2772,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
         integer                                     :: STAT_ 
         real                                        :: Year, Month, Day
         real                                        :: Hour, Minute, Second
-        integer                                     :: StoredColumn
+        integer                                     :: StoredColumn, JulDay
 
 
         STAT_ = UNKNOWN_
@@ -2795,8 +2795,9 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
                         !Hours range from 0 - 23
                         Value1 = Me%DataMatrix(int(Hour+1), StoredColumn)
                     case ('DAYS')
-                        !Days range from 1 - 31
-                        Value1 = Me%DataMatrix(int(Day),    StoredColumn)
+                        !Days range from 1 - 366 - Julian Day
+                        call JulianDay(CurrentTime, JulDay)
+                        Value1 = Me%DataMatrix(JulDay,    StoredColumn)
                     case ('MONTHS')
                         !Month range from 1- 12
                         Value1 = Me%DataMatrix(int(Month),  StoredColumn)
