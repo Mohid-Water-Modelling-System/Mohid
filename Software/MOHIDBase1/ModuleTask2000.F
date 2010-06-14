@@ -14,6 +14,8 @@
         private ::      Prinrd
         public  ::      Name2Frequency
         
+        integer, parameter :: Ncompt = 115
+        
         contains
 
        subroutine Task2000Level(WaterLevel, TimeReference,
@@ -21,7 +23,6 @@
      
 
         !Arguments-------------------------------------------------------------
-        integer, parameter :: Ncompt = 115
         
         integer     TogaID
         real        WaterLevel
@@ -74,6 +75,10 @@ C 36 = S2)
       DATA ZA/ 27.49669D0,27.88607D0,28.94304D0,29.02517D0, 30.47152D0,
      & 31.09803D0,56.40794D0,57.49669D0,58.51258D0, 59.52848D0,
      &28.39866D0,28.48080D0,72.92714D0,74.02517D0, 86*0.D0/
+     
+     
+      call OrderTidalComponents(WaveAmplitude, WavePhase, 
+     %                                WaveName, NWaves)
 C
       IREAD = 5
       IRITE = 6
@@ -1267,6 +1272,52 @@ C
       
       end function Name2Frequency
       
+
+      subroutine OrderTidalComponents(WaveAmplitude, WavePhase, 
+     %                                WaveName,nWaves)
+    
+        !Arguments-------------------------------------------------------
+        real, dimension(Ncompt)         :: WaveAmplitude
+        real, dimension(Ncompt)         :: WavePhase
+        character(*), dimension(Ncompt) :: WaveName
+        integer                         :: nWaves
+        
+        !local-------------------------------------------------------
+        real, dimension(Ncompt)         :: AuxAmp
+        real, dimension(Ncompt)         :: AuxPhase
+        character(256), dimension(Ncompt) :: AuxName
+        logical, dimension(Ncompt)      :: Used
+        integer                         :: i, j, imin
+        real(8)                         :: MinFreq, AuxFreq
+        
+        !Begin-------------------------------------------------------
+        
+        Used(:) = .false.
+        
+        do i=1, nWaves
+            !Found minimum frequency
+            MinFreq = 1e16
+            do j=1, nWaves
+                AuxFreq = Name2Frequency(WaveName(j))
+                if (AuxFreq < MinFreq .and. .not. Used(j)) then
+                    MinFreq = AuxFreq
+                    imin    = j
+                endif
+            enddo
+            Used  (imin) = .true.
+            AuxAmp   (i) = WaveAmplitude(imin)
+            AuxPhase (i) = WavePhase    (imin)
+            AuxName  (i) = WaveName     (imin)
+                                     
+        enddo            
+        
+        WaveAmplitude(1:nWaves) = AuxAmp   (1:nWaves)
+        WavePhase    (1:nWaves) = AuxPhase (1:nWaves)
+        WaveName     (1:nWaves) = AuxName  (1:nWaves)
+        
+    
+       end subroutine OrderTidalComponents
+    
      
      
       end module ModuleTask2000
