@@ -2342,20 +2342,34 @@ do4 :       DO II = KLB+1, KUB+1
         real, intent(IN) :: Salinity        !ppt
 
         !Local-----------------------------------------------------------------
-
+        
         real :: TKelvin
+        logical :: OutOfRange
 
         !----------------------------------------------------------------------
+        
+        OutOfRange = .false.
 
+        if (Temperature < 0 .or. Temperature > 50 .or. Salinity < 0 .or. Salinity > 80) then
+            OutOfRange = .true.
+        endif
+        
+        if (OutOfRange) then
+            !mgO2/L
+            OxygenSaturation = 6.
+        
+        else
 
-        TKelvin = Temperature + AbsoluteZero
+            TKelvin = Temperature + AbsoluteZero
 
-        OxygenSaturation = exp(-139.34411 + 1.575701E05 / TKelvin                                  &
-                                          - 6.642308E07 /(TKelvin * TKelvin                    )   &
-                                          + 1.243800E10 /(TKelvin * TKelvin * TKelvin          )   &
-                                          - 8.621949E11 /(TKelvin * TKelvin * TKelvin * TKelvin)   &
-                               - (Salinity / 1.80655) * (3.1929E-02 - 19.428 / TKelvin             &
-                                                         + 3.8673E03/ (TKelvin * TKelvin)))
+            OxygenSaturation = exp(-139.34411 + 1.575701E05 / TKelvin                                  &
+                                              - 6.642308E07 /(TKelvin * TKelvin                    )   &
+                                              + 1.243800E10 /(TKelvin * TKelvin * TKelvin          )   &
+                                              - 8.621949E11 /(TKelvin * TKelvin * TKelvin * TKelvin)   &
+                                   - (Salinity / 1.80655) * (3.1929E-02 - 19.428 / TKelvin             &
+                                                             + 3.8673E03/ (TKelvin * TKelvin)))
+                                                             
+        endif
 
     end function OxygenSaturation
 
@@ -2379,43 +2393,61 @@ do4 :       DO II = KLB+1, KUB+1
         real :: Henry
         real :: m
         real :: b
+        logical :: OutOfRange
+
         !----------------------------------------------------------------------
+        
+        OutOfRange = .false.
 
-        if      (Temperature .GE. 0 .AND. Temperature .LE. 10   ) then
-            m       = (3.27 - 2.55) /10
-            b       = 3.27 - 10 * m 
-
-            Henry   = m *  Temperature + b
-
-        else if (Temperature .GE. 10 .AND. Temperature .LE. 20  ) then
-            m       = (4.01 - 3.27) /10
-            b       = 4.01-20 * m
-
-            Henry   = m *  Temperature + b
-
-        else if (Temperature .GE. 20 .AND. Temperature .LE. 30  ) then
-            m       = (4.75 - 4.01) /10
-            b       = 4.75 - 30 * m
-
-            Henry   = m *  Temperature + b
-
-        else if (Temperature .GE. 30 .AND. Temperature .LE. 40  ) then
-            m       = (5.35 - 4.75) /10
-            b       = 5.35 - 40 * m
-
-            Henry   = m *  Temperature + b
-
-        else if (Temperature .GE. 40 .AND. Temperature .LE. 50  ) then
-            m       = (5.88 - 5.35) /10
-            b       = 5.88 - 50 * m
-
-            Henry   = m *  Temperature + b
-
+        if (Temperature < 0 .or. Temperature > 50) then
+            OutOfRange = .true.
+        endif
+        
+        if (OutOfRange) then
+            !mgO2/L
+            OxygenSaturationHenry = 6.
+        
         else
+        
+            !----------------------------------------------------------------------
 
-        end if
-            
-        OxygenSaturationHenry = 0.21 / (Henry * 1. * 10. ** 4.) * 55.6
+            if      (Temperature .GE. 0 .AND. Temperature .LE. 10   ) then
+                m       = (3.27 - 2.55) /10
+                b       = 3.27 - 10 * m 
+
+                Henry   = m *  Temperature + b
+
+            else if (Temperature .GE. 10 .AND. Temperature .LE. 20  ) then
+                m       = (4.01 - 3.27) /10
+                b       = 4.01-20 * m
+
+                Henry   = m *  Temperature + b
+
+            else if (Temperature .GE. 20 .AND. Temperature .LE. 30  ) then
+                m       = (4.75 - 4.01) /10
+                b       = 4.75 - 30 * m
+
+                Henry   = m *  Temperature + b
+
+            else if (Temperature .GE. 30 .AND. Temperature .LE. 40  ) then
+                m       = (5.35 - 4.75) /10
+                b       = 5.35 - 40 * m
+
+                Henry   = m *  Temperature + b
+
+            else if (Temperature .GE. 40 .AND. Temperature .LE. 50  ) then
+                m       = (5.88 - 5.35) /10
+                b       = 5.88 - 50 * m
+
+                Henry   = m *  Temperature + b
+
+            else
+
+            end if
+                
+            OxygenSaturationHenry = 0.21 / (Henry * 1. * 10. ** 4.) * 55.6
+        
+        endif            
 
     end function OxygenSaturationHenry
 
@@ -2438,20 +2470,34 @@ do4 :       DO II = KLB+1, KUB+1
 
         !Local-----------------------------------------------------------------
         real                            :: Aux
+        logical :: OutOfRange
 
         !Begin-----------------------------------------------------------------
 
-        Aux = exp(7.7117-1.31403*(log(Temperature+45.93)))*PALT
+        OutOfRange = .false.
 
-        if (Salinity.gt.0.5) then  
-      
-            Aux = exp(log(aux)-Salinity *                       &
-                  (1.7674E-2 - 1.0754E-1/(Temperature+273.15) + &
-                  2.1407E3/(Temperature+273.15)**2))                
+        if (Temperature < 0 .or. Temperature > 50 .or. Salinity < 0 .or. Salinity > 80) then
+            OutOfRange = .true.
         endif
+        
+        if (OutOfRange) then
+            !mgO2/L
+            OxygenSaturationCeQualW2 = 6.
+        
+        else
+            Aux = exp(7.7117-1.31403*(log(Temperature+45.93)))*PALT
 
-        OxygenSaturationCeQualW2 = Aux
+            if (Salinity.gt.0.5) then  
+          
+                Aux = exp(log(aux)-Salinity *                       &
+                      (1.7674E-2 - 1.0754E-1/(Temperature+273.15) + &
+                      2.1407E3/(Temperature+273.15)**2))                
+            endif
 
+            OxygenSaturationCeQualW2 = Aux
+
+        endif
+        
     end function OxygenSaturationCeQualW2
 
     !--------------------------------------------------------------------------
