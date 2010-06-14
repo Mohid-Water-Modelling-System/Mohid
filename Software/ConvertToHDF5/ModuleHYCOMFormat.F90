@@ -23,12 +23,12 @@ Module ModuleHYCOMFormat
     use ModuleGridData
     use ModuleHorizontalGrid
     use ModuleDrawing
-    use netcdf
+    use netcdf90
 
     implicit none
 
     private 
-
+    
     !Subroutines---------------------------------------------------------------
 
     !Constructor

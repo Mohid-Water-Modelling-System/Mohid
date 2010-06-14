@@ -190,7 +190,7 @@ Module ModuleMOG2DFormat
     use ModuleHorizontalMap
 
     ! Manages NetCDF files
-    use netcdf
+    use netcdf90
     
     implicit none
 

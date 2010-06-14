@@ -33,14 +33,14 @@
 
 Module ncdflib
 
-    Use netcdf
+    Use netcdf90
     implicit none
 !
 !----------------------------------------------------------------------------!
 ! Subroutines                                                                !
 !----------------------------------------------------------------------------!
     private
-
+    
     
     public      ::  NCDF_ESC_CAB                 !Escrebe a cabeceira do ficheiro
     private     ::      NCDF_ESC_EJE_ATT         !Escrebe os atributos do eixo (pertence a cabeceira)

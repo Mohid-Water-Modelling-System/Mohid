@@ -48,7 +48,7 @@
 
 Module ModuleERA40Format
 
-    use netcdf
+    use netcdf90
     use ModuleGlobalData
     use ModuleHDF5
     use ModuleEnterData
@@ -59,7 +59,7 @@ Module ModuleERA40Format
     implicit none
 
     private 
-
+    
     !Subroutines---------------------------------------------------------------
 
     !Constructor

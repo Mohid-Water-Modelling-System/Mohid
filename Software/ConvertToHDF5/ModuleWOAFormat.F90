@@ -63,7 +63,7 @@
 
 Module ModuleWOAFormat
 
-    use netcdf
+    use netcdf90
     use ModuleGlobalData
     use ModuleHDF5
     use ModuleEnterData
@@ -73,8 +73,8 @@ Module ModuleWOAFormat
 
     implicit none
 
-    private 
-
+    private
+    
     !Subroutines---------------------------------------------------------------
 
     !Constructor

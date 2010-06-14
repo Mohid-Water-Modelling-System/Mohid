@@ -157,12 +157,12 @@ Module ModuleAladinFormat
     use ModuleHorizontalMap
 
     ! Manages NetCDF files
-    use netcdf
+    use netcdf90
     
     implicit none
 
     private 
-
+    
     !Subroutines---------------------------------------------------------------
 
     !Constructor

@@ -29,12 +29,12 @@ Module ModuleMERCATORFormat
     use ModuleMap
 
     ! Manages NetCDF files
-    use netcdf
+    use netcdf90
 
     implicit none
 
     private 
-
+    
     !Subroutines---------------------------------------------------------------
 
     !Constructor
@@ -1693,9 +1693,10 @@ BF:         if (BlockFound) then
 
 i1:             if (exist) then
 
-                    status=NF90_OPEN(trim(InputGridFile),NF90_NOWRITE,ncid)
+!                    status=NF90_OPEN(trim(InputGridFile),NF90_NOWRITE,ncid)
+                    status=NF90_OPEN("teste.nc",NF90_NOWRITE, ncid)
                     if (status /= nf90_noerr)                                           &
-                        stop 'OpenAndReadBathymMERCATORV4 - ModuleMERCATORFormat - ERR20'
+                       !stop 'OpenAndReadBathymMERCATORV4 - ModuleMERCATORFormat - ERR20'
 
                     status=NF90_INQ_DIMID(ncid,"latitude",dimid)
                     if (status /= nf90_noerr)                                           &

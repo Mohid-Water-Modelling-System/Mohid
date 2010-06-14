@@ -68,14 +68,14 @@ Module ModuleWRFFormat
     use ModuleTime
     use ModuleGridData
     use ModuleHorizontalGrid    
-    use netcdf
+    use netcdf90
     use proj4
 
 
     implicit none
 
     private 
-
+    
     !Subroutines---------------------------------------------------------------
 
     !Constructor
