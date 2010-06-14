@@ -382,7 +382,6 @@ Module ModuleMOG2DFormat
         
         !Local-----------------------------------------------------------------
         real, dimension(:,:  ), allocatable     :: Aux2D
-        real, dimension(:    ), allocatable     :: Aux1DLon, Aux1DLat
         logical                                 :: exist
         integer                                 :: ILB, IUB, JLB, JUB
         integer                                 :: WILB, WIUB, WJLB,WJUB
@@ -691,16 +690,14 @@ i1:                 if (exist) then
         
         !Local-----------------------------------------------------------------
         real, dimension(:,:    ), pointer       :: Aux2D, Aux2DRead
-        integer                                 :: ni, n, nInst, iOut, i, j
-        integer                                 :: ncid, status, dimid
+        integer                                 :: n, iOut, i, j
+        integer                                 :: ncid, status
         integer                                 :: nDimensions
         integer                                 :: nDims, nVars, nAtrr, xtype
-        integer                                 :: WestON, EastON, SouthON, NorthON
         character (len=80)                      :: nameAux
         character(Len=StringLength)             :: NameInHDF, AuxNameInHDF
         type (T_Time)                           :: FieldTime
         real, dimension(:,:    ), pointer       :: X_Elev, Y_Elev, Amplitude, Phase
-        real, dimension(:,:    ), pointer       :: x1_oe, x2_oe, y1_sn, y2_sn
 
 
         !Begin----------------------------------------------------------------
@@ -1055,8 +1052,7 @@ NameInHDF = trim(MOG2DName)
         !Arguments-----------------------------------------------------------
         character(Len=StringLength)     :: NameInHDF, AuxNameInHDF
         !Local-----------------------------------------------------------------
-        integer                         :: MohidID
-        
+       
         !Begin-----------------------------------------------------------------
 
 

@@ -456,8 +456,6 @@ d1:     do ni = 1, Me%nInstants
     subroutine AllocateVariables
 
         !Local-----------------------------------------------------------------
-        integer                             :: STAT_CALL
-
         allocate(Me%Temperature(Me%WorkSize%ILB:Me%WorkSize%IUB,              &
                              Me%WorkSize%JLB:Me%WorkSize%JUB))
 
@@ -483,7 +481,6 @@ d1:     do ni = 1, Me%nInstants
         !Local-----------------------------------------------------------------
         integer                                             :: STAT_CALL
         integer                                             :: CurrentInstant
-        character(len=19)                                   :: CharInitialDate  
 
         !Begin-----------------------------------------------------------------
         
@@ -1012,7 +1009,6 @@ i1:                 if (exist) then
         integer                                 :: ncid, status, dimid
         integer                                 :: nDimensions
         integer                                 :: nDims, nVars, nAtrr, xtype
-        integer                                 :: WestON, EastON, SouthON, NorthON
         character (len=80)                      :: nameAux
         character(Len=StringLength)             :: MohidName
         type (T_Time)                           :: FieldTime

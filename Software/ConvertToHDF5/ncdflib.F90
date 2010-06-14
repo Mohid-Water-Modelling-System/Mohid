@@ -21,7 +21,7 @@
 !            14062006 Se añade _FillValue, addoffset y scale_factor          !
 !****************************************************************************!
 !                                                                            !
-!   ATENTION: Precisa de compilar coa libreria netcdf                        !                                                                         !
+!   ATENTION: Precisa de compilar coa libreria netcdf                        !
 !                                                                            !
 !****************************************************************************!
 !                                                                            !
@@ -876,16 +876,19 @@ Subroutine NCDF_ESC_VAR (ficheiro,var,nInstante)
           endif
 
                 if(var%nDimensions==3) then
-                    status= nf90_put_var(ncid, varid,var%value2D,start=(/1,1,n/),count=(/ficheiro%xAxis%size,ficheiro%yAxis%size,1/))
+                    status= nf90_put_var(ncid, varid,var%value2D,start=(/1,1,n/),&
+                                         count=(/ficheiro%xAxis%size,ficheiro%yAxis%size,1/))
                      if(status/=nf90_noerr) call erro(status,806)
                 elseif(var%nDimensions==4) then
              
-                    status= nf90_put_var(ncid, varid,var%value3D,start=(/1,1,1,n/),count=(/ficheiro%xAxis%size,ficheiro%yAxis%size,ficheiro%zAxis%size,1/))
+                    status= nf90_put_var(ncid, varid,var%value3D,start=(/1,1,1,n/),&
+                                         count=(/ficheiro%xAxis%size,ficheiro%yAxis%size,ficheiro%zAxis%size,1/))
                     if(status/=nf90_noerr) call erro(status,807)
                 endif
      else
                 if(var%nDimensions==3) then  
-                    status= nf90_put_var(ncid, varid,var%value3D,start=(/1,1,1/),count=(/ficheiro%xAxis%size,ficheiro%yAxis%size,ficheiro%zAxis%size/))
+                    status= nf90_put_var(ncid, varid,var%value3D,start=(/1,1,1/),&
+                                         count=(/ficheiro%xAxis%size,ficheiro%yAxis%size,ficheiro%zAxis%size/))
                     if(status/=nf90_noerr) call erro(status,808)
                 elseif(var%nDimensions==2) then  
                     status= nf90_put_var(ncid, varid,var%value2D,start=(/1,1/),count=(/ficheiro%xAxis%size,ficheiro%yAxis%size/))

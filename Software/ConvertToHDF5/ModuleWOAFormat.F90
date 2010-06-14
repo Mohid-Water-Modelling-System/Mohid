@@ -17,7 +17,8 @@
 !DataFile
 !
 !   ACTION                      : char              -           !'CONVERT WOA FORMAT' to use this module
-!   FILEPATH                    : char              -           !Path to WOA05 original netcdf files(n0112an1.nc for e.g.) with ending slash
+!   FILEPATH                    : char              -           !Path to WOA05 original netcdf files(n0112an1.nc for e.g.) 
+!                                                               !with ending slash
 !   OUTPUTFILENAME              : char              -           !Path to WOA05 file generated from NETCDF file
 !
 !   MOHID_UNITS                  : 0/1              -           !Convert uM to mg/l
@@ -54,7 +55,8 @@
 !   MOHID names based on ModuleGlobalData
 !   P,N,Si have 14 levels, 0-500m
 !   O2 % has 24 levels, 0-1500m
-!   Standart Levels: 0,10,20,30,50,75,100,125,150,200,250,300,400,500,600,700,800,900,1000,1100,1200,1300,1400,1500,1750,2000,2500,3000,3500,4000,4500,5000,5500
+!   Standart Levels: 0,10,20,30,50,75,100,125,150,200,250,300,400,500,600,700,800,900,1000,1100,1200,1300,1400,1500,1750,
+!                    2000,2500,3000,3500,4000,4500,5000,5500
 !   Conversion eq:
 !   microM X = 10^-6 moles X/L == mmol X / m3
 !   mg X / L = microM X * 10^-3 * PM mg / L

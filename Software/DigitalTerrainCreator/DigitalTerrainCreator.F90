@@ -239,7 +239,7 @@ program DigitalTerrainCreator
         integer, dimension(8)                       :: F95Time
         integer                                     :: InterpolType
         real                                        :: NoDataPoint, LandPoint, DepthReferential
-        real                                        :: FilterRadiusI, FilterRadiusJ
+        integer                                     :: FilterRadiusI, FilterRadiusJ
         logical                                     :: Filter, FilterSpikes
         real                                        :: SpikesFactor
 
@@ -619,7 +619,7 @@ i2:         if      (trim(AuxChar) == 'j') then
                      SearchType   = FromFile_,                                      &
                      keyword      ='FILTER_RADIUS_J',                               &
                      ClientModule ='DigitalTerrainCreator',                         &
-                     Default      = 1.,                                             &
+                     Default      = 1,                                              &
                      STAT         = STAT_CALL)        
         if(STAT_CALL .ne. SUCCESS_) stop 'ConstructGlobalOptions - DigitalTerrainCreator - ERR68'
 
@@ -648,7 +648,7 @@ i2:         if      (trim(AuxChar) == 'j') then
                      SearchType   = FromFile_,                                      &
                      keyword      ='FILTER_RADIUS_I',                               &
                      ClientModule ='DigitalTerrainCreator',                         &
-                     Default      = 1.,                                             &
+                     Default      = 1,                                              &
                      STAT         = STAT_CALL)        
         if(STAT_CALL .ne. SUCCESS_) stop 'ConstructGlobalOptions - DigitalTerrainCreator - ERR76'
 

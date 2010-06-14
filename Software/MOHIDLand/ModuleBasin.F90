@@ -3383,7 +3383,7 @@ etr_fao:        if (CalcET0) then
         real(8)                                     :: OldVolumeOnLeafs
         type (T_BasinProperty), pointer             :: Property
         real, dimension(:,:), pointer               :: AtmConcentration
-        real(8)                                     :: VegetationOldMass, RainMassToVeg
+        real(8)                                     :: RainMassToVeg
         real(8)                                     :: DrainageMassFromVeg, VegetationNewMass
         real(8)                                     :: VegetationNewVolume, RainVolume
         real(8)                                     :: DrainageVolume

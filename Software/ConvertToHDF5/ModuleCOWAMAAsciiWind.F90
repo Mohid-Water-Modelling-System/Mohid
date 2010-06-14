@@ -732,8 +732,6 @@ i2:     if (Me%FirstFieldON) then
         type(T_Field), pointer                      :: NewField
 
         !Local----------------------------------------------------------------
-        real,  dimension(:), allocatable            :: Aux
-        character(len=StringLength)                 :: AuxString
         integer                                     :: i, j, l
         !Begin-----------------------------------------------------------------
         

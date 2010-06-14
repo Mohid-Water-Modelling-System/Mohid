@@ -2804,8 +2804,8 @@ doClass:        do iClass = 1, Me%Classification%nClasses
         real, dimension(:, :   ), pointer           :: AuxMatrix2D
         real                                        :: Aux, d1, d2
         real(8), dimension(:), allocatable          :: P,C
-        real(8)                                     :: Px,Cx,Error
-        integer                                     :: nc, status, n
+        real(8)                                     :: Px,Cx
+        integer                                     :: nc, n
 
         !Shorten
         ILB = Me%ExternalVar%WorkSize%ILB

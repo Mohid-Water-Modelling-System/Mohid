@@ -6772,7 +6772,7 @@ cd7 :   if (Me%PropCalc%Oxygen) then
     Me%Matrix(Zoo, Zoo)     = 1.0 + DTDay * ( ZooExcretionRate                                      & 
                                                      + ZooRespirationRate                           & 
                                                      + ZooNaturalMortality                          &                     
-                                                     + Me%ZPredMortalityRate                        &                                                                  
+                                                     + Me%ZPredMortalityRate                        &
                                                      - ZooGrossGrowRate)
    
     select case (Me%WQConfiguration)

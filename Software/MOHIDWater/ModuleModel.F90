@@ -1042,7 +1042,8 @@ il:         if (Me%RunLagrangian) then
 #endif OVERLAP
 
     !--------------------------------------------------------------------------
-    
+#ifdef _ONLINE_
+
     Subroutine ReadStringOnline
 
         
@@ -1085,6 +1086,9 @@ il:         if (Me%RunLagrangian) then
         deallocate(TimeReal)
 
     end subroutine ReadStringOnline
+    
+#endif _ONLINE_
+
 
     !--------------------------------------------------------------------------
 

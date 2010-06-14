@@ -969,7 +969,8 @@ doSS:               do n = 1,Me%NumberSubSubGroups
 
                         write(SubSubGroupName, *) "/", trim(Me%SubSubGroups(n))
                         
-                        RootGroup = trim(Me%BaseGroup)//"/"//trim(PropertyName)//trim(adjustl(SubGroupName))//trim(adjustl(SubSubGroupName))
+                        RootGroup = trim(Me%BaseGroup)//"/"//trim(PropertyName)//&
+                                    trim(adjustl(SubGroupName))//trim(adjustl(SubSubGroupName))
                         
                         call InterpolateGrids (RootGroup        = RootGroup,            &
                                                PropertyName     = PropertyName,         &
@@ -985,7 +986,8 @@ doSS:               do n = 1,Me%NumberSubSubGroups
 
                 else !ifS
 
-                    RootGroup = trim(Me%BaseGroup)//"/"//trim(PropertyName)//trim(adjustl(SubGroupName))//trim(adjustl(SubSubGroupName))
+                    RootGroup = trim(Me%BaseGroup)//"/"//trim(PropertyName)//&
+                                trim(adjustl(SubGroupName))//trim(adjustl(SubSubGroupName))
 
                     call InterpolateGrids (RootGroup        = RootGroup,                &
                                            PropertyName     = PropertyName,             &

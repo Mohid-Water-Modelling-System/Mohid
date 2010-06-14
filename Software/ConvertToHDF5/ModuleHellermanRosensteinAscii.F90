@@ -382,7 +382,8 @@ Module ModuleHellermanRosensteinAscii
         Me%WaterPoints2D(:,:) = 1
 
         allocate(Me%Aux2D         (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
-        allocate(Me%Aux2DHellermanRosenstein  (Me%HellermanRosensteinSize%ILB:Me%HellermanRosensteinSize%IUB,Me%HellermanRosensteinSize%JLB:Me%HellermanRosensteinSize%JUB))
+        allocate(Me%Aux2DHellermanRosenstein  (Me%HellermanRosensteinSize%ILB:Me%HellermanRosensteinSize%IUB,&
+                                               Me%HellermanRosensteinSize%JLB:Me%HellermanRosensteinSize%JUB))
 
         Me%Bathymetry (:,:) = MaxDepth
 
@@ -551,7 +552,8 @@ cd2 :           if (BlockFound) then
         Me%Aux2DHellermanRosenstein(:,:) = FillValueReal
         !The data is in 10 * Pa
         read(Me%Unit,*) ((Me%Aux2DHellermanRosenstein(i,j),              &
-            j=Me%HellermanRosensteinWSize%JLB,Me%HellermanRosensteinWSize%JUB),i=Me%HellermanRosensteinWSize%ILB,Me%HellermanRosensteinWSize%IUB)
+            j=Me%HellermanRosensteinWSize%JLB,Me%HellermanRosensteinWSize%JUB), &
+            i=Me%HellermanRosensteinWSize%ILB,Me%HellermanRosensteinWSize%IUB)
 
         !Transform the data is Pascals 
         Me%Aux2DHellermanRosenstein(:,:) = 0.1 * Me%Aux2DHellermanRosenstein(:,:)

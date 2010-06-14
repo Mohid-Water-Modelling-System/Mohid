@@ -242,7 +242,7 @@ d11:        do l = 1, Me%TotalDates
 
                         if (p ==1)             FirstProp = .true.
 
-                        call OutputWW3ASCII  (trim(Me%PropsName(p)), AuxTime, Aux2D, FirstProp) 
+                        call OutputWW3ASCII  (AuxTime, Aux2D, FirstProp) 
 
                  enddo d12
 
@@ -533,7 +533,7 @@ d1:     do l= 1, Me%NumberProps
 
         !Local-----------------------------------------------------------------
         integer                                     :: l, iflag, STAT_CALL, ConversionType, j
-        character(len=StringLength)                 :: AuxChar, PropName
+        character(len=StringLength)                 :: PropName
         logical                                     :: BlockFound, PropNameWrong
         !Begin-----------------------------------------------------------------
 
@@ -775,16 +775,15 @@ cd2 :           if (.not. BlockFound) then
 
     !--------------------------------------------------------------------------
 
-    subroutine OutputWW3ASCII(PropName, AuxTime, Aux2D, FirstProp) 
+    subroutine OutputWW3ASCII(AuxTime, Aux2D, FirstProp) 
 
         !Arguments-------------------------------------------------------------
-        character(len = *)                          :: PropName
         real,   dimension(:)  , pointer             :: AuxTime
         real,   dimension(:,:), pointer             :: Aux2D
         logical                                     :: FirstProp
         !Local----------------------------------------------------------------
-        character(len = PathLength)                 :: FileName, AuxChar
-        integer                                     :: i, j, STAT_CALL
+        character(len = PathLength)                 :: AuxChar
+        integer                                     :: i, j
         !Begin-----------------------------------------------------------------
         
         if (FirstProp) then
@@ -889,7 +888,6 @@ cd2 :           if (.not. BlockFound) then
         real, dimension(:  ), pointer                   :: AuxTime
         real                                            :: dt1, dt2
         integer                                         :: STAT_CALL, i, j, n
-        logical                                         :: FirstProp
         !Begin-----------------------------------------------------------------
 
         allocate(AuxTime(1:6))

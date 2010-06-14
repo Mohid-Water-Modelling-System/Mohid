@@ -432,7 +432,9 @@ Module ModuleLevitusFormat
 
         allocate(Me%SZZ           (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB,Me%Size%KLB:Me%Size%KUB))
         allocate(Me%Aux3D         (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB,Me%Size%KLB:Me%Size%KUB))
-        allocate(Me%Aux3DLevitus  (Me%LevitusSize%ILB:Me%LevitusSize%IUB,Me%LevitusSize%JLB:Me%LevitusSize%JUB,Me%LevitusSize%KLB:Me%LevitusSize%KUB))
+        allocate(Me%Aux3DLevitus  (Me%LevitusSize%ILB:Me%LevitusSize%IUB,   &
+                                   Me%LevitusSize%JLB:Me%LevitusSize%JUB,   &
+                                   Me%LevitusSize%KLB:Me%LevitusSize%KUB))
 
         Me%Bathymetry (:,:) = MaxDepth
 
@@ -697,7 +699,8 @@ BF:         if (BlockFound) then
             if (Me%Aux3DLevitus(i, j, k  ) > Me%FillValue / 2.) Aux1 = 1.
             if (Me%Aux3DLevitus(i, j, k-1) > Me%FillValue / 2.) Aux2 = 1.
             if ((Aux1 + Aux2) > 0.) then
-                NewField%MonthlyValues3D(iw, jw, k) = (Me%Aux3DLevitus(i, j, k) * Aux1 + Me%Aux3DLevitus(i, j, k-1) * Aux2) / (Aux1 + Aux2)
+                NewField%MonthlyValues3D(iw, jw, k) = (Me%Aux3DLevitus(i, j, k) * Aux1 + &
+                                                       Me%Aux3DLevitus(i, j, k-1) * Aux2) / (Aux1 + Aux2)
             else
                 NewField%MonthlyValues3D(iw, jw, k) = FillValueReal
             endif
@@ -718,7 +721,8 @@ BF:         if (BlockFound) then
                 if (Me%Aux3DLevitus(i, j, k  ) > Me%FillValue / 2.) Aux1 = 1.
                 if (Me%Aux3DLevitus(i, j, k-1) > Me%FillValue / 2.) Aux2 = 1.
                 if ((Aux1 + Aux2) > 0.) then
-                    NewField%MonthlyValues3D(iw, jw, k) = (Me%Aux3DLevitus(i, j, k) * Aux1 + Me%Aux3DLevitus(i, j, k-1) * Aux2) / (Aux1 + Aux2)
+                    NewField%MonthlyValues3D(iw, jw, k) = (Me%Aux3DLevitus(i, j, k  ) * Aux1 + &
+                                                           Me%Aux3DLevitus(i, j, k-1) * Aux2) / (Aux1 + Aux2)
                 else
                     NewField%MonthlyValues3D(iw, jw, k) = FillValueReal
                 endif
@@ -798,7 +802,8 @@ BF:         if (BlockFound) then
             if (Me%Aux3DLevitus(i, j, k  ) > Me%FillValue / 2.) Aux1 = 1.
             if (Me%Aux3DLevitus(i, j, k-1) > Me%FillValue / 2.) Aux2 = 1.
             if ((Aux1 + Aux2) > 0.) then
-                NewField%AnnualValues3D(iw, jw, k) = (Me%Aux3DLevitus(i, j, k) * Aux1 + Me%Aux3DLevitus(i, j, k-1) * Aux2) / (Aux1 + Aux2)
+                NewField%AnnualValues3D(iw, jw, k) = (Me%Aux3DLevitus(i, j, k  ) * Aux1 + &
+                                                      Me%Aux3DLevitus(i, j, k-1) * Aux2) / (Aux1 + Aux2)
             else
                 NewField%AnnualValues3D(iw, jw, k) = FillValueReal
             endif
@@ -818,7 +823,8 @@ BF:         if (BlockFound) then
                 if (Me%Aux3DLevitus(i, j, k  ) > Me%FillValue / 2.) Aux1 = 1.
                 if (Me%Aux3DLevitus(i, j, k-1) > Me%FillValue / 2.) Aux2 = 1.
                 if ((Aux1 + Aux2) > 0.) then
-                    NewField%AnnualValues3D(iw, jw, k) = (Me%Aux3DLevitus(i, j, k) * Aux1 + Me%Aux3DLevitus(i, j, k-1) * Aux2) / (Aux1 + Aux2)
+                    NewField%AnnualValues3D(iw, jw, k) = (Me%Aux3DLevitus(i, j, k  ) * Aux1 + &
+                                                          Me%Aux3DLevitus(i, j, k-1) * Aux2) / (Aux1 + Aux2)
                 else
                     NewField%AnnualValues3D(iw, jw, k) = FillValueReal
                 endif

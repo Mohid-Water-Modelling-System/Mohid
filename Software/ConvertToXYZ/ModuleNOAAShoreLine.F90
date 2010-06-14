@@ -50,7 +50,7 @@ module ModuleNOAA_ShoreLine
         logical                                 :: GettingFirstPoint    = .false.
     end type T_NOAA_ShoreLine
 
-    type(T_NOAA_ShoreLine)                      :: Me
+    type(T_NOAA_ShoreLine), pointer             :: Me
  
     !Parameters---------------------------------------------------------
     
@@ -73,6 +73,9 @@ module ModuleNOAA_ShoreLine
 
 
         STAT = UNKNOWN_
+        
+        nullify (Me)
+        allocate(Me)
 
         Me%ObjEnterData     = AssociateInstance(mEnterData_, EnterDataID)
 

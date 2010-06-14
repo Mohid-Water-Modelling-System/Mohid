@@ -3545,7 +3545,6 @@ do4:    do i=ILB, IUB
         integer                                 :: i,j
         real                                    :: WindVelocity, WaterTemp
         integer                                 :: ILB, IUB, JLB, JUB, KUB
-        type(T_Property), pointer               :: PropertyX
         
         !Begin------------------------------------------------------------------
 
@@ -3674,7 +3673,6 @@ do4:    do i=ILB, IUB
         integer                                 :: i,j
         real                                    :: WindVelocity, WaterVel, WaterTemp
         integer                                 :: ILB, IUB, JLB, JUB, KUB, STAT_CALL
-        type(T_Property), pointer               :: PropertyX
         
         !Begin------------------------------------------------------------------
 

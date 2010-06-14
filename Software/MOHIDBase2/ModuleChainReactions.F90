@@ -216,7 +216,6 @@ Module ModuleChainReactions
     type T_ChainReactions
         private
         integer                             :: InstanceID                    !ID of the ModuleChainReactions instance 
-        integer                             :: ChainReactionsInstanceID      !ID of the ChainReactions Object instance linked to the InstanceID instance
         type(T_ChainReactions), pointer     :: Next                          !Collection of instances of ModuleChainReactions
         
         character(MaxStrLength)             :: CallingModule
@@ -232,7 +231,8 @@ Module ModuleChainReactions
         type(T_ChainReactionsOptions)       :: Options
         type(T_Files)                       :: Files
                 
-        type(T_External)                    :: Ext                           !Pointers to Water Mass, Properties Values and other required data 
+        type(T_External)                    :: Ext                           !Pointers to Water Mass, Properties Values 
+                                                                             !and other required data 
         
         type(T_Property), pointer           :: FirstProperty               
         type(T_Property), pointer           :: LastProperty
@@ -1906,9 +1906,11 @@ cd1:    if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
                             elseif (PropertyX%RateOrder .EQ. FirstOrder) then
                                 select case (PropertyX%RateMethod)
                                 case (RateDefault)
-                                    PropertyX%Sink = min(PropertyX%Mass - PropertyX%Mass * exp(-SinkRate * DT / 86400), PropertyX%Mass)
+                                    PropertyX%Sink = min(PropertyX%Mass - PropertyX%Mass * &
+                                                         exp(-SinkRate * DT / 86400), PropertyX%Mass)
                                 case (RateAlternative)
-                                    PropertyX%Sink = min(PropertyX%Mass - PropertyX%Mass * ((1 - SinkRate) ** (DT / 86400)), PropertyX%Mass)
+                                    PropertyX%Sink = min(PropertyX%Mass - PropertyX%Mass * &
+                                                        ((1 - SinkRate) ** (DT / 86400)), PropertyX%Mass)
                                 end select
                             endif
                                                     
@@ -1941,7 +1943,8 @@ cd1:    if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
                             k2 => Me%Ext%SoilDensity2D
                         endif
 
-                        PairX%Pair1%G2D%Concentration(I, J) = - ChangeOfMass / (k1(I, J) + Kd * k2(I, J)) + PairX%Pair1%G2D%Concentration(I, J)
+                        PairX%Pair1%G2D%Concentration(I, J) = - ChangeOfMass / (k1(I, J) + Kd * k2(I, J)) + &
+                                                                PairX%Pair1%G2D%Concentration(I, J)
                         PairX%Pair2%G2D%Concentration(I, J) = Kd * PairX%Pair1%G2D%Concentration(I, J) 
                     
                         PairX => PairX%Next
@@ -2080,9 +2083,11 @@ cd1:    if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
                             elseif (PropertyX%RateOrder .EQ. FirstOrder) then
                                 select case (PropertyX%RateMethod)
                                 case (RateDefault)
-                                    PropertyX%Sink = min(PropertyX%Mass - PropertyX%Mass * exp(-SinkRate * DT / 86400), PropertyX%Mass)
+                                    PropertyX%Sink = min(PropertyX%Mass - PropertyX%Mass * &
+                                                         exp(-SinkRate * DT / 86400), PropertyX%Mass)
                                 case (RateAlternative)
-                                    PropertyX%Sink = min(PropertyX%Mass - PropertyX%Mass * ((1 - SinkRate) ** (DT / 86400)), PropertyX%Mass)
+                                    PropertyX%Sink = min(PropertyX%Mass - PropertyX%Mass * &
+                                                        ((1 - SinkRate) ** (DT / 86400)), PropertyX%Mass)
                                 end select
                             endif
                                                     
@@ -2115,7 +2120,8 @@ cd1:    if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
                             k2 => Me%Ext%SoilDensity3D
                         endif
 
-                        PairX%Pair1%G3D%Concentration(I, J, K) = - ChangeOfMass / (k1(I, J, K) + Kd * k2(I, J, K)) + PairX%Pair1%G3D%Concentration(I, J, K)
+                        PairX%Pair1%G3D%Concentration(I, J, K) = - ChangeOfMass / (k1(I, J, K) + Kd * k2(I, J, K)) + &
+                                                                   PairX%Pair1%G3D%Concentration(I, J, K)
                         PairX%Pair2%G3D%Concentration(I, J, K) = Kd * PairX%Pair1%G3D%Concentration(I, J, K) 
                     
                         PairX => PairX%Next

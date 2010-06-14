@@ -59,7 +59,13 @@
 		<File RelativePath="..\..\..\..\Software\ConvertToHDF5\ModuleERA40Format.F90"/>
 		<File RelativePath="..\..\..\..\Software\ConvertToHDF5\ModuleEUCenterFormat.F90"/>
 		<File RelativePath="..\..\..\..\Software\ConvertToHDF5\ModuleGFSasciiWind.F90"/>
-		<File RelativePath="..\..\..\..\Software\ConvertToHDF5\ModuleGlueHDF5Files.F90"/>
+		<File RelativePath="..\..\..\..\Software\ConvertToHDF5\ModuleGlueHDF5Files.F90">
+			<FileConfiguration Name="Release Double|Win32">
+				<Tool Name="VFFortranCompilerTool" StandardWarnings="standardWarningsNone"/></FileConfiguration>
+			<FileConfiguration Name="Debug|Win32">
+				<Tool Name="VFFortranCompilerTool" StandardWarnings="standardWarningsNone"/></FileConfiguration>
+			<FileConfiguration Name="Release|Win32">
+				<Tool Name="VFFortranCompilerTool" StandardWarnings="standardWarningsNone"/></FileConfiguration></File>
 		<File RelativePath="..\..\..\..\Software\ConvertToHDF5\ModuleHDF5ToASCIIandBIN.F90"/>
 		<File RelativePath="..\..\..\..\Software\ConvertToHDF5\ModuleHellermanRosensteinAscii.F90"/>
 		<File RelativePath="..\..\..\..\Software\ConvertToHDF5\ModuleHYCOMFormat.F90"/>

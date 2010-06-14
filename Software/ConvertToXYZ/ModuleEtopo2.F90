@@ -316,7 +316,7 @@ Module ModuleEtopo2
             rlat    = rlat-2./60.
             rlon    = Me%Window%Left
             jnext   = j + 1
-	  	     
+
         enddo
 
         write(Me%OutputUnit,*)"<end_xyz>"

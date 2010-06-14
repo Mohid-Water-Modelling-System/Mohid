@@ -4790,7 +4790,7 @@ dConv:  do while (iteration <= Niteration)
 
         !Local-----------------------------------------------------------------
         integer                                     :: i, j, k
-        integer                                     :: chunk
+        !integer                                     :: chunk
      
         !Begin-----------------------------------------------------------------
         

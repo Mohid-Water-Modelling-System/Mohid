@@ -1212,7 +1212,8 @@ cd0:        if (flag == 0) then
                     write (*,'(/,"LatCrs( 1, 1, 1, 1)", F10.4)') LatCrs(1,1,1,1)
                     write (*,'(/,"LatCrs(", I2,",1,1,1)", F10.4)') end_index(1), LatCrs(end_index(1),1,1,1)
                     write (*,'(/,"LatCrs( 1,", I2, ", 1, 1)", F10.4)') end_index(2), LatCrs(1,end_index(2),1,1)
-                    write (*,'(/,"LatCrs(",I2,",", I2, ", 1, 1)", F10.4)') end_index(1), end_index(2), LatCrs(end_index(1),end_index(2),1,1)
+                    write (*,'(/,"LatCrs(",I2,",", I2, ", 1, 1)", F10.4)') end_index(1), end_index(2), &
+                                                                           LatCrs(end_index(1),end_index(2),1,1)
                     write (*,*)
 
                     PrintLatCrs = .false.
@@ -1227,7 +1228,8 @@ cd0:        if (flag == 0) then
                     write (*,'(/,"LonCrs( 1, 1, 1, 1)", F10.4)') LonCrs(1,1,1,1)
                     write (*,'(/,"LonCrs(", I2,",1,1,1)", F10.4)') end_index(1), LonCrs(end_index(1),1,1,1)
                     write (*,'(/,"LonCrs( 1,", I2, ", 1, 1)", F10.4)') end_index(2), LonCrs(1,end_index(2),1,1)
-                    write (*,'(/,"LonCrs(",I2,",", I2, ", 1, 1)", F10.4)') end_index(1), end_index(2), LonCrs(end_index(1),end_index(2),1,1)
+                    write (*,'(/,"LonCrs(",I2,",", I2, ", 1, 1)", F10.4)') end_index(1), end_index(2), &
+                                                                           LonCrs(end_index(1),end_index(2),1,1)
                     write (*,*)
 
                     PrintLonCrs = .false.

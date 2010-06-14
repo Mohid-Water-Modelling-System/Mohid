@@ -2765,7 +2765,7 @@ DE:             if (NewOrigin%State%Deposition) then
                                  flag,                                                   &
                                  SearchType   = FromBlock,                               &
                                  keyword      ='BOTTOM_DISTANCE',                        &
-                                 default      = 0.1,                                     &                                                                   
+                                 default      = 0.1,                                     &
                                  ClientModule ='ModuleLagrangian',                       &
                                  STAT         = STAT_CALL)
 
@@ -2778,7 +2778,7 @@ DE:             if (NewOrigin%State%Deposition) then
                                  SearchType   = FromBlock,                               &
                                  keyword      ='TIME_DECAY',                             &
                                  !defaul 2 days
-                                 default      = 172800.,                                 &                                                                   
+                                 default      = 172800.,                                 &
                                  ClientModule ='ModuleLagrangian',                       &
                                  STAT         = STAT_CALL)
 
@@ -13871,7 +13871,7 @@ CurrOr:     do while (associated(CurrentOrigin))
         type (T_Partic), pointer                    :: CurrentPartic
         type (T_Origin), pointer                    :: CurrentOrigin
         integer                                     :: ILB, IUB, JLB, JUB, KLB, KUB
-        integer                                     :: i, j, k, Box, n, OutPutNumber
+        integer                                     :: i, j, k, n, OutPutNumber
         integer                                     :: STAT_CALL
         integer                                     :: WS_ILB, WS_IUB, WS_JLB, WS_JUB
         integer                                     :: WS_KLB, WS_KUB
@@ -13991,8 +13991,11 @@ if1:    if (Me%ExternalVar%Now >= Me%OutPut%OutTime(OutPutNumber)) then
                     WaterTemperature        = Temperature3D             (i, j, k)
 
 
-                100 format(4X, i6,4X,f12.2, 4X, f12.2, 4X, f12.2, 4X, i3, 4X, i6, 4X, i7, 4X,  i3, 4X, i3, 4X, i3, 4X, f12.2, 4X, f12.2, 4X, i3.3, i3.3, 4X, i3.3, i3.3, 4X, i3, 4X, i3, 4X, f6.2)
-                110 format(4X, i6,4X,f12.2, 4X, f12.2, 4X, f12.2, 4X, i3, 4X, i7, 4X, i3.3, i3.3, 4X, i3.3, i3.3, 4X, i3, 4X, i3, 4X, f6.2)
+                100 format(4X, i6,4X,f12.2, 4X, f12.2, 4X, f12.2, 4X, i3, 4X, i6, 4X,   &
+                           i7, 4X,  i3, 4X, i3, 4X, i3, 4X, f12.2, 4X, f12.2, 4X, i3.3, &
+                           i3.3, 4X, i3.3, i3.3, 4X, i3, 4X, i3, 4X, f6.2)
+                110 format(4X, i6,4X,f12.2, 4X, f12.2, 4X, f12.2, 4X, i3, 4X, i7, 4X,   &
+                           i3.3, i3.3, 4X, i3.3, i3.3, 4X, i3, 4X, i3, 4X, f6.2)
 
                    
                     If (CurrentOrigin%State%Oil) then

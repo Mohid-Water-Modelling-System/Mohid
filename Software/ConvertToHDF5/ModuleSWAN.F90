@@ -415,7 +415,7 @@ d2:     do l= 1, Me%NumberUnits
 
         !Local-----------------------------------------------------------------
         integer                                     :: l, iflag, STAT_CALL, ConversionType, j
-        character(len=StringLength)                 :: AuxChar, PropName
+        character(len=StringLength)                 :: PropName
         logical                                     :: BlockFound, PropNameWrong
         !Begin-----------------------------------------------------------------
 

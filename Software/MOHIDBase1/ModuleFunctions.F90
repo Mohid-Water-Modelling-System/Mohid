@@ -6809,12 +6809,12 @@ d2:         do i=1,n-m ! we loop over the current c’s and d’s and update them.
             global_n = global_n + n
             if(n>=maxit) then
                 write(*,*) 'ERR - NH MODEL - Solution not converging to specified value.' 
-                write(*, '(" - Residual : " ES12.5)') resn
+                write(*,*) " - Residual : ", resn
                 stop
             endif
         enddo !do KK
-        write(*, '(" - NH MODEL - Global Residual : " ES12.5)') global_residual 
-        write(*, '(" - NH MODEL - Number of iterations : " I8)') global_n - (KU - KL + 1)
+        write(*, *)" - NH MODEL - Global Residual : ", global_residual 
+        write(*, *)" - NH MODEL - Number of iterations : ", global_n - (KU - KL + 1)
         !----De-Allocate Local Matrices
         deallocate(r)
         nullify(r)

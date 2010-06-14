@@ -2726,7 +2726,7 @@ cd4 :           if (ReadyToCompute) then
                                 call CEQUALW2Benthic(Me%ObjCEQUALW2,                      &
                                                     Me%Temperature,                       &
                                                     Me%Oxygen,                            &
-                                                    Me%Mass,                              &                                                    
+                                                    Me%Mass,                              &
                                                     Me%OpenPoints,                        &
                                                     SODRate  = Me%SOD,                    &
                                                     STAT = STAT_CALL)

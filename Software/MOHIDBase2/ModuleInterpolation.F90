@@ -46,10 +46,14 @@
 !   EXTRAPOLATE_2D     : integer          [0] NotActive_   !??? Paulo?
 !   NON_CONSERVATIVE   : logical          [true]        !Checks if the user wants to use the NonConservative convolution process
 !   NC_TYPE            : integer          [2]           !Cheks what class of NonConservative convolution process to use
-!   PHI                : real             [.9]          !Smoothing parameter. Gives the degree of smoothing in the interpolated field. Its range is ]0,1].
-!   N_GROUPS           : integer          [1]           !Number of groups generated for each dimension in the data-oriented convolution.
-!   SAMPLE_SIZE        : integer          [50] SampleSize_ !Number of observations needed for the logistic regression in the data-oriented convolution.
-!   MAX_ITERATIONS     : integer          [20] MaxIterations_ !Maximum number of iterations allowed in the logistic regression in the data-oriented convolution.
+!   PHI                : real             [.9]          !Smoothing parameter. Gives the degree of smoothing in the interpolated 
+!                                                       !field. Its range is ]0,1].
+!   N_GROUPS           : integer          [1]           !Number of groups generated for each dimension in the data-oriented 
+!                                                       !convolution.
+!   SAMPLE_SIZE        : integer          [50] SampleSize_ !Number of observations needed for the logistic regression in the 
+!                                                          !data-oriented convolution.
+!   MAX_ITERATIONS     : integer          [20] MaxIterations_ !Maximum number of iterations allowed in the logistic regression 
+!                                                             !in the data-oriented convolution.
 
 module ModuleInterpolation
         
@@ -129,7 +133,7 @@ module ModuleInterpolation
 
     !Modifier
     public  ::  ModifyInterpolator
-    private ::      NonConservativeModifier
+    !private ::      NonConservativeModifier
     private ::          NCInterpolation_3D
     private ::              NC_User_3D
     private ::              NC_Smoothing_3D
@@ -138,7 +142,7 @@ module ModuleInterpolation
     private ::          LogRegr_3D
     private ::          MasterG_3D
     private ::          FinalConvolution_3D
-    private ::      ConservativeModifier
+!    private ::      ConservativeModifier
     private ::          CellSelector
     private ::          FatherToSonGrid
     private ::          Integrator
@@ -200,15 +204,15 @@ module ModuleInterpolation
     end interface   ModifyInterpolator
 
 
-    interface       ConservativeModifier
-        module procedure ConservativeModifier_2D
-        module procedure ConservativeModifier_3D
-    end interface   ConservativeModifier
+    !interface       ConservativeModifier
+        !module procedure ConservativeModifier_2D
+        !module procedure ConservativeModifier_3D
+    !end interface   ConservativeModifier
 
-    interface       NonConservativeModifier
-        module procedure NonConservativeModifier_2D
-        module procedure NonConservativeModifier_3D
-    end interface   NonConservativeModifier
+    !interface       NonConservativeModifier
+    !    module procedure NonConservativeModifier_2D
+    !   module procedure NonConservativeModifier_3D
+    !end interface   NonConservativeModifier
 
 
     interface       CellSelector
@@ -478,30 +482,17 @@ cd33:       if(.not. Me%ConvolutionApproach) then
 
 cd34:           if (Me%StructuredData) then
 
-                    call Construct_NonConvoStruct( &
-                                              TimeSonID,                                    &
+                    call Construct_NonConvoStruct(TimeSonID,                                &
                                               HorizontalGridSonID,                          &
                                               BathymetrySonID,                              &
                                               HorizontalMapSonID,                           &    
-                                              GeometrySonID,                                &
-                                              MapSonID,                                     &
                                               HorizontalGridFatherID,                       &
-                                              GeometryFatherID,                             &
-                                              MapFatherID,                                  &
                                               STAT_CALL)
                     if(STAT_CALL /= SUCCESS_) stop 'Construct_Interpolation3D - ModuleInterpolation - ERR00'
 
                 else
 
-                    call Construct_NonConvoNonStruct( &
-                                              TimeSonID,                                    &
-                                              HorizontalGridSonID,                          &
-                                              BathymetrySonID,                              &
-                                              HorizontalMapSonID,                           &    
-                                              GeometrySonID,                                &
-                                              MapSonID,                                     &
-                                              TXYZP_Points,                                 &
-                                              STAT_CALL)
+                    call Construct_NonConvoNonStruct(STAT_CALL)
                     if(STAT_CALL /= SUCCESS_) stop 'Construct_Interpolation3D - ModuleInterpolation - ERR00b'
 
                 end if cd34
@@ -517,9 +508,7 @@ cd55:           if(Me%NonConservative) then
                     !Structured data-----------------------
 cd56:               if(Me%StructuredData) then
 
-                        call Construct_ConvoNCStructured (                        &
-                                          TimeSonID,                                    &
-                                          HorizontalGridSonID,                          &
+                        call Construct_ConvoNCStructured (HorizontalGridSonID,                          &
                                           HorizontalMapSonID,                          &
                                           GeometrySonID,                                &
                                           MapSonID,                                     &
@@ -533,10 +522,8 @@ cd56:               if(Me%StructuredData) then
                     !NonStructured data-------------------
                     else                       
 
-                        call Construct_ConvoNCNonStructured (                        &
-                                          TimeSonID,                                    &
-                                          HorizontalGridSonID,                          &
-                                          HorizontalMapSonID,                          &
+                        call Construct_ConvoNCNonStructured (HorizontalGridSonID,       &
+                                          HorizontalMapSonID,                           &
                                           GeometrySonID,                                &
                                           MapSonID,                                     &
                                           TXYZP_Points,                                 &
@@ -548,14 +535,12 @@ cd56:               if(Me%StructuredData) then
                 !Conservative convolution processes-------------------------
                 else
 
-                    call Construct_ConvoConservative (                        &
-                                          TimeSonID,                                    &
-                                          HorizontalGridSonID,                          &
-                                          HorizontalMapSonID,                          &
+                    call Construct_ConvoConservative(HorizontalGridSonID,               &
+                                          HorizontalMapSonID,                           &
                                           GeometrySonID,                                &
                                           MapSonID,                                     &
                                           HorizontalGridFatherID,                       &
-                                          HorizontalMapFatherID,                       &
+                                          HorizontalMapFatherID,                        &
                                           GeometryFatherID,                             &
                                           MapFatherID,                                  &
                                           STAT_CALL)
@@ -585,16 +570,11 @@ cd56:               if(Me%StructuredData) then
 
     !--------------------------------------------------------------------------
     !PAULO: ainda ha trabalho para fazeres aqui ...
-    subroutine Construct_NonConvoStruct( &
-                                          TimeSonID,                                    &
+    subroutine Construct_NonConvoStruct(  TimeSonID,                                    &
                                           HorizontalGridSonID,                          &
                                           BathymetrySonID,                              &
                                           HorizontalMapSonID,                           &    
-                                          GeometrySonID,                                &
-                                          MapSonID,                                     &
                                           HorizontalGridFatherID,                       &
-                                          GeometryFatherID,                             &
-                                          MapFatherID,                                  &
                                           STAT)
 
         !Arguments-----------------------------------------------------------
@@ -602,11 +582,7 @@ cd56:               if(Me%StructuredData) then
                                                             HorizontalGridSonID,                          &
                                                             BathymetrySonID,                              &
                                                             HorizontalMapSonID,                           &    
-                                                            GeometrySonID,                                &
-                                                            MapSonID,                                     &
-                                                            HorizontalGridFatherID,                       &
-                                                            GeometryFatherID,                             &
-                                                            MapFatherID                                  
+                                                            HorizontalGridFatherID
         integer, optional, intent(OUT)                  ::  STAT
 
         !Locals--------------------------------------------------------------
@@ -620,7 +596,7 @@ cd56:               if(Me%StructuredData) then
         if (Me%ComputeOptions%Methodology == Bilinear_) then
  
           call ConstructFatherGridLocation(HorizontalGridSonID, HorizontalGridFatherID, & 
-                                                         OkZ = Me%OkZ, OkU = Me%OkU, OkV = Me%OkV, STAT = STAT_CALL)                  
+                                           OkZ = Me%OkZ, OkU = Me%OkU, OkV = Me%OkV, STAT = STAT_CALL)                  
           if (STAT_CALL /= SUCCESS_) stop 'Construct_Interpolation - ModuleInterpolation - ERR89' 
 
         endif
@@ -635,24 +611,9 @@ cd56:               if(Me%StructuredData) then
 
     !--------------------------------------------------------------------------
     !PAULO: ainda ha trabalho para fazeres aqui ...
-    subroutine Construct_NonConvoNonStruct( &
-                                          TimeSonID,                                    &
-                                          HorizontalGridSonID,                          &
-                                          BathymetrySonID,                              &
-                                          HorizontalMapSonID,                           &    
-                                          GeometrySonID,                                &
-                                          MapSonID,                                     &
-                                          TXYZP_Points,                                 &
-                                          STAT)
+    subroutine Construct_NonConvoNonStruct(STAT)
 
         !Arguments-----------------------------------------------------------
-        integer                                         ::  TimeSonID,                                    &
-                                                            HorizontalGridSonID,                          &
-                                                            BathymetrySonID,                              &
-                                                            HorizontalMapSonID,                           &    
-                                                            GeometrySonID,                                &
-                                                            MapSonID
-        type(T_XYZPoints), pointer                      :: TXYZP_Points
         integer, optional, intent(OUT)                  ::  STAT
 
         !Locals--------------------------------------------------------------
@@ -673,21 +634,18 @@ cd56:               if(Me%StructuredData) then
 
     !--------------------------------------------------------------------------
 
-    subroutine Construct_ConvoConservative ( &
-                                          TimeSonID,                                    &
-                                          HorizontalGridSonID,                          &
-                                          HorizontalMapSonID,                          &
-                                          GeometrySonID,                                &
-                                          MapSonID,                                     &
-                                          HorizontalGridFatherID,                       &
-                                          HorizontalMapFatherID,                       &
-                                          GeometryFatherID,                             &
-                                          MapFatherID,                                  &
-                                          STAT)
+    subroutine Construct_ConvoConservative (HorizontalGridSonID,                        &
+                                            HorizontalMapSonID,                         &
+                                            GeometrySonID,                              &
+                                            MapSonID,                                   &
+                                            HorizontalGridFatherID,                     &
+                                            HorizontalMapFatherID,                      &
+                                            GeometryFatherID,                           &
+                                            MapFatherID,                                &
+                                            STAT)
 
         !Arguments-----------------------------------------------------------
-        integer                                         ::  TimeSonID,                                    &
-                                                            HorizontalGridSonID,                          &
+        integer                                         ::  HorizontalGridSonID,                          &
                                                             HorizontalMapSonID,                          &
                                                             GeometrySonID,                                &
                                                             MapSonID,                                     &
@@ -760,9 +718,7 @@ cd56:               if(Me%StructuredData) then
 
     !--------------------------------------------------------------------------
 
-    subroutine Construct_ConvoNCStructured (                        &
-                                          TimeSonID,                                    &
-                                          HorizontalGridSonID,                          &
+    subroutine Construct_ConvoNCStructured (HorizontalGridSonID,                          &
                                           HorizontalMapSonID,                          &                                          
                                           GeometrySonID,                                &
                                           MapSonID,                                     &
@@ -773,8 +729,7 @@ cd56:               if(Me%StructuredData) then
                                           STAT)
 
         !Arguments-----------------------------------------------------------
-        integer                                         ::  TimeSonID,                                    &
-                                                            HorizontalGridSonID,                          &
+        integer                                         ::  HorizontalGridSonID,                          &
                                                             HorizontalMapSonID,                          &
                                                             GeometrySonID,                                &
                                                             MapSonID,                                     &
@@ -855,20 +810,17 @@ cd56:               if(Me%StructuredData) then
 
     !--------------------------------------------------------------------------
 
-    subroutine Construct_ConvoNCNonStructured (                        &
-                                          TimeSonID,                                    &
-                                          HorizontalGridSonID,                          &
-                                          HorizontalMapSonID,                          &
-                                          GeometrySonID,                                &
-                                          MapSonID,                                     &
-                                          TXYZP_Points,                                 &
-                                         STAT)
+    subroutine Construct_ConvoNCNonStructured (HorizontalGridSonID,                     &
+                                               HorizontalMapSonID,                      &
+                                               GeometrySonID,                           &
+                                               MapSonID,                                &
+                                               TXYZP_Points,                            &
+                                               STAT)
 
         !Arguments-----------------------------------------------------------
-        integer                                         ::  TimeSonID,                                    &
-                                                            HorizontalGridSonID,                          &
-                                                            HorizontalMapSonID,                          &
-                                                            GeometrySonID,                                &
+        integer                                         ::  HorizontalGridSonID,        &
+                                                            HorizontalMapSonID,         &
+                                                            GeometrySonID,              &
                                                             MapSonID
         type(T_XYZpoints), pointer                      ::  TXYZP_Points
         integer, optional, intent(OUT)                  ::  STAT
@@ -1613,11 +1565,10 @@ inv:    if (Me%ComputeOptions%Methodology == InverseWeight_) then
 
    !------------------------------------------------------------------
 
-    subroutine InFatherCell_3D(i,j,k,Fi,Fj,Fk)
+    subroutine InFatherCell_3D(i,j,k)
  
         !Arguments---------------------------------------------------------------
         integer(8)                              :: i,j,k
-        integer(8)                              :: Fi,Fj,Fk
 
         !External----------------------------------------------------------------
 
@@ -2489,7 +2440,6 @@ inv:    if (Me%ComputeOptions%Methodology == InverseWeight_) then
 
         !Local----------------------------------------------------------------------
         integer                             :: STAT_
-        integer                             :: STAT_CALL
         
         STAT_ = UNKNOWN_
 
@@ -2767,7 +2717,7 @@ inv:    if (Me%ComputeOptions%Methodology == InverseWeight_) then
         !Local--------------------------------------------------------------
         integer                             :: STAT_CALL
         integer                             :: STAT_
-        integer                             :: i,j,k
+        integer                             :: i,j
         integer                             :: ILB, IUB, JLB, JUB, KLB, KUB
 
         !These variables point to object Geometry. They are used to define DX, XX_IE and YY_IE.
@@ -2878,11 +2828,10 @@ inv:    if (Me%ComputeOptions%Methodology == InverseWeight_) then
     
     !--------------------------------------------------------------------------
  
-    subroutine GetInterpolationPointer (ObjInterpolationID, Matrix, STAT)
+    subroutine GetInterpolationPointer (ObjInterpolationID, STAT)
 
         !Arguments-------------------------------------------------------------
         integer                                         :: ObjInterpolationID
-        real(8), dimension(:, :, :),  pointer           :: Matrix
         integer, intent(OUT), optional                  :: STAT
 
         !Local-----------------------------------------------------------------
@@ -3050,11 +2999,11 @@ c1:         Select Case (Me%ComputeOptions%Methodology)
 
                 case (ConvolutionConserv_)
 
-                    call ConservativeModifier   (Me%ExternalVar%FatherField%Values3D) !here we go to either 2D or 3D subroutines
+                    !call ConservativeModifier   (Me%ExternalVar%FatherField%Values3D) !here we go to either 2D or 3D subroutines
 
                 case (ConvolutionNonConserv_)
 
-                    call NonConservativeModifier(Me%ExternalVar%FatherField%Values3D) !here we go to either 2D or 3D subroutines
+                    !call NonConservativeModifier(Me%ExternalVar%FatherField%Values3D) !here we go to either 2D or 3D subroutines
 
                 case default
 
@@ -3118,11 +3067,11 @@ c1:         Select Case (Me%ComputeOptions%Methodology)
 
                 case (ConvolutionConserv_)
 
-                    call ConservativeModifier   (Me%ExternalVar%FatherField%Values2D) !here we go to either 2D or 3D subroutines
+                    !call ConservativeModifier   (Me%ExternalVar%FatherField%Values2D) !here we go to either 2D or 3D subroutines
 
                 case (ConvolutionNonConserv_)
 
-                    call NonConservativeModifier(Me%ExternalVar%FatherField%Values2D) !here we go to either 2D or 3D subroutines
+                    !call NonConservativeModifier(Me%ExternalVar%FatherField%Values2D) !here we go to either 2D or 3D subroutines
 
                 case default
 
@@ -3393,8 +3342,10 @@ c1:         Select Case (Me%ComputeOptions%Methodology)
                     endif
                 enddo
 
-                Depth (Aux:Me%ExternalVar%FatherGrid%WorkSize3D%KUB) = - ZCellCenterLocalFather    (i,j, Aux:Me%ExternalVar%FatherGrid%WorkSize3D%KUB)
-                Values(Aux:Me%ExternalVar%FatherGrid%WorkSize3D%KUB) =   LocalFatherField%Values3D (i,j, Aux:Me%ExternalVar%FatherGrid%WorkSize3D%KUB)
+                Depth (Aux:Me%ExternalVar%FatherGrid%WorkSize3D%KUB) = &
+                -  ZCellCenterLocalFather(i,j, Aux:Me%ExternalVar%FatherGrid%WorkSize3D%KUB)
+                Values(Aux:Me%ExternalVar%FatherGrid%WorkSize3D%KUB) = &
+                LocalFatherField%Values3D(i,j, Aux:Me%ExternalVar%FatherGrid%WorkSize3D%KUB)
         
                 NDEPTHS = Me%ExternalVar%FatherGrid%WorkSize3D%KUB - Aux  + 1
 
@@ -3837,12 +3788,15 @@ c1:         Select Case (Me%ComputeOptions%Methodology)
         integer                                     :: NumberOfNodes, Count, i, j
         logical                                     :: FillOutsidePoints   = .false.
         !integer,    dimension(:,:  ), pointer       :: WaterPoints2D
+        integer                                     :: ILB, IUB, JLB, JUB
         
         !Begin-----------------------------------------------------------------
+        ILB = Me%ExternalVar%FatherGrid%Size2D%ILB
+        IUB = Me%ExternalVar%FatherGrid%Size2D%IUB
+        JLB = Me%ExternalVar%FatherGrid%Size2D%JLB
+        JUB = Me%ExternalVar%FatherGrid%Size2D%JUB
 
-
-        NumberOfNodes =  Sum(Me%ExternalVar%FatherGrid%WaterPoints2D(Me%ExternalVar%FatherGrid%Size2D%ILB:Me%ExternalVar%FatherGrid%Size2D%IUB, &
-                                                     Me%ExternalVar%FatherGrid%Size2D%JLB:Me%ExternalVar%FatherGrid%Size2D%JUB))
+        NumberOfNodes =  Sum(Me%ExternalVar%FatherGrid%WaterPoints2D(ILB:IUB, JLB:JUB))
 
 iN:     if (NumberOfNodes >= 3) then
 
@@ -4277,12 +4231,18 @@ DoPoints:       do ip = 1, NumberOfNodes
         integer                                     :: STAT_CALL
         integer                                     :: NumberOfNodes, Count, i, j
         real,       dimension(:,:),   pointer       :: LatitudeZ, LongitudeZ
-        
+        integer                                     :: ILB, IUB, JLB, JUB
         !Begin-----------------------------------------------------------------
 
+        
+        !Begin-----------------------------------------------------------------
+        ILB = Me%ExternalVar%FatherGrid%Size2D%ILB
+        IUB = Me%ExternalVar%FatherGrid%Size2D%IUB
+        JLB = Me%ExternalVar%FatherGrid%Size2D%JLB
+        JUB = Me%ExternalVar%FatherGrid%Size2D%JUB
 
-        NumberOfNodes =  Sum(Me%ExternalVar%FatherGrid%WaterPoints3D(Me%ExternalVar%FatherGrid%WorkSize3D%ILB:Me%ExternalVar%FatherGrid%WorkSize3D%IUB, &
-                                                     Me%ExternalVar%FatherGrid%WorkSize3D%JLB:Me%ExternalVar%FatherGrid%WorkSize3D%JUB,k))
+
+        NumberOfNodes =  Sum(Me%ExternalVar%FatherGrid%WaterPoints3D(ILB:IUB,JLB:JUB,k))
 
 
 iN:     if (NumberOfNodes > 3) then
@@ -4408,12 +4368,16 @@ iN:     if (NumberOfNodes > 3) then
         integer                                     :: NumberOfNodes, Count, i, j
         real                                        :: Distance, Aux
         real,       dimension(:,:),   pointer       :: LatitudeZ, LongitudeZ
+        integer                                     :: ILB, IUB, JLB, JUB
         
         !Begin-----------------------------------------------------------------
+        
+        ILB = Me%ExternalVar%FatherGrid%Size2D%ILB
+        IUB = Me%ExternalVar%FatherGrid%Size2D%IUB
+        JLB = Me%ExternalVar%FatherGrid%Size2D%JLB
+        JUB = Me%ExternalVar%FatherGrid%Size2D%JUB
 
-
-        NumberOfNodes =  Sum(Me%ExternalVar%FatherGrid%WaterPoints3D(Me%ExternalVar%FatherGrid%WorkSize3D%ILB:Me%ExternalVar%FatherGrid%WorkSize3D%IUB, &
-                                                     Me%ExternalVar%FatherGrid%WorkSize3D%JLB:Me%ExternalVar%FatherGrid%WorkSize3D%JUB,k))
+        NumberOfNodes =  Sum(Me%ExternalVar%FatherGrid%WaterPoints3D(ILB:IUB,JLB:JUB,k))
 
 
 iN:     if (NumberOfNodes > 0) then
@@ -4736,7 +4700,7 @@ iN:     if (NumberOfNodes > 0) then
         !Local-------------------------------------------------------------------
         integer                              :: n_dimensions
         integer                              :: i,j,k,fi,fj,fk
-        integer                              :: n,nj,r,ri
+        integer                              :: n,nj,ri
         integer                              :: ilb, jlb, klb
         integer                              :: iub, jub, kub
         integer                              :: ilbF, jlbF, klbF
@@ -5448,23 +5412,23 @@ iN:     if (NumberOfNodes > 0) then
 !    end subroutine
 
     !----------------------------------------------------------------------------
-    subroutine ConservativeModifier_2D(p_2D)
+    !subroutine ConservativeModifier_2D(p_2D)
         
         !Arguments----------------------------------------------------------
-        real, pointer, dimension(:,:)               :: p_2D
+    !    real, pointer, dimension(:,:)               :: p_2D
 
 !        call CellSelector_2D
 !        call FatherToSonGrid_2D
 !        call Integrator_2D
 
-    end subroutine
+    !end subroutine
 
     !----------------------------------------------------------------------------
         
-    subroutine ConservativeModifier_3D(p_3D)
+    subroutine ConservativeModifier_3D()
 
         !Arguments----------------------------------------------------------
-        real, pointer, dimension(:,:,:)               :: p_3D
+        !real, pointer, dimension(:,:,:)               :: p_3D
 
         call CellSelector_3D
         call FatherToSonGrid_3D
@@ -5474,11 +5438,11 @@ iN:     if (NumberOfNodes > 0) then
 
     !----------------------------------------------------------------------------
 
-    subroutine NonConservativeModifier_3D(p_3D)
+    !subroutine NonConservativeModifier_3D(p_3D)
 
 
         !Arguments----------------------------------------------------------
-        real, pointer, dimension(:,:,:)               :: p_3D
+    !    real, pointer, dimension(:,:,:)               :: p_3D
 
 
         !Local-----------------------------------------------------------------
@@ -5489,16 +5453,16 @@ iN:     if (NumberOfNodes > 0) then
         !call interface
 
 
-    end subroutine NonConservativeModifier_3D
+    !end subroutine NonConservativeModifier_3D
 
 
     !----------------------------------------------------------------------------
 
-    subroutine NonConservativeModifier_2D(p_2D)
+    !subroutine NonConservativeModifier_2D(p_2D)
 
 
         !Arguments----------------------------------------------------------
-        real, pointer, dimension(:,:)               :: p_2D
+    !    real, pointer, dimension(:,:)               :: p_2D
 
 
         !Local-----------------------------------------------------------------
@@ -5509,7 +5473,7 @@ iN:     if (NumberOfNodes > 0) then
         !call interface
 
 
-    end subroutine NonConservativeModifier_2D
+    !end subroutine NonConservativeModifier_2D
 
 
     !----------------------------------------------------------------------------

@@ -555,7 +555,8 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             
             !Doesn't work CHUNK = CHUNK_J(JLB,JUB)
             !Parallelize with private variables that are arrays doesn't work.
-            !Doesn't work !$OMP PARALLEL PRIVATE(I,J,k,Kbottom,Depth,u_taus,u_taub,z0b,z0s,nlev,NN_1D,SS_1D,P_1D,B_1D,Tke_1D,L_1D,eps_1D,num_1D,nuh_1D,h) 
+            !Doesn't work !$OMP PARALLEL PRIVATE(I,J,k,Kbottom,Depth,u_taus,u_taub,z0b,z0s,nlev,NN_1D,
+            !SS_1D,P_1D,B_1D,Tke_1D,L_1D,eps_1D,num_1D,nuh_1D,h) 
             ! We don't compute turbulence coefficients at the limits of the domain. 
             !Doesn't work !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
 doj :       do J = JLB+1, JUB-1

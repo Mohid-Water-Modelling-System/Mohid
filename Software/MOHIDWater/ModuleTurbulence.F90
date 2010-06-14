@@ -5329,7 +5329,8 @@ cd2 :           if (Me%ExternalVar%WaterPoints3D(I,J,K) .EQ. WaterPoint) then
             call StartWatch ("ModuleTurbulence", "SmagorinskyModel")
 
         CHUNK = CHUNK_J(JLB,JUB)
-        !$OMP PARALLEL PRIVATE(I,J,FaceU1,FaceU2,FaceU3,FaceU4,FaceU5,AUX1,AUX2,UMED1,UMED2,FaceV1,FaceV2,FaceV3,FaceV4,FaceV5,VMED1,VMED2,DXDY,dUdY,dVdX,dUdX,dVdY,ViscSmagorinsky)
+        !$OMP PARALLEL PRIVATE(I,J,FaceU1,FaceU2,FaceU3,FaceU4,FaceU5,AUX1,AUX2,UMED1)&
+        !$OMP PARALLEL PRIVATE(UMED2,FaceV1,FaceV2,FaceV3,FaceV4,FaceV5,VMED1,VMED2,DXDY,dUdY,dVdX,dUdX,dVdY,ViscSmagorinsky)
 
 do1 :   do K = KLB, KUB
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)

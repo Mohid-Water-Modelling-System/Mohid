@@ -441,7 +441,7 @@ Module ModuleNASA
                         if (val(i,j) .ne. PointNoValue) then
 
                             if (Me%ConvertToUTM) then
-                                call LatLonToUTM (dble(pointx), dble(pointy), utm_x, utm_y, grid_zone, Me%Datum)                                
+                                call LatLonToUTM (dble(pointx), dble(pointy), utm_x, utm_y, grid_zone, Me%Datum)
                                 write(Me%OutputUnit, '(F20.6, 1X, F20.6, 1X, I10)') utm_x, utm_y, val(i,j)
                             else
                                 write(Me%OutputUnit, '(F11.6, 1X, F10.6, 1X, I10)') pointx, pointy,  val(i,j)

@@ -622,17 +622,17 @@ d3:     do l= 1, Me%NumberOfFiles
             read(Me%Unit,'(A17)',END=10) Aux17
 
             !Year
-            read(Aux17( 1: 4),'(f4.0)') Aux6(1)
+            read(Aux17( 1: 4),'(i4)') Aux6(1)
             !Month
-            read(Aux17( 5: 6),'(f2.0)') Aux6(2)
+            read(Aux17( 5: 6),'(i2)') Aux6(2)
             !Day
-            read(Aux17( 7: 8),'(f2.0)') Aux6(3)
+            read(Aux17( 7: 8),'(i2)') Aux6(3)
             !Hours
-            read(Aux17(12:13),'(f2.0)') Aux6(4)
+            read(Aux17(12:13),'(i2)') Aux6(4)
             !Hours
-            read(Aux17(14:15),'(f2.0)') Aux6(5)
+            read(Aux17(14:15),'(i2)') Aux6(5)
             !Seconds
-            read(Aux17(16:17),'(f2.0)') Aux6(6)
+            read(Aux17(16:17),'(i2)') Aux6(6)
 
 
             call SetDate(AuxTime          ,                                             &

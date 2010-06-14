@@ -2677,7 +2677,7 @@ do2 :   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                 HourAngle = HourAngle_ (Hour, LongitudePI, GmtReference, RacingWithTheSun)
 
                 !Sun high
-                SunHigh = sin(LatitudePI) * sin(Declination) + cos(LatitudePI) * cos(Declination) * cos(HourAngle)                        
+                SunHigh = sin(LatitudePI) * sin(Declination) + cos(LatitudePI) * cos(Declination) * cos(HourAngle)
     
                 !Top atmosphere sun radiation
                 QSO = TOARadiation (LatitudePI, Declination, HourAngle, Julday)
