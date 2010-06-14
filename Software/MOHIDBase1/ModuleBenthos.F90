@@ -1764,7 +1764,7 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
                 BacteriaPONUptakeM    = 0.0
             endif
 
-            if (BottomDONConc > Me%Bact%BacMinSub) then                                                                                                          
+            if (BottomDONConc > Me%Bact%BacMinSub) then
                 ! Bacteria DON uptake (1/d)
                 BacteriaDONUptake   =  TBacteriaLimitationFactor                                     &
                                     * Me%Bact%BacMaxUptake                                           &
