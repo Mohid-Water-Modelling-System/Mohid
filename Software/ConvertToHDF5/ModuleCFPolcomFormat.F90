@@ -33,109 +33,109 @@
 !
 !netcdf 20020924 {
 !dimensions:
-!	lon = 194 ;
-!	lat = 100 ;
-!	time = UNLIMITED ; // (4 currently)
+!    lon = 194 ;
+!    lat = 100 ;
+!    time = UNLIMITED ; // (4 currently)
 !variables:
-!	float lon(lon) ;
-!		lon:long_name = "longitude" ;
-!		lon:standard_name = "longitude" ;
-!		lon:units = "degrees_east" ;
-!		lon:valid_min = 0.f ;
-!		lon:valid_max = 0.f ;
-!		lon:step = 0.2f ;
-!	float lat(lat) ;
-!		lat:long_name = "latitude" ;
-!		lat:standard_name = "latitude" ;
-!		lat:units = "degrees_north" ;
-!		lat:valid_min = 0.f ;
-!		lat:valid_max = 0.f ;
-!		lat:step = 0.2f ;
-!	float time(time) ;
-!		time:long_name = "time" ;
-!		time:standard_name = "time" ;
-!		time:units = "second since 2002-09-24 00:00:00" ;
-!		time:valid_min = 0.f ;
-!		time:valid_max = 0.f ;
-!		time:step = 0.f ;
-!	float u(time, lat, lon) ;
-!		u:long_name = "10 m eastward wind" ;
-!		u:standard_name = "eastward_wind" ;
-!		u:units = "m s-1" ;
-!	float v(time, lat, lon) ;
-!		v:long_name = "10 m northward wind" ;
-!		v:standard_name = "northward_wind" ;
-!		v:units = "m s-1" ;
-!	float rh(time, lat, lon) ;
-!		rh:long_name = "2 m relative humidity" ;
-!		rh:standard_name = "relative_humidity" ;
-!		rh:units = "1" ;
-!	float t(time, lat, lon) ;
-!		t:long_name = "2 m air temperature" ;
-!		t:standard_name = "air_temperature" ;
-!		t:units = "K" ;
-!	float e(time, lat, lon) ;
-!		e:long_name = "6 hours acumulated evaporation" ;
-!		e:standard_name = "water_evaporation_amount" ;
-!		e:units = "kg m-2" ;
-!	float lhf(time, lat, lon) ;
-!		lhf:long_name = "latent heat flux" ;
-!		lhf:standard_name = "surface_downward_latent_heat_flux" ;
-!		lhf:units = "W m-2" ;
-!		lhf:comment = "INM Original data is 6 hours acumulated variable.This one is obtained from var/(" ;
-!	float shf(time, lat, lon) ;
-!		shf:long_name = "sensible heat flux" ;
-!		shf:standard_name = "surface_downward_sensible_heat_flux" ;
-!		shf:units = "W m-2" ;
-!		shf:comment = "INM Original data is 6 hours acumulated variable.This one is obtained from var/(" ;
-!	float mslp(time, lat, lon) ;
-!		mslp:long_name = "mean sea level preasure" ;
-!		mslp:standard_name = "air_pressure_at_sea_level" ;
-!		mslp:units = "Pa" ;
-!	float sst(time, lat, lon) ;
-!		sst:long_name = "sea surface temperature" ;
-!		sst:standard_name = "sea_surface_temperature" ;
-!		sst:units = "K" ;
-!	float lwr(time, lat, lon) ;
-!		lwr:long_name = "long wave net radiation flux" ;
-!		lwr:standard_name = "surface_net_downward_longwave_flux" ;
-!		lwr:units = "W m-2" ;
-!		lwr:comment = "INM Original data is 6 hours acumulated variable.This one is obtained from var/(" ;
-!	float swr(time, lat, lon) ;
-!		swr:long_name = "short wave net radiation flux" ;
-!		swr:standard_name = "surface_net_downward_shortwave_flux" ;
-!		swr:units = "W m-2" ;
-!		swr:comment = "INM Original data is 6 hours acumulated variable.This one is obtained from var/(" ;
-!	float tcc(time, lat, lon) ;
-!		tcc:long_name = "Total Cloudness" ;
-!		tcc:standard_name = "cloud_area_fraction" ;
-!		tcc:units = "1" ;
-!	float tp(time, lat, lon) ;
-!		tp:long_name = "6 hours acummulated total precipitation" ;
-!		tp:standard_name = "precipitation_amount" ;
-!		tp:units = "kg m-2" ;
+!    float lon(lon) ;
+!        lon:long_name = "longitude" ;
+!        lon:standard_name = "longitude" ;
+!        lon:units = "degrees_east" ;
+!        lon:valid_min = 0.f ;
+!        lon:valid_max = 0.f ;
+!        lon:step = 0.2f ;
+!    float lat(lat) ;
+!        lat:long_name = "latitude" ;
+!        lat:standard_name = "latitude" ;
+!        lat:units = "degrees_north" ;
+!        lat:valid_min = 0.f ;
+!        lat:valid_max = 0.f ;
+!        lat:step = 0.2f ;
+!    float time(time) ;
+!        time:long_name = "time" ;
+!        time:standard_name = "time" ;
+!        time:units = "second since 2002-09-24 00:00:00" ;
+!        time:valid_min = 0.f ;
+!        time:valid_max = 0.f ;
+!        time:step = 0.f ;
+!    float u(time, lat, lon) ;
+!        u:long_name = "10 m eastward wind" ;
+!        u:standard_name = "eastward_wind" ;
+!        u:units = "m s-1" ;
+!    float v(time, lat, lon) ;
+!        v:long_name = "10 m northward wind" ;
+!        v:standard_name = "northward_wind" ;
+!        v:units = "m s-1" ;
+!    float rh(time, lat, lon) ;
+!        rh:long_name = "2 m relative humidity" ;
+!        rh:standard_name = "relative_humidity" ;
+!        rh:units = "1" ;
+!    float t(time, lat, lon) ;
+!        t:long_name = "2 m air temperature" ;
+!        t:standard_name = "air_temperature" ;
+!        t:units = "K" ;
+!    float e(time, lat, lon) ;
+!        e:long_name = "6 hours acumulated evaporation" ;
+!        e:standard_name = "water_evaporation_amount" ;
+!        e:units = "kg m-2" ;
+!    float lhf(time, lat, lon) ;
+!        lhf:long_name = "latent heat flux" ;
+!        lhf:standard_name = "surface_downward_latent_heat_flux" ;
+!        lhf:units = "W m-2" ;
+!        lhf:comment = "INM Original data is 6 hours acumulated variable.This one is obtained from var/(" ;
+!    float shf(time, lat, lon) ;
+!        shf:long_name = "sensible heat flux" ;
+!        shf:standard_name = "surface_downward_sensible_heat_flux" ;
+!        shf:units = "W m-2" ;
+!        shf:comment = "INM Original data is 6 hours acumulated variable.This one is obtained from var/(" ;
+!    float mslp(time, lat, lon) ;
+!        mslp:long_name = "mean sea level preasure" ;
+!        mslp:standard_name = "air_pressure_at_sea_level" ;
+!        mslp:units = "Pa" ;
+!    float sst(time, lat, lon) ;
+!        sst:long_name = "sea surface temperature" ;
+!        sst:standard_name = "sea_surface_temperature" ;
+!        sst:units = "K" ;
+!    float lwr(time, lat, lon) ;
+!        lwr:long_name = "long wave net radiation flux" ;
+!        lwr:standard_name = "surface_net_downward_longwave_flux" ;
+!        lwr:units = "W m-2" ;
+!        lwr:comment = "INM Original data is 6 hours acumulated variable.This one is obtained from var/(" ;
+!    float swr(time, lat, lon) ;
+!        swr:long_name = "short wave net radiation flux" ;
+!        swr:standard_name = "surface_net_downward_shortwave_flux" ;
+!        swr:units = "W m-2" ;
+!        swr:comment = "INM Original data is 6 hours acumulated variable.This one is obtained from var/(" ;
+!    float tcc(time, lat, lon) ;
+!        tcc:long_name = "Total Cloudness" ;
+!        tcc:standard_name = "cloud_area_fraction" ;
+!        tcc:units = "1" ;
+!    float tp(time, lat, lon) ;
+!        tp:long_name = "6 hours acummulated total precipitation" ;
+!        tp:standard_name = "precipitation_amount" ;
+!        tp:units = "kg m-2" ;
 !
 
-!m s-1			?	baroclinic_eastward_sea_water_velocity
-!m s-1			?	baroclinic_northward_sea_water_velocity
-!m s-1			?	barotropic_eastward_sea_water_velocity
-!m s-1			?	barotropic_northward_sea_water_velocity
-!m s-1	50		?	northward_sea_water_velocity
-!1			?	ocean_s_coordinate
-!1			?	ocean_sigma_coordinate
-!m s-1	49		?	eastward_sea_water_velocity
+!m s-1            ?    baroclinic_eastward_sea_water_velocity
+!m s-1            ?    baroclinic_northward_sea_water_velocity
+!m s-1            ?    barotropic_eastward_sea_water_velocity
+!m s-1            ?    barotropic_northward_sea_water_velocity
+!m s-1    50        ?    northward_sea_water_velocity
+!1            ?    ocean_s_coordinate
+!1            ?    ocean_sigma_coordinate
+!m s-1    49        ?    eastward_sea_water_velocity
 !psu long_name= "water salinity"   standard_name= "sea_water_salinity"
 !"celsius deg"  long_name="water temperature" standard_name="sea_water_temperature"
 
 !// global attributes:
-!		:Title = "Analisis do INM para a superficie" ;
-!		:Conventions = "CF-1.0" ;
-!		:netcdf_version_id = "3.5.1" ;
-!		:history = "INM2cdf 17-02-2005" ;
-!		:date = 0 ;
-!		:source = "HIRLAM" ;
-!		:institution = "INM" ;
-!		:references = "http://www.inm.es" ;
+!        :Title = "Analisis do INM para a superficie" ;
+!        :Conventions = "CF-1.0" ;
+!        :netcdf_version_id = "3.5.1" ;
+!        :history = "INM2cdf 17-02-2005" ;
+!        :date = 0 ;
+!        :source = "HIRLAM" ;
+!        :institution = "INM" ;
+!        :references = "http://www.inm.es" ;
 !}
 
 
@@ -332,17 +332,15 @@ Module ModuleCFPolcomFormat
                      ClientModule = 'ModuleCFPolcomFormat',                  &
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleCFPolcomFormat - ERR05'
-		
-        call GetData(Me%SZZFile,                                   &
-                     Me%ObjEnterData, iflag,                            &
-                     SearchType   = FromBlock,                          &
-                     keyword      = 'SZZFILE',                         &
-                     ClientModule = 'ModuleCFPolcomFormat',                  &
+
+        call GetData(Me%SZZFile,                                                        &
+                     Me%ObjEnterData, iflag,                                            &
+                     SearchType   = FromBlock,                                          &
+                     keyword      = 'SZZFILE',                                          &
+                     ClientModule = 'ModuleCFPolcomFormat',                             &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleCFPolcomFormat - ERR06'	
-	
-	
-	
+        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleCFPolcomFormat - ERR06'
+
      end subroutine ReadOptions
    !--------------------------------------------------------------------------
 
@@ -388,8 +386,8 @@ Module ModuleCFPolcomFormat
      nullify(Me%XX        )
      nullify(Me%YY        )
 
-	  
-	 !Verifies if file exists
+      
+     !Verifies if file exists
      inquire(file = Me%FileName, exist = exist)
      if (.not. exist) then
         write(*,*)'CF File does not exist'
@@ -502,7 +500,8 @@ Module ModuleCFPolcomFormat
               Me%ConnectionX(WILB-1,j ) = var%value2D(j,WILB )+.5*(var%value2D( j,WILB+1)-var%value2D(j,WILB ))
            enddo
 
-           Me%ConnectionX(WIUB+1,WJUB+1) = var%value2D(WJUB, WIUB)+.5*(var%value2D(WJUB, WIUB)-var%value2D(WJUB-1, WIUB)) +.5*(var%value2D( WJUB,WIUB)-var%value2D(WJUB,WIUB-1 ))
+           Me%ConnectionX(WIUB+1,WJUB+1) = var%value2D(WJUB, WIUB)+.5*(var%value2D(WJUB, WIUB)-var%value2D(WJUB-1, WIUB)) + &
+                                           0.5*(var%value2D( WJUB,WIUB)-var%value2D(WJUB,WIUB-1 ))
            Me%ConnectionX(WILB-1,WJLB-1) = Me%ConnectionX(WILB,WJLB)
            Me%ConnectionX(WIUB+1,WJLB-1) = Me%ConnectionX(WIUB,WJLB)
            Me%ConnectionX(WILB-1,WJUB+1) = Me%ConnectionX(WILB,WJUB)
@@ -524,7 +523,8 @@ Module ModuleCFPolcomFormat
              Me%ConnectionY(WILB-1,j ) = var%value2D(j,WILB )+.5*(var%value2D( j,WILB+1)-var%value2D(j,WILB ))
           enddo
 
-          Me%ConnectionY(WIUB+1,WJUB+1) = var%value2D(WJUB,WIUB )+.5*(var%value2D( WJUB,WIUB)-var%value2D(WJUB,WIUB-1 ))+.5*(var%value2D(WJUB, WIUB)-var%value2D(WJUB-1, WIUB))
+          Me%ConnectionY(WIUB+1,WJUB+1) = var%value2D(WJUB,WIUB )+.5*(var%value2D( WJUB,WIUB)-var%value2D(WJUB,WIUB-1 ))+ &
+                                          0.5*(var%value2D(WJUB, WIUB)-var%value2D(WJUB-1, WIUB))
           Me%ConnectionY(WILB-1,WJLB-1) = Me%ConnectionY(WILB,WJLB)
           Me%ConnectionY(WIUB+1,WJLB-1) = Me%ConnectionY(WIUB,WJLB)
           Me%ConnectionY(WILB-1,WJUB+1) = Me%ConnectionY(WILB,WJUB)
@@ -537,9 +537,9 @@ Module ModuleCFPolcomFormat
 
     
     nullify(Me%Bathymetry)
-	allocate(Me%Bathymetry(ILB:IUB, JLB:JUB))
-	
-	if (.not.Me%Polcom_Data) then
+    allocate(Me%Bathymetry(ILB:IUB, JLB:JUB))
+    
+    if (.not.Me%Polcom_Data) then
 
     !Create a zero filled bathymetry
 
@@ -564,7 +564,7 @@ Module ModuleCFPolcomFormat
     endif
      
 
-	 
+     
     if (Me%Polcom_Data) then
 
     ! Read Polcom Bathymetry
@@ -573,20 +573,20 @@ Module ModuleCFPolcomFormat
       do i=WILB,WIUB
        do j=WJLB,WJUB
         Read(30,*)  Me%Bathymetry(i,j)
-		If (Me%Bathymetry(i,j)==   0.0000000E+00) then
-		   Me%Bathymetry(i,j)=-999.9
+        If (Me%Bathymetry(i,j)==   0.0000000E+00) then
+           Me%Bathymetry(i,j)=-999.9
         endif
        enddo
       enddo
-	  close(30)
+      close(30)
 
       write(*,*) 'ok, batimetria leida bien'
 
     !Read SZZ array
 
     if(Me%Dim3D) then
-	    nullify(Me%SZZ)
-		allocate(Me%SZZ(ILB:IUB, JLB:JUB, KLB-1:KUB))
+        nullify(Me%SZZ)
+        allocate(Me%SZZ(ILB:IUB, JLB:JUB, KLB-1:KUB))
 
       Open(20,File=Me%SZZfile)
 
@@ -600,17 +600,17 @@ Module ModuleCFPolcomFormat
 
                     Me%SZZ(i,j,Me%WorkSize%KLB)=-999.9
                     Me%SZZ(i,j,Me%WorkSize%KLB-1)=-999.9
-			 
+             
                else 
                     Me%SZZ(i,j,Me%WorkSize%KLB-1)=-1
                     Me%SZZ(i,j,Me%WorkSize%KUB)=0.0
 
                  endif
-				 
+                 
                   Do k=Me%WorkSize%KLB,Me%WorkSize%KUB-1
 
                    If (Me%SZZ(i,j,K)==0) then
-				 
+                 
                      Me%SZZ(i,j,K)=-999.9
                    else
                      DIF=Me%SZZ(i,j,K)-Me%SZZ(i,j,K-1)
@@ -620,7 +620,7 @@ Module ModuleCFPolcomFormat
                   enddo
 
  110  FORMAT(i4,32f10.5)
-	 
+     
        enddo
        enddo
        close (20)
@@ -654,7 +654,7 @@ Module ModuleCFPolcomFormat
           call NCDF_LE_VAR_CAB (FileCF, var, nv)
    
 
-		      
+              
           if(CheckName(var, MohidName))then
 
             call AddField(Me%FirstField, NewField)
@@ -690,25 +690,25 @@ Module ModuleCFPolcomFormat
 
   ! Bloque para meter una mascara correcta
         
-		   if (.not.Me%Polcom_Data) then
+           if (.not.Me%Polcom_Data) then
 
-		   if (nv==FileCF%Nvariables+FileCF%NDimensions) then
-!		   write(*,*) var%name, var%nDimensions, var%value2D(WJUB,WIUB)
-		           allocate(Me%WaterPoints3D(Me%Size%ILB:Me%Size%IUB,&
-                               Me%Size%JLB:Me%Size%JUB, Me%Size%KLB:Me%Size%KUB))   	 
+           if (nv==FileCF%Nvariables+FileCF%NDimensions) then
+!           write(*,*) var%name, var%nDimensions, var%value2D(WJUB,WIUB)
+                   allocate(Me%WaterPoints3D(Me%Size%ILB:Me%Size%IUB,&
+                               Me%Size%JLB:Me%Size%JUB, Me%Size%KLB:Me%Size%KUB))        
              do j=WJLB,WJUB
               do i=WILB,WIUB
-	           if (var%value2D(j,i)== -999) then
+               if (var%value2D(j,i)== -999) then
 !                write(*,*) 'si hay valores -999'
                Me%waterpoints3D(i,j,1) = 0
-	           else
-		       Me%waterpoints3D(i,j,1) = 1
-		       endif
+               else
+               Me%waterpoints3D(i,j,1) = 1
+               endif
              enddo
             enddo
-		   endif
-		   endif
-		 
+           endif
+           endif
+         
 
 ! Fin Bloque para meter una mascara Tierra-mar correcta en meteorologicos
 
@@ -1241,114 +1241,109 @@ Module ModuleCFPolcomFormat
 
         !Start Polcom Block. Silvia (06/2006)
         !a new bathymetry file with a real sea-earth mask 
-		
-         if (Me%Polcom_Data) then
+        
+iP:     if (Me%Polcom_Data) then
 
+            allocate(Me%WaterPoints3D(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB, Me%Size%KLB:Me%Size%KUB))
+         
+           ! Mascara tierra-agua 
 
-           allocate(Me%WaterPoints3D(Me%Size%ILB:Me%Size%IUB,&
-                               Me%Size%JLB:Me%Size%JUB, Me%Size%KLB:Me%Size%KUB))
-     
-       ! Mascara tierra-agua 
+            OutputNumber = 1
+            CurrentDate  => Me%FirstDate
 
-        OutputNumber = 1
-        CurrentDate  => Me%FirstDate
+d1:         do while(associated(CurrentDate))
 
-        do while(associated(CurrentDate))
+                Field => Me%FirstField
 
-         Field => Me%FirstField
+d2:             do while(associated(Field))
+i2:                 if(Field%nDimensions == 2) then
 
-        do while(associated(Field))
-         if(Field%nDimensions == 2) then
+                        do j=Me%workSize%jLB, Me%workSize%jUB
+                        do i=Me%WorkSize%ILB, Me%workSize%IUB
+                            if (Field%Values2D(i,j).eq.Field%Fillvalue)then
+                                Field%Values2D(i,j)=0.
+                                Me%bathymetry(i,j)=-999.9
+                            endif
+                        enddo
+                        enddo
+                    elseif(Field%nDimensions == 3) then i2
 
-           do j=Me%workSize%jLB, Me%workSize%jUB
+                        do j=Me%workSize%jLB, Me%workSize%jUB
+                        do i=Me%WorkSize%ILB, Me%workSize%IUB
+                        
+                            if (Field%Values3D(i,j,Me%workSize%KUB).eq.Field%Fillvalue)then
+                                do k=Me%workSize%KLB, Me%workSize%KUB
+                                    Field%Values3D(i,j,k)=0.
+                                enddo
+                                Me%bathymetry(i,j)=-999.9
+                           endif
+                        enddo
+                        enddo
+                  
+                    endif i2
+                    Field => Field%Next
+
+                end do d2
+
+                OutputNumber = OutputNumber + 1
+
+                CurrentDate => CurrentDate%Next
+
+            end do d1
+            write(*,*) ' waterpoints'
+
+            do j=Me%workSize%jLB, Me%workSize%jUB        
             do i=Me%WorkSize%ILB, Me%workSize%IUB
-             if (Field%Values2D(i,j).eq.Field%Fillvalue)then
-                Field%Values2D(i,j)=0.
-                Me%bathymetry(i,j)=-999.9
-             endif
+                if (Me%bathymetry(i,j)==-999.9) then
+                    Me%WaterPoints3D(i,j,Me%workSize%KLB:Me%workSize%KUB) = 0
+                else
+                    Me%WaterPoints3D(i,j,Me%workSize%KLB:Me%workSize%KUB) = 1
+                endif
             enddo
-           enddo
-          elseif(Field%nDimensions == 3) then
-
-            do j=Me%workSize%jLB, Me%workSize%jUB
-             do i=Me%WorkSize%ILB, Me%workSize%IUB
-              do k=Me%workSize%KLB, Me%workSize%KUB
-               if (Field%Values3D(i,j,k).eq.Field%Fillvalue)then
-                   Field%Values3D(i,j,k)=0.
-                   Me%bathymetry(i,j)=-999.9
-               endif
-              enddo
-             enddo
             enddo
-      
-        endif
-        Field => Field%Next
 
-            end do
+           
+            write(*,*)
+            write(*,*)'Constructing grid...'
 
-            OutputNumber = OutputNumber + 1
+            WorkSize2D%ILB = Me%WorkSize%ILB
+            WorkSize2D%IUB = Me%WorkSize%IUB
+            WorkSize2D%JLB = Me%WorkSize%JLB
+            WorkSize2D%JUB = Me%WorkSize%JUB
 
-            CurrentDate => CurrentDate%Next
-
-        end do
-        write(*,*) ' waterpoints'
-
-   do j=Me%workSize%jLB, Me%workSize%jUB        
-    do i=Me%WorkSize%ILB, Me%workSize%IUB
-     do k=Me%workSize%KLB, Me%workSize%KUB
-      if (Me%bathymetry(i,j)==-999.9) then
-        Me%WaterPoints3D(i,j,k) = 0
-      else
-        Me%WaterPoints3D(i,j,k) = 1
-      endif
-     enddo
-    enddo
-   enddo
-
-       
-        write(*,*)
-        write(*,*)'Constructing grid...'
-
-        WorkSize2D%ILB = Me%WorkSize%ILB
-        WorkSize2D%IUB = Me%WorkSize%IUB
-        WorkSize2D%JLB = Me%WorkSize%JLB
-        WorkSize2D%JUB = Me%WorkSize%JUB
-
-        call WriteGridData (FileName        = Me%GridFileName,              &
-                            XX              = Me%XX,                        &
-                            YY              = Me%YY,                        &
-                            COMENT1         = " CF Grid based on file :",   &
-                            COMENT2         = Me%FileName,                  &
-                            WorkSize        = WorkSize2D,                  &
-                            CoordType       = 4,                            &
-                            Xorig           = Me%Xorig,                     &
-                            Yorig           = Me%Yorig,                     &
-                            Zone            = 0,                            &
-                            Grid_Angle      = 0.,                           &
-                            Latitude        = Latitude,                     &
-                            Longitude       = Longitude,                    &
-                            GridData2D_Real = Me%Bathymetry,                &
-                            Overwrite       = ON,                           &
-                            FillValue       = -99.,                         &
-                            STAT            = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructGrid - ModuleCFPolcomFormat - ERR01'
+            call WriteGridData (FileName        = Me%GridFileName,              &
+                                XX              = Me%XX,                        &
+                                YY              = Me%YY,                        &
+                                COMENT1         = " CF Grid based on file :",   &
+                                COMENT2         = Me%FileName,                  &
+                                WorkSize        = WorkSize2D,                   &
+                                CoordType       = 4,                            &
+                                Xorig           = Me%Xorig,                     &
+                                Yorig           = Me%Yorig,                     &
+                                Zone            = 0,                            &
+                                Grid_Angle      = 0.,                           &
+                                Latitude        = Latitude,                     &
+                                Longitude       = Longitude,                    &
+                                GridData2D_Real = Me%Bathymetry,                &
+                                Overwrite       = ON,                           &
+                                FillValue       = -99.,                         &
+                                STAT            = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructGrid - ModuleCFPolcomFormat - ERR10'
 
 
-		
-		
-       endif
+            
+        
+        endif iP
 
 !       END of POLCOM BLOCK
-
-
 
 
         call Open_HDF5_OutPut_File
 
         OutputNumber = 1
         CurrentDate  => Me%FirstDate
-
-        do while(associated(CurrentDate))
+        
+d3:     do while(associated(CurrentDate))
 
             call ExtractDate   (CurrentDate%Date,                           &
                                 AuxTime(1), AuxTime(2), AuxTime(3),         &
@@ -1357,112 +1352,115 @@ Module ModuleCFPolcomFormat
             TimePtr => AuxTime
 
             call HDF5SetLimits  (Me%ObjHDF5, 1, 6, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)stop 'OutputFields - ModuleCFPolcomFormat - ERR02'
+            if (STAT_CALL /= SUCCESS_)stop 'OutputFields - ModuleCFPolcomFormat - ERR20'
 
 
             call HDF5WriteData  (Me%ObjHDF5, "/Time",                       &
                                  "Time", "YYYY/MM/DD HH:MM:SS",             &
                                  Array1D = TimePtr,                         &
                                  OutputNumber = OutPutNumber, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)stop 'OutputFields - ModuleCFPolcomFormat - ERR03'
+            if (STAT_CALL /= SUCCESS_)stop 'OutputFields - ModuleCFPolcomFormat - ERR30'
 
 
             Field => Me%FirstField
 
  
 
-            do while(associated(Field))
+d4:         do while(associated(Field))
 
-
-                if(Field%Date == CurrentDate%Date)then
-
+                
+i4:             if(Field%Date == CurrentDate%Date)then
+                    
                     Field%OutputNumber = OutputNumber
 
 if0:                if(Field%nDimensions == 2) then
-
-                      call HDF5SetLimits(Me%ObjHDF5, Field%WorkSize%ILB, Field%WorkSize%IUB,&
+                    
+                        call HDF5SetLimits(Me%ObjHDF5, Field%WorkSize%ILB, Field%WorkSize%IUB,&
                                        Field%WorkSize%JLB, Field%WorkSize%JUB, STAT = STAT_CALL)
-                      if (STAT_CALL /= SUCCESS_)stop 'OutputFields - ModuleCFPolcomFormat - ERR04'
+                        if (STAT_CALL /= SUCCESS_)stop 'OutputFields - ModuleCFPolcomFormat - ERR40'
 
-                      call HDF5WriteData(Me%ObjHDF5,                                      &
-                                       "/Results/"//Field%Name,                         &
-                                       Field%Name,                                      &
-                                       Field%Units,                                     &
-                                       Array2D      = Field%Values2D,                   &
-                                       OutputNumber = Field%OutputNumber,               &
-                                       STAT         = STAT_CALL)
-                      if (STAT_CALL /= SUCCESS_)stop 'OutputFields - ModuleCFPolcomFormat - ERR05'
+                        call HDF5WriteData(Me%ObjHDF5,                                      &
+                                           "/Results/"//Field%Name,                         &
+                                           Field%Name,                                      &
+                                           Field%Units,                                     &
+                                           Array2D      = Field%Values2D,                   &
+                                           OutputNumber = Field%OutputNumber,               &
+                                           STAT         = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_)stop 'OutputFields - ModuleCFPolcomFormat - ERR50'
 
-                    elseif(Field%nDimensions == 3) then
+                    elseif(Field%nDimensions == 3) then if0
 
-                      call HDF5SetLimits(Me%ObjHDF5, Field%WorkSize%ILB, Field%WorkSize%IUB,&
-                                       Field%WorkSize%JLB, Field%WorkSize%JUB, &
-                                       Field%WorkSize%KLB, Field%WorkSize%KUB, STAT = STAT_CALL)
-                      if (STAT_CALL /= SUCCESS_)stop 'OutputFields - ModuleCFPolcomFormat - ERR06'
+                        call HDF5SetLimits(Me%ObjHDF5, Field%WorkSize%ILB, Field%WorkSize%IUB,&
+                                           Field%WorkSize%JLB, Field%WorkSize%JUB, &
+                                           Field%WorkSize%KLB, Field%WorkSize%KUB, STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_)stop 'OutputFields - ModuleCFPolcomFormat - ERR60'
 
-                      call HDF5WriteData(Me%ObjHDF5,                                      &
-                                       "/Results/"//Field%Name,                         &
-                                       Field%Name,                                      &
-                                       Field%Units,                                     &
-                                       Array3D      = Field%Values3D,                   &
-                                       OutputNumber = Field%OutputNumber,               &
-                                       STAT         = STAT_CALL)
-                      if (STAT_CALL /= SUCCESS_)stop 'OutputFields - ModuleCFPolcomFormat - ERR07'
+                        call HDF5WriteData(Me%ObjHDF5,                                      &
+                                           "/Results/"//Field%Name,                         &
+                                           Field%Name,                                      &
+                                           Field%Units,                                     &
+                                           Array3D      = Field%Values3D,                   &
+                                           OutputNumber = Field%OutputNumber,               &
+                                           STAT         = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_)stop 'OutputFields - ModuleCFPolcomFormat - ERR70'
 
 
 !                  Write Polcom SZZ data into hdf5 file
+                        
+i5:                     if (Me%Polcom_Data) then
 
-                      if (Me%Polcom_Data) then
-
-                      call HDF5SetLimits(Me%ObjHDF5, Field%WorkSize%ILB, Field%WorkSize%IUB,&
-                                       Field%WorkSize%JLB, Field%WorkSize%JUB, &
-                                       Field%WorkSize%KLB, Field%WorkSize%KUB, STAT = STAT_CALL)
-                      if (STAT_CALL /= SUCCESS_)stop 'OutputFields - ModuleCFPolcomFormat - ERR08'                              
-                      
-                 Do j=Me%workSize%jLB, Me%workSize%jUB        
-                  Do i=Me%WorkSize%ILB, Me%workSize%IUB	
-                   Do k=Me%WorkSize%KLB-1,Me%WorkSize%KUB
-   
-                     If (Me%Bathymetry(i,j)==-999.9) then 
-                      Field%Values3D(i,j,k)= -999.9
-                     else
-                          Field%Values3D(i,j,k)=-Me%SZZ(i,j,k)* Me%Bathymetry(i,j)
-                     endif  
-                    enddo			  
-                   enddo
-                 enddo
-                call HDF5WriteData(Me%ObjHDF5,                                      &
-                                      "/Grid/VerticalZ",                                &
-                                       "Vertical",                                      &
-                                       "m",                                             &
-                                       Array3D      = Field%Values3D,                   &
-                                       OutputNumber = Field%OutputNumber,               &
-                                       STAT         = STAT_CALL)
-                      if (STAT_CALL /= SUCCESS_)stop 'OutputFields - ModuleCFPolcomFormat - ERR09'                 
-		          
-                   endif
+                             call HDF5SetLimits(Me%ObjHDF5, Field%WorkSize%ILB, Field%WorkSize%IUB,&
+                                               Field%WorkSize%JLB, Field%WorkSize%JUB, &
+                                               Field%WorkSize%KLB-1, Field%WorkSize%KUB, STAT = STAT_CALL)
+                             if (STAT_CALL /= SUCCESS_)stop 'OutputFields - ModuleCFPolcomFormat - ERR80'
+                             
+                             Field%Values3D(:,:,:) = 0.
+                          
+                             Do j=Me%workSize%jLB, Me%workSize%jUB        
+                             Do i=Me%WorkSize%ILB, Me%workSize%IUB    
+                             Do k=Me%WorkSize%KLB-1,Me%WorkSize%KUB
+       
+                                If (Me%Bathymetry(i,j)==-999.9  .or. Me%SZZ(i,j,k) == -999.9 ) then 
+                                    Field%Values3D(i,j,k)= -99.9
+                                else
+                                    Field%Values3D(i,j,k)=-Me%SZZ(i,j,k)* Me%Bathymetry(i,j)
+                                endif  
+                            enddo              
+                            enddo
+                            enddo
+                            
+                            call HDF5WriteData(Me%ObjHDF5,                                      &
+                                          "/Grid/VerticalZ",                                &
+                                           "Vertical",                                      &
+                                           "m",                                             &
+                                           Array3D      = Field%Values3D,                   &
+                                           OutputNumber = Field%OutputNumber,               &
+                                           STAT         = STAT_CALL)
+                            if (STAT_CALL /= SUCCESS_)stop 'OutputFields - ModuleCFPolcomFormat - ERR90'                 
+                  
+                        endif i5
       
-             endif if0
+                    endif if0
 
-                end if
+                end if i4
 !                 End write Polcom SZZ data into hdf5 file
 
                 Field => Field%Next
 
-            end do
+            end do d4
 
             OutputNumber = OutputNumber + 1
 
             CurrentDate => CurrentDate%Next
 
-        end do
+        end do d3
 
         write(*,*)
         write(*,*)'Closing HDF5 file...'
 
         !Writes everything to disk
         call HDF5FlushMemory (Me%ObjHDF5, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)stop 'OutputFields - ModuleMM5Format - ERR07'
+        if (STAT_CALL /= SUCCESS_)stop 'OutputFields - ModuleMM5Format - ERR100'
 
 
 
@@ -1486,7 +1484,7 @@ if0:                if(Field%nDimensions == 2) then
 
         WaterPoints3D(:,:,:) = Me%WaterPoints3D(:,:,:)  
         
-		
+        
         if (Me%Polcom_Data) then 
           
          WaterPoints3D(:,:,:) = Me%WaterPoints3D(:,:,:)
