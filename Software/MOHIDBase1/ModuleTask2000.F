@@ -22,7 +22,7 @@
      & NWaves, WaveAmplitude, WavePhase, WaveName, time_, STAT)
      
 
-        !Arguments-------------------------------------------------------------
+        !Arguments-----------------------------------------------------
         
         integer     TogaID
         real        WaterLevel
@@ -1276,7 +1276,7 @@ C
       subroutine OrderTidalComponents(WaveAmplitude, WavePhase, 
      %                                WaveName,nWaves)
     
-        !Arguments-------------------------------------------------------
+        !Arguments---------------------------------------------------
         real, dimension(Ncompt)         :: WaveAmplitude
         real, dimension(Ncompt)         :: WavePhase
         character(*), dimension(Ncompt) :: WaveName
