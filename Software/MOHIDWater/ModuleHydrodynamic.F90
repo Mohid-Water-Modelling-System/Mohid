@@ -12275,10 +12275,10 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
         real                                        :: NewDT
 
         !Local-----------------------------------------------------------------
-        integer                                     :: i, j, k
+        integer                                     :: i, j, k, status
         real(8)                                     :: TotalFlux  
-        real                                        :: AuxDT, CourantDT, VelDT, VolVarDT
-        real(8)                                     :: MaxVariation
+        real(8)                                     :: CourantDT, Courant, AuxDT
+        real                                        :: DT_Model
 
         !Test Frank.
         !Calculates new DT which guarantees a transport Courant < 1 for horizontal fluxes
@@ -12319,7 +12319,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
                     TotalFlux = TotalFlux + Me%WaterFluxes%Z(i, j, k+1)
                 endif
 
-                if (TotalFlux > 0.1) then   !To avoid division by zero
+                if (TotalFlux > 0.1 .and. Me%External_Var%Volume_Z_New(i, j, k) > 0. ) then   !To avoid division by zero
                     AuxDT = Me%External_Var%Volume_Z_New(i, j, k) / TotalFlux
                     if (AuxDT < CourantDT) CourantDT = AuxDT
                 endif
@@ -12328,83 +12328,30 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
         enddo
         enddo
         enddo
-
-        !Divide predicted Courant DT by the security factor
-        !If 5 is a good option must be shown in the future
-        CourantDT = CourantDT / 10.0
-
-        !If in any place velocity variation is greater then 5% reduce DT
-        VelDT   = -FillValueReal
-        do k = Me%WorkSize%KLB, Me%WorkSize%KUB
-        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
-        do i = Me%WorkSize%ILB, Me%WorkSize%IUB
-            
-            if (Me%External_Var%WaterPoints3D(i, j, k) == WaterPoint) then
-
-                if (Me%External_Var%ComputeFaces3D_U(i, j, k) == Compute .and. &
-                    Me%Velocity%Horizontal%U%New    (i, j, k) < 0.0) then
-                    VelDT = min (VelDT, Me%External_Var%DUX(i, j) / (-Me%Velocity%Horizontal%U%New(i, j, k)))
-                endif
-                    
-                if (Me%External_Var%ComputeFaces3D_U(i, j+1, k) == Compute .and. &
-                    Me%Velocity%Horizontal%U%New    (i, j+1, k) > 0.0) then
-                    VelDT = min (VelDT, Me%External_Var%DUX(i, j) / Me%Velocity%Horizontal%U%New(i, j+1, k))
-                endif
-
-                if (Me%External_Var%ComputeFaces3D_V(i, j, k) == Compute .and. &
-                    Me%Velocity%Horizontal%V%New    (i, j, k) < 0.0) then
-                    VelDT = min (VelDT, Me%External_Var%DVY(i, j) / (-Me%Velocity%Horizontal%V%New(i, j, k)))
-                endif
-
-                if (Me%External_Var%ComputeFaces3D_V(i+1, j, k) == Compute .and. &
-                    Me%Velocity%Horizontal%V%New    (i+1, j, k) > 0.0) then
-                    VelDT = min (VelDT, Me%External_Var%DVY(i, j) / Me%Velocity%Horizontal%V%New(i+1, j, k))
-                endif
-
-            endif
-
-        enddo
-        enddo
-        enddo
-
-        !Divide predicted Courant DT by the security factor
-        !If 10 is a good option must be shown in the future
-        VelDT = VelDT / 10.0
+        
+        call GetComputeTimeStep(Me%ObjTime, DT_Model, STAT = status)
+        
+        if (status /= SUCCESS_)                                                         &
+            call SetError (FATAL_, INTERNAL_, 'CalcNewDT - ModuleHydrodynamic - ERR10')
+        
+        
+        Courant = CourantDT / dble(DT_Model)
 
 
-        MaxVariation = null_real
-        do k = Me%WorkSize%KLB, Me%WorkSize%KUB
-        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
-        do i = Me%WorkSize%ILB, Me%WorkSize%IUB
-            
-            if (Me%External_Var%WaterPoints3D(i, j, k) == WaterPoint) then
-                MaxVariation = max (MaxVariation, abs((Me%External_Var%Volume_Z_New(i, j, k)  - &
-                                                       Me%External_Var%Volume_Z_Old(i, j, k)) / &
-                                                       Me%External_Var%Volume_Z_New(i, j, k)))
-            endif
-
-        enddo
-        enddo
-        enddo
-
-        !If variation is over 10.0% shut down DT quickly
-        if     (MaxVariation > 0.10) then
-            VolVarDT = 0.5  * NewDT
-        !If variation is over  2% shut down DT slowly
-        elseif (MaxVariation > 0.02) then
-            VolVarDT = 0.95 * NewDT
-        !If variation is over  1%% keep DT
-        elseif (MaxVariation > 0.01) then     
-            VolVarDT = NewDT                !This will keep DT constant
+        !If variation is over 60.0% shut down DT quickly
+        if     (Courant > 0.60) then
+            NewDT = 0.5  * CourantDT 
+        !If variation is over  40% shut down DT slowly
+        elseif (Courant > 0.4 .and. Courant <= .6) then
+            NewDT = 0.8  * CourantDT 
+        elseif (Courant > 0.2 .and. Courant <= .4) then
+            NewDT = CourantDT 
+        elseif (Courant <= 0.20) then     
+            NewDT = 1.2 * CourantDT 
         !Increase DT
-        else
-            VolVarDT = -null_real           !Vol Var is not determinate
         endif
 
-        !write(988, *)VelDT, CourantDT, VolVarDT
 
-        !Return Minimum DT
-        NewDT = min(VelDT, CourantDT, VolVarDT)
 
     end subroutine CalcNewDT
 
@@ -27550,10 +27497,10 @@ dok2:               do k = Kbottom, KUB
                         ![m^3/s]         = [m^2/s]*[m]
                         WaterFluxImposed =  dble(ImposedTangentialFacesVU(iSouth    , jWest     , k)) * &
                                                  Sub_qYX                 (iSouth    , jWest     , k)  * &
-                                            dble(DXX_YY                  (iSouth    , jWest        )) + &                                             
-                                            dble(ImposedTangentialFacesVU(i          , j          , k)) * &
-                                                 Sub_qYX                 (i          , j          , k)  * &                                             
-                                            dble(DXX_YY                  (i          , j             ))
+                                            dble(DXX_YY                  (iSouth    , jWest        )) + &
+                                            dble(ImposedTangentialFacesVU(i          , j        , k)) * &
+                                                 Sub_qYX                 (i          , j        , k)  * &
+                                            dble(DXX_YY                  (i          , j           ))
 
 
                         ![m^3/s]         = [m^2/s]*[m]
@@ -37218,7 +37165,7 @@ cd2:            if (WaterPoints3D(i  , j  ,k)== WaterPoint .and.                
                                              Me%Energy%OpenVolumeBuffer      (iBuffer), &
                                              Me%Energy%WaterLevelBuffer      (iBuffer), &
                                              Me%Energy%BarotropicKEBuffer    (iBuffer), &
-                                             Me%Energy%BaroclinicKEBuffer    (iBuffer), &                                                   
+                                             Me%Energy%BaroclinicKEBuffer    (iBuffer), &
                                              Me%Energy%VelMaxBuffer          (iBuffer), &
                                              Me%Energy%VelMaxBaroclinicBuffer(iBuffer), &
                                              Me%Energy%VorticityBuffer       (iBuffer)

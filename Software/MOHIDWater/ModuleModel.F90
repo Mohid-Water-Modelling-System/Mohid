@@ -1481,10 +1481,11 @@ if2:            if (Global_CurrentTime .GE. Me%CurrentTime) then
 
     !--------------------------------------------------------------------------
 
-    subroutine RunModel(ModelID, STAT)
+    subroutine RunModel(ModelID, DT_Father, STAT)
 
         !Arguments-------------------------------------------------------------
         integer                                     :: ModelID
+        real                                        :: DT_Father
         integer, optional, intent(OUT)              :: STAT
 
         !Local-----------------------------------------------------------------
@@ -1505,6 +1506,7 @@ if2:            if (Global_CurrentTime .GE. Me%CurrentTime) then
 
 if1 :   if (ready_ .EQ. IDLE_ERR_) then
 
+
 #ifdef _USE_SEQASSIMILATION
            if (Me%RunSeqAssimilation) then
 
@@ -1523,7 +1525,7 @@ if1 :   if (ready_ .EQ. IDLE_ERR_) then
 
                         call SetModelInitialState(cyclenumber)
 
-                        call RunOneModel(PredictedDT)
+                        call RunOneModel(PredictedDT, DT_Father)
 
                         !call GetModelResult(cyclenumber)
                     enddo
@@ -1537,13 +1539,13 @@ if1 :   if (ready_ .EQ. IDLE_ERR_) then
 
                     call SetModelInitialState(Me%StateCovRank + 1)
 
-                    call RunOneModel(PredictedDT)
+                    call RunOneModel(PredictedDT, DT_Father)
 
                     !!   Calculate the new EOF set
                     !call CovarianceCalculationSEEK
                 else
 
-                    call RunOneModel(PredictedDT)
+                    call RunOneModel(PredictedDT, DT_Father)
                 endif
 
                 if (Me%CurrentTime == Me%SeqAssimilationTime) then
@@ -1562,7 +1564,7 @@ if1 :   if (ready_ .EQ. IDLE_ERR_) then
                 endif
            else
 #endif _USE_SEQASSIMILATION
-                call RunOneModel(PredictedDT) 
+                call RunOneModel(PredictedDT, DT_Father) 
 
 #ifdef _USE_SEQASSIMILATION
            endif
@@ -1572,10 +1574,10 @@ if1 :   if (ready_ .EQ. IDLE_ERR_) then
 
                 NewDT = PredictedDT
 
-                if (NewDT > Me%DT) then
-                    !At maximum increase DT by 5%
-                    NewDT = min(Me%DT * 1.05, NewDT)
-                endif
+!                if (NewDT > Me%DT) then
+!                    !At maximum increase DT by 5%
+!                    NewDT = min(Me%DT * 1.05, NewDT)
+!                endif
 
                 !Dont allow DT superior to Maximum DT
                 if (NewDT > Me%MaxDT) then
@@ -1589,7 +1591,7 @@ if1 :   if (ready_ .EQ. IDLE_ERR_) then
 
 
                 !Fit DT so model will stop at the right time
-                if (Me%CurrentTime + NewDT > Me%EndTime) then
+                if (Me%CurrentTime + NewDT > Me%EndTime .and. Me%EndTime > Me%CurrentTime) then
                     NewDT = Me%EndTime - Me%CurrentTime
                 endif
 
@@ -1598,7 +1600,7 @@ if1 :   if (ready_ .EQ. IDLE_ERR_) then
                 !Actualize the Time Step
                 call ActualizeDT(Me%ObjTime, NewDT, STAT = STAT_CALL)     
                 if (STAT_CALL /= SUCCESS_) stop 'RunModel - ModuleModel - ERR26'
-
+                
            endif 
 
 
@@ -1625,13 +1627,14 @@ if1 :   if (ready_ .EQ. IDLE_ERR_) then
 
     !--------------------------------------------------------------------------
 
-    subroutine RunOneModel(PredictedDT)
+    subroutine RunOneModel(PredictedDT, DT_Father)
 
         !Arguments-------------------------------------------------------------
-        real                                        :: PredictedDT
+        real                                        :: PredictedDT, DT_Father
 
         !Local-----------------------------------------------------------------
-        integer                                     :: STAT_CALL
+        real                                        :: PredHydroDT, PredWaterDT, AuxReal
+        integer                                     :: STAT_CALL, AuxInt
 #ifndef _AIR_
         integer, dimension(:, :), pointer           :: WaterPoints2D
 #endif
@@ -1743,7 +1746,7 @@ if1 :   if (ready_ .EQ. IDLE_ERR_) then
         call Modify_Hydrodynamic(Me%ObjHydrodynamic,                                &
                                  Me%ExternalVar%Density,                            &
                                  Me%ExternalVar%SigmaDens,                          &
-                                 PredictedDT,                                       &
+                                 PredHydroDT,                                       &
                                  STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'RunOneModel - ModuleModel - ERR18'
                 
@@ -1768,9 +1771,23 @@ if1 :   if (ready_ .EQ. IDLE_ERR_) then
 
         end if
 
-        call WaterProperties_Evolution(Me%ObjWaterProperties, STAT = STAT_CALL)
+        call WaterProperties_Evolution(Me%ObjWaterProperties, PredWaterDT, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'RunOneModel - ModuleModel - ERR22'
 
+        if (Me%VariableDT) then
+
+            PredictedDT = min(PredHydroDT, PredWaterDT, DT_Father)
+            
+            if (DT_Father < - FillValueReal/100.) then
+                AuxReal      = DT_Father/PredictedDT
+                AuxInt       = int(AuxReal) 
+                if (AuxReal/= real(AuxInt)) AuxInt = AuxInt + 1
+                PredictedDT =  DT_Father / real(AuxInt)
+            endif
+            
+            !write(998,*)  PredHydroDT, PredWaterDT, DT_Father, PredictedDT
+
+        endif
 
 #ifndef _SEDIMENT_
         if(Me%RunSediments)then

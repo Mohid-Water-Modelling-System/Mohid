@@ -712,6 +712,7 @@ Module ModuleWaterProperties
         character(len=Pathlength)               :: StatisticsFile
         integer                                 :: StatisticID
         real, pointer, dimension(:,:,:)         :: Concentration
+        real, pointer, dimension(:,:,:)         :: ConcentrationOld
         real, pointer, dimension(:,:  )         :: SurfaceFlux
         real, pointer, dimension(:,:,:)         :: Mass_Created
         real, pointer, dimension(:,:,:)         :: Mass_Destroid
@@ -7903,10 +7904,11 @@ case1 :     select case(Property%ID%IDNumber)
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     
-    subroutine WaterProperties_Evolution(WaterPropertiesID, STAT)
+    subroutine WaterProperties_Evolution(WaterPropertiesID, NewDT, STAT)
 
         !Arguments-------------------------------------------------------------
         integer                                     :: WaterPropertiesID
+        real   , optional, intent(OUT)              :: NewDT
         integer, optional, intent(OUT)              :: STAT
    
         !Local-----------------------------------------------------------------
@@ -8059,6 +8061,8 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             
             if(Me%Coupled%Statistics%Yes)                     &
                 call OutPut_Statistics
+            
+            if (present(NewDT)) call CalcNewDT (NewDT)
 
             call Actualize_Time_Evolution
 
@@ -11460,7 +11464,7 @@ do3:                        do k = kbottom, KUB
                                     ExcretedProperty%Concentration(i,j,k) =             &
                                                 ExcretedProperty%Concentration(i,j,k) + &
                                                 PropertyX%Filtration(i, j, k)  * DT   / &
-                                                Me%ExternalVar%VolumeZ (i, j, k)      * &                                            
+                                                Me%ExternalVar%VolumeZ (i, j, k)      * &
                                                 StoichiometricRatio  * (1. - AssimilationEfficiency)
 
                                 enddo
@@ -11589,7 +11593,7 @@ do3:                                do k = kbottom, KUB
         integer                                     :: STAT_CALL
         integer                                     :: ILB, IUB, JLB, JUB, KUB, i, j
         real                                        :: DOSAT, CO2PP
-        real                                        :: Palt, pressure
+        real                                        :: Palt, pressure, Aux1, Aux2, Aux3
 
         !Begin----------------------------------------------------------------------
 
@@ -11647,19 +11651,30 @@ case1 :     select case(Property%ID%IDNumber)
                         do i=ILB, IUB
 
                             if (Me%ExternalVar%OpenPoints3D(i, j, KUB) == OpenPoint) then
-
+                            
                                 DOSAT = OxygenSaturation(PropTemperature%Concentration(i,j,KUB), &
                                                          PropSalinity%Concentration(i,j,KUB))
+                                                         
+                                ![s/L] = [s] * [L2] / [L3]
+                                Aux1                           = Property%Evolution%DTInterval      * &
+                                                                 Me%ExternalVar%gridCellArea(i, j)  / &
+                                                                 Me%ExternalVar%VolumeZ(i,j,KUB)
 
-                                !New Concentration
-                                Property%SurfaceFlux(i, j) = Me%ExtSurface%OxygenFlux(i, j)                     * &
-                                                             (DOSAT - Property%Concentration(i,j,KUB))
+                                ![ ]                          =  [L/s] * [s/L] 
+                                Aux2                          =  Me%ExtSurface%OxygenFlux(i, j) * Aux1
+
+                                ![Concentration]               = [] * [Concentration]                                              
+                                Aux3                           = Aux2 * DOSAT
                                 
-                                Property%Concentration(i, j, KUB) = Property%Concentration(i, j, KUB)           + &
-                                                                    Property%SurfaceFlux(i, j)                  * &
-                                                                    Property%Evolution%DTInterval               * &
-                                                                    Me%ExternalVar%gridCellArea(i, j)           / &
-                                                                    Me%ExternalVar%VolumeZ(i,j,KUB)
+                               
+                                !New Concentration - implicit computation to avoid instability problems
+                                Property%Concentration(i, j, KUB) = (Property%Concentration(i, j, KUB) + Aux3) / (1 + Aux2)
+                                
+                                
+                                Property%SurfaceFlux(i, j) = Me%ExtSurface%OxygenFlux(i, j) * &
+                                                             (DOSAT - Property%Concentration(i,j,KUB))
+                              
+                                                                    
                             endif
                         enddo
                         enddo
@@ -11673,15 +11688,25 @@ case1 :     select case(Property%ID%IDNumber)
 
                                 DOSAT = OxygenSaturationHenry(PropTemperature%Concentration(i,j,KUB))
 
-                                !New Concentration
-                                Property%SurfaceFlux(i, j) = Me%ExtSurface%OxygenFlux(i, j)                     * &
-                                                             (DOSAT - Property%Concentration(i,j,KUB))
+                                                         
+                                ![s/L] = [s] * [L2] / [L3]
+                                Aux1                           = Property%Evolution%DTInterval      * &
+                                                                 Me%ExternalVar%gridCellArea(i, j)  / &
+                                                                 Me%ExternalVar%VolumeZ(i,j,KUB)
+
+                                ![ ]                          =  [L/s] * [s/L] 
+                                Aux2                          =  Me%ExtSurface%OxygenFlux(i, j) * Aux1
+
+                                ![Concentration]               = [] * [Concentration]                                              
+                                Aux3                           = Aux2 * DOSAT
                                 
-                                Property%Concentration(i, j, KUB) = Property%Concentration(i, j, KUB)           + &
-                                                                    Property%SurfaceFlux(i, j)                  * &
-                                                                    Property%Evolution%DTInterval               * &
-                                                                    Me%ExternalVar%gridCellArea(i, j)           / &
-                                                                    Me%ExternalVar%VolumeZ(i,j,KUB)
+                               
+                                !New Concentration - implicit computation to avoid instability problems
+                                Property%Concentration(i, j, KUB) = (Property%Concentration(i, j, KUB) + Aux3) / (1 + Aux2)
+                                
+                                
+                                Property%SurfaceFlux(i, j) = Me%ExtSurface%OxygenFlux(i, j) * &
+                                                             (DOSAT - Property%Concentration(i,j,KUB))
                             endif
                         enddo
                         enddo
@@ -11701,15 +11726,25 @@ case1 :     select case(Property%ID%IDNumber)
                                                                  PropSalinity%Concentration(i,j,KUB), &
                                                                  Palt)
            
-                                !New Concentration
-                                Property%SurfaceFlux(i, j) = Me%ExtSurface%OxygenFlux(i, j)                     * &
-                                                             (DOSAT - Property%Concentration(i,j,KUB))
+                                                         
+                                ![s/L] = [s] * [L2] / [L3]
+                                Aux1                           = Property%Evolution%DTInterval      * &
+                                                                 Me%ExternalVar%gridCellArea(i, j)  / &
+                                                                 Me%ExternalVar%VolumeZ(i,j,KUB)
+
+                                ![ ]                          =  [L/s] * [s/L] 
+                                Aux2                          =  Me%ExtSurface%OxygenFlux(i, j) * Aux1
+
+                                ![Concentration]               = [] * [Concentration]                                              
+                                Aux3                           = Aux2 * DOSAT
                                 
-                                Property%Concentration(i, j, KUB) = Property%Concentration(i, j, KUB)           + &
-                                                                    Property%SurfaceFlux(i, j)                  * &
-                                                                    Property%Evolution%DTInterval               * &
-                                                                    Me%ExternalVar%gridCellArea(i, j)           / &
-                                                                    Me%ExternalVar%VolumeZ(i,j,KUB)
+                               
+                                !New Concentration - implicit computation to avoid instability problems
+                                Property%Concentration(i, j, KUB) = (Property%Concentration(i, j, KUB) + Aux3) / (1 + Aux2)
+                                
+                                
+                                Property%SurfaceFlux(i, j) = Me%ExtSurface%OxygenFlux(i, j) * &
+                                                             (DOSAT - Property%Concentration(i,j,KUB))
                             endif
                         enddo
                         enddo
@@ -12128,6 +12163,131 @@ do1 :   do while (associated(PropertyX))
 
     !-------------------------------------------------------------------------- 
        
+    subroutine CalcNewDT (NewDT)
+        
+        !Arguments-------------------------------------------------------------
+        real                                        :: NewDT
+        
+        !Local-----------------------------------------------------------------
+        
+        type (T_Property), pointer                  :: PropertyX
+        real(8)                                     :: DAux, DauxMin
+        real                                        :: ModelDT
+        logical                                     :: VariableDT
+        integer                                     :: ILB, IUB, JLB, JUB, KUB
+        integer                                     :: i, j, k, Kbottom, STAT_CALL, iaux, jaux, kaux
+        integer                                     :: CHUNK
+        !Begin----------------------------------------------------------------------
+
+        if (MonitorPerformance) call StartWatch ("ModuleWaterProperties", "CalcNewDT")
+
+        ILB = Me%WorkSize%ILB 
+        IUB = Me%WorkSize%IUB 
+        JLB = Me%WorkSize%JLB 
+        JUB = Me%WorkSize%JUB 
+        KUB = Me%WorkSize%KUB 
+        
+        DauxMin = - FillValueReal
+        
+        call GetVariableDT (Me%ObjTime, VariableDT, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'CalcNewDT - ModuleWaterProperties - ERR10'
+        
+        if (VariableDT) then
+        
+            call GetComputeTimeStep(Me%ObjTime, ModelDT, STAT = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_)                                                &
+                stop 'CalcNewDT - ModuleWaterProperties - ERR20'
+                
+            call GetGeometryVolumes(Me%ObjGeometry,                                     &
+                                    VolumeZOld     = Me%ExternalVar%VolumeZOld,         &
+                                    STAT = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_)                                                &
+                stop 'CalcNewDT - ModuleWaterProperties - ERR30'                
+
+            NewDT = ModelDT
+            
+            PropertyX => Me%FirstProperty  
+
+    do1 :   do while (associated(PropertyX))
+                if (PropertyX%Evolution%Variable) then
+                    if(Me%ExternalVar%Now .ge. PropertyX%Evolution%NextCompute)then
+
+                        CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+                        
+                        if (.not.associated(PropertyX%ConcentrationOld)) then 
+                        
+                            allocate(PropertyX%ConcentrationOld(Me%Size%ILB:Me%Size%IUB,&
+                                                                Me%Size%JLB:Me%Size%JUB,&
+                                                                Me%Size%KLB:Me%Size%KUB))
+                            
+                            PropertyX%ConcentrationOld(:,:,:) = PropertyX%Concentration(:,:,:)
+                            
+                        
+                        endif
+                        
+                        !$OMP PARALLEL PRIVATE(Daux,I,J,K,kbottom)
+                        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+                        do j=JLB, JUB
+                        do i=ILB, IUB
+
+                            if (Me%ExternalVar%OpenPoints3D(i, j, KUB) == OpenPoint) then
+
+                                kbottom = Me%ExternalVar%KFloor_Z(i,j)
+
+                                do k = kbottom, KUB
+                                    
+                                    DAux = (PropertyX%Concentration   (i, j, k) * Me%ExternalVar%VolumeZ   (i, j, k)) / &
+                                           (PropertyX%ConcentrationOld(i, j, k) * Me%ExternalVar%VolumeZOld(i, j, k)) - 1.
+                                   
+                                    if (DAux < DAuxMin) then 
+                                    
+                                        !$OMP CRITICAL
+                                        
+                                        DAuxMin = DAux
+                                        iaux = i; jaux = j; kaux = k;
+                                        
+                                        !$OMP CRITICAL
+                                    endif
+                                   
+                                    PropertyX%ConcentrationOld(i,j,k) = PropertyX%Concentration(i,j,k)
+
+                                enddo
+
+                            endif
+
+                        enddo
+                        enddo
+                        !$OMP END DO NOWAIT
+                        !$OMP END PARALLEL
+
+                    end if
+                end if
+
+                PropertyX => PropertyX%Next
+            end do do1
+
+            nullify(PropertyX)
+            
+            if (abs(DAuxMin) > .6) NewDT = NewDT / 2. 
+            
+            if (abs(DAuxMin) < .2) NewDT = NewDT * 1.2 
+
+            call UnGetGeometry(Me%ObjGeometry, Me%ExternalVar%VolumeZOld, STAT = STAT_CALL)
+            
+            if (STAT_CALL .NE. SUCCESS_)                                                &
+                stop 'CalcNewDT - ModuleWaterProperties - ERR40'                
+
+            !write(88,*) NewDT, iaux, jaux
+
+        endif
+
+        if (MonitorPerformance) call StopWatch ("ModuleWaterProperties", "CalcNewDT")
+
+    end subroutine CalcNewDT
+
+
+    !-------------------------------------------------------------------------- 
+       
     subroutine ModifyOxygenSaturation
 
         !External--------------------------------------------------------------
@@ -12380,10 +12540,11 @@ cd2 :       if (Property%Evolution%MaxConcentration) then
         type(T_Property),           pointer :: Temperature
 
         !Local variables-------------------------------------------------------
+        real,   dimension(:,:), pointer     :: WaterColumnZ
         real                                :: TopHeatFlux, BottomHeatFlux
         real                                :: AuxT
         integer                             :: ILB, IUB, JLB, JUB, KUB
-        integer                             :: i, j, k, kbottom
+        integer                             :: i, j, k, kbottom, STAT_CALL
         real                                :: SpecifHeat
 
         !Begin----------------------------------------------------------------------
@@ -12393,12 +12554,16 @@ cd2 :       if (Property%Evolution%MaxConcentration) then
         JLB = Me%WorkSize%JLB 
         JUB = Me%WorkSize%JUB 
         KUB = Me%WorkSize%KUB 
+        
+        !WaterColumnZ
+        call GetGeometryWaterColumn(Me%ObjGeometry, WaterColumn = WaterColumnZ, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ComputeSurfaceHeatFluxes - ModuleWaterProperties - ERR10'
 
 
 do1:    do j = JLB, JUB
 do2:    do i = ILB, IUB
             
-cd1:        if (Me%ExternalVar%OpenPoints3D(i, j, KUB) == OpenPoint) then        
+cd1:        if (Me%ExternalVar%OpenPoints3D(i, j, KUB) == OpenPoint .and. WaterColumnZ(i,j) > .5) then        
 
 
                 kbottom = Me%ExternalVar%KFloor_Z(i, j)
@@ -12460,6 +12625,9 @@ do3:            do k = kbottom, KUB
 
         enddo do2
         enddo do1
+        
+        call UnGetGeometry(Me%ObjGeometry, WaterColumnZ, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ComputeSurfaceHeatFluxes - ModuleWaterProperties - ERR20'        
 
     end subroutine ComputeSurfaceHeatFluxes
 
@@ -12641,7 +12809,7 @@ dn:         do n=1, nCells
  cd1:               if (PropertyX%Evolution%Discharges) then
  cd2:               if (Actual.GE.PropertyX%Evolution%NextCompute) then
 
-                        nProperties = nProperties + 1
+                        !nProperties = nProperties + 1
                     
                         !Frank
                         !If the discharge flow is positive (Input) then the concentration

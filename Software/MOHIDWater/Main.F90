@@ -1154,7 +1154,7 @@ doNext:     do while (associated(NextModel))
         integer                                     :: STAT_CALL
         type (T_MohidWater), pointer                :: CurrentModel
         logical                                     :: DoNextStep
-        real                                        :: DTmin, DTmax
+        real                                        :: DTmin, DTmax, DT_Father
 
 
         write(*, *)"-------------------------- MOHID -------------------------"
@@ -1174,6 +1174,11 @@ doNext:     do while (associated(NextModel))
         do while (Running)
             
             GlobalCurrentTime = GlobalCurrentTime + DTmin
+            
+            if (DTmin == 0.) then
+                write(*,*) 'Time step equal to zero dt =', dtmin
+                exit 
+            endif
 
             if (RunInParallel) then
 
@@ -1183,7 +1188,14 @@ doNext:     do while (associated(NextModel))
                     if (CurrentModel%MPI_ID == myMPI_ID) then
 
                         call UpdateTimeAndMapping    (CurrentModel%ModelID, GlobalCurrentTime, DoNextStep, STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'ModifyMohidWater - MohidWater - ERR02'
+                        if (STAT_CALL /= SUCCESS_) stop 'ModifyMohidWater - MohidWater - ERR10'
+                        
+                        if (associated(CurrentModel%FatherModel))  then
+                            call GetModelTimeStep (CurrentModel%FatherModel%ModelID, DT_Father, STAT = STAT_CALL)
+                            if (STAT_CALL /= SUCCESS_) stop 'ModifyMohidWater - MohidWater - ERR20'
+                        else
+                            DT_Father = - FillValueReal
+                        endif
 
                         if (DoNextStep) then
                             !Waits for information from father
@@ -1200,14 +1212,14 @@ doNext:     do while (associated(NextModel))
 
                                 else if (CurrentModel%CurrentTime > CurrentModel%InfoTime) then
 
-                                    stop 'ModifyMohidWater - MohidWater - ERR02a'
+                                    stop 'ModifyMohidWater - MohidWater - ERR30'
 
                                 endif
 
                             endif
 
-                            call RunModel(CurrentModel%ModelID, STAT = STAT_CALL)
-                            if (STAT_CALL /= SUCCESS_) stop 'ModifyMohidWater - MohidWater - ERR03'
+                            call RunModel(CurrentModel%ModelID, DT_Father, STAT = STAT_CALL)
+                            if (STAT_CALL /= SUCCESS_) stop 'ModifyMohidWater - MohidWater - ERR40'
 
                             call SendInformationMPI (CurrentModel)
                         endif
@@ -1224,7 +1236,7 @@ doNext:     do while (associated(NextModel))
 
                     call UpdateTimeAndMapping (CurrentModel%ModelID, GlobalCurrentTime,  &
                                                DoNextStep, STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'ModifyMohidWater - MohidWater - ERR02'
+                    if (STAT_CALL /= SUCCESS_) stop 'ModifyMohidWater - MohidWater - ERR50'
 
                     if (DoNextStep) then    
                         call SubModelComunication     (CurrentModel)
@@ -1233,8 +1245,17 @@ doNext:     do while (associated(NextModel))
                         call OverlapModelCommunication(CurrentModel)
 #endif OVERLAP
 
-                        call RunModel                 (CurrentModel%ModelID, STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'ModifyMohidWater - MohidWater - ERR03'
+
+                        if (associated(CurrentModel%FatherModel))  then
+                            call GetModelTimeStep (CurrentModel%FatherModel%ModelID, DT_Father, STAT = STAT_CALL)
+                            if (STAT_CALL /= SUCCESS_) stop 'ModifyMohidWater - MohidWater - ERR60'
+                        else
+                            DT_Father = - FillValueReal
+                        endif
+
+                        call RunModel             (CurrentModel%ModelID, DT_Father, STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'ModifyMohidWater - MohidWater - ERR70'
+                        
                     endif
 
                     CurrentModel => CurrentModel%Next
