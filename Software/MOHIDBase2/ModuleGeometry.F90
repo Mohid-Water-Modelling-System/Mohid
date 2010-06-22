@@ -3127,18 +3127,18 @@ cd1:    if (FacesOption == MinTickness) then
 
         if (MonitorPerformance) call StartWatch ("ModuleGeometry", "StoreVolumeZOld")
 
-        CHUNK = Chunk_K(JLB,JUB)
+        CHUNK = Chunk_J(JLB,JUB)
         !$OMP PARALLEL PRIVATE(i,j,k) 
 
-        !$OMP DO SCHEDULE(STATIC, CHUNK)
         do k = KLB, KUB
+        !$OMP DO SCHEDULE(STATIC, CHUNK)
         do j = JLB, JUB
         do i = ILB, IUB
             Me%Volumes%VolumeZOld(i, j ,k) = Me%Volumes%VolumeZ(i, j ,k) 
         enddo
         enddo
-        enddo
         !$OMP END DO
+        enddo
 
         !$OMP END PARALLEL
 
@@ -4330,7 +4330,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
         !Local-------------------------------------------------------------------
         real, dimension(:, :, :), pointer       :: SZZ 
         real, dimension(:, :, :), pointer       :: ZCellCenter 
-        integer :: I, J, K
+        integer                                 :: I, J, K
         integer                                 :: CHUNK
 
         !------------------------------------------------------------------------
