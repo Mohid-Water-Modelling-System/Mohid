@@ -61,6 +61,7 @@ Module ModuleFreeVerticalMovement
     use ModuleMap,              only: GetOpenPoints3D, GetLandPoints3D, UngetMap
     use ModuleEnterData,        only: ReadFileName, ConstructEnterData, GetData, Block_Unlock, &
                                       ExtractBlockFromBuffer, KillEnterData
+    use ModuleStopWatch,            only: StartWatch, StopWatch
 
     implicit none 
 
@@ -980,7 +981,9 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
         ! At this stage the variable TICOEF3 have null values in the land points
         ! We want that all proprieties in land points have the value of FillValueReal.
         
-        CHUNK = CHUNK_K(Me%Size%KLB, Me%Size%KUB)
+        CHUNK = CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)
+
+        if (MonitorPerformance) call StartWatch ("ModuleFreeVerticalMovement", "FreeVerticalMovementIteration")
 
         !$OMP PARALLEL SHARED(CHUNK) PRIVATE(I,J,K)
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
@@ -996,6 +999,8 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
         enddo
         !$OMP END DO NOWAIT
         !$OMP END PARALLEL
+
+        if (MonitorPerformance) call StopWatch ("ModuleFreeVerticalMovement", "FreeVerticalMovementIteration")
 
         if (PropertyX%ImpExp_AdvV/=1.) then  
            !Inversao do sistema de equacoes pelo algoritmo de thomas                             
@@ -1208,14 +1213,17 @@ do1 :   do i=Me%WorkSize%ILB, Me%WorkSize%IUB
         M               =  PropertyX%M
         ML              =  PropertyX%ML
         
-        CHUNK = CHUNK_K(Me%Size%KLB, Me%Size%KUB)
+        CHUNK = CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)
+        
+        if (MonitorPerformance) call StartWatch ("ModuleFreeVerticalMovement", "Vertical_Velocity")
         
         if(PropertyX%Ws_Type == SPMFunction)then
         
             if(PropertyX%SalinityEffect)then
                 
-                !$OMP PARALLEL SHARED(CHUNK, PropertyX, SPM, SPMISCoef, CHS,KL,KL1,M,ML) PRIVATE(I,J,K)
-                !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+                !ACanas: Function call (SettlingVelocity) in cycle iteration leads to 
+                !ACanas: parallelization error.
+                
                 do k=Me%WorkSize%KLB, Me%WorkSize%KUB 
                 do j=Me%WorkSize%JLB, Me%WorkSize%JUB
                 do i=Me%WorkSize%ILB, Me%WorkSize%IUB
@@ -1231,12 +1239,8 @@ do1 :   do i=Me%WorkSize%ILB, Me%WorkSize%IUB
                 enddo
                 enddo
                 enddo
-                !$OMP END DO NOWAIT
-                !$OMP END PARALLEL
 
             else
-                !$OMP PARALLEL SHARED(CHUNK, PropertyX, SPM, SPMISCoef, CHS,KL,KL1,M,ML) PRIVATE(I,J,K)
-                !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
                 do k=Me%WorkSize%KLB, Me%WorkSize%KUB 
                 do j=Me%WorkSize%JLB, Me%WorkSize%JUB
                 do i=Me%WorkSize%ILB, Me%WorkSize%IUB
@@ -1247,8 +1251,6 @@ do1 :   do i=Me%WorkSize%ILB, Me%WorkSize%IUB
                 enddo
                 enddo
                 enddo
-                !$OMP END DO NOWAIT
-                !$OMP END PARALLEL
 
             end if
         
@@ -1277,6 +1279,8 @@ do1 :   do i=Me%WorkSize%ILB, Me%WorkSize%IUB
                 call SetMatrixValue(PropertyX%Velocity, Me%Size, PropertyX%Ws_Value)
             endif
         end if
+        
+        if (MonitorPerformance) call StopWatch ("ModuleFreeVerticalMovement", "Vertical_Velocity")
         
         nullify(SPM)
 
@@ -1315,7 +1319,9 @@ do1 :   do i=Me%WorkSize%ILB, Me%WorkSize%IUB
         if (STAT_CALL /= SUCCESS_)                                              &
             stop 'BottomBoundary - ModuleFreeVerticalMovement - ERR01'
 
-        CHUNK = CHUNK_J(Me%Size%JLB, Me%Size%JUB)
+        CHUNK = CHUNK_J(JLB, JUB)
+
+        if (MonitorPerformance) call StartWatch ("ModuleFreeVerticalMovement", "BottomBoundary")
 
         !$OMP PARALLEL SHARED(CHUNK, PropertyX) PRIVATE(I,J,Kbottom)
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
@@ -1335,6 +1341,8 @@ do1 :   do i=Me%WorkSize%ILB, Me%WorkSize%IUB
         end do
         !$OMP END DO NOWAIT
         !$OMP END PARALLEL
+
+        if (MonitorPerformance) call StopWatch ("ModuleFreeVerticalMovement", "BottomBoundary")
 
         call UnGetGeometry(Me%ObjGeometry, Me%ExternalVar%KFloor_Z, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'BottomBoundary - ModuleFreeVerticalMovement - ERR02'
