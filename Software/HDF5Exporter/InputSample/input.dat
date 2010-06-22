@@ -1,0 +1,28 @@
+<BeginHDF5File>
+NAME       : Z:\Proj_330_LaHerradura\Simula\LaHerradura_Nov2009\Level3a\Level4_LH\res\Hydrodynamic_1.hdf5
+<EndHDF5File>
+
+
+START_TIME                          : 2009 11  5 0 0 0
+END_TIME                            : 2009 11  6 0 0 0
+
+COMPUTE_RESIDUAL : 0
+
+WATERPOINTS_NAME : 
+
+  <BeginParameter>
+HDF_GROUP      : /Results/water level
+PROPERTY       : water level
+<EndParameter>
+
+<BeginTimeSerie>
+NAME           : Tidal Gauge
+LOCALIZATION_I : 27
+LOCALIZATION_J : 148
+LOCALIZATION_K : 1
+<EndTimeSerie>
+
+
+
+
+
