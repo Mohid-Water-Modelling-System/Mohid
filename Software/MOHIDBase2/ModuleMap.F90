@@ -954,7 +954,7 @@ do2:        do i = ILB, IUB
         integer                                     :: STAT_, ready_          
         integer                                     :: ILB, IUB, JLB, JUB, KLB, KUB
         integer                                     :: i, j, k
-
+		!T integer										:: CHUNK
 
         !Begin-----------------------------------------------------------------
 
@@ -979,10 +979,20 @@ do2:        do i = ILB, IUB
             Me%ComputeFaces3D%V = 0
             Me%ComputeFaces3D%W = 0
 
-
+            !ACanas: Parallelization not tested as the subroutine is not used.
+            
+			!T CHUNK = CHUNK_J(JLB+1, JUB)
+			
+			if (MonitorPerformance) then
+                call StartWatch ("ModuleMap", "UpdateSoilComputeFaces3D")
+            endif
+			
+			!T !$OMP PARALLEL PRIVATE(i,j,k)
+			
             !ComputeFacesU / ComputeFacesV
             do k = KLB  , KUB
-            do j = JLB+1, JUB
+            !T !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+			do j = JLB+1, JUB
             do i = ILB  , IUB
 
                 if (Me%WaterPoints3D(i, j, k) == 1 .and.                                & 
@@ -998,9 +1008,16 @@ do2:        do i = ILB, IUB
 
             enddo
             enddo
+			!T !$OMP END DO
             enddo
 
+			!T !$OMP MASTER
+			!T CHUNK = CHUNK_J(JLB  , JUB)
+			!T !$OMP END MASTER
+			!T !$OMP BARRIER
+			
             do k = KLB  , KUB
+			!T !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
             do j = JLB  , JUB
             do i = ILB+1, IUB
 
@@ -1017,10 +1034,12 @@ do2:        do i = ILB, IUB
 
             enddo
             enddo
+			!T !$OMP END DO NOWAIT
             enddo
 
 
             do k = KLB+1, KUB
+			!T !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
             do j = JLB  , JUB
             do i = ILB  , IUB
                 !
@@ -1037,7 +1056,13 @@ do2:        do i = ILB, IUB
 
             enddo
             enddo
+			!T !$OMP END DO
             enddo
+			!T !$OMP END PARALLEL
+       
+       	    if (MonitorPerformance) then
+                call StopWatch ("ModuleMap", "UpdateSoilComputeFaces3D")
+            endif
        
             !Updates all points which have at least one Computeface
             call UpdateOpenPoints3D()
@@ -1166,6 +1191,7 @@ do2:        do i = ILB, IUB
         !Local-----------------------------------------------------------------
         integer                                     :: STAT_, ready_          
         integer                                     :: i, j, k
+		!T integer										:: CHUNK
 
         !Begin-----------------------------------------------------------------
 
@@ -1175,7 +1201,18 @@ do2:        do i = ILB, IUB
 
         if (ready_ .EQ. IDLE_ERR_) then
 
+            !ACanas(2010): Not tested because subroutine not used in Modifier
+            !ACanas(2010): of MOHID Water.
+
+			!T CHUNK = CHUNK_J(Me%WorkSize%JLB  , Me%WorkSize%JUB)
+
+			if (MonitorPerformance) then
+                call StartWatch ("ModuleMap", "UpdateSedimentCompFaces3D")
+            endif
+
+			!T !$OMP PARALLEL PRIVATE(i,j,k)
             do k = Me%WorkSize%KLB  , Me%WorkSize%KUB
+			!T !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
             do j = Me%WorkSize%JLB  , Me%WorkSize%JUB
             do i = Me%WorkSize%ILB  , Me%WorkSize%IUB
 
@@ -1189,7 +1226,13 @@ do2:        do i = ILB, IUB
 
             enddo
             enddo
+			!T !$OMP END DO
             enddo
+			!T !$OMP END PARALLEL
+
+			if (MonitorPerformance) then
+                call StopWatch ("ModuleMap", "UpdateSedimentCompFaces3D")
+            endif
 
             call UpdateOpenPoints3D()
 
@@ -1273,6 +1316,7 @@ do2:        do i = ILB, IUB
         integer                                     :: ILB, IUB, JLB, JUB, KLB, KUB
         integer                                     :: i, j, k
         integer                                     :: STAT_CALL
+		integer										:: CHUNK
 
         !----------------------------------------------------------------------
 
@@ -1294,31 +1338,53 @@ do2:        do i = ILB, IUB
                                       ExteriorFaceV, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'CleanBoundary - ModuleMap - ERR02'  
 
+		CHUNK = CHUNK_J(JLB+1, JUB)
+		
+		if (MonitorPerformance) then
+            call StartWatch ("ModuleMap", "CleanBoundary")
+        endif
+		
+		!$OMP PARALLEL PRIVATE(i,j,k)
+		
         !Eliminate ComputeFaces U along boundary
         do k = KLB,   KUB
-        do j = JLB+1, JUB
+        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+		do j = JLB+1, JUB
         do i = ILB,   IUB
             if ((BoundaryPoints2D(i, j) == 1) .and. (BoundaryPoints2D(i, j-1) == 1))then
                  Me%ComputeFaces3D%U(I, J, K) = 0
             end if
         enddo
         enddo
+		!$OMP END DO
         enddo
 
+		!$OMP MASTER
+		CHUNK = CHUNK_J(JLB,   JUB)
+		!$OMP END MASTER
+		!$OMP BARRIER
+		
         !Eliminate ComputeFaces V along boundary
         do k = KLB,   KUB
-        do j = JLB,   JUB   
+        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+		do j = JLB,   JUB   
         do i = ILB+1, IUB
             if ((BoundaryPoints2D(i,   j) == 1) .and. (BoundaryPoints2D(i-1, j) == 1))then
                  Me%ComputeFaces3D%V(I, J, K) = 0
             end if
         enddo
         enddo
+		!$OMP END DO
         enddo
 
+		!$OMP MASTER
+		CHUNK = CHUNK_J(JLB,   JUB + 1)
+		!$OMP END MASTER
+		!$OMP BARRIER
 
         !Eliminate Exterior Faces U 
         do k = KLB,   KUB
+		!$OMP DO SCHEDULE(DYNAMIC,CHUNK)
         do j = JLB,   JUB + 1
         do i = ILB,   IUB
             if (ExteriorFaceU(i, j) == 1)then
@@ -1326,10 +1392,17 @@ do2:        do i = ILB, IUB
             endif
         enddo
         enddo
+		!$OMP END DO
         enddo
 
+		!$OMP MASTER
+		CHUNK = CHUNK_J(JLB,   JUB)
+		!$OMP END MASTER
+		!$OMP BARRIER
+		
         !Eliminate Exterior Faces V 
         do k = KLB,   KUB
+		!$OMP DO SCHEDULE(DYNAMIC,CHUNK)
         do j = JLB,   JUB   
         do i = ILB,   IUB + 1
             if (ExteriorFaceV(i, j) == 1)then
@@ -1337,7 +1410,13 @@ do2:        do i = ILB, IUB
             endif
         enddo
         enddo
+		!$OMP END DO
         enddo
+		!$OMP END PARALLEL
+
+		if (MonitorPerformance) then
+            call StopWatch ("ModuleMap", "CleanBoundary")
+        endif
 
         call UnGetHorizontalMap(Me%ObjHorizontalMap, BoundaryPoints2D, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'CleanBoundary - ModuleMap - ERR03'  
@@ -1545,9 +1624,9 @@ if3:                if(Me%ComputeFaces3D%U(i, j, k)  == 1) then
 
                         if  (BoundaryPoints2D (i, j) == BoundaryPoints2D (i, j-1)) then
 
-                            !$OMP CRITICAL (ERR05)
+                            !$OMP CRITICAL (UIV1_ModuleMap_ERR05)
                             call SetError (FATAL_, INTERNAL_, "UpdateImposedValues - ModuleMap - ERR05")        
-                            !$OMP END CRITICAL (ERR05)
+                            !$OMP END CRITICAL (UIV1_ModuleMap_ERR05)
                         endif
 
                         !if  (BoundaryPoints2D (i, j) == BoundaryPoints2D (i, j-1)) then
@@ -1617,9 +1696,9 @@ if5 :                if(Me%ComputeFaces3D%V(i, j, k)  == 1) then
                         if  (BoundaryPoints2D (i, j) == BoundaryPoints2D (i-1, j)) then
                             !ErrorOcurred1 = .true.
                             !exit do3
-                            !$OMP CRITICAL (ERR06)
+                            !$OMP CRITICAL (UIV2_ModuleMap_ERR06)
                             call SetError (FATAL_, INTERNAL_, "UpdateImposedValues - ModuleMap - ERR06")        
-                            !$OMP END CRITICAL (ERR06)
+                            !$OMP END CRITICAL (UIV2_ModuleMap_ERR06)
                         endif
 
                         if  (BoundaryPoints2D (i, j    )  == 1)                          &
@@ -1651,9 +1730,9 @@ do7 :   do i = ILB, IUB + 1
                 !ErrorOcurred1 = .true.
                 !exit do6
                 
-                !$OMP CRITICAL (ERR07)
+                !$OMP CRITICAL (UIV3_ModuleMap_ERR07)
                 call SetError (FATAL_, INTERNAL_, "UpdateImposedValues - ModuleMap - ERR07")        
-                !$OMP END CRITICAL (ERR07)
+                !$OMP END CRITICAL (UIV3_ModuleMap_ERR07)
             endif
 
             if (Me%ImposedNormalFaces%V(i, j, k) == 1 .and.                          &
@@ -1661,9 +1740,9 @@ do7 :   do i = ILB, IUB + 1
                 !ErrorOcurred2 = .true.
                 !exit do6
                 
-                !$OMP CRITICAL (ERR08)
+                !$OMP CRITICAL (UIV4_ModuleMap_ERR08)
                 call SetError (FATAL_, INTERNAL_, "UpdateImposedValues - ModuleMap - ERR08")        
-                !$OMP END CRITICAL (ERR08)
+                !$OMP END CRITICAL (UIV4_ModuleMap_ERR08)
             endif
 
         end do do7
@@ -1689,9 +1768,9 @@ do10:   do i = ILB, IUB
                 !ErrorOcurred1 = .true.
                 !exit do9
                 
-                !$OMP CRITICAL (ERR09)
+                !$OMP CRITICAL (UIV5_ModuleMap_ERR09)
                 call SetError (FATAL_, INTERNAL_, "UpdateImposedValues - ModuleMap - ERR09")        
-                !$OMP END CRITICAL (ERR09)
+                !$OMP END CRITICAL (UIV5_ModuleMap_ERR09)
             endif
 
             if (Me%ImposedNormalFaces%U(i, j, k) == 1 .and.                          &
@@ -1699,9 +1778,9 @@ do10:   do i = ILB, IUB
                 !ErrorOcurred1 = .true.
                 !exit do9
                 
-                !$OMP CRITICAL (ERR10)
+                !$OMP CRITICAL (UIV6_ModuleMap_ERR10)
                 call SetError (FATAL_, INTERNAL_, "UpdateImposedValues - ModuleMap - ERR10")        
-                !$OMP END CRITICAL (ERR10)
+                !$OMP END CRITICAL (UIV6_ModuleMap_ERR10)
             endif
 
         end do do10
