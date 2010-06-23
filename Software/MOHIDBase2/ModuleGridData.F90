@@ -43,6 +43,9 @@ Module ModuleGridData
     use ModuleHDF5,             only: ConstructHDF5, HDF5ReadData, GetHDF5FileAccess,   &
                                       GetHDF5GroupNumberOfItems, HDF5SetLimits,         &
                                       HDF5WriteData, KillHDF5
+    use ModuleStopWatch,        only: StartWatch, StopWatch
+    use ModuleFunctions,        only: CHUNK_J
+
 
     implicit none
 
@@ -1421,6 +1424,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
         !Local-----------------------------------------------------------------
         integer                                     :: ready_        
         integer                                     :: i, j, STAT_
+        integer                                     :: CHUNK
 
         !----------------------------------------------------------------------
 
@@ -1432,22 +1436,35 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
             if (Me%Evolution%Yes) then
 
-                if (Add) then
+                if (MonitorPerformance) then
+                    call StartWatch ("ModuleGridData", "ModifyGridData2DIncrement")
+                endif
 
+				CHUNK = CHUNK_J(Me%WorkSize%JLB,Me%WorkSize%JUB)
+                if (Add) then
+                	!$OMP PARALLEL PRIVATE(i,j)
+					!$OMP DO SCHEDULE(DYNAMIC,CHUNK)
                     do j=Me%WorkSize%JLB,Me%WorkSize%JUB
                     do i=Me%WorkSize%ILB,Me%WorkSize%IUB
                         Me%GridData2D(i, j) =  Me%GridData2D(i, j) + Increment2D(i, j)
                     enddo
                     enddo
-                
+					!$OMP END DO
+                    !$OMP END PARALLEL
                 else
-
+                    !$OMP PARALLEL PRIVATE(i,j)
+					!$OMP DO SCHEDULE(DYNAMIC,CHUNK)
                     do j=Me%WorkSize%JLB,Me%WorkSize%JUB
                     do i=Me%WorkSize%ILB,Me%WorkSize%IUB
                         Me%GridData2D(i, j) =  Me%GridData2D(i, j) - Increment2D(i, j)
                     enddo
                     enddo
+					!$OMP END DO
+                    !$OMP END PARALLEL
+                endif
 
+                if (MonitorPerformance) then
+                    call StopWatch ("ModuleGridData", "ModifyGridData2DIncrement")
                 endif
 
                 STAT_ = SUCCESS_
@@ -1479,6 +1496,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
         !Local-----------------------------------------------------------------
         integer                                     :: ready_        
         integer                                     :: i, j, STAT_
+        !T integer                                     :: CHUNK
 
         !----------------------------------------------------------------------
 
@@ -1488,11 +1506,26 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
         
 cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
+            if (MonitorPerformance) then
+                call StartWatch ("ModuleGridData", "ModifyNewMatrixGridData2D")
+            endif
+
+            !ACanas: Paralelization not tested because subrotine not used in MOHID Water
+            
+			!T CHUNK = CHUNK_J(Me%WorkSize%JLB,Me%WorkSize%JUB)
+			!T !$OMP PARALLEL PRIVATE(i,j)
+			!T !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
             do j=Me%WorkSize%JLB,Me%WorkSize%JUB
             do i=Me%WorkSize%ILB,Me%WorkSize%IUB
                 Me%GridData2D(i, j) =  NewGridData2D(i, j)
             enddo
             enddo
+			!T !$OMP END DO
+			!T !$OMP END PARALLEL
+            
+            if (MonitorPerformance) then
+                call StopWatch ("ModuleGridData", "ModifyNewMatrixGridData2D")
+            endif 
             
             STAT_ = SUCCESS_
 
@@ -1519,6 +1552,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
         !Local-----------------------------------------------------------------
         integer                                     :: ready_        
         integer                                     :: i, j, STAT_
+        !T integer                                     :: CHUNK
 
         !----------------------------------------------------------------------
 
@@ -1528,11 +1562,26 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
         
 cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
+            if (MonitorPerformance) then
+                call StartWatch ("ModuleGridData", "ModifyConstantGridData2D")
+            endif
+
+            !ACanas: Paralelization not tested because subrotine not used in MOHID Water
+
+			!T CHUNK = CHUNK_J(Me%WorkSize%JLB,Me%WorkSize%JUB)
+			!T !$OMP PARALLEL PRIVATE(i,j)
+			!T !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
             do j=Me%WorkSize%JLB,Me%WorkSize%JUB
             do i=Me%WorkSize%ILB,Me%WorkSize%IUB
                 Me%GridData2D(i, j) =  ConstantValue
             enddo
             enddo
+			!T !$OMP END DO
+			!T !$OMP END PARALLEL
+            
+            if (MonitorPerformance) then
+                call StopWatch ("ModuleGridData", "ModifyConstantGridData2D")
+            endif
             
             STAT_ = SUCCESS_
 
