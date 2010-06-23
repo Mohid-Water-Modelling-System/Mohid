@@ -1745,8 +1745,8 @@ cd0:    if (ready_ .EQ. IDLE_ERR_) then
         !Local-----------------------------------------------------------------
         real                                        :: RandomValue
         integer                                     :: IUB, ILB, JUB, JLB, i, j
-		integer										:: CHUNK
-
+        integer										:: CHUNK
+        
         !Begin------------------------------------------------------------------------
 
         !Begin - Shorten variables name 

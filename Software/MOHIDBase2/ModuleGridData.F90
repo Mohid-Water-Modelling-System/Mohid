@@ -574,7 +574,9 @@ Coln1:          if      (flag == 3) then
 
             else Is3D
 
-                allocate(Me%GridData3D(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB, Me%KLB:Me%KUB))
+                allocate(Me%GridData3D(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB, Me%KLB:Me%KUB), STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ReadGridDataFile - ModuleGridData - ERR180a'
+                
                 Me%GridData3D(:,:,:) = Me%DefaultValue
 
 
@@ -633,6 +635,8 @@ Coln:               if (flag == 4)  then
                        
                         enddo
 
+                        deallocate(Aux)
+
                     else if (flag == 3) then Coln
 
                         deallocate(Aux) 
@@ -650,7 +654,11 @@ Coln:               if (flag == 4)  then
                             i = int(Aux(1))
                             j = int(Aux(2))
 
-                            Me%GridData3D(i, j, Me%KLB : Me%KUB) = Aux(3)
+                            !Next line crashes in debug.... replaced by do loop - Frank
+                            !Me%GridData3D(i, j, Me%KLB : Me%KUB) = Aux(3)
+                            do k = Me%KLB, Me%KUB
+                                Me%GridData3D(i, j, k) = Aux(3)
+                            enddo
 
                         enddo
 
@@ -1440,7 +1448,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
                     call StartWatch ("ModuleGridData", "ModifyGridData2DIncrement")
                 endif
 
-				CHUNK = CHUNK_J(Me%WorkSize%JLB,Me%WorkSize%JUB)
+                CHUNK = CHUNK_J(Me%WorkSize%JLB,Me%WorkSize%JUB)
                 if (Add) then
                 	!$OMP PARALLEL PRIVATE(i,j)
 					!$OMP DO SCHEDULE(DYNAMIC,CHUNK)

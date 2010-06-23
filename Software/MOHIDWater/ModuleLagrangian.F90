@@ -252,6 +252,8 @@ Module ModuleLagrangian
                                        GetWQPropIndex, KillWaterQuality
     use ModuleGridData,         only : GetGridData, GetMaximumValue, UngetGridData
     use ModuleTimeSerie,        only : StartTimeSerie, StartTimeSerieInput, WriteTimeSerie, &
+                                       GetNumberOfTimeSeries, GetTimeSerieLocation,         &
+                                       CorrectsCellsTimeSerie, TryIgnoreTimeSerie,          &
                                        WriteTimeSerieLine, GetTimeSerieValue, KillTimeSerie
     use ModuleLightExtinction,  only : ConstructLightExtinction, ModifyLightExtinctionField,&
                                        GetLightExtinctionOptions, KillLightExtinction,      &
@@ -261,7 +263,8 @@ Module ModuleLagrangian
     use ModuleHorizontalGrid,   only : GetHorizontalGrid, WriteHorizontalGrid,              &
                                        UnGetHorizontalGrid, GetGridOrigin, GetGridCoordType,&
                                        GetCoordTypeList, GetGridAngle, GetCheckDistortion,  &
-                                       LocateCell, GetDefineCellsMap, GetGridLatitudeLongitude
+                                       LocateCell, GetDefineCellsMap,                       &
+                                       GetGridLatitudeLongitude, GetXYCellZ
     use ModuleAssimilation,     only : StartAssimilation, GetAssimilationField,             &
                                        UnGetAssimilation, KillAssimilation
     use ModuleGeometry,         only : GetGeometrySize, GetGeometryWaterColumn,             &
@@ -4505,7 +4508,9 @@ CurrOr: do while (associated(CurrentOrigin))
         integer                                                 :: STAT_CALL
         integer                                                 :: iflag
         character(len=PathLength)                               :: TimeSerieLocationFile
-
+        real                                                    :: CoordX, CoordY
+        logical                                                 :: CoordON, IgnoreOK
+        integer                                                 :: dn, Id, Jd, TimeSerieNumber
 
         !This test is done for simply reason
         if (Me%nGroups > 1) then
@@ -4571,6 +4576,42 @@ CurrOr: do while (associated(CurrentOrigin))
         if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleLagrangian - ERR06'
 
         deallocate (PropertyList)
+
+        !Corrects if necessary the cell of the time serie based in the time serie coordinates
+        call GetNumberOfTimeSeries(Me%ObjTimeSerie, TimeSerieNumber, STAT  = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleLagrangian - ERR07'
+
+        do dn = 1, TimeSerieNumber
+
+            call GetTimeSerieLocation(Me%ObjTimeSerie, dn,                              &  
+                                      CoordX   = CoordX,                                &
+                                      CoordY   = CoordY,                                & 
+                                      CoordON  = CoordON,                               &
+                                      STAT     = STAT_CALL)
+            if (CoordON) then
+                call GetXYCellZ(Me%ObjHorizontalGrid, CoordX, CoordY, Id, Jd, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleLagrangian - ERR08'
+
+                if (Id < 0 .or. Jd < 0) then
+            
+                    call TryIgnoreTimeSerie(Me%ObjTimeSerie, dn, IgnoreOK, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleLagrangian - ERR09'
+
+                    if (IgnoreOK) then
+                        cycle
+                    else
+                        stop 'ConstructTimeSerie - ModuleLagrangian - ERR10'
+                    endif
+
+                endif
+
+                call CorrectsCellsTimeSerie(Me%ObjTimeSerie, dn, Id, Jd, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleLagrangian - ERR11'
+            endif
+
+
+        enddo
+
 
 
     end subroutine ConstructTimeSeries

@@ -982,7 +982,7 @@ do2:        do i = ILB, IUB
             !ACanas: Parallelization not tested as the subroutine is not used.
             
 			!T CHUNK = CHUNK_J(JLB+1, JUB)
-			
+
 			if (MonitorPerformance) then
                 call StartWatch ("ModuleMap", "UpdateSoilComputeFaces3D")
             endif

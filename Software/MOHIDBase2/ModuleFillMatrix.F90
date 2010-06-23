@@ -3636,7 +3636,7 @@ i1:     if (.not.(Me%HDF%Previous4DValue <= Generic_4D_Value_ .and.             
                 Me%HDF%NextTime         = HDF5TimeInstant(Me%HDF%NextInstant)
 
                 n = n + 1
-
+                
             enddo
 
             if(Now .gt. Me%HDF%NextTime)then

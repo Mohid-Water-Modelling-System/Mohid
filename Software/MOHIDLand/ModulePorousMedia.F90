@@ -5788,12 +5788,12 @@ do5:            do K = Me%WorkSize%KLB, Me%WorkSize%KUB
 
             if (Me%ExtVar%RiverPoints(i, j) == OpenPoint) then
                 
-                if (ChannelsBottomLevel(i,j) < Me%ExtVar%BottomTopoG(i, j)) then
-                    write (*,*) 
-                    write (*,*) 'Bottom River section is lower than soil profile in cell', i,j
-                    write (*,*) 'Increase bottom soil depth or decrease river depth'
-                    stop 'ExchangeWithDrainageNetwork - ModulePorousMedia - ERR06'
-                endif
+             !   if (ChannelsBottomLevel(i,j) < Me%ExtVar%BottomTopoG(i, j)) then
+             !       write (*,*) 
+             !       write (*,*) 'Bottom River section is lower than soil profile in cell', i,j
+             !       write (*,*) 'Increase bottom soil depth or decrease river depth'
+             !       stop 'ExchangeWithDrainageNetwork - ModulePorousMedia - ERR06'
+             !   endif
                     
                 !Computing Area for flux - is always two times the lateral area and one time the bottom area
                 Area  = (2. * (ChannelsWaterLevel(i, j) - ChannelsBottomLevel(i, j))  &
@@ -5819,7 +5819,7 @@ do5:            do K = Me%WorkSize%KLB, Me%WorkSize%KUB
                     
                     if (InfiltrationVolume > ChannelsVolume) then
                         Me%lFlowToChannels(i, j) = -0.5 * ChannelsVolume / Me%ExtVar%DT
-                        write(*,*)'FlowToChannels corrected - ModulePorousMedia'
+                        !write(*,*)'FlowToChannels corrected - ModulePorousMedia'
                     endif
                 
                 !If soil looses water set flow so that cell stays at least with field theta
