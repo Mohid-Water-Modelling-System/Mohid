@@ -7233,6 +7233,12 @@ cd2 :       if (BlockFound) then
                     stop 'ConstructSpecificHeat - ModuleWaterProperties - ERR08'
 
             endif cd2
+            
+            call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL) 
+
+            if (STAT_CALL .NE. SUCCESS_)                                                &
+                stop 'ConstructSpecificHeat - ModuleWaterProperties - ERR08a'
+            
             endif cd1
         endif cd3
 
@@ -9092,6 +9098,7 @@ cd2:    if (PropertySon%SubModel%InterpolTime) then
         integer                             :: STAT_CALL 
         integer                             :: ILB, IUB, JLB, JUB, KLB, KUB
         integer                             :: i, j, k
+        integer                             :: CHUNK
 
         !----------------------------------------------------------------------
         
@@ -9120,10 +9127,18 @@ cd2:    if (PropertySon%SubModel%InterpolTime) then
         !OpenPoints3D Son
         call GetOpenPoints3D(Me%ObjMap, OpenPoints3D = Open3DSon, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)stop 'ActualizeSubModelValues - WaterProperties - ERR02'
-             
+
+        CHUNK = CHUNK_J(JLB, JUB)
+        
+        if (MonitorPerformance) then
+            call StartWatch ("ModuleWaterProperties", "ActualizeSubModelValues")
+        endif
+        
+        !$OMP PARALLEL PRIVATE(i,j,k)
         if(InitialField)then
         
             do k = KLB, KUB
+            !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
             do j = JLB, JUB
             do i = ILB, IUB
                 
@@ -9140,19 +9155,22 @@ cd2:    if (PropertySon%SubModel%InterpolTime) then
                         endif
                         
                     else
-
+                        !$OMP CRITICAL (ASMV1WP_OUT01)
                         write(*,*) 'The cell ', i, j, k, ' can not access to father ',trim(PropertySon%ID%Name)
+                        !$OMP END CRITICAL(ASMV1WP_OUT01)
                         PropertySon%Assimilation%Field(i, j, k) = PropertySon%Concentration(i, j, k)
                     
                     endif
                 endif
             enddo
             enddo
+            !$OMP END DO
             enddo
 
         else
             
             do k = KLB, KUB
+            !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
             do j = JLB, JUB
             do i = ILB, IUB
                 if (Open3DSon(i, j, k) == OpenPoint) then
@@ -9171,8 +9189,14 @@ cd2:    if (PropertySon%SubModel%InterpolTime) then
                 endif
             enddo
             enddo
+            !$OMP END DO
             enddo
 
+        endif
+        !$OMP END PARALLEL
+
+        if (MonitorPerformance) then
+            call StopWatch ("ModuleWaterProperties", "ActualizeSubModelValues")
         endif
 
         PropertySon%SubModel%Set = .true.
@@ -9200,6 +9224,7 @@ cd2:    if (PropertySon%SubModel%InterpolTime) then
         integer                             :: STAT_CALL 
         integer                             :: ILB, IUB, JLB, JUB, KLB, KUB
         integer                             :: i, j, k, kbottom
+        integer                             :: CHUNK
 
         !----------------------------------------------------------------------
         ILB = Me%WorkSize%ILB
@@ -9232,8 +9257,16 @@ cd2:    if (PropertySon%SubModel%InterpolTime) then
         call GetGeometryKFloor(Me%ObjGeometry, Z = KFloor_Z, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)stop 'ActualizeSon3DFather2D - WaterProperties - ERR03'
         
-        if(InitialField)then
+        CHUNK = CHUNK_J(JLB, JUB)
         
+        if (MonitorPerformance) then
+            call StartWatch ("ModuleWaterProperties", "ActualizeSon3DFather2D")
+        endif
+        
+        !$OMP PARALLEL PRIVATE(i,j,k,kbottom)
+        if(InitialField)then
+
+            !$OMP DO SCHEDULE(DYNAMIC,CHUNK)        
             do j = JLB, JUB
             do i = ILB, IUB
 
@@ -9257,16 +9290,20 @@ cd2:    if (PropertySon%SubModel%InterpolTime) then
                     else
                     
                         kbottom = kFloor_Z(i, j)
+                        !$OMP CRITICAL (AS3DF2D1WP_OUT01)
                         do k = kbottom, KUB
                             write(*,*) 'The cell ', i, j, k, ' can not access to father ',trim(PropertySon%ID%Name)
                         enddo
+                        !$OMP END CRITICAL(AS3DF2D1WP_OUT01)
                     endif
                 endif
             enddo
             enddo
+            !$OMP END DO
 
         else
-        
+
+            !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
             do j = JLB, JUB
             do i = ILB, IUB
             
@@ -9291,7 +9328,13 @@ cd2:    if (PropertySon%SubModel%InterpolTime) then
                 endif
             enddo
             enddo
+            !$OMP END DO
 
+        endif
+        !$OMP END PARALLEL
+        
+        if (MonitorPerformance) then
+            call StopWatch ("ModuleWaterProperties", "ActualizeSon3DFather2D")
         endif
 
         PropertySon%SubModel%Set = .true.
@@ -9330,6 +9373,7 @@ cd2:    if (PropertySon%SubModel%InterpolTime) then
         integer                             :: NDepths, Aux
         integer                             :: kfather
         logical                             :: FoundBottom, FoundSurface
+        integer                             :: CHUNK
 
         !----------------------------------------------------------------------
 
@@ -9360,6 +9404,22 @@ cd2:    if (PropertySon%SubModel%InterpolTime) then
         KLBFather = PropertySon%SubModel%FatherKLB
         KUBFather = PropertySon%SubModel%FatherKUB
 
+        !OpenPoints3D Son
+        call GetOpenPoints3D(Me%ObjMap,  OpenPoints3D = Open3DSon, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)stop 'ActualizeSon3DFather3D - WaterProperties - ERR02'
+        
+        !KFloor_Z
+        call GetGeometryKFloor(Me%ObjGeometry, Z = KFloor_Z, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)stop 'ActualizeSon3DFather3D - WaterProperties - ERR03'
+        
+        CHUNK = CHUNK_J(JLB, JUB)
+        
+        if (MonitorPerformance) then
+            call StartWatch ("ModuleWaterProperties", "ActualizeSon3DFather3D")
+        endif
+        
+        !$OMP PARALLEL PRIVATE(i,j,k,Aux,kfather,Values,Depths,Kbottom,NDepths,SonDepth)
+
         !Get data for vertical interpolation father-son layers
         if (((CurrentTime == PropertySon%SubModel%GetFatherTime) .and.              &
             PropertySon%SubModel%InterPolTime) .or.                                 &
@@ -9377,23 +9437,22 @@ cd2:    if (PropertySon%SubModel%InterpolTime) then
                 call SetError(FATAL_, INTERNAL_,                                    &
                               "ActualizeSon3DWithFather3D; Hydrodynamic. ERR07") 
 
+            !$OMP MASTER
             call GetGeometryDistances(Me%ObjGeometry,                               &
                                       ZCellCenter   = SonZCellCenter,               &
                                       STAT          = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ActualizeSon3DFather2D - WaterProperties - ERR02'
+            !$OMP END MASTER
+            !$OMP BARRIER
 
         endif
-
-        !OpenPoints3D Son
-        call GetOpenPoints3D(Me%ObjMap,  OpenPoints3D = Open3DSon, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)stop 'ActualizeSon3DFather2D - WaterProperties - ERR02'
-        
-        !KFloor_Z
-        call GetGeometryKFloor(Me%ObjGeometry, Z = KFloor_Z, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)stop 'ActualizeSon3DFather2D - WaterProperties - ERR03'
         
         if(InitialField)then
+
+            !ACanas: Next cycle is not parallelized because of function call
+            !ACanas: inside cycle iterations.
         
+            !$OMP MASTER        
             do j = JLB, JUB
             do i = ILB, IUB
 
@@ -9468,9 +9527,10 @@ cd2:    if (PropertySon%SubModel%InterpolTime) then
 
             enddo
             enddo
+            !$OMP END MASTER
 
         else
-        
+            !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
             do j = JLB, JUB
             do i = ILB, IUB
 
@@ -9517,12 +9577,14 @@ cd2:    if (PropertySon%SubModel%InterpolTime) then
                                 !get son cell depth
                                 SonDepth = - SonZCellCenter(i, j, k)
 
+                                !$OMP CRITICAL (AS3DF3D3WP_FNC02)
                                 !interpolate father values as a profile
                                 PropertySon%SubModel%NextField(i,j,k) =                     &
                                                     InterpolateProfileR8(SonDepth,          &
                                                     NDepths, Depths(Aux:KUBFather),         &
                                                     Values(Aux:KUBFather),                  &
                                                     FoundBottom, FoundSurface)
+                                !$OMP END CRITICAL (AS3DF3D3WP_FNC02)
 
                                 !PropertySon%SubModel%PreviousField(i,j,k) =                 &
                                 !PropertySon%SubModel%NextField(i,j,k)
@@ -9550,7 +9612,36 @@ cd2:    if (PropertySon%SubModel%InterpolTime) then
 
             enddo
             enddo
+            !$OMP END DO
 
+        endif
+
+        !Deallocates values and depths used in vertical interpolation
+        if (((CurrentTime == PropertySon%SubModel%GetFatherTime) .and.              &
+            PropertySon%SubModel%InterPolTime) .or.                                 &
+            (.not. PropertySon%SubModel%InterPolTime)                               &
+            .or. InitialField) then
+
+            deallocate(Depths)
+            deallocate(Values)
+
+            !$OMP MASTER
+            !ZCellCenter
+            call UnGetGeometry(Me%ObjGeometry, SonZCellCenter, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)stop 'ActualizeSon3DFather2D - WaterProperties - ERR05'
+
+            if (PropertySon%SubModel%InterPolTime .and. .not. InitialField) then
+
+                call null_Time(CurrentTime)
+
+            endif
+            !$OMP END MASTER
+
+        endif
+        !$OMP END PARALLEL
+        
+        if (MonitorPerformance) then
+            call StopWatch ("ModuleWaterProperties", "ActualizeSon3DFather3D")
         endif
 
         PropertySon%SubModel%Set = .true.
@@ -9562,27 +9653,6 @@ cd2:    if (PropertySon%SubModel%InterpolTime) then
         !KFloor_Z
         call UnGetGeometry(Me%ObjGeometry, KFloor_Z, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)stop 'ActualizeSon3DFather2D - WaterProperties - ERR05'
-
-        !Deallocates values and depths used in vertical interpolation
-        if (((CurrentTime == PropertySon%SubModel%GetFatherTime) .and.              &
-            PropertySon%SubModel%InterPolTime) .or.                                 &
-            (.not. PropertySon%SubModel%InterPolTime)                               &
-            .or. InitialField) then
-
-            deallocate(Depths)
-            deallocate(Values)
-
-            !ZCellCenter
-            call UnGetGeometry(Me%ObjGeometry, SonZCellCenter, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)stop 'ActualizeSon3DFather2D - WaterProperties - ERR05'
-
-            if (PropertySon%SubModel%InterPolTime .and. .not. InitialField) then
-
-                call null_Time(CurrentTime)
-
-            endif
-
-        endif
 
     end Subroutine ActualizeSon3DFather3D
 
@@ -9612,8 +9682,6 @@ cd2:    if (PropertySon%SubModel%InterpolTime) then
         integer, pointer, dimension(:,:,:)      :: OpenPoints3D
         integer                                 :: CHUNK
         !----------------------------------------------------------------------
-
-        if (MonitorPerformance) call StartWatch ("ModuleWaterProperties", "Advection_Diffusion_Processes")
 
         ILB = Me%Size%ILB 
         IUB = Me%Size%IUB 
@@ -9919,35 +9987,38 @@ cd6 :               if (Property%BoxTimeSerie) then
                         if (STAT_CALL .NE. SUCCESS_)                                    &
                             stop 'Advection_Diffusion_Processes - ModuleWaterProperties - ERR290'
 
-                        CHUNK = CHUNK_K(Me%Size%KLB, Me%Size%KUB)
-                        
-                        !$OMP PARALLEL SHARED(CHUNK) PRIVATE(I,J,K)
-                        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+                        if (MonitorPerformance)                                         &
+                            call StartWatch ("ModuleWaterProperties", "Advection_Diffusion_Processes")
+
+                        CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+                                                
+                        !$OMP PARALLEL PRIVATE(I,J,K)
 do2 :                   do K = Me%WorkSize%KLB, Me%WorkSize%KUB
+                        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
 do3 :                   do J = Me%WorkSize%JLB, Me%WorkSize%JUB
 do4 :                   do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                             Me%MassFluxesX (I,J,K) = AdvFluxX(I,J,K) + DifFluxX (I,J,K)
                             Me%MassFluxesY (I,J,K) = AdvFluxY(I,J,K) + DifFluxY (I,J,K)
                         end do do4
                         end do do3
-                        end do do2
                         !$OMP END DO NOWAIT
-                        !$OMP END PARALLEL
-
+                        end do do2
 
                         if (Me%WorkSize%KUB > Me%WorkSize%KLB) then
-                            !$OMP PARALLEL SHARED(CHUNK) PRIVATE(I,J,K)
-                            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
 do5 :                       do K = Me%WorkSize%KLB, Me%WorkSize%KUB
+                            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
 do6 :                       do J = Me%WorkSize%JLB, Me%WorkSize%JUB
 do7 :                       do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                                 Me%MassFluxesZ (I,J,K) = AdvFluxZ(I,J,K) + DifFluxZ (I,J,K)
                             end do do7
                             end do do6
-                            end do do5
                             !$OMP END DO NOWAIT
-                            !$OMP END PARALLEL
+                            end do do5
                         endif
+                        !$OMP END PARALLEL
+
+                        if (MonitorPerformance)                                         &
+                            call StopWatch ("ModuleWaterProperties", "Advection_Diffusion_Processes")
 
                         !Integration of fluxes
                         call BoxDif(Me%ObjBoxDif,                        &
@@ -10005,10 +10076,6 @@ do7 :                       do I = Me%WorkSize%ILB, Me%WorkSize%IUB
 
         call UnGetTurbulence(Me%ObjTurbulence, Me%ExternalVar%Diff_V, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Advection_Diffusion_Processes - ModuleWaterProperties - ERR380'
-
-
-        if (MonitorPerformance) call StopWatch ("ModuleWaterProperties", "Advection_Diffusion_Processes")
-
 
         !----------------------------------------------------------------------
 
@@ -10107,14 +10174,17 @@ do7 :                       do I = Me%WorkSize%ILB, Me%WorkSize%IUB
         CHUNK = CHUNK_J(JLB, JUB)
       
 do1 :   do while (associated(Property))
-            !$OMP PARALLEL PRIVATE(i,j,k)
 cd1 :       if (Property%Evolution%InstantMixing) then
 cd2 :           if (Actual.GE.Property%Evolution%NextCompute) then
                     TotalMass   = 0.
                     TotalVolume = 0.
 
+                    !$OMP PARALLEL PRIVATE(i,j,k)
+
                     do k = KLB, KUB
                     !$OMP DO SCHEDULE(DYNAMIC,CHUNK) REDUCTION(+:TotalMass,TotalVolume)
+                    !ACanas (2010): REDUCTION of real type variables may cause rounding errors
+                    !ACanas (2010): relative to no OpenMP paralellized code!!!
                     do j = JLB, JUB
                     do i = ILB, IUB
                         
@@ -10153,11 +10223,10 @@ cd5:                if (TotalVolume > 0.) then
 
                     endif cd5
 
+                    !$OMP END PARALLEL
 
                 endif cd2
             endif cd1
-
-            !$OMP END PARALLEL
 
             Property => Property%Next
 
@@ -10561,10 +10630,9 @@ cd5:                if (TotalVolume > 0.) then
         integer                                 :: i, j, k, kbottom
         integer                                 :: ILB, IUB, JLB, JUB, KUB
         integer                                 :: STAT_CALL
-        
-        !Begin----------------------------------------------------------------- 
+        integer                                 :: CHUNK
 
-        if (MonitorPerformance) call StartWatch ("ModuleWaterProperties", "MacroAlgae_Processes")
+        !Begin----------------------------------------------------------------- 
 
         ShortWaveTop => Me%SolarRadiation%ShortWaveTop
         
@@ -10589,6 +10657,14 @@ cd5:                if (TotalVolume > 0.) then
             JUB = Me%WorkSize%JUB 
             KUB = Me%WorkSize%KUB
 
+            CHUNK = CHUNK_J(JLB, JUB)
+            
+            if (MonitorPerformance) then
+                call StartWatch ("ModuleWaterProperties", "MacroAlgae_Processes")
+            endif
+            
+            !$OMP PARALLEL PRIVATE(i,j,k,kbottom)
+            !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
             do j = JLB, JUB
             do i = ILB, IUB
 
@@ -10607,6 +10683,12 @@ cd5:                if (TotalVolume > 0.) then
 
             enddo
             enddo
+            !$OMP END DO
+            !$OMP END PARALLEL
+
+            if (MonitorPerformance) then
+                call StopWatch ("ModuleWaterProperties", "MacroAlgae_Processes")
+            endif
 
             call SetMatrixValue(Me%MacroAlgae%MaxShearStress, T_Size2D(ILB, IUB, JLB, JUB), 0.)
             call SetMatrixValue(Me%MacroAlgae%MaxSPMDepFlux , T_Size2D(ILB, IUB, JLB, JUB), 0.)
@@ -10708,9 +10790,6 @@ cd5:                if (TotalVolume > 0.) then
          
         call UnGetLightExtinction(Me%ObjLightExtinction, ShortWaveExtinctionField, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'MacroAlgae_Processes - ModuleWaterProperties - ERR06'
-
-        if (MonitorPerformance) call StopWatch ("ModuleWaterProperties", "MacroAlgae_Processes")
-
 
     end subroutine MacroAlgae_Processes
     
@@ -11036,11 +11115,9 @@ cd5:                if (TotalVolume > 0.) then
         integer                                 :: ILB, IUB, JLB, JUB, KUB
         integer                                 :: i, j, k, kbottom
         integer                                 :: Couple_ID
-
+        integer                                 :: CHUNK
 
         !Begin----------------------------------------------------------------------
-
-        if (MonitorPerformance) call StartWatch ("ModuleWaterProperties", "Partition_Processes")
 
         ILB = Me%WorkSize%ILB 
         IUB = Me%WorkSize%IUB 
@@ -11077,7 +11154,17 @@ cd1:            if(Me%ExternalVar%Now .GE. PropertyX%Evolution%NextCompute) then
                     
                     DT = PropertyX%Evolution%DtInterval
 
+                    CHUNK = CHUNK_J(JLB, JUB)
             
+                    if (MonitorPerformance) then
+                        call StartWatch ("ModuleWaterProperties", "Partition_Processes")
+                    endif
+            
+                    !$OMP PARALLEL PRIVATE(i,j,k,kbottom,ReferencePartitionCoef,b) &
+                    !$OMP PRIVATE(SalinityConcentration,PartitionCoef,DissolvedFraction) &
+                    !$OMP PRIVATE(ParticulateFraction,RefSedFactor,TransferRate,MassTransfer)
+                    
+                    !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
 do1:                do j = JLB, JUB
 do2:                do i = ILB, IUB
                 
@@ -11160,7 +11247,13 @@ do3:                        do k = kbottom, KUB
                             enddo do3
                         endif cd2
                     enddo do2
-                    enddo do1
+                    enddo do1                   
+                    !$OMP END DO
+                    !$OMP END PARALLEL
+                    if (MonitorPerformance) then
+                        call StopWatch ("ModuleWaterProperties", "Partition_Processes")
+                    endif
+                    
             endif cd1
             endif cd0
 
@@ -11170,10 +11263,6 @@ do3:                        do k = kbottom, KUB
 
 
         nullify (PropertyX, PartPropX, Salinity)
-
-        
-        if (MonitorPerformance) call StopWatch ("ModuleWaterProperties", "Partition_Processes")
-
 
     end subroutine Partition_Processes
 
@@ -11199,9 +11288,7 @@ do3:                        do k = kbottom, KUB
         logical                             :: NeedsSalinity, NeedsSPM
         integer                             :: CHUNK
         !-----------------------------------------------------------------------
-        
-        if (MonitorPerformance) call StartWatch ("ModuleWaterProperties", "FreeVerticalMovements_Processes")
-    
+            
         ILB = Me%Size%ILB 
         IUB = Me%Size%IUB 
         JLB = Me%Size%JLB 
@@ -11247,29 +11334,39 @@ do3:                        do k = kbottom, KUB
                 stop      'FreeVerticalMovements_Processes - ModuleWaterProperties - ERR03'
             end if
             
-            CHUNK = CHUNK_K(Me%Size%KLB, Me%Size%KUB)
+            CHUNK = CHUNK_J(WJLB, WJUB)
             
-            !$OMP PARALLEL SHARED(CHUNK,CohesiveSediment) PRIVATE(I,J,K)
-            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            if (MonitorPerformance) then
+                call StartWatch ("ModuleWaterProperties", "FreeVerticalMovements_Processes")
+            endif
+            
+            !$OMP PARALLEL PRIVATE(I,J,K)
             do k = WKLB,WKUB
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
             do j = WILB,WJUB
             do i = WILB,WIUB
                 if(Me%ExternalVar%WaterPoints3D(i,j,k) == WaterPoint)then
 
                     !Just a test... 
                     if (CohesiveSediment%Concentration(i,j,k) < 0.) then 
+                        !$OMP CRITICAL (FVMP1_ERR04)
                         write (*,*) 
                         write (*,*) 'In cell -',i,j,k
                         write (*,*) 'the Cohesive Sediment concentration is negative.'
                         stop        'FreeVerticalMovements_Processes - ModuleWaterProperties - ERR04'
+                        !$OMP END CRITICAL (FVMP1_ERR04)
                     end if 
                 end if
 
             enddo
             enddo
-            enddo
             !$OMP END DO NOWAIT
+            enddo
             !$OMP END PARALLEL
+
+            if (MonitorPerformance) then
+                call StopWatch ("ModuleWaterProperties", "FreeVerticalMovements_Processes")
+            endif
 
             CohesiveSedimentISCoef        =  CohesiveSediment%IScoefficient
 
@@ -11307,8 +11404,6 @@ cd1:            if (Me%ExternalVar%Now.GE.Property%Evolution%NextCompute) then
         nullify(Salinity        )
         nullify(CohesiveSediment)
 
-        if (MonitorPerformance) call StopWatch ("ModuleWaterProperties", "FreeVerticalMovements_Processes")
-
     end subroutine FreeVerticalMovements_Processes
 
     !--------------------------------------------------------------------------
@@ -11327,10 +11422,9 @@ cd1:            if (Me%ExternalVar%Now.GE.Property%Evolution%NextCompute) then
         integer                                 :: STAT_CALL, Excreted_Property_ID
         real                                    :: StoichiometricRatio, AssimilationEfficiency
         real                                    :: FilteredMass
+        integer                                 :: CHUNK
 
         !Begin----------------------------------------------------------------------
-
-        if (MonitorPerformance) call StartWatch ("ModuleWaterProperties", "Filtration_Processes")
 
         ILB             = Me%WorkSize%ILB 
         IUB             = Me%WorkSize%IUB 
@@ -11365,7 +11459,15 @@ cd1:            if(Me%ExternalVar%Now .GE. PropertyX%Evolution%NextCompute) then
 
 
                     DT  = PropertyX%Evolution%DtInterval
-            
+
+                    CHUNK = CHUNK_J(JLB, JUB)
+                    
+                    if (MonitorPerformance) then
+                        call StartWatch ("ModuleWaterProperties", "Filtration_Processes")
+                    endif
+                    
+                    !$OMP PARALLEL PRIVATE(i,j,k,kbottom,OldConcentration,FiltrationRate,FilteredMass)
+                    !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
 do1:                do j = JLB, JUB
 do2:                do i = ILB, IUB
                 
@@ -11434,9 +11536,11 @@ do3:                        do k = kbottom, KUB
 
                     enddo do2
                     enddo do1
+                    !$OMP END DO
 
                     if(PropertyX%Evolution%Filtration%Excretions)then
                         
+                        !$OMP MASTER
                         Excreted_Property_ID = PropertyX%Evolution%Filtration%Excreted_Property_ID 
 
                         call Search_Property(ExcretedProperty,                          &
@@ -11450,7 +11554,10 @@ do3:                        do k = kbottom, KUB
 
                         StoichiometricRatio     = PropertyX%Evolution%Filtration%StoichiometricRatio
                         AssimilationEfficiency  = PropertyX%Evolution%Filtration%AssimilationEfficiency
-
+                        !$OMP END MASTER
+                        !$OMP BARRIER
+                        
+                        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
                         do j = JLB, JUB
                         do i = ILB, IUB
                 
@@ -11473,9 +11580,14 @@ do3:                        do k = kbottom, KUB
 
                         enddo
                         enddo
-
+                        !$OMP END DO
 
                     end if
+                    !$OMP END PARALLEL
+
+                    if (MonitorPerformance) then
+                        call StopWatch ("ModuleWaterProperties", "Filtration_Processes")
+                    endif
 
                 endif cd1
 
@@ -11490,9 +11602,6 @@ do3:                        do k = kbottom, KUB
 
         nullify (PropertyX)
 
-        
-        if (MonitorPerformance) call StopWatch ("ModuleWaterProperties", "Filtration_Processes")
-
 
     end subroutine Filtration_Processes
 
@@ -11505,10 +11614,9 @@ do3:                        do k = kbottom, KUB
         type (T_Property), pointer              :: PropertyX
         integer                                 :: ILB, IUB, JLB, JUB, KUB, BN
         integer                                 :: i, j, k, kbottom, BoxCells
+        !T integer									:: CHUNK
 
         !Begin----------------------------------------------------------------------
-
-        if (MonitorPerformance) call StartWatch ("ModuleWaterProperties", "Reinitialize_Solution")
 
         ILB             = Me%WorkSize%ILB 
         IUB             = Me%WorkSize%IUB 
@@ -11528,8 +11636,15 @@ dbn:                do BN = 1, PropertyX%Evolution%Reinitialize%BoxesNumber
                         
 cd2:                    if(Me%ExternalVar%Now .GE. PropertyX%Evolution%Reinitialize%Dates(BN)&
                            .and. PropertyX%Evolution%Reinitialize%OnlyOnce(BN)) then
-                        
-           
+
+                            !T CHUNK = CHUNK_J(JLB, JUB)
+                            
+                            if (MonitorPerformance) then
+                                call StartWatch ("ModuleWaterProperties", "Reinitialize_Solution")
+                            endif
+                            
+                            !T !$OMP PARALLEL PRIVATE(i,j,k,kbottom,BoxCells)
+                            !T !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
 do1:                        do j = JLB, JUB
 do2:                        do i = ILB, IUB
                         
@@ -11554,7 +11669,12 @@ do3:                                do k = kbottom, KUB
                     
                             enddo do2
                             enddo do1
-
+                            !T !$OMP END DO
+                            !T !$OMP END PARALLEL
+                            
+                            if (MonitorPerformance) then
+                                call StopWatch ("ModuleWaterProperties", "Reinitialize_Solution")
+                            endif
                             
                             PropertyX%Evolution%Reinitialize%OnlyOnce(BN) = .false.
 
@@ -11572,10 +11692,6 @@ do3:                                do k = kbottom, KUB
 
 
         nullify (PropertyX)
-
-        
-        if (MonitorPerformance) call StopWatch ("ModuleWaterProperties", "Reinitialize_Solution")
-
 
     end subroutine Reinitialize_Solution
 
@@ -11834,9 +11950,8 @@ case1 :     select case(Property%ID%IDNumber)
         integer                                     :: ILB, IUB, JLB, JUB, KUB
         integer                                     :: i, j, Kbottom
         integer                                     :: CHUNK
+        
         !Begin----------------------------------------------------------------------
-
-        if (MonitorPerformance) call StartWatch ("ModuleWaterProperties", "Bottom_Processes")
 
         ILB = Me%WorkSize%ILB 
         IUB = Me%WorkSize%IUB 
@@ -11844,15 +11959,19 @@ case1 :     select case(Property%ID%IDNumber)
         JUB = Me%WorkSize%JUB 
         KUB = Me%WorkSize%KUB 
 
+        CHUNK = CHUNK_J(JLB, JUB)
+
         PropertyX => Me%FirstProperty  
 
 do1 :   do while (associated(PropertyX))
             if (PropertyX%Evolution%BottomFluxes) then
                 if(Me%ExternalVar%Now .ge. PropertyX%Evolution%NextCompute)then
             
-                    CHUNK = CHUNK_J(Me%Size%JLB, Me%Size%JUB)
-                      
-                    !$OMP PARALLEL SHARED(CHUNK, PropertyX) PRIVATE(I,J,kbottom)
+                    if (MonitorPerformance) then
+                        call StartWatch ("ModuleWaterProperties", "Bottom_Processes")
+                    endif
+                                  
+                    !$OMP PARALLEL PRIVATE(I,J,kbottom)
                     !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
                     do j=JLB, JUB
                     do i=ILB, IUB
@@ -11873,8 +11992,12 @@ do1 :   do while (associated(PropertyX))
 
                     enddo
                     enddo
-                    !$OMP END DO NOWAIT
+                    !$OMP END DO
                     !$OMP END PARALLEL
+
+                    if (MonitorPerformance) then
+                        call StopWatch ("ModuleWaterProperties", "Bottom_Processes")
+                    endif
 
                 end if
             end if
@@ -11883,8 +12006,6 @@ do1 :   do while (associated(PropertyX))
         end do do1
 
         nullify(PropertyX)
-
-        if (MonitorPerformance) call StopWatch ("ModuleWaterProperties", "Bottom_Processes")
 
     end subroutine Bottom_Processes
 
@@ -11980,13 +12101,13 @@ do3:            do k = kbottom, KUB
         character(LEN=StringLength)                 :: AuxName
         !Begin----------------------------------------------------------------------
 
-        if (MonitorPerformance) call StartWatch ("ModuleWaterProperties", "FirstOrderDecayProcesses")
-
         ILB = Me%WorkSize%ILB 
         IUB = Me%WorkSize%IUB 
         JLB = Me%WorkSize%JLB 
         JUB = Me%WorkSize%JUB 
         KUB = Me%WorkSize%KUB 
+
+        CHUNK = CHUNK_J(JLB, JUB)
 
         PropertyX => Me%FirstProperty  
 
@@ -12002,10 +12123,11 @@ do1 :   do while (associated(PropertyX))
                         stop 'FirstOrderDecayProcesses - ModuleWaterProperties - ERR10'
                     endif
 
-                    
-                    CHUNK = CHUNK_J(Me%Size%JLB, Me%Size%JUB)
-                        
-                    !$OMP PARALLEL SHARED(CHUNK, PropertyX, T90, KUB) PRIVATE(I,J,K,kbottom)
+                    if (MonitorPerformance) then
+                        call StartWatch ("ModuleWaterProperties", "FirstOrderDecayProcesses")
+                    endif
+                       
+                    !$OMP PARALLEL PRIVATE(I,J,K,kbottom,T90Aux)
                     !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
                     do j=JLB, JUB
                     do i=ILB, IUB
@@ -12020,10 +12142,12 @@ do1 :   do while (associated(PropertyX))
                                 T90Aux = max(T90%Concentration(i,j,k), T90%MinValue,1.e-6)
 
                                 if (T90%Concentration(i,j,k) <= 0.) then
+                                    !$OMP CRITICAL (FODP1_WARN20)
                                     write(*,*) 'The T90 of property ', trim(PropertyX%ID%Name), ' can not be <= 0'
                                     write(*,*) 'cell I=', i,' J=',j,' k=',k
                                     write(*,*) 'It was assumed a T90 =', T90Aux
                                     write(*,*) 'FirstOrderDecayProcesses - ModuleWaterProperties - WARN20'
+                                    !$OMP END CRITICAL (FODP1_WARN20)
                                 endif
 
                                 if (T90%evolution%T90Hours) T90Aux = T90Aux * 3600.
@@ -12037,8 +12161,12 @@ do1 :   do while (associated(PropertyX))
 
                     enddo
                     enddo
-                    !$OMP END DO NOWAIT
+                    !$OMP END DO
                     !$OMP END PARALLEL
+
+                    if (MonitorPerformance) then
+                        call StopWatch ("ModuleWaterProperties", "FirstOrderDecayProcesses")
+                    endif
 
                     nullify(T90)
                 
@@ -12049,8 +12177,6 @@ do1 :   do while (associated(PropertyX))
         end do do1
 
         nullify(PropertyX)
-
-        if (MonitorPerformance) call StopWatch ("ModuleWaterProperties", "FirstOrderDecayProcesses")
 
     end subroutine FirstOrderDecayProcesses
 
@@ -12066,7 +12192,7 @@ do1 :   do while (associated(PropertyX))
         real,   dimension(:,:,:), pointer           :: ShortWaveAverage
         integer                                     :: ILB, IUB, JLB, JUB, KUB
         integer                                     :: i, j, k, Kbottom, STAT_CALL
-        integer                                     :: CHUNK
+
         !Begin----------------------------------------------------------------------
 
         if (MonitorPerformance) call StartWatch ("ModuleWaterProperties", "ModifyDecayRate")
@@ -12116,10 +12242,6 @@ do1 :   do while (associated(PropertyX))
                         
                     elseif (PropertyX%Evolution%T90Variable) then
 
-                        CHUNK = CHUNK_J(Me%Size%JLB, Me%Size%JUB)
-                        
-                        !$OMP PARALLEL SHARED(CHUNK, PropertyX,Temperature,Salinity,ShortWaveAverage,KUB) PRIVATE(I,J,K,kbottom)
-                        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
                         do j=JLB, JUB
                         do i=ILB, IUB
 
@@ -12137,8 +12259,10 @@ do1 :   do while (associated(PropertyX))
 
                         enddo
                         enddo
-                        !$OMP END DO NOWAIT
-                        !$OMP END PARALLEL
+
+                        !ACanas(2010): Parallelization removed as a function is used in the cycle iterations
+                        !ACanas(2010): and that requires the sequential processing of the code.
+                        !ACanas(2010): A critical section would be inefficient since race condition is very frequent.
 
                         nullify(Temperature       )
                         nullify(Salinity          )
@@ -12225,8 +12349,8 @@ do1 :   do while (associated(PropertyX))
                         
                         endif
                         
-                        !$OMP PARALLEL PRIVATE(Daux,I,J,K,kbottom)
-                        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+                        !!$OMP PARALLEL PRIVATE(Daux,I,J,K,kbottom)
+                        !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
                         do j=JLB, JUB
                         do i=ILB, IUB
 
@@ -12241,12 +12365,12 @@ do1 :   do while (associated(PropertyX))
                                    
                                     if (DAux < DAuxMin) then 
                                     
-                                        !$OMP CRITICAL
+                                        !!$OMP CRITICAL
                                         
                                         DAuxMin = DAux
                                         iaux = i; jaux = j; kaux = k;
                                         
-                                        !$OMP CRITICAL
+                                        !!$OMP CRITICAL
                                     endif
                                    
                                     PropertyX%ConcentrationOld(i,j,k) = PropertyX%Concentration(i,j,k)
@@ -12257,8 +12381,8 @@ do1 :   do while (associated(PropertyX))
 
                         enddo
                         enddo
-                        !$OMP END DO NOWAIT
-                        !$OMP END PARALLEL
+                        !!$OMP END DO NOWAIT
+                        !!$OMP END PARALLEL
 
                     end if
                 end if
@@ -12294,7 +12418,7 @@ do1 :   do while (associated(PropertyX))
         type (T_Property), pointer                  :: PropertyX, Salinity, Temperature
         integer                                     :: ILB, IUB, JLB, JUB, KUB
         integer                                     :: i, j, k, Kbottom, STAT_CALL
-        integer                                     :: CHUNK
+
         !Begin----------------------------------------------------------------------
 
         if (MonitorPerformance) call StartWatch ("ModuleWaterProperties", "ModifyOxygenSaturation")
@@ -12323,11 +12447,6 @@ do1 :   do while (associated(PropertyX))
                         stop 'ModifyOxygenSaturation - ModuleWaterProperties - ERR20'
                     endif
 
-
-                    CHUNK = CHUNK_J(Me%Size%JLB, Me%Size%JUB)
-                    
-                    !$OMP PARALLEL SHARED(CHUNK, Temperature,Salinity,KUB) PRIVATE(I,J,K,kbottom)
-                    !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
                     do j=JLB, JUB
                     do i=ILB, IUB
 
@@ -12344,8 +12463,9 @@ do1 :   do while (associated(PropertyX))
 
                     enddo
                     enddo
-                    !$OMP END DO NOWAIT
-                    !$OMP END PARALLEL
+                    !ACanas(2010): Parallelization removed as a function is used in the cycle iterations
+                    !ACanas(2010): and that requires the sequential processing of the code.
+                    !ACanas(2010): A critical section would be inefficient since race condition is very frequent.
 
                     nullify(Temperature       )
                     nullify(Salinity          )
@@ -12437,15 +12557,10 @@ do1 :   do while (associated(PropertyX))
 
 do1 :   do while (associated(Property))
         
-            !$OMP PARALLEL PRIVATE(i,j,k)
-
 cd1 :       if (Property%Evolution%MinConcentration) then
                 
-                !CHUNK = CHUNK_K(Me%Size%KLB, Me%Size%KUB)
+                !$OMP PARALLEL PRIVATE(I,J,K)
                 
-                !!$OMP PARALLEL SHARED(CHUNK, Property) PRIVATE(I,J,K)
-                !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
-
                 do k=Me%WorkSize%KLB, Me%WorkSize%KUB
                 !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
                 do j=Me%WorkSize%JLB, Me%WorkSize%JUB
@@ -12472,17 +12587,13 @@ cd1 :       if (Property%Evolution%MinConcentration) then
                 !$OMP END DO
                 enddo
                 
-                !!$OMP END DO NOWAIT
-                !!$OMP END PARALLEL
+                !$OMP END PARALLEL
                 
             endif cd1
                 
 cd2 :       if (Property%Evolution%MaxConcentration) then
                 
-                !CHUNK = CHUNK_K(Me%Size%KLB, Me%Size%KUB)
-                
-                !!$OMP PARALLEL SHARED(CHUNK, Property) PRIVATE(I,J,K)
-                !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+                !$OMP PARALLEL PRIVATE(I,J,K)
 
                 do k=Me%WorkSize%KLB, Me%WorkSize%KUB
                 !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
@@ -12511,16 +12622,12 @@ cd2 :       if (Property%Evolution%MaxConcentration) then
                 !$OMP END DO
                 enddo
                 
-                !!$OMP END DO NOWAIT
-                !!$OMP END PARALLEL                
+                !$OMP END PARALLEL
 
         end if cd2
 
-        !$OMP MASTER
         Property => Property%Next
-        !$OMP END MASTER
         
-        !$OMP END PARALLEL     
         end do do1
         
         nullify(Property)
@@ -12936,8 +13043,6 @@ dn:         do n=1, nCells
         integer                                     :: CHUNK
         !Begin--------------------------------------------------------------------
 
-        if (MonitorPerformance) call StartWatch ("ModuleWaterProperties", "DataAssimilationProcesses")
-
         ILB = Me%WorkSize%ILB 
         IUB = Me%WorkSize%IUB 
         JLB = Me%WorkSize%JLB 
@@ -12945,7 +13050,7 @@ dn:         do n=1, nCells
         KLB = Me%WorkSize%KLB 
         KUB = Me%WorkSize%KUB 
         
-        CHUNK = CHUNK_K(Me%Size%KLB, Me%Size%KUB)
+        CHUNK = CHUNK_J(JLB, JUB)
 
         Property => Me%FirstProperty  
 
@@ -13022,21 +13127,27 @@ i4 :                if (Property%SubModel%ON) then
 
                 DTProp = Property%Evolution%DTInterval
 
+                if (MonitorPerformance) then
+                    call StartWatch ("ModuleWaterProperties", "DataAssimilationProcesses")
+                endif
+
 i5  :           if (Property%Evolution%DataAssimilation == NudgingToRef) then
                 
-                    !$OMP PARALLEL SHARED(CHUNK, Property, DTProp, CoefCold, &
-                    !$OMP PropAssimilation) PRIVATE(I,J,K, AuxDecay)
-                    !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+                    !$OMP PARALLEL PRIVATE(I,J,K, AuxDecay)
 
 dok :               do k = KLB, KUB
+                    !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
 doj :               do j = JLB, JUB
 doi :               do i = ILB, IUB
                     
                         if (Me%ExternalVar%OpenPoints3D(i, j, k) == 1) then
                     
-                            if (Property%Assimilation%DecayTime(i, j, k)  < 0)              &
+                            if (Property%Assimilation%DecayTime(i, j, k)  < 0) then
+                                !$OMP CRITICAL (DAP1_ERR70)
                                 stop "DataAssimilationProcesses; WaterProperties. ERR70"
-                                
+                                !$OMP END CRITICAL (DAP1_ERR70)
+                            endif
+
                             AuxDecay = DTProp / (Property%Assimilation%DecayTime(i, j, k))/ CoefCold
 
                             ! C(t+dt) = (C(t) + Cref*dt/Tref) / (1 + dt / Tref) -> Implicit
@@ -13048,9 +13159,9 @@ doi :               do i = ILB, IUB
 
                     enddo doi
                     enddo doj 
-                    enddo dok
-                    
                     !$OMP END DO NOWAIT
+                    enddo dok
+
                     !$OMP END PARALLEL
 
 i6 :                if(.not. SubModelON)then
@@ -13061,7 +13172,9 @@ i6 :                if(.not. SubModelON)then
 
 
                 else if (Property%Evolution%DataAssimilation == NudgingAdvVert) then i5
-                       
+                    
+                    !$OMP PARALLEL PRIVATE(i,j,k,AuxDecay)
+                    !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
 dj1 :               do j = JLB, JUB
 di1 :               do i = ILB, IUB
                     
@@ -13107,10 +13220,14 @@ i7:                     if      (Property%Assimilation%DecayTime(i, j, KUB)  > 0
 
                     enddo di1
                     enddo dj1
+                    !$OMP END DO
+                    !$OMP END PARALLEL
 
                 end if i5
 
-
+                if (MonitorPerformance) then
+                    call StopWatch ("ModuleWaterProperties", "DataAssimilationProcesses")
+                endif
 
                 call UnGetAssimilation(Me%ObjAssimilation, Property%Assimilation%DecayTime, STAT = STAT_CALL) 
                 if (STAT_CALL /= SUCCESS_)                                                  &
@@ -13128,9 +13245,6 @@ i7:                     if      (Property%Assimilation%DecayTime(i, j, KUB)  > 0
 
 
         nullify(Property)
-
-
-        if (MonitorPerformance) call StopWatch ("ModuleWaterProperties", "DataAssimilationProcesses")
         
         !----------------------------------------------------------------------
 
@@ -13150,10 +13264,9 @@ i7:                     if      (Property%Assimilation%DecayTime(i, j, KUB)  > 0
         integer                                     :: JLB, JUB 
         integer                                     :: KLB, KUB
         integer                                     :: I, J, K, STAT_CALL 
+        integer                                     :: CHUNK
 
         !Begin--------------------------------------------------------------------
-
-        if (MonitorPerformance) call StartWatch ("ModuleWaterProperties", "UpdateHybridReferenceField")
 
         ILB = Me%WorkSize%ILB 
         IUB = Me%WorkSize%IUB 
@@ -13181,8 +13294,17 @@ i2 :            if (Actual.GE.Property%Evolution%NextCompute) then
 
                     !points solution from the father model 
                     FatherSolution => Property%Assimilation%Field
-                    
+
+                    CHUNK = CHUNK_J(JLB, JUB)
+
+                    if (MonitorPerformance) then
+                        call StartWatch ("ModuleWaterProperties", "UpdateHybridReferenceField")
+                    endif
+
+                    !$OMP PARALLEL PRIVATE(i,j,k)
+
                     do k = KLB, KUB
+                    !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
                     do j = JLB, JUB
                     do i = ILB, IUB
                     
@@ -13199,7 +13321,13 @@ i2 :            if (Actual.GE.Property%Evolution%NextCompute) then
 
                     enddo
                     enddo 
+                    !$OMP END DO NOWAIT
                     enddo
+                    !$OMP END PARALLEL
+ 
+                    if (MonitorPerformance) then
+                        call StopWatch ("ModuleWaterProperties", "UpdateHybridReferenceField")
+                    endif
 
                 endif i2
 
@@ -13210,9 +13338,6 @@ i2 :            if (Actual.GE.Property%Evolution%NextCompute) then
         end do d1
 
         nullify(Property)
-
-        if (MonitorPerformance) call StopWatch ("ModuleWaterProperties", "UpdateHybridReferenceField")
-        
 
     end subroutine UpdateHybridReferenceField
 
@@ -13386,6 +13511,7 @@ i2 :            if (Actual.GE.Property%Evolution%NextCompute) then
         real                                        :: Coef
         integer                                     :: i, j, k
         integer                                     :: STAT_CALL
+        integer                                     :: CHUNK
 
         !----------------------------------------------------------------------
 
@@ -13408,9 +13534,17 @@ i2 :            if (Actual.GE.Property%Evolution%NextCompute) then
                 stop 'CalculateAge - ModuleWaterproperties - ERR01'
             end select
 
+            CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+            
+            if (MonitorPerformance) then
+                call StartWatch ("ModuleWaterProperties", "CalculateAge")
+            endif
+            
+            !$OMP PARALLEL PRIVATE(i,j,k)
             if(Me%Age%UseWaterPoints)then
 
                 do k = Me%WorkSize%KLB, Me%WorkSize%KUB
+                !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
                 do j = Me%WorkSize%JLB, Me%WorkSize%JUB
                 do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         
@@ -13422,11 +13556,13 @@ i2 :            if (Actual.GE.Property%Evolution%NextCompute) then
 
                 enddo
                 enddo
+                !$OMP END DO
                 enddo
             
             else
             
                 do k = Me%WorkSize%KLB, Me%WorkSize%KUB
+                !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
                 do j = Me%WorkSize%JLB, Me%WorkSize%JUB
                 do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         
@@ -13438,10 +13574,16 @@ i2 :            if (Actual.GE.Property%Evolution%NextCompute) then
 
                 enddo
                 enddo
+                !$OMP END DO
                 enddo
 
             end if
-            
+            !$OMP END PARALLEL 
+
+            if (MonitorPerformance) then
+                call StopWatch ("ModuleWaterProperties", "CalculateAge")
+            endif
+
         endif
        
         nullify (PropertyAge)
@@ -13507,12 +13649,8 @@ cd2 :       if (Actual.GE.Property%Evolution%NextCompute) then
         
         !Begin----------------------------------------------------------------- 
 
-        !if (MonitorPerformance) call StartWatch ("ModuleWaterProperties", "ModifyDensity")
-
 cd10:   if (CurrentTime > Me%Density%LastActualization) then
-
-            !CHUNK = CHUNK_K(Me%Size%KLB, Me%Size%KUB)
-            
+           
             ILB = Me%WorkSize%ILB 
             IUB = Me%WorkSize%IUB 
             JLB = Me%WorkSize%JLB 
@@ -13548,17 +13686,14 @@ cd10:   if (CurrentTime > Me%Density%LastActualization) then
 
             if (MonitorPerformance) call StartWatch ("ModuleWaterProperties", "ModifyDensity")
 
-            !$OMP PARALLEL PRIVATE(i,j,k,Depth)
-
             select case(Me%Density%Method)
 
                 Case (WangState_) 
 
-                    !!$OMP PARALLEL SHARED(CHUNK,T,S,WaterPoints3D) PRIVATE(I,J,K)
-                    !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+                    !ACanas(2010): Call of function in cycle iterations
+                    !ACanas(2010): prevents parallelization.
 
                     do k = KLB, KUB
-                    !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
                     do j = JLB, JUB
                     do i = ILB, IUB
 
@@ -13570,19 +13705,14 @@ cd10:   if (CurrentTime > Me%Density%LastActualization) then
 
                     enddo
                     enddo
-                    !$OMP END DO NOWAIT
                     enddo
-
-                    !!$OMP END DO NOWAIT
-                    !!$OMP END PARALLEL
 
                 Case (LeendertseState_) 
 
-                    !!$OMP PARALLEL SHARED(CHUNK,T,S,WaterPoints3D) PRIVATE(I,J,K)
-                    !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+                    !ACanas(2010): Call of function in cycle iterations
+                    !ACanas(2010): prevents parallelization.
 
                     do k = KLB, KUB
-                    !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
                     do j = JLB, JUB
                     do i = ILB, IUB
 
@@ -13594,20 +13724,14 @@ cd10:   if (CurrentTime > Me%Density%LastActualization) then
 
                     enddo
                     enddo
-                    !$OMP END DO NOWAIT
                     enddo
-                    
-                    !!$OMP END DO NOWAIT
-                    !!$OMP END PARALLEL
-
 
                 case (UNESCOState_)
 
-                    !!$OMP PARALLEL SHARED(CHUNK,T,S,WaterPoints3D) PRIVATE(I,J,K)
-                    !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
-              
+                    !ACanas(2010): Call of function in cycle iterations
+                    !ACanas(2010): prevents parallelization.
+                                  
                     do k = KLB, KUB
-                    !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
                     do j = JLB, JUB
                     do i = ILB, IUB
 
@@ -13619,19 +13743,14 @@ cd10:   if (CurrentTime > Me%Density%LastActualization) then
 
                     enddo
                     enddo
-                    !$OMP END DO NOWAIT
                     enddo
-                    
-                    !!$OMP END DO 
-                    !!$OMP END PARALLEL
-
                         
                 case (Mel96State_)
 
-                    !!$OMP PARALLEL SHARED(CHUNK,T,S,WaterPoints3D) PRIVATE(I,J,K)
-                    !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+                    !ACanas(2010): Call of function in cycle iterations
+                    !ACanas(2010): prevents parallelization.
+
                     do k = KLB, KUB
-                    !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
                     do j = JLB, JUB
                     do i = ILB, IUB
 
@@ -13643,17 +13762,14 @@ cd10:   if (CurrentTime > Me%Density%LastActualization) then
 
                     enddo
                     enddo
-                    !$OMP END DO
                     enddo
-                    !!$OMP END DO
-                    !!$OMP END PARALLEL
 
                 case (JMD95State_)
 
-                    !!$OMP PARALLEL SHARED(CHUNK,T,S,WaterPoints3D) PRIVATE(I,J,K)
-                    !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+                    !ACanas(2010): Call of function in cycle iterations
+                    !ACanas(2010): prevents parallelization.
+
                     do k = KLB, KUB
-                    !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
                     do j = JLB, JUB
                     do i = ILB, IUB
 
@@ -13665,10 +13781,7 @@ cd10:   if (CurrentTime > Me%Density%LastActualization) then
 
                     enddo
                     enddo
-                    !$OMP END DO
                     enddo
-                    !!$OMP END DO
-                    !!$OMP END PARALLEL
 
                 case (Linear_)
 
@@ -13678,8 +13791,7 @@ cd10:   if (CurrentTime > Me%Density%LastActualization) then
                     !S0    = 33.75 psu
                     !AlphaS= 0.78 kg/m^3/psu
 
-                    !!$OMP PARALLEL SHARED(CHUNK, S, RoRef, WaterPoints3D) PRIVATE(I,J,K)
-                    !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+                    !$OMP PARALLEL PRIVATE(I,J,K)
 
                     do k = KLB, KUB
                     !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
@@ -13696,8 +13808,7 @@ cd10:   if (CurrentTime > Me%Density%LastActualization) then
                     enddo
                     !$OMP END DO
                     enddo
-                    !!$OMP END DO 
-                    !!$OMP END PARALLEL
+                    !$OMP END PARALLEL
                     
                 case default
 
@@ -13712,10 +13823,10 @@ cd10:   if (CurrentTime > Me%Density%LastActualization) then
 
                     case (UNESCOState_)
                     
-                        !!$OMP PARALLEL SHARED(CHUNK,T,S,ZCellCenter,WaterPoints3D) PRIVATE(I,J,K,Depth)
-                        !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+                        !ACanas(2010): Call of function in cycle iterations
+                        !ACanas(2010): prevents parallelization.
+
                         do k = KLB, KUB
-                        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
                         do j = JLB, JUB
                         do i = ILB, IUB
     
@@ -13731,17 +13842,14 @@ cd10:   if (CurrentTime > Me%Density%LastActualization) then
 
                         enddo
                         enddo
-                        !$OMP END DO
                         enddo
-                        !!$OMP END DO
-                        !!$OMP END PARALLEL
 
                     case (Mel96State_)
                         
-                        !!$OMP PARALLEL SHARED(CHUNK,T,S,ZCellCenter,WaterPoints3D) PRIVATE(I,J,K,Depth)
-                        !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+                        !ACanas(2010): Call of function in cycle iterations
+                        !ACanas(2010): prevents parallelization.
+
                         do k = KLB, KUB
-                        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
                         do j = JLB, JUB
                         do i = ILB, IUB
     
@@ -13757,17 +13865,14 @@ cd10:   if (CurrentTime > Me%Density%LastActualization) then
 
                         enddo
                         enddo
-                        !$OMP END DO
                         enddo
-                        !!$OMP END DO
-                        !!$OMP END PARALLEL
 
                     case (JMD95State_)
                         
-                        !!$OMP PARALLEL SHARED(CHUNK,T,S,ZCellCenter,WaterPoints3D) PRIVATE(I,J,K,Depth)
-                        !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+                        !ACanas(2010): Call of function in cycle iterations
+                        !ACanas(2010): prevents parallelization.
+
                         do k = KLB, KUB
-                        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
                         do j = JLB, JUB
                         do i = ILB, IUB
     
@@ -13783,17 +13888,13 @@ cd10:   if (CurrentTime > Me%Density%LastActualization) then
 
                         enddo
                         enddo
-                        !$OMP END DO
                         enddo
-                        !!$OMP END DO
-                        !!$OMP END PARALLEL
 
                 end select
 
             end if
             
-            !!$OMP PARALLEL SHARED(CHUNK, WaterPoints3D) PRIVATE(I,J,K)
-            !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            !$OMP PARALLEL PRIVATE(I,J,K)
             do k = KLB, KUB
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
             do j = JLB, JUB
@@ -13807,11 +13908,7 @@ cd10:   if (CurrentTime > Me%Density%LastActualization) then
             enddo
             !$OMP END DO
             enddo
-            !!$OMP END DO
-            !!$OMP END PARALLEL
-            
-            !!$OMP PARALLEL SHARED(CHUNK,T,S,WaterPoints3D) PRIVATE(I,J,K)
-            !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+
             do k = KLB, KUB
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
             do j = JLB, JUB
@@ -13822,11 +13919,13 @@ cd10:   if (CurrentTime > Me%Density%LastActualization) then
                     !One test to verify if the density value is not stupid
                     if (Me%Density%Field(i, j, k) > 1e5 .or.                 &
                         Me%Density%Field(i, j, k) < 0. )  then
+                        !$OMP CRITICAL (MD1WP_ERR04)
                         write(*,*) 'i,j,k'
                         write(*,*) i,j,k
                         write(*,*) 'density,temperature,salinity'
                         write(*,*) Me%Density%Field(i, j, k),T(i, j, k),S(i, j, k), Me%ModelName                     
                         stop 'ModifyDensity - ModuleWaterProperties - ERR04'   
+                        !$OMP END CRITICAL (MD1WP_ERR04)
                     end if                  
 
                 endif
@@ -13835,7 +13934,6 @@ cd10:   if (CurrentTime > Me%Density%LastActualization) then
             enddo
             !$OMP END DO
             enddo
-            !!$OMP END DO
             !$OMP END PARALLEL
 
             if (MonitorPerformance) call StopWatch ("ModuleWaterProperties", "ModifyDensity")
@@ -13878,10 +13976,9 @@ cd10:   if (CurrentTime > Me%Density%LastActualization) then
         integer                                 :: STAT_CALL
         integer                                 :: ILB, IUB, JLB, JUB, KLB, KUB
         integer                                 :: i, j, k
+        integer                                 :: CHUNK
         
         !Begin----------------------------------------------------------------- 
-
-        if (MonitorPerformance) call StartWatch ("ModuleWaterProperties", "ModifySpecificHeat")
 
 cd10:   if (CurrentTime > Me%SpecificHeat%LastActualization) then
 
@@ -13917,6 +14014,8 @@ cd10:   if (CurrentTime > Me%SpecificHeat%LastActualization) then
 
                 case (UNESCOState_)
 
+                    !ACanas(2010): Call of function in cycle's iterations.
+                    !ACanas(2010): Cannot be parallelized.
                 
                     do k = KLB, KUB
                     do j = JLB, JUB
@@ -13937,7 +14036,15 @@ cd10:   if (CurrentTime > Me%SpecificHeat%LastActualization) then
 
             end select
 
+            CHUNK = CHUNK_J(JLB, JUB)
+            
+            if (MonitorPerformance) then
+                call StartWatch ("ModuleWaterProperties", "ModifySpecificHeat")
+            endif
+            
+            !$OMP PARALLEL PRIVATE(i,j,k)
             do k = KLB, KUB
+            !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
             do j = JLB, JUB
             do i = ILB, IUB
 
@@ -13946,19 +14053,26 @@ cd10:   if (CurrentTime > Me%SpecificHeat%LastActualization) then
                     !One test to verify if the SpecificHeat value is not stupid
                     if (Me%SpecificHeat%Field(i, j, k) > 1e5 .or.                 &
                         Me%SpecificHeat%Field(i, j, k) < 0. )  then
+                        !$OMP CRITICAL (MSH1WP_ERR04)
                         write(*,*) 'i,j,k'
                         write(*,*) i,j,k
                         write(*,*) 'SpecificHeat,temperature,salinity'
                         write(*,*) Me%SpecificHeat%Field(i, j, k),T(i, j, k),S(i, j, k)                     
-                        stop 'ModifySpecificHeat - ModuleWaterProperties - ERR04'   
+                        stop 'ModifySpecificHeat - ModuleWaterProperties - ERR04'
+                        !$OMP END CRITICAL (MSH1WP_ERR04)
                     end if                  
 
                 endif
 
             enddo
             enddo
+            !$OMP END DO
             enddo
-
+            !$OMP END PARALLEL
+            
+            if (MonitorPerformance) then
+                call StopWatch ("ModuleWaterProperties", "ModifySpecificHeat")
+            endif
 
             call UnGetGeometry(Me%ObjGeometry,SZZ, STAT = STAT_CALL) 
             if (STAT_CALL /= SUCCESS_) stop 'ModifySpecificHeat - ModuleWaterProperties - ERR3d'
@@ -13975,8 +14089,6 @@ cd10:   if (CurrentTime > Me%SpecificHeat%LastActualization) then
             if (STAT_CALL/= SUCCESS_) stop 'ModifySpecificHeat - ModuleWaterProperties - ERR05'
 
         endif cd10
-
-        if (MonitorPerformance) call StopWatch ("ModuleWaterProperties", "ModifySpecificHeat")
         
     end subroutine ModifySpecificHeat
 
@@ -13998,10 +14110,9 @@ cd10:   if (CurrentTime > Me%SpecificHeat%LastActualization) then
         integer                                     :: i, j, k, kbottom
         real                                        :: LongWaveExtinctionCoef
         real                                        :: SWPercentage, LWPercentage
-
+        integer                                     :: CHUNK
+        
         !----------------------------------------------------------------------
-
-        if (MonitorPerformance) call StartWatch ("ModuleWaterProperties", "ModifySolarRadiation")
 
         ILB = Me%WorkSize%ILB     
         IUB = Me%WorkSize%IUB     
@@ -14028,7 +14139,14 @@ cd10:   if (CurrentTime > Me%SpecificHeat%LastActualization) then
         call GetRadiationPercentages(Me%ObjLightExtinction, SWPercentage, LWPercentage, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ModifySolarRadiation - ModuleWaterProperties - ERR04'
 
+        CHUNK = CHUNK_J(JLB, JUB)
         
+        if (MonitorPerformance) then
+            call StartWatch ("ModuleWaterProperties", "ModifySolarRadiation")
+        endif
+        
+        !$OMP PARALLEL PRIVATE(i,j,k,kbottom,Thickness)
+        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)       
 do2 :   do j = JLB, JUB
 do3 :   do i = ILB, IUB
 
@@ -14062,9 +14180,11 @@ do1:            do k= KUB-1, kbottom-1, -1
 
         end do do3
         end do do2
+        !$OMP END DO
 
 cd2:    if (Me%SolarRadiation%Shading%ON) then        
 
+            !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
 do6 :       do j = JLB, JUB
 do7 :       do i = ILB, IUB
 
@@ -14083,9 +14203,15 @@ do9:                do k=kbottom, KUB
                 end if cd3
 
             end do do7
-            end do do6        
-        
+            end do do6
+            !$OMP END DO
+
         endif  cd2
+        !$OMP END PARALLEL
+
+        if (MonitorPerformance) then
+            call StopWatch ("ModuleWaterProperties", "ModifySolarRadiation")
+        endif
 
         call UnGetLightExtinction(Me%ObjLightExtinction, ShortWaveExtinctionField, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ModifySolarRadiation - ModuleWaterProperties - ERR04'
@@ -14093,9 +14219,6 @@ do9:                do k=kbottom, KUB
         !Nullify auxiliar variables
         nullify(SWRadiation)
         nullify(LWRadiation)
-
-        if (MonitorPerformance) call StopWatch ("ModuleWaterProperties", "ModifySolarRadiation")
-
 
     end subroutine ModifySolarRadiation 
 
@@ -15092,22 +15215,16 @@ i2:     if (Me%OutPut%Radiation) then
 
         if (MonitorPerformance) call StartWatch ("ModuleWaterProperties", "OutPut_BoxTimeSeries")
         
-        !CHUNK = CHUNK_K(Me%Size%KLB, Me%Size%KUB)
         CHUNK = CHUNK_J(JLB, JUB)
 
         PropertyX  => Me%FirstProperty
 
-        !$OMP PARALLEL PRIVATE(I,J,K)
-
         do while (associated(PropertyX))
             if (PropertyX%BoxTimeSerie) then
             
-                !$OMP MASTER
                 Me%CellMass(:,:,:) = 0.
-                !$OMP END MASTER
                 
-                !!$OMP PARALLEL SHARED(CHUNK, PropertyX) PRIVATE(I,J,K)
-                !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+                !$OMP PARALLEL PRIVATE(I,J,K)
                 do K = KLB, KUB
                 !$OMP DO SCHEDULE(STATIC, CHUNK)
                 do J = JLB, JUB
@@ -15118,10 +15235,8 @@ i2:     if (Me%OutPut%Radiation) then
                 end do
                 !$OMP END DO
                 end do
-                !!$OMP END DO NOWAIT
-                !!$OMP END PARALLEL
+                !$OMP END PARALLEL
 
-                !$OMP MASTER
                 call BoxDif(Me%ObjBoxDif, Me%CellMass,                      &
                             trim(PropertyX%ID%name),                        &
                             Me%ExternalVar%WaterPoints3D,                   &
@@ -15130,18 +15245,11 @@ i2:     if (Me%OutPut%Radiation) then
                     stop 'OutPut_BoxTimeSeries - ModuleWaterProperties - ERR01'
 
                 Me%CellMass(:,:,:) = null_real
-                !$OMP END MASTER
-                !$OMP BARRIER
             endif
             
-            !$OMP MASTER
             PropertyX=>PropertyX%Next
-            !$OMP END MASTER
-            !$OMP BARRIER
             
         enddo
-
-        !$OMP END PARALLEL
 
         if (MonitorPerformance) call StopWatch ("ModuleWaterProperties", "OutPut_BoxTimeSeries")
 
