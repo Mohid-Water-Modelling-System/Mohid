@@ -118,7 +118,8 @@ Module ModuleInterfaceSedimentWater
     use ModuleGlobalData
     use ModuleEnterData
     use ModuleTime
-    use ModuleFunctions,            only: ConstructPropertyID, TimeToString, ChangeSuffix
+    use ModuleFunctions,            only: ConstructPropertyID, TimeToString, ChangeSuffix,  &
+                                          CHUNK_J, CHUNK_I
     use ModuleHDF5,                 only: ConstructHDF5, GetHDF5FileAccess, HDF5SetLimits,  &
                                           HDF5WriteData, HDF5FlushMemory, HDF5ReadData, KillHDF5
     use ModuleGridData,             only: GetGridData, UngetGridData
@@ -4190,10 +4191,11 @@ do1 :       do while (associated(Property))
         real                                    :: VC,UC, UVC2, WaterDensity
         integer                                 :: IUB, JUB, ILB, JLB, KUB
         integer                                 :: i, j, kbottom
+        integer                                 :: CHUNK
 
         !Begin-----------------------------------------------------------------
 
-        if (MonitorPerformance) call StartWatch ("ModuleInterfaceSedimentWater", "ModifyShearStress")
+        !A if (MonitorPerformance) call StartWatch ("ModuleInterfaceSedimentWater", "ModifyShearStress")
                 
 
         if (Me%Shear_Stress%LastCompute .LT. Me%ExternalVar%Now) then
@@ -4228,7 +4230,14 @@ do1 :       do while (associated(Property))
 
             end if
 
+            if (MonitorPerformance) then
+                call StartWatch ("ModuleInterfaceSedimentWater", "ModifyShearStress")
+            endif
 
+            CHUNK = CHUNK_J(JLB, JUB)
+            
+            !$OMP PARALLEL PRIVATE(i,j,kbottom,VC,UC,UVC2)
+            !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
             ! Se alisa cantos com terra. Aumenta artificialmente a tensão de corte 
             ! nos cantos com terra para evitar que estes se tornem em zonas 
             ! de deposição acentuada
@@ -4306,6 +4315,12 @@ do1 :       do while (associated(Property))
 
             enddo
             enddo
+            !$OMP END DO
+            !$OMP END PARALLEL
+
+            if (MonitorPerformance) then
+                call StopWatch ("ModuleInterfaceSedimentWater", "ModifyShearStress")
+            endif
 
             if (Me%Shear_Stress%Statistics%ON) then
 
@@ -4319,7 +4334,7 @@ do1 :       do while (associated(Property))
         
         endif
 
-        if (MonitorPerformance) call StopWatch ("ModuleInterfaceSedimentWater", "ModifyShearStress")
+        !A if (MonitorPerformance) call StopWatch ("ModuleInterfaceSedimentWater", "ModifyShearStress")
 
     
     end subroutine ModifyShearStress
@@ -4339,7 +4354,8 @@ do1 :       do while (associated(Property))
         integer                       :: IUB, JUB, ILB, JLB, i, j
         real                          :: WaveHeight, WaterColumn, WavePeriod, LimitMin
         integer                       :: STAT_CALL
-
+        integer                       :: CHUNK
+        
         !Begin-----------------------------------------------------------------
 
 
@@ -4370,6 +4386,16 @@ do1 :       do while (associated(Property))
         ILB = Me%WorkSize2D%ILB
         JLB = Me%WorkSize2D%JLB
 
+        if (MonitorPerformance) then
+            call StartWatch ("ModuleInterfaceSedimentWater", "ComputeWaveRugosity")
+        endif
+
+        CHUNK = CHUNK_J(JLB, JUB)
+        !$OMP PARALLEL PRIVATE(i,j,WavePeriod,WaveHeight,Abw,Ubw,WaterColumn,WaterDensity) &
+        !$OMP PRIVATE(RelativeDensity,Psi,LimitMin,Klsw,Kllsw,RippleHeight,RippleLength) &
+        !$OMP PRIVATE(Roughness) &
+        !$OMP FIRSTPRIVATE(D50,D90)
+        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
         do j = JLB, JUB
         do i = ILB, IUB
                                     
@@ -4451,7 +4477,12 @@ cd4:                    if(Psi .LT. LimitMin**2)then
 
         enddo
         enddo
+        !$OMP END DO
+        !$OMP END PARALLEL		
 
+        if (MonitorPerformance) then
+            call StopWatch ("ModuleInterfaceSedimentWater", "ComputeWaveRugosity")
+        endif
 
         if (Me%RunsSandTransport) then
 
@@ -4479,7 +4510,8 @@ cd4:                    if(Psi .LT. LimitMin**2)then
         real                          :: C1
         integer                       :: IUB, JUB, ILB, JLB, i, j
         real                          :: WaveHeight, WavePeriod, LimitMin
-
+        integer                       :: CHUNK
+        
         !Begin-----------------------------------------------------------------
 
         if (MonitorPerformance) call StartWatch ("ModuleInterfaceSedimentWater", "ComputeWaveTension")
@@ -4490,6 +4522,10 @@ cd4:                    if(Psi .LT. LimitMin**2)then
         ILB = Me%WorkSize2D%ILB
         JLB = Me%WorkSize2D%JLB
 
+        CHUNK = CHUNK_J(JLB, JUB)
+        !$OMP PARALLEL PRIVATE(i,j,WavePeriod,WaveHeight,Abw,Ubw,WaterDensity,LimitMin,C1) &
+        !$OMP PRIVATE(Fw)
+        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
         do j = JLB, JUB
         do i = ILB, IUB
                                     
@@ -4536,7 +4572,8 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
 
         enddo
         enddo
-
+        !$OMP END DO
+        !$OMP END PARALLEL
 
         if (MonitorPerformance) call StopWatch ("ModuleInterfaceSedimentWater", "ComputeWaveTension")
 
@@ -4633,6 +4670,7 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
         real, dimension(:,:,:), pointer         :: WaterPropertyConcentration
         character(len=StringLength)             :: WaterPropertyUnits
         real                                    :: WaterPropertyISCoef
+        integer                                 :: CHUNK 
 
         !Begin-----------------------------------------------------------------
 
@@ -4647,6 +4685,10 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
 
             if(Me%ExternalVar%Now .ge. PropertyX%Evolution%NextCompute)then
 
+                if (MonitorPerformance) then
+                    call StartWatch ("ModuleInterfaceSedimentWater", "InitializeFluxesToWaterColumn")
+                endif
+
                 if(.not. PropertyX%Particulate)then
 
                     call GetConcentration(WaterPropertiesID = Me%ObjWaterProperties,            &
@@ -4658,6 +4700,9 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
                     if(STAT_CALL .ne. SUCCESS_)&
                         stop 'InitializeFluxesToWaterColumn - ModuleInterfaceSedimentWater - ERR01'
 
+                    CHUNK = CHUNK_I(ILB, IUB)
+                    !$OMP PARALLEL PRIVATE(i,j,kbottom)
+                    !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
                     do i = ILB, IUB
                     do j = JLB, JUB
 
@@ -4672,6 +4717,8 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
 
                     enddo
                     enddo
+                    !$OMP END DO
+                    !$OMP END PARALLEL
 
                     call UnGetWaterProperties(Me%ObjWaterProperties, WaterPropertyConcentration, STAT = STAT_CALL)
                     if(STAT_CALL .ne. SUCCESS_)&
@@ -4681,6 +4728,9 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
 
                 if(PropertyX%Evolution%WaterFluxes .or. PropertyX%Evolution%SedimentWaterFluxes)then
 
+                    CHUNK = CHUNK_I(ILB, IUB)
+                    !$OMP PARALLEL PRIVATE(i,j)
+                    !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
                     do i = ILB, IUB
                     do j = JLB, JUB
                 
@@ -4692,8 +4742,14 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
 
                     enddo
                     enddo
+                    !$OMP END DO
+                    !$OMP END PARALLEL
 
                 end if
+
+                if (MonitorPerformance) then
+                    call StopWatch ("ModuleInterfaceSedimentWater", "InitializeFluxesToWaterColumn")
+                endif
 
             end if
 
@@ -4722,6 +4778,7 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
         real, dimension(:,:,:), pointer         :: SedimentPropertyConcentration
         character(len=StringLength)             :: SedimentPropertyUnits
         real                                    :: SedimentPropertyISCoef
+        integer                                 :: CHUNK
 
         !Begin-----------------------------------------------------------------
 
@@ -4747,6 +4804,13 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
                     if(STAT_CALL .ne. SUCCESS_)&
                         stop 'InitializeFluxesToSediment - ModuleInterfaceSedimentWater - ERR01'
 
+                    if (MonitorPerformance) then
+                        call StartWatch ("ModuleInterfaceSedimentWater", "InitializeFluxesToSediment")
+                    endif
+
+                    CHUNK = CHUNK_J(JLB, JUB)
+                    !$OMP PARALLEL PRIVATE(i,j,KUB)
+                    !$OMP DO SCHEDULE(DYNAMIC,CHUNK)	
                     do j = JLB, JUB
                     do i = ILB, IUB
             
@@ -4761,14 +4825,15 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
 
                     enddo
                     enddo
+                    !$OMP END DO
 
-                            
+                    !$OMP MASTER
                     call UnGetSedimentProperties(Me%ObjSedimentProperties, SedimentPropertyConcentration, STAT = STAT_CALL)
                     if(STAT_CALL .ne. SUCCESS_)&
                             stop 'InitializeFluxesToSediment - ModuleInterfaceSedimentWater - ERR02'
+                    !$OMP END MASTER
 
-
-                    
+                    !$OMP DO SCHEDULE(DYNAMIC,CHUNK)	
                     do j = JLB, JUB
                     do i = ILB, IUB
                 
@@ -4780,7 +4845,13 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
 
                     enddo
                     enddo
-
+                    !$OMP END DO
+                    !$OMP END PARALLEL
+                    
+                    if (MonitorPerformance) then
+                        call StopWatch ("ModuleInterfaceSedimentWater", "InitializeFluxesToSediment")
+                    endif
+                    
                 end if
 
             end if
@@ -4804,6 +4875,7 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
         integer                                 :: i, j
         integer                                 :: STAT_CALL
         type(T_Property), pointer               :: PropertyX, CohesiveSediment
+        integer                                 :: CHUNK
 
         !Begin-----------------------------------------------------------------
 
@@ -4824,8 +4896,14 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
 
                 if(Me%ExternalVar%Now .ge. PropertyX%Evolution%NextCompute)then
                     
-                    if(PropertyX%Mass_Limitation)then
+                    if (MonitorPerformance) then
+                        call StartWatch ("ModuleInterfaceSedimentWater", "ModifyErosionCoefficient")
+                    endif
                     
+                    CHUNK = CHUNK_J(JLB, JUB)
+                    !$OMP PARALLEL PRIVATE(i,j)
+                    if(PropertyX%Mass_Limitation)then
+                        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
                         do j = JLB, JUB
                         do i = ILB, IUB
 
@@ -4845,9 +4923,10 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
                             end if
                         enddo
                         enddo
+                        !$OMP END DO
 
                     else
-                        
+                        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
                         do j = JLB, JUB
                         do i = ILB, IUB
 
@@ -4862,8 +4941,13 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
 
                         enddo
                         enddo
+                        !$OMP END DO
                     end if
-                    
+                    !$OMP END PARALLEL
+
+                    if (MonitorPerformance) then
+                        call StopWatch ("ModuleInterfaceSedimentWater", "ModifyErosionCoefficient")
+                    endif
 
                 end if
             end if
@@ -5068,6 +5152,7 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
         integer                                 :: i, j, STAT_CALL
         type(T_Property), pointer               :: CohesiveSediment
         real                                    :: MaximumFlux, MaxErosionDepth
+        integer                                 :: CHUNK
 
         !Begin-----------------------------------------------------------------
         
@@ -5086,7 +5171,10 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
         if(CohesiveSediment%Evolution%Erosion)then
 
             if(Me%ExternalVar%Now .ge. CohesiveSediment%Evolution%NextCompute)then
-                    
+
+                CHUNK = CHUNK_J(JLB, JUB)
+                !$OMP PARALLEL PRIVATE(i,j,KUB,MaxErosionDepth,MaximumFlux)
+                !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
                 do j = JLB, JUB
                 do i = ILB, IUB
 
@@ -5105,19 +5193,23 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
                                           Me%ExtSed%SedimentDryDensity(i, j, KUB)
                             
                             if(MaximumFlux .lt. 0.)then
+                                !$OMP CRITICAL (MCEF1_ERR02)
                                 write(*,*)'Maximum erosion flux cannot negative.', 'i,j', i,j, 'KUB = ', KUB
                                 stop 'ModifyConsolidatedErosionFluxes - ModuleInterfaceSedimentWater - ERR02'
                                 !MaximumFlux = 0.
+                                !$OMP END CRITICAL (MCEF1_ERR02)
                             end if       
 
                             if(Me%ExtSed%TopCriticalShear(i, j) < Me%Shear_Stress%Tension(i,j))then
 
+                                !$OMP CRITICAL (MCEF2_FNC01)
                                 !kgsed/m2s
                                 CohesiveSediment%ErosionFlux(i,j) =                                         &
                                 ErosionFlux(CriticalShearErosion = Me%ExtSed%TopCriticalShear(i, j),        &
                                             ShearStress          = Me%Shear_Stress%Tension(i,j),            &
                                             ErosionRate          = Me%ErosionRate%Field(i,j))
-
+                                !$OMP END CRITICAL (MCEF2_FNC01)
+                                            
                                 if(CohesiveSediment%ErosionFlux(i,j) .gt. MaximumFlux)then
 
                                     CohesiveSediment%ErosionFlux(i,j) = MaximumFlux
@@ -5142,6 +5234,8 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
 
                 enddo
                 enddo
+                !$OMP END DO
+                !$OMP END PARALLEL
 
             end if
 
@@ -5171,9 +5265,10 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
         real, dimension(:,:,:), pointer         :: WaterPropertyConcentration
         character(len=StringLength)             :: WaterPropertyUnits
         real                                    :: WaterPropertyISCoef
+        integer                                 :: CHUNK
 
         !Begin-----------------------------------------------------------------
-        if (MonitorPerformance) call StartWatch ("ModuleInterfaceSedimentWater", "ModifyDepositionFluxes")
+        !A if (MonitorPerformance) call StartWatch ("ModuleInterfaceSedimentWater", "ModifyDepositionFluxes")
 
         IUB = Me%WaterWorkSize3D%IUB
         JUB = Me%WaterWorkSize3D%JUB
@@ -5230,6 +5325,13 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
 
                     if(PropertyX%Mass_Limitation)then
 
+                        if (MonitorPerformance) then
+                            call StartWatch ("ModuleInterfaceSedimentWater", "ModifyDepositionFluxes")
+                        endif
+
+                        CHUNK = CHUNK_J(JLB, JUB)
+                        !$OMP PARALLEL PRIVATE(i,j)
+                        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
                         do j = JLB, JUB
                         do i = ILB, IUB
                     
@@ -5243,6 +5345,12 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
 
                         enddo
                         enddo
+                        !$OMP END DO
+                        !$OMP END PARALLEL
+
+                        if (MonitorPerformance) then
+                            call StopWatch ("ModuleInterfaceSedimentWater", "ModifyDepositionFluxes")
+                        endif
 
                     end if
 
@@ -5262,7 +5370,7 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
 
         enddo
 
-        if (MonitorPerformance) call StopWatch ("ModuleInterfaceSedimentWater", "ModifyDepositionFluxes")
+        !A if (MonitorPerformance) call StopWatch ("ModuleInterfaceSedimentWater", "ModifyDepositionFluxes")
 
     end subroutine ModifyDepositionFluxes
 
@@ -5305,6 +5413,7 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
         integer                                 :: IUB, JUB, ILB, JLB, KUB
         integer                                 :: i, j, kbottom
         type(T_Property),       pointer         :: PropertyX
+        integer                                 :: CHUNK
 
         !Begin-----------------------------------------------------------------
         if (MonitorPerformance) call StartWatch ("ModuleInterfaceSedimentWater", "ModifyDissolvedFluxes")
@@ -5323,10 +5432,13 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
                 
                 if(Me%ExternalVar%Now .ge. PropertyX%Evolution%NextCompute)then
                     
+                    CHUNK = CHUNK_J(JLB, JUB)
+                    !$OMP PARALLEL PRIVATE(i,j,kbottom)
+                    !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
                     do j = JLB, JUB
                     do i = ILB, IUB
                     
-                        if(Me%ExtWater%OpenPoints2D(i,j) == OpenPoint)then
+                        if(Me%ExtWater%OpenPoints2D(i,j) == OpenPoint) then
 
                             kbottom = Me%ExtWater%KFloor_Z(i, j)
 
@@ -5338,6 +5450,8 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
 
                     enddo
                     enddo
+                    !$OMP END DO
+                    !$OMP END PARALLEL
 
                 end if
             end if
@@ -5361,6 +5475,7 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
         !Local-----------------------------------------------------------------
         integer                                 :: IUB, JUB, ILB, JLB, KUB
         integer                                 :: i, j
+        integer                                 :: CHUNK
 
         !Begin-----------------------------------------------------------------
         
@@ -5371,6 +5486,9 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
         ILB = Me%WorkSize2D%ILB
         JLB = Me%WorkSize2D%JLB
         
+        CHUNK = CHUNK_J(JLB, JUB)
+        !$OMP PARALLEL PRIVATE(i,j,KUB)
+        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
         do j = JLB, JUB
         do i = ILB, IUB
 
@@ -5389,6 +5507,8 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
 
         end do
         end do
+        !$OMP END DO
+        !$OMP END PARALLEL
 
         if (MonitorPerformance) call StopWatch ("ModuleInterfaceSedimentWater", "ComputeWaterFlux")
 
@@ -5409,6 +5529,7 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
         integer                                 :: i, j, STAT_CALL
         type(T_Property), pointer               :: CohesiveSediment
         real                                    :: Initial_Mass_Available
+        integer                                 :: CHUNK
 
         !Begin-----------------------------------------------------------------
         
@@ -5422,6 +5543,9 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
         call Search_Property(CohesiveSediment, PropertyXID = Cohesive_Sediment_, STAT = STAT_CALL)  
         if (STAT_CALL .NE. SUCCESS_)stop 'ComputeConsolidation - ModuleInterfaceSedimentWater - ERR10'
 
+        CHUNK = CHUNK_J(JLB, JUB)
+        !$OMP PARALLEL PRIVATE(i,j)
+        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
         do j = JLB, JUB
         do i = ILB, IUB
             if(Me%ExtSed%WaterPoints2D(i,j) == WaterPoint)then
@@ -5429,23 +5553,30 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
             end if
         enddo
         enddo
-
-
+        !$OMP END DO
+        !$OMP END PARALLEL
+              
+        if (MonitorPerformance) call StopWatch ("ModuleInterfaceSedimentWater", "ComputeConsolidation")
+                
+        !T !$OMP PARALLEL PRIVATE(i,j,Initial_Mass_Available)
+        !T !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
         do j = JLB, JUB
         do i = ILB, IUB
 
-            if(Me%ExtWater%WaterPoints2D(i,j) .eq. WaterPoint)then
+            if (Me%ExtWater%WaterPoints2D(i,j) .eq. WaterPoint) then
 
-                if(Me%Shear_Stress%Tension(i,j) < Me%Critical_Shear_Deposition%Field(i,j).and. &
+                if(Me%Shear_Stress%Tension(i,j) &
+                    < Me%Critical_Shear_Deposition%Field(i,j) .and. &
                    Me%ExtSed%SedimentColumnFull(i,j) == 0) then 
 
                     !Consolidation is solved implicitly to avoid instability
                     Initial_Mass_Available = CohesiveSediment%Mass_Available(i,j)
 
                     !kg/m2 = kg/m2 / (s * s-1)
-                    CohesiveSediment%Mass_Available(i,j) =  CohesiveSediment%Mass_Available(i,j)        / &
-                                                            (1. + CohesiveSediment%Evolution%DTInterval * &
-                                                            Me%Consolidation%Rate%Field(i,j))
+                    CohesiveSediment%Mass_Available(i,j) = &
+                        CohesiveSediment%Mass_Available(i,j)        / &
+                        (1. + CohesiveSediment%Evolution%DTInterval * &
+                        Me%Consolidation%Rate%Field(i,j))
 
                                                         
                     !kg/m2s = kg/m2 / s  (Positive if it entering consolidated sediment compartment)
@@ -5463,8 +5594,8 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
 
         end do
         end do
-
-        if (MonitorPerformance) call StopWatch ("ModuleInterfaceSedimentWater", "ComputeConsolidation")
+        !T !$OMP END DO               
+        !T !$OMP END PARALLEL
 
 #endif
 
@@ -5484,6 +5615,7 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
         real                                    :: AdvectiveFlux
         real                                    :: DT
         real                                    :: BoundaryLayerThickness
+        integer                                 :: CHUNK
 
         !Begin-----------------------------------------------------------------
         if (MonitorPerformance) call StartWatch ("ModuleInterfaceSedimentWater", "DissolvedSedimentWaterFluxes")
@@ -5503,6 +5635,9 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
 
                 if(Me%ExternalVar%Now .ge. PropertyX%Evolution%NextCompute)then
 
+                    CHUNK = CHUNK_J(JLB, JUB)
+                    !$OMP PARALLEL PRIVATE(i,j,kbottom,BoundaryLayerThickness,AdvectiveFlux,DiffusiveFlux)
+                    !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
                     do j = JLB, JUB
                     do i = ILB, IUB
                     
@@ -5560,6 +5695,8 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
 
                     enddo
                     enddo
+                    !$OMP END DO
+                    !$OMP END PARALLEL
 
                 end if
             end if
@@ -5585,6 +5722,7 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
         type(T_Property),       pointer         :: PropertyX, CohesiveSediment
         real                                    :: DT
         integer                                 :: STAT_CALL
+        integer                                 :: CHUNK
 
         !Begin-----------------------------------------------------------------
         if (MonitorPerformance) call StartWatch ("ModuleInterfaceSedimentWater", "ParticulateSedimentWaterFluxes")
@@ -5609,6 +5747,9 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
 
                 if(Me%ExternalVar%Now .ge. PropertyX%Evolution%NextCompute)then
 
+                    CHUNK = CHUNK_J(JLB, JUB)
+                    !$OMP PARALLEL PRIVATE(i,j,KUB)
+                    !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
                     do j = JLB, JUB
                     do i = ILB, IUB
                     
@@ -5648,6 +5789,8 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
 
                     enddo
                     enddo
+                    !$OMP END DO
+                    !$OMP END PARALLEL
 
                 end if
             end if
@@ -5816,6 +5959,7 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
         type (T_Property), pointer              :: PropertyX
         integer                                 :: ILB, IUB, JLB, JUB
         integer                                 :: i, j
+        integer                                 :: CHUNK
 
         !----------------------------------------------------------------------
 
@@ -5831,6 +5975,13 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
 
                 Me%Scalar2D(:,:) = 0.
 
+                if (MonitorPerformance) then
+                    call StartWatch ("ModuleInterfaceSedimentWater", "OutPut_BoxTimeSeries")
+                endif
+
+                CHUNK = CHUNK_J(JLB, JUB)
+                !$OMP PARALLEL PRIVATE(I,J)
+                !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
                 do J = JLB, JUB
                 do I = ILB, IUB
                     if(Me%ExtWater%WaterPoints2D(i,j) == WaterPoint)then
@@ -5839,6 +5990,12 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
                     endif
                 end do
                 end do
+                !$OMP END DO
+                !$OMP END PARALLEL
+                
+                if (MonitorPerformance) then
+                    call StopWatch ("ModuleInterfaceSedimentWater", "OutPut_BoxTimeSeries")
+                endif
                 
                 call BoxDif(Me%ObjBoxDif,                       &
                             Me%Scalar2D,                        &
@@ -5912,6 +6069,7 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
         real, dimension(:,:,:),     pointer     :: ConcentrationOld
         character(len=StringLength)             :: WaterPropertyUnits
         real                                    :: WaterPropertyISCoef
+        integer                                 :: CHUNK
 
         !Begin-----------------------------------------------------------------
         
@@ -5920,6 +6078,12 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
         WILB = Me%WorkSize2D%ILB
         WJLB = Me%WorkSize2D%JLB
 
+        CHUNK = CHUNK_J(WJLB, WJUB)
+        
+        if (MonitorPerformance) then
+            call StartWatch ("ModuleInterfaceSedimentWater", "Benthos_Processes")
+        endif
+        
         if (Me%ExternalVar%Now .GE. Me%Coupled%Benthos%NextCompute) then
 
             PropertyX => Me%FirstProperty
@@ -5939,6 +6103,8 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
 
                 elseif(PropertyX%ID%IDNumber == Oxygen_  )then
                     
+                    !$OMP PARALLEL PRIVATE(i,j,kbottom)
+                    !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
                     do j = WJLB, WJUB
                     do i = WILB, WIUB
 
@@ -5953,6 +6119,8 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
 
                     enddo
                     enddo
+                    !$OMP END DO
+                    !$OMP END PARALLEL
 
                     call Modify_Interface(InterfaceID   = Me%ObjInterface,                  &
                                           PropertyID    = PropertyX%ID%IDNumber,            &
@@ -5966,9 +6134,9 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
 
 
                 else
-
+                    !$OMP PARALLEL PRIVATE(i,j,kbottom)
                     if(PropertyX%Particulate)then
-                        
+                        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
                         do j = WJLB, WJUB
                         do i = WILB, WIUB
 
@@ -5982,9 +6150,10 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
 
                         enddo
                         enddo
+                        !$OMP END DO
 
                     else
-                        
+                        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
                         do j = WJLB, WJUB
                         do i = WILB, WIUB
 
@@ -5999,8 +6168,10 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
 
                         enddo
                         enddo
+                        !$OMP END DO
                     
                     end if
+                    !$OMP END PARALLEL
 
                     call Modify_Interface(InterfaceID   = Me%ObjInterface,                  &
                                           PropertyID    = PropertyX%ID%IDNumber,            &
@@ -6030,8 +6201,9 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
 
                 if (Me%ExternalVar%Now .GE. PropertyX%Evolution%NextCompute) then
 
+                    !$OMP PARALLEL PRIVATE(i,j,kbottom)
                     if(PropertyX%Particulate)then
-                        
+                        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
                         do j = WJLB, WJUB
                         do i = WILB, WIUB
 
@@ -6045,9 +6217,10 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
 
                         enddo
                         enddo
+                        !$OMP END DO
 
                     else
-                        
+                        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
                         do j = WJLB, WJUB
                         do i = WILB, WIUB
 
@@ -6062,8 +6235,9 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
 
                         enddo
                         enddo
-                    
+                        !$OMP END DO
                     end if
+                    !$OMP END PARALLEL
 
 
                     call Modify_Interface(InterfaceID   = Me%ObjInterface,                  &
@@ -6076,8 +6250,9 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
                     if (STAT_CALL .NE. SUCCESS_)                                            &
                         stop 'Benthos_Processes - ModuleInterfaceSedimentWater - ERR06'
 
+                    !$OMP PARALLEL PRIVATE(i,j,kbottom)
                     if(.not. PropertyX%Particulate)then
-                        
+                        !$OMP MASTER
                         call GetConcentration(WaterPropertiesID = Me%ObjWaterProperties,    &
                                               ConcentrationX    = ConcentrationOld,         &
                                               PropertyXIDNumber = PropertyX%ID%IDNumber,    &
@@ -6086,7 +6261,10 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
                                               STAT              = STAT_CALL)
                         if(STAT_CALL .ne. SUCCESS_)                                         &
                             stop 'Benthos_Processes - ModuleInterfaceSedimentWater - ERR07'
-
+                        !$OMP END MASTER
+                        !$OMP BARRIER
+                        
+                        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
                         do j = WJLB, WJUB
                         do i = WILB, WIUB
                     
@@ -6105,12 +6283,15 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
 
                         enddo
                         enddo
+                        !$OMP END DO
 
+                        !$OMP MASTER
                         call UnGetWaterProperties(Me%ObjWaterProperties, ConcentrationOld, STAT = STAT_CALL)
                         if(STAT_CALL .ne. SUCCESS_)&
                             stop 'Benthos_Processes - ModuleInterfaceSedimentWater - ERR08'
+                        !$OMP END MASTER
                     else
-                        
+                        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
                         do j = WJLB, WJUB
                         do i = WILB, WIUB
 
@@ -6124,9 +6305,10 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
 
                         enddo
                         enddo
+                        !$OMP END DO
 
                     end if
-
+                    !$OMP END PARALLEL
                 end if
 
             end if
@@ -6135,6 +6317,10 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
             
         end do
 
+        if (MonitorPerformance) then
+            call StopWatch ("ModuleInterfaceSedimentWater", "Benthos_Processes")
+        endif
+        
         BenthicRateX => Me%FirstBenthicRate
 
         do while (associated(BenthicRateX))
@@ -6178,6 +6364,7 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
         type (T_Property),       pointer        :: Detritus
         type (T_Property),       pointer        :: PropertyX
         integer                                 :: WILB, WIUB, WJLB, WJUB, i, j
+        integer                                 :: CHUNK
 
         !Begin-----------------------------------------------------------------
         
@@ -6195,6 +6382,13 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
 
             if(PropertyX%Evolution%Detritus)then
 
+                if (MonitorPerformance) then
+                    call StartWatch ("ModuleInterfaceSedimentWater", "Detritus_Processes")
+                endif
+
+                CHUNK = CHUNK_J(WJLB, WJUB)
+                !$OMP PARALLEL PRIVATE(i,j)
+                !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
                 do j = WJLB, WJUB
                 do i = WILB, WIUB
 
@@ -6212,6 +6406,12 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
 
                 end do
                 end do
+                !$OMP END DO
+                !$OMP END PARALLEL
+
+                if (MonitorPerformance) then
+                    call StopWatch ("ModuleInterfaceSedimentWater", "Detritus_Processes")
+                endif
 
             end if
 
