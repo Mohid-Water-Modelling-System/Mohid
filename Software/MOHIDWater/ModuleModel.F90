@@ -122,6 +122,7 @@ Module ModuleModel
                                                KillSequentialAssimilation,               &
                                                GetSeqAssimilationOptions
 #endif _USE_SEQASSIMILATION
+    use ModuleStopWatch,            only: StartWatch, StopWatch
 
 
     implicit none
@@ -1644,6 +1645,8 @@ if1 :   if (ready_ .EQ. IDLE_ERR_) then
 #endif
         !----------------------------------------------------------------------
 
+        if (MonitorPerformance) call StartWatch ("ModuleModel", "RunOneModel")
+
         !Updates the Interface between the sediment and the water column
         call ModifyInterfaceSedimentWater (Me%ObjInterfaceSedimentWater,                &
 #ifdef  _LAGRANGIAN_GLOBAL_          
@@ -1820,6 +1823,9 @@ if1 :   if (ready_ .EQ. IDLE_ERR_) then
         endif      
 #endif
 #endif 
+
+        if (MonitorPerformance) call StopWatch ("ModuleModel", "RunOneModel")
+
         !----------------------------------------------------------------------
 
     end subroutine RunOneModel
