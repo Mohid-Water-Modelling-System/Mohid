@@ -35,7 +35,8 @@ Module ModuleOpenBoundary
     use ModuleHorizontalGrid
     use ModuleHorizontalMap,    only : GetBoundaryFaces, UnGetHorizontalMap,GetBoundaries
     use ModuleGauge
-    use ModuleFunctions,        only : RodaXY
+    use ModuleFunctions,        only : RodaXY, CHUNK_J
+    use ModuleStopWatch,        only : StartWatch, StopWatch
     
     implicit none
     
@@ -849,7 +850,8 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
         real, dimension(:), pointer         :: AuxElevation, AuxRefLevel,                &
                                                AuxMetricX  , AuxMetricY,                 &
                                                AuxVelocityU, AuxVelocityV 
-        logical                             :: FoundBound   
+        logical                             :: FoundBound 
+        integer                             :: CHUNK  
 
         !----------------------------------------------------------------------                         
 
@@ -871,7 +873,8 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
                                                         BoundaryFacesV = BoundaryFacesV2D, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'Modify_OpenBoundary - ModuleOpenBoundary - ERR01'
 
-
+            if (MonitorPerformance)                                     &
+                call StartWatch ("ModuleOpenBoundary", "Modify_OpenBoundary")
 
 cd2:        if (Me%Compute_Tide) then
 
@@ -904,10 +907,13 @@ cd2:        if (Me%Compute_Tide) then
                                 STAT = STAT_CALL) 
                 if (STAT_CALL /= SUCCESS_) stop 'Modify_OpenBoundary - ModuleOpenBoundary - ERR03'
 
-
                 !If there are less then three gauges, only the first is considered
 cd3:            if (NGauges < 3) then
 
+                    CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+                    
+                    !$OMP PARALLEL PRIVATE(i,j)
+                    !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
                     do j = Me%WorkSize%JLB, Me%WorkSize%JUB
                     do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
@@ -938,6 +944,8 @@ cd3:            if (NGauges < 3) then
                         endif
                     enddo
                     enddo
+                    !$OMP END DO
+                    !$OMP END PARALLEL
             
                     if (NGauges == 2) stop 'Warning - Second gauge ignored'
 
@@ -1104,6 +1112,10 @@ cd24:                       if (STAT_CALL == NOT_FOUND_ERR_) then
             Counter = 0.
             SumX    = 0.
 
+            CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB) 
+
+            !$OMP PARALLEL PRIVATE(i,j,FoundBound)
+            !$OMP DO SCHEDULE(DYNAMIC,CHUNK) REDUCTION(+:Counter)
             do j = Me%WorkSize%JLB, Me%WorkSize%JUB
             do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
@@ -1121,14 +1133,22 @@ cd24:                       if (STAT_CALL == NOT_FOUND_ERR_) then
 
                 if (FoundBound) then
 
+                    !$OMP CRITICAL (MOP_RED01)
                     SumX    = SumX + Me%ImposedElevation(i, j)
+                    !$OMP END CRITICAL (MOP_RED01)
                     Counter = Counter + 1.
 
                 endif
                     
                 
             enddo
-            enddo   
+            enddo
+            !$OMP END DO
+            !$OMP END PARALLEL   
+
+            if (MonitorPerformance)                                     &
+                call StopWatch ("ModuleOpenBoundary", "Modify_OpenBoundary")
+
 
             if (Counter == 0) then
             
