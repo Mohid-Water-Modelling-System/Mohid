@@ -983,7 +983,7 @@ do2:        do i = ILB, IUB
             
 			!T CHUNK = CHUNK_J(JLB+1, JUB)
 
-			if (MonitorPerformance) then
+            if (MonitorPerformance) then
                 call StartWatch ("ModuleMap", "UpdateSoilComputeFaces3D")
             endif
 			
