@@ -1745,7 +1745,7 @@ cd0:    if (ready_ .EQ. IDLE_ERR_) then
         !Local-----------------------------------------------------------------
         real                                        :: RandomValue
         integer                                     :: IUB, ILB, JUB, JLB, i, j
-        integer										:: CHUNK
+        integer                                        :: CHUNK
         
         !Begin------------------------------------------------------------------------
 
@@ -1767,34 +1767,34 @@ do1 :   do while (associated(PropertyX))
         
                 RandomValue = (RandomValue - 0.5) * PropertyX%RandomComponent
 
-		        if (MonitorPerformance) then
-	                call StartWatch ("ModuleAtmosphere", "ModifyRandom")
-		        endif
+                if (MonitorPerformance) then
+                    call StartWatch ("ModuleAtmosphere", "ModifyRandom")
+                endif
 
-				CHUNK = CHUNK_J(JLB, JUB)
-				!$OMP PARALLEL PRIVATE(i,j)
+                CHUNK = CHUNK_J(JLB, JUB)
+                !$OMP PARALLEL PRIVATE(i,j)
                 !Substract previous random field    
                 !$OMP DO SCHEDULE(STATIC,CHUNK)
-				do j = JLB, JUB
+                do j = JLB, JUB
                 do i = ILB, IUB
                     PropertyX%Field(i, j) = PropertyX%Field(i, j) - PropertyX%RandomValue
                 enddo
                 enddo
-				!$OMP END DO
-				
+                !$OMP END DO
+                
                 !Add new random value
                 !$OMP DO SCHEDULE(STATIC,CHUNK)
-				do j = JLB, JUB
+                do j = JLB, JUB
                 do i = ILB, IUB
                     PropertyX%Field(i, j) = PropertyX%Field(i, j) + RandomValue
                 enddo
                 enddo
-				!$OMP END DO
-				!$OMP END PARALLEL
+                !$OMP END DO
+                !$OMP END PARALLEL
 
-		        if (MonitorPerformance) then
-	                call StopWatch ("ModuleAtmosphere", "ModifyRandom")
-		        endif
+                if (MonitorPerformance) then
+                    call StopWatch ("ModuleAtmosphere", "ModifyRandom")
+                endif
 
                 !Stores random value
                 PropertyX%RandomValue  = RandomValue
@@ -1857,7 +1857,7 @@ do2 :   do while (associated(PropertyX))
         !Local-----------------------------------------------------------------
         integer                                     :: STAT_CALL
         integer                                     :: i,j
-		integer										:: CHUNK
+        integer                                        :: CHUNK
 
         !Begin-----------------------------------------------------------------
        
@@ -1874,13 +1874,13 @@ do2 :   do while (associated(PropertyX))
             !Save the last radiation of the day
             if (Me%CloudCoverMethod == CloudFromRadiation ) then
            
-           		if (MonitorPerformance) then
-	                call StartWatch ("ModuleAtmosphere", "ModifySolarRadiation")
-		        endif
+                   if (MonitorPerformance) then
+                    call StartWatch ("ModuleAtmosphere", "ModifySolarRadiation")
+                endif
            
-				CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
-				!$OMP PARALLEL PRIVATE(i,j)
-				!$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+                CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+                !$OMP PARALLEL PRIVATE(i,j)
+                !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
                 do j = Me%WorkSize%JLB, Me%WorkSize%JUB
                 do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
@@ -1891,12 +1891,12 @@ do2 :   do while (associated(PropertyX))
                     endif
                 enddo
                 enddo
-				!$OMP END DO
-				!$OMP END PARALLEL
+                !$OMP END DO
+                !$OMP END PARALLEL
 
-           		if (MonitorPerformance) then
-	                call StopWatch ("ModuleAtmosphere", "ModifySolarRadiation")
-		        endif
+                   if (MonitorPerformance) then
+                    call StopWatch ("ModuleAtmosphere", "ModifySolarRadiation")
+                endif
 
             endif
 
@@ -2082,7 +2082,7 @@ do2 :   do while (associated(PropertyX))
         !Local-----------------------------------------------------------------
         real                                        :: ConversionFactor
         integer                                     :: i, j, STAT_CALL
-		integer										:: CHUNK
+        integer                                        :: CHUNK
 
         !Begin-----------------------------------------------------------------
 
@@ -2135,13 +2135,13 @@ do2 :   do while (associated(PropertyX))
 
                 end select
 
-           		if (MonitorPerformance) then
-	                call StartWatch ("ModuleAtmosphere", "ModifyPrecipitation")
-		        endif
+                   if (MonitorPerformance) then
+                    call StartWatch ("ModuleAtmosphere", "ModifyPrecipitation")
+                endif
 
-				CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
-				!$OMP PARALLEL PRIVATE(i,j)
-				!$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+                CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+                !$OMP PARALLEL PRIVATE(i,j)
+                !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
                 do j = Me%WorkSize%JLB, Me%WorkSize%JUB
                 do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
@@ -2152,12 +2152,12 @@ do2 :   do while (associated(PropertyX))
                     endif
                 enddo
                 enddo
-				!$OMP END DO
-				!$OMP END PARALLEL
+                !$OMP END DO
+                !$OMP END PARALLEL
         
                 if (MonitorPerformance) then
-	                call StopWatch ("ModuleAtmosphere", "ModifyPrecipitation")
-		        endif
+                    call StopWatch ("ModuleAtmosphere", "ModifyPrecipitation")
+                endif
         
             endif
 
@@ -2344,7 +2344,7 @@ do1 :   do while (associated(PropertyX))
         integer                                     :: STAT_CALL
         integer                                     :: i,j
         type (T_Property), pointer                  :: PropTransmitivity
-		integer										:: CHUNK
+        integer                                        :: CHUNK
 
 
         !Points to ATMTransmitivity
@@ -2372,17 +2372,17 @@ do1 :   do while (associated(PropertyX))
         endif
 
         if (MonitorPerformance) then
-	        call StartWatch ("ModuleAtmosphere", "ModifyCloudCover")
-	    endif
+            call StartWatch ("ModuleAtmosphere", "ModifyCloudCover")
+        endif
 
         !Update Transmitivity
         select case (Me%CloudCoverMethod)
 
             case (CloudFromRadiation)
 
-				CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
-				!$OMP PARALLEL PRIVATE(i,j)
-				!$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+                CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+                !$OMP PARALLEL PRIVATE(i,j)
+                !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
                 do j = Me%WorkSize%JLB, Me%WorkSize%JUB
                 do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                     if (Me%ExternalVar%MappingPoints2D(i, j) == 1) then
@@ -2390,14 +2390,14 @@ do1 :   do while (associated(PropertyX))
                     endif
                 enddo
                 enddo
-				!$OMP END DO
-				!$OMP END PARALLEL
+                !$OMP END DO
+                !$OMP END PARALLEL
                     
             case default
                
-				CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
-				!$OMP PARALLEL PRIVATE (i,j)
-				!$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+                CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+                !$OMP PARALLEL PRIVATE (i,j)
+                !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
                 do j = Me%WorkSize%JLB, Me%WorkSize%JUB
                 do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                     if (Me%ExternalVar%MappingPoints2D(i, j) == 1) then
@@ -2405,14 +2405,14 @@ do1 :   do while (associated(PropertyX))
                     endif
                 enddo
                 enddo
-				!$OMP END DO
-				!$OMP END PARALLEL
+                !$OMP END DO
+                !$OMP END PARALLEL
                 
         end select        
 
         if (MonitorPerformance) then
-	        call StopWatch ("ModuleAtmosphere", "ModifyCloudCover")
-	    endif        
+            call StopWatch ("ModuleAtmosphere", "ModifyCloudCover")
+        endif        
 
     end subroutine ModifyCloudCover
 
@@ -2434,7 +2434,7 @@ do1 :   do while (associated(PropertyX))
         real                                        :: GmtReference, RacingWithTheSun
         real                                        :: HourAngle, QSO, SunHighAngle
         type(T_Property), pointer                   :: PropSunHours, PropSolarRadiation       
-		integer										:: CHUNK
+        integer                                        :: CHUNK
         
 
         call JulianDay  (Me%ActualTime, Julday)
@@ -2460,12 +2460,12 @@ do1 :   do while (associated(PropertyX))
             Hour = Hour + Minute/60. + Second/3600.
 
             if (MonitorPerformance) then
-	            call StartWatch ("ModuleAtmosphere", "ComputeCloudCover")
-	        endif
+                call StartWatch ("ModuleAtmosphere", "ComputeCloudCover")
+            endif
 
-			CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
-			!$OMP PARALLEL PRIVATE(i,j,LatitudePI,LongitudePI,SunstW,PossibleSunHours)
-			!$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+            CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+            !$OMP PARALLEL PRIVATE(i,j,LatitudePI,LongitudePI,SunstW,PossibleSunHours)
+            !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
             do j = Me%WorkSize%JLB, Me%WorkSize%JUB
             do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
@@ -2488,12 +2488,12 @@ do1 :   do while (associated(PropertyX))
 
             enddo
             enddo   
-			!$OMP END DO
-			!$OMP END PARALLEL
+            !$OMP END DO
+            !$OMP END PARALLEL
         
             if (MonitorPerformance) then
-	            call StopWatch ("ModuleAtmosphere", "ComputeCloudCover")
-	        endif
+                call StopWatch ("ModuleAtmosphere", "ComputeCloudCover")
+            endif
         
         case (CloudFromRadiation)
         

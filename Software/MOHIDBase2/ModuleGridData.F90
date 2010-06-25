@@ -1450,24 +1450,24 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
                 CHUNK = CHUNK_J(Me%WorkSize%JLB,Me%WorkSize%JUB)
                 if (Add) then
-                	!$OMP PARALLEL PRIVATE(i,j)
-					!$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+                    !$OMP PARALLEL PRIVATE(i,j)
+                    !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
                     do j=Me%WorkSize%JLB,Me%WorkSize%JUB
                     do i=Me%WorkSize%ILB,Me%WorkSize%IUB
                         Me%GridData2D(i, j) =  Me%GridData2D(i, j) + Increment2D(i, j)
                     enddo
                     enddo
-					!$OMP END DO
+                    !$OMP END DO
                     !$OMP END PARALLEL
                 else
                     !$OMP PARALLEL PRIVATE(i,j)
-					!$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+                    !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
                     do j=Me%WorkSize%JLB,Me%WorkSize%JUB
                     do i=Me%WorkSize%ILB,Me%WorkSize%IUB
                         Me%GridData2D(i, j) =  Me%GridData2D(i, j) - Increment2D(i, j)
                     enddo
                     enddo
-					!$OMP END DO
+                    !$OMP END DO
                     !$OMP END PARALLEL
                 endif
 
@@ -1520,16 +1520,16 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
             !ACanas: Paralelization not tested because subrotine not used in MOHID Water
             
-			!T CHUNK = CHUNK_J(Me%WorkSize%JLB,Me%WorkSize%JUB)
-			!T !$OMP PARALLEL PRIVATE(i,j)
-			!T !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+            !T CHUNK = CHUNK_J(Me%WorkSize%JLB,Me%WorkSize%JUB)
+            !T !$OMP PARALLEL PRIVATE(i,j)
+            !T !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
             do j=Me%WorkSize%JLB,Me%WorkSize%JUB
             do i=Me%WorkSize%ILB,Me%WorkSize%IUB
                 Me%GridData2D(i, j) =  NewGridData2D(i, j)
             enddo
             enddo
-			!T !$OMP END DO
-			!T !$OMP END PARALLEL
+            !T !$OMP END DO
+            !T !$OMP END PARALLEL
             
             if (MonitorPerformance) then
                 call StopWatch ("ModuleGridData", "ModifyNewMatrixGridData2D")
@@ -1576,16 +1576,16 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
             !ACanas: Paralelization not tested because subrotine not used in MOHID Water
 
-			!T CHUNK = CHUNK_J(Me%WorkSize%JLB,Me%WorkSize%JUB)
-			!T !$OMP PARALLEL PRIVATE(i,j)
-			!T !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+            !T CHUNK = CHUNK_J(Me%WorkSize%JLB,Me%WorkSize%JUB)
+            !T !$OMP PARALLEL PRIVATE(i,j)
+            !T !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
             do j=Me%WorkSize%JLB,Me%WorkSize%JUB
             do i=Me%WorkSize%ILB,Me%WorkSize%IUB
                 Me%GridData2D(i, j) =  ConstantValue
             enddo
             enddo
-			!T !$OMP END DO
-			!T !$OMP END PARALLEL
+            !T !$OMP END DO
+            !T !$OMP END PARALLEL
             
             if (MonitorPerformance) then
                 call StopWatch ("ModuleGridData", "ModifyConstantGridData2D")

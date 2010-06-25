@@ -41,23 +41,23 @@
 
 !Some notes on how WRF file is organized and read
 !dimensions:
-!	Time = UNLIMITED ; // (25 currently)
-!	DateStrLen       = 19 ;
-!	west_east        = 39 ;
-!	south_north      = 54 ;
-!	bottom_top       = 27 ;
-!	bottom_top_stag  = 28 ;
-!	soil_layers_stag = 5 ;
-!	west_east_stag   = 40 ;
-!	south_north_stag = 55 ;
+!    Time = UNLIMITED ; // (25 currently)
+!    DateStrLen       = 19 ;
+!    west_east        = 39 ;
+!    south_north      = 54 ;
+!    bottom_top       = 27 ;
+!    bottom_top_stag  = 28 ;
+!    soil_layers_stag = 5 ;
+!    west_east_stag   = 40 ;
+!    south_north_stag = 55 ;
 
-!	float U(Time, bottom_top, south_north, west_east_stag) ;
-!		U:FieldType = 104 ;
-!		U:MemoryOrder = "XYZ" ;
-!		U:description = "x-wind component" ;
-!		U:units = "m s-1" ;
-!		U:stagger = "X" ;
-!		U:coordinates = "XLONG_U XLAT_U" ;
+!    float U(Time, bottom_top, south_north, west_east_stag) ;
+!        U:FieldType = 104 ;
+!        U:MemoryOrder = "XYZ" ;
+!        U:description = "x-wind component" ;
+!        U:units = "m s-1" ;
+!        U:stagger = "X" ;
+!        U:coordinates = "XLONG_U XLAT_U" ;
 
 Module ModuleWRFFormat
 

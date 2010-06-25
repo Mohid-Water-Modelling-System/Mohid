@@ -4478,7 +4478,7 @@ cd4:                    if(Psi .LT. LimitMin**2)then
         enddo
         enddo
         !$OMP END DO
-        !$OMP END PARALLEL		
+        !$OMP END PARALLEL        
 
         if (MonitorPerformance) then
             call StopWatch ("ModuleInterfaceSedimentWater", "ComputeWaveRugosity")
@@ -4810,7 +4810,7 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
 
                     CHUNK = CHUNK_J(JLB, JUB)
                     !$OMP PARALLEL PRIVATE(i,j,KUB)
-                    !$OMP DO SCHEDULE(DYNAMIC,CHUNK)	
+                    !$OMP DO SCHEDULE(DYNAMIC,CHUNK)    
                     do j = JLB, JUB
                     do i = ILB, IUB
             
@@ -4833,7 +4833,7 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
                             stop 'InitializeFluxesToSediment - ModuleInterfaceSedimentWater - ERR02'
                     !$OMP END MASTER
 
-                    !$OMP DO SCHEDULE(DYNAMIC,CHUNK)	
+                    !$OMP DO SCHEDULE(DYNAMIC,CHUNK)    
                     do j = JLB, JUB
                     do i = ILB, IUB
                 

@@ -19582,7 +19582,7 @@ cd2:        if      (Num_Discretization == Abbott    ) then
         integer                              :: i, j, k   ! counters
         integer                              :: ILB, IUB, JLB, JUB, KLB, KUB !bounds
         
-        !T integer								 :: CHUNK
+        !T integer                                 :: CHUNK
         
         !Begin----------------------------------------------------------------------
         !----Shorten variables names
@@ -19754,7 +19754,7 @@ cd2:        if      (Num_Discretization == Abbott    ) then
         integer                              :: ILB, IUB, JLB, JUB, KUB ! bounds
         logical                              :: PreSolve
         
-        !T integer								 :: CHUNK
+        !T integer                                 :: CHUNK
         
         !Begin----------------------------------------------------------------------
         !----Shorten variables names
@@ -19858,7 +19858,7 @@ X1:         if (Me%External_Var%BoundaryFacesU(i, j) == Boundary) then
                 !T !$OMP END MASTER
                 !T !$OMP BARRIER
                 
-                !T !$OMP DO SCHEDULE(DYNAMIC,CHUNK)		
+                !T !$OMP DO SCHEDULE(DYNAMIC,CHUNK)        
                 do k = Me%External_Var%KFloor_U(i, j), KUB
 
                     if      (Me%External_Var%BoundaryPoints(i, j - 1) == Boundary) then
@@ -22082,7 +22082,7 @@ cd4:    if (.not. Me%SubModel%ON .and. (Me%ComputeOptions%Compute_Tide .or. Me%C
 
         integer                             :: IUB, ILB, JUB, JLB !, status
 
-        !AT integer								:: CHUNK
+        !AT integer                                :: CHUNK
         
         !Begin----------------------------------------------------------------
 
@@ -27643,7 +27643,7 @@ dok1:           do k = Kbottom, KUB
             call StartWatch ("ModuleHydrodynamic", "Modify_UX_VY_Boundary")
         endif
  
-        !$OMP PARALLEL PRIVATE(i,j,k,Kbottom,iSouth,jWest,i_North)	&
+        !$OMP PARALLEL PRIVATE(i,j,k,Kbottom,iSouth,jWest,i_North)    &
         !$OMP PRIVATE(j_East,VelAux,MomentumFlux)
  
         !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
@@ -37064,7 +37064,7 @@ ic1:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
 
         real                               :: Aux !,CoefRelax
 
-        !A integer							   :: CHUNK
+        !A integer                               :: CHUNK
         !Begin---------------------------------------------------------------------
 
         !Begin - Shorten variables name 

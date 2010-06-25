@@ -428,7 +428,7 @@ cd2 :           if (BlockFound) then
         type (T_Size2D)                              :: WorkSize
         type (T_Size2D)                              :: Size
 
-		
+        
     !----------------------------------------------------------------------
     integer(4)                              :: hopen, sfstart, istat, index, sfselect, sfgainfo
     integer(4)                              :: read_attr_status, file_attr_index, sfrcatt, sfrnatt
@@ -444,7 +444,7 @@ cd2 :           if (BlockFound) then
     
     
     real, dimension(:,:), pointer           :: auxArray2DReal
-	real, dimension(:,:), pointer           :: auxArray2DReal2
+    real, dimension(:,:), pointer           :: auxArray2DReal2
     integer(2), dimension(:,:), pointer        :: auxArray2DInt
     
     real, dimension(:,:), pointer           :: Latitude
@@ -733,19 +733,19 @@ deallocate (AuxArray2Dreal)
                 write(*,*) 'Error! File Not Found: ', GeoFilename
                 stop 'ReadHDF4 - ModuleConvertModisL2 - ERR01'
     endif
-	
-	 allocate(Chla(Size%ILB:Size%IUB, Size%JLB:Size%JUB))
+    
+     allocate(Chla(Size%ILB:Size%IUB, Size%JLB:Size%JUB))
      allocate(sst (Size%ILB:Size%IUB, Size%JLB:Size%JUB))
 
 
      sds_name    = "chlor_a"
      paramIndex  = sfn2index (FileID, sds_name)
-	 sds_id      = sfselect  (FileID, paramIndex)
+     sds_id      = sfselect  (FileID, paramIndex)
      
-	 
+     
      istat       = sfginfo   (sds_id, sds_name, rank, dimsizes, data_type, num_attrs)
     
-	 start = 0
+     start = 0
      
      stride = 1
 
@@ -759,14 +759,14 @@ deallocate (AuxArray2Dreal)
       istat       = sfrdata   (sds_id, start, stride, dimsizes, AuxArray2Dreal2)
  
        Lines   =1
-	   Columns =1
+       Columns =1
     
-	   do i=minI , maxI
+       do i=minI , maxI
           do j = minJ , maxJ
               Chla(Lines,Columns) = AuxArray2Dreal2(j,i)
               Columns = Columns + 1 
-	      enddo
-	          Columns = 1
+          enddo
+              Columns = 1
               Lines   = Lines + 1
         enddo
 
@@ -786,14 +786,14 @@ deallocate (AuxArray2Dreal)
    
  
        Lines   =1
-	   Columns =1
+       Columns =1
     
-	   do i=minI , maxI
+       do i=minI , maxI
           do j = minJ , maxJ
               sst(Lines,Columns) = auxArray2DInt(j,i) * 0.005
               Columns = Columns + 1 
-	       enddo
-	          Columns = 1
+           enddo
+              Columns = 1
               Lines   = Lines + 1
          enddo
 
@@ -817,7 +817,7 @@ deallocate (AuxArray2Dreal)
                          STAT           = STAT_CALL) 
      if(STAT_CALL .ne. SUCCESS_)stop 'ConstructGrid - ModuleConvertModisL2 - ERR066'
 
-	 call WriteGridData  (FileName       = 'sst_'//trim(adjustl(cdate))//'_'//trim(adjustl(ctime))//'.dat',                                                          &
+     call WriteGridData  (FileName       = 'sst_'//trim(adjustl(cdate))//'_'//trim(adjustl(ctime))//'.dat',                                                          &
                          COMENT1        = 'ModisL2 file'//trim(L2Filename)//' Modis Geo File: '//trim(GeoFileName), &
                          COMENT2        = trim(adjustl(cdate))//' '//trim(adjustl(ctime))//' '//'Chl a mg/m^3',                                                                       &
                          ConnectionX    = GridLong,                                                                 &
@@ -838,7 +838,7 @@ deallocate (AuxArray2Dreal)
  
     deallocate(Chla)
     deallocate(sst)
-	deallocate(auxArray2DReal2)
+    deallocate(auxArray2DReal2)
     deallocate(auxArray2DInt)
     deallocate (GridLat)
     deallocate(GridLong)
@@ -850,41 +850,41 @@ deallocate (AuxArray2Dreal)
 
     !Arguments-----------------------------------------------------------
     type(T_Attribute), dimension(:), pointer     :: Attributes
-	type(T_Time)                                 :: Date
-	
-	character(len=256), intent (IN):: Filename
-	real, dimension(6),intent (OUT):: AuxTime
-	character(len=256),intent (OUT):: cdate, ctime
-	character(len=256)             :: chartime 
-	character(len=4)               :: char_i , cmonth, cday                   
+    type(T_Time)                                 :: Date
+    
+    character(len=256), intent (IN):: Filename
+    real, dimension(6),intent (OUT):: AuxTime
+    character(len=256),intent (OUT):: cdate, ctime
+    character(len=256)             :: chartime 
+    character(len=4)               :: char_i , cmonth, cday                   
     integer(4)                     :: FileID,  n_file_attributes, file_attr_index, file_attr_status
-	integer(4)                     :: read_attr_status, dayj, AuxDayj
-	logical                        :: FileFound
+    integer(4)                     :: read_attr_status, dayj, AuxDayj
+    logical                        :: FileFound
     integer(4)                     :: sfrnatt, sfrcatt, sfgainfo, sffinfo, day, month, i
-	
+    
     !---------------------------------------------------------------------
  
 
-	 FileFound=LookforFile (Filename, FileID, n_file_attributes)
+     FileFound=LookforFile (Filename, FileID, n_file_attributes)
     
-	  
+      
      
-	 if(FileFound.eq..false.) then 
+     if(FileFound.eq..false.) then 
                 write(*,*)  
                 write(*,*) 'Error! File Not Found: ', Filename
                 stop 'ReadDate - ModuleConvertModisL2 - ERR01a'
       endif
     
-	  nullify  (Attributes)
+      nullify  (Attributes)
 
 
       allocate (Attributes(0:n_file_attributes-1))
 
        
-	!read all file attributes
+    !read all file attributes
     do file_attr_index = 0, n_file_attributes-1
-	  
-	     
+      
+         
         
         !get file attributes
         file_attr_status = sfgainfo(FileID, file_attr_index,                &
@@ -897,7 +897,7 @@ deallocate (AuxArray2Dreal)
             !reads string type attributes
             read_attr_status = sfrcatt (FileID, file_attr_index, Attributes(file_attr_index)%String)
              
-		end if
+        end if
 
     enddo
 
@@ -906,21 +906,21 @@ deallocate (AuxArray2Dreal)
       
       
       read(CharTime(1:4), '(i4)') i
-	  AuxTime(1) = i
+      AuxTime(1) = i
 
-	  read(CharTime(8:9), '(i4)') i
-	  AuxTime(4) = i
+      read(CharTime(8:9), '(i4)') i
+      AuxTime(4) = i
 
-	  read(CharTime(10:11), '(i4)') i
-	  AuxTime(5) = i
+      read(CharTime(10:11), '(i4)') i
+      AuxTime(5) = i
 
-	  read(CharTime(12:13), '(i4)') i
-	  AuxTime(6) = i
-	
-	  read(CharTime(5:7), '(i4)') i
-	  dayj = i
+      read(CharTime(12:13), '(i4)') i
+      AuxTime(6) = i
+    
+      read(CharTime(5:7), '(i4)') i
+      dayj = i
       
-	  
+      
 
    
    do day =1, 31
@@ -932,9 +932,9 @@ deallocate (AuxArray2Dreal)
       call SetDate( Date,  Year = AuxTime(1), Month  = AuxTime(2), Day    = AuxTime(3), &
                                    Hour = AuxTime(4), Minute = AuxTime(5), Second = AuxTime(6)) 
     
-	 call JulianDay( Date, AuxDayj)
+     call JulianDay( Date, AuxDayj)
     
-	 if (AuxDayj.eq.DayJ) then 
+     if (AuxDayj.eq.DayJ) then 
         exit
      endif
    
@@ -947,8 +947,8 @@ deallocate (AuxArray2Dreal)
     
     ctime = CharTime(8:9)//'-'//CharTime(10:11)//'-'//CharTime(12:13)
     write(cmonth, '(i4)')int(AuxTime(2))
-	write(cday, '(i4)')  int(AuxTime(3))
-	cdate = CharTime(1:4)//'-'//trim(adjustl(cmonth))//'-'//trim(adjustl(cday))
+    write(cday, '(i4)')  int(AuxTime(3))
+    cdate = CharTime(1:4)//'-'//trim(adjustl(cmonth))//'-'//trim(adjustl(cday))
 
    deallocate (Attributes)
 

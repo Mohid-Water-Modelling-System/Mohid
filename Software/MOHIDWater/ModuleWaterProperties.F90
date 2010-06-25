@@ -11614,7 +11614,7 @@ do3:                        do k = kbottom, KUB
         type (T_Property), pointer              :: PropertyX
         integer                                 :: ILB, IUB, JLB, JUB, KUB, BN
         integer                                 :: i, j, k, kbottom, BoxCells
-        !T integer									:: CHUNK
+        !T integer                                    :: CHUNK
 
         !Begin----------------------------------------------------------------------
 

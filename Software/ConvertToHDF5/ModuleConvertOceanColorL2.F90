@@ -126,10 +126,10 @@ Module ModuleConvertOceanColorL2
         integer                                 :: NLW_531
         integer                                 :: NLW_551
         integer                                 :: NLW_667
-		integer                                 :: CALCITE
-		integer                                 :: TSM_CLARK
-		integer                                 :: POC_CLARK
-		integer                                 :: CHL_CLARK 
+        integer                                 :: CALCITE
+        integer                                 :: TSM_CLARK
+        integer                                 :: POC_CLARK
+        integer                                 :: CHL_CLARK 
         
         integer                                 :: CHLOR_A_      = 1
         integer                                 :: SST_          = 2
@@ -150,9 +150,9 @@ Module ModuleConvertOceanColorL2
         integer                                 :: NLW_551_      = 17
         integer                                 :: NLW_667_      = 18
         integer                                 :: CALCITE_      = 19
-		integer                                 :: TSM_CLARK_    = 20
-		integer                                 :: POC_CLARK_    = 21
-		integer                                 :: CHL_CLARK_    = 22  
+        integer                                 :: TSM_CLARK_    = 20
+        integer                                 :: POC_CLARK_    = 21
+        integer                                 :: CHL_CLARK_    = 22  
         
 
         
@@ -174,10 +174,10 @@ Module ModuleConvertOceanColorL2
         character(len=40)                       :: Char_nLw_531       ='nLw_531'
         character(len=40)                       :: Char_nLw_551       ='nLw_551'
         character(len=40)                       :: Char_nLw_667       ='nLw_667'
-		character(len=40)                       :: Char_calcite       ='calcite'
-		character(len=40)                       :: Char_tsm_clark     ='tsm_clark'
-		character(len=40)                       :: Char_poc_clark     ='poc_clark '
-		character(len=40)                       :: Char_chl_clark     ='chl_clark'
+        character(len=40)                       :: Char_calcite       ='calcite'
+        character(len=40)                       :: Char_tsm_clark     ='tsm_clark'
+        character(len=40)                       :: Char_poc_clark     ='poc_clark '
+        character(len=40)                       :: Char_chl_clark     ='chl_clark'
         character(len=40)                       :: Char_l2_flags      ='l2_flags'
 
         character(len=40)                       :: Units_chla         ='mg/m^3'
@@ -186,7 +186,7 @@ Module ModuleConvertOceanColorL2
         character(len=40)                       :: Units_K            ='m-1'
         character(len=40)                       :: Units_Calcite      ='moles/m^3'
         character(len=40)                       :: Units_TSM          ='mg/l'
-		character(len=40)                       :: Units_POC          ='mg/l'
+        character(len=40)                       :: Units_POC          ='mg/l'
         character(len=40)                       :: Units_NoDim        ='dimensionless'
         
         integer                                 :: nProd
@@ -716,7 +716,7 @@ Module ModuleConvertOceanColorL2
          me%ProdUnits(me%NProd)  = me%Units_nLw
        endif
 
-	   
+       
         call GetData(Me%CALCITE, &
                Me%ObjEnterData, iflag, &
                SearchType   = FromBlock,  keyword='CALCITE', &
@@ -733,8 +733,8 @@ Module ModuleConvertOceanColorL2
          me%ProdUnits(me%NProd)  = me%Units_calcite
        endif
 
-	   
-	   call GetData(Me%TSM_CLARK, &
+       
+       call GetData(Me%TSM_CLARK, &
                Me%ObjEnterData, iflag, &
                SearchType   = FromBlock,  keyword='TSM_CLARK', &
                default    = 0 , &
@@ -750,7 +750,7 @@ Module ModuleConvertOceanColorL2
          me%ProdUnits(me%NProd)  = me%Units_TSM
        endif
 
-	   call GetData(Me%POC_CLARK, &
+       call GetData(Me%POC_CLARK, &
                Me%ObjEnterData, iflag, &
                SearchType   = FromBlock,  keyword='POC_CLARK', &
                default    = 0 , &
@@ -766,7 +766,7 @@ Module ModuleConvertOceanColorL2
          me%ProdUnits(me%NProd)  = me%Units_POC
        endif
 
-	   call GetData(Me%CHL_CLARK, &
+       call GetData(Me%CHL_CLARK, &
                Me%ObjEnterData, iflag, &
                SearchType   = FromBlock,  keyword='CHL_CLARK', &
                default    = 0 , &
@@ -782,7 +782,7 @@ Module ModuleConvertOceanColorL2
          me%ProdUnits(me%NProd)  = me%Units_chla
        endif
        
-	   allocate (me%ProdId(me%NProd))
+       allocate (me%ProdId(me%NProd))
         
        
        
@@ -924,15 +924,15 @@ cd2 :           if (BlockFound) then
     REAL*4, dimension(:,:), pointer :: LatArray
     REAL*4, dimension(:,:), pointer :: LonArray
     REAL*4, dimension(:,:), pointer :: GridData
-	REAL*4  sdata 
-	REAL*4  aux
-	INTEGER flag  
+    REAL*4  sdata 
+    REAL*4  aux
+    INTEGER flag  
     INTEGER i 
-	INTEGER j 
-	REAL*4  ullat, ullon, urlat, urlon
+    INTEGER j 
+    REAL*4  ullat, ullon, urlat, urlon
     REAL*4  lllat, lllon, lrlat, lrlon
-	REAL*4  northlat,	southlat, westlon,eastlon
-	INTEGER lines,columns
+    REAL*4  northlat,    southlat, westlon,eastlon
+    INTEGER lines,columns
     LOGICAL outpoint(4), pointin
     integer npoint, line, column, maxj,minj,maxi,mini,limite,nProd,prodID
     real, dimension(:,:), pointer           :: GridLat
@@ -1049,11 +1049,11 @@ cd2 :           if (BlockFound) then
  ! Geo File Get Georeference   ---------------------------------------------
   
       call OpenL2Seadas (trim(adjustl(L2FileName))//''C)
-	  call GetMetaData( ullat, ullon, urlat, urlon, &
-                        lllat, lllon, lrlat, lrlon,	&
-                        northlat,	southlat, westlon, eastlon, columns, &
+      call GetMetaData( ullat, ullon, urlat, urlon, &
+                        lllat, lllon, lrlat, lrlon,    &
+                        northlat,    southlat, westlon, eastlon, columns, &
                         lines,nProd,geointerp)
-	  
+      
       iub = lines - 2
       ilb = 2
       jub = columns -4
@@ -1070,7 +1070,7 @@ cd2 :           if (BlockFound) then
        lrlat=urlat
        urlat=aux
       endif
-	  
+      
       if (urlon.lt.ullon) then
        aux=urlon
        urlon=ullon
@@ -1092,16 +1092,16 @@ cd2 :           if (BlockFound) then
 ! -------------- Get Lat and Lon --------------------------
 
       nullify (LatArray)
-	  nullify (LonArray)
-	  allocate(LatArray(ilb:iub,jlb:jub))
+      nullify (LonArray)
+      allocate(LatArray(ilb:iub,jlb:jub))
       allocate(LonArray(ilb:iub,jlb:jub))
     
       do i=ilb,iub
-	   do j=jlb,jub
+       do j=jlb,jub
         
         call GetLatLon(j,i,LatArray(i,j),LonArray(i,j))
 
-	   enddo
+       enddo
       enddo
 
 
@@ -1443,9 +1443,9 @@ nullify(LonArray)
      
 
         call ReadDataL2(minI,maxI, prodID)
-	        column=1
+            column=1
             line=1
-	     
+         
          
          do i=minI , maxI
           do j = minJ , maxJ
@@ -1457,8 +1457,8 @@ nullify(LonArray)
              ! if (NewField%Scalar(Nprod,line,column).le.-1) then
               !   NewField%OpenPoints3D(line,column,1) = 0
               !endif 
-	      enddo
-	          column = 1
+          enddo
+              column = 1
               line   = line + 1
          enddo
       endif
@@ -1623,13 +1623,13 @@ nullify(LonArray)
  subroutine GetDateFromJDay (Year, AuxTime, StartInZero, JulianDay )
    
     real              , intent (IN)   ::  Year
-	integer           , intent (IN)   ::  StartInZero
+    integer           , intent (IN)   ::  StartInZero
     real, dimension(6), intent (OUT)  ::  AuxTime
-	real              , intent (IN)   ::  JulianDay
+    real              , intent (IN)   ::  JulianDay
 
-	integer                         ::  iMonth,iDay, JulianDayInt,Month
-	integer                         ::  Day,Hour,Minute,Second
-	real                            ::  Rest
+    integer                         ::  iMonth,iDay, JulianDayInt,Month
+    integer                         ::  Day,Hour,Minute,Second
+    real                            ::  Rest
     integer, Dimension(12)          ::  NDay
 
     Data NDay/31,28,31,30,31,30,31,31,30,31,30,31/
@@ -1668,8 +1668,8 @@ nullify(LonArray)
         
     enddo
     
-	AuxTime(2)=real(Month)
-	AuxTime(3)=real(day)
+    AuxTime(2)=real(Month)
+    AuxTime(3)=real(day)
 
     !JulianToDate = CDate(Str(Year) + "-" + Str(Month) + "-" + Str(Day) + " " + _
      !                    Str(Hour) + ":" + Str(Minute) + ":" + Str(Second))

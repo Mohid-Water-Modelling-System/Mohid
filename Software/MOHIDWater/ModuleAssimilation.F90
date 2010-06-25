@@ -2289,32 +2289,32 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 ! ----------------------------------------------------------------------------------!
 ! ----------------------------------------------------------------------------------!
 !                                                                                   !
-!  	This routine assimilate altimetric data with Cooper and Haines scheme           !
+!      This routine assimilate altimetric data with Cooper and Haines scheme           !
 !                                                                                   !
 !   Cooper,M. and K,Haines, 1996.  "Altimetric assimilation with water property     !
 !                                conservation". Journal of Geophysical Research,    !
-!  	                             101, C1, 1059-1077.                                ! 
-!	                                                                                !
-!   The method is modified according to Drakopoutos et.al.	                        !
-!	                                                                                !
+!                                   101, C1, 1059-1077.                                ! 
+!                                                                                    !
+!   The method is modified according to Drakopoutos et.al.                            !
+!                                                                                    !
 !   Drakopoulos, P.et.al. 1997. "Altimetric assimilation in a mediterranean general !
 !                              circulation model". Journal of Geophysical Research, !
-!  	                           102, C1, 10509-10523.                                ! 
-!	                                                                                !
-!	inputs: WaterLevelModel (SZZ(KUB))                                              !
+!                                 102, C1, 10509-10523.                                ! 
+!                                                                                    !
+!    inputs: WaterLevelModel (SZZ(KUB))                                              !
 !           Temperature                                                             !
 !           Salinity                                                                !
 !                                                                                   !
 !           WaterLevelToAssimilate (from file)                                      !
 !           VarianceFieldToAssimilate (from file)                                   !
 !                                                                                   !
-!	                                                                                !
-!	output: WaterLevelAnalized                                                      !
+!                                                                                    !
+!    output: WaterLevelAnalized                                                      !
 !           TemperatureAnalyzed                                                     !
 !           SalinityAnalyzed                                                        !
-!	                                                                                !
-!   2005 -   João Nogueira	joaonogueira@ist.utl.pt                                 !
-!	                                                                                !
+!                                                                                    !
+!   2005 -   João Nogueira    joaonogueira@ist.utl.pt                                 !
+!                                                                                    !
 ! ----------------------------------------------------------------------------------!
 ! ----------------------------------------------------------------------------------!
 ! ----------------------------------------------------------------------------------!
@@ -2959,7 +2959,7 @@ do2 :   do j=JLB, JUB
 !
 !       Cooper,M. and Haines,K, 1996.  "Altimetric assimilation with water property
 !                                    conservation". Journal of Geophysical Research,
-!  	                                 101, C1, 1059-1077.             
+!                                       101, C1, 1059-1077.             
 !
 !----------------------------------------------------------------------------------------
 !----------------------------------------------------------------------------------------
@@ -3210,7 +3210,7 @@ do2 :   do j=JLB, JUB
         integer, dimension(:,:,:), pointer      :: WaterPoints3D, WaterFaces3D_U, WaterFaces3D_V, PointsToFill3D 
         real,    dimension(:,:  ), pointer      :: Matrix2D
         real,    dimension(:,:,:), pointer      :: Matrix3D
-        integer									:: CHUNK
+        integer                                    :: CHUNK
          
         !Begin------------------------------------------------------------------------
 
@@ -3236,8 +3236,8 @@ do2 :   do j=JLB, JUB
                                STAT            = STAT_CALL)
 
         if (MonitorPerformance) then
-	        call StartWatch ("ModuleAssimilation", "AssimilationFromFile")
-	    endif
+            call StartWatch ("ModuleAssimilation", "AssimilationFromFile")
+        endif
 
         !Verifies if its necessary to update the property
 cd1:    if (Me%ActualTime > PropertyX%LastActualization) then
@@ -3291,10 +3291,10 @@ cd1:    if (Me%ActualTime > PropertyX%LastActualization) then
 
                     if (PropertyX%Field%TypeZUV == TypeZ_) then
                         if (GetPropertyIDNumber(PropertyX%ID%Name) == BarotropicVelocityU_) then
-							
-							CHUNK = CHUNK_J(Me%WorkSize%JLB,Me%WorkSize%JUB)
-							!$OMP PARALLEL PRIVATE(i,j)
-							!$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+                            
+                            CHUNK = CHUNK_J(Me%WorkSize%JLB,Me%WorkSize%JUB)
+                            !$OMP PARALLEL PRIVATE(i,j)
+                            !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
                             do j = Me%WorkSize%JLB,Me%WorkSize%JUB
                             do i = Me%WorkSize%ILB,Me%WorkSize%IUB
                     
@@ -3307,8 +3307,8 @@ cd1:    if (Me%ActualTime > PropertyX%LastActualization) then
 
                             enddo
                             enddo
-							!$OMP END DO
-							!$OMP END PARALLEL
+                            !$OMP END DO
+                            !$OMP END PARALLEL
 
                             deallocate(Matrix2D)
 
@@ -3316,9 +3316,9 @@ cd1:    if (Me%ActualTime > PropertyX%LastActualization) then
 
                         if (GetPropertyIDNumber(PropertyX%ID%Name) == BarotropicVelocityV_) then
 
-							CHUNK = CHUNK_J(Me%WorkSize%JLB,Me%WorkSize%JUB)
-							!$OMP PARALLEL PRIVATE(i,j)
-							!$OMP DO SCHEDULE(DYNAMIC,CHUNK)						
+                            CHUNK = CHUNK_J(Me%WorkSize%JLB,Me%WorkSize%JUB)
+                            !$OMP PARALLEL PRIVATE(i,j)
+                            !$OMP DO SCHEDULE(DYNAMIC,CHUNK)                        
                             do j = Me%WorkSize%JLB,Me%WorkSize%JUB
                             do i = Me%WorkSize%ILB,Me%WorkSize%IUB
                     
@@ -3331,8 +3331,8 @@ cd1:    if (Me%ActualTime > PropertyX%LastActualization) then
 
                             enddo
                             enddo
-							!$OMP END DO
-							!$OMP END PARALLEL
+                            !$OMP END DO
+                            !$OMP END PARALLEL
 
                             deallocate(Matrix2D)
 
@@ -3387,11 +3387,11 @@ cd1:    if (Me%ActualTime > PropertyX%LastActualization) then
                     if (PropertyX%Field%TypeZUV == TypeZ_) then
                         if (GetPropertyIDNumber(PropertyX%ID%Name) == VelocityU_) then
 
-							CHUNK = CHUNK_J(Me%WorkSize%JLB,Me%WorkSize%JUB)
-							!$OMP PARALLEL PRIVATE(i,j,k)
+                            CHUNK = CHUNK_J(Me%WorkSize%JLB,Me%WorkSize%JUB)
+                            !$OMP PARALLEL PRIVATE(i,j,k)
                             do k = Me%WorkSize%KLB,Me%WorkSize%KUB
                             !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
-							do j = Me%WorkSize%JLB,Me%WorkSize%JUB
+                            do j = Me%WorkSize%JLB,Me%WorkSize%JUB
                             do i = Me%WorkSize%ILB,Me%WorkSize%IUB
                     
                                 PropertyX%Field%R3D(i,j,k) = 0.
@@ -3403,9 +3403,9 @@ cd1:    if (Me%ActualTime > PropertyX%LastActualization) then
 
                             enddo
                             enddo
-							!$OMP END DO
+                            !$OMP END DO
                             enddo
-							!$OMP END PARALLEL
+                            !$OMP END PARALLEL
 
                             deallocate(Matrix3D)
 
@@ -3413,10 +3413,10 @@ cd1:    if (Me%ActualTime > PropertyX%LastActualization) then
 
                         if (GetPropertyIDNumber(PropertyX%ID%Name) == VelocityV_) then
 
-							CHUNK = CHUNK_J(Me%WorkSize%JLB,Me%WorkSize%JUB)
-							!$OMP PARALLEL PRIVATE(i,j,k)
+                            CHUNK = CHUNK_J(Me%WorkSize%JLB,Me%WorkSize%JUB)
+                            !$OMP PARALLEL PRIVATE(i,j,k)
                             do k = Me%WorkSize%KLB,Me%WorkSize%KUB
-							!$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+                            !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
                             do j = Me%WorkSize%JLB,Me%WorkSize%JUB
                             do i = Me%WorkSize%ILB,Me%WorkSize%IUB
                     
@@ -3429,9 +3429,9 @@ cd1:    if (Me%ActualTime > PropertyX%LastActualization) then
 
                             enddo
                             enddo
-							!$OMP END DO
+                            !$OMP END DO
                             enddo
-							!$OMP END PARALLEL
+                            !$OMP END PARALLEL
 
                             deallocate(Matrix3D)
 
@@ -3451,8 +3451,8 @@ cd1:    if (Me%ActualTime > PropertyX%LastActualization) then
         endif cd1
 
         if (MonitorPerformance) then
-	        call StopWatch ("ModuleAssimilation", "AssimilationFromFile")
-	    endif
+            call StopWatch ("ModuleAssimilation", "AssimilationFromFile")
+        endif
 
         !Do if necessary the output of the Assimilation propertyX
         if (Me%OutPut%ON) call OutPutResultsHDF   

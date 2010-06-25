@@ -4694,8 +4694,8 @@ etr_fao:        if (CalcET0) then
 
         call ModifyPorousMediaProperties(ObjPorousMediaPropertiesID = Me%ObjPorousMediaProperties,  &
                                          WaterColumn                = Me%ExtUpdate%Watercolumn,     &
-!        								 ThroughFall                = Me%ThroughFall,               &
-!        								 WCEvaporated               = Me%WaterColumnEvaporated,     &
+!                                         ThroughFall                = Me%ThroughFall,               &
+!                                         WCEvaporated               = Me%WaterColumnEvaporated,     &
                                          STAT                       = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'PorousMediaPropertiesProcesses - ModuleBasin - ERR0110' 
         
@@ -4949,8 +4949,8 @@ etr_fao:        if (CalcET0) then
         endif
         
         call ModifyRunoffProperties(ObjRunoffPropertiesID           = Me%ObjRunoffProperties,  &
- !       								 ThroughFall                = Me%ThroughFall,               &
- !       								 WCEvaporated               = Me%WaterColumnEvaporated,     &
+ !                                        ThroughFall                = Me%ThroughFall,               &
+ !                                        WCEvaporated               = Me%WaterColumnEvaporated,     &
                                          STAT                       = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'RunoffPropertiesProcesses - ModuleBasin - ERR0120' 
            
