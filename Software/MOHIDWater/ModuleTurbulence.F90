@@ -3141,8 +3141,8 @@ cd3 :       if      (Me%TurbOptions%MODTURB .EQ. Constant_   .or.       &
 cd2 :       if (Me%TurbOptions%MODTURB .ne. Constant_ .and. &
                 Me%TurbOptions%MODTURB .ne. File2D_) then
 
-                CHUNK = CHUNK_J(Me%Size%JLB, Me%Size%JUB)
-                !$OMP PARALLEL SHARED(CHUNK) PRIVATE(I,J,K)
+                CHUNK = CHUNK_J(JLB, JUB)
+                !$OMP PARALLEL SHARED(CHUNK) PRIVATE(I,J,K, kbottom)
 
                 !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
 do2 :           do J = JLB, JUB
@@ -3489,7 +3489,7 @@ cd4 :       if     (Me%TurbOptions%MODVISH .EQ. Constant_   ) then
 
         if (MonitorPerformance) call StartWatch ("ModuleTurbulence", "LeendertseeModel")
         CHUNK = CHUNK_J(JLB,JUB)
-        !$OMP PARALLEL PRIVATE(I,J,aux,Z_H,CMIST,VISC_V,K,kbottom)
+        !$OMP PARALLEL PRIVATE(I,J,Aux,Z_H,CMIST,VISC_V,K,kbottom)
 
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
 do2 :   do J = JLB, JUB
@@ -3835,7 +3835,6 @@ do1 :           do K = kbottom, KUB+1
         integer, dimension(:,:,:), pointer      :: ComputeFacesU3D, ComputeFacesV3D
         integer, dimension(:,:  ), pointer      :: KFloorZ
         real                                    :: RICH
-        integer                                 :: CHUNK
         
         !----------------------------------------------------------------------
 
@@ -3861,10 +3860,6 @@ do1 :           do K = kbottom, KUB+1
         ComputeFacesU3D => Me%ExternalVar%ComputeFacesU3D
         ComputeFacesV3D => Me%ExternalVar%ComputeFacesV3D        
 
-        CHUNK = CHUNK_J(JLB,JUB)
-        !$OMP PARALLEL PRIVATE(I,J,RICH,DRODZ,RO,RO_PERT,U1,V1,U2,V2,Depth,VMODK1,VMODK2)
-
-        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
 do2 :   do J = JLB, JUB
 do3 :   do I = ILB, IUB
 
@@ -4011,8 +4006,11 @@ do1 :       do K = kbottom, KUB-1
 
         end do do3
         end do do2
-        !$OMP END DO
-        !$OMP END PARALLEL
+
+        !ACanas: OpenMP directives removed because existed function calls inside
+        !ACanas: cycle iterations causing errors in parallelization.
+        !ACanas: Critical sections would cause the code to be almost sequential
+        !ACanas: plus the parallelization overheads.
 
         nullify(DZZ    )
         nullify(DWZ    )
@@ -4221,7 +4219,9 @@ do2 :   do I = ILB, IUB
                  
                     if(Me%TurbOptions%MLD_Calc_Bot) then
 
+                        !$OMP CRITICAL (CMLT_ERR01)
                         call SetError (FATAL_, INTERNAL_, "ComputeMixedLayerDepth - Turbulence - ERR01")
+                        !$OMP END CRITICAL (CMLT_ERR01)
 
                     end if      
                     
@@ -5329,8 +5329,9 @@ cd2 :           if (Me%ExternalVar%WaterPoints3D(I,J,K) .EQ. WaterPoint) then
             call StartWatch ("ModuleTurbulence", "SmagorinskyModel")
 
         CHUNK = CHUNK_J(JLB,JUB)
-        !$OMP PARALLEL PRIVATE(I,J,FaceU1,FaceU2,FaceU3,FaceU4,FaceU5,AUX1,AUX2,UMED1)&
-        !$OMP PARALLEL PRIVATE(UMED2,FaceV1,FaceV2,FaceV3,FaceV4,FaceV5,VMED1,VMED2,DXDY,dUdY,dVdX,dUdX,dVdY,ViscSmagorinsky)
+        !$OMP PARALLEL PRIVATE(I,J,K,FaceU1,FaceU2,FaceU3,FaceU4,FaceU5,FaceU6) &
+        !$OMP PRIVATE(AUX1,AUX2,UMED1,UMED2,FaceV1,FaceV2,FaceV3,FaceV4,FaceV5) &
+        !$OMP PRIVATE(FaceV6,VMED1,VMED2,DXDY,dUdY,dVdX,dUdX,dVdY,ViscSmagorinsky)
 
 do1 :   do K = KLB, KUB
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
