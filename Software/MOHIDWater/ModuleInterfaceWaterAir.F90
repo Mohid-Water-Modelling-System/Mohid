@@ -36,7 +36,7 @@ Module ModuleInterfaceWaterAir
     use ModuleFunctions,            only: SaturatedVaporPressure, ConstructPropertyID,          &
                                           LatentHeat, SensibleHeat, LongWaveDownward,           &
                                           LongWaveUpward, AerationFlux, AerationFlux_CO2,       &
-                                          SetMatrixValue
+                                          SetMatrixValue, CHUNK_J
     use ModuleEnterData,            only: ConstructEnterData, GetData, ExtractBlockFromBuffer,  &
                                           Block_Unlock, GetOutPutTime, ReadFileName,            &
                                           KillEnterData             
@@ -2804,6 +2804,7 @@ do1 :   do while (associated(PropertyX))
         integer                             :: ILB, IUB, JLB, JUB, i, j
         real, dimension(:,:), pointer       :: SolarRadiation
         integer                             :: STAT_CALL
+        integer                             :: CHUNK
 
         !Begin-----------------------------------------------------------------
 
@@ -2822,7 +2823,13 @@ do1 :   do while (associated(PropertyX))
 
         if(Me%ReflectionCoef >= 0.)then
 
+            if (MonitorPerformance) then
+                call StartWatch ("ModuleInterfaceWaterAir", "ComputeSurfaceRadiation")
+            endif
 
+            CHUNK = CHUNK_J(JLB, JUB)
+            !$OMP PARALLEL PRIVATE(i,j)
+            !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
             do j=JLB, JUB
             do i=ILB, IUB
             
@@ -2834,7 +2841,13 @@ do1 :   do while (associated(PropertyX))
 
             enddo
             enddo
+            !$OMP END DO
+            !$OMP END PARALLEL
 
+            if (MonitorPerformance) then
+                call StopWatch ("ModuleInterfaceWaterAir", "ComputeSurfaceRadiation")
+            endif
+            
         else
 
             call SetMatrixValue(PropSurfaceRadiation%Field, Me%Size2D, SolarRadiation)
@@ -2966,6 +2979,8 @@ do1 :   do while (associated(PropertyX))
         type(T_Property), pointer                   :: PropLatentHeat
         integer                                     :: ILB, IUB, JLB, JUB, i, j
         integer                                     :: STAT_CALL
+        integer                                     :: CHUNK
+         
         !Begin-----------------------------------------------------------------
 
         ILB = Me%WorkSize2D%ILB
@@ -2978,6 +2993,13 @@ do1 :   do while (associated(PropertyX))
         call Search_Property (PropLatentHeat, LatentHeat_, STAT = STAT_CALL)
         if (STAT_CALL == SUCCESS_) then
 
+            if (MonitorPerformance) then
+                call StartWatch ("ModuleInterfaceWaterAir", "ComputeEvaporation")
+            endif
+
+            CHUNK = CHUNK_J(JLB, JUB)
+            !$OMP PARALLEL PRIVATE(i,j)
+            !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
             do j = JLB, JUB
             do i = ILB, IUB
 
@@ -2988,7 +3010,13 @@ do1 :   do while (associated(PropertyX))
                                               Me%ExternalVar%GridCellArea(i, j)
             enddo
             enddo
+            !$OMP END DO
+            !$OMP END PARALLEL
         
+            if (MonitorPerformance) then
+                call StopWatch ("ModuleInterfaceWaterAir", "ComputeEvaporation")
+            endif
+            
         endif
 
 
@@ -3347,6 +3375,7 @@ i3:         if (PropDownLongWaveRadiation%ID%SolutionFromFile) then
         integer                                     :: IUB, ILB, JUB, JLB, i, j
         real                                        :: VM, CDWIND
         real                                        :: Coef
+        integer                                     :: CHUNK
 
         !Begin----------------------------------------------------------------
 
@@ -3358,10 +3387,19 @@ i3:         if (PropDownLongWaveRadiation%ID%SolutionFromFile) then
         UWIND   => Me%LocalAtm%WindVelocityX%Field
         VWIND   => Me%LocalAtm%WindVelocityY%Field
 
+        if (MonitorPerformance) then
+            call StartWatch ("ModuleInterfaceWaterAir", "ComputeTauWind")
+        endif
+
+        CHUNK = CHUNK_J(JLB, JUB)
+        !$OMP PARALLEL PRIVATE(i,j,VM,Coef,CDWIND)
 cd1:    if(Me%DefineCDWIND)then
         
+            !The next line is done by each thread with OpenMP compilation.
+            !This is ok because it is a private variable.
             CDWIND = Me%CDWIND
         
+            !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
             do j=JLB, JUB
             do i=ILB, IUB
 
@@ -3382,9 +3420,11 @@ cd1:    if(Me%DefineCDWIND)then
                 
             enddo
             enddo
+            !$OMP END DO
 
         else cd1
         
+            !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
             do j=JLB, JUB
             do i=ILB, IUB
 
@@ -3428,8 +3468,14 @@ cd1:    if(Me%DefineCDWIND)then
 
             enddo
             enddo
+            !$OMP END DO
             
         endif cd1
+        !$OMP END PARALLEL
+
+        if (MonitorPerformance) then
+            call StopWatch ("ModuleInterfaceWaterAir", "ComputeTauWind")
+        endif
 
         nullify(UWIND)
         nullify(VWIND)
@@ -3476,6 +3522,7 @@ cd1:    if(Me%DefineCDWIND)then
         real, dimension(:,:),   pointer             :: UWIND, VWIND
         integer                                     :: IUB, ILB, JUB, JLB, i, j
         real                                        :: VM
+        integer                                     :: CHUNK
 
         !Begin----------------------------------------------------------------
 
@@ -3486,7 +3533,14 @@ cd1:    if(Me%DefineCDWIND)then
 
         UWIND   => Me%LocalAtm%WindVelocityX%Field
         VWIND   => Me%LocalAtm%WindVelocityY%Field
+
+        if (MonitorPerformance) then
+            call StartWatch ("ModuleInterfaceWaterAir", "ComputeTKEWind")
+        endif
     
+        CHUNK = CHUNK_J(JLB, JUB)
+        !$OMP PARALLEL PRIVATE(i,j,VM)
+        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
 do3:    do j=JLB, JUB
 do4:    do i=ILB, IUB
 
@@ -3501,6 +3555,12 @@ do4:    do i=ILB, IUB
 
         enddo do4
         enddo do3
+        !$OMP END DO
+        !$OMP END PARALLEL
+
+        if (MonitorPerformance) then
+            call StopWatch ("ModuleInterfaceWaterAir", "ComputeTKEWind")
+        endif
 
         nullify(UWIND)
         nullify(VWIND)
@@ -3600,6 +3660,7 @@ do4:    do i=ILB, IUB
         integer                            :: ILB, IUB, JLB, JUB, KUB
         real,    dimension(:,:,:), pointer :: WaterTemperature
         integer                            :: i, j
+        integer                            :: CHUNK
         
         !Begin------------------------------------------------------------------
 
@@ -3623,6 +3684,13 @@ do4:    do i=ILB, IUB
 
             call ModifyCO2AerationFlux(PropCarbonDioxide%Field)
 
+            if (MonitorPerformance) then
+                call StartWatch ("ModuleInterfaceWaterAir", "ModifyCarbonDioxideFlux")
+            endif
+
+            CHUNK = CHUNK_J(JLB, JUB)
+            !$OMP PARALLEL PRIVATE(i,j)
+            !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
             do j = JLB, JUB
             do i = ILB, IUB
 
@@ -3636,7 +3704,12 @@ do4:    do i=ILB, IUB
 
             enddo
             enddo
-            
+            !$OMP END DO
+            !$OMP END PARALLEL
+
+            if (MonitorPerformance) then
+                call StopWatch ("ModuleInterfaceWaterAir", "ModifyCarbonDioxideFlux")
+            endif         
 
             call UnGetWaterProperties(Me%ObjWaterProperties, Me%ExtWater%WaterTemperature, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ModifyCarbonDioxideFlux - ModuleInterfaceWaterAir - ERR040'
@@ -3746,6 +3819,7 @@ do4:    do i=ILB, IUB
         real                                :: WindStressModule
         type(T_Property), pointer           :: WindStressX, WindStressY
         integer                             :: STAT_CALL
+        integer                             :: CHUNK
 
         !Begin-----------------------------------------------------------------
 
@@ -3761,6 +3835,13 @@ do4:    do i=ILB, IUB
         call Search_Property(WindStressY, WindStressY_, .true., STAT = STAT_CALL) 
         if (STAT_CALL /= SUCCESS_) stop 'ModifyWindShearVelocity - ModuleInterfaceWaterAir - ERR02'
 
+        if (MonitorPerformance) then
+            call StartWatch ("ModuleInterfaceWaterAir", "ModifyWindShearVelocity")
+        endif
+
+        CHUNK = CHUNK_J(JLB, JUB)
+        !$OMP PARALLEL PRIVATE(i,j,WindStressModule)
+        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
 do1:    do j=JLB, JUB
 do2:    do i=ILB, IUB
             
@@ -3775,7 +3856,12 @@ do2:    do i=ILB, IUB
 
         enddo do2
         enddo do1
+        !$OMP END DO
+        !$OMP END PARALLEL
 
+        if (MonitorPerformance) then
+            call StopWatch ("ModuleInterfaceWaterAir", "ModifyWindShearVelocity")
+        endif
 
     end subroutine ModifyWindShearVelocity
 
@@ -3789,6 +3875,8 @@ do2:    do i=ILB, IUB
         real, dimension(:,:), pointer               :: WaveHeight
         integer                                     :: ILB, IUB, JLB, JUB, i, j
         integer                                     :: STAT_CALL
+        integer                                     :: CHUNK
+
         !Begin-----------------------------------------------------------------
 
         ILB = Me%WorkSize2D%ILB
@@ -3801,6 +3889,13 @@ do2:    do i=ILB, IUB
 
         if (STAT_CALL /= SUCCESS_) stop 'ComputeWavesRugosity - InterfaceWaterAir - ERR10'
 
+        if (MonitorPerformance) then
+            call StartWatch ("ModuleInterfaceWaterAir", "ComputeWavesRugosity")
+        endif
+
+        CHUNK = CHUNK_J(JLB, JUB)
+        !$OMP PARALLEL PRIVATE(i,j)
+        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
         do j = JLB, JUB
         do i = ILB, IUB
             if (Me%ExtWater%WaterPoints2D(i, j) == WaterPoint) then
@@ -3808,7 +3903,13 @@ do2:    do i=ILB, IUB
             endif
         enddo
         enddo
+        !$OMP END DO
+        !$OMP END PARALLEL
 
+        if (MonitorPerformance) then
+            call StopWatch ("ModuleInterfaceWaterAir", "ComputeWavesRugosity")
+        endif
+        
         call UnGetWaves (Me%ObjWaves, WaveHeight, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ComputeWavesRugosity - InterfaceWaterAir - ERR20'
     
@@ -3885,6 +3986,7 @@ do2:    do i=ILB, IUB
         type (T_Property), pointer              :: PropertyX
         integer                                 :: ILB, IUB, JLB, JUB
         integer                                 :: i, j
+        integer                                 :: CHUNK
 
         !----------------------------------------------------------------------
 
@@ -3900,6 +4002,13 @@ do2:    do i=ILB, IUB
 
                 Me%Scalar2D(:,:) = 0.
 
+                if (MonitorPerformance) then
+                    call StartWatch ("ModuleInterfaceWaterAir", "OutPut_BoxTimeSeries")
+                endif
+
+                CHUNK = CHUNK_J(JLB, JUB)
+                !$OMP PARALLEL PRIVATE(I,J)
+                !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
                 do J = JLB, JUB
                 do I = ILB, IUB
 
@@ -3911,7 +4020,13 @@ do2:    do i=ILB, IUB
 
                 end do
                 end do
+                !$OMP END DO
+                !$OMP END PARALLEL
                 
+                if (MonitorPerformance) then
+                    call StopWatch ("ModuleInterfaceWaterAir", "OutPut_BoxTimeSeries")
+                endif
+                               
                 call BoxDif(Me%ObjBoxDif,                           &
                             Me%Scalar2D,                            &
                             "WaterAir "//trim(PropertyX%ID%name),   &
@@ -4514,6 +4629,11 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                 endif
 
                 if(Me%Coupled%BoxTimeSerie%Yes)then
+                
+                    call KillBoxDif(Me%ObjBoxDif, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) &
+                        stop 'KillInterfaceWaterAir - ModuleInterfaceSedimentWater - ERR190'
+
                     deallocate(Me%Scalar2D)
                     nullify   (Me%Scalar2D)
                 endif
