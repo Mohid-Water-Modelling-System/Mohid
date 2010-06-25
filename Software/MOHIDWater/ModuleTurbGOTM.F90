@@ -625,7 +625,7 @@ dok4 :              do k=KBottom,KUB+1
             i=IUB
                        
             CHUNK = CHUNK_J(JLB,JUB)
-            !$OMP PARALLEL PRIVATE(J,k)
+            !$OMP PARALLEL PRIVATE(j,k,Kbottom)
             
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
             do j=JLB,JUB
@@ -643,7 +643,7 @@ dok4 :              do k=KBottom,KUB+1
 
             i=ILB
             CHUNK = CHUNK_J(JLB,JUB)
-            !$OMP PARALLEL PRIVATE(j,k)
+            !$OMP PARALLEL PRIVATE(j,k,Kbottom)
             
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
             do j=JLB,JUB
@@ -661,7 +661,7 @@ dok4 :              do k=KBottom,KUB+1
 
             j=JUB
             CHUNK = CHUNK_I(ILB,IUB)
-            !$OMP PARALLEL PRIVATE(i,k)
+            !$OMP PARALLEL PRIVATE(i,k,Kbottom)
             
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
             do i=ILB,IUB
@@ -679,7 +679,7 @@ dok4 :              do k=KBottom,KUB+1
 
             j=JLB
             CHUNK = CHUNK_I(ILB,IUB)
-            !$OMP PARALLEL PRIVATE(i,k)            
+            !$OMP PARALLEL PRIVATE(i,k,Kbottom)            
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
             do i=ILB,IUB
                 if(BoundaryPoints2D(i,j) == 1) then
