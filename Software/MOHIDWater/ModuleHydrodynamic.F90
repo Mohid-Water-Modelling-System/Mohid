@@ -12837,10 +12837,10 @@ cd4:            if (( Faces3D_USon        (i, j, k) == Covered              .or.
                 
                     if (Me%SubModel%qX(i, j, k)  < FillValueReal / 2.) then
 #ifndef _USE_MPI
-                        !T !$OMP CRITICAL (ASMV1_OUT01)
+                        !$OMP CRITICAL (ASMV1_OUT01)
                         write(*,*)'Point [i,j,k] not covered',i, j,k
                         ErrorOccured = .true.
-                        !T !$OMP END CRITICAL (ASMV1_OUT01)
+                        !$OMP END CRITICAL (ASMV1_OUT01)
 #endif
                         if (Me%SubModel%MissingNull)                     &
                             Me%SubModel%qX(i, j, k) = 0.
@@ -13807,10 +13807,10 @@ cd6:            if (Water3DSon(i, j, KUB) == WaterPoint .and. .not. DeadZoneSon)
 
         else cd66
 
-            !T CHUNK = CHUNK_J(JLB, JUB)
+            CHUNK = CHUNK_J(JLB, JUB)
 
-            !T !$OMP PARALLEL PRIVATE(i,j,DeadZoneSon)
-            !T !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+            !$OMP PARALLEL PRIVATE(i,j,DeadZoneSon)
+            !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
             do j = JLB, JUB
             do i = ILB, IUB
 
@@ -13845,9 +13845,9 @@ cd67:           if (Boundary2DSon(i, j) == Boundary .and. Water3DSon(i, j, KUB) 
                             Me%SubModel%Z(i, j)  = - Bathymetry(i, j) + 0.75 * MinWaterColumn 
 
                         else
-                            !T !$OMP CRITICAL (AS3DWF2D4_ERR08)
+                            !$OMP CRITICAL (AS3DWF2D4_ERR08)
                             call SetError(FATAL_, INTERNAL_, "ActualizeSon3DWithFather2D; Hydrodynamic. ERR08") 
-                            !T !$OMP END CRITICAL (AS3DWF2D4_ERR08)
+                            !$OMP END CRITICAL (AS3DWF2D4_ERR08)
                         endif
 
                     endif
@@ -13856,8 +13856,8 @@ cd67:           if (Boundary2DSon(i, j) == Boundary .and. Water3DSon(i, j, KUB) 
 
             enddo
             enddo
-            !T !$OMP END DO
-            !T !$OMP END PARALLEL
+            !$OMP END DO
+            !$OMP END PARALLEL
 
             if (Me%SubModel%MissingNull)                                                &
                 call RemoveLowerSpikes (Me%SubModel%Z, Water3DSon,                      &
@@ -15575,10 +15575,10 @@ cd9:            if (Water3DSon(i, j, KUB) == WaterPoint .and. .not. DeadZoneSon)
 
         else cd8
 
-            !T CHUNK = CHUNK_J(JLB, JUB)
-            !T !$OMP PARALLEL PRIVATE(i,j,DeadZoneSon)
+            CHUNK = CHUNK_J(JLB, JUB)
+            !$OMP PARALLEL PRIVATE(i,j,DeadZoneSon)
             
-            !T !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+            !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
             do j = JLB, JUB
             do i = ILB, IUB
 
@@ -15614,10 +15614,10 @@ cd10:           if (Boundary2DSon(i, j) == Boundary .and. Water3DSon(i, j, KUB) 
                                                    MinWaterColumn 
 
                         else
-                            !T !$OMP CRITICAL (AS3DWF3D3_ERR10)
+                            !$OMP CRITICAL (AS3DWF3D3_ERR10)
                             call SetError(FATAL_, INTERNAL_,                        &
                                 "ActualizeSon3DWithFather3D; Hydrodynamic. ERR10") 
-                            !T !$OMP END CRITICAL (AS3DWF3D3_ERR10)
+                            !$OMP END CRITICAL (AS3DWF3D3_ERR10)
                         endif
 
                     endif
@@ -15626,8 +15626,8 @@ cd10:           if (Boundary2DSon(i, j) == Boundary .and. Water3DSon(i, j, KUB) 
 
             enddo
             enddo
-            !T !$OMP END DO
-            !T !$OMP END PARALLEL
+            !$OMP END DO
+            !$OMP END PARALLEL
 
             if (Me%SubModel%MissingNull)                                            &
                 call RemoveLowerSpikes (Me%SubModel%Z, Water3DSon,                  &
@@ -17674,9 +17674,9 @@ cd21:   if (InitialField .and. .not. Me%ComputeOptions%Continuous) then
         !ACanas(2010): Parallelization of next two cycles removed as REDUCTION clause
         !ACanas(2010): causes rounding errors which cannot certified.
         
-        !A !$OMP PARALLEL SHARED(Average,Counter) PRIVATE(i,j,ComputePoint)
+        ! !$OMP PARALLEL SHARED(Average,Counter) PRIVATE(i,j,ComputePoint)
         !Compute Averages
-        !A !$OMP DO SCHEDULE(DYNAMIC, CHUNK) REDUCTION(+ : Average,Counter)
+        ! !$OMP DO SCHEDULE(DYNAMIC, CHUNK) REDUCTION(+ : Average,Counter)
         do j= JLB, JUB
         do i= ILB, IUB
 
@@ -17697,14 +17697,14 @@ cd21:   if (InitialField .and. .not. Me%ComputeOptions%Continuous) then
 
         enddo
         enddo
-        !A !$OMP END DO
-        !A !$OMP END PARALLEL
+        ! !$OMP END DO
+        ! !$OMP END PARALLEL
 
         Average = Average / real (Counter)
 
-        !A !$OMP PARALLEL SHARED(Deviation) PRIVATE(i,j,ComputePoint)
+        ! !$OMP PARALLEL SHARED(Deviation) PRIVATE(i,j,ComputePoint)
         !Standard Deviation
-        !A !$OMP DO SCHEDULE(DYNAMIC, CHUNK) REDUCTION(+ : Deviation)
+        ! !$OMP DO SCHEDULE(DYNAMIC, CHUNK) REDUCTION(+ : Deviation)
         do j= JLB, JUB
         do i= ILB, IUB
 
@@ -17726,8 +17726,8 @@ cd21:   if (InitialField .and. .not. Me%ComputeOptions%Continuous) then
 
         enddo
         enddo
-        !A !$OMP END DO
-        !A !$OMP END PARALLEL
+        ! !$OMP END DO
+        ! !$OMP END PARALLEL
         
         Deviation = Deviation / real (Counter)
 
@@ -19311,7 +19311,7 @@ cd2:        if      (Num_Discretization == Abbott    ) then
          real,       dimension(:,:,:), pointer  :: dz
          real,       dimension(:,:), pointer    :: dx, dy
          real                                   :: axy, az, kv
-         !T integer                                :: CHUNK
+         ! integer                                :: CHUNK
          
         !Begin---------------------------------------------------
         !----Shorten names
@@ -19331,15 +19331,17 @@ cd2:        if      (Num_Discretization == Abbott    ) then
         fCoef(:,:,:) = 0.0 
         tiCoef(:,:,:) = 0.0 !do not put FillValueReal here, please. Not healthy. 
         
-        !T CHUNK = CHUNK_J(jlb,jub)
+        ! CHUNK = CHUNK_J(jlb,jub)
+        !ACanas(2010): Parallelization for the non hydrostatic case wasn't tested
+        !ACanas(2010): because a working configuration was not provided.
         
         !----Non-Hydrostatic correction, explicit part
         
         if (MonitorPerformance) call StartWatch ("ModuleHydrodynamic", "VerticalMomentum")
 
-        !T !$OMP PARALLEL PRIVATE(i,j,k)       
+        ! !$OMP PARALLEL PRIVATE(i,j,k)
         do k = klb, kub
-        !T !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+        ! !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
         do j = jlb, jub
         do i = ilb, iub
             if(Me%External_Var%ComputeFaces3D_W(i, j, k) == Compute) then
@@ -19351,9 +19353,9 @@ cd2:        if      (Num_Discretization == Abbott    ) then
             endif
         enddo !do i
         enddo !do j
-        !T !$OMP END DO
+        ! !$OMP END DO
         enddo !do k
-        !T !$OMP END PARALLEL
+        ! !$OMP END PARALLEL
         
         if (MonitorPerformance) call StopWatch ("ModuleHydrodynamic", "VerticalMomentum")
         
@@ -19505,7 +19507,7 @@ cd2:        if      (Num_Discretization == Abbott    ) then
         integer,    dimension(:,:), pointer    :: k_bottom
         !Local----------------------------------------------------------------------
         integer                                 :: i, j !counters
-        !T integer                                 :: CHUNK
+        ! integer                                 :: CHUNK
         
         !Begin----------------------------------------------------------------------
         ilb = Me%WorkSize%ILB
@@ -19516,11 +19518,13 @@ cd2:        if      (Num_Discretization == Abbott    ) then
         ti => Me%Coef%D3%TI
         k_bottom => Me%External_Var%KFloor_Z
         
-        !T CHUNK = CHUNK_I(ilb,iub)
+        ! CHUNK = CHUNK_I(ilb,iub)
+        !ACanas(2010): Parallelization for the non hydrostatic case wasn't tested
+        !ACanas(2010): because a working configuration was not provided.
 
         if (MonitorPerformance) call StartWatch ("ModuleHydrodynamic", "VerticalMomentumBoundary")
         
-        !T !$OMP PARALLEL PRIVATE(i,j,k)
+        ! !$OMP PARALLEL PRIVATE(i,j,k)
         do i = ilb, iub
         do j = jlb, jub
         !--------Impose w_bottom = 0.0
@@ -19530,8 +19534,8 @@ cd2:        if      (Num_Discretization == Abbott    ) then
                              / Me%WaterLevel%DT
         enddo    
         enddo
-        !T !$OMP END DO
-        !T !$OMP END PARALLEL
+        ! !$OMP END DO
+        ! !$OMP END PARALLEL
         
         if (MonitorPerformance) call StopWatch ("ModuleHydrodynamic", "VerticalMomentumBoundary")
         
@@ -19581,8 +19585,7 @@ cd2:        if      (Num_Discretization == Abbott    ) then
         real                                 :: pcl       ! local value for pressure correction
         integer                              :: i, j, k   ! counters
         integer                              :: ILB, IUB, JLB, JUB, KLB, KUB !bounds
-        
-        !T integer                                 :: CHUNK
+        ! integer                              :: CHUNK
         
         !Begin----------------------------------------------------------------------
         !----Shorten variables names
@@ -19693,12 +19696,14 @@ cd2:        if      (Num_Discretization == Abbott    ) then
         !----Boundary Condition - After Solving System
         call NonHydroCorrectionBoundary(.False.)
         !
-        !T CHUNK = CHUNK_J(JLB, JUB)
-        
+        ! CHUNK = CHUNK_J(JLB, JUB)
+        !ACanas(2010): Parallelization for the non hydrostatic case wasn't tested
+        !ACanas(2010): because a working configuration was not provided.
+
         if (MonitorPerformance) call StartWatch ("ModuleHydrodynamic", "NonHydroStaticCorrection")
         
-        !T !$OMP PARALLEL PRIVATE(i,j,k,az,pc1)
-        !T !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+        ! !$OMP PARALLEL PRIVATE(i,j,k,az,pc1)
+        ! !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
         do j = JLB, JUB
         do i = ILB, IUB
             az = Me%External_Var%DUX(i,j) * Me%External_Var%DVY(i,j)
@@ -19723,8 +19728,8 @@ cd2:        if      (Num_Discretization == Abbott    ) then
             enddo !do k             
         enddo !do i
         enddo !do j
-        !T !$OMP END DO
-        !T !$OMP END PARALLEL
+        ! !$OMP END DO
+        ! !$OMP END PARALLEL
         
         if (MonitorPerformance) call StopWatch ("ModuleHydrodynamic", "NonHydroStaticCorrection")
         
@@ -19753,8 +19758,7 @@ cd2:        if      (Num_Discretization == Abbott    ) then
         integer                              :: i, j, k   ! counters
         integer                              :: ILB, IUB, JLB, JUB, KUB ! bounds
         logical                              :: PreSolve
-        
-        !T integer                                 :: CHUNK
+        ! integer                              :: CHUNK
         
         !Begin----------------------------------------------------------------------
         !----Shorten variables names
@@ -19776,18 +19780,21 @@ cd2:        if      (Num_Discretization == Abbott    ) then
 
         if (MonitorPerformance) call StartWatch ("ModuleHydrodynamic", "NonHydroCorrectionBoundary")
 
-        !T !$OMP PARALLEL PRIVATE(i,j,k)
+        ! !$OMP PARALLEL PRIVATE(i,j,k)
+        !ACanas(2010): Parallelization for the non hydrostatic case wasn't tested
+        !ACanas(2010): because a working configuration was not provided.
+
         do i = ILB, IUB
         do j = JLB, JUB
             !Y boundary faces
 Y1:         if (Me%External_Var%BoundaryFacesV(i, j) == Boundary) then
 
-                !T !$OMP MASTER
-                !T CHUNK = CHUNK_K(Me%External_Var%KFloor_V(i, j), KUB)
-                !T !$OMP END MASTER
-                !T !$OMP BARRIER
+                ! !$OMP MASTER
+                ! CHUNK = CHUNK_K(Me%External_Var%KFloor_V(i, j), KUB)
+                ! !$OMP END MASTER
+                ! !$OMP BARRIER
                 
-                !T !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+                ! !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
                 do k = Me%External_Var%KFloor_V(i, j), KUB
 
                     if      (Me%External_Var%BoundaryPoints(i-1, j) == Boundary) then
@@ -19848,17 +19855,17 @@ Y1:         if (Me%External_Var%BoundaryFacesV(i, j) == Boundary) then
                     endif
 
                 enddo ! do k
-                !T !$OMP END DO 
+                ! !$OMP END DO 
             endif Y1
 
             !X boundary faces
 X1:         if (Me%External_Var%BoundaryFacesU(i, j) == Boundary) then
-                !T !$OMP MASTER
-                !T CHUNK = CHUNK_K(Me%External_Var%KFloor_U(i, j), KUB)
-                !T !$OMP END MASTER
-                !T !$OMP BARRIER
+                ! !$OMP MASTER
+                ! CHUNK = CHUNK_K(Me%External_Var%KFloor_U(i, j), KUB)
+                ! !$OMP END MASTER
+                ! !$OMP BARRIER
                 
-                !T !$OMP DO SCHEDULE(DYNAMIC,CHUNK)        
+                ! !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
                 do k = Me%External_Var%KFloor_U(i, j), KUB
 
                     if      (Me%External_Var%BoundaryPoints(i, j - 1) == Boundary) then
@@ -19905,12 +19912,12 @@ X1:         if (Me%External_Var%BoundaryFacesU(i, j) == Boundary) then
                     endif
 
                 enddo ! do k
-                !T !$OMP END DO
+                ! !$OMP END DO
                 
             endif X1
         enddo ! do j
         enddo ! do i
-        !T !$OMP END PARALLEL
+        ! !$OMP END PARALLEL
 
         if (MonitorPerformance) call StopWatch ("ModuleHydrodynamic", "NonHydroCorrectionBoundary")
 
@@ -19951,16 +19958,18 @@ X1:         if (Me%External_Var%BoundaryFacesU(i, j) == Boundary) then
         real                                 :: df        ! horizontal flux balance
         real                                 :: discharge ! discharge flux
         integer                              :: kub       ! upper cell index
-        !T integer                              :: CHUNK
+        ! integer                              :: CHUNK
         
         !Begin----------------------------------------------------------------------
-        
-        !T CHUNK = CHUNK_I(Me%WorkSize%ILB, Me%WorkSize%IUB)
-        
+
+        ! CHUNK = CHUNK_I(Me%WorkSize%ILB, Me%WorkSize%IUB)
+        !ACanas(2010): Parallelization for the non hydrostatic case wasn't tested
+        !ACanas(2010): because a working configuration was not provided.
+
         if (MonitorPerformance) call StartWatch ("ModuleHydrodynamic", "ComputeCartesianNH")
         
-        !T !$OMP PARALLEL PRIVATE(i,j,k,kbottom,kub,az,df,discharge)
-        !T !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+        ! !$OMP PARALLEL PRIVATE(i,j,k,kbottom,kub,az,df,discharge)
+        ! !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
         do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         do j = Me%WorkSize%JLB, Me%WorkSize%JUB
             if(Me%External_Var%OpenPoints3d(i,j, Me%WorkSize%KUB) == OpenPoint) then
@@ -19987,9 +19996,9 @@ X1:         if (Me%External_Var%BoundaryFacesU(i, j) == Boundary) then
             endif
         enddo
         enddo
-        !T !$OMP END DO
-        !T !$OMP END PARALLEL
-        
+        ! !$OMP END DO
+        ! !$OMP END PARALLEL
+
         if (MonitorPerformance) call StopWatch ("ModuleHydrodynamic", "ComputeCartesianNH")
         
         if (Me%CyclicBoundary%ON) then !in case of cyclic boundary
@@ -27047,7 +27056,7 @@ do6 :           do  i = ILB, IUB
 
         logical                            :: ComputeFlux, NearBoundary
         
-        integer                            :: CHUNK
+        ! integer                            :: CHUNK
 
         !Begin----------------------------------------------------------------
 
@@ -27124,13 +27133,19 @@ cd0:        if (ComputeFlux) then
 
                 Kbottom = max(KFloor_UV(i, j), KFloor_UV(iSouth, jWest))
 
-                CHUNK = CHUNK_K(Kbottom, KUB)
+                ! CHUNK = CHUNK_K(Kbottom, KUB)
+                !ACanas(2010): Parallelization is commented because overheads are
+                !ACanas(2010): found very large due to cycle is inner and in index k.
+                !ACanas(2010): Since MOHID Water typical applications have horizontal
+                !ACanas(2010): grid much larger than vertical grid it is not 
+                !ACanas(2010): expected that performance could improve in other
+                !Acanas(2010): applications than the one used for test.
                 
-                !$OMP PARALLEL PRIVATE(k,FaceFlux_WestSouth,NearBoundary,Vel4,du4) &
-                !$OMP PRIVATE(V4,MomentumFlux,CFace)
+                ! !$OMP PARALLEL PRIVATE(k,FaceFlux_WestSouth,NearBoundary,Vel4,du4) &
+                ! !$OMP PRIVATE(V4,MomentumFlux,CFace)
 
-                    ! West or South Face
-                !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+                ! West or South Face
+                ! !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
         dok1:   do k = Kbottom, KUB
                 
 
@@ -27232,8 +27247,8 @@ cd0:        if (ComputeFlux) then
                                                                MomentumFlux
            
                 enddo dok1
-                !$OMP END DO
-                !$OMP END PARALLEL
+                ! !$OMP END DO
+                ! !$OMP END PARALLEL
             endif cd0
 
         enddo doj
@@ -27326,7 +27341,7 @@ cd0:        if (ComputeFlux) then
         real(8), dimension(4)              :: V4
         real,    dimension(4)              :: CFace, Vel4, du4
         
-        integer                            :: CHUNK
+        ! integer                            :: CHUNK
 
         !Begin---------------------------------------------------------------------
 
@@ -27367,13 +27382,20 @@ cd0:        if (ComputeFlux) then
             call StartWatch ("ModuleHydrodynamic", "Modify_Advection_UY_VX")
         endif
 
-        !$OMP PARALLEL PRIVATE(i,j,k,FaceFlux_SouthWest,NearBoundary,Vel4,du4) &
-        !$OMP PRIVATE(V4,MomentumFlux,CFace)
+        ! !$OMP PARALLEL PRIVATE(i,j,k,FaceFlux_SouthWest,NearBoundary,Vel4,du4) &
+        ! !$OMP PRIVATE(V4,MomentumFlux,CFace)
+        
+        !ACanas(2010): Parallelization is commented because overheads are
+        !ACanas(2010): found very large due to cycle is inner and in index k.
+        !ACanas(2010): Since MOHID Water typical applications have horizontal
+        !ACanas(2010): grid much larger than vertical grid it is not 
+        !ACanas(2010): expected that performance could improve in other
+        !Acanas(2010): applications than the one used for test.
 
 doj:    do j=JLB, JUB
 doi:    do i=ILB, IUB
 
-            !$OMP MASTER
+            ! !$OMP MASTER
             iSouth  = i -   di
             jWest   = j -   dj
 
@@ -27422,19 +27444,19 @@ cd3:        if (ComputeFaces3D_UV       (i_West, j_South, KUB) == Covered .or.  
                 FaceLeftOK = .false.
 
             endif cd3
-            !$OMP END MASTER
-            !$OMP BARRIER
+            ! !$OMP END MASTER
+            ! !$OMP BARRIER
             
 cd4:       if (NotBoundary .and. FaceRightOK .and. FaceLeftOK) then
 
-                !$OMP MASTER
+                ! !$OMP MASTER
                 Kbottom = max(KFloor_UV(i, j), KFloor_UV(i_West, j_South))
 
-                CHUNK = CHUNK_K(Kbottom, KUB)
-                !$OMP END MASTER
-                !$OMP BARRIER
+                ! CHUNK = CHUNK_K(Kbottom, KUB)
+                ! !$OMP END MASTER
+                ! !$OMP BARRIER
 
-                !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+                ! !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
 dok1:           do k = Kbottom, KUB
 
 
@@ -27553,13 +27575,13 @@ dok1:           do k = Kbottom, KUB
 
 
                 enddo dok1
-                !$OMP END DO
+                ! !$OMP END DO
             endif cd4
-            !$OMP BARRIER
+            ! !$OMP BARRIER
 
         enddo doi
         enddo doj
-        !$OMP END PARALLEL
+        ! !$OMP END PARALLEL
 
         if (MonitorPerformance) then
             call StopWatch ("ModuleHydrodynamic", "Modify_Advection_UY_VX")
@@ -28507,7 +28529,7 @@ cd0:        if (ComputeFaces3D_UV(i, j, KUB) == Covered .and.                   
 
         integer                            :: IUB, ILB, JUB, JLB, KUB, KLB
                 
-        integer                            :: CHUNK
+        ! integer                            :: CHUNK
         
         !Begin-----------------------------------------------------------------------------
 
@@ -28547,12 +28569,20 @@ cd0:        if (ComputeFaces3D_UV(i, j, KUB) == Covered .and.                   
             call StartWatch ("ModuleHydrodynamic", "Modify_Diffusion_UX_VY")
         endif
 
-        !$OMP PARALLEL PRIVATE(i,j,k,ViscAux,FaceFlux_WestSouth1,FaceFlux_WestSouth2) &
-        !$OMP PRIVATE(Aux)
+        ! !$OMP PARALLEL PRIVATE(i,j,k,ViscAux,FaceFlux_WestSouth1,FaceFlux_WestSouth2) &
+        ! !$OMP PRIVATE(Aux)
+        
+        !ACanas(2010): Parallelization is commented because overheads are
+        !ACanas(2010): found very large due to cycle is inner and in index k.
+        !ACanas(2010): Since MOHID Water typical applications have horizontal
+        !ACanas(2010): grid much larger than vertical grid it is not 
+        !ACanas(2010): expected that performance could improve in other
+        !Acanas(2010): applications than the one used for test.
+        
     doi: do j=JLB, JUB
     doj: do i=ILB, IUB
 
-            !$OMP MASTER
+            ! !$OMP MASTER
             iSouth  = i -   di
             jWest   = j -   dj
             i_North  = i +   di
@@ -28583,17 +28613,17 @@ cd0:        if (ComputeFaces3D_UV(i, j, KUB) == Covered .and.                   
                                                                            ComputeFlux = .true.
 
             endif
-            !$OMP END MASTER
-            !$OMP BARRIER
+            ! !$OMP END MASTER
+            ! !$OMP BARRIER
 
 cd0:        if (ComputeFlux) then  
-                !$OMP MASTER
+                ! !$OMP MASTER
                 Kbottom = max(KFloor_UV(i, j), KFloor_UV(iSouth, jWest)) 
-                CHUNK = CHUNK_K(Kbottom, KUB)
-                !$OMP END MASTER
-                !$OMP BARRIER
+                ! CHUNK = CHUNK_K(Kbottom, KUB)
+                ! !$OMP END MASTER
+                ! !$OMP BARRIER
                 
-                !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+                ! !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
 dok1:           do k = Kbottom, KUB
 
                     if (BiHarmonic) then
@@ -28656,13 +28686,13 @@ cd1:                if (ConservativeHorDif) then
                  
 
                  enddo dok1
-                 !$OMP END DO
+                 ! !$OMP END DO
              endif cd0
-             !$OMP BARRIER
+             ! !$OMP BARRIER
 
         enddo doj
         enddo doi
-        !$OMP END PARALLEL
+        ! !$OMP END PARALLEL
 
         if (MonitorPerformance) then
             call StopWatch ("ModuleHydrodynamic", "Modify_Diffusion_UX_VY")
@@ -28743,7 +28773,7 @@ cd1:                if (ConservativeHorDif) then
 
         integer                            :: IUB, ILB, JUB, JLB, KUB, KLB
 
-        integer                            :: CHUNK
+        ! integer                            :: CHUNK
         
         !Begin-------------------------------------------------------------------------------
 
@@ -28779,12 +28809,19 @@ cd1:                if (ConservativeHorDif) then
             call StartWatch ("ModuleHydrodynamic", "Modify_Diffusion_UY_VX")
         endif
 
-        !$OMP PARALLEL PRIVATE(k,ViscAux,NoSlipFace,FaceFlux_SouthWest1,FaceFlux_SouthWest2,Aux)
-        
+        ! !$OMP PARALLEL PRIVATE(k,ViscAux,NoSlipFace,FaceFlux_SouthWest1,FaceFlux_SouthWest2,Aux)
+
+        !ACanas(2010): Parallelization is commented because overheads are
+        !ACanas(2010): found very large due to cycle is inner and in index k.
+        !ACanas(2010): Since MOHID Water typical applications have horizontal
+        !ACanas(2010): grid much larger than vertical grid it is not 
+        !ACanas(2010): expected that performance could improve in other
+        !Acanas(2010): applications than the one used for test.
+
     doi: do j=JLB, JUB
     doj: do i=ILB, IUB
 
-            !$OMP MASTER
+            ! !$OMP MASTER
             iSouth  = i - di
             jWest   = j - dj
 
@@ -28832,18 +28869,18 @@ cd1:                if (ConservativeHorDif) then
                   endif
 
             endif
-            !$OMP END MASTER
-            !$OMP BARRIER
+            ! !$OMP END MASTER
+            ! !$OMP BARRIER
             
 cd0:        if (ComputeFlux) then  
 
-                !$OMP MASTER
+                ! !$OMP MASTER
                 Kbottom = max(KFloor_UV(i, j), KFloor_UV(i_West, j_South))
-                CHUNK = CHUNK_K(Kbottom,KUB)
-                !$OMP END MASTER
-                !$OMP BARRIER
+                ! CHUNK = CHUNK_K(Kbottom,KUB)
+                ! !$OMP END MASTER
+                ! !$OMP BARRIER
 
-                !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+                ! !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
        dok1:    do k = Kbottom, KUB
                     
 
@@ -28938,13 +28975,13 @@ cd2:                    if (ConservativeHorDif) then
 
 
                 enddo dok1
-                !$OMP END DO
+                ! !$OMP END DO
                 
             endif cd0 
-            !$OMP BARRIER
+            ! !$OMP BARRIER
         enddo doj
         enddo doi
-        !$OMP END PARALLEL
+        ! !$OMP END PARALLEL
 
         if (MonitorPerformance) then
             call StopWatch ("ModuleHydrodynamic", "Modify_Diffusion_UY_VX")
@@ -37064,7 +37101,7 @@ ic1:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
 
         real                               :: Aux !,CoefRelax
 
-        !A integer                               :: CHUNK
+        ! integer                          :: CHUNK
         !Begin---------------------------------------------------------------------
 
         !Begin - Shorten variables name 
@@ -37130,23 +37167,23 @@ ic1:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
                 !ACanas(2010): causes the code sequential and REDUCTION clause causes
                 !ACanas(2010): rounding errors that cannot be exactly certified.
                 
-                !A CHUNK = CHUNK_K(kbottom, KUB)
+                ! CHUNK = CHUNK_K(kbottom, KUB)
 
-                !A !$OMP PARALLEL PRIVATE(k,Aux) FIRSTPRIVATE(i,j)
-                !A !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+                ! !$OMP PARALLEL PRIVATE(k,Aux) FIRSTPRIVATE(i,j)
+                ! !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
     do3:        do  k = kbottom, KUB
                 
                     !old U or V water flux
                     Aux = Velocity_UV_Old(I, J, K) * Area_UV (I, J, K) 
 
-                    !A !$OMP CRITICAL (WLWF1)
+                    ! !$OMP CRITICAL (WLWF1)
                     ![m^3/s]     = [m^3/s]      + [m/s] * [m^2]
                     AuxExplicit  = AuxExplicit  + Aux
-                    !A !$OMP END CRITICAL (WLWF1)
+                    ! !$OMP END CRITICAL (WLWF1)
 
                 enddo do3
-                !A !$OMP END DO
-                !A !$OMP END PARALLEL
+                ! !$OMP END DO
+                ! !$OMP END PARALLEL
 
                 !Area of a South or West Z cell
                 AreaCell1 = DUX_VY(iSouth, jWest) * DVY_UX(iSouth, jWest)
@@ -38181,6 +38218,10 @@ do3:            do  k = kbottom, KUB
             !$OMP PARALLEL PRIVATE(i,j,k,Mass,Volume,BarotropicKineticEnergy)
             !$OMP DO SCHEDULE(DYNAMIC,CHUNK) &
             !$OMP REDUCTION(+:TotalBarotropicKineticEnergy)
+            !ACanas(2010): REDUCTION clause has not found to produce rounding
+            !ACanas(2010): errors in cases tested, perhaps due to operating in
+            !ACanas(2010): variables with large values.
+
             !Calculates de barotropic velocity 
             do j = WorkJLB, WorkJUB
             do i = WorkILB, WorkIUB
