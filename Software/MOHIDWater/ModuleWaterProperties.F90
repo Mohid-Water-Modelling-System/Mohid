@@ -10184,7 +10184,7 @@ cd2 :           if (Actual.GE.Property%Evolution%NextCompute) then
                     do k = KLB, KUB
                     !$OMP DO SCHEDULE(DYNAMIC,CHUNK) REDUCTION(+:TotalMass,TotalVolume)
                     !ACanas (2010): REDUCTION of real type variables may cause rounding errors
-                    !ACanas (2010): relative to no OpenMP paralellized code!!!
+                    !ACanas (2010): relative to no OpenMP parallelized code!
                     do j = JLB, JUB
                     do i = ILB, IUB
                         
@@ -11614,7 +11614,7 @@ do3:                        do k = kbottom, KUB
         type (T_Property), pointer              :: PropertyX
         integer                                 :: ILB, IUB, JLB, JUB, KUB, BN
         integer                                 :: i, j, k, kbottom, BoxCells
-        !T integer                                    :: CHUNK
+        integer                                 :: CHUNK
 
         !Begin----------------------------------------------------------------------
 
@@ -11637,14 +11637,14 @@ dbn:                do BN = 1, PropertyX%Evolution%Reinitialize%BoxesNumber
 cd2:                    if(Me%ExternalVar%Now .GE. PropertyX%Evolution%Reinitialize%Dates(BN)&
                            .and. PropertyX%Evolution%Reinitialize%OnlyOnce(BN)) then
 
-                            !T CHUNK = CHUNK_J(JLB, JUB)
+                            CHUNK = CHUNK_J(JLB, JUB)
                             
                             if (MonitorPerformance) then
                                 call StartWatch ("ModuleWaterProperties", "Reinitialize_Solution")
                             endif
                             
-                            !T !$OMP PARALLEL PRIVATE(i,j,k,kbottom,BoxCells)
-                            !T !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+                            !$OMP PARALLEL PRIVATE(i,j,k,kbottom,BoxCells)
+                            !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
 do1:                        do j = JLB, JUB
 do2:                        do i = ILB, IUB
                         
@@ -11669,8 +11669,8 @@ do3:                                do k = kbottom, KUB
                     
                             enddo do2
                             enddo do1
-                            !T !$OMP END DO
-                            !T !$OMP END PARALLEL
+                            !$OMP END DO
+                            !$OMP END PARALLEL
                             
                             if (MonitorPerformance) then
                                 call StopWatch ("ModuleWaterProperties", "Reinitialize_Solution")
