@@ -5131,36 +5131,61 @@ cd1 :   if (PhytoLightLimitationFactor .LT. 0.0) then
 
     !--------------------------------------------------------------------------
     !Several Formulations to calculate Aeration Flux (Carbon Dioxide)
-    real function AerationFlux_CO2 (CO2AerationEquation, WindVelocity, WaterVelocity, WaterTemperature)
+    real function AerationFlux_CO2 (CO2AerationEquation, WindVelocity, WaterVelocity, WaterTemperature, WaterSalinity)
     
         !Arguments-------------------------------------------------------------
             integer                                     :: CO2AerationEquation
-            real                                        :: WindVelocity, WaterVelocity, WaterTemperature, WaterDepth
-            real                                        :: fTS, Alfa, k
+            real                                        :: WindVelocity, WaterVelocity, WaterTemperature
+            real                                        :: WaterDepth, WaterSalinity
+            real                                        :: fTS, Sc0, Sc35, Alfa, ko, k
             
             !Local-----------------------------------------------------------------
     
     
         WaterDepth = 1
-    
+        
+        ! OConnor_Dobbins_1958
+        ko = 1.719 * ((WaterVelocity * 100/WaterDepth)**(1./2.))
+        
+        
         select case(CO2AerationEquation)
         
             case(Borges_et_al_2004)
             
-            fTS = 2073.1 - (125.62 * WaterTemperature) + (3.6276 * (WaterTemperature**2.)) - (0.043219 * (WaterTemperature**3.))
-          
-            Alfa = (600/fTS)**(1./2.)
+                Sc0  = 1800.6 - (120.1 * WaterTemperature) + (3.7818 * WaterTemperature**2.)     &
+                       - (0.047608 * WaterTemperature**3.)
+                      
+                Sc35 = 1953.4 - (128.0 * WaterTemperature) + (3.9918 * WaterTemperature**2.)     &
+                       - (0.050091 * WaterTemperature**3.)
+                 
+                fTS  = ((Sc35 - Sc0) * WaterSalinity) / 35.0 + Sc0       
+                                
+                Alfa = (600/fTS)**(1./2.)
             
-            k = (1. + 1.719 * ((WaterVelocity * 100/WaterDepth)**(1./2.)) + 2.58 * WindVelocity) * Alfa
+                k = ((1. + 2.58 * WindVelocity) + ko) * Alfa
+            
+            
                         
             case(Carini_et_al_1996)
+            
+                fTS = 2073.1 - (125.62 * WaterTemperature) + (3.6276 * (WaterTemperature**2.))    &
+                     - (0.043219 * (WaterTemperature**3.))
+                 
+                Alfa = (600/fTS)**(1./2.)
+            
+                k = ((0.045 + 2.0277 * WindVelocity) + ko) * Alfa 
+            
             
             
             case(Raimond_Cole_2001)
             
-            
-            case(OConnor_Dobbins_1958)
-            
+                 fTS = 2073.1 - (125.62 * WaterTemperature) + (3.6276 * (WaterTemperature**2.))    &
+                     - (0.043219 * (WaterTemperature**3.))
+                     
+                 Alfa = (600/fTS)**(1./2.)
+                 
+                 k = ((1.91 * Exp(0.35 * WindVelocity)) + ko) * Alfa 
+                
             
         
             case default

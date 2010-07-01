@@ -1344,7 +1344,6 @@ Module ModuleGlobalData
     integer, parameter                          :: Borges_et_al_2004        = 1
     integer, parameter                          :: Carini_et_al_1996        = 2      
     integer, parameter                          :: Raimond_Cole_2001        = 3
-    integer, parameter                          :: OConnor_Dobbins_1958     = 4
     
 
     !Number of input instances of the lagrangian module 

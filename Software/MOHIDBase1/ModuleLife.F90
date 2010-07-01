@@ -4128,12 +4128,21 @@ d2:         do while(associated(Prey))
 
 
                 !_________.prey actual element ratio                          [units] >>  mmol (N & P) / mg C
-                Prey%Ratio%NC_Actual = Me%ExternalVar%Mass (PreyIndexN, Index) /      &
-                                       Me%ExternalVar%Mass (PreyIndexC, Index)          
+                
+                If (Me%ExternalVar%Mass (PreyIndexC, Index) .gt. 0.0) then
+                
+                        Prey%Ratio%NC_Actual = Me%ExternalVar%Mass (PreyIndexN, Index) /      &
+                                               Me%ExternalVar%Mass (PreyIndexC, Index)          
 
-                Prey%Ratio%PC_Actual = Me%ExternalVar%Mass (PreyIndexP, Index) /      &
-                                       Me%ExternalVar%Mass (PreyIndexC, Index) 
-
+                        Prey%Ratio%PC_Actual = Me%ExternalVar%Mass (PreyIndexP, Index) /      &
+                                               Me%ExternalVar%Mass (PreyIndexC, Index) 
+                
+                    else
+                    
+                        Prey%Ratio%NC_Actual = 0.0
+                        Prey%Ratio%PC_Actual = 0.0
+                        
+                end if
  
 
                 !_________.prey potential grazing
