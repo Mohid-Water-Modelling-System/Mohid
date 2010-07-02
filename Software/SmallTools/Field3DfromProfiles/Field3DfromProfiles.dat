@@ -1,0 +1,19 @@
+BATIM_FILE    : bblancafilholowresSed_.new
+AUX_FILE      : bblancafilholowres1e.dat
+GEOMETRY_FILE : SedimentGeometry_1.dat
+FIED3D_FILE   : CriticalErosionShear.dat
+
+<BeginProfile_ID>
+FILENAME        : IntertidalProfile.dat
+INPUT_DATA_TYPE : layers
+HMIN     : -30
+HMAX     : 0 
+<EndProfile_ID>
+
+<BeginProfile_ID>
+FILENAME : ChannelsProfile.dat
+INPUT_DATA_TYPE : layers
+HMIN     : 0
+HMAX     : 100 
+<EndProfile_ID>
+

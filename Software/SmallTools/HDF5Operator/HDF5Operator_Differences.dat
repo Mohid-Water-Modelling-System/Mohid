@@ -1,0 +1,29 @@
+!Computes absolute and relative differences for the defined properties
+!Absolute differences:  [file 1] - [file 2]
+!Relative differences: ([file 2] - [file 1]) / [file 1]
+
+OPERATION                 : 2
+FIRST_HDF_FILE            : WaterProperties_10.hdf5
+SECOND_HDF_FILE           : WaterProperties_11.hdf5
+INSTANTS_PATH             : /Time
+
+OUTPUT_FILE               : Differences.hdf5
+
+MAPPING_GROUP             : /Grid/
+MAPPING_DATASET           : WaterPoints3D
+
+READ_DATASET_WITH_NUMBER  : 1
+COPY_OPEN_POINTS          : 1
+COPY_TIME                 : 1
+
+<beginproperty>
+NAME                      : phytoplankton
+PATH                      : /Results/phytoplankton
+OUTPUT_NAME               : phytoplankton
+<endproperty>
+
+<beginproperty>
+NAME                      : particulate organic nitrogen
+PATH                      : /Results/particulate organic nitrogen
+OUTPUT_NAME               : particulate organic nitrogen
+<endproperty>

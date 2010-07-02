@@ -1,0 +1,18 @@
+HDF_FILE             : Property_1.hdf5
+HDF_SIZE_GROUP       : /Grid
+HDF_SIZE_DATASET     : WaterPoints3D
+HDF_TIME_VAR         : Time
+HDF_READ_LATLON      : 1
+HDF_READ_SIGMA       : 0
+
+
+NETCDF_FILE          : YYYYMMDD_project_model_property_1.nc
+NETCDF_TITLE         : project YYYYMMDD model property
+NETCDF_CONVENTION    : CF-1.0
+NETCDF_VERSION       : 3.6.1
+NETCDF_HISTORY       : Once upon a time, in a country far, far away...
+NETCDF_SOURCE        : ConvertTonetcdf
+NETCDF_INSTITUTION   : Instituto Superior Técnico (IST)
+NETCDF_REFERENCES    : Check http://www.mohid.com/
+NETCDF_DATE          : 2006
+

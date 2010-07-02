@@ -1,0 +1,22 @@
+<begin_field>
+/Statistics/biochemical oxygen demand/Global/Maximum/Maximum
+/Statistics/escherichia coli/Global/Maximum/Maximum
+/Statistics/fecal coliforms/Global/Maximum/Maximum
+/Statistics/Oxygen/Global/Minimum/Minimum
+<end_field>
+
+<begin_esri>
+CBO5Max.dat
+ConservativoPMMax.dat
+ConservativoBMMax.dat
+O2Min.dat
+<end_esri>
+
+INPUT_GRID_FILENAME : 215x380_2004.dat
+INPUTFILENAME       : WaterProperties_2.hdf5
+FILL_VALUE          : -99
+WINDOW              : 53 215 47 380
+LAYER               : 1
+KUB                 : 1
+DX                  : 74.85
+ORIGIN              : 121000.0       158000.0

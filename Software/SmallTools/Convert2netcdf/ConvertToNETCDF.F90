@@ -1,0 +1,1916 @@
+!------------------------------------------------------------------------------
+!        IST/MARETEC, Water Modelling Group, Mohid modelling system
+!------------------------------------------------------------------------------
+!
+! TITLE         : Mohid Model
+! PROJECT       : Convert2netcdf
+! PROGRAM       : Convert2netcdf
+! URL           : http://www.mohid.com
+! AFFILIATION   : IST/MARETEC, Marine Modelling Group
+! DATE          : October 2006
+! REVISION      : Luis Fernandes - v4.0
+! DESCRIPTION   : Program to convert MOHID HDF5 files to NETCDF format
+!
+!------------------------------------------------------------------------------
+
+!Input data file must be named: "Convert2netcdf.dat"
+
+! HDF_FILE             : [char]        [-]                      !Path to the HDF5 file to be converted
+! HDF_SIZE_GROUP       : [char]     ["/Grid"]                   !HDF group containing the HDF dataset from where 
+                                                                !the dimensions will be read
+! HDF_SIZE_DATASET     : [char]   ["WaterPoints3D"]             !Name of the HDF dataset from where the dimensions
+                                                                !will be read
+! HDF_TIME_VAR         : [char]      ["Time"]                   !Name of the HDF group containing the 
+                                                                !time values
+! HDF_READ_LATLON      : int           [1]                      !Type of projection (0 - metric, 1 - lat/lon)
+! HDF_READ_SIGMA       : int           [0]                      !Type of vertical coordinate (0 - cartesian, 1 - sigma)
+!
+! IMPOSE_MASK          : bool          [0]                      !In case we want to specify the mask variable.
+! HDF_MASK             : [char]   ["WaterPoints3D"]             !If we chose to specify a mask variable, then we define here
+                                                                !the variable name
+! HDF_MASK_IS_3D       : bool          [1]                      !Is the mask variable 3D? yes or no.
+! RESULTS_ARE_2D       : bool          [0]                      !Sometimes the mask variable is 3D, but the results
+                                                                !are 2D (ex: surface results). Use this keyword to enforce
+                                                                !this condition
+!
+! NETCDF_FILE          : [char]        [-]                      !netcdf file to be created
+! NETCDF_TITLE         : [char]        [-]                      !netcdf file title 
+! NETCDF_CONVENTION    : [char]     ["CF-1.0"]                  !netcdf naming convention   
+! NETCDF_VERSION       : [char]      [3.6.1]                    !netcdf library version
+! NETCDF_HISTORY       : [char]        [-]                      !netcdf file history
+! NETCDF_SOURCE        : [char]        [-]                      !netcdf file source 
+! NETCDF_INSTITUTION   : [char] ["Instituto Superior Técnico"]  !netcdf institution
+! NETCDF_REFERENCES    : [char]   [http://www.mohid.com/]       !netcdf references
+! NETCDF_DATE          : int           [-]                      !current year
+
+! DEPTH_OFFSET         : real          [0.]                     !add_offset attribute for depth
+! REFERENCE_TIME       : date    [2004 1 1 0 0 0]               !initial date for time dimension
+! CONVERT_EVERYTHING   : bool          [1]                      !convert all info in HDF file or not
+
+!<begin_groups>
+!/Results/salinity     : e.g. converts only the salinity results
+!<end_groups>
+
+
+program Convert2netcdf
+
+    use ModuleGlobalData
+    use ModuleTime
+    use ModuleEnterData
+    use ModuleHDF5
+    use ModuleNETCDF
+    use HDF5
+
+    implicit none
+
+    type T_HDFFile
+        integer                                             :: FileID
+        character(len=PathLength)                           :: Name
+        integer                                             :: ObjHDF5      = 0
+        integer                                             :: nInstants
+        real(8), dimension(:), pointer                      :: Times
+        type(T_Time)                                        :: InitialDate
+        type(T_Size3D)                                      :: Size
+        character(len=StringLength)                         :: SizeGroup, SizeDataSet
+        character(len=StringLength)                         :: HdfMask
+        character(len=StringLength)                         :: TimeVar
+        character(len=StringLength)                         :: VertVar
+        logical                                             :: ReadLatLon   = .true.
+        logical                                             :: Sigma   = .false.
+        logical                                             :: HdfMaskIs3D   = .true.
+        logical                                             :: ImposeMask   = .false.
+        logical                                             :: ResultsAre2D = .false.
+    end type T_HDFFile                                      
+                                                            
+    type T_NCDFFile                                         
+        character(len=PathLength)                           :: Name
+        integer                                             :: ObjNETCDF    = 0
+        character(len=StringLength)                         :: Title
+        character(len=StringLength)                         :: Convention
+        character(len=StringLength)                         :: Version
+        character(len=StringLength)                         :: History
+        character(len=StringLength)                         :: Source
+        character(len=StringLength)                         :: Institution
+        character(len=StringLength)                         :: References
+        integer                                             :: iDate
+    end type T_NCDFFile
+
+    type T_Conv2netcdf
+
+        character(len=PathLength)                           :: DataFile         = 'Convert2netcdf.dat'
+        character(len=PathLength)                           :: netcdfFile
+                                                            
+        type(T_Time)                                        :: InitialSystemTime
+        type(T_Time)                                        :: FinalSystemTime
+        real                                                :: TotalCPUTime
+        real                                                :: ElapsedSeconds
+        integer, dimension(8)                               :: F95Time
+                                                            
+        integer                                             :: ObjEnterData     = 0
+                                                            
+        real,    dimension(:,:  ), pointer                  :: Float2D          => null()
+        real,    dimension(:,:,:), pointer                  :: Float3D          => null()
+        integer, dimension(:,:  ), pointer                  :: Int2D            => null()
+        integer, dimension(:,:,:), pointer                  :: Int3D            => null()
+                                                            
+        type(T_HDFFile)                                     :: HDFFile
+        type(T_NCDFFile)                                    :: NCDF_File
+
+        real                                                :: DepthAddOffSet   = 0.
+        type(T_Time)                                        :: ReferenceTime
+
+        logical                                             :: ConvertEverything=ON
+        integer                                             :: nGroupsToConvert
+        character(len=StringLength), dimension(:), pointer  :: GroupsToConvert => null()
+
+    end type T_Conv2netcdf
+
+    type(T_Conv2netcdf)                     :: Me
+
+    call ConstructConvert2netcdf
+    call ModifyConvert2netcdf
+    call KillConvert2netcdf
+
+    contains
+    
+    !--------------------------------------------------------------------------
+
+    subroutine ConstructConvert2netcdf
+
+        call StartUpMohid("Convert2netcdf")
+
+        call StartCPUTime
+
+        call ReadKeywords
+
+    end subroutine ConstructConvert2netcdf
+    
+    !--------------------------------------------------------------------------
+
+    subroutine ReadKeywords
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: STAT_CALL, iflag
+        logical                                     :: exist
+        
+        !Begin-----------------------------------------------------------------
+
+        call ConstructEnterData (Me%ObjEnterData, Me%DataFile, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR00'
+
+        call GetData(Me%HDFFile%Name,                                                   &
+                     Me%ObjEnterData,iflag,                                             &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'HDF_FILE',                                         &
+                     ClientModule = 'Convert2netcdf',                                   &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR01'
+
+        !Verifies if file exists
+        inquire(FILE = trim(Me%HDFFile%Name), EXIST = exist)
+        if (.not. exist) then
+            write(*,*)'HDF5 file does not exist'
+            stop 'ReadKeywords - Convert2netcdf - ERR02'
+        endif
+
+        call GetData(Me%NCDF_File%Name,                                                 &
+                     Me%ObjEnterData,iflag,                                             &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'NETCDF_FILE',                                      &
+                     ClientModule = 'Convert2netcdf',                                   &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR03'
+
+        call GetData(Me%NCDF_File%Title,                                                &
+                     Me%ObjEnterData,iflag,                                             &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'NETCDF_TITLE',                                     &
+                     ClientModule = 'Convert2netcdf',                                   &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR04'
+
+        call GetData(Me%NCDF_File%Convention,                                           &
+                     Me%ObjEnterData,iflag,                                             &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'NETCDF_CONVENTION',                                &
+                     Default      = 'CF-1.0',                                           &
+                     ClientModule = 'Convert2netcdf',                                   &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR05'
+
+        call GetData(Me%NCDF_File%Version,                                              &
+                     Me%ObjEnterData,iflag,                                             &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'NETCDF_VERSION',                                   &
+                     Default      = '3.6.1',                                            &
+                     ClientModule = 'Convert2netcdf',                                   &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR06'
+
+        call GetData(Me%NCDF_File%History,                                              &
+                     Me%ObjEnterData,iflag,                                             &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'NETCDF_HISTORY',                                   &
+                     ClientModule = 'Convert2netcdf',                                   &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR07'
+        
+        call GetData(Me%NCDF_File%Source,                                               &
+                     Me%ObjEnterData,iflag,                                             &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'NETCDF_SOURCE',                                    &
+                     ClientModule = 'Convert2netcdf',                                   &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR08'
+
+        
+        call GetData(Me%NCDF_File%Institution,                                          &
+                     Me%ObjEnterData,iflag,                                             &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'NETCDF_INSTITUTION',                               &
+                     Default      = 'Instituto Superior Tecnico',                       &
+                     ClientModule = 'Convert2netcdf',                                   &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR09'
+        
+        call GetData(Me%NCDF_File%References,                                           &
+                     Me%ObjEnterData,iflag,                                             &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'NETCDF_REFERENCES',                                &
+                     Default      = 'http://www.mohid.com',                             &
+                     ClientModule = 'Convert2netcdf',                                   &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR10'
+
+        call GetData(Me%NCDF_File%iDate,                                                &
+                     Me%ObjEnterData,iflag,                                             &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'NETCDF_DATE',                                      &
+                     ClientModule = 'Convert2netcdf',                                   &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR11'
+
+        call GetData(Me%HDFFile%TimeVar,                                                &
+                     Me%ObjEnterData,iflag,                                             &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'HDF_TIME_VAR',                                     &
+                     Default      = 'Time',                                             &
+                     ClientModule = 'Convert2netcdf',                                   &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR12'
+
+        call GetData(Me%HDFFile%VertVar,                                                &
+                     Me%ObjEnterData,iflag,                                             &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'HDF_VERT_VAR',                                     &
+                     Default      = 'VerticalZ/Vertical',                               &
+                     ClientModule = 'Convert2netcdf',                                   &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR12a'
+
+
+        call GetData(Me%HDFFile%SizeGroup,                                              &
+                     Me%ObjEnterData,iflag,                                             &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'HDF_SIZE_GROUP',                                   &
+                     Default      = '/Grid',                                            &
+                     ClientModule = 'Convert2netcdf',                                   &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR13'
+
+        call GetData(Me%HDFFile%ImposeMask,                                             &
+                     Me%ObjEnterData,iflag,                                             &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'IMPOSE_MASK',                                      &
+                     Default      = .false.,                                            &
+                     ClientModule = 'Convert2netcdf',                                   &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR16'
+
+        call GetData(Me%HDFFile%HdfMask,                                                &
+                     Me%ObjEnterData,iflag,                                             &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'HDF_MASK',                                         &
+                     Default      = 'WaterPoints3D',                                    &
+                     ClientModule = 'Convert2netcdf',                                   &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR14'
+
+        call GetData(Me%HDFFile%HdfMaskIs3D,                                            &
+                     Me%ObjEnterData,iflag,                                             &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'HDF_MASK_IS_3D',                                   &
+                     Default      = .true.,                                             &
+                     ClientModule = 'Convert2netcdf',                                   &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR16'
+
+        call GetData(Me%HDFFile%ResultsAre2D,                                           &
+                     Me%ObjEnterData,iflag,                                             &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'RESULTS_ARE_2D',                                   &
+                     Default      = .false.,                                            &
+                     ClientModule = 'Convert2netcdf',                                   &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR16'
+
+        call GetData(Me%HDFFile%SizeDataSet,                                            &
+                     Me%ObjEnterData,iflag,                                             &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'HDF_SIZE_DATASET',                                 &
+                     Default      = 'WaterPoints3D',                                    &
+                     ClientModule = 'Convert2netcdf',                                   &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR14'
+        
+        call GetData(Me%HDFFile%ReadLatLon,                                             &
+                     Me%ObjEnterData,iflag,                                             &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'HDF_READ_LATLON',                                  &
+                     Default      = .true.,                                             &
+                     ClientModule = 'Convert2netcdf',                                   &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR15'
+
+        call GetData(Me%HDFFile%Sigma,                                                  &
+                     Me%ObjEnterData,iflag,                                             &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'HDF_READ_SIGMA',                                   &
+                     Default      = .false.,                                            &
+                     ClientModule = 'Convert2netcdf',                                   &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR16'
+
+        call GetData(Me%ConvertEverything,                                              &
+                     Me%ObjEnterData,iflag,                                             &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'CONVERT_EVERYTHING',                               &
+                     Default      = .true.,                                             &
+                     ClientModule = 'Convert2netcdf',                                   &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR17'
+
+
+        call GetData(Me%DepthAddOffSet,                                                 &
+                     Me%ObjEnterData,iflag,                                             &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'DEPTH_OFFSET',                                     &
+                     Default      = 0.,                                                 &
+                     ClientModule = 'Convert2netcdf',                                   &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR18'
+
+
+        call GetData(Me%ReferenceTime,                                                  &
+                     Me%ObjEnterData,iflag,                                             &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'REFERENCE_TIME',                                   &
+                     ClientModule = 'Convert2netcdf',                                   &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR19'
+
+        if(iflag == 0)then
+            call SetDate(Me%ReferenceTime, 2004, 1, 1, 0, 0, 0)
+        end if
+
+
+        if(.not. Me%ConvertEverything)then
+
+             call ReadVGroupsToConvert
+
+        end if
+
+        call KillEnterData (Me%ObjEnterData, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR99'
+
+    end subroutine ReadKeywords
+
+    !--------------------------------------------------------------------------
+
+    subroutine ReadVGroupsToConvert
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: STAT_CALL
+        integer                                     :: ClientNumber, iflag, CurrentLineNumber
+        logical                                     :: BlockFound
+        integer                                     :: StartLine, EndLine, Count
+        character(len=StringLength)                 :: PropertyName
+
+        !Begin-----------------------------------------------------------------
+
+        call ExtractBlockFromBuffer(Me%ObjEnterData, ClientNumber,                      &
+                                    '<begin_groups>', '<end_groups>', BlockFound,       &
+                                    STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadVGroupsToConvert - ConvertToNETCDF - ERR01'
+
+        if(.not. BlockFound)then
+            
+            write(*,*)"Could not find <begin_groups>...<end_groups> block"
+            stop 'ReadVGroupsToConvert - ConvertToNETCDF - ERR10'
+        
+        else
+
+            call GetBlockSize(Me%ObjEnterData,                      &
+                              ClientNumber,                         &
+                              StartLine,                            &
+                              EndLine,                              &
+                              FromBlock,                            &
+                              STAT = STAT_CALL)
+
+            Me%nGroupsToConvert = EndLine - StartLine - 1
+
+            allocate(Me%GroupsToConvert(1:Me%nGroupsToConvert))
+
+            Count = 1
+
+            do CurrentLineNumber = StartLine + 1 , EndLine - 1
+
+                call GetData(PropertyName,                          &
+                             Me%ObjEnterData,                       &
+                             iflag,                                 &
+                             SearchType  = FromBlock_,              &
+                             Buffer_Line = CurrentLineNumber,       &
+                             STAT         = STAT_CALL)        
+                if (STAT_CALL /= SUCCESS_) stop 'ReadVGroupsToConvert - ConvertToNETCDF - ERR20'
+
+                Me%GroupsToConvert(Count) = trim(PropertyName)
+
+                Count = Count + 1
+
+            end do
+
+            call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL) 
+            if (STAT_CALL /= SUCCESS_) stop 'ReadFieldsToConvert - ModuleInterpolateGrids - ERR03'
+
+
+        end if
+
+    end subroutine ReadVGroupsToConvert
+
+    !--------------------------------------------------------------------------
+
+    subroutine ModifyConvert2netcdf
+        
+        !Local-----------------------------------------------------------------
+
+        !Begin-----------------------------------------------------------------
+    
+        call OpenHDF5File
+
+        call OpenNCDFFile
+
+        call ReadWriteTime
+
+        call ReadWriteGrid
+
+        call ReadWriteData
+
+        call CloseFiles
+
+    end subroutine ModifyConvert2netcdf
+    
+    !--------------------------------------------------------------------------
+   
+    subroutine OpenHDF5File
+
+        !Local-----------------------------------------------------------------
+        integer                             :: HDF5_READ, STAT_CALL
+
+        !Begin-----------------------------------------------------------------
+        
+        write(*,*)
+        
+        call GetHDF5FileAccess  (HDF5_READ = HDF5_READ)
+
+        call ConstructHDF5 (Me%HDFFile%ObjHDF5, Me%HDFFile%Name, Access = HDF5_READ, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'OpenHDF5File - Convert2netcdf - ERR01'
+
+        write(*,*)'Opened hdf5 file                : ', trim(Me%HDFFile%Name)
+
+
+    end subroutine OpenHDF5File
+
+    !--------------------------------------------------------------------------
+    
+    subroutine CloseFiles
+        
+        !Local-----------------------------------------------------------------
+        integer                                             :: STAT_CALL
+
+        !Begin-----------------------------------------------------------------
+
+        call KillHDF5 (Me%HDFFile%ObjHDF5, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'CloseFiles - Convert2netcdf - ERR01'
+       
+        call KillNETCDF(Me%NCDF_File%ObjNETCDF, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'CloseFiles - Convert2netcdf - ERR02'
+        
+        write(*,*)
+
+    end subroutine CloseFiles
+    
+    !--------------------------------------------------------------------------
+       
+    subroutine OpenNCDFFile
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: NCDF_CREATE, STAT_CALL
+
+        !Begin-----------------------------------------------------------------
+        
+        call GetNCDFFileAccess(NCDF_CREATE = NCDF_CREATE)
+        
+        call ConstructNETCDF(Me%NCDF_File%ObjNETCDF, Me%NCDF_File%Name, NCDF_CREATE, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'OpenNCDFFile - Convert2netcdf - ERR01'
+
+        call NETCDFWriteHeader(NCDFID         = Me%NCDF_File%ObjNETCDF,       &
+                               Title          = Me%NCDF_File%Title,           &
+                               Convention     = Me%NCDF_File%Convention,      &
+                               Version        = Me%NCDF_File%Version,         &
+                               History        = Me%NCDF_File%History,         &
+                               iDate          = Me%NCDF_File%iDate,           &
+                               Source         = Me%NCDF_File%Source,          &
+                               Institution    = Me%NCDF_File%Institution,     &
+                               References     = Me%NCDF_File%References,      &
+                               STAT           = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'OpenNCDFFile - Convert2netcdf - ERR02'
+        
+        write(*,*)
+        write(*,*)'Opened ncdf file                : ', trim(Me%NCDF_File%Name)
+
+    end subroutine OpenNCDFFile
+    
+    !--------------------------------------------------------------------------
+
+    subroutine ReadWriteTime
+
+        !Local-----------------------------------------------------------------
+        integer                                             :: STAT_CALL
+        integer                                             :: CurrentInstant
+        character(len=19)                                   :: CharInitialDate  
+
+        !Begin-----------------------------------------------------------------
+        
+        write(*,*)
+        write(*,*)"Reading time..."
+        write(*,*)
+
+        !Gets number of time instants
+        call GetHDF5GroupNumberOfItems(Me%HDFFile%ObjHDF5, '/'//trim(Me%HDFFile%TimeVar), &
+                                       Me%HDFFile%nInstants, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadWriteTime - Convert2netcdf - ERR01'
+
+        write(*,*)'Number of instants in hdf5 file : ', Me%HDFFile%nInstants
+
+        Me%HDFFile%InitialDate = HDF5TimeInstant(1)
+
+        allocate(Me%HDFFile%Times(1:Me%HDFFile%nInstants))
+
+        do CurrentInstant = 1, Me%HDFFile%nInstants
+
+            Me%HDFFile%Times(CurrentInstant) = HDF5TimeInstant(CurrentInstant) - Me%ReferenceTime
+
+        end do
+
+        CharInitialDate = TimeToString(Me%ReferenceTime)
+
+        call NETCDFWriteTime(NCDFID         = Me%NCDF_File%ObjNETCDF,           &
+                             InitialDate    = CharInitialDate,                  &
+                             nInstants      = Me%HDFFile%nInstants,             &
+                             Times          = Me%HDFFile%Times,                 &
+                             STAT           = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadWriteTime - Convert2netcdf - ERR02'
+
+    end subroutine ReadWriteTime
+
+    !--------------------------------------------------------------------------
+
+    subroutine ReadWriteGrid
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: STAT_CALL
+
+        !Begin-----------------------------------------------------------------
+       
+        write(*,*)
+        write(*,*)"Reading grid..."
+        write(*,*)
+
+        call GetHDF5FileID (Me%HDFFile%ObjHDF5, Me%HDFFile%FileID, STAT = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'ReadWriteGrid - Convert2netcdf - ERR01'
+
+        call ReadSetDimensions
+
+        call ReadWriteLatLon
+
+        if (Me%HDFFile%Size%KUB .gt. 0) then
+            if ( .not. Me%HDFFile%ResultsAre2D ) then
+                call ReadWriteVertical
+            endif
+        endif
+
+        call ReadWriteBathymetry
+
+        call ReadMask
+
+    end subroutine ReadWriteGrid
+
+    !--------------------------------------------------------------------------
+
+    subroutine ReadSetDimensions
+
+        !Local-----------------------------------------------------------------
+        integer(HID_T)                              :: gr_id, dset_id, class_id, size
+        integer(HID_T)                              :: space_id, datatype_id
+        integer(HID_T)                              :: rank
+        integer(HSIZE_T), dimension(7)              :: dims, maxdims
+        integer                                     :: STAT_CALL
+
+        !Begin-----------------------------------------------------------------
+
+        write(*,*)"Reading sizes..."
+
+        call h5gopen_f(Me%HDFFile%FileID, Me%HDFFile%SizeGroup, gr_id, STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'ReadSetDimensions - Convert2netcdf - ERR01'
+
+        !Opens data set
+        call h5dopen_f(gr_id, trim(adjustl(Me%HDFFile%SizeDataSet)), dset_id, STAT_CALL)
+        call h5dget_space_f                 (dset_id, space_id, STAT_CALL)
+        call h5sget_simple_extent_ndims_f   (space_id, rank, STAT_CALL)
+        call h5dget_type_f                  (dset_id, datatype_id,   STAT_CALL)
+        call h5tget_size_f                  (datatype_id, size,      STAT_CALL)
+        call h5tget_class_f                 (datatype_id, class_id,  STAT_CALL) 
+        call h5tclose_f                     (datatype_id, STAT_CALL) 
+        call h5sget_simple_extent_dims_f    (space_id, dims, maxdims, STAT_CALL) 
+        call h5sclose_f                     (space_id, STAT_CALL)
+        call h5dclose_f                     (dset_id, STAT_CALL)
+        call h5gclose_f                     (gr_id, STAT_CALL)
+
+        allocate(Me%Int2D   (1:dims(1), 1:dims(2)))
+        allocate(Me%Int3D   (1:dims(1), 1:dims(2), 1:dims(3)))
+        allocate(Me%Float2D (1:dims(1), 1:dims(2)))
+        allocate(Me%Float3D (1:dims(1), 1:dims(2), 1:dims(3)))
+
+        Me%Int2D    = null_int
+        Me%Int3D    = null_int  
+        Me%Float2D  = null_real
+        Me%Float3D  = null_real  
+       
+        Me%HDFFile%Size%ILB = 1
+        Me%HDFFile%Size%JLB = 1
+        Me%HDFFile%Size%KLB = 1
+
+        Me%HDFFile%Size%IUB = dims(1)
+        Me%HDFFile%Size%JUB = dims(2)
+        Me%HDFFile%Size%KUB = dims(3)
+
+        call NETCDFSetDimensions(Me%NCDF_File%ObjNETCDF, dims(1), dims(2), dims(3), STAT = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'ReadSetDimensions - Convert2netcdf - ERR02'
+
+        write(*,*)
+        write(*,*)"IUB", Me%HDFFile%Size%IUB
+        write(*,*)"JUB", Me%HDFFile%Size%JUB
+        write(*,*)"KUB", Me%HDFFile%Size%KUB
+        write(*,*)
+
+    end subroutine ReadSetDimensions
+
+    !--------------------------------------------------------------------------
+
+    subroutine ReadWriteLatLon
+
+        !Local-----------------------------------------------------------------
+        integer                             :: STAT_CALL, i, j
+        real, dimension(:  ), pointer       :: Lat1D, Lon1D, Lat_Stag1D, Lon_Stag1D
+        real, dimension(:,:), pointer       :: Lat, Lon, Lat_Stag, Lon_Stag
+        character(len=StringLength)         :: LatVar, LonVar
+
+        !Begin-----------------------------------------------------------------
+
+        write(*,*)"Reading and writing latitude and longitude..."
+        
+        allocate(Lat1D      (1:Me%HDFFile%Size%IUB))
+        allocate(Lon1D      (1:Me%HDFFile%Size%JUB))
+
+        allocate(Lat_Stag1D (1:Me%HDFFile%Size%IUB+1))
+        allocate(Lon_Stag1D (1:Me%HDFFile%Size%JUB+1))
+
+        allocate(Lat        (1:Me%HDFFile%Size%IUB, 1:Me%HDFFile%Size%JUB))
+        allocate(Lon        (1:Me%HDFFile%Size%IUB, 1:Me%HDFFile%Size%JUB))
+
+        allocate(Lat_Stag   (1:Me%HDFFile%Size%IUB+1, 1:Me%HDFFile%Size%JUB+1))
+        allocate(Lon_Stag   (1:Me%HDFFile%Size%IUB+1, 1:Me%HDFFile%Size%JUB+1))
+
+        call HDF5SetLimits(Me%HDFFile%ObjHDF5, ILB = 1, IUB = Me%HDFFile%Size%IUB+1, &
+                                               JLB = 1, JUB = Me%HDFFile%Size%JUB+1, &
+                                               STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'ReadWriteLatLon - Convert2netcdf - ERR01'
+
+        if(Me%HDFFile%ReadLatLon)then
+            LatVar = "Latitude"
+            LonVar = "Longitude"
+        else
+            LatVar = "ConnectionY"
+            LonVar = "ConnectionX"
+        end if
+
+        call HDF5ReadData(HDF5ID       = Me%HDFFile%ObjHDF5,            &
+                          GroupName    = "/Grid",                       &
+                          Name         = trim(LatVar),                  &
+                          Array2D      = Lat_Stag,                      &
+                          STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'ReadWriteLatLon - Convert2netcdf - ERR01'
+        
+        call HDF5ReadData(HDF5ID       = Me%HDFFile%ObjHDF5,            &
+                          GroupName    = "/Grid",                       &
+                          Name         = trim(LonVar),                  &
+                          Array2D      = Lon_Stag,                      &
+                          STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'ReadWriteLatLon - Convert2netcdf - ERR01'
+
+
+        do j = 1, Me%HDFFile%Size%JUB
+        do i = 1, Me%HDFFile%Size%IUB
+            Lat(i,j) = (Lat_Stag(i, j) + Lat_Stag(i+1,j))/2.
+        enddo
+        enddo
+
+        do j = 1, Me%HDFFile%Size%JUB 
+        do i = 1, Me%HDFFile%Size%IUB 
+            Lon(i,j) = (Lon_Stag(i, j) + Lon_Stag(i,j+1))/2.
+        enddo
+        enddo
+
+        do i = 1, Me%HDFFile%Size%IUB
+            Lat1D(i) = Lat(i, 1)
+        enddo
+
+        do j = 1, Me%HDFFile%Size%JUB
+            Lon1D(j) = Lon(1, j)
+        enddo
+
+        do i = 1, Me%HDFFile%Size%IUB+1
+            Lat_Stag1D(i) = Lat_Stag(i, 1)
+        enddo
+
+        do j = 1, Me%HDFFile%Size%JUB+1
+            Lon_Stag1D(j) = Lon_Stag(1, j)
+        enddo
+
+        call NETCDFWriteLatLon(NCDFID           = Me%NCDF_File%ObjNETCDF,               &
+                               Lat              = Lat1D,                                &
+                               Lon              = Lon1D,                                &
+                               Lat_Stag         = Lat_Stag1D,                           &
+                               Lon_Stag         = Lon_Stag1D,                           &
+                               GeoCoordinates   = Me%HDFFile%ReadLatLon,                &
+                               STAT             = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'ReadWriteLatLon - Convert2netcdf - ERR01'
+
+        deallocate(Lat1D, Lon1D, Lat, Lon, Lat_Stag, Lon_Stag, Lat_Stag1D, Lon_Stag1D)
+        nullify   (Lat1D, Lon1D, Lat, Lon, Lat_Stag, Lon_Stag, Lat_Stag1D, Lon_Stag1D)
+
+        write(*,*)"Done!"
+        write(*,*)
+
+    end subroutine ReadWriteLatLon
+
+    !--------------------------------------------------------------------------
+
+    subroutine ReadWriteVertical
+
+        !Local-----------------------------------------------------------------
+        integer                             :: STAT_CALL, i, j, k
+        real, dimension(:  ), pointer       :: Vert1D
+        real, dimension(:,:,:), pointer     :: Vert3D
+        integer, dimension(:,:,:),pointer   :: WaterPoints3D
+        real                                :: Vert, area
+        character(len=StringLength)         :: PointsVar
+
+        !Begin-----------------------------------------------------------------
+
+        write(*,*)"Reading and writing Vertical Coordinate..."
+        
+        allocate(Vert1D      (1:Me%HDFFile%Size%KUB))
+
+        !Same as SZZ
+        allocate(Vert3D      (1:Me%HDFFile%Size%IUB, &
+                              1:Me%HDFFile%Size%JUB, &
+                              1:Me%HDFFile%Size%KUB+1))
+
+        allocate(WaterPoints3D (1:Me%HDFFile%Size%IUB, &
+                                1:Me%HDFFile%Size%JUB, &
+                                1:Me%HDFFile%Size%KUB))
+
+        !Read VerticalZ code
+        call HDF5SetLimits(Me%HDFFile%ObjHDF5, ILB = 1, IUB = Me%HDFFile%Size%IUB, &
+                                               JLB = 1, JUB = Me%HDFFile%Size%JUB, &
+                                               KLB = 1, KUB = Me%HDFFile%Size%KUB+1, &
+                                               STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'ReadWriteVertical - Convert2netcdf - ERR01'
+
+        !The first time instant is considered only.
+        call HDF5ReadData(HDF5ID       = Me%HDFFile%ObjHDF5,            &
+                          GroupName    = "/Grid",                       &
+                          Name         = trim(Me%HDFFile%VertVar),      &
+                          Array3D      = Vert3D,                        &
+                          OutputNumber = 1,                             &
+                          STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'ReadWriteVertical - Convert2netcdf - ERR02'
+        
+        !Read Waterpoints code
+        call HDF5SetLimits(Me%HDFFile%ObjHDF5, ILB = 1, IUB = Me%HDFFile%Size%IUB, &
+                                               JLB = 1, JUB = Me%HDFFile%Size%JUB, &
+                                               KLB = 1, KUB = Me%HDFFile%Size%KUB, &
+                                               STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'ReadWriteVertical - Convert2netcdf - ERR03'
+
+        PointsVar = "WaterPoints3D"
+
+        !Get the land mask
+        call HDF5ReadData(HDF5ID       = Me%HDFFile%ObjHDF5,            &
+                          GroupName    = "/Grid",                       &
+                          Name         = trim(PointsVar),               &
+                          Array3D      = WaterPoints3D,                 &
+                          STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'ReadWriteVertical - Convert2netcdf - ERR04'
+
+        !Is it a sigma vertical coordinate ?
+        if (Me%HDFFile%Sigma) then
+            
+            !Returns the depth of the cell's bottom face in a sigma referential i.e. [0 1]
+            do i = 1, Me%HDFFile%Size%KUB
+                Vert1D(i) = i/Me%HDFFile%Size%KUB  !assuming constant spacing
+            enddo
+
+        !No? Then it must be a z-vertical coordinate.
+        else
+        
+            !Returns the mean depth of the cell's top and down faces in a cartesian referential
+            Vert = 0.
+            area = 0.
+
+            do k = 1, Me%HDFFile%Size%KUB
+
+                do j = 1, Me%HDFFile%Size%JUB
+                do i = 1, Me%HDFFile%Size%IUB
+                    if(WaterPoints3D(i, j, k) == Waterpoint)then
+                        if(Vert3D(i, j, k) > FillValueReal/2. .and. Vert3D(i,j,k+1) > FillValueReal/2.)then
+                            Vert = Vert + Vert3D(i, j, k) + Vert3D(i, j, k+1)
+                            area = area + 1 
+                        endif
+                    endif
+                enddo
+                enddo
+            
+                if(area > 0.)then
+                    Vert1D(k) = Vert / area * 0.5
+                else
+                    Vert1D(k) = maxval(Vert3D)
+                endif
+
+                Vert = 0.
+                area = 0.
+
+
+            enddo
+       
+        endif
+
+        call NETCDFWriteVert(NCDFID           = Me%NCDF_File%ObjNETCDF,                 &
+                             Vert             = Vert1D,                                 &
+                             VertCoordinate   = Me%HDFFile%Sigma,                       &
+                             OffSet           = Me%DepthAddOffSet,                      &
+                             STAT             = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'ReadWriteVertical - Convert2netcdf - ERR05'
+
+        deallocate(WaterPoints3D)
+        nullify   (WaterPoints3D)
+
+        deallocate(Vert3D)
+        nullify   (Vert3D)
+
+        deallocate(Vert1D)
+        nullify   (Vert1D)
+
+        write(*,*)"Done!"
+        write(*,*)
+
+    end subroutine ReadWriteVertical
+
+    !--------------------------------------------------------------------------
+
+    subroutine ReadWriteBathymetry
+
+        !Local-----------------------------------------------------------------
+        character(len=StringLength)         :: NCDFName, LongName, StandardName, Units, Positive
+        real                                :: MinValue, MaxValue, ValidMin, ValidMax, MissingValue
+        integer                             :: STAT_CALL
+
+        !Begin-----------------------------------------------------------------
+
+        write(*,*)"Reading and writing bathymetry..."
+        
+        call HDF5SetLimits(Me%HDFFile%ObjHDF5, ILB = 1, IUB = Me%HDFFile%Size%IUB, &
+                                               JLB = 1, JUB = Me%HDFFile%Size%JUB, &
+                                               STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'ReadWriteBathymetry - Convert2netcdf - ERR01'
+
+        call HDF5ReadData(HDF5ID       = Me%HDFFile%ObjHDF5,            &
+                          GroupName    = "/Grid",                       &
+                          Name         = "Bathymetry",                  &
+                          Array2D      = Me%Float2D,                    &
+                          STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'ReadWriteBathymetry - Convert2netcdf - ERR01'
+        
+
+        call BuildAttributes("Bathymetry", NCDFName, LongName, StandardName, &
+                                           Units, ValidMin, ValidMax,        &
+                                           MinValue, MaxValue, MissingValue, Positive, Me%Float2D)
+        
+        call NETCDFWriteData (NCDFID        = Me%NCDF_File%ObjNETCDF,   &
+                              Name          = trim(NCDFName),           &
+                              LongName      = trim(LongName),           &
+                              StandardName  = trim(StandardName),       & 
+                              Units         = trim(Units),              &
+                              ValidMin      = ValidMin,                 &
+                              ValidMax      = ValidMax,                 &
+                              MinValue      = MinValue,                 &
+                              MaxValue      = MaxValue,                 &
+                              MissingValue  = MissingValue,             &
+                              Array2D       = Me%Float2D,               &
+                              STAT          = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'ReadWriteBathymetry - Convert2netcdf - ERR01'
+
+        write(*,*)"Done!"
+        write(*,*)
+
+    end subroutine ReadWriteBathymetry
+
+    !--------------------------------------------------------------------------
+
+    !--------------------------------------------------------------------------
+
+    subroutine ReadMask
+
+        !Local-----------------------------------------------------------------
+        character(len=StringLength)         :: NCDFName, LongName, StandardName, Units
+        real                                :: MinValue, MaxValue, ValidMin, ValidMax, MissingValue
+        integer                             :: STAT_CALL
+
+        !Begin-----------------------------------------------------------------
+
+        write(*,*)"Reading and writing mask..."
+
+        if ( Me%HDFFile%ImposeMask ) then
+        
+            if ( Me%HDFFile%HdfMaskIs3D ) then
+
+                call HDF5SetLimits(Me%HDFFile%ObjHDF5, ILB = 1, IUB = Me%HDFFile%Size%IUB,  &
+                                               JLB = 1, JUB = Me%HDFFile%Size%JUB,          &
+                                               KLB = 1, KUB = Me%HDFFile%Size%KUB,          &
+                                               STAT         = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_) stop 'ReadMask - Convert2netcdf - ERR01'
+
+                call HDF5ReadData(HDF5ID       = Me%HDFFile%ObjHDF5,                        &
+                                  GroupName    = Me%HDFFile%SizeGroup,                      &
+                                  Name         = trim(Me%HDFFile%HdfMask),                  &
+                                  Array3D      = Me%Int3D,                                  &
+                                  STAT         = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_) stop 'ReadMask - Convert2netcdf - ERR01'
+        
+                call BuildAttributes(trim(Me%HDFFile%HdfMask), NCDFName,                    &
+                                     LongName, StandardName,                                &
+                                     Units, ValidMin, ValidMax,                             &
+                                     MinValue, MaxValue, MissingValue, Int3D = Me%Int3D)
+        
+                call NETCDFWriteData (NCDFID        = Me%NCDF_File%ObjNETCDF,               &
+                                      Name          = trim(NCDFName),                       &
+                                      LongName      = trim(LongName),                       &
+                                      StandardName  = trim(StandardName),                   & 
+                                      Units         = trim(Units),                          &
+                                      ValidMin      = ValidMin,                             &
+                                      ValidMax      = ValidMax,                             &
+                                      MinValue      = MinValue,                             &
+                                      MaxValue      = MaxValue,                             &
+                                      MissingValue  = MissingValue,                         &
+                                      Array3D       = Me%Int3D,                             &
+                                      STAT          = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_) stop 'ReadMask - Convert2netcdf - ERR01'
+
+            else
+
+                call HDF5SetLimits(Me%HDFFile%ObjHDF5, ILB = 1, IUB = Me%HDFFile%Size%IUB,  &
+                                               JLB = 1, JUB = Me%HDFFile%Size%JUB,          &
+                                               STAT         = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_) stop 'ReadMask - Convert2netcdf - ERR01'
+
+                call HDF5ReadData(HDF5ID   = Me%HDFFile%ObjHDF5,                            &
+                                  GroupName    = Me%HDFFile%SizeGroup,                      &
+                                  Name         = Me%HDFFile%HdfMask,                        &
+                                  Array2D      = Me%Int2D,                                  &
+                                  STAT         = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_) stop 'ReadMask - Convert2netcdf - ERR01'
+
+                call BuildAttributes("Bathymetry", NCDFName, LongName, StandardName,        &
+                                     Units, ValidMin, ValidMax,                       &
+                                     MinValue, MaxValue, MissingValue, Int2D = Me%Int2D)
+        
+                call NETCDFWriteData (NCDFID        = Me%NCDF_File%ObjNETCDF,               &
+                                      Name          = trim(NCDFName),                       &
+                                      LongName      = trim(LongName),                       &
+                                      StandardName  = trim(StandardName),                   & 
+                                      Units         = trim(Units),                          &
+                                      ValidMin      = ValidMin,                             &
+                                      ValidMax      = ValidMax,                             &
+                                      MinValue      = MinValue,                             &
+                                      MaxValue      = MaxValue,                             &
+                                      MissingValue  = MissingValue,                         &
+                                      Array2D       = Me%Int2D,                             &
+                                      STAT          = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_) stop 'ReadMask - Convert2netcdf - ERR01'
+
+            endif
+
+        else
+
+            call ReadMaskOld
+
+        endif
+
+        write(*,*)"Done!"
+        write(*,*)
+
+    end subroutine ReadMask
+
+    !--------------------------------------------------------------------------
+
+    subroutine ReadMaskOld
+
+        !Local-----------------------------------------------------------------
+        character(len=StringLength)                 :: NCDFName, LongName, StandardName, Units
+        real                                        :: MinValue, MaxValue, ValidMin, ValidMax, MissingValue
+        integer                                     :: STAT_CALL, nItems
+        integer                                     :: item
+        character(len=StringLength)                 :: obj_name
+        integer                                     :: rank, obj_type
+        integer(HSIZE_T), dimension(7)              :: dims, maxdims
+        integer(HID_T)                              :: gr_id, dset_id, class_id, size
+        integer(HID_T)                              :: space_id, datatype_id
+        logical                                     :: IsMapping
+        integer                                     :: ILB, IUB, JLB, JUB, KLB, KUB
+
+        !Begin-----------------------------------------------------------------
+
+        ILB = Me%HDFFile%Size%ILB 
+        IUB = Me%HDFFile%Size%IUB 
+        JLB = Me%HDFFile%Size%JLB 
+        JUB = Me%HDFFile%Size%JUB 
+        KLB = Me%HDFFile%Size%KLB 
+        KUB = Me%HDFFile%Size%KUB
+
+        IsMapping = .false.
+
+        write(*,*)"Reading and writing mask..."
+
+        call h5gopen_f(Me%HDFFile%FileID, "/Grid", gr_id, STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'ReadMask - Convert2netcdf - ERR01'
+
+        !Get number of items in group
+        call h5gn_members_f(gr_id, "/Grid", nItems, STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'ReadMask - Convert2netcdf - ERR02'
+
+        do item = 1, nItems
+
+            !Get info on object
+            call h5gget_obj_info_idx_f(gr_id, "/Grid", item-1, obj_name, obj_type, STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_) stop 'ReadMask - Convert2netcdf - ERR03'
+
+            if (obj_type == H5G_DATASET_F) then
+
+                call h5dopen_f      (gr_id, trim(adjustl(obj_name)), dset_id, STAT_CALL)
+                call h5dget_space_f (dset_id, space_id, STAT_CALL)
+                call h5sget_simple_extent_ndims_f (space_id, rank, STAT_CALL)
+                call h5dget_type_f (dset_id, datatype_id,   STAT_CALL)
+                call h5tget_size_f (datatype_id, size,      STAT_CALL)
+                call h5tget_class_f(datatype_id, class_id,  STAT_CALL) 
+                call h5tclose_f    (datatype_id, STAT_CALL) 
+                call h5sget_simple_extent_dims_f  (space_id, dims, maxdims, STAT_CALL) 
+                call h5sclose_f     (space_id, STAT_CALL)
+                call h5dclose_f (dset_id, STAT_CALL)
+
+                !This isn't the right way to look for a Mask.
+                !The mask variable should be explicited in the configuration file.
+                !And the defaults should be WaterPoints2D and WaterPoints3D.
+                if(class_id == H5T_INTEGER_F) then
+                    IsMapping = .true.
+                else
+                    IsMapping = .false.
+                endif
+
+                if(IsMapping)then
+
+                    select case(Rank)
+
+                        case(2)
+
+                            call HDF5SetLimits(Me%HDFFile%ObjHDF5, ILB, IUB, JLB, JUB, STAT = STAT_CALL)
+                            if (STAT_CALL .NE. SUCCESS_) stop 'ReadMask - Convert2netcdf - ERR04'
+
+                            call HDF5ReadData(HDF5ID       = Me%HDFFile%ObjHDF5,            &
+                                              GroupName    = "/Grid/",                      &
+                                              Name         = trim(obj_name),                &
+                                              Array2D      = Me%Int2D,                      &
+                                              STAT         = STAT_CALL)
+                            if (STAT_CALL .NE. SUCCESS_) stop 'ReadMask - Convert2netcdf - ERR05'
+
+                            call BuildAttributes(obj_name, NCDFName, LongName, StandardName, &
+                                                 Units, ValidMin, ValidMax,        &
+                                                 MinValue, MaxValue, MissingValue, Int2D = Me%Int2D)
+
+                            call CheckAndCorrectVarName(obj_name, NCDFName)
+
+                            call NETCDFWriteData (NCDFID        = Me%NCDF_File%ObjNETCDF,   &
+                                                  Name          = trim(NCDFName),           &
+                                                  LongName      = trim(LongName),           &
+                                                  StandardName  = trim(StandardName),       & 
+                                                  Units         = trim(Units),              &
+                                                  ValidMin      = ValidMin,                 &
+                                                  ValidMax      = ValidMax,                 &
+                                                  MinValue      = MinValue,                 &
+                                                  MaxValue      = MaxValue,                 &
+                                                  MissingValue  = MissingValue,             &
+                                                  Array2D       = Me%Int2D,                 &
+                                                  STAT          = STAT_CALL)
+                            if (STAT_CALL .NE. SUCCESS_) stop 'ReadMask - Convert2netcdf - ERR06'
+
+
+                        case(3)
+
+                            call HDF5SetLimits(Me%HDFFile%ObjHDF5, ILB, IUB, JLB, JUB, KLB, KUB, STAT = STAT_CALL)
+                            if (STAT_CALL .NE. SUCCESS_) stop 'ReadMask - Convert2netcdf - ERR07'
+
+                            call HDF5ReadData(HDF5ID       = Me%HDFFile%ObjHDF5,            &
+                                              GroupName    = "/Grid",                       &
+                                              Name         = trim(obj_name),                &
+                                              Array3D      = Me%Int3D,                      &
+                                              STAT         = STAT_CALL)
+                            if (STAT_CALL .NE. SUCCESS_) stop 'ReadMask - Convert2netcdf - ERR08'
+
+                            call BuildAttributes(obj_name, NCDFName, LongName, StandardName, &
+                                                           Units, ValidMin, ValidMax,        &
+                                                           MinValue, MaxValue, MissingValue, Int3D = Me%Int3D)
+
+                            call NETCDFWriteData (NCDFID        = Me%NCDF_File%ObjNETCDF,   &
+                                                  Name          = trim(NCDFName),           &
+                                                  LongName      = trim(LongName),           &
+                                                  StandardName  = trim(StandardName),       & 
+                                                  Units         = trim(Units),              &
+                                                  ValidMin      = ValidMin,                 &
+                                                  ValidMax      = ValidMax,                 &
+                                                  MinValue      = MinValue,                 &
+                                                  MaxValue      = MaxValue,                 &
+                                                  MissingValue  = MissingValue,             &
+                                                  Array3D       = Me%Int3D,                 &
+                                                  STAT          = STAT_CALL)
+                            if (STAT_CALL .NE. SUCCESS_) stop 'ReadMask - Convert2netcdf - ERR09'
+
+                    end select
+
+                end if
+
+            elseif (obj_type == H5G_GROUP_F) then
+
+
+            endif
+
+        enddo
+
+        call h5gclose_f(gr_id, STAT_CALL)
+
+        write(*,*)"Done!"
+        write(*,*)
+
+    end subroutine ReadMaskOld
+
+    !-------------------------------------------------------------------------
+    
+    subroutine BuildAttributes(Name, NCDFName, LongName, StandardName, Units,           &
+                               ValidMin, ValidMax, Min, Max, MissingValue, Positive,    &
+                               Float2D, Float3D, Int2D, Int3D)
+
+        !Arguments-------------------------------------------------------------
+        character(len=*), intent(in )                       :: Name
+        character(len=*), intent(out)                       :: NCDFName
+        character(len=*), intent(out)                       :: LongName
+        character(len=*), intent(out)                       :: StandardName
+        character(len=*), intent(out)                       :: Units
+        character(len=*), intent(out), optional             :: Positive
+        real,             intent(out)                       :: ValidMin, Min
+        real,             intent(out)                       :: ValidMax, Max
+        real,             intent(out)                       :: MissingValue
+        real,    dimension(:,:  ), pointer, optional        :: Float2D 
+        real,    dimension(:,:,:), pointer, optional        :: Float3D 
+        integer, dimension(:,:  ), pointer, optional        :: Int2D   
+        integer, dimension(:,:,:), pointer, optional        :: Int3D   
+
+        !Local-----------------------------------------------------------------
+        integer                                             :: i, j, k
+
+        !Begin-----------------------------------------------------------------
+
+        select case(trim(adjustl(Name)))
+
+            case("Bathymetry")
+                NCDFName        = "bathymetry"
+                LongName        = "bathymetry"
+                StandardName    = "sea_floor_depth_below_geoid"
+                Units           = "m"
+                ValidMin        = -50.
+                ValidMax        = 11000.
+                Positive        = "down"
+                MissingValue    = -99.0
+
+            case("WaterPoints2D", "WaterPoints3D", "MappingPoints2D", "WaterPoints")
+                NCDFName        = "mask"
+                LongName        = "mask of potential water points"
+                StandardName    = "land_binary_mask"
+                Units           = ""
+                ValidMin        = 0
+                ValidMax        = 1
+            
+            case("OpenPoints2D", "OpenPoints3D")
+                NCDFName        = "mask"
+                LongName        = "mask of effective water points at one given instant"
+                StandardName    = "mask"
+                Units           = ""
+                ValidMin        = 0
+                ValidMax        = 1
+
+            case("temperature")
+                NCDFName        = "temperature"
+                LongName        = "temperature"
+                StandardName    = "sea_water_temperature"
+                Units           = "degC"
+                ValidMin        = 0.
+                ValidMax        = 50.
+                MissingValue    = FillValueReal
+
+            case("salinity")
+                NCDFName        = "salinity"
+                LongName        = "salinity"
+                StandardName    = "sea_water_salinity"
+                Units           = "1e-3"
+                ValidMin        = 0.
+                ValidMax        = 40.
+                MissingValue    = FillValueReal
+
+            case("density")
+                NCDFName        = "sea_water_density"
+                LongName        = "sea water density"
+                StandardName    = "sea_water_density"
+                Units           = "kg m-3"
+                ValidMin        = 900.
+                ValidMax        = 1200.
+                MissingValue    = FillValueReal
+
+            case("oxygen")
+                NCDFName        = "dissolved_oxygen"
+                LongName        = "dissolved oxygen"
+                StandardName    = "oxygen"
+                Units           = "mg l-1"
+                ValidMin        = 0.
+                ValidMax        = 30.
+                MissingValue    = FillValueReal
+
+            case("dissolved_oxygen_percent_saturation")
+                NCDFName        = "dissolved_oxygen_percent_saturation"
+                LongName        = "dissolved oxygen percent saturation"
+                StandardName    = "dissolved_oxygen_percent_saturation"
+                Units           = "%"
+                ValidMin        = 0.
+                ValidMax        = 200.
+                MissingValue    = FillValueReal
+
+            case("velocity_U")
+                NCDFName        = "u"
+                LongName        = "east-west current velocity"
+                StandardName    = "eastward_sea_water_velocity"
+                Units           = "m s-1"
+                ValidMin        = -5.
+                ValidMax        = 5.
+                MissingValue    = FillValueReal
+
+            case("velocity_V")
+                NCDFName        = "v"
+                LongName        = "north-south current velocity"
+                StandardName    = "northward_sea_water_velocity"
+                Units           = "m s-1"
+                ValidMin        = -5.
+                ValidMax        = 5.
+                MissingValue    = FillValueReal
+
+            case("velocity_W")
+                NCDFName        = "w"
+                LongName        = "vertical current velocity"
+                StandardName    = "upward_sea_water_velocity"
+                Units           = "m s-1"
+                ValidMin        = -2.
+                ValidMax        = 2.
+                MissingValue    = FillValueReal
+
+            case("velocity_modulus")
+                NCDFName        = "vm"
+                LongName        = "sea water speed"
+                StandardName    = "sea_water_speed"
+                Units           = "m s-1"
+                ValidMin        = -5.
+                ValidMax        = 5.
+                MissingValue    = FillValueReal
+
+            case("water_level")
+                NCDFName        = "ssh"
+                LongName        = "sea water level"
+                StandardName    = "sea_surface_height"
+                Units           = "m"
+                ValidMin        = -20.
+                ValidMax        = 20.
+                MissingValue    = FillValueReal
+
+            case("wind_velocity_X")
+                NCDFName        = "x_wind"
+                LongName        = "east-west wind velocity"
+                StandardName    = "east-west_wind_velocity"
+                Units           = "m s-1"
+                ValidMin        = -100.
+                ValidMax        = 100.
+                MissingValue    = FillValueReal
+
+            case("wind_velocity_Y")
+                NCDFName        = "y_wind"
+                LongName        = "north-south wind velocity"
+                StandardName    = "north-south_wind_velocity"
+                Units           = "m s-1"
+                ValidMin        = -100.
+                ValidMax        = 100.
+                MissingValue    = FillValueReal
+
+            case("air_temperature")
+                NCDFName        = "air_temperature"
+                LongName        = "air temperature"
+                StandardName    = "air_temperature"
+                Units           = "degC"
+                ValidMin        = -90.
+                ValidMax        = 60.
+                MissingValue    = FillValueReal
+
+            case("atmospheric_pressure")
+                NCDFName        = "air_pressure"
+                LongName        = "atmospheric pressure"
+                StandardName    = "atmospheric_pressure"
+                Units           = "Pa"
+                ValidMin        = -90.
+                ValidMax        = 60.
+                MissingValue    = FillValueReal
+
+            case("short_wave_solar_radiation_extinction")
+                NCDFName        = "volume_absorption_coefficient_of_radiative_flux_in_sea_water"
+                LongName        = "short wave solar radiation light extinction coefficient"
+                StandardName    = "volume_absorption_coefficient_of_radiative_flux_in_sea_water"
+                Units           = "m-1"
+                ValidMin        = 0.
+                ValidMax        = 100.
+                MissingValue    = FillValueReal
+
+            case("short_wave_solar_radiation")
+                NCDFName        = "short_wave_solar_radiation"
+                LongName        = "short wave solar radiation"
+                StandardName    = "omnidirectional_photosynthetic_spherical_irradiance_in_sea_water"
+                Units           = "W m-2"
+                ValidMin        = 0.
+                ValidMax        = 1400.
+                MissingValue    = FillValueReal
+
+            case("phytoplankton")
+                NCDFName        = "phytoplankton"
+                LongName        = "phytoplankton"
+                StandardName    = "phytoplankton"
+                Units           = "mg l-1"
+                ValidMin        = 0.
+                ValidMax        = 10.
+                MissingValue    = FillValueReal
+
+            case("zooplankton")
+                NCDFName        = "zooplankton"
+                LongName        = "zooplankton"
+                StandardName    = "zooplankton"
+                Units           = "mg l-1"
+                ValidMin        = 0.
+                ValidMax        = 10.
+                MissingValue    = FillValueReal
+
+            case("nitrate")
+                NCDFName        = "nitrate"
+                LongName        = "nitrate"
+                StandardName    = "nitrate"
+                Units           = "mg l-1"
+                ValidMin        = 0.
+                ValidMax        = 10.
+                MissingValue    = FillValueReal
+
+            case("ammonia")
+                NCDFName        = "ammonia"
+                LongName        = "ammonia"
+                StandardName    = "ammonia"
+                Units           = "mg l-1"
+                ValidMin        = 0.
+                ValidMax        = 10.
+                MissingValue    = FillValueReal
+
+            case default
+
+                NCDFName        = trim(adjustl(Name))
+                LongName        = trim(adjustl(Name))
+                StandardName    = trim(adjustl(Name))
+                Units           = "unknown"
+                ValidMin        =   null_real
+                ValidMax        = - null_real
+                MissingValue    = FillValueReal
+
+        end select
+
+        Min = ValidMax
+        Max = ValidMin
+
+if1:   if(present(Int2D) .or. present(Int3D))then
+           
+            Min = 0
+            Max = 1
+
+        elseif(present(Float2D))then if1
+
+            do j = 1, Me%HDFFile%Size%JUB
+            do i = 1, Me%HDFFile%Size%IUB
+
+                if(Float2D(i,j) .gt. FillValueReal/2. .and. Float2D(i,j) .lt.  Min .and. &
+                                                            Float2D(i,j) .ge. ValidMin)then
+
+                    Min = Float2D(i,j)
+
+                end if
+
+                if(Float2D(i,j) > Max .and. Float2D(i,j) .le. ValidMax) then
+
+                    Max = Float2D(i,j) 
+
+                endif
+
+            enddo
+            enddo
+
+        elseif(present(Float3D))then if1
+
+            do j = 1, Me%HDFFile%Size%JUB
+            do i = 1, Me%HDFFile%Size%IUB
+            do k = 1, Me%HDFFile%Size%KUB
+
+                if(Float3D(i,j,k) .gt. FillValueReal/2. .and. Float3D(i,j,k) .lt.  Min .and. &
+                                                              Float3D(i,j,k) .ge. ValidMin)then
+
+                    Min = Float3D(i,j,k)
+
+                end if
+
+                if(Float3D(i,j,k) > Max .and. Float3D(i,j,k) .le. ValidMax) then
+
+                    Max = Float3D(i,j,k) 
+
+                endif
+
+            enddo
+            enddo
+            enddo
+
+        endif if1
+
+    end subroutine BuildAttributes
+    
+    !--------------------------------------------------------------------------
+
+    character(len=19) function TimeToString(Date)
+
+        !Arguments-------------------------------------------------------------
+        type(T_Time)                            :: Date
+        real,    dimension(6)                   :: AuxTime
+        character(len=4)                        :: CharYear
+        character(len=2)                        :: CharMonth
+        character(len=2)                        :: CharDay
+        character(len=2)                        :: CharHour
+        character(len=2)                        :: CharMinute
+        character(len=2)                        :: CharSecond
+
+        !Begin-----------------------------------------------------------------
+
+        call ExtractDate(Date, Year     = AuxTime(1), Month  = AuxTime(2), &
+                               Day      = AuxTime(3), Hour   = AuxTime(4), &
+                               Minute   = AuxTime(5), Second = AuxTime(6))
+        
+        write(CharYear,  '(i4)')int(AuxTime(1))
+        write(CharMonth, '(i2)')int(AuxTime(2))
+        write(CharDay,   '(i2)')int(AuxTime(3))
+        write(CharHour,  '(i2)')int(AuxTime(4))
+        write(CharMinute,'(i2)')int(AuxTime(5))
+        write(CharSecond,'(i2)')int(AuxTime(6))
+
+        if(len_trim(trim(adjustl(CharMonth)))   < 2)then 
+            CharMonth = "0"//trim(adjustl(CharMonth))
+        endif
+        
+        if(len_trim(trim(adjustl(CharDay)))     < 2)then 
+            CharDay = "0"//trim(adjustl(CharDay))
+        endif
+
+        if(len_trim(trim(adjustl(CharHour)))    < 2)then 
+            CharHour = "0"//trim(adjustl(CharHour))
+        endif
+
+        if(len_trim(trim(adjustl(CharMinute)))  < 2)then 
+            CharMinute = "0"//trim(adjustl(CharMinute))
+        endif
+
+        if(len_trim(trim(adjustl(CharSecond)))  < 2)then 
+            CharSecond = "0"//trim(adjustl(CharSecond))
+        endif
+
+        TimeToString = CharYear//"-"//CharMonth//"-"//CharDay//" "//&
+                       CharHour//":"//CharMinute//":"//CharSecond
+
+    end function
+
+    !--------------------------------------------------------------------------
+
+    type(T_Time) function HDF5TimeInstant(Instant)
+
+        !Arguments-------------------------------------------------------------
+        integer                                 :: Instant
+        
+        !External--------------------------------------------------------------
+        integer                                 :: STAT_CALL
+
+        !Local-----------------------------------------------------------------
+        real, dimension(:), pointer             :: TimeVector
+
+        !Begin-----------------------------------------------------------------
+
+        call HDF5SetLimits  (Me%HDFFile%ObjHDF5, 1, 6, STAT = STAT_CALL)
+
+        allocate(TimeVector(6))
+
+        call HDF5ReadData   (HDF5ID         = Me%HDFFile%ObjHDF5,                       &
+                             GroupName      = '/'//trim(Me%HDFFile%TimeVar),            &
+                             Name           = trim(Me%HDFFile%TimeVar),                 &
+                             Array1D        = TimeVector,                               &
+                             OutputNumber   = Instant,                                  &
+                             STAT           = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'HDF5TimeInstant - Convert2netcdf - ERR01'
+
+        call SetDate(HDF5TimeInstant, Year     = TimeVector(1), Month  = TimeVector(2), &
+                                      Day      = TimeVector(3), Hour   = TimeVector(4), &
+                                      Minute   = TimeVector(5), Second = TimeVector(6))
+
+        deallocate(TimeVector)
+        nullify   (TimeVector)
+
+    end function HDF5TimeInstant
+    
+    !--------------------------------------------------------------------------
+
+    subroutine ReadWriteData
+
+        !Local-----------------------------------------------------------------
+        integer                                             :: STAT_CALL
+        integer                                             :: item
+        integer                                             :: nGItems
+        character(len=StringLength)                         :: obj_name
+        integer                                             :: obj_type
+        integer(HID_T)                                      :: gr_id 
+
+        !Begin-----------------------------------------------------------------
+
+        call h5gopen_f(Me%HDFFile%FileID, "/", gr_id, STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'ReadWriteData - Convert2netcdf - ERR01'
+
+        !Get number of items in group
+        call h5gn_members_f(gr_id, "/", nGItems, STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'ReadWriteData - Convert2netcdf - ERR02'
+
+        if(Me%ConvertEverything)then
+
+            do item = 1, nGItems
+
+                !Get info on object
+                call h5gget_obj_info_idx_f(gr_id, "/", item-1, obj_name, obj_type, STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_) stop 'ReadWriteData - Convert2netcdf - ERR03'
+            
+                if (obj_type == H5G_GROUP_F) then
+
+                    call BrowseGroup(obj_name)
+
+                end if
+
+            enddo
+
+        else
+
+            do item = 1, Me%nGroupsToConvert
+                call BrowseGroup(trim(Me%GroupsToConvert(item)))
+            enddo
+
+        end if
+
+        call h5gclose_f(gr_id, STAT_CALL)
+
+        write(*,*)"Done!"
+        write(*,*)
+
+    end subroutine ReadWriteData
+   
+    !--------------------------------------------------------------------------
+
+    recursive subroutine BrowseGroup(FatherGroupName)
+
+        !Arguments-------------------------------------------------------------
+        character(len=*)                                    :: FatherGroupName
+
+        !Local-----------------------------------------------------------------
+        integer                                             :: STAT_CALL
+        integer                                             :: item
+        integer                                             :: nGItems
+        character(len=StringLength)                         :: obj_name = null_str
+        integer                                             :: obj_type = null_int
+        integer(HID_T)                                      :: gr_id
+
+        !Begin-----------------------------------------------------------------
+
+        call h5gopen_f(Me%HDFFile%FileID, "/"//trim(FatherGroupName), gr_id, STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'BrowseGroup - Convert2netcdf - ERR01'
+
+        !Get number of items in group
+        call h5gn_members_f(gr_id, "/"//trim(FatherGroupName), nGItems, STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'BrowseGroup - Convert2netcdf - ERR02'
+
+        write(*,*) nGItems, " items -> "//"/"//trim(FatherGroupName)
+
+        do item = 1, nGItems
+
+            !Get info on object
+            call h5gget_obj_info_idx_f(gr_id, "/"//trim(FatherGroupName), item-1, obj_name, obj_type, STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_) stop 'BrowseGroup - Convert2netcdf - ERR03'
+
+            if    (obj_type == H5G_GROUP_F)then
+                
+                !Only reads groups and datasets not included in Grid and Time
+                if (trim(FatherGroupName) .ne. "Grid" .and. trim(FatherGroupName) .ne. "Time") then
+                    call BrowseGroup(trim(FatherGroupName)//"/"//trim(obj_name))
+                endif
+
+            elseif(obj_type == H5G_DATASET_F)then
+                
+                !Only reads groups and datasets not included in Grid and Time
+                if (trim(FatherGroupName) .ne. "Grid" .and. trim(FatherGroupName) .ne. "Time") then
+                    call ReadDataSet(obj_name, gr_id, item, nGItems) 
+                endif
+
+            end if
+
+        enddo
+
+    end subroutine BrowseGroup
+
+    !--------------------------------------------------------------------------
+    
+    subroutine ReadDataSet(obj_name, gr_id, item, nGItems)
+
+        !Arguments-------------------------------------------------------------
+        character(len=*)                            :: obj_name
+        integer(HID_T)                              :: gr_id
+        integer                                     :: item, nGItems
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: STAT_CALL
+        integer(HID_T)                              :: class_id, space_id, dset_id
+        integer(HID_T)                              :: datatype_id, size, rank, NumType
+        integer(HSIZE_T), dimension(7)              :: dims
+        integer                                     :: ILB, IUB, JLB, JUB, KLB, KUB
+        character(len=StringLength)                 :: Name, NCDFName, LongName, StandardName, Units
+        real                                        :: MinValue, MaxValue, ValidMin, ValidMax, MissingValue
+
+        !Begin-----------------------------------------------------------------
+        
+        ILB = Me%HDFFile%Size%ILB 
+        IUB = Me%HDFFile%Size%IUB 
+        JLB = Me%HDFFile%Size%JLB 
+        JUB = Me%HDFFile%Size%JUB 
+        KLB = Me%HDFFile%Size%KLB 
+        KUB = Me%HDFFile%Size%KUB
+
+        dims(1) = Me%HDFFile%Size%IUB - Me%HDFFile%Size%ILB + 1
+        dims(2) = Me%HDFFile%Size%JUB - Me%HDFFile%Size%JLB + 1
+        dims(3) = Me%HDFFile%Size%KUB - Me%HDFFile%Size%KLB + 1
+
+
+        call h5dopen_f (gr_id, trim(adjustl(obj_name)), dset_id, STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'ReadDataSet - Convert2netcdf - ERR01'
+
+        call h5dget_space_f                 (dset_id,       space_id,       STAT_CALL)
+        call h5sget_simple_extent_ndims_f   (space_id,      rank,           STAT_CALL)
+        call h5dget_type_f                  (dset_id,       datatype_id,    STAT_CALL)
+        call h5tget_size_f                  (datatype_id,   size,           STAT_CALL)
+        call h5tget_class_f                 (datatype_id,   class_id,       STAT_CALL) 
+        call h5tclose_f                     (datatype_id,                   STAT_CALL) 
+        call h5sclose_f                     (space_id,                      STAT_CALL)
+            
+        if      (class_id == H5T_FLOAT_F  ) then
+            NumType = H5T_NATIVE_REAL
+        elseif  (class_id == H5T_INTEGER_F) then
+            NumType = H5T_NATIVE_INTEGER
+        end if
+
+        call CheckAndCorrectVarName(obj_name, Name)
+
+        select case(rank) 
+
+            case(2)
+
+                call h5dread_f   (dset_id, NumType,                                         &
+                                  Me%Float2D(Me%HDFFile%Size%ILB:Me%HDFFile%Size%IUB,       &
+                                             Me%HDFFile%Size%JLB:Me%HDFFile%Size%JUB),      &
+                                  dims, STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_) stop 'ReadDataSet - Convert2netcdf - ERR02'
+
+                call BuildAttributes(Name, NCDFName, LongName, StandardName, &
+                                           Units, ValidMin, ValidMax,        &
+                                           MinValue, MaxValue, MissingValue, Float2D = Me%Float2D)
+
+                if(nGItems > 1)then
+
+                    call NETCDFWriteData (NCDFID        = Me%NCDF_File%ObjNETCDF,   &
+                                          Name          = trim(NCDFName),           &
+                                          LongName      = trim(LongName),           &
+                                          StandardName  = trim(StandardName),       & 
+                                          Units         = trim(Units),              &
+                                          ValidMin      = ValidMin,                 &
+                                          ValidMax      = ValidMax,                 &
+                                          MinValue      = MinValue,                 &
+                                          MaxValue      = MaxValue,                 &
+                                          MissingValue  = MissingValue,             &
+                                          OutputNumber  = item,                     &
+                                          Array2D       = Me%Float2D,               &
+                                          STAT          = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_) stop 'ReadDataSet - Convert2netcdf - ERR03'
+                
+                else
+                    
+                    call NETCDFWriteData (NCDFID        = Me%NCDF_File%ObjNETCDF,   &
+                                          Name          = trim(NCDFName),           &
+                                          LongName      = trim(LongName),           &
+                                          StandardName  = trim(StandardName),       & 
+                                          Units         = trim(Units),              &
+                                          ValidMin      = ValidMin,                 &
+                                          ValidMax      = ValidMax,                 &
+                                          MinValue      = MinValue,                 &
+                                          MaxValue      = MaxValue,                 &
+                                          MissingValue  = MissingValue,             &
+                                          Array2D       = Me%Float2D,               &
+                                          STAT          = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_) stop 'ReadDataSet - Convert2netcdf - ERR04'
+                end if
+
+
+            case(3)
+
+                call h5dread_f   (dset_id, NumType,                                         &
+                                  Me%Float3D(Me%HDFFile%Size%ILB:Me%HDFFile%Size%IUB,       &
+                                             Me%HDFFile%Size%JLB:Me%HDFFile%Size%JUB,       &
+                                             Me%HDFFile%Size%KLB:Me%HDFFile%Size%KUB),      &
+                                  dims, STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_) stop 'ReadDataSet - Convert2netcdf - ERR05'
+
+
+                call BuildAttributes(Name, NCDFName, LongName, StandardName, &
+                                           Units, ValidMin, ValidMax,        &
+                                           MinValue, MaxValue, MissingValue, Float3D = Me%Float3D)
+
+                if(nGItems > 1)then
+
+                    call NETCDFWriteData (NCDFID        = Me%NCDF_File%ObjNETCDF,   &
+                                          Name          = trim(NCDFName),           &
+                                          LongName      = trim(LongName),           &
+                                          StandardName  = trim(StandardName),       & 
+                                          Units         = trim(Units),              &
+                                          ValidMin      = ValidMin,                 &
+                                          ValidMax      = ValidMax,                 &
+                                          MinValue      = MinValue,                 &
+                                          MaxValue      = MaxValue,                 &
+                                          OutputNumber  = item,                     &
+                                          Array3D       = Me%Float3D,               &
+                                          STAT          = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_) stop 'ReadDataSet - Convert2netcdf - ERR06'
+                
+                else
+                    
+                    call NETCDFWriteData (NCDFID        = Me%NCDF_File%ObjNETCDF,   &
+                                          Name          = trim(NCDFName),           &
+                                          LongName      = trim(LongName),           &
+                                          StandardName  = trim(StandardName),       & 
+                                          Units         = trim(Units),              &
+                                          ValidMin      = ValidMin,                 &
+                                          ValidMax      = ValidMax,                 &
+                                          MinValue      = MinValue,                 &
+                                          MaxValue      = MaxValue,                 &
+                                          Array3D       = Me%Float3D,               &
+                                          STAT          = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_) stop 'ReadDataSet - Convert2netcdf - ERR07'
+                end if
+
+        end select
+
+        call h5dclose_f  (dset_id, STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'ReadDataSet - Convert2netcdf - ERR08'
+
+    end subroutine ReadDataSet
+
+    !--------------------------------------------------------------------------
+    
+    subroutine CheckAndCorrectVarName(obj_name, Name)
+
+        !Arguments-------------------------------------------------------------
+        character(len=*)                            :: obj_name
+
+        !Local-----------------------------------------------------------------
+        character(len=StringLength)                 :: Name
+        integer                                     :: i
+
+        !Begin-----------------------------------------------------------------
+
+        if(scan(obj_name, "_") .ne. 0 .and. scan(obj_name, "0") .ne. 0)then
+            Name = obj_name(1:len_trim(obj_name)-6)
+        else
+            Name = trim(obj_name)
+        endif
+
+        do i = 1, len_trim(Name)
+            if (Name(i:i) == ' ') then
+                Name(i:i) =  '_'
+            endif
+        enddo
+
+    end subroutine CheckAndCorrectVarName
+    
+    !--------------------------------------------------------------------------
+
+    subroutine KillConvert2netcdf
+
+        call StopCPUTime
+
+        call ShutdownMohid ("Convert2netcdf", Me%ElapsedSeconds, Me%TotalCPUTime)
+
+    end subroutine KillConvert2netcdf
+    
+    !--------------------------------------------------------------------------
+
+    subroutine StartCPUTime
+
+        call date_and_time(Values = Me%F95Time)
+
+        call SetDate      (Me%InitialSystemTime, float(Me%F95Time(1)), float(Me%F95Time(2)),      &
+                                                 float(Me%F95Time(3)), float(Me%F95Time(5)),      &
+                                                 float(Me%F95Time(6)), float(Me%F95Time(7))+      &
+                                                 Me%F95Time(8)/1000.)
+
+    end subroutine StartCPUTime
+
+    !--------------------------------------------------------------------------
+
+    subroutine StopCPUTime
+
+        call date_and_time(Values = Me%F95Time)
+
+        call SetDate      (Me%FinalSystemTime,   float(Me%F95Time(1)), float(Me%F95Time(2)),      &
+                                                 float(Me%F95Time(3)), float(Me%F95Time(5)),      &
+                                                 float(Me%F95Time(6)), float(Me%F95Time(7))+      &
+                                                 Me%F95Time(8)/1000.)
+
+        call cpu_time(Me%TotalCPUTime)
+
+        Me%ElapsedSeconds = Me%FinalSystemTime - Me%InitialSystemTime
+
+    end subroutine StopCPUTime
+    
+    !--------------------------------------------------------------------------
+    
+end program Convert2netcdf
+
+!----------------------------------------------------------------------------------------------------------
+!MOHID Water Modelling System.
+!Copyright (C) 1985, 1998, 2002, 2005. Instituto Superior Técnico, Technical University of Lisbon. 
+!----------------------------------------------------------------------------------------------------------

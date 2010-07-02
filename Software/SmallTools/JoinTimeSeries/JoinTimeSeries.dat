@@ -1,0 +1,13 @@
+OUT_FILE                      : CompleteTimeSeries.srw
+DT                            : 600
+ADD_MODEL_DT                  : 15
+WRITE_RESIDUALS               : 1
+
+<BeginTimeSeriesFile>
+NAME                          : TimeSeries_1.srw
+<EndTimeSeriesFile>
+
+<BeginTimeSeriesFile>
+NAME                          : TimeSeries_2.srw
+<EndTimeSeriesFile>
+

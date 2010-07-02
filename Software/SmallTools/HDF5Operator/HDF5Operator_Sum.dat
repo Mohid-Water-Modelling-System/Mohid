@@ -1,0 +1,31 @@
+
+!Sums the defined property fields multiplied by a factor
+!Example: (phytoplankton x 0.24) + (particulate organic nitrogen * 1) 
+
+OPERATION                 : 2
+FIRST_HDF_FILE            : WaterProperties_1.hdf5
+INSTANTS_PATH             : /Time
+
+OUTPUT_FILE               : output.hdf5
+
+OUTPUT_GROUP              : /Sum/Total_nitrogen
+OUTPUT_DATASET            : /Sum/Total_nitrogen/Total_nitrogen
+
+MAPPING_GROUP             : /Grid/
+MAPPING_DATASET           : WaterPoints3D
+
+READ_DATASET_WITH_NUMBER  : 1
+COPY_OPEN_POINTS          : 1
+COPY_TIME                 : 1
+
+<beginproperty>
+NAME                      : phytoplankton
+PATH                      : /Results/phytoplankton
+FACTOR                    : 0.24
+<endproperty>
+
+<beginproperty>
+NAME                      : particulate organic nitrogen
+PATH                      : /Results/particulate organic nitrogen
+FACTOR                    : 1
+<endproperty>

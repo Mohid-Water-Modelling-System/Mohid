@@ -1,0 +1,19 @@
+
+OUTPUT_FILE                 : Grid.dat
+ORIGIN_X                    : -143027.8
+ORIGIN_Y                    : -113630.3
+GRID_ANGLE                  : 0.
+COORD_TIP                   : 3.
+
+
+<begin_grid_xx>
+   NUMBER_OF_SEGMENTS          : 3
+   NODES                       : 0 27416.8  32299.2 46445.79
+   RESOLUTION                  : 2000 250 250 500
+<end_grid_xx>
+
+<begin_grid_yy>
+NUMBER_OF_SEGMENTS          : 3
+NODES                       : 0 33551.3 42690.1 85880.97
+RESOLUTION                  : 2000 250 250 500
+<end_grid_yy>

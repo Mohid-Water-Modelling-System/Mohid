@@ -1,0 +1,15 @@
+<BeginHDF5File>
+NAME               : 2005013012_2005020509D2.hdf5
+<EndHDF5File>
+
+GRID_FILENAME      : grid2.dat
+
+<BeginGaugeFile>
+NAME               : TidalComponents12W36N6p15W45NV2.dat
+TIMESERIE_NAME     : K:\New Folder\TesteCP
+WRITE_MOHID_INPUT  : 1
+OUTPUTNAME         : K:\New Folder\TesteComp.dat
+<EndGaugeFile>
+
+START_TIME         : 2005 1 30 6 0 0
+END_TIME           : 2005 2 5 12 0 0

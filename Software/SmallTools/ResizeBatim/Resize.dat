@@ -1,0 +1,4 @@
+IN_BATIM     : Arousa_meteo.dat
+OUT_BATIM    : Arousa_meteo_big.dat
+ADD_ROWS     : 0
+ADD_COLUMNS  : 6
