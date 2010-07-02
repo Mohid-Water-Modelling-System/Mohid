@@ -65,7 +65,8 @@ include ../Makefiles/Makefiles.mk
 #--------Dependencies list-------------
 
 ModuleTime.${O} : ModuleGlobalData.${O}
-ModuleEnterData.${O} : ModuleTime.${O}
+ModuleStopWatch.${O} : ModuleTime.${O}
+ModuleEnterData.${O} : ModuleStopWatch.${O}
 ModuleFunctions.${O} : ModuleEnterData.${O}
 ModuleBenthos.${O} : ModuleEnterData.${O}
 ModuleCEQUALW2.${O} : ModuleFunctions.${O}
@@ -90,7 +91,6 @@ ModuleInterface.${O} : ModuleWaterQuality.${O} \
 ModuleHydroIntegration.${O} : ModuleTime.${O}
 ModuleLightExtinction.${O} : ModuleFunctions.${O} \
                           ModuleTimeSerie.${O}
-ModuleStopWatch.${O} : ModuleTime.${O}
 ModuleTriangulation.${O} : ModuleGlobalData.${O}
 ModuleHDF5.${O} : ModuleGlobalData.${O}
 ModuleDrainageNetwork.${O} : ModuleDischarges.${O} \
