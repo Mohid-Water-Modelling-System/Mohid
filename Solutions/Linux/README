@@ -29,5 +29,11 @@ pre-processor definition. Then clean and build the makefile over again.
 G/ How can I activate the extra modules (e.g: in ConvertToHdf5) that require the netcdf libraries?
 1 - Firstly, install the netcdf libraries with the fortran interface and
 locate their whereabouts (path) in your computer.
-2 - Edit the Editme.mk file and correct the path to the netcdf libraries
+2 - Edit the Editme.mk file and correct the path to the netcdf library libnetcdf.a (NETCDFLIB)
+and the netcdf mod file netcdf.mod (NETCDFINC).
 3 - Activate to "true" the variable IS_NETCDF in the Editme.mk file
+
+H/ I get "segmentation fault" errors when using ConvertToHDF5 or some other tool, what should I do?
+Try to enlarge the cache memory for your programs to run. Simply type
+ > ulimit -s unlimited
+before running the program.
