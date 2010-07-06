@@ -65,7 +65,7 @@ export LNETCDF  = libnetcdf.a
 ifeq ($(IS_NETCDF),true)
     export BASELIBS := \
             $(BASELIBS) \
-            $(NETCDFINC)/$(LNETCDF)
+            $(NETCDFLIB)/$(LNETCDF)
 endif
 
 #------Files and modules lists------

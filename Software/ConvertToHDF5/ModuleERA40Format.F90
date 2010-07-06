@@ -48,7 +48,11 @@
 
 Module ModuleERA40Format
 
+#ifdef _USE_NIX
+    use netcdf
+#else
     use netcdf90
+#endif    
     use ModuleGlobalData
     use ModuleHDF5
     use ModuleEnterData

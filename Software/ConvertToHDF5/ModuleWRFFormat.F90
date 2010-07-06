@@ -68,7 +68,11 @@ Module ModuleWRFFormat
     use ModuleTime
     use ModuleGridData
     use ModuleHorizontalGrid    
+#ifdef _USE_NIX
+    use netcdf
+#else    
     use netcdf90
+#endif
     use proj4
 
 

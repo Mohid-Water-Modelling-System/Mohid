@@ -33,7 +33,11 @@
 
 Module ncdflib
 
+#ifdef _USE_NIX
+    use netcdf
+#else
     Use netcdf90
+#endif    
     implicit none
 !
 !----------------------------------------------------------------------------!

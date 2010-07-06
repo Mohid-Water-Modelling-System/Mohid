@@ -23,7 +23,11 @@ Module ModuleHYCOMFormat
     use ModuleGridData
     use ModuleHorizontalGrid
     use ModuleDrawing
+#ifdef _USE_NIX
+    use netcdf
+#else
     use netcdf90
+#endif
 
     implicit none
 

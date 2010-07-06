@@ -15,8 +15,10 @@ export HDF5 = /home/Projects/hdf5/hdf5-1.6.5/hdf5/lib
 #Where is the libz.a in your system?
 export ZLIBINC = /usr/lib64
 
-#Where is the libnetcdf.a (with --enable-fortran) in your system?
-export NETCDFINC = /usr/lib64
+#Where is the netcdf.mod (built with ./configure with --enable-fortran) in your system?
+export NETCDFINC = /usr/include
+#Where is the libnetcdf.a (built with ./configure with --enable-fortran) in your system?
+export NETCDFLIB = /usr/lib64
 
 #Activate the extra modules that require the netcdf libraries in the ConvertToHdf5 tool
 #Two valid options

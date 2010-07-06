@@ -41,7 +41,8 @@ FILES = \
        ModuleAdvectionDiffusion.$(S) \
        ModuleFillMatrix.$(S) \
        ModuleInterpolation.$(S) \
-       ModuleAtmosphere.$(S)
+       ModuleAtmosphere.$(S) \
+       ModuleChainReactions.$(S)
 TARGET = $(BASE2)
 
 #-------Makefile rules-----------------
@@ -64,6 +65,9 @@ ModuleFillMatrix.${O} : ModuleBoxDif.${O} \
 ModuleInterpolation.${O} : ModuleMap.${O}
 ModuleAtmosphere.${O} : ModuleStatistic.${O} \
                      ModuleFillMatrix.${O}
+ModuleChainReactions.${O} : ModuleBasinGeometry.${O} \
+                     ModuleMap.${O} \
+		     ModuleFillMatrix.${O}
 
 #--------End of dependencies list---------
 

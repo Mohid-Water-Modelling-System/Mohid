@@ -156,8 +156,12 @@ Module ModuleAladinFormat
     use ModuleHorizontalGrid
     use ModuleHorizontalMap
 
+#ifdef _USE_NIX
     ! Manages NetCDF files
+    use netcdf
+#else
     use netcdf90
+#endif
     
     implicit none
 
