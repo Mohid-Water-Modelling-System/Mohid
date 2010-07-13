@@ -194,6 +194,9 @@ Module ModuleGlobalData
     integer, parameter :: Rectang_         = 3
 
 
+    !Mohid Land ground water flow type
+    integer, parameter :: GWFlowToChanByCell_               = 1
+    integer, parameter :: GWFlowToChanByLayer_              = 2
 
     !Water Properties 
     integer, parameter :: Density_                          =  0        

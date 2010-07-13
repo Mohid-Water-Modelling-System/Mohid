@@ -7585,8 +7585,9 @@ do2 :   do while (associated(PropertyX))
                             
                             !if property particulate and flow going to river, conc matrix value should be zero 
                             !but this matrix is not allocated in DN because is 3D (only a pointer and exists for dissolved).
-                            if ((Check_Particulate_Property(Property%ID%IDNumber)) .and.                         &
-                                (Me%GroundVectorLayers (CurrNode%GridI, CurrNode%GridJ, k) .gt. 0.0)) then
+                            if (Check_Particulate_Property(Property%ID%IDNumber)) then
+!                            if ((Check_Particulate_Property(Property%ID%IDNumber)) .and.                         &
+!                                (Me%GroundVectorLayers (CurrNode%GridI, CurrNode%GridJ, k) .gt. 0.0)) then
                                 GWConc = 0.0
                             else
                                 GWConc = Property%GWaterConcLayers(CurrNode%GridI, CurrNode%GridJ, k)

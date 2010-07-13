@@ -175,7 +175,7 @@ Module ModuleBasin
     integer, parameter                              :: ET0Method                = 2
     integer, parameter                              :: NoEvaporation            = 3
     !Gw link between porous media and drainage network
-    integer, parameter                              :: Layer_ = 3
+!    integer, parameter                              :: Layer_ = 2
 
     !Types---------------------------------------------------------------------
     type T_OutPut
@@ -3909,7 +3909,9 @@ etr_fao:        if (CalcET0) then
         
 
         if (MonitorPerformance) call StartWatch ("ModuleBasin", "DrainageNetworkProcesses")
-
+        
+        GW_Link = GWFlowToChanByCell_
+        
         ILB = Me%WorkSize%ILB
         IUB = Me%WorkSize%IUB
         JLB = Me%WorkSize%JLB
@@ -3931,7 +3933,7 @@ etr_fao:        if (CalcET0) then
             call GetGWFlowToChannels    (Me%ObjPorousMedia, GWFlowToChannels, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'DrainageNetworkProcesses - ModuleBasin - ERR01b'
             
-            if (GW_Link == Layer_) then 
+            if (GW_Link == GWFlowToChanByLayer_) then 
 
                 call GetGWFlowToChannelsByLayer    (Me%ObjPorousMedia, GWFlowToChannelsLayer, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'DrainageNetworkProcesses - ModuleBasin - ERR01c'
@@ -3994,7 +3996,7 @@ etr_fao:        if (CalcET0) then
                     if (STAT_CALL /= SUCCESS_) stop 'DrainageNetworkProcesses - ModuleBasin - ERR04'
                     
                     !check if flow computation by layers
-                    if (GW_Link /= Layer_) then 
+                    if (GW_Link /= GWFlowToChanByLayer_) then 
                         call GetGWLayer   (Me%ObjPorousMedia, GWlayer, STAT = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_) stop 'DrainageNetworkProcesses - ModuleBasin - ERR05'
                         
@@ -4129,7 +4131,7 @@ etr_fao:        if (CalcET0) then
 
         endif
         
-        if (GW_Link /= Layer_) then 
+        if (GW_Link /= GWFlowToChanByLayer_) then 
             !Runs DrainageNetwork with GW flow given by one value for each river cell
             call ModifyDrainageNetwork  ( Me%ObjDrainageNetwork, OLFlowToChannels = OLFlowToChannels,          &
                                           GWFlowToChannels = GWFlowToChannels, DiffuseFlow = Me%DiffuseFlow,   &
@@ -4178,7 +4180,7 @@ etr_fao:        if (CalcET0) then
             call UnGetPorousMedia       (Me%ObjPorousMedia, GWFlowToChannels, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'DrainageNetworkProcesses - ModuleBasin - ERR210' 
             
-            if (GW_Link == Layer_) then 
+            if (GW_Link == GWFlowToChanByLayer_) then 
                 call UnGetPorousMedia       (Me%ObjPorousMedia, GWFlowToChannelsLayer, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'DrainageNetworkProcesses - ModuleBasin - ERR220' 
 

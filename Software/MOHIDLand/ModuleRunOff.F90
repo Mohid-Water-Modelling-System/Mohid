@@ -527,7 +527,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR04e'
         if (iflag == 0) then
-            write(*,*)'MIN_WATER_COLUMN must be defined in module Runoff instead of Basin'
+            write(*,*)'MIN_WATER_COLUMN must be defined in module Runoff'
             stop 'ReadDataFile - ModuleRunOff - ERR07a'
         endif
 

@@ -212,8 +212,8 @@ Module ModulePorousMedia
     character(LEN = StringLength), parameter :: char_waterlevel   = trim(adjustl('waterlevel'       ))
 
     !Drainage Network link formulations - for tests
-    integer, parameter :: ByCell_    = 1
-    integer, parameter :: ByLayer_   = 2
+!    integer, parameter :: GWFlowToChanByCell_            = 1
+!    integer, parameter :: GWFlowToChanByLayer_           = 2
 
     !Types---------------------------------------------------------------------
     type T_OutPut
@@ -569,7 +569,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             call ReadDataFile
                         
             call ConstructBottomTopography
-
+            
             !Build 3D domain
             call VerticalDiscretization
             
@@ -609,6 +609,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             !Calculates Initial GW Cell
             call CalculateUGWaterLevel
             
+            !Check if river bottom is below soil - warning
+            if (DrainageNetworkID /= 0) call CheckRiverBelowSoil
+            
             if (Me%OutPut%Yes .or. Me%Output%SurfaceOutput) then
                 call ConstructHDF5Output
             endif
@@ -646,6 +649,40 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
     end subroutine ConstructPorousMedia
  
+    !--------------------------------------------------------------------------
+
+    subroutine CheckRiverBelowSoil
+
+        !Local-----------------------------------------------------------------
+        real,   dimension(:, :), pointer            :: ChannelsBottomLevel
+        integer                                     :: STAT_CALL, i, j
+        !Begin-----------------------------------------------------------------
+
+        call GetChannelsBottomLevel (Me%ObjDrainageNetwork, ChannelsBottomLevel, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'CheckRiverBelowSoil - ModulePorousMedia - ERR02'
+
+
+do1:    do J = Me%WorkSize%JLB, Me%WorkSize%JUB
+do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
+
+            if (Me%ExtVar%RiverPoints(i, j) == OpenPoint) then
+                
+                if (ChannelsBottomLevel(i,j) < Me%ExtVar%BottomTopoG(i, j)) then
+                    write (*,*) 
+                    write (*,*) 'Bottom River section is lower than soil profile in cell', i,j
+                endif
+                
+            endif
+        
+        enddo do2
+        enddo do1
+
+        call UnGetDrainageNetwork (Me%ObjDrainageNetwork, ChannelsBottomLevel, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'CheckRiverBelowSoil - ModulePorousMedia - ERR06'
+
+
+    end subroutine CheckRiverBelowSoil
+
     !--------------------------------------------------------------------------
     
     subroutine AllocateInstance        
@@ -904,11 +941,17 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      Me%ObjEnterData, iflag,                                    &
                      SearchType = FromFile,                                     &
                      keyword    = 'DN_LINK',                                    &
-                     Default    = ByLayer_,                                     &                                           
+                     Default    = GWFlowToChanByCell_,                          &                                           
                      ClientModule ='ModulePorousMedia',                         &
                      STAT       = STAT_CALL)            
         if (STAT_CALL /= SUCCESS_) stop 'GetSoilOptions - ModulePorousMedia - ERR20'
-
+        
+        if ((Me%SoilOpt%DNLink /= GWFlowToChanByLayer_) .and. (Me%SoilOpt%DNLink /= GWFlowToChanByCell_)) then
+            write(*,*)' DN_LINK uncorrectly defined - 2 for GW flow to drainage network by layers '
+            write(*,*)' and 1 for GW flow for each cell'
+            stop 'GetUnSaturatedOptions - ModulePorousMedia - ERR21'
+        endif
+        
         call GetData(Me%SoilOpt%ComputeHydroPressure,                           &
                      Me%ObjEnterData, iflag,                                    &
                      SearchType = FromFile,                                     &
@@ -1362,8 +1405,8 @@ do1:     do
         Me%iFlowToChannelsLayer = 0.0
         Me%lFlowToChannels      = 0.0
         Me%lFlowToChannelsLayer = 0.0
-        Me%FlowToChannelsBottomLayer = null_int
-        Me%FlowToChannelsTopLayer    = null_int       
+        Me%FlowToChannelsBottomLayer = Me%WorkSize%KLB
+        Me%FlowToChannelsTopLayer    = Me%WorkSize%KUB       
 
         Me%FluxUAcc      = 0.0
         Me%FluxVAcc      = 0.0
@@ -2020,7 +2063,7 @@ doSP:           do
         nProperties = 11
         if (Me%ObjDrainageNetwork /= 0) then
             nProperties = nProperties + 1
-            if (Me%SoilOpt%DNLink == ByLayer_) then
+            if (Me%SoilOpt%DNLink == GWFlowToChanByLayer_) then
                 nProperties = nProperties + 1
             endif
         endif       
@@ -2047,12 +2090,12 @@ doSP:           do
         PropertyList(9)  = 'water table depth [m]'
         PropertyList(10)  = 'Hydro Pressure [m]'
         PropertyList(11) = 'Final Head [m]'
-!        PropertyList(12) = 'PM Water Column m'
+!        PropertyList(12) = 'Infiltration Column [m]'
         i = 11
         if (Me%ObjDrainageNetwork /= 0) then
             i = i + 1
             PropertyList(i)  = 'GW flow to river total [m3/s]'        
-            if( Me%SoilOpt%DNLink == ByLayer_) then
+            if( Me%SoilOpt%DNLink == GWFlowToChanByLayer_) then
                 i = i + 1
                 PropertyList(i)  = 'GW flow to river layer [m3/s]'
             endif
@@ -3541,14 +3584,7 @@ dConv:  do while (iteration <= Niteration)
             
             !Calculates Flux to channels
             if (Me%ObjDrainageNetwork /= 0) then
-                if (Me%SoilOpt%DNLink == ByCell_) then
-                    call ExchangeWithDrainageNet_Corr
-                elseif (Me%SoilOpt%DNLink == ByLayer_) then
-                    call ExchangeWithDrainageNet_Layer
-                else
-                    write(*,*)'Error in method for Drainage Network link in Modukle Porous Media'
-                    stop 'VariableSaturatedFlow - ModulePorousMedia ERR01'
-                endif
+                call ExchangeWithDrainageNet
             endif
             
             if (Me%EvaporationExists) then
@@ -3869,115 +3905,67 @@ dConv:  do while (iteration <= Niteration)
         integer                                     :: i, j, k
         integer                                     :: CHUNK
         real                                        :: AccumPressure, Coef
-        real                                        :: InterpolTheta !, InterpolVel
-        logical                                     :: InterpolCoef
-        real                                        :: HydroCoef, ThetaMinForHydro
-        real                                        :: CenterVelocityW
-        !real                                        :: factor
-
+        real                                        :: CenterVelocityW, ThetaInterpol
+        integer                                     :: KUB
+        !Begin-----------------------------------------------------------------
+        
         CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
         
-       
-        if (.not. Me%SoilOpt%ComputeHydroPressure) then
-            call SetMatrixValue (Me%HydroPressure, Me%Size, 0.0)
-        endif
-        
-        !$OMP PARALLEL PRIVATE(I,J,K,AccumPressure,Coef,InterpolCoef,ThetaMinForHydro,CenterVelocityW,HydroCoef,InterpolTheta)
+        KUB   = Me%WorkSize%KUB
+
+        !$OMP PARALLEL PRIVATE(I,J,K,AccumPressure,Coef,ThetaInterpol,CenterVelocityW)
         !$OMP DO SCHEDULE    (DYNAMIC, CHUNK)
         do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
             if (Me%ExtVar%BasinPoints (i, j) == 1) then
+            
+                !Initial pressure = watercolumn - move downwards
+                AccumPressure = Me%WaterColumn(i, j)
                 
-                if (Me%SoilOpt%ComputeHydroPressure) then
+                do k = Me%WorkSize%KUB, Me%ExtVar%KFloor(i, j), -1
                     
-                    !Initial pressure = watercolumn - move downwards
-                    AccumPressure = Me%WaterColumn(i, j)
-                    
-                    do k = Me%WorkSize%KUB, Me%ExtVar%KFloor(i, j), -1
+                    !Evaluate if cell is almost saturated (for stability reasons a range of theta has to be given)
+                    if (Me%Theta(i, j, k) .gt. Me%RC%ThetaS(i, j, k) * Me%CV%ThetaHydroCoef) then
                         
-                        InterpolCoef = .true.
-
-                        !Minimum theta for hydro pressure computation - to overcome instabilities in 2D
-                        !In surface only compute hyd. press. in real saturation to avoid infiltration errors
-                        if (K .eq. Me%WorkSize%KUB) then
-                            ThetaMinForHydro = Me%RC%ThetaS(i, j, k)
-                            InterpolCoef = .false.
-                        else
-                            ThetaMinForHydro = Me%RC%ThetaS(i, j, k) * Me%CV%ThetaHydroCoef
-                            if (ThetaMinForHydro .ge. Me%RC%ThetaS(i, j, k)) then
-                                InterpolCoef = .false.
-                            endif                            
-                        endif
+                        !Vertical velocity at the center of the cell and from previous step 
+                        !without sub VerticalContinuity or sub ExchangeWithDrainageNetwork (layered flow) changes (UnsatVelWFinal)
+                        CenterVelocityW  = (Me%UnsatVelW(i, j, k) + Me%UnsatVelW(i, j, k+1)) / 2.0
                         
-                        if (Me%Theta(i, j, k) .ge. ThetaMinForHydro) then
+                        !CenterVelocityU         = (Me%UnsatVelU(i, j, k) + Me%UnsatVelU(i, j+1, k)) / 2.0
+                        !CenterVelocityV         = (Me%UnsatVelV(i, j, k) + Me%UnsatVelV(i+1, j, k)) / 2.0
+                        !CenterVelocityW         = (Me%UnsatVelW(i, j, k) + Me%UnsatVelW(i, j, k+1)) / 2.0
+                        !Modulus                 = sqrt(CenterVelocityU**2.0 + CenterVelocityV**2.0 + CenterVelocityW**2.0)
                         
-                            !Velocity at the center of the cell
-                            CenterVelocityW  = (Me%UnsatVelWFinal(i, j, k) + Me%UnsatVelWFinal(i, j, k+1)) / 2.0
-!                            CenterVelocityW  = (Me%UnsatVelW(i, j, k) + Me%UnsatVelW(i, j, k+1)) / 2.0
-
-                            !Hydrostatic term dependent on velocity (vel < 0 descending)
-                            !If velocity < 0 and >= Saturation Cond. then cells do not feel hydr pressure and are free falling
-                            !If velocity < 0 and <  Saturation Cond. then cells start felling the weight of the water on top
-                            !If velocity closer to 0 then the cells fell the hydr pressure that is the sat column height above
-                            !If velocity > 0 hydr pressure increases with velocity
-                            if (CenterVelocityW .lt. 0.0) then
+                        !Compute hydro pressure if the velocity is upwards or if is downwards and lower than saturated conductivity
+                        if ((CenterVelocityW .gt. 0.0)                                                               &
+                             .or. (CenterVelocityW .le. 0.0 .and. CenterVelocityW .ge. -1.0 * Me%SatK(i, j, k))) then
                             
-                                if (Abs(CenterVelocityW) .gt. Me%CV%VelHydroCoef * (Me%SatK(i, j, k) - AlmostZero)) then
-                                
-                                    !There is no hydrostatic effect - water free falling and accumulated pressure is no longer felt
-                                    HydroCoef     = 0.0
-                                    AccumPressure = 0.0
-                                
-                           
-                                else  !velocity negative and smaller than SatK, positive or zero
-                                
-                                    !if vel negative
-                                    !|vel| -> zero - Coef almost 1 - aprox. hydrostatic - hyd. press. almost saturated height above
-                                    !|vel| -> SatK - Coef almost 0 - water almost free falling and hyd. press. almost zero 
+                            !Interpolation between 0 and 1 for theta (because hydro pressure evaluation starts
+                            !at thetaS * HydroCoef and to give a proportional factor). Exponential for stability reasons
+                            ThetaInterpol = (LinearInterpolation(Me%RC%ThetaS(i, j, k) * Me%CV%ThetaHydroCoef, 0.0,  &
+                                                                Me%RC%ThetaS(i, j, k), 1.0, Me%Theta(i, j, k)))**3
 
-                                    !vel = zero - Coef = 1 - hydrostatic - hydro pressure is the saturated height above cell
-                                    
-                                    !if vel positive, bigger positive velocity bigger hydrostatic effect 
-                                
-                                    HydroCoef =  1.0 + (CenterVelocityW / Me%SatK(i, j, k)) 
-                                    
-                                endif
-                           
-                            else
-                                
-                                HydroCoef = 1.0 + (CenterVelocityW / Me%SatK(i, j, k)) 
-                           
-                            end if
-                            
-                            !Interpolation with 0 value if Theta is ThetaMinForHydro and 1.0 if Theta is ThetaS
-                            !It is used to overcome instabilities in 2D
-                            if (InterpolCoef) then
-                                InterpolTheta = (LinearInterpolation(ThetaMinForHydro,0.0,Me%RC%ThetaS(i,j,k),1.0,        &
-                                                 Me%Theta(i,j,k)))**3
-                            else
-                                InterpolTheta = 1.0
-                            endif
-                            
-                            Coef = 0.5 * Me%ExtVar%DWZ(i, j, k) * HydroCoef * InterpolTheta
-                                   
-    !                        Coef = 0.5 * Me%ExtVar%DWZ(i, j, k) * (1.0 - CenterVelocityW / Me%SatK(i, j, k)) * &
-    !                               LinearInterpolation(Me%RC%ThetaS(i, j, k) * Me%CV%ThetaHydroCoef, 0.0,      &
-    !                                Me%RC%ThetaS(i, j, k), 1.0, Me%Theta(i, j, k))
-
-                            AccumPressure = AccumPressure + Coef
-                            Me%HydroPressure(i,j,k) = AccumPressure
-                            AccumPressure = AccumPressure + Coef
+                            !Hydro pressure coef dependent on velocity (remind, upward or downward and lower eq than SatK)
+                            Coef =  (1.0 + CenterVelocityW / Me%SatK(i, j, k)) * ThetaInterpol
                             
                         else
-
-                            Me%HydroPressure(i,j,k) = 0.0
-                            AccumPressure = 0.0
-                        
+                            !If velocity downwards and bigger than SatK there will be no hydro pressure 
+                            Coef = 0.0
                         endif
+                        
+                        AccumPressure = AccumPressure + 0.5 * Me%ExtVar%DWZ(i, j, k) * Coef
+                        Me%HydroPressure(i,j,k) = AccumPressure
+                        AccumPressure = AccumPressure + 0.5 * Me%ExtVar%DWZ(i, j, k) * Coef
+                        
+                    else
+
+                        Me%HydroPressure(i,j,k) = 0.0
+                        AccumPressure = 0.0
                     
-                    enddo
-                endif
+                    endif
+                
+                enddo
                 
                 !Final Head = Topography + Hydropressure + Soil Suction
                 do k = Me%ExtVar%KFloor(i, j), Me%WorkSize%KUB
@@ -3994,14 +3982,16 @@ dConv:  do while (iteration <= Niteration)
     end subroutine ComputeFinalHead
 
     !----------------------------------------------------------------------------
-    
+
+        
     subroutine InfiltrationVelocity
     
         !Arguments-------------------------------------------------------------
 
         !Local-----------------------------------------------------------------
         integer                                     :: i, j, KUB
-        real                                        :: hsup_aux, DeltaSup_aux
+        real                                        :: hsup_aux, DeltaSup_aux, hinf_aux
+        !Begin-----------------------------------------------------------------
         
         KUB = Me%WorkSize%KUB
         
@@ -4009,30 +3999,45 @@ dConv:  do while (iteration <= Niteration)
         do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
             if (Me%ExtVar%BasinPoints (i, j) == 1) then
-
-                hsup_aux = Me%ExtVar%Topography(i, j) + Me%WaterColumn(i, j)
-            
+                
+                !dz in surface interface
                 DeltaSup_aux = Me%ExtVar%DWZ(i, j, KUB)/2.0 + Me%WaterColumn(i, j)
+                
+                !head in surface
+                hsup_aux = Me%ExtVar%Topography(i, j) + Me%WaterColumn(i, j)
+                
+                !head in top cell - hydropressure had to be removed in order to accurate 
+                !estimate infiltration velocity because hydropressure is computed for stability reasons 
+                !even when cell is not saturated (satK * hydroCoef) - hydropressure and suction exist at 
+                !the same time increasing Final Head in top cell and decreasing infil. vel.
+                !If hydro pressure exists with cell almost but not saturated than the 
+                !correction returns the right infil. vel.
+                !If hydro pressure exists with saturated cell than hydro pressure is right. The computation
+                !of infil. vel. without hydro pressure will return in over estimation but the soil is in the 
+                !condition of getting full so the sub VerticalContinuity removes excess to water column
+                !and corrects infil. vel. to the right value
+                hinf_aux = Me%FinalHead(i, j, KUB) - Me%HydroPressure(i,j,KUB)
+
                 
                 Me%UnsatVelW(i, j, KUB+1) = BuckinghamDarcyEquation                             &
                                                (con      = Me%SatK (i, j, KUB),                 &
-                                                hinf     = Me%FinalHead(i, j, KUB),             &
+!                                                hinf     = Me%FinalHead(i, j, KUB),            &
+                                                hinf     = hinf_aux,                            &
                                                 hsup     = hsup_aux,                            &
 !                                                delta    = Me%ExtVar%DWZ(i, j, KUB)/2.0)
                                                 delta    = DeltaSup_aux)
-
  
                 Me%UnsatVelWFinal(I,J,KUB+1) = Me%UnsatVelW(I,J,KUB+1)
+
                     
-                                                                   
                 if (-1.0 * Me%UnsatVelW(i, j, KUB+1) > Me%WaterColumn(i, j) / Me%CV%CurrentDT) then  
                     
                     Me%UnsatVelW(i, j, KUB+1)  = -1.0 * Me%WaterColumn(i, j) / Me%CV%CurrentDT
 
                     Me%UnsatVelWFinal(I,J,KUB+1) = Me%UnsatVelW(I,J,KUB+1)
-
                
                 endif
+                
 
             endif
             
@@ -4650,7 +4655,7 @@ dConv:  do while (iteration <= Niteration)
         !$OMP END DO
         
         if (Me%ObjDrainageNetwork /= 0) then
-            if (Me%SoilOpt%DNLink == ByCell_) then
+            if (Me%SoilOpt%DNLink == GWFlowToChanByCell_) then
                 !Exchange with River
                 !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
                 do J = Me%WorkSize%JLB, Me%WorkSize%JUB
@@ -4665,7 +4670,7 @@ dConv:  do while (iteration <= Niteration)
                 enddo
                 !$OMP END DO
             
-            elseif (Me%SoilOpt%DNLink == ByLayer_) then
+            elseif (Me%SoilOpt%DNLink == GWFlowToChanByLayer_) then
 
                 !Exchange with River
                 !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
@@ -4765,7 +4770,8 @@ dConv:  do while (iteration <= Niteration)
                 Me%WaterColumn(i,j) = Me%WaterColumn(i,j)  - dh
                 
                 Me%Infiltration(i,j)= Me%Infiltration(i,j) + dh
-                 
+                
+                
                 if (abs(Me%WaterColumn(i, j)) < AllmostZero) Me%WaterColumn(i, j) = 0.0
                 
                 if (Me%WaterColumn(i, j) < 0.0) then
@@ -4885,12 +4891,12 @@ dConv:  do while (iteration <= Niteration)
         do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
             if (Me%ExtVar%RiverPoints (i,j) == 1) then
-                if (Me%SoilOpt%DNLink == ByCell_) then
+                if (Me%SoilOpt%DNLink == GWFlowToChanByCell_) then
 
                     Me%iFlowToChannels(i, j) = (Me%iFlowToChannels(i, j) * SumDT +                                  &
                                                         Me%lFlowToChannels(i, j) * Me%CV%CurrentDT) /               &
                                                        (SumDT + Me%CV%CurrentDT)
-                elseif (Me%SoilOpt%DNLink == ByLayer_) then    
+                elseif (Me%SoilOpt%DNLink == GWFlowToChanByLayer_) then    
                     do k = Me%FlowToChannelsBottomLayer(i,j), Me%FlowToChannelsTopLayer(i,j)
                         Me%iFlowToChannelsLayer(i, j, k) = (Me%iFlowToChannelsLayer(i, j, k) * SumDT +                  &
                                                             Me%lFlowToChannelsLayer(i, j, k) * Me%CV%CurrentDT) /       &
@@ -5194,6 +5200,8 @@ cd2 :   if (Mapping(i, j) == 1) then
                     !m/s
                     Me%UnsatVelWFinal(i,j,k+1)  = Me%FluxWFinal(i,j,k+1) /                                            &
                                                   (Me%ExtVar%Area(i,j) * (1.0 - Me%ImpermeableFraction(i, j)))
+
+                                                  
 !                    dh                     = ExcessVolume  / Me%ExtVar%Area(i, j)
 !                    Me%WaterColumn  (i,j)  = Me%WaterColumn(i,j) + dh
 !                    Me%Infiltration (i,j)  = Me%Infiltration (i,j) - dh
@@ -5535,7 +5543,7 @@ doK:            do K = Me%ExtVar%KFloor(i, j), Me%WorkSize%KUB
     
     !--------------------------------------------------------------------------
     
-    subroutine ExchangeWithDrainageNet_Layer
+    subroutine ExchangeWithDrainageNet
 
         !Arguments-------------------------------------------------------------
         
@@ -5569,22 +5577,36 @@ doK:            do K = Me%ExtVar%KFloor(i, j), Me%WorkSize%KUB
         if (STAT_CALL /= SUCCESS_) stop 'ExchangeWithDrainageNetwork - ModulePorousMedia - ERR05'
         
        
-        !!Computation of TotalFlow
+        !!Computation of TotalFlow - always
 do1:    do J = Me%WorkSize%JLB, Me%WorkSize%JUB
 do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
 
             if (Me%ExtVar%RiverPoints(i, j) == OpenPoint) then
                 
+!                if (ChannelsBottomLevel(i,j) < Me%ExtVar%BottomTopoG(i, j)) then
+!                    write (*,*) 
+!                    write (*,*) 'Bottom River section is lower than soil profile in cell', i,j
+!                    write (*,*) 'Increase bottom soil depth or decrease river depth'
+!                    stop 'ExchangeWithDrainageNetwork - ModulePorousMedia - ERR06'
+!                endif
+                
+                !Not Tested yet if bottom channel lower than soil
                 if (ChannelsBottomLevel(i,j) < Me%ExtVar%BottomTopoG(i, j)) then
-                    write (*,*) 
-                    write (*,*) 'Bottom River section is lower than soil profile in cell', i,j
-                    write (*,*) 'Increase bottom soil depth or decrease river depth'
-                    stop 'ExchangeWithDrainageNetwork - ModulePorousMedia - ERR06'
-                endif
                     
-                !Computing Area for flux - is always two times the lateral area and one time the bottom area
-                TotalArea  = (2. * (ChannelsWaterLevel(i, j) - ChannelsBottomLevel(i, j))  &
-                              + ChannelsBottomWidth(i, j)) * ChannelsNodeLength(i, j)
+                    !if the channel has water above soil bottom
+                    if (ChannelsWaterLevel(i, j) > Me%ExtVar%BottomTopoG(i, j)) then
+                        
+                        !Area is only lateral from bottom
+                        TotalArea = 2. * (ChannelsWaterLevel(i, j) - Me%ExtVar%BottomTopoG(i, j)) * ChannelsNodeLength(i, j)
+                    else
+                        !There is no channel water above soil bottom and there will be no flow.
+                        TotalArea = 0.0
+                    endif    
+                else                
+                    !Computing Area for flux in normal case - is always two times the lateral area and one time the bottom area
+                    TotalArea  = (2. * (ChannelsWaterLevel(i, j) - ChannelsBottomLevel(i, j))  &
+                                  + ChannelsBottomWidth(i, j)) * ChannelsNodeLength(i, j)
+                endif
                 
                 !Computing height gradient dH [m]
                 !Negative dh -> Flux from channels to porous media
@@ -5592,7 +5614,7 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                 dH    = Me%UGWaterLevel2D(i, j) - ChannelsWaterLevel(i, j)                
                 
                 !spatial step for Height Gradient (dH) [m]
-                dX = max(ChannelsBottomWidth(i, j) / 2.0, 1.0)
+                dX    = max(ChannelsBottomWidth(i, j) / 2.0, 1.0)
                 
                 ![m3/s]                   = [m/m] * [m2] * [m/s] * [] 
                 Me%lFlowToChannels(i, j) = (dH / dX ) * TotalArea * Me%UnSatK(i, j, Me%UGCell(i,j)) * Me%SoilOpt%HCondFactor
@@ -5601,12 +5623,13 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                 !negative                
                 if (dH < 0) then
                     ![m3]
-                    ChannelsVolume     = (ChannelsWaterLevel(i, j) - ChannelsBottomLevel(i, j)) * TotalArea
+                    ChannelsVolume     = (ChannelsWaterLevel(i, j) - ChannelsBottomLevel(i, j))               &
+                                          * ChannelsBottomWidth(i, j) * ChannelsNodeLength(i, j)
                     InfiltrationVolume = -1. * Me%lFlowToChannels(i, j) * Me%ExtVar%DT                
                     
                     if (InfiltrationVolume > ChannelsVolume) then
                         Me%lFlowToChannels(i, j) = -0.5 * ChannelsVolume / Me%ExtVar%DT
-                        write(*,*)'FlowToChannels corrected - ModulePorousMedia'
+!                        write(*,*)'FlowToChannels corrected - ModulePorousMedia'
                     endif
                 
                 !If soil looses water set flow so that cell stays at least with field theta
@@ -5631,107 +5654,123 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
         enddo do2
         enddo do1
 
-       !!Computation of Flow by layers - from total flow computed above.
-        call SetMatrixValue (Me%lFlowToChannelsLayer, Me%Size, 0.0, Me%ExtVar%WaterPoints3D)
-       
-do3:    do J = Me%WorkSize%JLB, Me%WorkSize%JUB
-do4:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
-            if (Me%ExtVar%RiverPoints(i, j) == OpenPoint) then
+        
+        !!Computation of Flow by layers - from total flow computed above.
+        if (Me%SoilOpt%DNLink == GWFlowToChanByLayer_) then
+
+            call SetMatrixValue (Me%lFlowToChannelsLayer, Me%Size, 0.0, Me%ExtVar%WaterPoints3D)
+           
+do3:        do J = Me%WorkSize%JLB, Me%WorkSize%JUB
+do4:        do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                 
-                FoundLowerFlowCell    = .false.
-                FoundUpperFlowCell    = .false.
-                VerticalFluxVariation = 0.0
-                !Search for lower and upper cell computation - water column in river
-                !And compute area for flow inside layer
-do5:            do K = Me%WorkSize%KLB, Me%WorkSize%KUB
+                !Flow is zero if water column in river is lower than soil bottom
+                if ((Me%ExtVar%RiverPoints(i, j) == OpenPoint) .and.                                  &
+                    (ChannelsWaterLevel(i,j) .gt. Me%ExtVar%BottomTopoG(i, j))) then
                     
-                    if (.not. FoundLowerFlowCell) then
-                        if((-Me%ExtVar%SZZ(i,j,k-1) .le. ChannelsBottomLevel(i, j)) .and.          &
-                           (-Me%ExtVar%SZZ(i,j,k  ) .gt. ChannelsBottomLevel(i, j))) then
-                        
-                            FoundLowerFlowCell                = .true.
-                            Me%FlowToChannelsBottomLayer(i,j) = k
-                            
-                            !Area for bottom river inside cell (2*height in cell + bottom width) * length
-                            TopHeightInCell = min(-Me%ExtVar%SZZ(i,j,k), ChannelsWaterLevel(i, j))
-                            LayerArea       = (2 * (TopHeightInCell - ChannelsBottomLevel(i, j))     &
-                                              + ChannelsBottomWidth(i, j)) * ChannelsNodeLength(i, j)
-                            
-                            !Check if Top channel height is also inside the channel bottom cell
-                            if (ChannelsWaterLevel(i, j) .lt. -Me%ExtVar%SZZ(i,j,k)) then
-                                FoundUpperFlowCell             = .true.
-                                Me%FlowToChannelsTopLayer(i,j) = k
-                            endif
-                            
-                        else
-                            !Cell Lower than channel bottom
-                            LayerArea = 0.0
-                        endif
+                    if (ChannelsBottomLevel(i,j) < Me%ExtVar%BottomTopoG(i, j)) then
+                        FoundLowerFlowCell = .true.
+                        Me%FlowToChannelsBottomLayer(i,j) = k
                     else
-                        if (.not. FoundUpperFlowCell) then
-                            if((-Me%ExtVar%SZZ(i,j,k-1) .lt. ChannelsWaterLevel(i, j)) .and.          &
-                               (-Me%ExtVar%SZZ(i,j,k  ) .ge. ChannelsWaterLevel(i, j))) then
+                        FoundLowerFlowCell    = .false.
+                    endif
+                    FoundUpperFlowCell    = .false.
+                    VerticalFluxVariation = 0.0
+                    !Search for lower and upper cell computation - water column in river
+                    !And compute area for flow inside layer
+do5:                do K = Me%ExtVar%KFloor(i,j), Me%WorkSize%KUB
+                        
+                        if (.not. FoundLowerFlowCell) then
+                        
+                            !SZZ(i,j,k) is -altitude at the top face. But has also the bottom face for the kfloor
+                            if((-Me%ExtVar%SZZ(i,j,k-1) .le. ChannelsBottomLevel(i, j)) .and.          &
+                               (-Me%ExtVar%SZZ(i,j,k  ) .gt. ChannelsBottomLevel(i, j))) then
                             
-                                FoundUpperFlowCell             = .true.
-                                Me%FlowToChannelsTopLayer(i,j) = k
+                                FoundLowerFlowCell                = .true.
+                                Me%FlowToChannelsBottomLayer(i,j) = k
                                 
-                                !Area for river inside cell (2*height in cell) * length
-                                LayerArea = (2 * (ChannelsWaterLevel(i, j) - (-Me%ExtVar%SZZ(i,j,k-1)))) * ChannelsNodeLength(i, j)
+                                !Area for bottom river inside cell (2*height in cell + bottom width) * length
+                                TopHeightInCell = min(-Me%ExtVar%SZZ(i,j,k), ChannelsWaterLevel(i, j))
+                                LayerArea       = (2 * (TopHeightInCell - ChannelsBottomLevel(i, j))     &
+                                                  + ChannelsBottomWidth(i, j)) * ChannelsNodeLength(i, j)
+                                
+                                !Check if Top channel height is also inside the channel bottom cell
+                                if (ChannelsWaterLevel(i, j) .lt. -Me%ExtVar%SZZ(i,j,k)) then
+                                    FoundUpperFlowCell             = .true.
+                                    Me%FlowToChannelsTopLayer(i,j) = k
+                                endif
                                 
                             else
-                                !cells between river bottom and water level
-                                !Area for river inside cell (2*cellheight) * length
-                                LayerArea = 2 * (Me%ExtVar%DWZ(i,j,k)) * ChannelsNodeLength(i, j)
-                            
-                            endif
-                        else
-                            if (K .gt. Me%UGCell(i,j)) then
-                                !if found top river cell and higher than GW cell do not need to continue 
-                                !(all computations may cease).
-                                exit do5
-                            else
-                                !cells higher than river level - no flow 
+                                !Cell Lower than channel bottom
                                 LayerArea = 0.0
                             endif
+                        else
+                            if (.not. FoundUpperFlowCell) then
+                                if((-Me%ExtVar%SZZ(i,j,k-1) .lt. ChannelsWaterLevel(i, j)) .and.               &
+                                   (-Me%ExtVar%SZZ(i,j,k  ) .ge. ChannelsWaterLevel(i, j))) then
+                                
+                                    FoundUpperFlowCell             = .true.
+                                    Me%FlowToChannelsTopLayer(i,j) = k
+                                    
+                                    !Area for river inside cell (2*height in cell) * length
+                                    LayerArea = (2 * (ChannelsWaterLevel(i, j) - (-Me%ExtVar%SZZ(i,j,k-1))))   &
+                                                 * ChannelsNodeLength(i, j)
+                                    
+                                else
+                                    !cells between river bottom and water level
+                                    !Area for river inside cell (2*cellheight) * length
+                                    LayerArea = 2 * (Me%ExtVar%DWZ(i,j,k)) * ChannelsNodeLength(i, j)
+                                
+                                endif
+                            else
+                                if (K .gt. Me%UGCell(i,j)) then
+                                    !if found top river cell and higher than GW cell do not need to continue 
+                                    !(all computations may cease).
+                                    exit do5
+                                else
+                                    !cells higher than river level - no flow 
+                                    LayerArea = 0.0
+                                endif
+                            endif
                         endif
-                    endif
-                    
-                    !Water level greater than soil top - top k undefined
-                    if (ChannelsWaterLevel(i, j) .gt. -Me%ExtVar%SZZ(i,j,Me%WorkSize%KUB)) then
-                        Me%FlowToChannelsTopLayer(i,j) = Me%WorkSize%KUB
-                    endif
-                    
-                    !Total area computed above - area related to total flow: Me%lFlowToChannels(i,j)
-                    TotalArea  = (2. * (ChannelsWaterLevel(i, j) - ChannelsBottomLevel(i, j))  &
-                                  + ChannelsBottomWidth(i, j)) * ChannelsNodeLength(i, j)  
-                                                  
-                    !The layer flow is proportional to the [layer area] / [total flow area]
-                    ![m3/s] = [m3/s] * [m2l]/[m2total]
-                    Me%lFlowToChannelsLayer(i, j, k) = Me%lFlowToChannels(i,j) * (LayerArea / TotalArea)
-                    
-                    !if flow is computed in saturated area then vertical flows have to be compensated so
-                    !that water content is maintained
-                    !This will result in a transport in vertical up to the groundwater top cell
-                    if ((K .ge. Me%FlowToChannelsBottomLayer(i,j)) .and. (K .lt. Me%UGCell(i,j))) then
                         
-                        !Vertical flux (upper face) has to compensate the lower face flux and the flux with river. 
-                        !if flow to channels positive (to river) vertical flow is negative (downwards to compensate exit)
-                        !if flow to channels negative (to soil) vertical flow is positive (upwards to compensate entrance)
-                        ![m3/s] in iteration (dt is the same for both fluxes)
-                        VerticalFluxVariation = VerticalFluxVariation - Me%lFlowToChannelsLayer(i, j, k)
-                        Me%FluxWFinal(i,j,k+1)  = Me%FluxWFinal(i,j,k+1) + VerticalFluxVariation
+                        !Water level greater than soil top - top k undefined
+                        if (ChannelsWaterLevel(i, j) .gt. -Me%ExtVar%SZZ(i,j,Me%WorkSize%KUB)) then
+                            Me%FlowToChannelsTopLayer(i,j) = Me%WorkSize%KUB
+                        endif
                         
-                        !m/s = m/s + (m3/s / m2)
-                        Me%UnsatVelWFinal(i,j,k+1)  = Me%UnsatVelWFinal(i,j,k+1) + (Me%FluxWFinal(i,j,k+1) / Me%ExtVar%Area(i,j))
-                    endif
+                        !Total area computed above - area related to total flow: Me%lFlowToChannels(i,j)
+                        TotalArea  = (2. * (ChannelsWaterLevel(i, j) - ChannelsBottomLevel(i, j))  &
+                                      + ChannelsBottomWidth(i, j)) * ChannelsNodeLength(i, j)  
+                                                      
+                        !The layer flow is proportional to the [layer area] / [total flow area]
+                        ![m3/s] = [m3/s] * [m2l]/[m2total]
+                        Me%lFlowToChannelsLayer(i, j, k) = Me%lFlowToChannels(i,j) * (LayerArea / TotalArea)
+                        
+                        !if flow is computed in saturated area then vertical flows have to be compensated so
+                        !that water content is maintained
+                        !This will result in a transport in vertical up to the groundwater top cell
+                        if ((K .ge. Me%FlowToChannelsBottomLayer(i,j)) .and. (K .lt. Me%UGCell(i,j))) then
+                            
+                            !Vertical flux (upper face) has to compensate the lower face flux and the flux with river. 
+                            !if flow to channels positive (to river) vertical flow is negative (downwards to compensate exit)
+                            !if flow to channels negative (to soil) vertical flow is positive (upwards to compensate entrance)
+                            ![m3/s] in iteration (dt is the same for both fluxes)
+                            VerticalFluxVariation = VerticalFluxVariation - Me%lFlowToChannelsLayer(i, j, k)
+                            Me%FluxWFinal(i,j,k+1)  = Me%FluxWFinal(i,j,k+1) + VerticalFluxVariation
+                            
+                            !m/s = m/s + (m3/s / m2)
+                            Me%UnsatVelWFinal(i,j,k+1)  = Me%UnsatVelWFinal(i,j,k+1)                         &
+                                                          + (Me%FluxWFinal(i,j,k+1) / Me%ExtVar%Area(i,j))
+                        endif
+                    
+                    enddo do5
                 
-                enddo do5
-            
-            endif
+                endif
 
-        enddo do4
-        enddo do3
-
+            enddo do4
+            enddo do3
+        
+        endif
         
         call UnGetDrainageNetwork (Me%ObjDrainageNetwork, ChannelsWaterLevel, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ExchangeWithDrainageNetwork - ModulePorousMedia - ERR06'
@@ -5748,7 +5787,7 @@ do5:            do K = Me%WorkSize%KLB, Me%WorkSize%KUB
         call UnGetDrainageNetwork (Me%ObjDrainageNetwork, ChannelsNodeLength, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ExchangeWithDrainageNetwork - ModulePorousMedia - ERR10'
 
-    end subroutine ExchangeWithDrainageNet_Layer
+    end subroutine ExchangeWithDrainageNet
 
     !--------------------------------------------------------------------------
     
@@ -6003,10 +6042,9 @@ do5:            do K = Me%WorkSize%KLB, Me%WorkSize%KUB
         real, intent(IN) :: con
         real, intent(IN) :: hinf,  hsup
         real, intent(IN) :: delta
-
         !------------------------------------------------------------------------
 
-        BuckinghamDarcyEquation = -1.0 * con * ((hsup - hinf) / delta)
+        BuckinghamDarcyEquation = -1.0 * con * ((hsup - hinf) / delta )
                        
         !------------------------------------------------------------------------
 
@@ -6316,6 +6354,7 @@ do5:            do K = Me%WorkSize%KLB, Me%WorkSize%KUB
 
         !Local-----------------------------------------------------------------
         integer                                 :: i, j, STAT_CALL
+        !Begin-----------------------------------------------------------------
 
         !Calculates real Infiltration Velocity
         do j = Me%WorkSize%JLB, Me%WorkSize%JUB
@@ -6394,9 +6433,9 @@ do5:            do K = Me%WorkSize%KLB, Me%WorkSize%KUB
 
         !Porous Media Water column - to compare to Basin water column
 !        call WriteTimeSerie(Me%ObjTimeSerie,                                            &
-!                            Data2D = Me%WaterColumn,                                    &
+!                            Data2D = PMWaterColumn,                                     &
 !                            STAT = STAT_CALL)
-!        if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModulePorousMedia - ERR08'
+!        if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModulePorousMedia - ERR091'
 
         if (Me%ObjDrainageNetwork /= 0) then
         
@@ -6406,7 +6445,7 @@ do5:            do K = Me%WorkSize%KLB, Me%WorkSize%KUB
                                 STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModulePorousMedia - ERR092' 
                            
-            if (Me%SoilOpt%DNLink == ByLayer_) then
+            if (Me%SoilOpt%DNLink == GWFlowToChanByLayer_) then
                 !Flow to channels by layer
                 call WriteTimeSerie(Me%ObjTimeSerie,                                            &
                                     Data3D = Me%iFlowToChannelsLayer,                           &
