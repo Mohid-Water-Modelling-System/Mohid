@@ -64,10 +64,10 @@
 ! GLOBAL_TOXICITY           : char              ['SUM']     !Global Toxicity Computation Method : SUM,MAX,RISKRATIO
 ! GEO_CONVERSATION_FACTOR   : real              [1.]        !Lat to Meters rough estimation
 ! OUTPUT_TIME               : int int...        [-]
-! DOWNSTREAM_BOUNDARY       : int               [1]         !0 - Dam, 1 - ZDG, 2 - CD, 3 - ImposedWaterDepth, 3 - ImposedVelocity
-!   If ImposedWaterDepth--------------------------------------------------------
+! DOWNSTREAM_BOUNDARY       : int               [1]         !0 - Dam, 1 - ZDG, 2 - CD, 3 - ImposedWaterLevel, 3 - ImposedVelocity
+!   If ImposedWaterLevel--------------------------------------------------------
 !       FILE_IN_TIME        : char              [NONE]      !NONE, TIMESERIE
-!       DEFAULTVALUE        : real              -           !Default value for water depth at downstream boundary
+!       DEFAULT_VALUE       : real              -           !Default value for water level at downstream boundary
 !       If FILE_IN_TIME = TIMESERIE---------------------------------------------
 !           FILENAME        : char              -           !Name of timeserie file for the downstream boundary
 !           DATA_COLUMN     : int               -           !Number of column with data
@@ -362,7 +362,7 @@ Module ModuleDrainageNetwork
     integer, parameter                              :: Dam                  = 0
     integer, parameter                              :: ZeroDepthGradient    = 1
     integer, parameter                              :: CriticalDepth        = 2
-    integer, parameter                              :: ImposedWaterDepth    = 3
+    integer, parameter                              :: ImposedWaterLevel    = 3
     integer, parameter                              :: ImposedVelocity      = 4
     
 
@@ -1489,7 +1489,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      STAT         = STAT_CALL)                                  
         if (STAT_CALL .NE. SUCCESS_) stop 'ModuleDrainageNetwork - ConstructDownstreamBoundary - ERR01'
 
-if1:    if (Me%Downstream%Boundary == ImposedWaterDepth .or. Me%Downstream%Boundary == ImposedVelocity) then
+if1:    if (Me%Downstream%Boundary == ImposedWaterLevel .or. Me%Downstream%Boundary == ImposedVelocity) then
 
             !Reads Time Evolution
             call GetData(AuxString, Me%ObjEnterData,  flag,                     &
@@ -4162,7 +4162,7 @@ if1:    if (Me%HasGrid) then
         integer                                         :: NodeID
         real                                            :: TopH, AvTrapez1, AvTrapez2
         real                                            :: Av, Pw, Sw
-
+        real                                            :: DownStreamLevel
                     
         if (Me%Continuous) then
             
@@ -4256,19 +4256,48 @@ if1:        if (CurrNode%nDownstreamReaches /= 0) then
                     
                 CurrNode%VolumeMax = CurrNode%SingCoef * CurrNode%VolumeMax
             
-            else if (Me%Downstream%Boundary == ImposedWaterDepth) then !if1
+            else 
+            
+                if (Me%Downstream%Boundary == ImposedWaterLevel) then !if1
                 
-                if (Me%Downstream%Evolution  == None) then
-                   CurrNode%WaterDepth = Me%Downstream%DefaultValue                       
-                else if (Me%Downstream%Evolution == ReadTimeSerie) then
-                   call ModifyDownstreamTimeSerie (CurrNode%WaterDepth)
-                end if
+                    if (Me%Downstream%Evolution  == None) then
+                       CurrNode%WaterLevel = Me%Downstream%DefaultValue
+                    else if (Me%Downstream%Evolution == ReadTimeSerie) then
+                       call ModifyDownstreamTimeSerie (CurrNode%WaterLevel)
+                    end if
 
-                CurrNode%WaterLevel = CurrNode%WaterDepth + CurrNode%CrossSection%BottomLevel
-                      
+                    CurrNode%WaterDepth = CurrNode%WaterLevel - CurrNode%CrossSection%BottomLevel
+                          
+                    DownStreamLevel = CurrNode%WaterLevel
+                    
+                else
+
+                    DownStreamLevel = CurrNode%WaterLevel
+                    
+                endif
+            
             end if if1
 
         end do
+
+        !Downstream level, so inicial water level makes sense
+         if (.not. Me%Continuous) then
+         
+            do NodeID = 1, Me%TotalNodes
+                CurrNode => Me%Nodes(NodeID)
+                
+                if (CurrNode%WaterLevel < DownStreamLevel) then
+                
+                    CurrNode%WaterLevel = DownStreamLevel
+                    
+                    CurrNode%WaterDepth = CurrNode%WaterLevel - CurrNode%CrossSection%BottomLevel
+                
+                    call ComputeXSFromWaterDepth (CurrNode)
+                    
+                endif
+                
+            enddo         
+         endif
 
 
         !if (Me%CheckMass) then
@@ -4475,6 +4504,16 @@ if1:        if (CurrNode%nDownstreamReaches /= 0) then
 
                 do ReachID = 1, Me%TotalReaches
                     CurrReach => Me%Reaches(ReachID)                
+
+                    !Update Slope based on water level
+                    CurrReach%Slope = (Me%Nodes(CurrReach%UpstreamNode)%Waterlevel -            &
+                                       Me%Nodes(CurrReach%DownstreamNode)%Waterlevel) /         &
+                                       CurrReach%Length
+                                       
+                    !Don't allow negative slopes and impose a minimum slope..
+                    CurrReach%Slope = max(CurrReach%Slope, Me%MinimumSlope)
+
+
                     call ComputeKinematicWave (CurrReach) 
                 end do
 
@@ -5371,8 +5410,8 @@ if0:    if (Me%HasProperties) then
                 write(*,*) 'Downstream Boundary  : Zero depth gradient'
             case(CriticalDepth)
                 write(*,*) 'Downstream Boundary  : Critical depth'
-            case(ImposedWaterDepth)
-                write(*,*) 'Downstream Boundary  : Imposed water depth'
+            case(ImposedWaterLevel)
+                write(*,*) 'Downstream Boundary  : Imposed water level'
             case(ImposedVelocity)
                 write(*,*) 'Downstream Boundary  : Imposed velocity'
             case default
@@ -7914,7 +7953,7 @@ if1:        if (DownNode%nDownstreamReaches .EQ. 0) then
 
                         call ComputeCriticalFlow (CurrReach)
 
-                    case(ImposedWaterDepth)
+                    case(ImposedWaterLevel)
 
                         call ComputeStVenant (CurrReach, DT)
                                         
@@ -8062,13 +8101,15 @@ if2:        if (CurrNode%VolumeNew > PoolVolume) then
 
         else !if1
         
-            if (Me%Downstream%Boundary == ImposedWaterDepth) then
+            if (Me%Downstream%Boundary == ImposedWaterLevel) then
            
-                if (Me%Downstream%Evolution == None) then
-                    CurrNode%WaterDepth    =  Me%Downstream%DefaultValue                       
-                else if (Me%Downstream%Evolution == ReadTimeSerie) then
-                    call ModifyDownstreamTimeSerie (CurrNode%WaterDepth)
-                end if
+                    if (Me%Downstream%Evolution  == None) then
+                       CurrNode%WaterLevel = Me%Downstream%DefaultValue
+                    else if (Me%Downstream%Evolution == ReadTimeSerie) then
+                       call ModifyDownstreamTimeSerie (CurrNode%WaterLevel)
+                    end if
+
+                    CurrNode%WaterDepth = CurrNode%WaterLevel - CurrNode%CrossSection%BottomLevel
                 
             else
             
@@ -8211,43 +8252,43 @@ if2:        if (CurrNode%VolumeNew > PoolVolume) then
 
         if (CurrReach%VerticalArea > AllmostZero) then
 
-            if (CurrReach%Slope .LE. AlmostZero) then
-
-                !Update Slope based on water level
-
-                !V1--------------------------------------------------------
-                !alterar tambem UpdateComputeFaces
-
-                Level_Up   = Me%Nodes(CurrReach%UpstreamNode)%Waterlevel
-                Min_Level_Down = Me%Nodes(CurrReach%DownstreamNode)%CrossSection%BottomLevel + Me%MinimumWaterDepth
-                
-                Slope = (Level_Up - Min_Level_Down) / CurrReach%Length
-                    
-                !V2--------------------------------------------------------
-                !alterar tambem UpdateComputeFaces
-
-                !Level_Up   = Me%Nodes(CurrReach%UpstreamNode)%Waterlevel
-                !Level_Down = Me%Nodes(CurrReach%DownstreamNode)%WaterLevel
-                
-                !Slope = (Level_Up - Level_Down) / CurrReach%Length
-                
-
-                !This never happens because the reach is a compute face                        
-                if (Slope .LE. AlmostZero) then
-                    !write(*,*) 'Negative slope and negative water level slope ate compute face reach', CurrReach%ID
-                    !write(*,*) 'SlopeH =', Slope
-                    write(AuxString,*) 'Negative slope and slopeH at ComputeFace reach (Ids, slopeH) = ', CurrReach%ID, Slope
-                    call SetError(WARNING_, INTERNAL_, AuxString, ON)
-
-                    !stop 'ComputeKinematicWave - ModuleDrainageNetwork - ERR01'
-                endif
-
-            else 
-                Slope = CurrReach%Slope
-            endif
+!            if (CurrReach%Slope .LE. AlmostZero) then
+!
+!                !Update Slope based on water level
+!
+!                !V1--------------------------------------------------------
+!                !alterar tambem UpdateComputeFaces
+!
+!                Level_Up   = Me%Nodes(CurrReach%UpstreamNode)%Waterlevel
+!                Min_Level_Down = Me%Nodes(CurrReach%DownstreamNode)%CrossSection%BottomLevel + Me%MinimumWaterDepth
+!                
+!                Slope = (Level_Up - Min_Level_Down) / CurrReach%Length
+!                    
+!                !V2--------------------------------------------------------
+!                !alterar tambem UpdateComputeFaces
+!
+!                !Level_Up   = Me%Nodes(CurrReach%UpstreamNode)%Waterlevel
+!                !Level_Down = Me%Nodes(CurrReach%DownstreamNode)%WaterLevel
+!                
+!                !Slope = (Level_Up - Level_Down) / CurrReach%Length
+!                
+!
+!                !This never happens because the reach is a compute face                        
+!                if (Slope .LE. AlmostZero) then
+!                    !write(*,*) 'Negative slope and negative water level slope ate compute face reach', CurrReach%ID
+!                    !write(*,*) 'SlopeH =', Slope
+!                    write(AuxString,*) 'Negative slope and slopeH at ComputeFace reach (Ids, slopeH) = ', CurrReach%ID, Slope
+!                    call SetError(WARNING_, INTERNAL_, AuxString, ON)
+!
+!                    !stop 'ComputeKinematicWave - ModuleDrainageNetwork - ERR01'
+!                endif
+!
+!            else 
+!                Slope = CurrReach%Slope
+!            endif
 
             !Don't allow negative slopes and impose a minimum slope..
-            Slope = max(Slope, Me%MinimumSlope)
+            Slope = max(CurrReach%Slope, Me%MinimumSlope)
 
             CurrReach%FlowNew  = CurrReach%VerticalArea * CurrReach%HydraulicRadius **(2.0/3.0) &
                                  * sqrt(Slope)  / CurrReach%Manning
@@ -8291,7 +8332,7 @@ if2:        if (CurrNode%VolumeNew > PoolVolume) then
         if (CurrReach%VerticalArea .LE. AlmostZero) then
             Friction = 0.0
         else 
-            Friction = DT * Gravity * CurrReach%FlowOld * CurrReach%Manning ** 2. &
+            Friction = DT * Gravity * abs(CurrReach%FlowOld) * CurrReach%Manning ** 2. &
                      / ( CurrReach%VerticalArea * CurrReach%HydraulicRadius ** (4./3.) ) 
         endif
 
@@ -8312,7 +8353,6 @@ if2:        if (CurrNode%VolumeNew > PoolVolume) then
             CurrReach%Velocity = 0.0
         end if
 
-        
     
     end subroutine ComputeStVenant
 
@@ -11533,7 +11573,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                 deallocate (Me%TimeSerie%ObjTimeSerie)
                 deallocate (Me%TimeSerie%Name        )
 
-                if (Me%Downstream%Boundary == ImposedWaterDepth &
+                if (Me%Downstream%Boundary == ImposedWaterLevel &
                     .AND. Me%Downstream%Evolution == ReadTimeSerie ) then
                     
                     call KillTimeSerie(Me%Downstream%ObjTimeSerie, STAT = STAT_CALL)
