@@ -45,30 +45,39 @@ Module ModuleBasin
     use ModuleHDF5
     use ModuleFunctions,      only : ReadTimeKeyWords, LatentHeat, ConstructPropertyID,  &
                                      TimeToString, ChangeSuffix, CHUNK_J, SetMatrixValue
+                                     
     use ModuleFillMatrix,     only : ConstructFillMatrix, ModifyFillMatrix,              &
                                      KillFillMatrix,GetIfMatrixRemainsConstant
+                                     
     use ModuleHorizontalGrid, only : ConstructHorizontalGrid, KillHorizontalGrid,        &
                                      WriteHorizontalGrid, GetHorizontalGridSize,         &
                                      GetGridCellArea, UnGetHorizontalGrid,               &
                                      GetHorizontalGrid, GetXYCellZ
+                                     
     use ModuleHorizontalMap,  only : ConstructHorizontalMap, KillHorizontalMap,          &
                                      UpdateComputeFaces2D, GetOpenPoints2D,              &
                                      GetBoundaries, UngetHorizontalMap 
+                                     
     use ModuleGridData,       only : ConstructGridData,       KillGridData,              &
                                      GetGridData, UngetGridData
+                                     
     use ModuleBasinGeometry,  only : ConstructBasinGeometry,  KillBasinGeometry,         &
                                      GetBasinPoints, GetRiverPoints, UngetBasin
+                                     
     use ModuleAtmosphere,     only : StartAtmosphere, ModifyAtmosphere,                  &
                                      GetAtmosphereProperty, GetAtmosphereDTPrediction,   &
                                      GetAtmospherePropertiesIDByIdx,                     &
                                      GetAtmospherenProperties, AtmospherePropertyExists, &
                                      UnGetAtmosphere, KillAtmosphere
+                                     
     use ModuleRunOff,         only : ConstructRunOff, ModifyRunOff, GetOverLandFlow,     &
                                      GetFlowToChannels, GetNextRunOffDT,                 &
                                      GetFlowAtBoundary, UnGetRunOff, KillRunOff,         &
                                      SetBasinColumnToRunoff, GetRunoffWaterColumn,       &
-                                     GetRunoffWaterColumnOld, GetRunoffTotalStoredVolume, &
-                                     GetRunoffWaterLevel
+                                     GetRunoffWaterColumnOld, GetRunoffWaterLevel,       &
+                                     GetRunoffTotalStoredVolume
+                                     
+                                     
     use ModuleRunoffProperties,                                                          &
                               only : ConstructRunoffProperties,                          &
                                      ModifyRunoffProperties,                             &
@@ -76,7 +85,9 @@ Module ModuleBasin
                                      GetRPnProperties, GetRPOptions,                     &
                                      GetRPPropertiesIDByIdx, SetDNConcRP,                &
                                      UngetRunoffProperties, SetBasinConcRP,              &
-                                     SetBasinToRPSplash, GetRPMassBalance, CheckRPProperty
+                                     SetBasinToRPSplash, GetRPMassBalance,               &
+                                     CheckRPProperty
+                                     
     use ModuleDrainageNetwork,only : ConstructDrainageNetwork, FillOutPutMatrix,         &
                                      ModifyDrainageNetwork,                              &
                                      GetHasProperties, GetDNnProperties,                 &
@@ -84,10 +95,12 @@ Module ModuleBasin
                                      GetNeedsAtmosphere, SetAtmosphereDrainageNet,       &
                                      GetDNPropertiesIDByIdx, GetNextDrainageNetDT,       &
                                      GetVolumes, GetPropHasBottomFluxes,                 &
-                                     GetChannelsNodeLength,GetChannelsID,GetDNConcentration,&
+                                     GetChannelsNodeLength,GetChannelsID,                &
                                      SetPMPConcDN,SetRPConcDN, UnGetDrainageNetwork,     &
                                      KillDrainageNetwork, SetGWFlowLayersToDN,           &
-                                     GetDNMassBalance, CheckDNProperty
+                                     GetDNMassBalance, CheckDNProperty,                  &
+                                     GetDNConcentration
+                                     
     use ModulePorousMedia,    only : ConstructPorousMedia, ModifyPorousMedia,            &
                                      KillPorousMedia, GetGWFlowToChannels,               &
                                      GetInfiltration, GetEfectiveEVTP,                   &
@@ -95,6 +108,7 @@ Module ModuleBasin
                                      GetNextPorousMediaDT, UngetPorousMedia, GetGWLayer, &
                                      GetGWFlowOption, GetGWFlowToChannelsByLayer,        &
                                      GetGWToChannelsLayers
+                                     
     use ModulePorousMediaProperties,                                                     &
                               only : ConstructPorousMediaProperties,                     &
                                      ModifyPorousMediaProperties,                        &
@@ -102,8 +116,8 @@ Module ModuleBasin
                                      SetVegetationPMProperties, GetPMPCoupled,           &
                                      SetWindVelocity, GetPMPnProperties,                 &
                                      GetPMPPropertiesIDByIdx, SetDNConcPMP,              &
-                                     UngetPorousMediaProperties,                         &
-                                     SetInfColConcPMP, GetPMPMassBalance, CheckPMPProperty
+                                     UngetPorousMediaProperties, CheckPMPProperty,       &
+                                     SetInfColConcPMP, GetPMPMassBalance                                     
                                      
     use ModuleVegetation,     only : ConstructVegetation, ModifyVegetation,              &
                                      KillVegetation, GetLeafAreaIndex,                   &
@@ -112,9 +126,13 @@ Module ModuleBasin
                                      SetSoilConcVegetation, GetVegetationOptions,        &
                                      GetVegetationDT, GetRootDepth, GetNutrientFraction, &
                                      UnGetVegetation, UnGetVegetationSoilFluxes,         &
-                                     GetCanopyHeight, GetTranspirationBottomLayer
-    use ModuleStopWatch      ,only : StartWatch, StopWatch
+                                     GetCanopyHeight, GetTranspirationBottomLayer,       &
+                                     GetPotLeafAreaIndex                  
+
+    use ModuleStopWatch,      only : StartWatch, StopWatch
+    
     use ModuleGeometry,       only : GetGeometrySize
+    
     implicit none
 
     private 
@@ -130,6 +148,7 @@ Module ModuleBasin
     private ::      AllocateVariables
     private ::      ConstructCoupledModules
     private ::          ConstructHDF5Output
+    private ::          ConstructEVTPHDFOutput     
     private ::      ConstructTimeSeries
     private ::      ReadInitialFile
 
@@ -141,12 +160,14 @@ Module ModuleBasin
     private ::      AtmosphereProcesses
     private ::          DividePrecipitation
     private ::          CalcPotEvapoTranspiration
+    private ::              AdjustCropCoefficient
     private ::      VegetationProcesses
     private ::      OverLandProcesses
     private ::      DrainageNetworkProcesses
     private ::      PorousMediaProcesses
     private ::      PorousMediaPropertiesProcesses
     private ::      HDF5Output
+    private ::      EVTPHDFOutput
     private ::      TimeSerieOutput
     private ::      GlobalMassBalance
 
@@ -210,6 +231,7 @@ Module ModuleBasin
         real   , dimension(:,:), pointer            :: GridCellArea
         real   , dimension(:,:), pointer            :: Topography
         real   , dimension(:,:), pointer            :: LeafAreaIndex 
+        real   , dimension(:,:), pointer            :: PotLeafAreaIndex 
         real   , dimension(:,:), pointer            :: SpecificLeafStorage
         real   , dimension(:,:), pointer            :: CropCoefficient
         real   , dimension(:,:,:), pointer          :: ActualTranspiration
@@ -227,6 +249,7 @@ Module ModuleBasin
         character(len=PathLength)                   :: ConstructData
         character(len=PathLength)                   :: TopographicFile
         character(len=PathLength)                   :: HDFFile
+        character(len=PathLength)                   :: EVTPHDFFile
         character(len=PathLength)                   :: InitialFile
         character(len=PathLength)                   :: FinalFile
         character(len=PathLength)                   :: TimeSerieLocation
@@ -386,6 +409,7 @@ Module ModuleBasin
         real(8), dimension(:,:), pointer            :: AccInfiltration        => null()
         real(8), dimension(:,:), pointer            :: AccFlowProduction      => null()
         real(8), dimension(:,:), pointer            :: AccEVTP                => null()
+        real(8), dimension(:,:), pointer            :: PartialAccEVTP         => null()
         real(8), dimension(:,:), pointer            :: AccRainFall            => null()
         real(8), dimension(:,:), pointer            :: AccEVPCanopy           => null()
         real,    dimension(:,:), pointer            :: AccRainHour            => null()
@@ -401,7 +425,7 @@ Module ModuleBasin
         real, dimension(:), pointer                 :: TimeSeriesBuffer
         real, dimension(:), pointer                 :: TimeSeriesBuffer2
         real, dimension(:), pointer                 :: TimeSeriesBuffer3
-        
+               
         !Basin is responsable by Total vegetation volume
         real(8)                                     :: VolumeVegetation
         
@@ -409,6 +433,9 @@ Module ModuleBasin
         type (T_Time)                               :: BeginTime
         type (T_Time)                               :: EndTime       
         type (T_OutPut)                             :: OutPut
+        type (T_OutPut)                             :: EVTPOutPut
+        
+        logical                                     :: UsePotLAI
         
         !Instance IDs
         integer                                     :: ObjTime                  = 0
@@ -425,6 +452,7 @@ Module ModuleBasin
         integer                                     :: ObjPorousMedia           = 0
         integer                                     :: ObjVegetation            = 0
         integer                                     :: ObjHDF5                  = 0
+        integer                                     :: ObjEVTPHDF               = 0
         integer                                     :: ObjTimeSerie             = 0
         integer                                     :: ObjTimeSerieBasin        = 0
         integer                                     :: ObjTimeSerieBasinMass    = 0
@@ -647,6 +675,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         nullify  (NewObjBasin%ExtUpdate%WaterColumn)
         nullify  (NewObjBasin%Output%OutTime)
         nullify  (NewObjBasin%Output%OutputChannels)
+        nullify  (NewObjBasin%EVTPOutput%OutTime)
+        nullify  (NewObjBasin%EVTPOutput%OutputChannels)        
 
         nullify  (NewObjBasin%ExtVar%BasinPoints)
         nullify  (NewObjBasin%ExtVar%RiverPoints)
@@ -687,22 +717,27 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         !Opens Basin data file
         call ReadFileName('BASIN_DATA', Me%Files%ConstructData,                         &
                            Message = "Basin Data", STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadFileNames - ModuleBasin - ERR01'      
+        if (STAT_CALL /= SUCCESS_) stop 'ReadFileNames - ModuleBasin - ERR010'      
        
        !Reads file name of the topographic file
         call ReadFileName('IN_BASIN', Me%Files%TopographicFile,                         &
                            Message = "Topographic Data File", STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadFileNames - ModuleBasin - ERR03'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadFileNames - ModuleBasin - ERR020'
 
         !Reads file name of the hdf outupt
         call ReadFileName('BASIN_HDF', Me%Files%HDFFile,                                &
                            Message = "Basin HDF Output File", STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadFileNames - ModuleBasin - ERR04'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadFileNames - ModuleBasin - ERR030'             
+
+        !Reads file name of the EVTP hdf outupt
+        call ReadFileName('BASIN_EVTPHDF', Me%Files%EVTPHDFFile,                        &
+                           Message = "Basin EVTPHDF Output File", STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadFileNames - ModuleBasin - ERR040'             
 
         !Reads file name of final output file
         call ReadFileName('BASIN_FIN', Me%Files%FinalFile,                              &
                            Message = "Basin Final File", STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadFileNames - ModuleBasin - ERR05'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadFileNames - ModuleBasin - ERR050'
 
     end subroutine ReadFileNames
 
@@ -1056,6 +1091,16 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                            STAT        = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR320'
 
+        call GetOutPutTime(Me%ObjEnterData,                          &
+                           CurrentTime   = Me%CurrentTime,           &
+                           EndTime       = Me%EndTime,               &
+                           keyword       = 'EVTP_OUTPUT_TIME',       &
+                           SearchType    = FromFile,                 &
+                           OutPutsTime   = Me%EVTPOutPut%OutTime,    &
+                           OutPutsOn     = Me%EVTPOutPut%Yes,        &
+                           STAT          = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR330'
+        
         !Output for restart
         call GetOutPutTime(Me%ObjEnterData,                                             &
                            CurrentTime  = Me%CurrentTime,                               &
@@ -1065,7 +1110,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                            OutPutsTime  = Me%OutPut%RestartOutTime,                     &
                            OutPutsOn    = Me%OutPut%WriteRestartFile,                   &
                            STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR330'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR340'
 
         call GetData(Me%OutPut%RestartOverwrite,                                        &
                      Me%ObjEnterData,                                                   &
@@ -1075,8 +1120,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      Default      = .true.,                                             &
                      ClientModule = 'ModuleBasin',                                      &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)  stop 'ReadDataFile - ModuleBasin - ERR340'
-
+        if (STAT_CALL /= SUCCESS_)  stop 'ReadDataFile - ModuleBasin - ERR350'
 
         !Gets TimeSerieLocationFile
         call GetData(Me%Files%TimeSerieLocation,                                         &
@@ -1086,7 +1130,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      ClientModule = 'ModuleBasin',                                       &
                      Default      = Me%Files%ConstructData,                              &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR350'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR360'
 
         !Output daily flow values?
         call GetData(Me%DailyFlow%On,                                                    &
@@ -1096,7 +1140,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      default      = OFF,                                                 &
                      ClientModule = 'ModuleBasin',                                       &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR360'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR370'
 
         !Output monthly flow values?
         call GetData(Me%MonthlyFlow%On,                                                  &
@@ -1106,7 +1150,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      default      = OFF,                                                 &
                      ClientModule = 'ModuleBasin',                                       &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR370'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR380'
 
         !Verifies if the user wants to have precipitations has snow
         call GetData(Me%Coupled%Snow,                                                    &
@@ -1116,7 +1160,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      default      = OFF,                                                 &
                      ClientModule = 'ModuleBasin',                                       &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR380'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR390'
 
 
 
@@ -1828,6 +1872,60 @@ i1:         if (CoordON) then
 
     !--------------------------------------------------------------------------
 
+    subroutine ConstructEVTPHDFOutput
+
+        !Arguments-------------------------------------------------------------
+
+        !Local-----------------------------------------------------------------
+        integer                                             :: ILB, IUB, JLB, JUB   
+        integer                                             :: STAT_CALL
+        integer                                             :: HDF5_CREATE
+        
+        !------------------------------------------------------------------------
+       
+        !Bounds
+        ILB = Me%WorkSize%ILB
+        IUB = Me%WorkSize%IUB
+
+        JLB = Me%WorkSize%JLB
+        JUB = Me%WorkSize%JUB           
+        
+        Me%EVTPOutPut%NextOutPut = 1 
+        
+        call GetHDF5FileAccess  (HDF5_CREATE = HDF5_CREATE)
+
+        !Opens HDF File
+        call ConstructHDF5      (Me%ObjEVTPHDF, trim(Me%Files%EVTPHDFFile)//"5", HDF5_CREATE, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructEVTPHDFOutput - ModuleBasin - ERR030'
+
+      
+        !Write the Horizontal Grid
+        call WriteHorizontalGrid(Me%ObjHorizontalGrid, Me%ObjEVTPHDF, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructEVTPHDFOutput - ModuleBasin - ERR040'
+
+
+        !Sets limits for next write operations
+        call HDF5SetLimits      (Me%ObjEVTPHDF, ILB, IUB, JLB, JUB, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructEVTPHDFOutput - ModuleBasin - ERR050'
+        
+        !Writes the Grid
+        call HDF5WriteData   (Me%ObjEVTPHDF, "/Grid", "Bathymetry", "m",           &
+                              Array2D = Me%ExtVar%Topography, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructEVTPHDFOutput - ModuleBasin - ERR060'
+
+        !WriteBasinPoints
+        call HDF5WriteData   (Me%ObjEVTPHDF, "/Grid", "BasinPoints", "-",          &
+                              Array2D = Me%ExtVar%BasinPoints, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructEVTPHDFOutput - ModuleBasin - ERR070'
+
+        !Flushes All pending HDF5 commands
+        call HDF5FlushMemory (Me%ObjEVTPHDF, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructEVTPHDFOutput - ModuleBasin - ERR080'       
+
+    end subroutine ConstructEVTPHDFOutput
+
+   !--------------------------------------------------------------------------
+   
     subroutine AllocateVariables
 
         !Arguments-------------------------------------------------------------
@@ -1879,6 +1977,7 @@ i1:         if (CoordON) then
         allocate(Me%RainStartTime           (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
         allocate(Me%RainDuration            (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
         allocate(Me%WaterColumnEvaporated   (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB)) 
+        allocate(Me%PartialAccEVTP          (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
         
        
         if (Me%Coupled%Snow) allocate(Me%SnowPack (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB)) 
@@ -1920,7 +2019,7 @@ i1:         if (CoordON) then
         Me%PotentialInfCol          = 0.0
         Me%FlowProduction           = null_real
         Me%WaterColumnEvaporated    = 0.0
-
+        Me%PartialAccEVTP           = 0.0
         
         if (Me%Coupled%Snow) Me%SnowPack = FillValueReal
         
@@ -1944,8 +2043,6 @@ i1:         if (CoordON) then
             Me%DiffuseFlow            = null_real
         endif
          
-
-
     end subroutine AllocateVariables
 
     !--------------------------------------------------------------------------
@@ -2104,10 +2201,11 @@ i1:         if (CoordON) then
                                          GeometryID         = Me%ObjGeometry,                &
                                          BasinGeometryID    = Me%ObjBasinGeometry,           &
                                          CoupledAtmosphere  = Me%Coupled%Atmosphere,         &
+                                         UsePotLAI          = Me%UsePotLAI,                  &
                                          STAT               = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructCoupledModules - ModuleBasin - ERR08'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructCoupledModules - ModuleBasin - ERR08'     
+                                          
         endif
-
        
         !Constructs Simple Infiltration
         if (Me%Coupled%SimpleInfiltration) then
@@ -2124,6 +2222,11 @@ i1:         if (CoordON) then
             call ConstructHDF5Output    ()
         endif
 
+        !Constructs Output
+        if (Me%EVTPOutput%Yes) then
+            call ConstructEVTPHDFOutput()
+        endif
+        
     end subroutine ConstructCoupledModules
 
     !--------------------------------------------------------------------------
@@ -2650,6 +2753,11 @@ cd2 :           if (BlockFound) then
                 endif
             endif
 
+            !EVTP HDF 5 Output
+            if (Me%EVTPOutput%Yes) then
+                call EVTPHDFOutPut       
+            endif
+            
             !UnGets ExternalVars
             UnLockToWhichModules = 'AllModules'
             OptionsType = 'ModifyBasin'
@@ -3034,6 +3142,7 @@ cd2 :           if (BlockFound) then
         real, dimension(:,:), pointer               :: AirTemperature
         real, dimension(:,:), pointer               :: RelativeHumidity
         real, dimension(:,:), pointer               :: ATMTransmitivity
+        real                                        :: Kc
         real,    parameter                          :: LatentHeatOfVaporization = 2.5e6         ![J/kg]
         real,    parameter                          :: ReferenceDensity         = 1000.         ![kg/m3]
         real                                        :: LatentHeat_
@@ -3143,8 +3252,14 @@ etr_fao:        if (CalcET0) then
 
                 if (Me%Coupled%Vegetation) then
                     
+                    if (Me%UsePotLAI) then
+                        Kc = AdjustCropCoefficient(i, j)
+                    else
+                        Kc = Me%ExtVar%CropCoefficient(i, j)
+                    endif
+                    
                     !m/s
-                    Me%CropEvapotrans(i, j) = RefEvapotrans%Field(i, j) * Me%ExtVar%CropCoefficient(i, j)
+                    Me%CropEvapotrans(i, j) = RefEvapotrans%Field(i, j) * Kc
 
                     if (Me%EvapoTranspirationMethod .EQ. SeparateEvapoTranspiration) then
                         
@@ -3332,6 +3447,28 @@ etr_fao:        if (CalcET0) then
 
     end subroutine CalcPotEvapoTranspiration
 
+    !------------------------------------------------------------------------------
+   
+    real function AdjustCropCoefficient (I, J)
+    
+        !Arguments-----------------------------------------------------------------
+        integer :: I, J
+    
+        !Local---------------------------------------------------------------------
+        real :: LAI, PotLAI, Kc
+        
+        !Begin---------------------------------------------------------------------
+        LAI = Me%ExtVar%LeafAreaIndex(I, J)
+        PotLAI = Me%ExtVar%PotLeafAreaIndex(I, J)
+        Kc = Me%ExtVar%CropCoefficient(I, J)
+        
+        !From 'Necessidades de Água e Métodos de Rega', Luis Santos Pereira, 2004
+        !Publicações Europa-América, pg 85-86
+        AdjustCropCoefficient = Kc - (1 - (LAI / PotLAI)**0.5)        
+        !--------------------------------------------------------------------------
+    
+    end function AdjustCropCoefficient
+       
     !------------------------------------------------------------------------------
    
     real function CalcRadTerm(Radiation, SoilLoss, WindVelocity, SSVPC, psiconst)
@@ -4319,6 +4456,9 @@ etr_fao:        if (CalcET0) then
                 !m
                 Me%AccEVTP          (i, j) = Me%AccEVTP  (i, j)         + EfectiveEVTP (i,j)
                 
+                !mm         
+                Me%PartialAccEVTP   (i, j) = Me%PartialAccEVTP (i,j) + (EfectiveEVTP (i,j) * 1000) 
+                                
                 !m
                 Me%AccFlowProduction(i, j) = Me%AccFlowProduction(i, j) + Me%FlowProduction (i, j)
                 
@@ -5763,18 +5903,18 @@ etr_fao:        if (CalcET0) then
             TimePointer => AuxTime
 
             call HDF5SetLimits  (Me%ObjHDF5, 1, 6, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'HDF5Output - ModuleBasin - ERR01'
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5Output - ModuleBasin - ERR010'
 
             call HDF5WriteData  (Me%ObjHDF5, "/Time", "Time",                   &
                                  "YYYY/MM/DD HH:MM:SS",                         &
                                  Array1D      = TimePointer,                    &
                                  OutputNumber = Me%OutPut%NextOutPut,           &
                                  STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'HDF5Output - ModuleBasin - ERR02'
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5Output - ModuleBasin - ERR020'
 
             !Sets limits for next write operations
             call HDF5SetLimits   (Me%ObjHDF5, ILB, IUB, JLB, JUB, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'RunOffOutput - ModuleRunOff - ERR03'
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5Output - ModuleBasin - ERR030'
 
 
             !Writes the Open Points
@@ -5783,7 +5923,7 @@ etr_fao:        if (CalcET0) then
                                   Array2D = Me%ExtVar%OpenPoints2D,             &
                                   OutputNumber = Me%OutPut%NextOutPut,          &
                                   STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'RunOffOutput - ModuleRunOff - ERR04'
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5Output - ModuleBasin - ERR040'
 
            
             !Writes the Water Column - should be on runoff
@@ -5792,7 +5932,7 @@ etr_fao:        if (CalcET0) then
                                   Array2D      = Me%ExtUpdate%WaterColumn,      &
                                   OutputNumber = Me%OutPut%NextOutPut,          &
                                   STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'RunOffOutput - ModuleRunOff - ERR05'
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5Output - ModuleBasin - ERR050'
 
        
             !Writes the Water Level
@@ -5801,7 +5941,7 @@ etr_fao:        if (CalcET0) then
                                   Array2D      = Me%ExtUpdate%WaterLevel,       &
                                   OutputNumber = Me%OutPut%NextOutPut,          &
                                   STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'RunOffOutput - ModuleRunOff - ERR06'
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5Output - ModuleBasin - ERR060'
 
             !Writes the Acc. Rain
             call HDF5WriteData   (Me%ObjHDF5, "//Results/AccRainFall",          &
@@ -5809,7 +5949,7 @@ etr_fao:        if (CalcET0) then
                                   Array2D      = Me%AccRainFall,                &
                                   OutputNumber = Me%OutPut%NextOutPut,          &
                                   STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'RunOffOutput - ModuleRunOff - ERR06'
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5Output - ModuleBasin - ERR070'
 
             !Writes the Acc Infil
             call HDF5WriteData   (Me%ObjHDF5, "//Results/AccInfiltration",      &
@@ -5817,7 +5957,7 @@ etr_fao:        if (CalcET0) then
                                   Array2D      = Me%AccInfiltration,            &
                                   OutputNumber = Me%OutPut%NextOutPut,          &
                                   STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'RunOffOutput - ModuleRunOff - ERR06'
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5Output - ModuleBasin - ERR080'
 
             !Writes the Acc Flow Production
             call HDF5WriteData   (Me%ObjHDF5, "//Results/AccFlowProduction",    &
@@ -5825,7 +5965,7 @@ etr_fao:        if (CalcET0) then
                                   Array2D      = Me%AccFlowProduction,          &
                                   OutputNumber = Me%OutPut%NextOutPut,          &
                                   STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'RunOffOutput - ModuleRunOff - ERR06'
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5Output - ModuleBasin - ERR090'
 
             !Writes the Acc EVTP
             call HDF5WriteData   (Me%ObjHDF5, "//Results/AccEVTP",              &
@@ -5833,7 +5973,7 @@ etr_fao:        if (CalcET0) then
                                   Array2D      = Me%AccEVTP,                    &
                                   OutputNumber = Me%OutPut%NextOutPut,          &
                                   STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'RunOffOutput - ModuleRunOff - ERR06'
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5Output - ModuleBasin - ERR100'
 
 !            if (Me%Coupled%DrainageNetwork) then
 !
@@ -6067,7 +6207,7 @@ etr_fao:        if (CalcET0) then
 
             !Writes everything to disk
             call HDF5FlushMemory (Me%ObjHDF5, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'HDF5Output - ModuleBasin - ERR99'
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5Output - ModuleBasin - ERR110'
 
             Me%OutPut%NextOutPut = Me%OutPut%NextOutPut + 1
 
@@ -6076,6 +6216,80 @@ etr_fao:        if (CalcET0) then
         if (MonitorPerformance) call StopWatch ("ModuleBasin", "HDF5Output")
 
     end subroutine HDF5Output
+
+    !--------------------------------------------------------------------------
+
+    subroutine EVTPHDFOutput
+
+        !Arguments-------------------------------------------------------------
+
+        !Local-----------------------------------------------------------------
+        integer                                         :: ILB, IUB, JLB, JUB    
+        integer                                         :: STAT_CALL           
+        real, dimension(6), target                      :: AuxTime
+        real, dimension(:), pointer                     :: TimePointer
+
+        if (MonitorPerformance) call StartWatch ("ModuleBasin", "EVTPHDFOutput")
+
+        !Bounds
+        ILB = Me%WorkSize%ILB
+        IUB = Me%WorkSize%IUB
+
+        JLB = Me%WorkSize%JLB
+        JUB = Me%WorkSize%JUB   
+
+        if (Me%CurrentTime >= Me%EVTPOutPut%OutTime(Me%EVTPOutPut%NextOutPut)) then
+
+            !Writes current time
+            call ExtractDate   (Me%CurrentTime, AuxTime(1), AuxTime(2), &
+                                                AuxTime(3), AuxTime(4), &
+                                                AuxTime(5), AuxTime(6))
+            TimePointer => AuxTime
+
+            call HDF5SetLimits  (Me%ObjEVTPHDF, 1, 6, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'EVTPHDFOutput - ModuleBasin - ERR010'
+
+            call HDF5WriteData  (Me%ObjEVTPHDF, "/Time", "Time",          &
+                                 "YYYY/MM/DD HH:MM:SS",                   &
+                                 Array1D      = TimePointer,              &
+                                 OutputNumber = Me%EVTPOutPut%NextOutPut, &
+                                 STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'EVTPHDFOutput - ModuleBasin - ERR020'
+
+            !Sets limits for next write operations
+            call HDF5SetLimits   (Me%ObjEVTPHDF, ILB, IUB, JLB, JUB, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'EVTPHDFOutput - ModuleBasin - ERR030'
+
+
+            !Writes the Open Points
+            call HDF5WriteData   (Me%ObjEVTPHDF, "//Grid/OpenPoints",      &
+                                  "OpenPoints", "-",                       &
+                                  Array2D = Me%ExtVar%OpenPoints2D,        &
+                                  OutputNumber = Me%EVTPOutPut%NextOutPut, &
+                                  STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'EVTPHDFOutput - ModuleBasin - ERR040'
+
+           
+            !Writes the Water Column - should be on runoff
+            call HDF5WriteData   (Me%ObjEVTPHDF, "//Results/EffectivePartialAccEVTP", &
+                                  "EffectivePartialAccEVTP", "m",                     &
+                                  Array2D      = Me%PartialAccEVTP,                   &
+                                  OutputNumber = Me%EVTPOutPut%NextOutPut,            &
+                                  STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'EVTPHDFOutput - ModuleBasin - ERR050'
+      
+            !Writes everything to disk
+            call HDF5FlushMemory (Me%ObjEVTPHDF, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'EVTPHDFOutput - ModuleBasin - ERR100'
+
+            Me%PartialAccEVTP = 0.0
+            Me%EVTPOutPut%NextOutPut = Me%EVTPOutPut%NextOutPut + 1
+
+        endif
+
+        if (MonitorPerformance) call StopWatch ("ModuleBasin", "EVTPHDFOutput")
+            
+    end subroutine EVTPHDFOutput
 
     !--------------------------------------------------------------------------
 
@@ -6587,96 +6801,101 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                 call WriteFinalFile
 
                 nUsers = DeassociateInstance(mTIME_,  Me%ObjTime)
-                if (nUsers == 0)           stop 'KillBasin - ModuleBasin - ERR01'
+                if (nUsers == 0)           stop 'KillBasin - ModuleBasin - ERR010'
 
                 if (Me%Coupled%Runoff) then
                     if (Me%Coupled%RunoffProperties) then
                         call KillRunoffProperties (Me%ObjRunoffProperties, STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'KillBasin - ModuleBasin - ERR03d'
+                        if (STAT_CALL /= SUCCESS_) stop 'KillBasin - ModuleBasin - ERR020'
                     endif                    
                     
                     call KillRunOff         (Me%ObjRunOff,      STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'KillBasin - ModuleBasin - ERR02'
+                    if (STAT_CALL /= SUCCESS_) stop 'KillBasin - ModuleBasin - ERR030'
                     
                 endif
                 
                 if (Me%Coupled%Vegetation) then
                     call KillVegetation  (Me%ObjVegetation, STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'KillBasin - ModuleBasin - ERR03a'
+                    if (STAT_CALL /= SUCCESS_) stop 'KillBasin - ModuleBasin - ERR040'
                 endif
 
                 if (Me%Coupled%PorousMedia) then 
                     if (Me%Coupled%PorousMediaProperties) then
                         call KillPorousMediaProperties (Me%ObjPorousMediaProperties, STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'KillBasin - ModuleBasin - ERR03d'
+                        if (STAT_CALL /= SUCCESS_) stop 'KillBasin - ModuleBasin - ERR050'
                     endif
                     
                     call KillPorousMedia (Me%ObjPorousMedia, STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'KillBasin - ModuleBasin - ERR03'
+                    if (STAT_CALL /= SUCCESS_) stop 'KillBasin - ModuleBasin - ERR60'
 
                 endif
                                 
                 if (Me%Coupled%DrainageNetwork) then
                     call KillDrainageNetwork(Me%ObjDrainageNetwork, STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'KillBasin - ModuleBasin - ERR04'
+                    if (STAT_CALL /= SUCCESS_) stop 'KillBasin - ModuleBasin - ERR070'
                 endif
 
 
                 if (Me%Coupled%Atmosphere) then
                     call KillAtmosphere     (Me%ObjAtmosphere,  STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'KillBasin - ModuleBasin - ERR05'
+                    if (STAT_CALL /= SUCCESS_) stop 'KillBasin - ModuleBasin - ERR080'
                 endif                
                
                 PropertyX => Me%FirstProperty
                 do while(associated(PropertyX))  
                     if (PropertyX%ID%ObjFillMatrix /= 0) then
                         call KillFillMatrix (PropertyX%ID%ObjFillMatrix, STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'KillBasin - ModuleBasin - ERR04'
+                        if (STAT_CALL /= SUCCESS_) stop 'KillBasin - ModuleBasin - ERR90'
                     endif
                     PropertyX => PropertyX%Next
                 end do
 
                 call KillHorizontalMap      (Me%ObjHorizontalMap,   STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'KillBasin - ModuleBasin - ERR06'
+                if (STAT_CALL /= SUCCESS_) stop 'KillBasin - ModuleBasin - ERR100'
 
                 call KillBasinGeometry      (Me%ObjBasinGeometry,   STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'KillBasin - ModuleBasin - ERR07'
+                if (STAT_CALL /= SUCCESS_) stop 'KillBasin - ModuleBasin - ERR110'
 
                 call KillGridData           (Me%ObjGridData,        STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'KillBasin - ModuleBasin - ERR08'
+                if (STAT_CALL /= SUCCESS_) stop 'KillBasin - ModuleBasin - ERR120'
 
                 call KillHorizontalGrid     (Me%ObjHorizontalGrid,  STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'KillBasin - ModuleBasin - ERR09'
+                if (STAT_CALL /= SUCCESS_) stop 'KillBasin - ModuleBasin - ERR130'
 
                 if (Me%Output%Yes) then
                     call KillHDF5 (Me%ObjHDF5, STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'KillModuleBasin - ModuleBasin - ERR10'
+                    if (STAT_CALL /= SUCCESS_) stop 'KillBasin - ModuleBasin - ERR140'
+                endif            
+
+                if (Me%EVTPOutput%Yes) then
+                    call KillHDF5 (Me%ObjEVTPHDF, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'KillBasin - ModuleBasin - ERR150'
                 endif            
 
                 !Kills the TimeSerie
                 if (Me%ObjTimeSerie > 0) then
                     call KillTimeSerie(Me%ObjTimeSerie, STAT = STAT_CALL)
-                    if (STAT_CALL .NE. SUCCESS_) stop 'KillModuleBasin - ModuleBasin - ERR11'
+                    if (STAT_CALL .NE. SUCCESS_) stop 'KillBasin - ModuleBasin - ERR160'
                 endif
 
                 if ((Me%ObjTimeSerieBasin > 0)) then
                     call KillTimeSerie(Me%ObjTimeSerieBasin, STAT = STAT_CALL)
-                    if (STAT_CALL .NE. SUCCESS_) stop 'KillModuleBasin - ModuleBasin - ERR12'
+                    if (STAT_CALL .NE. SUCCESS_) stop 'KillBasin - ModuleBasin - ERR170'
                 endif
                
                 if ((Me%ObjTimeSerieBasinMass > 0)) then
                     call KillTimeSerie(Me%ObjTimeSerieBasinMass, STAT = STAT_CALL)
-                    if (STAT_CALL .NE. SUCCESS_) stop 'KillModuleBasin - ModuleBasin - ERR12.5'
+                    if (STAT_CALL .NE. SUCCESS_) stop 'KillBasin - ModuleBasin - ERR180'
                 endif
                 
                 if (Me%DailyFlow%ObjTimeSerie > 0) then
                     call KillTimeSerie(Me%DailyFlow%ObjTimeSerie, STAT = STAT_CALL)
-                    if (STAT_CALL .NE. SUCCESS_) stop 'KillModuleBasin - ModuleBasin - ERR13'
+                    if (STAT_CALL .NE. SUCCESS_) stop 'KillBasin - ModuleBasin - ERR190'
                 endif
                     
                 if (Me%MonthlyFlow%ObjTimeSerie > 0) then
                     call KillTimeSerie(Me%MonthlyFlow%ObjTimeSerie, STAT = STAT_CALL)
-                    if (STAT_CALL .NE. SUCCESS_) stop 'KillModuleBasin - ModuleBasin - ERR14'
+                    if (STAT_CALL .NE. SUCCESS_) stop 'KillBasin - ModuleBasin - ERR200'
                 endif
 
 
@@ -6695,7 +6914,6 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
 
         if (present(STAT)) STAT = STAT_
            
-
         !------------------------------------------------------------------------
 
     end subroutine KillBasin
@@ -6905,61 +7123,67 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
                 if (OptionsType == 'ModifyBasin') then
                     !Gets water level to control water column updates
                     call GetRunoffWaterLevel(Me%ObjRunOff, Me%ExtUpdate%WaterLevel, STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - ModuleBasin - ERR00'
+                    if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - ModuleBasin - ERR010'
 
                     !Get the most recent water col from Runof
                     call GetRunoffWaterColumn     (Me%ObjRunoff, Me%ExtUpdate%WaterColumn, STAT = STAT_CALL) 
-                    if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - ModuleBasin - ERR00a'    
+                    if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - ModuleBasin - ERR020'    
 
                     call GetRunoffWaterColumnOld  (Me%ObjRunoff, Me%ExtUpdate%WaterColumnOld, STAT = STAT_CALL) 
-                    if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - ModuleBasin - ERR00b'    
+                    if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - ModuleBasin - ERR030'    
                     
                 endif
             endif
 
             !Time Stuff
             call GetComputeCurrentTime  (Me%ObjTime, Me%CurrentTime, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - ModuleBasin - ERR01'
+            if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - ModuleBasin - ERR040'
 
             call GetComputeTimeStep     (Me%ObjTime, Me%CurrentDT, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - ModuleBasin - ERR02'
+            if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - ModuleBasin - ERR050'
 
             !Gets Basin Points
             call GetBasinPoints (Me%ObjBasinGeometry, Me%ExtVar%BasinPoints, STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - ModuleBasin - ERR03'
+            if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - ModuleBasin - ERR060'
 
             !Gets River Points
             call GetRiverPoints (Me%ObjBasinGeometry, Me%ExtVar%RiverPoints, STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - ModuleBasin - ERR04'
+            if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - ModuleBasin - ERR070'
 
             !Gets Grid Cell Area
             call GetGridCellArea(Me%ObjHorizontalGrid, Me%ExtVar%GridCellArea, STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - ModuleBasin - ERR05'
+            if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - ModuleBasin - ERR080'
 
             !Gets a pointer to Topography
             call GetGridData        (Me%ObjGridData, Me%ExtVar%Topography, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - ModuleBasin - ERR06'
+            if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - ModuleBasin - ERR090'
 
             !Gets a pointer to OpenPoints2D
             call GetOpenPoints2D  (Me%ObjHorizontalMap, Me%ExtVar%OpenPoints2D, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - ModuleBasin - ERR07'
+            if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - ModuleBasin - ERR100'
         
             call GetBoundaries    (Me%ObjHorizontalMap, Me%ExtVar%BoundaryPoints2D, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - ModuleBasin - ERR07a'
+            if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - ModuleBasin - ERR110'
 
         elseif (LockToWhichModules == 'Atmosphere') then        
         
             !Leaf Area Index
             call GetLeafAreaIndex(Me%ObjVegetation, Me%ExtVar%LeafAreaIndex, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - ModuleBasin - ERR08'
+            if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - ModuleBasin - ERR120'
+            
+            if (Me%UsePotLAI) then
+                !Potencial Leaf Area Index            
+                call GetPotLeafAreaIndex(Me%ObjVegetation, Me%ExtVar%PotLeafAreaIndex, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - ModuleBasin - ERR130'
+            endif
             
             !Specific Storage Capacity
             call GetSpecificLeafStorage(Me%ObjVegetation, Me%ExtVar%SpecificLeafStorage, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - ModuleBasin - ERR09'
+            if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - ModuleBasin - ERR140'
             
             !EVTP CropCoefficient
             call GetEVTPCropCoefficient(Me%ObjVegetation, Me%ExtVar%CropCoefficient, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - ModuleBasin - ERR10'
+            if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - ModuleBasin - ERR150'
             
         endif
         
@@ -6984,53 +7208,59 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
             if (present(OptionsType)) then
                 if (OptionsType == 'ModifyBasin') then
                     call UngetRunoff (Me%ObjRunOff, Me%ExtUpdate%WaterLevel, STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'ReadUnLockExternalVar - ModuleBasin - ERR00'
+                    if (STAT_CALL /= SUCCESS_) stop 'ReadUnLockExternalVar - ModuleBasin - ERR010'
 
                     call UngetRunoff (Me%ObjRunOff, Me%ExtUpdate%WaterColumn, STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'ReadUnLockExternalVar - ModuleBasin - ERR00a'  
+                    if (STAT_CALL /= SUCCESS_) stop 'ReadUnLockExternalVar - ModuleBasin - ERR020'  
 
                     call UngetRunoff (Me%ObjRunOff, Me%ExtUpdate%WaterColumnOld, STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'ReadUnLockExternalVar - ModuleBasin - ERR00b'  
+                    if (STAT_CALL /= SUCCESS_) stop 'ReadUnLockExternalVar - ModuleBasin - ERR030'  
                       
                 endif
             endif   
 
             !UnGets Basin Points
             call UnGetBasin         (Me%ObjBasinGeometry, Me%ExtVar%BasinPoints, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ReadUnLockExternalVar - ModuleBasin - ERR01'
+            if (STAT_CALL /= SUCCESS_) stop 'ReadUnLockExternalVar - ModuleBasin - ERR040'
 
             !UnGets River Points
             call UnGetBasin         (Me%ObjBasinGeometry, Me%ExtVar%RiverPoints, STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ReadUnLockExternalVar - ModuleBasin - ERR02'
+            if (STAT_CALL /= SUCCESS_) stop 'ReadUnLockExternalVar - ModuleBasin - ERR050'
 
             !UnGets Grid Cell Area
             call UnGetHorizontalGrid(Me%ObjHorizontalGrid, Me%ExtVar%GridCellArea, STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ReadUnLockExternalVar - ModuleBasin - ERR03'
+            if (STAT_CALL /= SUCCESS_) stop 'ReadUnLockExternalVar - ModuleBasin - ERR060'
 
             !UnGets Topography
             call UnGetGridData      (Me%ObjGridData, Me%ExtVar%Topography, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ReadUnLockExternalVar - ModuleBasin - ERR04'
+            if (STAT_CALL /= SUCCESS_) stop 'ReadUnLockExternalVar - ModuleBasin - ERR070'
 
             call UngetHorizontalMap (Me%ObjHorizontalMap, Me%ExtVar%OpenPoints2D, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ReadUnLockExternalVar - ModuleBasin - ERR05'
+            if (STAT_CALL /= SUCCESS_) stop 'ReadUnLockExternalVar - ModuleBasin - ERR080'
     
             call UngetHorizontalMap (Me%ObjHorizontalMap, Me%ExtVar%BoundaryPoints2D, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ReadUnLockExternalVar - ModuleBasin - ERR05a'
+            if (STAT_CALL /= SUCCESS_) stop 'ReadUnLockExternalVar - ModuleBasin - ERR090'
 
 
         elseif (UnLockToWhichModules == 'Atmosphere') then        
 
             !Ungets Leaf Area Index
             call UngetVegetation(Me%ObjVegetation, Me%ExtVar%LeafAreaIndex, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ReadUnLockExternalVar - ModuleBasin - ERR06'
+            if (STAT_CALL /= SUCCESS_) stop 'ReadUnLockExternalVar - ModuleBasin - ERR100'
             
+            if (Me%UsePotLAI) then           
+                !Ungets Potencial Leaf Area Index
+                call UngetVegetation(Me%ObjVegetation, Me%ExtVar%PotLeafAreaIndex, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ReadUnLockExternalVar - ModuleBasin - ERR110'
+            endif
+                            
             !Specific Storage Capacity
             call UngetVegetation(Me%ObjVegetation, Me%ExtVar%SpecificLeafStorage, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ReadUnLockExternalVar - ModuleBasin - ERR07'
+            if (STAT_CALL /= SUCCESS_) stop 'ReadUnLockExternalVar - ModuleBasin - ERR120'
             
             !EVTP CropCoefficient
             call UngetVegetation(Me%ObjVegetation, Me%ExtVar%CropCoefficient, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ReadUnLockExternalVar - ModuleBasin - ERR08'
+            if (STAT_CALL /= SUCCESS_) stop 'ReadUnLockExternalVar - ModuleBasin - ERR130'
 
         endif
 

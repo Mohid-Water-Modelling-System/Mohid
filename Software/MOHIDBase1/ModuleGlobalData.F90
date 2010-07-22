@@ -440,6 +440,7 @@ Module ModuleGlobalData
     integer, parameter :: SpecificLeafStorage_              = 715
     integer, parameter :: EVTPCropCoefficient_              = 716
     integer, parameter :: CanopyHeight_                     = 718
+    integer, parameter :: PotLeafAreaIndex_                 = 719
 
 !____used @ moduleCEQUALW2______________________________________________
     integer, parameter :: RPOM_                             = 2001
@@ -1205,6 +1206,7 @@ Module ModuleGlobalData
     character(StringLength), private, parameter :: Char_SpecificLeafStorage      = 'specific leaf storage'
     character(StringLength), private, parameter :: Char_EVTPCropCoefficient      = 'crop coefficient'
     character(StringLength), private, parameter :: Char_CanopyHeight             = 'canopy height'
+    character(StringLength), private, parameter :: Char_PotLeafAreaIndex         = 'potential leaf area index'
 
     !Cohesive Fractions - Drainage Network
     character(StringLength), private, parameter :: Char_TSS                      = 'TSS'
@@ -2207,6 +2209,7 @@ Module ModuleGlobalData
             call AddPropList (SpecificLeafStorage_,     Char_SpecificLeafStorage,        ListNumber)
             call AddPropList (EVTPCropCoefficient_,     Char_EVTPCropCoefficient,        ListNumber)
             call AddPropList (CanopyHeight_,            Char_CanopyHeight,               ListNumber)
+            call AddPropList (PotLeafAreaIndex_,        Char_PotLeafAreaIndex,           ListNumber)
 
             call AddPropList (TSS_,                     Char_TSS,                        ListNumber)
             call AddPropList (COHSED_FINE_,             Char_Cohsed_fine,                ListNumber)

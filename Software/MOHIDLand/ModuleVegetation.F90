@@ -236,6 +236,7 @@ Module ModuleVegetation
 
     !Selector
     public  :: GetLeafAreaIndex
+    public  :: GetPotLeafAreaIndex
     public  :: GetSpecificLeafStorage
     public  :: GetEVTPCropCoefficient
     public  :: GetVegetationDT
@@ -661,6 +662,7 @@ Module ModuleVegetation
         real, dimension(:,:  ), pointer                       :: RootBiomass
         real, dimension(:,:  ), pointer                       :: RootDepth
         real, dimension(:,:  ), pointer                       :: LeafAreaIndex
+        real, dimension(:,:  ), pointer                       :: PotLeafAreaIndex
         real, dimension(:,:  ), pointer                       :: SpecificLeafStorage
         real, dimension(:,:  ), pointer                       :: EVTPCropCoefficient
         
@@ -705,6 +707,8 @@ Module ModuleVegetation
         integer                                         :: ObjPorousMedia       = 0
         integer                                         :: ObjHDF5              = 0
         type(T_Vegetation), pointer                     :: Next
+        
+        logical                                         :: UsePotLAI = .false.
         
         logical, dimension(:,:), pointer                :: IsPlantGrowing       
         logical, dimension(:,:), pointer                :: PlantingOccurred      
@@ -782,6 +786,7 @@ Module ModuleVegetation
                                    GeometryID,                      &
                                    BasinGeometryID,                 &
                                    CoupledAtmosphere,               &
+                                   UsePotLAI,                       &
                                    STAT)
 
         !Arguments---------------------------------------------------------------
@@ -796,6 +801,7 @@ Module ModuleVegetation
         integer                                         :: GeometryID
         integer                                         :: BasinGeometryID
         logical                                         :: CoupledAtmosphere
+        logical,           intent(OUT)                  :: UsePotLAI
         integer, optional, intent(OUT)                  :: STAT     
 
         !Local-------------------------------------------------------------------
@@ -805,6 +811,8 @@ Module ModuleVegetation
         !------------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
+        
+        Me%UsePotLAI = .false.
 
         !Assures nullification of the global variable
         if (.not. ModuleIsRegistered(mVegetation_)) then
@@ -829,7 +837,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             Me%ObjPorousMedia    = AssociateInstance (mPOROUSMEDIA_,    PorousMediaID   )
             
             Me%ExternalVar%MappingPoints2D    => MappingPoints
-            Me%ExternalVar%CoupledAtmosphere  =  CoupledAtmosphere
+            Me%ExternalVar%CoupledAtmosphere  =  CoupledAtmosphere                       
 
             call ReadVegetationFileNames
 
@@ -889,6 +897,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         end if cd0
 
+        UsePotLAI = Me%UsePotLAI
 
         if (present(STAT)) STAT = STAT_
 
@@ -1401,9 +1410,12 @@ cd2 :           if (BlockFound) then
                     ! Construct a New Property 
                     call ConstructProperty(NewProperty)
                                              
-
                     ! Add new Property to the Property List 
                     call AddProperty(NewProperty)
+                    
+                    if (NewProperty%ID%IDNumber .EQ. PotLeafAreaIndex_) then
+                        Me%UsePotLAI = .true.
+                    endif
 
                 else
                     call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL) 
@@ -2419,6 +2431,14 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
         if (STAT_CALL == SUCCESS_)       Me%StateVariables%RootDepth => PropertyX%Field
         call SearchProperty(PropertyX  , LeafAreaIndex_        , .false., STAT = STAT_CALL)        
         if (STAT_CALL == SUCCESS_)       Me%StateVariables%LeafAreaIndex => PropertyX%Field
+
+        call SearchProperty(PropertyX  , PotLeafAreaIndex_     , .false., STAT = STAT_CALL)               
+        if (STAT_CALL == SUCCESS_) then
+            Me%StateVariables%PotLeafAreaIndex => PropertyX%Field  
+        else
+            Me%StateVariables%PotLeafAreaIndex => null()
+        endif                                   
+        
         call SearchProperty(PropertyX  , CanopyHeight_         , .false., STAT = STAT_CALL)         
         if (STAT_CALL == SUCCESS_)       Me%StateVariables%CanopyHeight => PropertyX%Field
         call SearchProperty(PropertyX  , SpecificLeafStorage_  , .false., STAT = STAT_CALL)        
@@ -4769,6 +4789,42 @@ cd0:    if (Exist) then
     
     !--------------------------------------------------------------------------
 
+    subroutine GetPotLeafAreaIndex(VegetationID, Scalar, STAT)
+                                  
+        !Arguments--------------------------------------------------------------
+        integer                                     :: VegetationID
+        real, dimension(:,:), pointer, optional     :: Scalar
+        integer, optional, intent(OUT)              :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: ready_        
+        integer                                     :: STAT_
+        
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(VegetationID, ready_) 
+
+        
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            call Read_Lock(mVEGETATION_, Me%InstanceID)
+
+            Scalar  => Me%StateVariables%PotLeafAreaIndex
+
+            STAT_ = SUCCESS_
+        else 
+            STAT_ = ready_
+        end if 
+
+        if (present(STAT)) STAT = STAT_
+
+    end subroutine GetPotLeafAreaIndex
+    
+    !--------------------------------------------------------------------------
+    
     subroutine GetSpecificLeafStorage(VegetationID, Scalar, STAT)
                                   
         !Arguments--------------------------------------------------------------
