@@ -810,9 +810,7 @@ Module ModuleVegetation
 
         !------------------------------------------------------------------------
 
-        STAT_ = UNKNOWN_
-        
-        Me%UsePotLAI = .false.
+        STAT_ = UNKNOWN_             
 
         !Assures nullification of the global variable
         if (.not. ModuleIsRegistered(mVegetation_)) then
@@ -826,6 +824,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
             call AllocateInstance
 
+            Me%UsePotLAI = .false.
+            
             !Associates External Instances
             Me%ObjTime           = AssociateInstance (mTIME_,           TimeID          )
             Me%ObjGridData       = AssociateInstance (mGRIDDATA_,       GridDataID      )
@@ -887,7 +887,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             call ConstructLog
 
             !Returns ID
-            ObjVegetationID          = Me%InstanceID
+            ObjVegetationID  = Me%InstanceID
+            UsePotLAI        = Me%UsePotLAI
 
             STAT_ = SUCCESS_
 
@@ -895,9 +896,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             
             stop 'ModuleVegetation - ConstructVegetation - ERR01' 
 
-        end if cd0
-
-        UsePotLAI = Me%UsePotLAI
+        end if cd0     
 
         if (present(STAT)) STAT = STAT_
 
