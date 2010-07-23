@@ -3464,7 +3464,11 @@ etr_fao:        if (CalcET0) then
         
         !From 'Necessidades de Água e Métodos de Rega', Luis Santos Pereira, 2004
         !Publicações Europa-América, pg 85-86
-        AdjustCropCoefficient = Kc - (1 - (LAI / PotLAI)**0.5)        
+        if ((PotLAI > LAI) .AND. (PotLAI > 0.0)) then
+            AdjustCropCoefficient = Kc - (1 - (LAI / PotLAI)**0.5)        
+        else
+            AdjustCropCoefficient = Kc
+        endif
         !--------------------------------------------------------------------------
     
     end function AdjustCropCoefficient
