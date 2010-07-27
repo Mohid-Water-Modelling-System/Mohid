@@ -90,14 +90,14 @@ program ConvertToXYZ
         !Begin---------------------------------------------------------
 
         call ConstructEnterData(Me%ObjEnterData, DataFile, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'StartConverting - ConvertToXYZ - ERR10'
+        if (STAT_CALL /= SUCCESS_) stop 'StartConverting - ConvertToXYZ - ERR010'
 
 
 do1 :   do
             call ExtractBlockFromBuffer(Me%ObjEnterData, ClientNumber,              &
                                         '<begin_window>', '<end_window>',           &
                                         BlockFound, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'StartConverting - ConvertToXYZ - ERR20'
+            if (STAT_CALL /= SUCCESS_) stop 'StartConverting - ConvertToXYZ - ERR020'
 
 if1 :       if(STAT_CALL .EQ. SUCCESS_) then 
    
@@ -110,7 +110,7 @@ if2 :           if (BlockFound) then
                                  default      = -99999,                             &
                                  ClientModule = 'ConvertToXYZ',                     &
                                  STAT         = STAT_CALL)        
-                    if (STAT_CALL /= SUCCESS_) stop 'StartConverting - ConvertToXYZ - ERR30'
+                    if (STAT_CALL /= SUCCESS_) stop 'StartConverting - ConvertToXYZ - ERR030'
 
                     if ( Me%FileType == -99999 ) then
 
@@ -120,7 +120,7 @@ if2 :           if (BlockFound) then
                                      keyword      = 'FYLE_TYPE',                        &
                                      ClientModule = 'ConvertToXYZ',                     &
                                      STAT         = STAT_CALL)        
-                        if (STAT_CALL /= SUCCESS_) stop 'StartConverting - ConvertToXYZ - ERR31'
+                        if (STAT_CALL /= SUCCESS_) stop 'StartConverting - ConvertToXYZ - ERR040'
                         write(*,*)
                         write(*,*) 'Warning! The correct keyword syntax is FILE_TYPE, not FYLE_TYPE!'
                         write(*,*) 'Please correct ConvertToXYZ.dat file. '
@@ -134,7 +134,7 @@ if2 :           if (BlockFound) then
                                  Default      = -99999.,                            &
                                  ClientModule = 'ConvertToXYZ',                     &
                                  STAT         = STAT_CALL)        
-                    if (STAT_CALL /= SUCCESS_) stop 'StartConverting - ConvertToXYZ - ERR90'
+                    if (STAT_CALL /= SUCCESS_) stop 'StartConverting - ConvertToXYZ - ERR050'
 
                     call GetData(Me%Window%Right,                                   &
                                  Me%ObjEnterData, iflag,                            &
@@ -143,7 +143,7 @@ if2 :           if (BlockFound) then
                                  Default      =  99999.,                            &
                                  ClientModule = 'ConvertToXYZ',                     &
                                  STAT         = STAT_CALL)        
-                    if (STAT_CALL /= SUCCESS_) stop 'StartConverting - ConvertToXYZ - ERR100'
+                    if (STAT_CALL /= SUCCESS_) stop 'StartConverting - ConvertToXYZ - ERR060'
 
                     call GetData(Me%Window%Top,                                     &
                                  Me%ObjEnterData, iflag,                            &
@@ -152,7 +152,7 @@ if2 :           if (BlockFound) then
                                  Default      =  99999.,                            &
                                  ClientModule = 'ConvertToXYZ',                     &
                                  STAT         = STAT_CALL)        
-                    if (STAT_CALL /= SUCCESS_) stop 'StartConverting - ConvertToXYZ - ERR110'
+                    if (STAT_CALL /= SUCCESS_) stop 'StartConverting - ConvertToXYZ - ERR070'
 
                     call GetData(Me%Window%Bottom,                                  &
                                  Me%ObjEnterData, iflag,                            &
@@ -161,7 +161,7 @@ if2 :           if (BlockFound) then
                                  Default      =  -99999.,                           &
                                  ClientModule = 'ConvertToXYZ',                     &
                                  STAT         = STAT_CALL)        
-                    if (STAT_CALL /= SUCCESS_) stop 'StartConverting - ConvertToXYZ - ERR120'
+                    if (STAT_CALL /= SUCCESS_) stop 'StartConverting - ConvertToXYZ - ERR080'
 
                     call GetData(Me%Window%MinimumValue,                            &
                                  Me%ObjEnterData, iflag,                            &
@@ -170,7 +170,7 @@ if2 :           if (BlockFound) then
                                  Default      = -9999999.,                          &
                                  ClientModule = 'ConvertToXYZ',                     &
                                  STAT         = STAT_CALL)        
-                    if (STAT_CALL /= SUCCESS_) stop 'StartConverting - ConvertToXYZ - ERR121'
+                    if (STAT_CALL /= SUCCESS_) stop 'StartConverting - ConvertToXYZ - ERR090'
 
                     call GetData(Me%Window%MaximumValue,                            &
                                  Me%ObjEnterData, iflag,                            &
@@ -179,7 +179,7 @@ if2 :           if (BlockFound) then
                                  Default      = 9999999.,                           &
                                  ClientModule = 'ConvertToXYZ',                     &
                                  STAT         = STAT_CALL)        
-                    if (STAT_CALL /= SUCCESS_) stop 'StartConverting - ConvertToXYZ - ERR122'
+                    if (STAT_CALL /= SUCCESS_) stop 'StartConverting - ConvertToXYZ - ERR100'
 
 
                     call ConvertFile
@@ -189,7 +189,7 @@ if2 :           if (BlockFound) then
                 else
 
                     call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL) 
-                    if(STAT_CALL .ne. SUCCESS_) stop 'StartConverting - ConvertToHDF5 - ERR130'
+                    if(STAT_CALL .ne. SUCCESS_) stop 'StartConverting - ConvertToXYZ - ERR110'
                         
                     exit do1    !No more blocks
 
@@ -198,14 +198,14 @@ if2 :           if (BlockFound) then
             else if (STAT_CALL .EQ. BLOCK_END_ERR_) then if1
                 write(*,*)  
                 write(*,*) 'Error calling ExtractBlockFromBuffer. '
-                if(STAT_CALL .ne. SUCCESS_)stop 'StartConverting - ConvertToHDF5 - ERR140'
+                if(STAT_CALL .ne. SUCCESS_)stop 'StartConverting - ConvertToXYZ - ERR120'
                     
             end if if1
         end do do1
 
 
         call KillEnterData(Me%ObjEnterData, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'StartConverting - ConvertToXYZ - ERR150'
+        if (STAT_CALL /= SUCCESS_) stop 'StartConverting - ConvertToXYZ - ERR130'
 
 
     end subroutine StartConverting

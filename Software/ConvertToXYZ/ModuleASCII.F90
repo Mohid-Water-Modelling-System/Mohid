@@ -50,6 +50,7 @@ Module ModuleASCII
         type(T_Limits)                  :: Window
         character(len=StringLength)     :: FileName
         character(len=StringLength)     :: OutputFileName
+		logical                         :: IgnoreNegativeValues
         integer                         :: nCols
         integer                         :: nRows
         real                            :: xllCorner
@@ -120,9 +121,9 @@ Module ModuleASCII
                      Me%ObjEnterData, iflag,                        &
                      SearchType   = FromBlock,                      &
                      keyword      = 'INPUT_FILENAME',               &
-                     ClientModule = 'ModuleASCII',                 &
+                     ClientModule = 'ModuleASCII',                  &
                      STAT         = STAT_CALL)        
-        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleASCII - ERR50'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleASCII - ERR010'
 
         if (iflag == 0)then
             write(*,*)'Must specify name of file to convert'
@@ -133,11 +134,19 @@ Module ModuleASCII
                      Me%ObjEnterData, iflag,                        &
                      SearchType   = FromBlock,                      &
                      keyword      = 'OUTPUT_FILENAME',              &
-                     ClientModule = 'ModuleASCII',                 &
+                     ClientModule = 'ModuleASCII',                  &
                      STAT         = STAT_CALL)        
-        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleASCII - ERR50'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleASCII - ERR020'
 
-
+        call GetData(Me%IgnoreNegativeValues,                       &
+                     Me%ObjEnterData, iflag,                        &
+                     SearchType   = FromBlock,                      &
+                     keyword      = 'IGNORE_NEGATIVE_VALUES',       &
+                     default      = .false.,                        &
+                     ClientModule = 'ModuleASCII',                  &
+                     STAT         = STAT_CALL)        
+        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleASCII - ERR030'
+		
     end subroutine ReadOptions
 
 
@@ -237,20 +246,22 @@ Module ModuleASCII
         !Depois escreve uma row e vai descendo nos YYs
         !considerei que xllcorner e yllcorner eram do centro da celula
 
-        X = Me%xllCorner
-        Y = Me%yllCorner + Me%nRows * Me%CellSize
+        X = Me%xllCorner + Me%CellSize/2
+        Y = Me%yllCorner + Me%nRows * Me%CellSize - Me%CellSize/2
 
         do i = 1, Me%nRows
         
             read (Me%Unit, *) (Me%Z(j), j = 1, Me%nCols)
 
             do j = 1, Me%nCols
-                write(Me%OutputUnit,*)X,Y, Me%Z(j)
+                if ((.not. Me%IgnoreNegativeValues) .or. (Me%Z(j) >= 0.)) then
+                    write(Me%OutputUnit,*) X, Y, Me%Z(j)
+                endif
                 X = X + Me%CellSize               
             end do
             
             Y = Y - Me%CellSize
-            X = Me%xllCorner
+            X = Me%xllCorner + Me%CellSize/2
 
         end do
 
