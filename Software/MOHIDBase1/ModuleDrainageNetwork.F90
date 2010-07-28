@@ -711,6 +711,7 @@ Module ModuleDrainageNetwork
         integer       , dimension(:), pointer       :: RiverPoints           => null()        
         integer                                     :: TotalNodes            = 0        
         integer                                     :: TotalReaches          = 0
+        integer                                     :: TotalOutlets          = 0
         integer                                     :: OutletReachPos
         integer                                     :: HighestOrder          = 0
         logical                                     :: CheckNodes
@@ -3079,21 +3080,21 @@ do1:    do while (.not.Done)
     !---------------------------------------------------------------------------
     !---------------------------------------------------------------------------
 
-    subroutine CountOutlets (nOutlets)
+    subroutine CountOutlets ()
 
         !Arguments--------------------------------------------------------------
-        integer                                 :: nOutlets
+
         !Local------------------------------------------------------------------
         integer                                 :: NodePos, ReachPos
         type (T_Node ), pointer                 :: CurrNode
 
-        nOutlets = 0
+        Me%TotalOutlets = 0
 
         do NodePos = 1, Me%TotalNodes
 
             CurrNode => Me%Nodes(NodePos)
             if (CurrNode%nDownstreamReaches .EQ. 0) then
-                nOutlets = nOutlets + 1
+                Me%TotalOutlets = Me%TotalOutlets + 1
                 if (CurrNode%nUpstreamReaches .NE. 1) then
                     write (*,*)
                     write (*,*) 'Outlet node must have a single upstream reach'
@@ -3107,7 +3108,7 @@ do1:    do while (.not.Done)
 
         end do
 
-        if (nOutlets /= 1) stop 'ModuleDrainageNetwork - CountOutlets - ERR01'
+        if (Me%TotalOutlets /= 1) stop 'ModuleDrainageNetwork - CountOutlets - ERR01'
 
     end subroutine CountOutlets
 
@@ -5376,10 +5377,10 @@ if0:    if (Me%HasProperties) then
         write(*, *)
 
         !Writes General Stats
-        call CountOutlets (nOutlets)
+        call CountOutlets ()
         write(*, *)"Number of Nodes      : ", Me%TotalNodes
         write(*, *)"Number of Reaches    : ", Me%TotalReaches
-        write(*, *)"Number of Outlets    : ", nOutlets
+        write(*, *)"Number of Outlets    : ", Me%TotalOutlets
 
         !Writes Hydrodynamic Approximation
         select case (Me%HydrodynamicApproximation)
@@ -11905,6 +11906,87 @@ cd1:    if (ObjDrainageNetwork_ID > 0) then
     end subroutine LocateObjDrainageNetwork
 
     !---------------------------------------------------------------------------
+
+#ifdef OPENMI
+
+    !DEC$ IFDEFINED (VF66)
+    !dec$ attributes dllexport::GetNumberOfNodes
+    !DEC$ ELSE
+    !dec$ attributes dllexport,alias:"_GETNUMBEROFNODES"::GetNumberOfNodes
+    !DEC$ ENDIF
+    !Return the number of Error Messages
+    integer function GetNumberOfNodes()
+    
+        !Arguments-------------------------------------------------------------
+        
+        !Local-----------------------------------------------------------------
+
+        GetNumberOfNodes = Me%TotalNodes
+        
+        return
+    
+    end function GetNumberOfNodes
+    
+    !DEC$ IFDEFINED (VF66)
+    !dec$ attributes dllexport::GetNumberOfOutlets
+    !DEC$ ELSE
+    !dec$ attributes dllexport,alias:"_GETNUMBEROFOUTLETS"::GetNumberOfOutlets
+    !DEC$ ENDIF
+    !Return the number of Error Messages
+    integer function GetNumberOfOutlets()
+    
+        !Arguments-------------------------------------------------------------
+        
+        !Local-----------------------------------------------------------------
+
+        GetNumberOfOutlets = Me%TotalOutlets
+        
+        return
+    
+    end function GetNumberOfOutlets
+    
+    
+    !DEC$ IFDEFINED (VF66)
+    !dec$ attributes dllexport::GetXCoordinate
+    !DEC$ ELSE
+    !dec$ attributes dllexport,alias:"_GETXCOORDINATE"::GetXCoordinate
+    !DEC$ ENDIF
+    real(8) function GetXCoordinate(NodeID)
+    
+        !Arguments-------------------------------------------------------------
+        integer                                     :: NodeID
+        
+        !Local-----------------------------------------------------------------
+
+        GetXCoordinate = Me%Nodes(NodeID)%X
+        
+        return
+
+    end function GetXCoordinate
+
+    !DEC$ IFDEFINED (VF66)
+    !dec$ attributes dllexport::GetYCoordinate
+    !DEC$ ELSE
+    !dec$ attributes dllexport,alias:"_GETYCOORDINATE"::GetYCoordinate
+    !DEC$ ENDIF
+    real(8) function GetYCoordinate(NodeID)
+    
+        !Arguments-------------------------------------------------------------
+        integer                                     :: NodeID
+        
+        !Local-----------------------------------------------------------------
+
+        GetYCoordinate = Me%Nodes(NodeID)%X
+        
+        return
+
+    end function GetYCoordinate
+
+
+
+
+#endif
+
 
 end module ModuleDrainageNetwork
 

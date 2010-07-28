@@ -78,6 +78,9 @@ Module ModuleGlobalData
     integer, parameter  :: MaxInstances         = 500
 #endif
 
+    integer, parameter  :: MaxErrorMessages     = 20
+    integer             :: NumberOfErrorMessages=0
+
     integer, parameter  :: StringLength         = 128
     integer, parameter  :: PathLength           = 256
 
@@ -1505,7 +1508,7 @@ Module ModuleGlobalData
           T_Module(mBASIN_                  , "Basin"),                 T_Module(mSOILPROPERTIES_         , "SoilProperties"),        &
           T_Module(mINFILTRATION_           , "Infiltration"),          T_Module(mSOILPLANTAIR_           , "SoilPlantAir"),          &
           T_Module(mSOILMACROPORES_         , "SoilMacropores"),        T_Module(mSAND_                   , "Sand"),                  &
-          T_Module(mMACROPOREPROPERTIES_    , "MacroporeProperties"),   T_Module(mPOROUSMEDIA_           , "PorousMedia"),           &
+          T_Module(mMACROPOREPROPERTIES_    , "MacroporeProperties"),   T_Module(mPOROUSMEDIA_            , "PorousMedia"),           &
           T_Module(mSWAT_                   , "ModuleSwat"),            T_Module(mPROFILE_                , "Profile"),               &
           T_Module(mBENTHOS_                , "Benthos"),               T_Module(mCLIMATOLOGY_            , "Climatology"),           &
           T_Module(mFIREINDEX_              , "FireIndex"),             T_Module(mINTERPOLATION_          , "Interpolation"),         &
@@ -1526,7 +1529,9 @@ Module ModuleGlobalData
     integer                                                         :: PropertiesNumber
     integer, private                                                :: ErrorFileID     = 0
     integer, private                                                :: UsedKeyFileID   = 0
+    integer, private                                                :: LogFileID       = 0
     character(LEN=1024)                                             :: OnLineString
+    character(StringLength),     dimension(MaxErrorMessages)        :: ErrorMessagesStack
       
     type (T_Instance), dimension (MaxModules, MaxInstances), save   :: ObjCollector
     private :: ObjCollector
@@ -2618,6 +2623,9 @@ cd7 :   if (Screen_) then
             write(*,                *     ) 
         end if cd7
 
+        !Places Message on the Message Stack
+        call PlaceErrorMessageOnStack(trim(adjustl(SmallMessage)))
+
         !If the error message isn"t a warning, stop the execution of this process
 cd3 :   if (ErrorMagnitude == FATAL_) then
             close (unit=ErrorFileID  )
@@ -2677,6 +2685,9 @@ cd2 :   if      (ErrorType == INTERNAL_  ) then
                                 int(Year), int(Month),  int(Day),               &
                                 int(Hour), int(Minute), int(Second)
   
+        !Places Message on the Message Stack
+        call PlaceErrorMessageOnStack(trim(adjustl(SmallMessage)))
+
 cd7 :   if (Screen_) then
             write(*,*) 
             write(*,555) trim(adjustl(StrErrorMagnitude))//semicolumn//     &
@@ -2696,6 +2707,37 @@ cd3 :   if (ErrorMagnitude == FATAL_) then
         end if cd3
 
     end subroutine SetErrorTime
+
+    !----------------------------------------------------------------------
+    
+    !Messages are stored in a stack: Last written = Highest number.
+    !First written is discarded if the stack size is exceeded.
+    subroutine PlaceErrorMessageOnStack(ErrorMessage)
+    
+        !Arguments-------------------------------------------------------------
+        character(len=*)                            :: ErrorMessage
+        
+        !Local-----------------------------------------------------------------
+        integer                                     :: i
+
+        if (NumberOfErrorMessages == 0) then
+            do i=1, MaxErrorMessages
+                ErrorMessagesStack(i)=' '
+            enddo
+        endif
+
+        NumberOfErrorMessages =NumberOfErrorMessages + 1
+
+        if(NumberOfErrorMessages.gt.MaxErrorMessages)then
+            NumberOfErrorMessages=MaxErrorMessages
+            do i=1, NumberOfErrorMessages-1
+                ErrorMessagesStack(i)=ErrorMessagesStack(i+1)
+            enddo
+        endif
+
+        ErrorMessagesStack(NumberOfErrorMessages)=ErrorMessage
+       
+    end subroutine PlaceErrorMessageOnStack
 
     !----------------------------------------------------------------------
 
@@ -2852,7 +2894,9 @@ do2:    do
         endif
         write(*, *)
         write(*, *)"----------------------------------------------------------"
-        stop
+        
+        !This Stop Statement has been removed because it makes OpenMI Destructor work improberly
+        !stop
 
     110 format(1x, "Total Elapsed Time     : ",f14.2," ",i3,"h ",i2,"min ",i2,"s",/)
     120 format(1x, "Total CPU time         : ",f14.2,/)

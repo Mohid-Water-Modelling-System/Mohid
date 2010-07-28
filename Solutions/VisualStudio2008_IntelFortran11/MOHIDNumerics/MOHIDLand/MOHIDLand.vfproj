@@ -44,7 +44,7 @@
 				<Tool Name="VFPostBuildEventTool"/>
 				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
 		<Configuration Name="Release Double OpenMP|Win32">
-				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" InlineFunctionExpansion="expandDisable" BufferedIO="true" InterproceduralOptimizations="ipoSingleFile" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\..\..\..\Solutions\VisualStudio2008_IntelFortran11\MOHIDNumerics\MOHIDBase1\Release Double OpenMP;..\..\..\..\Solutions\VisualStudio2008_IntelFortran11\MOHIDNumerics\MOHIDBase2\Release Double OpenMP" OpenMP="OpenMPParallelCode" StandardWarnings="standardWarningsF95" WarnDeclarations="true" WarnUnusedVariables="true" WarnTruncateSource="true" RealKIND="realKIND8" LocalSavedScalarsZero="true" FloatingPointExceptionHandling="fpe0"/>
+				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" BufferedIO="true" InterproceduralOptimizations="ipoSingleFile" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\..\..\..\Solutions\VisualStudio2008_IntelFortran11\MOHIDNumerics\MOHIDBase1\Release Double OpenMP;..\..\..\..\Solutions\VisualStudio2008_IntelFortran11\MOHIDNumerics\MOHIDBase2\Release Double OpenMP" OpenMP="OpenMPParallelCode" StandardWarnings="standardWarningsF95" WarnDeclarations="true" WarnUnusedVariables="true" WarnTruncateSource="true" RealKIND="realKIND8" LocalSavedScalarsZero="true" FloatingPointExceptionHandling="fpe0"/>
 				<Tool Name="VFLinkerTool" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" AdditionalLibraryDirectories="..\..\..\..\Solutions\VisualStudio2008_IntelFortran11\MOHIDNumerics\MOHIDBase1\Release Double OpenMP;..\..\..\..\Solutions\VisualStudio2008_IntelFortran11\MOHIDNumerics\MOHIDBase2\Release Double OpenMP;..\..\..\..\ExternalLibs\HDF_1.6.8\IntelFortran11\Lib;..\..\..\..\ExternalLibs\Zlib_1.2\dll;..\..\..\..\ExternalLibs\SZlib_2.1\dll" SubSystem="subSystemConsole" StackReserveSize="64000000" AdditionalDependencies="MOHIDBase1.lib MOHIDBase2.lib hdf5.lib  hdf5_fortran.lib hdf5_f90cstub.lib zlib1.lib szlibdll.lib"/>
 				<Tool Name="VFResourceCompilerTool"/>
 				<Tool Name="VFMidlTool" SuppressStartupBanner="true"/>
@@ -54,7 +54,7 @@
 				<Tool Name="VFPostBuildEventTool"/>
 				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
 		<Configuration Name="Release OpenMP|Win32">
-				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" InlineFunctionExpansion="expandDisable" BufferedIO="true" InterproceduralOptimizations="ipoSingleFile" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\..\..\..\Solutions\VisualStudio2008_IntelFortran11\MOHIDNumerics\MOHIDBase1\Release OpenMP;..\..\..\..\Solutions\VisualStudio2008_IntelFortran11\MOHIDNumerics\MOHIDBase2\Release OpenMP" OpenMP="OpenMPParallelCode" StandardWarnings="standardWarningsF95" WarnDeclarations="true" WarnUnusedVariables="true" WarnTruncateSource="true" FloatingPointExceptionHandling="fpe0"/>
+				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" BufferedIO="true" InterproceduralOptimizations="ipoSingleFile" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\..\..\..\Solutions\VisualStudio2008_IntelFortran11\MOHIDNumerics\MOHIDBase1\Release OpenMP;..\..\..\..\Solutions\VisualStudio2008_IntelFortran11\MOHIDNumerics\MOHIDBase2\Release OpenMP" OpenMP="OpenMPParallelCode" StandardWarnings="standardWarningsF95" WarnDeclarations="true" WarnUnusedVariables="true" WarnTruncateSource="true" FloatingPointExceptionHandling="fpe0"/>
 				<Tool Name="VFLinkerTool" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" AdditionalLibraryDirectories="..\..\..\..\Solutions\VisualStudio2008_IntelFortran11\MOHIDNumerics\MOHIDBase1\Release OpenMP;..\..\..\..\Solutions\VisualStudio2008_IntelFortran11\MOHIDNumerics\MOHIDBase2\Release OpenMP;..\..\..\..\ExternalLibs\HDF_1.6.8\IntelFortran11\Lib;..\..\..\..\ExternalLibs\Zlib_1.2\dll;..\..\..\..\ExternalLibs\SZlib_2.1\dll" SubSystem="subSystemConsole" StackReserveSize="64000000" AdditionalDependencies="MOHIDBase1.lib MOHIDBase2.lib hdf5.lib  hdf5_fortran.lib hdf5_f90cstub.lib zlib1.lib szlibdll.lib"/>
 				<Tool Name="VFResourceCompilerTool"/>
 				<Tool Name="VFMidlTool" SuppressStartupBanner="true"/>
@@ -80,9 +80,9 @@
 		<File RelativePath="..\..\..\..\Software\MOHIDLand\ModuleBasin.f90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDLand\ModulePorousMedia.f90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDLand\ModulePorousMediaProperties.F90">
-			<FileConfiguration Name="Release Double OpenMP|Win32">
-				<Tool Name="VFFortranCompilerTool" Preprocess="preprocessYes"/></FileConfiguration>
 			<FileConfiguration Name="Release Double|Win32">
+				<Tool Name="VFFortranCompilerTool" Preprocess="preprocessYes"/></FileConfiguration>
+			<FileConfiguration Name="Release Double OpenMP|Win32">
 				<Tool Name="VFFortranCompilerTool" Preprocess="preprocessYes"/></FileConfiguration>
 			<FileConfiguration Name="Release OpenMP|Win32">
 				<Tool Name="VFFortranCompilerTool" Preprocess="preprocessYes"/></FileConfiguration></File>

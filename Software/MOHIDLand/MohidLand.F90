@@ -28,7 +28,11 @@
 !
 !------------------------------------------------------------------------------
 
+#ifdef OPENMI
+module MohidLand
+#else
 program MohidLand
+#endif
 
     use ModuleGlobalData
     use ModuleEnterData
@@ -60,9 +64,12 @@ program MohidLand
     type (T_Time)                       :: InitialSystemTime, FinalSystemTime
     integer, dimension(8)               :: F95Time
 
+#ifndef OPENMI
+
     call ConstructMohidLand
     call ModifyMohidLand
     call KillMohidLand
+#endif
 
     contains
 
@@ -291,5 +298,246 @@ program MohidLand
 
     end subroutine KillMohidLand
 
+#ifdef OPENMI
 
+    !DEC$ IFDEFINED (VF66)
+    !dec$ attributes dllexport::Initialize
+    !DEC$ ELSE
+    !dec$ attributes dllexport,alias:"_INITIALIZE"::Initialize
+    !DEC$ ENDIF
+    logical function Initialize(workingDirectory)
+                     
+        !Arguments-------------------------------------------------------------
+        character(*)                                :: workingDirectory
+        
+        !Local-----------------------------------------------------------------
+        
+!        call SetError(WARNING_, INTERNAL_, "Test Error Message")
+!        Initialize = .false.
+!        return
+        
+        FilesName = workingDirectory
+        
+        call ConstructMohidLand()
+
+        Initialize = .true.
+
+        return
+    
+    end function Initialize
+    
+    !--------------------------------------------------------------------------
+
+    !Perform a single time step
+    logical function PerformTimeStep()
+
+        !Arguments-------------------------------------------------------------
+        
+        !Local-----------------------------------------------------------------
+
+        call ModifyMohidLand()
+        PerformTimeStep = .true.
+
+    end function PerformTimeStep
+    
+    !--------------------------------------------------------------------------
+
+    !DEC$ IFDEFINED (VF66)
+    !dec$ attributes dllexport::Finish
+    !DEC$ ELSE
+    !dec$ attributes dllexport,alias:"_FINISH"::Finish
+    !DEC$ ENDIF
+    logical function Finish()
+
+        !Arguments-------------------------------------------------------------
+        
+        !Local-----------------------------------------------------------------
+
+        call KillMohidLand()
+        Finish = .true.
+
+    end function Finish
+
+    !--------------------------------------------------------------------------
+
+    !DEC$ IFDEFINED (VF66)
+    !dec$ attributes dllexport::Dispose
+    !DEC$ ELSE
+    !dec$ attributes dllexport,alias:"_DISPOSE"::Dispose
+    !DEC$ ENDIF
+    !The dispose function does not do anything. All Clean up is done by de Finish function
+    logical function Dispose()
+
+        !Arguments-------------------------------------------------------------
+        
+        !Local-----------------------------------------------------------------
+
+        Dispose = .true.
+
+    end function Dispose
+    
+    !--------------------------------------------------------------------------
+    
+    !DEC$ IFDEFINED (VF66)
+    !dec$ attributes dllexport::GetModelID
+    !DEC$ ELSE
+    !dec$ attributes dllexport,alias:"_GETMODELID"::GetModelID
+    !DEC$ ENDIF
+    logical function GetModelID(id)
+    
+        !Arguments-------------------------------------------------------------
+        character(*)                                :: id       
+    
+        id = ModelName
+        GetModelID = .true.
+        return
+    
+    end function GetModelID
+
+    !--------------------------------------------------------------------------
+
+    !Test Function - Runs the whole model
+    !DEC$ IFDEFINED (VF66)
+    !dec$ attributes dllexport::RunSimulation
+    !DEC$ ELSE
+    !dec$ attributes dllexport,alias:"_RUNSIMULATION"::RunSimulation
+    !DEC$ ENDIF
+    !Test method to run the whole simulation once
+    subroutine RunSimulation()
+
+        !Arguments-------------------------------------------------------------
+        
+        !Local-----------------------------------------------------------------
+
+        call ModifyMohidLand
+    
+    end subroutine RunSimulation
+
+    !--------------------------------------------------------------------------
+
+    !DEC$ IFDEFINED (VF66)
+    !dec$ attributes dllexport::GetNumberOfMessages
+    !DEC$ ELSE
+    !dec$ attributes dllexport,alias:"_GETNUMBEROFMESSAGES"::GetNumberOfMessages
+    !DEC$ ENDIF
+    !Return the number of Error Messages
+    integer function GetNumberOfMessages()
+    
+        !Arguments-------------------------------------------------------------
+        
+        !Local-----------------------------------------------------------------
+
+        GetNumberOfMessages = NumberOfErrorMessages
+        
+        return
+    
+    end function GetNumberOfMessages
+
+    !--------------------------------------------------------------------------
+    
+    !DEC$ IFDEFINED (VF66)
+    !dec$ attributes dllexport::GetMessage
+    !DEC$ ELSE
+    !dec$ attributes dllexport,alias:"_GETMESSAGE"::GetMessage
+    !DEC$ ENDIF
+    logical function GetMessage(Number, Message)
+
+        !Arguments-------------------------------------------------------------
+        integer                                     :: Number
+        character(len=*)                            :: Message        
+        !Local-----------------------------------------------------------------
+
+
+        if(Number .ge. 1 .and. Number .le. MaxErrorMessages)then
+            Message=ErrorMessagesStack(Number)
+            GetMessage=.true.
+        else
+            Message=' '
+            GetMessage=.false.
+        endif
+
+      end function GetMessage
+      
+    
+    !DEC$ IFDEFINED (VF66)
+    !dec$ attributes dllexport::GetStartInstant
+    !DEC$ ELSE
+    !dec$ attributes dllexport,alias:"_GETSTARTINSTANT"::GetStartInstant
+    !DEC$ ENDIF
+    logical function GetStartInstant(Instant)
+
+        !Arguments-------------------------------------------------------------
+        character(len=*)                            :: Instant        
+
+        !Local-----------------------------------------------------------------
+
+        Instant = ConvertTimeToString(BeginTime)
+        
+        GetStartInstant = .true.
+
+      end function GetStartInstant      
+
+    !DEC$ IFDEFINED (VF66)
+    !dec$ attributes dllexport::GetStopInstant
+    !DEC$ ELSE
+    !dec$ attributes dllexport,alias:"_GETSTOPINSTANT"::GetStopInstant
+    !DEC$ ENDIF
+    logical function GetStopInstant(Instant)
+
+        !Arguments-------------------------------------------------------------
+        character(len=*)                            :: Instant        
+
+        !Local-----------------------------------------------------------------
+
+        Instant = ConvertTimeToString(EndTime)
+        
+        GetStopInstant = .true.
+
+      end function GetStopInstant      
+
+    !DEC$ IFDEFINED (VF66)
+    !dec$ attributes dllexport::GetCurrentInstant
+    !DEC$ ELSE
+    !dec$ attributes dllexport,alias:"_GETCURRENTINSTANT"::GetCurrentInstant
+    !DEC$ ENDIF
+    logical function GetCurrentInstant(Instant)
+
+        !Arguments-------------------------------------------------------------
+        character(len=*)                            :: Instant        
+
+        !Local-----------------------------------------------------------------
+
+        Instant = ConvertTimeToString(EndTime)
+        
+        GetCurrentInstant = .true.
+
+      end function GetCurrentInstant      
+
+
+    !DEC$ IFDEFINED (VF66)
+    !dec$ attributes dllexport::GetCurrentTimeStep
+    !DEC$ ELSE
+    !dec$ attributes dllexport,alias:"_GETCURRENTTIMESTEP"::GetCurrentTimeStep
+    !DEC$ ENDIF
+    real(8) function GetCurrentTimeStep()
+
+        !Arguments-------------------------------------------------------------
+
+        !Local-----------------------------------------------------------------
+
+        GetCurrentTimeStep = dble(DT)
+        
+
+      end function GetCurrentTimeStep      
+
+
+    
+#endif
+
+
+#ifdef OPENMI
+end module MohidLand
+#else
 end program MohidLand
+#endif
+

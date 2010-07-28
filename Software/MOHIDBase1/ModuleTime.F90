@@ -66,10 +66,10 @@ Module ModuleTime
     private :: Calendario
     public  :: ExtractDate
     public  :: SetDate
-    public  :: TimeHours        !Function -> computes number of hours in a day
-    public  :: null_time        !Turns type(time) to FillValueInt
-    public  :: PrintProgress    !Writes a message to the screen         !Frank 3-8-99
-
+    public  :: TimeHours            !Function -> computes number of hours in a day
+    public  :: null_time            !Turns type(time) to FillValueInt
+    public  :: PrintProgress        !Writes a message to the screen         !Frank 3-8-99
+    public  :: ConvertTimeToString  !Converts T_Time to a String like 2000:01:01:23:59:59
 
     !Operator------------------------------------------------------------------
 
@@ -1755,6 +1755,34 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
         !----------------------------------------------------------------------
 
     end subroutine PrintProgress
+    
+    !--------------------------------------------------------------------------
+
+    character(len=30) function ConvertTimeToString(Time1)
+    
+        !Arguments-------------------------------------------------------------
+        type(T_Time),      intent(IN )              :: Time1
+
+        !Local-----------------------------------------------------------------
+        character(len=30)                           :: auxStr
+        
+        !----------------------------------------------------------------------
+
+        write(auxStr, 10)int(Time1%Time_(1)), int(Time1%Time_(2)), int(Time1%Time_(3)),  &
+                         int(Time1%Time_(4)), int(Time1%Time_(5)), int(Time1%Time_(6))
+
+
+        ConvertTimeToString = auxStr
+ 
+
+     10 format((i4,":"),4(i2, ":"), f12.8)
+
+
+        !2000:12:12:23:59:59.123345678
+
+    end function ConvertTimeToString         
+
+    
 
 end module ModuleTime
 

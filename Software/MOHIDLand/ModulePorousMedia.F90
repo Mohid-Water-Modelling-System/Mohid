@@ -6079,7 +6079,7 @@ do5:                do K = Me%ExtVar%KFloor(i,j), Me%WorkSize%KUB
 
         !NOTE: This test below is only valid if either normal output or 2D is active. 
         !That way during startup it is checked if only one of the output types is activated
-        !Both can't ba active at the same time beause of the TIME output
+        !Both can't be active at the same time beause of the TIME output
 
         if (Me%OutPut%Yes) then
             
@@ -6217,29 +6217,37 @@ do5:                do K = Me%ExtVar%KFloor(i,j), Me%WorkSize%KUB
                 enddo            
                 enddo
 
-                call HDF5WriteData ( Me%ObjHDF5, "/Results/Velocity/X",         & 
-                                    "Vel. X",    'm/s',                             &
-                                     Array3D      = CenterU3D,                      &
-                                     OutputNumber = Me%OutPut%NextOutPut,           &  
+                call HDF5WriteData (Me%ObjHDF5,                                          &
+                                    "/Results/"//trim(GetPropertyName (VelocityU_)),     &
+                                    trim(GetPropertyName (VelocityU_)),                  &
+                                    "m/s",                                               &
+                                     Array3D      = CenterU3D,                           &
+                                     OutputNumber = Me%OutPut%NextOutPut,                &  
                                      STAT         = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModulePorousMedia - ERR01'
             
-                call HDF5WriteData ( Me%ObjHDF5, "/Results/Velocity/Y",         & 
-                                    "Vel. Y",    'm/s',                             &
+                call HDF5WriteData (Me%ObjHDF5,                                          &
+                                    "/Results/"//trim(GetPropertyName (VelocityV_)),     &
+                                    trim(GetPropertyName (VelocityV_)),                  &
+                                    "m/s",                                               &
                                      Array3D      = CenterV3D,                      &
                                      OutputNumber = Me%OutPut%NextOutPut,           &  
                                      STAT         = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModulePorousMedia - ERR01'
 
-                call HDF5WriteData ( Me%ObjHDF5, "/Results/Velocity/Z",         & 
-                                    "Vel. Z",    'm/s',                             &
+                call HDF5WriteData (Me%ObjHDF5,                                          &
+                                    "/Results/"//trim(GetPropertyName (VelocityW_)),     &
+                                    trim(GetPropertyName (VelocityW_)),                  &
+                                    "m/s",                                               &
                                      Array3D      = CenterW3D,                      &
                                      OutputNumber = Me%OutPut%NextOutPut,           &  
                                      STAT         = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModulePorousMedia - ERR01'
 
-                call HDF5WriteData ( Me%ObjHDF5, "/Results/Velocity/Modulus",   & 
-                                    "Modulus",    'm/s',                            &
+                call HDF5WriteData (Me%ObjHDF5,                                                &
+                                    "/Results/"//trim(GetPropertyName (VelocityModulus_)),     &
+                                    trim(GetPropertyName (VelocityModulus_)),                  &
+                                    "m/s",                                               &
                                      Array3D      = Modulus3D,                      &
                                      OutputNumber = Me%OutPut%NextOutPut,           &  
                                      STAT         = STAT_CALL)

@@ -729,11 +729,6 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                            Message = "Basin HDF Output File", STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadFileNames - ModuleBasin - ERR030'             
 
-        !Reads file name of the EVTP hdf outupt
-        call ReadFileName('BASIN_EVTPHDF', Me%Files%EVTPHDFFile,                        &
-                           Message = "Basin EVTPHDF Output File", STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadFileNames - ModuleBasin - ERR040'             
-
         !Reads file name of final output file
         call ReadFileName('BASIN_FIN', Me%Files%FinalFile,                              &
                            Message = "Basin Final File", STAT = STAT_CALL)
@@ -1882,6 +1877,13 @@ i1:         if (CoordON) then
         integer                                             :: HDF5_CREATE
         
         !------------------------------------------------------------------------
+       
+       
+        !Reads file name of the EVTP hdf outupt
+        call ReadFileName('BASIN_EVTPHDF', Me%Files%EVTPHDFFile,                        &
+                           Message = "Basin EVTPHDF Output File", STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadFileNames - ModuleBasin - ERR040'             
+
        
         !Bounds
         ILB = Me%WorkSize%ILB

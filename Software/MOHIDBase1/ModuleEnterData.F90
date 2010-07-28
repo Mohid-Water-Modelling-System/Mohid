@@ -251,7 +251,7 @@ cd16 :      if (present(FORM)) then
 if8 :       if      (FORM_ .EQ. FORMATTED_  ) then
                 open(UNIT = Me%unit, FILE = trim(adjustl(Me%FileName)), &
                      FORM = "FORMATTED",   STATUS = "OLD", ACTION = "READ", IOSTAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_) stop 'ModuleEnterData - ConstructEnterData - ERR02' 
+                if (STAT_CALL .NE. SUCCESS_) call SetError(FATAL_, INTERNAL_, "ModuleEnterData - ConstructEnterData - ERR02")
 
                 rewind(Me%unit) 
                              
