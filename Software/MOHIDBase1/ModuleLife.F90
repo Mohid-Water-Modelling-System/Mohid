@@ -39,7 +39,7 @@ Module ModuleLife
 
     use ModuleGlobalData
     use ModuleEnterData
-    use ModuleFunctions, only: PhytoLightLimitationFactor
+    use ModuleFunctions, only: PhytoLightLimitationFactor, Chunk_I
 
     implicit none
 
@@ -2699,8 +2699,10 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
         integer                                     :: STAT_, ready_
         logical                                     :: CalcPoint, checkmass
         integer                                     :: index
-
+        integer                                     :: Chunk
         !----------------------------------------------------------------------
+
+        CHUNK = CHUNK_I(Me%Array%ILB, Me%Array%IUB)
 
         STAT_ = UNKNOWN_
 
@@ -2748,7 +2750,9 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
             Me%Array%ILB = ArraySize%ILB
             Me%Array%IUB = ArraySize%IUB
 
+            !$OMP PARALLEL PRIVATE(index)
 
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
 d1:         do index = Me%Array%ILB, Me%Array%IUB
             
                 if (present(OpenPoints)) then
@@ -2783,6 +2787,8 @@ i1:             if (CalcPoint) then
                 end if i1
 
             end do d1
+            !$OMP END DO NOWAIT
+            !$OMP END PARALLEL
 
             STAT_ = SUCCESS_
         else               
