@@ -103,6 +103,10 @@ program MohidLand
         !Constructs Time 
         call StartComputeTime (ObjComputeTime, BeginTime, EndTime, DT, VariableDT, MaxDT, STAT = STAT_CALL)
 
+        !Update Current Time
+        CurrentTime  = BeginTime
+
+        !Constructs Basin
         call ConstructBasin   (ObjBasinID = ObjBasin, ObjTime = ObjComputeTime, ModelName = ModelName, STAT = STAT_CALL)
 
     end subroutine ConstructMohidLand
@@ -181,83 +185,103 @@ program MohidLand
         !Arguments-------------------------------------------------------------
 
         !Local-----------------------------------------------------------------
-        integer                                     :: STAT_CALL
-        real                                        :: CPUTime, LastCPUTime = 0.
-        real                                        :: NewDT
-
+        !integer                                     :: STAT_CALL
+        !real                                        :: CPUTime, LastCPUTime = 0.
+        logical                                      :: finished
 
         write(*, *)"-------------------------- MOHID -------------------------"
         write(*, *)
         write(*, *)"Running MOHID Land, please wait..."
         write(*, *)                    
 
-        CurrentTime  = BeginTime
 
         do
 
-            !Actualize the CurrentTime with Model time interval DT
-            call ActualizeCurrentTime (TimeID    = ObjComputeTime,      &
-                                       DT_Global = DT,                  &
-                                       STAT      = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ModifyMohidLand - MohidLand - ERR01'
-           
-            !Gives the actualized Current time
-            call GetComputeCurrentTime(ObjComputeTime, CurrentTime, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ModifyMohidLand - MohidLand - ERR02'
+            finished = DoOneTimeStep()
             
-            if (VariableDT) then
-                                
-                NewDT = min(DT * 1.50, MaxDT)
-            
-            else
-                
-                NewDT = DT
-
-            end if
-                        
-            call ModifyBasin(ObjBasin, NewDT, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ModifyMohidLand - MohidLand - ERR03'
-            
-            if (VariableDT) then
-                              
-                DT = min(NewDT, MaxDT)
-
-!                !This code eventually leads to a "DT lock". Ex. If the initial value is 10 and the NewDT value 
-!                !is 10.5, the DT will forever be locked with 10
-!                !Rounds DT to full seconds
-!                DT = max(AINT(DT), 1.0)
-                if (DT > AINT(DT)) then
-                   DT = AINT(DT) + 1.0
-                else
-                   DT = max(AINT(DT), 1.0)
-                endif
-
-                !Fit last Iteration
-                if (CurrentTime + DT > EndTime) then
-                    DT = EndTime - CurrentTime
-                    if (abs(DT) < 1e-5) exit 
-                endif
-
-                call ActualizeDT(TimeID = ObjComputeTime, DT = DT, STAT = STAT_CALL)     
-                if (STAT_CALL /= SUCCESS_) stop 'ModifyMohidLand - MohidLand - ERR04'
-            
-            else
-
-                !Fit last Iteration
-                if (CurrentTime .GE. EndTime) exit                    
-
-            endif 
-
-            call CPU_TIME(CPUTime)
-            if (CPUTime - LastCPUTime > DTPredictionInterval) then
-                LastCPUTime = CPUTime
-                call PrintProgress(ObjComputeTime, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ModifyMohidLand - MohidLand - ERR05'
-            endif
+            if (finished) exit 
 
         enddo
 
     end subroutine ModifyMohidLand
+
+    !--------------------------------------------------------------------------
+
+    logical function  DoOneTimeStep
+
+        !Arguments-------------------------------------------------------------
+
+        !Local-----------------------------------------------------------------
+        real                                        :: NewDT
+        integer                                     :: STAT_CALL
+        real                                        :: CPUTime, LastCPUTime = 0.
+
+        !Actualize the CurrentTime with Model time interval DT
+        call ActualizeCurrentTime (TimeID    = ObjComputeTime,      &
+                                   DT_Global = DT,                  &
+                                   STAT      = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'DoOneTimeStep - MohidLand - ERR01'
+       
+        !Gives the actualized Current time
+        call GetComputeCurrentTime(ObjComputeTime, CurrentTime, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'DoOneTimeStep - MohidLand - ERR02'
+        
+        if (VariableDT) then
+                            
+            NewDT = min(DT * 1.50, MaxDT)
+        
+        else
+            
+            NewDT = DT
+
+        end if
+                    
+        call ModifyBasin(ObjBasin, NewDT, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'DoOneTimeStep - MohidLand - ERR03'
+    
+        if (VariableDT) then
+                              
+            DT = min(NewDT, MaxDT)
+
+            !Rounds new DT to full second
+            if (DT > AINT(DT)) then
+               DT = AINT(DT) + 1.0
+            else
+               DT = max(AINT(DT), 1.0)
+            endif
+
+            !Fit last Iteration
+            if (CurrentTime + DT > EndTime) then
+                DT = EndTime - CurrentTime
+                if (abs(DT) < 1e-5) then
+                    DoOneTimeStep = .true.
+                    return
+                endif 
+            endif
+                
+            call ActualizeDT(TimeID = ObjComputeTime, DT = DT, STAT = STAT_CALL)     
+            if (STAT_CALL /= SUCCESS_) stop 'ModifyMohidLand - MohidLand - ERR04'
+            
+        else
+
+            !Fit last Iteration
+            if (CurrentTime .GE. EndTime) then
+                DoOneTimeStep = .true.
+                return
+            endif
+
+        endif 
+
+        call CPU_TIME(CPUTime)
+        if (CPUTime - LastCPUTime > DTPredictionInterval) then
+            LastCPUTime = CPUTime
+            call PrintProgress(ObjComputeTime, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ModifyMohidLand - MohidLand - ERR05'
+        endif
+
+        DoOneTimeStep = .false.
+    
+    end function
 
 
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -329,13 +353,19 @@ program MohidLand
     !--------------------------------------------------------------------------
 
     !Perform a single time step
+    !DEC$ IFDEFINED (VF66)
+    !dec$ attributes dllexport::PerformTimeStep
+    !DEC$ ELSE
+    !dec$ attributes dllexport,alias:"_PERFORMTIMESTEP"::PerformTimeStep
+    !DEC$ ENDIF
     logical function PerformTimeStep()
 
         !Arguments-------------------------------------------------------------
         
         !Local-----------------------------------------------------------------
-
-        call ModifyMohidLand()
+        logical                                     :: dummy
+        
+        dummy = DoOneTimeStep()
         PerformTimeStep = .true.
 
     end function PerformTimeStep
@@ -507,7 +537,7 @@ program MohidLand
 
         !Local-----------------------------------------------------------------
 
-        Instant = ConvertTimeToString(EndTime)
+        Instant = ConvertTimeToString(CurrentTime)
         
         GetCurrentInstant = .true.
 

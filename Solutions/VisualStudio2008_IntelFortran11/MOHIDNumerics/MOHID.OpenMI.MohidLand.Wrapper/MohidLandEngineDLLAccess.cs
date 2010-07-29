@@ -50,11 +50,14 @@ namespace MOHID.OpenMI.MohidLand.Wrapper
         [DllImport(dllPath, EntryPoint = "GETFLOWBYNODEID", SetLastError = true, ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
         public static extern double GetFlowByNodeID(ref int nodeID);
 
-        [DllImport(dllPath, EntryPoint = "GETNUMBEROFOUTLETS", SetLastError = true, ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
-        public static extern int GetNumberOfOutlets();
-
         [DllImport(dllPath, EntryPoint = "GETOUTLETFLOW", SetLastError = true, ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
         public static extern double GetOutletFlow();
+
+        [DllImport(dllPath, EntryPoint = "SETDOWNSTREAMWATERLEVEL", SetLastError = true, ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+        public static extern bool SetDownStreamWaterLevel();
+
+        [DllImport(dllPath, EntryPoint = "GETOUTLETNODEID", SetLastError = true, ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+        public static extern int GetOutletNodeID();
 
         [DllImport(dllPath,EntryPoint = "RUNSIMULATION",SetLastError = true,ExactSpelling = true,CallingConvention = CallingConvention.Cdecl)]
         public static extern bool RunSimulation();
@@ -69,7 +72,6 @@ namespace MOHID.OpenMI.MohidLand.Wrapper
 
         
         #endregion
-
 
     }
 }

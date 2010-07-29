@@ -36,42 +36,45 @@ namespace MOHID.OpenMI.MohidLand.Wrapper
             // -- Build exchange items ---
             Dimension flowDimension = new Dimension();
             Unit flowUnit = new Unit("m3/sec", 1, 0, "m3/sec");
-
             Quantity flowQuantity = new Quantity(flowUnit, "description", "Flow", global::OpenMI.Standard.ValueType.Scalar, flowDimension);
-            Quantity inFlowQuantity = new Quantity(flowUnit, "description", "InFlow", global::OpenMI.Standard.ValueType.Scalar, flowDimension);
 
-            int numberOfNodes = mohidLandEngine.GetNumberOfNodes();
+            Dimension waterlevelDimension = new Dimension();
+            Unit waterlevelUnit = new Unit("m", 1, 0, "m");
+            Quantity waterLevelQuantity = new Quantity(waterlevelUnit, "description", "Water Level", global::OpenMI.Standard.ValueType.Scalar, waterlevelDimension);
 
-            for (int i = 1; i <= numberOfNodes; i++)
-            {
-                OutputExchangeItem flowFromNode = new OutputExchangeItem();
-                InputExchangeItem inFlowToNode = new InputExchangeItem();
 
-                ElementSet node = new ElementSet("description", "Node: " + i.ToString(), ElementType.XYPoint, new SpatialReference("ref"));
-                node.AddElement(new Element("Node:" + i.ToString()));
-                node.Elements[0].AddVertex(new Vertex(mohidLandEngine.GetXCoordinate(i), mohidLandEngine.GetYCoordinate(i), 0));
+            //Flow at the outlet
+            OutputExchangeItem outletFlow = new OutputExchangeItem();
+            outletFlow.Quantity = flowQuantity;
+            ElementSet outletNode = new ElementSet("description", "Outlet", ElementType.XYPoint, new SpatialReference("ref"));
+            outletNode.AddElement(new Element("Outlet"));
+            int outletNodeID = mohidLandEngine.GetOutletNodeID();
+            outletNode.Elements[0].AddVertex(new Vertex(mohidLandEngine.GetXCoordinate(outletNodeID), mohidLandEngine.GetYCoordinate(outletNodeID), 0));
+            outletFlow.ElementSet = outletNode;
+            outletFlow.Quantity = flowQuantity;
 
-                flowFromNode.ElementSet = node;
-                flowFromNode.Quantity = flowQuantity;
+            outputExchangeItems.Add(outletFlow);
 
-                inFlowToNode.ElementSet = node;
-                inFlowToNode.Quantity = inFlowQuantity;
+            //Water level at the outlet
+            InputExchangeItem outletLevel = new InputExchangeItem();
+            outletLevel.Quantity = waterLevelQuantity;
+            outletLevel.ElementSet = outletNode;
+            outletLevel.Quantity = waterLevelQuantity;
 
-                outputExchangeItems.Add(flowFromNode);
-                inputExchangeItems.Add(inFlowToNode);
-            }
+            inputExchangeItems.Add(outletLevel);
+
 
         }
 
 
         public InputExchangeItem GetInputExchangeItem(int exchangeItemIndex)
         {
-            throw new NotImplementedException();
+            return this.inputExchangeItems[exchangeItemIndex] as InputExchangeItem;
         }
 
         public int GetInputExchangeItemCount()
         {
-            throw new NotImplementedException();
+            return this.inputExchangeItems.Count;
         }
 
         public string GetModelDescription()
@@ -86,12 +89,12 @@ namespace MOHID.OpenMI.MohidLand.Wrapper
 
         public OutputExchangeItem GetOutputExchangeItem(int exchangeItemIndex)
         {
-            throw new NotImplementedException();
+            return this.outputExchangeItems[exchangeItemIndex] as OutputExchangeItem;
         }
 
         public int GetOutputExchangeItemCount()
         {
-            throw new NotImplementedException();
+            return this.outputExchangeItems.Count;
         }
 
         public ITimeSpan GetTimeHorizon()
@@ -161,30 +164,39 @@ namespace MOHID.OpenMI.MohidLand.Wrapper
 
             if (QuantityID == "Flow")
             {
-                int index = Convert.ToInt32((ElementSetID.Split(separator))[1]);
                 returnValues = new double[1];
-                returnValues[0] = mohidLandEngine.GetFlowByNodeID(index);
+                returnValues[0] = mohidLandEngine.GetOutletFlow();
             }
             else
             {
-                throw new Exception("Illegal QuantityID in GetValues method in SimpleRiverEngine");
+                throw new Exception("Illegal QuantityID in GetValues method in MohidLandEngineWrapper");
             }
 
             ScalarSet values = new ScalarSet(returnValues);
             return values;
         }
 
+        public void SetValues(string QuantityID, string ElementSetID, global::OpenMI.Standard.IValueSet values)
+        {
+            if (QuantityID == "Water Level")
+            {
+                double waterLevel = ((ScalarSet)values).data[0];
+                mohidLandEngine.SetDownstreamWaterLevel(waterLevel);
+            }
+            else
+            {
+                throw new Exception("Illegal QuantityID in SetValues method in MohidLandEngineWrapper");
+            }
+        }
+
 
         public bool PerformTimeStep()
         {
-            throw new NotImplementedException();
+            mohidLandEngine.PerformTimeStep();
+            return true;
         }
 
-        public void SetValues(string QuantityID, string ElementSetID, global::OpenMI.Standard.IValueSet values)
-        {
-            throw new NotImplementedException();
-        }
-
+ 
         #endregion
     }
 }

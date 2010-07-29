@@ -182,10 +182,24 @@ namespace MOHID.OpenMI.MohidLand.Wrapper
             
         }
 
-
         public double GetFlowByNodeID(int nodeID)
         {
             return MohidLandEngineDLLAccess.GetFlowByNodeID(ref nodeID);
+        }
+
+        public int GetOutletNodeID()
+        {
+            return MohidLandEngineDLLAccess.GetOutletNodeID();
+        }
+
+        public double GetOutletFlow()
+        {
+            return MohidLandEngineDLLAccess.GetOutletFlow();
+        }
+
+        public void SetDownstreamWaterLevel(double waterLevel)
+        {
+            MohidLandEngineDLLAccess.SetDownStreamWaterLevel();
         }
     }
 }

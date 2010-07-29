@@ -4,6 +4,8 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.IO;
+using OpenMI.Standard;
+using MOHID.OpenMI.Sdk.Backbone;
 
 //using Common.Logging;
 
@@ -21,12 +23,26 @@ namespace MOHID.OpenMI.MohidLand.Wrapper.UnitTest
             MohidLandEngineWrapper w = new MohidLandEngineWrapper();
             w.Initialize(ht);
 
-            //MohidLandEngineDotNetAccessTest test = new MohidLandEngineDotNetAccessTest();
-            //test.Init();
-            //test.GetModelID();
-            //test.AccessTimes();
-            //test.RunWholeSimulation();
-            //test.ClearUp();
+            ITimeSpan modelSpan = w.GetTimeHorizon();
+            double now = modelSpan.Start.ModifiedJulianDay;
+            while (now < modelSpan.End.ModifiedJulianDay)
+            {
+                w.PerformTimeStep();
+
+                //Gets outputs Items
+                for (int i = 0; i < w.GetOutputExchangeItemCount(); i++)
+                {
+                    OutputExchangeItem ouputItem = w.GetOutputExchangeItem(i);
+                    ouputItem.ToString();
+                }
+                
+                now = w.GetEarliestNeededTime().ModifiedJulianDay;
+            }
+
+
+            w.Finish();
+
+
         }
     }
 }

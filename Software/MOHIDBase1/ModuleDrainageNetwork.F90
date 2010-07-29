@@ -376,9 +376,10 @@ Module ModuleDrainageNetwork
     integer, parameter                              :: Linear               = 2
     integer, parameter                              :: RiskRatio            = 3
     
-    !Variable from file
+    !Variable downstream boundary
     integer, parameter                              :: None                 = 1
     integer, parameter                              :: ReadTimeSerie        = 2
+    integer, parameter                              :: OpenMI               = 3
 
     !TimeSerie hydrodynamic properties
     integer, parameter                              :: pWaterDepth          = 1 
@@ -713,6 +714,7 @@ Module ModuleDrainageNetwork
         integer                                     :: TotalReaches          = 0
         integer                                     :: TotalOutlets          = 0
         integer                                     :: OutletReachPos
+        integer                                     :: OutletNodePos
         integer                                     :: HighestOrder          = 0
         logical                                     :: CheckNodes
         logical                                     :: CheckReaches
@@ -3104,6 +3106,7 @@ do1:    do while (.not.Done)
 
                 ReachPos = CurrNode%UpstreamReaches (1)                
                 Me%OutletReachPos = ReachPos
+                Me%OutletNodePos = NodePos
             end if
 
         end do
@@ -4265,6 +4268,8 @@ if1:        if (CurrNode%nDownstreamReaches /= 0) then
                        CurrNode%WaterLevel = Me%Downstream%DefaultValue
                     else if (Me%Downstream%Evolution == ReadTimeSerie) then
                        call ModifyDownstreamTimeSerie (CurrNode%WaterLevel)
+                    else if (Me%DownStream%Evolution == OpenMI) then
+                        !Do nothing
                     end if
 
                     CurrNode%WaterDepth = CurrNode%WaterLevel - CurrNode%CrossSection%BottomLevel
@@ -11926,25 +11931,25 @@ cd1:    if (ObjDrainageNetwork_ID > 0) then
         return
     
     end function GetNumberOfNodes
-    
+
     !DEC$ IFDEFINED (VF66)
-    !dec$ attributes dllexport::GetNumberOfOutlets
+    !dec$ attributes dllexport::GetOutletNodeID
     !DEC$ ELSE
-    !dec$ attributes dllexport,alias:"_GETNUMBEROFOUTLETS"::GetNumberOfOutlets
+    !dec$ attributes dllexport,alias:"_GETOUTLETNODEID"::GetOutletNodeID
     !DEC$ ENDIF
     !Return the number of Error Messages
-    integer function GetNumberOfOutlets()
+    integer function GetOutletNodeID()
     
         !Arguments-------------------------------------------------------------
         
         !Local-----------------------------------------------------------------
 
-        GetNumberOfOutlets = Me%TotalOutlets
+        GetOutletNodeID = Me%OutletNodePos
         
         return
     
-    end function GetNumberOfOutlets
-    
+    end function GetOutletNodeID
+
     
     !DEC$ IFDEFINED (VF66)
     !dec$ attributes dllexport::GetXCoordinate
@@ -11958,7 +11963,7 @@ cd1:    if (ObjDrainageNetwork_ID > 0) then
         
         !Local-----------------------------------------------------------------
 
-        GetXCoordinate = Me%Nodes(NodeID)%X
+        GetXCoordinate = dble(Me%Nodes(NodeID)%X)
         
         return
 
@@ -11976,14 +11981,56 @@ cd1:    if (ObjDrainageNetwork_ID > 0) then
         
         !Local-----------------------------------------------------------------
 
-        GetYCoordinate = Me%Nodes(NodeID)%X
+        GetYCoordinate = dble(Me%Nodes(NodeID)%Y)
         
         return
 
     end function GetYCoordinate
 
 
+    !DEC$ IFDEFINED (VF66)
+    !dec$ attributes dllexport::GetOutletFlow
+    !DEC$ ELSE
+    !dec$ attributes dllexport,alias:"_GETOUTLETFLOW"::GetOutletFlow
+    !DEC$ ENDIF
+    real(8) function GetOutletFlow
 
+        !Arguments-------------------------------------------------------------
+        integer                                     :: NodeID
+        
+        !Local-----------------------------------------------------------------
+
+        GetOutletFlow = dble(Me%Reaches(Me%OutletReachPos)%FlowNew)  
+        
+        return
+
+    end function
+
+    !DEC$ IFDEFINED (VF66)
+    !dec$ attributes dllexport::GetOutletFlow
+    !DEC$ ELSE
+    !dec$ attributes dllexport,alias:"_GETOUTLETFLOW"::GetOutletFlow
+    !DEC$ ENDIF
+    logical function SetDownStreamWaterLevel(WaterLevel)
+
+        !Arguments-------------------------------------------------------------
+        real(8)                                     :: WaterLevel
+        
+        !Local-----------------------------------------------------------------
+        type (T_Node), pointer                      :: CurrNode
+
+
+        CurrNode => Me%Nodes(Me%OutletNodePos)
+
+        CurrNode%WaterLevel = WaterLevel
+        CurrNode%WaterDepth = CurrNode%WaterLevel - CurrNode%CrossSection%BottomLevel
+        
+        SetDownStreamWaterLevel = .true.
+
+        return
+
+    end function SetDownStreamWaterLevel
+    
 
 #endif
 
