@@ -40,6 +40,7 @@ Module ModuleLife
     use ModuleGlobalData
     use ModuleEnterData
     use ModuleFunctions, only: PhytoLightLimitationFactor, Chunk_I
+    use ModuleStopWatch,            only: StartWatch, StopWatch
 
     implicit none
 
@@ -2702,6 +2703,8 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
         integer                                     :: Chunk
         !----------------------------------------------------------------------
 
+        if (MonitorPerformance) call StartWatch ("ModuleLife", "ModifyLife")
+
         CHUNK = CHUNK_I(Me%Array%ILB, Me%Array%IUB)
 
         STAT_ = UNKNOWN_
@@ -2750,7 +2753,7 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
             Me%Array%ILB = ArraySize%ILB
             Me%Array%IUB = ArraySize%IUB
 
-            !$OMP PARALLEL PRIVATE(index)
+            !$OMP PARALLEL PRIVATE(index, CalcPoint)
 
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
 d1:         do index = Me%Array%ILB, Me%Array%IUB
@@ -2796,6 +2799,8 @@ i1:             if (CalcPoint) then
         end if
 
         if (present(STAT)) STAT = STAT_
+
+        if (MonitorPerformance) call StopWatch ("ModuleLife", "ModifyLife")
 
     end subroutine ModifyLife
 
