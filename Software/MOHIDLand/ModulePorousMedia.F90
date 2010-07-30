@@ -147,6 +147,7 @@ Module ModulePorousMedia
     public  ::  GetUnsatK
     public  ::  GetEvaporation
     public  ::  GetTranspiration
+    public  ::  GetIgnoreWaterColumnOnEVAP
     public  ::  UnGetPorousMedia
     
     !Modifier
@@ -833,7 +834,7 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                      Me%ObjEnterData, iflag,                                            &
                      SearchType     = FromFile,                                         &
                      keyword        ='IGNORE_WATER_COLUMN_ON_EVAP',                     &
-                     Default        = .false.,                                          &
+                     Default        = .true.,                                           &
                      ClientModule   ='ModulePorousMedia',                               &
                      STAT           = STAT_CALL)             
         if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModulePorousMedia - ERR09A'
@@ -3100,6 +3101,37 @@ i1:         if (CoordON) then
 
 
     end subroutine GetTranspiration
+
+    !--------------------------------------------------------------------------    
+
+    subroutine GetIgnoreWaterColumnOnEVAP (ObjPorousMediaID, IgnoreWaterColumnOnEvap, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                                         :: ObjPorousMediaID
+        logical, intent(OUT)                            :: IgnoreWaterColumnOnEvap
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                         :: STAT_, ready_
+        
+        call Ready(ObjPorousMediaID, ready_)    
+        
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            IgnoreWaterColumnOnEvap = Me%SoilOpt%IgnoreWaterColumnOnEvap
+
+            STAT_ = SUCCESS_
+            
+        else
+         
+            STAT_ = ready_
+            
+        end if
+
+        if (present(STAT)) STAT = STAT_
+            
+    end subroutine GetIgnoreWaterColumnOnEVAP
 
     !--------------------------------------------------------------------------    
 

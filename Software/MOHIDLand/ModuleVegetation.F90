@@ -246,6 +246,7 @@ Module ModuleVegetation
     public  :: GetTranspirationBottomLayer
     public  :: GetVegetationOptions
     public  :: GetNutrientFraction
+    public  :: GetCanopyStorageType
 !    public  :: GetFeddesH
 !    public  :: GetVegetationRootProfile
     public  :: GetVegetationSoilFluxes
@@ -5014,6 +5015,53 @@ cd0:    if (Exist) then
         if (present(STAT)) STAT = STAT_
 
     end subroutine GetNutrientFraction
+    
+    !--------------------------------------------------------------------------
+    
+    subroutine GetCanopyStorageType(VegetationID, IsConstant, ConstantValue, STAT)
+
+        !Arguments--------------------------------------------------------------
+        integer                                     :: VegetationID
+        logical, intent(OUT)                        :: IsConstant
+        real, optional, intent(OUT)                 :: ConstantValue
+        integer, optional, intent(OUT)              :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: ready_        
+        integer                                     :: STAT_, STAT_CALL
+        type(T_Property), pointer                   :: SpecificLeafStorage        
+        
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(VegetationID, ready_) 
+
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            call Read_Lock(mVEGETATION_, Me%InstanceID)
+
+            call SearchProperty(SpecificLeafStorage, SpecificLeafStorage_, .false., STAT = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_) &
+                stop 'GetCanopyStorageType - ModuleVegetation - ERR010'
+
+            IsConstant = SpecificLeafStorage%IsConstant
+        
+            if (present(ConstantValue)) ConstantValue = ConstantValue
+
+            call Read_UnLock(mVegetation_, Me%InstanceID, "UngetCanopyStorageType")
+            STAT_ = SUCCESS_
+            
+        else
+         
+            STAT_ = ready_
+            
+        end if 
+
+        if (present(STAT)) STAT = STAT_
+            
+    end subroutine GetCanopyStorageType
     
     !--------------------------------------------------------------------------
 

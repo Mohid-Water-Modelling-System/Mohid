@@ -107,7 +107,7 @@ Module ModuleBasin
                                      GetPorousMediaTotalStoredVolume, GetEvaporation,    &
                                      GetNextPorousMediaDT, UngetPorousMedia, GetGWLayer, &
                                      GetGWFlowOption, GetGWFlowToChannelsByLayer,        &
-                                     GetGWToChannelsLayers
+                                     GetGWToChannelsLayers, GetIgnoreWaterColumnOnEVAP
                                      
     use ModulePorousMediaProperties,                                                     &
                               only : ConstructPorousMediaProperties,                     &
@@ -127,7 +127,7 @@ Module ModuleBasin
                                      GetVegetationDT, GetRootDepth, GetNutrientFraction, &
                                      UnGetVegetation, UnGetVegetationSoilFluxes,         &
                                      GetCanopyHeight, GetTranspirationBottomLayer,       &
-                                     GetPotLeafAreaIndex                  
+                                     GetPotLeafAreaIndex, GetCanopyStorageType                  
 
     use ModuleStopWatch,      only : StartWatch, StopWatch
     
@@ -435,7 +435,10 @@ Module ModuleBasin
         type (T_OutPut)                             :: OutPut
         type (T_OutPut)                             :: EVTPOutPut
         
-        logical                                     :: UsePotLAI
+        real                                        :: DefaultKcWhenLAI0        = 0.3
+        logical                                     :: UseDefaultKcWhenLAI0     = .false.
+        logical                                     :: UsePotLAI                = .false.
+        real                                        :: KcMin                    = 0.3
         
         !Instance IDs
         integer                                     :: ObjTime                  = 0
@@ -889,7 +892,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                          Me%ObjEnterData, iflag,                                             &
                          SearchType   = FromFile,                                            &
                          keyword      = 'EVAP_FROM_WATER_COLUMN',                            &
-                         default      = .true.,                                              &
+                         default      = .false.,                                              &
                          ClientModule = 'ModuleBasin',                                       &
                          STAT         = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR150'
@@ -1157,7 +1160,30 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR390'
 
+        !Set a default value for Kc if LAI = 0
+        call GetData(Me%DefaultKcWhenLAI0,                                               &
+                     Me%ObjEnterData, iflag,                                             &
+                     SearchType   = FromFile,                                            &
+                     keyword      = 'DEFAULT_KC_WHEN_LAI_ZERO',                          &
+                     ClientModule = 'ModuleBasin',                                       &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR400'
+        
+        if (iflag .EQ. 0) then
+            Me%UseDefaultKcWhenLAI0 = .false.
+        else
+            Me%UseDefaultKcWhenLAI0 = .true.
+        endif
 
+        !Set a minimum value for Kc (for LAI = 0)
+        call GetData(Me%KcMin,                                                           &
+                     Me%ObjEnterData, iflag,                                             &
+                     SearchType   = FromFile,                                            &
+                     keyword      = 'KC_MIN',                                            &
+                     default      = 0.3,                                                 &
+                     ClientModule = 'ModuleBasin',                                       &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR410'    
 
     end subroutine ReadDataFile
     !--------------------------------------------------------------------------
@@ -2058,6 +2084,10 @@ i1:         if (CoordON) then
         logical                                     :: VariableDT
 !        integer                                     :: GeometryID 
         integer                                     :: MapID
+        logical                                     :: IgnoreWaterColumnOnEvap
+        logical                                     :: IsConstant
+        real                                        :: ConstantValue
+        
         !Begin-----------------------------------------------------------------
 
         !Constructs Atmosphere
@@ -2069,14 +2099,14 @@ i1:         if (CoordON) then
                                          HorizontalGridID   = Me%ObjHorizontalGrid,      &
                                          MappingPoints      = Me%ExtVar%BasinPoints,     &
                                          STAT               = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructCoupledModules - ModuleBasin - ERR01'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructCoupledModules - ModuleBasin - ERR010'
         endif
 
         !Constructs Drainage Network
         if (Me%Coupled%DrainageNetwork) then
 
             call GetVariableDT(Me%ObjTime, VariableDT, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructCoupledModules - ModuleBasin - ERR03'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructCoupledModules - ModuleBasin - ERR020'
             
             call ConstructDrainageNetwork (ModelName         = Me%ModelName,                     &
                                            DrainageNetworkID = Me%ObjDrainageNetwork,            &
@@ -2086,7 +2116,7 @@ i1:         if (CoordON) then
                                            CoupledPMP        = Me%Coupled%PorousMediaProperties, &
                                            CoupledRP         = Me%Coupled%RunoffProperties,      &
                                            STAT              = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructCoupledModules - ModuleBasin - ERR04'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructCoupledModules - ModuleBasin - ERR030'
         endif
 
 !        !Constructs RunOff
@@ -2134,7 +2164,18 @@ i1:         if (CoordON) then
                                          GeometryID             = Me%ObjGeometry,           &
                                          MapID                  = MapID,                    &
                                          STAT                   = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructCoupledModules - ModuleBasin - ERR06'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructCoupledModules - ModuleBasin - ERR040'
+            
+            call GetIgnoreWaterColumnOnEVAP(Me%ObjPorousMedia, IgnoreWaterColumnOnEvap, STAT = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_) stop 'ConstructCoupledModules - ModuleBasin - ERR050' 
+            
+            if ((.NOT. Me%EvapFromWaterColumn) .AND. (.NOT. IgnoreWaterColumnOnEvap)) then
+                write (*,*)
+                write (*,*) 'WARNING: Both EVAP_FROM_WATER_COLUMN keyword (Basin) and '
+                write (*,*) '         IGNORE_WATER_COLUMN_ON_EVAP keyword (PorousMedia) are set to' 
+                write (*,*) '         FALSE.'
+                write (*,*)
+            endif
 
                
             !Constructs PorousMediaProperties 
@@ -2150,7 +2191,7 @@ i1:         if (CoordON) then
                                                        CoupledDN                  = Me%Coupled%DrainageNetwork,   &
                                                        CheckGlobalMass            = Me%VerifyGlobalMass,          &
                                                        STAT                       = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructCoupledModules - ModuleBasin - ERR07'
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructCoupledModules - ModuleBasin - ERR060'
             endif
         endif
 
@@ -2166,7 +2207,7 @@ i1:         if (CoordON) then
                                          DrainageNetworkID  = Me%ObjDrainageNetwork,     &
                                          InitialWaterColumn = Me%InitialWaterColumn,     &
                                          STAT               = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructCoupledModules - ModuleBasin - ERR05'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructCoupledModules - ModuleBasin - ERR070'
             
            
             !Constructs RunoffProperties 
@@ -2184,7 +2225,7 @@ i1:         if (CoordON) then
                                                        CoupledDN                  = Me%Coupled%DrainageNetwork,   &
                                                        CheckGlobalMass            = Me%VerifyGlobalMass,          &
                                                        STAT                       = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructCoupledModules - ModuleBasin - ERR07'
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructCoupledModules - ModuleBasin - ERR080'
             endif
             
         endif
@@ -2205,7 +2246,18 @@ i1:         if (CoordON) then
                                          CoupledAtmosphere  = Me%Coupled%Atmosphere,         &
                                          UsePotLAI          = Me%UsePotLAI,                  &
                                          STAT               = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructCoupledModules - ModuleBasin - ERR08'     
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructCoupledModules - ModuleBasin - ERR090'
+            
+            call GetCanopyStorageType(Me%ObjVegetation, IsConstant, ConstantValue, STAT = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_) stop 'ConstructCoupledModules - ModuleBasin - ERR100' 
+            
+            if (Me%EvapFromCanopy .AND. ((.NOT. IsConstant) .OR. (ConstantValue /= 0.0))) then
+                write (*,*)
+                write (*,*) 'WARNING: EVAP_FROM_CANOPY keyword (Basin) is set to FALSE and '
+                write (*,*) '         "specific leaf storage" value is not constant or have '
+                write (*,*) '         a value other than 0.'
+                write (*,*)
+            endif
                                           
         endif
        
@@ -3280,7 +3332,8 @@ etr_fao:        if (CalcET0) then
         enddo
         enddo
         
-        EvaporateFromCanopy = Me%Coupled%Vegetation .AND. Me%EvapFromCanopy 
+        EvaporateFromCanopy      = Me%Coupled%Vegetation .AND. Me%EvapFromCanopy 
+        EvaporateFromWaterColumn = Me%Coupled%Vegetation .AND. Me%EvapFromWaterColumn
         
         !Pointer so that mass balance right even if there is no evaporation
         call SetMatrixValue (Me%CanopyStorageOld, Me%Size, Me%CanopyStorage)
@@ -3386,11 +3439,10 @@ etr_fao:        if (CalcET0) then
                                                        dH * Me%ExtVar%GridCellArea(i, j) * Me%CoveredFraction(i, j)
                         endif
                         
+                        Evaporation = Evaporation - dH
+                        
                     endif 
-                    
-                    !m
-                    Evaporation = min(Evaporation - dH, dble(0.0))
-                    
+                                      
                     !Also EVAP from watercolumn - important for 1D cases to avoid accumulation of Water on the surface
                     if (EvaporateFromWaterColumn) then
                     
@@ -3408,17 +3460,16 @@ etr_fao:        if (CalcET0) then
                         endif
                         
                         Me%WaterColumnEvaporated(i, j) = dH   
+                        Evaporation = Evaporation - dH
                                              
                     else                    
                     
                         Me%WaterColumnEvaporated(i, j) = 0.0   
                                              
                     endif 
-                    !m
-                    Evaporation = min(Evaporation - dH, dble(0.0)) 
+
                     !m/s              
-                    EvaporationMatrix(i, j) = max(((EvaporationMatrix(i, j) * Me%CurrentDT) - Evaporation)      &
-                                                    / Me%CurrentDT, dble(0.0))
+                    EvaporationMatrix(i, j) = Evaporation / Me%CurrentDT
                                            
                 endif
                                 
@@ -3466,8 +3517,10 @@ etr_fao:        if (CalcET0) then
         
         !From 'Necessidades de Água e Métodos de Rega', Luis Santos Pereira, 2004
         !Publicações Europa-América, pg 85-86
-        if ((PotLAI > LAI) .AND. (PotLAI > 0.0)) then
-            AdjustCropCoefficient = Kc - (1 - (LAI / PotLAI)**0.5)        
+        if ((Me%UseDefaultKcWhenLAI0) .AND. (LAI .EQ. 0.0)) then
+            AdjustCropCoefficient = Me%DefaultKcWhenLAI0
+        else if ((PotLAI > LAI) .AND. (PotLAI > 0.0)) then
+            AdjustCropCoefficient = max(Kc - (1 - (LAI / PotLAI)**0.5), Me%KcMin)
         else
             AdjustCropCoefficient = Kc
         endif
