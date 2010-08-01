@@ -27,8 +27,8 @@
 #------------------------------------------------------------------------------
 
 INCS = -I$(HDF5) -I$(BASE1INC) -I$(BASE2INC)
-LIBS = $(BASELIBS)
-SRCDIR = $(SRCWATER)
+LIBS = $(BASELIBS) $(HDFLIBS)
+SRCDIR = $(SRCREP)/MOHIDWater
 FILES = \
        ModuleAssimilation.$(S) \
        ModuleConsolidation.$(S) \
@@ -52,7 +52,7 @@ FILES = \
        ModuleInterfaceSedimentWater.$(S) \
        ModuleModel.$(S) \
        Main.$(S)
-TARGET = $(WATER)
+TARGET = MohidWater$(SUFFPROG)
 
 #----------Makefile rules--------------
 

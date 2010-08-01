@@ -28,16 +28,29 @@
 
 INCS = -I$(HDF5) -I$(BASE1INC) -I$(BASE2INC)
 LIBS = $(BASELIBS) $(HDFLIBS)
-SRCDIR = $(SRCREP)/MOHIDLand
-FILES = \
-    ModuleBasin.$(S) \
-    ModulePorousMedia.$(S) \
-    ModulePorousMediaProperties.$(S) \
-    ModuleRunOff.$(S) \
-    ModuleRunoffProperties.$(S) \
-    ModuleVegetation.$(S) \
-    MohidLand.$(S)
-TARGET = MohidLand$(SUFFPROG)
+
+ifeq ($(IS_NETCDF),true)
+     INCS := $(INCS) -I$(NETCDFINC)
+     LIBS := $(LIBS) $(NETCDFLIBS)
+endif
+
+SRCDIR = $(SRCREP)/ConvertToXYZ
+FILES := \
+    ModuleASCII.$(S) \
+    ModuleEtopo2.$(S) \
+    ModuleEtopo5.$(S) \
+    ModuleNASA.$(S) \
+    ModuleNOAAShoreLine.$(S) \
+    ModuleSRTM30.$(S) \
+    ConvertToXYZ.$(S)
+NCFILES := \
+    ModuleGEBCO.$(S)
+
+ifeq ($(IS_NETCDF),true)
+   FILES := $(FILES) $(NCFILES)
+endif
+
+TARGET = ConvertToXYZ$(SUFFPROG)
 
 #----------Makefile rules--------------
 
@@ -47,11 +60,20 @@ include ../Makefiles/Makefiles.mk
 
 #--------Dependencies list-------------
 
-ModulePorousMediaProperties.${O} : ModulePorousMedia.${O}
-ModuleRunoffProperties.${O} : ModuleRunOff.${O}
-ModuleBasin.${O} :  ModuleRunoffProperties.${O} \
-                    ModulePorousMediaProperties.${O} \
-                    ModuleVegetation.${O}
+CONVERTDEPEND := ModuleASCII.$(O) \
+       		ModuleEtopo2.$(O) \
+		ModuleEtopo5.$(O) \
+		ModuleNASA.$(O) \
+		ModuleNOAAShoreLine.$(O) \
+		ModuleSRTM30.$(O)
+NCCONVERTDEPEND := \
+		ModuleGEBCO.$(O)
+
+ifeq ($(IS_NETCDF),true)
+    CONVERTDEPEND := $(CONVERTDEPEND) $(NCCONVERTDEPEND)
+endif
+
+ConvertToXYZ.$(O) : $(CONVERTDEPEND)
 
 #--------End of dependencies list---------
 

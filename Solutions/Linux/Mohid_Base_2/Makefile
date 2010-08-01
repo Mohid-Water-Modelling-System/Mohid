@@ -28,7 +28,7 @@
 
 INCS = -I$(HDF5) -I$(BASE1INC)
 LIBS =
-SRCDIR = $(SRCBASE2)
+SRCDIR = $(SRCREP)/MOHIDBase2
 FILES = \
        ModuleStatistic.$(S) \
        ModuleHorizontalGrid.$(S) \

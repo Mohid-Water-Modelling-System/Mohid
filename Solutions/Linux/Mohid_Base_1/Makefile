@@ -28,7 +28,7 @@
 
 INCS = -I$(HDF5)
 LIBS =
-SRCDIR = $(SRCBASE1)
+SRCDIR = $(SRCREP)/MOHIDBase1
 FILES = \
         ModuleGlobalData.$(S) \
         ModuleTime.$(S) \

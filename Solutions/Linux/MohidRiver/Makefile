@@ -28,16 +28,10 @@
 
 INCS = -I$(HDF5) -I$(BASE1INC) -I$(BASE2INC)
 LIBS = $(BASELIBS) $(HDFLIBS)
-SRCDIR = $(SRCREP)/MOHIDLand
+SRCDIR = $(SRCREP)/MOHIDRiver
 FILES = \
-    ModuleBasin.$(S) \
-    ModulePorousMedia.$(S) \
-    ModulePorousMediaProperties.$(S) \
-    ModuleRunOff.$(S) \
-    ModuleRunoffProperties.$(S) \
-    ModuleVegetation.$(S) \
-    MohidLand.$(S)
-TARGET = MohidLand$(SUFFPROG)
+    RiverNetwork.$(S)
+TARGET = MohidRiver$(SUFFPROG)
 
 #----------Makefile rules--------------
 
@@ -46,13 +40,8 @@ SHELL = /bin/sh
 include ../Makefiles/Makefiles.mk
 
 #--------Dependencies list-------------
-
-ModulePorousMediaProperties.${O} : ModulePorousMedia.${O}
-ModuleRunoffProperties.${O} : ModuleRunOff.${O}
-ModuleBasin.${O} :  ModuleRunoffProperties.${O} \
-                    ModulePorousMediaProperties.${O} \
-                    ModuleVegetation.${O}
-
+RiverNetwork.$(O) : 
+#
 #--------End of dependencies list---------
 
 #---------------------------------------------------------------------------------------------------

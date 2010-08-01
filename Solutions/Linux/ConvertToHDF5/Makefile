@@ -27,14 +27,15 @@
 #------------------------------------------------------------------------------
 
 INCS := -I$(HDF5) -I$(BASE1INC) -I$(BASE2INC)
+LIBS = $(BASELIBS) $(HDFLIBS)
 
 ifeq ($(IS_NETCDF),true)
     INCS := $(INCS) -I$(NETCDFINC)
+    LIBS := $(LIBS) $(NETCDFLIBS)
 endif
 
-LIBS = $(BASELIBS)
 
-SRCDIR = $(SRCCONVERT)
+SRCDIR = $(SRCREP)/ConvertToHDF5
 
 NCFILES :=
 NCFILES := $(NCFILES) ModuleAladinFormat.$(S)
@@ -72,7 +73,7 @@ ifeq ($(IS_NETCDF),true)
     FILES := $(FILES) $(NCFILES)
 endif
 
-TARGET = $(CONVERT)
+TARGET = ConvertToHDF5$(SUFFPROG)
 
 #----------Makefile rules--------------
 

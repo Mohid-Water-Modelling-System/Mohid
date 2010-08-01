@@ -18,28 +18,18 @@ export LLFLAGS  =
 export MKFLAGS =
 export AR = ar rc
 export SUFFLIB = .lib
-export SUFFPROG = 
+export SUFFPROG =
+
+#Software repository
+export SRCREP = ../../../Software
 
 # MohidBase1
-export SRCBASE1 = ../../../Software/MOHIDBase1
 export BASE1INC = ../Mohid_Base_1
 export BASE1 = Mohid_Base_1$(SUFFLIB)
 
 # MohidBase2
-export SRCBASE2 = ../../../Software/MOHIDBase2
 export BASE2INC = ../Mohid_Base_2
 export BASE2 = Mohid_Base_2$(SUFFLIB)
-
-# MohidWater
-export SRCWATER = ../../../Software/MOHIDWater
-export WATER = MohidWater$(SUFFPROG)
-
-# MohidLand
-export SRCLAND = ../../../Software/MOHIDLand
-export LAND = MohidLand$(SUFFPROG)
-
-export SRCCONVERT = ../../../Software/ConvertToHDF5
-export CONVERT = ConvertToHDF5$(SUFFPROG)
 
 # HDF5 lib
 export LHDF5FORTRAN = libhdf5_fortran.a
@@ -49,24 +39,23 @@ export LHDF5HL = libhdf5_hl.a
 # Z lib
 export ZLIB = libz.a
 
+# Netcdf lib
+export LNETCDF  = libnetcdf.a
+
 # All libs folders
 export BASELIBS := \
        $(BASE1INC)/$(BASE1) \
-       $(BASE2INC)/$(BASE2) \
+       $(BASE2INC)/$(BASE2)
+
+export HDFLIBS := \
        $(HDF5)/$(LHDF5FORTRAN) \
        $(HDF5)/$(LHDF5) \
        $(HDF5)/$(LHDF5HL) \
        $(ZLIBINC)/$(ZLIB)
 
-# Netcdf lib
-export LNETCDF  = libnetcdf.a
-
 # All libs folders (including netcdf)
-ifeq ($(IS_NETCDF),true)
-    export BASELIBS := \
-            $(BASELIBS) \
-            $(NETCDFLIB)/$(LNETCDF)
-endif
+export NETCDFLIBS := \
+	$(NETCDFLIB)/$(LNETCDF)
 
 #------Files and modules lists------
 
@@ -80,7 +69,9 @@ MODULES = \
           MohidWater \
           Mohid_Base_2 \
           Mohid_Base_1 \
-          ConvertToHDF5
+          ConvertToHDF5 \
+	  ConvertToXYZ \
+	  MohidRiver
 
 #------Makefile rules---------------
 
@@ -92,4 +83,6 @@ Mohid_Base_2.all : Mohid_Base_1.all
 MohidLand.all : Mohid_Base_2.all
 MohidWater.all : Mohid_Base_2.all
 ConvertToHDF5.all : Mohid_Base_2.all
+ConvertToXYZ.all : Mohid_Base_2.all	
+MohidRiver.all : Mohid_Base_2.all
 
