@@ -1158,7 +1158,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
                      STAT         = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalVariables - ModuleLife - ERROR #10'
    
-        call GetData(ME%BioChemPar%L_lim_method,                        &
+        call GetData(Me%BioChemPar%L_lim_method,                        &
                      Me%ObjEnterData, iflag,                            &
                      SearchType   = FromFile,                           &
                      keyword      = 'LIGHT_LIM_METHOD',                 &
@@ -1167,7 +1167,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
                      STAT         = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalVariables  - ModuleLife - ERROR #11'
         
-        call GetData(ME%BioChemPar%T_lim_method,                        &
+        call GetData(Me%BioChemPar%T_lim_method,                        &
                      Me%ObjEnterData, iflag,                            &
                      SearchType   = FromFile,                           &
                      keyword      = 'TEMP_LIM_METHOD',                  &
@@ -1176,7 +1176,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
                      STAT         = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalVariables  - ModuleLife - ERROR #12' 
 
-        call GetData(ME%BioChemPar%Nitrifradiation,                     &
+        call GetData(Me%BioChemPar%Nitrifradiation,                     &
                      Me%ObjEnterData, iflag,                            &
                      SearchType   = FromFile,                           &
                      keyword      = 'NITRIFRADLIM',                     &
@@ -1185,7 +1185,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
                      STAT         = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalVariables  - ModuleLife - ERROR #13'
         
-        call GetData(ME%BioChemPar%Nitrifrate,                          &
+        call GetData(Me%BioChemPar%Nitrifrate,                          &
                      Me%ObjEnterData, iflag,                            &
                      SearchType   = FromFile,                           &
                      keyword      = 'NITRIFRATE',                       &
@@ -1194,7 +1194,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
                      STAT         = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalVariables  - ModuleLife - ERROR #14' 
 
-        call GetData(ME%BioChemPar%Nit_Inib_coef,                       &
+        call GetData(Me%BioChemPar%Nit_Inib_coef,                       &
                      Me%ObjEnterData, iflag,                            &
                      SearchType   = FromFile,                           &
                      keyword      = 'NIT_IN_COEF',                      &
@@ -1203,7 +1203,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
                      STAT         = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalVariables  - ModuleLife - ERROR #15' 
 
-        call GetData(ME%BioChemPar%Nit_ON_Conv,                         &
+        call GetData(Me%BioChemPar%Nit_ON_Conv,                         &
                      Me%ObjEnterData, iflag,                            &
                      SearchType   = FromFile,                           &
                      keyword      = 'NIT_O_N_CONV',                     &
@@ -2714,9 +2714,9 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
         if (ready_ .EQ. IDLE_ERR_) then
 
             checkmass = .false.
-            if(ME%JulianDay /= JulianDay)checkmass = .true.
+            if(Me%JulianDay /= JulianDay)checkmass = .true.
 
-            ME%JulianDay = JulianDay
+            Me%JulianDay = JulianDay
 
             Me%ExternalVar%Salinity                   => Salinity
             if (.NOT. associated(Me%ExternalVar%Salinity))         &
@@ -2753,7 +2753,7 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
             Me%Array%ILB = ArraySize%ILB
             Me%Array%IUB = ArraySize%IUB
 
-            !$OMP PARALLEL PRIVATE(index, CalcPoint)
+            !$OMP PARALLEL SHARED(Me, OpenPoints, checkmass) PRIVATE(index, CalcPoint)
 
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
 d1:         do index = Me%Array%ILB, Me%Array%IUB
@@ -2811,7 +2811,7 @@ i1:             if (CalcPoint) then
 
 !_________________________________________
 !_________________mass conservation test__
-
+    !$ recursive &
     subroutine MassConservationCheck (index)
 
     !Arguments---------------------------------------------------------------
@@ -2920,7 +2920,7 @@ i1:             if (CalcPoint) then
 !_________________________________________
 !___________________print test to screen__
 
-!        IF (ME%JulianDay .eq. 1 ) then
+!        IF (Me%JulianDay .eq. 1 ) then
 !                    write (*,*) '  '
 !                    write (*,*) 'Total N..............', N_Count, '[mmol N m-3]'
 !                    write (*,*) 'Total P..............', P_Count, '[mmol P m-3]'
@@ -2928,7 +2928,7 @@ i1:             if (CalcPoint) then
 !        end if
 !
         open(99,FILE='mass_check.dat', STATUS='NEW')
-        write (99,69) ME%Julianday, N_Count, P_Count, Si_Count
+        write (99,69) Me%Julianday, N_Count, P_Count, Si_Count
         69 Format (1x, i3, 1x, f10.7, 1x, f10.7, 1x, f10.7)
 !
 
@@ -2939,6 +2939,7 @@ i1:             if (CalcPoint) then
 !_________________________________________
 !_________________________Producers calc__
 
+    !$ recursive &
     subroutine Producers (index)
     
     !Arguments---------------------------------------------------------------
@@ -2948,6 +2949,9 @@ i1:             if (CalcPoint) then
     !Local-------------------------------------------------------------------
         type(T_Producer),      pointer             :: Producer
         type(T_Prey),          pointer             :: Prey
+
+        type(T_Producer)                           :: LocalProducer !Not a pointer, completely allocated
+        type(T_Prey)                               :: LocalPrey !Not a pointer, completely allocated
 
         integer :: PHY_C,   PHY_N,  PHY_P,  PHY_Si, PHY_Chl
         integer :: PreyIndexC,  PreyIndexN, PreyIndexP, PreyIndexSi, PreyIndexChl
@@ -2992,41 +2996,45 @@ i1:             if (CalcPoint) then
         Producer => Me%FirstProducer
 
 d1:     do while(associated(Producer))
+
+            !Very important: the producer type is locally replicated. 
+            !This is required to allow multi-threading.
+            LocalProducer = Producer
             
-            PHY_C   = Producer%PoolIndex%Carbon
-            PHY_N   = Producer%PoolIndex%Nitrogen
-            PHY_P   = Producer%PoolIndex%Phosphorus
-            PHY_Chl = Producer%PoolIndex%Chlorophyll
+            PHY_C   = LocalProducer%PoolIndex%Carbon
+            PHY_N   = LocalProducer%PoolIndex%Nitrogen
+            PHY_P   = LocalProducer%PoolIndex%Phosphorus
+            PHY_Chl = LocalProducer%PoolIndex%Chlorophyll
 
 
 
             !_________________________________________
             !_______ckeck for Si use & Si limit calc__
               
-i1:         if(Producer%Use_Silica)then
+i1:         if(LocalProducer%Use_Silica)then
 
-               PHY_Si  = Producer%PoolIndex%Silica
+               PHY_Si  = LocalProducer%PoolIndex%Silica
 
                                                                            ![units] >>  mmol si / mg C
-               Producer%Ratio%SiC_Actual = Me%ExternalVar%Mass (PHY_Si, Index)/ &  
+               LocalProducer%Ratio%SiC_Actual = Me%ExternalVar%Mass (PHY_Si, Index)/ &  
                                            Me%ExternalVar%Mass (PHY_C, Index)
                
-               Producer%Limitation%Nutrients%Si_Status = Me%ExternalVar%Mass (Si, Index)/    &
+               LocalProducer%Limitation%Nutrients%Si_Status = Me%ExternalVar%Mass (Si, Index)/    &
                                                          (Me%ExternalVar%Mass (Si, Index)+   &
-                                                         Producer%Uptake%Up_Si_Ks)
+                                                         LocalProducer%Uptake%Up_Si_Ks)
             end if i1
 
 
             !_________________________________________
             !__________________actual element ratios__
 
-            Producer%Ratio%NC_Actual = Me%ExternalVar%Mass (PHY_N, Index)/      &
+            LocalProducer%Ratio%NC_Actual = Me%ExternalVar%Mass (PHY_N, Index)/      &
                                        Me%ExternalVar%Mass (PHY_C, Index)              ![units] >>  mmol N / mg C
 
-            Producer%Ratio%PC_Actual = Me%ExternalVar%Mass (PHY_P, Index)/      &
+            LocalProducer%Ratio%PC_Actual = Me%ExternalVar%Mass (PHY_P, Index)/      &
                                        Me%ExternalVar%Mass (PHY_C, Index)              ![units] >>  mmol P / mg C
     
-            Producer%Ratio%ChlC_Actual = Me%ExternalVar%Mass (PHY_Chl, Index)/      &
+            LocalProducer%Ratio%ChlC_Actual = Me%ExternalVar%Mass (PHY_Chl, Index)/      &
                                          Me%ExternalVar%Mass (PHY_C, Index)            ![units] >>  mg Chl / mg C
 
 
@@ -3034,17 +3042,17 @@ i1:         if(Producer%Use_Silica)then
             !___________________temp limitation calc__
 
 
-s1:         Select case (ME%BioChemPar%T_lim_method)
+s1:         Select case (Me%BioChemPar%T_lim_method)
 
             case (1)
 
-                Producer%Limitation%Temperature%Limit = Temp_Lim_Q10 (Producer%Limitation%Temperature%Q10,  &
-                                                        Producer%Limitation%Temperature%T0, index)
+                LocalProducer%Limitation%Temperature%Limit = Temp_Lim_Q10 (LocalProducer%Limitation%Temperature%Q10,  &
+                                                        LocalProducer%Limitation%Temperature%T0, index)
 
             case (2)
          
-                Producer%Limitation%Temperature%Limit = exp(-4000.0 * ((1.0 / (Me%ExternalVar%Temperature (index)            &
-                                                        + 273.15)) - (1.0 / (Producer%Limitation%Temperature%Reftemp + 273.15))))
+                LocalProducer%Limitation%Temperature%Limit = exp(-4000.0 * ((1.0 / (Me%ExternalVar%Temperature (index)            &
+                                                        + 273.15)) - (1.0 / (LocalProducer%Limitation%Temperature%Reftemp + 273.15))))
 
             end select s1
 
@@ -3052,105 +3060,105 @@ s1:         Select case (ME%BioChemPar%T_lim_method)
             !_________________________________________
             !______________nutriente limitation calc__
 
-            Producer%Limitation%Nutrients%N_Status = Nutrient_Lim (Producer%Ratio%NC_Actual,            & 
-                                                     Producer%Ratio%NC_Min, Me%BiochemPar%Redfield_NC)
+            LocalProducer%Limitation%Nutrients%N_Status = Nutrient_Lim (LocalProducer%Ratio%NC_Actual,            & 
+                                                     LocalProducer%Ratio%NC_Min, Me%BiochemPar%Redfield_NC)
     
-            Producer%Limitation%Nutrients%P_Status = Nutrient_Lim (Producer%Ratio%PC_Actual,            & 
-                                                     Producer%Ratio%PC_Min, Me%BiochemPar%Redfield_PC)
+            LocalProducer%Limitation%Nutrients%P_Status = Nutrient_Lim (LocalProducer%Ratio%PC_Actual,            & 
+                                                     LocalProducer%Ratio%PC_Min, Me%BiochemPar%Redfield_PC)
 
 
-            Producer%Limitation%Nutrients%Int_Nut_Limit = MIN (Producer%Limitation%Nutrients%N_Status,  &
-                                                          Producer%Limitation%Nutrients%P_Status)
+            LocalProducer%Limitation%Nutrients%Int_Nut_Limit = MIN (LocalProducer%Limitation%Nutrients%N_Status,  &
+                                                          LocalProducer%Limitation%Nutrients%P_Status)
 
             !_________________________________________
             !__________________light limitation calc__
 
-s2:         Select case (ME%BioChemPar%L_lim_method)
+s2:         Select case (Me%BioChemPar%L_lim_method)
 
             case (1) s2
 
                 !_________________________________________
                 !___________________assimilation calc #1__                                      [units] >>  d-1
 
-                if(Producer%Use_Silica)then
+                if(LocalProducer%Use_Silica)then
 
-                        Producer%Limitation%Light%MaxPhoto= Producer%Uptake%Max_Ass_Rate *              &
-                                                            Producer%Limitation%Temperature%Limit *     &
-                                                            Producer%Limitation%Nutrients%Si_Status
+                        LocalProducer%Limitation%Light%MaxPhoto= LocalProducer%Uptake%Max_Ass_Rate *              &
+                                                            LocalProducer%Limitation%Temperature%Limit *     &
+                                                            LocalProducer%Limitation%Nutrients%Si_Status
                                                                    
                     else
-                        Producer%Limitation%Light%MaxPhoto= Producer%Uptake%Max_Ass_Rate *              &
-                                                            Producer%Limitation%Temperature%Limit
+                        LocalProducer%Limitation%Light%MaxPhoto= LocalProducer%Uptake%Max_Ass_Rate *              &
+                                                            LocalProducer%Limitation%Temperature%Limit
                                                     
                      
                 end if
 
 
-                if (Producer%Limitation%Light%MaxPhoto .eq. 0.0) then
+                if (LocalProducer%Limitation%Light%MaxPhoto .eq. 0.0) then
 
-                    Producer%Uptake%Assimil = 0.0
+                    LocalProducer%Uptake%Assimil = 0.0
 
                 else
 
                                                                                     !        [units] >>  d-1
-                    Producer%Uptake%Assimil = Producer%Limitation%Light%MaxPhoto *                         &
-                                              (1.0 - (exp((-1.0 * Producer%Limitation%Light%AlphaChl *     &  
-                                              Producer%Ratio%ChlC_Actual *                                 &
+                    LocalProducer%Uptake%Assimil = LocalProducer%Limitation%Light%MaxPhoto *                         &
+                                              (1.0 - (exp((-1.0 * LocalProducer%Limitation%Light%AlphaChl *     &  
+                                              LocalProducer%Ratio%ChlC_Actual *                                 &
                                               AverageRadiation)/                   &
-                                              Producer%Limitation%Light%MaxPhoto)))                    
+                                              LocalProducer%Limitation%Light%MaxPhoto)))                    
                 endif   
 
 
             case (2) s2
-                Producer%Limitation%Light%Factor =                                                      &
+                LocalProducer%Limitation%Light%Factor =                                                      &
                 PhytoLightLimitationFactor(Thickness       = Me%ExternalVar%Thickness(index),           &
                                            TopRadiation    = Me%ExternalVar%ShortWaveTop(index),        &
                                            PExt            = Me%ExternalVar%LightExtCoefField(index),   &
-                                           Photoinhibition = Producer%Limitation%Light%Photoinhibition)
+                                           Photoinhibition = LocalProducer%Limitation%Light%Photoinhibition)
 
 
                 !_________________________________________
                 !___________________assimilation calc #1__                                      [units] >>  d-1
 
-                if(Producer%Use_Silica)then
+                if(LocalProducer%Use_Silica)then
 
-                    Producer%Uptake%Assimil =  Producer%Limitation%Temperature%Limit *      &
-                                               Producer%Uptake%Max_Ass_Rate          *      &
-                                               Producer%Limitation%Light%Factor      *      &
-                                               Producer%Limitation%Nutrients%Si_Status
+                    LocalProducer%Uptake%Assimil =  LocalProducer%Limitation%Temperature%Limit *      &
+                                               LocalProducer%Uptake%Max_Ass_Rate          *      &
+                                               LocalProducer%Limitation%Light%Factor      *      &
+                                               LocalProducer%Limitation%Nutrients%Si_Status
                                         
                 else
-                    Producer%Uptake%Assimil =  Producer%Limitation%Temperature%Limit *      &
-                                               Producer%Limitation%Light%Factor      *      &
-                                               Producer%Uptake%Max_Ass_Rate
+                    LocalProducer%Uptake%Assimil =  LocalProducer%Limitation%Temperature%Limit *      &
+                                               LocalProducer%Limitation%Light%Factor      *      &
+                                               LocalProducer%Uptake%Max_Ass_Rate
                                        
                 end if
 
 
             case (3) s2
-                Producer%Limitation%Light%Factor = (0.4 + SIN((ME%JulianDay - 100.)*(PI/180.)) * 0.3)
+                LocalProducer%Limitation%Light%Factor = (0.4 + SIN((Me%JulianDay - 100.)*(PI/180.)) * 0.3)
 
                     !_________________________________________
                     !___________________assimilation calc #1__                                      [units] >>  d-1
 
-                if(Producer%Use_Silica)then
+                if(LocalProducer%Use_Silica)then
 
-                    Producer%Uptake%Assimil =  Producer%Limitation%Temperature%Limit *      &
-                                               Producer%Uptake%Max_Ass_Rate          *      &
-                                               Producer%Limitation%Light%Factor      *      &
-                                               Producer%Limitation%Nutrients%Si_Status
+                    LocalProducer%Uptake%Assimil =  LocalProducer%Limitation%Temperature%Limit *      &
+                                               LocalProducer%Uptake%Max_Ass_Rate          *      &
+                                               LocalProducer%Limitation%Light%Factor      *      &
+                                               LocalProducer%Limitation%Nutrients%Si_Status
                                         
                 else
-                    Producer%Uptake%Assimil =  Producer%Limitation%Temperature%Limit *      &
-                                               Producer%Limitation%Light%Factor      *      &
-                                               Producer%Uptake%Max_Ass_Rate
+                    LocalProducer%Uptake%Assimil =  LocalProducer%Limitation%Temperature%Limit *      &
+                                               LocalProducer%Limitation%Light%Factor      *      &
+                                               LocalProducer%Uptake%Max_Ass_Rate
 
                                       
                 end if
 
 
             case default s2
-                Producer%Limitation%Light%Factor = (0.4 + SIN((ME%JulianDay - 100.)*(PI/180.)) * 0.3)
+                LocalProducer%Limitation%Light%Factor = (0.4 + SIN((Me%JulianDay - 100.)*(PI/180.)) * 0.3)
 
             end select s2
 
@@ -3163,7 +3171,7 @@ s2:         Select case (ME%BioChemPar%L_lim_method)
 
 !            If (Me%BioChemPar%CO2_on) then 
      
-!            Producer%Uptake%Assimil_CO2 = Producer%Uptake%Assimil * (
+!            LocalProducer%Uptake%Assimil_CO2 = LocalProducer%Uptake%Assimil * (
 
 !            Endif
 
@@ -3174,67 +3182,67 @@ s2:         Select case (ME%BioChemPar%L_lim_method)
             !_________________mortality related calc__
 
     
-            if (Producer%Ratio%NC_Actual .gt. 0.0  .AND. Producer%Ratio%PC_Actual .gt. 0.0) then
+            if (LocalProducer%Ratio%NC_Actual .gt. 0.0  .AND. LocalProducer%Ratio%PC_Actual .gt. 0.0) then
 
-                Producer%Mortality%POM_Frac = MIN(1.0, MIN (Producer%Ratio%NC_Min / Producer%Ratio%NC_Actual,    &
-                                              Producer%Ratio%PC_Min / Producer%Ratio%PC_Actual))
+                LocalProducer%Mortality%POM_Frac = MIN(1.0, MIN (LocalProducer%Ratio%NC_Min / LocalProducer%Ratio%NC_Actual,    &
+                                              LocalProducer%Ratio%PC_Min / LocalProducer%Ratio%PC_Actual))
 
                 else
-                    Producer%Mortality%POM_Frac = 0.0
+                    LocalProducer%Mortality%POM_Frac = 0.0
             endif
 
 
 
-            Producer%Mortality%Rate = Producer%Mortality%Min_Lysis *    &
-                                      (1. /(Producer%Limitation%Nutrients%Int_Nut_Limit + 0.1))    ![units] >>  d-1
+            LocalProducer%Mortality%Rate = LocalProducer%Mortality%Min_Lysis *    &
+                                      (1. /(LocalProducer%Limitation%Nutrients%Int_Nut_Limit + 0.1))    ![units] >>  d-1
 
 
     
             !________ .carbon fraction [part. & dissol(sl & l)]                            [units] >>  mg C m-3 d-1
-            Producer%Mortality%POM%C = Producer%Mortality%Rate * Producer%Mortality%POM_Frac *  &
+            LocalProducer%Mortality%POM%C = LocalProducer%Mortality%Rate * LocalProducer%Mortality%POM_Frac *  &
                                        Me%ExternalVar%Mass (PHY_C, Index)   
 
 
-            Producer%Mortality%DOM_Tot%C = Producer%Mortality%Rate *(1. - Producer%Mortality%POM_Frac)*    &
+            LocalProducer%Mortality%DOM_Tot%C = LocalProducer%Mortality%Rate *(1. - LocalProducer%Mortality%POM_Frac)*    &
                                            Me%ExternalVar%Mass (PHY_C, Index)
 
 
-            Producer%Mortality%DOM_SL%C = Producer%Mortality%DOM_Tot%C * Producer%Mortality%DOC_SL_Frac
+            LocalProducer%Mortality%DOM_SL%C = LocalProducer%Mortality%DOM_Tot%C * LocalProducer%Mortality%DOC_SL_Frac
 
-            Producer%Mortality%DOM_L%C = Producer%Mortality%DOM_Tot%C * (1. - Producer%Mortality%DOC_SL_Frac)
+            LocalProducer%Mortality%DOM_L%C = LocalProducer%Mortality%DOM_Tot%C * (1. - LocalProducer%Mortality%DOC_SL_Frac)
 
 
     
             !_______.nitrogen fraction [part. & dissol(sl & l)]                          [units] >>  mmol N m-3 d-1
-            Producer%Mortality%POM%N = Producer%Mortality%Rate * Producer%Mortality%POM_Frac *  &
+            LocalProducer%Mortality%POM%N = LocalProducer%Mortality%Rate * LocalProducer%Mortality%POM_Frac *  &
                                        Me%ExternalVar%Mass (PHY_N, Index)
 
-            Producer%Mortality%DOM_Tot%N = Producer%Mortality%Rate *(1. - Producer%Mortality%POM_Frac)*    &
+            LocalProducer%Mortality%DOM_Tot%N = LocalProducer%Mortality%Rate *(1. - LocalProducer%Mortality%POM_Frac)*    &
                                            Me%ExternalVar%Mass (PHY_N, Index)
 
-            Producer%Mortality%DOM_SL%N = Producer%Mortality%DOM_Tot%N * Producer%Mortality%DOC_SL_Frac
+            LocalProducer%Mortality%DOM_SL%N = LocalProducer%Mortality%DOM_Tot%N * LocalProducer%Mortality%DOC_SL_Frac
 
-            Producer%Mortality%DOM_L%N = Producer%Mortality%DOM_Tot%N * (1. - Producer%Mortality%DOC_SL_Frac)
+            LocalProducer%Mortality%DOM_L%N = LocalProducer%Mortality%DOM_Tot%N * (1. - LocalProducer%Mortality%DOC_SL_Frac)
 
 
 
             !_____.phosphorus fraction [part. & dissol(sl & l)]                          [units] >>  mmol P m-3 d-1
-            Producer%Mortality%POM%P = Producer%Mortality%Rate * Producer%Mortality%POM_Frac *  &
+            LocalProducer%Mortality%POM%P = LocalProducer%Mortality%Rate * LocalProducer%Mortality%POM_Frac *  &
                                        Me%ExternalVar%Mass (PHY_P, Index)
 
-            Producer%Mortality%DOM_Tot%P = Producer%Mortality%Rate *(1. - Producer%Mortality%POM_Frac)*    &
+            LocalProducer%Mortality%DOM_Tot%P = LocalProducer%Mortality%Rate *(1. - LocalProducer%Mortality%POM_Frac)*    &
                                            Me%ExternalVar%Mass (PHY_P, Index)
 
-            Producer%Mortality%DOM_SL%P = Producer%Mortality%DOM_Tot%P * Producer%Mortality%DOC_SL_Frac
+            LocalProducer%Mortality%DOM_SL%P = LocalProducer%Mortality%DOM_Tot%P * LocalProducer%Mortality%DOC_SL_Frac
 
-            Producer%Mortality%DOM_L%P = Producer%Mortality%DOM_Tot%P * (1. - Producer%Mortality%DOC_SL_Frac)
+            LocalProducer%Mortality%DOM_L%P = LocalProducer%Mortality%DOM_Tot%P * (1. - LocalProducer%Mortality%DOC_SL_Frac)
 
 
 
             !_________.silica fraction [part.]                                          [units] >>  mmol Si m-3 d-1
-            if(Producer%Use_Silica)then
+            if(LocalProducer%Use_Silica)then
 
-                Producer%Mortality%POM%Si = Producer%Mortality%Rate * Me%ExternalVar%Mass (PHY_Si, Index)
+                LocalProducer%Mortality%POM%Si = LocalProducer%Mortality%Rate * Me%ExternalVar%Mass (PHY_Si, Index)
 
             end if
 
@@ -3243,39 +3251,39 @@ s2:         Select case (ME%BioChemPar%L_lim_method)
             !_________________________________________
             !_________________________exudation calc__                             
                                                                                                 ! [units] >>  d-1
-            Producer%Exudation%Rate = (Producer%Uptake%Assimil * (Producer%Exudation%Nut_Stress +       &
-                                      (1. - Producer%Exudation%Nut_Stress)*                             &
-                                      (1. - Producer%Limitation%Nutrients%Int_Nut_Limit)))          
+            LocalProducer%Exudation%Rate = (LocalProducer%Uptake%Assimil * (LocalProducer%Exudation%Nut_Stress +       &
+                                      (1. - LocalProducer%Exudation%Nut_Stress)*                             &
+                                      (1. - LocalProducer%Limitation%Nutrients%Int_Nut_Limit)))          
    
                                                                                     ! [units] >>  mg C m-3 d-1
-            Producer%Exudation%DOC_SL = Producer%Exudation%Rate * Producer%Exudation%DOC_SL_FRAC    &
+            LocalProducer%Exudation%DOC_SL = LocalProducer%Exudation%Rate * LocalProducer%Exudation%DOC_SL_FRAC    &
                                         * Me%ExternalVar%Mass (PHY_C, Index)
 
-            Producer%Exudation%DOC_L = Producer%Exudation%Rate * (1. - Producer%Exudation%DOC_SL_FRAC) &
+            LocalProducer%Exudation%DOC_L = LocalProducer%Exudation%Rate * (1. - LocalProducer%Exudation%DOC_SL_FRAC) &
                                    * Me%ExternalVar%Mass (PHY_C, Index)
 
 
             !_________________________________________
             !_______________________respiration calc__ 
                                                                                                 ! [units] >>  d-1
-            Producer%Respiration%Rate = (Producer%Respiration%Basal*Producer%Limitation%Temperature%Limit)  &
-                                        +(Producer%Respiration%Frac_Prod*(Producer%Uptake%Assimil           &
-                                        - Producer%Exudation%Rate))                             
+            LocalProducer%Respiration%Rate = (LocalProducer%Respiration%Basal*LocalProducer%Limitation%Temperature%Limit)  &
+                                        +(LocalProducer%Respiration%Frac_Prod*(LocalProducer%Uptake%Assimil           &
+                                        - LocalProducer%Exudation%Rate))                             
 
                                                                                        ! [units] >>  mg C m-3 d-1
-            Producer%Respiration%Carbon = Producer%Respiration%Rate * Me%ExternalVar%Mass (PHY_C, Index)
+            LocalProducer%Respiration%Carbon = LocalProducer%Respiration%Rate * Me%ExternalVar%Mass (PHY_C, Index)
 
 
             !_________________________________________
             !___________________assimilation calc #2__                    
 
                                                                                             ! [units] >>  mg C m-3 d-1
-            Producer%Uptake%Carbon = Producer%Uptake%Assimil * Me%ExternalVar%Mass (PHY_C, Index)
+            LocalProducer%Uptake%Carbon = LocalProducer%Uptake%Assimil * Me%ExternalVar%Mass (PHY_C, Index)
 
                                                                                         ! [units] >>  d-1
-            Producer%Uptake%Ass_Inc = Producer%Uptake%Assimil - Producer%Exudation%Rate
+            LocalProducer%Uptake%Ass_Inc = LocalProducer%Uptake%Assimil - LocalProducer%Exudation%Rate
 
-            Producer%Uptake%Ass_Net = Producer%Uptake%Ass_Inc - Producer%Respiration%Rate
+            LocalProducer%Uptake%Ass_Net = LocalProducer%Uptake%Ass_Inc - LocalProducer%Respiration%Rate
 
 
 
@@ -3284,30 +3292,30 @@ s2:         Select case (ME%BioChemPar%L_lim_method)
 
 
                 !_____.internal quota [n & p]                               [units] >>  mmol (N or P) mg C-1 d-1
-            !    Producer%Uptake%Q_Int%N = ((Producer%Uptake%Ass_Net*Producer%Ratio%NC_Max) +     &
-            !                              (Producer%Ratio%NC_Max-Producer%Ratio%NC_Actual) *     &
-            !                              Producer%Uptake%Max_Nut_Stor) * Me%ExternalVar%Mass (PHY_C, Index)
+            !    LocalProducer%Uptake%Q_Int%N = ((LocalProducer%Uptake%Ass_Net*LocalProducer%Ratio%NC_Max) +     &
+            !                              (LocalProducer%Ratio%NC_Max-LocalProducer%Ratio%NC_Actual) *     &
+            !                              LocalProducer%Uptake%Max_Nut_Stor) * Me%ExternalVar%Mass (PHY_C, Index)
 
 
-            if (Producer%Ratio%PC_Max .gt. Producer%Ratio%PC_Actual) then
+            if (LocalProducer%Ratio%PC_Max .gt. LocalProducer%Ratio%PC_Actual) then
 
-                Producer%Uptake%Q_Int%P = ((Producer%Uptake%Ass_Net * Producer%Ratio%PC_Max) +     &
-                                          (Producer%Ratio%PC_Max - Producer%Ratio%PC_Actual) *     &
-                                          Producer%Uptake%Max_Nut_Stor) * Me%ExternalVar%Mass (PHY_C, Index)
+                LocalProducer%Uptake%Q_Int%P = ((LocalProducer%Uptake%Ass_Net * LocalProducer%Ratio%PC_Max) +     &
+                                          (LocalProducer%Ratio%PC_Max - LocalProducer%Ratio%PC_Actual) *     &
+                                          LocalProducer%Uptake%Max_Nut_Stor) * Me%ExternalVar%Mass (PHY_C, Index)
 
             else
-                Producer%Uptake%Q_Int%P = 0.0
+                LocalProducer%Uptake%Q_Int%P = 0.0
             endif
 
 
 
-            if (Producer%Ratio%NC_Max .gt. Producer%Ratio%NC_Actual) then
+            if (LocalProducer%Ratio%NC_Max .gt. LocalProducer%Ratio%NC_Actual) then
 
-                Producer%Uptake%Q_Int%N = ((Producer%Uptake%Ass_Net * Producer%Ratio%NC_Max) +     &
-                                          (Producer%Ratio%NC_Max - Producer%Ratio%NC_Actual) *     &
-                                          Producer%Uptake%Max_Nut_Stor)
+                LocalProducer%Uptake%Q_Int%N = ((LocalProducer%Uptake%Ass_Net * LocalProducer%Ratio%NC_Max) +     &
+                                          (LocalProducer%Ratio%NC_Max - LocalProducer%Ratio%NC_Actual) *     &
+                                          LocalProducer%Uptake%Max_Nut_Stor)
             else
-                Producer%Uptake%Q_Int%N = 0.0
+                LocalProducer%Uptake%Q_Int%N = 0.0
             endif
 
 
@@ -3316,79 +3324,79 @@ s2:         Select case (ME%BioChemPar%L_lim_method)
 
             !_____.external availability [n & p]                       [units] >>  mmol (N or P) mg C-1 d-1
             !_______.nitrogen
-            Producer%Uptake%NH4_Ext = Producer%Uptake%Up_NH4_r * Me%ExternalVar%Mass (AM, Index)
+            LocalProducer%Uptake%NH4_Ext = LocalProducer%Uptake%Up_NH4_r * Me%ExternalVar%Mass (AM, Index)
 
-            Producer%Uptake%NO3_Ext = Producer%Uptake%Up_NO3_r * Me%ExternalVar%Mass (NA, Index)
+            LocalProducer%Uptake%NO3_Ext = LocalProducer%Uptake%Up_NO3_r * Me%ExternalVar%Mass (NA, Index)
 
 
 
-            Producer%Uptake%N_Ext = Producer%Uptake%NH4_Ext + Producer%Uptake%NO3_Ext
+            LocalProducer%Uptake%N_Ext = LocalProducer%Uptake%NH4_Ext + LocalProducer%Uptake%NO3_Ext
     
             !_______.phosphorus
-            Producer%Uptake%P_Ext = Producer%Uptake%Up_PO4_r * Me%ExternalVar%Mass (PO, Index) * Me%ExternalVar%Mass (PHY_C, Index)
+            LocalProducer%Uptake%P_Ext = LocalProducer%Uptake%Up_PO4_r * Me%ExternalVar%Mass (PO, Index) * Me%ExternalVar%Mass (PHY_C, Index)
 
             !_____.uptake 
 
             !_______.nitrogen                                                       [units] >>  mmol N m-3 d-1
-            Producer%Uptake%Balance%N = MIN (Producer%Uptake%Q_Int%N, Producer%Uptake%N_Ext)        
+            LocalProducer%Uptake%Balance%N = MIN (LocalProducer%Uptake%Q_Int%N, LocalProducer%Uptake%N_Ext)        
                                     
 
             !______.to avoid division by zero when N_Ext = 0
-i2:         if (Producer%Uptake%N_Ext .le. 0.) then
+i2:         if (LocalProducer%Uptake%N_Ext .le. 0.) then
 
-                    Producer%Uptake%Up_NH4 = 0.
-                    Producer%Uptake%Up_NO3 = 0.
+                    LocalProducer%Uptake%Up_NH4 = 0.
+                    LocalProducer%Uptake%Up_NO3 = 0.
     
             else i2
 
-                if (((Producer%Uptake%NH4_Ext / Producer%Uptake%N_Ext) *        &
-                   Producer%Uptake%Balance%N) .gt. 0.) then
+                if (((LocalProducer%Uptake%NH4_Ext / LocalProducer%Uptake%N_Ext) *        &
+                   LocalProducer%Uptake%Balance%N) .gt. 0.) then
 
-                  Producer%Uptake%Up_NH4 = Min(((Producer%Uptake%NH4_Ext / Producer%Uptake%N_Ext) *           &
-                                            Producer%Uptake%Balance%N) * Me%ExternalVar%Mass (PHY_C, Index),  &
+                  LocalProducer%Uptake%Up_NH4 = Min(((LocalProducer%Uptake%NH4_Ext / LocalProducer%Uptake%N_Ext) *           &
+                                            LocalProducer%Uptake%Balance%N) * Me%ExternalVar%Mass (PHY_C, Index),  &
                                             Me%ExternalVar%Mass (AM, Index)/ Me%DT_day)
 
                     else
-                        Producer%Uptake%Up_NH4 = 0.
+                        LocalProducer%Uptake%Up_NH4 = 0.
                 end if
 
 
-                if (((Producer%Uptake%NO3_Ext / Producer%Uptake%N_Ext) *        &
-                   Producer%Uptake%Balance%N) .gt. 0.) then
+                if (((LocalProducer%Uptake%NO3_Ext / LocalProducer%Uptake%N_Ext) *        &
+                   LocalProducer%Uptake%Balance%N) .gt. 0.) then
 
-                   Producer%Uptake%Up_NO3 = Min(((Producer%Uptake%NO3_Ext / Producer%Uptake%N_Ext) *          &
-                                            Producer%Uptake%Balance%N) * Me%ExternalVar%Mass (PHY_C, Index),  &
+                   LocalProducer%Uptake%Up_NO3 = Min(((LocalProducer%Uptake%NO3_Ext / LocalProducer%Uptake%N_Ext) *          &
+                                            LocalProducer%Uptake%Balance%N) * Me%ExternalVar%Mass (PHY_C, Index),  &
                                             Me%ExternalVar%Mass (NA, Index)/ Me%DT_day)
 
                     else
-                        Producer%Uptake%Up_NO3 = 0.
+                        LocalProducer%Uptake%Up_NO3 = 0.
                 end if
 
             endif i2
 
 
             !_______.phosphorus                                                     [units] >>  mmol P m-3 d-1
-            Producer%Uptake%Balance%P = MIN (Producer%Uptake%Q_Int%P, Producer%Uptake%P_Ext)        
+            LocalProducer%Uptake%Balance%P = MIN (LocalProducer%Uptake%Q_Int%P, LocalProducer%Uptake%P_Ext)        
                                    
 
-            if (Producer%Uptake%Balance%P .gt. 0.) then
-                Producer%Uptake%Up_PO4 = Min(Producer%Uptake%Balance%P, Me%ExternalVar%Mass (PO, Index)/ Me%DT_day)
+            if (LocalProducer%Uptake%Balance%P .gt. 0.) then
+                LocalProducer%Uptake%Up_PO4 = Min(LocalProducer%Uptake%Balance%P, Me%ExternalVar%Mass (PO, Index)/ Me%DT_day)
             else
-                Producer%Uptake%Up_PO4 = 0.
+                LocalProducer%Uptake%Up_PO4 = 0.
             end if
 
 
             !_______.silica                                                       [units] >>  mmol Si m-3 d-1
-i3:         if(Producer%Use_Silica)then
+i3:         if(LocalProducer%Use_Silica)then
 
-                if (Producer%Uptake%Ass_Net .gt. 0.) then
+                if (LocalProducer%Uptake%Ass_Net .gt. 0.) then
 
-                  Producer%Uptake%Up_SiO = (MAX (0., Producer%Uptake%Ass_Net * Me%BiochemPar%Redfield_SiC)     &
-                                           - (MAX (0., Producer%Ratio%SiC_Actual - Me%BiochemPar%Redfield_SiC) &
-                                           * Producer%Uptake%Exc_Si)) * Me%ExternalVar%Mass (PHY_C, Index)
+                  LocalProducer%Uptake%Up_SiO = (MAX (0., LocalProducer%Uptake%Ass_Net * Me%BiochemPar%Redfield_SiC)     &
+                                           - (MAX (0., LocalProducer%Ratio%SiC_Actual - Me%BiochemPar%Redfield_SiC) &
+                                           * LocalProducer%Uptake%Exc_Si)) * Me%ExternalVar%Mass (PHY_C, Index)
 
                 else
-                    Producer%Uptake%Up_SiO = 0.
+                    LocalProducer%Uptake%Up_SiO = 0.
                 end if
             end if i3
 
@@ -3398,28 +3406,28 @@ i3:         if(Producer%Use_Silica)then
             !_________chlorophyll synthesis kinetics__   
 
 
-i4:         if (ME%BioChemPar%L_lim_method .eq. 1) then
+i4:         if (Me%BioChemPar%L_lim_method .eq. 1) then
 
                 if (AverageRadiation .gt. 0.0) then
                                                                                               ![units] >>  mg Chl / mmol N
-                    Producer%Limitation%Light%Chl_Synthesis = Producer%Ratio%ChlN_Max * (Producer%Uptake%Assimil /      &
-                                                              (Producer%Limitation%Light%AlphaChl *                     &  
-                                                              Producer%Ratio%ChlC_Actual *                              &
+                    LocalProducer%Limitation%Light%Chl_Synthesis = LocalProducer%Ratio%ChlN_Max * (LocalProducer%Uptake%Assimil /      &
+                                                              (LocalProducer%Limitation%Light%AlphaChl *                     &  
+                                                              LocalProducer%Ratio%ChlC_Actual *                              &
                                                               AverageRadiation))
                 else
 
-                    Producer%Limitation%Light%Chl_Synthesis = 0.0
+                    LocalProducer%Limitation%Light%Chl_Synthesis = 0.0
 
                 end if
   
 
                                                                                               ![units] >>  mg Chl m-3 d-1
                                                                           !already considering Chl mass , real units: d-1
-                Producer%Limitation%Light%PhotoAclim = (((Producer%Limitation%Light%Chl_Synthesis *                 &
-                                                       ((Producer%Uptake%Up_NH4 + Producer%Uptake%Up_NO3) /         &
+                LocalProducer%Limitation%Light%PhotoAclim = (((LocalProducer%Limitation%Light%Chl_Synthesis *                 &
+                                                       ((LocalProducer%Uptake%Up_NH4 + LocalProducer%Uptake%Up_NO3) /         &
                                                        Me%ExternalVar%Mass (PHY_C, Index))) /                       &
-                                                       Producer%Ratio%ChlC_Actual) -                                &
-                                                       Producer%Limitation%Light%Chl_Degrad_r) *                    &
+                                                       LocalProducer%Ratio%ChlC_Actual) -                                &
+                                                       LocalProducer%Limitation%Light%Chl_Degrad_r) *                    &
                                                        Me%ExternalVar%Mass (PHY_Chl, Index)
 
             endif i4
@@ -3429,129 +3437,133 @@ i4:         if (ME%BioChemPar%L_lim_method .eq. 1) then
             !_____________________________________myxotrophy processes__  
             !code adaptation (from consumers)
 
-            !   If (Producer%Mixotrophy .AND. ((Producer%Ratio%NC_Actual .lt. Me%BioChemPar%Redfield_NC) .OR.       &
-            !        (Producer%Ratio%PC_Actual .lt. Me%BioChemPar%Redfield_PC))) then
+            !   If (LocalProducer%Mixotrophy .AND. ((LocalProducer%Ratio%NC_Actual .lt. Me%BioChemPar%Redfield_NC) .OR.       &
+            !        (LocalProducer%Ratio%PC_Actual .lt. Me%BioChemPar%Redfield_PC))) then
 
             
-i5:         if (Producer%Mixotrophy) then
+i5:         if (LocalProducer%Mixotrophy) then
             
  
                 !###TEST
                 !   open(98,FILE='myxo_check.dat')
-                !   write (98,68) ME%Julianday, Producer%Ratio%NC_Actual,    &
-                !      Me%BioChemPar%Redfield_NC, Producer%Ratio%PC_Actual, Me%BioChemPar%Redfield_PC
+                !   write (98,68) Me%Julianday, LocalProducer%Ratio%NC_Actual,    &
+                !      Me%BioChemPar%Redfield_NC, LocalProducer%Ratio%PC_Actual, Me%BioChemPar%Redfield_PC
                 !   68 Format (1x, i3, 1x, f10.7, 1x, f10.7, 1x, f10.7, 1x, f10.7)
 
 
 
                 !_________.set total predated fraction counter to zero         
-                Producer%Grazing%Total%C = 0.
-                Producer%Grazing%Total%N = 0.
-                Producer%Grazing%Total%P = 0.
+                LocalProducer%Grazing%Total%C = 0.
+                LocalProducer%Grazing%Total%N = 0.
+                LocalProducer%Grazing%Total%P = 0.
 
-                Producer%Grazing%Spec_Up = 0. 
+                LocalProducer%Grazing%Spec_Up = 0. 
 
 
 
                 !_________________________________________
                 !__oxygen limitation calc.________________
-                Producer%Limitation%Oxygen = Oxygen_Lim (Producer%Mortality%O2_Ks, Me%ExternalVar%Mass (O2, Index))
+                LocalProducer%Limitation%Oxygen = Oxygen_Lim (LocalProducer%Mortality%O2_Ks, Me%ExternalVar%Mass (O2, Index))
 
 
                 !_________________________________________
                 !________________________predation calc.__
                           
-                Prey => Producer%Grazing%FirstPrey
+                Prey => LocalProducer%Grazing%FirstPrey
 d3:             do while(associated(Prey))
 
-                    PreyIndexC  = SearchPropIndex(GetPropertyIDNumber(trim(Prey%ID%Name)//" carbon"))
-                    PreyIndexN  = SearchPropIndex(GetPropertyIDNumber(trim(Prey%ID%Name)//" nitrogen"))
-                    PreyIndexP  = SearchPropIndex(GetPropertyIDNumber(trim(Prey%ID%Name)//" phosphorus"))
+                    !Very important: replicate the prey type in the local type.
+                    !This allows multi-threading.
+                    LocalPrey = Prey
 
-                    if(Prey%Use_Silica)then
-                    PreyIndexSi = SearchPropIndex(GetPropertyIDNumber(trim(Prey%ID%Name)//" silica"))
+                    PreyIndexC  = SearchPropIndex(GetPropertyIDNumber(trim(LocalPrey%ID%Name)//" carbon"))
+                    PreyIndexN  = SearchPropIndex(GetPropertyIDNumber(trim(LocalPrey%ID%Name)//" nitrogen"))
+                    PreyIndexP  = SearchPropIndex(GetPropertyIDNumber(trim(LocalPrey%ID%Name)//" phosphorus"))
+
+                    if(LocalPrey%Use_Silica)then
+                    PreyIndexSi = SearchPropIndex(GetPropertyIDNumber(trim(LocalPrey%ID%Name)//" silica"))
                     end if
 
-                    if(Prey%Use_Chl)then
-                    PreyIndexChl  = SearchPropIndex(GetPropertyIDNumber(trim(Prey%ID%Name)//" chlorophyll"))
+                    if(LocalPrey%Use_Chl)then
+                    PreyIndexChl  = SearchPropIndex(GetPropertyIDNumber(trim(LocalPrey%ID%Name)//" chlorophyll"))
                     end if
 
 
                     !_________.prey actual element ratio                          [units] >>  mmol (N & P) / mg C
-                    Prey%Ratio%NC_Actual = Me%ExternalVar%Mass (PreyIndexN, Index) /      &
+                    LocalPrey%Ratio%NC_Actual = Me%ExternalVar%Mass (PreyIndexN, Index) /      &
                                            Me%ExternalVar%Mass (PreyIndexC, Index)          
 
-                    Prey%Ratio%PC_Actual = Me%ExternalVar%Mass (PreyIndexP, Index) /      &
+                    LocalPrey%Ratio%PC_Actual = Me%ExternalVar%Mass (PreyIndexP, Index) /      &
                                            Me%ExternalVar%Mass (PreyIndexC, Index) 
 
 
                     !_________.prey potential grazing
-                    Avail = Prey%Avail * Me%ExternalVar%Mass (PreyIndexC, Index)            ![units] >>  mg C m-3
+                    Avail = LocalPrey%Avail * Me%ExternalVar%Mass (PreyIndexC, Index)            ![units] >>  mg C m-3
 
-                    Prey%Pot = Producer%Grazing%Vmax * (Avail/(Avail+Producer%Grazing%Ks)) *    &
-                               Producer%Limitation%Temperature%Limit                             ![units] >>  d-1
+                    LocalPrey%Pot = LocalProducer%Grazing%Vmax * (Avail/(Avail+LocalProducer%Grazing%Ks)) *    &
+                               LocalProducer%Limitation%Temperature%Limit                             ![units] >>  d-1
 
 
                                                                                 ![units] >>  mmol (N & P) m-3 d-1
-                    Prey%Frac%N = Prey%Pot * Me%ExternalVar%Mass (PHY_C, Index) * Prey%Ratio%NC_Actual
+                    LocalPrey%Frac%N = LocalPrey%Pot * Me%ExternalVar%Mass (PHY_C, Index) * LocalPrey%Ratio%NC_Actual
 
-                    Prey%Frac%P = Prey%Pot * Me%ExternalVar%Mass (PHY_C, Index) * Prey%Ratio%PC_Actual
+                    LocalPrey%Frac%P = LocalPrey%Pot * Me%ExternalVar%Mass (PHY_C, Index) * LocalPrey%Ratio%PC_Actual
 
-                    Prey%Frac%C = Prey%Pot* Me%ExternalVar%Mass (PHY_C, Index)          ![units] >>  mg C m-3 d-1
+                    LocalPrey%Frac%C = LocalPrey%Pot* Me%ExternalVar%Mass (PHY_C, Index)          ![units] >>  mg C m-3 d-1
 
 
-                    Producer%Grazing%Total%C = Producer%Grazing%Total%C + Prey%Frac%C
+                    LocalProducer%Grazing%Total%C = LocalProducer%Grazing%Total%C + LocalPrey%Frac%C
 
-                    Producer%Grazing%Total%N = Producer%Grazing%Total%N + Prey%Frac%N
+                    LocalProducer%Grazing%Total%N = LocalProducer%Grazing%Total%N + LocalPrey%Frac%N
 
-                    Producer%Grazing%Total%P = Producer%Grazing%Total%P + Prey%Frac%P
+                    LocalProducer%Grazing%Total%P = LocalProducer%Grazing%Total%P + LocalPrey%Frac%P
 
-                    Producer%Grazing%Spec_Up = Producer%Grazing%Spec_Up + Prey%Pot                ![units] >>  d-1
+                    LocalProducer%Grazing%Spec_Up = LocalProducer%Grazing%Spec_Up + LocalPrey%Pot                ![units] >>  d-1
 
 
                     !___________________________________________________________________________                                                       
                     !_________.prey mass balance equations                                            [ matrix update ]
 
                     Me%ExternalVar%Mass (PreyIndexC, Index) = Me%ExternalVar%Mass (PreyIndexC, Index)           &
-                                                              - (Prey%Frac%C) * Me%DT_day                   ! <- sinks
+                                                              - (LocalPrey%Frac%C) * Me%DT_day                   ! <- sinks
 
                     Me%ExternalVar%Mass (PreyIndexN, Index) = Me%ExternalVar%Mass (PreyIndexN, Index)           &
-                                                              - (Prey%Frac%N) * Me%DT_day                   ! <- sinks
+                                                              - (LocalPrey%Frac%N) * Me%DT_day                   ! <- sinks
 
                     Me%ExternalVar%Mass (PreyIndexP, Index) = Me%ExternalVar%Mass (PreyIndexP, Index)           &
-                                                              - (Prey%Frac%P) * Me%DT_day                   ! <- sinks              
+                                                              - (LocalPrey%Frac%P) * Me%DT_day                   ! <- sinks              
     
 
 
-                    if(ME%BioChemPar%L_lim_method .eq. 1 .AND. Prey%Use_Chl)then
+                    if(Me%BioChemPar%L_lim_method .eq. 1 .AND. LocalPrey%Use_Chl)then
                                                                                            ![units] >>  mg Chl / mg C
-                        Prey%Ratio%ChlC_Actual = Me%ExternalVar%Mass (PreyIndexChl, Index) /      &
+                        LocalPrey%Ratio%ChlC_Actual = Me%ExternalVar%Mass (PreyIndexChl, Index) /      &
                                                  Me%ExternalVar%Mass (PreyIndexC, Index) 
 
                                                                                            ![units] >>  mmol (N & P) m-3 d-1
-                        Prey%Frac%Chl = Prey%Pot * Me%ExternalVar%Mass (PHY_C, Index) * Prey%Ratio%ChlC_Actual
+                        LocalPrey%Frac%Chl = LocalPrey%Pot * Me%ExternalVar%Mass (PHY_C, Index) * LocalPrey%Ratio%ChlC_Actual
 
 
                         Me%ExternalVar%Mass (PreyIndexChl, Index) = Me%ExternalVar%Mass (PreyIndexChl, Index)       &
-                                                                    - (Prey%Frac%Chl) * Me%DT_day                !<- sinks   
+                                                                    - (LocalPrey%Frac%Chl) * Me%DT_day                !<- sinks   
 
                     end if
 
 
 
-                    if(Prey%Use_Silica)then
+                    if(LocalPrey%Use_Silica)then
 
-                        Prey%Ratio%SiC_Actual = Me%ExternalVar%Mass (PreyIndexSi, Index) /      &
+                        LocalPrey%Ratio%SiC_Actual = Me%ExternalVar%Mass (PreyIndexSi, Index) /      &
                                                 Me%ExternalVar%Mass (PreyIndexC, Index) 
 
                                                                                       ![units] >>  mmol Si m-3 d-1
-                        Prey%Frac%Si = Prey%Pot * Me%ExternalVar%Mass (PHY_C, Index) * Prey%Ratio%SiC_Actual
+                        LocalPrey%Frac%Si = LocalPrey%Pot * Me%ExternalVar%Mass (PHY_C, Index) * LocalPrey%Ratio%SiC_Actual
 
                         Me%ExternalVar%Mass (PreyIndexSi, Index) = Me%ExternalVar%Mass (PreyIndexSi, Index)        &
-                                                               - Prey%Frac%Si * Me%DT_day             ! <- sinks
+                                                               - LocalPrey%Frac%Si * Me%DT_day             ! <- sinks
 
                         Me%ExternalVar%Mass (POSi, Index) = Me%ExternalVar%Mass (POSi, Index)        &
-                                                        + Prey%Frac%Si * Me%DT_day                    ! <- sources
+                                                        + LocalPrey%Frac%Si * Me%DT_day                    ! <- sources
 
                     end if
 
@@ -3562,74 +3574,74 @@ d3:             do while(associated(Prey))
                 !_________________________________________
                 !___________assimilated & recycled frac.__ 
                                             
-                Producer%Grazing%NC_Bal = MIN (MAX ((Producer%Ratio%NC_Max - Producer%Ratio%NC_Actual) /     &
-                                          (Producer%Ratio%NC_Max - Producer%Ratio%NC_Min), 0.), 1.)
+                LocalProducer%Grazing%NC_Bal = MIN (MAX ((LocalProducer%Ratio%NC_Max - LocalProducer%Ratio%NC_Actual) /     &
+                                          (LocalProducer%Ratio%NC_Max - LocalProducer%Ratio%NC_Min), 0.), 1.)
 
-                Producer%Grazing%PC_Bal = MIN (MAX ((Producer%Ratio%PC_Max - Producer%Ratio%PC_Actual) /     &
-                                          (Producer%Ratio%PC_Max - Producer%Ratio%PC_Min), 0.), 1.)
+                LocalProducer%Grazing%PC_Bal = MIN (MAX ((LocalProducer%Ratio%PC_Max - LocalProducer%Ratio%PC_Actual) /     &
+                                          (LocalProducer%Ratio%PC_Max - LocalProducer%Ratio%PC_Min), 0.), 1.)
 
 
                 !____________assimilated                                                ![units] >>  mmol N m-3 d-1
-                Producer%Grazing%Assim%N = Producer%Grazing%Total%N * Producer%Grazing%NC_Bal
+                LocalProducer%Grazing%Assim%N = LocalProducer%Grazing%Total%N * LocalProducer%Grazing%NC_Bal
 
-                Producer%Grazing%Assim%P = Producer%Grazing%Total%P * Producer%Grazing%PC_Bal
+                LocalProducer%Grazing%Assim%P = LocalProducer%Grazing%Total%P * LocalProducer%Grazing%PC_Bal
 
 
                 !____________recycled (to inorganic fraction)                           ![units] >>  mmol P m-3 d-1
-                Producer%Grazing%Recyc%N = Producer%Grazing%Total%N * (1. - Producer%Grazing%NC_Bal)
+                LocalProducer%Grazing%Recyc%N = LocalProducer%Grazing%Total%N * (1. - LocalProducer%Grazing%NC_Bal)
 
-                Producer%Grazing%Recyc%P = Producer%Grazing%Total%P * (1. - Producer%Grazing%PC_Bal)
+                LocalProducer%Grazing%Recyc%P = LocalProducer%Grazing%Total%P * (1. - LocalProducer%Grazing%PC_Bal)
 
 
                 !_________________________________________
                 !________________________mortality calc.__ 
                                                                                                            ![units] >>  d-1
 
-                Producer%Mortality%O2_Dep_r = (1.  - Producer%Limitation%Oxygen) * Producer%Mortality%O2_Dep 
+                LocalProducer%Mortality%O2_Dep_r = (1.  - LocalProducer%Limitation%Oxygen) * LocalProducer%Mortality%O2_Dep 
                                                                                            
 
-                Mortality = Producer%Mortality%Rate + Producer%Mortality%O2_Dep_r
+                Mortality = LocalProducer%Mortality%Rate + LocalProducer%Mortality%O2_Dep_r
 
 
                 !_________________________________________
                 !________________respiration & excretion__
                                                                                                           ![units] >>  d-1
-                Producer%Respiration%StandStock = Producer%Limitation%Temperature%Limit * Producer%Respiration%at10C
+                LocalProducer%Respiration%StandStock = LocalProducer%Limitation%Temperature%Limit * LocalProducer%Respiration%at10C
 
-                Producer%Excretion%Rate = Producer%Grazing%Spec_Up *                                 & 
-                                          (1.  - Producer%Grazing%Ass_Efic) * Producer%Excretion%Up_Frac
+                LocalProducer%Excretion%Rate = LocalProducer%Grazing%Spec_Up *                                 & 
+                                          (1.  - LocalProducer%Grazing%Ass_Efic) * LocalProducer%Excretion%Up_Frac
 
-                Producer%Respiration%Activity = Producer%Grazing%Spec_Up *                                       & 
-                                                (1.  - Producer%Grazing%Ass_Efic) * (1.  - Producer%Excretion%Up_Frac)
+                LocalProducer%Respiration%Activity = LocalProducer%Grazing%Spec_Up *                                       & 
+                                                (1.  - LocalProducer%Grazing%Ass_Efic) * (1.  - LocalProducer%Excretion%Up_Frac)
 
                                                                                
-                Mix_Resp_Rate = (Producer%Respiration%StandStock + Producer%Respiration%Activity)   &
+                Mix_Resp_Rate = (LocalProducer%Respiration%StandStock + LocalProducer%Respiration%Activity)   &
                                 * Me%ExternalVar%Mass (PHY_C, Index)            ![units] >>  mg C m-3 d-1
 
 
 
                 !________ .balance (mortality) to particulated  
-                Mix_Mort_POC = Mortality * Producer%Mortality%POM_Frac              &
+                Mix_Mort_POC = Mortality * LocalProducer%Mortality%POM_Frac              &
                                            * Me%ExternalVar%Mass (PHY_C, Index)         ![units] >>  mg C m-3 d-1
 
-                Mix_Mort_PON = Mortality * Producer%Mortality%POM_Frac              &
+                Mix_Mort_PON = Mortality * LocalProducer%Mortality%POM_Frac              &
                                            * Me%ExternalVar%Mass (PHY_N, Index)       ![units] >>  mmol N m-3 d-1
         
-                Mix_Mort_POP = Mortality * Producer%Mortality%POM_Frac              &
+                Mix_Mort_POP = Mortality * LocalProducer%Mortality%POM_Frac              &
                                            * Me%ExternalVar%Mass (PHY_P, Index)       ![units] >>  mmol P m-3 d-1
 
 
                 !________ .balance (mortality + excretion) to dissolved 
-                Mix_Ex_DOC = (Mortality * (1.  - Producer%Mortality%POM_Frac)         & 
-                             + Producer%Excretion%Rate)                               &
+                Mix_Ex_DOC = (Mortality * (1.  - LocalProducer%Mortality%POM_Frac)         & 
+                             + LocalProducer%Excretion%Rate)                               &
                              * Me%ExternalVar%Mass (PHY_C, Index)         ![units] >>  mg C m-3 d-1
 
-                Mix_Ex_DON = (Mortality * (1.  - Producer%Mortality%POM_Frac)          & 
-                             + Producer%Excretion%Rate)                                &
+                Mix_Ex_DON = (Mortality * (1.  - LocalProducer%Mortality%POM_Frac)          & 
+                             + LocalProducer%Excretion%Rate)                                &
                              * Me%ExternalVar%Mass (PHY_N, Index)       ![units] >>  mmol N m-3 d-1
 
-                Mix_Ex_DOP = (Mortality * (1.  - Producer%Mortality%POM_Frac)          & 
-                             + Producer%Excretion%Rate)                                &
+                Mix_Ex_DOP = (Mortality * (1.  - LocalProducer%Mortality%POM_Frac)          & 
+                             + LocalProducer%Excretion%Rate)                                &
                              * Me%ExternalVar%Mass (PHY_P, Index)       ![units] >>  mmol P m-3 d-1
 
 
@@ -3638,49 +3650,49 @@ d3:             do while(associated(Prey))
 
                 !_________.producers [c n p]
                 Me%ExternalVar%Mass (PHY_C, Index) = Me%ExternalVar%Mass (PHY_C, Index)     &
-                                                     + (Producer%Uptake%Carbon              &   ! <- sources
-                                                     + Producer%Grazing%Total%C             &
-                                                     - (Producer%Mortality%POM%C +          &   ! <- sinks
-                                                     Producer%Mortality%DOM_SL%C +          &
-                                                     Producer%Mortality%DOM_L%C  +          &
-                                                     Producer%Exudation%DOC_SL   +          &
-                                                     Producer%Exudation%DOC_L    +          &
-                                                     Producer%Respiration%Carbon +          &
+                                                     + (LocalProducer%Uptake%Carbon              &   ! <- sources
+                                                     + LocalProducer%Grazing%Total%C             &
+                                                     - (LocalProducer%Mortality%POM%C +          &   ! <- sinks
+                                                     LocalProducer%Mortality%DOM_SL%C +          &
+                                                     LocalProducer%Mortality%DOM_L%C  +          &
+                                                     LocalProducer%Exudation%DOC_SL   +          &
+                                                     LocalProducer%Exudation%DOC_L    +          &
+                                                     LocalProducer%Respiration%Carbon +          &
                                                      Mix_Mort_POC                +          &
                                                      Mix_Ex_DOC                  +          &
                                                      Mix_Resp_Rate)) * Me%DT_day 
 
                 Me%ExternalVar%Mass (PHY_N, Index) = Me%ExternalVar%Mass (PHY_N, Index)     &
-                                                     + (Producer%Uptake%Up_NH4 +            &   ! <- sources
-                                                     Producer%Uptake%Up_NO3    +            &
-                                                     Producer%Grazing%Assim%N               &
-                                                     - (Producer%Mortality%POM%N +          &   ! <- sinks
-                                                     Producer%Mortality%DOM_SL%N +          &
-                                                     Producer%Mortality%DOM_L%N  +          &
+                                                     + (LocalProducer%Uptake%Up_NH4 +            &   ! <- sources
+                                                     LocalProducer%Uptake%Up_NO3    +            &
+                                                     LocalProducer%Grazing%Assim%N               &
+                                                     - (LocalProducer%Mortality%POM%N +          &   ! <- sinks
+                                                     LocalProducer%Mortality%DOM_SL%N +          &
+                                                     LocalProducer%Mortality%DOM_L%N  +          &
                                                      Mix_Mort_PON                +          &
                                                      Mix_Ex_DON))                           &
                                                      * Me%DT_day 
                                              
                 Me%ExternalVar%Mass (PHY_P, Index) = Me%ExternalVar%Mass (PHY_P, Index)     &
-                                                     + (Producer%Uptake%Up_PO4 +            &   ! <- sources
-                                                     Producer%Grazing%Assim%P               &
-                                                     - (Producer%Mortality%POM%P +          &   ! <- sinks
-                                                     Producer%Mortality%DOM_SL%P +          &
-                                                     Producer%Mortality%DOM_L%P  +          & 
+                                                     + (LocalProducer%Uptake%Up_PO4 +            &   ! <- sources
+                                                     LocalProducer%Grazing%Assim%P               &
+                                                     - (LocalProducer%Mortality%POM%P +          &   ! <- sinks
+                                                     LocalProducer%Mortality%DOM_SL%P +          &
+                                                     LocalProducer%Mortality%DOM_L%P  +          & 
                                                      Mix_Mort_POP                +          &
                                                      Mix_Ex_DOP))                           &
                                                      * Me%DT_day
                                     
-                if (ME%BioChemPar%L_lim_method .eq. 1) then
+                if (Me%BioChemPar%L_lim_method .eq. 1) then
 
                     Me%ExternalVar%Mass (PHY_Chl, Index) = Me%ExternalVar%Mass (PHY_Chl, Index)     &
-                                                         + (Producer%Limitation%Light%PhotoAclim    &   ! <- sources
-                                                         - ((Producer%Mortality%POM%C  +            &   ! <- sinks
-                                                         Producer%Mortality%DOM_SL%C   +            &
-                                                         Producer%Mortality%DOM_L%C    +            & 
+                                                         + (LocalProducer%Limitation%Light%PhotoAclim    &   ! <- sources
+                                                         - ((LocalProducer%Mortality%POM%C  +            &   ! <- sinks
+                                                         LocalProducer%Mortality%DOM_SL%C   +            &
+                                                         LocalProducer%Mortality%DOM_L%C    +            & 
                                                          Mix_Mort_POC                  +            &
                                                          Mix_Ex_DOC)                                &
-                                                         * Producer%Ratio%ChlC_Actual))             &
+                                                         * LocalProducer%Ratio%ChlC_Actual))             &
                                                          * Me%DT_day
                 endif
 
@@ -3689,48 +3701,48 @@ d3:             do while(associated(Prey))
                 !_________.inorganic nutrients [n p]
 
                 Me%ExternalVar%Mass (AM, Index) = Me%ExternalVar%Mass (AM, Index)           &
-                                                  + (Producer%Grazing%Recyc%N               &
-                                                  - Producer%Uptake%Up_NH4) * Me%DT_day         ! <- sinks
+                                                  + (LocalProducer%Grazing%Recyc%N               &
+                                                  - LocalProducer%Uptake%Up_NH4) * Me%DT_day         ! <- sinks
                                         
                 Me%ExternalVar%Mass (PO, Index) = Me%ExternalVar%Mass (PO, Index)           &
-                                                  + (Producer%Grazing%Recyc%P               &
-                                                  - Producer%Uptake%Up_PO4) * Me%DT_day         ! <- sinks
+                                                  + (LocalProducer%Grazing%Recyc%P               &
+                                                  - LocalProducer%Uptake%Up_PO4) * Me%DT_day         ! <- sinks
                                         
 
                 !_________.diss organic matter [c n p]
                 Me%ExternalVar%Mass (DOC, Index) = Me%ExternalVar%Mass (DOC, Index)   &
-                                                   + (Producer%Mortality%DOM_L%C      &
+                                                   + (LocalProducer%Mortality%DOM_L%C      &
                                                    + Mix_Ex_DOC                       &
-                                                   + Producer%Exudation%DOC_L) * Me%DT_day
+                                                   + LocalProducer%Exudation%DOC_L) * Me%DT_day
 
                 Me%ExternalVar%Mass (DON, Index) = Me%ExternalVar%Mass (DON, Index)   &
-                                                   + (Producer%Mortality%DOM_L%N      &
+                                                   + (LocalProducer%Mortality%DOM_L%N      &
                                                    + Mix_Ex_DON) * Me%DT_day
 
                 Me%ExternalVar%Mass (DOP, Index) = Me%ExternalVar%Mass (DOP, Index)   &
-                                                   + (Producer%Mortality%DOM_L%P      &
+                                                   + (LocalProducer%Mortality%DOM_L%P      &
                                                    + Mix_Ex_DOP) * Me%DT_day
 
 
                 !_________.part organic matter [c n p]
                 Me%ExternalVar%Mass (POC, Index) = Me%ExternalVar%Mass (POC, Index)   &
-                                                   + (Producer%Mortality%POM%C        &
+                                                   + (LocalProducer%Mortality%POM%C        &
                                                    + Mix_Mort_POC) * Me%DT_day
 
                 Me%ExternalVar%Mass (PON, Index) = Me%ExternalVar%Mass (PON, Index)   &
-                                                   + (Producer%Mortality%POM%N        &
+                                                   + (LocalProducer%Mortality%POM%N        &
                                                    + Mix_Mort_PON) * Me%DT_day
 
                 Me%ExternalVar%Mass (POP, Index) = Me%ExternalVar%Mass (POP, Index)   &
-                                                   + (Producer%Mortality%POM%P        &
+                                                   + (LocalProducer%Mortality%POM%P        &
                                                    + Mix_Mort_POP) * Me%DT_day
 
 
                 !_________.oxygen [O]                                       [units] >>  mg O2 L-1 d-1
 
                 Me%ExternalVar%Mass (O2, Index) = Me%ExternalVar%Mass (O2, Index)                &
-                                                 + (Producer%Uptake%Carbon                       &
-                                                 - Producer%Respiration%Carbon                   &
+                                                 + (LocalProducer%Uptake%Carbon                       &
+                                                 - LocalProducer%Respiration%Carbon                   &
                                                  - Mix_Resp_Rate) * Me%BioChemPar%O2C_Conversion * Me%DT_day
                     
 
@@ -3742,38 +3754,38 @@ d3:             do while(associated(Prey))
 
                 !_________.producers [c n p]
                 Me%ExternalVar%Mass (PHY_C, Index) = Me%ExternalVar%Mass (PHY_C, Index)     &
-                                                     + (Producer%Uptake%Carbon              &   ! <- sources
-                                                     - (Producer%Mortality%POM%C +          &   ! <- sinks
-                                                     Producer%Mortality%DOM_SL%C +          &
-                                                     Producer%Mortality%DOM_L%C  +          &
-                                                     Producer%Exudation%DOC_SL   +          &
-                                                     Producer%Exudation%DOC_L    +          &
-                                                     Producer%Respiration%Carbon)) * Me%DT_day 
+                                                     + (LocalProducer%Uptake%Carbon              &   ! <- sources
+                                                     - (LocalProducer%Mortality%POM%C +          &   ! <- sinks
+                                                     LocalProducer%Mortality%DOM_SL%C +          &
+                                                     LocalProducer%Mortality%DOM_L%C  +          &
+                                                     LocalProducer%Exudation%DOC_SL   +          &
+                                                     LocalProducer%Exudation%DOC_L    +          &
+                                                     LocalProducer%Respiration%Carbon)) * Me%DT_day 
 
                 Me%ExternalVar%Mass (PHY_N, Index) = Me%ExternalVar%Mass (PHY_N, Index)     &
-                                                     + (Producer%Uptake%Up_NH4 +            &   ! <- sources
-                                                     Producer%Uptake%Up_NO3                 &
-                                                     - (Producer%Mortality%POM%N +          &   ! <- sinks
-                                                     Producer%Mortality%DOM_SL%N +          &
-                                                     Producer%Mortality%DOM_L%N))           &
+                                                     + (LocalProducer%Uptake%Up_NH4 +            &   ! <- sources
+                                                     LocalProducer%Uptake%Up_NO3                 &
+                                                     - (LocalProducer%Mortality%POM%N +          &   ! <- sinks
+                                                     LocalProducer%Mortality%DOM_SL%N +          &
+                                                     LocalProducer%Mortality%DOM_L%N))           &
                                                      * Me%DT_day
 
                 Me%ExternalVar%Mass (PHY_P, Index) = Me%ExternalVar%Mass (PHY_P, Index)     &
-                                                     + (Producer%Uptake%Up_PO4              &   ! <- sources
-                                                     - (Producer%Mortality%POM%P +          &   ! <- sinks
-                                                     Producer%Mortality%DOM_SL%P +          &
-                                                     Producer%Mortality%DOM_L%P))           &
+                                                     + (LocalProducer%Uptake%Up_PO4              &   ! <- sources
+                                                     - (LocalProducer%Mortality%POM%P +          &   ! <- sinks
+                                                     LocalProducer%Mortality%DOM_SL%P +          &
+                                                     LocalProducer%Mortality%DOM_L%P))           &
                                                      * Me%DT_day
 
 
-                if (ME%BioChemPar%L_lim_method .eq. 1) then
+                if (Me%BioChemPar%L_lim_method .eq. 1) then
 
                     Me%ExternalVar%Mass (PHY_Chl, Index) = Me%ExternalVar%Mass (PHY_Chl, Index)     &
-                                                         + (Producer%Limitation%Light%PhotoAclim    &   ! <- sources
-                                                         - ((Producer%Mortality%POM%C +             &   ! <- sinks
-                                                         Producer%Mortality%DOM_SL%C +              &
-                                                         Producer%Mortality%DOM_L%C) *              &
-                                                         Producer%Ratio%ChlC_Actual))               &
+                                                         + (LocalProducer%Limitation%Light%PhotoAclim    &   ! <- sources
+                                                         - ((LocalProducer%Mortality%POM%C +             &   ! <- sinks
+                                                         LocalProducer%Mortality%DOM_SL%C +              &
+                                                         LocalProducer%Mortality%DOM_L%C) *              &
+                                                         LocalProducer%Ratio%ChlC_Actual))               &
                                                          * Me%DT_day
                 endif
 
@@ -3782,40 +3794,40 @@ d3:             do while(associated(Prey))
                 !_________.inorganic nutrients [n p]
 
                 Me%ExternalVar%Mass (AM, Index) = Me%ExternalVar%Mass (AM, Index)           &
-                                                  - Producer%Uptake%Up_NH4 * Me%DT_day          ! <- sinks
+                                                  - LocalProducer%Uptake%Up_NH4 * Me%DT_day          ! <- sinks
                                         
                 Me%ExternalVar%Mass (PO, Index) = Me%ExternalVar%Mass (PO, Index)           &
-                                                  - Producer%Uptake%Up_PO4 * Me%DT_day          ! <- sinks
+                                                  - LocalProducer%Uptake%Up_PO4 * Me%DT_day          ! <- sinks
                                         
 
                 !_________.diss organic matter [c n p]
                 Me%ExternalVar%Mass (DOC, Index) = Me%ExternalVar%Mass (DOC, Index)   &
-                                                   + (Producer%Mortality%DOM_L%C +    &
-                                                   Producer%Exudation%DOC_L) * Me%DT_day
+                                                   + (LocalProducer%Mortality%DOM_L%C +    &
+                                                   LocalProducer%Exudation%DOC_L) * Me%DT_day
 
                 Me%ExternalVar%Mass (DON, Index) = Me%ExternalVar%Mass (DON, Index)   &
-                                                   + Producer%Mortality%DOM_L%N * Me%DT_day
+                                                   + LocalProducer%Mortality%DOM_L%N * Me%DT_day
 
                 Me%ExternalVar%Mass (DOP, Index) = Me%ExternalVar%Mass (DOP, Index)   &
-                                                   + Producer%Mortality%DOM_L%P * Me%DT_day
+                                                   + LocalProducer%Mortality%DOM_L%P * Me%DT_day
 
 
                 !_________.part organic matter [c n p]
                 Me%ExternalVar%Mass (POC, Index) = Me%ExternalVar%Mass (POC, Index)   &
-                                                   + Producer%Mortality%POM%C * Me%DT_day
+                                                   + LocalProducer%Mortality%POM%C * Me%DT_day
 
                 Me%ExternalVar%Mass (PON, Index) = Me%ExternalVar%Mass (PON, Index)   &
-                                                   + Producer%Mortality%POM%N * Me%DT_day
+                                                   + LocalProducer%Mortality%POM%N * Me%DT_day
 
                 Me%ExternalVar%Mass (POP, Index) = Me%ExternalVar%Mass (POP, Index)   &
-                                                   + Producer%Mortality%POM%P * Me%DT_day
+                                                   + LocalProducer%Mortality%POM%P * Me%DT_day
 
 
                 !_________.oxygen [O]                                       [units] >>  mg O2 L-1 d-1
 
                 Me%ExternalVar%Mass (O2, Index) = Me%ExternalVar%Mass (O2, Index)                &
-                                                 + (Producer%Uptake%Carbon                       &
-                                                 - Producer%Respiration%Carbon) * Me%BioChemPar%O2C_Conversion * Me%DT_day
+                                                 + (LocalProducer%Uptake%Carbon                       &
+                                                 - LocalProducer%Respiration%Carbon) * Me%BioChemPar%O2C_Conversion * Me%DT_day
 
 
 
@@ -3824,8 +3836,8 @@ d3:             do while(associated(Prey))
                  If (Me%BioChemPar%CO2_on) then 
 
                     Me%ExternalVar%Mass (CO2, Index) = Me%ExternalVar%Mass (CO2, Index)           &
-                                                      + (Producer%Respiration%Carbon              &
-                                                      - Producer%Uptake%Carbon) * Me%BioChemPar%CO2C_Conversion * Me%DT_day
+                                                      + (LocalProducer%Respiration%Carbon              &
+                                                      - LocalProducer%Uptake%Carbon) * Me%BioChemPar%CO2C_Conversion * Me%DT_day
                  Endif
 
 
@@ -3842,38 +3854,38 @@ d3:             do while(associated(Prey))
 
             !_________.inorganic nutrients [n p]
             Me%ExternalVar%Mass (NA, Index) = Me%ExternalVar%Mass (NA, Index)           &
-                                              - Producer%Uptake%Up_NO3 * Me%DT_day          ! <- sinks
+                                              - LocalProducer%Uptake%Up_NO3 * Me%DT_day          ! <- sinks
 
 
             !_________.silica [si]
-i6:         if(Producer%Use_Silica)then
+i6:         if(LocalProducer%Use_Silica)then
 
                 !_________.producers
                 Me%ExternalVar%Mass (PHY_Si, Index) = Me%ExternalVar%Mass (PHY_Si, Index)   &
-                                                      + (Producer%Uptake%Up_SiO             &   ! <- sources
-                                                      - Producer%Mortality%POM%Si)          &   ! <- sinks
+                                                      + (LocalProducer%Uptake%Up_SiO             &   ! <- sources
+                                                      - LocalProducer%Mortality%POM%Si)          &   ! <- sinks
                                                       * Me%DT_day
                 
                 !_________.biogenic silica
                 Me%ExternalVar%Mass (POSi, Index) = Me%ExternalVar%Mass (POSi, Index)       &
-                                                    + Producer%Mortality%POM%Si * Me%DT_day     ! <- sources
+                                                    + LocalProducer%Mortality%POM%Si * Me%DT_day     ! <- sources
 
                 !_________.silicate acid
                 Me%ExternalVar%Mass (Si, Index) = Me%ExternalVar%Mass (Si, Index)           &
-                                                  - Producer%Uptake%Up_SiO * Me%DT_day          ! <- sinks
+                                                  - LocalProducer%Uptake%Up_SiO * Me%DT_day          ! <- sinks
             end if i6
 
 
             !_________.diss organic matter [c n p]
             Me%ExternalVar%Mass (DOCsl, Index) = Me%ExternalVar%Mass (DOCsl, Index)     &
-                                                 + (Producer%Mortality%DOM_SL%C +       &
-                                                 Producer%Exudation%DOC_SL) * Me%DT_day
+                                                 + (LocalProducer%Mortality%DOM_SL%C +       &
+                                                 LocalProducer%Exudation%DOC_SL) * Me%DT_day
 
             Me%ExternalVar%Mass (DONsl, Index) = Me%ExternalVar%Mass (DONsl, Index)   &
-                                                 + Producer%Mortality%DOM_SL%N * Me%DT_day
+                                                 + LocalProducer%Mortality%DOM_SL%N * Me%DT_day
 
             Me%ExternalVar%Mass (DOPsl, Index) = Me%ExternalVar%Mass (DOPsl, Index)   &
-                                                 + Producer%Mortality%DOM_SL%P * Me%DT_day
+                                                 + LocalProducer%Mortality%DOM_SL%P * Me%DT_day
 
 
             !_________________________________________
@@ -3889,40 +3901,40 @@ i6:         if(Producer%Use_Silica)then
     
 
             !_______.nitrogen                                                           [units] >>  mmol N m-3
-            If (aux_NC .gt. Producer%Ratio%NC_Max) then
+            If (aux_NC .gt. LocalProducer%Ratio%NC_Max) then
 
-                Producer%Exudation%Rel_Exc%N = (aux_NC - Producer%Ratio%NC_Max) *    &
+                LocalProducer%Exudation%Rel_Exc%N = (aux_NC - LocalProducer%Ratio%NC_Max) *    &
                                                 Me%ExternalVar%Mass (PHY_C, Index) 
             
             else
-                Producer%Exudation%Rel_Exc%N = 0.
+                LocalProducer%Exudation%Rel_Exc%N = 0.
             end if
 
 
             !_______.phosphorus                                                         [units] >>  mmol P m-3
-            if (aux_PC .gt. Producer%Ratio%PC_Max) then
+            if (aux_PC .gt. LocalProducer%Ratio%PC_Max) then
 
-                Producer%Exudation%Rel_Exc%P = (aux_PC - Producer%Ratio%PC_Max) *    &
+                LocalProducer%Exudation%Rel_Exc%P = (aux_PC - LocalProducer%Ratio%PC_Max) *    &
                                                Me%ExternalVar%Mass (PHY_C, Index) 
             
             else
-                Producer%Exudation%Rel_Exc%P = 0.
+                LocalProducer%Exudation%Rel_Exc%P = 0.
             end if 
        
 
             !_____.silica                                                             [units] >>  mmol Si m-3
-i7:         if(Producer%Use_Silica)then
+i7:         if(LocalProducer%Use_Silica)then
 
                 aux_SiC = Me%ExternalVar%Mass (PHY_Si, Index) / Me%ExternalVar%Mass (PHY_C, Index)
                    
 
                 if (aux_SiC .gt. Me%BiochemPar%Redfield_SiC) then
 
-                    Producer%Exudation%Rel_Exc%Si = (Producer%Ratio%SiC_Actual - Me%BiochemPar%Redfield_SiC)  &
+                    LocalProducer%Exudation%Rel_Exc%Si = (LocalProducer%Ratio%SiC_Actual - Me%BiochemPar%Redfield_SiC)  &
                                                     * Me%ExternalVar%Mass (PHY_C, Index)
 
                 else
-                    Producer%Exudation%Rel_Exc%Si = 0.
+                    LocalProducer%Exudation%Rel_Exc%Si = 0.
                 end if
 
             end if i7
@@ -3934,34 +3946,34 @@ i7:         if(Producer%Use_Silica)then
 
 
             Me%ExternalVar%Mass (PHY_N, Index) = Me%ExternalVar%Mass (PHY_N, Index)     &
-                                                 - Producer%Exudation%Rel_Exc%N
+                                                 - LocalProducer%Exudation%Rel_Exc%N
 
 
             Me%ExternalVar%Mass (PHY_P, Index) = Me%ExternalVar%Mass (PHY_P, Index)     &
-                                                 - Producer%Exudation%Rel_Exc%P
+                                                 - LocalProducer%Exudation%Rel_Exc%P
 
 
 
             !_________.inorganic nutrients [n p]
 
             Me%ExternalVar%Mass (AM, Index) = Me%ExternalVar%Mass (AM, Index)           &
-                                              + Producer%Exudation%Rel_Exc%N            ! <- sources  
+                                              + LocalProducer%Exudation%Rel_Exc%N            ! <- sources  
                         
 
             Me%ExternalVar%Mass (PO, Index) = Me%ExternalVar%Mass (PO, Index)           &
-                                              + Producer%Exudation%Rel_Exc%P            ! <- sources  
+                                              + LocalProducer%Exudation%Rel_Exc%P            ! <- sources  
                         
 
             !_________.silica [si]
-            if(Producer%Use_Silica)then
+            if(LocalProducer%Use_Silica)then
 
                 !_________.producers
                 Me%ExternalVar%Mass (PHY_Si, Index) = Me%ExternalVar%Mass (PHY_Si, Index)   &
-                                                      - Producer%Exudation%Rel_Exc%Si
+                                                      - LocalProducer%Exudation%Rel_Exc%Si
     
                 !_________.silicate acid
                 Me%ExternalVar%Mass (Si, Index) = Me%ExternalVar%Mass (Si, Index)           &
-                                                  + Producer%Exudation%Rel_Exc%Si
+                                                  + LocalProducer%Exudation%Rel_Exc%Si
 
             end if
 
@@ -3974,38 +3986,38 @@ i7:         if(Producer%Use_Silica)then
             !_____________________________________________________________________
             !___________________Sedimentation rate                          [units] >>  m d-1
 
-            !    If (Producer%Use_Silica)then
+            !    If (LocalProducer%Use_Silica)then
 
-            !        Producer%Movement%Sedimentation%C = Producer%Movement%Sed_nut_stress                   &
-            !                                            * max(0., Producer%Movement%Sed_nut_thresh -       &
-            !                                            (min(Producer%Limitation%Nutrients%Int_Nut_Limit,  &
-            !                                            Producer%Limitation%Nutrients%Si_Status)))         &
-            !                                            + Producer%Movement%Sed_min
+            !        LocalProducer%Movement%Sedimentation%C = LocalProducer%Movement%Sed_nut_stress                   &
+            !                                            * max(0., LocalProducer%Movement%Sed_nut_thresh -       &
+            !                                            (min(LocalProducer%Limitation%Nutrients%Int_Nut_Limit,  &
+            !                                            LocalProducer%Limitation%Nutrients%Si_Status)))         &
+            !                                            + LocalProducer%Movement%Sed_min
         
-            !        Producer%Movement%Sedimentation%Si = Producer%Movement%Sedimentation%C *         &
-            !                                             Producer%Ratio%SiC_Actual 
+            !        LocalProducer%Movement%Sedimentation%Si = LocalProducer%Movement%Sedimentation%C *         &
+            !                                             LocalProducer%Ratio%SiC_Actual 
 
 
             !        else
 
-            !            Producer%Movement%Sedimentation%C = Producer%Movement%Sed_nut_stress               &
-            !                                                * max(0., Producer%Movement%Sed_nut_thresh     &
-            !                                                - Producer%Limitation%Nutrients%Int_Nut_Limit) &
-            !                                                + Producer%Movement%Sed_min
+            !            LocalProducer%Movement%Sedimentation%C = LocalProducer%Movement%Sed_nut_stress               &
+            !                                                * max(0., LocalProducer%Movement%Sed_nut_thresh     &
+            !                                                - LocalProducer%Limitation%Nutrients%Int_Nut_Limit) &
+            !                                                + LocalProducer%Movement%Sed_min
 
             !    endif
 
 
-            !    Producer%Movement%Sedimentation%N = Producer%Movement%Sedimentation%C *         &
-            !                                        Producer%Ratio%NC_Actual 
+            !    LocalProducer%Movement%Sedimentation%N = LocalProducer%Movement%Sedimentation%C *         &
+            !                                        LocalProducer%Ratio%NC_Actual 
 
-            !    Producer%Movement%Sedimentation%P = Producer%Movement%Sedimentation%C *         &
-            !                                        Producer%Ratio%PC_Actual 
+            !    LocalProducer%Movement%Sedimentation%P = LocalProducer%Movement%Sedimentation%C *         &
+            !                                        LocalProducer%Ratio%PC_Actual 
 
-            !    If (ME%BioChemPar%L_lim_method .eq. 1) then
+            !    If (Me%BioChemPar%L_lim_method .eq. 1) then
 
-            !        Producer%Movement%Sedimentation%Chl = Producer%Movement%Sedimentation%C *         &
-            !                                              Producer%Ratio%ChlC_Actual
+            !        LocalProducer%Movement%Sedimentation%Chl = LocalProducer%Movement%Sedimentation%C *         &
+            !                                              LocalProducer%Ratio%ChlC_Actual
     
             !    Endif
 
@@ -4022,6 +4034,7 @@ i7:         if(Producer%Use_Silica)then
 !_________________________________________
 !_________________________Consumers calc__
 
+    !$ recursive &
     subroutine Consumers (index)
     
     !Arguments---------------------------------------------------------------
@@ -4029,8 +4042,10 @@ i7:         if(Producer%Use_Silica)then
         integer, intent(IN) :: index
 
     !Local-------------------------------------------------------------------
-        type(T_Consumer),      pointer             :: Consumer
-        type(T_Prey),          pointer             :: Prey
+        type(T_Consumer),      pointer              :: Consumer
+        type(T_Prey),          pointer              :: Prey
+        type(T_Consumer)                            :: LocalConsumer
+        type(T_Prey)                                :: LocalPrey
 
         integer :: ZOO_C,       ZOO_N,      ZOO_P
         integer :: PreyIndexC,  PreyIndexN, PreyIndexP, PreyIndexSi, PreyIndexChl
@@ -4064,18 +4079,21 @@ i7:         if(Producer%Use_Silica)then
  
         Consumer => Me%FirstConsumer
 d1:     do while(associated(Consumer))
+
+            !Very important: this allows mulit-threading
+            LocalConsumer = Consumer
             
-            ZOO_C   = Consumer%PoolIndex%Carbon
-            ZOO_N   = Consumer%PoolIndex%Nitrogen
-            ZOO_P   = Consumer%PoolIndex%Phosphorus
+            ZOO_C   = LocalConsumer%PoolIndex%Carbon
+            ZOO_N   = LocalConsumer%PoolIndex%Nitrogen
+            ZOO_P   = LocalConsumer%PoolIndex%Phosphorus
 
 
             !_________.set total predated fraction counter to zero         
-            Consumer%Grazing%Total%C = 0.
-            Consumer%Grazing%Total%N = 0.
-            Consumer%Grazing%Total%P = 0.
+            LocalConsumer%Grazing%Total%C = 0.
+            LocalConsumer%Grazing%Total%N = 0.
+            LocalConsumer%Grazing%Total%P = 0.
 
-            Consumer%Grazing%Spec_Up = 0. 
+            LocalConsumer%Grazing%Spec_Up = 0. 
 
             !_________________________________________
             !__________________actual element ratios__
@@ -4083,18 +4101,18 @@ d1:     do while(associated(Consumer))
 
             If (Me%ExternalVar%Mass (ZOO_C, Index) .GT. 0.0) then
 
-            Consumer%Ratio%NC_Actual = Me%ExternalVar%Mass (ZOO_N, Index) /      &
+            LocalConsumer%Ratio%NC_Actual = Me%ExternalVar%Mass (ZOO_N, Index) /      &
                                        Me%ExternalVar%Mass (ZOO_C, Index)           ![units] >>  mmol N / mg C
 
-            Consumer%Ratio%PC_Actual = Me%ExternalVar%Mass (ZOO_P, Index) /      &
+            LocalConsumer%Ratio%PC_Actual = Me%ExternalVar%Mass (ZOO_P, Index) /      &
                                        Me%ExternalVar%Mass (ZOO_C, Index)           ![units] >>  mmol P / mg C
 
 
             else
 
-                Consumer%Ratio%NC_Actual = 0.0
+                LocalConsumer%Ratio%NC_Actual = 0.0
 
-                Consumer%Ratio%PC_Actual = 0.0
+                LocalConsumer%Ratio%PC_Actual = 0.0
 
             end if
 
@@ -4102,39 +4120,42 @@ d1:     do while(associated(Consumer))
             !__temperature & oxygen limitation calc.__
 
 
-s1:         Select case (ME%BioChemPar%T_lim_method)
+s1:         Select case (Me%BioChemPar%T_lim_method)
 
             case (1) s1
           
-                Consumer%Limitation%Temperature%Limit = Temp_Lim_Q10 (Consumer%Limitation%Temperature%Q10,  &
-                                                        Consumer%Limitation%Temperature%T0, index)
+                LocalConsumer%Limitation%Temperature%Limit = Temp_Lim_Q10 (LocalConsumer%Limitation%Temperature%Q10,  &
+                                                        LocalConsumer%Limitation%Temperature%T0, index)
 
             case (2) s1
          
-                Consumer%Limitation%Temperature%Limit = exp(-4000.0 * ((1.0 / (Me%ExternalVar%Temperature (index)            &
-                                                        + 273.15)) - (1.0 / (Consumer%Limitation%Temperature%Reftemp + 273.15))))
+                LocalConsumer%Limitation%Temperature%Limit = exp(-4000.0 * ((1.0 / (Me%ExternalVar%Temperature (index)            &
+                                                        + 273.15)) - (1.0 / (LocalConsumer%Limitation%Temperature%Reftemp + 273.15))))
 
             end select s1
 
 
-            Consumer%Limitation%Oxygen = Oxygen_Lim (Consumer%Mortality%O2_Ks, Me%ExternalVar%Mass (O2, Index))
+            LocalConsumer%Limitation%Oxygen = Oxygen_Lim (LocalConsumer%Mortality%O2_Ks, Me%ExternalVar%Mass (O2, Index))
 
             !_________________________________________
             !________________________predation calc.__                    
 
-            Prey => Consumer%Grazing%FirstPrey
+            Prey => LocalConsumer%Grazing%FirstPrey
 d2:         do while(associated(Prey))
 
-                PreyIndexC  = SearchPropIndex(GetPropertyIDNumber(trim(Prey%ID%Name)//" carbon"))
-                PreyIndexN  = SearchPropIndex(GetPropertyIDNumber(trim(Prey%ID%Name)//" nitrogen"))
-                PreyIndexP  = SearchPropIndex(GetPropertyIDNumber(trim(Prey%ID%Name)//" phosphorus"))
+                !Very important: allows multi-threading
+                LocalPrey = Prey
 
-                if(Prey%Use_Silica)then
-                PreyIndexSi = SearchPropIndex(GetPropertyIDNumber(trim(Prey%ID%Name)//" silica"))
+                PreyIndexC  = SearchPropIndex(GetPropertyIDNumber(trim(LocalPrey%ID%Name)//" carbon"))
+                PreyIndexN  = SearchPropIndex(GetPropertyIDNumber(trim(LocalPrey%ID%Name)//" nitrogen"))
+                PreyIndexP  = SearchPropIndex(GetPropertyIDNumber(trim(LocalPrey%ID%Name)//" phosphorus"))
+
+                if(LocalPrey%Use_Silica)then
+                PreyIndexSi = SearchPropIndex(GetPropertyIDNumber(trim(LocalPrey%ID%Name)//" silica"))
                 end if
 
-                if(Prey%Use_Chl)then
-                PreyIndexChl  = SearchPropIndex(GetPropertyIDNumber(trim(Prey%ID%Name)//" chlorophyll"))
+                if(LocalPrey%Use_Chl)then
+                PreyIndexChl  = SearchPropIndex(GetPropertyIDNumber(trim(LocalPrey%ID%Name)//" chlorophyll"))
                 end if
 
 
@@ -4142,44 +4163,44 @@ d2:         do while(associated(Prey))
                 
                 If (Me%ExternalVar%Mass (PreyIndexC, Index) .gt. 0.0) then
                 
-                        Prey%Ratio%NC_Actual = Me%ExternalVar%Mass (PreyIndexN, Index) /      &
+                        LocalPrey%Ratio%NC_Actual = Me%ExternalVar%Mass (PreyIndexN, Index) /      &
                                                Me%ExternalVar%Mass (PreyIndexC, Index)          
 
-                        Prey%Ratio%PC_Actual = Me%ExternalVar%Mass (PreyIndexP, Index) /      &
+                        LocalPrey%Ratio%PC_Actual = Me%ExternalVar%Mass (PreyIndexP, Index) /      &
                                                Me%ExternalVar%Mass (PreyIndexC, Index) 
                 
                     else
                     
-                        Prey%Ratio%NC_Actual = 0.0
-                        Prey%Ratio%PC_Actual = 0.0
+                        LocalPrey%Ratio%NC_Actual = 0.0
+                        LocalPrey%Ratio%PC_Actual = 0.0
                         
                 end if
  
 
                 !_________.prey potential grazing
-                Avail = Prey%Avail * Me%ExternalVar%Mass (PreyIndexC, Index)            ![units] >>  mg C m-3
+                Avail = LocalPrey%Avail * Me%ExternalVar%Mass (PreyIndexC, Index)            ![units] >>  mg C m-3
 
-                Prey%Pot = Consumer%Grazing%Vmax * (Avail/(Avail+Consumer%Grazing%Ks)) *    &
-                           Consumer%Limitation%Temperature%Limit                             ![units] >>  d-1
+                LocalPrey%Pot = LocalConsumer%Grazing%Vmax * (Avail/(Avail+LocalConsumer%Grazing%Ks)) *    &
+                           LocalConsumer%Limitation%Temperature%Limit                             ![units] >>  d-1
     
 
                                                                             ![units] >>  mmol (N & P) m-3 d-1
-                Prey%Frac%N = Prey%Pot * Me%ExternalVar%Mass (ZOO_C, Index) * Prey%Ratio%NC_Actual
+                LocalPrey%Frac%N = LocalPrey%Pot * Me%ExternalVar%Mass (ZOO_C, Index) * LocalPrey%Ratio%NC_Actual
 
-                Prey%Frac%P = Prey%Pot * Me%ExternalVar%Mass (ZOO_C, Index) * Prey%Ratio%PC_Actual
-
-
-                Prey%Frac%C = Prey%Pot* Me%ExternalVar%Mass (ZOO_C, Index)          ![units] >>  mg C m-3 d-1
+                LocalPrey%Frac%P = LocalPrey%Pot * Me%ExternalVar%Mass (ZOO_C, Index) * LocalPrey%Ratio%PC_Actual
 
 
-                Consumer%Grazing%Total%C = Consumer%Grazing%Total%C + Prey%Frac%C
-
-                Consumer%Grazing%Total%N = Consumer%Grazing%Total%N + Prey%Frac%N
-
-                Consumer%Grazing%Total%P = Consumer%Grazing%Total%P + Prey%Frac%P
+                LocalPrey%Frac%C = LocalPrey%Pot* Me%ExternalVar%Mass (ZOO_C, Index)          ![units] >>  mg C m-3 d-1
 
 
-                Consumer%Grazing%Spec_Up = Consumer%Grazing%Spec_Up + Prey%Pot                ![units] >>  d-1
+                LocalConsumer%Grazing%Total%C = LocalConsumer%Grazing%Total%C + LocalPrey%Frac%C
+
+                LocalConsumer%Grazing%Total%N = LocalConsumer%Grazing%Total%N + LocalPrey%Frac%N
+
+                LocalConsumer%Grazing%Total%P = LocalConsumer%Grazing%Total%P + LocalPrey%Frac%P
+
+
+                LocalConsumer%Grazing%Spec_Up = LocalConsumer%Grazing%Spec_Up + LocalPrey%Pot                ![units] >>  d-1
 
 
 
@@ -4187,45 +4208,45 @@ d2:         do while(associated(Prey))
                 !_________.prey mass balance equations                                            [ matrix update ]
 
                 Me%ExternalVar%Mass (PreyIndexC, Index) = Me%ExternalVar%Mass (PreyIndexC, Index)           &
-                                                          - (Prey%Frac%C) * Me%DT_day                   ! <- sinks
+                                                          - (LocalPrey%Frac%C) * Me%DT_day                   ! <- sinks
 
                 Me%ExternalVar%Mass (PreyIndexN, Index) = Me%ExternalVar%Mass (PreyIndexN, Index)           &
-                                                          - (Prey%Frac%N) * Me%DT_day                   ! <- sinks
+                                                          - (LocalPrey%Frac%N) * Me%DT_day                   ! <- sinks
 
                 Me%ExternalVar%Mass (PreyIndexP, Index) = Me%ExternalVar%Mass (PreyIndexP, Index)           &
-                                                          - (Prey%Frac%P) * Me%DT_day                   ! <- sinks              
+                                                          - (LocalPrey%Frac%P) * Me%DT_day                   ! <- sinks              
         
 
 
-i1:             if(ME%BioChemPar%L_lim_method .eq. 1 .AND. Prey%Use_Chl)then
+i1:             if(Me%BioChemPar%L_lim_method .eq. 1 .AND. LocalPrey%Use_Chl)then
                                                                                        ![units] >>  mg Chl / mg C
-                    Prey%Ratio%ChlC_Actual = Me%ExternalVar%Mass (PreyIndexChl, Index) /      &
+                    LocalPrey%Ratio%ChlC_Actual = Me%ExternalVar%Mass (PreyIndexChl, Index) /      &
                                              Me%ExternalVar%Mass (PreyIndexC, Index) 
 
                                                                                        ![units] >>  mmol (N & P) m-3 d-1
-                    Prey%Frac%Chl = Prey%Pot * Me%ExternalVar%Mass (ZOO_C, Index) * Prey%Ratio%ChlC_Actual
+                    LocalPrey%Frac%Chl = LocalPrey%Pot * Me%ExternalVar%Mass (ZOO_C, Index) * LocalPrey%Ratio%ChlC_Actual
 
 
                     Me%ExternalVar%Mass (PreyIndexChl, Index) = Me%ExternalVar%Mass (PreyIndexChl, Index)       &
-                                                                - (Prey%Frac%Chl) * Me%DT_day                !<- sinks   
+                                                                - (LocalPrey%Frac%Chl) * Me%DT_day                !<- sinks   
 
                 end if i1
 
                 
                 
-i2:             if(Prey%Use_Silica)then
+i2:             if(LocalPrey%Use_Silica)then
                     
-                    Prey%Ratio%SiC_Actual = Me%ExternalVar%Mass (PreyIndexSi, Index) /      &
+                    LocalPrey%Ratio%SiC_Actual = Me%ExternalVar%Mass (PreyIndexSi, Index) /      &
                                             Me%ExternalVar%Mass (PreyIndexC, Index) 
 
                                                                                   ![units] >>  mmol Si m-3 d-1
-                    Prey%Frac%Si = Prey%Pot * Me%ExternalVar%Mass (ZOO_C, Index) * Prey%Ratio%SiC_Actual
+                    LocalPrey%Frac%Si = LocalPrey%Pot * Me%ExternalVar%Mass (ZOO_C, Index) * LocalPrey%Ratio%SiC_Actual
                     
                     Me%ExternalVar%Mass (PreyIndexSi, Index) = Me%ExternalVar%Mass (PreyIndexSi, Index)        &
-                                                               - Prey%Frac%Si * Me%DT_day             ! <- sinks
+                                                               - LocalPrey%Frac%Si * Me%DT_day             ! <- sinks
 
                     Me%ExternalVar%Mass (POSi, Index) = Me%ExternalVar%Mass (POSi, Index)        &
-                                                        + Prey%Frac%Si * Me%DT_day                    ! <- sources
+                                                        + LocalPrey%Frac%Si * Me%DT_day                    ! <- sources
 
                 end if i2
 
@@ -4238,23 +4259,23 @@ i2:             if(Prey%Use_Silica)then
             !_________________________________________
             !___________assimilated & recycled frac.__ 
                                             
-            Consumer%Grazing%NC_Bal = MIN (MAX ((Consumer%Ratio%NC_Max - Consumer%Ratio%NC_Actual) /     &
-                                      (Consumer%Ratio%NC_Max - Consumer%Ratio%NC_Min), 0.), 1.)
+            LocalConsumer%Grazing%NC_Bal = MIN (MAX ((LocalConsumer%Ratio%NC_Max - LocalConsumer%Ratio%NC_Actual) /     &
+                                      (LocalConsumer%Ratio%NC_Max - LocalConsumer%Ratio%NC_Min), 0.), 1.)
 
-            Consumer%Grazing%PC_Bal = MIN (MAX ((Consumer%Ratio%PC_Max - Consumer%Ratio%PC_Actual) /     &
-                                      (Consumer%Ratio%PC_Max - Consumer%Ratio%PC_Min), 0.), 1.)
+            LocalConsumer%Grazing%PC_Bal = MIN (MAX ((LocalConsumer%Ratio%PC_Max - LocalConsumer%Ratio%PC_Actual) /     &
+                                      (LocalConsumer%Ratio%PC_Max - LocalConsumer%Ratio%PC_Min), 0.), 1.)
 
 
             !____________assimilated                                                ![units] >>  mmol N m-3 d-1
-            Consumer%Grazing%Assim%N = Consumer%Grazing%Total%N * Consumer%Grazing%NC_Bal
+            LocalConsumer%Grazing%Assim%N = LocalConsumer%Grazing%Total%N * LocalConsumer%Grazing%NC_Bal
 
-            Consumer%Grazing%Assim%P = Consumer%Grazing%Total%P * Consumer%Grazing%PC_Bal
+            LocalConsumer%Grazing%Assim%P = LocalConsumer%Grazing%Total%P * LocalConsumer%Grazing%PC_Bal
 
 
             !____________recycled (to inorganic fraction)                           ![units] >>  mmol P m-3 d-1
-            Consumer%Grazing%Recyc%N = Consumer%Grazing%Total%N * (1. - Consumer%Grazing%NC_Bal)
+            LocalConsumer%Grazing%Recyc%N = LocalConsumer%Grazing%Total%N * (1. - LocalConsumer%Grazing%NC_Bal)
 
-            Consumer%Grazing%Recyc%P = Consumer%Grazing%Total%P * (1. - Consumer%Grazing%PC_Bal)
+            LocalConsumer%Grazing%Recyc%P = LocalConsumer%Grazing%Total%P * (1. - LocalConsumer%Grazing%PC_Bal)
 
 
 
@@ -4262,51 +4283,51 @@ i2:             if(Prey%Use_Silica)then
             !________________________mortality calc.__ 
                                                                                                        ![units] >>  d-1
 
-            Consumer%Mortality%O2_Dep_r = (1.  - Consumer%Limitation%Oxygen) * Consumer%Mortality%O2_Dep 
+            LocalConsumer%Mortality%O2_Dep_r = (1.  - LocalConsumer%Limitation%Oxygen) * LocalConsumer%Mortality%O2_Dep 
                                                                                            
 
-            Mortality = Consumer%Mortality%Rate + Consumer%Mortality%O2_Dep_r
+            Mortality = LocalConsumer%Mortality%Rate + LocalConsumer%Mortality%O2_Dep_r
 
 
             !_________________________________________
             !________________respiration & excretion__
                                                                                                   ![units] >>  d-1
-            Consumer%Respiration%StandStock = Consumer%Limitation%Temperature%Limit * Consumer%Respiration%at10C
+            LocalConsumer%Respiration%StandStock = LocalConsumer%Limitation%Temperature%Limit * LocalConsumer%Respiration%at10C
 
-            Consumer%Excretion%Rate = Consumer%Grazing%Spec_Up *                                 & 
-                                      (1.  - Consumer%Grazing%Ass_Efic) * Consumer%Excretion%Up_Frac
+            LocalConsumer%Excretion%Rate = LocalConsumer%Grazing%Spec_Up *                                 & 
+                                      (1.  - LocalConsumer%Grazing%Ass_Efic) * LocalConsumer%Excretion%Up_Frac
 
-            Consumer%Respiration%Activity = Consumer%Grazing%Spec_Up *                                       & 
-                                            (1.  - Consumer%Grazing%Ass_Efic) * (1.  - Consumer%Excretion%Up_Frac)
+            LocalConsumer%Respiration%Activity = LocalConsumer%Grazing%Spec_Up *                                       & 
+                                            (1.  - LocalConsumer%Grazing%Ass_Efic) * (1.  - LocalConsumer%Excretion%Up_Frac)
 
                                                                                
-            Consumer%Respiration%Rate = (Consumer%Respiration%StandStock + Consumer%Respiration%Activity)   &
+            LocalConsumer%Respiration%Rate = (LocalConsumer%Respiration%StandStock + LocalConsumer%Respiration%Activity)   &
                                         * Me%ExternalVar%Mass (ZOO_C, Index)            ![units] >>  mg C m-3 d-1
 
 
 
             !________ .balance (mortality) to particulated  
-    !        Consumer%Mortality%POM%C = Mortality * Consumer%Mortality%POM_Frac              &
+    !        LocalConsumer%Mortality%POM%C = Mortality * LocalConsumer%Mortality%POM_Frac              &
     !                                   * Me%ExternalVar%Mass (ZOO_C, Index)         ![units] >>  mg C m-3 d-1
 
-    !        Consumer%Mortality%POM%N = Mortality * Consumer%Mortality%POM_Frac              &
+    !        LocalConsumer%Mortality%POM%N = Mortality * LocalConsumer%Mortality%POM_Frac              &
     !                                   * Me%ExternalVar%Mass (ZOO_N, Index)       ![units] >>  mmol N m-3 d-1
         
-    !        Consumer%Mortality%POM%P = Mortality * Consumer%Mortality%POM_Frac              &
+    !        LocalConsumer%Mortality%POM%P = Mortality * LocalConsumer%Mortality%POM_Frac              &
     !                                   * Me%ExternalVar%Mass (ZOO_P, Index)       ![units] >>  mmol P m-3 d-1
 
 
             !________ .balance (mortality + excretion) to dissolved 
-    !        Consumer%Excretion%DOM%C = (Mortality * (1.  - Consumer%Mortality%POM_Frac)         & 
-    !                                   + Consumer%Excretion%Rate)                               &
+    !        LocalConsumer%Excretion%DOM%C = (Mortality * (1.  - LocalConsumer%Mortality%POM_Frac)         & 
+    !                                   + LocalConsumer%Excretion%Rate)                               &
     !                                   * Me%ExternalVar%Mass (ZOO_C, Index)         ![units] >>  mg C m-3 d-1
 
-    !        Consumer%Excretion%DOM%N = (Mortality * (1.  - Consumer%Mortality%POM_Frac)          & 
-    !                                   + Consumer%Excretion%Rate)                                &
+    !        LocalConsumer%Excretion%DOM%N = (Mortality * (1.  - LocalConsumer%Mortality%POM_Frac)          & 
+    !                                   + LocalConsumer%Excretion%Rate)                                &
     !                                   * Me%ExternalVar%Mass (ZOO_N, Index)       ![units] >>  mmol N m-3 d-1
 
-    !        Consumer%Excretion%DOM%P = (Mortality * (1.  - Consumer%Mortality%POM_Frac)          & 
-    !                                   + Consumer%Excretion%Rate)                                &
+    !        LocalConsumer%Excretion%DOM%P = (Mortality * (1.  - LocalConsumer%Mortality%POM_Frac)          & 
+    !                                   + LocalConsumer%Excretion%Rate)                                &
     !                                   * Me%ExternalVar%Mass (ZOO_P, Index)       ![units] >>  mmol P m-3 d-1
 
 
@@ -4315,48 +4336,48 @@ i2:             if(Prey%Use_Silica)then
     !__________________________________________________________***** Quadratic mortality option *****_________
 
      !________ .balance (mortality) to particulated  
-            Consumer%Mortality%POM%C = ((Mortality * Consumer%Mortality%POM_Frac)           &
-                                       + (Mortality * Consumer%Mortality%POM_Frac           &
+            LocalConsumer%Mortality%POM%C = ((Mortality * LocalConsumer%Mortality%POM_Frac)           &
+                                       + (Mortality * LocalConsumer%Mortality%POM_Frac           &
                                        * (Me%ExternalVar%Mass (ZOO_C, Index)                &
                                        * Me%ExternalVar%Mass (ZOO_C, Index))))              &
                                        * Me%ExternalVar%Mass (ZOO_C, Index)                ![units] >>  mg C m-3 d-1
 
-            Consumer%Mortality%POM%N = ((Mortality * Consumer%Mortality%POM_Frac)           &
-                                       + (Mortality * Consumer%Mortality%POM_Frac           &
+            LocalConsumer%Mortality%POM%N = ((Mortality * LocalConsumer%Mortality%POM_Frac)           &
+                                       + (Mortality * LocalConsumer%Mortality%POM_Frac           &
                                        * (Me%ExternalVar%Mass (ZOO_N, Index)                &
                                        * Me%ExternalVar%Mass (ZOO_N, Index))))              &
                                        * Me%ExternalVar%Mass (ZOO_N, Index)                ![units] >>  mmol N m-3 d-1
         
-            Consumer%Mortality%POM%P = ((Mortality * Consumer%Mortality%POM_Frac)           &
-                                       + (Mortality * Consumer%Mortality%POM_Frac           &
+            LocalConsumer%Mortality%POM%P = ((Mortality * LocalConsumer%Mortality%POM_Frac)           &
+                                       + (Mortality * LocalConsumer%Mortality%POM_Frac           &
                                        * (Me%ExternalVar%Mass (ZOO_P, Index)                &
                                        * Me%ExternalVar%Mass (ZOO_P, Index))))              &
                                        * Me%ExternalVar%Mass (ZOO_P, Index)                ![units] >>  mmol P m-3 d-1
 
 
             !________ .balance (mortality + excretion) to dissolved 
-            Consumer%Excretion%DOM%C = ((Mortality * (1.  - Consumer%Mortality%POM_Frac))       &
-                                       + ((Mortality * (1.  - Consumer%Mortality%POM_Frac)      &
+            LocalConsumer%Excretion%DOM%C = ((Mortality * (1.  - LocalConsumer%Mortality%POM_Frac))       &
+                                       + ((Mortality * (1.  - LocalConsumer%Mortality%POM_Frac)      &
                                        * Me%ExternalVar%Mass (ZOO_C, Index)                     &
                                        * Me%ExternalVar%Mass (ZOO_C, Index))))                  &
                                        * Me%ExternalVar%Mass (ZOO_C, Index)                     &
-                                       + (Consumer%Excretion%Rate                               &
+                                       + (LocalConsumer%Excretion%Rate                               &
                                        * Me%ExternalVar%Mass (ZOO_C, Index))        ![units] >>  mg C m-3 d-1
 
-            Consumer%Excretion%DOM%N = ((Mortality * (1.  - Consumer%Mortality%POM_Frac))       &
-                                       + ((Mortality * (1.  - Consumer%Mortality%POM_Frac)      &
+            LocalConsumer%Excretion%DOM%N = ((Mortality * (1.  - LocalConsumer%Mortality%POM_Frac))       &
+                                       + ((Mortality * (1.  - LocalConsumer%Mortality%POM_Frac)      &
                                        * Me%ExternalVar%Mass (ZOO_N, Index)                     &
                                        * Me%ExternalVar%Mass (ZOO_N, Index))))                  &
                                        * Me%ExternalVar%Mass (ZOO_N, Index)                     &
-                                       + (Consumer%Excretion%Rate                               &
+                                       + (LocalConsumer%Excretion%Rate                               &
                                        * Me%ExternalVar%Mass (ZOO_N, Index))        ![units] >>  mmol N m-3 d-1
 
-            Consumer%Excretion%DOM%P = ((Mortality * (1.  - Consumer%Mortality%POM_Frac))       &
-                                       + ((Mortality * (1.  - Consumer%Mortality%POM_Frac)      &
+            LocalConsumer%Excretion%DOM%P = ((Mortality * (1.  - LocalConsumer%Mortality%POM_Frac))       &
+                                       + ((Mortality * (1.  - LocalConsumer%Mortality%POM_Frac)      &
                                        * Me%ExternalVar%Mass (ZOO_P, Index)                     &
                                        * Me%ExternalVar%Mass (ZOO_P, Index))))                  &
                                        * Me%ExternalVar%Mass (ZOO_P, Index)                     &
-                                       + (Consumer%Excretion%Rate                               &
+                                       + (LocalConsumer%Excretion%Rate                               &
                                        * Me%ExternalVar%Mass (ZOO_P, Index))        ![units] >>  mmol P m-3 d-1
 
 
@@ -4369,59 +4390,59 @@ i2:             if(Prey%Use_Silica)then
 
             !_________.consumers [c n p]
             Me%ExternalVar%Mass (ZOO_C, Index) = Me%ExternalVar%Mass (ZOO_C, Index)         &
-                                                 + (Consumer%Grazing%Total%C                &   ! <- sources
-                                                 - (Consumer%Mortality%POM%C                &   ! <- sinks
-                                                 + Consumer%Excretion%DOM%C                 &
-                                                 + Consumer%Respiration%Rate)) * Me%DT_day       
+                                                 + (LocalConsumer%Grazing%Total%C                &   ! <- sources
+                                                 - (LocalConsumer%Mortality%POM%C                &   ! <- sinks
+                                                 + LocalConsumer%Excretion%DOM%C                 &
+                                                 + LocalConsumer%Respiration%Rate)) * Me%DT_day       
 
             Me%ExternalVar%Mass (ZOO_N, Index) = Me%ExternalVar%Mass (ZOO_N, Index)         &
-                                                 + (Consumer%Grazing%Assim%N                &   ! <- sources
-                                                 - (Consumer%Mortality%POM%N                &   ! <- sinks
-                                                 + Consumer%Excretion%DOM%N)) * Me%DT_day
+                                                 + (LocalConsumer%Grazing%Assim%N                &   ! <- sources
+                                                 - (LocalConsumer%Mortality%POM%N                &   ! <- sinks
+                                                 + LocalConsumer%Excretion%DOM%N)) * Me%DT_day
  
             Me%ExternalVar%Mass (ZOO_P, Index) = Me%ExternalVar%Mass (ZOO_P, Index)         &
-                                                 + (Consumer%Grazing%Assim%P                &   ! <- sources
-                                                 - (Consumer%Mortality%POM%P                &   ! <- sinks
-                                                 + Consumer%Excretion%DOM%P)) * Me%DT_day
+                                                 + (LocalConsumer%Grazing%Assim%P                &   ! <- sources
+                                                 - (LocalConsumer%Mortality%POM%P                &   ! <- sinks
+                                                 + LocalConsumer%Excretion%DOM%P)) * Me%DT_day
 
 
             !_________.inorganic nutrients [n p]
 
             Me%ExternalVar%Mass (AM, Index) = Me%ExternalVar%Mass (AM, Index)           &
-                                              + Consumer%Grazing%Recyc%N * Me%DT_day
+                                              + LocalConsumer%Grazing%Recyc%N * Me%DT_day
 
             Me%ExternalVar%Mass (PO, Index) = Me%ExternalVar%Mass (PO, Index)           &
-                                              + Consumer%Grazing%Recyc%P * Me%DT_day
+                                              + LocalConsumer%Grazing%Recyc%P * Me%DT_day
 
 
             !_________.diss organic matter [c n p]
             Me%ExternalVar%Mass (DOC, Index) = Me%ExternalVar%Mass (DOC, Index)   &
-                                               + Consumer%Excretion%DOM%C * Me%DT_day       ! <- sources
+                                               + LocalConsumer%Excretion%DOM%C * Me%DT_day       ! <- sources
 
             Me%ExternalVar%Mass (DON, Index) = Me%ExternalVar%Mass (DON, Index)   &
-                                               + Consumer%Excretion%DOM%N * Me%DT_day       ! <- sources
+                                               + LocalConsumer%Excretion%DOM%N * Me%DT_day       ! <- sources
 
             Me%ExternalVar%Mass (DOP, Index) = Me%ExternalVar%Mass (DOP, Index)   &
-                                               + Consumer%Excretion%DOM%P * Me%DT_day       ! <- sources
+                                               + LocalConsumer%Excretion%DOM%P * Me%DT_day       ! <- sources
 
 
  
             !_________.part organic matter [c n p]
             Me%ExternalVar%Mass (POC, Index) = Me%ExternalVar%Mass (POC, Index)   &
-                                               + Consumer%Mortality%POM%C * Me%DT_day       ! <- sources
+                                               + LocalConsumer%Mortality%POM%C * Me%DT_day       ! <- sources
 
             Me%ExternalVar%Mass (PON, Index) = Me%ExternalVar%Mass (PON, Index)   &
-                                               + Consumer%Mortality%POM%N * Me%DT_day       ! <- sources
+                                               + LocalConsumer%Mortality%POM%N * Me%DT_day       ! <- sources
 
             Me%ExternalVar%Mass (POP, Index) = Me%ExternalVar%Mass (POP, Index)   &
-                                               + Consumer%Mortality%POM%P * Me%DT_day       ! <- sources
+                                               + LocalConsumer%Mortality%POM%P * Me%DT_day       ! <- sources
 
 
 
         !_________.oxygen [O]                                                  [units] >>  mg O2 L-1 d-1
 
             Me%ExternalVar%Mass (O2, Index) = Me%ExternalVar%Mass (O2, Index)             &
-                                              - Consumer%Respiration%Rate                 &
+                                              - LocalConsumer%Respiration%Rate                 &
                                               * Me%BioChemPar%O2C_Conversion * Me%DT_day
 
 
@@ -4430,7 +4451,7 @@ i2:             if(Prey%Use_Silica)then
          If (Me%BioChemPar%CO2_on) then 
 
             Me%ExternalVar%Mass (CO2, Index) = Me%ExternalVar%Mass (CO2, Index)           &
-                                              + Consumer%Respiration%Rate                 &
+                                              + LocalConsumer%Respiration%Rate                 &
                                               * Me%BioChemPar%CO2C_Conversion * Me%DT_day
          Endif
 
@@ -4448,24 +4469,24 @@ i2:             if(Prey%Use_Silica)then
     
 
             !_______.nitrogen                                                           [units] >>  mmol N m-3
-            if (aux_NC .gt. Consumer%Ratio%NC_Max) then
+            if (aux_NC .gt. LocalConsumer%Ratio%NC_Max) then
 
-                Consumer%Excretion%Rel_Exc%N = (aux_NC - Consumer%Ratio%NC_Max) *    &
+                LocalConsumer%Excretion%Rel_Exc%N = (aux_NC - LocalConsumer%Ratio%NC_Max) *    &
                                                 Me%ExternalVar%Mass (ZOO_C, Index) 
             
             else
-                Consumer%Excretion%Rel_Exc%N = 0.
+                LocalConsumer%Excretion%Rel_Exc%N = 0.
             end if
 
 
             !_______.phosphorus                                                         [units] >>  mmol P m-3
-            if (aux_PC .gt. Consumer%Ratio%PC_Max) then
+            if (aux_PC .gt. LocalConsumer%Ratio%PC_Max) then
 
-                Consumer%Excretion%Rel_Exc%P = (aux_PC - Consumer%Ratio%PC_Max) *    &
+                LocalConsumer%Excretion%Rel_Exc%P = (aux_PC - LocalConsumer%Ratio%PC_Max) *    &
                                                 Me%ExternalVar%Mass (ZOO_C, Index) 
             
             else
-                Consumer%Excretion%Rel_Exc%P = 0.
+                LocalConsumer%Excretion%Rel_Exc%P = 0.
             end if
 
             !___________________________________________________________
@@ -4473,22 +4494,22 @@ i2:             if(Prey%Use_Silica)then
 
 
             Me%ExternalVar%Mass (ZOO_N, Index) = Me%ExternalVar%Mass (ZOO_N, Index)     &
-                                                 - Consumer%Excretion%Rel_Exc%N
+                                                 - LocalConsumer%Excretion%Rel_Exc%N
 
 
             Me%ExternalVar%Mass (ZOO_P, Index) = Me%ExternalVar%Mass (ZOO_P, Index)     &
-                                                 - Consumer%Excretion%Rel_Exc%P
+                                                 - LocalConsumer%Excretion%Rel_Exc%P
 
 
 
             !_________.inorganic nutrients [n p]
 
             Me%ExternalVar%Mass (AM, Index) = Me%ExternalVar%Mass (AM, Index)           &
-                                              + Consumer%Excretion%Rel_Exc%N            ! <- sources  
+                                              + LocalConsumer%Excretion%Rel_Exc%N            ! <- sources  
                         
 
             Me%ExternalVar%Mass (PO, Index) = Me%ExternalVar%Mass (PO, Index)           &
-                                              + Consumer%Excretion%Rel_Exc%P            ! <- sources  
+                                              + LocalConsumer%Excretion%Rel_Exc%P            ! <- sources  
     
 
 
@@ -4504,6 +4525,7 @@ i2:             if(Prey%Use_Silica)then
 !_________________________________________
 !_______________________Decomposers calc__
 
+    !$ recursive &
     subroutine Decomposers (index)
     
     !Arguments---------------------------------------------------------------
@@ -4511,7 +4533,8 @@ i2:             if(Prey%Use_Silica)then
         integer, intent(IN) :: index
 
     !Local-------------------------------------------------------------------
-        type(T_Decomposer),    pointer             :: Decomposer
+        type(T_Decomposer),    pointer              :: Decomposer
+        type(T_Decomposer)                          :: LocalDecomposer
 
         integer :: BAC_C,           BAC_N,          BAC_P
         integer :: AM,              NA,             PO   
@@ -4546,19 +4569,22 @@ i2:             if(Prey%Use_Silica)then
  
         Decomposer => Me%FirstDecomposer
 d1:     do while(associated(Decomposer))
+
+            !Very important: this allows multi-threading!
+            LocalDecomposer = Decomposer
             
-            BAC_C   = Decomposer%PoolIndex%Carbon
-            BAC_N   = Decomposer%PoolIndex%Nitrogen
-            BAC_P   = Decomposer%PoolIndex%Phosphorus
+            BAC_C   = LocalDecomposer%PoolIndex%Carbon
+            BAC_N   = LocalDecomposer%PoolIndex%Nitrogen
+            BAC_P   = LocalDecomposer%PoolIndex%Phosphorus
 
 
             !_________________________________________
             !__________________actual element ratios__
 
-            Decomposer%Ratio%NC_Actual = Me%ExternalVar%Mass (BAC_N, Index) /      &
+            LocalDecomposer%Ratio%NC_Actual = Me%ExternalVar%Mass (BAC_N, Index) /      &
                                        Me%ExternalVar%Mass (BAC_C, Index)           ![units] >>  mmol N / mg C
 
-            Decomposer%Ratio%PC_Actual = Me%ExternalVar%Mass (BAC_P, Index) /      &
+            LocalDecomposer%Ratio%PC_Actual = Me%ExternalVar%Mass (BAC_P, Index) /      &
                                        Me%ExternalVar%Mass (BAC_C, Index)           ![units] >>  mmol P / mg C
 
 
@@ -4572,86 +4598,86 @@ d1:     do while(associated(Decomposer))
             !__temperature & oxygen limitation calc.__
 
 
-s1:         select case (ME%BioChemPar%T_lim_method)
+s1:         select case (Me%BioChemPar%T_lim_method)
 
             case (1) s1
 
-                Decomposer%Limitation%Temperature%Limit = Temp_Lim_Q10 (Decomposer%Limitation%Temperature%Q10,        &
-                                                          Decomposer%Limitation%Temperature%T0, index)
+                LocalDecomposer%Limitation%Temperature%Limit = Temp_Lim_Q10 (LocalDecomposer%Limitation%Temperature%Q10,        &
+                                                          LocalDecomposer%Limitation%Temperature%T0, index)
 
             case (2) s1
      
-                Decomposer%Limitation%Temperature%Limit = exp(-4000.0 * ((1.0 / (Me%ExternalVar%Temperature (index)            &
-                                         + 273.15)) - (1.0 / (Decomposer%Limitation%Temperature%Reftemp + 273.15))))
+                LocalDecomposer%Limitation%Temperature%Limit = exp(-4000.0 * ((1.0 / (Me%ExternalVar%Temperature (index)            &
+                                         + 273.15)) - (1.0 / (LocalDecomposer%Limitation%Temperature%Reftemp + 273.15))))
 
             end select s1
 
 
-            Decomposer%Limitation%Oxygen = Oxygen_Lim (Decomposer%Mortality%O2_Ks, Me%ExternalVar%Mass (O2, Index))
+            LocalDecomposer%Limitation%Oxygen = Oxygen_Lim (LocalDecomposer%Mortality%O2_Ks, Me%ExternalVar%Mass (O2, Index))
 
 
             !__________For Biochemical calc use
-            ME%BioChemPar%Bac_Temp_Lim = Decomposer%Limitation%Temperature%Limit
+            Me%BioChemPar%Bac_Temp_Lim = LocalDecomposer%Limitation%Temperature%Limit
 
 
 
             !_________________________________________
             !______________nutriente limitation calc__
 
-            Decomposer%Limitation%Nutrients%N_Status = Nutrient_Lim (Decomposer%Ratio%NC_Actual,            & 
-                                                       Decomposer%Ratio%NC_Min, Decomposer%Ratio%NC_Max)
+            LocalDecomposer%Limitation%Nutrients%N_Status = Nutrient_Lim (LocalDecomposer%Ratio%NC_Actual,            & 
+                                                       LocalDecomposer%Ratio%NC_Min, LocalDecomposer%Ratio%NC_Max)
     
-            Decomposer%Limitation%Nutrients%P_Status = Nutrient_Lim (Decomposer%Ratio%PC_Actual,            & 
-                                                       Decomposer%Ratio%PC_Min, Decomposer%Ratio%PC_Max)
+            LocalDecomposer%Limitation%Nutrients%P_Status = Nutrient_Lim (LocalDecomposer%Ratio%PC_Actual,            & 
+                                                       LocalDecomposer%Ratio%PC_Min, LocalDecomposer%Ratio%PC_Max)
 
 
-            Decomposer%Limitation%Nutrients%Int_Nut_Limit = MIN (Decomposer%Limitation%Nutrients%N_Status,  &
-                                                            Decomposer%Limitation%Nutrients%P_Status)
+            LocalDecomposer%Limitation%Nutrients%Int_Nut_Limit = MIN (LocalDecomposer%Limitation%Nutrients%N_Status,  &
+                                                            LocalDecomposer%Limitation%Nutrients%P_Status)
             !_________________________________________
             !_____________________________DOM uptake__
                                                                                          ![units] >>  d-1
-            Decomposer%Consume%DOM_Up_Pot = Decomposer%Consume%Vmax *                   & 
-                                            Decomposer%Limitation%Temperature%Limit *   &
+            LocalDecomposer%Consume%DOM_Up_Pot = LocalDecomposer%Consume%Vmax *                   & 
+                                            LocalDecomposer%Limitation%Temperature%Limit *   &
                                             (Me%ExternalVar%Mass (DOC, Index) /         &
-                                            (Me%ExternalVar%Mass (DOC, Index) + Decomposer%Consume%Ks))
+                                            (Me%ExternalVar%Mass (DOC, Index) + LocalDecomposer%Consume%Ks))
 
                                                                                     ![units] >>  mg C m-3 d-1
-            Decomposer%Consume%DOM_Up_Frac%C = MAX( MIN((Decomposer%Limitation%Nutrients%Int_Nut_Limit *    &
-                                               Decomposer%Consume%DOM_Up_Pot *                              &
+            LocalDecomposer%Consume%DOM_Up_Frac%C = MAX( MIN((LocalDecomposer%Limitation%Nutrients%Int_Nut_Limit *    &
+                                               LocalDecomposer%Consume%DOM_Up_Pot *                              &
                                                Me%ExternalVar%Mass (BAC_C, Index)),                         &
                                                Me%ExternalVar%Mass (DOC, Index)/ Me%DT_day), 0.0)
 
                                                                           ![units] >>  mmol (N or P)  m-3 d-1
-            Decomposer%Consume%DOM_Up_Frac%N = MIN ((Decomposer%Consume%DOM_Up_Frac%C * DOM_NC_RATIO),   &
+            LocalDecomposer%Consume%DOM_Up_Frac%N = MIN ((LocalDecomposer%Consume%DOM_Up_Frac%C * DOM_NC_RATIO),   &
                                                Me%ExternalVar%Mass (DON, Index)/ Me%DT_day) 
 
-            Decomposer%Consume%DOM_Up_Frac%P = MIN ((Decomposer%Consume%DOM_Up_Frac%C * DOM_PC_RATIO),   &
+            LocalDecomposer%Consume%DOM_Up_Frac%P = MIN ((LocalDecomposer%Consume%DOM_Up_Frac%C * DOM_PC_RATIO),   &
                                                Me%ExternalVar%Mass (DOP, Index)/ Me%DT_day) 
 
             !_________________________________________
             !________________inorg. nutrients uptake__
                                                                                   ![units] >>  mmol (N or P) m-3 d-1
 
-            InN_Lim = MAX((Decomposer%Ratio%NC_max - Decomposer%Ratio%NC_Actual) /       &
-                      (Decomposer%Ratio%NC_max - Decomposer%Ratio%NC_min), 0.0)
+            InN_Lim = MAX((LocalDecomposer%Ratio%NC_max - LocalDecomposer%Ratio%NC_Actual) /       &
+                      (LocalDecomposer%Ratio%NC_max - LocalDecomposer%Ratio%NC_min), 0.0)
 
 
-            Decomposer%Consume%Up_NH4 = Min(Decomposer%Consume%NH4_Ks * Me%ExternalVar%Mass (AM, Index)    &
+            LocalDecomposer%Consume%Up_NH4 = Min(LocalDecomposer%Consume%NH4_Ks * Me%ExternalVar%Mass (AM, Index)    &
                                         * Me%ExternalVar%Mass (BAC_C, Index) * InN_Lim,                    &
                                         Me%ExternalVar%Mass (AM, Index)/ Me%DT_day)
 
 
-            Decomposer%Consume%Up_NO3 = Min(Decomposer%Consume%NO3_Ks * Me%ExternalVar%Mass (NA, Index)  &
+            LocalDecomposer%Consume%Up_NO3 = Min(LocalDecomposer%Consume%NO3_Ks * Me%ExternalVar%Mass (NA, Index)  &
                                         * Me%ExternalVar%Mass (BAC_C, Index) * InN_Lim,                  &
                                         Me%ExternalVar%Mass (NA, Index)/ Me%DT_day)
 
 
 
-            InP_Lim = MAX((Decomposer%Ratio%PC_max - Decomposer%Ratio%PC_Actual) /       &
-                      (Decomposer%Ratio%PC_max - Decomposer%Ratio%PC_min), 0.0)
+            InP_Lim = MAX((LocalDecomposer%Ratio%PC_max - LocalDecomposer%Ratio%PC_Actual) /       &
+                      (LocalDecomposer%Ratio%PC_max - LocalDecomposer%Ratio%PC_min), 0.0)
 
 
-            Decomposer%Consume%Up_PO4 = Min(Decomposer%Consume%PO4_Ks * Me%ExternalVar%Mass (PO, Index)  &
+            LocalDecomposer%Consume%Up_PO4 = Min(LocalDecomposer%Consume%PO4_Ks * Me%ExternalVar%Mass (PO, Index)  &
                                         * Me%ExternalVar%Mass (BAC_C, Index) * InP_Lim,                  &
                                         Me%ExternalVar%Mass (PO, Index)/ Me%DT_day)
 
@@ -4660,74 +4686,74 @@ s1:         select case (ME%BioChemPar%T_lim_method)
             !_________________________________________
             !______________________respiration calc.__ 
 
-            if (Me%ExternalVar%Mass (O2, Index) .gt. Decomposer%Consume%O2_Low_Ass) then
+            if (Me%ExternalVar%Mass (O2, Index) .gt. LocalDecomposer%Consume%O2_Low_Ass) then
          
-                Decomposer%Consume%Ass_Efic = Decomposer%Consume%Ass_Efic_Norm
+                LocalDecomposer%Consume%Ass_Efic = LocalDecomposer%Consume%Ass_Efic_Norm
 
             else
-                Decomposer%Consume%Ass_Efic = Decomposer%Consume%Ass_Efic_LowO2
+                LocalDecomposer%Consume%Ass_Efic = LocalDecomposer%Consume%Ass_Efic_LowO2
             end if
 
 
-            Decomposer%Respiration%Activity = (1.  - Decomposer%Consume%Ass_Efic) *         &
-                                              Decomposer%Consume%DOM_Up_Frac%C *            &
-                                              (1.  - Decomposer%Limitation%Oxygen)    ![units] >>  mg C m-3 d-1
+            LocalDecomposer%Respiration%Activity = (1.  - LocalDecomposer%Consume%Ass_Efic) *         &
+                                              LocalDecomposer%Consume%DOM_Up_Frac%C *            &
+                                              (1.  - LocalDecomposer%Limitation%Oxygen)    ![units] >>  mg C m-3 d-1
 
-            Decomposer%Respiration%StandStock = Decomposer%Respiration%at10C *              &
-                                                Decomposer%Limitation%Temperature%Limit     &
+            LocalDecomposer%Respiration%StandStock = LocalDecomposer%Respiration%at10C *              &
+                                                LocalDecomposer%Limitation%Temperature%Limit     &
                                                 * Me%ExternalVar%Mass (BAC_C, Index)  ![units] >>  mg C m-3 d-1
 
-            Decomposer%Respiration%Rate = Decomposer%Respiration%Activity + Decomposer%Respiration%StandStock
+            LocalDecomposer%Respiration%Rate = LocalDecomposer%Respiration%Activity + LocalDecomposer%Respiration%StandStock
                                                                                       ![units] >>  mg C m-3 d-1
             !_________________________________________
             !________________________mortality calc.__ 
 
 
-            Decomposer%Mortality%Lysis = Decomposer%Mortality%Density_Dep   *                   &
+            LocalDecomposer%Mortality%Lysis = LocalDecomposer%Mortality%Density_Dep   *                   &
                                          (Me%ExternalVar%Mass (BAC_C, Index) /                  &
-                                         Decomposer%Mortality%Lysis_Ref_Con)
+                                         LocalDecomposer%Mortality%Lysis_Ref_Con)
 
-            Mortality = Decomposer%Mortality%Rate + Decomposer%Mortality%Lysis       ![units] >>  d-1
+            Mortality = LocalDecomposer%Mortality%Rate + LocalDecomposer%Mortality%Lysis       ![units] >>  d-1
 
 
 
             !POM_Frac calc.
             if (Mortality .gt. 0.) then
 
-                POM_Frac = Min (1.  - (Decomposer%Mortality%Lysis / Mortality), Decomposer%Mortality%POM_Frac)
+                POM_Frac = Min (1.  - (LocalDecomposer%Mortality%Lysis / Mortality), LocalDecomposer%Mortality%POM_Frac)
 
             else
-                POM_Frac = Decomposer%Mortality%POM_Frac
+                POM_Frac = LocalDecomposer%Mortality%POM_Frac
             end if
 
 
             !________ .balance (mortality) to particulated  
-            Decomposer%Mortality%POM%C = Mortality * POM_Frac              &
+            LocalDecomposer%Mortality%POM%C = Mortality * POM_Frac              &
                                        * Me%ExternalVar%Mass (BAC_C, Index)        ![units] >>  mg C m-3 d-1
 
-            Decomposer%Mortality%POM%N = Mortality * POM_Frac              &
+            LocalDecomposer%Mortality%POM%N = Mortality * POM_Frac              &
                                        * Me%ExternalVar%Mass (BAC_N, Index)        ![units] >>  mmol N m-3 d-1
         
-            Decomposer%Mortality%POM%P = Mortality * POM_Frac              &
+            LocalDecomposer%Mortality%POM%P = Mortality * POM_Frac              &
                                        * Me%ExternalVar%Mass (BAC_P, Index)        ![units] >>  mmol P m-3 d-1
 
 
             !________ .balance (mortality + excretion) to dissolved 
         
-            Decomposer%Mortality%DOM_Tot%C = Mortality * (1.  - POM_Frac)               & 
+            LocalDecomposer%Mortality%DOM_Tot%C = Mortality * (1.  - POM_Frac)               & 
                                              * Me%ExternalVar%Mass (BAC_C, Index)     ![units] >>  mg C m-3 d-1
         
-            Decomposer%Mortality%DOM_L%C = Decomposer%Mortality%DOM_Tot%C           &
-                                         * (1.  - Decomposer%Mortality%DOC_SL_Frac)    
+            LocalDecomposer%Mortality%DOM_L%C = LocalDecomposer%Mortality%DOM_Tot%C           &
+                                         * (1.  - LocalDecomposer%Mortality%DOC_SL_Frac)    
 
-            Decomposer%Mortality%DOM_SL%C = Decomposer%Mortality%DOM_Tot%C          &
-                                            * Decomposer%Mortality%DOC_SL_Frac   
+            LocalDecomposer%Mortality%DOM_SL%C = LocalDecomposer%Mortality%DOM_Tot%C          &
+                                            * LocalDecomposer%Mortality%DOC_SL_Frac   
 
 
-            Decomposer%Mortality%DOM_L%N = Mortality * (1.  - POM_Frac)       & 
+            LocalDecomposer%Mortality%DOM_L%N = Mortality * (1.  - POM_Frac)       & 
                                        * Me%ExternalVar%Mass (BAC_N, Index)        ![units] >>  mmol N m-3 d-1
 
-            Decomposer%Mortality%DOM_L%P = Mortality * (1.  - POM_Frac)       & 
+            LocalDecomposer%Mortality%DOM_L%P = Mortality * (1.  - POM_Frac)       & 
                                        * Me%ExternalVar%Mass (BAC_P, Index)        ![units] >>  mmol P m-3 d-1
 
     !___________________________________________________________
@@ -4735,79 +4761,79 @@ s1:         select case (ME%BioChemPar%T_lim_method)
 
             !_________.decomposers [c n p]
             Me%ExternalVar%Mass (BAC_C, Index) = Me%ExternalVar%Mass (BAC_C, Index)         &
-                                                 + (Decomposer%Consume%DOM_Up_Frac%C        &   ! <- sources    
-                                                 - (Decomposer%Mortality%DOM_Tot%C          &   ! <- sinks
-                                                 + Decomposer%Respiration%Rate              &
-                                                 + Decomposer%Mortality%POM%C)) * Me%DT_day
+                                                 + (LocalDecomposer%Consume%DOM_Up_Frac%C        &   ! <- sources    
+                                                 - (LocalDecomposer%Mortality%DOM_Tot%C          &   ! <- sinks
+                                                 + LocalDecomposer%Respiration%Rate              &
+                                                 + LocalDecomposer%Mortality%POM%C)) * Me%DT_day
 
             Me%ExternalVar%Mass (BAC_N, Index) = Me%ExternalVar%Mass (BAC_N, Index)         &
-                                                 + (Decomposer%Consume%DOM_Up_Frac%N        &   ! <- sources
-                                                 + Decomposer%Consume%Up_NH4                &
-                                                 + Decomposer%Consume%Up_NO3                &
-                                                 - (Decomposer%Mortality%DOM_L%N +          &   ! <- sinks
-                                                 Decomposer%Mortality%POM%N)) * Me%DT_day 
+                                                 + (LocalDecomposer%Consume%DOM_Up_Frac%N        &   ! <- sources
+                                                 + LocalDecomposer%Consume%Up_NH4                &
+                                                 + LocalDecomposer%Consume%Up_NO3                &
+                                                 - (LocalDecomposer%Mortality%DOM_L%N +          &   ! <- sinks
+                                                 LocalDecomposer%Mortality%POM%N)) * Me%DT_day 
 
             Me%ExternalVar%Mass (BAC_P, Index) = Me%ExternalVar%Mass (BAC_P, Index)         &
-                                                 + (Decomposer%Consume%DOM_Up_Frac%P        &   ! <- sources
-                                                 + Decomposer%Consume%Up_PO4                &
-                                                 - (Decomposer%Mortality%DOM_L%P +          &   ! <- sinks
-                                                 Decomposer%Mortality%POM%P)) * Me%DT_day                                          
+                                                 + (LocalDecomposer%Consume%DOM_Up_Frac%P        &   ! <- sources
+                                                 + LocalDecomposer%Consume%Up_PO4                &
+                                                 - (LocalDecomposer%Mortality%DOM_L%P +          &   ! <- sinks
+                                                 LocalDecomposer%Mortality%POM%P)) * Me%DT_day                                          
 
 
 
             !_________.inorganic nutrients [n p]
 
             Me%ExternalVar%Mass (AM, Index) = Me%ExternalVar%Mass (AM, Index)           &
-                                              - Decomposer%Consume%Up_NH4 * Me%DT_day       ! <- sinks
+                                              - LocalDecomposer%Consume%Up_NH4 * Me%DT_day       ! <- sinks
                                         
             Me%ExternalVar%Mass (NA, Index) = Me%ExternalVar%Mass (NA, Index)           &
-                                              - Decomposer%Consume%Up_NO3 * Me%DT_day       ! <- sinks
+                                              - LocalDecomposer%Consume%Up_NO3 * Me%DT_day       ! <- sinks
 
             Me%ExternalVar%Mass (PO, Index) = Me%ExternalVar%Mass (PO, Index)           &
-                                              - Decomposer%Consume%Up_PO4 * Me%DT_day       ! <- sinks
+                                              - LocalDecomposer%Consume%Up_PO4 * Me%DT_day       ! <- sinks
                                         
 
   
             !_________.diss organic matter [c n p]
             Me%ExternalVar%Mass (DOC, Index) = Me%ExternalVar%Mass (DOC, Index)     &
-                                               + (Decomposer%Mortality%DOM_L%C      &   ! <- sources
-                                               - Decomposer%Consume%DOM_Up_Frac%C)  &   ! <- sinks
+                                               + (LocalDecomposer%Mortality%DOM_L%C      &   ! <- sources
+                                               - LocalDecomposer%Consume%DOM_Up_Frac%C)  &   ! <- sinks
                                                * Me%DT_day
                                             
 
             Me%ExternalVar%Mass (DON, Index) = Me%ExternalVar%Mass (DON, Index)     &
-                                               + (Decomposer%Mortality%DOM_L%N      &   ! <- sources
-                                               - Decomposer%Consume%DOM_Up_Frac%N)  &   ! <- sinks
+                                               + (LocalDecomposer%Mortality%DOM_L%N      &   ! <- sources
+                                               - LocalDecomposer%Consume%DOM_Up_Frac%N)  &   ! <- sinks
                                                * Me%DT_day
                                             
 
             Me%ExternalVar%Mass (DOP, Index) = Me%ExternalVar%Mass (DOP, Index)     &
-                                               + (Decomposer%Mortality%DOM_L%P      &   ! <- sources
-                                               - Decomposer%Consume%DOM_Up_Frac%P)  &   ! <- sinks
+                                               + (LocalDecomposer%Mortality%DOM_L%P      &   ! <- sources
+                                               - LocalDecomposer%Consume%DOM_Up_Frac%P)  &   ! <- sinks
                                                * Me%DT_day
 
 
             Me%ExternalVar%Mass (DOCsl, Index) = Me%ExternalVar%Mass (DOCsl, Index)     &
-                                                 + Decomposer%Mortality%DOM_SL%C * Me%DT_day
+                                                 + LocalDecomposer%Mortality%DOM_SL%C * Me%DT_day
 
 
 
             !_________.part organic matter [c n p]
             Me%ExternalVar%Mass (POC, Index) = Me%ExternalVar%Mass (POC, Index)   &
-                                               + Decomposer%Mortality%POM%C * Me%DT_day
+                                               + LocalDecomposer%Mortality%POM%C * Me%DT_day
 
             Me%ExternalVar%Mass (PON, Index) = Me%ExternalVar%Mass (PON, Index)   &
-                                               + Decomposer%Mortality%POM%N * Me%DT_day
+                                               + LocalDecomposer%Mortality%POM%N * Me%DT_day
 
             Me%ExternalVar%Mass (POP, Index) = Me%ExternalVar%Mass (POP, Index)   &
-                                               + Decomposer%Mortality%POM%P * Me%DT_day
+                                               + LocalDecomposer%Mortality%POM%P * Me%DT_day
 
 
 
             !_________.oxygen [O]                                       [units] >>  mg O2 L-1 d-1
 
             Me%ExternalVar%Mass (O2, Index) = Me%ExternalVar%Mass (O2, Index)               &
-                                              - Decomposer%Respiration%Rate                 &
+                                              - LocalDecomposer%Respiration%Rate                 &
                                               * Me%BioChemPar%O2C_Conversion * Me%DT_day
 
 
@@ -4817,14 +4843,14 @@ s1:         select case (ME%BioChemPar%T_lim_method)
              If (Me%BioChemPar%CO2_on) then 
 
                 Me%ExternalVar%Mass (CO2, Index) = Me%ExternalVar%Mass (CO2, Index)           &
-                                                  + Decomposer%Respiration%Rate               &
+                                                  + LocalDecomposer%Respiration%Rate               &
                                                   * Me%BioChemPar%CO2C_Conversion * Me%DT_day
              Endif
 
 
 
             !__________For Biochemical calc use
-            ME%BioChemPar%Bac_conc = Me%ExternalVar%Mass (BAC_C, Index)
+            Me%BioChemPar%Bac_conc = Me%ExternalVar%Mass (BAC_C, Index)
 
             !_________________________________________
             !______________nutrient excess exudation__  
@@ -4842,24 +4868,24 @@ s1:         select case (ME%BioChemPar%T_lim_method)
             !______________nutrient excess excretion__  
 
             !_______.nitrogen                                                           [units] >>  mmol N m-3
-            if (aux_NC .gt. Decomposer%Ratio%NC_Max) then
+            if (aux_NC .gt. LocalDecomposer%Ratio%NC_Max) then
 
-                Decomposer%Excretion%Rel_Exc%N = (aux_NC - Decomposer%Ratio%NC_Max) *    &
+                LocalDecomposer%Excretion%Rel_Exc%N = (aux_NC - LocalDecomposer%Ratio%NC_Max) *    &
                                                  Me%ExternalVar%Mass (BAC_C, Index) 
             
             else
-                Decomposer%Excretion%Rel_Exc%N = 0.
+                LocalDecomposer%Excretion%Rel_Exc%N = 0.
             end if
 
 
             !_______.phosphorus                                                         [units] >>  mmol P m-3
-            if (aux_PC .gt. Decomposer%Ratio%PC_Max) then
+            if (aux_PC .gt. LocalDecomposer%Ratio%PC_Max) then
 
-                Decomposer%Excretion%Rel_Exc%P = (aux_PC - Decomposer%Ratio%PC_Max) *    &
+                LocalDecomposer%Excretion%Rel_Exc%P = (aux_PC - LocalDecomposer%Ratio%PC_Max) *    &
                                                   Me%ExternalVar%Mass (BAC_C, Index) 
         
             else
-                Decomposer%Excretion%Rel_Exc%P = 0.
+                LocalDecomposer%Excretion%Rel_Exc%P = 0.
             end if
      
 
@@ -4868,22 +4894,22 @@ s1:         select case (ME%BioChemPar%T_lim_method)
 
 
             Me%ExternalVar%Mass (BAC_N, Index) = Me%ExternalVar%Mass (BAC_N, Index)     &
-                                                 - Decomposer%Excretion%Rel_Exc%N
+                                                 - LocalDecomposer%Excretion%Rel_Exc%N
 
 
             Me%ExternalVar%Mass (BAC_P, Index) = Me%ExternalVar%Mass (BAC_P, Index)     &
-                                                 - Decomposer%Excretion%Rel_Exc%P
+                                                 - LocalDecomposer%Excretion%Rel_Exc%P
 
 
 
             !_________.inorganic nutrients [n p]
 
             Me%ExternalVar%Mass (AM, Index) = Me%ExternalVar%Mass (AM, Index)           &
-                                              + Decomposer%Excretion%Rel_Exc%N            ! <- sources  
+                                              + LocalDecomposer%Excretion%Rel_Exc%N            ! <- sources  
                         
 
             Me%ExternalVar%Mass (PO, Index) = Me%ExternalVar%Mass (PO, Index)           &
-                                              + Decomposer%Excretion%Rel_Exc%P            ! <- sources  
+                                              + LocalDecomposer%Excretion%Rel_Exc%P            ! <- sources  
                         
 
 
@@ -4898,11 +4924,13 @@ s1:         select case (ME%BioChemPar%T_lim_method)
 !_________________________________________
 !_______________________BioChemical calc__
 
+    !$ recursive &
     subroutine BioChemicalProcesses (index)
     
     !Arguments---------------------------------------------------------------
 
         integer, intent(IN) :: index
+        type (T_BioChemParam)       :: LocalBioChemPar
 
     !Local-------------------------------------------------------------------
      
@@ -4961,55 +4989,57 @@ s1:         select case (ME%BioChemPar%T_lim_method)
 
 
         !__________POM to DOM calc__                                              
+        !VERY IMPORTANT: copy BioChemParam. This allows multi-threading
+        LocalBioChemPar = Me%BioChemPar
                                                                                ![units] >>  mg C m-3 d-1
-        Me%BioChemPar%POM_bac_Hyd%C = MAX (MIN (Me%BioChemPar%POM_bac_vmax *          &
+        LocalBioChemPar%POM_bac_Hyd%C = MAX (MIN (LocalBioChemPar%POM_bac_vmax *          &
                                     (Me%ExternalVar%Mass (POC, Index) /             &
                                     (Me%ExternalVar%Mass (POC, Index) +             &
-                                    Me%BioChemPar%POM_bac_ks)) *                    &
-                                    ME%BioChemPar%Bac_Temp_Lim *                    &
-                                    ME%BioChemPar%Bac_conc,                         &
+                                    LocalBioChemPar%POM_bac_ks)) *                    &
+                                    LocalBioChemPar%Bac_Temp_Lim *                    &
+                                    LocalBioChemPar%Bac_conc,                         &
                                     Me%ExternalVar%Mass (POC, Index) /              &
                                     Me%DT_day), 0.0)
 
                                                                               ![units] >>  mmol N m-3 d-1
-        Me%BioChemPar%POM_bac_Hyd%N = Me%BioChemPar%POM_bac_Hyd%C * POM_NC_RATIO  
+        LocalBioChemPar%POM_bac_Hyd%N = LocalBioChemPar%POM_bac_Hyd%C * POM_NC_RATIO  
                     
                                                                               ![units] >>  mmol P m-3 d-1
-        Me%BioChemPar%POM_bac_Hyd%P = Me%BioChemPar%POM_bac_Hyd%C * POM_PC_RATIO
+        LocalBioChemPar%POM_bac_Hyd%P = LocalBioChemPar%POM_bac_Hyd%C * POM_PC_RATIO
 
 
 
         !__________DOMsl to DOM calc__  
                                                                               ![units] >>  mg C m-3 d-1
-        Me%BioChemPar%DOMsl_bac_Hyd%C = MAX (MIN (Me%BioChemPar%DOMsl_bac_vmax *           &
+        LocalBioChemPar%DOMsl_bac_Hyd%C = MAX (MIN (LocalBioChemPar%DOMsl_bac_vmax *           &
                                      (Me%ExternalVar%Mass (DOCsl, Index) /              &
                                      (Me%ExternalVar%Mass (DOCsl, Index) +              &
-                                     Me%BioChemPar%DOMsl_bac_ks)) *                     &
-                                     ME%BioChemPar%Bac_Temp_Lim *                       &
-                                     ME%BioChemPar%Bac_conc,                            &
+                                     LocalBioChemPar%DOMsl_bac_ks)) *                     &
+                                     LocalBioChemPar%Bac_Temp_Lim *                       &
+                                     LocalBioChemPar%Bac_conc,                            &
                                      Me%ExternalVar%Mass (DOCsl, Index)/                &
                                      Me%DT_day), 0.0)
 
                                                                               ![units] >>  mmol N m-3 d-1
-        Me%BioChemPar%DOMsl_bac_Hyd%N = Me%BioChemPar%DOMsl_bac_Hyd%C * DOMsl_NC_RATIO 
+        LocalBioChemPar%DOMsl_bac_Hyd%N = LocalBioChemPar%DOMsl_bac_Hyd%C * DOMsl_NC_RATIO 
 
                                                                               ![units] >>  mmol P m-3 d-1
-        Me%BioChemPar%DOMsl_bac_Hyd%P = Me%BioChemPar%DOMsl_bac_Hyd%C * DOMsl_PC_RATIO 
+        LocalBioChemPar%DOMsl_bac_Hyd%P = LocalBioChemPar%DOMsl_bac_Hyd%C * DOMsl_PC_RATIO 
 
 
 
         !__________nitrification
                                                                     
-        if (AverageRadiation .le. Me%BioChemPar%Nitrifradiation) then 
+        if (AverageRadiation .le. LocalBioChemPar%Nitrifradiation) then 
 
-            Me%BioChemPar%Nitrif_lim = (1.0 - EXP(-ME%BioChemPar%Nit_Inib_coef * Me%ExternalVar%Mass (O2, Index)))
+            LocalBioChemPar%Nitrif_lim = (1.0 - EXP(-LocalBioChemPar%Nit_Inib_coef * Me%ExternalVar%Mass (O2, Index)))
 
                                                                                                 ![units] >>  mmol N m-3 d-1
-            Me%BioChemPar%Nitrif = Me%BioChemPar%Nitrifrate * Me%ExternalVar%Mass (AM, Index) * Me%BioChemPar%Nitrif_lim
+            LocalBioChemPar%Nitrif = LocalBioChemPar%Nitrifrate * Me%ExternalVar%Mass (AM, Index) * LocalBioChemPar%Nitrif_lim
     
         else
 
-            Me%BioChemPar%Nitrif = 0.0
+            LocalBioChemPar%Nitrif = 0.0
         endif
 
 
@@ -5020,25 +5050,25 @@ s1:         select case (ME%BioChemPar%T_lim_method)
 
         !_________.nitrogen species [NA, AM]
         Me%ExternalVar%Mass (NA, Index) = Me%ExternalVar%Mass (NA, Index)              &
-                                          + Me%BioChemPar%Nitrif * Me%DT_day                     ! <- sources
+                                          + LocalBioChemPar%Nitrif * Me%DT_day                     ! <- sources
 
         Me%ExternalVar%Mass (AM, Index) = Me%ExternalVar%Mass (AM, Index)              &
-                                          - Me%BioChemPar%Nitrif * Me%DT_day                     ! <- sinks
+                                          - LocalBioChemPar%Nitrif * Me%DT_day                     ! <- sinks
 
         !_________.oxygen
         Me%ExternalVar%Mass (O2, Index) = Me%ExternalVar%Mass (O2, Index)              &
-                                          - (Me%BioChemPar%Nitrif                      &         ! <- sinks
-                                          * ME%BioChemPar%Nit_ON_Conv) * Me%DT_day
+                                          - (LocalBioChemPar%Nitrif                      &         ! <- sinks
+                                          * LocalBioChemPar%Nit_ON_Conv) * Me%DT_day
 
 
                                           
             !_________.carbon dioxide [CO2]                             [units] >>  mg CO2 L-1 d-1
 
-!             If (Me%BioChemPar%CO2_on) then 
+!             If (LocalBioChemPar%CO2_on) then 
 
 !                Me%ExternalVar%Mass (CO2, Index) = Me%ExternalVar%Mass (CO2, Index)           &
 !                                                  + Decomposer%Respiration%Rate               &
-!                                                  * Me%BioChemPar%CO2C_Conversion * Me%DT_day
+!                                                  * LocalBioChemPar%CO2C_Conversion * Me%DT_day
 !             Endif
 
 
@@ -5054,42 +5084,42 @@ s1:         select case (ME%BioChemPar%T_lim_method)
 
         !_________.semi-labile diss organic matter [c n p]
         Me%ExternalVar%Mass (DOCsl, Index) = Me%ExternalVar%Mass (DOCsl, Index)     &
-                                             - Me%BioChemPar%DOMsl_bac_Hyd%C * Me%DT_day
+                                             - LocalBioChemPar%DOMsl_bac_Hyd%C * Me%DT_day
 
         Me%ExternalVar%Mass (DONsl, Index) = Me%ExternalVar%Mass (DONsl, Index)     &
-                                             - Me%BioChemPar%DOMsl_bac_Hyd%N * Me%DT_day
+                                             - LocalBioChemPar%DOMsl_bac_Hyd%N * Me%DT_day
 
         Me%ExternalVar%Mass (DOPsl, Index) = Me%ExternalVar%Mass (DOPsl, Index)     &
-                                             - Me%BioChemPar%DOMsl_bac_Hyd%P * Me%DT_day
+                                             - LocalBioChemPar%DOMsl_bac_Hyd%P * Me%DT_day
 
 
         !_________.part organic matter [c n p]
         Me%ExternalVar%Mass (POC, Index) = Me%ExternalVar%Mass (POC, Index)   &
-                                           - Me%BioChemPar%POM_bac_Hyd%C * Me%DT_day
+                                           - LocalBioChemPar%POM_bac_Hyd%C * Me%DT_day
 
         Me%ExternalVar%Mass (PON, Index) = Me%ExternalVar%Mass (PON, Index)   &
-                                           - Me%BioChemPar%POM_bac_Hyd%N * Me%DT_day
+                                           - LocalBioChemPar%POM_bac_Hyd%N * Me%DT_day
 
         Me%ExternalVar%Mass (POP, Index) = Me%ExternalVar%Mass (POP, Index)   &
-                                           - Me%BioChemPar%POM_bac_Hyd%P * Me%DT_day
+                                           - LocalBioChemPar%POM_bac_Hyd%P * Me%DT_day
 
 
         !_________.diss organic matter [c n p]
         Me%ExternalVar%Mass (DOC, Index) = Me%ExternalVar%Mass (DOC, Index)     &
-                                           + (Me%BioChemPar%DOMsl_bac_Hyd%C     &   ! <- sources
-                                           + Me%BioChemPar%POM_bac_Hyd%C)       &   
+                                           + (LocalBioChemPar%DOMsl_bac_Hyd%C     &   ! <- sources
+                                           + LocalBioChemPar%POM_bac_Hyd%C)       &   
                                            * Me%DT_day
                                     
 
         Me%ExternalVar%Mass (DON, Index) = Me%ExternalVar%Mass (DON, Index)     &
-                                           + (Me%BioChemPar%DOMsl_bac_Hyd%N     &   ! <- sources
-                                           + Me%BioChemPar%POM_bac_Hyd%N)       &   
+                                           + (LocalBioChemPar%DOMsl_bac_Hyd%N     &   ! <- sources
+                                           + LocalBioChemPar%POM_bac_Hyd%N)       &   
                                            * Me%DT_day
                                     
 
         Me%ExternalVar%Mass (DOP, Index) = Me%ExternalVar%Mass (DOP, Index)     &
-                                           + (Me%BioChemPar%DOMsl_bac_Hyd%P     &   ! <- sources
-                                           + Me%BioChemPar%POM_bac_Hyd%P)       &   
+                                           + (LocalBioChemPar%DOMsl_bac_Hyd%P     &   ! <- sources
+                                           + LocalBioChemPar%POM_bac_Hyd%P)       &   
                                            * Me%DT_day
 
 
@@ -5104,6 +5134,7 @@ s1:         select case (ME%BioChemPar%T_lim_method)
 !_________________________________________
 !__________temperature limitation factor__
 
+    !$ recursive &
     function Temp_Lim_Q10 (Q10, T0, index)
 
                 real                :: Temp_Lim_Q10
@@ -5125,6 +5156,7 @@ s1:         select case (ME%BioChemPar%T_lim_method)
 !_________________________________________
 !_______________oxygen limitation factor__
 
+    !$ recursive &
     function Oxygen_Lim (Ks, O2_Conc)
 
                 real                :: Oxygen_Lim
@@ -5145,6 +5177,7 @@ s1:         select case (ME%BioChemPar%T_lim_method)
 !_________________________________________
 !_____________nutrient limitation factor__
 
+    !$ recursive &
     function Nutrient_Lim (Ratio_Actual, Ratio_Ref_1, Ratio_Ref_2)
 
                 real                :: Nutrient_Lim
