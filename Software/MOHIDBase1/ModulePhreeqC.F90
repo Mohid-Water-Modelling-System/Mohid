@@ -3,7 +3,7 @@
 !------------------------------------------------------------------------------
 !
 ! TITLE         : Mohid Model
-! PROJECT       : Mohid Base 1
+! PROJECT       : Mohid Base 2
 ! MODULE        : PhreeqC
 ! URL           : http://www.mohid.com
 ! AFFILIATION   : IST/MARETEC, Marine Modelling Group
@@ -30,7 +30,7 @@
 !------------------------------------------------------------------------------
 
 Module ModulePhreeqC
-    use ModulePhreeqCData
+
     use ModuleFunctions            
     use ModuleEnterData
     use ModuleGlobalData             
@@ -47,55 +47,219 @@ Module ModulePhreeqC
     private ::      ReadInputFile
     private ::          ReadPhreeqCOptions
     private ::              ReadPhreeqCDatabase
+    private ::          ReadPhreeqCProperties
+    private ::              ConstructProperty
+    private ::                  ReadChemistryParameters
+    private ::                      ReadChemistryConcGroupParam
+    private ::                      ReadChemistryPhasesGroupParam
+!    private ::                      ReadChemistrySolidGroupParam
+!    private ::                      ReadChemistryGasGroupParam
+!    private ::                      ReadChemistrySurfGroupParam
+    private ::                      ReadChemistrySpeciesGroupParam 
+    private ::                      ReadChemistryExcGroupParam       
+    private ::              AddProperty
                 
-    !Selector
-    public  :: SetPhreeqCProperty
+    private :: SetPhreeqCProperty
     private ::      SetSpeciesProperty
     private ::      SetConcentrationProperty
     private ::      SetPhaseProperty
     private ::      SetExchangeProperty 
+    
+    
+    !Selector
     public  :: GetPhreeqCDT 
-    public  :: GetPhreeqCPropIndex  
-    public  :: GetPhreeqCOptions  
+    public  :: GetPhreeqCNeedSoilDryDensity
+    public  :: GetPhreeqCPropIndex      
     public  :: UngetPhreeqC           
                         
     !Modifier
     public  :: ModifyPhreeqC 
     private ::      MakeCalculations
-    private ::          CalculateSolutionParameters
-    private ::          ConvertInputs
-    private ::          ConvertResults        
+    private ::          CalculateSolutionDensity
+    private ::          ConvertInput
+    private ::          ConvertResult
+!    private ::          CalculateSolutionParameters
+!    private ::          ConvertInputs
+!    private ::          ConvertResults 
+    private ::          PrintDataInput
+    private ::          PrintDataOutput       
         
     !Destructor
     public  :: KillPhreeqC                                                     
     private ::      DeallocateInstance
 
     !Management
+    private :: EndWithError
+    private :: OpenDebugFile
+    private :: CloseDebugFile
     private :: Ready
     private ::      LocateObjPhreeqC
         
     !Constants-----------------------------------------------------------------
-    integer, parameter :: MaxStrLength  = StringLength !StringLength is defined in ModuleGlobalData 
-    integer, parameter :: MaxProperties = 25    
-       
+    integer,                       parameter :: MaxStrLength     = StringLength !StringLength is defined in ModuleGlobalData 
+    integer,                       parameter :: MaxProperties    = 25    
+    character(LEN = StringLength), parameter :: prop_block_begin = '<beginproperty>'
+    character(LEN = StringLength), parameter :: prop_block_end   = '<endproperty>'       
+    
+    real,                          parameter :: DefaultWaterDensity = .998 !kg/L at 20ºC
+
+    !Constants-----------------------------------------------------------------
+    integer, parameter :: OTHER          = 0
+    integer, parameter :: CONCENTRATION  = 1
+    integer, parameter :: PHASE          = 2
+    integer, parameter :: GAS            = 3
+    integer, parameter :: SURFACE        = 4
+    integer, parameter :: SPECIES        = 5
+    integer, parameter :: EXCHANGE       = 6
+    integer, parameter :: PUREPHASESOLID = 7
+    integer, parameter :: PUREPHASEGAS   = 8 
+        
+    integer, parameter :: SOLID_PHASE = 1
+    integer, parameter :: GAS_PHASE   = 2
+    
+    !Solution units (for concentration properties)
+    integer, parameter :: mol_l     = 1
+    integer, parameter :: mmol_l    = 2
+    integer, parameter :: umol_l    = 3
+    integer, parameter :: g_l       = 4
+    integer, parameter :: mg_l      = 5 !default for user input data
+    integer, parameter :: ug_l      = 6
+    integer, parameter :: eq_l      = 7
+    integer, parameter :: meq_l     = 8
+    integer, parameter :: ueq_l     = 9
+    integer, parameter :: mol_kgs   = 10
+    integer, parameter :: mmol_kgs  = 11
+    integer, parameter :: umol_kgs  = 12
+    integer, parameter :: g_kgs     = 13
+    integer, parameter :: mg_kgs    = 14
+    integer, parameter :: ug_kgs    = 15
+    integer, parameter :: eq_kgs    = 16
+    integer, parameter :: meq_kgs   = 17
+    integer, parameter :: ueq_kgs   = 18
+    integer, parameter :: mol_kgw   = 19 
+    integer, parameter :: mmol_kgw  = 20
+    integer, parameter :: umol_kgw  = 21
+    integer, parameter :: g_kgw     = 22
+    integer, parameter :: mg_kgw    = 23
+    integer, parameter :: ug_kgw    = 24
+    integer, parameter :: eq_kgw    = 25
+    integer, parameter :: meq_kgw   = 26
+    integer, parameter :: ueq_kgw   = 27
+    
+    !Phase/Exchange units
+    integer, parameter :: mol       = 29 !default for use with phreeqc
+    integer, parameter :: mmol      = 30 
+    integer, parameter :: umol      = 31
+    
+    !Phase units
+    integer, parameter :: g_kgsoil  = 32
+    integer, parameter :: mg_kgsoil = 33 !default for user solid phases
+    integer, parameter :: ug_kgsoil = 34
+                
+    !Types---------------------------------------------------------------------    
+    
+    type T_RedoxPair
+        character(20) :: Element1
+        character(20) :: Element2
+        real          :: Valence1
+        real          :: Valence2        
+    end type T_RedoxPair
+    
+    type T_ChemistryParameters
+        character(StringLength) :: PhreeqCName
+        character(StringLength) :: Units
+        character(StringLength) :: PhaseName
+        character(StringLength) :: KineticName
+        character(StringLength) :: AlternativePhase
+        character(StringLength) :: AlternativeFormula
+        character(StringLength) :: As
+        character(StringLength) :: Has
+        character(StringLength) :: Formula
+        type(T_RedoxPair)       :: RedoxPair
+        integer                 :: Group
+        integer                 :: ExType
+        integer                 :: Charge
+        integer                 :: DoNotChange           = 0
+        real                    :: SI                        !Saturation Index
+        real                    :: GFW                       !Gram Formula Weight        
+        real                    :: Density                   !Density for solution concentrations.
+        integer                 :: UseGFW                = 0     
+        integer                 :: UseAs                 = 0
+        integer                 :: UseAlternativePhase   = 0
+        integer                 :: UseAlternativeFormula = 0
+        integer                 :: UsePhase              = 0
+        integer                 :: UseRedox              = 0
+        integer                 :: UseUnits              = 0
+        integer                 :: UseKinetic            = 0
+        integer                 :: ForceEquality         = 0
+        integer                 :: DissolveOnly          = 0
+        integer                 :: PhaseType             = 1 ! 1 - Solid, 2 - Gas
+        logical                 :: Debug                 = .false.
+    end type T_ChemistryParameters    
+    
+    type T_PhreeqCUnits
+        integer             :: MasterSpecies 
+        integer             :: Species       
+        integer             :: Alkalinity    
+        integer             :: SolidPhases   
+        integer             :: Exchangers    
+        integer             :: Solution      = mol_kgw
+    end type T_PhreeqCUnits      
+        
+    type T_PhreeqCOptions
+        character(len=2048)  :: Database                  !Path for database
+        character(len=2048)  :: DatabaseAux  = ''         !Path for auxiliary database
+        logical              :: PrintInput   = .false.    !For DEBUG 
+        logical              :: PrintOutput  = .false.   
+        real                 :: DTSeconds    = null_real 
+        real                 :: DTDay        = null_real
+        real                 :: HPlusDensity              !g/L
+        real                 :: WaterDensity              !g/L
+        type(T_RedoxPair)    :: Redox
+        type(T_PhreeqCUnits) :: Units
+        integer              :: pHCharge
+        integer              :: pECharge
+        integer              :: UseFixedTemperature = 0
+        integer              :: UseFixedpH          = 0
+        integer              :: UseFixedpE          = 0
+        integer              :: UseFixedSoilDensity = 0
+        real                 :: FixedTemperature
+        real                 :: FixedpH
+        real                 :: FixedpE
+        real                 :: FixedSoilDensity
+        integer              :: UseExchanger     = 0
+        integer              :: UseSolidPhase    = 0
+        integer              :: UseGasPhase      = 0
+        integer              :: UseGas           = 0
+        integer              :: UseSolidSolution = 0
+        integer              :: UseSurface       = 0
+        logical              :: Debug            = .false.
+        logical              :: PrintAllways     = .false.        
+    end type T_PhreeqCOptions
+
 
     !Types---------------------------------------------------------------------            
        
     type T_PhreeqCProperty
-        integer                     :: PropertyID
-        integer                     :: PhreeqCInputID
-        integer                     :: PhreeqCResultID
-        type(T_ChemistryParameters) :: Params
-        real                        :: PropertyValue !Used to store temporary cell value for the property
-        real                        :: Volume
+        type (T_PropertyID)              :: ID
+        integer                          :: Index
+        integer                          :: PropertyID 
+        integer                          :: PhreeqCInputID
+        integer                          :: PhreeqCResultID
+        type(T_ChemistryParameters)      :: Params
+        real                             :: PropertyValue !Used to store temporary cell value for the property
+        real                             :: Volume
+        type(T_PhreeqCProperty), pointer :: Next => null()
+        type(T_PhreeqCProperty), pointer :: Prev => null()
     end type T_PhreeqCProperty
     
     type T_External
         real, pointer, dimension(:,:) :: PropertiesValues
-        real, pointer, dimension(:  ) :: SolutionVolume
-        real, pointer, dimension(:  ) :: SolutionTemperature
-        real, pointer, dimension(:  ) :: SolutionpH
-        real, pointer, dimension(:  ) :: SolutionpE
+        real, pointer, dimension(:  ) :: WaterVolume
+        real, pointer, dimension(:  ) :: WaterMass
+        real, pointer, dimension(:  ) :: Temperature
+        real, pointer, dimension(:  ) :: pH
+        real, pointer, dimension(:  ) :: pE
         real, pointer, dimension(:  ) :: SolidMass
     end type T_External
     
@@ -115,11 +279,16 @@ Module ModulePhreeqC
         integer                                           :: PhreeqCInstanceID    !ID of the PhreeqC Object instance linked to the InstanceID instance
         integer                                           :: ObjEnterData = 0     !Instance of ModuleEnterData
         type(T_PhreeqC) , pointer                         :: Next                 !Collection of instances of ModulePhreeqC
-        type(T_PhreeqCOptions)                            :: PhreeqCOptions       !Global options read from the PhreeqC Input File
+        type(T_PhreeqCOptions)                            :: MOptions             !Global options read from the PhreeqC Input File
         type(T_External)                                  :: Ext                  !Pointers to Water Mass, Properties Values and other required data 
-        type(T_PhreeqCProperty), dimension(MaxProperties) :: Properties           !Info about each property
+        !type(T_PhreeqCProperty), dimension(MaxProperties) :: Properties           !Info about each property. Use or delete?
         integer                                           :: PropertyCount        !Number of properties
-        type(T_Calculations)                              :: CalcData             !Temporary data for calculations       
+        integer                                           :: PropertiesNumber = 0 !Use this or PropertyCount or both?
+        real, dimension(:), pointer                       :: PropertyValues => null()      
+        type(T_Calculations)                              :: CalcData             !Temporary data for calculations   
+        type(T_PhreeqCProperty), pointer                  :: FirstProperty => null()
+        type(T_PhreeqCProperty), pointer                  :: LastProperty  => null()  
+        integer                                           :: DebugFileUnit = -1
     end type T_PhreeqC
 
 
@@ -137,10 +306,10 @@ Module ModulePhreeqC
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
     interface 
-        subroutine pm_start [ALIAS:'?pm_start@@YAXPAH0@Z'](a, b)
-	        integer*4 a [REFERENCE]
-	        integer*4 b [REFERENCE]
-	    end
+        subroutine pmStart [ALIAS:'?pm_start@@YAXPAH0@Z'](a, b)
+            integer*4 a [REFERENCE]
+            integer*4 b [REFERENCE]
+        end
 	    
         subroutine pm_conc_use [ALIAS:'?pm_conc_use@@YAXPAH0000000@Z'] (a, b, c, d, e, f, g, h)
             integer*4 a [REFERENCE] 
@@ -177,7 +346,7 @@ Module ModulePhreeqC
             integer*4 c [REFERENCE]
         end        
         
-        subroutine pm_set_use [ALIAS:'?pm_set_use@@YAXPAH000000@Z'] (a, b, c, d, e, f, g)
+        subroutine pmSetUse [ALIAS:'?pm_set_use@@YAXPAH000000@Z'] (a, b, c, d, e, f, g)
             integer*4 a [REFERENCE] 
             integer*4 b [REFERENCE] 
             integer*4 c [REFERENCE]
@@ -194,29 +363,57 @@ Module ModulePhreeqC
             integer*4        d [REFERENCE]
         end
     
-        subroutine pm_run_model [ALIAS:'?pm_run_model@@YAXPAH00@Z'](a, b, c)
-	        integer*4 a [REFERENCE]
-	        integer*4 b [REFERENCE]
-	        integer*4 c [REFERENCE]
-	    end
-
-        subroutine pm_setup_model [ALIAS:'?pm_setup_model@@YAXPAH0@Z'](a, b)
+        subroutine pmRunPhreeqC [ALIAS:'?pm_run_model@@YAXPAH0@Z'](a, b)
 	        integer*4 a [REFERENCE]
 	        integer*4 b [REFERENCE]
 	    end
 
-        subroutine pm_read_database [ALIAS:'?pm_read_database@@YAXPAHPAD0@Z'] (a, b, c)
+        subroutine pmSetupModel [ALIAS:'?pm_setup_model@@YAXPAH0@Z'](a, b)
+	        integer*4 a [REFERENCE]
+	        integer*4 b [REFERENCE]
+	    end
+
+        subroutine pmLoadDatabase [ALIAS:'?pm_read_database@@YAXPAHPAD0@Z'] (a, b, c)
             integer*4        a [REFERENCE] 
             character(Len=*) b [REFERENCE] 
             integer*4        c [REFERENCE]
         end
 
-        subroutine pm_kill [ALIAS:'?pm_kill@@YAXPAH0@Z'](a, b)
+        subroutine pmKill [ALIAS:'?pm_kill@@YAXPAH0@Z'](a, b)
 	        integer*4 a [REFERENCE]
 	        integer*4 b [REFERENCE]
 	    end        
     end interface
        
+    interface pmSetSolutionData
+	    subroutine PMSetSolutionDataA [ALIAS: '?pm_solution_data@@YAXPAHPAN0110@Z'] (a, b, c, d, e, f)
+	        integer*4 a [REFERENCE]
+	        real*8    b [REFERENCE]
+	        integer*4 c [REFERENCE]
+	        real*8    d [REFERENCE]
+	        real*8    e [REFERENCE]
+	        integer*4 f [REFERENCE]
+	    end
+	    
+!	    subroutine PMSetSolutionDataB [ALIAS: '?pm_solution_data@@YAXPAHPAN0110@Z'] (a, b, c, d, e, f)
+!	        integer*4 a [REFERENCE]
+!	        real*16   b [REFERENCE]
+!	        integer*4 c [REFERENCE]
+!	        real*16   d [REFERENCE]
+!	        real*16   e [REFERENCE]
+!	        integer*4 f [REFERENCE]
+!	    end
+!	    
+!	    subroutine PMSetSolutionDataC [ALIAS: '?pm_solution_data@@YAXPAHPAN0110@Z'] (a, b, c, d, e, f)
+!	        integer*4 a [REFERENCE]
+!	        real*4    b [REFERENCE]
+!	        integer*4 c [REFERENCE]
+!	        real*4    d [REFERENCE]
+!	        real*4    e [REFERENCE]
+!	        integer*4 f [REFERENCE]
+!	    end
+	end interface
+           
     interface pm_solution_redox
         subroutine pm_solution_redoxA [ALIAS: '?pm_solution_redox@@YAXPAHPADPAM120HH@Z'](a1, a2, a3, a4, a5, a6)
             integer*4        a1 [REFERENCE]
@@ -527,7 +724,7 @@ Module ModulePhreeqC
         end
     end interface
 
-    interface pm_set_input_value
+    interface pmSetInputValue
         subroutine pm_set_input_valueA [ALIAS:'?pm_set_input_value@@YAXPAH00PAM0@Z'] (a1, a2, a3, a4, a5)
             integer*4        a1 [REFERENCE] 
             integer*4        a2 [REFERENCE] 
@@ -553,7 +750,7 @@ Module ModulePhreeqC
         end           
     end interface
 
-    interface pm_get_result_value
+    interface pmGetResultValue
         subroutine pm_get_result_valueA [ALIAS:'?pm_get_result_value@@YAXPAH00PAM0@Z'] (a1, a2, a3, a4, a5)
             integer*4        a1 [REFERENCE] 
             integer*4        a2 [REFERENCE] 
@@ -579,7 +776,7 @@ Module ModulePhreeqC
         end
     end interface
 
-    interface pm_get_data
+    interface pmGetSolutionData
         subroutine pm_get_dataA [ALIAS:'?pm_get_data@@YAXPAHPAM110@Z'] (a1, a2, a3, a4, a5)
             integer*4        a1 [REFERENCE] 
             real*4           a2 [REFERENCE] 
@@ -605,7 +802,7 @@ Module ModulePhreeqC
         end
     end interface
 
-    interface pm_set_ph
+    interface pmSetPH
         subroutine pm_set_phA [ALIAS: '?pm_set_ph@@YAXPAH0PAM0@Z'] (a1, a2, a3, a4)
             integer*4        a1 [REFERENCE]
             integer*4        a2 [REFERENCE]
@@ -628,7 +825,7 @@ Module ModulePhreeqC
         end
     end interface
 
-    interface pm_set_pe
+    interface pmSetPE
         subroutine pm_set_peA [ALIAS: '?pm_set_pe@@YAXPAH0PAM0@Z'] (a1, a2, a3, a4)
             integer*4        a1 [REFERENCE]
             integer*4        a2 [REFERENCE]
@@ -695,9 +892,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             call InitializeInstance
             
             !Create PhreeqC C++ object
-            call pm_start (Me%PhreeqCInstanceID, STAT_) 
-            if (STAT_ .EQ. 0) &
-                 stop 'Subroutine StartPhreeqC; module ModulePhreeqC. ERR001.'
+            call pmStart (Me%PhreeqCInstanceID, STAT_) 
+            if (STAT_ .EQ. 0) call EndWithError('Subroutine StartPhreeqC; ModulePhreeqC. ERR010.')
                        
             !Read ModulePhreeqC Input File  
             call ReadInputFile (FileName)
@@ -709,7 +905,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             
         else  cd0
             
-            stop 'Subroutine StartPhreeqC; module ModulePhreeqC. ERR002'
+            call EndWithError ('Subroutine StartPhreeqC; ModulePhreeqC. ERR020.')
 
         end if cd0
 
@@ -771,7 +967,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         !----------------------------------------------------------------------
         
         Me%PropertyCount = 0  
-              
+         
+        !ToDo: Check if this is necessary
         Me%CalcData%MassOfAllSolutes   = 0
         Me%CalcData%VolumeOfAllSolutes = 0
         Me%CalcData%MassOfWater        = 0
@@ -796,13 +993,14 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         !Associate EnterData
         call ConstructEnterData(Me%ObjEnterData, FileName, STAT = STAT_)
         if (STAT_ .NE. SUCCESS_) &
-            stop 'Subroutine ReadInputFile; module ModulePhreeqC. ERR01.'      
+            call EndWithError ('Subroutine ReadInputFile; ModulePhreeqC. ERR010.') 
                 
-        call ReadPhreeqCOptions                
+        call ReadPhreeqCOptions   
+        call ReadPhreeqCProperties             
         
         call KillEnterData(Me%ObjEnterData, STAT = STAT_) 
         if (STAT_ .NE. SUCCESS_) &
-            stop 'Subroutine ReadInputFile; ModuleSedimentQuality. ERR02.'
+            call EndWithError ('Subroutine ReadInputFile; ModulePhreeqC. ERR020.')
 
         !----------------------------------------------------------------------
 
@@ -821,136 +1019,183 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         !Begin-----------------------------------------------------------------       
         call GetExtractType (FromFile = FromFile)
 
-        call GetData(Me%PhreeqCOptions%Database     , &
-                     Me%ObjEnterData, flag          , &
-                     SearchType   = FromFile        , &
-                     keyword      = 'DATABASE'      , &
-                     ClientModule = 'ModulePhreeqC' , &
+        call GetData(Me%MOptions%Database,           &
+                     Me%ObjEnterData, flag,          &
+                     SearchType   = FromFile,        &
+                     keyword      = 'DATABASE',      &
+                     ClientModule = 'ModulePhreeqC', &
                      STAT         = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_) stop 'Subroutine ReadPhreeqCOptions; Module ModulePhreeqC. ERR001.'             
-        if (flag .EQ. 0) stop 'Subroutine ReadPhreeqCOptions; Module ModulePhreeqC. ERR002.'
+        if (STAT_CALL .NE. SUCCESS_) &
+            call EndWithError ('Subroutine ReadPhreeqCOptions; ModulePhreeqC. ERR010.')
+        if (flag .EQ. 0) &
+            call EndWithError ('Subroutine ReadPhreeqCOptions; ModulePhreeqC. ERR020.')
+        
             
-        call GetData(Me%PhreeqCOptions%DatabaseAux  , &
-                     Me%ObjEnterData, flag          , &
-                     SearchType   = FromFile        , &
-                     keyword      = 'DATABASE_AUX'  , &
-                     default      = ''              , &
-                     ClientModule = 'ModulePhreeqC' , &
+        call GetData(Me%MOptions%DatabaseAux,        &
+                     Me%ObjEnterData, flag,          &
+                     SearchType   = FromFile,        &
+                     keyword      = 'DATABASE_AUX',  &
+                     default      = '',              &
+                     ClientModule = 'ModulePhreeqC', &
                      STAT         = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_) stop 'Subroutine ReadPhreeqCOptions; Module ModulePhreeqC. ERR003.' 
+        if (STAT_CALL .NE. SUCCESS_) &
+            call EndWithError ('Subroutine ReadPhreeqCOptions; ModulePhreeqC. ERR030.') 
 
-        call GetData(Me%PhreeqCOptions%PrintInput   , &
-                     Me%ObjEnterData, flag          , &
-                     SearchType   = FromFile        , &
-                     keyword      = 'PRINT_INPUT'   , &
-                     default      = .false.         , &
-                     ClientModule = 'ModulePhreeqC' , &
+        call GetData(Me%MOptions%PrintInput,         &
+                     Me%ObjEnterData, flag,          &
+                     SearchType   = FromFile,        &
+                     keyword      = 'PRINT_INPUT',   &
+                     default      = .false.,         &
+                     ClientModule = 'ModulePhreeqC', &
                      STAT         = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_) stop 'Subroutine ReadPhreeqCOptions; Module ModulePhreeqC. ERR004.' 
+        if (STAT_CALL .NE. SUCCESS_) &
+            call EndWithError ('Subroutine ReadPhreeqCOptions; ModulePhreeqC. ERR040.') 
         
-        call GetData(Me%PhreeqCOptions%HPlusDensity , &
-                     Me%ObjEnterData, flag          , &
-                     SearchType   = FromFile        , &
-                     keyword      = 'HPLUS_DENSITY' , &
-                     default      = 0.09            , &
-                     ClientModule = 'ModulePhreeqC' , &
+        call GetData(Me%MOptions%PrintOutput,        &
+                     Me%ObjEnterData, flag,          &
+                     SearchType   = FromFile,        &
+                     keyword      = 'PRINT_OUTPUT',  &
+                     default      = .false.,         &
+                     ClientModule = 'ModulePhreeqC', &
                      STAT         = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_) stop 'Subroutine ReadPhreeqCOptions; Module ModulePhreeqC. ERR005.' 
+        if (STAT_CALL .NE. SUCCESS_) &
+            call EndWithError ('Subroutine ReadPhreeqCOptions; ModulePhreeqC. ERR050.') 
+
+        call GetData(Me%MOptions%HPlusDensity,       &
+                     Me%ObjEnterData, flag,          &
+                     SearchType   = FromFile,        &
+                     keyword      = 'HPLUS_DENSITY', &
+                     default      = 0.09,            &
+                     ClientModule = 'ModulePhreeqC', &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) &
+            call EndWithError ('Subroutine ReadPhreeqCOptions; ModulePhreeqC. ERR060.')
         
-        call GetData(Me%PhreeqCOptions%WaterDensity , &
-                     Me%ObjEnterData, flag          , &
-                     SearchType   = FromFile        , &
-                     keyword      = 'WATER_DENSITY' , &
-                     default      = 998.0           , &
-                     ClientModule = 'ModulePhreeqC' , &
+        call GetData(Me%MOptions%WaterDensity,       &
+                     Me%ObjEnterData, flag,          &
+                     SearchType   = FromFile,        &
+                     keyword      = 'WATER_DENSITY', &
+                     default      = 998.0,           &
+                     ClientModule = 'ModulePhreeqC', &
                      STAT         = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_) stop 'Subroutine ReadPhreeqCOptions; Module ModulePhreeqC. ERR006.' 
+        if (STAT_CALL .NE. SUCCESS_) &
+            call EndWithError ('Subroutine ReadPhreeqCOptions; ModulePhreeqC. ERR070.') 
                
-        call GetData(Me%PhreeqCOptions%Redox%Element1,      & 
+        call GetData(Me%MOptions%Redox%Element1,            & 
                      Me%ObjEnterData, flag,                 &
                      SearchType   = FromFile,               &
                      keyword      = 'REDOX_PAIR_ELEMENT_1', & 
                      ClientModule = 'ModulePhreeqC',        &
                      STAT         = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_) stop 'Subroutine ReadPhreeqCOptions; Module ModulePhreeqC. ERR007.'  
+        if (STAT_CALL .NE. SUCCESS_) &
+            call EndWithError ('Subroutine ReadPhreeqCOptions; ModulePhreeqC. ERR080.')  
         
         if (flag .NE. 0) then
         
-            call GetData(Me%PhreeqCOptions%Redox%Valence1,      & 
+            call GetData(Me%MOptions%Redox%Valence1,            & 
                          Me%ObjEnterData, flag,                 &
                          SearchType   = FromFile,               &
                          keyword      = 'REDOX_PAIR_VALENCE_1', & 
                          ClientModule = 'ModulePhreeqC',        &
                          STAT         = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_ .OR. flag .EQ. 0) stop 'Subroutine ReadPhreeqCOptions; Module ModulePhreeqC. ERR008.'                      
+            if (STAT_CALL .NE. SUCCESS_ .OR. flag .EQ. 0) &
+                call EndWithError ('Subroutine ReadPhreeqCOptions; ModulePhreeqC. ERR090.')                      
 
-            call GetData(Me%PhreeqCOptions%Redox%Element2,      & 
+            call GetData(Me%MOptions%Redox%Element2,            & 
                          Me%ObjEnterData, flag,                 &
                          SearchType   = FromFile,               &
                          keyword      = 'REDOX_PAIR_ELEMENT_2', & 
-                         ClientModule = 'ModulePhreeqC'  , &
+                         ClientModule = 'ModulePhreeqC',        &
                          STAT         = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_ .OR. flag .EQ. 0) stop 'Subroutine ReadPhreeqCOptions; Module ModulePhreeqC. ERR009.'                      
+            if (STAT_CALL .NE. SUCCESS_ .OR. flag .EQ. 0) &
+                call EndWithError ('Subroutine ReadPhreeqCOptions; ModulePhreeqC. ERR100.')                      
 
             ! Valence 2 ------------------------------------------------------
-            call GetData(Me%PhreeqCOptions%Redox%Valence2,      & 
+            call GetData(Me%MOptions%Redox%Valence2,            & 
                          Me%ObjEnterData, flag,                 &
                          SearchType   = FromFile,               &
                          keyword      = 'REDOX_PAIR_VALENCE_2', & 
                          ClientModule = 'ModulePhreeqC',        &
                          STAT         = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_ .OR. flag .EQ. 0) stop 'Subroutine ReadPhreeqCOptions; Module ModulePhreeqC. ERR010.'                      
+            if (STAT_CALL .NE. SUCCESS_ .OR. flag .EQ. 0) &
+                call EndWithError ('Subroutine ReadPhreeqCOptions; ModulePhreeqC. ERR110.')
 
-            call pm_solution_redox(Me%PhreeqCInstanceID,                            &
-                                   trim(Me%PhreeqCOptions%Redox%Element1)//char(0), &
-                                   Me%PhreeqCOptions%Redox%Valence1,                &
-                                   trim(Me%PhreeqCOptions%Redox%Element2)//char(0), &
-                                   Me%PhreeqCOptions%Redox%Valence2,                &
+            call pm_solution_redox(Me%PhreeqCInstanceID,                      &
+                                   trim(Me%MOptions%Redox%Element1)//char(0), &
+                                   Me%MOptions%Redox%Valence1,                &
+                                   trim(Me%MOptions%Redox%Element2)//char(0), &
+                                   Me%MOptions%Redox%Valence2,                &
                                    STAT_CALL)
-            if (STAT_CALL .EQ. 0) stop 'Subroutine ReadPhreeqCOptions; Module ModulePhreeqC. ERR012.'                                     
+            if (STAT_CALL .EQ. 0) &
+                call EndWithError ('Subroutine ReadPhreeqCOptions; ModulePhreeqC. ERR120.')
 
         end if        
        
-        call GetData(Me%PhreeqCOptions%pHCharge,     &
+        call GetData(Me%MOptions%pHCharge,           &
                      Me%ObjEnterData, flag,          &
                      SearchType   = FromFile,        &
                      keyword      = 'PH_CHARGE',     &
                      default      = 0,               &
                      ClientModule = 'ModulePhreeqC', &
                      STAT         = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_) stop 'Subroutine ReadPhreeqCOptions; Module ModulePhreeqC. ERR013.'                              
+        if (STAT_CALL .NE. SUCCESS_) &
+            call EndWithError ('Subroutine ReadPhreeqCOptions; ModulePhreeqC. ERR130.')
         
-        call GetData(Me%PhreeqCOptions%pECharge,     &
+        call GetData(Me%MOptions%pECharge,           &
                      Me%ObjEnterData, flag,          &
                      SearchType   = FromFile,        &
                      keyword      = 'PE_CHARGE',     &
                      default      = 0,               &
                      ClientModule = 'ModulePhreeqC', &
                      STAT         = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_) stop 'Subroutine ReadPhreeqCOptions; Module ModulePhreeqC. ERR014.'        
+        if (STAT_CALL .NE. SUCCESS_) &
+            call EndWithError ('Subroutine ReadPhreeqCOptions; ModulePhreeqC. ERR140.')
 
-        if ((Me%PhreeqCOptions%pECharge .EQ. 1) .AND. (Me%PhreeqCOptions%pHCharge .EQ. 1)) &
-            stop 'Subroutine ReadPhreeqCOptions; Module ModulePhreeqC. ERR015.'
+        if ((Me%MOptions%pECharge .EQ. 1) .AND. (Me%MOptions%pHCharge .EQ. 1)) &
+            call EndWithError ('Subroutine ReadPhreeqCOptions; ModulePhreeqC. ERR150.')
         
-        call GetData(Me%PhreeqCOptions%DTSeconds    , &
-                     Me%ObjEnterData, flag          , &
-                     SearchType   = FromFile        , &
-                     keyword      ='DTSECONDS'      , & 
-                     default      = 3600.           , & 
-                     ClientModule = 'ModulePhreeqC' , &
+        call GetData(Me%MOptions%DTSeconds,          &
+                     Me%ObjEnterData, flag,          &
+                     SearchType   = FromFile,        &
+                     keyword      ='DTSECONDS',      & 
+                     default      = 3600.,           & 
+                     ClientModule = 'ModulePhreeqC', &
                      STAT         = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_) stop 'Subroutine ReadPhreeqCOptions; Module ModulePhreeqC. ERR016.' 
+        if (STAT_CALL .NE. SUCCESS_) &
+            call EndWithError ('Subroutine ReadPhreeqCOptions; ModulePhreeqC. ERR160.')
+
+        call GetData(Me%MOptions%Debug,               &
+                     Me%ObjEnterData, flag,           &
+                     SearchType   = FromFile,         &
+                     keyword      = 'DEBUG',          &
+                     default      = .false.,          &
+                     ClientModule = 'ModulePhreeqC',  &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) &
+            call EndWithError ('Subroutine ReadPhreeqCOptions; ModulePhreeqC. ERR170.') 
+
+        call GetData(Me%MOptions%PrintAllways,        &
+                     Me%ObjEnterData, flag,           &
+                     SearchType   = FromFile,         &
+                     keyword      = 'PRINT_ALLWAYS',  &
+                     default      = .false.,          &
+                     ClientModule = 'ModulePhreeqC',  &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) &
+            call EndWithError ('Subroutine ReadPhreeqCOptions; ModulePhreeqC. ERR180.') 
 
 cd1:   if (flag .EQ. 0) then
             write(*,*) 
             write(*,*) 'Keyword DTSECONDS not found in PhreeqC data file.'
-            write(*,*) 'Subroutine ReadPhreeqCOptions; Module ModulePhreeqC. WRN001.'
-            write(*,*) 'Assumed ', Me%PhreeqCOptions%DTSeconds, 'seconds (',  Me%PhreeqCOptions%DTSeconds / 60.0, 'hour).'
+            write(*,*) 'Subroutine ReadPhreeqCOptions; ModulePhreeqC. WRN010.'
+            write(*,*) 'Assumed ', Me%MOptions%DTSeconds, 'seconds (',  Me%MOptions%DTSeconds / 60.0, 'hour).'
             write(*,*) 
         end if cd1
         
         !For compatibility with the rest of the program,  
-        Me%PhreeqCOptions%DTDay = Me%PhreeqCOptions%DTSeconds / 24.0 / 60.0 / 60.0
+        Me%MOptions%DTDay = Me%MOptions%DTSeconds / 24.0 / 60.0 / 60.0
+                
+        call OpenDebugFile
         
         call ReadPhreeqCDatabase 
 
@@ -968,81 +1213,574 @@ cd1:   if (flag .EQ. 0) then
 
         !----------------------------------------------------------------------
 
-        call pm_read_database (Me%PhreeqCInstanceID, trim(Me%PhreeqCOptions%Database)//char(0), status)      
-        if (status .EQ. 0) stop 'Subroutine PhreeqCReadDatabase; Module ModulePhreeqC. ERR001.'
+        call pmLoadDatabase (Me%PhreeqCInstanceID, trim(Me%MOptions%Database)//char(0), status)      
+        if (status .EQ. 0) call EndWithError ('Subroutine PhreeqCReadDatabase; ModulePhreeqC. ERR010.')
             
-        if (Me%PhreeqCOptions%DatabaseAux .NE. '') then
+        if (Me%MOptions%DatabaseAux .NE. '') then
         
-            call pm_read_database (Me%PhreeqCInstanceID, trim(Me%PhreeqCOptions%DatabaseAux)//char(0), status)
-            if (status .EQ. 0) stop 'Subroutine PhreeqCReadDatabase; Module ModulePhreeqC. ERR002.'
+            call pmLoadDatabase (Me%PhreeqCInstanceID, trim(Me%MOptions%DatabaseAux)//char(0), status)
+            if (status .EQ. 0) call EndWithError ('Subroutine PhreeqCReadDatabase; ModulePhreeqC. ERR020.')
         
         end if
             
-        call pm_setup_model (Me%PhreeqCInstanceID, status)      
-        if (status .EQ. 0) stop 'Subroutine PhreeqCReadDatabase; Module ModulePhreeqC. ERR003.'
+        call pmSetupModel (Me%PhreeqCInstanceID, status)      
+        if (status .EQ. 0) call EndWithError ('Subroutine PhreeqCReadDatabase; ModulePhreeqC. ERR030.')
         !----------------------------------------------------------------------
 
     end subroutine ReadPhreeqCDatabase
     !--------------------------------------------------------------------------
     
 
-    !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-    !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    !--------------------------------------------------------------------------
+    subroutine ReadPhreeqCProperties
 
-    !SELECTOR SELECTOR SELECTOR SELECTOR SELECTOR SELECTOR SELECTOR SELECTOR SELE
-
-    !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-    !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-    subroutine SetPhreeqCProperty (PhreeqCID, PropertyID, Property, STAT)
-        
-        !Arguments-------------------------------------------------------------
-        integer                        :: PhreeqCID
-        integer                        :: PropertyID
-        type(T_ChemistryParameters)    :: Property
-        integer, optional, intent(OUT) :: STAT
+        !External--------------------------------------------------------------
+        integer                             :: ClientNumber
+        integer                             :: STAT_CALL
+        logical                             :: BlockFound
 
         !Local-----------------------------------------------------------------
-        integer :: ready_              
-        integer :: STAT_ !Auxiliar local variable
-        
+        type (T_PhreeqCProperty), pointer   :: NewProperty
+        type (T_PhreeqCProperty), pointer   :: PropertyX 
+        integer                             :: Index       
+
         !----------------------------------------------------------------------
-        STAT_ = UNKNOWN_
 
-        call Ready(PhreeqCID, ready_)
-        
-cd1 :   if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
+do1 :   do
+            call ExtractBlockFromBuffer(Me%ObjEnterData,                 &
+                                        ClientNumber = ClientNumber,     &
+                                        block_begin  = prop_block_begin, &
+                                        block_end    = prop_block_end,   &
+                                        BlockFound   = BlockFound,       &
+                                        STAT         = STAT_CALL)
+cd1 :       if (STAT_CALL .EQ. SUCCESS_) then    
 
-            Me%PropertyCount = Me%PropertyCount + 1
-                       
-            Me%Properties(Me%PropertyCount)%Params = Property   
-            Me%Properties(Me%PropertyCount)%PropertyID = PropertyID        
+cd2 :           if (BlockFound) then                                                  
+                    
+                    !Construct a New Property 
+                    Call ConstructProperty (NewProperty)
 
-            select case (Property%Group)
-                case (0) 
-                    !Do nothing. 
-                case (SPECIES)
-                    call SetSpeciesProperty(Me%Properties(Me%PropertyCount))                    
-                case (CONCENTRATION)
-                    call SetConcentrationProperty(Me%Properties(Me%PropertyCount))
-                case (PHASE)
-                    call SetPhaseProperty(Me%Properties(Me%PropertyCount))
-                case (EXCHANGE)
-                    call SetExchangeProperty(Me%Properties(Me%PropertyCount))
-                case default
-                    stop 'Subroutine SetPhreeqCProperty; Module ModulePhreeqC. ERR001.' !Group not recognized
-            end select
+                    !Add new Property to the Properties List 
+                    Call AddProperty (NewProperty)
+
+                else cd2
+
+                    call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL) 
+
+                    if (STAT_CALL .NE. SUCCESS_)                                &
+                        call EndWithError ('ReadPhreeqCProperties - ModulePhreeqC - ERR010')
+                    exit do1    !No more blocks
                 
-            STAT_ = SUCCESS_
+                end if cd2
+
+            else if (STAT_CALL .EQ. BLOCK_END_ERR_) then cd1
+                
+                write(*,*)  
+                write(*,*) 'Error calling ExtractBlockFromBuffer. '
+                call EndWithError ('ReadPhreeqCProperties - ModulePhreeqC - ERR020')
             
+            else cd1
+                
+                call EndWithError ('ReadPhreeqCProperties - ModulePhreeqC - ERR030')
+            
+            end if cd1
+        
+        end do do1
+
+        nullify (Me%PropertyValues)
+        allocate (Me%PropertyValues(Me%PropertiesNumber))
+        
+        Index = 0
+        PropertyX => Me%FirstProperty
+        do while (associated(PropertyX))
+            PropertyX%PropertyID = Index
+            Index = Index + 1
+            PropertyX => PropertyX%Next
+        end do
+
+
+        !----------------------------------------------------------------------
+    
+    end subroutine ReadPhreeqCProperties
+    !--------------------------------------------------------------------------
+
+
+    !--------------------------------------------------------------------------
+    subroutine ConstructProperty (NewProperty)
+    
+        !Arguments-------------------------------------------------------------
+        type(T_PhreeqCProperty), pointer    :: NewProperty
+
+        !External--------------------------------------------------------------
+        integer                             :: STAT_CALL
+
+        !----------------------------------------------------------------------
+             
+        allocate (NewProperty, STAT = STAT_CALL)            
+        if(STAT_CALL .NE. SUCCESS_) call EndWithError ('ConstructProperty - ModulePhreeqC - ERR010')
+        
+        nullify(NewProperty%Prev, NewProperty%Next)
+
+        call ConstructPropertyID (NewProperty%ID, Me%ObjEnterData, FromBlock)
+        call ReadChemistryParameters (NewProperty)
+        call SetPhreeqCProperty (NewProperty)
+        !----------------------------------------------------------------------
+    
+    end subroutine ConstructProperty
+    !--------------------------------------------------------------------------
+    
+    
+    !--------------------------------------------------------------------------
+    subroutine ReadChemistryParameters (NewProperty)
+    
+        !Arguments-------------------------------------------------------------
+        type(T_PhreeqCProperty), pointer :: NewProperty
+        
+        !Local-----------------------------------------------------------------
+        integer                   :: STAT_CALL
+        integer                   :: iflag
+    
+        !----------------------------------------------------------------------
+       
+        call GetData(NewProperty%Params%Group,       &
+                     Me%ObjEnterData, iflag,         &
+                     SearchType   = FromBlock,       &
+                     keyword      = 'PHREEQC_GROUP', &
+                     Default      = 0,               &
+                     ClientModule = 'ModulePhreeqC', &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) call EndWithError ('ReadChemistryParameters - ModulePhreeqC - ERR010')
+        
+        call GetData(NewProperty%Params%PhreeqCName, &
+                     Me%ObjEnterData, iflag,         &
+                     SearchType   = FromBlock,       &
+                     keyword      = 'PHREEQC_NAME',  &
+                     Default      = '',              &
+                     ClientModule = 'ModulePhreeqC', &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_ .OR. (iflag .EQ. 0 .AND. NewProperty%Params%Group .NE. 0)) &
+            call EndWithError ('ReadChemistryParameters - ModulePhreeqC - ERR020')
+        
+        call GetData(NewProperty%Params%DoNotChange,         &
+                     Me%ObjEnterData, iflag,                 &
+                     SearchType   = FromBlock,               &
+                     keyword      = 'PHREEQC_DO_NOT_CHANGE', &
+                     Default      = 0,                       &
+                     ClientModule = 'ModulePhreeqC',         &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) call EndWithError ('ReadChemistryParameters - ModulePhreeqC - ERR030')        
+        
+        call GetData(NewProperty%Params%Debug,       &
+                     Me%ObjEnterData, iflag,         &
+                     SearchType   = FromBlock,       &
+                     keyword      = 'PHREEQC_DEBUG', &
+                     Default      = .false.,         &
+                     ClientModule = 'ModulePhreeqC', &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) call EndWithError ('ReadChemistryParameters - ModulePhreeqC - ERR040')
+        
+        
+!        call GetData(NewProperty%Params%Charge,                    &
+!                     Me%ObjEnterData, iflag,                       &
+!                     SearchType   = FromBlock,                     &
+!                     keyword      = 'PHREEQC_CHARGE',              &
+!                     Default      = 0,                             &
+!                     ClientModule = 'ModulePorousMediaProperties', &
+!                     STAT         = STAT_CALL)
+!        if (STAT_CALL .NE. SUCCESS_) call EndWithError ('ReadChemistryParameters - ModulePhreeqC - ERR004')
+               
+        select case (NewProperty%Params%Group)
+        case (OTHER) !NO GROUP - pH, pE, Temperature, Density, etc
+            !Do nothing
+        case (CONCENTRATION) !CONCENTRATION - Only Concentration properties
+            call ReadChemistryConcGroupParam (NewProperty)
+        case (PHASE) !PHASES
+            call ReadChemistryPhasesGroupParam (NewProperty)
+!        case (3) !SOLID PHASE
+!            call ReadChemistrySolidGroupParam (NewProperty)
+!        case (4) !GAS PHASE
+!            call ReadChemistryGasGroupParam (NewProperty)
+!        case (SURFACE) !SURFACE
+!            call ReadChemistrySurfGroupParam (NewProperty)
+        case (SPECIES) !SPECIES
+            call ReadChemistrySpeciesGroupParam (NewProperty)
+        case (EXCHANGE) !EXCHANGE
+            call ReadChemistryExcGroupParam (NewProperty)
+        case default
+            !ToDo: If the group does not exist, must raise an exception and warn the user
+        end select
+        
+    end subroutine ReadChemistryParameters
+    !--------------------------------------------------------------------------
+    
+    
+    !--------------------------------------------------------------------------
+    subroutine ReadChemistryConcGroupParam (NewProperty)
+    
+        !Arguments-------------------------------------------------------------
+        type(T_PhreeqCProperty), pointer :: NewProperty
+        
+        !Local-----------------------------------------------------------------
+        integer                   :: STAT_CALL
+        integer                   :: iflag
+    
+        !----------------------------------------------------------------------
+        call GetData(NewProperty%Params%Charge,       &
+                     Me%ObjEnterData, iflag,          &
+                     SearchType   = FromBlock,        &
+                     keyword      = 'PHREEQC_CHARGE', &
+                     Default      = 0,                &
+                     ClientModule = 'ModulePhreeqC',  &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) call EndWithError ('ReadChemistryConcGroupParam - ModulePhreeqC - ERR010')
+
+        call GetData(NewProperty%Params%GFW,         &
+                     Me%ObjEnterData, iflag,         &
+                     SearchType   = FromBlock,       &
+                     keyword      = 'PHREEQC_GFW',   &
+                     ClientModule = 'ModulePhreeqC', &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) call EndWithError ('ReadChemistryConcGroupParam - ModulePhreeqC - ERR020')
+        if (iflag .EQ. 0) then
+            NewProperty%Params%UseGFW = 0
+        else              
+            NewProperty%Params%UseGFW = 1
+        endif
+        
+        if (NewProperty%Params%UseGFW .EQ. 0) then
+            call GetData(NewProperty%Params%As,          &
+                         Me%ObjEnterData, iflag,         &
+                         SearchType   = FromBlock,       &
+                         keyword      = 'PHREEQC_AS',    &
+                         ClientModule = 'ModulePhreeqC', &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_) call EndWithError ('ReadChemistryConcGroupParam - ModulePhreeqC - ERR030')
+            if (iflag .EQ. 0) then
+                NewProperty%Params%UseAs = 0
+            else              
+                NewProperty%Params%UseAs = 1
+            end if
+        end if
+        
+        call GetData(NewProperty%Params%RedoxPair%Element1,    & 
+                     Me%ObjEnterData, iflag,                   &
+                     SearchType   = FromBlock,                 &
+                     keyword      = 'PHREEQC_REDOX_ELEMENT_1', & 
+                     ClientModule = 'ModulePhreeqC',           &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) call EndWithError ('ReadChemistryConcGroupParam; ModulePhreeqC. ERR040.')          
+        if (iflag .NE. 0) then        
+            call GetData(NewProperty%Params%RedoxPair%Valence1,    & 
+                         Me%ObjEnterData, iflag,                   &
+                         SearchType   = FromBlock,                 &
+                         keyword      = 'PHREEQC_REDOX_VALENCE_1', & 
+                         ClientModule = 'ModulePhreeqC',           &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_ .OR. iflag .EQ. 0) call EndWithError ('ReadChemistryConcGroupParam; ModulePhreeqC. ERR050.')
+
+            call GetData(NewProperty%Params%RedoxPair%Element2,    & 
+                         Me%ObjEnterData, iflag,                   &
+                         SearchType   = FromBlock,                 &
+                         keyword      = 'PHREEQC_REDOX_ELEMENT_2', & 
+                         ClientModule = 'ModulePhreeqC',           &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_ .OR. iflag .EQ. 0) call EndWithError ('ReadChemistryConcGroupParam; ModulePhreeqC. ERR060.')
+
+            ! Valence 2 ------------------------------------------------------
+            call GetData(NewProperty%Params%RedoxPair%Valence2,    & 
+                         Me%ObjEnterData, iflag,                   &
+                         SearchType   = FromBlock,                 &
+                         keyword      = 'PHREEQC_REDOX_VALENCE_2', & 
+                         ClientModule = 'ModulePhreeqC',           &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_ .OR. iflag .EQ. 0) call EndWithError ('ReadChemistryConcGroupParam; ModulePhreeqC. ERR070.')
+            NewProperty%Params%UseRedox = 1
         else
-         
-            STAT_ = ready_
+            NewProperty%Params%UseRedox = 0        
+        end if        
+        
+        call GetData(NewProperty%Params%PhaseName,        &
+                     Me%ObjEnterData, iflag,              &
+                     SearchType   = FromBlock,            &
+                     keyword      = 'PHREEQC_PHASE_NAME', &
+                     ClientModule = 'ModulePhreeqC',      &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) call EndWithError ('ReadChemistryConcGroupParam - ModulePhreeqC- ERR080')
+        if (iflag .NE. 0) then
+            NewProperty%Params%usePhase = 1
             
-        end if cd1
+            call GetData(NewProperty%Params%SI,          &
+                         Me%ObjEnterData, iflag,         &
+                         SearchType   = FromBlock,       &
+                         keyword      = 'PHREEQC_SI',    &
+                         default      = 0.0,             &
+                         ClientModule = 'ModulePhreeqC', &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_) call EndWithError ('ReadChemistryConcGroupParam - ModulePhreeqC - ERR090')
+ 
+        else
+            NewProperty%Params%UsePhase = 0
+        end if
+       
+!        call GetData(NewProperty%Params%Density,       &
+!                     Me%ObjEnterData, iflag,           &
+!                     SearchType   = FromBlock,         &
+!                     keyword      = 'PHREEQC_DENSITY', &
+!                     ClientModule = 'ModulePhreeqC',   &
+!                     STAT         = STAT_CALL)
+!        if (STAT_CALL .NE. SUCCESS_ .OR. iflag .EQ. 0) call EndWithError ('ReadChemistryConcGroupParam - ModulePhreeqC - ERR100')
+         
+        !----------------------------------------------------------------------
 
-        if (present(STAT)) STAT = STAT_
+    end subroutine ReadChemistryConcGroupParam   
+    !--------------------------------------------------------------------------
 
+
+    !--------------------------------------------------------------------------
+    subroutine ReadChemistryPhasesGroupParam (NewProperty)
+
+        !Arguments-------------------------------------------------------------
+        type(T_PhreeqCProperty), pointer :: NewProperty
+        
+        !Local-----------------------------------------------------------------
+        integer                   :: STAT_CALL
+        integer                   :: iflag
+    
+        !----------------------------------------------------------------------
+        call GetData(NewProperty%Params%PhaseType,        &
+                     Me%ObjEnterData, iflag,              &
+                     SearchType   = FromBlock,            &
+                     keyword      = 'PHREEQC_PHASE_TYPE', &
+                     Default      = 1,                    &
+                     ClientModule = 'ModulePhreeqC',      &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) call EndWithError ('ReadChemistryPhasesGroupParam - ModulePhreeqC - ERR010')
+                
+        call GetData(NewProperty%Params%SI,          &
+                     Me%ObjEnterData, iflag,         &
+                     SearchType   = FromBlock,       &
+                     keyword      = 'PHREEQC_SI',    &
+                     Default      = 0.0,             &
+                     ClientModule = 'ModulePhreeqC', &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) call EndWithError ('ReadChemistryPhasesGroupParam - ModulePhreeqC - ERR020')
+        if (NewProperty%Params%SI .NE. 0.0) then            
+            call GetData(NewProperty%Params%AlternativeFormula,        &
+                         Me%ObjEnterData, iflag,                       &
+                         SearchType   = FromBlock,                     &
+                         keyword      = 'PHREEQC_ALTERNATIVE_FORMULA', &
+                         ClientModule = 'ModulePhreeqC',               &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_) call EndWithError ('ReadChemistryPhasesGroupParam - ModulePhreeqC - ERR030')
+            if (iflag .NE. 0) then
+                NewProperty%Params%UseAlternativeFormula = 1 
+                NewProperty%Params%UseAlternativePhase   = 0
+            else
+                NewProperty%Params%UseAlternativeFormula = 0
+                call GetData(NewProperty%Params%AlternativePhase,        &
+                             Me%ObjEnterData, iflag,                     &
+                             SearchType   = FromBlock,                   &
+                             keyword      = 'PHREEQC_ALTERNATIVE_PHASE', &
+                             ClientModule = 'ModulePhreeqC',             &
+                             STAT         = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_) call EndWithError ('ReadChemistryPhasesGroupParam - ModulePhreeqC - ERR040')
+                if (iflag .NE. 0) then
+                    NewProperty%Params%UseAlternativePhase = 1
+                else
+                    NewProperty%Params%UseAlternativePhase = 0
+                endif
+            endif
+        endif
+        
+        call GetData(NewProperty%Params%GFW,         &
+                     Me%ObjEnterData, iflag,         &
+                     SearchType   = FromBlock,       &
+                     keyword      = 'PHREEQC_GFW',   &
+                     ClientModule = 'ModulePhreeqC', &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) call EndWithError ('ReadChemistryPhasesGroupParam - ModulePhreeqC - ERR050')
+        if (iflag .EQ. 0) then
+            NewProperty%Params%UseGFW = 0
+        else              
+            NewProperty%Params%UseGFW = 1
+        endif
+        
+        call GetData(NewProperty%Params%ForceEquality,        &
+                     Me%ObjEnterData, iflag,                  &
+                     SearchType   = FromBlock,                &
+                     keyword      = 'PHREEQC_FORCE_EQUALITY', &
+                     Default      = 0,                        &
+                     ClientModule = 'ModulePhreeqC',          &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) call EndWithError ('ReadChemistryPhasesGroupParam - ModulePhreeqC - ERR060')
+        
+        call GetData(NewProperty%Params%DissolveOnly,        &
+                     Me%ObjEnterData, iflag,                 &
+                     SearchType   = FromBlock,               &
+                     keyword      = 'PHREEQC_DISSOLVE_ONLY', &
+                     Default      = 0,                       &
+                     ClientModule = 'ModulePhreeqC',         &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) call EndWithError ('ReadChemistryPhasesGroupParam - ModulePhreeqC - ERR070')
+
+        !----------------------------------------------------------------------
+        
+    end subroutine ReadChemistryPhasesGroupParam
+    !--------------------------------------------------------------------------
+
+
+    !--------------------------------------------------------------------------
+!    subroutine ReadChemistrySolidGroupParam (NewProperty)
+!    
+!        !Arguments-------------------------------------------------------------
+!        type(T_PhreeqCProperty), pointer :: NewProperty
+!        
+!        !Local-----------------------------------------------------------------
+!        integer                   :: STAT_CALL
+!    
+!        !----------------------------------------------------------------------
+!
+!    end subroutine ReadChemistrySolidGroupParam    
+!    !--------------------------------------------------------------------------
+!
+!
+!    !--------------------------------------------------------------------------
+!    subroutine ReadChemistryGasGroupParam (NewProperty)
+!
+!        !Arguments-------------------------------------------------------------
+!        type(T_PhreeqCProperty), pointer :: NewProperty
+!        
+!        !Local-----------------------------------------------------------------
+!        integer                   :: STAT_CALL
+!    
+!        !----------------------------------------------------------------------
+!
+!    end subroutine ReadChemistryGasGroupParam    
+!    !--------------------------------------------------------------------------
+!
+!
+!    !--------------------------------------------------------------------------
+!    subroutine ReadChemistrySurfGroupParam (NewProperty)
+!
+!        !Arguments-------------------------------------------------------------
+!        type(T_PhreeqCProperty), pointer :: NewProperty
+!        
+!        !Local-----------------------------------------------------------------
+!        integer                   :: STAT_CALL
+!    
+!        !----------------------------------------------------------------------
+!
+!    endsubroutine ReadChemistrySurfGroupParam
+!    !--------------------------------------------------------------------------
+!
+!
+    !--------------------------------------------------------------------------
+    subroutine ReadChemistrySpeciesGroupParam (NewProperty)
+
+        !Arguments-------------------------------------------------------------
+        type(T_PhreeqCProperty), pointer :: NewProperty
+        
+        !Local-----------------------------------------------------------------
+        integer                   :: STAT_CALL
+        integer                   :: iflag
+    
+        !----------------------------------------------------------------------
+
+        call GetData(NewProperty%Params%GFW,         &
+                     Me%ObjEnterData, iflag,         &
+                     SearchType   = FromBlock,       &
+                     keyword      = 'PHREEQC_GFW',   &
+                     ClientModule = 'ModulePhreeqC', &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) call EndWithError ('ReadChemistrySpeciesGroupParam - ModulePhreeqC - ERR010')
+        if (iflag .EQ. 0) then
+            NewProperty%Params%UseGFW = 0
+        else              
+            NewProperty%Params%UseGFW = 1
+        endif
+
+        !----------------------------------------------------------------------
+
+    end subroutine
+    !--------------------------------------------------------------------------
+    
+    
+    !--------------------------------------------------------------------------
+    subroutine ReadChemistryExcGroupParam (NewProperty)
+
+        !Arguments-------------------------------------------------------------
+        type(T_PhreeqCProperty), pointer :: NewProperty
+        
+        !Local-----------------------------------------------------------------
+        integer :: STAT_CALL
+        integer :: iflag
+    
+        !----------------------------------------------------------------------
+        call GetData(NewProperty%Params%PhaseName,        &
+                     Me%ObjEnterData, iflag,              &
+                     SearchType   = FromBlock,            &
+                     keyword      = 'PHREEQC_PHASE_NAME', &
+                     ClientModule = 'ModulePhreeqC',      &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) call EndWithError ('ReadChemistryExcGroupParam - ModulePhreeqC - ERR001')
+        if (iflag .NE. 0) then
+            NewProperty%Params%UsePhase   = 1
+            NewProperty%Params%UseKinetic = 0
+        else
+             NewProperty%Params%UsePhase = 0
+           
+            call GetData(NewProperty%Params%KineticName,        &
+                         Me%ObjEnterData, iflag,                &
+                         SearchType   = FromBlock,              &
+                         keyword      = 'PHREEQC_KINETIC_NAME', &
+                         ClientModule = 'ModulePhreeqC',        &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_) call EndWithError ('ReadChemistryExcGroupParam - ModulePhreeqC - ERR020')
+            if (iflag .NE. 0) then
+                NewProperty%Params%UseKinetic = 1 
+            else
+                NewProperty%Params%UseKinetic = 0
+            endif
+        endif
+             
+        call GetData(NewProperty%Params%GFW,         &
+                     Me%ObjEnterData, iflag,         &
+                     SearchType   = FromBlock,       &
+                     keyword      = 'PHREEQC_GFW',   &
+                     ClientModule = 'ModulePhreeqC', &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) call EndWithError ('ReadChemistryExcGroupParam - ModulePhreeqC - ERR030')
+        if (iflag .EQ. 0) then
+            NewProperty%Params%UseGFW = 0
+        else              
+            NewProperty%Params%UseGFW = 1
+        endif                         
+        !----------------------------------------------------------------------
+        
+    end subroutine ReadChemistryExcGroupParam    
+    !--------------------------------------------------------------------------
+    
+    
+    subroutine SetPhreeqCProperty (Property)
+        
+        !Arguments-------------------------------------------------------------
+        type(T_PhreeqCProperty)        :: Property
+ 
+        !----------------------------------------------------------------------  
+        select case (Property%Params%Group)
+            case (0) 
+                !Do nothing. 
+            case (SPECIES)
+                call SetSpeciesProperty(Property)                    
+            case (CONCENTRATION)
+                call SetConcentrationProperty(Property)
+            case (PHASE)
+                call SetPhaseProperty(Property)
+            case (EXCHANGE)
+                call SetExchangeProperty(Property)
+            case default
+                call EndWithError ('Subroutine SetPhreeqCProperty; ModulePhreeqC. ERR010.') !Group not recognized
+        end select
         !----------------------------------------------------------------------
         
     end subroutine SetPhreeqCProperty   
@@ -1056,14 +1794,17 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
         type(T_PhreeqCProperty) :: Property
 
         !Local-----------------------------------------------------------------
-        real    :: zero = 0.0
         integer :: status
         
         !----------------------------------------------------------------------
 
         Property%PhreeqCInputID = -1
-        call pm_get_species_index(Me%PhreeqCInstanceID, trim(Property%Params%PhreeqCName)//char(0), Property%PhreeqCResultID, status)
-        if (status .EQ. 0) stop 'Subroutine SetSpeciesProperty; Module ModulePhreeqC. ERR001.'                      
+        call pm_get_species_index(Me%PhreeqCInstanceID,                       &
+                                  trim(Property%Params%PhreeqCName)//char(0), &
+                                  Property%PhreeqCResultID,                   &
+                                  status)
+        if (status .EQ. 0) &
+            call EndWithError ('Subroutine SetSpeciesProperty; ModulePhreeqC. ERR010.')                      
                              
         !----------------------------------------------------------------------                    
     
@@ -1086,23 +1827,23 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
 
         !Pass to PhreeqC Object       
         call pm_conc_add(Me%PhreeqCInstanceID, trim(Property%Params%PhreeqCName)//char(0), zero, status)
-        if (status .EQ. 0) stop 'Subroutine SetSolutionProperty; Module ModulePhreeqC. ERR001.'                      
+        if (status .EQ. 0) call EndWithError ('Subroutine SetSolutionProperty; ModulePhreeqC. ERR010.')                      
                     
         !Units are required to be mg/L for solution concentrations
         Property%Params%UseUnits = 0
         call pm_conc_use(Me%PhreeqCInstanceID, Property%Params%Charge, Property%Params%UsePhase, Property%Params%UseAs, &
                          Property%Params%UseGFW, Property%Params%UseUnits, Property%Params%UseRedox, status)
-        if (status .EQ. 0) stop 'Subroutine SetSolutionProperty; Module ModulePhreeqC. ERR002.'                      
+        if (status .EQ. 0) call EndWithError ('Subroutine SetSolutionProperty; ModulePhreeqC. ERR020.')                      
                     
         if (Property%Params%UseAs .EQ. 1) call pm_conc_as(Me%PhreeqCInstanceID, trim(Property%Params%As)//char(0), status)
-        if (status .EQ. 0) stop 'Subroutine SetSolutionProperty; Module ModulePhreeqC. ERR003.'                      
+        if (status .EQ. 0) call EndWithError ('Subroutine SetSolutionProperty; ModulePhreeqC. ERR030.')                      
                     
         if (Property%Params%UseGFW .EQ. 1) call pm_conc_gfw(Me%PhreeqCInstanceID, Property%Params%GFW, status)
-        if (status .EQ. 0) stop 'Subroutine SetSolutionProperty; Module ModulePhreeqC. ERR004.'                      
+        if (status .EQ. 0) call EndWithError ('Subroutine SetSolutionProperty; ModulePhreeqC. ERR040.')                      
                            
         if (Property%Params%UsePhase .EQ. 1) call pm_conc_phase(Me%PhreeqCInstanceID, trim(Property%Params%PhaseName)//char(0), & 
                                                          Property%Params%SI, status)
-        if (status .EQ. 0) stop 'Subroutine SetSolutionProperty; Module ModulePhreeqC. ERR005.'                      
+        if (status .EQ. 0) call EndWithError ('Subroutine SetSolutionProperty; ModulePhreeqC. ERR050.')                      
                     
         if (Property%Params%UseRedox .EQ. 1) call pm_conc_redox(Me%PhreeqCInstanceID,                       &
                                                          trim(Property%Params%RedoxPair%Element1)//char(0), &
@@ -1110,11 +1851,11 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
                                                          trim(Property%Params%RedoxPair%Element2)//char(0), &
                                                          Property%Params%RedoxPair%Valence2,                &   
                                                          status)
-        if (status .EQ. 0) stop 'Subroutine SetSolutionProperty; Module ModulePhreeqC. ERR006.'                      
+        if (status .EQ. 0) call EndWithError ('Subroutine SetSolutionProperty; ModulePhreeqC. ERR060.')                      
                                                                                   
         !Now, save the solution property in the definitive structure
         call pm_conc_save (Me%PhreeqCInstanceID, Property%PhreeqCInputID, Property%PhreeqCResultID, database_gfw, status)
-        if (status .EQ. 0) stop 'Subroutine SetSolutionProperty; Module ModulePhreeqC. ERR007.'  
+        if (status .EQ. 0) call EndWithError ('Subroutine SetSolutionProperty; ModulePhreeqC. ERR070.')  
         
         if (Property%Params%UseGFW .EQ. 0) Property%Params%GFW = database_gfw                   
          
@@ -1146,17 +1887,24 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
         endif
        
         if (Property%Params%PhaseType .EQ. SOLID_PHASE) then
-            Me%PhreeqCOptions%UseSolidPhase = 1
+            Me%MOptions%UseSolidPhase = 1
             SI = Property%Params%SI
         else
-            Me%PhreeqCOptions%UseGasPhase = 1
+            Me%MOptions%UseGasPhase = 1
             SI = log10(Property%Params%SI)
         end if
        
         !Pass to PhreeqC Object
-        call pm_ppa_pp(Me%PhreeqCInstanceID, trim(Property%Params%PhreeqCName)//char(0), trim(Alternative)//char(0), &
-                       SI, zero, Property%Params%ForceEquality, Property%Params%DissolveOnly, Property%PhreeqCInputID, STAT_)                       
-        if (STAT_ .EQ. 0) stop 'Subroutine SetPhaseProperty; Module ModulePhreeqC. ERR001.' 
+        call pm_ppa_pp(Me%PhreeqCInstanceID,                       &
+                       trim(Property%Params%PhreeqCName)//char(0), &
+                       trim(Alternative)//char(0),                 &
+                       SI,                                         &
+                       zero,                                       &
+                       Property%Params%ForceEquality,              &
+                       Property%Params%DissolveOnly,               &
+                       Property%PhreeqCInputID,                    &
+                       STAT_)                       
+        if (STAT_ .EQ. 0) call EndWithError ('Subroutine SetPhaseProperty; ModulePhreeqC. ERR010.') 
             
         Property%PhreeqCResultID = Property%PhreeqCInputID   
         
@@ -1191,18 +1939,65 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
         endif
         
         ! Pass to PhreeqC Object    
-        call pm_exa_exchanger(Me%PhreeqCInstanceID, trim(Property%Params%PhreeqCName)//char(0), Property%Params%ExType, &
-                              trim(Formula)//char(0), zero, Property%PhreeqCInputID, STAT_)
-        if (STAT_ .EQ. 0) stop 'Subroutine SetExchangeProperty; Module ModulePhreeqC. ERR001.'
+        call pm_exa_exchanger(Me%PhreeqCInstanceID,                       &
+                              trim(Property%Params%PhreeqCName)//char(0), &
+                              Property%Params%ExType,                     &
+                              trim(Formula)//char(0),                     &
+                              zero,                                       &
+                              Property%PhreeqCInputID,                    &
+                              STAT_)
+        if (STAT_ .EQ. 0) &
+            call EndWithError ('Subroutine SetExchangeProperty; ModulePhreeqC. ERR010.')
          
-        call pm_get_species_index(Me%PhreeqCInstanceID, trim(Property%Params%PhreeqCName)//char(0), Property%PhreeqCResultID, STAT_) 
-        if (STAT_ .EQ. 0) stop 'Subroutine SetExchangeProperty; Module ModulePhreeqC. ERR002.' 
+        call pm_get_species_index(Me%PhreeqCInstanceID,                       &
+                                  trim(Property%Params%PhreeqCName)//char(0), &
+                                  Property%PhreeqCResultID,                   &
+                                  STAT_) 
+        if (STAT_ .EQ. 0) &
+            call EndWithError ('Subroutine SetExchangeProperty; ModulePhreeqC. ERR020.') 
         
-        Me%PhreeqCOptions%UseExchanger = 1       
+        Me%MOptions%UseExchanger = 1       
         !----------------------------------------------------------------------
     
     end subroutine SetExchangeProperty
     !--------------------------------------------------------------------------
+    
+        
+    !--------------------------------------------------------------------------
+    subroutine AddProperty (NewProperty)
+
+        !Arguments-------------------------------------------------------------
+        type(T_PhreeqCProperty), pointer :: NewProperty
+
+        !----------------------------------------------------------------------
+
+        ! Add to the Property List a new property
+        if (.NOT. associated(Me%FirstProperty)) then
+            Me%PropertiesNumber     = 1
+            Me%FirstProperty        => NewProperty
+            Me%LastProperty         => NewProperty
+        else
+            NewProperty%Prev        => Me%LastProperty
+            Me%LastProperty%Next    => NewProperty
+            Me%LastProperty         => NewProperty
+            Me%PropertiesNumber     = Me%PropertiesNumber + 1
+        end if 
+        
+        Me%LastProperty%Index = Me%PropertiesNumber 
+        !----------------------------------------------------------------------
+
+    end subroutine AddProperty 
+    !--------------------------------------------------------------------------
+    
+    
+    !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+    !SELECTOR SELECTOR SELECTOR SELECTOR SELECTOR SELECTOR SELECTOR SELECTOR SELE
+
+    !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
     
     !--------------------------------------------------------------------------
     subroutine GetPhreeqCDT (PhreeqCID, DTDay, DTSecond, STAT)
@@ -1226,8 +2021,8 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
         
 cd1 :   if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
 
-            if (present(DTDay   )) DTDay    = Me%PhreeqCOptions%DTDay
-            if (present(DTSecond)) DTSecond = Me%PhreeqCOptions%DTSeconds
+            if (present(DTDay   )) DTDay    = Me%MOptions%DTDay
+            if (present(DTSecond)) DTSecond = Me%MOptions%DTSeconds
 
             STAT_ = SUCCESS_
         else 
@@ -1239,6 +2034,47 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
         !----------------------------------------------------------------------
 
     end subroutine GetPhreeqCDT 
+    !--------------------------------------------------------------------------    
+    
+    
+    !--------------------------------------------------------------------------    
+    subroutine GetPhreeqCNeedSoilDryDensity (PhreeqCID, NeedSoilDryDensity, STAT)
+        !Arguments-------------------------------------------------------------
+        integer                        :: PhreeqCID
+        logical,           intent(OUT) :: NeedSoilDryDensity
+        integer, optional, intent(OUT) :: STAT
+
+        !External--------------------------------------------------------------
+        integer :: ready_              
+
+        !Local-----------------------------------------------------------------
+        integer :: STAT_ !Auxiliar local variable
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(PhreeqCID, ready_)
+        
+cd1 :   if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            if (Me%MOptions%UseExchanger .EQ. 1 .OR. Me%MOptions%UseSolidPhase .EQ. 1) then
+                NeedSoilDryDensity = .true.
+            else
+                NeedSoilDryDensity = .false.
+            endif            
+
+            STAT_ = SUCCESS_
+        else 
+                
+            STAT_ = ready_
+            
+        end if cd1
+
+        if (present(STAT))  STAT = STAT_
+
+        !----------------------------------------------------------------------
+    
+    end subroutine GetPhreeqCNeedSoilDryDensity
     !--------------------------------------------------------------------------    
     
     
@@ -1257,7 +2093,8 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
         !Local-----------------------------------------------------------------
         integer :: STAT_              !Auxiliar local variable
         logical :: found
-        integer :: CurrentIndex
+       
+        type(T_PhreeqCProperty), pointer :: PropertyX
         
         !----------------------------------------------------------------------
         STAT_ = UNKNOWN_
@@ -1268,19 +2105,22 @@ cd1:    if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
 
             found = .false.
             
-            do CurrentIndex = 1, Me%PropertyCount
+            PropertyX => Me%FirstProperty
+            do while (associated(PropertyX))
 
-                if (PropertyIDNumber .EQ. Me%Properties(CurrentIndex)%PropertyID)then
+                if (PropertyIDNumber .EQ. PropertyX%ID%IDNumber)then
                 
-                    PropertyIndex = CurrentIndex
+                    PropertyIndex = PropertyX%Index
                     found         = .true.
                     exit
                     
                 end if
             
+                PropertyX => PropertyX%Next
+            
             end do
 
-            if(.not. found) then
+            if(.NOT. found) then
                 STAT_ = NOT_FOUND_ERR_
             else
                 STAT_ = SUCCESS_
@@ -1299,42 +2139,42 @@ cd1:    if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
     !--------------------------------------------------------------------------    
     
     
-    !--------------------------------------------------------------------------    
-    subroutine GetPhreeqCOptions (PhreeqCID, PhreeqCOptions, STAT)
-
-        !Arguments-------------------------------------------------------------
-        integer                                       :: PhreeqCID
-        type(T_PhreeqCOptions),           intent(OUT) :: PhreeqCOptions
-        integer,                optional, intent(OUT) :: STAT
- 
-        !External--------------------------------------------------------------
-        integer :: ready_              
-
-        !Local-----------------------------------------------------------------
-        integer :: STAT_              !Auxiliar local variable
-        
-        !----------------------------------------------------------------------
-        STAT_ = UNKNOWN_
-
-        call Ready(PhreeqCID, ready_)    
-        
-cd1:    if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
-
-            PhreeqCOptions = Me%PhreeqCOptions
-                
-            STAT_ = SUCCESS_            
-
-        else 
-        
-            STAT_ = ready_
-            
-        end if cd1
-
-        if (present(STAT)) STAT = STAT_
-        !----------------------------------------------------------------------
-        
-    end subroutine GetPhreeqCOptions
-    !--------------------------------------------------------------------------    
+!    !--------------------------------------------------------------------------    
+!    subroutine GetPhreeqCOptions (PhreeqCID, MOptions, STAT)
+!
+!        !Arguments-------------------------------------------------------------
+!        integer                                       :: PhreeqCID
+!        type(T_PhreeqCOptions),           intent(OUT) :: MOptions
+!        integer,                optional, intent(OUT) :: STAT
+! 
+!        !External--------------------------------------------------------------
+!        integer :: ready_              
+!
+!        !Local-----------------------------------------------------------------
+!        integer :: STAT_              !Auxiliar local variable
+!        
+!        !----------------------------------------------------------------------
+!        STAT_ = UNKNOWN_
+!
+!        call Ready(PhreeqCID, ready_)    
+!        
+!cd1:    if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
+!
+!            MOptions = Me%MOptions
+!                
+!            STAT_ = SUCCESS_            
+!
+!        else 
+!        
+!            STAT_ = ready_
+!            
+!        end if cd1
+!
+!        if (present(STAT)) STAT = STAT_
+!        !----------------------------------------------------------------------
+!        
+!    end subroutine GetPhreeqCOptions
+!    !--------------------------------------------------------------------------    
 
     
     !--------------------------------------------------------------------------    
@@ -1383,28 +2223,28 @@ cd1:    if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
 
     subroutine ModifyPhreeqC (PhreeqCID,           &
                               PropertiesValues,    &
-                              SolutionVolume,      &
-                              SolutionTemperature, &
-                              SolutionpH,          &
-                              SolutionpE,          &
+                              WaterVolume,         &
+                              WaterMass,           &
+                              Temperature,         &
+                              pH,                  &
+                              pE,                  &
                               SolidMass,           &
                               CellsArrayLB,        &
                               CellsArrayUB,        &
                               OpenPoints,          &
-                              ConversionSelector,  &
                               STAT)  
 
         !Arguments---------------------------------------------------------------
         integer                                     :: PhreeqCID
         real,               pointer, dimension(:,:) :: PropertiesValues
-        real,               pointer, dimension(:  ) :: SolutionVolume
-        real,               pointer, dimension(:  ) :: SolutionTemperature
-        real,               pointer, dimension(:  ) :: SolutionpH
-        real,               pointer, dimension(:  ) :: SolutionpE
+        real,               pointer, dimension(:  ) :: WaterVolume
+        real,               pointer, dimension(:  ) :: WaterMass
+        real,               pointer, dimension(:  ) :: Temperature
+        real,               pointer, dimension(:  ) :: pH
+        real,               pointer, dimension(:  ) :: pE
         real,    optional,  pointer, dimension(:  ) :: SolidMass
         integer,            intent(IN)              :: CellsArrayLB, CellsArrayUB        
         integer, optional,  pointer, dimension(:  ) :: OpenPoints
-        integer, optional                           :: ConversionSelector
         integer, optional,  intent(OUT)             :: STAT
 
         !Local-------------------------------------------------------------------
@@ -1412,7 +2252,6 @@ cd1:    if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
         logical                                     :: CalcPoint        
         integer                                     :: CellIndex
         integer                                     :: ready_ 
-        integer                                     :: ConversionSelector_ 
         integer                                     :: UsePhase 
 
         !------------------------------------------------------------------------                         
@@ -1423,39 +2262,49 @@ cd1:    if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
 
 cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             
-            if ((Me%PhreeqCOptions%UseSolidPhase .eq. 1) .or. (Me%PhreeqCOptions%UseGasPhase .eq. 1)) then
+            if ((Me%MOptions%UseSolidPhase .eq. 1) .or. (Me%MOptions%UseGasPhase .eq. 1)) then
                 UsePhase = 1
             else
                 UsePhase = 0
-            endif
-            call pm_set_use(Me%PhreeqCInstanceID, UsePhase, Me%PhreeqCOptions%UseGas, Me%PhreeqCOptions%UseSolidSolution, &
-                            Me%PhreeqCOptions%UseSurface, Me%PhreeqCOptions%UseExchanger, STAT_)
-            if (STAT_ .EQ. 0) stop 'Subroutine ModifyPhreeqC; module ModulePhreeqC. ERR001.'
-
-            if (present(ConversionSelector)) then 
-                ConversionSelector_ = ConversionSelector
-            else
-                ConversionSelector_ = mPOROUSMEDIAPROPERTIES_ 
-            end if
+            endif            
+            call pmSetUse(Me%PhreeqCInstanceID,         &
+                          UsePhase,                     &
+                          Me%MOptions%UseGas,           & 
+                          Me%MOptions%UseSolidSolution, &
+                          Me%MOptions%UseSurface,       &
+                          Me%MOptions%UseExchanger,     &
+                          STAT_)
+            if (STAT_ .EQ. 0) &
+                call EndWithError ('Subroutine ModifyPhreeqC; ModulePhreeqC. ERR010.')
 
             Me%Ext%PropertiesValues => PropertiesValues
-            if (.NOT. associated(Me%Ext%PropertiesValues)) stop 'Subroutine ModifyPhreeqC; Module ModulePhreeqC. ERR002.'
+            if (.NOT. associated(Me%Ext%PropertiesValues)) &
+                call EndWithError ('Subroutine ModifyPhreeqC; ModulePhreeqC. ERR020.')
 
-            Me%Ext%SolutionVolume => SolutionVolume
-            if (.NOT. associated(Me%Ext%SolutionVolume)) stop 'Subroutine ModifyPhreeqC; Module ModulePhreeqC. ERR003.'
+            Me%Ext%WaterVolume => WaterVolume
+            if (.NOT. associated(Me%Ext%Watervolume)) &
+                call EndWithError ('Subroutine ModifyPhreeqC; ModulePhreeqC. ERR030.')
                 
-            Me%Ext%SolutionTemperature => SolutionTemperature
-            if (.NOT. associated(Me%Ext%SolutionTemperature)) stop 'Subroutine ModifyPhreeqC; Module ModulePhreeqC. ERR004.'
+            Me%Ext%WaterMass => WaterMass
+            if (.NOT. associated(Me%Ext%WaterMass)) &
+                call EndWithError ('Subroutine ModifyPhreeqC; ModulePhreeqC. ERR030.')
+                            
+            Me%Ext%Temperature => Temperature
+            if (.NOT. associated(Me%Ext%Temperature)) &
+                call EndWithError ('Subroutine ModifyPhreeqC; ModulePhreeqC. ERR040.')
 
-            Me%Ext%SolutionpH => SolutionpH
-            if (.NOT. associated(Me%Ext%SolutionpH)) stop 'Subroutine ModifyPhreeqC; Module ModulePhreeqC. ERR005.'
+            Me%Ext%pH => pH
+            if (.NOT. associated(Me%Ext%pH)) &
+                call EndWithError ('Subroutine ModifyPhreeqC; ModulePhreeqC. ERR050.')
 
-            Me%Ext%SolutionpE => SolutionpE
-            if (.NOT. associated(Me%Ext%SolutionpE)) stop 'Subroutine ModifyPhreeqC; Module ModulePhreeqC. ERR006.'            
+            Me%Ext%pE => pE
+            if (.NOT. associated(Me%Ext%pE)) &
+                call EndWithError ('Subroutine ModifyPhreeqC; ModulePhreeqC. ERR060.')            
             
             if (present(SolidMass)) then
                 Me%Ext%SolidMass => SolidMass
-                if (.NOT. associated(Me%Ext%SolidMass)) stop 'Subroutine ModifyPhreeqC; Module ModulePhreeqC. ERR007.'            
+                if (.NOT. associated(Me%Ext%SolidMass)) &
+                    call EndWithError ('Subroutine ModifyPhreeqC; ModulePhreeqC. ERR070.')            
             else
                 nullify(Me%Ext%SolidMass)
             end if
@@ -1476,7 +2325,7 @@ do1 :       do CellIndex = CellsArrayLB, CellsArrayUB
                     CalcPoint = .true.
                 endif
 
-                if (CalcPoint) call MakeCalculations(CellIndex, ConversionSelector_)
+                if (CalcPoint) call MakeCalculations(CellIndex)
                               
             end do do1
                      
@@ -1489,11 +2338,12 @@ do1 :       do CellIndex = CellsArrayLB, CellsArrayUB
         end if cd1
 
         nullify(Me%Ext%PropertiesValues)
-        nullify(Me%Ext%SolutionVolume)
-        nullify(Me%Ext%SolutionTemperature)
-        nullify(Me%Ext%SolutionpH)
-        nullify(Me%Ext%SolutionpE)
-        nullify(Me%Ext%solidMass)
+        nullify(Me%Ext%WaterVolume)
+        nullify(Me%Ext%WaterMass)
+        nullify(Me%Ext%Temperature)
+        nullify(Me%Ext%pH)
+        nullify(Me%Ext%pE)
+        nullify(Me%Ext%SolidMass)
 
         if (present(STAT)) STAT = STAT_
 
@@ -1503,264 +2353,247 @@ do1 :       do CellIndex = CellsArrayLB, CellsArrayUB
     !----------------------------------------------------------------------------
 
     !----------------------------------------------------------------------------
-    subroutine MakeCalculations(CellIndex, ConversionSelector)
+    subroutine MakeCalculations(CellIndex)
 
         !Argument----------------------------------------------------------------
         integer, intent(IN) :: CellIndex 
-        integer, intent(IN) :: ConversionSelector
 
         !Local-------------------------------------------------------------------
-        integer :: PropertyIndex
         integer :: STAT_
-        integer :: PrintInput
-        real    :: ph, pe
+        real    :: ph, pe, mass_of_water
+
+        type(T_PhreeqCProperty), pointer :: PropertyX
 
         !Begin-------------------------------------------------------------------  
-        call CalculateSolutionParameters(CellIndex) !Calculates mass of water and solution density
-        
-        call pm_set_ph(Me%PhreeqCInstanceID, Me%PhreeqCOptions%pHCharge, Me%Ext%SolutionpH(CellIndex), STAT_)
-        if (STAT_ .EQ. 0) stop 'Subroutine MakeCalculations; module ModulePhreeqC. ERR001.'
+        call CalculateSolutionDensity(CellIndex, Me%CalcData%DensityOfSolution)
+               
+        call pmSetPH(Me%PhreeqCInstanceID, &
+                     Me%MOptions%pHCharge, &
+                     Me%Ext%pH(CellIndex), &
+                     STAT_)
+        if (STAT_ .EQ. 0) &
+            call EndWithError ('Subroutine MakeCalculations; ModulePhreeqC. ERR010.')
 
-        call pm_set_pe(Me%PhreeqCInstanceID, Me%PhreeqCOptions%pECharge, Me%Ext%SolutionpE(CellIndex), STAT_)
-        if (STAT_ .EQ. 0) stop 'Subroutine MakeCalculations; module ModulePhreeqC. ERR002.'
+        call pmSetPE(Me%PhreeqCInstanceID, &
+                     Me%MOptions%pECharge, &
+                     Me%Ext%pE(CellIndex), &
+                     STAT_)
+        if (STAT_ .EQ. 0) &
+            call EndWithError ('Subroutine MakeCalculations; ModulePhreeqC. ERR020.')
 
-        call pm_set_required_data(Me%PhreeqCInstanceID,                  &
-                                  Me%CalcData%MassOfWater,               & 
-                                  Me%Ext%SolutionTemperature(CellIndex), &
-                                  Me%CalcData%DensityOfSolution,         & 
-                                  STAT_)                                
-        if (STAT_ .EQ. 0) stop 'Subroutine MakeCalculations; module ModulePhreeqC. ERR003.'                                  
-            
+        call pmSetSolutionData(Me%PhreeqCInstanceID,          &
+                               Me%Ext%Temperature(CellIndex), &
+                               Me%MOptions%Units%Solution,    & 
+                               Me%CalcData%DensityOfSolution, & 
+                               Me%Ext%WaterMass(CellIndex),   &                                                               
+                               STAT_)                                
+        if (STAT_ .EQ. 0) &
+            call EndWithError ('Subroutine MakeCalculations; ModulePhreeqC. ERR030.')                                  
+                       
         !Pass to PhreeqCObject all the properties
-do1:    do PropertyIndex = 1, Me%PropertyCount !'i' is the index for the current property
+        PropertyX => Me%FirstProperty
+do1:    do while (associated(PropertyX))
           
-            select case (Me%Properties(PropertyIndex)%Params%Group)
-                case (CONCENTRATION, PHASE, GAS, SURFACE, EXCHANGE)
-                
-                    !Convert input units from MOHID format to PhreeqC format
-                    select case (ConversionSelector)
-                        case (mPOROUSMEDIAPROPERTIES_)
-                            call ConvertInputs (CellIndex, PropertyIndex)
-                        case default
-                            call ConvertInputs (CellIndex, PropertyIndex)
-                    end select
-                
-                    call pm_set_input_value (Me%PhreeqCInstanceID,                              & 
-                                             Me%Properties(PropertyIndex)%PhreeqCInputID,       &
-                                             Me%Properties(PropertyIndex)%Params%Group,         &
-                                             Me%Ext%PropertiesValues(PropertyIndex, CellIndex), &
-                                             STAT_)
-                    if (STAT_ .EQ. 0) stop 'Subroutine MakeCalculations; module ModulePhreeqC. ERR004.'
+            select case (PropertyX%Params%Group)
+                case (CONCENTRATION, PHASE, GAS, SURFACE, EXCHANGE) 
+                    call ConvertInput (CellIndex, PropertyX)
+                              
+                    call pmSetInputValue (Me%PhreeqCInstanceID,     & 
+                                          PropertyX%PhreeqCInputID, &
+                                          PropertyX%Params%Group,   &
+                                          PropertyX%PropertyValue,  &
+                                          STAT_)
+                    if (STAT_ .EQ. 0) &
+                        call EndWithError ('Subroutine MakeCalculations; ModulePhreeqC. ERR040.')
+                    
                 case (OTHER, SPECIES)
                     !Do nothing
+                    
                 case default 
-                    stop 'Subroutine MakeCalculations; module ModulePhreeqC. ERR005.'
-                end select
+                    call EndWithError ('Subroutine MakeCalculations; ModulePhreeqC. ERR050.')
+                    
+            end select
+                
+            PropertyX => PropertyX%Next    
+                
         end do do1
         
-        !Run model       
-        if (Me%PhreeqCOptions%PrintInput) then
-            PrintInput = 1
-        else
-            PrintInput = 0
-        end if
+        !This will print the input to a file if user turn on the option
+        if (Me%MOptions%PrintAllways) then
+            call PrintDataInput (CellIndex)        
+        endif
         
-        call pm_run_model (Me%PhreeqCInstanceID, PrintInput, STAT_) 
+        call pmRunPhreeqC (Me%PhreeqCInstanceID, STAT_) 
+        if (STAT_ .EQ. 0) then
+            if (Me%MOptions%Debug) then
+                call PrintDataInput (CellIndex)        
+            endif
+            call EndWithError ('Subroutine MakeCalculations; ModulePhreeqC. ERR060.')
+        endif
+        
+        call pmGetSolutionData(Me%PhreeqCInstanceID, mass_of_water, ph, pe, STAT_)
         if (STAT_ .EQ. 0) &
-            stop 'Subroutine MakeCalculations; module ModulePhreeqC. ERR006.'
+            call EndWithError ('Subroutine MakeCalculations; ModulePhreeqC. ERR070.')                    
         
-        call pm_get_data(Me%PhreeqCInstanceID, Me%CalcData%MassOfWater, ph, pe, STAT_)
-        if (STAT_ .EQ. 0) stop 'Subroutine MakeCalculations; module ModulePhreeqC. ERR008.'                    
-        
-do2:    do PropertyIndex = 1, Me%PropertyCount
+        PropertyX => Me%FirstProperty
+do2:    do while (associated(PropertyX))
 
-            if (Me%Properties(PropertyIndex)%Params%DoNotChange .NE. 1) then
+            if (PropertyX%Params%DoNotChange .NE. 1) then
 
-                call pm_get_result_value (Me%PhreeqCInstanceID,                              & 
-                                          Me%Properties(PropertyIndex)%PhreeqCResultID,      &
-                                          Me%Properties(PropertyIndex)%Params%Group,         &
-                                          Me%Ext%PropertiesValues(PropertyIndex, CellIndex), &
-                                          STAT_)
-                if (STAT_ .EQ. 0) stop 'Subroutine MakeCalculations; module ModulePhreeqC. ERR007.'            
-            
-                select case (ConversionSelector)
-                    case (mPOROUSMEDIAPROPERTIES_)
-                        call ConvertResults (CellIndex, Me%CalcData%MassOfWater, PropertyIndex)
-                    case default
-                        call ConvertResults (CellIndex, Me%CalcData%MassOfWater, PropertyIndex)
-                end select
+                call pmGetResultValue (Me%PhreeqCInstanceID,      & 
+                                       PropertyX%PhreeqCResultID, &
+                                       PropertyX%Params%Group,    &
+                                       PropertyX%PropertyValue,   &
+                                       STAT_)
+                if (STAT_ .EQ. 0) &
+                    call EndWithError ('Subroutine MakeCalculations; ModulePhreeqC. ERR080.')
+
+                !PhreeqC return results in mol's
+                call ConvertResult (CellIndex, PropertyX)
 
             end if
+            
+            PropertyX => PropertyX%Next
                     
         end do do2
+                     
+        if (Me%MOptions%PrintAllways) then
+            call PrintDataOutput (CellIndex)
+        endif
                                 
         !------------------------------------------------------------------------
        
     end subroutine MakeCalculations
     !----------------------------------------------------------------------------
-    
+
+
     !----------------------------------------------------------------------------
-    subroutine CalculateSolutionParameters (CellIndex)
+    subroutine CalculateSolutionDensity (CellIndex, SolutionDensity)
 
         !Argument----------------------------------------------------------------
-        integer, intent(IN) :: CellIndex
+        integer, intent(IN)  :: CellIndex
+        real,    intent(OUT) :: SolutionDensity
 
         !Local-------------------------------------------------------------------
-        integer :: PropertyIndex
+        type(T_PhreeqCProperty), pointer :: PropertyX
+        real                             :: Volume
         
-        !Begin-------------------------------------------------------------------       
-        !              L             =                m3                * 1000
-        Me%CalcData%VolumeOfSolution = Me%Ext%SolutionVolume(CellIndex) * 1000
+        !Begin-------------------------------------------------------------------   
+        Me%CalcData%MassOfSolution = Me%Ext%WaterMass(CellIndex)       
+        !  L   =             m3                * 1E3
+        Volume = Me%Ext%WaterVolume(CellIndex) * 1E3
+        
+        PropertyX => Me%FirstProperty        
+do1:    do while (associated(PropertyX))
+            !kg  =  kg  + (                        mg                          * 1E-6)
+            Me%CalcData%MassOfSolution = Me%CalcData%MassOfSolution + (Me%Ext%PropertiesValues(PropertyX%Index, CellIndex) * 1E-6)
+            PropertyX => PropertyX%Next            
+        end do do1             
+        
+        !     kg/L      =  kg  /   L
+        SolutionDensity = Me%CalcData%MassOfSolution / Volume
+        !------------------------------------------------------------------------
 
-        !Find the mass of Solution H+ using pH
-        !Considering the GFW of H+ as aprox. 1, and the activity of H+ same as concentration of H+, the result of the expression below gives the mass (in grams) of H+ directly 
-        Me%CalcData%MassOfAllSolutes = (10 ** (-Me%Ext%SolutionpH(CellIndex))) * Me%CalcData%VolumeOfSolution
-        
-        !With the mass of H+, find the volume of H+ (uses H+ density given by the user or the 0.09 g/L default)
-        !             L                =               g              /               g/L
-        Me%CalcData%VolumeOfAllSolutes = Me%CalcData%MassOfAllSolutes / Me%PhreeqCOptions%HPlusDensity
-
-        !Second, find the mass and volume of all other solutes (solution concentration properties)
-do1:    do PropertyIndex = 1, Me%PropertyCount
-
-            if (Me%Properties(PropertyIndex)%Params%Group .EQ. CONCENTRATION) then !The units of solution concentrations MUST be in the mg/L format
-                
-                !                g                 = 0.001 *                      mg/L                         *              L        
-                Me%Properties(PropertyIndex)%PropertyValue = 0.001 * Me%Ext%PropertiesValues(PropertyIndex, CellIndex) * Me%CalcData%VolumeOfSolution
-                !            g               =              g               +                 g
-                Me%CalcData%MassOfAllSolutes = Me%CalcData%MassOfAllSolutes + Me%Properties(PropertyIndex)%PropertyValue 
-                
-                !                L                  =                   g                /                      g/L
-                Me%Properties(PropertyIndex)%Volume = Me%Properties(PropertyIndex)%PropertyValue / Me%Properties(PropertyIndex)%Params%Density
-                !             L                =               L                +       L
-                Me%CalcData%VolumeOfAllSolutes = Me%CalcData%VolumeOfAllSolutes + Me%Properties(PropertyIndex)%Volume
-                
-            end if
-
-        end do do1 
-        
-        !Find the volume of water
-        !          L              =              L               -               L
-        Me%CalcData%VolumeOfWater = Me%CalcData%VolumeOfSolution - Me%CalcData%VolumeOfAllSolutes
-        
-        !Find the mass of water
-        !          kg           =             L             *                g/L              * 0.001
-        Me%CalcData%MassOfWater = Me%CalcData%VolumeOfWater * (Me%PhreeqCOptions%WaterDensity * 0.001)
-        
-        !Find Mass of solution
-        !           kg             =           kg            + (0.001 *             g               )
-        Me%CalcData%MassOfSolution = Me%CalcData%MassOfWater + (0.001 * Me%CalcData%MassOfAllSolutes)
-        
-        !Find Solution Density
-        !            kg/L             =             kg             /             L
-        Me%CalcData%DensityOfSolution = Me%CalcData%MassOfSolution / Me%CalcData%VolumeOfSolution
-        
-        !------------------------------------------------------------------------       
-        
-    end subroutine CalculateSolutionParameters
+    end subroutine CalculateSolutionDensity
     !----------------------------------------------------------------------------
     
+    
     !----------------------------------------------------------------------------
-    subroutine ConvertInputs (CellIndex, PropertyIndex)
+    subroutine ConvertInput (CellIndex, Property)
         !For now, the input units for each group are fixed.
         !In the future, if possible, this will be made more flexible
 
         !Argument----------------------------------------------------------------
-        integer, intent(IN) :: CellIndex
-        integer, intent(IN) :: PropertyIndex       
+        integer, intent(IN)              :: CellIndex
+        type(T_PhreeqCProperty), pointer :: Property  
+        
+        !Local------------------------------------------------------------------- 
+        character(StringLength) :: Name    
 
         !------------------------------------------------------------------------       
                                        
-        select case (Me%Properties(PropertyIndex)%Params%Group)
+        select case (Property%Params%Group)
             case (CONCENTRATION) !The input units for CONCENTRATION concentration properties MUST be mg/L
-                                                    
-                if (.NOT.((Me%Properties(PropertyIndex)%Params%PhreeqCName .EQ. 'H(1)') .OR. (Me%Properties(PropertyIndex)%Params%PhreeqCName .EQ. 'E'))) then   
-                                                                                     
-                    !The factor turns the molality of a solution as if the solution has 1kg of water
-                    !                    mol/kgw                      = (                 g                 /                   g/mol                ) /          kgw           
-                    Me%Ext%PropertiesValues(PropertyIndex, CellIndex) = (Me%Properties(PropertyIndex)%PropertyValue / Me%Properties(PropertyIndex)%Params%GFW) / Me%CalcData%MassOfWater
-                    
+                Name = Property%Params%PhreeqCName                                           
+                if (.NOT. ((Name .EQ. 'H(1)') .OR. (Name .EQ. 'E'))) then                       
+                    !mol/kgw = ((mg/L) * 1E-3 / (kgw/L) / (g/mol))
+                    Property%PropertyValue = (Me%Ext%PropertiesValues(Property%Index, CellIndex) * 1E-3 / &
+                                              DefaultWaterDensity / Property%Params%GFW)                    
                 end if  
                 
             case (PHASE)
                 
-                if (Me%Properties(PropertyIndex)%Params%PhaseType .EQ. SOLID_PHASE) then !It's a solid pure phase
-
-                    if (.NOT. associated(Me%Ext%SolidMass)) stop 'Subroutine ConvertInputs; Module ModulePhreeqC. ERR001.'
-                
-                    !                     mols                        = (                        mg/kgs                    / 1000 *            kgs              /                   g/mol                )            
-                    Me%Ext%PropertiesValues(PropertyIndex, CellIndex) = (Me%Ext%PropertiesValues(PropertyIndex, CellIndex) / 1000 * Me%Ext%SolidMass(CellIndex) / Me%Properties(PropertyIndex)%Params%GFW)
+                if (Property%Params%PhaseType .EQ. SOLID_PHASE) then !It's a solid pure phase
+                    if (.NOT. associated(Me%Ext%SolidMass)) &
+                        call EndWithError ('Subroutine ConvertInputs; ModulePhreeqC. ERR010.')
                     
-                else !it's a gas pure phase
-                
-                    !                      mols                       =                      mols
-                    !Me%Ext%PropertiesValues(PropertyIndex, CellIndex) = Me%Ext%PropertiesValues(PropertyIndex, CellIndex)
-                    
+                    Property%PropertyValue = Me%Ext%PropertiesValues(Property%Index, CellIndex)
+                else !it's a gas pure phase                 
                     !For now, the "moles" of the gas at disposition are always 10 moles and the volume is "ignored"
                     !Basically, at the partial pressure given there is an "infinite supply" of the gas.
-                    !This must be changed in the future...
-                    
+                    !This must be changed in the future...   
+                    Property%PropertyValue = Me%Ext%PropertiesValues(Property%Index, CellIndex)
                 end if
             
             case (EXCHANGE)
 
-                if (.NOT. associated(Me%Ext%SolidMass)) stop 'Subroutine ConvertInputs; Module ModulePhreeqC. ERR002.'
-                                               
-                    !                     mols                        = (                       mg/kgs                     *             kgs             / 1000 /                   g/mol                )            
-                    Me%Ext%PropertiesValues(PropertyIndex, CellIndex) = (Me%Ext%PropertiesValues(PropertyIndex, CellIndex) * Me%Ext%SolidMass(CellIndex) / 1000 / Me%Properties(PropertyIndex)%Params%GFW)
+                if (.NOT. associated(Me%Ext%SolidMass)) &
+                    call EndWithError ('Subroutine ConvertInputs; ModulePhreeqC. ERR020.')
+                !mols = (mg/kgs * kgs / 1000 / (g/mol))            
+                Property%PropertyValue = (Me%Ext%PropertiesValues(Property%Index, CellIndex) * &
+                                          Me%Ext%SolidMass(CellIndex) / 1000 / Property%Params%GFW)
 
             case default                                                      
 
-                stop 'Subroutine ConvertInputs; module ModulePhreeqC. ERR003.'
+                call EndWithError ('Subroutine ConvertInputs; ModulePhreeqC. ERR030.')
                 
         end select
                     
         !------------------------------------------------------------------------       
         
-    end subroutine ConvertInputs
+    end subroutine ConvertInput
     !----------------------------------------------------------------------------
     
     !----------------------------------------------------------------------------
-    subroutine ConvertResults (CellIndex, MassOfWater, PropertyIndex)
+    subroutine ConvertResult (CellIndex, Property)
         !For now, the input units for each group are fixed.
         !In the future, if possible, this will be made more flexible
 
         !Argument----------------------------------------------------------------
-        integer, intent(IN) :: CellIndex
-        real,    intent(IN) :: MassOfWater
-        integer, intent(IN) :: PropertyIndex
+        integer, intent(IN) :: CellIndex                
+        type(T_PhreeqCProperty), pointer :: Property  
 
         !------------------------------------------------------------------------  
                      
-        select case (Me%Properties(PropertyIndex)%Params%Group)                
+        select case (Property%Params%Group)                
             case (CONCENTRATION, SPECIES) 
                       
-!                !                      mg/L                       =    kgw      *                     mol/kgw                       *                   g/mol                 * 1000 /              L
-!                Me%Ext%PropertiesValues(PropertyIndex, CellIndex) = MassOfWater * Me%Ext%PropertiesValues(PropertyIndex, CellIndex) * Me%Properties(PropertyIndex)%Params%GFW * 1000 / Me%CalcData%VolumeOfSolution
-                !                      mg/L                       =                      mols                         *                   g/mol                 * 1000 /              L
-                Me%Ext%PropertiesValues(PropertyIndex, CellIndex) = Me%Ext%PropertiesValues(PropertyIndex, CellIndex) * Me%Properties(PropertyIndex)%Params%GFW * 1000 / Me%CalcData%VolumeOfSolution           
+                !mg/L = mol * (g/mol) * 1000 / (m3 * 1000)
+                Me%Ext%PropertiesValues(Property%Index, CellIndex) = Property%PropertyValue * &
+                                                                     Property%Params%GFW * 1E3 / &
+                                                                     (Me%Ext%WaterVolume(CellIndex) * 1E3)
            
             case (PHASE)
                             
-                if (Me%Properties(PropertyIndex)%Params%PhaseType .EQ. SOLID_PHASE) then
+                if (Property%Params%PhaseType .EQ. SOLID_PHASE) then
 
-                    if (.NOT. associated(Me%Ext%SolidMass)) stop 'Subroutine ConvertInputs; Module ModulePhreeqC. ERR001.'
-                
-                    !                    mg/kgs                       = (                    mols                          *                  g/mol                  * 1000 /             kgs            )
-                    Me%Ext%PropertiesValues(PropertyIndex, CellIndex) = (Me%Ext%PropertiesValues(PropertyIndex, CellIndex) * Me%Properties(PropertyIndex)%Params%GFW * 1000 / Me%Ext%SolidMass(CellIndex))
-                    
+                    if (.NOT. associated(Me%Ext%SolidMass)) &
+                        call EndWithError ('Subroutine ConvertInputs; ModulePhreeqC. ERR010.')                
+                    Me%Ext%PropertiesValues(Property%Index, CellIndex) = Property%PropertyValue
                 else
                                        
                     !For now, partial pressure is a FIXED parameter and do not change beteen DT's.
                     !Also the number of "moles" and volume do not change (the first is 10 moles and the second is ignored)
-                    Me%Ext%PropertiesValues(PropertyIndex, CellIndex) = Me%Ext%PropertiesValues(PropertyIndex, CellIndex)   
+                    !Me%Ext%PropertiesValues(Property%Index, CellIndex) = Property%PropertyValue
                                      
                 end if
             
             case (EXCHANGE)
             
-                    !                     mg/kgs                      = (                    mols                          *                     g/mol               * 1000 /             kgs            )            
-                    Me%Ext%PropertiesValues(PropertyIndex, CellIndex) = (Me%Ext%PropertiesValues(PropertyIndex, CellIndex) * Me%Properties(PropertyIndex)%Params%GFW * 1000 / Me%Ext%SolidMass(CellIndex))
+                    !mg/kgs = (mols * g/mol * 1000 / kgs)
+                    Me%Ext%PropertiesValues(Property%Index, CellIndex) = (Property%PropertyValue * &
+                                                                          Property%Params%GFW * 1000 / &
+                                                                          Me%Ext%SolidMass(CellIndex)) 
                     
             case (OTHER)
                 !Do nothing
@@ -1769,62 +2602,94 @@ do1:    do PropertyIndex = 1, Me%PropertyCount
                 
                 !ToDo: Put an error message here
                 
-        end select
-
-                
-        !          L              = kg / (0.001 *              g/L              )
-!        Me%CalcData%VolumeOfWater = 1  / (0.001 * Me%PhreeqCOptions%WaterDensity)
-!                
-!        !Find the mass of Solution H+ using pH
-!        !Considering the GFW of H+ as aprox. 1, and the activity of H+ same as concentration of H+, the result of the expression below gives the mass (in grams) of H+ directly
-!        Me%CalcData%MassOfAllSolutes = 10 ** (-Me%Ext%SolutionpH(CellIndex))
-!        
-!        !With the mass of H+, find the volume of H+ (uses H+ density given by the user or the 0.09 g/L default)
-!        !             L                =               g              /               g/L
-!        Me%CalcData%VolumeOfAllSolutes = Me%CalcData%MassOfAllSolutes / Me%PhreeqCOptions%HPlusDensity
-!                
-!                
-!do1:    do PropertyIndex = 1, Me%PropertyCount
-!
-!            if (Me%Properties(PropertyIndex)%Params%Group .EQ. CONCENTRATION) then 
-!                            
-!                !                g                = 1 kgw *                     mol/kgw                       *                   g/mol                 
-!                Me%Properties(PropertyIndex)%Mass = 1     * Me%Ext%PropertiesValues(PropertyIndex, CellIndex) * Me%Properties(PropertyIndex)%Params%GFW 
-!                !            g               =              g               +                 g
-!                Me%CalcData%MassOfAllSolutes = Me%CalcData%MassOfAllSolutes + Me%Properties(PropertyIndex)%Mass 
-!                
-!                !                L                  =                   g               /                      g/L
-!                Me%Properties(PropertyIndex)%Volume = Me%Properties(PropertyIndex)%Mass / Me%Properties(PropertyIndex)%Params%Density
-!                !             L                =               L                +       L
-!                Me%CalcData%VolumeOfAllSolutes = Me%CalcData%VolumeOfAllSolutes + Me%Properties(PropertyIndex)%Volume
-!                
-!            end if
-!
-!        end do do1                 
-!                    
-!        !           g              = 1000 g  +              g
-!        Me%CalcData%MassOfSolution = 1000    + Me%CalcData%MassOfAllSolutes
-!        
-!        !            L               =             L             +               L
-!        Me%CalcData%VolumeOfSolution = Me%CalcData%VolumeOfWater + Me%CalcData%VolumeOfAllSolutes
-!         
-!        !           g/L               =              g             /              L
-!        Me%CalcData%DensityOfSolution = Me%CalcData%MassOfSolution / Me%CalcData%VolumeOfSolution 
-!               
-!do2:    do PropertyIndex = 1, Me%PropertyCount
-!
-!            if (Me%Properties(PropertyIndex)%Params%Group .EQ. CONCENTRATION) then 
-!            
-!                !                   mg/L                          = 1000 *               g                  /              L  
-!                Me%Ext%PropertiesValues(PropertyIndex, CellIndex) = 1000 * Me%Properties(PropertyIndex)%Mass / Me%CalcData%VolumeOfSolution
-!                                            
-!            end if
-!
-!        end do do2                 
+        end select                             
         
         !------------------------------------------------------------------------       
                 
-    end subroutine ConvertResults
+    end subroutine ConvertResult
+    !----------------------------------------------------------------------------      
+    
+    
+    !----------------------------------------------------------------------------
+    subroutine PrintDataInput(CellIndex)
+    
+        !Argument----------------------------------------------------------------
+        integer, intent(IN) :: CellIndex
+
+        !Local-------------------------------------------------------------------
+        type(T_PhreeqCProperty), pointer :: PropertyX
+
+        !------------------------------------------------------------------------
+        if (Me%MOptions%PrintInput) then
+
+            write (Me%DebugFileUnit, *) 'INPUT FOR CELL: ', CellIndex
+            write (Me%DebugFileUnit, *) 'Volume of Water: ', Me%Ext%WaterVolume(CellIndex)
+            write (Me%DebugFileUnit, *) 'Mass of Water: ', Me%Ext%WaterMass(CellIndex)
+            write (Me%DebugFileUnit, *) 'Volume of Solution: ', Me%Ext%WaterVolume(CellIndex)
+            write (Me%DebugFileUnit, *) 'Mass of Solution: ', Me%CalcData%MassOfSolution            
+            write (Me%DebugFileUnit, *) 'Solution Density: ', Me%CalcData%DensityOfSolution
+            write (Me%DebugFileUnit, *) 'Mass of Soil: ', Me%Ext%SolidMass(CellIndex)
+            write (Me%DebugFileUnit, *) 'pH: ', Me%Ext%pH(CellIndex)
+            write (Me%DebugFileUnit, *) 'pE: ', Me%Ext%pE(CellIndex)
+            
+            PropertyX => Me%FirstProperty
+do1:        do while (associated(PropertyX))
+
+                if (PropertyX%Params%Debug) then
+                    
+                    write (Me%DebugFileUnit, *) trim(PropertyX%Params%PhreeqCName), ': ', &
+                                                Me%Ext%PropertiesValues(PropertyX%Index, CellIndex), &
+                                                " (", PropertyX%PropertyValue , ")"
+                
+                endif
+                                                  
+                PropertyX => PropertyX%Next    
+                    
+            end do do1
+
+        endif
+        !------------------------------------------------------------------------
+    
+    end subroutine PrintDataInput
+    !----------------------------------------------------------------------------
+    
+
+    !----------------------------------------------------------------------------
+    subroutine PrintDataOutput (CellIndex)
+
+        !Argument----------------------------------------------------------------
+        integer, intent(IN) :: CellIndex
+
+        !Local-------------------------------------------------------------------
+        type(T_PhreeqCProperty), pointer :: PropertyX
+
+        !------------------------------------------------------------------------
+        if (Me%MOptions%PrintOutput) then
+
+
+            write (Me%DebugFileUnit, *) 'OUTPUT FOR CELL: ', CellIndex
+
+            PropertyX => Me%FirstProperty
+do1:        do while (associated(PropertyX))
+
+                if (PropertyX%Params%Debug) then
+                    
+                    write (Me%DebugFileUnit, *) trim(PropertyX%Params%PhreeqCName), ': ', &
+                                                Me%Ext%PropertiesValues(PropertyX%Index, CellIndex), &
+                                                "(", PropertyX%PropertyValue, ")"
+                
+                endif
+                                                  
+                PropertyX => PropertyX%Next    
+                    
+            end do do1
+
+            write (Me%DebugFileUnit, *) '--------------------------------'
+
+        endif
+        !------------------------------------------------------------------------
+
+    end subroutine PrintDataOutput
     !----------------------------------------------------------------------------
     
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -1864,9 +2729,9 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
 cd2 :       if (nUsers == 0) then
 
                 !Question: If I create a instance and after that kill this instance, this piece of code will run?
-                call pm_kill(Me%PhreeqCInstanceID, status)
+                call pmKill(Me%PhreeqCInstanceID, status)
                 if (status .EQ. 0) &
-                    stop 'Subroutine KillPhreeqC; module ModulePhreeqC. ERR01.'
+                    call EndWithError ('Subroutine KillPhreeqC; ModulePhreeqC. ERR010.')
                 
                 call DeallocateInstance 
 
@@ -1932,14 +2797,84 @@ cd2 :       if (nUsers == 0) then
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
+    !----------------------------------------------------------------------------    
+    subroutine EndWithError (ErrorMessage)
+
+        !Arguments---------------------------------------------------------------
+        character(LEN=*) :: ErrorMessage
+    
+        !------------------------------------------------------------------------
+        call CloseDebugFile
+        write (*,*) ErrorMessage
+        stop
+        
+        !------------------------------------------------------------------------
+
+    end subroutine EndWithError
+    !----------------------------------------------------------------------------
+    
+    
+    !----------------------------------------------------------------------------
+    subroutine OpenDebugFile 
+    
+        !Local-------------------------------------------------------------------
+        integer :: STAT
+    
+        !------------------------------------------------------------------------
+        if (Me%MOptions%PrintInput .OR. Me%MOptions%PrintOutput) then
+        
+            call UnitsManager (Me%DebugFileUnit, OPEN_FILE, STAT)
+            
+            if (STAT .NE. SUCCESS_) &
+                stop 'Subroutine OpenDebugFile; ModulePhreeqC. ERR010.'            
+
+            Open (UNIT=Me%DebugFileUnit,   &
+                  FILE='PhreeqCDebug.txt', &
+                  STATUS='REPLACE',        &
+                  ACTION='WRITE',          &
+                  IOSTAT=STAT)
+            
+            if (STAT .NE. SUCCESS_) &
+                stop 'Subroutine OpenDebugFile; ModulePhreeqC. ERR020.'            
+
+        else
+        
+            Me%DebugFileUnit = -1
+        
+        endif
+        !------------------------------------------------------------------------
+    
+    end subroutine OpenDebugFile 
+    !----------------------------------------------------------------------------
+
+    !----------------------------------------------------------------------------
+    subroutine CloseDebugFile
+    
+        !Local-------------------------------------------------------------------
+        integer :: STAT
+    
+        !------------------------------------------------------------------------
+        if (Me%DebugFileUnit .NE. -1) then
+
+            call UnitsManager (Me%DebugFileUnit, CLOSE_FILE, STAT)
+            
+            if (STAT .NE. SUCCESS_) &
+                stop 'Subroutine CloseDebugFile; ModulePhreeqC. ERR010.'  
+
+        endif        
+        !------------------------------------------------------------------------
+        
+    end subroutine CloseDebugFile
+    !----------------------------------------------------------------------------
+
 
     !----------------------------------------------------------------------------
     subroutine Ready (PhreeqCID, ready_) 
 
-        !Arguments-------------------------------------------------------------
+        !Arguments---------------------------------------------------------------
         integer :: PhreeqCID
         integer :: ready_
-        !----------------------------------------------------------------------
+        !------------------------------------------------------------------------
 
         nullify (Me)
 
@@ -1953,18 +2888,18 @@ cd1:    if (PhreeqCID > 0) then
             ready_ = OFF_ERR_
 
         end if cd1
-        !----------------------------------------------------------------------
+        !------------------------------------------------------------------------
 
     end subroutine Ready
-    !--------------------------------------------------------------------------
+    !----------------------------------------------------------------------------
 
 
-    !--------------------------------------------------------------------------
+    !----------------------------------------------------------------------------
     subroutine LocateObjPhreeqC (PhreeqCID)
 
-    !Arguments-------------------------------------------------------------
+    !Arguments-------------------------------------------------------------------
         integer :: PhreeqCID
-    !--------------------------------------------------------------------------
+    !----------------------------------------------------------------------------
 
         Me => FirstObjPhreeqC
         do while (associated (Me))
@@ -1973,11 +2908,11 @@ cd1:    if (PhreeqCID > 0) then
         enddo
 
         if (.not. associated(Me))   &
-            stop 'Subroutine LocateObjPhreeqC; Module ModulePhreeqC. ERR001.'
-    !--------------------------------------------------------------------------
+            call EndWithError ('Subroutine LocateObjPhreeqC; ModulePhreeqC. ERR010.')
+    !----------------------------------------------------------------------------
     
     end subroutine LocateObjPhreeqC
-    !--------------------------------------------------------------------------
+    !----------------------------------------------------------------------------
 
 
 end module ModulePhreeqC    

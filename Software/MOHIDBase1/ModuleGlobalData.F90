@@ -658,6 +658,9 @@ Module ModuleGlobalData
     integer, parameter :: SolutionNitrite_                 = 10007
     integer, parameter :: SolutionChlorine_                = 10008
     integer, parameter :: SolutionCarbon_                  = 10009
+    integer, parameter :: SolutionPotassium_               = 10010
+    integer, parameter :: SolutionAluminium_               = 10011
+    integer, parameter :: SolutionSilicium_                = 10012
     
     !rain concentrantion properties
     integer, parameter :: RainMagnesium_                   = 10201
@@ -671,6 +674,7 @@ Module ModuleGlobalData
     integer, parameter :: eMgX2_                           = 10302
     integer, parameter :: eNaX_                            = 10303
     integer, parameter :: eNH4X_                           = 10304
+    integer, parameter :: eKX_                             = 10305
     
     !Species properties
     integer, parameter :: sCa2_                            = 10501
@@ -702,6 +706,7 @@ Module ModuleGlobalData
     integer, parameter :: Dolomite_                        = 11501 !CaMg(CO3)2
     integer, parameter :: Aragonite_                       = 11502 !CaCO3
     integer, parameter :: Halite_                          = 11503 !NaCl
+    integer, parameter :: KFeldspar_                       = 11504 !KAlSi3O8
 
     !Other PhreeqC properties
     integer, parameter :: pE_                              = 12000
@@ -745,6 +750,7 @@ Module ModuleGlobalData
     character(StringLength), private, parameter :: Char_eCaX2                = 'CaX2'
     character(StringLength), private, parameter :: Char_eMgX2                = 'MgX2'
     character(StringLength), private, parameter :: Char_eNaX                 = 'NaX'
+    character(StringLength), private, parameter :: Char_eKX                  = 'KX'
     character(StringLength), private, parameter :: Char_eNH4X                = 'AmmoniaX' !'NH4X'
     character(StringLength), private, parameter :: Char_sCa2                 = 'Ca+2'
     character(StringLength), private, parameter :: Char_sCaOH                = 'CaOH+'
@@ -767,12 +773,16 @@ Module ModuleGlobalData
     character(StringLength), private, parameter :: Char_Dolomite             = 'dolomite'
     character(StringLength), private, parameter :: Char_Aragonite            = 'aragonite'
     character(StringLength), private, parameter :: Char_Halite               = 'halite' 
-    character(StringLength), private, parameter :: char_SolutionCarbon       = 'solution carbon' 
-    character(StringLength), private, parameter :: char_RainMagnesium        = 'rain magnesium' 
-    character(StringLength), private, parameter :: char_RainCalcium          = 'rain calcium' 
-    character(StringLength), private, parameter :: char_RainSodium           = 'rain sodium' 
-    character(StringLength), private, parameter :: char_RainChlorine         = 'rain chlorine'
-    character(StringLength), private, parameter :: char_RainAmmonia          = 'rain ammonia'
+    character(StringLength), private, parameter :: Char_KFeldspar            = 'k-feldspar'
+    character(StringLength), private, parameter :: Char_SolutionCarbon       = 'solution carbon' 
+    character(StringLength), private, parameter :: Char_SolutionPotassium    = 'solution potassium'     
+    character(StringLength), private, parameter :: Char_SolutionAluminium    = 'solution aluminium' 
+    character(StringLength), private, parameter :: Char_SolutionSilicium     = 'solution silicium' 
+    character(StringLength), private, parameter :: Char_RainMagnesium        = 'rain magnesium' 
+    character(StringLength), private, parameter :: Char_RainCalcium          = 'rain calcium' 
+    character(StringLength), private, parameter :: Char_RainSodium           = 'rain sodium' 
+    character(StringLength), private, parameter :: Char_RainChlorine         = 'rain chlorine'
+    character(StringLength), private, parameter :: Char_RainAmmonia          = 'rain ammonia'
 
 
 !_______________________________________________________________________________________________
@@ -2239,6 +2249,7 @@ Module ModuleGlobalData
             call AddPropList (eMgX2_,                   Char_eMgX2,                      ListNumber)
             call AddPropList (eNaX_,                    Char_eNaX,                       ListNumber)
             call AddPropList (eNH4X_,                   Char_eNH4X,                      ListNumber)
+            call AddPropList (eKX_,                     Char_eKX,                        ListNumber)
             call AddPropList (sCa2_,                    Char_sCa2,                       ListNumber)
             call AddPropList (sCaOH_,                   Char_sCaOH,                      ListNumber)
             call AddPropList (sH2_,                     Char_sH2,                        ListNumber)
@@ -2260,7 +2271,11 @@ Module ModuleGlobalData
             call AddPropList (Dolomite_,                Char_Dolomite,                   ListNumber)
             call AddPropList (Aragonite_,               Char_Aragonite,                  ListNumber)
             call AddPropList (Halite_,                  Char_Halite,                     ListNumber)
+            call AddPropList (KFeldspar_,               Char_KFeldspar,                  ListNumber)
             call AddPropList (SolutionCarbon_,          Char_SolutionCarbon,             ListNumber) 
+            call AddPropList (SolutionPotassium_,       Char_SolutionPotassium,          ListNumber) 
+            call AddPropList (SolutionAluminium_,       Char_SolutionAluminium,          ListNumber) 
+            call AddPropList (SolutionSilicium_,        Char_SolutionSilicium,           ListNumber) 
             call AddPropList (RainMagnesium_,           Char_RainMagnesium,              ListNumber) 
             call AddPropList (RainCalcium_,             Char_RainCalcium,                ListNumber) 
             call AddPropList (RainSodium_,              Char_RainSodium,                 ListNumber)
