@@ -2968,7 +2968,7 @@ i4:         if(Me%Dim == Dim2D)then
         real, dimension(:,:), pointer           :: Field
         
         !Local-----------------------------------------------------------------
-        integer                                 :: STAT_CALL, Imax, Jmax
+        integer                                 :: STAT_CALL, Imax, Jmax, i, j
 
         !Begin-----------------------------------------------------------------
         
@@ -2998,11 +2998,19 @@ i4:         if(Me%Dim == Dim2D)then
         if (STAT_CALL /= SUCCESS_)stop 'ReadHDF5Values2D - ModuleFillMatrix - ERR40'
 
         if(Me%HDF%HasMultiplyingFactor)then
-            Field = Field * Me%HDF%MultiplyingFactor
+            do j = Me%WorkSize2D%JLB, Me%WorkSize2D%JUB
+            do i = Me%WorkSize2D%ILB, Me%WorkSize2D%IUB
+                Field(i,j) = Field(i,j) * Me%HDF%MultiplyingFactor
+            enddo
+            enddo
         end if
 
         if(Me%HDF%HasAddingFactor)then
-            Field = Field + Me%HDF%AddingFactor
+            do j = Me%WorkSize2D%JLB, Me%WorkSize2D%JUB
+            do i = Me%WorkSize2D%ILB, Me%WorkSize2D%IUB
+                Field(i,j) = Field(i,j) + Me%HDF%AddingFactor
+            enddo
+            enddo
         end if
 
     end subroutine ReadHDF5Values2D
@@ -3082,11 +3090,27 @@ i4:         if(Me%Dim == Dim2D)then
         endif        
 
         if(Me%HDF%HasMultiplyingFactor)then
-            Field = Field * Me%HDF%MultiplyingFactor
+            
+            do k = Me%WorkSize3D%KLB, Me%WorkSize3D%KUB
+            do j = Me%WorkSize3D%JLB, Me%WorkSize3D%JUB
+            do i = Me%WorkSize3D%ILB, Me%WorkSize3D%IUB
+                Field(i,j,k) = Field(i,j,k) * Me%HDF%MultiplyingFactor
+            enddo
+            enddo
+            enddo
+            
         end if
 
         if(Me%HDF%HasAddingFactor)then
-            Field = Field + Me%HDF%AddingFactor
+            
+            do k = Me%WorkSize3D%KLB, Me%WorkSize3D%KUB
+            do j = Me%WorkSize3D%JLB, Me%WorkSize3D%JUB
+            do i = Me%WorkSize3D%ILB, Me%WorkSize3D%IUB
+                Field(i,j,k) = Field(i,j,k) + Me%HDF%AddingFactor
+            enddo
+            enddo
+            enddo
+
         end if
 
     end subroutine ReadHDF5Values3D
