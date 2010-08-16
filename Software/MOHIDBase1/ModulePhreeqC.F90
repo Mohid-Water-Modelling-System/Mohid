@@ -29,6 +29,8 @@
 !
 !------------------------------------------------------------------------------
 
+#ifdef _PHREEQC_
+
 Module ModulePhreeqC
 
     use ModuleFunctions            
@@ -2916,3 +2918,5 @@ cd1:    if (PhreeqCID > 0) then
 
 
 end module ModulePhreeqC    
+
+#endif
