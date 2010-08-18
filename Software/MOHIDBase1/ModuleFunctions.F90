@@ -7486,7 +7486,7 @@ d2:         do i=1,n-m ! we loop over the current c’s and d’s and update them.
 
     subroutine LatLonToLambertSP2 (lat,lon, lat_ref,lon_ref, sp1, sp2, datum, x,y)
 
-        !library proj4 que nao da para windows
+        !could be replaced by library proj4
         !http://www.posc.org/Epicentre.2_2/DataModel/ExamplesofUsage/eu_cs34e.html
 
         !Arguments-------------------------------------------------------------

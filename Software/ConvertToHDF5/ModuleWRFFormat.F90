@@ -896,7 +896,7 @@ Module ModuleWRFFormat
         write(*,*) 'Reading Times...'
 
         status = nf90_inq_varid(ncid, 'Times', varid)
-        call handle_error(status); if (status /= NF90_NOERR) stop 'OpenAndReadWRFFile - ModuleWRFFormat - ERR04'
+        call handle_error(status); if (status /= NF90_NOERR) stop 'Times - OpenAndReadWRFFile - ModuleWRFFormat - ERR04'
 
         status = nf90_inquire_variable(ncid, varid, name, xtype, ndims=nDimensions, natts=natts)
         call handle_error(status); if (status /= NF90_NOERR) stop 'OpenAndReadWRFFile - ModuleWRFFormat - ERR05'
@@ -952,14 +952,16 @@ if0:        if(VariableIsToRead(name, MohidName)) then
                 allocate(VarDimIds(nDimensions))
 
                 status = nf90_inquire_variable(ncid, varid, name, dimids=VarDimIds)
-                call handle_error(status); if (status /= NF90_NOERR) stop 'OpenAndReadWRFFile - ModuleWRFFormat - ERR09'
+                call handle_error(status)
+                if (status /= NF90_NOERR) stop 'OpenAndReadWRFFile - ModuleWRFFormat - ERR09'
 
                 call AddField(Me%FirstField, NewField)
 
                 NewField%nDimensions    = nDimensions - 1
 
                 status = nf90_get_att(ncid, varid, 'units', Units)
-                call handle_error(status); if (status /= NF90_NOERR) stop 'OpenAndReadWRFFile - ModuleWRFFormat - ERR10'                
+                call handle_error(status)
+                if (status /= NF90_NOERR) stop 'OpenAndReadWRFFile - ModuleWRFFormat - ERR10'                
 
                 call SetNewFieldAttributes(Field    = NewField,                &
                                            Name     = trim(MohidName),         &
@@ -1533,10 +1535,20 @@ if1:    if (Me%TimeWindow) then
 
         elseif (Me%ProjType == 3) then
             Me%ProjType = SPHERE_MERCATOR_            
-            Me%params(1) = '+init=esri:53004'     
-        
+
+            Me%params(1) = 'proj=merc'
+            Me%params(2) = 'lat_ts=0.0'
+            Me%params(3) = 'lon_0=0.0'
+            Me%params(4) = 'k=1.0'
+            Me%params(5) = 'x_0=0.0'
+            Me%params(6) = 'y_0=0.0'
+            Me%params(7) = 'a=6371000'
+            Me%params(8) = 'b=6371000'
+                                                        
+            !Me%params(1) = '+init=esri:53004'         
             !+proj=merc +lat_ts=0 +lon_0=0 +k=1.000000 +x_0=0 +y_0=0
             !+a=6371000 +b=6371000 +units=m +no_defs
+                        
                         
         endif
 
@@ -1813,7 +1825,7 @@ if1:    if (Me%TimeWindow) then
         logical                                 :: GeopotentialPerturbation_OK
         logical                                 :: GeopotentialBaseState_OK
         integer                                 :: WILB, WIUB, WJLB, WJUB, WKLB, WKUB
-        integer                                 :: ILB, IUB, JLB, JUB, KLB, KUB, k
+        integer                                 :: ILB, IUB, JLB, JUB, KLB, KUB
         type(T_Field), pointer                  :: Field
         type(T_Date), pointer                   :: CurrentDate
 

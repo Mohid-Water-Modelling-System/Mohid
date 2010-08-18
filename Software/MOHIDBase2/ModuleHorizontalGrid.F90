@@ -2422,20 +2422,28 @@ ifP:                if (Me%UseLambert) then
 #ifdef _USE_PROJ4
                     elseif (Me%ProjType == SPHERE_MERCATOR_) then  !ifP
                     
-                        allocate(params(1))
-                        params(1) = '+init=esri:53004'     
-        
+                        !allocate(params(1))
+                        !params(1) = '+init=esri:53004'     
+                        !+proj=merc +lat_ts=0 +lon_0=0 +k=1.000000 +x_0=0 +y_0=0
+                        !+a=6371000 +b=6371000 +units=m +no_defs
+                        
+                        allocate(params(8))
+                        params(1) = 'proj=merc'
+                        params(2) = 'lat_ts=0.0'
+                        params(3) = 'lon_0=0.0'
+                        params(4) = 'k=1.0'
+                        params(5) = 'x_0=0.0'
+                        params(6) = 'y_0=0.0'
+                        params(7) = 'a=6371000'
+                        params(8) = 'b=6371000'
+
+                        
                         status=prj90_init(proj,params)
                         if (status.ne.PRJ90_NOERR) then
                             write(*,*) prj90_strerrno(status)
                             stop 'GeographicToCartesian - ModuleFunctions - ERR01'
                         endif
-
-
-                        !+proj=merc +lat_ts=0 +lon_0=0 +k=1.000000 +x_0=0 +y_0=0
-                        !+a=6371000 +b=6371000 +units=m +no_defs
-                                   
-
+                        
                         do j = JLB, JUB + 1
                         do i = ILB, IUB + 1 
                             if (XX_IE(i,j) > FillValueReal/3.) then
