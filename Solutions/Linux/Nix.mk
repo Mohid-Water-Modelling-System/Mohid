@@ -37,10 +37,15 @@ export LHDF5 = libhdf5.a
 export LHDF5HL = libhdf5_hl.a
 
 # Z lib
-export ZLIB = libz.a
+#export ZLIB = libz.a
+export ZLIB = libz.so
+
 
 # Netcdf lib
 export LNETCDF  = libnetcdf.a
+
+# libfproj4 static lib
+export LPROJ4F = libfproj4.a
 
 # All libs folders
 export BASELIBS := \
@@ -57,21 +62,25 @@ export HDFLIBS := \
 export NETCDFLIBS := \
 	$(NETCDFLIB)/$(LNETCDF)
 
+export PROJ4FLIBS := \
+    $(PROJ4FLIB)/$(LPROJ4F)
+
 #------Files and modules lists------
 
 METAFILES = \
         README \
         Editme_template.smk \
         Nix.smk
+
 MODULES = \
           Makefiles \
           MohidLand \
           MohidWater \
-          Mohid_Base_2 \
+         Mohid_Base_2 \
           Mohid_Base_1 \
           ConvertToHDF5 \
-	  ConvertToXYZ \
-	  MohidRiver
+	      ConvertToXYZ \
+	      MohidRiver
 
 #------Makefile rules---------------
 

@@ -34,6 +34,11 @@ ifeq ($(IS_NETCDF),true)
     LIBS := $(LIBS) $(NETCDFLIBS)
 endif
 
+ifeq ($(IS_PROJ4F),true)
+    INCS := $(INCS) -I$(PROJ4FINC)
+    LIBS := $(LIBS) $(PROJ4FLIBS)
+endif
+
 
 SRCDIR = $(SRCREP)/ConvertToHDF5
 
@@ -51,6 +56,9 @@ NCFILES := $(NCFILES) ModuleMOG2DFormat.$(S)
 NCFILES := $(NCFILES) ModuleWOAFormat.$(S)
 #NCFILES := $(NCFILES) ModuleWRFFormat.$(S)
 NCFILES := $(NCFILES) ncdflib.$(S)
+
+PROJ4FILES :=
+PROJ4FILES := $(PROJ4FILES) ModuleWRFFormat.$(S)
 
 FILES := 
 FILES := $(FILES) ConvertToHDF5.$(S)
@@ -71,6 +79,10 @@ FILES := $(FILES) ModuleTecnoceanAscii.$(S)
 
 ifeq ($(IS_NETCDF),true)
     FILES := $(FILES) $(NCFILES)
+endif
+
+ifeq ($(IS_PROJ4F),true)
+   FILES := $(FILES) $(PROJ4FILES)
 endif
 
 TARGET = ConvertToHDF5$(SUFFPROG)
@@ -95,7 +107,7 @@ NCCONVERTDEPEND := $(NCCONVERTDEPEND) ModuleHYCOMFormat.$(O)
 NCCONVERTDEPEND := $(NCCONVERTDEPEND) ModuleMERCATORFormat.$(O)
 NCCONVERTDEPEND := $(NCCONVERTDEPEND) ModuleMOG2DFormat.$(O)
 NCCONVERTDEPEND := $(NCCONVERTDEPEND) ModuleWOAFormat.$(O)
-NCCONVERTDEPEND := $(NCCONVERTDEPEND) ModuleWRFFormat.$(O)
+#NCCONVERTDEPEND := $(NCCONVERTDEPEND) ModuleWRFFormat.$(O)
 
 CONVERTDEPEND := 
 #CONVERTDEPEND := $(CONVERTDEPEND) ModuleConvertModisL2.$(O)
@@ -119,6 +131,10 @@ endif
 
 ifeq ($(IS_NETCDF),true)
     $(NCCONVERTDEPEND) : ncdflib.$(O)
+endif
+
+ifeq ($(IS_PROJ4F),true)
+    $(NCCONVERTDEPEND) : ModuleWRFFormat.$(O)
 endif
 
 #ModuleCFFormat.${O} : ncdflib.${O}

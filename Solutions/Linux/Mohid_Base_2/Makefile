@@ -28,6 +28,13 @@
 
 INCS = -I$(HDF5) -I$(BASE1INC)
 LIBS =
+
+ifeq ($(IS_PROJ4F),true)
+    INCS := $(INCS) -I$(PROJ4FINC)
+    LIBS := $(LIBS) $(PROJ4FLIBS)
+endif
+
+
 SRCDIR = $(SRCREP)/MOHIDBase2
 FILES = \
        ModuleStatistic.$(S) \

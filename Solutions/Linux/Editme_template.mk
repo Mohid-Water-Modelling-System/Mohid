@@ -20,6 +20,10 @@ export NETCDFINC = /usr/include
 #Where is the libnetcdf.a (built with ./configure with --enable-fortran) in your system?
 export NETCDFLIB = /usr/lib64
 
+#Where is the proj4.inc and libfproj4.a (static)?
+export PROJ4FINC=/home/arosa/Downloads/libfproj4/include
+export PROJ4FLIB=/home/arosa/Downloads/libfproj4/lib
+
 #Activate the extra modules that require the netcdf libraries in the ConvertToHdf5 tool
 #Two valid options
 # true
@@ -28,13 +32,19 @@ export NETCDFLIB = /usr/lib64
 #export IS_NETCDF = true
 export IS_NETCDF = false
 
+#export IS_PROJ4F = true
+export IS_PROJ4F = false
+
 #Uncomment the desired pre-processing definitiions
 #_NO_NETCDF is activated by default.
 FPP_DEFINES := 
 
 ifeq ($(IS_NETCDF),false)
     FPP_DEFINES := -D_NO_NETCDF
-    #FPP_DEFINES := -D_USE_PROJ4
+endif
+
+ifeq ($(IS_PROJ4F),true)
+    FPP_DEFINES := -D_USE_PROJ4
 endif
 
 #FPP_DEFINES := ${FPP_DEFINES} -D_INCREASE_MAXINSTANCES

@@ -28,6 +28,12 @@
 
 INCS = -I$(HDF5)
 LIBS =
+
+ifeq ($(IS_PROJ4F),true)
+    INCS := $(INCS) -I$(PROJ4FINC)
+    LIBS := $(LIBS) $(PROJ4FLIBS)
+endif
+
 SRCDIR = $(SRCREP)/MOHIDBase1
 FILES = \
         ModuleGlobalData.$(S) \
@@ -52,8 +58,13 @@ FILES = \
         ModuleHDF5.$(S) \
         ModuleDrainageNetwork.$(S) \
         ModuleProfile.$(S) \
-        proj4.$(S) \
         ModuleTask2000.F
+
+
+ifeq ($(IS_PROJ4F),true)
+    FILES := proj4.${S} ${FILES} 
+endif
+
 TARGET = $(BASE1)
 
 #--------Makefile rules----------------
@@ -67,7 +78,9 @@ include ../Makefiles/Makefiles.mk
 ModuleTime.${O} : ModuleGlobalData.${O}
 ModuleStopWatch.${O} : ModuleTime.${O}
 ModuleEnterData.${O} : ModuleStopWatch.${O}
+
 ModuleFunctions.${O} : ModuleEnterData.${O}
+
 ModuleBenthos.${O} : ModuleEnterData.${O}
 ModuleCEQUALW2.${O} : ModuleFunctions.${O}
 ModuleMacroAlgae.${O} : ModuleFunctions.${O}
@@ -97,11 +110,14 @@ ModuleDrainageNetwork.${O} : ModuleDischarges.${O} \
                           ModuleLightExtinction.${O} \
                           ModuleStopWatch.${O} \
                           ModuleInterface.${O}
+
 ModuleProfile.${O} : ModuleEnterData.${O} \
                   ModuleHDF5.${O}
+
 ModuleTask2000.${O} :
 	@$(CC) $(CCFLAGS) $(INCS) $(SRCDIR)/ModuleTask2000.F
 	@echo $* .................. [OK]    
+
 
 #--------End of dependencies list---------
 

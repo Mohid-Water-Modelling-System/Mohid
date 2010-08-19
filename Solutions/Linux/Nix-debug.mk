@@ -47,7 +47,9 @@ export LHDF5 = libhdf5.a
 export LHDF5HL = libhdf5_hl.a
 
 # Z lib
-export ZLIB = libz.a
+#export ZLIB = libz.a
+export ZLIB = libz.so
+
 
 # All libs folders
 export BASELIBS := \
@@ -61,11 +63,20 @@ export BASELIBS := \
 # Netcdf lib
 export LNETCDF  = libnetcdf.a
 
+# libfproj4 static lib
+export LPROJ4F = libfproj4.a
+
 # All libs folders (including netcdf)
 ifeq ($(IS_NETCDF),true)
     export BASELIBS := \
             $(BASELIBS) \
             $(NETCDFINC)/$(LNETCDF)
+endif
+
+ifeq ($(IS_PROJ4F),true)
+    export BASELIBS := \
+            $(BASELIBS) \
+            $(PROJ4FLIB)/$(LPROJ4F)
 endif
 
 #------Files and modules lists------
