@@ -2,9 +2,9 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using MOHID.OpenMI.Sdk.Wrapper;
-using MOHID.OpenMI.Sdk.Backbone;
-using MOHID.OpenMI.Sdk.DevelopmentSupport;
+using Oatc.OpenMI.Sdk.Wrapper;
+using Oatc.OpenMI.Sdk.Backbone;
+using Oatc.OpenMI.Sdk.DevelopmentSupport;
 using OpenMI.Standard;
 using System.Collections;
 
@@ -105,10 +105,10 @@ namespace MOHID.OpenMI.MohidLand.Wrapper
             double start = CalendarConverter.Gregorian2ModifiedJulian(modelStart);
             double end = CalendarConverter.Gregorian2ModifiedJulian(modelEnd);
 
-            ITimeStamp tStart = new OpenMI.Sdk.Backbone.TimeStamp(start);
+            ITimeStamp tStart = new Oatc.OpenMI.Sdk.Backbone.TimeStamp(start);
             ITimeStamp tEnd = new TimeStamp(end);
 
-            return new MOHID.OpenMI.Sdk.Backbone.TimeSpan(tStart, tEnd);
+            return new Oatc.OpenMI.Sdk.Backbone.TimeSpan(tStart, tEnd);
         }
 
         #endregion

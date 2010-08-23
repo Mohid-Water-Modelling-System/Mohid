@@ -5,7 +5,7 @@ using System.Text;
 
 namespace MOHID.OpenMI.MohidLand.Wrapper
 {
-    public class MohidLandLinkableComponent : MOHID.OpenMI.Sdk.Wrapper.LinkableEngine
+    public class MohidLandLinkableComponent : Oatc.OpenMI.Sdk.Wrapper.LinkableEngine
     {
         public MohidLandLinkableComponent()
         {

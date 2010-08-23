@@ -32,7 +32,7 @@ Module ModuleFunctions
 
     use ModuleGlobalData
     use ModuleTime
-    use ModuleEnterData,  only : GetData
+    use ModuleEnterData,        only : GetData
     use ModuleStopWatch,        only : StartWatch, StopWatch         
 
     implicit none

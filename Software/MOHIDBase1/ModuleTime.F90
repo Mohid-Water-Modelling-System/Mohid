@@ -1689,6 +1689,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
             endif
 
             !Prints Messages to the Screen
+#ifndef _OPENMI_
             write(*, *)"-----Current Simulation Instant---------------------------"
             write(*,100)int(Me%Current%Time_(1)), int(Me%Current%Time_(2)), &
                         int(Me%Current%Time_(3)), int(Me%Current%Time_(4)), &
@@ -1728,7 +1729,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
                             int(FinishSystemTime%Time_(3)), int(FinishSystemTime%Time_(4)), &
                             int(FinishSystemTime%Time_(5)), int(FinishSystemTime%Time_(6))
             endif
-
+#endif
             
             100 format(1X, "Time Instant           : ",(i4,":"),4(i2, ":"), i2)
             105 format(1X, "Time Step              :   ",f12.2,"s")

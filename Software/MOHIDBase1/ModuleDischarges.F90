@@ -1630,6 +1630,7 @@ ifvar:  if (NewProperty%Variable) then
         !Local-----------------------------------------------------------------
         type(T_IndividualDischarge), pointer        :: CurrentDischarge
 
+#ifndef _OPENMI_
         write(*, *)"----------------------- DISCHARGES -----------------------"
         write(*, *)
         write(*, *)"Number of Discharges : ", Me%DischargesNumber
@@ -1641,6 +1642,7 @@ ifvar:  if (NewProperty%Variable) then
             write(*, *)"----Num of Properties: ", max(CurrentDischarge%PropertiesNumber, 0)
             CurrentDischarge => CurrentDischarge%Next
         enddo
+#endif
 
 
     end subroutine ConstructLog

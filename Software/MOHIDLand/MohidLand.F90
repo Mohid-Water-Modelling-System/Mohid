@@ -28,7 +28,7 @@
 !
 !------------------------------------------------------------------------------
 
-#ifdef OPENMI
+#ifdef _OPENMI_
 module MohidLand
 #else
 program MohidLand
@@ -64,7 +64,7 @@ program MohidLand
     type (T_Time)                       :: InitialSystemTime, FinalSystemTime
     integer, dimension(8)               :: F95Time
 
-#ifndef OPENMI
+#ifndef _OPENMI_
 
     call ConstructMohidLand
     call ModifyMohidLand
@@ -207,7 +207,7 @@ program MohidLand
 
     !--------------------------------------------------------------------------
 
-    logical function  DoOneTimeStep
+    logical function  DoOneTimeStep ()
 
         !Arguments-------------------------------------------------------------
 
@@ -322,7 +322,7 @@ program MohidLand
 
     end subroutine KillMohidLand
 
-#ifdef OPENMI
+#ifdef _OPENMI_
 
     !DEC$ IFDEFINED (VF66)
     !dec$ attributes dllexport::Initialize
@@ -565,7 +565,7 @@ program MohidLand
 #endif
 
 
-#ifdef OPENMI
+#ifdef _OPENMI_
 end module MohidLand
 #else
 end program MohidLand

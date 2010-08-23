@@ -5,7 +5,7 @@ using System.Text;
 using System.Threading;
 using System.IO;
 using OpenMI.Standard;
-using MOHID.OpenMI.Sdk.Backbone;
+using Oatc.OpenMI.Sdk.Backbone;
 
 //using Common.Logging;
 
@@ -33,7 +33,14 @@ namespace MOHID.OpenMI.MohidLand.Wrapper.UnitTest
                 for (int i = 0; i < w.GetOutputExchangeItemCount(); i++)
                 {
                     OutputExchangeItem ouputItem = w.GetOutputExchangeItem(i);
-                    ouputItem.ToString();
+
+                    IValueSet values = w.GetValues(ouputItem.Quantity.ID, ouputItem.ElementSet.ID);
+
+                    //if (values is ScalarSet)
+                    //{
+                    //    Console.WriteLine(((ScalarSet)values).data[0].ToString());
+                    //}
+
                 }
                 
                 now = w.GetEarliestNeededTime().ModifiedJulianDay;

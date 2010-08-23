@@ -5377,12 +5377,14 @@ if0:    if (Me%HasProperties) then
         integer                                     :: nOutlets
         type (T_Property), pointer                  :: Property
 
+        call CountOutlets ()
+
+#ifndef _OPENMI_
         write(*, *)
         write(*, *)"-------------------- DRAINAGE NETWORK --------------------"         
         write(*, *)
 
         !Writes General Stats
-        call CountOutlets ()
         write(*, *)"Number of Nodes      : ", Me%TotalNodes
         write(*, *)"Number of Reaches    : ", Me%TotalReaches
         write(*, *)"Number of Outlets    : ", Me%TotalOutlets
@@ -5457,7 +5459,7 @@ if0:    if (Me%HasProperties) then
                 Property=>Property%Next
             enddo
         end if
-  
+#endif  
 
     end subroutine ConstructLog
 
@@ -11912,7 +11914,7 @@ cd1:    if (ObjDrainageNetwork_ID > 0) then
 
     !---------------------------------------------------------------------------
 
-#ifdef OPENMI
+#ifdef _OPENMI_
 
     !DEC$ IFDEFINED (VF66)
     !dec$ attributes dllexport::GetNumberOfNodes
@@ -11993,7 +11995,7 @@ cd1:    if (ObjDrainageNetwork_ID > 0) then
     !DEC$ ELSE
     !dec$ attributes dllexport,alias:"_GETOUTLETFLOW"::GetOutletFlow
     !DEC$ ENDIF
-    real(8) function GetOutletFlow
+    real(8) function GetOutletFlow()
 
         !Arguments-------------------------------------------------------------
         integer                                     :: NodeID
