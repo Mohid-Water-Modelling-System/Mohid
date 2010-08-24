@@ -128,12 +128,12 @@ namespace MOHID.OpenMI.MohidLand.Wrapper
 
         public string GetComponentDescription()
         {
-            throw new NotImplementedException();
+            return "GetComponentDescription";
         }
 
         public string GetComponentID()
         {
-            throw new NotImplementedException();
+            return "GetComponentID";
         }
 
         public global::OpenMI.Standard.ITime GetCurrentTime()
@@ -153,7 +153,7 @@ namespace MOHID.OpenMI.MohidLand.Wrapper
 
         public double GetMissingValueDefinition()
         {
-            throw new NotImplementedException();
+            return -99;
         }
 
         public global::OpenMI.Standard.IValueSet GetValues(string QuantityID, string ElementSetID)

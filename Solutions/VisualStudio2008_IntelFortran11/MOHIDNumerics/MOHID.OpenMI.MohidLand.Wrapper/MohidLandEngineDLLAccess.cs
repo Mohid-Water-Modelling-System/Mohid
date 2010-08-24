@@ -9,7 +9,7 @@ namespace MOHID.OpenMI.MohidLand.Wrapper
     public class MohidLandEngineDLLAccess
     {
         //TODO: Check how to set this path during runtime ou by compiler reference...
-        private const string dllPath = @"D:\Software\Mohid\MOHID.Numerics\Solutions\VisualStudio2008_IntelFortran11\MOHIDNumerics\MohidLandEngine\Debug\MohidLandEngine.dll";
+        private const string dllPath = @"D:\Software\Mohid\MOHID.Numerics\Solutions\VisualStudio2008_IntelFortran11\MOHIDNumerics\MohidLandEngine\Debug OpenMI\MohidLandEngine.dll";
 
         [DllImport(dllPath, EntryPoint = "INITIALIZE", SetLastError = true, ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
         public static extern bool Initialize(string filePath, uint length);

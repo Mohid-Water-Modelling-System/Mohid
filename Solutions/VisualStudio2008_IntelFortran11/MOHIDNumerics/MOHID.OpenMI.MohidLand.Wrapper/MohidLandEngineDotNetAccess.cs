@@ -18,7 +18,7 @@ namespace MOHID.OpenMI.MohidLand.Wrapper
         public void Initialize(string filePath)
         {
             //Loads the library
-            _FortranDllHandle =  Kernel32Wrapper.LoadLibrary(@"D:\Software\Mohid\MOHID.Numerics\Solutions\VisualStudio2008_IntelFortran11\MOHIDNumerics\MohidLandEngine\Debug\MohidLandEngine.dll");
+            _FortranDllHandle =  Kernel32Wrapper.LoadLibrary(@"D:\Software\Mohid\MOHID.Numerics\Solutions\VisualStudio2008_IntelFortran11\MOHIDNumerics\MohidLandEngine\Debug OpenMI\MohidLandEngine.dll");
 
             //Calls the constructor and reads data files, etc
             if (!(MohidLandEngineDLLAccess.Initialize(filePath, ((uint)filePath.Length))))
