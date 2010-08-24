@@ -352,11 +352,12 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
 
 
 
+#ifndef _OPENMI_
             write(*, *)"-------------------------- MODEL -------------------------"
             write(*, *)
             write(*, *)"Constructing      : ", trim(Me%ModelName)
             write(*, *)"ID                : ", Me%InstanceID
-
+#endif
 
             !Gets the name of the data file
             call ReadFileName('IN_MODEL', DataFile, "Compute Time Data File", STAT = STAT_CALL)

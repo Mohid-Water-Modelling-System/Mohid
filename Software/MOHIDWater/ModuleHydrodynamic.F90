@@ -9882,11 +9882,13 @@ cd2 :       if (Courant .LT. Courant_temp) then
 
         !------------------------------------------------------------------------
 
+#ifndef _OPENMI_
         write(*, *)"---------------------- HYDRODYNAMICS ---------------------"
         write(*, *)
         write(*, *)"Courant Number is : ", Courant
         write(*, *)"In Grid Cell[i,j] : ", i, j
         write(*, *)
+#endif
 
         !------------------------------------------------------------------------
 

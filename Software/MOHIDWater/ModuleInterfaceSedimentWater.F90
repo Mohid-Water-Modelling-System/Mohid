@@ -2561,6 +2561,7 @@ do1 :   do
         type (T_Property), pointer                  :: CurrentProperty
 
 
+#ifndef _OPENMI_
         write(*, *)"---------------- INTERFACE SEDIMENT-WATER -----------------"
         write(*, *)
         write(*, *)"Num of Properties : ", Me%PropertiesNumber
@@ -2582,6 +2583,7 @@ do1 :   do
 
             CurrentProperty=>CurrentProperty%Next
         enddo
+#endif
 
     end subroutine ConstructLog
     

@@ -7418,6 +7418,7 @@ cd2 :       if (BlockFound) then
         !Local-----------------------------------------------------------------
         type (T_Property), pointer                  :: CurrentProperty
 
+#ifndef _OPENMI_
 
         write(*, *)"--------------------- WATERPROPERTIES --------------------"
         write(*, *)
@@ -7445,6 +7446,7 @@ cd2 :       if (BlockFound) then
 
             CurrentProperty=>CurrentProperty%Next
         enddo
+#endif
 
     end subroutine ConstructLog
     

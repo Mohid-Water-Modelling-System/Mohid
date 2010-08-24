@@ -63,7 +63,11 @@
 !along with this program; if not, write to the Free Software
 !Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 !------------------------------------------------------------------------------
+#ifdef _OPENMI_
+module MohidWater
+#else
 program MohidWater
+#endif
 
     use ModuleGlobalData
     use ModuleTime
@@ -193,6 +197,8 @@ program MohidWater
     character(len=StringLength),  dimension(:  ), pointer   :: ModelNames 
 
 
+#ifndef _OPENMI_
+
 #ifdef _USE_MPI
     RunInParallel = .true.
 #else  _USE_MPI
@@ -215,7 +221,8 @@ program MohidWater
     else
         call KillMohidWater
     endif
-
+    
+#endif
 
     contains
     
@@ -421,6 +428,9 @@ program MohidWater
         !Gets System Time
         call GetSystemTime (WorkCycleInitial)
         call cpu_time      (CPUTimeConstructor)
+        
+        !Update Time - OpenMI needs this in the constructor
+        GlobalCurrentTime  = GlobalBeginTime
 
     end subroutine ConstructMohidWater
 
@@ -985,6 +995,9 @@ if2 :       if(SubModelBeginTime .ne. GlobalBeginTime .or. &
         call GetSystemTime (WorkCycleInitial)
         call cpu_time      (CPUTimeConstructor)
 
+        !Update Time - OpenMI needs this in the constructor
+        GlobalCurrentTime  = GlobalBeginTime
+
 #endif
 
     end subroutine ConstructMohidWaterMPI
@@ -1163,8 +1176,6 @@ doNext:     do while (associated(NextModel))
         write(*, *)                    
 
         Running            = .true.
-        GlobalCurrentTime  = GlobalBeginTime
-
 
         !Search for initial Min and Max Time Step
         DTmin   = - FillValueReal
@@ -1173,110 +1184,235 @@ doNext:     do while (associated(NextModel))
 
         do while (Running)
             
-            GlobalCurrentTime = GlobalCurrentTime + DTmin
+!            GlobalCurrentTime = GlobalCurrentTime + DTmin
+!            
+!            if (DTmin == 0.) then
+!                write(*,*) 'Time step equal to zero dt =', dtmin
+!                exit 
+!            endif
+!
+!            if (RunInParallel) then
+!
+!                CurrentModel => FirstModel
+!                do while (associated(CurrentModel))
+!
+!                    if (CurrentModel%MPI_ID == myMPI_ID) then
+!
+!                        call UpdateTimeAndMapping    (CurrentModel%ModelID, GlobalCurrentTime, DoNextStep, STAT = STAT_CALL)
+!                        if (STAT_CALL /= SUCCESS_) stop 'ModifyMohidWater - MohidWater - ERR10'
+!                        
+!                        if (associated(CurrentModel%FatherModel))  then
+!                            call GetModelTimeStep (CurrentModel%FatherModel%ModelID, DT_Father, STAT = STAT_CALL)
+!                            if (STAT_CALL /= SUCCESS_) stop 'ModifyMohidWater - MohidWater - ERR20'
+!                        else
+!                            DT_Father = - FillValueReal
+!                        endif
+!
+!                        if (DoNextStep) then
+!                            !Waits for information from father
+!                            if (associated(CurrentModel%FatherModel)) then
+!
+!                                !Post next recieve...
+!                                if (CurrentModel%CurrentTime == CurrentModel%InfoTime) then
+!
+!                                    call ReceiveInformationMPI (CurrentModel)
+!
+!                                else if (CurrentModel%CurrentTime < CurrentModel%InfoTime) then 
+!
+!                                    call UpdateSubModelValues (CurrentModel)
+!
+!                                else if (CurrentModel%CurrentTime > CurrentModel%InfoTime) then
+!
+!                                    stop 'ModifyMohidWater - MohidWater - ERR30'
+!
+!                                endif
+!
+!                            endif
+!
+!                            call RunModel(CurrentModel%ModelID, DT_Father, STAT = STAT_CALL)
+!                            if (STAT_CALL /= SUCCESS_) stop 'ModifyMohidWater - MohidWater - ERR40'
+!
+!                            call SendInformationMPI (CurrentModel)
+!                        endif
+!
+!                    endif
+!
+!                    CurrentModel => CurrentModel%Next
+!                enddo
+!
+!            else
+!
+!                CurrentModel => FirstModel
+!                do while (associated(CurrentModel))
+!
+!                    call UpdateTimeAndMapping (CurrentModel%ModelID, GlobalCurrentTime,  &
+!                                               DoNextStep, STAT = STAT_CALL)
+!                    if (STAT_CALL /= SUCCESS_) stop 'ModifyMohidWater - MohidWater - ERR50'
+!
+!                    if (DoNextStep) then    
+!                        call SubModelComunication     (CurrentModel)
+!
+!#ifdef OVERLAP
+!                        call OverlapModelCommunication(CurrentModel)
+!#endif OVERLAP
+!
+!
+!                        if (associated(CurrentModel%FatherModel))  then
+!                            call GetModelTimeStep (CurrentModel%FatherModel%ModelID, DT_Father, STAT = STAT_CALL)
+!                            if (STAT_CALL /= SUCCESS_) stop 'ModifyMohidWater - MohidWater - ERR60'
+!                        else
+!                            DT_Father = - FillValueReal
+!                        endif
+!
+!                        call RunModel             (CurrentModel%ModelID, DT_Father, STAT = STAT_CALL)
+!                        if (STAT_CALL /= SUCCESS_) stop 'ModifyMohidWater - MohidWater - ERR70'
+!                        
+!                    endif
+!
+!                    CurrentModel => CurrentModel%Next
+!                enddo
+!
+!                !Search again MinMax, so the test DTmin / 10.0 can be safely done
+!                !
+!                DTmin   = - FillValueReal
+!                DTmax   =   FillValueReal
+!                call SearchMinMaxTimeStep (DTmin, DTmax)
+!            endif
+!            
+!
+!            if (abs(GlobalCurrentTime - GlobalEndTime) > DTmin / 10.0) then
+!                Running = .true.
+!            else
+!                Running = .false.
+!            endif
             
-            if (DTmin == 0.) then
-                write(*,*) 'Time step equal to zero dt =', dtmin
-                exit 
-            endif
-
-            if (RunInParallel) then
-
-                CurrentModel => FirstModel
-                do while (associated(CurrentModel))
-
-                    if (CurrentModel%MPI_ID == myMPI_ID) then
-
-                        call UpdateTimeAndMapping    (CurrentModel%ModelID, GlobalCurrentTime, DoNextStep, STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'ModifyMohidWater - MohidWater - ERR10'
-                        
-                        if (associated(CurrentModel%FatherModel))  then
-                            call GetModelTimeStep (CurrentModel%FatherModel%ModelID, DT_Father, STAT = STAT_CALL)
-                            if (STAT_CALL /= SUCCESS_) stop 'ModifyMohidWater - MohidWater - ERR20'
-                        else
-                            DT_Father = - FillValueReal
-                        endif
-
-                        if (DoNextStep) then
-                            !Waits for information from father
-                            if (associated(CurrentModel%FatherModel)) then
-
-                                !Post next recieve...
-                                if (CurrentModel%CurrentTime == CurrentModel%InfoTime) then
-
-                                    call ReceiveInformationMPI (CurrentModel)
-
-                                else if (CurrentModel%CurrentTime < CurrentModel%InfoTime) then 
-
-                                    call UpdateSubModelValues (CurrentModel)
-
-                                else if (CurrentModel%CurrentTime > CurrentModel%InfoTime) then
-
-                                    stop 'ModifyMohidWater - MohidWater - ERR30'
-
-                                endif
-
-                            endif
-
-                            call RunModel(CurrentModel%ModelID, DT_Father, STAT = STAT_CALL)
-                            if (STAT_CALL /= SUCCESS_) stop 'ModifyMohidWater - MohidWater - ERR40'
-
-                            call SendInformationMPI (CurrentModel)
-                        endif
-
-                    endif
-
-                    CurrentModel => CurrentModel%Next
-                enddo
-
-            else
-
-                CurrentModel => FirstModel
-                do while (associated(CurrentModel))
-
-                    call UpdateTimeAndMapping (CurrentModel%ModelID, GlobalCurrentTime,  &
-                                               DoNextStep, STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'ModifyMohidWater - MohidWater - ERR50'
-
-                    if (DoNextStep) then    
-                        call SubModelComunication     (CurrentModel)
-
-#ifdef OVERLAP
-                        call OverlapModelCommunication(CurrentModel)
-#endif OVERLAP
-
-
-                        if (associated(CurrentModel%FatherModel))  then
-                            call GetModelTimeStep (CurrentModel%FatherModel%ModelID, DT_Father, STAT = STAT_CALL)
-                            if (STAT_CALL /= SUCCESS_) stop 'ModifyMohidWater - MohidWater - ERR60'
-                        else
-                            DT_Father = - FillValueReal
-                        endif
-
-                        call RunModel             (CurrentModel%ModelID, DT_Father, STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'ModifyMohidWater - MohidWater - ERR70'
-                        
-                    endif
-
-                    CurrentModel => CurrentModel%Next
-                enddo
-
-                !Search again MinMax, so the test DTmin / 10.0 can be safely done
-                !
-                DTmin   = - FillValueReal
-                DTmax   =   FillValueReal
-                call SearchMinMaxTimeStep (DTmin, DTmax)
-            endif
+            Running = DoOneTimeStep ()
             
-
-            if (abs(GlobalCurrentTime - GlobalEndTime) > DTmin / 10.0) then
-                Running = .true.
-            else
-                Running = .false.
-            endif
         enddo
     
     end subroutine ModifyMohidWater
+    
+    !--------------------------------------------------------------------------
+
+    logical function DoOneTimeStep ()
+
+        !Arguments-------------------------------------------------------------
+
+        !Local-----------------------------------------------------------------
+        type (T_MohidWater), pointer                :: CurrentModel
+        logical                                     :: DoNextStep
+        integer                                     :: STAT_CALL
+        real                                        :: DTmin, DTmax, DT_Father
+
+        !Search for initial Min and Max Time Step
+        DTmin   = - FillValueReal
+        DTmax   =   FillValueReal
+        call SearchMinMaxTimeStep (DTmin, DTmax)
+        
+        GlobalCurrentTime = GlobalCurrentTime + DTmin
+        
+        if (DTmin == 0.) then
+            write(*,*) 'Time step equal to zero dt =', dtmin
+            DoOneTimeStep = .false.
+            return 
+        endif
+
+        if (RunInParallel) then
+
+            CurrentModel => FirstModel
+            do while (associated(CurrentModel))
+
+                if (CurrentModel%MPI_ID == myMPI_ID) then
+
+                    call UpdateTimeAndMapping    (CurrentModel%ModelID, GlobalCurrentTime, DoNextStep, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'ModifyMohidWater - MohidWater - ERR10'
+                    
+                    if (associated(CurrentModel%FatherModel))  then
+                        call GetModelTimeStep (CurrentModel%FatherModel%ModelID, DT_Father, STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'ModifyMohidWater - MohidWater - ERR20'
+                    else
+                        DT_Father = - FillValueReal
+                    endif
+
+                    if (DoNextStep) then
+                        !Waits for information from father
+                        if (associated(CurrentModel%FatherModel)) then
+
+                            !Post next recieve...
+                            if (CurrentModel%CurrentTime == CurrentModel%InfoTime) then
+
+                                call ReceiveInformationMPI (CurrentModel)
+
+                            else if (CurrentModel%CurrentTime < CurrentModel%InfoTime) then 
+
+                                call UpdateSubModelValues (CurrentModel)
+
+                            else if (CurrentModel%CurrentTime > CurrentModel%InfoTime) then
+
+                                stop 'ModifyMohidWater - MohidWater - ERR30'
+
+                            endif
+
+                        endif
+
+                        call RunModel(CurrentModel%ModelID, DT_Father, STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'ModifyMohidWater - MohidWater - ERR40'
+
+                        call SendInformationMPI (CurrentModel)
+                    endif
+
+                endif
+
+                CurrentModel => CurrentModel%Next
+            enddo
+
+        else
+
+            CurrentModel => FirstModel
+            do while (associated(CurrentModel))
+
+                call UpdateTimeAndMapping (CurrentModel%ModelID, GlobalCurrentTime,  &
+                                           DoNextStep, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ModifyMohidWater - MohidWater - ERR50'
+
+                if (DoNextStep) then    
+                    call SubModelComunication     (CurrentModel)
+
+#ifdef OVERLAP
+                    call OverlapModelCommunication(CurrentModel)
+#endif OVERLAP
+
+
+                    if (associated(CurrentModel%FatherModel))  then
+                        call GetModelTimeStep (CurrentModel%FatherModel%ModelID, DT_Father, STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'ModifyMohidWater - MohidWater - ERR60'
+                    else
+                        DT_Father = - FillValueReal
+                    endif
+
+                    call RunModel             (CurrentModel%ModelID, DT_Father, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'ModifyMohidWater - MohidWater - ERR70'
+                    
+                endif
+
+                CurrentModel => CurrentModel%Next
+            enddo
+
+            !Search again MinMax, so the test DTmin / 10.0 can be safely done
+            !
+            DTmin   = - FillValueReal
+            DTmax   =   FillValueReal
+            call SearchMinMaxTimeStep (DTmin, DTmax)
+        endif
+        
+
+        if (abs(GlobalCurrentTime - GlobalEndTime) > DTmin / 10.0) then
+            DoOneTimeStep = .true.
+        else
+            DoOneTimeStep = .false.
+        endif
+
+    end function
     
     !--------------------------------------------------------------------------
 
@@ -1292,10 +1428,12 @@ doNext:     do while (associated(NextModel))
         call GetSystemTime (WorkCycleFinal )
         call cpu_time      (CPUTimeModifier)
 
+#ifndef _OPENMI_
         write(*, *)"-------------------------- MOHID -------------------------"
         write(*, *)
         write(*, *)"Shuting down MOHID, please wait..."
         write(*, *)                    
+#endif
 
         CurrentModel => FirstModel
         do while (associated(CurrentModel))
@@ -1819,7 +1957,263 @@ do1:        do i=2,StringLength
     end subroutine UpdateSubModelValues
 
 
+#ifdef _OPENMI_
+
+    !DEC$ IFDEFINED (VF66)
+    !dec$ attributes dllexport::Initialize
+    !DEC$ ELSE
+    !dec$ attributes dllexport,alias:"_INITIALIZE"::Initialize
+    !DEC$ ENDIF
+    logical function Initialize(workingDirectory)
+                     
+        !Arguments-------------------------------------------------------------
+        character(*)                                :: workingDirectory
+        
+        !Local-----------------------------------------------------------------
+        
+        FilesName = workingDirectory
+        
+        !Disable unused variable warnings
+        RunInParallel = .false.
+        myMPI_Processor = 'My Processor'
+    
+        call ConstructMohidWater
+
+        Initialize = .true.
+
+        return
+    
+    end function Initialize
+    
+    !--------------------------------------------------------------------------
+
+    !Perform a single time step
+    !DEC$ IFDEFINED (VF66)
+    !dec$ attributes dllexport::PerformTimeStep
+    !DEC$ ELSE
+    !dec$ attributes dllexport,alias:"_PERFORMTIMESTEP"::PerformTimeStep
+    !DEC$ ENDIF
+    logical function PerformTimeStep()
+
+        !Arguments-------------------------------------------------------------
+        
+        !Local-----------------------------------------------------------------
+        logical                                     :: dummy
+        
+        dummy = DoOneTimeStep()
+        PerformTimeStep = .true.
+
+    end function PerformTimeStep
+    
+    !--------------------------------------------------------------------------
+
+    !DEC$ IFDEFINED (VF66)
+    !dec$ attributes dllexport::Finish
+    !DEC$ ELSE
+    !dec$ attributes dllexport,alias:"_FINISH"::Finish
+    !DEC$ ENDIF
+    logical function Finish()
+
+        !Arguments-------------------------------------------------------------
+        
+        !Local-----------------------------------------------------------------
+
+        call KillMohidWater()
+        Finish = .true.
+
+    end function Finish
+
+    !--------------------------------------------------------------------------
+
+    !DEC$ IFDEFINED (VF66)
+    !dec$ attributes dllexport::Dispose
+    !DEC$ ELSE
+    !dec$ attributes dllexport,alias:"_DISPOSE"::Dispose
+    !DEC$ ENDIF
+    !The dispose function does not do anything. All Clean up is done by de Finish function
+    logical function Dispose()
+
+        !Arguments-------------------------------------------------------------
+        
+        !Local-----------------------------------------------------------------
+
+        Dispose = .true.
+
+    end function Dispose
+    
+    !--------------------------------------------------------------------------
+    
+    !DEC$ IFDEFINED (VF66)
+    !dec$ attributes dllexport::GetModelID
+    !DEC$ ELSE
+    !dec$ attributes dllexport,alias:"_GETMODELID"::GetModelID
+    !DEC$ ENDIF
+    logical function GetModelID(id)
+    
+        !Arguments-------------------------------------------------------------
+        character(*)                                :: id       
+    
+        id = FirstModel%ModelName
+        GetModelID = .true.
+        return
+    
+    end function GetModelID
+
+    !--------------------------------------------------------------------------
+
+    !Test Function - Runs the whole model
+    !DEC$ IFDEFINED (VF66)
+    !dec$ attributes dllexport::RunSimulation
+    !DEC$ ELSE
+    !dec$ attributes dllexport,alias:"_RUNSIMULATION"::RunSimulation
+    !DEC$ ENDIF
+    !Test method to run the whole simulation once
+    subroutine RunSimulation()
+
+        !Arguments-------------------------------------------------------------
+        
+        !Local-----------------------------------------------------------------
+
+        call ModifyMohidWater
+    
+    end subroutine RunSimulation
+
+    !--------------------------------------------------------------------------
+
+    !DEC$ IFDEFINED (VF66)
+    !dec$ attributes dllexport::GetNumberOfMessages
+    !DEC$ ELSE
+    !dec$ attributes dllexport,alias:"_GETNUMBEROFMESSAGES"::GetNumberOfMessages
+    !DEC$ ENDIF
+    !Return the number of Error Messages
+    integer function GetNumberOfMessages()
+    
+        !Arguments-------------------------------------------------------------
+        
+        !Local-----------------------------------------------------------------
+
+        GetNumberOfMessages = NumberOfErrorMessages
+        
+        return
+    
+    end function GetNumberOfMessages
+
+    !--------------------------------------------------------------------------
+    
+    !DEC$ IFDEFINED (VF66)
+    !dec$ attributes dllexport::GetMessage
+    !DEC$ ELSE
+    !dec$ attributes dllexport,alias:"_GETMESSAGE"::GetMessage
+    !DEC$ ENDIF
+    logical function GetMessage(Number, Message)
+
+        !Arguments-------------------------------------------------------------
+        integer                                     :: Number
+        character(len=*)                            :: Message        
+        !Local-----------------------------------------------------------------
+
+
+        if(Number .ge. 1 .and. Number .le. MaxErrorMessages)then
+            Message=ErrorMessagesStack(Number)
+            GetMessage=.true.
+        else
+            Message=' '
+            GetMessage=.false.
+        endif
+
+      end function GetMessage
+      
+    
+    !DEC$ IFDEFINED (VF66)
+    !dec$ attributes dllexport::GetStartInstant
+    !DEC$ ELSE
+    !dec$ attributes dllexport,alias:"_GETSTARTINSTANT"::GetStartInstant
+    !DEC$ ENDIF
+    logical function GetStartInstant(Instant)
+
+        !Arguments-------------------------------------------------------------
+        character(len=*)                            :: Instant        
+
+        !Local-----------------------------------------------------------------
+
+        Instant = ConvertTimeToString(GlobalBeginTime)
+        
+        GetStartInstant = .true.
+
+      end function GetStartInstant      
+
+    !DEC$ IFDEFINED (VF66)
+    !dec$ attributes dllexport::GetStopInstant
+    !DEC$ ELSE
+    !dec$ attributes dllexport,alias:"_GETSTOPINSTANT"::GetStopInstant
+    !DEC$ ENDIF
+    logical function GetStopInstant(Instant)
+
+        !Arguments-------------------------------------------------------------
+        character(len=*)                            :: Instant        
+
+        !Local-----------------------------------------------------------------
+
+        Instant = ConvertTimeToString(GlobalEndTime)
+        
+        GetStopInstant = .true.
+
+      end function GetStopInstant      
+
+    !DEC$ IFDEFINED (VF66)
+    !dec$ attributes dllexport::GetCurrentInstant
+    !DEC$ ELSE
+    !dec$ attributes dllexport,alias:"_GETCURRENTINSTANT"::GetCurrentInstant
+    !DEC$ ENDIF
+    logical function GetCurrentInstant(Instant)
+
+        !Arguments-------------------------------------------------------------
+        character(len=*)                            :: Instant        
+
+        !Local-----------------------------------------------------------------
+
+        Instant = ConvertTimeToString(GlobalCurrentTime)
+        
+        GetCurrentInstant = .true.
+
+      end function GetCurrentInstant      
+
+
+    !DEC$ IFDEFINED (VF66)
+    !dec$ attributes dllexport::GetCurrentTimeStep
+    !DEC$ ELSE
+    !dec$ attributes dllexport,alias:"_GETCURRENTTIMESTEP"::GetCurrentTimeStep
+    !DEC$ ENDIF
+    real(8) function GetCurrentTimeStep()
+
+        !Arguments-------------------------------------------------------------
+
+        !Local-----------------------------------------------------------------
+        real                                        :: DTmin, DTmax
+        
+        
+        DTmin   = - FillValueReal
+        DTmax   =   FillValueReal
+        call SearchMinMaxTimeStep (DTmin, DTmax)
+
+        GetCurrentTimeStep = dble(DTmin)
+        
+
+      end function GetCurrentTimeStep      
+
+
+    
+#endif
+
+
+
+
+#ifdef _OPENMI_
+end module MohidWater
+#else
 end program MohidWater
+#endif
+
 
 !----------------------------------------------------------------------------------------------------------
 !MOHID Water Modelling System.

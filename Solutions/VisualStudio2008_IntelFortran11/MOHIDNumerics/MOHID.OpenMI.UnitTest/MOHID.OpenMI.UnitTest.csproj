@@ -95,6 +95,10 @@
       <Project>{210B5D7E-EAB8-4FC0-80B0-0EAA6243ABEC}</Project>
       <Name>MOHID.OpenMI.MohidLand.Wrapper</Name>
     </ProjectReference>
+    <ProjectReference Include="..\MOHID.OpenMI.MohidWater.Wrapper\MOHID.OpenMI.MohidWater.Wrapper.csproj">
+      <Project>{2176F36D-63BD-4E8B-8B89-A0FF64468610}</Project>
+      <Name>MOHID.OpenMI.MohidWater.Wrapper</Name>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
