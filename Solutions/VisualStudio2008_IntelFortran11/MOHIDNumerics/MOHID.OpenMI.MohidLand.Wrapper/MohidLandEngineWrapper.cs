@@ -19,6 +19,10 @@ namespace MOHID.OpenMI.MohidLand.Wrapper
         private ArrayList inputExchangeItems;
         private ArrayList outputExchangeItems;
 
+        //TODO: Check how we can the correct instance IDs from the MOHID models. Implement a selector in the main, which receives the model ID?
+        private int drainageNetworkInstanceID = 1;
+
+
         #endregion
 
         #region IEngine Members
@@ -46,10 +50,10 @@ namespace MOHID.OpenMI.MohidLand.Wrapper
             //Flow at the outlet
             OutputExchangeItem outletFlow = new OutputExchangeItem();
             outletFlow.Quantity = flowQuantity;
-            ElementSet outletNode = new ElementSet("description", "Outlet", ElementType.XYPoint, new SpatialReference("ref"));
+            ElementSet outletNode = new ElementSet("Flow at the outlet", "Outlet", ElementType.XYPoint, new SpatialReference("ref"));
             outletNode.AddElement(new Element("Outlet"));
-            int outletNodeID = mohidLandEngine.GetOutletNodeID();
-            outletNode.Elements[0].AddVertex(new Vertex(mohidLandEngine.GetXCoordinate(outletNodeID), mohidLandEngine.GetYCoordinate(outletNodeID), 0));
+            int outletNodeID = mohidLandEngine.GetOutletNodeID(drainageNetworkInstanceID);
+            outletNode.Elements[0].AddVertex(new Vertex(mohidLandEngine.GetXCoordinate(drainageNetworkInstanceID, outletNodeID), mohidLandEngine.GetYCoordinate(drainageNetworkInstanceID, outletNodeID), 0));
             outletFlow.ElementSet = outletNode;
             outletFlow.Quantity = flowQuantity;
 
@@ -128,12 +132,12 @@ namespace MOHID.OpenMI.MohidLand.Wrapper
 
         public string GetComponentDescription()
         {
-            return "GetComponentDescription";
+            return "Mohid Land Hydrological Model.";
         }
 
         public string GetComponentID()
         {
-            return "GetComponentID";
+            return "Mohid Land Model ID";
         }
 
         public global::OpenMI.Standard.ITime GetCurrentTime()
@@ -148,7 +152,7 @@ namespace MOHID.OpenMI.MohidLand.Wrapper
 
         public global::OpenMI.Standard.ITime GetInputTime(string QuantityID, string ElementSetID)
         {
-            throw new NotImplementedException();
+            return new TimeStamp(CalendarConverter.Gregorian2ModifiedJulian(mohidLandEngine.GetCurrentTime().AddSeconds(mohidLandEngine.GetCurrentTimeStep())));
         }
 
         public double GetMissingValueDefinition()
@@ -165,7 +169,7 @@ namespace MOHID.OpenMI.MohidLand.Wrapper
             if (QuantityID == "Flow")
             {
                 returnValues = new double[1];
-                returnValues[0] = mohidLandEngine.GetOutletFlow();
+                returnValues[0] = mohidLandEngine.GetOutletFlow(drainageNetworkInstanceID);
             }
             else
             {
@@ -181,7 +185,7 @@ namespace MOHID.OpenMI.MohidLand.Wrapper
             if (QuantityID == "Water Level")
             {
                 double waterLevel = ((ScalarSet)values).data[0];
-                mohidLandEngine.SetDownstreamWaterLevel(waterLevel);
+                mohidLandEngine.SetDownstreamWaterLevel(drainageNetworkInstanceID, waterLevel);
             }
             else
             {

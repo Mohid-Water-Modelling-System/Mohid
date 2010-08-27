@@ -13,6 +13,7 @@ EndProject
 Project("{6989167D-11E4-40FE-8C1A-2192A86A7E90}") = "MohidLandEngine", "MohidLandEngine\MohidLandEngine.vfproj", "{473D1747-A62F-4AC5-B0F9-86DDACDA370E}"
 	ProjectSection(ProjectDependencies) = postProject
 		{98ABA093-7927-4BCD-B011-BF409B5BBB78} = {98ABA093-7927-4BCD-B011-BF409B5BBB78}
+		{0056F7D7-347A-40DE-98B8-843CF05B5488} = {0056F7D7-347A-40DE-98B8-843CF05B5488}
 	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MOHID.OpenMI.MohidLand.Wrapper", "MOHID.OpenMI.MohidLand.Wrapper\MOHID.OpenMI.MohidLand.Wrapper.csproj", "{210B5D7E-EAB8-4FC0-80B0-0EAA6243ABEC}"
@@ -21,6 +22,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MOHID.OpenMI.MohidLand.Wrap
 	EndProjectSection
 EndProject
 Project("{6989167D-11E4-40FE-8C1A-2192A86A7E90}") = "MohidWaterEngine", "MOHIDWaterEngine\MohidWaterEngine.vfproj", "{0D17261E-10FE-42F8-A1D2-4CE823BA5E8A}"
+	ProjectSection(ProjectDependencies) = postProject
+		{98ABA093-7927-4BCD-B011-BF409B5BBB78} = {98ABA093-7927-4BCD-B011-BF409B5BBB78}
+		{0056F7D7-347A-40DE-98B8-843CF05B5488} = {0056F7D7-347A-40DE-98B8-843CF05B5488}
+	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MOHID.OpenMI.MohidWater.Wrapper", "MOHID.OpenMI.MohidWater.Wrapper\MOHID.OpenMI.MohidWater.Wrapper.csproj", "{2176F36D-63BD-4E8B-8B89-A0FF64468610}"
 	ProjectSection(ProjectDependencies) = postProject

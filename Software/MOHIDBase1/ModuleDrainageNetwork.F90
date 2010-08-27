@@ -1515,6 +1515,10 @@ if1:    if (Me%Downstream%Boundary == ImposedWaterLevel .or. Me%Downstream%Bound
                     
                     if (Me%Downstream%Boundary == ImposedVelocity)    &
                         stop 'not ready - ModuleDrainageNetwork - ConstructDownstreamBoundary - ERR04a'
+                        
+                case ("OpenMI", "OPENMI", "openmi", "OpenMi")
+                
+                    Me%Downstream%Evolution    = OpenMI
 
                 case default
 
@@ -4264,12 +4268,10 @@ if1:        if (CurrNode%nDownstreamReaches /= 0) then
             
                 if (Me%Downstream%Boundary == ImposedWaterLevel) then !if1
                 
-                    if (Me%Downstream%Evolution  == None) then
+                    if (Me%Downstream%Evolution  == None .or. Me%DownStream%Evolution == OpenMI) then
                        CurrNode%WaterLevel = Me%Downstream%DefaultValue
                     else if (Me%Downstream%Evolution == ReadTimeSerie) then
                        call ModifyDownstreamTimeSerie (CurrNode%WaterLevel)
-                    else if (Me%DownStream%Evolution == OpenMI) then
-                        !Do nothing
                     end if
 
                     CurrNode%WaterDepth = CurrNode%WaterLevel - CurrNode%CrossSection%BottomLevel
@@ -8111,7 +8113,7 @@ if2:        if (CurrNode%VolumeNew > PoolVolume) then
         
             if (Me%Downstream%Boundary == ImposedWaterLevel) then
            
-                    if (Me%Downstream%Evolution  == None) then
+                    if (Me%Downstream%Evolution  == None .or. Me%Downstream%Evolution == OpenMI) then
                        CurrNode%WaterLevel = Me%Downstream%DefaultValue
                     else if (Me%Downstream%Evolution == ReadTimeSerie) then
                        call ModifyDownstreamTimeSerie (CurrNode%WaterLevel)
@@ -11320,6 +11322,23 @@ if2:                if (CurrNode%nDownstreamReaches .NE. 0) then
                                  STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'HDF5Output - ModuleDrainageNetwork - ERR06'
 
+            !WaterLevel
+            iReach = 1
+            do NodeID = 1, Me%TotalNodes
+                CurrNode => Me%Nodes (NodeID)
+                if (CurrNode%nDownstreamReaches .NE. 0) then
+                    OutputMatrix (iReach) = CurrNode%WaterLevel 
+                    iReach = iReach + 1
+                endif
+            end do
+            call HDF5WriteData  (Me%ObjHDF5, "/Results/channel water level",             &
+                                 "channel water level",                                  &  
+                                 "m",                                                    &
+                                 Array1D      = OutputMatrix,                            &
+                                 OutputNumber = Me%OutPut%NextOutPut,                    &
+                                 STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5Output - ModuleDrainageNetwork - ERR06'
+
             ! Volume
             iReach = 1
             do NodeID = 1, Me%TotalNodes
@@ -11922,16 +11941,23 @@ cd1:    if (ObjDrainageNetwork_ID > 0) then
     !dec$ attributes dllexport,alias:"_GETNUMBEROFNODES"::GetNumberOfNodes
     !DEC$ ENDIF
     !Return the number of Error Messages
-    integer function GetNumberOfNodes()
+    integer function GetNumberOfNodes(DrainageNetworkID)
     
         !Arguments-------------------------------------------------------------
+        integer                                     :: DrainageNetworkID
         
         !Local-----------------------------------------------------------------
+        integer                                     :: STAT_CALL
+        integer                                     :: ready_         
 
-        GetNumberOfNodes = Me%TotalNodes
+        call Ready(DrainageNetworkID, ready_)    
         
-        return
-    
+        if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
+            GetNumberOfNodes = Me%TotalNodes
+        else 
+            GetNumberOfNodes = - 99.0
+        end if
+           
     end function GetNumberOfNodes
 
     !DEC$ IFDEFINED (VF66)
@@ -11940,16 +11966,22 @@ cd1:    if (ObjDrainageNetwork_ID > 0) then
     !dec$ attributes dllexport,alias:"_GETOUTLETNODEID"::GetOutletNodeID
     !DEC$ ENDIF
     !Return the number of Error Messages
-    integer function GetOutletNodeID()
+    integer function GetOutletNodeID(DrainageNetworkID)
     
         !Arguments-------------------------------------------------------------
+        integer                                     :: DrainageNetworkID
         
         !Local-----------------------------------------------------------------
+        integer                                     :: STAT_CALL
+        integer                                     :: ready_         
 
-        GetOutletNodeID = Me%OutletNodePos
-        
-        return
-    
+        call Ready(DrainageNetworkID, ready_)    
+        if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
+            GetOutletNodeID = Me%OutletNodePos
+        else 
+            GetOutletNodeID = - 99.0
+        end if
+
     end function GetOutletNodeID
 
     
@@ -11958,16 +11990,24 @@ cd1:    if (ObjDrainageNetwork_ID > 0) then
     !DEC$ ELSE
     !dec$ attributes dllexport,alias:"_GETXCOORDINATE"::GetXCoordinate
     !DEC$ ENDIF
-    real(8) function GetXCoordinate(NodeID)
+    real(8) function GetXCoordinate(DrainageNetworkID, NodeID)
     
         !Arguments-------------------------------------------------------------
+        integer                                     :: DrainageNetworkID
         integer                                     :: NodeID
         
         !Local-----------------------------------------------------------------
+        integer                                     :: STAT_CALL
+        integer                                     :: ready_         
 
-        GetXCoordinate = dble(Me%Nodes(NodeID)%X)
+        call Ready(DrainageNetworkID, ready_)    
+
+        if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
+            GetXCoordinate = dble(Me%Nodes(NodeID)%X)
+        else
+            GetXCoordinate = -99.0
+        endif
         
-        return
 
     end function GetXCoordinate
 
@@ -11976,17 +12016,24 @@ cd1:    if (ObjDrainageNetwork_ID > 0) then
     !DEC$ ELSE
     !dec$ attributes dllexport,alias:"_GETYCOORDINATE"::GetYCoordinate
     !DEC$ ENDIF
-    real(8) function GetYCoordinate(NodeID)
+    real(8) function GetYCoordinate(DrainageNetworkID, NodeID)
     
         !Arguments-------------------------------------------------------------
+        integer                                     :: DrainageNetworkID
         integer                                     :: NodeID
         
         !Local-----------------------------------------------------------------
+        integer                                     :: STAT_CALL
+        integer                                     :: ready_         
 
-        GetYCoordinate = dble(Me%Nodes(NodeID)%Y)
+        call Ready(DrainageNetworkID, ready_)    
+
+        if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
+            GetYCoordinate = dble(Me%Nodes(NodeID)%Y)
+        else
+            GetYCoordinate = -99.0
+        endif
         
-        return
-
     end function GetYCoordinate
 
 
@@ -11995,39 +12042,56 @@ cd1:    if (ObjDrainageNetwork_ID > 0) then
     !DEC$ ELSE
     !dec$ attributes dllexport,alias:"_GETOUTLETFLOW"::GetOutletFlow
     !DEC$ ENDIF
-    real(8) function GetOutletFlow()
+    real(8) function GetOutletFlow(DrainageNetworkID)
 
         !Arguments-------------------------------------------------------------
-        integer                                     :: NodeID
+        integer                                     :: DrainageNetworkID
         
         !Local-----------------------------------------------------------------
+        integer                                     :: STAT_CALL
+        integer                                     :: ready_         
 
-        GetOutletFlow = dble(Me%Reaches(Me%OutletReachPos)%FlowNew)  
+        call Ready(DrainageNetworkID, ready_)    
+
+        if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
+            GetOutletFlow = dble(Me%Reaches(Me%OutletReachPos)%FlowNew)  
+        else
+            GetOutletFlow = -99.0
+        endif
         
-        return
-
     end function
 
     !DEC$ IFDEFINED (VF66)
-    !dec$ attributes dllexport::GetOutletFlow
+    !dec$ attributes dllexport::SetDownStreamWaterLevel
     !DEC$ ELSE
-    !dec$ attributes dllexport,alias:"_GETOUTLETFLOW"::GetOutletFlow
+    !dec$ attributes dllexport,alias:"_SETDOWNSTREAMWATERLEVEL"::SetDownStreamWaterLevel
     !DEC$ ENDIF
-    logical function SetDownStreamWaterLevel(WaterLevel)
+    logical function SetDownStreamWaterLevel(DrainageNetworkID, WaterLevel)
 
         !Arguments-------------------------------------------------------------
+        integer                                     :: DrainageNetworkID
         real(8)                                     :: WaterLevel
         
         !Local-----------------------------------------------------------------
         type (T_Node), pointer                      :: CurrNode
 
+        integer                                     :: STAT_CALL
+        integer                                     :: ready_         
 
-        CurrNode => Me%Nodes(Me%OutletNodePos)
+        call Ready(DrainageNetworkID, ready_)    
 
-        CurrNode%WaterLevel = WaterLevel
-        CurrNode%WaterDepth = CurrNode%WaterLevel - CurrNode%CrossSection%BottomLevel
+        if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            Me%Downstream%DefaultValue = WaterLevel
+
+            SetDownStreamWaterLevel = .true.
         
-        SetDownStreamWaterLevel = .true.
+        else
+        
+            SetDownStreamWaterLevel = .false.
+        
+        endif        
+
 
         return
 

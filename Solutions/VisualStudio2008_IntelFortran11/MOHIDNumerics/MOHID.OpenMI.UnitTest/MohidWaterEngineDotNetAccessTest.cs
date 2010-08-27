@@ -3,29 +3,29 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using NUnit.Framework;
-using MOHID.OpenMI.MohidLand.Wrapper;
+using MOHID.OpenMI.MohidWater.Wrapper;
 
 namespace MOHID.OpenMI.UnitTest
 {
     [TestFixture]
-    public class MohidLandEngineDotNetAccessTest
+    public class MohidWaterEngineDotNetAccessTest
     {
 
-        MohidLandEngineDotNetAccess mohidLandEngineDotNetAccess;
+        MohidWaterEngineDotNetAccess mohidWaterEngineDotNetAccess;
         String _filePath;
  
         [SetUp]
         public void Init()
         {
-            mohidLandEngineDotNetAccess = new MohidLandEngineDotNetAccess();
-            _filePath = @"D:\MohidProjects\Studio\03_MOHID OpenMI\Sample Catchment\exe\nomfich.dat";
-            mohidLandEngineDotNetAccess.Initialize(_filePath);
+            mohidWaterEngineDotNetAccess = new MohidWaterEngineDotNetAccess();
+            _filePath = @"D:\MohidProjects\Studio\03_MOHID OpenMI\Sample Estuary\exe\nomfich.dat";
+            mohidWaterEngineDotNetAccess.Initialize(_filePath);
         }
  
         [TearDown]
         public void ClearUp()
         {
-            mohidLandEngineDotNetAccess.Finish();
+            mohidWaterEngineDotNetAccess.Finish();
         }
  
         [Test]
@@ -33,8 +33,8 @@ namespace MOHID.OpenMI.UnitTest
         {
             try
             {
-                String modelID = mohidLandEngineDotNetAccess.GetModelID();
-                Assert.AreEqual("MOHID Land Model", modelID);
+                String modelID = mohidWaterEngineDotNetAccess.GetModelID();
+                Assert.AreEqual("Sample Estuary", modelID);
             }
             catch(System.Exception e)
             {
@@ -48,25 +48,22 @@ namespace MOHID.OpenMI.UnitTest
         [Test]
         public void RunWholeSimulation()
         {
-            mohidLandEngineDotNetAccess.RunSimulation();
+            mohidWaterEngineDotNetAccess.RunSimulation();
         }
 
         [Test]
         public void AccessTimes()
         {
-
             DateTime start = new DateTime(2002, 1, 1, 0, 0, 0);
             DateTime end = new DateTime(2002, 1, 1, 12, 0, 0);
 
-            DateTime startInstant = mohidLandEngineDotNetAccess.GetStartInstant();
-            DateTime endInstant = mohidLandEngineDotNetAccess.GetStopInstant();
-            Double timeStep = mohidLandEngineDotNetAccess.GetCurrentTimeStep();
+            DateTime startInstant = mohidWaterEngineDotNetAccess.GetStartInstant();
+            DateTime endInstant = mohidWaterEngineDotNetAccess.GetStopInstant();
+            Double timeStep = mohidWaterEngineDotNetAccess.GetCurrentTimeStep();
 
             Assert.AreEqual(startInstant.Ticks, start.Ticks);
             Assert.AreEqual(endInstant.Ticks, end.Ticks);
-            Assert.AreEqual(5.0, timeStep);
-
-
+            Assert.AreEqual(15.0, timeStep);
         }
     
     }

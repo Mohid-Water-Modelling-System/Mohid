@@ -38,26 +38,53 @@ namespace MOHID.OpenMI.MohidWater.Wrapper
         [DllImport(dllPath,EntryPoint = "GETMESSAGE",SetLastError = true,ExactSpelling = true,CallingConvention = CallingConvention.Cdecl)]
         public static extern int GetMessage(ref int messageID, [MarshalAs(UnmanagedType.LPStr)] StringBuilder id, uint length);
 
-        //[DllImport(dllPath, EntryPoint = "GETNUMBEROFNODES", SetLastError = true, ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
-        //public static extern int GetNumberOfNodes();
+        #region Module Discharges
 
-        //[DllImport(dllPath, EntryPoint = "GETXCOORDINATE", SetLastError = true, ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
-        //public static extern double GetXCoordinate(ref int nodeID);
+        [DllImport(dllPath, EntryPoint = "GETNUMBEROFDISCHARGES", SetLastError = true, ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+        public static extern int GetNumberOfDischarges(ref int instanceID);
 
-        //[DllImport(dllPath, EntryPoint = "GETYCOORDINATE", SetLastError = true, ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
-        //public static extern double GetYCoordinate(ref int nodeID);
+        [DllImport(dllPath, EntryPoint = "GETDISCHARGETYPE", SetLastError = true, ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+        public static extern int GetDischargeType(ref int instanceID, ref int dischargeID);
 
-        //[DllImport(dllPath, EntryPoint = "GETFLOWBYNODEID", SetLastError = true, ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
-        //public static extern double GetFlowByNodeID(ref int nodeID);
+        [DllImport(dllPath, EntryPoint = "GETDISCHARGEXCOORDINATE", SetLastError = true, ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+        public static extern double GetDischargeXCoordinate(ref int instanceID, ref int dischargeID);
 
-        //[DllImport(dllPath, EntryPoint = "GETOUTLETFLOW", SetLastError = true, ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
-        //public static extern double GetOutletFlow();
+        [DllImport(dllPath, EntryPoint = "GETDISCHARGEYCOORDINATE", SetLastError = true, ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+        public static extern double GetDischargeYCoordinate(ref int instanceID, ref int dischargeID);
 
-        //[DllImport(dllPath, EntryPoint = "SETDOWNSTREAMWATERLEVEL", SetLastError = true, ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
-        //public static extern bool SetDownStreamWaterLevel();
+        [DllImport(dllPath, EntryPoint = "GETDISCHARGENAME", SetLastError = true, ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+        public static extern bool GetDischargeName(ref int instanceID, ref int dischargeID, [MarshalAs(UnmanagedType.LPStr)] StringBuilder id, uint length);
 
-        //[DllImport(dllPath, EntryPoint = "GETOUTLETNODEID", SetLastError = true, ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
-        //public static extern int GetOutletNodeID();
+        [DllImport(dllPath, EntryPoint = "SETDISCHARGEFLOW", SetLastError = true, ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+        public static extern bool SetDischargeFlow(ref int instanceID, ref int dischargeID, ref double flow);
+
+        #endregion
+
+        #region Module HorizontalGrid / Map
+
+        [DllImport(dllPath, EntryPoint = "GETIUB", SetLastError = true, ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+        public static extern int GetIUB(ref int horizontalGridInstanceID);
+
+        [DllImport(dllPath, EntryPoint = "GETJUB", SetLastError = true, ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+        public static extern int GetJUB(ref int horizontalGridInstanceID);
+
+        [DllImport(dllPath, EntryPoint = "ISWATERPOINT", SetLastError = true, ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+        public static extern bool IsWaterPoint(ref int horizontalGridInstanceID, ref int i, ref int j);
+
+        [DllImport(dllPath, EntryPoint = "GETCENTERXCOORDINATE", SetLastError = true, ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+        public static extern double GetCenterXCoordinate(ref int horizontalGridInstanceID, ref int i, ref int j);
+
+        [DllImport(dllPath, EntryPoint = "GETCENTERYCOORDINATE", SetLastError = true, ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+        public static extern double GetCenterYCoordinate(ref int horizontalGridInstanceID, ref int i, ref int j);
+        
+        #endregion
+
+        #region
+
+        [DllImport(dllPath, EntryPoint = "GETWATERLEVELATPOINT", SetLastError = true, ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+        public static extern double GetWaterLevelAtPoint(ref int hydrodynamicInstanceID, ref int i, ref int j);
+
+        #endregion
 
         [DllImport(dllPath,EntryPoint = "RUNSIMULATION",SetLastError = true,ExactSpelling = true,CallingConvention = CallingConvention.Cdecl)]
         public static extern bool RunSimulation();
@@ -72,6 +99,9 @@ namespace MOHID.OpenMI.MohidWater.Wrapper
 
         
         #endregion
+
+
+
 
     }
 }

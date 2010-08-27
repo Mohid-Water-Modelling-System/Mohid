@@ -1870,6 +1870,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                 if (STAT_CALL /= SUCCESS_) stop 'KillModel - ModuleModel - ERR01'
 
                 DT_error = Me%EndTime - Me%CurrentTime
+#ifndef _OPENMI_
 if9 :           if (DT_error /= 0.) then
                     write(*,*)  
                     write(*,*) 'Warning: The model = ',trim(Me%ModelName)
@@ -1884,7 +1885,7 @@ if7 :               if     (DT_error > 0) then
                     write(*,*) 'SUBROUTINE KillModel; ModuleModel. WRN01.'
                     write(*,*)  
                 end if if9
-
+#endif
                 !Last Progress message
                 call PrintProgress(Me%ObjTime, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'KillModel - ModuleModel - ERR10'

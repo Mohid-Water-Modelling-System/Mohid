@@ -1770,9 +1770,13 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
         !----------------------------------------------------------------------
 
         write(auxStr, 10)int(Time1%Time_(1)), int(Time1%Time_(2)), int(Time1%Time_(3)),  &
-                         int(Time1%Time_(4)), int(Time1%Time_(5)), int(Time1%Time_(6))
+                         int(Time1%Time_(4)), int(Time1%Time_(5)), Time1%Time_(6)
 
 
+!        write(*,*)'TIME CONVERSIONS'
+!        write(*,*)Time1%Time_(1), Time1%Time_(2), Time1%Time_(3), Time1%Time_(4), Time1%Time_(5), Time1%Time_(6)
+!        write(*,*)auxStr
+        
         ConvertTimeToString = auxStr
  
 

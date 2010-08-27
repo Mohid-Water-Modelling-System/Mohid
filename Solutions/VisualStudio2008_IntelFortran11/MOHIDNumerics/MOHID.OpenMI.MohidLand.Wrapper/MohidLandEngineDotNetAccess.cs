@@ -20,11 +20,18 @@ namespace MOHID.OpenMI.MohidLand.Wrapper
             //Loads the library
             _FortranDllHandle =  Kernel32Wrapper.LoadLibrary(@"D:\Software\Mohid\MOHID.Numerics\Solutions\VisualStudio2008_IntelFortran11\MOHIDNumerics\MohidLandEngine\Debug OpenMI\MohidLandEngine.dll");
 
+            //Sets the directory temporary to the exe dir of the model
+            String currentDir = Environment.CurrentDirectory;
+            Environment.CurrentDirectory = System.IO.Path.GetDirectoryName(filePath);
+
+            
             //Calls the constructor and reads data files, etc
             if (!(MohidLandEngineDLLAccess.Initialize(filePath, ((uint)filePath.Length))))
             {
                 CreateAndThrowException();
             }
+
+            Environment.CurrentDirectory = currentDir;
         }
 
         /// <summary>
@@ -52,10 +59,10 @@ namespace MOHID.OpenMI.MohidLand.Wrapper
 
         public void Dispose()
         {
-            if (!MohidLandEngineDLLAccess.Dispose())
-            {
-                CreateAndThrowException();
-            }
+            //if (!MohidLandEngineDLLAccess.Dispose())
+            //{
+            //    CreateAndThrowException();
+            //}
         }
 
         /// <summary>
@@ -142,21 +149,21 @@ namespace MOHID.OpenMI.MohidLand.Wrapper
         /// <summary>
         /// Get number of Network Nodes
         /// </summary>
-        public int GetNumberOfNodes()
+        public int GetNumberOfNodes(int drainageNetworkInstanceID)
         {
-            return MohidLandEngineDLLAccess.GetNumberOfNodes();
+            return MohidLandEngineDLLAccess.GetNumberOfNodes(ref drainageNetworkInstanceID);
         }
 
 
 
-        public double GetXCoordinate(int nodeID)
+        public double GetXCoordinate(int drainageNetworkInstanceID, int nodeID)
         {
-            return MohidLandEngineDLLAccess.GetXCoordinate(ref nodeID);
+            return MohidLandEngineDLLAccess.GetXCoordinate(ref drainageNetworkInstanceID, ref nodeID);
         }
 
-        public double GetYCoordinate(int nodeID)
+        public double GetYCoordinate(int drainageNetworkInstanceID, int nodeID)
         {
-            return MohidLandEngineDLLAccess.GetYCoordinate(ref nodeID);
+            return MohidLandEngineDLLAccess.GetYCoordinate(ref drainageNetworkInstanceID, ref nodeID);
         }
 
         private DateTime MohidTimeStringToDotNetTime(String mohidTimeString)
@@ -182,24 +189,30 @@ namespace MOHID.OpenMI.MohidLand.Wrapper
             
         }
 
-        public double GetFlowByNodeID(int nodeID)
+        /// <summary>
+        /// Gets the flow at a specific network node
+        /// </summary>
+        /// <param name="drainageNetworkInstanceID">Instance ID of the drainage network</param>
+        /// <param name="nodeID">ID of the Node</param>
+        /// <returns>Flow at the node</returns>
+        public double GetFlowByNodeID(int drainageNetworkInstanceID, int nodeID)
         {
-            return MohidLandEngineDLLAccess.GetFlowByNodeID(ref nodeID);
+            return MohidLandEngineDLLAccess.GetFlowByNodeID(ref drainageNetworkInstanceID, ref nodeID);
         }
 
-        public int GetOutletNodeID()
+        public int GetOutletNodeID(int drainageNetworkInstanceID)
         {
-            return MohidLandEngineDLLAccess.GetOutletNodeID();
+            return MohidLandEngineDLLAccess.GetOutletNodeID(ref drainageNetworkInstanceID);
         }
 
-        public double GetOutletFlow()
+        public double GetOutletFlow(int drainageNetworkInstanceID)
         {
-            return MohidLandEngineDLLAccess.GetOutletFlow();
+            return MohidLandEngineDLLAccess.GetOutletFlow(ref drainageNetworkInstanceID);
         }
 
-        public void SetDownstreamWaterLevel(double waterLevel)
+        public void SetDownstreamWaterLevel(int drainageNetworkInstanceID, double waterLevel)
         {
-            MohidLandEngineDLLAccess.SetDownStreamWaterLevel();
+            MohidLandEngineDLLAccess.SetDownStreamWaterLevel(ref drainageNetworkInstanceID, ref waterLevel);
         }
     }
 }

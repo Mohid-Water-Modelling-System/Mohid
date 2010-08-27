@@ -68,6 +68,7 @@ Module ModuleDischarges
     public  :: GetDischargesNodeID
     public  :: GetDischargesIDName
     public  :: GetDischargeWaterFlow
+    public  :: SetDischargeWaterFlow
     public  :: GetDischargeFlowVelocity
     public  :: GetDischargeParameters
     public  :: GetDischargeConcentration
@@ -124,6 +125,7 @@ Module ModuleDischarges
     integer, parameter :: Normal        = 1
     integer, parameter :: FlowOver      = 2
     integer, parameter :: Valve         = 3
+    integer, parameter :: OpenMILink    = 4
 
     !Valve side
     integer, parameter :: SideA         = 1
@@ -1073,7 +1075,8 @@ i1:     if (NewDischarge%TimeSerieON) then
 
         if      (NewDischarge%DischargeType /= Normal   .and.                           &
                  NewDischarge%DischargeType /= FlowOver .and.                           &
-                 NewDischarge%DischargeType /= Valve   ) then
+                 NewDischarge%DischargeType /= Valve    .and.                           &
+                 NewDischarge%DischargeType /= OpenMILink) then
                  stop 'Construct_FlowValues - ModuleDischarges - ERR40'
         endif
 
@@ -1288,6 +1291,13 @@ i3:     if (NewDischarge%ByPass%ON) then
             end if
 
         end if
+        
+        if (NewDischarge%DischargeType == OpenMILink) then
+        
+            NewDischarge%WaterFlow%Variable = .true.
+        
+        endif
+        
 
 
      End Subroutine Construct_FlowValues  
@@ -1607,7 +1617,7 @@ ifvar:  if (NewProperty%Variable) then
                 call Search_Discharge_ByName(Intake, STAT_CALL, trim(adjustl(CurrentDischarge%FromIntake%IntakeName)))
                 if (STAT_CALL/=SUCCESS_) then 
                     write(*,*)'Can not find discharge with name ', trim(adjustl(CurrentDischarge%FromIntake%IntakeName)), '.'
-                    stop      'Subroutine GetDischargesGridLocalization; Module ModuleDischarges. ERR01.'
+                    stop      'Subroutine ConstructIntakeDischarges; Module ModuleDischarges. ERR01.'
                 else
                     CurrentDischarge%FromIntake%IntakeID = Intake%ID%IDNumber
                 endif
@@ -1628,9 +1638,9 @@ ifvar:  if (NewProperty%Variable) then
         !Arguments-------------------------------------------------------------
 
         !Local-----------------------------------------------------------------
+#ifndef _OPENMI_
         type(T_IndividualDischarge), pointer        :: CurrentDischarge
 
-#ifndef _OPENMI_
         write(*, *)"----------------------- DISCHARGES -----------------------"
         write(*, *)
         write(*, *)"Number of Discharges : ", Me%DischargesNumber
@@ -1643,7 +1653,6 @@ ifvar:  if (NewProperty%Variable) then
             CurrentDischarge => CurrentDischarge%Next
         enddo
 #endif
-
 
     end subroutine ConstructLog
 
@@ -2493,7 +2502,7 @@ cd3 :       if (STAT_CALL/=SUCCESS_) then
 
     !--------------------------------------------------------------------------
     
-    Subroutine GetDischargeWaterFlow(DischargesID, TimeX, DischargeIDNumber,            &
+    subroutine GetDischargeWaterFlow(DischargesID, TimeX, DischargeIDNumber,            &
                                      SurfaceElevation, Flow, SurfaceElevation2, STAT)
 
         !Arguments-------------------------------------------------------------
@@ -2645,9 +2654,68 @@ cd2:        if (DischargeX%DischargeType == Normal .and. DischargeX%WaterFlow%Va
 
         !----------------------------------------------------------------------
 
-    end Subroutine GetDischargeWaterFlow
+    end subroutine GetDischargeWaterFlow
 
     !--------------------------------------------------------------------------
+
+    subroutine SetDischargeWaterFlow(DischargesID, DischargeIDNumber,            &
+                                     Flow, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                                     :: DischargesID
+        integer,                        intent(IN ) :: DischargeIDNumber
+        real   ,                        intent(IN)  :: Flow
+        integer, optional,              intent(OUT) :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: ready_
+        integer                                     :: STAT_
+        type(T_IndividualDischarge), pointer        :: DischargeX
+        integer                                     :: STAT_CALL
+
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(DischargesID, ready_)    
+        
+cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            call Search_Discharge(DischargeX, STAT_CALL, DischargeXIDNumber=DischargeIDNumber)
+cd3 :       if (STAT_CALL/=SUCCESS_) then 
+                write(*,*) 'Can not find discharge number ',DischargeIDNumber
+                stop       'SetDischargeWaterFlow - ModuleDischarges - ERR01'
+            end if cd3
+
+
+            if (DischargeX%DischargeType == OpenMILink) then
+
+                DischargeX%WaterFlow%Scalar = Flow
+
+            else
+            
+                write(*,*)  'SetDischargeWaterFlow can only be called if discharge type is OpenMILink (4)'
+                stop        'SetDischargeWaterFlow - ModuleDischarges - ERR02'
+            
+            endif
+
+
+            nullify(DischargeX)
+
+
+            STAT_ = SUCCESS_
+        else 
+            STAT_ = ready_
+        end if cd1
+
+
+        if (present(STAT))                                                    &
+            STAT = STAT_
+
+        !----------------------------------------------------------------------
+
+    end subroutine SetDischargeWaterFlow
 
     !--------------------------------------------------------------------------
 
@@ -3697,6 +3765,233 @@ cd1:    if (DischargesID > 0) then
     end subroutine LocateObjDischarges
 
     !--------------------------------------------------------------------------
+
+#ifdef _OPENMI_
+
+    !DEC$ IFDEFINED (VF66)
+    !dec$ attributes dllexport::GetNumberOfDischarges
+    !DEC$ ELSE
+    !dec$ attributes dllexport,alias:"_GETNUMBEROFDISCHARGES"::GetNumberOfDischarges
+    !DEC$ ENDIF
+    !Return the number of Error Messages
+    integer function GetNumberOfDischarges(DischargesID)
+    
+        !Arguments-------------------------------------------------------------
+        integer                                     :: DischargesID
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: ready_         
+
+        call Ready(DischargesID, ready_)    
+        
+        if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
+            GetNumberOfDischarges = Me%DischargesNumber
+        else 
+            GetNumberOfDischarges = - 99
+        end if
+       
+        return
+ 
+    end function GetNumberOfDischarges
+
+    !--------------------------------------------------------------------------
+    
+    !DEC$ IFDEFINED (VF66)
+    !dec$ attributes dllexport::GetDischargeName
+    !DEC$ ELSE
+    !dec$ attributes dllexport,alias:"_GETDISCHARGENAME"::GetDischargeName
+    !DEC$ ENDIF
+    logical function GetDischargeName(DischargeID, DischargeNumber, DischargeName)
+    
+        !Arguments-------------------------------------------------------------
+        integer                                     :: DischargeID
+        integer                                     :: DischargeNumber
+        character(len=*)                            :: DischargeName        
+        
+        !Local-----------------------------------------------------------------
+        integer                                     :: STAT_CALL
+        integer                                     :: ready_         
+        type(T_IndividualDischarge), pointer        :: DischargeX
+
+        call Ready(DischargeID, ready_)    
+        
+        if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            call Search_Discharge(DischargeX, STAT_CALL, DischargeXIDNumber=DischargeNumber)
+            if (STAT_CALL/=SUCCESS_) then 
+                write(*,*) 'Can not find discharge number ', DischargeNumber, '.'
+                stop       'Subroutine GetDischargeType; Module ModuleDischarges. ERR01.'
+            endif
+
+            DischargeName =  trim(DischargeX%ID%Name)
+
+            GetDischargeName = .true.
+        else 
+            GetDischargeName = .false.
+        end if
+           
+        return
+
+    end function GetDischargeName
+    
+    !--------------------------------------------------------------------------
+    
+    !DEC$ IFDEFINED (VF66)
+    !dec$ attributes dllexport::GetDischargeType
+    !DEC$ ELSE
+    !dec$ attributes dllexport,alias:"_GETDISCHARGETYPE"::GetDischargeType
+    !DEC$ ENDIF
+    integer function GetDischargeType(DischargeID, DischargeNumber)
+    
+        !Arguments-------------------------------------------------------------
+        integer                                     :: DischargeID
+        integer                                     :: DischargeNumber
+        
+        !Local-----------------------------------------------------------------
+        integer                                     :: STAT_CALL
+        integer                                     :: ready_         
+        type(T_IndividualDischarge), pointer        :: DischargeX
+
+        call Ready(DischargeID, ready_)    
+        
+        if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            call Search_Discharge(DischargeX, STAT_CALL, DischargeXIDNumber=DischargeNumber)
+            if (STAT_CALL/=SUCCESS_) then 
+                write(*,*) 'Can not find discharge number ', DischargeNumber, '.'
+                stop       'Subroutine GetDischargeType; Module ModuleDischarges. ERR01.'
+            endif
+
+            GetDischargeType = DischargeX%DischargeType
+        else 
+            GetDischargeType = - 99
+        end if
+           
+        return
+
+    end function GetDischargeType
+
+    !--------------------------------------------------------------------------
+    
+    !DEC$ IFDEFINED (VF66)
+    !dec$ attributes dllexport::GetDischargeXCoordinate
+    !DEC$ ELSE
+    !dec$ attributes dllexport,alias:"_GETDISCHARGEXCOORDINATE"::GetDischargeXCoordinate
+    !DEC$ ENDIF
+    real(8) function GetDischargeXCoordinate(DischargeID, DischargeNumber)
+    
+        !Arguments-------------------------------------------------------------
+        integer                                     :: DischargeID
+        integer                                     :: DischargeNumber
+        
+        !Local-----------------------------------------------------------------
+        integer                                     :: STAT_CALL
+        integer                                     :: ready_         
+        type(T_IndividualDischarge), pointer        :: DischargeX
+
+        call Ready(DischargeID, ready_)    
+        
+        if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
+        
+            call Search_Discharge(DischargeX, STAT_CALL, DischargeXIDNumber=DischargeNumber)
+            if (STAT_CALL/=SUCCESS_) then 
+                write(*,*) 'Can not find discharge number ', DischargeNumber, '.'
+                stop       'Subroutine GetDischargeXCoordinate; Module ModuleDischarges. ERR01.'
+            endif
+
+            GetDischargeXCoordinate = DischargeX%Localization%CoordinateX
+        else 
+            GetDischargeXCoordinate = - 99.0
+        end if
+           
+        return
+
+    end function GetDischargeXCoordinate
+    
+    !--------------------------------------------------------------------------
+    
+    !DEC$ IFDEFINED (VF66)
+    !dec$ attributes dllexport::GetDischargeYCoordinate
+    !DEC$ ELSE
+    !dec$ attributes dllexport,alias:"_GETDISCHARGEYCOORDINATE"::GetDischargeYCoordinate
+    !DEC$ ENDIF
+    real(8) function GetDischargeYCoordinate(DischargeID, DischargeNumber)
+    
+        !Arguments-------------------------------------------------------------
+        integer                                     :: DischargeID
+        integer                                     :: DischargeNumber
+        
+        !Local-----------------------------------------------------------------
+        integer                                     :: STAT_CALL
+        integer                                     :: ready_         
+        type(T_IndividualDischarge), pointer        :: DischargeX
+
+        call Ready(DischargeID, ready_)    
+        
+        if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
+        
+            call Search_Discharge(DischargeX, STAT_CALL, DischargeXIDNumber=DischargeNumber)
+            if (STAT_CALL/=SUCCESS_) then 
+                write(*,*) 'Can not find discharge number ', DischargeNumber, '.'
+                stop       'Subroutine GetDischargeXCoordinate; Module ModuleDischarges. ERR01.'
+            endif
+
+            GetDischargeYCoordinate = DischargeX%Localization%CoordinateY
+        else 
+            GetDischargeYCoordinate = - 99.0
+        end if
+           
+        return
+
+    end function GetDischargeYCoordinate
+    
+    !--------------------------------------------------------------------------
+    
+    !DEC$ IFDEFINED (VF66)
+    !dec$ attributes dllexport::SetDischargeFlow
+    !DEC$ ELSE
+    !dec$ attributes dllexport,alias:"_SETDISCHARGEFLOW"::SetDischargeFlow
+    !DEC$ ENDIF
+    logical function SetDischargeFlow(DischargeID, DischargeNumber, Flow)
+    
+        !Arguments-------------------------------------------------------------
+        integer                                     :: DischargeID
+        integer                                     :: DischargeNumber
+        real(8)                                     :: Flow
+        
+        !Local-----------------------------------------------------------------
+        integer                                     :: STAT_CALL
+        integer                                     :: ready_         
+        type(T_IndividualDischarge), pointer        :: DischargeX
+
+        call Ready(DischargeID, ready_)    
+        
+        if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
+        
+            call Search_Discharge(DischargeX, STAT_CALL, DischargeXIDNumber=DischargeNumber)
+            if (STAT_CALL/=SUCCESS_) then 
+                write(*,*) 'Can not find discharge number ', DischargeNumber, '.'
+                stop       'Subroutine GetDischargeXCoordinate; Module ModuleDischarges. ERR01.'
+            endif
+            
+            DischargeX%WaterFlow%Scalar = Flow
+           
+            SetDischargeFlow = .true.
+
+        else
+        
+            SetDischargeFlow = .false.
+
+        end if
+           
+        return
+
+    end function SetDischargeFlow
+    
+    !--------------------------------------------------------------------------
+
+#endif
+
 
 end module ModuleDischarges
 

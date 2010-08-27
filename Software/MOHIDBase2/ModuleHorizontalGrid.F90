@@ -9441,6 +9441,127 @@ cd1:    if      (SumON > 0) then
     end function InsideDomainPolygon
 
 
+#ifdef _OPENMI_
+
+
+    !DEC$ IFDEFINED (VF66)
+    !dec$ attributes dllexport::GetIUB
+    !DEC$ ELSE
+    !dec$ attributes dllexport,alias:"_GETIUB"::GetIUB
+    !DEC$ ENDIF
+    integer function GetIUB(HorizontalGridID)
+    
+        !Arguments-------------------------------------------------------------
+        integer                                     :: HorizontalGridID
+        
+        !Local-----------------------------------------------------------------
+        integer                                     :: STAT_CALL
+        integer                                     :: ready_         
+
+        call Ready(HorizontalGridID, ready_)    
+        
+        if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
+        
+            GetIUB = Me%WorkSize%IUB
+
+        else 
+            GetIUB = - 99
+        end if
+           
+        return
+
+    end function GetIUB
+
+    !DEC$ IFDEFINED (VF66)
+    !dec$ attributes dllexport::GetJUB
+    !DEC$ ELSE
+    !dec$ attributes dllexport,alias:"_GETJUB"::GetJUB
+    !DEC$ ENDIF
+    integer function GetJUB(HorizontalGridID)
+    
+        !Arguments-------------------------------------------------------------
+        integer                                     :: HorizontalGridID
+        
+        !Local-----------------------------------------------------------------
+        integer                                     :: STAT_CALL
+        integer                                     :: ready_         
+
+        call Ready(HorizontalGridID, ready_)    
+        
+        if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
+        
+            GetJUB = Me%WorkSize%JUB
+
+        else 
+            GetJUB = - 99
+        end if
+           
+        return
+
+    end function GetJUB
+
+
+
+    !DEC$ IFDEFINED (VF66)
+    !dec$ attributes dllexport::GetCenterXCoordinate
+    !DEC$ ELSE
+    !dec$ attributes dllexport,alias:"_GETCENTERXCOORDINATE"::GetCenterXCoordinate
+    !DEC$ ENDIF
+    real(8) function GetCenterXCoordinate(HorizontalGridID, i, j)
+    
+        !Arguments-------------------------------------------------------------
+        integer                                     :: HorizontalGridID
+        integer                                     :: i, j
+        
+        !Local-----------------------------------------------------------------
+        integer                                     :: STAT_CALL
+        integer                                     :: ready_         
+
+        call Ready(HorizontalGridID, ready_)    
+        
+        if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
+        
+            GetCenterXCoordinate = Me%Compute%XX2D_Z(i, j)
+        else 
+            GetCenterXCoordinate = - 99.0
+        end if
+           
+        return
+
+    end function GetCenterXCoordinate
+
+    !DEC$ IFDEFINED (VF66)
+    !dec$ attributes dllexport::GetCenterYCoordinate
+    !DEC$ ELSE
+    !dec$ attributes dllexport,alias:"_GETCENTERYCOORDINATE"::GetCenterYCoordinate
+    !DEC$ ENDIF
+    real(8) function GetCenterYCoordinate(HorizontalGridID, i, j)
+    
+        !Arguments-------------------------------------------------------------
+        integer                                     :: HorizontalGridID
+        integer                                     :: i, j
+        
+        !Local-----------------------------------------------------------------
+        integer                                     :: STAT_CALL
+        integer                                     :: ready_         
+
+        call Ready(HorizontalGridID, ready_)    
+        
+        if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
+        
+            GetCenterYCoordinate = Me%Compute%YY2D_Z(i, j)
+        else 
+            GetCenterYCoordinate = - 99.0
+        end if
+           
+        return
+
+    end function GetCenterYCoordinate
+
+
+#endif
+
+
 end module ModuleHorizontalGrid
 
 !----------------------------------------------------------------------------------------------------------

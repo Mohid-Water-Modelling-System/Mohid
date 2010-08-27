@@ -43337,6 +43337,39 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
 #endif _USE_MPI
 
+#ifdef _OPENMI_
+
+        !--------------------------------------------------------------------------
+    
+    !DEC$ IFDEFINED (VF66)
+    !dec$ attributes dllexport::GetWaterLevelAtPoint
+    !DEC$ ELSE
+    !dec$ attributes dllexport,alias:"_GETWATERLEVELATPOINT"::GetWaterLevelAtPoint
+    !DEC$ ENDIF
+    real(8) function GetWaterLevelAtPoint(HydrodynamicID, i, j)
+    
+        !Arguments-------------------------------------------------------------
+        integer                                     :: HydrodynamicID
+        integer                                     :: i, j
+        
+        !Local-----------------------------------------------------------------
+        integer                                     :: STAT_CALL
+        integer                                     :: ready_         
+
+        call Ready(HydrodynamicID, ready_)    
+        
+        if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
+            GetWaterLevelAtPoint = Me%WaterLevel%New(i, j)
+        else 
+            GetWaterLevelAtPoint = - 99.0
+        end if
+           
+        return
+
+    end function GetWaterLevelAtPoint
+
+#endif
+
 End Module ModuleHydrodynamic    
 
 !----------------------------------------------------------------------------------------------------------

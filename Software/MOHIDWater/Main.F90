@@ -1169,12 +1169,12 @@ doNext:     do while (associated(NextModel))
         logical                                     :: DoNextStep
         real                                        :: DTmin, DTmax, DT_Father
 
-
+#ifndef _OPENMI_
         write(*, *)"-------------------------- MOHID -------------------------"
         write(*, *)
         write(*, *)"Running MOHID, please wait..."
         write(*, *)                    
-
+#endif
         Running            = .true.
 
         !Search for initial Min and Max Time Step
@@ -2068,15 +2068,17 @@ do1:        do i=2,StringLength
     !dec$ attributes dllexport,alias:"_RUNSIMULATION"::RunSimulation
     !DEC$ ENDIF
     !Test method to run the whole simulation once
-    subroutine RunSimulation()
+    logical function RunSimulation()
 
         !Arguments-------------------------------------------------------------
         
         !Local-----------------------------------------------------------------
 
         call ModifyMohidWater
+        
+        RunSimulation = .true.
     
-    end subroutine RunSimulation
+    end function RunSimulation
 
     !--------------------------------------------------------------------------
 

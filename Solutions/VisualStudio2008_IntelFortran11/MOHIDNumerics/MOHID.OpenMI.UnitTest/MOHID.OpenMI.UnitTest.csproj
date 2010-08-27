@@ -8,7 +8,7 @@
     <ProjectGuid>{9A2BA8E0-468B-4C1F-8BAE-0100F97A10A5}</ProjectGuid>
     <OutputType>Exe</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>MOHID.OpenMI.MohidLand.Wrapper.UnitTest</RootNamespace>
+    <RootNamespace>MOHID.OpenMI.UnitTest</RootNamespace>
     <AssemblyName>MOHID.OpenMI.MohidLand.Wrapper.UnitTest</AssemblyName>
     <TargetFrameworkVersion>v3.5</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
@@ -83,6 +83,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="MohidWaterEngineDotNetAccessTest.cs" />
     <Compile Include="MohidLandEngineDLLAccessTest.cs" />
     <Compile Include="MohidLandEngineDotNetAccessTest.cs" />
     <Compile Include="MohidLandEngineWrapperTest.cs" />

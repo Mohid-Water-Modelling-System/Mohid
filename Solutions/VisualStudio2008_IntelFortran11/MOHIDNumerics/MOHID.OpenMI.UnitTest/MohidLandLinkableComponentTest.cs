@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 
-namespace MOHID.OpenMI.MohidLand.Wrapper.UnitTest
+namespace MOHID.OpenMI.UnitTest
 {
     class MohidLandLinkableComponentTest
     {

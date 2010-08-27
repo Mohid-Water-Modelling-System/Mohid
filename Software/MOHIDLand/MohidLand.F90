@@ -63,6 +63,9 @@ program MohidLand
     !Other Stuff
     type (T_Time)                       :: InitialSystemTime, FinalSystemTime
     integer, dimension(8)               :: F95Time
+    
+    !OpenMI flag
+    logical                             :: ModelConstructed = .false.
 
 #ifndef _OPENMI_
 
@@ -108,6 +111,8 @@ program MohidLand
 
         !Constructs Basin
         call ConstructBasin   (ObjBasinID = ObjBasin, ObjTime = ObjComputeTime, ModelName = ModelName, STAT = STAT_CALL)
+
+        ModelConstructed = .true.
 
     end subroutine ConstructMohidLand
 
@@ -189,11 +194,12 @@ program MohidLand
         !real                                        :: CPUTime, LastCPUTime = 0.
         logical                                      :: finished
 
+#ifndef _OPENMI_
         write(*, *)"-------------------------- MOHID -------------------------"
         write(*, *)
         write(*, *)"Running MOHID Land, please wait..."
         write(*, *)                    
-
+#endif
 
         do
 
@@ -319,6 +325,8 @@ program MohidLand
         ElapsedSeconds = FinalSystemTime - InitialSystemTime
 
         call ShutdownMohid ("Mohid Land", ElapsedSeconds, TotalCPUTime)
+        
+        ModelConstructed = .false.
 
     end subroutine KillMohidLand
 
@@ -383,28 +391,31 @@ program MohidLand
         
         !Local-----------------------------------------------------------------
 
-        call KillMohidLand()
+        if (ModelConstructed) then
+            call KillMohidLand()
+        endif
+        
         Finish = .true.
 
     end function Finish
 
     !--------------------------------------------------------------------------
 
-    !DEC$ IFDEFINED (VF66)
-    !dec$ attributes dllexport::Dispose
-    !DEC$ ELSE
-    !dec$ attributes dllexport,alias:"_DISPOSE"::Dispose
-    !DEC$ ENDIF
-    !The dispose function does not do anything. All Clean up is done by de Finish function
-    logical function Dispose()
-
-        !Arguments-------------------------------------------------------------
-        
-        !Local-----------------------------------------------------------------
-
-        Dispose = .true.
-
-    end function Dispose
+!!!    !DEC$ IFDEFINED (VF66)
+!!!    !dec$ attributes dllexport::Dispose
+!!!    !DEC$ ELSE
+!!!    !dec$ attributes dllexport,alias:"_DISPOSE"::Dispose
+!!!    !DEC$ ENDIF
+!!!    !The dispose function does not do anything. All Clean up is done by de Finish function
+!!!    logical function Dispose()
+!!!
+!!!        !Arguments-------------------------------------------------------------
+!!!        
+!!!        !Local-----------------------------------------------------------------
+!!!
+!!!        Dispose = .true.
+!!!
+!!!    end function Dispose
     
     !--------------------------------------------------------------------------
     
@@ -433,15 +444,17 @@ program MohidLand
     !dec$ attributes dllexport,alias:"_RUNSIMULATION"::RunSimulation
     !DEC$ ENDIF
     !Test method to run the whole simulation once
-    subroutine RunSimulation()
+    logical function RunSimulation()
 
         !Arguments-------------------------------------------------------------
         
         !Local-----------------------------------------------------------------
 
         call ModifyMohidLand
+        
+        RunSimulation = .true.
     
-    end subroutine RunSimulation
+    end function RunSimulation
 
     !--------------------------------------------------------------------------
 

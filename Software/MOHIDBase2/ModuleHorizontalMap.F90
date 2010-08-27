@@ -1769,6 +1769,39 @@ cd1:    if (Me_ID > 0) then
 
     !--------------------------------------------------------------------------
 
+#ifdef _OPENMI_
+
+    !DEC$ IFDEFINED (VF66)
+    !dec$ attributes dllexport::IsWaterPoint
+    !DEC$ ELSE
+    !dec$ attributes dllexport,alias:"_ISWATERPOINT"::IsWaterPoint
+    !DEC$ ENDIF
+    real(8) function IsWaterPoint(HorizontalMapID, i, j)
+    
+        !Arguments-------------------------------------------------------------
+        integer                                     :: HorizontalMapID
+        integer                                     :: i, j
+        
+        !Local-----------------------------------------------------------------
+        integer                                     :: STAT_CALL
+        integer                                     :: ready_         
+
+        call Ready(HorizontalMapID, ready_)    
+        
+        if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
+        
+            IsWaterPoint = Me%WaterPoints2D(i, j)
+        else 
+            IsWaterPoint = .false.
+        end if
+           
+        return
+
+    end function IsWaterPoint
+
+
+#endif
+
 
 end module ModuleHorizontalMap
 

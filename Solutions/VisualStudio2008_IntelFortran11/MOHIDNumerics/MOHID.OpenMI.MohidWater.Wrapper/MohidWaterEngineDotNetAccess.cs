@@ -9,6 +9,8 @@ namespace MOHID.OpenMI.MohidWater.Wrapper
 
     public class MohidWaterEngineDotNetAccess
     {
+
+
         IntPtr _FortranDllHandle;
 
         /// <summary>
@@ -20,11 +22,18 @@ namespace MOHID.OpenMI.MohidWater.Wrapper
             //Loads the library
             _FortranDllHandle =  Kernel32Wrapper.LoadLibrary(@"D:\Software\Mohid\MOHID.Numerics\Solutions\VisualStudio2008_IntelFortran11\MOHIDNumerics\MohidWaterEngine\Debug OpenMI\MohidWaterEngine.dll");
 
+            //Sets the directory temporary to the exe dir of the model
+            String currentDir = Environment.CurrentDirectory;
+            Environment.CurrentDirectory = System.IO.Path.GetDirectoryName(filePath);
+
             //Calls the constructor and reads data files, etc
             if (!(MohidWaterEngineDLLAccess.Initialize(filePath, ((uint)filePath.Length))))
             {
                 CreateAndThrowException();
             }
+
+            Environment.CurrentDirectory = currentDir;
+        
         }
 
         /// <summary>
@@ -139,23 +148,85 @@ namespace MOHID.OpenMI.MohidWater.Wrapper
             return MohidWaterEngineDLLAccess.GetCurrentTimeStep();
         }
 
+        #region Module Discharges
+
         ///// <summary>
-        ///// Get number of Network Nodes
+        ///// Get number of discharges
         ///// </summary>
-        //public int GetNumberOfNodes()
-        //{
-        //    return MohidWaterEngineDLLAccess.GetNumberOfNodes();
-        //}
+        public int GetNumberOfDischarges(int dischargeInstanceID)
+        {
+            return MohidWaterEngineDLLAccess.GetNumberOfDischarges(ref dischargeInstanceID);
+        }
 
-        //public double GetXCoordinate(int nodeID)
-        //{
-        //    return MohidWaterEngineDLLAccess.GetXCoordinate(ref nodeID);
-        //}
+        public int GetDischargeType(int dischargeInstanceID, int dischargeID)
+        {
+            return MohidWaterEngineDLLAccess.GetDischargeType(ref dischargeInstanceID, ref dischargeID);
+        }
 
-        //public double GetYCoordinate(int nodeID)
-        //{
-        //    return MohidWaterEngineDLLAccess.GetYCoordinate(ref nodeID);
-        //}
+        public double GetDischargeXCoordinate(int dischargeInstanceID, int dischargeID)
+        {
+            return MohidWaterEngineDLLAccess.GetDischargeXCoordinate(ref dischargeInstanceID, ref dischargeID);
+        }
+
+        public double GetDischargeYCoordinate(int dischargeInstanceID, int dischargeID)
+        {
+            return MohidWaterEngineDLLAccess.GetDischargeYCoordinate(ref dischargeInstanceID, ref dischargeID);
+        }
+
+        public string GetDischargeName(int dischargeInstanceID, int dischargeID)
+        {
+            StringBuilder stringBuilder = new StringBuilder("                         ");
+            if (!MohidWaterEngineDLLAccess.GetDischargeName(ref dischargeInstanceID, ref dischargeID, stringBuilder, (uint)stringBuilder.Length))
+                CreateAndThrowException();
+            return stringBuilder.ToString().Trim();
+        }
+
+        public void SetDischargeFlow(int dischargeInstanceID, int dischargeID, double flow)
+        {
+            MohidWaterEngineDLLAccess.SetDischargeFlow(ref dischargeInstanceID, ref dischargeID, ref flow);
+        }
+
+        #endregion
+
+        #region Module HorinzontalGrid
+
+        public int GetIUB(int horizontalGridInstanceID)
+        {
+            return MohidWaterEngineDLLAccess.GetIUB(ref horizontalGridInstanceID);
+        }
+
+        public int GetJUB(int horizontalGridInstanceID)
+        {
+            return MohidWaterEngineDLLAccess.GetJUB(ref horizontalGridInstanceID);
+        }
+
+        public bool IsWaterPoint(int horizontalGridInstanceID, int i, int j)
+        {
+            return MohidWaterEngineDLLAccess.IsWaterPoint(ref horizontalGridInstanceID, ref i, ref j);
+        }
+
+        public double GetCenterXCoordinate(int horizontalGridInstanceID, int i, int j)
+        {
+            return MohidWaterEngineDLLAccess.GetCenterXCoordinate(ref horizontalGridInstanceID, ref i, ref j);
+        }
+
+        public double GetCenterYCoordinate(int horizontalGridInstanceID, int i, int j)
+        {
+            return MohidWaterEngineDLLAccess.GetCenterYCoordinate(ref horizontalGridInstanceID, ref i, ref j);
+        }
+
+        #endregion
+
+        #region Module Hydrodynamic
+
+        public double GetWaterLevelAtPoint(int hydrodynamicInstanceID, int i, int j)
+        {
+            return MohidWaterEngineDLLAccess.GetWaterLevelAtPoint(ref hydrodynamicInstanceID, ref i, ref j);
+        }
+
+
+        #endregion
+
 
         private DateTime MohidTimeStringToDotNetTime(String mohidTimeString)
         {
@@ -180,24 +251,6 @@ namespace MOHID.OpenMI.MohidWater.Wrapper
             
         }
 
-        //public double GetFlowByNodeID(int nodeID)
-        //{
-        //    return MohidWaterEngineDLLAccess.GetFlowByNodeID(ref nodeID);
-        //}
 
-        //public int GetOutletNodeID()
-        //{
-        //    return MohidWaterEngineDLLAccess.GetOutletNodeID();
-        //}
-
-        //public double GetOutletFlow()
-        //{
-        //    return MohidWaterEngineDLLAccess.GetOutletFlow();
-        //}
-
-        //public void SetDownstreamWaterLevel(double waterLevel)
-        //{
-        //    MohidWaterEngineDLLAccess.SetDownStreamWaterLevel();
-        //}
     }
 }
