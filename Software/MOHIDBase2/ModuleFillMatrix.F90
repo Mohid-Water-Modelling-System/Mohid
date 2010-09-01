@@ -77,6 +77,7 @@ Module ModuleFillMatrix
     public  :: GetIfMatrixRemainsConstant
     public  :: GetDefaultValue
     public  :: GetFillMatrixDTPrediction
+    public  :: GetHDFTimeLimits
                      
     
     !Modifier
@@ -202,6 +203,7 @@ Module ModuleFillMatrix
         real                                        :: AddingFactor
         logical                                     :: HasAddingFactor = .false.
         type (T_Time)                               :: NextTime,  PreviousTime
+        type (T_Time)                               :: StartTime,  EndTime        
         real                                        :: Next4DValue     = FillValueReal
         real                                        :: Previous4DValue = FillValueReal
         integer                                     :: NextInstant, PreviousInstant 
@@ -212,6 +214,7 @@ Module ModuleFillMatrix
         logical                                     :: CyclicTimeON = .false.
         logical                                     :: From2Dto3D   = .false.
         type(T_Generic4D)                           :: Generic4D
+        logical                                     :: ArgumentFileName
     end type T_HDF
 
 
@@ -272,7 +275,7 @@ Module ModuleFillMatrix
 
     subroutine ConstructFillMatrix2D(PropertyID, EnterDataID, TimeID,                   &
                                      HorizontalGridID, ExtractType, PointsToFill2D,     &
-                                     Matrix2D, TypeZUV, STAT)
+                                     Matrix2D, TypeZUV, FileNameHDF, ObjFillMatrix, STAT)
 
         !Arguments---------------------------------------------------------------
         integer                                         :: EnterDataID
@@ -283,13 +286,12 @@ Module ModuleFillMatrix
         real, dimension(:, :), pointer                  :: Matrix2D
         integer                                         :: TypeZUV
         type (T_PropertyID)                             :: PropertyID
-        integer, optional, intent(OUT)                  :: STAT     
-
-        !External----------------------------------------------------------------
-        integer                                         :: ready_         
+        character(*), optional, intent(IN )             :: FileNameHDF
+        integer,      optional, intent(INOUT)           :: ObjFillMatrix
+        integer,      optional, intent(OUT)             :: STAT     
 
         !Local-------------------------------------------------------------------
-        integer                                         :: STAT_, nUsers
+        integer                                         :: ready_, STAT_, nUsers, ObjFillMatrix_
 
         !------------------------------------------------------------------------
 
@@ -300,8 +302,14 @@ Module ModuleFillMatrix
             nullify (FirstObjFillMatrix)
             call RegisterModule (mFillMatrix_) 
         endif
+        
+        if (present(ObjFillMatrix)) then
+            ObjFillMatrix_ = ObjFillMatrix
+        else
+            ObjFillMatrix_ = PropertyID%ObjFillMatrix
+        endif
 
-        call Ready(PropertyID%ObjFillMatrix, ready_)    
+        call Ready(ObjFillMatrix_, ready_)    
 
 cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
@@ -339,6 +347,18 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 Me%Size2D%IUB       = Me%Size2D%IUB + 1
                 Me%WorkSize2D%IUB   = Me%WorkSize2D%IUB + 1
             endif
+            
+            if (present(FileNameHDF)) then
+            
+                Me%HDF%ArgumentFileName = .true.
+                Me%HDF%FileName         = trim(FileNameHDF)
+                
+            else
+            
+                Me%HDF%ArgumentFileName = .false.
+            
+            endif
+
 
             call ReadOptions (ExtractType, PointsToFill2D = PointsToFill2D)
             
@@ -353,7 +373,14 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             end if
 
             !Returns ID
-            PropertyID%ObjFillMatrix = Me%InstanceID
+            ObjFillMatrix_ = Me%InstanceID
+            
+            
+            if (present(ObjFillMatrix)) then
+                ObjFillMatrix            = ObjFillMatrix_ 
+            else
+                PropertyID%ObjFillMatrix = ObjFillMatrix_
+            endif            
 
             STAT_ = SUCCESS_
 
@@ -374,7 +401,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
  
     subroutine ConstructFillMatrix3D(PropertyID, EnterDataID, TimeID,                   &
                                      HorizontalGridID, GeometryID, ExtractType,         &
-                                     PointsToFill3D, Matrix3D, TypeZUV, FillMatrix, STAT)
+                                     PointsToFill3D, Matrix3D, TypeZUV, FillMatrix,     &
+                                     FileNameHDF, ObjFillMatrix, STAT)
 
         !Arguments---------------------------------------------------------------
         type (T_PropertyID)                             :: PropertyID
@@ -386,16 +414,15 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         integer, dimension(:, :, :), pointer            :: PointsToFill3D
         real, dimension(:, :, :), pointer               :: Matrix3D
         integer                                         :: TypeZUV
-        real   , optional, intent(IN )                  :: FillMatrix
-        integer, optional, intent(OUT)                  :: STAT     
-
-        !External----------------------------------------------------------------
-        integer                                         :: ready_         
+        real        , optional, intent(IN )             :: FillMatrix
+        character(*), optional, intent(IN )             :: FileNameHDF
+        integer,      optional, intent(INOUT)           :: ObjFillMatrix
+        integer,      optional, intent(OUT)             :: STAT     
 
         !Local-------------------------------------------------------------------
         real                                            :: FillMatrix_
-        integer                                         :: STAT_, nUsers
-
+        integer                                         :: ready_, STAT_, nUsers, ObjFillMatrix_
+ 
         !------------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
@@ -406,7 +433,13 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             call RegisterModule (mFillMatrix_) 
         endif
 
-        call Ready(PropertyID%ObjFillMatrix, ready_)    
+        if (present(ObjFillMatrix)) then
+            ObjFillMatrix_ = ObjFillMatrix
+        else
+            ObjFillMatrix_ = PropertyID%ObjFillMatrix
+        endif
+
+        call Ready(ObjFillMatrix_, ready_)    
 
 cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
@@ -457,6 +490,23 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 Me%WorkSize3D%IUB   = Me%WorkSize3D%IUB + 1
             endif
 
+            !Specific of the Vertical_Z matrix see ModuleGeometry 
+            if (Me%TypeZUV == TypeW_) then
+                Me%WorkSize3D%KLB   = Me%WorkSize3D%KLB - 1
+            endif
+
+
+            if (present(FileNameHDF)) then
+            
+                Me%HDF%ArgumentFileName = .true.
+                Me%HDF%FileName         = trim(FileNameHDF)
+                
+            else
+            
+                Me%HDF%ArgumentFileName = .false.
+            
+            endif
+
 
             call ReadOptions (ExtractType, PointsToFill3D = PointsToFill3D)
             
@@ -470,7 +520,13 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             end if
 
             !Returns ID
-            PropertyID%ObjFillMatrix = Me%InstanceID
+            ObjFillMatrix_ = Me%InstanceID
+                        
+            if (present(ObjFillMatrix)) then
+                ObjFillMatrix            = ObjFillMatrix_ 
+            else
+                PropertyID%ObjFillMatrix = ObjFillMatrix_
+            endif            
 
             STAT_ = SUCCESS_
 
@@ -558,6 +614,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 write(*,*)'Invalid option for keyword FILE_IN_TIME'
                 stop 'ReadOptions - ModuleFillMatrix - ERR02'
         end select
+        
+        if (Me%HDF%ArgumentFileName) Me%TimeEvolution    = ReadHDF
 
 
         if(Me%TimeEvolution == None)then
@@ -631,7 +689,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      default        = FillValueReal,                                    &
                      STAT           = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleFillMatrix - ERR06'
-        if (iflag == 0) then
+        
+        if (iflag == 0 .and. .not. Me%HDF%ArgumentFileName) then
             write(*,*)'Please define default value for property'//trim(Me%PropertyID%Name)
             stop 'ReadOptions - ModuleFillMatrix - ERR07'
         end if
@@ -2191,8 +2250,12 @@ i23:        if (Me%ProfileTimeSerie%CyclicTimeON) then
         
         endif
         
+        if (Me%TypeZUV == TypeU_ .or. Me%TypeZUV == TypeV_) then
+            allocate(AuxT(Me%Sponge%Cells + 1))
+        else
+            allocate(AuxT(Me%Sponge%Cells))
         
-        allocate(AuxT(Me%Sponge%Cells))
+        endif
         
         do sp = 1, Me%Sponge%Cells
 
@@ -2202,6 +2265,12 @@ i23:        if (Me%ProfileTimeSerie%CyclicTimeON) then
             AuxT(sp) = exp(AuxT(sp))
             
         enddo
+        
+        if (Me%TypeZUV == TypeU_ .or. Me%TypeZUV == TypeV_) then
+            AuxT(Me%Sponge%Cells+1) = AuxT(Me%Sponge%Cells)
+            Me%Sponge%Cells = Me%Sponge%Cells + 1
+        endif
+        
         
         dij(:,:) = 0
 
@@ -2407,12 +2476,13 @@ i2:     if (Me%Dim == Dim2D) then
     !--------------------------------------------------------------------------
 
 
-    subroutine ConstructHDFInput (ExtractType, PointsToFill2D, PointsToFill3D)
+    subroutine ConstructHDFInput (ExtractType, HDF5File, PointsToFill2D, PointsToFill3D)
 
         !Arguments-------------------------------------------------------------
         integer                                         :: ExtractType
         integer, dimension(:, :),    pointer, optional  :: PointsToFill2D
         integer, dimension(:, :, :), pointer, optional  :: PointsToFill3D
+        character (len = PathLength),         optional  :: HDF5File       
 
         !External--------------------------------------------------------------
         integer                                         :: STAT_CALL
@@ -2422,7 +2492,7 @@ i2:     if (Me%Dim == Dim2D) then
 
         !Local-----------------------------------------------------------------
         integer                                         :: ILB, IUB, JLB, JUB, KLB, KUB
-        type(T_Time)                                    :: LastInstantTime, EndTime
+        type(T_Time)                                    :: EndTime
         logical                                         :: FoundSecondInstant, LastGroupEqualField
         real                                            :: Year, Month, Day, Hour, Minute, Second
 
@@ -2460,7 +2530,7 @@ i0:     if(Me%Dim == Dim2D)then
             Me%HDF%NextField3D    (:,:,:) = FillValueReal
 
         endif i0
-
+        
         call GetData(Me%HDF%Generic4D%ON,                                               &
                      Me%ObjEnterData , iflag,                                           &
                      SearchType   = ExtractType,                                        &
@@ -2549,19 +2619,21 @@ i0:     if(Me%Dim == Dim2D)then
             
         endif      
 
-        call GetData(Me%HDF%FileName,                                                   &
-                     Me%ObjEnterData , iflag,                                           &
-                     SearchType   = ExtractType,                                        &
-                     keyword      = 'FILENAME',                                         &
-                     ClientModule = 'ModuleFillMatrix',                                 &
-                     STAT         = STAT_CALL)                                      
-        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructHDFInput - ModuleFillMatrix - ERR90'
+        if (.not. Me%HDF%ArgumentFileName) then
 
-        if (iflag==0)then
-            write(*,*)'HDF filename not given'
-            stop 'ConstructHDFInput - ModuleFillMatrix - ERR100'
+            call GetData(Me%HDF%FileName,                                               &
+                         Me%ObjEnterData , iflag,                                       &
+                         SearchType   = ExtractType,                                    &
+                         keyword      = 'FILENAME',                                     &
+                         ClientModule = 'ModuleFillMatrix',                             &
+                         STAT         = STAT_CALL)                                      
+            if (STAT_CALL .NE. SUCCESS_) stop 'ConstructHDFInput - ModuleFillMatrix - ERR90'
+
+            if (iflag==0)then
+                write(*,*)'HDF filename not given'
+                stop 'ConstructHDFInput - ModuleFillMatrix - ERR100'
+            endif
         endif
-
 
         inquire (file=trim(Me%HDF%FileName), exist = exist)
         if (.not. exist) then
@@ -2579,6 +2651,9 @@ i0:     if(Me%Dim == Dim2D)then
         call GetHDF5GroupNumberOfItems(Me%HDF%ObjHDF5, "/Time", &
                                        Me%HDF%NumberOfInstants, STAT = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_) stop 'ConstructHDFInput - ModuleFillMatrix - ERR130'
+        
+        Me%HDF%StartTime = HDF5TimeInstant(1)
+        Me%HDF%EndTime   = HDF5TimeInstant(Me%HDF%NumberOfInstants)
 
         !if only one instant is found then values remain constant
         if(Me%HDF%NumberOfInstants == 1) Me%RemainsConstant = .true.
@@ -2614,13 +2689,12 @@ i3:             if (Me%HDF%CyclicTimeON) then
                         stop      'ConstructHDFInput - ModuleFillMatrix - ERR170'
                     end if
             
-                    LastInstantTime = HDF5TimeInstant(Me%HDF%NumberOfInstants)
                     
-                    call CheckCyclicMonths(LastInstantTime, RefTime = EndTime)
+                    call CheckCyclicMonths(Me%HDF%EndTime, RefTime = EndTime)
 
 
                     if(Me%TimeEvolution .ne. None)then
-                        if(LastInstantTime .lt. EndTime)then
+                        if(Me%HDF%EndTime .lt. EndTime)then
                             write(*,*)
                             write(*,*)'Could not read solution from HDF5 file'
                             write(*,*)'Last instant in file lower than simulation ending time'
@@ -3280,6 +3354,52 @@ i4:         if(Me%Dim == Dim2D)then
     end subroutine GetFillMatrixDTPrediction
 
 
+    !--------------------------------------------------------------------------
+
+    subroutine GetHDFTimeLimits (FillMatrixID, StartTime, EndTime, HaveTimeLimits, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                                         :: FillMatrixID
+        type(T_Time)                                    :: StartTime, EndTime
+        logical                                         :: HaveTimeLimits
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                         :: STAT_, ready_
+
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(FillMatrixID, ready_)
+
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                            &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+            
+            if (Me%TimeEvolution == ReadHDF) then
+                HaveTimeLimits = .true.
+                
+                StartTime = Me%HDF%StartTime
+                EndTime   = Me%HDF%EndTime
+                
+            else
+                HaveTimeLimits = .false.
+                
+                call null_time(StartTime)
+                call null_time(EndTime  )
+                
+            endif
+
+
+            STAT_ = SUCCESS_
+
+        else 
+            STAT_ = ready_
+        end if
+
+        if (present(STAT)) STAT = STAT_
+
+    end subroutine GetHDFTimeLimits
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
