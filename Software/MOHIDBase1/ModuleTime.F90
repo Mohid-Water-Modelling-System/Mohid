@@ -71,6 +71,7 @@ Module ModuleTime
     public  :: PrintProgress        !Writes a message to the screen         !Frank 3-8-99
     public  :: ConvertTimeToString  !Converts T_Time to a String like 2000:01:01:23:59:59
 
+
     !Operator------------------------------------------------------------------
 
     public  :: operator(.LT.) 
@@ -572,12 +573,13 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
 
 
 
-    subroutine ActualizeCurrentTime(TimeID, DT_Global, STAT)
+    subroutine ActualizeCurrentTime(TimeID, DT_Global, Current, STAT)
         
         !Arguments-------------------------------------------------------------
         integer                                     :: TimeID
-        real,              intent (IN)              :: DT_Global
-        integer, optional, intent(OUT)              :: STAT
+        real,                   intent(IN )         :: DT_Global
+        type(T_Time), optional, intent(IN )         :: Current
+        integer,      optional, intent(OUT)         :: STAT
         
         !Local-----------------------------------------------------------------
         integer                                     :: ready_        
@@ -592,8 +594,16 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
 
 cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
-            !Actualize the instant time
-            Me%Current   = Me%Current + DT_Global
+            if (present(Current)) then
+            
+                !Actualize the instant time
+                Me%Current   = Current
+            
+            else
+
+                Me%Current   = Me%Current + DT_Global
+                
+            endif
 
             !Increase number of iterations
             Me%nIter                = Me%nIter              + 1
