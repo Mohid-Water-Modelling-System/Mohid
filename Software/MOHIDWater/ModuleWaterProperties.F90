@@ -3809,7 +3809,7 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
 
         allocate(NewProperty%Concentration(ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)                                                     &
-            stop 'Construct_PropertyValues - ModuleWaterProperties - ERR01' 
+            stop 'Construct_PropertyValues - ModuleWaterProperties - ERR10' 
         NewProperty%Concentration(:,:,:) = FillValueReal
 
         !To store oxygen and CO2 fluxes across the water-air interface 
@@ -3818,7 +3818,7 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
         
             allocate(NewProperty%SurfaceFlux(ILB:IUB, JLB:JUB), STAT = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                                     &
-                stop 'Construct_PropertyValues - ModuleWaterProperties - ERR02' 
+                stop 'Construct_PropertyValues - ModuleWaterProperties - ERR20' 
             NewProperty%Surfaceflux(:,:) = FillValueReal
         
         endif
@@ -3826,7 +3826,7 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
 
         allocate (NewProperty%Assimilation%Field(ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT_CALL)            
         if (STAT_CALL .NE. SUCCESS_)                                                     &
-            stop 'Construct_PropertyValues - ModuleWaterProperties - ERR03' 
+            stop 'Construct_PropertyValues - ModuleWaterProperties - ERR30' 
         NewProperty%Assimilation%Field(:,:,:) = FillValueReal
 
         !<BeginKeyword>
@@ -3854,7 +3854,7 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
                      ClientModule   = 'ModuleWaterProperties',                          &
                      STAT           = STAT_CALL)              
         if (STAT_CALL .NE. SUCCESS_)                                                    &
-            stop 'Construct_PropertyValues - ModuleWaterProperties - ERR04' 
+            stop 'Construct_PropertyValues - ModuleWaterProperties - ERR40' 
 
         !<BeginKeyword>
             !Keyword          : MIN_VALUE
@@ -3881,13 +3881,13 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
                      ClientModule   = 'ModuleWaterProperties',                          &
                      STAT           = STAT_CALL)              
         if (STAT_CALL .NE. SUCCESS_)                                                    &
-            stop 'Construct_PropertyValues - ModuleWaterProperties - ERR05' 
+            stop 'Construct_PropertyValues - ModuleWaterProperties - ERR50' 
         if (iflag==1)  then
             NewProperty%Evolution%MinConcentration = .true.
 
             allocate(NewProperty%Mass_Created(ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                                     &
-                stop 'Construct_PropertyValues - ModuleWaterProperties - ERR02' 
+                stop 'Construct_PropertyValues - ModuleWaterProperties - ERR60' 
             NewProperty%Mass_Created(:,:,:) = 0.  
             
         endif
@@ -3916,13 +3916,13 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
                      ClientModule   = 'ModuleWaterProperties',                          &
                      STAT           = STAT_CALL)              
         if (STAT_CALL .NE. SUCCESS_)                                                    &
-            stop 'Construct_PropertyValues - ModuleWaterProperties - ERR05a' 
+            stop 'Construct_PropertyValues - ModuleWaterProperties - ERR70' 
         if (iflag==1)  then
             NewProperty%Evolution%MaxConcentration = .true.
             
             allocate(NewProperty%Mass_Destroid(ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                                &
-                stop 'Construct_PropertyValues - ModuleWaterProperties - ERR02' 
+                stop 'Construct_PropertyValues - ModuleWaterProperties - ERR80' 
             NewProperty%Mass_Destroid(:,:,:) = 0.  
             
         endif
@@ -3949,7 +3949,7 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
                      ClientModule   = 'ModuleWaterProperties',                           &
                      STAT           = STAT_CALL)              
         if (STAT_CALL .NE. SUCCESS_)                                                     &
-            stop 'Construct_PropertyValues - ModuleWaterProperties - ERR05a' 
+            stop 'Construct_PropertyValues - ModuleWaterProperties - ERR90' 
 
         !<BeginKeyword>
             !Keyword          : DEFAULTBOUNDARY
@@ -3972,7 +3972,7 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
                      ClientModule = 'ModuleWaterProperties',                            &
                      STAT       = STAT_CALL)            
         if (STAT_CALL .NE. SUCCESS_)                                                    &
-            stop 'Construct_PropertyValues - ModuleWaterProperties - ERR06' 
+            stop 'Construct_PropertyValues - ModuleWaterProperties - ERR100' 
         if (iflag==0)                                                                   &
             NewProperty%Assimilation%scalar = DefaultValueProp(NewProperty%ID%IDNumber)
 
@@ -3995,11 +3995,11 @@ cd1 :   if (.not.NewProperty%Old) then
                                        TypeZUV              = TypeZ_,                       &
                                        STAT                 = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                                      &
-                stop 'Construct_PropertyValues - ModuleWaterProperties - ERR07'
+                stop 'Construct_PropertyValues - ModuleWaterProperties - ERR110'
 
             call GetDefaultValue(NewProperty%ID%ObjFillMatrix, NewProperty%Scalar, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                                      &
-                stop 'Construct_PropertyValues - ModuleWaterProperties - ERR07'
+                stop 'Construct_PropertyValues - ModuleWaterProperties - ERR120'
 
             if(NewProperty%ID%SolutionFromFile)then
 
@@ -4009,7 +4009,7 @@ cd1 :   if (.not.NewProperty%Old) then
 
                 call KillFillMatrix(NewProperty%ID%ObjFillMatrix, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_)&
-                    stop 'Construct_PropertyValues - ModuleWaterProperties - ERR08'
+                    stop 'Construct_PropertyValues - ModuleWaterProperties - ERR170'
 
             end if
 
@@ -4070,7 +4070,7 @@ do1 :       do I = ILB, IUB
                          ClientModule = 'ModuleWaterProperties',                        &
                          STAT       = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                                &
-                stop 'Construct_PropertyValues - ModuleWaterProperties - ERR09' 
+                stop 'Construct_PropertyValues - ModuleWaterProperties - ERR180' 
 
 
 cd4 :       if (associated(Me%ExternalVar%BoundaryPoints2D)) then
@@ -4098,7 +4098,7 @@ do6 :                       do K = WKLB, WKUB
                     write(*,*) 
                     write(*,*) 'The boundary initialization methods can only be two: '
                     write(*,*) '    INTERIOR OR EXTERIOR'
-                    stop       'Construct_PropertyValues - ModuleWaterProperties - ERR10'  
+                    stop       'Construct_PropertyValues - ModuleWaterProperties - ERR190'  
         
                end if cd2
 
