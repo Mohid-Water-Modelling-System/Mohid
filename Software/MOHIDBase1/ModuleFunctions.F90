@@ -139,6 +139,9 @@ Module ModuleFunctions
     public  :: ExtraPol3DNearestCell 
     public  :: ExtraPol3DNearestCell_8
     
+    public  :: FillMatrix2DNearestCell
+    public  :: FillMatrix3DNearestCell
+    
     !Reading of Time Keywords
     public  :: ReadTimeKeyWords
 
@@ -3824,7 +3827,154 @@ d1:     do k = KLB, KUB
     end subroutine ExtraPol3DNearestCell_8
 
     !-------------------------------------------------------------------------------------
+    !--------------------------------------------------------------------------
 
+    subroutine FillMatrix2DNearestCell (ILB, IUB, JLB, JUB, ComputePoints2D, OutValues2D)
+
+        !Arguments-------------------------------------------------------------
+        integer                                     :: JLB, JUB, ILB, IUB
+        real,         dimension(:,:),   pointer     :: OutValues2D
+        integer,      dimension(:,:),   pointer     :: ComputePoints2D
+
+        !Local-----------------------------------------------------------------
+
+        integer                                     :: dij, Count, i, j, NumberOfCells
+        integer                                     :: jj, ii, dijmax, dimax, djmax
+        real                                        :: SumValues
+       
+        !Begin-----------------------------------------------------------------
+
+        NumberOfCells =  Sum(ComputePoints2D(ILB:IUB, JLB:JUB))
+
+i1:     if (NumberOfCells > 0) then
+        
+d1:         do j = JLB, JUB
+            do i = ILB, IUB
+            
+i2:             if (ComputePoints2D(i, j) == 0) then
+            
+                    dimax = max(IUB-i + 1, i - ILB + 1)
+                    djmax = max(JUB-j + 1, j - JLB + 1)
+
+                    dijmax = max(dimax, djmax)
+                
+                    SumValues   = 0
+                    Count = 0
+
+d2:                 do dij=1,dijmax
+
+                        do jj=j-dij,j+dij
+                        do ii=i-dij,i+dij
+
+                            if (jj < JLB) cycle
+                            if (jj > JUB) cycle
+                            if (ii < ILB) cycle
+                            if (ii > IUB) cycle
+
+                            if (ComputePoints2D(ii, jj) == 1) then
+                                SumValues   = SumValues   + OutValues2D(ii, jj) 
+                                Count = Count + 1
+                            endif
+
+                        enddo
+                        enddo
+
+                        if (Count > 0) exit
+
+                    enddo d2
+
+                    OutValues2D(i, j) = SumValues / real(Count)
+
+                endif i2
+
+            enddo
+            enddo d1
+        
+        else  i1
+        
+        !Maintain the original values because there are no nearst cell with values
+
+        endif i1
+
+    end subroutine FillMatrix2DNearestCell
+
+    !-------------------------------------------------------------------------------------
+
+    subroutine FillMatrix3DNearestCell (ILB, IUB, JLB, JUB, KLB, KUB, ComputePoints3D, OutValues3D)
+
+        !Arguments-------------------------------------------------------------
+        integer                                     :: JLB, JUB, ILB, IUB, KLB, KUB  
+        real,         dimension(:,:,:), pointer     :: OutValues3D
+        integer,      dimension(:,:,:), pointer     :: ComputePoints3D
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: dij, Count, i, j, k, NumberOfCells
+        integer                                     :: dijmax, dimax, djmax
+        integer                                     :: imin, imax, jmin, jmax
+        real                                        :: SumValues
+        
+        !Begin-----------------------------------------------------------------
+
+d1:     do k = KLB, KUB
+
+            NumberOfCells =  Sum(ComputePoints3D(ILB:IUB, JLB:JUB, k))
+
+
+i1:         if (NumberOfCells > 0) then
+
+d2:             do j = JLB, JUB
+                do i = ILB, IUB
+                    
+i2:                 if (ComputePoints3D(i, j, k) == 0) then
+
+                        dimax = max(IUB-i + 1, i - ILB + 1)
+                        djmax = max(JUB-j + 1, j - JLB + 1)
+
+                        dijmax = max(dimax, djmax)
+                    
+                        SumValues = 0
+                        Count     = 0
+                        
+d3:                     do dij=1,dijmax
+                            
+                            jmin =max(j-dij,JLB)
+                            jmax =min(j+dij,JUB)
+
+                            imin =max(i-dij,ILB)
+                            imax =min(i+dij,IUB)
+                            
+                            Count = sum(ComputePoints3D(imin:imax, jmin:jmax, k))
+                            
+                            if (Count == 0) then
+                                cycle
+                            else
+                                SumValues=sum(ComputePoints3D(imin:imax, jmin:jmax, k) * OutValues3D(imin:imax, jmin:jmax, k)) 
+                                OutValues3D(i, j, k) = SumValues / real(Count)
+                                exit
+                            endif
+
+
+                        enddo d3
+
+                       
+                    endif i2
+                    
+                enddo
+                enddo d2
+            
+            else  i1
+
+                !Maintain the original values in the layer where are no nearst cell with values
+            
+            endif i1
+
+        enddo d1
+
+    end subroutine FillMatrix3DNearestCell
+
+    !-------------------------------------------------------------------------------------
+
+   
     !-------------------------------------------------------------------------------------    
     subroutine ReadTimeKeyWords(ObjEnterData, ExtractTime, BeginTime, EndTime, DT,       &
                                 VariableDT, ClientModule, MaxDT, GmtReference,           &
