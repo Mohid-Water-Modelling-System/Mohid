@@ -173,7 +173,7 @@ Module ModuleHDF5
     type T_HDF5
         integer                                     :: InstanceID
         integer (HID_T)                             :: FileID
-        character(Pathlength)                       :: FileName
+        character(Pathlength)                       :: FileName, FileName2
         type    (T_Limits)                          :: Limits
         type    (T_AuxMatrixes)                     :: AuxMatrixes
         type    (T_HDF5), pointer                   :: Next
@@ -250,15 +250,15 @@ Module ModuleHDF5
 
             !Open the file
             if      (Access == HDF5_CREATE_) then
-                call h5fcreate_f(FileName, ACCESS_FLAGS = H5F_ACC_TRUNC_F,               &
+                call h5fcreate_f(trim(FileName), ACCESS_FLAGS = H5F_ACC_TRUNC_F,               &
                                  FILE_ID = Me%FileID, HDFERR = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5 - ModuleHDF5 - ERR01'
             elseif  (Access == HDF5_READ_) then
-                call h5fopen_f (FileName, ACCESS_FLAGS = H5F_ACC_RDONLY_F,               &
+                call h5fopen_f (trim(FileName), ACCESS_FLAGS = H5F_ACC_RDONLY_F,               &
                                 FILE_ID = Me%FileID, HDFERR = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5 - ModuleHDF5 - ERR02'
             elseif  (Access == HDF5_READWRITE_) then
-                call h5fopen_f (FileName, ACCESS_FLAGS = H5F_ACC_RDWR_F,                &
+                call h5fopen_f (trim(FileName), ACCESS_FLAGS = H5F_ACC_RDWR_F,                &
                                 FILE_ID = Me%FileID, HDFERR = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5 - ModuleHDF5 - ERR03'
             else
@@ -271,7 +271,9 @@ Module ModuleHDF5
 
 
             !Stores FileName
-            Me%FileName = FileName
+            Me%FileName  = trim(FileName)
+            Me%FileName2 = trim(FileName)
+            
 
 
             !Returns ID
@@ -3167,10 +3169,11 @@ Module ModuleHDF5
 
     !--------------------------------------------------------------------------
 
-    subroutine HDF5FlushMemory (HDF5ID, STAT)
+    subroutine HDF5FlushMemory (HDF5ID, ErrorMessage, STAT)
 
         !Arguments-------------------------------------------------------------
         integer                                     :: HDF5ID
+        character(len=*), optional                  :: ErrorMessage
         integer, optional                           :: STAT
 
         !Local-----------------------------------------------------------------
@@ -3189,10 +3192,24 @@ Module ModuleHDF5
             !Close and reopens file
             call h5fclose_f(Me%FileID,   HDFERR = STAT_)
             if (STAT_ /= SUCCESS_) stop 'HDF5FlushMemory - ModuleHDF5 - ERR02'
+            
+            if (trim(Me%FileName2)/= trim(Me%FileName)) then
+                write(*,*) "FileName before",trim(Me%FileName)
+                Me%FileName = trim(Me%FileName2)
+            endif
 
-            call h5fopen_f (Me%FileName, ACCESS_FLAGS = H5F_ACC_RDWR_F,             &
+            call h5fopen_f (trim(Me%FileName), ACCESS_FLAGS = H5F_ACC_RDWR_F,             &
                             FILE_ID = Me%FileID, HDFERR = STAT_)
-            if (STAT_ /= SUCCESS_) stop 'HDF5FlushMemory - ModuleHDF5 - ERR03'
+            if (STAT_ /= SUCCESS_) then
+                if (present(ErrorMessage)) then
+                    write(*,*) trim(ErrorMessage)
+                endif
+                write(*,*) "FileName",trim(Me%FileName)
+                write(*,*) "FileID", Me%FileID
+                write(*,*) "HDF5ID", HDF5ID
+                write(*,*) "STAT_", STAT_
+                stop 'HDF5FlushMemory - ModuleHDF5 - ERR03'
+            endif                
 
             STAT_ = SUCCESS_
 
@@ -3884,17 +3901,17 @@ cd1:    if (HDF5ID > 0) then
         if (STAT /= SUCCESS_) return
 
         !Open the file as read only
-        call h5fopen_f  (FileName, H5F_ACC_RDONLY_F, file_id, STAT)
+        call h5fopen_f  (trim(FileName), H5F_ACC_RDONLY_F, file_id, STAT)
         if (STAT /= SUCCESS_) return
 
         !Creates tree view image list
         ret = ConstructTreeViewImageLists (hInstance, handleTV)
 
         !Adds the name of the file as root elemente
-        hParent = AddItemToHDFTree(handleTV, 0, FileName, FileName, "/", TypeFile)
+        hParent = AddItemToHDFTree(handleTV, 0, trim(FileName), trim(FileName), "/", TypeFile)
 
         !Iterates through all subgroups
-        call InquireSubGroup (file_id, "/", 1, hParent, handleTV, FileName)
+        call InquireSubGroup (file_id, "/", 1, hParent, handleTV, trim(FileName))
                       
         !Closes the file
         call h5fclose_f (file_id, STAT)
@@ -3965,12 +3982,12 @@ cd1:    if (HDF5ID > 0) then
                 !Closes data set
                 call h5dclose_f (dset_id, STAT)
                 
-                NewParent = AddItemToHDFTree(handleTV, hParent, obj_name, FileName,      &
+                NewParent = AddItemToHDFTree(handleTV, hParent, obj_name, trim(FileName),  &
                                              GroupName, TypeSDS, Rank, class_id, size, Dims)
 
             elseif (obj_type == H5G_GROUP_F  ) then
 
-                NewParent = AddItemToHDFTree(handleTV, hParent, obj_name, FileName,      &
+                NewParent = AddItemToHDFTree(handleTV, hParent, obj_name, trim(FileName),      &
                                              GroupName, TypeVG)
 
             endif
@@ -4037,7 +4054,7 @@ cd1:    if (HDF5ID > 0) then
                     NewGroupName = GroupName//"/"//trim(adjustl(obj_name))
                 endif
                 call h5gopen_f       (ID, trim(adjustl(NewGroupName)), gr_id, STAT)
-                call InquireSubGroup (gr_id, trim(adjustl(NewGroupName)), Level + 1, NewParent, handleTV, FileName)
+                call InquireSubGroup (gr_id, trim(adjustl(NewGroupName)), Level + 1, NewParent, handleTV, trim(FileName))
                 call h5gclose_f      (gr_id, STAT)
             endif
             
@@ -4078,7 +4095,7 @@ cd1:    if (HDF5ID > 0) then
         !Stores HDF Data
         allocate(HDF5_DataItem)
         HDF5_DataItem%ItemType  = nType
-        HDF5_DataItem%FileName  = FileName
+        HDF5_DataItem%FileName  = trim(FileName)
         HDF5_DataItem%GroupName = GroupName
         HDF5_DataItem%ItemName  = ItemName
         if (present(Rank)) then
@@ -4225,7 +4242,7 @@ cd1:    if (HDF5ID > 0) then
         if (STAT /= SUCCESS_) return
 
         !Open the file as read only
-        call h5fopen_f  (FileName, H5F_ACC_RDONLY_F, file_id, STAT)
+        call h5fopen_f  (trim(FileName), H5F_ACC_RDONLY_F, file_id, STAT)
         if (STAT /= SUCCESS_) return
 
         !If item is a group
@@ -4323,7 +4340,7 @@ cd1:    if (HDF5ID > 0) then
         if (STAT /= SUCCESS_) return
 
         !Open the file as read only
-        call h5fopen_f  (FileName, H5F_ACC_RDONLY_F, file_id, STAT)
+        call h5fopen_f  (trim(FileName), H5F_ACC_RDONLY_F, file_id, STAT)
         if (STAT /= SUCCESS_) return
 
         !Opens the group
