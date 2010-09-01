@@ -26,16 +26,12 @@ Module ModuleGEBCO
     use ModuleDrawing
     use ModuleEnterData
     use ModuleHDF5
-#ifdef _USE_NIX
-    use netcdf
-#else    
     use netcdf90
-#endif
 
     implicit none
 
     private 
-
+    
     !Subroutines---------------------------------------------------------------
 
     !Constructor
