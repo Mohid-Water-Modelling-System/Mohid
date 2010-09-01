@@ -58,6 +58,7 @@ Module ModuleLagrangianGlobal
 !DataFile
 !
 !   DT_PARTIC               : sec.                      [DT_Model]              !Particle Time Step    
+!   VERT_STEPS              : []                        [10]                    ! number of vertical steps along DT_PARTIC 
 !   OUTPUT_TIME             : sec. sec. sec.            []                      !Output Time
 !   RESTART_FILE_OUTPUT_TIME: sec. sec. sec.            []                      !Output Time to write restart files
 !   RESTART_FILE_OVERWRITE  : 0/1                       [1]                     !Overwrite intermediate restart files    
@@ -912,8 +913,7 @@ Module ModuleLagrangianGlobal
         type (T_ParticleGeometry)               :: Geometry
         real, dimension(:), pointer             :: Concentration
         real, dimension(:), pointer             :: Mass
-        real                                    :: TpercursoX               = -null_real
-        real                                    :: TpercursoY               = -null_real
+        real                                    :: TpercursoH               = -null_real
         real                                    :: TpercursoZ               = -null_real
         real                                    :: UD_old                   = null_real
         real                                    :: VD_old                   = null_real
@@ -926,7 +926,7 @@ Module ModuleLagrangianGlobal
         real                                    :: ErosionRateProbability   = null_real
         real                                    :: U, V, W                  = null_real
         real                                    :: RelU, RelV               = null_real
-        real                                    :: SDU, SDV                 = null_real
+        real                                    :: SD                       = null_real
         real                                    :: SigmaDensity             = null_real
         type (T_Partic), pointer                :: Next                     => null()
         type (T_Partic), pointer                :: Prev                     => null()
@@ -1081,6 +1081,7 @@ Module ModuleLagrangianGlobal
         integer                                 :: MonitorPropertyID           = null_int
 
         real                                    :: DT_Partic
+        integer                                 :: Vert_Steps
         real                                    :: BeachingLimit
         real                                    :: DefaultBeachingProbability
 
@@ -2255,6 +2256,18 @@ d2:     do em =1, Me%EulerModelNumber
         Me%NextCompute = Me%ExternalVar%Now + Me%DT_Partic
         Me%Now         = Me%ExternalVar%Now
         
+        !Get number of vertical time steps along DT_PARTIC
+        call GetData(Me%VERT_STEPS,                                                     &
+                     Me%ObjEnterData,                                                   &
+                     flag,                                                              &
+                     SearchType   = FromFile,                                           &
+                     keyword      ='VERT_STEPS',                                        &
+                     default      = 10,                                                 &
+                     ClientModule ='ModuleLagrangianGlobal',                            &
+                     STAT         = STAT_CALL)        
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructOrigins - ModuleLagrangianGlobal - ERR230'        
+        
+        
         call BoxTypeVariablesDefiniton
 
 
@@ -2966,7 +2979,7 @@ MO:             if (flag == 1) then
 
                 ! ---> Definition of the Horizontal and Vertical variance in 
                 !      the form of a percentage of the average velocity      
-                ! UStandardDeviation = VarVelHX * Vel + VarVelH
+                ! StandardDeviation = VarVelHX * Vel + VarVelH
                 call GetData(NewOrigin%Movement%VarVelHX,                        &
                              Me%ObjEnterData,                         &
                              flag,                                               &
@@ -6955,6 +6968,7 @@ d1:     do em = 1, Me%EulerModelNumber
         integer                                     :: STAT_CALL
         integer                                     :: ILB, IUB, JLB, JUB, KLB, KUB
         integer                                     :: HDF5_CREATE, em, ic
+        character(len = PathLength)                 :: FileName
 
  
         !Begin-----------------------------------------------------------------
@@ -6981,12 +6995,13 @@ em1:    do em =1, Me%EulerModelNumber
             call GetHDF5FileAccess  (HDF5_CREATE = HDF5_CREATE)
 
             ic = len(trim(Me%Files%TransientHDF))
+            
+            FileName(:) = ' '
+            
+            FileName = trim(Me%Files%TransientHDF(1:ic-4))//"_"//trim(Me%EulerModel(em)%Name)//".hdf5"
 
             !Opens HDF File
-            call ConstructHDF5      (Me%ObjHDF5(em),                                    &
-                                     trim(Me%Files%TransientHDF(1:ic-4))//"_"//         &
-                                     trim(Me%EulerModel(em)%Name)//".hdf5",             &
-                                     HDF5_CREATE, STAT = STAT_CALL)
+            call ConstructHDF5      (Me%ObjHDF5(em), trim(FileName), HDF5_CREATE, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5Output - ModuleLagrangianGlobal - ERR05'
 
 
@@ -7023,7 +7038,7 @@ em1:    do em =1, Me%EulerModelNumber
                 if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5Output - ModuleLagrangianGlobal - ERR19'
 
                 !Flushes All pending HDF5 commands
-                call HDF5FlushMemory (Me%ObjHDF5(em), STAT = STAT_CALL)
+                call HDF5FlushMemory (Me%ObjHDF5(em), ErrorMessage = 'ConstructHDF5Output - ModuleLagrangianGlobal - ERR23', STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5Output - ModuleLagrangianGlobal - ERR23'
 
                 !Ungets the Bathymetry
@@ -7652,8 +7667,7 @@ CurrOr: do while (associated(CurrentOrigin))
 
         NewPartic%KillPartic = OFF
 
-        NewPartic%TpercursoX = abs(null_real)
-        NewPartic%TpercursoY = abs(null_real)
+        NewPartic%TpercursoH = abs(null_real)
         NewPartic%TpercursoZ = abs(null_real)
 
         NewPartic%ID         = NextParticID
@@ -8080,7 +8094,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
                 call ParticleEmission       ()
 
                 !Calculates the Particle Density
-                call ParticleDensity        ()
+                !call ParticleDensity        ()
 
                 !Calculates the GridThickness
                 if (Me%State%Oil) then                
@@ -9175,10 +9189,9 @@ CurrOr: do while (associated(CurrentOrigin))
         real                                        :: EspSup, Esp, EspInf
         real, dimension(:, :, :), pointer           :: Velocity_U, Velocity_V
         real                                        :: VelModH
-        real                                        :: UStandardDeviation, VStandardDeviation
-        real                                        :: TlagrangeX, TlagrangeY
+        real                                        :: StandardDeviation, MixingLength, HD, TlagrangeH
         real                                        :: RAND, R1, R2
-        type (T_Position)                           :: NewPosition, OldPosition
+        type (T_Position)                           :: NewPosition, OldPosition, AuxPosition
         integer                                     :: NewI, NewJ, KUB
         integer                                     :: WS_ILB, WS_IUB, WS_JLB, WS_JUB
         logical                                     :: PositionCorrected
@@ -9439,63 +9452,55 @@ MT:             if (CurrentOrigin%Movement%MovType == SullivanAllen_) then
         
                     VelModH  = abs(cmplx(U, V))
 
-                    UStandardDeviation = CurrentOrigin%Movement%VarVelHX * VelModH +         &
-                                         CurrentOrigin%Movement%VarVelH
-                    VStandardDeviation = CurrentOrigin%Movement%VarVelHX * VelModH +         &
-                                         CurrentOrigin%Movement%VarVelH
+                    StandardDeviation = CurrentOrigin%Movement%VarVelHX * VelModH +     &
+                                        CurrentOrigin%Movement%VarVelH
+                                         
+                    MixingLength =abs(cmplx(Me%EulerModel(emp)%MixingLengthX(i, j, k),  &
+                                            Me%EulerModel(emp)%MixingLengthY(i, j, k)))
 
-                    if (UStandardDeviation > 0.0) then
-                        TlagrangeX = Me%EulerModel(emp)%MixingLengthX(i, j, k) /      &
-                                     UStandardDeviation
+                    if (StandardDeviation > 0.0) then
+                        TlagrangeH = MixingLength / StandardDeviation
                     else
-                        TlagrangeX = 0.0     
+                        TlagrangeH = 0.0     
                     endif
 
-                    if (CurrentPartic%TpercursoX >= TlagrangeX) then  
+                    if (CurrentPartic%TpercursoH >= TlagrangeH) then  
+                        
+                        ! First step - compute the modulus of turbulent vector
+                        
                         call random_number(RAND)
                         !SQRT(3.0)=1.732050808 
-                        !UD                       = (1.0 - 2.0 * RAND) * 1.732050808 *        &
-                        !                           UStandardDeviation 
+                        HD                       = 1.732050808 * StandardDeviation * RAND
 
-                        UD                       = 1.732050808 * UStandardDeviation * RAND
+                        ! Second step - Compute the modulus of each component of the turbulent vector
+                        call random_number(RAND)
 
+                        !   From 0 to Pi/2 cos and sin have positive values
+                        UD                       = HD * cos(Pi / 2. * RAND)
+                        VD                       = HD * sin(Pi / 2. * RAND)
+
+                        !Third step - Compute the direction of the the turbulent vector taking in consideration the layers thickness gradients
+                        ! Spagnol et al. (Mar. Ecol. Prog. Ser., 235, 299-302, 2002).                        
                         call random_number(RAND)
                        
-                        !Spagnol et al. (Mar. Ecol. Prog. Ser., 235, 299-302, 2002).                        
                         Aux                      = (1.0 - 2.0 * RAND)
-                        if (Aux >= GradDWx)   UD = - UD                                  
+                        if (Aux >= GradDWx)   UD = - UD              
+
+                        call random_number(RAND)
+
+                        Aux                      = (1.0 - 2.0 * RAND)
+                        if (Aux >= GradDWy)   VD = - VD      
+                        
+                        CurrentPartic%TpercursoH = Me%DT_Partic
+                        CurrentPartic%UD_old     = UD
+                        CurrentPartic%VD_old     = VD
+                    
                     else
-                        UD                       = CurrentPartic%UD_old                               
-                        CurrentPartic%TpercursoX = CurrentPartic%TpercursoX + Me%DT_Partic
+                        UD                       = CurrentPartic%UD_old
+                        VD                       = CurrentPartic%VD_old
+                        CurrentPartic%TpercursoH = CurrentPartic%TpercursoH + Me%DT_Partic
                     end if
 
-
-                    if (VStandardDeviation > 0.0) then
-                        TlagrangeY = Me%EulerModel(emp)%MixingLengthY(i, j, k) /      &
-                                     VStandardDeviation
-                    else
-                        TlagrangeY = 0.0
-                    endif
-
-                    if (CurrentPartic%TpercursoY >= TlagrangeY) then
-                        call random_number(RAND)
-                        !VD                       = (1.0 - 2.0 * RAND) * 1.732050808 *        &
-                        !                           VStandardDeviation  
-
-                        !Spagnol et al. (Mar. Ecol. Prog. Ser., 235, 299-302, 2002).                        
-                        VD                       = 1.732050808 * VStandardDeviation  * RAND
-
-                        call random_number(RAND) 
-                        Aux                      = (1.0 - 2.0 * RAND)
-                        
-                        if (Aux >= GradDWy)   VD = - VD 
-  
-                        CurrentPartic%TpercursoY = Me%DT_Partic
-                        CurrentPartic%VD_old     = VD                                    
-                    else
-                        VD                       = CurrentPartic%VD_old                            
-                        CurrentPartic%TpercursoY = CurrentPartic%TpercursoY + Me%DT_Partic
-                    endif
                    
                 else if (CurrentOrigin%Movement%MovType .EQ. NotRandom_    ) then MT
 
@@ -9526,8 +9531,7 @@ MT:             if (CurrentOrigin%Movement%MovType == SullivanAllen_) then
                     CurrentPartic%RelU = CurrentPartic%U - UINT
                     CurrentPartic%RelV = CurrentPartic%V - VINT
 
-                    CurrentPartic%SDU  = UStandardDeviation
-                    CurrentPartic%SDV  = VStandardDeviation
+                    CurrentPartic%SD   = StandardDeviation
 
                 endif
 
@@ -9555,70 +9559,62 @@ MT:             if (CurrentOrigin%Movement%MovType == SullivanAllen_) then
                 NewPosition%X = CurrentPartic%Position%X + DX
                 NewPosition%Y = CurrentPartic%Position%Y + DY
 
-                NotChangeDomain = GetXYInsideDomain(Me%EulerModel(emp)%ObjHorizontalGrid, &
-                NewPosition%X, NewPosition%Y, Referential= AlongGrid_, STAT = STAT_CALL) 
+                HaveDomain = .false. 
 
-                if (STAT_CALL /= SUCCESS_) stop 'Locate_ModelDomain - ModuleLagrangianGlobal - ERR10'
+d1:             do em = 1, Me%EulerModelNumber
+                
+                    HaveDomain = GetXYInsideDomain(Me%EulerModel(em)%ObjHorizontalGrid, &
+                                   CurrentPartic%Position%CoordX,                       &
+                                   CurrentPartic%Position%CoordY,                       &
+                                   Referential= GridCoord_, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'Locate_ModelDomain - ModuleLagrangianGlobal - ERR10'
 
-
-iNCD:           if (NotChangeDomain) then
-
-                    ComputeTrajectory   = .false.
-                    HaveDomain          = .true.
-                    NewPosition%ModelID = emp
-
-                else iNCD
-
-                    HaveDomain = .false. 
-
-d1:                 do em = emp+1, Me%EulerModelNumber
+                    if (HaveDomain .and. em == emp) then
                     
-                        HaveDomain = GetXYInsideDomain(Me%EulerModel(em)%ObjHorizontalGrid, &
-                                       CurrentPartic%Position%CoordX,                       &
-                                       CurrentPartic%Position%CoordY,                       &
-                                       Referential= GridCoord_, STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'Locate_ModelDomain - ModuleLagrangianGlobal - ERR10'
-
-                    
-iHD:                    if (HaveDomain) then
-
-                            !Convert Coordinates
-                            call Convert_XY_CellIJ(Me%EulerModel(em),CurrentPartic%Position, Referential = GridCoord_)
-
-iOpen2D:                    if  (Me%EulerModel(em)%OpenPoints3D(CurrentPartic%Position%i, CurrentPartic%Position%j, &
-                                                                Me%EulerModel(em)%WorkSize%KUB) == OpenPoint) then
-
-
-                                call Convert_Z_CellK (CurrentOrigin, Me%EulerModel(em), CurrentPartic%Position, PositionCorrected)
-                                call Convert_CellK_K (                                  CurrentPartic%Position)
-
-                                CurrentPartic%Position%ModelID = em
-
-                                ComputeTrajectory = .true.
-
-                            else iOpen2D
-
-                                !If a particle doesnt move the freazed state is ON
-                                CurrentPartic%Freazed    = ON
-
-                                CurrentPartic%TpercursoX = abs(null_real)
-                                CurrentPartic%TpercursoY = abs(null_real)
-
-                                ComputeTrajectory = .false.
-
-                            endif iOpen2D
-
-                            exit
-                        endif iHD
-
-                    enddo d1
-
-                    if (.not. HaveDomain) then                            
-                        ComputeTrajectory        = .false. 
-                        CurrentPartic%KillPartic = ON 
+                    !do not change domain 
+                        ComputeTrajectory   = .false.
+                        NewPosition%ModelID = emp                 
+                        exit
                     endif
-            
-                endif iNCD
+                    
+
+                
+iHD:                if (HaveDomain) then
+
+                        !Convert Coordinates
+                        call Convert_XY_CellIJ(Me%EulerModel(em),CurrentPartic%Position, Referential = GridCoord_)
+
+iOpen2D:                if  (Me%EulerModel(em)%OpenPoints3D(CurrentPartic%Position%i, CurrentPartic%Position%j, &
+                                                            Me%EulerModel(em)%WorkSize%KUB) == OpenPoint) then
+
+
+                            call Convert_Z_CellK (CurrentOrigin, Me%EulerModel(em), CurrentPartic%Position, PositionCorrected)
+                            call Convert_CellK_K (                                  CurrentPartic%Position)
+
+                            CurrentPartic%Position%ModelID = em
+
+                            ComputeTrajectory = .true.
+
+                        else iOpen2D
+
+                            !If a particle doesnt move the freazed state is ON
+                            CurrentPartic%Freazed    = ON
+
+                            CurrentPartic%TpercursoH = abs(null_real)
+
+                            ComputeTrajectory = .false.
+
+                        endif iOpen2D
+
+                        exit
+                    endif iHD
+
+                enddo d1
+
+                if (.not. HaveDomain) then                            
+                    ComputeTrajectory        = .false. 
+                    CurrentPartic%KillPartic = ON 
+                endif
 
             enddo CT
 
@@ -9647,44 +9643,102 @@ iFKP:       if (MovePartic) then
 
                 KUB  = Me%EulerModel(NewPosition%ModelID)%WorkSize%KUB                   
 
-                !If it isnt a OpenPoint, donesnt move, reset TPercurso
+                !It assumes that is no water point
 ie:             if  (Me%EulerModel(NewPosition%ModelID)%OpenPoints3D(NewI, NewJ, KUB) /= OpenPoint) then
 
-                    !If a particle doesnt move the freazed state is ON
-                    CurrentPartic%Freazed    = ON
+                    !If it isnt a OpenPoint, reset TPercurso
+                    CurrentPartic%TpercursoH = abs(null_real)
 
-                    CurrentPartic%TpercursoX = abs(null_real)
-                    CurrentPartic%TpercursoY = abs(null_real)
+
+                    AuxPosition = NewPosition
+                   
+                    !Tries to use the non slip condition
+                    
+                    !Freaze the X direction
+                    AuxPosition%X      = OldPosition%X
+                    AuxPosition%CartX  = OldPosition%CartX                    
+                    AuxPosition%CoordX = OldPosition%CoordX                                        
+                    AuxPosition%J      = OldPosition%J
+                    AuxPosition%CellJ  = OldPosition%CellJ                   
+                    
+                    !Convert Coordinates
+                    call Convert_XY_CellIJ(Me%EulerModel(NewPosition%ModelID),AuxPosition, Referential = AlongGrid_)
+
+                    !Verifies new position
+                    NewI = AuxPosition%i
+                    NewJ = AuxPosition%j
+                    
+ix:                 if  (Me%EulerModel(NewPosition%ModelID)%OpenPoints3D(NewI, NewJ, KUB) == OpenPoint) then
+                    
+                        NewPosition = AuxPosition
+                        
+                    else ix
+                    
+                        AuxPosition = NewPosition
+
+                       !Freaze the Y direction
+                        AuxPosition%Y      = OldPosition%Y
+                        AuxPosition%CartY  = OldPosition%CartY
+                        AuxPosition%CoordY = OldPosition%CoordY
+                        AuxPosition%I      = OldPosition%I
+                        AuxPosition%CellI  = OldPosition%CellI
+                        
+                        !Convert Coordinates
+                        call Convert_XY_CellIJ(Me%EulerModel(NewPosition%ModelID),AuxPosition, Referential = AlongGrid_)
+
+                        !Verifies new position
+                        NewI = AuxPosition%i
+                        NewJ = AuxPosition%j
+
+iy:                     if  (Me%EulerModel(NewPosition%ModelID)%OpenPoints3D(NewI, NewJ, KUB) == OpenPoint) then
+                        
+                            NewPosition = AuxPosition
+                        
+                        else iy
+
+                            !If a particle doesnt move the freazed state is ON
+                            CurrentPartic%Freazed    = ON
+                          
+                        endif iy
+                        
+                    endif ix
 
                 !Moves it 
-                else ie
-
-                    call MoveParticVertical  (CurrentOrigin, CurrentPartic, NewPosition, VelModH)
-
-                    call Convert_Z_CellK (CurrentOrigin, Me%EulerModel(NewPosition%ModelID), &
-                                                         NewPosition, PositionCorrected)
-                    call Convert_CellK_K (               NewPosition)
-
-                    !If PositionCorrected initialize the vertical random dispersion in the next step
-                    if (PositionCorrected) then
-                        CurrentPartic%TpercursoZ = abs(null_real)
-                        CurrentPartic%W = 0.
-                    endif
-
-                    !If a particle moved the freazed state is OFF
-                    CurrentPartic%Freazed   = OFF
-
-                    !Stores New Position
-                    CurrentPartic%Position  = NewPosition
-
-                    if (CurrentOrigin%State%Deposition) then
                 
-                        CurrentPartic%Deposited = VerifyDeposition(CurrentOrigin, CurrentPartic)
-
-
-                    endif
-
                 endif ie
+                
+ie1:            if (.not. CurrentPartic%Freazed) then
+
+                    do i=1, Me%Vert_Steps
+
+                        call MoveParticVertical  (CurrentOrigin, CurrentPartic, NewPosition, VelModH)
+
+                        call Convert_Z_CellK (CurrentOrigin, Me%EulerModel(NewPosition%ModelID), &
+                                                             NewPosition, PositionCorrected)
+                        call Convert_CellK_K (               NewPosition)
+                    
+                        !If PositionCorrected initialize the vertical random dispersion in the next step
+                        if (PositionCorrected) then
+                            CurrentPartic%TpercursoZ = abs(null_real)
+                            !CurrentPartic%W = 0.
+                        endif
+                   
+
+                        !If a particle moved the freazed state is OFF
+                        CurrentPartic%Freazed   = OFF
+
+                        !Stores New Position
+                        CurrentPartic%Position  = NewPosition
+
+                        if (CurrentOrigin%State%Deposition) then
+                    
+                            CurrentPartic%Deposited = VerifyDeposition(CurrentOrigin, CurrentPartic)
+
+                        endif
+                        
+                    enddo
+
+                endif ie1
 
             endif iFKP
 
@@ -9825,7 +9879,8 @@ cd2:        if (Me%EulerModel(emp)%BottomStress(i,j) <                          
         real                                        :: WStandardDeviation
         real                                        :: W, WD
         real                                        :: Radius, Area, VolOld, VolNew, dVol
-        real                                        :: ai, dw, Cd, DeltaD, AuxW, dwt        
+        real                                        :: ai, dw, Cd, DeltaD, AuxW, dwt
+        real                                        :: DT_Vert        
 
         !------------------------------------------------------------------------
 
@@ -9838,6 +9893,8 @@ cd2:        if (Me%EulerModel(emp)%BottomStress(i,j) <                          
         CellK   = CurrentPartic%Position%CellK
         KUB     = Me%EulerModel(emp)%WorkSize%KUB
         BALZ    = CellK - int(CellK)
+        
+        DT_Vert = Me%DT_Partic / real(Me%Vert_Steps)
 
 
 MF:     if (CurrentOrigin%Movement%Float) then
@@ -9946,14 +10003,14 @@ MT:         if (CurrentOrigin%Movement%MovType .EQ. SullivanAllen_) then
                                          CurrentOrigin%Movement%VarVelV
 
                     WD = WD_(CurrentPartic, WStandardDeviation, AuxCompMisturaZ_Up,      &
-                             AuxCompMisturaZ_Down, Me%DT_Partic)
+                             AuxCompMisturaZ_Down, DT_Vert)
 
                 case (VerticalTurb)
 
                     WStandardDeviation = 1.0975 * Me%EulerModel(emp)%ShearVelocity(i, j) 
 
                     WD = WD_(CurrentPartic, WStandardDeviation, AuxCompMisturaZ_Up,      &
-                             AuxCompMisturaZ_Down, Me%DT_Partic)
+                             AuxCompMisturaZ_Down, DT_Vert)
 
                 end select
 
@@ -9991,53 +10048,70 @@ PL:         if (CurrentOrigin%State%FarFieldBuoyancy) then
                 VolOld = CurrentPartic%Geometry%Volume - CurrentPartic%Geometry%VolVar
                 VolNew = CurrentPartic%Geometry%Volume
                 dVol   = CurrentPartic%Geometry%VolVar
+                
+
+                if (CurrentPartic%SigmaDensity > 0) then
+                    CurrentPartic%SigmaDensity = CurrentPartic%SigmaDensity + DT_Vert * (Me%EulerModel(emp)%SigmaDensity(i, j, k) - CurrentPartic%SigmaDensity)  / (172800.+86400.)
+                else
+                    CurrentPartic%SigmaDensity = SigmaUNESCO     (CurrentPartic%Concentration (1), CurrentPartic%Concentration (2))
+                endif    
 
                 !Acceleration due density gradient
                 DeltaD = Me%EulerModel(emp)%SigmaDensity(i, j, k) - CurrentPartic%SigmaDensity
 
+            
+
                 !Buoyancy is consider null for low density gradients 
-                if (abs(DeltaD) > 0.5) then
+                if (abs(DeltaD) > 0.1) then
                     ai     = Gravity * DeltaD / (Me%EulerModel(emp)%SigmaDensity(i, j, k) + &
                                                  SigmaDensityReference)
+                                                 
+                    dw     = CurrentPartic%W - W
+
+                    ! Taken from CORMIX
+                    Cd = 0.055 
+                    
+                    ![T-1] = [] * [L/T] * [L^2]/[L^3]    
+                    AuxW = Cd * abs(dw) * Area / VolNew
+                    
+                                       !Momentum diffusion by small scale turbulence
+
+                    if (CurrentPartic%W > 0) then
+                        CurrentPartic%W =  (CurrentPartic%W * VolOld / VolNew + dVol * W / VolNew + &
+                                            !buoyancy + shear friction 
+                                            DT_Vert * (ai + W * AuxW)) / (1 + DT_Vert * AuxW)
+                    else
+                        CurrentPartic%W =   CurrentPartic%W * VolOld / VolNew + dVol * W / VolNew + &
+                                            !buoyancy + shear friction 
+                                            DT_Vert * (ai - dw * AuxW)
+                    endif
+
+                    !dwt = Me%EulerModel(emp)%DWZ(i, j, k) / DT_Vert
+
+                    !if (abs(CurrentPartic%W) > dwt  .and. abs(CurrentPartic%W) > 10. * WD) then
+                    
+                    !    CurrentPartic%W = CurrentPartic%W * 10. * abs(WD) / abs(CurrentPartic%W) 
+
+                    !endif
+                    
+                                                
                 else                
-                    ai     = 0.
+                    ai              = 0.
+                    CurrentPartic%W = W
                 endif
 
-                dw     = CurrentPartic%W - W
+                CurrentPartic%W = sqrt(ai * 0.0004) + W
 
-                ! Taken from CORMIX
-                Cd = 0.055 
 
-                AuxW = Cd * abs(dw) * Area / VolNew
-                
-                                   !Momentum diffusion by small scale turbulence
-
-                if (ai > 0) then
-                    CurrentPartic%W =  (CurrentPartic%W * VolOld / VolNew + dVol * W / VolNew + &
-                                        !buoyancy + shear friction 
-                                        Me%DT_Partic * (ai + W * AuxW)) / (1 + AuxW)
-                else
-                    CurrentPartic%W =   CurrentPartic%W * VolOld / VolNew + dVol * W / VolNew + &
-                                        !buoyancy + shear friction 
-                                        Me%DT_Partic * (ai + dw * AuxW)
-                endif
-
-                dwt = Me%EulerModel(emp)%DWZ(i, j, k) / Me%DT_Partic
-
-                if (abs(CurrentPartic%W) > dwt  .and. abs(CurrentPartic%W) > 10. * WD) then
-                
-                    CurrentPartic%W = CurrentPartic%W * 10. * abs(WD) / abs(CurrentPartic%W) 
-
-                endif
 
                                                           !tracer vel. + large scale turbulence 
-                NewPosition%Z = CurrentPartic%Position%Z - (CurrentPartic%W + WD) *  Me%DT_Partic
+                NewPosition%Z = CurrentPartic%Position%Z - (CurrentPartic%W + WD) *  DT_Vert
 
             else PL
 
                 CurrentPartic%W    = 0.
 
-                NewPosition%Z = CurrentPartic%Position%Z - (W + WD + VELQZ) *  Me%DT_Partic
+                NewPosition%Z = CurrentPartic%Position%Z - (W + WD + VELQZ) *  DT_Vert
 
             endif PL
 
@@ -10191,11 +10265,10 @@ DB:                 if (.not. CurrentPartic%Deposited .and.                     
                             !In the far field is assumed that the turbulence is mainly horizontal
                             RelativeVel  = CurrentPartic%RelU**2 + CurrentPartic%RelV**2
                             RelativeVel  = RelativeVel * CurrentOrigin%Movement%CoefInitialMixing
-                            VarianceTurb = CurrentPartic%SDU**2  + CurrentPartic%SDV**2 
+                            VarianceTurb = CurrentPartic%SD
 
                             if (VarianceTurb> abs(null_real)) then
-                                write(*,*)'CurrentPartic%SDU', CurrentPartic%SDU
-                                write(*,*)'CurrentPartic%SDV', CurrentPartic%SDV
+                                write(*,*)'CurrentPartic%SD - horizontal turbulent velocity standard deviation', CurrentPartic%SD
                                 stop 'Lagrangian - VolumeVariation - ERR01'
                             endif 
   
@@ -11953,12 +12026,16 @@ CurrOr: do while (associated(CurrentOrigin))
                     CurrentPartic => CurrentPartic%Next
                 
                 enddo
+                
+                nullify(CurrentPartic)
 
             endif
 
             CurrentOrigin => CurrentOrigin%Next
 
         enddo CurrOr
+        
+        nullify(CurrentOrigin)
 
     end subroutine NewParticleAge
 
@@ -13143,7 +13220,7 @@ i0:             if (Me%RunOnline .and. em == emMax) then
                 call WriteGridConcentration(em) 
 
                 !Flushes All pending HDF5 commands
-                call HDF5FlushMemory (Me%ObjHDF5(em), STAT = STAT_CALL)
+                call HDF5FlushMemory (Me%ObjHDF5(em), ErrorMessage ='ParticleOutput - ModuleLagrangianGlobal - ERR75', STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ParticleOutput - ModuleLagrangianGlobal - ERR75'
 
 i1:             if (nP>0) then
@@ -13384,7 +13461,10 @@ i1:             if (nP>0) then
                                 nP = nP + 1
                                 Matrix1D(nP)  =  CurrentPartic%Age / 86400.
                                 CurrentPartic => CurrentPartic%Next
-                            enddo            
+                            enddo  
+                            
+                            nullify(CurrentPartic)
+                                      
                             if (nP > 0) then
                                 !HDF 5
                                 call HDF5WriteData  (Me%ObjHDF5(em), "/Results/"//trim(CurrentOrigin%Name)//"/Age", &
@@ -13394,7 +13474,30 @@ i1:             if (nP>0) then
                             endif
 
                         endif
+                        
+                        
+                        if (CurrentOrigin%State%FarFieldBuoyancy) then                        
 
+                            !Density
+                            CurrentPartic   => CurrentOrigin%FirstPartic
+                            nP = 0
+                            do while (associated(CurrentPartic))
+                                nP = nP + 1
+                                Matrix1D(nP)  =  CurrentPartic%SigmaDensity
+                                CurrentPartic => CurrentPartic%Next
+                            enddo  
+                            
+                            nullify(CurrentPartic)
+                                      
+                            if (nP > 0) then
+                                !HDF 5
+                                call HDF5WriteData  (Me%ObjHDF5(em), "/Results/"//trim(CurrentOrigin%Name)//"/density", &
+                                                    "density",  "sigma density kg/m^3", Array1D = Matrix1D, OutputNumber = OutPutNumber,     &
+                                                     STAT = STAT_CALL)
+                                if (STAT_CALL /= SUCCESS_) stop 'ParticleOutput - ModuleLagrangianGlobal - ERR165'
+                            endif
+
+                        endif
 
                         !Oil-Beached Particles
                         if (Me%State%AssociateBeachProb .and. CurrentOrigin%Beaching) then
@@ -14053,6 +14156,46 @@ idp:                    if (Me%State%Deposition) then
 
 
                         end if
+                        
+                        
+                        !density
+                        if (Me%State%FarFieldBuoyancy) then
+
+                            nP = 1
+                            CurrentOrigin => Me%FirstOrigin
+    dens:                   do while (associated(CurrentOrigin))
+                                if (CurrentOrigin%GroupID == Me%GroupIDs(ig)) then
+
+                                    if (CurrentOrigin%State%FarFieldBuoyancy) then
+
+                                        CurrentPartic   => CurrentOrigin%FirstPartic
+                                        do while (associated(CurrentPartic))
+
+                                            Matrix1D(nP)  =  CurrentPartic%SigmaDensity
+                                            CurrentPartic => CurrentPartic%Next
+                                            nP = nP + 1
+                                        enddo
+                                            
+                                    endif
+
+                                endif
+                
+                                CurrentOrigin => CurrentOrigin%Next
+                            enddo dens
+
+
+                            !HDF 5
+                            call HDF5WriteData        (Me%ObjHDF5(em),                           &
+                                                       "/Results/Group_"//trim(adjustl(AuxChar)) &
+                                                       //"/Data_1D/density",                     &
+                                                       "Origin ID",                              &
+                                                       "sigma density kg/m^3",                   &
+                                                       Array1D = Matrix1D,                       &
+                                                       OutputNumber = OutPutNumber,              &
+                                                       STAT = STAT_CALL)
+
+
+                        end if
 
 
 
@@ -14226,7 +14369,7 @@ idp:                    if (Me%State%Deposition) then
 
 
                     !Flushes All pending HDF5 commands
-                    call HDF5FlushMemory (Me%ObjHDF5(em), STAT = STAT_CALL)
+                    call HDF5FlushMemory (Me%ObjHDF5(em), ErrorMessage ='ParticleOutput - ModuleLagrangianGlobal - ERR400', STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'ParticleOutput - ModuleLagrangianGlobal - ERR400'
 
                 endif i1
@@ -14359,7 +14502,7 @@ CurrOr:     do while (associated(CurrentOrigin))
         enddo CurrOr
 
         !Flushes All pending HDF5 commands
-        call HDF5FlushMemory (Me%ObjHDF5(em), STAT = STAT_CALL)
+        call HDF5FlushMemory (Me%ObjHDF5(em), ErrorMessage =  'DummyParticleStartDate - ModuleLagrangianGlobal - ERR130', STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'DummyParticleStartDate - ModuleLagrangianGlobal - ERR130'
 
 
@@ -14513,7 +14656,7 @@ CurrOr:     do while (associated(CurrentOrigin))
         enddo CurrOr
 
         !Flushes All pending HDF5 commands
-        call HDF5FlushMemory (Me%ObjHDF5(em), STAT = STAT_CALL)
+        call HDF5FlushMemory (Me%ObjHDF5(em),  ErrorMessage = 'WriteRunOnline - ModuleLagrangianGlobal - ERR90', STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'WriteRunOnline - ModuleLagrangianGlobal - ERR90'
 
 
@@ -16304,8 +16447,7 @@ CurrOr: do while (associated(CurrentOrigin))
                 write (UnitID) CurrentPartic%Concentration
                 write (UnitID) CurrentPartic%Mass
 
-                write (UnitID) CurrentPartic%TpercursoX
-                write (UnitID) CurrentPartic%TpercursoY
+                write (UnitID) CurrentPartic%TpercursoH
                 write (UnitID) CurrentPartic%TpercursoZ
                 write (UnitID) CurrentPartic%UD_old
                 write (UnitID) CurrentPartic%VD_old
@@ -16473,8 +16615,7 @@ d2:         do nP = 1, nParticle
                 read (UnitID) NewParticle%Concentration
                 read (UnitID) NewParticle%Mass
 
-                read (UnitID) NewParticle%TpercursoX
-                read (UnitID) NewParticle%TpercursoY
+                read (UnitID) NewParticle%TpercursoH
                 read (UnitID) NewParticle%TpercursoZ
                 read (UnitID) NewParticle%UD_old
                 read (UnitID) NewParticle%VD_old
