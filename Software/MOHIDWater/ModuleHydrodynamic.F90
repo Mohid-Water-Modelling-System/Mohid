@@ -32216,6 +32216,47 @@ do7:            do K = KLB, KUB
                 call calc_depth_and_Hro (Hcenter, Hleft, Hright, HroLeft, HroRight,     &
                                          DensRight, DensLeft, DWZ, SZZ, DUZ_VZ, SigmaDens,&
                                          i, j, ileft, jleft, KUB, kbottom)
+                
+                if      (Me%ComputeOptions%BaroclinicMethod == MARSALEIX) then
+
+                     HroRight(KUB+1) = 0.
+                     HroLeft (KUB+1) = 0.      
+                     
+                     HRight(KUB+1)   = 0.
+                     HLeft (KUB+1)   = 0.      
+               
+do23:                do  k=KUB, kbottom,-1         
+
+                        !pressure in the lower face
+                        HroRight(k) = HroRight(k + 1) + dble(SigmaDens(i    ,j    ,k)) * dble(DWZ (    i,    j,  k))
+                        Hroleft (k) = Hroleft (k + 1) + dble(SigmaDens(ileft,jleft,k)) * dble(DWZ (ileft, jleft, k))
+                        
+                        !depth of lower face
+                        HRight(k)   = HRight  (k + 1) + dble(DWZ (    i,    j,  k))
+                        HLeft (k)   = HLeft   (k + 1) + dble(DWZ (ileft, jleft, k))
+
+
+                        !pressure in the center cell
+                        DAuxRight  =  (HroRight(k) + HroRight(k+1)) / 2.
+                        DAuxLeft   =  (HroLeft (k) + HroLeft (k+1)) / 2.
+
+                        !depth of the cell center
+                        Zright     =  (Hright(k) + Hright(k+1)) / 2.
+                        Zleft      =  (Hleft (k) + Hleft (k+1)) / 2.
+
+                        !Along the iso-sigma
+                        DAux       =  (DAuxRight - DAuxLeft)/ dble(DZX_ZY(ileft, jleft))
+                        
+                       
+                        !Correction for the cartesian space
+                        Rox3XY(i,j,k) = Daux + (SigmaDens(i, j, k) + SigmaDens(ileft, jleft, k)) * (Zright - Zleft) / dble(DZX_ZY(ileft, jleft)) / 2.
+                   
+ 
+
+                    enddo do23
+                    
+                    
+                endif 
 
                 if      (Me%ComputeOptions%BaroclinicMethod == DensityUniform  .or.     &
                          Me%ComputeOptions%BaroclinicMethod == DensityLinear) then
