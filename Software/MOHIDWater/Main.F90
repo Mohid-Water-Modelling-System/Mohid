@@ -1295,6 +1295,10 @@ doNext:     do while (associated(NextModel))
             
         enddo
     
+        if (MonitorPerformance) then
+            call StopWatch ("Main", "ModifyMohidWater")
+        endif
+
     end subroutine ModifyMohidWater
     
     !--------------------------------------------------------------------------
@@ -1415,10 +1419,6 @@ doNext:     do while (associated(NextModel))
             DoOneTimeStep = .true.
         else
             DoOneTimeStep = .false.
-        endif
-
-        if (MonitorPerformance) then
-            call StopWatch ("Main", "ModifyMohidWater")
         endif
 
     end function
