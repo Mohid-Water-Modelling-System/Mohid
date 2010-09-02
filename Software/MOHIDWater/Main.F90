@@ -72,7 +72,8 @@ program MohidWater
     use ModuleGlobalData
     use ModuleTime
     use ModuleEnterData,        only : ReadFileName 
-    use ModuleStopWatch,        only : CreateWatchGroup, KillWatchGroup
+    use ModuleStopWatch,        only : CreateWatchGroup, KillWatchGroup, &
+                                        StartWatch, StopWatch
     use ModuleHorizontalGrid,   only : ConstructHorizontalGrid,                          &
                                        ConstructFatherGridLocation,                      &
                                        GetGridFileName, GetHorizontalGridSize,           &
@@ -1175,6 +1176,10 @@ doNext:     do while (associated(NextModel))
         write(*, *)"Running MOHID, please wait..."
         write(*, *)                    
 #endif
+        if (MonitorPerformance) then
+            call StartWatch ("Main", "ModifyMohidWater")
+        endif
+
         Running            = .true.
 
         !Search for initial Min and Max Time Step
@@ -1410,6 +1415,10 @@ doNext:     do while (associated(NextModel))
             DoOneTimeStep = .true.
         else
             DoOneTimeStep = .false.
+        endif
+
+        if (MonitorPerformance) then
+            call StopWatch ("Main", "ModifyMohidWater")
         endif
 
     end function

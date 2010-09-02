@@ -1512,6 +1512,9 @@ if2:            if (Global_CurrentTime .GE. Me%CurrentTime) then
 
 if1 :   if (ready_ .EQ. IDLE_ERR_) then
 
+        if (MonitorPerformance) then
+            call StartWatch ("ModuleModel", "RunModel")
+        endif
 
 #ifdef _USE_SEQASSIMILATION
            if (Me%RunSeqAssimilation) then
@@ -1626,6 +1629,10 @@ if1 :   if (ready_ .EQ. IDLE_ERR_) then
         end if if1
 
         if (present(STAT)) STAT = STAT_
+
+        if (MonitorPerformance) then
+            call StopWatch ("ModuleModel", "RunModel")
+        endif
 
         !----------------------------------------------------------------------
 

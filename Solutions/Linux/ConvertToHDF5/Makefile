@@ -39,7 +39,6 @@ ifeq ($(IS_PROJ4F),true)
     LIBS := $(LIBS) $(PROJ4FLIBS)
 endif
 
-
 SRCDIR = $(SRCREP)/ConvertToHDF5
 
 NCFILES :=
@@ -54,7 +53,6 @@ NCFILES := $(NCFILES) ModuleHYCOMFormat.$(S)
 NCFILES := $(NCFILES) ModuleMERCATORFormat.$(S)
 NCFILES := $(NCFILES) ModuleMOG2DFormat.$(S) 
 NCFILES := $(NCFILES) ModuleWOAFormat.$(S)
-#NCFILES := $(NCFILES) ModuleWRFFormat.$(S)
 NCFILES := $(NCFILES) ncdflib.$(S)
 
 PROJ4FILES :=
@@ -107,7 +105,6 @@ NCCONVERTDEPEND := $(NCCONVERTDEPEND) ModuleHYCOMFormat.$(O)
 NCCONVERTDEPEND := $(NCCONVERTDEPEND) ModuleMERCATORFormat.$(O)
 NCCONVERTDEPEND := $(NCCONVERTDEPEND) ModuleMOG2DFormat.$(O)
 NCCONVERTDEPEND := $(NCCONVERTDEPEND) ModuleWOAFormat.$(O)
-#NCCONVERTDEPEND := $(NCCONVERTDEPEND) ModuleWRFFormat.$(O)
 
 CONVERTDEPEND := 
 #CONVERTDEPEND := $(CONVERTDEPEND) ModuleConvertModisL2.$(O)
@@ -125,20 +122,23 @@ CONVERTDEPEND := $(CONVERTDEPEND) ModulePatchHDF5Files.$(O)
 CONVERTDEPEND := $(CONVERTDEPEND) ModuleSWAN.$(O)
 CONVERTDEPEND := $(CONVERTDEPEND) ModuleTecnoceanAscii.$(O)
 
+PROJ4CONVERTDEPEND :=
+PROJ4CONVERTDEPEND := $(PROJ4CONVERTDEPEND) ModuleWRFFormat.$(O)
+
 ifeq ($(IS_NETCDF),true)
     CONVERTDEPEND := $(CONVERTDEPEND) $(NCCONVERTDEPEND)
 endif
 
+ifeq ($(IS_PROJ4F),true)
+    CONVERTDEPEND := $(CONVERTDEPEND) $(PROJ4CONVERTDEPEND)
+endif
+
+## ---dependencies actually are only defined here -----
 ifeq ($(IS_NETCDF),true)
     $(NCCONVERTDEPEND) : ncdflib.$(O)
 endif
-
-ifeq ($(IS_PROJ4F),true)
-    $(NCCONVERTDEPEND) : ModuleWRFFormat.$(O)
-endif
-
-#ModuleCFFormat.${O} : ncdflib.${O}
 ConvertToHDF5.${O} : $(CONVERTDEPEND)
+## --- end of actual dependencies
 
 #--------End of dependencies list---------
 
