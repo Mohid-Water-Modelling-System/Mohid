@@ -64,7 +64,7 @@
 ! GLOBAL_TOXICITY           : char              ['SUM']     !Global Toxicity Computation Method : SUM,MAX,RISKRATIO
 ! GEO_CONVERSATION_FACTOR   : real              [1.]        !Lat to Meters rough estimation
 ! OUTPUT_TIME               : int int...        [-]
-! DOWNSTREAM_BOUNDARY       : int               [1]         !0 - Dam, 1 - ZDG, 2 - CD, 3 - ImposedWaterLevel, 3 - ImposedVelocity
+! DOWNSTREAM_BOUNDARY       : int               [1]         !0 - Dam, 1 - ZDG, 2 - CD, 3 - ImposedWaterLevel, 4 - ImposedVelocity
 !   If ImposedWaterLevel--------------------------------------------------------
 !       FILE_IN_TIME        : char              [NONE]      !NONE, TIMESERIE
 !       DEFAULT_VALUE       : real              -           !Default value for water level at downstream boundary
