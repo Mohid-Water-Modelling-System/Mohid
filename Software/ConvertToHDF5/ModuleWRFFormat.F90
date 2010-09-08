@@ -196,6 +196,7 @@ Module ModuleWRFFormat
         logical                                             :: ComputeMeanSeaLevelPressureWRF = .false.
         logical                                             :: ComputePressure3D        = .false.
         logical                                             :: ComputeTemperature3D     = .false.
+        logical                                             :: ComputeVerticalZ         = .false.
 
         logical                                             :: WriteTerrain             = .false.
         logical                                             :: TerrainFileNotSpecified  = .false.
@@ -262,7 +263,7 @@ Module ModuleWRFFormat
 
         call BeginEndTime
 
-        if(AtLeastOne3DFieldIsToConvert())      call ComputeVerticalCoordinate        
+        if(Me%ComputeVerticalZ)                 call ComputeVerticalCoordinate        
 
         if(Me%ComputePressure3D)                call ComputeAtmosphericPressure3D        
 
@@ -496,9 +497,9 @@ Module ModuleWRFFormat
         logical                             :: NeedsGeopotenticalBaseState      = .false.
         logical                             :: NeedsGeopotenticalPerturbation   = .false.
 
+        logical                             :: NeedsVerticalZ                   = .false.
         logical                             :: NeedsTemperature3D               = .false.
         logical                             :: NeedsPressure3D                  = .false.
-        logical                             :: NeedsPotTemp3D                   = .false.
         logical                             :: NeedsMixingRatio3D               = .false.
 
         logical                             :: NeedsSurfaceTemperature          = .false.
@@ -574,7 +575,7 @@ Module ModuleWRFFormat
         end if
 
         if(Me%ComputeRelativeHumidity)then
-            NeedsPressure3D             = .true.
+            NeedsSurfacePressure        = .true.
             NeedsSurfaceTemperature     = .true.
             NeedsSurfaceMixingRatio     = .true.
         end if
@@ -598,8 +599,9 @@ Module ModuleWRFFormat
         end if
 
         if(Me%ComputeMeanSeaLevelPressureWRF)then
+            NeedsVerticalZ              = .true.
             NeedsPressure3D             = .true.
-            NeedsPotTemp3D              = .true.
+            NeedsTemperature3D          = .true.
             NeedsMixingRatio3D          = .true.
         end if
 
@@ -616,15 +618,17 @@ Module ModuleWRFFormat
         endif
 
         if(AtLeastOne3DFieldIsToConvert())then
-            !Needs VerticalZ
-            NeedsGeopotenticalPerturbation  = .true.
-            NeedsGeopotenticalBaseState     = .true.
+            NeedsVerticalZ = .true.
         end if
 
+        if (NeedsVerticalZ) then
+            Me%ComputeVerticalZ             = .true.
+            NeedsGeopotenticalPerturbation  = .true.
+            NeedsGeopotenticalBaseState     = .true.
+        endif
 
         if (NeedsTemperature3D) then
             Me%ComputeTemperature3D     = .true.
-            NeedsPotTemp3D              = .true.
             NeedsPressure3D             = .true.  
         endif
 
@@ -659,11 +663,6 @@ Module ModuleWRFFormat
 
         if(NeedsTemperature3D .and. .not. FieldIsToConvert(trim(GetPropertyName(AirTemperature_))//"_3D"))then
             Me%FieldsToRead(Count) = trim(GetPropertyName(AirTemperature_))//"_3D"
-            Count = Count + 1
-        end if
-
-        if(NeedsPotTemp3D .and. .not. FieldIsToConvert(trim("potential temperature_3D")))then
-            Me%FieldsToRead(Count) = trim("potential temperature_3D")
             Count = Count + 1
         end if
 
@@ -2003,8 +2002,8 @@ if1:    if (Me%TimeWindow) then
 
         !Local-----------------------------------------------------------------        
         type(T_Field), pointer                  :: Temperature3D
-        real, dimension(:,:,:), pointer         :: P, Theta
-        logical                                 :: PotTemp3D_OK, Pressure3D_OK
+        real, dimension(:,:,:), pointer         :: P
+        logical                                 :: Temperature3D_OK, Pressure3D_OK
         integer                                 :: WILB, WIUB, WJLB, WJUB, WKLB, WKUB
         type(T_Field), pointer                  :: Field
         type(T_Date), pointer                   :: CurrentDate
@@ -2027,7 +2026,7 @@ if1:    if (Me%TimeWindow) then
 
         CurrentDate => Me%FirstDate
 
-        PotTemp3D_OK  = .false.
+        Temperature3D_OK  = .false.
         Pressure3D_OK = .false.
 
 
@@ -2037,14 +2036,14 @@ if1:    if (Me%TimeWindow) then
 
             do while(associated(Field))
 
-                if(Field%Name == trim('potential temperature_3D')                   .and.   &
+
+                if(Field%Name == trim(GetPropertyName(AirTemperature_))//"_3D" .and.   &
                    Field%Date == CurrentDate%Date)then
 
-                    Theta => Field%Values3D
-                    PotTemp3D_OK = .true.
+                    Temperature3D => Field
+                    Temperature3D_OK = .true.
 
-                end if
-
+                end if 
 
                 if(Field%Name == trim(GetPropertyName(AtmosphericPressure_))//"_3D" .and.   &
                    Field%Date == CurrentDate%Date)then
@@ -2054,29 +2053,16 @@ if1:    if (Me%TimeWindow) then
 
                 end if
 
-                if(PotTemp3D_OK .and. Pressure3D_OK)then
+                if(Temperature3D_OK .and. Pressure3D_OK)then
 
-                    call AddField(Me%FirstField, Temperature3D)
-
-                    call SetNewFieldAttributes(Field         =  Temperature3D,                          &
-                                               Name          =  trim(GetPropertyName(AirTemperature_))//"_3D", &
-                                               Units         = 'K',                                     &
-                                               Date          = CurrentDate%Date,                        &
-                                               WorkSize      = Me%WorkSize,                             &
-                                               nDimensions   = 3,                                       &
-                                               Convert       = .true.)
-
-                    allocate(Temperature3D%Values3D(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB, Me%Size%KLB:Me%Size%KUB))
-                    Temperature3D%Values3D = null_real
-
-                    Temperature3D%Values3D(WILB:WIUB, WJLB:WJUB, WKLB:WKUB) =               &
-                                ( Theta(WILB:WIUB, WJLB:WJUB, WKLB:WKUB) + 300. ) *         &
+                    Temperature3D%Values3D(WILB:WIUB, WJLB:WJUB, WKLB:WKUB) =                           &
+                                ( Temperature3D%Values3D (WILB:WIUB, WJLB:WJUB, WKLB:WKUB) + 300. ) *   &
                                 ( P(WILB:WIUB, WJLB:WJUB, WKLB:WKUB) / p1000mb  )** rcp
 
-                    PotTemp3D_OK    = .false.
-                    Pressure3D_OK   = .false.
+                    Temperature3D_OK    = .false.
+                    Pressure3D_OK       = .false.
 
-                    nullify(Theta, P)
+                    nullify(P)
                     exit
 
                 endif
@@ -2213,6 +2199,7 @@ if1:    if (Me%TimeWindow) then
 
         write(*,*) 'Computinng MeanSeaLevelPressure with WRF algorithm...'
 
+        VerticalZ_OK    = .false.
         Temperature_OK  = .false.
         Pressure_OK     = .false.
         MixRatio_OK     = .false.
@@ -3573,9 +3560,10 @@ do2:        do while(associated(Field))
             case('T')
 
                 !Potential Temperature
-                MohidName = "potential temperature_3D"
-!                 MohidName = GetPropertyName(AirTemperature_)
-!                 MohidName = trim(MohidName)//"_3D"
+                ! Assim tinha que por AirTemperature3D como uma opcao tal como MSLP.               
+!                MohidName = "potential temperature_3D" 
+                 MohidName = GetPropertyName(AirTemperature_)
+                 MohidName = trim(MohidName)//"_3D"
 
             case('P')
 
