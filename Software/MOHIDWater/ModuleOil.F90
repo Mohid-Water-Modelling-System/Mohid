@@ -2045,7 +2045,9 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
                                     VWaterContent,                                       & 
                                     MWaterContent,                                       & 
                                     MDispersed,                                          &
+                                    MDissolvedDT,                                        &
                                     OilDensity,                                          &
+                                    MassINI,                                             &
                                     OilViscosity,                                        &
                                     FMDispersed,                                         &
                                     FMEvaporated,                                        & 
@@ -2076,7 +2078,9 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
         real,              intent(OUT)              :: VWaterContent
         real,              intent(OUT)              :: MWaterContent
         real,              intent(OUT)              :: MDispersed
+        real,              intent(OUT)              :: MDissolvedDT
         real,              intent(OUT)              :: OilDensity
+        real,              intent(OUT)              :: MassINI
         real,              intent(OUT)              :: OilViscosity      
         real,              intent(OUT)              :: FMDispersed      
         real,              intent(OUT)              :: FMEvaporated      
@@ -2208,9 +2212,11 @@ cd4 :           if (present(DataLineIN  )) then
                 OilDensity                     = Me%Var%Density
                 MDispersed                     = Me%Var%MDispersed
                 
+                MassINI                         = Me%Var%MassINI
                 OilViscosity                    = Me%Var%Viscosity        
                 FMEvaporated                    = Me%Var%FMEvaporated        
                 FMDispersed                     = Me%Var%FMDispersed    
+                MDissolvedDT                    = Me%Var%MDissolvedDT
             end if cd2
 
 

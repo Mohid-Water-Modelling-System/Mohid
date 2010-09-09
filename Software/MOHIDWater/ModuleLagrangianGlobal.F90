@@ -1051,6 +1051,7 @@ Module ModuleLagrangianGlobal
         real                                    :: FMEvaporated
         real                                    :: MDispersed
         integer                                 :: ThicknessGradient, Fay, SpreadingMethod
+        real                                    :: MDissolvedDT
 
         !Time - by default is used the time object of the model with higher priority 
         integer                                 :: ObjTime              = 0
@@ -11752,6 +11753,8 @@ CurrOr: do while (associated(CurrentOrigin))
         real                                        :: AreaTotalOUT
         real                                        :: VolumeTotalOUT, VolOld
         integer                                     :: STAT_CALL
+        real                                        :: MassINI
+        real                                        :: MDissolvedDT
 
  
         CurrentOrigin => Me%FirstOrigin
@@ -11814,7 +11817,9 @@ CurrOr: do while (associated(CurrentOrigin))
                                           VWaterContent         = VWaterContent,                  &
                                           MWaterContent         = MWaterContent,                  &
                                           MDispersed            = MDispersed,                     &
+                                          MDissolvedDT          = MDissolvedDT,                   &
                                           OilDensity            = OilDensity,                     &
+                                          MassINI               = MassINI,                        &
                                           OilViscosity          = OilViscosity,                   &
                                           FMEvaporated          = FMEvaporated,                   &
                                           FMDispersed           = FMDispersed,                    &
@@ -11838,6 +11843,7 @@ CurrOr: do while (associated(CurrentOrigin))
                 Me%ExternalVar%FMEvaporated  = FMEvaporated
                 Me%ExternalVar%FMDispersed   = FMDispersed
                 Me%ExternalVar%AreaTotal     = AreaTotalOUT
+                Me%ExternalVar%MDissolvedDT  = MDissolvedDT
 
                 call OilGridConcentration  (CurrentOrigin, WaveHeight, WaterDensity)       
 

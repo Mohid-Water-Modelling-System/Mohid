@@ -77,7 +77,7 @@ Module ModuleLagrangian
 !   BOXES_BEACHING_PROB     : real(Boxes Number)        []                      !List of Inbox Beaching Probability
 !   OUTPUT_CONC             : 1/2                       [1]                     !OutPut Integration Type
 !   OUTPUT_MAX_TRACER       : 0/1                       [0]                     !Checks if the users wants to output the maximum 
-                                                                                !tracer concentration in each cell
+                                                                                ! tracer concentration in each cell
 !   OVERLAY_VELOCITY        : 0/1                       [0]                     !If a adicional velocity field is to be added
 !   OUTPUT_TRACER_INFO      : logical                   [0]                     !Output a file with detailed information for 
 !                                                                               !each tracer (extension .tro)
@@ -133,8 +133,12 @@ Module ModuleLagrangian
 !   POSITION_CELLS          : Cell Cell                 []                      !X and Y Position of the origin in grid cells
 !   POSITION_COORDINATES    : Xcoord Ycoord             []                      !X and Y Position of the origin in the grid        
                                                                                 !coordinates
-!   DEPTH_METERS            : meters (from surface)     []                      !Depth of emission relativ to surface
+!   DEPTH_FROM_SURFACE      : meters (from free surface)[]                      !Depth of emission relativ to free surface
+!   DEPTH_METERS            : meters (from surface)     []                      !Depth of emission relativ to surface 
+!                                                                               !(without water level)
 !   DEPTH_CELLS             : Cell                      []                      !Depth in Cells (from bottom)
+!   MAINTAIN_DEPTH          : logical                   [0]                     ! logical option to mantain the depth position
+!                                                                               ! (depth relative to free surface)
 !   MAINTAIN_RELATIVE_POSITION : logical                []                      !Check is the user wants to maintain 
                                                                                 !the vertical relative position of the origin
 !   INCRP                   : int                       [1]                     !Increment of grid cells to fill Boxes
@@ -351,6 +355,8 @@ Module ModuleLagrangian
     private ::          EmissionAccident
     private ::      FillGridThickness
     private ::      FillGridConcentration
+    private ::      OilGridConcentration3D
+    private ::      OilGridDissolution3D
     private ::      ParticleDensity
     private ::      VerifyParticleBeaching
     private ::      MovePartic
@@ -384,6 +390,8 @@ Module ModuleLagrangian
     private ::          WriteGridConcentration
     private ::          WriteOilGridThickness
     private ::          WriteOilGridConcentration
+    private ::          WriteOilGridConcentration3D
+    private ::          WriteOilGridDissolution3D
 
     private ::      OutputRestartFile
 
@@ -626,8 +634,12 @@ Module ModuleLagrangian
         real                                    :: CellJ                    = null_real
         real                                    :: CellK                    = null_real
         integer                                 :: DepthDefinition          = null_int
+        logical                                 :: MaintainDepth            = .false.       
         logical                                 :: MaintainRelative         = .false.
+        logical                                 :: Surface                  = .false.   
+        logical                                 :: SurfaceEmission          = .false.
         real                                    :: Depth                    = null_real
+        real                                    :: DepthWithWaterLevel      = null_real       
     end type T_Position
 
     !Defines the movement of a particle
@@ -694,6 +706,7 @@ Module ModuleLagrangian
         real                                    :: Volume                   = null_real
         real                                    :: InitialVolume            = null_real
         real                                    :: VolVar                   = null_real
+        real                                    :: OilDropletsD50           = null_real       
     end type T_ParticleGeometry
 
     !Defines the parameters necessary to compute the fluxes associated to a 
@@ -770,6 +783,9 @@ Module ModuleLagrangian
         real                                    :: Radiation                = 0.
         real                                    :: ShortWaveExt             = null_real
         real                                    :: T90                      = null_real
+        real                                    :: OilMass                  = null_real
+        real                                    :: OilDissolvedMass         = null_real
+        real                                    :: OilDensity               = null_real
     end type T_Partic
 
     !Particle deposition
@@ -823,6 +839,8 @@ Module ModuleLagrangian
         real                                    :: VolumeOilTotal
         real                                    :: VolTotOilBeached
         real                                    :: VolTotBeached
+        real, dimension(:, :, :), pointer       :: OilGridConcentration3D
+        real, dimension(:, :, :), pointer       :: OilGridDissolution3D        
         logical                                 :: AveragePositionON        = .false. 
         real                                    :: CoefRadius
         real, dimension(:, :), pointer          :: GridThickness
@@ -846,6 +864,8 @@ Module ModuleLagrangian
         logical                                 :: Filtration     = OFF
         character(PathLength)                   :: OutputTracerInfoFileName  
         integer                                 :: troUnit  
+        real                                    :: Nbrsubmerged   = 0
+        real                                    :: Fdisp          = 0
         
     end type T_Origin
 
@@ -932,10 +952,12 @@ Module ModuleLagrangian
         real                                    :: MWaterContent
         real                                    :: AreaTotal
         real                                    :: OilDensity
+        real                                    :: MassINI
         real                                    :: OilViscosity
         real                                    :: FMDispersed
         real                                    :: FMEvaporated
         real                                    :: MDispersed
+        real                                    :: MDissolvedDT
         integer                                 :: ThicknessGradient, Fay, SpreadingMethod
 
         !ObjAssimilation
@@ -2955,18 +2977,19 @@ PA:             if (NewOrigin%EmissionSpatial == Point_ .or.                    
                     !Vertical position
                     Depth      = null_real
                     HaveOrigin = .false.
-                    call GetData(Depth,                                                  &
-                                 Me%ObjEnterData,                             &
+                    call GetData(NewOrigin%Position%SurfaceEmission,                               &
+                                 Me%ObjEnterData,                                        &
                                  flag,                                                   &
                                  SearchType   = FromBlock,                               &
-                                 keyword      ='DEPTH_METERS',                           &
+                                 keyword      ='SURFACE_EMISSION',                       &
+                                 Default      = OFF,                                     &
                                  ClientModule ='ModuleLagrangian',                       &
                                  STAT         = STAT_CALL)             
-                    if (STAT_CALL /= SUCCESS_) stop 'ConstructOrigins - ModuleLagrangian - ERR1040'
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructOrigins - ModuleLagrangian - ERR1035'
 
-                    if (flag == 1) then
+                    if (NewOrigin%Position%SurfaceEmission) then
 
-                        NewOrigin%Position%Z = Depth
+                        NewOrigin%Position%Z = Me%ExternalVar%SZZ(i, j, k)
 
                         call Convert_Z_CellK (NewOrigin, NewOrigin%Position)
                         call Convert_CellK_K (NewOrigin%Position)
@@ -2977,29 +3000,90 @@ PA:             if (NewOrigin%EmissionSpatial == Point_ .or.                    
 
                     else
 
-                        call GetData(Depth,                                              &
-                                     Me%ObjEnterData,                         &
-                                     flag,                                               &
-                                     SearchType   = FromBlock,                           &
-                                     keyword      ='DEPTH_CELLS',                        &
-                                     ClientModule ='ModuleLagrangian',                   &
+                        call GetData(Depth,                     &
+                                     Me%ObjEnterData,                             &
+                                     flag,                                                   &
+                                     SearchType   = FromBlock,                               &
+                                     keyword      ='DEPTH_FROM_SURFACE',                     &
+                                     ClientModule ='ModuleLagrangian',                       &
                                      STAT         = STAT_CALL)             
-                        if (STAT_CALL /= SUCCESS_) stop 'ConstructOrigins - ModuleLagrangian - ERR1050'
+                        if (STAT_CALL /= SUCCESS_) stop 'ConstructOrigins - ModuleLagrangian - ERR1040'
 
                         if (flag == 1) then
-    
-                            NewOrigin%Position%CellK = Depth
 
-                            call Convert_CellK_Z (NewOrigin%Position)
+                            NewOrigin%Position%Z = Me%ExternalVar%SZZ(i, j, k) + Depth
+
+                            call Convert_Z_CellK (NewOrigin, NewOrigin%Position)
                             call Convert_CellK_K (NewOrigin%Position)
-                        
+
+                            NewOrigin%Position%DepthDefinition = Meters
+
                             HaveOrigin                      = .true.
 
-                            NewOrigin%Position%DepthDefinition = Cells
+                        else
 
+                            call GetData(Depth,                                                  &
+                                         Me%ObjEnterData,                             &
+                                         flag,                                                   &
+                                         SearchType   = FromBlock,                               &
+                                         keyword      ='DEPTH_METERS',                           &
+                                         ClientModule ='ModuleLagrangian',                       &
+                                         STAT         = STAT_CALL)             
+                            if (STAT_CALL /= SUCCESS_) stop 'ConstructOrigins - ModuleLagrangian - ERR1040'
+
+                            if (flag == 1) then
+
+                                NewOrigin%Position%Z = Depth
+
+                                call Convert_Z_CellK (NewOrigin, NewOrigin%Position)
+                                call Convert_CellK_K (NewOrigin%Position)
+
+                                NewOrigin%Position%DepthDefinition = Meters
+
+                                HaveOrigin                      = .true.
+
+                            else
+
+                                call GetData(Depth,                                              &
+                                             Me%ObjEnterData,                         &
+                                             flag,                                               &
+                                             SearchType   = FromBlock,                           &
+                                             keyword      ='DEPTH_CELLS',                        &
+                                             ClientModule ='ModuleLagrangian',                   &
+                                             STAT         = STAT_CALL)             
+                                if (STAT_CALL /= SUCCESS_) stop 'ConstructOrigins - ModuleLagrangian - ERR1050'
+
+                                if (flag == 1) then
+            
+                                    NewOrigin%Position%CellK = Depth
+
+                                    call Convert_CellK_Z (NewOrigin%Position)
+                                    call Convert_CellK_K (NewOrigin%Position)
+                                
+                                    HaveOrigin                      = .true.
+
+                                    NewOrigin%Position%DepthDefinition = Cells
+
+                                endif
+
+                            endif
                         endif
-
                     endif
+
+                    call GetData(NewOrigin%Position%MaintainDepth,                    &
+                                 Me%ObjEnterData,                                        &
+                                 flag,                                                   &
+                                 SearchType   = FromBlock,                               &
+                                 keyword      ='MAINTAIN_DEPTH',             &
+                                 Default      = .false.,                                 &
+                                 ClientModule ='ModuleLagrangian',                       &
+                                 STAT         = STAT_CALL)             
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructOrigins - ModuleLagrangian - ERR1060'
+
+                    if (NewOrigin%Position%MaintainDepth) then
+                        NewOrigin%Position%DepthWithWaterLevel = NewOrigin%Position%Z - Me%ExternalVar%SZZ(i, j, k)
+                    endif
+
 
                     call GetData(NewOrigin%Position%MaintainRelative,                    &
                                  Me%ObjEnterData,                                        &
@@ -3531,6 +3615,7 @@ SP:                     if (NewProperty%SedimentPartition%ON) then
 
                 !If neceassary Starts The Oil module for this origin
                 if (NewOrigin%State%Oil) then
+                    Me%State%Wind = ON
 
                     call GetData(NewOrigin%UseTheoricArea,                               &
                                  Me%ObjEnterData,                             &
@@ -5677,6 +5762,16 @@ OP:         if ((Me%ExternalVar%OpenPoints3D(i, j, k) == OpenPoint) .and. &
                         NewParticle%Position = NewPosition
                     endif
 
+
+                    If (CurrentOrigin%State%Oil) then
+                        !Particles on surface
+                        if (abs(Me%ExternalVar%SZZ(i, j, KUB) - NewParticle%Position%Z) .LT. 0.01) then                
+                            NewPosition%surface = .true.
+                        else
+                            NewPosition%surface = .false.                    
+                        end if 
+                    endif
+
                     NewParticle%Geometry%Volume = CurrentOrigin%PointVolume /            &
                                                   float(CurrentOrigin%NbrParticlesIteration)
 
@@ -5792,6 +5887,26 @@ OP:         if ((Me%ExternalVar%OpenPoints3D(i, j, k) == OpenPoint) .and. &
                                                      Me%ExternalVar%Size%JUB),           &
                                                      STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructParticOil - ModuleLagrangian - ERR05'
+
+            !Allocates OilGridConcentration3D
+            allocate (NewOrigin%OilGridConcentration3D(Me%ExternalVar%Size%ILB:            &
+                                                       Me%ExternalVar%Size%IUB,            &
+                                                       Me%ExternalVar%Size%JLB:            &
+                                                       Me%ExternalVar%Size%JUB,            &
+                                                       Me%ExternalVar%Size%KLB:            &
+                                                       Me%ExternalVar%Size%KUB),           &
+                                                       STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructParticOil - ModuleLagrangian - ERR06'
+            
+            !Allocates OilGridDissolution3D
+            allocate (NewOrigin%OilGridDissolution3D(Me%ExternalVar%Size%ILB:            &
+                                                     Me%ExternalVar%Size%IUB,            &
+                                                     Me%ExternalVar%Size%JLB:            &
+                                                     Me%ExternalVar%Size%JUB,            &
+                                                     Me%ExternalVar%Size%KLB:            &
+                                                     Me%ExternalVar%Size%KUB),           &
+                                                     STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructParticOil - ModuleLagrangian - ERR06' 
 
     end subroutine ConstructParticOil
 
@@ -6194,6 +6309,8 @@ CurrOr: do while (associated(CurrentOrigin))
         nullify  (NewOrigin%FirstProperty)
         nullify  (NewOrigin%GridThickness)
         nullify  (NewOrigin%OilGridConcentration)
+        nullify  (NewOrigin%OilGridConcentration3D)
+        nullify  (NewOrigin%OilGridDissolution3D)
 
         NewOrigin%nProperties  = 0
         NewOrigin%nParticle    = 0
@@ -7308,6 +7425,149 @@ CurrOr: do while (associated(CurrentOrigin))
     end subroutine OilGridConcentration
 
     !--------------------------------------------------------------------------
+    
+    subroutine OilGridConcentration3D ()
+
+        !Arguments-------------------------------------------------------------
+
+        !Local-----------------------------------------------------------------
+        type (T_Origin), pointer                    :: CurrentOrigin
+        type (T_Partic), pointer                    :: CurrentPartic
+        real, dimension(:, :, :), pointer           :: MassSumParticCell
+        integer                                     :: ILB, IUB, JLB, JUB, KLB, KUB
+        integer                                     :: i, j, k, STAT_CALL
+
+        
+        allocate (MassSumParticCell (Me%ExternalVar%WorkSize%ILB:                &
+                                     Me%ExternalVar%WorkSize%IUB,                &
+                                     Me%ExternalVar%WorkSize%JLB:                &
+                                     Me%ExternalVar%WorkSize%JUB,                &
+                                     Me%ExternalVar%WorkSize%KLB:                &
+                                     Me%ExternalVar%WorkSize%KUB),               &                                 
+                                     STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'OilGridConcentration3D - ModuleLagrangian- ERR01'
+
+        !Shorten
+        ILB    = Me%ExternalVar%WorkSize%ILB
+        IUB    = Me%ExternalVar%WorkSize%IUB
+        JLB    = Me%ExternalVar%WorkSize%JLB
+        JUB    = Me%ExternalVar%WorkSize%JUB
+        KLB    = Me%ExternalVar%WorkSize%KLB
+        KUB    = Me%ExternalVar%WorkSize%KUB
+         
+        CurrentOrigin => Me%FirstOrigin
+CurrOr: do while (associated(CurrentOrigin))
+        
+            if (CurrentOrigin%State%Oil) then
+               
+                !Adds the mass of all particles in the every cell
+                MassSumParticCell = 0.
+                CurrentPartic => CurrentOrigin%FirstPartic
+                do while (associated(CurrentPartic))
+
+                    i = CurrentPartic%Position%I
+                    j = CurrentPartic%Position%J
+                    k = CurrentPartic%Position%k
+
+                    MassSumParticCell(i, j, k) = MassSumParticCell(i, j, k) +              & 
+                                                       CurrentPartic%OilMass
+
+                    CurrentPartic => CurrentPartic%Next
+                enddo
+
+                !Calculates the OilGridConcentration3D
+                do k = KLB, KUB
+                do j = JLB, JUB
+                do i = ILB, IUB
+                    CurrentOrigin%OilGridConcentration3D(i,j,k) = MassSumParticCell(i,j,k) / Me%ExternalVar%VolumeZ(i,j,k)  
+                enddo
+                enddo
+                enddo
+            endif
+
+            CurrentOrigin => CurrentOrigin%Next
+
+        enddo CurrOr
+
+        deallocate (MassSumParticCell, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'OilGridConcentration3D - ModuleLagrangian- ERR02'
+
+
+    end subroutine OilGridConcentration3D
+
+  !--------------------------------------------------------------------------
+    
+    subroutine OilGridDissolution3D ()
+
+        !Arguments-------------------------------------------------------------
+
+        !Local-----------------------------------------------------------------
+        type (T_Origin), pointer                    :: CurrentOrigin
+        type (T_Partic), pointer                    :: CurrentPartic
+        real, dimension(:, :, :), pointer           :: MassDissolvedSumParticCell
+        integer                                     :: ILB, IUB, JLB, JUB, KLB, KUB
+        integer                                     :: i, j, k, STAT_CALL
+        
+        
+        allocate (MassDissolvedSumParticCell (Me%ExternalVar%WorkSize%ILB:                &
+                                              Me%ExternalVar%WorkSize%IUB,                &
+                                              Me%ExternalVar%WorkSize%JLB:                &
+                                              Me%ExternalVar%WorkSize%JUB,                &
+                                              Me%ExternalVar%WorkSize%KLB:                &
+                                              Me%ExternalVar%WorkSize%KUB),               &                                 
+                                              STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'OilGridDissolution3D - ModuleLagrangian- ERR01'
+
+        !Shorten
+        ILB    = Me%ExternalVar%WorkSize%ILB
+        IUB    = Me%ExternalVar%WorkSize%IUB
+        JLB    = Me%ExternalVar%WorkSize%JLB
+        JUB    = Me%ExternalVar%WorkSize%JUB
+        KLB    = Me%ExternalVar%WorkSize%KLB
+        KUB    = Me%ExternalVar%WorkSize%KUB
+
+        CurrentOrigin => Me%FirstOrigin
+CurrOr: do while (associated(CurrentOrigin))
+        
+            if (CurrentOrigin%State%Oil) then
+
+                !Adds the mass of all particles in the every cell
+                MassDissolvedSumParticCell = 0.
+                CurrentPartic => CurrentOrigin%FirstPartic
+                do while (associated(CurrentPartic))
+
+                    i = CurrentPartic%Position%I
+                    j = CurrentPartic%Position%J
+                    k = CurrentPartic%Position%k
+
+                        
+                    MassDissolvedSumParticCell(i, j, k) = MassDissolvedSumParticCell(i, j, k) +              & 
+                                                       CurrentPartic%OilDissolvedMass
+
+                    CurrentPartic => CurrentPartic%Next
+                enddo
+                
+                !Calculates the OilGridDissolution3D
+                do k = KLB, KUB
+                do j = JLB, JUB
+                do i = ILB, IUB               
+                    CurrentOrigin%OilGridDissolution3D(i,j,k) = MassDissolvedSumParticCell(i,j,k) / Me%ExternalVar%VolumeZ(i,j,k) 
+                enddo
+                enddo
+                enddo
+            endif
+
+            CurrentOrigin => CurrentOrigin%Next
+
+        enddo CurrOr
+
+        deallocate (MassDissolvedSumParticCell, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'OilGridDissolution3D - ModuleLagrangian- ERR02'
+
+
+    end subroutine OilGridDissolution3D
+    
+    !--------------------------------------------------------------------------
 
      subroutine ParticleDensity () 
     
@@ -8008,7 +8268,7 @@ CurrOr: do while (associated(CurrentOrigin))
 
         !Local-----------------------------------------------------------------
         type (T_Partic), pointer                    :: CurrentPartic
-        integer                                     :: i, j, k
+        integer                                     :: i, j, k, KUB
         real                                        :: CellI, CellJ, CellK
         real                                        :: BalX, BalY, BalZ
         real                                        :: U, V
@@ -8053,6 +8313,7 @@ CurrOr: do while (associated(CurrentOrigin))
         WS_IUB = Me%ExternalVar%WorkSize%IUB
         WS_JLB = Me%ExternalVar%WorkSize%JLB
         WS_JUB = Me%ExternalVar%WorkSize%JUB
+        KUB    = Me%ExternalVar%WorkSize%KUB
 
 
 
@@ -8111,8 +8372,18 @@ BD:         if (CurrentPartic%Beached .or. CurrentPartic%Deposited) then
                 GradDWx = LinearInterpolation(Me%ExternalVar%DWZ_Xgrad(i,  j  ,k), Me%ExternalVar%DWZ_Xgrad(i,  j+1,k), Balx)
                 GradDWy = LinearInterpolation(Me%ExternalVar%DWZ_Ygrad(i,  j  ,k), Me%ExternalVar%DWZ_Ygrad(i+1,j  ,k), Baly)
 
+!                !Particles on surface
+!                if (abs(Me%ExternalVar%SZZ(i, j, KUB) - CurrentPartic%Position%Z) .LT. 0.01) then                
+!                    if (.not. CurrentPartic%Position%Surface) then
+!                      CurrentOrigin%NbrSubmerged = CurrentOrigin%NbrSubmerged - 1                   
+!                    endif
+!                    CurrentPartic%Position%surface = .true.
+!                else
+!                      CurrentPartic%Position%surface = .false.                    
+!                end if 
+
                 !Floating particle 
-MF:             if (CurrentOrigin%Movement%Float) then 
+MF:             if (CurrentOrigin%Movement%Float .or. CurrentPartic%Position%Surface) then 
 
                     !Velocity due Water
                     UINT = U                        
@@ -8443,6 +8714,19 @@ MT:             if (CurrentOrigin%Movement%MovType == SullivanAllen_) then
                     !If a particle moved the freazed state is OFF
                     CurrentPartic%Freazed   = OFF
 
+                    !Particles on surface                  
+                    if (CurrentOrigin%Movement%Float) then
+                        NewPosition%surface = .true.
+                    elseif (abs(Me%ExternalVar%SZZ(i, j, KUB) - NewPosition%Z) .LT. 0.01) then                
+                        if (.not. CurrentPartic%Position%Surface) then
+                          CurrentOrigin%NbrSubmerged = max(0.,CurrentOrigin%NbrSubmerged - 1)                   
+                        endif
+                        NewPosition%surface = .true.
+                    else
+                          NewPosition%surface = .false.                    
+                    end if 
+
+
                     !Stores New Position
                     CurrentPartic%Position  = NewPosition
 
@@ -8581,18 +8865,20 @@ cd2:        if (Me%ExternalVar%BottomStress(i,j) <                              
         real, intent (IN )                          :: VelModH
 
         !Local-----------------------------------------------------------------
-        integer                                     :: i, j, k, KUB
+        integer                                     :: i, j, k, KUB, kFloor
         real                                        :: CellK, BALZ
         real                                        :: CompZ_Up, CompZ_Down
         real                                        :: CompZ1_Up, CompZ1_Down
         real                                        :: AuxCompMisturaZ_Up, AuxCompMisturaZ_Down
         real                                        :: EspSup, Esp, EspInf
-        real                                        :: VELQZ, D50M, VQ1
+        real                                        :: VELQZ, D50M, VQ1, VELFLOAT
         real                                        :: WStandardDeviation
         real                                        :: W, WD
         real                                        :: Radius, Area, VolOld, VolNew, dVol
         real                                        :: ai, dw, Cd, DeltaD, AuxW, dwt        
-
+        real                                        :: r1, r2, correction
+        integer                                     :: STAT_CALL 
+        real                                        :: BottomDepth, SurfaceDepth
         !------------------------------------------------------------------------
 
         i       = CurrentPartic%Position%I
@@ -8603,13 +8889,14 @@ cd2:        if (Me%ExternalVar%BottomStress(i,j) <                              
         KUB     = Me%ExternalVar%WorkSize%KUB
         BALZ    = CellK - int(CellK)
 
-
+        kFloor         =   Me%ExternalVar%kFloor(i, j)
+        BottomDepth     =   Me%ExternalVar%SZZ(I, J, kFloor-1)
+        SurfaceDepth    =   Me%ExternalVar%SZZ(i, j, KUB)
 MF:     if (CurrentOrigin%Movement%Float) then
 
             NewPosition%Z = Me%ExternalVar%SZZ(i, j, KUB)
 
-        else MF
-
+        else MF                    
 SA:         if (CurrentOrigin%Movement%MovType == SullivanAllen_) then
 
                 CompZ_Up   = Me%ExternalVar%Lupward  (i, j, k)
@@ -8669,8 +8956,6 @@ SA:         if (CurrentOrigin%Movement%MovType == SullivanAllen_) then
                 endif
 
             endif SA
-
-
 
 DP:         if (CurrentOrigin%State%Sedimentation) then
 
@@ -8748,6 +9033,69 @@ MT:         if (CurrentOrigin%Movement%MovType .EQ. SullivanAllen_) then
 
             end if
 
+            if (CurrentOrigin%State%Oil) then    
+				!correction number of particle submerged
+                CurrentOrigin%Fdisp = CurrentOrigin%Nbrsubmerged / CurrentOrigin%NbrParticlesIteration;
+                correction = Me%ExternalVar%FMdispersed - CurrentOrigin%Fdisp;
+                
+                    
+SU1:                 if (CurrentPartic%Position%Surface) then 
+               
+#ifndef _WAVES_
+                            call GetWaves (WavesID    = Me%ObjWaves,                     &
+                                WavePeriod = Me%ExternalVar%WavePeriod,                  &
+                                WaveHeight = Me%ExternalVar%WaveHeight,                  &
+                                STAT       = STAT_CALL)
+                            if (STAT_CALL /= SUCCESS_) stop 'InternalParticOil - ModuleLagrangian - ERR03'
+#endif
+                    
+                            call random_number(r1)
+                        
+						! submerged particle aleatorie and position of particle
+                            
+							if (r1 .LT. correction) then
+                                call random_number(r2)
+
+                                NewPosition%Z = min(r2 * 1.5 * Me%ExternalVar%WaveHeight (i, j) + SurfaceDepth, BottomDepth)
+                                CurrentPartic%Position%Z = NewPosition%Z
+                                NewPosition%Surface = .false.
+                                CurrentOrigin%Nbrsubmerged = CurrentOrigin%Nbrsubmerged + 1;                             
+                                
+                                !ATENCAO FALTA CALCULAR O D50 EM VEZ DE USAR UM VALOR MÉDIO
+                                CurrentPartic%Geometry%OilDropletsD50 = 0.000050
+                                
+                            else
+                                NewPosition%Surface = .true.
+                            end if
+
+#ifndef _WAVES_
+                            call UnGetWaves(Me%ObjWaves, Me%ExternalVar%WavePeriod, STAT = STAT_CALL)
+                            if (STAT_CALL /= SUCCESS_) stop 'InternalParticOil - ModuleLagrangian - ERR08'
+
+                            call UnGetWaves(Me%ObjWaves, Me%ExternalVar%WaveHeight, STAT = STAT_CALL)
+                            if (STAT_CALL /= SUCCESS_) stop 'InternalParticOil - ModuleLagrangian - ERR09'
+#endif
+
+                       
+                    else SU1
+                        NewPosition%Surface = .false.
+                    endif SU1
+                    
+SU2:                if (.not. NewPosition%Surface) then
+                        CurrentPartic%W    = 0.                  
+                        VELFLOAT = gravity * CurrentPartic%Geometry%OilDropletsD50 * CurrentPartic%Geometry%OilDropletsD50 &
+                                   * (1. - (CurrentPartic%OilDensity/Me%ExternalVar%Density(i, j, k)) ) &
+                                   / (18. * WaterCinematicVisc)
+                        !VELFLOAT = 0
+
+                    else SU2
+                        CurrentPartic%W    = 0.
+                        VELFLOAT = 0
+                    end if SU2                
+                                  
+            endif
+
+
             !Velocity due plume
 PL:         if (CurrentOrigin%State%FarFieldBuoyancy) then    
                 Radius = (0.75 * CurrentPartic%Geometry%Volume/Pi) ** 0.33333
@@ -8800,9 +9148,14 @@ PL:         if (CurrentOrigin%State%FarFieldBuoyancy) then
             else PL
 
                 CurrentPartic%W    = 0.
+!                NewPosition%Z = CurrentPartic%Position%Z - (W + WD + VELQZ + VELFLOAT) *  Me%DT_Partic
+  
+  
+                if (CurrentOrigin%Position%MaintainDepth) then
+                    NewPosition%Z = Me%ExternalVar%SZZ(i, j, KUB) + CurrentOrigin%Position%DepthWithWaterLevel
+                endif
 
-                NewPosition%Z = CurrentPartic%Position%Z - (W + WD + VELQZ) *  Me%DT_Partic
-
+  
             endif PL
 
         endif MF
@@ -10233,6 +10586,8 @@ CurrOr: do while (associated(CurrentOrigin))
         real                                        :: AreaTotalOUT
         real                                        :: VolumeTotalOUT, VolOld
         integer                                     :: STAT_CALL
+        real                                        :: MassINI
+        real                                        :: MDissolvedDT
 
  
          
@@ -10294,7 +10649,9 @@ CurrOr: do while (associated(CurrentOrigin))
                                           VWaterContent         = VWaterContent,                  &
                                           MWaterContent         = MWaterContent,                  &
                                           MDispersed            = MDispersed,                     &
+                                          MDissolvedDT          = MDissolvedDT,                   &
                                           OilDensity            = OilDensity,                     &
+                                          MassINI               = MassINI,                        &
                                           OilViscosity          = OilViscosity,                   &
                                           FMEvaporated          = FMEvaporated,                   &
                                           FMDispersed           = FMDispersed,                    &
@@ -10317,9 +10674,31 @@ CurrOr: do while (associated(CurrentOrigin))
                 Me%ExternalVar%OilViscosity  = OilViscosity
                 Me%ExternalVar%FMEvaporated  = FMEvaporated
                 Me%ExternalVar%FMDispersed   = FMDispersed
+                Me%ExternalVar%MDissolvedDT  = MDissolvedDT
                 Me%ExternalVar%AreaTotal     = AreaTotalOUT
 
-                call OilGridConcentration  (CurrentOrigin, WaveHeight, WaterDensity)       
+
+                If (Me%ExternalVar%MassINI /= MassINI) then
+                    !When it's the first step
+                    Me%ExternalVar%MassINI = MassINI
+    
+                    CurrentPartic                           => CurrentOrigin%FirstPartic
+                    do while (associated(CurrentPartic))
+
+                            !Particle Mass
+                            !É necessário depois acrescentar CurrentOrigin%NbrParticlesIteration para ser atribuido
+                            !também na subrotina EmissionBox
+                              
+                            CurrentPartic%OilMass          = Me%ExternalVar%MassINI / CurrentOrigin%NbrParticlesIteration
+                            CurrentPartic%OilDissolvedMass = 0
+                            CurrentPartic%OilDensity       = Me%ExternalVar%OilDensity
+                            
+                        CurrentPartic => CurrentPartic%Next
+
+                    enddo
+
+                    
+                End If
 
                 !Modifies OilVolume
                 Factor                                  =  VolumeTotalOUT / (max(AllmostZero,CurrentOrigin%VolumeOilTotal))
@@ -10339,6 +10718,22 @@ CurrOr: do while (associated(CurrentOrigin))
                         !Volume Variation
                         CurrentPartic%Geometry%VolVar = CurrentPartic%Geometry%Volume - VolOld
 
+                         if (CurrentPartic%Position%Surface) then
+
+                            !Particle Mass 
+                            CurrentPartic%OilMass = CurrentPartic%Geometry%Volume*Me%ExternalVar%OilDensity
+                            
+                            ! Atenção falta Corrects Density to include only evaporation (excludes water content, which is at water column)
+                            CurrentPartic%OilDensity = Me%ExternalVar%OilDensity
+                         else       
+                             CurrentPartic%OilDissolvedMass = CurrentPartic%OilDissolvedMass + &
+                                                              (Me%ExternalVar%MDissolvedDT / CurrentOrigin%NbrSubmerged)
+ 
+                            ! Atenção falta Corrects Density to include only water content (wxcludes evaporation, which is at surface)
+                            CurrentPartic%OilDensity = Me%ExternalVar%OilDensity
+
+                         end if
+
 
                     else if (CurrentPartic%Beached) then
 
@@ -10349,6 +10744,15 @@ CurrOr: do while (associated(CurrentOrigin))
                     CurrentPartic => CurrentPartic%Next
 
                 enddo
+
+                call OilGridConcentration  (CurrentOrigin, WaveHeight, WaterDensity)       
+
+                !Calculates the OilConcentration3D
+                call OilGridConcentration3D      () 
+					
+                !Calculate the dillution concentration
+                call OilGridDissolution3D        ()
+
 
             endif    
 
@@ -11594,6 +11998,7 @@ do2:        do i = WS_ILB, WS_IUB
         integer                                     :: OutPutLines, JetTotalParticles, FirstParticle
         type (T_Position)                           :: Position
         real(8)                                     :: AverageX, AverageY, Stdv, RadiusOfInfluence
+        integer                                     :: ParticSurface
         
 
 
@@ -11944,6 +12349,36 @@ i1:             if (nP>0) then
                     
                         endif
 
+                       !Oil-Position Surface
+                       if (CurrentOrigin%State%Oil) then
+
+                           CurrentPartic   => CurrentOrigin%FirstPartic
+                           nP = 0
+                           do while (associated(CurrentPartic))
+                               nP = nP + 1
+                               if (CurrentPartic%Position%Surface) then 
+
+                                   ParticSurface  = 1 
+
+                               else
+
+                                   ParticSurface  = 2
+
+                               end if
+
+                               Matrix1D(nP) = ParticSurface
+                               CurrentPartic => CurrentPartic%Next
+                           enddo            
+                           if (nP > 0) then
+                               !HDF 5
+                               call HDF5WriteData  (Me%ObjHDF5, "/Results/"//trim(CurrentOrigin%Name)//"/Surface Position", &
+                                                   "State",  "ON/OFF", Array1D = Matrix1D, OutputNumber = OutPutNumber,     &
+                                                    STAT = STAT_CALL)
+                               if (STAT_CALL /= SUCCESS_) stop 'ParticleOutput - ModuleLagrangian - ERR19'
+                           endif
+                        
+                       endif
+
                        if (CurrentOrigin%State%Deposition) then
 
                             CurrentPartic   => CurrentOrigin%FirstPartic
@@ -12165,6 +12600,8 @@ i1:             if (nP>0) then
                     if (Me%State%Oil) then
                         call WriteOilGridThickness 
                         call WriteOilGridConcentration ()
+                        call WriteOilGridConcentration3D ()
+                        call WriteOilGridDissolution3D ()
                     endif
 
 
@@ -13853,9 +14290,162 @@ CurrOr:     do while (associated(CurrentOrigin))
 
     end subroutine WriteOilGridConcentration
 
+    !--------------------------------------------------------------------------
+
+    !--------------------------------------------------------------------------
+    subroutine WriteOilGridConcentration3D 
+
+        !Arguments-------------------------------------------------------------
+   
+
+        !Local-----------------------------------------------------------------
+        type (T_Origin), pointer                    :: CurrentOrigin
+        integer                                     :: ILB, IUB, JLB, JUB, KLB, KUB
+        integer                                     :: iGroup
+        real, dimension(:, :, :), pointer           :: OilGridConc3D 
+        character(StringLength)                     :: AuxChar
+        integer                                     :: WS_ILB, WS_IUB, WS_JLB, WS_JUB
+        integer                                     :: WS_KLB, WS_KUB
+
+
+
+        !Shorten
+        ILB    = Me%ExternalVar%Size%ILB
+        IUB    = Me%ExternalVar%Size%IUB
+        JLB    = Me%ExternalVar%Size%JLB
+        JUB    = Me%ExternalVar%Size%JUB
+        KLB    = Me%ExternalVar%Size%KLB
+        KUB    = Me%ExternalVar%Size%KUB
+
+        WS_ILB = Me%ExternalVar%WorkSize%ILB
+        WS_IUB = Me%ExternalVar%WorkSize%IUB
+        WS_JLB = Me%ExternalVar%WorkSize%JLB
+        WS_JUB = Me%ExternalVar%WorkSize%JUB
+        WS_KLB = Me%ExternalVar%WorkSize%KLB
+        WS_KUB = Me%ExternalVar%WorkSize%KUB
+
+        !Sets limits for next write operations
+        call HDF5SetLimits   (Me%ObjHDF5, WS_ILB, WS_IUB, WS_JLB, WS_JUB,     &
+                              WS_KLB, WS_KUB)
+
+
+        !Allocate GridVolume, GridMass
+        allocate (OilGridConc3D (ILB:IUB, JLB:JUB, KLB:KUB))
+
+Group:  do iGroup = 1, Me%nGroups
+
+            !Writes the Group to an auxiliar string
+            write (AuxChar, fmt='(i3)') iGroup
+
+            CurrentOrigin => Me%FirstOrigin
+CurrOr:     do while (associated(CurrentOrigin))
+
+
+                !Just writes the output if there are particle
+                if (CurrentOrigin%nParticle > 0) then
+                    OilGridConc3D = CurrentOrigin%OilGridConcentration3D
+
+                    !HDF 5
+                    call HDF5WriteData        (Me%ObjHDF5,                                  &
+                                               "/Results/"//trim(CurrentOrigin%Name)        &
+                                               //"/Data_3D/OilConcentration_3D",            &
+                                               "OilConcentration_3D",                       &
+                                               "Kg/m3",                                       &
+                                               Array3D = OilGridConc3D,                     &
+                                               OutputNumber = Me%OutPut%NextOutPut)
+
+
+                endif
+
+            CurrentOrigin => CurrentOrigin%Next
+            enddo CurrOr
+
+        enddo Group
+
+        deallocate (OilGridConc3D )
+
+
+    end subroutine WriteOilGridConcentration3D
 
     !--------------------------------------------------------------------------
 
+    !--------------------------------------------------------------------------
+   
+    subroutine WriteOilGridDissolution3D 
+
+        !Arguments-------------------------------------------------------------
+   
+
+        !Local-----------------------------------------------------------------
+        type (T_Origin), pointer                    :: CurrentOrigin
+        integer                                     :: ILB, IUB, JLB, JUB, KLB, KUB
+        integer                                     :: iGroup
+        real, dimension(:, :, :), pointer           :: OilDissolution3D 
+        character(StringLength)                     :: AuxChar
+        integer                                     :: WS_ILB, WS_IUB, WS_JLB, WS_JUB
+        integer                                     :: WS_KLB, WS_KUB
+
+
+
+        !Shorten
+        ILB    = Me%ExternalVar%Size%ILB
+        IUB    = Me%ExternalVar%Size%IUB
+        JLB    = Me%ExternalVar%Size%JLB
+        JUB    = Me%ExternalVar%Size%JUB
+        KLB    = Me%ExternalVar%Size%KLB
+        KUB    = Me%ExternalVar%Size%KUB
+
+        WS_ILB = Me%ExternalVar%WorkSize%ILB
+        WS_IUB = Me%ExternalVar%WorkSize%IUB
+        WS_JLB = Me%ExternalVar%WorkSize%JLB
+        WS_JUB = Me%ExternalVar%WorkSize%JUB
+        WS_KLB = Me%ExternalVar%WorkSize%KLB
+        WS_KUB = Me%ExternalVar%WorkSize%KUB
+
+        !Sets limits for next write operations
+        call HDF5SetLimits   (Me%ObjHDF5, WS_ILB, WS_IUB, WS_JLB, WS_JUB,     &
+                              WS_KLB, WS_KUB)
+
+
+        !Allocate GridVolume, GridMass
+        allocate (OilDissolution3D (ILB:IUB, JLB:JUB, KLB:KUB))
+
+Group:  do iGroup = 1, Me%nGroups
+
+            !Writes the Group to an auxiliar string
+            write (AuxChar, fmt='(i3)') iGroup
+
+            CurrentOrigin => Me%FirstOrigin
+CurrOr:     do while (associated(CurrentOrigin))
+
+
+                !Just writes the output if there are particle
+                if (CurrentOrigin%nParticle > 0) then
+                    OilDissolution3D = CurrentOrigin%OilGridDissolution3D
+
+                    !HDF 5
+                    call HDF5WriteData        (Me%ObjHDF5,                                     &
+                                               "/Results/"//trim(CurrentOrigin%Name)           &
+                                               //"/Data_3D/Dissolution_3D",                    &
+                                               "Dissolution_3D",                               &
+                                               "Kg/m3",                                          &
+                                               Array3D = OilDissolution3D,                     &
+                                               OutputNumber = Me%OutPut%NextOutPut)
+
+
+                endif
+
+            CurrentOrigin => CurrentOrigin%Next
+            enddo CurrOr
+
+        enddo Group
+
+        deallocate (OilDissolution3D )
+
+
+    end subroutine WriteOilGridDissolution3D
+
+    !--------------------------------------------------------------------------
     !--------------------------------------------------------------------------
 
     real(8) function GeographicCoordinates (Position, Direction)
@@ -14648,6 +15238,8 @@ CurrOr: do while (associated(CurrentOrigin))
             If (CurrentOrigin%State%Oil)   then
                 write (UnitID) CurrentOrigin%GridThickness                      
                 write (UnitID) CurrentOrigin%OilGridConcentration
+                write (UnitID) CurrentOrigin%OilGridConcentration3D
+                write (UnitID) CurrentOrigin%OilGridDissolution3D
             endif
 
             !Writes Particle Information
@@ -14802,6 +15394,33 @@ CurrOr: do while (associated(CurrentOrigin))
                 if (STAT_CALL /= SUCCESS_) stop 'ReadFinalPartic - ModuleLagrangian - ERR04a'
 
                 read (UnitID) NewOrigin%OilGridConcentration
+
+                
+                !Allocates OilGridConcentration3D
+                allocate (NewOrigin%OilGridConcentration3D(Me%ExternalVar%Size%ILB:            &
+                                                           Me%ExternalVar%Size%IUB,            &
+                                                           Me%ExternalVar%Size%JLB:            &
+                                                           Me%ExternalVar%Size%JUB,            &
+                                                           Me%ExternalVar%Size%KLB:            &
+                                                           Me%ExternalVar%Size%KUB),           &
+                                                           STAT = STAT_CALL)
+
+                if (STAT_CALL /= SUCCESS_) stop 'ReadFinalPartic - ModuleLagrangian - ERR04a'
+
+                read (UnitID) NewOrigin%OilGridConcentration3D
+				
+                !Allocates OilGridDissolution3D
+                allocate (NewOrigin%OilGridDissolution3D(Me%ExternalVar%Size%ILB:            &
+                                                         Me%ExternalVar%Size%IUB,            &
+                                                         Me%ExternalVar%Size%JLB:            &
+                                                         Me%ExternalVar%Size%JUB,            &
+                                                         Me%ExternalVar%Size%KLB:            &
+                                                         Me%ExternalVar%Size%KUB),           &
+                                                         STAT = STAT_CALL)
+
+                if (STAT_CALL /= SUCCESS_) stop 'ReadFinalPartic - ModuleLagrangian - ERR04a'
+
+                read (UnitID) NewOrigin%OilGridDissolution3D
 
             end if
 
