@@ -1494,6 +1494,7 @@ if1:    if (Me%TimeWindow) then
         !Local-----------------------------------------------------------------
         integer, intent(in)                 :: ncid
         integer                             :: status
+        real                                :: aux
 
         !MAP_PROJ. 1: LAMBERT CONFORMAL, 2: POLAR STEREOGRAPHIC, 3: MERCATOR
                 
@@ -1517,15 +1518,20 @@ if1:    if (Me%TimeWindow) then
             status = nf90_get_att(ncid, NF90_GLOBAL, 'TRUELAT2', Me%TrueLatUpper) !sp2
             call handle_error(status); if (status /= NF90_NOERR) stop 'InitializeProjection - ModuleWRFFormat - ERR05'
 
+            if (Me%TrueLatLower > Me%TrueLatUpper) then
+                aux = Me%TrueLatUpper
+                Me%TrueLatUpper = Me%TrueLatLower
+                Me%TrueLatLower = aux
+            endif
+
             Me%Params(1) = 'proj=lcc'
             Me%Params(2) = 'ellps=sphere'
-            write(Me%Params(3),'(a6,f6.3)') 'lat_1=',Me%TrueLatLower
-            write(Me%Params(4),'(a6,f6.3)') 'lat_2=',Me%TrueLatUpper
-            write(Me%Params(5),'(a6,f6.3)') 'lon_0=',Me%CoarseDomainCenterLon
-            write(Me%Params(6),'(a6,f6.3)') 'lat_0=',Me%CoarseDomainCenterLat
+            write(Me%Params(3),'(a6,f8.3)') 'lat_1=',Me%TrueLatLower
+            write(Me%Params(4),'(a6,f8.3)') 'lat_2=',Me%TrueLatUpper
+            write(Me%Params(5),'(a6,f8.3)') 'lon_0=',Me%CoarseDomainCenterLon
+            write(Me%Params(6),'(a6,f8.3)') 'lat_0=',Me%CoarseDomainCenterLat
 !            Me%Params(7) = 'x_0=1903970.98145531'
 !            Me%Params(8) = 'y_0=898179.31322811'
-
 
         elseif (Me%ProjType == 2) then
 
@@ -1550,6 +1556,8 @@ if1:    if (Me%TimeWindow) then
                         
                         
         endif
+
+        write(*,*) Me%Params
 
         status=prj90_init(Me%Proj,Me%Params)
         call handle_proj_error(status); if (status /= PRJ90_NOERR) stop 'InitializeProjection - ModuleWRFFormat - ERR07'
