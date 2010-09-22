@@ -3336,7 +3336,9 @@ etr_fao:        if (CalcET0) then
         EvaporateFromWaterColumn = Me%Coupled%Vegetation .AND. Me%EvapFromWaterColumn
         
         !Pointer so that mass balance right even if there is no evaporation
-        call SetMatrixValue (Me%CanopyStorageOld, Me%Size, Me%CanopyStorage)
+        if (Me%Coupled%Vegetation) then
+            call SetMatrixValue (Me%CanopyStorageOld, Me%Size, Me%CanopyStorage)
+        endif
         
         if (Me%EvapMethod .EQ. LatentHeatMethod) then
         

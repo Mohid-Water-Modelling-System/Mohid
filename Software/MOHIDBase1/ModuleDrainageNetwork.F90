@@ -798,7 +798,7 @@ Module ModuleDrainageNetwork
         real(8)                                     :: InitialTotalFlowVolume       = 0.0
         real(8)                                     :: InitialTotalInputVolume      = 0.0 !by discharges
 
-        logical                                     :: Stabilize                    = .false.
+        logical                                     :: Stabilize                    = .true.
         real                                        :: StabilizeFactor
         integer                                     :: MaxIterations
         real                                        :: DTFactor
@@ -1255,7 +1255,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      keyword      = 'STABILIZE',                                &
                      ClientModule = 'DrainageNetwork',                          &
                      SearchType   = FromFile,                                   &
-                     Default      = .false.,                                    &
+                     Default      = .true.,                                     &
                      STAT         = STAT_CALL)                                  
         if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR22'        
 

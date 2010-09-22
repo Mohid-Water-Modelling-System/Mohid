@@ -2623,51 +2623,63 @@ doIter:         do while (iter <= Niter)
 
 
             !Writes Flow X
-            call HDF5WriteData   (Me%ObjHDF5, "//Results/Flow/X",               &
-                                  "FlowX", "m3/s",                              &
-                                  Array2D      = Me%CenterFlowX,                &
-                                  OutputNumber = Me%OutPut%NextOutPut,          &
+            call HDF5WriteData   (Me%ObjHDF5,                                       &
+                                  "/Results/flow/flow X",                           &
+                                  "flow X",                                         &   
+                                  "m3/s",                                           &
+                                  Array2D      = Me%CenterFlowX,                    &
+                                  OutputNumber = Me%OutPut%NextOutPut,              &
                                   STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'RunOffOutput - ModuleRunOff - ERR09'
 
             
             !Writes Flow Y
-            call HDF5WriteData   (Me%ObjHDF5, "//Results/Flow/Y",               &
-                                  "FlowY", "m3/s",                              &
-                                  Array2D      = Me%CenterFlowY,                &
-                                  OutputNumber = Me%OutPut%NextOutPut,          &
+            call HDF5WriteData   (Me%ObjHDF5,                                       &
+                                  "/Results/flow/flow Y",                           &
+                                  "flow Y",                                         &   
+                                  "m3/s",                                           &
+                                  Array2D      = Me%CenterFlowY,                    &
+                                  OutputNumber = Me%OutPut%NextOutPut,              &
                                   STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'RunOffOutput - ModuleRunOff - ERR10'
 
              !Writes Flow Modulus
-            call HDF5WriteData   (Me%ObjHDF5, "//Results/Flow/Modulus",         &
-                                  "Flow", "m3/s",                               &
-                                  Array2D      = Me%FlowModulus,                &
-                                  OutputNumber = Me%OutPut%NextOutPut,          &
+            call HDF5WriteData   (Me%ObjHDF5,                                       &
+                                  "/Results/flow/"//trim(GetPropertyName (FlowModulus_)),&
+                                  trim(GetPropertyName (FlowModulus_)),             &   
+                                  "m3/s",                                           &
+                                  Array2D      = Me%FlowModulus,                    &
+                                  OutputNumber = Me%OutPut%NextOutPut,              &
                                   STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'RunOffOutput - ModuleRunOff - ERR10'
 
              !Writes Velocity X 
-            call HDF5WriteData   (Me%ObjHDF5, "//Results/Velocity/X",           &
-                                  "VelocityX", "m/s",                           &
-                                  Array2D      = Me%CenterVelocityX,            &
-                                  OutputNumber = Me%OutPut%NextOutPut,          &
+            call HDF5WriteData   (Me%ObjHDF5,                                          &
+                                  "/Results/velocity/"//trim(GetPropertyName (VelocityU_)),     &
+                                  trim(GetPropertyName (VelocityU_)),                  &
+                                  "m/s",                                               &
+                                  Array2D      = Me%CenterVelocityX,                   &
+                                  OutputNumber = Me%OutPut%NextOutPut,                 &
                                   STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'RunOffOutput - ModuleRunOff - ERR10'
 
              !Writes Velocity Y 
-            call HDF5WriteData   (Me%ObjHDF5, "//Results/Velocity/Y",           &
-                                  "VelocityY", "m/s",                           &
-                                  Array2D      = Me%CenterVelocityY,            &
-                                  OutputNumber = Me%OutPut%NextOutPut,          &
+            call HDF5WriteData   (Me%ObjHDF5,                                          &
+                                  "/Results/velocity/"//trim(GetPropertyName (VelocityV_)),     &
+                                  trim(GetPropertyName (VelocityV_)),                  &
+                                  "m/s",                                               &
+                                  Array2D      = Me%CenterVelocityY,                   &
+                                  OutputNumber = Me%OutPut%NextOutPut,                 &
                                   STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'RunOffOutput - ModuleRunOff - ERR10'
 
             !Writes Velocity Modulus
-            call HDF5WriteData   (Me%ObjHDF5, "//Results/Velocity/Modulus",     &
-                                  "Velocity", "m/s",                            &
-                                  Array2D      = Me%VelocityModulus,            &
-                                  OutputNumber = Me%OutPut%NextOutPut,          &
+            call HDF5WriteData   (Me%ObjHDF5,                                                &
+                                  "/Results/velocity/"//trim(GetPropertyName (VelocityModulus_)),     &
+                                  trim(GetPropertyName (VelocityModulus_)),                  &
+                                  "m/s",                                                     &
+                                  Array2D      = Me%VelocityModulus,                         &
+                                  OutputNumber = Me%OutPut%NextOutPut,                       &
                                   STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'RunOffOutput - ModuleRunOff - ERR10'
 
