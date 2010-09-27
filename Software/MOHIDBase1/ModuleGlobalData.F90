@@ -663,7 +663,6 @@ Module ModuleGlobalData
     integer, parameter :: SolutionAluminium_               = 10011
     integer, parameter :: SolutionSilicium_                = 10012
     
-    
     !rain concentrantion properties
     integer, parameter :: RainMagnesium_                   = 10201
     integer, parameter :: RainCalcium_                     = 10202
@@ -785,7 +784,6 @@ Module ModuleGlobalData
     character(StringLength), private, parameter :: Char_RainSodium           = 'rain sodium' 
     character(StringLength), private, parameter :: Char_RainChlorine         = 'rain chlorine'
     character(StringLength), private, parameter :: Char_RainAmmonia          = 'rain ammonia'
-
 
 
 !_______________________________________________________________________________________________
@@ -2759,7 +2757,6 @@ cd3 :   if (ErrorMagnitude == FATAL_) then
     end subroutine PlaceErrorMessageOnStack
 
     !----------------------------------------------------------------------
-
 
     subroutine WriteDTLog (ModuleName, iter, DT)
 

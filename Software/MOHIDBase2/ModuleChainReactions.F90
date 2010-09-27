@@ -195,10 +195,10 @@ Module ModuleChainReactions
     type T_External
         integer, pointer, dimension(:,:,:) :: WaterPoints3D
         integer, pointer, dimension(:,:)   :: WaterPoints2D
-        real,    pointer, dimension(:,:,:) :: Theta3D
-        real,    pointer, dimension(:,:)   :: Theta2D
-        real,    pointer, dimension(:,:,:) :: SoilDensity3D
-        real,    pointer, dimension(:,:)   :: SoilDensity2D
+        real,    pointer, dimension(:,:,:) :: WaterVolume3D
+        real,    pointer, dimension(:,:)   :: WaterVolume2D
+        real,    pointer, dimension(:,:,:) :: SoilMass3D
+        real,    pointer, dimension(:,:)   :: SoilMass2D
         integer, pointer, dimension(:)     :: Properties
     end type T_External
           
@@ -1826,16 +1826,16 @@ cd1:    if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-    subroutine ModifyChainReactions2D (ChainReactionsID,    &
-                                       Theta,               &
-                                       SoilDensity,         &
-                                       DT,                  &
+    subroutine ModifyChainReactions2D (ChainReactionsID, &
+                                       WaterVolume,      &
+                                       SoilMass,         &
+                                       DT,               &
                                        STAT)  
 
         !Arguments-----------------------------------------------------------------------------------------------------------------
         integer                                 :: ChainReactionsID
-        real, pointer, dimension(:,:)           :: Theta
-        real, pointer, dimension(:,:), optional :: SoilDensity
+        real, pointer, dimension(:,:)           :: WaterVolume      !L
+        real, pointer, dimension(:,:), optional :: SoilMass         !kg
         real                                    :: DT
         integer, optional,  intent(OUT)         :: STAT
 
@@ -1866,12 +1866,8 @@ cd1:    if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
 
             call ActualizePropertiesFromFile
 
-            Me%Ext%Theta2D => Theta
-            if (present(SoilDensity)) then
-                Me%Ext%SoilDensity2D => SoilDensity
-            else
-                Me%Ext%SoilDensity2D => Theta
-            endif
+            Me%Ext%WaterVolume2D => WaterVolume
+            if (present(SoilMass)) Me%Ext%SoilMass2D => SoilMass
             
             !Get water points
             call GetBasinPoints (Me%ObjBasinGeometry, Me%Ext%WaterPoints2D, STAT = STAT_CALL)        
@@ -1888,9 +1884,16 @@ cd1:    if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
                     do while (associated(PropertyX))
                                                 
                         if (PropertyX%Phase .EQ. WaterPhase) then
-                            PropertyX%Mass = PropertyX%G2D%Concentration(I, J) * Me%Ext%Theta2D(i, j)
+                        
+                            PropertyX%Mass = PropertyX%G2D%Concentration(I, J) * Me%Ext%WaterVolume2D(i, j)
+                            
                         else
-                            PropertyX%Mass = PropertyX%G2D%Concentration(I, J) * Me%Ext%SoilDensity2D(I, J)
+                        
+                            if (.NOT. present(SoilMass)) &                            
+                                stop 'ModifyChainReactions2D - ModuleChainReactions - ERR020'    
+                            
+                            PropertyX%Mass = PropertyX%G2D%Concentration(I, J) * Me%Ext%SoilMass2D(I, J)
+                            
                         endif
                                                  
                         if (.NOT. PropertyX%IsOnlyProduct) then
@@ -1900,18 +1903,33 @@ cd1:    if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
                             call GetSinkRate(PropertyX, SinkRate, I, J)
                                                     
                             if (PropertyX%RateOrder .EQ. ZeroOrder) then
-                                                       
-                                PropertyX%Sink = min(SinkRate * Me%Ext%Theta2D(i, j) * DT / 86400, PropertyX%Mass)
+
+                                if (PropertyX%Phase .EQ. WaterPhase) then        
+                                                                               
+                                    PropertyX%Sink = min(SinkRate * Me%Ext%WaterVolume2D(i, j) * DT / 86400, PropertyX%Mass)
+                                    
+                                else
+                                
+                                    PropertyX%Sink = min(SinkRate * Me%Ext%SoilMass2D(i, j) * DT / 86400, PropertyX%Mass)
+                                    
+                                endif
                                 
                             elseif (PropertyX%RateOrder .EQ. FirstOrder) then
+                            
                                 select case (PropertyX%RateMethod)
+                                
                                 case (RateDefault)
+                                
                                     PropertyX%Sink = min(PropertyX%Mass - PropertyX%Mass * &
-                                                         exp(-SinkRate * DT / 86400), PropertyX%Mass)
+                                                         exp(-SinkRate * DT / 86400), PropertyX%Mass)                                                             
+                                                         
                                 case (RateAlternative)
+                                
                                     PropertyX%Sink = min(PropertyX%Mass - PropertyX%Mass * &
                                                         ((1 - SinkRate) ** (DT / 86400)), PropertyX%Mass)
+                                                        
                                 end select
+                                
                             endif
                                                     
                             !     mg        =       mg                 mg      
@@ -1932,15 +1950,15 @@ cd1:    if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
                         ChangeOfMass = (PairX%Pair1%Sink + PairX%Pair2%Sink) - (PairX%Pair1%Source + PairX%Pair2%Source) 
                         
                         if (PairX%Pair1%Phase .EQ. WaterPhase) then
-                            k1 => Me%Ext%Theta2D
+                            k1 => Me%Ext%WaterVolume2D
                         else
-                            k1 => Me%Ext%SoilDensity2D
+                            k1 => Me%Ext%SoilMass2D
                         endif
                         
                         if (PairX%Pair2%Phase .EQ. WaterPhase) then
-                            k2 => Me%Ext%Theta2D
+                            k2 => Me%Ext%WaterVolume2D
                         else
-                            k2 => Me%Ext%SoilDensity2D
+                            k2 => Me%Ext%SoilMass2D
                         endif
 
                         PairX%Pair1%G2D%Concentration(I, J) = - ChangeOfMass / (k1(I, J) + Kd * k2(I, J)) + &
@@ -1961,9 +1979,9 @@ cd1:    if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
                             PropertyX%NewMass = PropertyX%Mass + PropertyX%Source - PropertyX%Sink
                             
                             if (PropertyX%Phase .EQ. WaterPhase) then
-                                PropertyX%G2D%Concentration(I, J) = PropertyX%NewMass / Me%Ext%Theta2D(I, J)
+                                PropertyX%G2D%Concentration(I, J) = PropertyX%NewMass / Me%Ext%WaterVolume2D(I, J)
                             else
-                                PropertyX%G2D%Concentration(I, J) = PropertyX%NewMass / Me%Ext%SoilDensity2D(I, J)
+                                PropertyX%G2D%Concentration(I, J) = PropertyX%NewMass / Me%Ext%SoilMass2D(I, J)
                             endif
                         
                         endif
@@ -1981,7 +1999,7 @@ cd1:    if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
                                       
             call UnGetBasin (Me%ObjBasinGeometry, Me%Ext%WaterPoints2D, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) &
-                stop 'ModifyChainReactions2D - ModuleChainReactions - ERR020'                    
+                stop 'ModifyChainReactions2D - ModuleChainReactions - ERR030'                    
                                                          
             STAT_CALL = SUCCESS_
             
@@ -1999,16 +2017,16 @@ cd1:    if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
 
 
     !------------------------------------------------------------------------------------------------------------------------------
-    subroutine ModifyChainReactions3D (ChainReactionsID,    &
-                                       Theta,               &
-                                       SoilDensity,         &
-                                       DT,                  &
+    subroutine ModifyChainReactions3D (ChainReactionsID, &
+                                       WaterVolume,      &
+                                       SoilMass,         &
+                                       DT,               &
                                        STAT)  
 
         !Arguments-----------------------------------------------------------------------------------------------------------------
         integer                                     :: ChainReactionsID
-        real, pointer, dimension(:,:,:)             :: Theta
-        real, pointer, dimension(:,:,:), optional   :: SoilDensity
+        real, pointer, dimension(:,:,:)             :: WaterVolume
+        real, pointer, dimension(:,:,:), optional   :: SoilMass
         real                                        :: DT
         integer, optional,  intent(OUT)             :: STAT
 
@@ -2042,12 +2060,8 @@ cd1:    if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
 
             call ActualizePropertiesFromFile
 
-            Me%Ext%Theta3D          => Theta
-            if (present(SoilDensity)) then
-                Me%Ext%SoilDensity3D => SoilDensity
-            else
-                Me%Ext%SoilDensity3D => Theta
-            endif
+            Me%Ext%WaterVolume3D => WaterVolume
+            if (present(SoilMass)) Me%Ext%SoilMass3D => SoilMass
                         
             !Get water points
             call GetWaterPoints3D (Me%ObjMap, Me%Ext%WaterPoints3D, STAT = STAT_CALL)        
@@ -2065,9 +2079,9 @@ cd1:    if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
                     do while (associated(PropertyX))
                                                 
                         if (PropertyX%Phase .EQ. WaterPhase) then
-                            PropertyX%Mass = PropertyX%G3D%Concentration(I, J, K) * Me%Ext%Theta3D(i, j, K)
+                            PropertyX%Mass = PropertyX%G3D%Concentration(I, J, K) * Me%Ext%WaterVolume3D(i, j, K)
                         else
-                            PropertyX%Mass = PropertyX%G3D%Concentration(I, J, K) * Me%Ext%SoilDensity3D(I, J, K)
+                            PropertyX%Mass = PropertyX%G3D%Concentration(I, J, K) * Me%Ext%SoilMass3D(I, J, K)
                         endif
                                                  
                         if (.NOT. PropertyX%IsOnlyProduct) then
@@ -2077,18 +2091,33 @@ cd1:    if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
                             call GetSinkRate(PropertyX, SinkRate, I, J, K)
                                                     
                             if (PropertyX%RateOrder .EQ. ZeroOrder) then
-                                                       
-                                PropertyX%Sink = min(SinkRate * Me%Ext%Theta3D(I, J, K) * DT / 86400, PropertyX%Mass)
+                                                 
+                                if (PropertyX%Phase .EQ. WaterPhase) then        
+                                                                                               
+                                    PropertyX%Sink = min(SinkRate * Me%Ext%WaterVolume3D(I, J, K) * DT / 86400, PropertyX%Mass)
+                                    
+                                else
+                                
+                                    PropertyX%Sink = min(SinkRate * Me%Ext%SoilMass3D(I, J, K) * DT / 86400, PropertyX%Mass)
+                                
+                                endif
                                 
                             elseif (PropertyX%RateOrder .EQ. FirstOrder) then
+                            
                                 select case (PropertyX%RateMethod)
+                                
                                 case (RateDefault)
+                                
                                     PropertyX%Sink = min(PropertyX%Mass - PropertyX%Mass * &
                                                          exp(-SinkRate * DT / 86400), PropertyX%Mass)
+                                                         
                                 case (RateAlternative)
+                                
                                     PropertyX%Sink = min(PropertyX%Mass - PropertyX%Mass * &
                                                         ((1 - SinkRate) ** (DT / 86400)), PropertyX%Mass)
+                                                        
                                 end select
+                                
                             endif
                                                     
                             !     mg        =       mg                 mg      
@@ -2109,15 +2138,15 @@ cd1:    if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
                         ChangeOfMass = (PairX%Pair1%Sink + PairX%Pair2%Sink) - (PairX%Pair1%Source + PairX%Pair2%Source) 
                         
                         if (PairX%Pair1%Phase .EQ. WaterPhase) then
-                            k1 => Me%Ext%Theta3D
+                            k1 => Me%Ext%WaterVolume3D
                         else
-                            k1 => Me%Ext%SoilDensity3D
+                            k1 => Me%Ext%SoilMass3D
                         endif
                         
                         if (PairX%Pair2%Phase .EQ. WaterPhase) then
-                            k2 => Me%Ext%Theta3D
+                            k2 => Me%Ext%WaterVolume3D
                         else
-                            k2 => Me%Ext%SoilDensity3D
+                            k2 => Me%Ext%SoilMass3D
                         endif
 
                         PairX%Pair1%G3D%Concentration(I, J, K) = - ChangeOfMass / (k1(I, J, K) + Kd * k2(I, J, K)) + &
@@ -2138,9 +2167,9 @@ cd1:    if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
                             PropertyX%NewMass = PropertyX%Mass + PropertyX%Source - PropertyX%Sink
                             
                             if (PropertyX%Phase .EQ. WaterPhase) then
-                                PropertyX%G3D%Concentration(I, J, K) = PropertyX%NewMass / Me%Ext%Theta3D(I, J, K)
+                                PropertyX%G3D%Concentration(I, J, K) = PropertyX%NewMass / Me%Ext%WaterVolume3D(I, J, K)
                             else
-                                PropertyX%G3D%Concentration(I, J, K) = PropertyX%NewMass / Me%Ext%SoilDensity3D(I, J, K)
+                                PropertyX%G3D%Concentration(I, J, K) = PropertyX%NewMass / Me%Ext%SoilMass3D(I, J, K)
                             endif
                         
                         endif

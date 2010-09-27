@@ -1232,7 +1232,6 @@ cd1 :           if(STAT_CALL .EQ. KEYWORD_NOT_FOUND_ERR_) then
         integer, dimension(:), pointer                       :: CEQUALW2List
         integer, dimension(:), pointer                       :: MacroAlgaeList
         integer                                              :: i,PropLB, PropUB
-        integer                                              :: NumberOfProperties
         integer, dimension(:), pointer                       :: BenthosList, LifeList
 #ifdef _BFM_  
         integer, dimension(:), pointer                       :: BFMList
@@ -2176,7 +2175,9 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
                                   LightExtCoefField, WaterPercentage,                   &
                                   DissolvedToParticulate3D, SoilDryDensity, Salinity,   &
                                   pH, IonicStrength, PhosphorusAdsortionIndex,          &
+#ifdef _PHREEQC_
                                   WaterVolume, WaterMass, SolidMass, pE, Temperature,   &
+#endif
                                   WindVelocity,  DTProp, STAT)
                                  
         !Arguments-------------------------------------------------------------
@@ -2191,11 +2192,13 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
         real,    optional, dimension(:,:,:), pointer    :: SoilDryDensity
         real,    optional, dimension(:,:,:), pointer    :: Salinity
         real,    optional, dimension(:,:,:), pointer    :: pH       
+#ifdef _PHREEQC_
         real,    optional, dimension(:,:,:), pointer    :: WaterVolume
         real,    optional, dimension(:,:,:), pointer    :: WaterMass
         real,    optional, dimension(:,:,:), pointer    :: SolidMass
         real,    optional, dimension(:,:,:), pointer    :: pE
         real,    optional, dimension(:,:,:), pointer    :: Temperature
+#endif
         real,    optional, dimension(:,:,:), pointer    :: IonicStrength
         real,    optional, dimension(:,:,:), pointer    :: PhosphorusAdsortionIndex
         real,    optional, dimension(:,:,:), pointer    :: WindVelocity

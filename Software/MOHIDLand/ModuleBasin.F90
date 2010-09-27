@@ -1908,7 +1908,7 @@ i1:         if (CoordON) then
         !Reads file name of the EVTP hdf outupt
         call ReadFileName('BASIN_EVTPHDF', Me%Files%EVTPHDFFile,                        &
                            Message = "Basin EVTPHDF Output File", STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadFileNames - ModuleBasin - ERR040'             
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructEVTPHDFOutput - ModuleBasin - ERR010'             
 
        
         !Bounds
@@ -1924,31 +1924,31 @@ i1:         if (CoordON) then
 
         !Opens HDF File
         call ConstructHDF5      (Me%ObjEVTPHDF, trim(Me%Files%EVTPHDFFile)//"5", HDF5_CREATE, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructEVTPHDFOutput - ModuleBasin - ERR030'
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructEVTPHDFOutput - ModuleBasin - ERR020'
 
       
         !Write the Horizontal Grid
         call WriteHorizontalGrid(Me%ObjHorizontalGrid, Me%ObjEVTPHDF, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructEVTPHDFOutput - ModuleBasin - ERR040'
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructEVTPHDFOutput - ModuleBasin - ERR030'
 
 
         !Sets limits for next write operations
         call HDF5SetLimits      (Me%ObjEVTPHDF, ILB, IUB, JLB, JUB, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructEVTPHDFOutput - ModuleBasin - ERR050'
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructEVTPHDFOutput - ModuleBasin - ERR040'
         
         !Writes the Grid
         call HDF5WriteData   (Me%ObjEVTPHDF, "/Grid", "Bathymetry", "m",           &
                               Array2D = Me%ExtVar%Topography, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructEVTPHDFOutput - ModuleBasin - ERR060'
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructEVTPHDFOutput - ModuleBasin - ERR050'
 
         !WriteBasinPoints
         call HDF5WriteData   (Me%ObjEVTPHDF, "/Grid", "BasinPoints", "-",          &
                               Array2D = Me%ExtVar%BasinPoints, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructEVTPHDFOutput - ModuleBasin - ERR070'
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructEVTPHDFOutput - ModuleBasin - ERR060'
 
         !Flushes All pending HDF5 commands
         call HDF5FlushMemory (Me%ObjEVTPHDF, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructEVTPHDFOutput - ModuleBasin - ERR080'       
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructEVTPHDFOutput - ModuleBasin - ERR070'       
 
     end subroutine ConstructEVTPHDFOutput
 
@@ -3256,7 +3256,7 @@ cd2 :           if (BlockFound) then
 
             if (Me%ExtVar%BasinPoints(i, j) .EQ. WaterPoint) then
                
-etr_fao:        if (CalcET0) then
+                if (CalcET0) then
             
                     !Calculate Psicrometric constant
                     !Calculation of the atmospheric pressure based on the heigth simplification of the ideal gas law
@@ -3295,15 +3295,16 @@ etr_fao:        if (CalcET0) then
                                             psiconst * 37. /(AirTemperature(i, j) + 273.)  *        &
                                             WindModulus(i,j) * (SVP- VP)) /                         & 
                                             (SSVPC + psiconst * (1. + 0.34 * WindModulus(i,j)))
-                endif etr_fao
-                                                            
-                !m/s - Porous media consistency. If constant, already converted in the construction of the property
-                if (.NOT. RefEvapotrans%Constant) then
                 
+                    RefEvapotrans%Field(i, j)  = max(RefEvapotrans%Field(i, j) / 3600000., 0.0)
+                
+                elseif (.NOT. RefEvapotrans%Constant) then
+                
+                    !m/s - Porous media consistency. If constant, already converted in the construction of the property
                     RefEvapotrans%Field(i, j)  = max(RefEvapotrans%Field(i, j) * Me%ETConversionFactor, 0.0)
-                    
-                endif
-
+                
+                endif        
+                                                                            
                 if (Me%Coupled%Vegetation) then
                     
                     if (Me%UsePotLAI) then
@@ -3335,8 +3336,8 @@ etr_fao:        if (CalcET0) then
         EvaporateFromCanopy      = Me%Coupled%Vegetation .AND. Me%EvapFromCanopy 
         EvaporateFromWaterColumn = Me%Coupled%Vegetation .AND. Me%EvapFromWaterColumn
         
-        !Pointer so that mass balance right even if there is no evaporation
         if (Me%Coupled%Vegetation) then
+            !Pointer so that mass balance right even if there is no evaporation
             call SetMatrixValue (Me%CanopyStorageOld, Me%Size, Me%CanopyStorage)
         endif
         

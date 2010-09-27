@@ -7066,13 +7066,44 @@ cd1 :       if (Property%Evolution%MinConcentration) then
         integer                            :: PropertiesCount
         integer                            :: STAT
         integer                            :: Index
-        real, pointer, dimension(:,:,:)    :: CellTheta
-        type (T_Property), pointer         :: SoilDensity
+        real, pointer, dimension(:,:,:)    :: WaterVolume !L
+        real, pointer, dimension(:,:,:)    :: SoilMass    !kg
+        type (T_Property), pointer         :: SoilDensity !kg/m3
+        integer                            :: I, J, K
         
         !Begin-----------------------------------------------------------------
         if (MonitorPerformance) call StartWatch ("ModulePorousMediaProperties", "ChainReactionsProcesses")
 
-        CellTheta  => Me%ExtVar%WaterContent       
+        !Change this so the allocation/deallocation will be done out of this function if ChainReactions is used
+        allocate (WaterVolume(Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB,Me%Size%KLB:Me%Size%KUB))
+        allocate (SoilMass(Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB,Me%Size%KLB:Me%Size%KUB))
+        
+        do K = Me%WorkSize%KLB, Me%WorkSize%KUB
+        do J = Me%WorkSize%JLB, Me%WorkSize%JUB       
+        do I = Me%WorkSize%ILB, Me%WorkSize%IUB
+        
+            if (Me%ExtVar%WaterPoints3D(I,J,K) == WaterPoint) then
+                WaterVolume(I, J, K) = Me%ExtVar%WaterContent(I, J, K) * WaterReferenceDensity
+            endif
+        
+        enddo
+        enddo
+        enddo
+        
+        !Change this code because in some situations will not exist "soil properties"
+        call Search_Property(SoilDensity, SoilVolumetricDensity_, STAT)        
+        
+        do K = Me%WorkSize%KLB, Me%WorkSize%KUB
+        do J = Me%WorkSize%JLB, Me%WorkSize%JUB       
+        do I = Me%WorkSize%ILB, Me%WorkSize%IUB
+        
+            if (Me%ExtVar%WaterPoints3D(I,J,K) == WaterPoint) then
+                SoilMass(I,J,K) = Me%ExtVar%CellVolume(I,J,K) * SoilDensity%Concentration(I,J,K)
+            endif
+        
+        enddo
+        enddo
+        enddo
         
         call GetCRPropertiesList(Me%ObjChainReactions, CRPropertiesList, PropertiesCount, STAT = STAT)
         if (STAT .NE. SUCCESS_) &
@@ -7096,19 +7127,20 @@ cd1 :       if (Property%Evolution%MinConcentration) then
         call UnGetChainReactions(Me%ObjChainReactions, CRPropertiesList, STAT)
         if (STAT .NE. SUCCESS_) &
             stop 'ChainReactionsProcesses - ModulePororusMediaProperties - ERR040'        
-        
-        call Search_Property(SoilDensity, SoilVolumetricDensity_, STAT)
-        
+               
         if (STAT .NE. SUCCESS_) &
             stop 'ChainReactionsProcesses - ModulePororusMediaProperties - ERR050'
         
-        call ModifyChainReactions (Me%ObjChainReactions,        &
-                                   CellTheta,                   &
-                                   SoilDensity%Concentration,   &
-                                   Me%ExtVar%DT,                &                                   
+        call ModifyChainReactions (Me%ObjChainReactions, &
+                                   WaterVolume,          &
+                                   SoilMass,             &
+                                   Me%ExtVar%DT,         &                                   
                                    STAT)                                       
         if (STAT .NE. SUCCESS_) &
             stop 'ChainReactionsProcesses - ModulePororusMediaProperties - ERR060'
+            
+        deallocate (SoilMass)
+        deallocate (WaterVolume)
                                     
         if (MonitorPerformance) call StopWatch ("ModulePorousMediaProperties", "ChainReactionsProcesses")    
         !-------------------------------------------------------------------------

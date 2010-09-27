@@ -29,8 +29,6 @@
 !
 !------------------------------------------------------------------------------
 
-#ifdef _PHREEQC_
-
 Module ModulePhreeqC
 
     use ModuleFunctions            
@@ -2916,7 +2914,5 @@ cd1:    if (PhreeqCID > 0) then
     end subroutine LocateObjPhreeqC
     !----------------------------------------------------------------------------
 
-
 end module ModulePhreeqC    
 
-#endif
