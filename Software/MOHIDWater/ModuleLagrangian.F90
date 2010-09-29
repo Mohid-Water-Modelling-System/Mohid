@@ -77,7 +77,7 @@ Module ModuleLagrangian
 !   BOXES_BEACHING_PROB     : real(Boxes Number)        []                      !List of Inbox Beaching Probability
 !   OUTPUT_CONC             : 1/2                       [1]                     !OutPut Integration Type
 !   OUTPUT_MAX_TRACER       : 0/1                       [0]                     !Checks if the users wants to output the maximum 
-                                                                                ! tracer concentration in each cell
+                                                                                !tracer concentration in each cell
 !   OVERLAY_VELOCITY        : 0/1                       [0]                     !If a adicional velocity field is to be added
 !   OUTPUT_TRACER_INFO      : logical                   [0]                     !Output a file with detailed information for 
 !                                                                               !each tracer (extension .tro)
@@ -133,7 +133,7 @@ Module ModuleLagrangian
 !   POSITION_CELLS          : Cell Cell                 []                      !X and Y Position of the origin in grid cells
 !   POSITION_COORDINATES    : Xcoord Ycoord             []                      !X and Y Position of the origin in the grid        
                                                                                 !coordinates
-!   DEPTH_FROM_SURFACE      : meters (from free surface)[]                      !Depth of emission relativ to free surface
+!   DEPTH_FROM_FREE_SURFACE : meters (from free surface)[]                      !Depth of emission relativ to free surface
 !   DEPTH_METERS            : meters (from surface)     []                      !Depth of emission relativ to surface 
 !                                                                               !(without water level)
 !   DEPTH_CELLS             : Cell                      []                      !Depth in Cells (from bottom)
@@ -541,6 +541,7 @@ Module ModuleLagrangian
         logical                                 :: T90Variable          = OFF
         logical                                 :: Filtration           = OFF       
         logical                                 :: OutputTracerInfo     = OFF
+        logical                                 :: FloatingObject       = OFF
     end type T_State
 
     !IO
@@ -672,6 +673,7 @@ Module ModuleLagrangian
         logical                                 :: Float                    = OFF !Floating particle, does not mix with water
         logical                                 :: Advection                = ON
         logical                                 :: KillLandParticles        = OFF
+        logical                                 :: StokesDrift              = OFF
         
         !Volumes / Areas
         real                                    :: TVOL200                  = null_real  !Time to double volume.
@@ -798,6 +800,11 @@ Module ModuleLagrangian
         logical                                 :: BottomEmission           = OFF
     end type T_Deposition
 
+    type T_FloatingObject
+        real                                    :: AirDragCoef            = null_real
+        real                                    :: WaterDragCoef          = null_real
+        real                                    :: ImmersionRatio         = null_real
+    end type T_FloatingObject
 
     !Origin list
     type T_Origin
@@ -866,7 +873,7 @@ Module ModuleLagrangian
         integer                                 :: troUnit  
         real                                    :: Nbrsubmerged   = 0
         real                                    :: Fdisp          = 0
-        
+        type (T_FloatingObject)                 :: FloatingObject
     end type T_Origin
 
     type T_ParticleGrid
@@ -2645,6 +2652,16 @@ TURB_V:                 if (flag == 1) then
                              STAT         = STAT_CALL)             
                 if (STAT_CALL /= SUCCESS_) stop 'ConstructOrigins - ModuleLagrangian - ERR820'
 
+                !Kill Land Particles
+                call GetData(NewOrigin%Movement%StokesDrift,                             &
+                             Me%ObjEnterData,                                            &
+                             flag,                                                       &
+                             SearchType   = FromBlock,                                   &
+                             keyword      ='STOKES_DRIFT',                               &
+                             ClientModule ='ModuleLagrangian',                           &  
+                             Default      = OFF,                                         &
+                             STAT         = STAT_CALL)             
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructOrigins - ModuleLagrangian - ERR820'
 
 
                 !WINDCOEF
@@ -3000,11 +3017,11 @@ PA:             if (NewOrigin%EmissionSpatial == Point_ .or.                    
 
                     else
 
-                        call GetData(Depth,                     &
-                                     Me%ObjEnterData,                             &
+                        call GetData(Depth,                                                  &
+                                     Me%ObjEnterData,                                        &
                                      flag,                                                   &
                                      SearchType   = FromBlock,                               &
-                                     keyword      ='DEPTH_FROM_SURFACE',                     &
+                                     keyword      ='DEPTH_FROM_FREE_SURFACE',                &
                                      ClientModule ='ModuleLagrangian',                       &
                                      STAT         = STAT_CALL)             
                         if (STAT_CALL /= SUCCESS_) stop 'ConstructOrigins - ModuleLagrangian - ERR1040'
@@ -3101,18 +3118,21 @@ PA:             if (NewOrigin%EmissionSpatial == Point_ .or.                    
 
                     endif
 
-                    !Initial Position of floating Particle close to the surface
                     if (NewOrigin%Movement%Float) then
+                        if (.not. HaveOrigin) then
+                            !By default, initial position of floating Particle is close to the surface
+                            !if vertical location is not defined
 
-                        i = NewOrigin%Position%I
-                        j = NewOrigin%Position%J
-                        k = Me%ExternalVar%WorkSize%KUB
-                        NewOrigin%Position%Z = Me%ExternalVar%SZZ(i, j, k)
-                    
-                        call Convert_Z_CellK  (NewOrigin, NewOrigin%Position)
-                        call Convert_CellK_K  (NewOrigin%Position)
+                            i = NewOrigin%Position%I
+                            j = NewOrigin%Position%J
+                            k = Me%ExternalVar%WorkSize%KUB
+                            NewOrigin%Position%Z = Me%ExternalVar%SZZ(i, j, k)
+                        
+                            call Convert_Z_CellK  (NewOrigin, NewOrigin%Position)
+                            call Convert_CellK_K  (NewOrigin%Position)
 
-                        HaveOrigin = .true.
+                            HaveOrigin = .true.
+                        endif
 
                     endif
 
@@ -3733,6 +3753,55 @@ SP:                     if (NewProperty%SedimentPartition%ON) then
                 if (Me%State%OutputTracerInfo) then
                     call ReadFileName("ROOT_SRT", RootPath, STAT = STAT_CALL)
                     NewOrigin%OutputTracerInfoFileName = trim(RootPath)//trim(NewOrigin%Name)//".tro"
+                endif
+
+                !model the tracers as if they were solid floating objects (containers, e.g.)
+                call GetData(NewOrigin%State%FloatingObject,                             &
+                             Me%ObjEnterData,                                            &
+                             flag,                                                       &
+                             SearchType   = FromBlock,                                   &
+                             keyword      ='FLOATING_OBJECT',                            &
+                             Default      = OFF,                                         &
+                             ClientModule ='ModuleLagrangian',                           &
+                             STAT         = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructOrigins - ModuleLagrangian - ERR540'
+
+                if (NewOrigin%State%FloatingObject) then
+                    call GetData(NewOrigin%FloatingObject%AirDragCoef,                &
+                                 Me%ObjEnterData,                                     &
+                                 flag,                                                &
+                                 SearchType   = FromBlock,                            &
+                                 keyword      ='AIR_DRAG_COEF',                       &
+                                 ClientModule ='ModuleLagrangian',                    &
+                                 !Air drag coeeficients of bluff objects at highr Reynolds number is tipically 1
+                                 ! (Smith, 1993)
+                                 Default      = 1.0,                                  &
+                                 STAT         = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructOrigins - ModuleLagrangian - ERR15901'
+
+
+                    call GetData(NewOrigin%FloatingObject%WaterDragCoef,              &
+                                 Me%ObjEnterData,                                     &
+                                 flag,                                                &
+                                 SearchType   = FromBlock,                            &
+                                 keyword      ='WATER_DRAG_COEF',                     &
+                                 ClientModule ='ModuleLagrangian',                    &
+                                 !Experimental work gives 0.8 < WaterDragCoef < 1.2 
+                                 ! (Cabioc'h and Aoustin, 1997)
+                                 Default      = 1.0,                                  &
+                                 STAT         = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructOrigins - ModuleLagrangian - ERR15902'
+
+                    call GetData(NewOrigin%FloatingObject%ImmersionRatio,             &
+                                 Me%ObjEnterData,                                     &
+                                 flag,                                                &
+                                 SearchType   = FromBlock,                            &
+                                 keyword      ='IMMERSION_RATIO',                     &
+                                 ClientModule ='ModuleLagrangian',                    &
+                                 Default      = 50.0,                                 &
+                                 STAT         = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructOrigins - ModuleLagrangian - ERR15903'
+
                 endif
 
 
@@ -8299,7 +8368,19 @@ CurrOr: do while (associated(CurrentOrigin))
         real                                        :: Modulus, WindX, WindY
         real                                        :: GradDWx, GradDWy, Aux
         logical                                     :: NoIntU, NoIntV
-
+        real                                        :: AngFrequency
+        real                                        :: WaveNumber
+        real                                        :: VelStokesDrift
+        real                                        :: UStokesDrift
+        real                                        :: VStokesDrift
+        real                                        :: WavePeriod
+        real                                        :: WaveHeight  
+        integer                                     :: STAT_CALL 
+        real                                        :: WindAngle
+        real                                        :: UDrift, VDrift
+        real                                        :: WaterDensity  
+        
+        
         !Shorten Var
         if (Me%OverLay%OverLay) then
             Velocity_U => Me%OverLay%VelUFinal
@@ -8315,6 +8396,18 @@ CurrOr: do while (associated(CurrentOrigin))
         WS_JUB = Me%ExternalVar%WorkSize%JUB
         KUB    = Me%ExternalVar%WorkSize%KUB
 
+
+        if (CurrentOrigin%State%Oil .and. CurrentOrigin%Movement%StokesDrift) then    
+
+#ifndef _WAVES_
+                    call GetWaves (WavesID    = Me%ObjWaves,                     &
+                         WavePeriod = Me%ExternalVar%WavePeriod,                  &
+                         WaveHeight = Me%ExternalVar%WaveHeight,                  &
+                         STAT       = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'MoveParticHorizontal - ModuleLagrangian - ERR01'
+#endif
+
+            end if
 
 
         CurrentPartic => CurrentOrigin%FirstPartic
@@ -8445,6 +8538,28 @@ MF:             if (CurrentOrigin%Movement%Float .or. CurrentPartic%Position%Sur
                         UOil  = 0.0
                         VOil  = 0.0
                 
+                    end if
+                    
+                    if (CurrentOrigin%State%FloatingObject) then
+                        WaterDensity        = Me%ExternalVar%Density    (i, j, k)
+
+                        UDrift = GetDriftVelocity(Air_Density,                                  &
+                                                  CurrentOrigin%FloatingObject%AirDragCoef,     &
+                                                  CurrentOrigin%FloatingObject%ImmersionRatio,  &
+                                                  WindX,                                        &
+                                                  WaterDensity,                                 &
+                                                  CurrentOrigin%FloatingObject%WaterDragCoef,   &
+                                                  UINT)
+                                                  
+                        VDrift = GetDriftVelocity(Air_Density,                                  &
+                                                  CurrentOrigin%FloatingObject%AirDragCoef,     &
+                                                  CurrentOrigin%FloatingObject%ImmersionRatio,  &
+                                                  WindY,                                        &
+                                                  WaterDensity,                                 &
+                                                  CurrentOrigin%FloatingObject%WaterDragCoef,   &
+                                                  VINT)
+                                                 
+                                                 
                     end if
 
                 else MF
@@ -8647,6 +8762,39 @@ MT:             if (CurrentOrigin%Movement%MovType == SullivanAllen_) then
 
                 endif
 
+                ! Velocity due Stokes Drift
+                if (CurrentOrigin%State%Oil .and. CurrentOrigin%Movement%StokesDrift) then    
+                
+                    WaveHeight          = Me%ExternalVar%WaveHeight (i, j)
+                    WavePeriod          = Me%ExternalVar%WavePeriod (i, j)
+
+
+                    AngFrequency        = 2 * Pi / WavePeriod
+                    WaveNumber          = AngFrequency * AngFrequency / gravity
+                    VelStokesDrift      = 0.5 * (WaveHeight /  2 )**2 * WaveNumber * AngFrequency * & 
+                                          exp(2* WaveNumber *                                       &
+                                          abs(Me%ExternalVar%SZZ(i, j, k) - CurrentOrigin%Position%Z) )
+                                          
+                    if (CurrentOrigin%Movement%WindOriginON) then
+
+                        WindX = CurrentOrigin%Movement%WindX
+                        WindY = CurrentOrigin%Movement%WindY
+
+                    else
+
+                        WindX = Me%ExternalVar%WindX(i, j)
+                        WindY = Me%ExternalVar%WindY(i, j)
+
+                    endif
+
+                    WindAngle           = atan2(WindY, WindX)
+                    UStokesDrift        = cos(WindAngle) * VelStokesDrift
+                    VStokesDrift        = sin(WindAngle) * VelStokesDrift
+                    UOIL = UOIL + UStokesDrift
+                    VOIL = VOIL + VStokesDrift
+                end if
+
+
 
                 if (CurrentOrigin%Movement%Advection) then
 
@@ -8656,6 +8804,9 @@ MT:             if (CurrentOrigin%Movement%MovType == SullivanAllen_) then
                         !large scale turbulence
                         DX = DX + UD *  Me%DT_Partic
                         DY = DY + VD *  Me%DT_Partic
+                    elseif (CurrentOrigin%State%FloatingObject) then
+                        DX = (UDrift + UD) * Me%DT_Partic
+                        DY = (VDrift + VD) * Me%DT_Partic
                     else
                         DX = (UINT + UD + UWIND + UOIL) * Me%DT_Partic
                         DY = (VINT + VD + VWIND + VOIL) * Me%DT_Partic
@@ -8743,6 +8894,17 @@ MT:             if (CurrentOrigin%Movement%MovType == SullivanAllen_) then
             CurrentPartic => CurrentPartic%Next
 
         enddo CP
+
+
+        if (CurrentOrigin%State%Oil .and. CurrentOrigin%Movement%StokesDrift) then    
+#ifndef _WAVES_
+        call UnGetWaves(Me%ObjWaves, Me%ExternalVar%WavePeriod, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'MoveParticHorizontal - ModuleLagrangian - ERR02'
+
+        call UnGetWaves(Me%ObjWaves, Me%ExternalVar%WaveHeight, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'MoveParticHorizontal - ModuleLagrangian - ERR03'
+#endif
+        end if
 
 
     end subroutine MoveParticHorizontal
@@ -8853,6 +9015,35 @@ cd2:        if (Me%ExternalVar%BottomStress(i,j) <                              
     end function LinearInterpolation    
 
     !--------------------------------------------------------------------------
+    !Drift velocity based on an analytical solution proposed by Daniel, Pierre, 2002,
+    !"Drift Modelling of Cargo Containers" (Spill Science & Technology Bulletin);
+    ! but without the assumption of a null water current;
+    !(In the next few months a numerical solution will also be implemented)
+    real function GetDriftVelocity(var_a, var_b, var_c,var_d,var_e,var_f,var_g)
+        
+        !Arguments-------------------------------------------------------------
+        real                                        :: var_a, var_b, var_c, var_d, var_e, var_f, var_g
+        real                                        :: First, Second, Third, Forth, Fifth, Sixth, Seventh 
+
+        !Begin-----------------------------------------------------------------
+        First  = - 2 * var_a * var_b * var_c  * var_d + 200 * var_a * var_b * var_d - 2 * var_c * var_e * var_f * var_g
+        Second = var_a * var_b * var_c - 100 * var_a * var_b + var_c * var_e * var_f
+        Third  = var_a * var_b * var_c * var_d * var_d - 100 * var_a * var_b * var_d * var_d + var_c * var_e * var_f * var_g * var_g
+        Forth  = var_a * var_b * var_c * var_d
+        Fifth  = var_a * var_b * var_d
+        Sixth  = var_c * var_e * var_f * var_g
+        Seventh= var_a * var_b * var_c - 100 * var_a * var_b + var_c * var_e * var_f
+
+If (var_d > var_g) then
+        GetDriftVelocity =  (SQRT(First*First-4*Second*Third) + 2*Forth - 200*Fifth + 2*Sixth)/(2*Seventh)
+else
+        GetDriftVelocity =  (-SQRT(First*First-4*Second*Third) + 2*Forth - 200*Fifth + 2*Sixth)/(2*Seventh)
+end if
+
+
+    end function GetDriftVelocity    
+
+    !--------------------------------------------------------------------------
 
     subroutine MoveParticVertical(CurrentOrigin, CurrentPartic,           &
                                   NewPosition, VelModH)
@@ -8892,273 +9083,272 @@ cd2:        if (Me%ExternalVar%BottomStress(i,j) <                              
         kFloor         =   Me%ExternalVar%kFloor(i, j)
         BottomDepth     =   Me%ExternalVar%SZZ(I, J, kFloor-1)
         SurfaceDepth    =   Me%ExternalVar%SZZ(i, j, KUB)
-MF:     if (CurrentOrigin%Movement%Float) then
+MD:     if (CurrentOrigin%Position%MaintainDepth) then
+            NewPosition%Z = Me%ExternalVar%SZZ(i, j, KUB) + CurrentOrigin%Position%DepthWithWaterLevel
+        else MD                
 
-            NewPosition%Z = Me%ExternalVar%SZZ(i, j, KUB)
+    MF:     if (CurrentOrigin%Movement%Float) then
+                    NewPosition%Z = Me%ExternalVar%SZZ(i, j, KUB)
+            else MF                    
+    SA:         if (CurrentOrigin%Movement%MovType == SullivanAllen_) then
 
-        else MF                    
-SA:         if (CurrentOrigin%Movement%MovType == SullivanAllen_) then
+                    CompZ_Up   = Me%ExternalVar%Lupward  (i, j, k)
+                    CompZ_Down = Me%ExternalVar%Ldownward(i, j, k)
 
-                CompZ_Up   = Me%ExternalVar%Lupward  (i, j, k)
-                CompZ_Down = Me%ExternalVar%Ldownward(i, j, k)
+                    if ((CompZ_Up < 0.0) .OR. (CompZ_Down < 0.0)) then
+                        CompZ_Up   = 0.0
+                        CompZ_Down = 0.0
+                    end if
+        
+                    if ((Me%ExternalVar%WorkSize%KUB -                                     &
+                         Me%ExternalVar%WorkSize%KLB + 1) > 1) then 
 
-                if ((CompZ_Up < 0.0) .OR. (CompZ_Down < 0.0)) then
-                    CompZ_Up   = 0.0
-                    CompZ_Down = 0.0
-                end if
-    
-                if ((Me%ExternalVar%WorkSize%KUB -                                     &
-                     Me%ExternalVar%WorkSize%KLB + 1) > 1) then 
+                        EspSup = Me%ExternalVar%DWZ(i, j, k+1)
+                        Esp    = Me%ExternalVar%DWZ(i, j, k  )
+                        EspInf = Me%ExternalVar%DWZ(i, j, k-1)
 
-                    EspSup = Me%ExternalVar%DWZ(i, j, k+1)
-                    Esp    = Me%ExternalVar%DWZ(i, j, k  )
-                    EspInf = Me%ExternalVar%DWZ(i, j, k-1)
+                        if ((K /= Me%ExternalVar%WorkSize%KLB) .AND.              &
+                            (BALZ < 0.5)) then       !Close to the bottom
 
-                    if ((K /= Me%ExternalVar%WorkSize%KLB) .AND.              &
-                        (BALZ < 0.5)) then       !Close to the bottom
+                            CompZ1_Up   = Me%ExternalVar%Lupward  (i, j, k-1)
+                            CompZ1_Down = Me%ExternalVar%Ldownward(i, j, k-1)
 
-                        CompZ1_Up   = Me%ExternalVar%Lupward  (i, j, k-1)
-                        CompZ1_Down = Me%ExternalVar%Ldownward(i, j, k-1)
+                            AuxCompMisturaZ_Up   = 2.0 * (CompZ1_Up * (0.5 - BALZ) * Esp +   &
+                                                   CompZ_Up * BALZ * Esp + CompZ_Up * 0.5 *  &
+                                                   EspInf) / (Esp + EspInf)
 
-                        AuxCompMisturaZ_Up   = 2.0 * (CompZ1_Up * (0.5 - BALZ) * Esp +   &
-                                               CompZ_Up * BALZ * Esp + CompZ_Up * 0.5 *  &
-                                               EspInf) / (Esp + EspInf)
+                            AuxCompMisturaZ_Down = 2.0 * (CompZ1_Down * (0.5 - BALZ) * Esp + &
+                                                   CompZ_Down * BALZ * Esp + CompZ_Down *    &
+                                                   0.5 * EspInf) / (Esp + EspInf)
+                     
+                        else if ((K /= Me%ExternalVar%WorkSize%KUB) .AND.                  &
+                                 (BALZ .GT. 0.5 )) then !Close to the surface
 
-                        AuxCompMisturaZ_Down = 2.0 * (CompZ1_Down * (0.5 - BALZ) * Esp + &
-                                               CompZ_Down * BALZ * Esp + CompZ_Down *    &
-                                               0.5 * EspInf) / (Esp + EspInf)
-                 
-                    else if ((K /= Me%ExternalVar%WorkSize%KUB) .AND.                  &
-                             (BALZ .GT. 0.5 )) then !Close to the surface
+                            CompZ1_Up   = Me%ExternalVar%Lupward  (i, j, k+1)
+                            CompZ1_Down = Me%ExternalVar%Ldownward(i, j, k+1)
 
-                        CompZ1_Up   = Me%ExternalVar%Lupward  (i, j, k+1)
-                        CompZ1_Down = Me%ExternalVar%Ldownward(i, j, k+1)
+                            AuxCompMisturaZ_Up   = 2.0 * (CompZ1_Up * (0.5 - BALZ) * Esp +   &
+                                                   CompZ_Up * BALZ * Esp + CompZ_Up * 0.5 *  &
+                                                   EspInf) / (Esp + EspInf)
 
-                        AuxCompMisturaZ_Up   = 2.0 * (CompZ1_Up * (0.5 - BALZ) * Esp +   &
-                                               CompZ_Up * BALZ * Esp + CompZ_Up * 0.5 *  &
-                                               EspInf) / (Esp + EspInf)
+                            AuxCompMisturaZ_Down = 2.0 * (CompZ1_Down * (0.5 - BALZ) * Esp + &
+                                                   CompZ_Down * BALZ * Esp + CompZ_Down *    &
+                                                   0.5 * EspInf) / (Esp + EspInf)
+                        else
 
-                        AuxCompMisturaZ_Down = 2.0 * (CompZ1_Down * (0.5 - BALZ) * Esp + &
-                                               CompZ_Down * BALZ * Esp + CompZ_Down *    &
-                                               0.5 * EspInf) / (Esp + EspInf)
-                    else
+                            AuxCompMisturaZ_Up   = CompZ_Up
+                            AuxCompMisturaZ_Down = CompZ_Down           
+
+                        endif
+
+                    else !1 Layer
 
                         AuxCompMisturaZ_Up   = CompZ_Up
                         AuxCompMisturaZ_Down = CompZ_Down           
 
                     endif
 
-                else !1 Layer
+                endif SA
 
-                    AuxCompMisturaZ_Up   = CompZ_Up
-                    AuxCompMisturaZ_Down = CompZ_Down           
+    DP:         if (CurrentOrigin%State%Sedimentation) then
 
-                endif
+                    if (CurrentOrigin%Movement%SedimentationType .EQ. Stokes_ ) then
 
-            endif SA
+                        D50M  =  CurrentOrigin%Movement%D50 / 1000.0 ! passagem para metros 
+                        VQ1   =  0.4949 * LOG10(D50M)**2.0 + 2.1795 * LOG10(D50M) + 3.7394  
+                        VELQZ =  -1.0 / (10.0**VQ1)                                          
 
-DP:         if (CurrentOrigin%State%Sedimentation) then
+                        if (abs(CurrentOrigin%Movement%MinSedVel) > ABS(VELQZ))              &
+                            VELQZ =  -1. * CurrentOrigin%Movement%MinSedVel
 
-                if (CurrentOrigin%Movement%SedimentationType .EQ. Stokes_ ) then
+                    else if (CurrentOrigin%Movement%SedimentationType .EQ. Imposed_) then
 
-                    D50M  =  CurrentOrigin%Movement%D50 / 1000.0 ! passagem para metros 
-                    VQ1   =  0.4949 * LOG10(D50M)**2.0 + 2.1795 * LOG10(D50M) + 3.7394  
-                    VELQZ =  -1.0 / (10.0**VQ1)                                          
+                        VELQZ =  -1. * CurrentOrigin%Movement%SedVel
 
-                    if (abs(CurrentOrigin%Movement%MinSedVel) > ABS(VELQZ))              &
-                        VELQZ =  -1. * CurrentOrigin%Movement%MinSedVel
+                    else
 
-                else if (CurrentOrigin%Movement%SedimentationType .EQ. Imposed_) then
+                        VELQZ = 0.0
 
-                    VELQZ =  -1. * CurrentOrigin%Movement%SedVel
+                    end if
 
                 else
 
                     VELQZ = 0.0
 
+                end if DP
+
+
+    MT:         if (CurrentOrigin%Movement%MovType .EQ. SullivanAllen_) then
+
+                    select case (CurrentOrigin%Movement%StandardDeviationType)
+                    
+                    case (VerticalTurbConstant) 
+
+                        WStandardDeviation = CurrentOrigin%Movement%VarVelVX * VelModH +     &
+                                             CurrentOrigin%Movement%VarVelV
+
+                        WD = WD_(CurrentPartic, WStandardDeviation, AuxCompMisturaZ_Up,      &
+                                 AuxCompMisturaZ_Down, Me%DT_Partic)
+
+                    case (VerticalTurb)
+
+                        WStandardDeviation = 1.0975 * Me%ExternalVar%ShearVelocity(i, j) 
+
+                        WD = WD_(CurrentPartic, WStandardDeviation, AuxCompMisturaZ_Up,      &
+                                 AuxCompMisturaZ_Down, Me%DT_Partic)
+
+                    end select
+
+                else if (CurrentOrigin%Movement%MovType .EQ. NotRandom_    ) then MT
+
+                    WD = 0.0
+
+                end if MT
+
+
+                if (CurrentOrigin%Movement%Advection) then
+
+                    if (Me%ExternalVar%WorkSize%KUB -                             &
+                        Me%ExternalVar%WorkSize%KLB + 1 == 1) then
+
+                        W = 0.
+
+                    else
+
+                        W = Me%ExternalVar%Velocity_W(i, j, k  ) * (1.0 - BALZ) + &
+                            Me%ExternalVar%Velocity_W(i, j, k+1) * BALZ 
+
+                    endif
+
+                else
+                    
+                    W = 0.0
+
                 end if
 
-            else
-
-                VELQZ = 0.0
-
-            end if DP
-
-
-MT:         if (CurrentOrigin%Movement%MovType .EQ. SullivanAllen_) then
-
-                select case (CurrentOrigin%Movement%StandardDeviationType)
-                
-                case (VerticalTurbConstant) 
-
-                    WStandardDeviation = CurrentOrigin%Movement%VarVelVX * VelModH +     &
-                                         CurrentOrigin%Movement%VarVelV
-
-                    WD = WD_(CurrentPartic, WStandardDeviation, AuxCompMisturaZ_Up,      &
-                             AuxCompMisturaZ_Down, Me%DT_Partic)
-
-                case (VerticalTurb)
-
-                    WStandardDeviation = 1.0975 * Me%ExternalVar%ShearVelocity(i, j) 
-
-                    WD = WD_(CurrentPartic, WStandardDeviation, AuxCompMisturaZ_Up,      &
-                             AuxCompMisturaZ_Down, Me%DT_Partic)
-
-                end select
-
-            else if (CurrentOrigin%Movement%MovType .EQ. NotRandom_    ) then MT
-
-                WD = 0.0
-
-            end if MT
-
-
-            if (CurrentOrigin%Movement%Advection) then
-
-                if (Me%ExternalVar%WorkSize%KUB -                             &
-                    Me%ExternalVar%WorkSize%KLB + 1 == 1) then
-
-                    W = 0.
-
-                else
-
-                    W = Me%ExternalVar%Velocity_W(i, j, k  ) * (1.0 - BALZ) + &
-                        Me%ExternalVar%Velocity_W(i, j, k+1) * BALZ 
-
-                endif
-
-            else
-                
-                W = 0.0
-
-            end if
-
-            if (CurrentOrigin%State%Oil) then    
-				!correction number of particle submerged
-                CurrentOrigin%Fdisp = CurrentOrigin%Nbrsubmerged / CurrentOrigin%NbrParticlesIteration;
-                correction = Me%ExternalVar%FMdispersed - CurrentOrigin%Fdisp;
-                
+                if (CurrentOrigin%State%Oil) then    
+                    !correction number of particle submerged
+                    CurrentOrigin%Fdisp = CurrentOrigin%Nbrsubmerged / CurrentOrigin%NbrParticlesIteration;
+                    correction = Me%ExternalVar%FMdispersed - CurrentOrigin%Fdisp;
                     
-SU1:                 if (CurrentPartic%Position%Surface) then 
-               
-#ifndef _WAVES_
-                            call GetWaves (WavesID    = Me%ObjWaves,                     &
-                                WavePeriod = Me%ExternalVar%WavePeriod,                  &
-                                WaveHeight = Me%ExternalVar%WaveHeight,                  &
-                                STAT       = STAT_CALL)
-                            if (STAT_CALL /= SUCCESS_) stop 'InternalParticOil - ModuleLagrangian - ERR03'
-#endif
-                    
-                            call random_number(r1)
                         
-						! submerged particle aleatorie and position of particle
+    SU1:                 if (CurrentPartic%Position%Surface) then 
+                   
+#ifndef _WAVES_
+                                call GetWaves (WavesID    = Me%ObjWaves,                     &
+                                    WavePeriod = Me%ExternalVar%WavePeriod,                  &
+                                    WaveHeight = Me%ExternalVar%WaveHeight,                  &
+                                    STAT       = STAT_CALL)
+                                if (STAT_CALL /= SUCCESS_) stop 'InternalParticOil - ModuleLagrangian - ERR03'
+#endif
+                        
+                                call random_number(r1)
                             
-							if (r1 .LT. correction) then
-                                call random_number(r2)
+                            ! submerged particle aleatorie and position of particle
+                                
+                                if (r1 .LT. correction) then
+                                    call random_number(r2)
 
-                                NewPosition%Z = min(r2 * 1.5 * Me%ExternalVar%WaveHeight (i, j) + SurfaceDepth, BottomDepth)
-                                CurrentPartic%Position%Z = NewPosition%Z
-                                NewPosition%Surface = .false.
-                                CurrentOrigin%Nbrsubmerged = CurrentOrigin%Nbrsubmerged + 1;                             
-                                
-                                !ATENCAO FALTA CALCULAR O D50 EM VEZ DE USAR UM VALOR MÉDIO
-                                CurrentPartic%Geometry%OilDropletsD50 = 0.000050
-                                
-                            else
-                                NewPosition%Surface = .true.
-                            end if
+                                    NewPosition%Z = min(r2 * 1.5 * Me%ExternalVar%WaveHeight (i, j) + SurfaceDepth, BottomDepth)
+                                    CurrentPartic%Position%Z = NewPosition%Z
+                                    NewPosition%Surface = .false.
+                                    CurrentOrigin%Nbrsubmerged = CurrentOrigin%Nbrsubmerged + 1;                             
+                                    
+                                    !ATENCAO FALTA CALCULAR O D50 EM VEZ DE USAR UM VALOR MÉDIO
+                                    CurrentPartic%Geometry%OilDropletsD50 = 0.000050
+                                    
+                                else
+                                    NewPosition%Surface = .true.
+                                end if
 
 #ifndef _WAVES_
-                            call UnGetWaves(Me%ObjWaves, Me%ExternalVar%WavePeriod, STAT = STAT_CALL)
-                            if (STAT_CALL /= SUCCESS_) stop 'InternalParticOil - ModuleLagrangian - ERR08'
+                                call UnGetWaves(Me%ObjWaves, Me%ExternalVar%WavePeriod, STAT = STAT_CALL)
+                                if (STAT_CALL /= SUCCESS_) stop 'InternalParticOil - ModuleLagrangian - ERR08'
 
-                            call UnGetWaves(Me%ObjWaves, Me%ExternalVar%WaveHeight, STAT = STAT_CALL)
-                            if (STAT_CALL /= SUCCESS_) stop 'InternalParticOil - ModuleLagrangian - ERR09'
+                                call UnGetWaves(Me%ObjWaves, Me%ExternalVar%WaveHeight, STAT = STAT_CALL)
+                                if (STAT_CALL /= SUCCESS_) stop 'InternalParticOil - ModuleLagrangian - ERR09'
 #endif
 
-                       
-                    else SU1
-                        NewPosition%Surface = .false.
-                    endif SU1
+                           
+                        else SU1
+                            NewPosition%Surface = .false.
+                        endif SU1
+                        
+    SU2:                if (.not. NewPosition%Surface) then
+                            CurrentPartic%W    = 0.                  
+                            VELFLOAT = gravity * CurrentPartic%Geometry%OilDropletsD50 * CurrentPartic%Geometry%OilDropletsD50 &
+                                       * (1. - (CurrentPartic%OilDensity/Me%ExternalVar%Density(i, j, k)) ) &
+                                       / (18. * WaterCinematicVisc)
+                            !VELFLOAT = 0
+
+                        else SU2
+                            CurrentPartic%W    = 0.
+                            VELFLOAT = 0
+                        end if SU2                
+                                      
+                endif
+
+
+                !Velocity due plume
+    PL:         if (CurrentOrigin%State%FarFieldBuoyancy) then    
+                    Radius = (0.75 * CurrentPartic%Geometry%Volume/Pi) ** 0.33333
+                    Area   = 4 * Pi * Radius ** 2.
+                    VolOld = CurrentPartic%Geometry%Volume - CurrentPartic%Geometry%VolVar
+                    VolNew = CurrentPartic%Geometry%Volume
+                    dVol   = CurrentPartic%Geometry%VolVar
+
+                    !Acceleration due density gradient
+                    DeltaD = Me%ExternalVar%SigmaDensity(i, j, k) - CurrentPartic%SigmaDensity
+
+                    !Buoyancy is consider null for low density gradients 
+                    if (abs(DeltaD) > 0.5) then
+                        ai     = Gravity * DeltaD / (Me%ExternalVar%SigmaDensity(i, j, k) + &
+                                                     SigmaDensityReference)
+                    else                
+                        ai     = 0.
+                    endif
+
+                    dw     = CurrentPartic%W - W
+
+                    ! Taken from CORMIX
+                    Cd = 0.055 
+
+                    AuxW = Cd * abs(dw) * Area / VolNew
                     
-SU2:                if (.not. NewPosition%Surface) then
-                        CurrentPartic%W    = 0.                  
-                        VELFLOAT = gravity * CurrentPartic%Geometry%OilDropletsD50 * CurrentPartic%Geometry%OilDropletsD50 &
-                                   * (1. - (CurrentPartic%OilDensity/Me%ExternalVar%Density(i, j, k)) ) &
-                                   / (18. * WaterCinematicVisc)
-                        !VELFLOAT = 0
+                                       !Momentum diffusion by small scale turbulence
 
-                    else SU2
-                        CurrentPartic%W    = 0.
-                        VELFLOAT = 0
-                    end if SU2                
-                                  
-            endif
+                    if (ai > 0) then
+                        CurrentPartic%W =  (CurrentPartic%W * VolOld / VolNew + dVol * W / VolNew + &
+                                            !buoyancy + shear friction 
+                                            Me%DT_Partic * (ai + W * AuxW)) / (1 + AuxW)
+                    else
+                        CurrentPartic%W =   CurrentPartic%W * VolOld / VolNew + dVol * W / VolNew + &
+                                            !buoyancy + shear friction 
+                                            Me%DT_Partic * (ai + dw * AuxW)
+                    endif
 
+                    dwt = Me%ExternalVar%DWZ(i, j, k) / Me%DT_Partic
 
-            !Velocity due plume
-PL:         if (CurrentOrigin%State%FarFieldBuoyancy) then    
-                Radius = (0.75 * CurrentPartic%Geometry%Volume/Pi) ** 0.33333
-                Area   = 4 * Pi * Radius ** 2.
-                VolOld = CurrentPartic%Geometry%Volume - CurrentPartic%Geometry%VolVar
-                VolNew = CurrentPartic%Geometry%Volume
-                dVol   = CurrentPartic%Geometry%VolVar
+                    if (abs(CurrentPartic%W) > dwt  .and. abs(CurrentPartic%W) > 10. * WD) then
+                    
+                        CurrentPartic%W = CurrentPartic%W * 10. * abs(WD) / abs(CurrentPartic%W) 
+        
+                    endif
 
-                !Acceleration due density gradient
-                DeltaD = Me%ExternalVar%SigmaDensity(i, j, k) - CurrentPartic%SigmaDensity
+                                                              !tracer vel. + large scale turbulence 
+                    NewPosition%Z = CurrentPartic%Position%Z - (CurrentPartic%W + WD) *  Me%DT_Partic
 
-                !Buoyancy is consider null for low density gradients 
-                if (abs(DeltaD) > 0.5) then
-                    ai     = Gravity * DeltaD / (Me%ExternalVar%SigmaDensity(i, j, k) + &
-                                                 SigmaDensityReference)
-                else                
-                    ai     = 0.
-                endif
+                else PL
 
-                dw     = CurrentPartic%W - W
+                    CurrentPartic%W    = 0.
+                    
+                    NewPosition%Z = CurrentPartic%Position%Z - (W + WD + VELQZ + VELFLOAT) *  Me%DT_Partic         
+      
+                endif PL
 
-                ! Taken from CORMIX
-                Cd = 0.055 
-
-                AuxW = Cd * abs(dw) * Area / VolNew
-                
-                                   !Momentum diffusion by small scale turbulence
-
-                if (ai > 0) then
-                    CurrentPartic%W =  (CurrentPartic%W * VolOld / VolNew + dVol * W / VolNew + &
-                                        !buoyancy + shear friction 
-                                        Me%DT_Partic * (ai + W * AuxW)) / (1 + AuxW)
-                else
-                    CurrentPartic%W =   CurrentPartic%W * VolOld / VolNew + dVol * W / VolNew + &
-                                        !buoyancy + shear friction 
-                                        Me%DT_Partic * (ai + dw * AuxW)
-                endif
-
-                dwt = Me%ExternalVar%DWZ(i, j, k) / Me%DT_Partic
-
-                if (abs(CurrentPartic%W) > dwt  .and. abs(CurrentPartic%W) > 10. * WD) then
-                
-                    CurrentPartic%W = CurrentPartic%W * 10. * abs(WD) / abs(CurrentPartic%W) 
-
-                endif
-
-                                                          !tracer vel. + large scale turbulence 
-                NewPosition%Z = CurrentPartic%Position%Z - (CurrentPartic%W + WD) *  Me%DT_Partic
-
-            else PL
-
-                CurrentPartic%W    = 0.
-!                NewPosition%Z = CurrentPartic%Position%Z - (W + WD + VELQZ + VELFLOAT) *  Me%DT_Partic
-  
-  
-                if (CurrentOrigin%Position%MaintainDepth) then
-                    NewPosition%Z = Me%ExternalVar%SZZ(i, j, KUB) + CurrentOrigin%Position%DepthWithWaterLevel
-                endif
-
-  
-            endif PL
-
-        endif MF
+            endif MF
+        
+        end if MD
 
         !------------------------------------------------------------------------
 
@@ -10749,7 +10939,7 @@ CurrOr: do while (associated(CurrentOrigin))
 
                 !Calculates the OilConcentration3D
                 call OilGridConcentration3D      () 
-					
+                    
                 !Calculate the dillution concentration
                 call OilGridDissolution3D        ()
 
@@ -15408,7 +15598,7 @@ CurrOr: do while (associated(CurrentOrigin))
                 if (STAT_CALL /= SUCCESS_) stop 'ReadFinalPartic - ModuleLagrangian - ERR04a'
 
                 read (UnitID) NewOrigin%OilGridConcentration3D
-				
+                
                 !Allocates OilGridDissolution3D
                 allocate (NewOrigin%OilGridDissolution3D(Me%ExternalVar%Size%ILB:            &
                                                          Me%ExternalVar%Size%IUB,            &
