@@ -110,7 +110,7 @@ Module ModuleGlobalData
 #elif defined(_EXTRA_SHORT_LINE_LENGTH)
     integer, parameter  :: line_length          = 32
 #else
-    integer, parameter  :: line_length          = 256
+    integer, parameter  :: line_length          = 4096
 #endif
                                                 
     real   , parameter  :: FillValueReal        = -9.9e15

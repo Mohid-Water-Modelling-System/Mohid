@@ -101,7 +101,7 @@ Module ModuleTimeSerie
 #ifdef _BIG_MAX_COLUMNS
     integer, parameter                       :: MaxColumns      = 500 !Maximum number of input columns
 #else
-    integer, parameter                       :: MaxColumns      = 200 !Maximum number of input columns
+    integer, parameter                       :: MaxColumns      = 300 !Maximum number of input columns
 #endif
 
 
