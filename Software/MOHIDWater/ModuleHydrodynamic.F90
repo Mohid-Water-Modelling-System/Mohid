@@ -21835,7 +21835,7 @@ cd3:            if (CorrectWaterLevel .and. WaterLevel_New(i, j) < (WaterLevelMi
     !                                                                                      !
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-    Subroutine ComputeWaterLevelMaxMin(WaterLevel_Max, WaterLevel_Min)
+    Subroutine WaterLevelMaxMin(WaterLevel_Max, WaterLevel_Min)
 
         !Arguments--------------------------------------------------------------
         real, dimension(:,:), pointer       :: WaterLevel_Max, WaterLevel_Min
