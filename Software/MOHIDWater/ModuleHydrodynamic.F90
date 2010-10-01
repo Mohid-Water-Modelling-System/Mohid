@@ -325,6 +325,7 @@ Module ModuleHydrodynamic
     private ::                  WaterLevelRelaxation
     private ::                  WaterLevelRelaxationAltimetry
     private ::                  WaterLevelCorrection
+    private ::                  WaterLevelMaxMin
 
     private ::                  Waterlevel_CyclicBoundary
     private ::                      CyclicCoef2D
@@ -6312,7 +6313,7 @@ cd43:   if (.NOT. BlockFound) then
         Me%WaterLevel%Old(:,:)                  = FillValueReal
         Me%WaterLevel%VolumeCreated(:,:)        = 0.
         Me%WaterLevel%Maxi(:,:)                 = FillValueReal
-        Me%WaterLevel%Mini(:,:)                 = FillValueReal
+        Me%WaterLevel%Mini(:,:)                 = -FillValueReal
         Me%Velocity%Horizontal%U%New(:,:,:)     = FillValueReal     
         Me%Velocity%Horizontal%U%Old(:,:,:)     = FillValueReal    
         Me%Velocity%Horizontal%V%New(:,:,:)     = FillValueReal
@@ -21834,7 +21835,7 @@ cd3:            if (CorrectWaterLevel .and. WaterLevel_New(i, j) < (WaterLevelMi
     !                                                                                      !
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-    Subroutine WaterLevelMaxMin(WaterLevel_Max, WaterLevel_Min)
+    Subroutine ComputeWaterLevelMaxMin(WaterLevel_Max, WaterLevel_Min)
 
         !Arguments--------------------------------------------------------------
         real, dimension(:,:), pointer       :: WaterLevel_Max, WaterLevel_Min
