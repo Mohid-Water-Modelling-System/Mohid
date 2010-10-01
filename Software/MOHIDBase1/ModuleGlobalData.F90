@@ -333,6 +333,8 @@ Module ModuleGlobalData
     integer, parameter :: FlowModulus_                      = 905
     integer, parameter :: ShearStress_                      = 906
     integer, parameter :: VelocityDirection_                = 907
+    integer, parameter :: WaterLevelMax_                    = 908
+    integer, parameter :: WaterLevelMin_                    = 909
     
     !Assimilation Properties        guillaume nogueira
     integer, parameter :: AltimLevelAnalyzed_               = 4000
@@ -934,6 +936,8 @@ Module ModuleGlobalData
     character(StringLength), private, parameter :: Char_PhosphorusAdsortionIndex = 'phosphorus adsortion index'
 
     character(StringLength), private, parameter :: Char_WaterLevel_          = 'water level'
+    character(StringLength), private, parameter :: Char_WaterLevelMax_       = 'water level maximum'   
+    character(StringLength), private, parameter :: Char_WaterLevelMin_       = 'water level minimum'   
     character(StringLength), private, parameter :: Char_VelocityModulus_     = 'velocity modulus'   
     character(StringLength), private, parameter :: Char_VelocityDirection_   = 'velocity direction'   
     character(StringLength), private, parameter :: Char_FlowModulus_         = 'flow modulus'   
@@ -1987,6 +1991,8 @@ Module ModuleGlobalData
             call AddPropList (DiaTemperatureLim_,       Char_DiaTemperatureLim,         ListNumber)
             call AddPropList (Diatoms_,                 Char_Diatoms,                   ListNumber)
             call AddPropList (WaterLevel_,              Char_WaterLevel_,               ListNumber)
+            call AddPropList (WaterLevelMax_,           Char_WaterLevelMax_,            ListNumber)
+            call AddPropList (WaterLevelMin_,           Char_WaterLevelMin_,            ListNumber)
             call AddPropList (VelocityModulus_,         Char_VelocityModulus_,          ListNumber)
             call AddPropList (VelocityDirection_,       Char_VelocityDirection_,        ListNumber)
             call AddPropList (FlowModulus_,             Char_FlowModulus_,              ListNumber)

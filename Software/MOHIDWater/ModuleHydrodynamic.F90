@@ -700,6 +700,8 @@ Module ModuleHydrodynamic
         real, dimension (:, :), pointer :: New
         real, dimension (:, :), pointer :: Old
         real, dimension (:, :), pointer :: VolumeCreated
+        real, dimension (:, :), pointer :: Maxi
+        real, dimension (:, :), pointer :: Mini
         real                            :: DT
         real                            :: Default
         logical                         :: InitalizedByFile = .false.
@@ -1078,6 +1080,7 @@ Module ModuleHydrodynamic
         logical :: ConservativeHorDif
         logical :: BiHarmonic
         logical :: BottomVisc_LIM         !MRV
+        logical :: WaterLevelMaxMin
 
 
 #ifdef OVERLAP
@@ -1131,6 +1134,8 @@ Module ModuleHydrodynamic
          real,          dimension(:,:,:), pointer :: ModulusH, CenterU, CenterV, CenterW, DirectionH
          real,          dimension(:,:,:), pointer :: CenterUaux, CenterVaux, ModulusUVaux, CenterWaux
          real,          dimension(:,:),   pointer :: Aux2D 
+         real,          dimension(:,:),   pointer :: WaterLevelMax 
+         real,          dimension(:,:),   pointer :: WaterLevelMin 
          logical                                  :: RestartOverwrite
          logical                                  :: Faces
          real                                     :: WaterLevelUnits
@@ -4283,6 +4288,32 @@ cd21:   if (Baroclinic) then
         Me%ComputeOptions%Relaxation = Relaxation
 
         !<BeginKeyword>
+            !Keyword          : WATERLEVEL_MAX_MIN
+            !<BeginDescription>       
+               ! 
+               ! Check if the user wants to compute the maximum and the minimum
+               ! water elevation map.
+               ! 
+            !<EndDescription>
+            !Type             : Logical
+            !Default          : .false.
+            !Multiple Options : .true. (Yes), .false. (No)
+            !Search Type      : From File
+        !<EndKeyword>
+        
+        call GetData(Me%ComputeOptions%WaterLevelMaxMin,                                                         &
+                     Me%ObjEnterData, iflag,                                             &
+                     Keyword    = 'WATERLEVEL_MAX_MIN',                             &
+                     Default    = .false.,                                               & 
+                     SearchType = FromFile,                                              &
+                     ClientModule ='ModuleHydrodynamic',                                 &
+                     STAT       = STAT_CALL)            
+        
+        if (STAT_CALL /= SUCCESS_)                                                       &
+            call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR596') 
+
+
+        !<BeginKeyword>
             !Keyword          : ALTIMETRIC_ASSIMILATION
             !<BeginDescription>       
                ! 
@@ -6248,6 +6279,8 @@ cd43:   if (.NOT. BlockFound) then
         allocate (Me%WaterLevel%New             (ILB:IUB, JLB:JUB         )) 
         allocate (Me%WaterLevel%Old             (ILB:IUB, JLB:JUB         )) 
         allocate (Me%WaterLevel%VolumeCreated   (ILB:IUB, JLB:JUB         )) 
+        allocate (Me%WaterLevel%Maxi            (ILB:IUB, JLB:JUB         )) 
+        allocate (Me%WaterLevel%Mini            (ILB:IUB, JLB:JUB         )) 
         allocate (Me%Velocity%Horizontal%U%New  (ILB:IUB, JLB:JUB, KLB:KUB)) 
         allocate (Me%Velocity%Horizontal%U%Old  (ILB:IUB, JLB:JUB, KLB:KUB)) 
         allocate (Me%Velocity%Horizontal%V%New  (ILB:IUB, JLB:JUB, KLB:KUB)) 
@@ -6278,6 +6311,8 @@ cd43:   if (.NOT. BlockFound) then
         Me%WaterLevel%New(:,:)                  = FillValueReal
         Me%WaterLevel%Old(:,:)                  = FillValueReal
         Me%WaterLevel%VolumeCreated(:,:)        = 0.
+        Me%WaterLevel%Maxi(:,:)                 = FillValueReal
+        Me%WaterLevel%Mini(:,:)                 = FillValueReal
         Me%Velocity%Horizontal%U%New(:,:,:)     = FillValueReal     
         Me%Velocity%Horizontal%U%Old(:,:,:)     = FillValueReal    
         Me%Velocity%Horizontal%V%New(:,:,:)     = FillValueReal
@@ -8589,6 +8624,12 @@ cd5:                if (SurfaceElevation(i,j) < (- Bathymetry(i, j) + 0.999 * Mi
         call HDF5CreateGroup (ObjHDF5, "/Results/"//trim(GetPropertyName (WaterLevel_)),STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleHydrodynamic - ERR100'
 
+        call HDF5CreateGroup (ObjHDF5, "/Results/"//trim(GetPropertyName (WaterLevelMax_)),STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleHydrodynamic - ERR101'
+
+        call HDF5CreateGroup (ObjHDF5, "/Results/"//trim(GetPropertyName (WaterLevelMin_)),STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleHydrodynamic - ERR102'
+
         call HDF5CreateGroup (ObjHDF5, "/Results/"//trim(GetPropertyName (VelocityU_)),  STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleHydrodynamic - ERR110'
 
@@ -9072,6 +9113,8 @@ i1:         if (CoordON) then
         nullify  (Me%OutPut%ModulusUVaux)        
         nullify  (Me%OutPut%CenterWaux) 
         nullify  (Me%OutPut%Aux2D) 
+        nullify  (Me%OutPut%WaterLevelMax) 
+        nullify  (Me%OutPut%WaterLevelMin) 
 
         allocate(Me%OutPut%CenterU     (ILB:IUB, JLB:JUB, KLB:KUB),                     &
                  Me%OutPut%CenterV     (ILB:IUB, JLB:JUB, KLB:KUB),                     &
@@ -9083,6 +9126,8 @@ i1:         if (CoordON) then
                  Me%OutPut%ModulusUVaux(ILB:IUB, JLB:JUB, KLB:KUB),                     &
                  Me%OutPut%CenterWaux  (ILB:IUB, JLB:JUB, KLB:KUB),                     &
                  Me%OutPut%Aux2D       (ILB:IUB, JLB:JUB         ),                     &
+                 Me%OutPut%WaterLevelMax (ILB:IUB, JLB:JUB       ),                     &
+                 Me%OutPut%WaterLevelMin (ILB:IUB, JLB:JUB       ),                     &
                  STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructMatrixesOutput - ModuleHydrodynamic - ERR10'
 
@@ -9097,6 +9142,8 @@ i1:         if (CoordON) then
         Me%OutPut%ModulusUVaux  (:,:,:) = 0.
         Me%OutPut%CenterWaux    (:,:,:) = 0.
         Me%OutPut%Aux2D         (:,:  ) = 0. 
+        Me%OutPut%WaterLevelMax (:,:  ) = 0. 
+        Me%OutPut%WaterLevelMin (:,:  ) = 0. 
     
     end subroutine ConstructMatrixesOutput
 
@@ -21484,6 +21531,8 @@ dok1:           do  k = Kbottom, KUB
                                                WaterLevel_Old, WaterLevel_New, &
                                                RadCoef_2D, TiRadCoef_2D
          
+        real,    dimension(:,:),   pointer  :: WaterLevel_Max, WaterLevel_Min
+
         integer                             :: IUB, ILB, JUB, JLB
         integer                             :: IJmin, IJmax, JImin, JImax 
         integer                             :: di, dj, DirectionXY
@@ -21505,7 +21554,6 @@ dok1:           do  k = Kbottom, KUB
             JUB = Me%WorkSize%JUB
             JLB = Me%WorkSize%JLB
 
-
             di          =  Me%Direction%di
             dj          =  Me%Direction%dj
 
@@ -21514,18 +21562,18 @@ dok1:           do  k = Kbottom, KUB
             FCoef_2D  => Me%Coef%D2%F
             TiCoef_2D => Me%Coef%D2%Ti
 
-
-
             RadCoef_2D   => Me%Coef%D2%Rad
             TiRadCoef_2D => Me%Coef%D2%TiRad
 
             WaterLevel_Old => Me%WaterLevel%Old
             WaterLevel_New => Me%WaterLevel%New
+            WaterLevel_Max => Me%WaterLevel%Maxi
+            WaterLevel_Min => Me%WaterLevel%Mini
 
             !End   - Shorten variables name
 
             !Begin - Compute
-        
+
             call SetMatrixValue(DCoef_2D,   Me%WorkSize2D,           0.0 )
             call SetMatrixValue(ECoef_2D,   Me%WorkSize2D,      dble(1.0))
             call SetMatrixValue(FCoef_2D,   Me%WorkSize2D,           0.0 )
@@ -21563,14 +21611,13 @@ dok1:           do  k = Kbottom, KUB
                                Me%VECG_2D, Me%VECW_2D)
 
             else
-            
-                call WaterLevel_CyclicBoundary 
+
+                call WaterLevel_CyclicBoundary
 
             endif
 
-
             if (Me%Relaxation%WaterLevel)                                               &
-                call WaterLevelRelaxation        
+                call WaterLevelRelaxation
 
             ! aqui relaxa-se o nivel com altimetria
             if (Me%ComputeOptions%AltimetryAssimilation%Yes)                            &
@@ -21579,19 +21626,17 @@ dok1:           do  k = Kbottom, KUB
             !In this subroutine model verifies if the level is below a critical level 
             !This is critical level is a warning that says below this level there is a very 
             !by probability of negative volumes
-            call WaterLevelCorrection         
-
-
-
+            call WaterLevelCorrection
+            
+            if (Me%ComputeOptions%WaterLevelMaxMin)                                 &
+                call WaterLevelMaxMin(WaterLevel_Max, WaterLevel_Min)
 
             !Nullify auxiliar variables
             nullify (DCoef_2D, ECoef_2D, FCoef_2D, TiCoef_2D)
 
             nullify (WaterLevel_Old, WaterLevel_New)
 
-
         endif
-
 
         if (MonitorPerformance) call StopWatch ("ModuleHydrodynamic", "Compute_WaterLevel")
 
@@ -21778,7 +21823,93 @@ cd3:            if (CorrectWaterLevel .and. WaterLevel_New(i, j) < (WaterLevelMi
     !--------------------------------------------------------------------------
 
 
+    !------------------------------------------------------------------------------
 
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !                                                                                      !
+    ! This subroutine computes the maximum and the minimum water elevation of each cell    !                                                                                      !
+    ! Input : Mapping                                                                      !
+    ! OutPut: Water Level Max and Min values                                            !
+    ! Author: Guillaume Riflet (2010/9)                                                         !
+    !                                                                                      !
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+    Subroutine WaterLevelMaxMin(WaterLevel_Max, WaterLevel_Min)
+
+        !Arguments--------------------------------------------------------------
+        real, dimension(:,:), pointer       :: WaterLevel_Max, WaterLevel_Min
+
+        !External---------------------------------------------------------------
+
+        !Local------------------------------------------------------------------
+
+        integer                             :: i, j, STAT_CALL
+        integer                             :: IUB, ILB, JUB, JLB, KUB
+        integer, pointer, dimension (:,:,:) :: WaterPoints3D
+
+        real,    dimension(:,:), pointer    :: WaterLevel_New
+
+        integer                             :: CHUNK
+
+        !Begin------------------------------------------------------------------
+
+
+        !Begin - Shorten variables name 
+
+        IUB = Me%WorkSize%IUB
+        ILB = Me%WorkSize%ILB
+        JUB = Me%WorkSize%JUB
+        JLB = Me%WorkSize%JLB
+        KUB = Me%WorkSize%KUB
+
+        WaterLevel_New    => Me%WaterLevel%New
+        WaterPoints3D     => Me%External_Var%WaterPoints3D
+
+        !End   - Shorten variables name
+
+        CHUNK = CHUNK_J(JLB, JUB) 
+
+        if (MonitorPerformance) then
+            call StartWatch ("ModuleHydrodynamic", "WaterLevelMaxMin")
+        endif
+
+        !$OMP PARALLEL PRIVATE(i,j)
+        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+do1:    do  j = JLB, JUB
+do2:    do  i = ILB, IUB
+
+cd1:        if (WaterPoints3D(i, j, KUB) == OpenPoint) then
+
+                !Do we have a new record water level?
+                if (WaterLevel_Max(i,j) < WaterLevel_New(i,j)) then
+                    WaterLevel_Max(i,j) = WaterLevel_New(i,j)
+                end if
+
+                !Do we have a new minimum water level?
+                if (WaterLevel_Min(i,j) > WaterLevel_New(i,j)) then
+                    WaterLevel_Min(i,j) = WaterLevel_New(i,j)
+                end if
+
+            endif cd1
+
+        enddo do2
+        enddo do1
+        !$OMP END DO
+        !$OMP END PARALLEL
+
+        if (MonitorPerformance) then
+            call StopWatch ("ModuleHydrodynamic", "WaterLevelMaxMin")
+        endif
+
+        nullify (WaterLevel_New)
+        nullify (WaterPoints3D )
+
+        !----------------------------------------------------------------------
+
+    End Subroutine WaterLevelMaxMin
+
+    !--------------------------------------------------------------------------
+    
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !                                                                                      !
     ! This subroutine compute the water level in the open boundary                         !
@@ -38726,6 +38857,8 @@ cd2:            if (WaterPoints3D(i  , j  ,k)== WaterPoint .and.                
 
 
         Me%OutPut%Aux2D(:, :) = Me%WaterLevel%New(:,:) * Me%OutPut%WaterLevelUnits
+        Me%OutPut%WaterLevelMax(:, :) = Me%WaterLevel%Maxi(:,:) * Me%OutPut%WaterLevelUnits
+        Me%OutPut%WaterLevelMin(:, :) = Me%WaterLevel%Mini(:,:) * Me%OutPut%WaterLevelUnits
 
         if      (Me%OutPut%WaterLevelUnits == 100.) then
             AuxChar = 'cm'
@@ -38740,6 +38873,22 @@ cd2:            if (WaterPoints3D(i  , j  ,k)== WaterPoint .and.                
                              OutputNumber = Index, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR100'
 
+
+        !Writes Waterlevel maximum
+        call HDF5WriteData  (ObjHDF5,                                                &
+                             "/Results/"//trim(GetPropertyName (WaterLevelMax_)),     &
+                             trim(GetPropertyName (WaterLevelMax_)),                  &
+                             "m/s", Array2D =  Me%OutPut%WaterLevelMax,                      &
+                             OutputNumber = Index, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR181'
+
+        !Writes Waterlevel minimum
+        call HDF5WriteData  (ObjHDF5,                                                &
+                             "/Results/"//trim(GetPropertyName (WaterLevelMin_)),     &
+                             trim(GetPropertyName (WaterLevelMin_)),                  &
+                             "m/s", Array2D =  Me%OutPut%WaterLevelMin,                      &
+                             OutputNumber = Index, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR182'
 
         !Writes Velocity
         call HDF5WriteData  (ObjHDF5,                                                &
@@ -40948,6 +41097,17 @@ cd2:    if (Me%SubModel%DeadZone) then
 
         nullify (Me%WaterLevel%VolumeCreated) 
 
+        deallocate (Me%WaterLevel%Maxi, STAT = STAT_CALL) 
+        if (STAT_CALL /= SUCCESS_)                                                       &
+            stop 'Subroutine DeallocateVariables; Module ModuleHydrodynamic. ERR02b.' 
+
+        nullify (Me%WaterLevel%Maxi) 
+
+        deallocate (Me%WaterLevel%Mini, STAT = STAT_CALL) 
+        if (STAT_CALL /= SUCCESS_)                                                       &
+            stop 'Subroutine DeallocateVariables; Module ModuleHydrodynamic. ERR02c.' 
+
+        nullify (Me%WaterLevel%Mini) 
 
         !Horizontal velocity
         deallocate (Me%Velocity%Horizontal%U%New, STAT = STAT_CALL) 
@@ -41624,6 +41784,8 @@ ic1:    if (Me%CyclicBoundary%ON) then
                    Me%OutPut%ModulusUVaux,                                              &
                    Me%OutPut%CenterWaux,                                                &
                    Me%OutPut%Aux2D,                                                     &
+                   Me%OutPut%WaterLevelMax,                                                     &
+                   Me%OutPut%WaterLevelMin,                                                     &
                    STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'KillMatrixesOutput - ModuleHydrodynamic - ERR10'
 
@@ -41638,6 +41800,8 @@ ic1:    if (Me%CyclicBoundary%ON) then
         nullify  (Me%OutPut%ModulusUVaux)
         nullify  (Me%OutPut%CenterWaux  ) 
         nullify  (Me%OutPut%Aux2D       ) 
+        nullify  (Me%OutPut%WaterLevelMax       ) 
+        nullify  (Me%OutPut%WaterLevelMin       ) 
     
     end subroutine KillMatrixesOutput
 
