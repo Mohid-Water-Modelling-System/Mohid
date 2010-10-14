@@ -10,7 +10,10 @@ export VER = x64_single
 export DESTDIR = /usr/bin/mohid
 
 #Where are the hdf5 libraries (with --enable-fortran) in your system?
-export HDF5 = /home/Projects/hdf5/hdf5-1.6.5/hdf5/lib
+# > sudo updatedb; locate hdf5.mod
+export HDF5INC = /home/Projects/hdf5/hdf5-1.6.5/hdf5/lib
+# > sudo updatedb; locate libhdf5
+export HDF5LIB = /home/Projects/hdf5/hdf5-1.6.5/hdf5/lib
 
 #Where is the libz.a in your system?
 export ZLIBINC = /usr/lib64

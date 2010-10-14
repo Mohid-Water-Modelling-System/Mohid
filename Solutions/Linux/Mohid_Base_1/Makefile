@@ -26,7 +26,7 @@
 #
 #------------------------------------------------------------------------------
 
-INCS = -I$(HDF5)
+INCS = -I$(HDF5INC)
 LIBS =
 
 ifeq ($(IS_PROJ4F),true)
@@ -79,7 +79,7 @@ ModuleTime.${O} : ModuleGlobalData.${O}
 ModuleStopWatch.${O} : ModuleTime.${O}
 ModuleEnterData.${O} : ModuleStopWatch.${O}
 
-ModuleFunctions.${O} : ModuleEnterData.${O}
+ModuleFunctions.${2O} : ModuleEnterData.${O}
 
 ModuleBenthos.${O} : ModuleEnterData.${O}
 ModuleCEQUALW2.${O} : ModuleFunctions.${O}

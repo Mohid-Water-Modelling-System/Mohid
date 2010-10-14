@@ -40,7 +40,6 @@ export LHDF5HL = libhdf5_hl.a
 #export ZLIB = libz.a
 export ZLIB = libz.so
 
-
 # Netcdf lib
 export LNETCDF  = libnetcdf.a
 
@@ -53,9 +52,9 @@ export BASELIBS := \
        $(BASE2INC)/$(BASE2)
 
 export HDFLIBS := \
-       $(HDF5)/$(LHDF5FORTRAN) \
-       $(HDF5)/$(LHDF5) \
-       $(HDF5)/$(LHDF5HL) \
+       $(HDF5LIB)/$(LHDF5FORTRAN) \
+       $(HDF5LIB)/$(LHDF5) \
+       $(HDF5LIB)/$(LHDF5HL) \
        $(ZLIBINC)/$(ZLIB)
 
 # All libs folders (including netcdf)

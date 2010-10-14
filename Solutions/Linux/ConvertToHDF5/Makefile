@@ -26,7 +26,7 @@
 #
 #------------------------------------------------------------------------------
 
-INCS := -I$(HDF5) -I$(BASE1INC) -I$(BASE2INC)
+INCS := -I$(HDF5INC) -I$(BASE1INC) -I$(BASE2INC)
 LIBS = $(BASELIBS) $(HDFLIBS)
 
 ifeq ($(IS_NETCDF),true)
