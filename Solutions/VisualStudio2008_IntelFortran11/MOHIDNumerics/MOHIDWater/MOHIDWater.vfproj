@@ -41,7 +41,7 @@
 				<Tool Name="VFCustomBuildTool"/>
 				<Tool Name="VFPreLinkEventTool"/>
 				<Tool Name="VFPreBuildEventTool"/>
-				<Tool Name="VFPostBuildEventTool" CommandLine="copy &quot;$(TargetPath)&quot; &quot;$(TargetDir)MOHIDWater_%DATE:~6%-%DATe:~3,-5%-%DATE:~0,-8%_%TIME:~0,-9%-%TIME:~3,-6%.exe&quot;" Description="copy &quot;$(TargetPath)&quot; &quot;$(TargetDir)MOHIDWater_%DATE:~6%-%DATe:~3,-5%-%DATE:~0,-8%_%TIME:~0,-9%-%TIME:~3,-6%.exe&quot;"/>
+				<Tool Name="VFPostBuildEventTool" CommandLine="copy &quot;$(TargetPath)&quot; &quot;$(TargetDir)MOHIDWater-%DATE%.exe&quot;" Description="copy &quot;$(TargetPath)&quot; &quot;$(TargetDir)MOHIDWater-%DATE%.exe&quot;"/>
 				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
 		<Configuration Name="Release Double OpenMP|Win32">
 				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" InlineFunctionExpansion="expandDisable" BufferedIO="true" InterproceduralOptimizations="ipoSingleFile" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\..\..\..\Solutions\VisualStudio2008_IntelFortran11\MOHIDNumerics\MOHIDBase1\Release Double OpenMP;..\..\..\..\Solutions\VisualStudio2008_IntelFortran11\MOHIDNumerics\MOHIDBase2\Release Double OpenMP" OpenMP="OpenMPParallelCode" StandardWarnings="standardWarningsF95" WarnDeclarations="true" WarnUnusedVariables="true" WarnTruncateSource="true" RealKIND="realKIND8" LocalSavedScalarsZero="true" FloatingPointExceptionHandling="fpe0" Traceback="true"/>
