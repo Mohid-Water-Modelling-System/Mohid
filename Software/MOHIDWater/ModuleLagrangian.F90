@@ -8476,7 +8476,7 @@ BD:         if (CurrentPartic%Beached .or. CurrentPartic%Deposited) then
 !                end if 
 
                 !Floating particle 
-MF:             if (CurrentOrigin%Movement%Float .or. CurrentPartic%Position%Surface) then 
+MF:             if (CurrentOrigin%Movement%Float) then 
 
                     !Velocity due Water
                     UINT = U                        
@@ -8489,9 +8489,18 @@ MF:             if (CurrentOrigin%Movement%Float .or. CurrentPartic%Position%Sur
                         WindY = CurrentOrigin%Movement%WindY
 
                     else
+                    
+                        if(Me%State%Wind)then
 
-                        WindX = Me%ExternalVar%WindX(i, j)
-                        WindY = Me%ExternalVar%WindY(i, j)
+                            WindX = Me%ExternalVar%WindX(i, j)
+                            WindY = Me%ExternalVar%WindY(i, j)
+                        
+                        else
+                        
+                            WindX = 0.
+                            WindY = 0.
+                            
+                        end if
 
                     endif
 
