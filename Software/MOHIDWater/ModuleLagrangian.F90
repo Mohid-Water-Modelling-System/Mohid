@@ -8476,14 +8476,14 @@ BD:         if (CurrentPartic%Beached .or. CurrentPartic%Deposited) then
 !                end if 
 
                 !Floating particle 
-MF:             if (CurrentOrigin%Movement%Float) then 
+MF:             if (CurrentOrigin%Movement%Float .or. CurrentPartic%Position%Surface) then 
 
                     !Velocity due Water
                     UINT = U                        
                     VINT = V           
 
                     !Velocity due wind                      
-                    if (CurrentOrigin%Movement%WindOriginON  .or. CurrentPartic%Position%Surface) then 
+                    if (CurrentOrigin%Movement%WindOriginON) then 
 
                         WindX = CurrentOrigin%Movement%WindX
                         WindY = CurrentOrigin%Movement%WindY
