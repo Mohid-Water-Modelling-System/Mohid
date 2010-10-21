@@ -8483,7 +8483,7 @@ MF:             if (CurrentOrigin%Movement%Float) then
                     VINT = V           
 
                     !Velocity due wind                      
-                    if (CurrentOrigin%Movement%WindOriginON) then
+                    if (CurrentOrigin%Movement%WindOriginON  .or. CurrentPartic%Position%Surface) then 
 
                         WindX = CurrentOrigin%Movement%WindX
                         WindY = CurrentOrigin%Movement%WindY
