@@ -143,6 +143,8 @@ Module ModulePorousMediaProperties
     private ::      ActualizePropertiesFromFile
     private ::      InterfaceFluxes
     private ::      AdvectionDiffusionProcesses 
+    private ::          ComputeVolumes
+    private ::          ComputeThetaAtFaces
     private ::      SoilQualityProcesses
 #ifdef _PHREEQC_    
     private ::      SoilChemistryProcesses
@@ -372,6 +374,12 @@ Module ModulePorousMediaProperties
         type (T_Partition                    )  :: Partition
     end type T_Evolution
     
+    type T_ThetaAtFaces
+        real, dimension(:,:,:), pointer         :: ThetaW
+        real, dimension(:,:,:), pointer         :: ThetaV
+        real, dimension(:,:,:), pointer         :: ThetaU    
+    end type T_ThetaAtFaces
+    
     type T_MassBalance
         real(8)                                 :: TotalStoredMass
         real(8)                                 :: TranspiredMass
@@ -528,6 +536,8 @@ Module ModulePorousMediaProperties
         logical                                     :: AdvDiff_CheckCoefs    !
         logical                                     :: Vertical1D
         logical                                     :: XZFlow
+        
+        type(T_ThetaAtFaces)                        :: ThetaAtFaces
         
         !--For PorousMediaProperties Advection-Diffusion Method
         real,    pointer, dimension(:,:,:)          :: DifusionNumber
@@ -1018,6 +1028,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         if (Me%Coupled%AdvectionDiffusion) then
             allocate (Me%WaterVolume          (ILB:IUB,JLB:JUB,KLB:KUB))
             allocate (Me%FluxWCorr                (ILB:IUB,JLB:JUB,KLB:KUB))
+            
+            allocate (Me%ThetaAtFaces%ThetaW (ILB:IUB,JLB:JUB,KLB:KUB))
+            allocate (Me%ThetaAtFaces%ThetaU (ILB:IUB,JLB:JUB,KLB:KUB))
+            allocate (Me%ThetaAtFaces%ThetaV (ILB:IUB,JLB:JUB,KLB:KUB))
 
             Me%WaterVolume          = 0.
             Me%FluxWCorr            = 0.
@@ -2572,47 +2586,55 @@ do1:    do while(associated(Property))
 
         !Opens HDF File
         call ConstructHDF5      (Me%ObjHDF5, trim(Me%Files%TransientHDF)//"5", HDF5_CREATE, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5Output - ModulePorousMediaProperties - ERR01'
-
-      
+        if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModulePorousMediaProperties - ERR10'
+     
         !Write the Horizontal Grid
         call WriteHorizontalGrid(Me%ObjHorizontalGrid, Me%ObjHDF5, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5Output - ModulePorousMediaProperties - ERR010'
-
+        if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModulePorousMediaProperties - ERR020'
 
         !Sets limits for next write operations
-        call HDF5SetLimits      (Me%ObjHDF5, ILB, IUB, JLB, JUB, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5Output - ModulePorousMediaProperties - ERR020'
-        
-        call GetGridData  (Me%ObjGeometry, Me%ExtVar%Topography, STAT = STAT_CALL)
+        call HDF5SetLimits (Me%ObjHDF5, ILB, IUB, JLB, JUB, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModulePorousMediaProperties - ERR030'
         
-        call GetBasinPoints   (Me%ObjBasinGeometry, Me%ExtVar%BasinPoints, STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModulePorousMediaProperties - ERR040'  
-
+        call GetGridData (Me%ObjGeometry, Me%ExtVar%Topography, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModulePorousMediaProperties - ERR040'
+        
+        call GetBasinPoints (Me%ObjBasinGeometry, Me%ExtVar%BasinPoints, STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModulePorousMediaProperties - ERR050'  
         
         !Writes the Grid
-        call HDF5WriteData   (Me%ObjHDF5, "/Grid", "Bathymetry", "m",           &
-                              Array2D = Me%ExtVar%Topography, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5Output - ModulePorousMediaProperties - ERR050'
+        call HDF5WriteData (Me%ObjHDF5, "/Grid", "Bathymetry", "m",           &
+                            Array2D = Me%ExtVar%Topography, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModulePorousMediaProperties - ERR060'
 
         !WriteBasinPoints
-        call HDF5WriteData   (Me%ObjHDF5, "/Grid", "BasinPoints", "-",          &
-                              Array2D = Me%ExtVar%BasinPoints, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5Output - ModulePorousMediaProperties - ERR060'
+        call HDF5WriteData (Me%ObjHDF5, "/Grid", "BasinPoints", "-",          &
+                            Array2D = Me%ExtVar%BasinPoints, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModulePorousMediaProperties - ERR070'
 
+        call HDF5SetLimits (Me%ObjHDF5, ILB, IUB, JLB, JUB, KLB, KUB, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModulePorousMediaProperties - ERR080'
+
+        call GetWaterPoints3D (Me%ObjMap, Me%ExtVar%WaterPoints3D, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModulePorousMediaProperties - ERR090'
+        
+        !WaterPoints3D
+        call HDF5WriteData (Me%ObjHDF5, "/Grid", "WaterPoints3D", "-",       &
+                            Array3D = Me%ExtVar%WaterPoints3D, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModulePorousMediaProperties - ERR100'
 
         !Flushes All pending HDF5 commands
         call HDF5FlushMemory (Me%ObjHDF5, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5Output - ModulePorousMediaProperties - ERR070'       
-
+        if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModulePorousMediaProperties - ERR110'       
 
         call UnGetBasin   (Me%ObjBasinGeometry, Me%ExtVar%BasinPoints, STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModulePorousMediaProperties - ERR80'  
+        if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModulePorousMediaProperties - ERR120'  
 
         call UnGetGeometry              (Me%ObjGeometry, Me%ExtVar%Topography,  STAT = STAT_CALL )        
-        if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModulePorousMediaProperties - ERR90'
+        if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModulePorousMediaProperties - ERR130'
 
+        call UnGetMap                   (Me%ObjMap, Me%ExtVar%WaterPoints3D, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModulePorousMediaProperties - ERR0140'
 
     end subroutine Open_HDF5_OutPut_File   
    
@@ -4068,8 +4090,91 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.     &
    
     end subroutine ComputeVolumes
     
-   !----------------------------------------------------------------------
+    !----------------------------------------------------------------------
 
+    subroutine ComputeThetaAtFaces
+    
+        !Local-----------------------------------------------------------------
+        integer                         :: I,J,K, CHUNK
+        real, pointer, dimension(:,:,:) :: ThetaOld, Theta
+        !Begin-----------------------------------------------------------------
+        
+        CHUNK = CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)
+        
+        !$OMP PARALLEL PRIVATE(I,J,K)
+
+        ThetaOld  => Me%ExtVar%WaterContentOld
+        Theta     => Me%ExtVar%WaterContent
+
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+        
+        do K = Me%WorkSize%KLB, Me%WorkSize%KUB
+        do J = Me%WorkSize%JLB, Me%WorkSize%JUB
+        do I = Me%WorkSize%ILB, Me%WorkSize%IUB
+
+            if (Me%ExtVar%WaterPoints3D(I,J,K) == WaterPoint) then
+                
+                !Z direction
+                
+                !condition so that does not produce NAN, in WaterContetFace in the boundary
+                !in boundary, diffusivity is zero (computefaces) but in release version model when evaluates disp/watercontent_face
+                !produces NAN. In debug version this does not appen and the result is the total evaluation (zero).
+                if (Me%ExtVar%WaterPoints3D(I,J,K-1) /= WaterPoint) then
+                    if (Me%AdvDiff_Explicit) then
+                        Me%ThetaAtFaces%ThetaW(i, j, k) = ThetaOld(i,j,k)
+                    else
+                        Me%ThetaAtFaces%ThetaW(i, j, k) = Theta(i,j,k)
+                    endif
+                else
+                    if (Me%AdvDiff_Explicit) then
+                        Me%ThetaAtFaces%ThetaW(i, j, k) = min(ThetaOld(i,j,k), ThetaOld(i,j,k-1))
+                    else
+                        Me%ThetaAtFaces%ThetaW(i, j, k) = min(Theta(i,j,k), Theta(i,j,k-1))
+                    endif
+                endif                               
+                
+                !U direction
+                
+                if (Me%ExtVar%WaterPoints3D(I,J-1,K) /= WaterPoint) then
+                    Me%ThetaAtFaces%ThetaU(i, j, k) = ThetaOld(i,j,k)
+                else                                                                                       
+                    Me%ThetaAtFaces%ThetaU(i, j, k) = min(ThetaOld(i,j,k),ThetaOld(i,j-1,k))
+                endif
+                
+                !V direction
+                
+                if (Me%ExtVar%WaterPoints3D(I-1,J,K) /= WaterPoint) then
+                    Me%ThetaAtFaces%ThetaV(i, j, k) = ThetaOld(i,j,k)
+                else                                                           
+                    Me%ThetaAtFaces%ThetaV(i, j, k) = min(ThetaOld(i,j,k),ThetaOld(i-1,j,k))
+                endif
+
+            endif     
+                                                                               
+        enddo
+        enddo
+        enddo
+        !$OMP END DO
+        !$OMP END PARALLEL
+
+        do J = Me%WorkSize%JLB, Me%WorkSize%JUB
+        do I = Me%WorkSize%ILB, Me%WorkSize%IUB
+        
+            K = Me%WorkSize%KUB
+        
+            if (Me%ExtVar%WaterPoints3D(I,J,K) == WaterPoint) then
+            
+                !UpperFace computation
+                Me%ThetaAtFaces%ThetaW(i, j, k) = ThetaOld(i,j,k)
+                                
+            endif                                                                        
+            
+        enddo
+        enddo
+            
+    end subroutine ComputeThetaAtFaces
+
+    !----------------------------------------------------------------------
     
     subroutine ActualizePropertiesFromFile
     
@@ -4592,6 +4697,8 @@ do3:        do K = Me%WorkSize%KUB, Me%WorkSize%KLB, -1
        !Compute water volume and remove infiltration from fluxZ 
        !(it would create error in AdvectionDiffusion routines)
         call ComputeVolumes
+        
+        call ComputeThetaAtFaces
 
              
         PropertyX => Me%FirstProperty
@@ -4690,7 +4797,7 @@ do3:        do K = Me%WorkSize%KUB, Me%WorkSize%KLB, -1
         
         !In this subroutine are computed all the sources/sinks of water and mass
         !that exist in the Porous Media Module (for new theta computation)
-        
+               
         !Diffusivity will be used in Infiltration coef and in AdvectionDiffusion
         call ModifyDiffusivity_New(PropertyX)
 
@@ -4871,8 +4978,9 @@ do1 :   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
             if (Me%ExtVar%ComputeFacesU3D(i, j, k) == 1) then
 
-                AuxJ = CurrProp%ViscosityU      (i,j  ,k)                               &
-                       * Me%ExtVar%AreaU        (i,j  ,k)                               &
+                AuxJ = CurrProp%ViscosityU      (i,j  ,k) &
+                       * Me%ExtVar%AreaU        (i,j  ,k) &
+                       * Me%ThetaAtFaces%ThetaU (i,j  ,k) &
                        / Me%ExtVar%DZX          (i,j-1  )                    
 
                 Me%TICOEF3(i,j-1,k) = Me%TICOEF3(i,j-1,k) + AuxJ * DTPropDouble /      &
@@ -4929,9 +5037,10 @@ do1 :   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             if (Me%ExtVar%ComputeFacesV3D(i  , j, k) == 1) then
 
                        
-                AuxI = CurrProp%ViscosityV      (i  ,j,k)                               &
-                       * Me%ExtVar%AreaV        (i  ,j,k)                               &
-                       / Me%ExtVar%DZY          (i-1,j  )                    
+                AuxI = CurrProp%ViscosityV      (i  ,j,k) &
+                       * Me%ExtVar%AreaV        (i  ,j,k) &
+                       * Me%ThetaAtFaces%ThetaV (i  ,j,k) &
+                       / Me%ExtVar%DZY          (i-1,j  )
 
                 Me%TICOEF3(i-1,j,k) = Me%TICOEF3(i-1,j,k) + AuxI * DTPropDouble /       &
                                       Me%WaterVolume(i-1, j, k) *                      &
@@ -5353,8 +5462,9 @@ do1 :       do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                 if (Me%ExtVar%ComputeFacesW3D(i, j, k  ) == 1)  then
                 
                     ! [m^2/s * m * m / m]
-                    AuxK  =  CurrProperty%Diffusivity(i,j,k  )                              &
-                           * Me%ExtVar%Area          (i,j    )                              &
+                    AuxK  =  CurrProperty%Diffusivity(i,j,k  ) &
+                           * Me%ExtVar%Area          (i,j    ) &
+                           * Me%ThetaAtFaces%ThetaW  (i,j,k  ) &
                            / Me%ExtVar%DZZ           (i,j,k-1)
 
                     ![m^3/s * s / m^3]
@@ -5392,8 +5502,9 @@ do4 :       do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                 if (Me%ExtVar%ComputeFacesW3D(i, j, k  ) == 1)  then
                 
                     ! [m^2/s * m * m / m]
-                    AuxK  =  CurrProperty%Diffusivity(i,j,k  )                              &
-                           * Me%ExtVar%Area          (i,j    )                              &
+                    AuxK  =  CurrProperty%Diffusivity(i,j,k  ) &
+                           * Me%ExtVar%Area          (i,j    ) &
+                           * Me%ThetaAtFaces%ThetaW  (i,j,k  ) &
                            / Me%ExtVar%DZZ           (i,j,k-1)
 
                     ![m^3/s * s / m^3]
@@ -5954,7 +6065,10 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                 DZZ = 0.5 * (Me%ExtVar%DWZ(i,j,k) + Me%ExtVar%WaterColumn(i,j))
                 
                 ! - = m2/s * m2 /m * s/m3
-                TopDiffusion = CurrProperty%Diffusivity(i,j,k+1) * Me%ExtVar%Area(i,j) * aux / DZZ
+                TopDiffusion = CurrProperty%Diffusivity(i,j,k+1) &
+                               * Me%ExtVar%Area(i,j)             &
+                               * Me%ThetaAtFaces%ThetaW(i,j,k  ) &
+                               * aux / DZZ
                 
                 !positive flow  -> exiting soil
                 Me%COEFExpl%CoefInterfRunoff(i,j,k) = - aux * FluxW(i,j,k+1) + TopDiffusion
@@ -6361,21 +6475,19 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         !Local-----------------------------------------------------------------
         integer                                     :: I,J,K, CHUNK
         real(8), pointer, dimension(:,:  )          :: WaterCol
-        real   , pointer, dimension(:,:,:)          :: Porosity, UnsatW, UnsatU, UnsatV, ThetaOld, Theta
+        real   , pointer, dimension(:,:,:)          :: Porosity, UnsatW, UnsatU, UnsatV
         real                                        :: WaterContent_Face, Porosity_Face
-        real                                        :: DiffCoef        
+        real                                        :: DiffCoef
         !Begin-----------------------------------------------------------------
         
         CHUNK = CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)
         
         !$OMP PARALLEL PRIVATE(I,J,K,DiffCoef,WaterContent_Face,Porosity_Face)
 
-        ThetaOld  => Me%ExtVar%WaterContentOld
-        Theta     => Me%ExtVar%WaterContent
         Porosity  => Me%ExtVar%ThetaS
+        
         !diffusion on top boundary only occurs if there will be water at the end of the time step in runoff
         WaterCol  => Me%ExtVar%WaterColumn         
-!        WaterCol  => Me%ExtVar%InfiltrationColumn
         UnsatW    => Me%ExtVar%UnsatW
         DiffCoef  = CurrProperty%Evolution%AdvDiff%Molecular_Diff_Coef
         
@@ -6386,65 +6498,42 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         do K = Me%WorkSize%KLB, Me%WorkSize%KUB
         do J = Me%WorkSize%JLB, Me%WorkSize%JUB
         do I = Me%WorkSize%ILB, Me%WorkSize%IUB
+        
             if (Me%ExtVar%WaterPoints3D(I,J,K) == WaterPoint) then
                 
                 !Z direction
                 
-                !condition so that does not produce NAN, in WaterContetFace in the boundary
-                !in boundary, diffusivity is zero (computefaces) but in release version model when evaluates disp/watercontent_face
-                !produces NAN. In debug version this does not appen and the result is the total evaluation (zero).
-                if (Me%ExtVar%WaterPoints3D(I,J,K-1) /= WaterPoint) then
-                    if (Me%AdvDiff_Explicit) then
-                        WaterContent_Face = ThetaOld(i,j,k)
-                    else
-                        WaterContent_Face = Theta(i,j,k)
-                    endif
-                else
-                    if (Me%AdvDiff_Explicit) then
-                        WaterContent_Face = min(ThetaOld(i,j,k),ThetaOld(i,j,k-1))
-                    else
-                        WaterContent_Face = min(Theta(i,j,k),Theta(i,j,k-1))
-                    endif
-                endif
-                
+                WaterContent_Face = Me%ThetaAtFaces%ThetaW(i,j,k)                
                 Porosity_Face     = min(Porosity(i,j,k),Porosity(i,j,k-1))
                 
                 !Only compute diffusivity in compute faces W (faces tath are not boundaries), else is zero
                 !m2/s = m2/s + m/s * m
-                CurrProperty%Diffusivity(i,j,k)  = Me%ExtVar%ComputeFacesW3D(i,j,k  ) *                                          &
-                                                    (DiffCoef * Tortuosity(WaterContent_Face, Porosity_Face))                    &
-                                                     +(abs(UnsatW(i,j,k  )) * Me%Disper_Longi%Field(i,j,k) / WaterContent_Face)
+                CurrProperty%Diffusivity(i,j,k)  = Me%ExtVar%ComputeFacesW3D(i,j,k) *                                       &
+                                                   (DiffCoef * Tortuosity(WaterContent_Face, Porosity_Face))                &
+                                                   + (abs(UnsatW(i,j,k)) * Me%Disper_Longi%Field(i,j,k) / WaterContent_Face)
                 
                 
                 !U direction
                 
-                if (Me%ExtVar%WaterPoints3D(I,J-1,K) /= WaterPoint) then
-                    WaterContent_Face = ThetaOld(i,j,k)
-                else                                                                                       
-                    WaterContent_Face = min(ThetaOld(i,j,k),ThetaOld(i,j-1,k))
-                endif
+                WaterContent_Face = Me%ThetaAtFaces%ThetaU(i,j,k)
                 Porosity_Face     = min(Porosity(i,j,k),Porosity(i,j-1,k))
                 
                 !Only compute diffusivity in compute faces U (faces tath are not boundaries), else is zero
                 !m2/s = m2/s + m/s * m
-                CurrProperty%ViscosityU(i,j,k)  = Me%ExtVar%ComputeFacesU3D(i,j,k  ) *                                       &
-                                                    (DiffCoef * Tortuosity(WaterContent_Face, Porosity_Face))                &
-                                                     +(abs(UnsatU(i,j,k  )) * Me%Disper_Trans%Field(i,j,k) / WaterContent_Face)
+                CurrProperty%ViscosityU(i,j,k)  = Me%ExtVar%ComputeFacesU3D(i,j,k) *                                         &
+                                                  (DiffCoef * Tortuosity(WaterContent_Face, Porosity_Face))                  &
+                                                  + (abs(UnsatU(i,j,k)) * Me%Disper_Trans%Field(i,j,k) / WaterContent_Face)
                 
                 
                 !V direction
                 
-                if (Me%ExtVar%WaterPoints3D(I-1,J,K) /= WaterPoint) then
-                    WaterContent_Face = ThetaOld(i,j,k)
-                else                                                           
-                    WaterContent_Face = min(ThetaOld(i,j,k),ThetaOld(i-1,j,k))
-                endif
+                WaterContent_Face = Me%ThetaAtFaces%ThetaV(i,j,k)
                 Porosity_Face     = min(Porosity(i,j,k),Porosity(i-1,j,k))
                 
                 !Only compute diffusivity in compute faces V (faces tath are not boundaries), else is zero
-                CurrProperty%ViscosityV(i,j,k)  = Me%ExtVar%ComputeFacesV3D(i,j,k  ) *                                       &
-                                                    (DiffCoef * Tortuosity(WaterContent_Face, Porosity_Face))                &
-                                                     +(abs(UnsatV(i,j,k  )) * Me%Disper_Trans%Field(i,j,k) / WaterContent_Face)
+                CurrProperty%ViscosityV(i,j,k)  = Me%ExtVar%ComputeFacesV3D(i,j,k) *                                         &
+                                                  (DiffCoef * Tortuosity(WaterContent_Face, Porosity_Face))                  &
+                                                  + (abs(UnsatV(i,j,k)) * Me%Disper_Trans%Field(i,j,k) / WaterContent_Face)
                                                      
 
             endif                                                                        
@@ -6456,24 +6545,25 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
         do J = Me%WorkSize%JLB, Me%WorkSize%JUB
         do I = Me%WorkSize%ILB, Me%WorkSize%IUB
+        
             K = Me%WorkSize%KUB
+            
             if (Me%ExtVar%WaterPoints3D(I,J,K) == WaterPoint) then
+            
                 !UpperFace computation
-                WaterContent_Face = ThetaOld(i,j,k)
+                WaterContent_Face = Me%ThetaAtFaces%ThetaW(i,j,k) 
                 Porosity_Face     = Porosity(i,j,k)
+                
                 !Only compute diffusivity in top face if there is water in the runoff at the end of the timestep
                 if (WaterCol(i,j) .gt. 0.) then
                     !m2/s = m2/s + ((m3/s) /m2) * m
-                    CurrProperty%Diffusivity(i,j,k+1)  =  (DiffCoef * Tortuosity(WaterContent_Face, Porosity_Face))          &
-                                                          +(abs(Me%ExtVar%FluxW(i,j,k+1)/Me%ExtVar%Area(i,j))                &
-                                                          * Me%Disper_Longi%Field(i,j,k) / WaterContent_Face)
+                    CurrProperty%Diffusivity(i,j,k+1)  = (DiffCoef * Tortuosity(WaterContent_Face, Porosity_Face)) 
                 else
                     CurrProperty%Diffusivity(i,j,k+1)  = 0.0
                 endif
             endif                                                                        
         enddo
         enddo
-
     
     end subroutine ModifyDiffusivity_New
 
@@ -7276,16 +7366,36 @@ First:          if (LastTime.LT.Actual) then
                     !Writes Time
                     TimePtr => AuxTime
                     call HDF5SetLimits  (Me%ObjHDF5, 1, 6, STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'OutPutHDF - ModulePorousMediaproperties - ERR00'
+                    if (STAT_CALL /= SUCCESS_) stop 'OutPutHDF - ModulePorousMediaproperties - ERR010'
 
                     call HDF5WriteData  (Me%ObjHDF5, "/Time", "Time", "YYYY/MM/DD HH:MM:SS",      &
                                          Array1D = TimePtr, OutputNumber = OutPutNumber, STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'OutPutHDF - ModulePorousMediaproperties - ERR01'
+                    if (STAT_CALL /= SUCCESS_) stop 'OutPutHDF - ModulePorousMediaproperties - ERR020'
            
                     Me%LastOutPutHDF5 = Actual
        
                 endif First
 
+                !Limits 
+                call HDF5SetLimits   (Me%ObjHDF5,        &
+                                      Me%WorkSize%ILB,   &
+                                      Me%WorkSize%IUB,   &
+                                      Me%WorkSize%JLB,   &
+                                      Me%WorkSize%JUB,   &
+                                      Me%WorkSize%KLB-1, &
+                                      Me%WorkSize%KUB,   &
+                                      STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'OutPutHDF - ModulePorousMediaProperties - ERR030'
+
+
+                !Vertical 
+                call HDF5WriteData  ( Me%ObjHDF5,  "/Grid/VerticalZ", & 
+                                     "Vertical",   "m",               & 
+                                      Array3D      = Me%ExtVar%SZZ,   &
+                                      OutputNumber = OutPutNumber,    &
+                                      STAT         = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'OutPutHDF - ModulePorousMediaProperties - ERR040'
+                
                 !Sets limits for next write operations
                 call HDF5SetLimits   (Me%ObjHDF5,                                &
                                       Me%WorkSize%ILB,                           &
@@ -7295,7 +7405,7 @@ First:          if (LastTime.LT.Actual) then
                                       Me%WorkSize%KLB,                           &
                                       Me%WorkSize%KUB,                           &
                                       STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'OutPutHDF - ModulePorousMediaproperties - ERR02'
+                if (STAT_CALL /= SUCCESS_) stop 'OutPutHDF - ModulePorousMediaproperties - ERR050'
 
                 !Writes the Open Points
                 call HDF5WriteData   (Me%ObjHDF5, "//Grid/OpenPoints",              &
@@ -7303,7 +7413,7 @@ First:          if (LastTime.LT.Actual) then
                                       Array3D = Me%ExtVar%OpenPoints3D,             &
                                       OutputNumber = OutPutNumber,                  &
                                       STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'OutPutHDF - ModulePorousMediaproperties - ERR03'
+                if (STAT_CALL /= SUCCESS_) stop 'OutPutHDF - ModulePorousMediaproperties - ERR060'
 
 
                 PropertyX => Me%FirstProperty
@@ -7318,7 +7428,7 @@ First:          if (LastTime.LT.Actual) then
                                               Array3D = PropertyX%Concentration,             &
                                               OutputNumber = OutPutNumber,                   &
                                               STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'OutPutHDF - ModulePorousMediaproperties - ERR04'
+                        if (STAT_CALL /= SUCCESS_) stop 'OutPutHDF - ModulePorousMediaproperties - ERR070'
 
                     endif
 
@@ -7330,7 +7440,7 @@ First:          if (LastTime.LT.Actual) then
 
                 !Writes everything to disk
                 call HDF5FlushMemory (Me%ObjHDF5, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'OutPutHDF - ModulePorousMediaproperties - ERR06'
+                if (STAT_CALL /= SUCCESS_) stop 'OutPutHDF - ModulePorousMediaproperties - ERR080'
             
             endif  TOut
         endif  TNum
@@ -7347,7 +7457,7 @@ First:          if (LastTime.LT.Actual) then
         !Begin----------------------------------------------------------------
 
         !tortuosity = (WC**(10/3))/(porosity)
-        Tortuosity = (WC**(7/3))/(Porosity**2)
+        Tortuosity = (WC**(7./3.))/(Porosity**2)
         
 
     end function Tortuosity   
@@ -7616,6 +7726,10 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
             deallocate (Me%WaterVolume)
             deallocate (Me%FluxWCorr)
             deallocate(Me%TICOEF3)
+            
+            deallocate (Me%ThetaAtFaces%ThetaW)
+            deallocate (Me%ThetaAtFaces%ThetaU)
+            deallocate (Me%ThetaAtFaces%ThetaV)
 
             deallocate(Me%COEF3_VertAdv%C_Flux)
             deallocate(Me%COEF3_VertAdv%D_Flux)
