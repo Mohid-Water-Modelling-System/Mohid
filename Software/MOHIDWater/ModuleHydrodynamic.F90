@@ -1214,7 +1214,7 @@ Module ModuleHydrodynamic
         character (Len = PathLength)         :: DeadZoneFile
         integer                              :: VertComunic
 
-        logical                              :: Extrapolate
+        logical                              :: Extrapolate, HotStartData = .false.
 
         logical, dimension(:,:,:), pointer   :: DeadZonePoint
 
@@ -6565,7 +6565,58 @@ ic1:    if (Me%CyclicBoundary%ON) then
   
         endif
 
+        if (Me%SubModel%ON) then
 
+            nullify(Me%SubModel%Z)
+
+            nullify(Me%SubModel%U_New )
+            nullify(Me%SubModel%V_New )
+            nullify(Me%SubModel%UV_New)
+
+            nullify(Me%SubModel%U_Old )
+            nullify(Me%SubModel%V_Old )
+            nullify(Me%SubModel%UV_Old)
+
+
+            nullify(Me%SubModel%DUZ_New )
+            nullify(Me%SubModel%DVZ_New )
+
+            nullify(Me%SubModel%DUZ_Old )
+            nullify(Me%SubModel%DVZ_Old )
+            nullify(Me%SubModel%DUVZ_Old)
+
+            nullify(Me%SubModel%qX      )
+            nullify(Me%SubModel%qY      )
+            nullify(Me%SubModel%qXY     )
+            nullify(Me%SubModel%qYX     )
+
+
+            allocate (Me%SubModel%Z         (ILB:IUB, JLB:JUB))
+            allocate (Me%SubModel%U_New     (ILB:IUB, JLB:JUB, KLB:KUB))
+            allocate (Me%SubModel%DUZ_New   (ILB:IUB, JLB:JUB, KLB:KUB))
+            allocate (Me%SubModel%V_New     (ILB:IUB, JLB:JUB, KLB:KUB))
+            allocate (Me%SubModel%DVZ_New   (ILB:IUB, JLB:JUB, KLB:KUB))
+            allocate (Me%SubModel%qX        (ILB:IUB, JLB:JUB, KLB:KUB))
+            allocate (Me%SubModel%qY        (ILB:IUB, JLB:JUB, KLB:KUB))
+            allocate (Me%SubModel%DUZ_Old   (ILB:IUB, JLB:JUB, KLB:KUB))
+            allocate (Me%SubModel%DVZ_Old   (ILB:IUB, JLB:JUB, KLB:KUB))
+            allocate (Me%SubModel%U_Old     (ILB:IUB, JLB:JUB, KLB:KUB))
+            allocate (Me%SubModel%V_Old     (ILB:IUB, JLB:JUB, KLB:KUB))
+
+            Me%SubModel%Z  (:,:  )          = FillValueReal
+            Me%SubModel%U_New  (:,:,:)      = FillValueReal
+            Me%SubModel%DUZ_New  (:,:,:)    = FillValueReal
+            Me%SubModel%V_New(:,:,:)        = FillValueReal
+            Me%SubModel%DVZ_New  (:,:,:)    = FillValueReal
+            Me%SubModel%qX(:,:,:)           = FillValueReal
+            Me%SubModel%qY(:,:,:)           = FillValueReal
+            Me%SubModel%DUZ_Old(:,:,:)      = FillValueReal
+            Me%SubModel%DVZ_Old(:,:,:)      = FillValueReal
+            Me%SubModel%U_Old  (:,:,:)      = FillValueReal
+            Me%SubModel%V_Old  (:,:,:)      = FillValueReal
+        
+        
+        endif
 
       !----------------------------------------------------------------------
 
@@ -7698,7 +7749,7 @@ cd10:   if (Evolution == Read_File_) then
                                         STAT = STAT_CALL)            
 
              if (STAT_CALL /= SUCCESS_)                                                  &
-                stop 'Subroutine Construct_Sub_Modules; Module ModuleHydrodynamic. ERR90.' 
+                stop 'Subroutine ConstructHydrodynamicProperties; Module ModuleHydrodynamic. ERR90.' 
 
              call SetComputesFaces3D(Me%ObjMap,                             &
                                 InitialComputeFacesU3D,                                  &
@@ -7706,7 +7757,7 @@ cd10:   if (Evolution == Read_File_) then
                                 Me%CurrentTime,                             &
                                 STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                                   &
-                stop 'Subroutine Construct_Sub_Modules; Module ModuleHydrodynamic. ERR100.' 
+                stop 'Subroutine ConstructHydrodynamicProperties; Module ModuleHydrodynamic. ERR100.' 
  
             nullify(InitialComputeFacesU3D, InitialComputeFacesV3D)
 
@@ -8333,7 +8384,7 @@ cd2:        if (Evolution == Residual_hydrodynamic_) then
         call ReadGeometry(Me%ObjGeometry, InitialFile, STAT = STAT_CALL) 
 
         if (STAT_CALL /= SUCCESS_)                                                          &
-            call SetError (FATAL_, INTERNAL_,'Read_Final_Hydrodynamic_File; ModuleHydrodynamic. ERR14.')
+            call SetError (FATAL_, INTERNAL_,'Read_Final_Hydrodynamic_File; ModuleHydrodynamic. ERR70.')
 
 cd3:    if (Residual .and. Me%ComputeOptions%Residual) then 
             !Read residual layer thickness
@@ -8381,20 +8432,56 @@ cd4:    if (.not. BaroclinicRadia                                == NoRadiation_
         !NonHydrostatic
         if (Me%NonHydrostatic%ON) then
 
-            read(InitialFile, IOSTAT = STAT_CALL)                                          &  
+            read(InitialFile, IOSTAT = STAT_CALL)                                       &  
                 (((Me%Velocity%Vertical%CartesianOld(i, j, k),                          &
                    i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
 
             if (STAT_CALL /= SUCCESS_) then
-                call SetError (FATAL_, INTERNAL_,'Read_Final_Hydrodynamic_File; ModuleHydrodynamic. ERR15.')
+                call SetError (FATAL_, INTERNAL_,'Read_Final_Hydrodynamic_File; ModuleHydrodynamic. ERR80.')
             endif
 
         endif
+        
+        !Submodel
+        if (Me%SubModel%ON) then
+        
+            Me%SubModel%HotStartData = .false. 
+
+            read(InitialFile, END = 30, IOSTAT = STAT_CALL)                             &  
+                (((Me%SubModel%qX(i, j, k),                                             &
+                   i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+
+            if (STAT_CALL /= SUCCESS_) then
+                call SetError (FATAL_, INTERNAL_,'Read_Final_Hydrodynamic_File; ModuleHydrodynamic. ERR90.')
+            endif
+
+            read(InitialFile, END = 30, IOSTAT = STAT_CALL)                                       &  
+                (((Me%SubModel%qY(i, j, k),                                             &
+                   i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+
+            if (STAT_CALL /= SUCCESS_) then
+                call SetError (FATAL_, INTERNAL_,'Read_Final_Hydrodynamic_File; ModuleHydrodynamic. ERR100.')
+            endif
+            
+            Me%SubModel%HotStartData = .true. 
+            
+30          continue
+
+            if (.not. Me%SubModel%HotStartData) then 
+                write(*,*) 'you are doing a hot start based in a old version of MOHID'
+                write(*,*) 'version before Nov 2010'
+                write(*,*) 'in this case in the first iteration if the South/North boundaries are open'
+                write(*,*) 'and the follow options are on (RADIATION : 2; LOCAL_SOLUTION : 2)'
+                write(*,*) 'the mpodel will generate a perturbation that might take some type to dissipate'
+                write(*,*) 'in less dissipative enviroments like the Ocean'
+            endif 
+
+        endif        
 
         call UnitsManager(InitialFile, FileClose, STAT = STAT_CALL) 
 
         if (STAT_CALL /= SUCCESS_)                                                          &
-            call SetError (FATAL_, INTERNAL_,'Read_Final_Hydrodynamic_File; ModuleHydrodynamic. ERR16.')
+            call SetError (FATAL_, INTERNAL_,'Read_Final_Hydrodynamic_File; ModuleHydrodynamic. ERR110.')
 
 
 
@@ -9399,55 +9486,6 @@ i1:         if (CoordON) then
         JLB = Me%Size%JLB
         KUB = Me%Size%KUB
         KLB = Me%Size%KLB
-
-        nullify(Me%SubModel%Z)
-
-        nullify(Me%SubModel%U_New )
-        nullify(Me%SubModel%V_New )
-        nullify(Me%SubModel%UV_New)
-
-        nullify(Me%SubModel%U_Old )
-        nullify(Me%SubModel%V_Old )
-        nullify(Me%SubModel%UV_Old)
-
-
-        nullify(Me%SubModel%DUZ_New )
-        nullify(Me%SubModel%DVZ_New )
-
-        nullify(Me%SubModel%DUZ_Old )
-        nullify(Me%SubModel%DVZ_Old )
-        nullify(Me%SubModel%DUVZ_Old)
-
-        nullify(Me%SubModel%qX      )
-        nullify(Me%SubModel%qY      )
-        nullify(Me%SubModel%qXY     )
-        nullify(Me%SubModel%qYX     )
-
-
-        allocate (Me%SubModel%Z         (ILB:IUB, JLB:JUB))
-        allocate (Me%SubModel%U_New     (ILB:IUB, JLB:JUB, KLB:KUB))
-        allocate (Me%SubModel%DUZ_New   (ILB:IUB, JLB:JUB, KLB:KUB))
-        allocate (Me%SubModel%V_New     (ILB:IUB, JLB:JUB, KLB:KUB))
-        allocate (Me%SubModel%DVZ_New   (ILB:IUB, JLB:JUB, KLB:KUB))
-        allocate (Me%SubModel%qX        (ILB:IUB, JLB:JUB, KLB:KUB))
-        allocate (Me%SubModel%qY        (ILB:IUB, JLB:JUB, KLB:KUB))
-        allocate (Me%SubModel%DUZ_Old   (ILB:IUB, JLB:JUB, KLB:KUB))
-        allocate (Me%SubModel%DVZ_Old   (ILB:IUB, JLB:JUB, KLB:KUB))
-        allocate (Me%SubModel%U_Old     (ILB:IUB, JLB:JUB, KLB:KUB))
-        allocate (Me%SubModel%V_Old     (ILB:IUB, JLB:JUB, KLB:KUB))
-
-        Me%SubModel%Z  (:,:  )          = FillValueReal
-        Me%SubModel%U_New  (:,:,:)      = FillValueReal
-        Me%SubModel%DUZ_New  (:,:,:)    = FillValueReal
-        Me%SubModel%V_New(:,:,:)        = FillValueReal
-        Me%SubModel%DVZ_New  (:,:,:)    = FillValueReal
-        Me%SubModel%qX(:,:,:)           = FillValueReal
-        Me%SubModel%qY(:,:,:)           = FillValueReal
-        Me%SubModel%DUZ_Old(:,:,:)      = FillValueReal
-        Me%SubModel%DVZ_Old(:,:,:)      = FillValueReal
-        Me%SubModel%U_Old  (:,:,:)      = FillValueReal
-        Me%SubModel%V_Old  (:,:,:)      = FillValueReal
-
 
 cd1:    if (Me%SubModel%DeadZone) then
             
@@ -12883,7 +12921,7 @@ cd3:    if (InitialField) then
 cd4:            if (( Faces3D_USon        (i, j, k) == Covered              .or.         &
                       ImposedTangFacesUSon(i, j, k) == Imposed              .or.         &
                       ImposedNormFacesUSon(i, j, k) == Imposed)             .and.        & 
-                      .not. DeadZoneSon) then
+                      .not. DeadZoneSon .and. .not. Me%SubModel%HotStartData) then
                 
                     if (Me%SubModel%qX(i, j, k)  < FillValueReal / 2.) then
 #ifndef _USE_MPI
@@ -12892,17 +12930,13 @@ cd4:            if (( Faces3D_USon        (i, j, k) == Covered              .or.
                         ErrorOccured = .true.
                         !$OMP END CRITICAL (ASMV1_OUT01)
 #endif
-                        if (Me%SubModel%MissingNull)                     &
+                        if (Me%SubModel%MissingNull)                                    &
                             Me%SubModel%qX(i, j, k) = 0.
                     endif
                     
-                    if (.not. Me%ComputeOptions%Continuous) then
-
-                        Me%WaterFluxes%X(i, j, k)               =        &
-                            Me%SubModel%qX (i, j, k) * DYY_Son(i, j)
-
-                    endif
-
+                    if (.not. Me%ComputeOptions%Continuous)                             &
+                        Me%WaterFluxes%X(i, j, k)               =                       &
+                        Me%SubModel%qX (i, j, k) * DYY_Son(i, j)
             
                 endif cd4
 
@@ -12941,7 +12975,7 @@ cd4:            if (( Faces3D_USon        (i, j, k) == Covered              .or.
 cd5:            if (( Faces3D_VSon        (i, j, k) == Covered              .or.         &
                       ImposedTangFacesVSon(i, j, k) == Imposed              .or.         &
                       ImposedNormFacesVSon(i, j, k) == Imposed)             .and.        & 
-                      .not. DeadZoneSon) then
+                      .not. DeadZoneSon .and. .not. Me%SubModel%HotStartData) then
 
 
                 
@@ -12956,13 +12990,9 @@ cd5:            if (( Faces3D_VSon        (i, j, k) == Covered              .or.
                             Me%SubModel%qY(i, j, k) = 0.
                     endif
 
-                    if (.not. Me%ComputeOptions%Continuous) then
-
-                        Me%WaterFluxes%Y(i, j, k)               =        &
-                            Me%SubModel%qY  (i, j, k) * DXX_Son(i, j)
-
-                    endif
-
+                    if (.not. Me%ComputeOptions%Continuous)                             &
+                        Me%WaterFluxes%Y(i, j, k)               =                       &
+                        Me%SubModel%qY  (i, j, k) * DXX_Son(i, j)
 
                 endif cd5
 
@@ -13595,7 +13625,7 @@ cd3:    if (InitialField) then
 cd4:            if ((Faces3D_USon        (i, j, KUB) == Covered   .or.                   &
                      ImposedTangFacesUSon(i, j, KUB) == Imposed   .or.                   &
                      ImposedNormFacesUSon(i, j, KUB) == Imposed)  .and.                  & 
-                     .not. DeadZoneSon) then
+                     .not. DeadZoneSon .and. .not. Me%SubModel%HotStartData) then
 
                     NullValue = .false.
                 
@@ -13655,13 +13685,9 @@ cd4:            if ((Faces3D_USon        (i, j, KUB) == Covered   .or.          
 
                         endif
 
-                        if (.not. Me%ComputeOptions%Continuous) then
-
-                            Me%WaterFluxes%X(i, j, k)               =    &
+                        if (.not. Me%ComputeOptions%Continuous)                         &
+                            Me%WaterFluxes%X(i, j, k)               =                   &
                                 Me%SubModel%qX (i, j, k  ) * DYY_Son(i, j) 
-
-                        endif
-
 
                     enddo
 
@@ -13696,7 +13722,7 @@ cd4:            if ((Faces3D_USon        (i, j, KUB) == Covered   .or.          
 cd5:            if ((Faces3D_VSon        (i, j, KUB) == Covered   .or.                   &
                      ImposedTangFacesVSon(i, j, KUB) == Imposed   .or.                   &
                      ImposedNormFacesVSon(i, j, KUB) == Imposed)  .and.                  & 
-                     .not. DeadZoneSon) then
+                     .not. DeadZoneSon .and. .not. Me%SubModel%HotStartData) then
                     
                     NullValue = .false.
                 
@@ -13753,13 +13779,6 @@ cd5:            if ((Faces3D_VSon        (i, j, KUB) == Covered   .or.          
 
                             Me%SubModel%qY  (i, j, k) =                      &
                                 Me%SubModel%qY  (i, j, KUB) * RelativeThickness
-
-                        endif
-
-                        if (.not. Me%ComputeOptions%Continuous) then
-
-                            Me%WaterFluxes%Y(i, j, k)               =    &
-                                Me%SubModel%qY  (i, j, k)   * DXX_Son(i, j)
 
                         endif
 
@@ -14690,7 +14709,7 @@ do1:            do k = KUB, KLB, -1
 cd2:                if ((Faces3D_USon        (i, j, k) == Covered   .or.            &
                          ImposedTangFacesUSon(i, j, k) == Imposed   .or.            &
                          ImposedNormFacesUSon(i, j, k) == Imposed)  .and.           & 
-                         .not. DeadZoneSon) then
+                         .not. DeadZoneSon .and. .not. Me%SubModel%HotStartData) then
 
                         NullValue = .false.
 
@@ -14900,12 +14919,9 @@ do3:                                do k2father = kfather - 1, KLBFather, - 1
 
                         endif
 
-                        if (.not. Me%ComputeOptions%Continuous) then
-
-                            Me%WaterFluxes%X(i, j, k)               =               &
+                        if (.not. Me%ComputeOptions%Continuous)                         &
+                            Me%WaterFluxes%X(i, j, k)               =                   &
                                 Me%SubModel%qX (i, j, k) * DYY_Son(i, j) 
-
-                        endif
 
                         if (k == KBottom) then 
 
@@ -14940,7 +14956,7 @@ do3:                                do k2father = kfather - 1, KLBFather, - 1
 cd3:                        if ((Faces3D_USon        (i, j, k) == Covered   .or.    &
                              ImposedTangFacesUSon(i, j, k) == Imposed   .or.        &
                              ImposedNormFacesUSon(i, j, k) == Imposed)  .and.       & 
-                             .not. DeadZoneSon) then
+                             .not. DeadZoneSon .and. .not. Me%SubModel%HotStartData) then
 
                                 if      (ImposedTangFacesUSon(i, j, k) == Imposed .or. &
                                          Faces3D_USon        (i, j, k) == Covered) then
@@ -15017,11 +15033,10 @@ cd3:                        if ((Faces3D_USon        (i, j, k) == Covered   .or.
 
                                 endif
 
-                                !recalculate the water fluxes
-                                if (.not. Me%ComputeOptions%Continuous) then
-                                    Me%WaterFluxes%X(i, j, k)               =       &
+                                if (.not. Me%ComputeOptions%Continuous)                 &
+                                    !recalculate the water fluxes
+                                    Me%WaterFluxes%X(i, j, k)               =           &
                                         Me%SubModel%qX (i, j, k) * DYY_Son(i, j) 
-                                endif                       
                         
                             endif cd3
 
@@ -15046,7 +15061,7 @@ cd3:                        if ((Faces3D_USon        (i, j, k) == Covered   .or.
 cd4:                        if ((Faces3D_USon        (i, j, k) == Covered   .or.    &
                              ImposedTangFacesUSon(i, j, k) == Imposed   .or.        &
                              ImposedNormFacesUSon(i, j, k) == Imposed)  .and.       & 
-                             .not. DeadZoneSon) then
+                             .not. DeadZoneSon  .and. .not. Me%SubModel%HotStartData) then
 
                                 if (ImposedTangFacesUSon(i, j, k) == Imposed .or.   &
                                          Faces3D_USon        (i, j, k) == Covered) then
@@ -15081,11 +15096,10 @@ cd4:                        if ((Faces3D_USon        (i, j, k) == Covered   .or.
                                     ExcessValue_Father*DUZ_Son(i_thick, j_thick, k) &
                                     / WaterColumnU(i_thick, j_thick)
 
-                                !recalculate the water fluxes
-                                if (.not. Me%ComputeOptions%Continuous) then
-                                    Me%WaterFluxes%X(i, j, k)               =       &
+                                if (.not. Me%ComputeOptions%Continuous)                 &
+                                    !recalculate the water fluxes
+                                    Me%WaterFluxes%X(i, j, k)               =           &
                                         Me%SubModel%qX (i, j, k) * DYY_Son(i, j) 
-                                endif
                      
                             endif cd4
                                            
@@ -15132,7 +15146,7 @@ do4:            do k = KUB, KLB, -1
 cd5:                if ((Faces3D_VSon        (i, j, k) == Covered   .or.            &
                          ImposedTangFacesVSon(i, j, k) == Imposed   .or.            &
                          ImposedNormFacesVSon(i, j, k) == Imposed)  .and.           & 
-                         .not. DeadZoneSon) then
+                         .not. DeadZoneSon  .and. .not. Me%SubModel%HotStartData) then
 
                         NullValue = .false.
 
@@ -15344,12 +15358,9 @@ do6:                                do k2father = kfather - 1, KLBFather, - 1
 
                         endif
 
-                        if (.not. Me%ComputeOptions%Continuous) then
-
-                            Me%WaterFluxes%Y(i, j, k)               =               &
+                        if (.not. Me%ComputeOptions%Continuous)                         &
+                            Me%WaterFluxes%Y(i, j, k)               =                   &
                                 Me%SubModel%qY (i, j, k) * DXX_Son(i, j) 
-
-                        endif
 
                         if (k == KBottom) then 
 
@@ -15384,7 +15395,7 @@ do6:                                do k2father = kfather - 1, KLBFather, - 1
 cd6:                        if ((Faces3D_VSon (i, j, k) == Covered   .or.           &
                              ImposedTangFacesVSon(i, j, k) == Imposed   .or.        &
                              ImposedNormFacesVSon(i, j, k) == Imposed)  .and.       & 
-                             .not. DeadZoneSon) then
+                             .not. DeadZoneSon  .and. .not. Me%SubModel%HotStartData) then
 
                                 if      (ImposedTangFacesVSon(i, j, k) == Imposed .or. &
                                          Faces3D_VSon        (i, j, k) == Covered) then
@@ -15461,11 +15472,10 @@ cd6:                        if ((Faces3D_VSon (i, j, k) == Covered   .or.       
 
                                 endif
 
-                                !recalculate the water fluxes
-                                if (.not. Me%ComputeOptions%Continuous) then
-                                    Me%WaterFluxes%Y(i, j, k)               =       &
+                                if (.not. Me%ComputeOptions%Continuous)                 &
+                                    !recalculate the water fluxes
+                                    Me%WaterFluxes%Y(i, j, k)               =           &
                                         Me%SubModel%qY (i, j, k) * DXX_Son(i, j) 
-                                endif                       
                         
                             endif cd6
 
@@ -15490,7 +15500,7 @@ cd6:                        if ((Faces3D_VSon (i, j, k) == Covered   .or.       
 cd7:                        if ((Faces3D_VSon        (i, j, k) == Covered   .or.    &
                              ImposedTangFacesVSon(i, j, k) == Imposed   .or.        &
                              ImposedNormFacesVSon(i, j, k) == Imposed)  .and.       & 
-                             .not. DeadZoneSon) then
+                             .not. DeadZoneSon  .and. .not. Me%SubModel%HotStartData) then
 
                                 if      (ImposedTangFacesVSon(i, j, k) == Imposed .or. &
                                          Faces3D_VSon        (i, j, k) == Covered) then
@@ -15525,11 +15535,10 @@ cd7:                        if ((Faces3D_VSon        (i, j, k) == Covered   .or.
                                     ExcessValue_Father*DVZ_Son(i_thick, j_thick, k) &
                                     / WaterColumnV(i_thick, j_thick)
 
-                                !recalculate the water fluxes
-                                if (.not. Me%ComputeOptions%Continuous) then
-                                    Me%WaterFluxes%Y(i, j, k)               =       &
+                                if (.not. Me%ComputeOptions%Continuous)                 &
+                                    !recalculate the water fluxes
+                                    Me%WaterFluxes%Y(i, j, k)               =           &
                                         Me%SubModel%qY (i, j, k) * DXX_Son(i, j) 
-                                endif
                      
                             endif cd7
                                            
@@ -18010,7 +18019,7 @@ cd2:        if (InitialField) then  !.and. .not. Me%ComputeOptions%Continuous) t
 
        else
 
-cd3:        if (InitialField) then  !.and. .not. Me%ComputeOptions%Continuous) then
+cd3:        if (InitialField .and. .not. Me%SubModel%HotStartData) then  !.and. .not. Me%ComputeOptions%Continuous) then
 
                 call InterpolRegularGrid   (Me%ObjHorizontalGrid,                   &
                                             FatherHorizontalGrid,                   &
@@ -32381,7 +32390,8 @@ do23:                do  k=KUB, kbottom,-1
                         
                        
                         !Correction for the cartesian space
-                        Rox3XY(i,j,k) = Daux + (SigmaDens(i, j, k) + SigmaDens(ileft, jleft, k)) * (Zright - Zleft) / dble(DZX_ZY(ileft, jleft)) / 2.
+                        Rox3XY(i,j,k) = Daux + (SigmaDens(i, j, k) + SigmaDens(ileft, jleft, k)) * &
+                                        (Zright - Zleft) / dble(DZX_ZY(ileft, jleft)) / 2.
                    
  
 
@@ -40319,7 +40329,7 @@ cd3:            if (Me%OutPut%hdf5ON) then
 
         call UnitsManager(FinalFile, FileOpen, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                       &
-            call SetError (FATAL_, INTERNAL_,'Write_Final_Hydrodynamic_File; ModuleHydrodynamic. ERR01.')
+            call SetError (FATAL_, INTERNAL_,'Write_Final_Hydrodynamic_File; ModuleHydrodynamic. ERR10.')
 
         !Checks if it's at the end of the run 
         !or !if it's supposed to overwrite the final HDF file
@@ -40338,12 +40348,12 @@ cd3:            if (Me%OutPut%hdf5ON) then
              Form = 'UNFORMATTED', status = 'UNKNOWN', IOSTAT = STAT_CALL)
 
         if (STAT_CALL /= SUCCESS_)                                                       &
-            call SetError (FATAL_, INTERNAL_,'Write_Final_Hydrodynamic_File; ModuleHydrodynamic. ERR02.')
+            call SetError (FATAL_, INTERNAL_,'Write_Final_Hydrodynamic_File; ModuleHydrodynamic. ERR20.')
 
         !Time Properties - Actualizes CurrentTime
         call GetComputeCurrentTime(Me%ObjTime, Me%CurrentTime, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                       &
-            call SetError (FATAL_, INTERNAL_,'Write_Final_Hydrodynamic_File; ModuleHydrodynamic. ERR03.')
+            call SetError (FATAL_, INTERNAL_,'Write_Final_Hydrodynamic_File; ModuleHydrodynamic. ERR30.')
 
 
 
@@ -40425,7 +40435,7 @@ cd1:    if (Me%ComputeOptions%Residual) then
 
         call WriteGeometry(Me%ObjGeometry, FinalFile, STAT = STAT_CALL) 
         if (STAT_CALL /= SUCCESS_)                                                       &
-            call SetError (FATAL_, INTERNAL_,'Write_Final_Hydrodynamic_File; ModuleHydrodynamic. ERR04.')
+            call SetError (FATAL_, INTERNAL_,'Write_Final_Hydrodynamic_File; ModuleHydrodynamic. ERR40.')
 
 cd2:    if (Me%ComputeOptions%Residual) then 
 
@@ -40471,11 +40481,31 @@ cd4:    if (.not. Me%ComputeOptions%BaroclinicRadia == NoRadiation_) then
                                            i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
         endif
 
+        !Submodel
+        if (Me%SubModel%ON) then
+
+            write(FinalFile, IOSTAT = STAT_CALL)                                        &  
+                (((Me%SubModel%qX(i, j, k),                                             &
+                   i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+
+            if (STAT_CALL /= SUCCESS_) then
+                call SetError (FATAL_, INTERNAL_,'Write_Final_Hydrodynamic_File; ModuleHydrodynamic. ERR50.')
+            endif
+
+            write(FinalFile, IOSTAT = STAT_CALL)                                        &  
+                (((Me%SubModel%qY(i, j, k),                                             &
+                   i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+
+            if (STAT_CALL /= SUCCESS_) then
+                call SetError (FATAL_, INTERNAL_,'Write_Final_Hydrodynamic_File; ModuleHydrodynamic. ERR60.')
+            endif
+
+        endif        
 
 
         call UnitsManager(FinalFile, FileClose, STAT = STAT_CALL) 
         if (STAT_CALL /= SUCCESS_)                                                        &
-            call SetError (FATAL_, INTERNAL_,'Write_Final_Hydrodynamic_File; ModuleHydrodynamic. ERR06.')
+            call SetError (FATAL_, INTERNAL_,'Write_Final_Hydrodynamic_File; ModuleHydrodynamic. ERR70.')
 
 
     end subroutine Write_Final_Hydrodynamic_File
