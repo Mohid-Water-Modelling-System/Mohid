@@ -4796,19 +4796,22 @@ cd1 :   if ((Property == Temperature_           ) .OR.  (Property == Salinity_  
         real                :: Xa, Ya, Xb, Yb, Xc, Yc, Xd, Yd, Xe, Ye, Xex, Yey
         
         !Local-------------------------------------------------------------------
-        real                :: DXdc, DYac, DXba, DYbd, DXef, DYeg 
-        real                :: MinDx, SumAux
-        real                :: a1, b1, a2, b2, a3, b3, a4, b4
-        real                :: Seg_ac, Seg_dc,Seg_hc, Seg_ic
-        real                :: Xf, Yf, Xg, Yg, Xh, Yh, Xi, Yi, TgX, TgY
+        real(8)             :: DXdc, DYac, DXba, DYbd, DXef, DYeg 
+        real(8)             :: MinDx, SumAux
+        real(8)             :: a1, b1, a2, b2, a3, b3, a4, b4
+        real(8)             :: Seg_ac, Seg_dc,Seg_hc, Seg_ic
+        real(8)             :: Xf, Yf, Xg, Yg, Xh, Yh, Xi, Yi, TgX, TgY
+        real(8)             :: XaR8, YaR8, XbR8, YbR8, XcR8, YcR8, XdR8, YdR8, XeR8, YeR8
         !Begin-------------------------------------------------------------------
 
+        XaR8 = dble(Xa); YaR8 = dble(Ya); XbR8 = dble(Xb); YbR8 = dble(Yb); XcR8 = dble(Xc)
+        YcR8 = dble(Yc); XdR8 = dble(Xd); YdR8 = dble(Yd); XeR8 = dble(Xe); YeR8 = dble(Ye)
 
         !the four segments of the cell
-        DXdc = Xd - Xc 
-        DXba = Xb - Xa
-        DYac = Ya - Yc 
-        DYbd = Yb - Yd
+        DXdc = XdR8 - XcR8 
+        DXba = XbR8 - XaR8
+        DYac = YaR8 - YcR8 
+        DYbd = YbR8 - YdR8
         
 
         SumAux = abs(DXdc + DXba + DYac + DYbd)
@@ -4819,17 +4822,17 @@ cd1 :   if ((Property == Temperature_           ) .OR.  (Property == Salinity_  
         if (abs(DYac)==0.) DYac = MinDx
         if (abs(DYbd)==0.) DYbd = MinDx
 
-        a1 = (Xd*Yc - Xc*Yd) / DXdc
-        b1 = (   Yd -    Yc) / DXdc
+        a1 = (XdR8*YcR8 - XcR8*YdR8) / DXdc
+        b1 = (   YdR8 -    YcR8) / DXdc
 
-        a2 = (Xb*Ya - Xa*Yb) / DXba
-        b2 = (   Yb -    Ya) / DXba
+        a2 = (XbR8*YaR8 - XaR8*YbR8) / DXba
+        b2 = (   YbR8 -    YaR8) / DXba
 
-        a3 = (Xc*Ya - Xa*Yc) / DYac
-        b3 = (   Xa -    Xc) / DYac
+        a3 = (XcR8*YaR8 - XaR8*YcR8) / DYac
+        b3 = (   XaR8 -    XcR8) / DYac
 
-        a4 = (Xd*Yb - Xb*Yd) / DYbd
-        b4 = (   Xb -    Xd) / DYbd
+        a4 = (XdR8*YbR8 - XbR8*YdR8) / DYbd
+        b4 = (   XbR8 -    XdR8) / DYbd
 
         !intersection points 
         if (b2/=b1) then
@@ -4839,16 +4842,16 @@ cd1 :   if ((Property == Temperature_           ) .OR.  (Property == Salinity_  
             Yf = a1 + b1*Xf
 
             !H point intersection with segment CA
-            DXef = Xe - Xf
+            DXef = XeR8 - Xf
 
             if (abs(DXef)==0.) DXef = MinDx
-            TgX = (Ye - Yf) / DXef
+            TgX = (YeR8 - Yf) / DXef
         else
             !H point intersection with segment CA
             TgX = b1
         endif
 
-        Yh  = (Ye + (a3 - Xe) * TgX) / (1. - b3*TgX)
+        Yh  = (YeR8 + (a3 - XeR8) * TgX) / (1. - b3*TgX)
         Xh  = a3 + b3 * Yh
 
 
@@ -4859,36 +4862,33 @@ cd1 :   if ((Property == Temperature_           ) .OR.  (Property == Salinity_  
             Xg = a3 + b3*Yg
 
             !i point intersection with segment CA
-            DYeg = Ye - Yg
+            DYeg = YeR8 - Yg
 
             if (abs(DYeg)==0.) DYeg = MinDx
-            TgY = (Xe - Xg) / DYeg
+            TgY = (XeR8 - Xg) / DYeg
         else
 
             !i point intersection with segment CA
             TgY = b3
         endif
 
-        Xi  = (Xe + (a1 - Ye) * TgY) / (1. - b1*TgY)
+        Xi  = (XeR8 + (a1 - YeR8) * TgY) / (1. - b1*TgY)
         Yi  =  a1 + b1 * Xi
 
 
-        Seg_ac = sqrt((Xa-Xc)*(Xa-Xc) + (Ya-Yc)*(Ya-Yc))
-        Seg_dc = sqrt((Xd-Xc)*(Xd-Xc) + (Yd-Yc)*(Yd-Yc))
-        Seg_hc = sqrt((Xh-Xc)*(Xh-Xc) + (Yh-Yc)*(Yh-Yc))
-        Seg_ic = sqrt((Xi-Xc)*(Xi-Xc) + (Yi-Yc)*(Yi-Yc))
-
+        Seg_ac = sqrt((XaR8-XcR8)*(XaR8-XcR8) + (YaR8-YcR8)*(YaR8-YcR8))
+        Seg_dc = sqrt((XdR8-XcR8)*(XdR8-XcR8) + (YdR8-YcR8)*(YdR8-YcR8))
+        Seg_hc = sqrt((Xh  -XcR8)*(Xh  -XcR8) + (Yh  -YcR8)*(Yh  -YcR8))
+        Seg_ic = sqrt((Xi  -XcR8)*(Xi  -XcR8) + (Yi  -YcR8)*(Yi  -YcR8))
 
         Xex = Seg_ic / Seg_dc
         Yey = Seg_hc / Seg_ac
-
-
-        
 
     end subroutine RelativePosition4VertPolygon
     !--------------------------------------------------------------------------
 
 
+    !--------------------------------------------------------------------------
 
 #ifdef _USE_MPI
 
