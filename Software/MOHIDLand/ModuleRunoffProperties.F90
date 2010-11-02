@@ -733,7 +733,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         !Reads the name of the file where to read restart options
         call ReadFileName ('RUNOFF_PROP_INI', Me%Files%InitialFile, "Runoff Initial File", STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunoffProperties - ERR01d'
+        !if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunoffProperties - ERR01d'
    
 
     end subroutine ReadFileNames

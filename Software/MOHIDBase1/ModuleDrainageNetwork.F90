@@ -88,7 +88,7 @@
 !   NAME                    : cohesive sediment 
 !   UNITS                   : mg/L 
 !   DESCRIPTION             : cohesive sediment
-!   INITIAL_VALUE           : 100.00
+!   DEFAULTVALUE            : 100.00
 !   MIN_VALUE               : 0.0
 !   ADVECTION_DIFUSION      : 1
 !       ADVECTION_SCHEME    : 1       !Upwind

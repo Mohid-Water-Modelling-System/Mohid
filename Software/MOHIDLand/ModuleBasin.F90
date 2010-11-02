@@ -404,7 +404,7 @@ Module ModuleBasin
         real(8), dimension(:,:), pointer            :: PrecipRate             => null()
         real(8), dimension(:,:), pointer            :: ThroughRate            => null()
         real(8), dimension(:,:), pointer            :: EVTPRate               => null()
-        real(8), dimension(:,:), pointer            :: EVTPRate2              => null()
+        !real(8), dimension(:,:), pointer            :: EVTPRate2              => null()
         real(8), dimension(:,:), pointer            :: PlantWaterStress       => null()
         real(8), dimension(:,:), pointer            :: AccInfiltration        => null()
         real(8), dimension(:,:), pointer            :: AccFlowProduction      => null()
@@ -2038,7 +2038,7 @@ i1:         if (CoordON) then
         Me%PrecipRate               = FillValueReal
         Me%ThroughRate              = FillValueReal
         Me%EVTPRate                 = FillValueReal
-        Me%EVTPRate2                = FillValueReal
+        !Me%EVTPRate2                = FillValueReal
         Me%AccInfiltration          = 0.0
         Me%AccFlowProduction        = 0.0
         Me%AccEVTP                  = 0.0
