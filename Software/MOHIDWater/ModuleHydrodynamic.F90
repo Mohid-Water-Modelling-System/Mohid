@@ -2181,21 +2181,69 @@ cd11:   if (Me%ComputeOptions%Recording) then
 
         call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL) 
         if (STAT_CALL /= SUCCESS_) stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR280'
+        
 
+        call GetGeometryAreas(Me%ObjGeometry,                 &
+                              AreaU = Me%External_Var%Area_U, &
+                              AreaV = Me%External_Var%Area_V, &
+                              STAT = STAT_CALL)
+
+        if (STAT_CALL /= SUCCESS_)                                          &
+            stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR290'
+        
+dok1:   do k = Me%WorkSize%KLB,Me%WorkSize%KUB        
+doj1:   do j = Me%WorkSize%JLB,Me%WorkSize%JUB
+doi1:   do i = Me%WorkSize%ILB,Me%WorkSize%IUB
+
+Cov1:       if (Me%External_Var%ComputeFaces3D_U(I, J, K) == Covered) then
+
+                    Me%WaterFluxes%X(i, j, k) = dble(Me%Velocity%Horizontal%U%New(i,j,k)) * &
+                                                dble(Me%External_Var%Area_U      (i,j,k))
+            endif Cov1
+            
+        enddo doi1
+        enddo doj1        
+        enddo dok1
+
+
+dok2:   do k = Me%WorkSize%KLB,Me%WorkSize%KUB        
+doj2:   do j = Me%WorkSize%JLB,Me%WorkSize%JUB
+doi2:   do i = Me%WorkSize%ILB,Me%WorkSize%IUB
+
+Cov2:       if ( Me%External_Var%ComputeFaces3D_V(I, J, K) == Covered) then
+
+                    Me%WaterFluxes%Y(i, j, k) = dble(Me%Velocity%Horizontal%V%New(i,j,k)) * &
+                                                dble(Me%External_Var%Area_V      (i,j,k))
+            endif Cov2
+            
+        enddo doi2
+        enddo doj2        
+        enddo dok2        
+        
         !Module - ModuleMap
         !3D Mapping Properties
         call UnGetMap(Me%ObjMap, Me%External_Var%ComputeFaces3D_U,                       &
                       STAT = STAT_CALL)
 
-        if (STAT_CALL /= SUCCESS_) stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR290'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR300'
 
         call UnGetMap(Me%ObjMap, Me%External_Var%ComputeFaces3D_V,                       &
                       STAT = STAT_CALL)
 
-        if (STAT_CALL /= SUCCESS_) stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR300'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR310'
 
         call UnGetMap(Me%ObjMap, Me%External_Var%OpenPoints3D, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR310'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR320'
+
+        call UnGetGeometry(Me%ObjGeometry, Me%External_Var%Area_U, STAT = STAT_CALL)
+
+        if (STAT_CALL /= SUCCESS_)                                          &
+            stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR330'
+
+        call UnGetGeometry(Me%ObjGeometry, Me%External_Var%Area_V, STAT = STAT_CALL)
+
+        if (STAT_CALL /= SUCCESS_)                                          &
+            stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR340'
 
 
     end subroutine ReadInitialImposedSolution 
@@ -21837,10 +21885,10 @@ cd3:            if (CorrectWaterLevel .and. WaterLevel_New(i, j) < (WaterLevelMi
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !                                                                                      !
-    ! This subroutine computes the maximum and the minimum water elevation of each cell    !                                                                                      !
+    ! This subroutine computes the maximum and the minimum water elevation of each cell    !
     ! Input : Mapping                                                                      !
-    ! OutPut: Water Level Max and Min values                                            !
-    ! Author: Guillaume Riflet (2010/9)                                                         !
+    ! OutPut: Water Level Max and Min values                                               !
+    ! Author: Guillaume Riflet (2010/9)                                                    !
     !                                                                                      !
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
@@ -21853,7 +21901,7 @@ cd3:            if (CorrectWaterLevel .and. WaterLevel_New(i, j) < (WaterLevelMi
 
         !Local------------------------------------------------------------------
 
-        integer                             :: i, j, STAT_CALL
+        integer                             :: i, j
         integer                             :: IUB, ILB, JUB, JLB, KUB
         integer, pointer, dimension (:,:,:) :: WaterPoints3D
 
