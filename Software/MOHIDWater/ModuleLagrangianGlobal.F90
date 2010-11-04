@@ -750,10 +750,11 @@ Module ModuleLagrangianGlobal
 
 
     type T_Online
-        real,  dimension(:,:), pointer          :: StartDate
-        real,  dimension(:),   pointer          :: X, Y 
-        real,  dimension(:),   pointer          :: WindCoef
-        character(Len=23)                       :: TimeStamp
+        real,    dimension(:,:), pointer        :: StartDate
+        real,    dimension(:),   pointer        :: X, Y 
+        real,    dimension(:),   pointer        :: WindCoef
+        integer                                 :: EmissionTemporal
+        real,    dimension(:),   pointer        :: Flow, Concentration, T90
     end type T_Online
 
     !Output
@@ -2107,8 +2108,8 @@ d2:     do em =1, Me%EulerModelNumber
         logical                                     :: BlockFound
         type (T_Origin), pointer                    :: NewOrigin, OriginalOrigin
         logical                                     :: FoundCloneOrigin, ClonesExist
-        integer                                     :: Nmax, no, NFirstExtraction
-        logical                                     :: FirstExtraction
+        integer                                     :: Nmax, no !, NFirstExtraction
+        !logical                                     :: FirstExtraction
 
         !Begin-----------------------------------------------------------------
 
@@ -2292,8 +2293,8 @@ d2:     do em =1, Me%EulerModelNumber
         ClonesExist      = .true.
 
         Nmax        = 1
-        FirstExtraction = .true. 
-        NFirstExtraction = 0
+!        FirstExtraction = .true. 
+        !NFirstExtraction = 0
 
 
         !Run module lagrangian online
@@ -2354,9 +2355,9 @@ DW:     do
 
 BF:         if (BlockFound) then 
 
-                if (FirstExtraction) then 
-                    NFirstExtraction = NFirstExtraction + 1
-                endif
+!                if (FirstExtraction) then 
+                    !NFirstExtraction = NFirstExtraction + 1
+!                endif
 
                 !Done for the COWAMA project. Allows not consider discharges define in land points without stopping the model  
                 if (.not.(Me%IgnoreON .and. CheckOriginInLandCell())) then
@@ -2392,7 +2393,7 @@ BF:         if (BlockFound) then
  
             else BF
             
-                FirstExtraction = .false. 
+!                FirstExtraction = .false. 
 
                 exit DW !No more blocks
 
@@ -2432,7 +2433,7 @@ BF:         if (BlockFound) then
 
         if (Me%RunOnline) then
 
-            call ChangeOriginOnline(Nmax, NFirstExtraction)
+            call ChangeOriginOnline(Nmax) ! , NFirstExtraction)
         endif
 
 !#endif
@@ -3348,9 +3349,16 @@ NDF:        if (.not. NewOrigin%Default) then
                 if (flag == 2) then
                     HaveOrigin                      = .true.
                 endif
+                
+                if (NewOrigin%EmissionSpatial == Box_) then
+                
+                    em = BestDomainForBox(NewOrigin)
 
+                else
 
-                em = Locate_ModelDomain(Position(1), Position(2), NoDomain) 
+                    em = Locate_ModelDomain(Position(1), Position(2), NoDomain) 
+                    
+                endif
 
 
                 if (NoDomain) then
@@ -4321,7 +4329,7 @@ SP:             if (NewProperty%SedimentPartition%ON) then
                          Default      = 1.645,                                  &
                          STAT         = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR1590'
-
+            
         endif
         
 
@@ -4981,47 +4989,20 @@ i6:                                         if (trim(KeywordClone) == trim(Keywo
 
         !Begin-----------------------------------------------------------------
 
-        !if ('TIME_STAMP'/= Online_St(1:10))  stop 'Lagrangian - ReadQueryString - ERR20'
-
-        !j = Scan(Online_St,'&')
-
-        !1 - Year, 2 - Month, 3 - Day, 4 - Hours, 5 - Minutes, 6 - seconds, 7 - miliseconds
-        !Me%Online%TimeStamp=Online_St(12:j-1)
-
-        call GetDataOnlineString ('TIME_STAMP', CharData = Me%Online%TimeStamp)
-
-        !Online_St=trim(Online_St(j+1:Len_Trim(Online_St)))
-
-        !if ('LAG_NORIGINS' /= Online_St(1:12)) stop 'Lagrangian - ReadQueryString - ERR30'
-
-        !j = Scan(Online_St,'&')
-        !Online_St2=Online_St(14:j-1)
-       
-        !read(Online_St2,*,IOSTAT=STAT_CALL) Nmax
-        !if (STAT_CALL /= SUCCESS_)  stop 'Lagrangian - ReadQueryString - ERR40'
-
         call GetDataOnlineString ('LAG_NORIGINS', IntData = Nmax)
 
+        call GetDataOnlineString ('EMISSION',     IntData = Me%Online%EmissionTemporal)
+
+
         allocate(Me%Online%X(1:Nmax), Me%Online%Y(1:Nmax))
-        allocate(Me%Online%StartDate(1:Nmax,6))
+        allocate(Me%Online%WindCoef(1:Nmax))
+        allocate(Me%Online%StartDate    (1:Nmax,6))
+        allocate(Me%Online%Flow         (1:Nmax  ))        
+        allocate(Me%Online%Concentration(1:Nmax  ))                
+        allocate(Me%Online%T90          (1:Nmax  ))                
 
+        
         allocate(AuxReal(1:2*Nmax))
-
-        !Online_St=trim(Online_St(j+1:Len_Trim(Online_St)))
-
-        !if ('LAG_XY'/= Online_St(1:6))  stop 'Lagrangian - ReadQueryString - ERR50'
-
-        !Online_St2=' '
-        !j = Scan(Online_St,'&')
-
-        !Online_St2=Online_St(8:j-1)
-
-        !do i=1,Len_Trim(Online_St2)
-        !    if (Online_St2(i:i) =='_') Online_St2(i:i) = ' '
-        !enddo
-
-        !read(Online_St2,*,IOSTAT=STAT_CALL) (Me%Online%X(i),Me%Online%Y(i),i=1,Nmax)
-        !if (STAT_CALL /= SUCCESS_)  stop 'Lagrangian - ReadQueryString - ERR60'
 
         call GetDataOnlineString ('LAG_XY', ArrayData = AuxReal)
 
@@ -5036,72 +5017,40 @@ i6:                                         if (trim(KeywordClone) == trim(Keywo
 
         call GetDataOnlineString ('LAG_START', ArrayData = AuxReal)
          
-        !Online_St=trim(Online_St(j+1:Len_Trim(Online_St)))
-
-        !if ('LAG_START'/= Online_St(1:9)) stop 'Lagrangian - ReadQueryString - ERR70'
-
-        !j = Scan(Online_St,'&')
-
-        !Online_St2=Online_St(11:j-1)
-
-        
         do i=1,Nmax
             !1 - Year, 2 - Month, 3 - Day, 4 - Hours, 5 - Minutes, 6 - seconds, 7 - miliseconds
-            !do k = 1, 6
-                !no = scan(Online_St2,'_') 
-
-                !if (no==0) no = len_trim(Online_St2)+1
-
-                !read(Online_St2(1:no-1),*,IOSTAT=STAT_CALL) Me%Online%StartDate(i,k)
-
-                !if (STAT_CALL /= SUCCESS_)  stop 'Lagrangian - ReadQueryString - ERR80'
-
-                !if (no/=0) Online_St2 = trim(Online_St2(no+1:len_trim(Online_St2)))
-            !enddo
             Me%Online%StartDate(i,1:6) = AuxReal(i*6-5:i*6)
         enddo
 
         deallocate(AuxReal)
+
+        call GetDataOnlineString ('WIND_COEF',     ArrayData = Me%Online%WindCoef     )
         
+        if (Me%Online%EmissionTemporal == Continuous_) then
 
-        !Online_St=trim(Online_St(j+1:Len_Trim(Online_St)))
+            call GetDataOnlineString ('FLOW',          ArrayData = Me%Online%Flow         )        
 
-        !if ('WIND_COEF'/= Online_St(1:9))  stop 'Lagrangian - ReadQueryString - ERR90'
+            call GetDataOnlineString ('CONCENTRATION', ArrayData = Me%Online%Concentration)        
 
-        !j = Scan(Online_St,'&')
+            call GetDataOnlineString ('T90',           ArrayData = Me%Online%T90          )                
 
-        !Online_St2=Online_St(11:j-1)
-
-        !do i=1,Len_Trim(Online_St2)
-        !    if (Online_St2(i:i) =='_') Online_St2(i:i) = ' '
-        !enddo
-
-        allocate(Me%Online%WindCoef(1:Nmax))
-
-        call GetDataOnlineString ('WIND_COEF', ArrayData = Me%Online%WindCoef)
-
-        !read(Online_St2,*,IOSTAT=STAT_CALL) (Me%Online%WindCoef(i),i=1,Nmax)
-
-        !if (STAT_CALL /= SUCCESS_)  stop 'Lagrangian - ReadQueryString - ERR100'
-
-        !Online_St=trim(Online_St(j+1:Len_Trim(Online_St)))
-
-        !Me%Online%ON            = .true. 
-
+        endif
+        
     end subroutine ReadQueryString
 
     !--------------------------------------------------------------------------
 
     !--------------------------------------------------------------------------
 
-    subroutine ChangeOriginOnline(Nmax, NFirstExtraction)
+    subroutine ChangeOriginOnline(Nmax) !, NFirstExtraction)
 
 
         !Arguments-------------------------------------------------------------
-        integer                                     :: Nmax, NFirstExtraction
+        integer                                     :: Nmax !, NFirstExtraction
 
         !Local-----------------------------------------------------------------
-        type (T_Origin), pointer                    :: NewOrigin
+        type (T_Origin),   pointer                  :: NewOrigin
+        type (T_Property), pointer                  :: CurrentProperty
         character(Len=PathLength)                   :: String
         integer                                     :: i, j, em
         logical                                     :: NoDomain
@@ -5111,12 +5060,10 @@ i6:                                         if (trim(KeywordClone) == trim(Keywo
 
 !        if (Me%Online%ON) then
 
-        Me%Files%TransientHDF =trim(Me%Files%TransientHDF)//'_'//trim(Me%Online%TimeStamp)//'.hdf'
-
         NewOrigin=> Me%FirstOrigin            
         
         do i=1, Nmax
-        do j=1, NFirstExtraction
+ !       do j=1, NFirstExtraction
 
             NewOrigin%Position%ModelID =  Locate_ModelDomain(Me%Online%X(i), Me%Online%Y(i), NoDomain) 
             if (NoDomain) then
@@ -5141,13 +5088,34 @@ i6:                                         if (trim(KeywordClone) == trim(Keywo
                                                    Me%Online%StartDate(i,5), Me%Online%StartDate(i,6))
 
 
-            NewOrigin%StopEmission = NewOrigin%StartEmission
+             NewOrigin%Movement%WindTransferCoef = Me%Online%WindCoef(i)
+           
+            NewOrigin%EmissionTemporal = Me%Online%EmissionTemporal
+            
+            if (NewOrigin%EmissionTemporal == Instantaneous_)                           &
+                NewOrigin%StopEmission = NewOrigin%StartEmission
 
-            NewOrigin%Movement%WindTransferCoef = Me%Online%WindCoef(i)
+            if (NewOrigin%EmissionTemporal == Continuous_) then
+                NewOrigin%Flow = Me%Online%Flow(i)
+                
+                CurrentProperty => NewOrigin%FirstProperty
+                do while (associated(CurrentProperty))
+                    if (CurrentProperty%ID == Fecal_Coliforms_) then
+                        
+                        CurrentProperty%Concentration = Me%Online%Concentration(i)
+                        CurrentProperty%T90           = Me%Online%T90          (i)
+                        exit
+                            
+                    endif
+                    
+                    CurrentProperty => CurrentProperty%Next
+                enddo
+            endif
 
-            NewOrigin => NewOrigin%Next
-
-        enddo
+!        enddo
+        
+        NewOrigin => NewOrigin%Next        
+        
         enddo
 
 !        endif
@@ -5155,6 +5123,10 @@ i6:                                         if (trim(KeywordClone) == trim(Keywo
         deallocate(Me%Online%X, Me%Online%Y)
         deallocate(Me%Online%StartDate     )
         deallocate(Me%Online%WindCoef      )
+        deallocate(Me%Online%Flow          )
+        deallocate(Me%Online%Concentration )
+        deallocate(Me%Online%T90           )
+
 
     end subroutine ChangeOriginOnline
 
@@ -5399,7 +5371,8 @@ d1:     do em =1, Me%EulerModelNumber
                                          Me%Files%ConstructData,                                &
                                          PropertyList,                                          &
                                          Extension   = "LMB",                                   &
-                                         ResultFileName = "MonitorBox_"//trim(adjustl(AuxChar)),&
+                                         ResultFileName = "MonitorBox_"//trim(adjustl(AuxChar)) &
+                                                            //"_"//trim(EulerModel%Name),       &
                                          STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'ConstructMonitoring - ModuleLagrangianGlobal - ERR02'
 
@@ -5809,6 +5782,33 @@ OldOrigin:      do while (associated(CurrentOldOrigin))
     end subroutine VerifyPropertyList
 
     !--------------------------------------------------------------------------
+    
+    integer function BestDomainForBox(CurrentOrigin) 
+
+        !Arguments-------------------------------------------------------------
+        type (T_Origin), pointer                    :: CurrentOrigin
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: STAT_CALL, BoxCell, em
+        logical                                     :: BoxInsideDomain
+            
+        BestDomainForBox = Me%EulerModelNumber
+
+        do em = 1, Me%EulerModelNumber
+
+            BoxInsideDomain = GetIfBoxInsideDomain(Me%EulerModel(em)%ObjBoxDif, CurrentOrigin%BoxNumber, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'BestDomainForBox - ModuleLagrangianGlobal - ERR10'
+
+            if (BoxInsideDomain) then
+                BestDomainForBox = em
+                exit
+            endif
+
+        enddo    
+        
+    end function BestDomainForBox         
+    
+    !--------------------------------------------------------------------------    
 
     subroutine EmissionBox (CurrentOrigin)
         
@@ -5832,20 +5832,7 @@ OldOrigin:      do while (associated(CurrentOldOrigin))
 
         !Begin------------------------------------------------------------------
 
-        emBox = Me%EulerModelNumber
-
-
-        do em = 1, Me%EulerModelNumber
-
-            BoxInsideDomain = GetIfBoxInsideDomain(Me%EulerModel(em)%ObjBoxDif, CurrentOrigin%BoxNumber, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'EmissionBox - ModuleLagrangianGlobal - ERR10'
-
-            if (BoxInsideDomain) then
-                emBox = em
-                exit
-            endif
-
-        enddo
+        emBox = BestDomainForBox(CurrentOrigin)
 
         EulerModel => Me%EulerModel(emBox)
 
@@ -7006,7 +6993,7 @@ em1:    do em =1, Me%EulerModelNumber
             if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5Output - ModuleLagrangianGlobal - ERR05'
 
 
-            if (.not. Me%RunOnline) then
+!            if (.not. Me%RunOnline) then
                 !Write the Horizontal Grid
                 call WriteHorizontalGrid(EulerModel%ObjHorizontalGrid, Me%ObjHDF5(em),  &
                                          STAT = STAT_CALL)
@@ -7022,24 +7009,25 @@ em1:    do em =1, Me%EulerModelNumber
 
 
                 !Sets limits for next write operations
-                call HDF5SetLimits   (Me%ObjHDF5(em), ILB, IUB, JLB, JUB, KLB, KUB,       &
+                call HDF5SetLimits   (Me%ObjHDF5(em), ILB, IUB, JLB, JUB, KLB, KUB,     &
                                       STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5Output - ModuleLagrangianGlobal - ERR17'
 
 
                 !Writes the Grid
-                call HDF5WriteData   (Me%ObjHDF5(em), "/Grid", "Bathymetry", "m",         &
-                                      Array2D = Bathymetry,                                      &
+                call HDF5WriteData   (Me%ObjHDF5(em), "/Grid", "Bathymetry", "m",       &
+                                      Array2D = Bathymetry,                             &
                                       STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5Output - ModuleLagrangianGlobal - ERR18'
 
-                call HDF5WriteData   (Me%ObjHDF5(em), "/Grid", "WaterPoints3D", "-",      &
-                                      Array3D = WaterPoints3D,                                   &
+                call HDF5WriteData   (Me%ObjHDF5(em), "/Grid", "WaterPoints3D", "-",    &
+                                      Array3D = WaterPoints3D,                          &
                                       STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5Output - ModuleLagrangianGlobal - ERR19'
 
                 !Flushes All pending HDF5 commands
-                call HDF5FlushMemory (Me%ObjHDF5(em), ErrorMessage = 'ConstructHDF5Output - ModuleLagrangianGlobal - ERR23', STAT = STAT_CALL)
+                call HDF5FlushMemory (Me%ObjHDF5(em), ErrorMessage =                    &
+                                    'ConstructHDF5Output - ModuleLagrangianGlobal - ERR23', STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5Output - ModuleLagrangianGlobal - ERR23'
 
                 !Ungets the Bathymetry
@@ -7050,7 +7038,8 @@ em1:    do em =1, Me%EulerModelNumber
                 call UnGetMap        (EulerModel%ObjMap, WaterPoints3D, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5Output - ModuleLagrangianGlobal - ERR25'
 
-            endif
+
+!            endif
 
         enddo em1
 
@@ -9197,12 +9186,13 @@ CurrOr: do while (associated(CurrentOrigin))
         integer                                     :: WS_ILB, WS_IUB, WS_JLB, WS_JUB
         logical                                     :: PositionCorrected
         real                                        :: TauAux
-        integer                                     :: ID_Group, emp, em, STAT_CALL
+        integer                                     :: ID_Group, emp, em, emX, emY, STAT_CALL
         real                                        :: Radius, Area
         real                                        :: VolOld, VolNew, dVol
         real                                        :: Modulus, WindX, WindY
         real                                        :: GradDWx, GradDWy, Aux
         logical                                     :: NoIntU, NoIntV, ComputeTrajectory, NotChangeDomain, HaveDomain, MovePartic
+        logical                                     :: SlipConditionX, SlipConditionY
 
 
 
@@ -9572,7 +9562,7 @@ d1:             do em = 1, Me%EulerModelNumber
 
                     if (HaveDomain .and. em == emp) then
                     
-                    !do not change domain 
+                        !do not change domain 
                         ComputeTrajectory   = .false.
                         NewPosition%ModelID = emp                 
                         exit
@@ -9649,6 +9639,10 @@ ie:             if  (Me%EulerModel(NewPosition%ModelID)%OpenPoints3D(NewI, NewJ,
 
                     !If it isnt a OpenPoint, reset TPercurso
                     CurrentPartic%TpercursoH = abs(null_real)
+                    
+!                    SlipCondition = .false. 
+                    
+!isc:                if (SlipCondition) then
 
 
                     AuxPosition = NewPosition
@@ -9660,49 +9654,100 @@ ie:             if  (Me%EulerModel(NewPosition%ModelID)%OpenPoints3D(NewI, NewJ,
                     AuxPosition%CartX  = OldPosition%CartX                    
                     AuxPosition%CoordX = OldPosition%CoordX                                        
                     AuxPosition%J      = OldPosition%J
-                    AuxPosition%CellJ  = OldPosition%CellJ                   
+                    AuxPosition%CellJ  = OldPosition%CellJ            
                     
-                    !Convert Coordinates
-                    call Convert_XY_CellIJ(Me%EulerModel(NewPosition%ModelID),AuxPosition, Referential = AlongGrid_)
+                    SlipConditionX = .false.
+                    
+d33:                do emX = 1, Me%EulerModelNumber
+                
+                        HaveDomain = GetXYInsideDomain(Me%EulerModel(emX)%ObjHorizontalGrid, &
+                                       AuxPosition%CoordX, AuxPosition%CoordY,              &
+                                       Referential= GridCoord_, STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'Locate_ModelDomain - ModuleLagrangianGlobal - ERR10'
 
-                    !Verifies new position
-                    NewI = AuxPosition%i
-                    NewJ = AuxPosition%j
+                        if (HaveDomain .and. NewPosition%ModelID == emX) then
+                            SlipConditionX = .true.
+                            exit
+                        endif
+                    enddo d33
                     
-ix:                 if  (Me%EulerModel(NewPosition%ModelID)%OpenPoints3D(NewI, NewJ, KUB) == OpenPoint) then
+scx:                if (SlipConditionX) then
                     
-                        NewPosition = AuxPosition
-                        
-                    else ix
-                    
-                        AuxPosition = NewPosition
-
-                       !Freaze the Y direction
-                        AuxPosition%Y      = OldPosition%Y
-                        AuxPosition%CartY  = OldPosition%CartY
-                        AuxPosition%CoordY = OldPosition%CoordY
-                        AuxPosition%I      = OldPosition%I
-                        AuxPosition%CellI  = OldPosition%CellI
-                        
                         !Convert Coordinates
                         call Convert_XY_CellIJ(Me%EulerModel(NewPosition%ModelID),AuxPosition, Referential = AlongGrid_)
 
                         !Verifies new position
                         NewI = AuxPosition%i
                         NewJ = AuxPosition%j
-
-iy:                     if  (Me%EulerModel(NewPosition%ModelID)%OpenPoints3D(NewI, NewJ, KUB) == OpenPoint) then
+                        
+ix:                     if  (Me%EulerModel(NewPosition%ModelID)%OpenPoints3D(NewI, NewJ, KUB) == OpenPoint) then
                         
                             NewPosition = AuxPosition
+                            
+                        else ix
                         
-                        else iy
+                            AuxPosition = NewPosition
 
-                            !If a particle doesnt move the freazed state is ON
-                            CurrentPartic%Freazed    = ON
-                          
-                        endif iy
+                           !Freaze the Y direction
+                            AuxPosition%Y      = OldPosition%Y
+                            AuxPosition%CartY  = OldPosition%CartY
+                            AuxPosition%CoordY = OldPosition%CoordY
+                            AuxPosition%I      = OldPosition%I
+                            AuxPosition%CellI  = OldPosition%CellI
+                            
+                            SlipConditionY = .false.
+                            
+d34:                        do emY = 1, Me%EulerModelNumber
                         
-                    endif ix
+                                HaveDomain = GetXYInsideDomain(Me%EulerModel(emY)%ObjHorizontalGrid, &
+                                               AuxPosition%CoordX, AuxPosition%CoordY,              &
+                                               Referential= GridCoord_, STAT = STAT_CALL)
+                                if (STAT_CALL /= SUCCESS_) stop 'Locate_ModelDomain - ModuleLagrangianGlobal - ERR10'
+
+                                if (HaveDomain .and. NewPosition%ModelID == emY) then
+                                    SlipConditionY = .true.
+                                    exit
+                                endif
+                                
+                            enddo d34
+                            
+scy:                        if (SlipConditionY) then
+                            
+                                !Convert Coordinates
+                                call Convert_XY_CellIJ(Me%EulerModel(NewPosition%ModelID),AuxPosition, Referential = AlongGrid_)
+
+                                !Verifies new position
+                                NewI = AuxPosition%i
+                                NewJ = AuxPosition%j
+
+iy:                             if  (Me%EulerModel(NewPosition%ModelID)%OpenPoints3D(NewI, NewJ, KUB) == OpenPoint) then
+                                
+                                    NewPosition = AuxPosition
+                                
+                                else iy
+
+                                    !If a particle doesnt move the freazed state is ON
+                                    CurrentPartic%Freazed    = ON
+                                  
+                                endif iy
+                                
+                            else scy
+                                !If a particle doesnt move the freazed state is ON
+                                CurrentPartic%Freazed    = ON
+                            endif scy
+                            
+                        endif ix
+
+                    else scx
+                        !If a particle doesnt move the freazed state is ON
+                        CurrentPartic%Freazed    = ON
+                    endif scx
+                                    
+!                else isc
+                
+                    !If a particle doesnt move the freazed state is ON
+!                    CurrentPartic%Freazed    = ON
+!                endif isc    
 
                 !Moves it 
                 
@@ -12287,14 +12332,15 @@ d5:     do em =1, Me%EulerModelNumber
                 if (STAT_CALL /= SUCCESS_) stop 'MonitorParticle - ModuleLagrangianGlobal - ERR02'
             enddo
 
-            deallocate (AuxReal)
-
 
             !Unget The Boxes
             call UngetBoxDif(Me%EulerModel(em)%ObjMonBox, Me%EulerModel(em)%Monitor%Boxes, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'MonitorParticle - ModuleLagrangianGlobal - ERR03'
 
         enddo d5
+        
+        deallocate (AuxReal)
+        
 
     end subroutine MonitorParticle
     
@@ -13165,7 +13211,7 @@ d1:             do while (associated(CurrentOrigin))
                 enddo d1
 
 
-i0:             if (Me%RunOnline .and. em == emMax) then 
+i0:             if (Me%RunOnline .and. em == emMax .and. Me%Online%EmissionTemporal == Instantaneous_) then 
 
                     if (nP == 0) then
                         call DummyParticleStartDate(em)
@@ -13300,11 +13346,12 @@ i1:             if (nP>0) then
                                                  Average = AverageY, Radius = RadiusOfInfluence,              &
                                                  OutputNumber = OutPutNumber, STAT = STAT_CALL)
                             if (STAT_CALL /= SUCCESS_) stop 'ParticleOutput - ModuleLagrangianGlobal - ERR100'
+                            
 
                             if (Me%OutPut%OriginEnvelope) then
                                 call WriteOriginEnvelope(CurrentOrigin, Matrix1DX, Matrix1DY, &
                                                           "X Pos", "Y Pos",  "m", OutputNumber, em)  
-                            endif
+                            endif                            
 
                         endif
 
@@ -13367,8 +13414,7 @@ i1:             if (nP>0) then
                                 call WriteOriginEnvelope(CurrentOrigin, Matrix1DX, Matrix1DY, &
                                                           "Longitude", "Latitude", "�", OutputNumber, em)  
                             endif
-
-                
+                            
                         endif
  
                         deallocate   (Matrix1DX)
@@ -14439,7 +14485,7 @@ CurrOr:     do while (associated(CurrentOrigin))
             allocate   (Matrix1DY(1))
 
             call HDF5SetLimits  (Me%ObjHDF5(em), 1, 1, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'DummyParticleStartDate - ModuleLagrangianGlobal - ERR70'
+            if (STAT_CALL /= SUCCESS_) stop 'DummyParticleStartDate - ModuleLagrangianGlobal - ERR30'
 
 
           !GeoGraphic Position
@@ -14460,7 +14506,7 @@ CurrOr:     do while (associated(CurrentOrigin))
 
 
             call HDF5SetLimits  (Me%ObjHDF5(em), 1, 1, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'DummyParticleStartDate - ModuleLagrangianGlobal - ERR80'
+            if (STAT_CALL /= SUCCESS_) stop 'DummyParticleStartDate - ModuleLagrangianGlobal - ERR40'
 
 
             !HDF 5
@@ -14468,14 +14514,14 @@ CurrOr:     do while (associated(CurrentOrigin))
                                 "Longitude",  "�", Array1D = Matrix1DX,                 &
                                  Average = AverageX, Radius = RadiusOfInfluence,        &
                                  OutputNumber = Me%OutPut%NextOutPut, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'DummyParticleStartDate - ModuleLagrangianGlobal - ERR90'
+            if (STAT_CALL /= SUCCESS_) stop 'DummyParticleStartDate - ModuleLagrangianGlobal - ERR50'
 
             !HDF 5
             call HDF5WriteData  (Me%ObjHDF5(em), "/Results/"//trim(CurrentOrigin%Name)//"/Latitude", &
                                 "Latitude",  "�", Array1D = Matrix1DY,                  &
                                  Average = AverageY, Radius = RadiusOfInfluence,        &
                                  OutputNumber = Me%OutPut%NextOutPut, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'DummyParticleStartDate - ModuleLagrangianGlobal - ERR100'
+            if (STAT_CALL /= SUCCESS_) stop 'DummyParticleStartDate - ModuleLagrangianGlobal - ERR60'
 
             if (Me%OutPut%OriginEnvelope) then
                 call WriteOriginEnvelope(CurrentOrigin, Matrix1DX, Matrix1DY,           &
@@ -14483,6 +14529,26 @@ CurrOr:     do while (associated(CurrentOrigin))
             endif
 
 
+            if (CurrentOrigin%AveragePositionON) then
+            
+                call HDF5SetLimits  (Me%ObjHDF5(em), 1, 1, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'DummyParticleStartDate - ModuleLagrangianGlobal - ERR70'
+
+                Matrix1DX(1) = AverageX
+                Matrix1DY(1) = AverageY
+                
+                !HDF 5
+                call HDF5WriteData  (Me%ObjHDF5(em), "/Results/"//trim(CurrentOrigin%Name)//"/Longitude average", &
+                                    "Longitude",  "�", Array1D = Matrix1DX,                                       &
+                                     OutputNumber = Me%OutPut%NextOutPut, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'DummyParticleStartDate - ModuleLagrangianGlobal - ERR80'
+                !HDF 5
+                call HDF5WriteData  (Me%ObjHDF5(em), "/Results/"//trim(CurrentOrigin%Name)//"/Latitude average", &
+                                    "Latitude",  "�", Array1D = Matrix1DY,                                       &
+                                     OutputNumber = Me%OutPut%NextOutPut, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'WriteRunOnline - ModuleLagrangianGlobal - ERR90'
+            
+             endif                            
 
             deallocate   (Matrix1DX)
             deallocate   (Matrix1DY)
@@ -14491,14 +14557,14 @@ CurrOr:     do while (associated(CurrentOrigin))
             Matrix1D(:) = 0.
 
             call HDF5SetLimits  (Me%ObjHDF5(em), 1, 1, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'DummyParticleStartDate - ModuleLagrangianGlobal - ERR110'
+            if (STAT_CALL /= SUCCESS_) stop 'DummyParticleStartDate - ModuleLagrangianGlobal - ERR100'
 
 
          !HDF 5
             call HDF5WriteData  (Me%ObjHDF5(em), "/Results/"//trim(CurrentOrigin%Name)//"/Z Pos", &
                                 "Z Position",  "m", Array1D = Matrix1D, OutputNumber = Me%OutPut%NextOutPut,    &
                                  STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'DummyParticleStartDate - ModuleLagrangianGlobal - ERR120'
+            if (STAT_CALL /= SUCCESS_) stop 'DummyParticleStartDate - ModuleLagrangianGlobal - ERR110'
 
             deallocate  (Matrix1D)
 
@@ -14509,7 +14575,7 @@ CurrOr:     do while (associated(CurrentOrigin))
 
         !Flushes All pending HDF5 commands
         call HDF5FlushMemory (Me%ObjHDF5(em), ErrorMessage =  'DummyParticleStartDate - ModuleLagrangianGlobal - ERR130', STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'DummyParticleStartDate - ModuleLagrangianGlobal - ERR130'
+        if (STAT_CALL /= SUCCESS_) stop 'DummyParticleStartDate - ModuleLagrangianGlobal - ERR120'
 
 
 
@@ -14527,7 +14593,7 @@ CurrOr:     do while (associated(CurrentOrigin))
         !Local-----------------------------------------------------------------
         type (T_Origin), pointer                    :: CurrentOrigin
         type (T_Partic), pointer                    :: CurrentPartic
-        real(8), dimension(:), pointer              :: Matrix1D, Matrix1DX, Matrix1DY
+        real(8), dimension(:), pointer              :: Matrix1D, Matrix1DX, Matrix1DY, MX1D, MY1D
         integer                                     :: STAT_CALL
         real, dimension(6), target                  :: AuxTime
         real, dimension(:), pointer                 :: TimePtr
@@ -14622,6 +14688,37 @@ CurrOr:     do while (associated(CurrentOrigin))
                         call WriteOriginEnvelope(CurrentOrigin, Matrix1DX, Matrix1DY, &
                                                   "Longitude", "Latitude", "�", Me%OutPut%NextOutPut, em)  
                     endif
+                    
+                    if (CurrentOrigin%AveragePositionON) then
+                    
+                        allocate   (MX1D(1))
+                        allocate   (MY1D(1))                                
+                    
+                        MX1D(1) = AverageX
+                        MY1D(1) = AverageY
+                        
+                        call HDF5SetLimits  (Me%ObjHDF5(em), 1, 1, STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'WriteRunOnline - ModuleLagrangianGlobal - ERR70'
+                        
+                        !HDF 5
+                        call HDF5WriteData  (Me%ObjHDF5(em), "/Results/"//trim(CurrentOrigin%Name)//"/Longitude average", &
+                                            "Longitude",  "�", Array1D = MX1D,                          &
+                                             OutputNumber = Me%OutPut%NextOutPut, STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'WriteRunOnline - ModuleLagrangianGlobal - ERR80'
+                        !HDF 5
+                        call HDF5WriteData  (Me%ObjHDF5(em), "/Results/"//trim(CurrentOrigin%Name)//"/Latitude average", &
+                                            "Latitude",  "�", Array1D = MY1D,                           &
+                                             OutputNumber = Me%OutPut%NextOutPut, STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'WriteRunOnline - ModuleLagrangianGlobal - ERR90'
+                    
+                        call HDF5SetLimits  (Me%ObjHDF5(em), 1, CurrentOrigin%nParticle, STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'WriteRunOnline - ModuleLagrangianGlobal - ERR100'
+                        
+                        deallocate   (MX1D)
+                        deallocate   (MY1D)
+
+                    endif                            
+                    
 
         
                 endif
@@ -14706,6 +14803,8 @@ CurrOr:     do while (associated(CurrentOrigin))
 
             NodeX(:) = Matrix1DX(:) - AverageX
             NodeY(:) = Matrix1DY(:) - AverageY
+            
+            ObjTriangulation = 0
 
             call ConstructTriangulation(ObjTriangulation,                              &
                                         NumberOfNodes = NumberOfNodes, NodeX = NodeX,  &
@@ -14994,7 +15093,7 @@ d1:     do em = 1, Me%EulerModelNumber
                 Me%EulerModel(em)%Lag2Euler%GridMaxTracer (:,:,:,:,:) = 0.
             endif
 
-dg:     do ig = 1, Me%NGroups 
+dg:         do ig = 1, Me%NGroups 
 
             !Integrates the Volume and the Mass in each GridCell
             CurrentOrigin => Me%FirstOrigin
@@ -15033,8 +15132,7 @@ dg:     do ig = 1, Me%NGroups
                     endif
 
 
-
-    cd1:            if (.not. CurrentPartic%Deposited) then
+cd1:                if (.not. CurrentPartic%Deposited) then
 
 
                         if (em == CurrentPartic%Position%ModelID) then
@@ -15047,93 +15145,97 @@ dg:     do ig = 1, Me%NGroups
 
                         Me%EulerModel(em)%Lag2Euler%GridTracerNumber(i, j, k, ig) = &
                             Me%EulerModel(em)%Lag2Euler%GridTracerNumber(i, j, k, ig) + 1
+                            
+cd0:                    if (nProp > 0) then
 
-                        if (Me%OutPut%ConcMaxTracer) then
+                            if (Me%OutPut%ConcMaxTracer) then
 
-                            !In this grid is stored the maximum concentration of all tracers present in the cell
-                            Me%EulerModel(em)%Lag2Euler%GridMaxTracer(i, j, k, :, ig) = &
-                                max(Me%EulerModel(em)%Lag2Euler%GridMaxTracer(i, j, k, :, ig), &
-                                CurrentPartic%Concentration(:))
+                                !In this grid is stored the maximum concentration of all tracers present in the cell
+                                Me%EulerModel(em)%Lag2Euler%GridMaxTracer(i, j, k, :, ig) = &
+                                    max(Me%EulerModel(em)%Lag2Euler%GridMaxTracer(i, j, k, :, ig), &
+                                    CurrentPartic%Concentration(:))
 
-                        endif
+                            endif
 
-                        !Particle fits inside Grid Cell?    
-    cd2:                if (CurrentPartic%Geometry%Volume <= Me%EulerModel(em)%VolumeZ(i, j, k)) then
+                            !Particle fits inside Grid Cell?    
+        cd2:                if (CurrentPartic%Geometry%Volume <= Me%EulerModel(em)%VolumeZ(i, j, k)) then
 
-                            Me%EulerModel(em)%Lag2Euler%GridMass  (i, j, k, :, ig) = &
-                                Me%EulerModel(em)%Lag2Euler%GridMass  (i, j, k, :, ig) + CurrentPartic%Mass(:)
-                            Me%EulerModel(em)%Lag2Euler%GridVolume (i, j, k, ig)   = &
-                                Me%EulerModel(em)%Lag2Euler%GridVolume(i, j, k, ig)    + CurrentPartic%Geometry%Volume
+                                Me%EulerModel(em)%Lag2Euler%GridMass  (i, j, k, :, ig) = &
+                                    Me%EulerModel(em)%Lag2Euler%GridMass  (i, j, k, :, ig) + CurrentPartic%Mass(:)
+                                Me%EulerModel(em)%Lag2Euler%GridVolume (i, j, k, ig)   = &
+                                    Me%EulerModel(em)%Lag2Euler%GridVolume(i, j, k, ig)    + CurrentPartic%Geometry%Volume
 
-                        else  cd2
+                            else  cd2
 
-                            WS_ILB = Me%EulerModel(em)%WorkSize%ILB
-                            WS_IUB = Me%EulerModel(em)%WorkSize%IUB
-                            WS_JLB = Me%EulerModel(em)%WorkSize%JLB
-                            WS_JUB = Me%EulerModel(em)%WorkSize%JUB
-                            WS_KLB = Me%EulerModel(em)%WorkSize%KLB
-                            WS_KUB = Me%EulerModel(em)%WorkSize%KUB
+                                WS_ILB = Me%EulerModel(em)%WorkSize%ILB
+                                WS_IUB = Me%EulerModel(em)%WorkSize%IUB
+                                WS_JLB = Me%EulerModel(em)%WorkSize%JLB
+                                WS_JUB = Me%EulerModel(em)%WorkSize%JUB
+                                WS_KLB = Me%EulerModel(em)%WorkSize%KLB
+                                WS_KUB = Me%EulerModel(em)%WorkSize%KUB
 
-                            VolumeTotal = Me%EulerModel(em)%VolumeZ(i, j, k)
-                            Delta = 0
-                            do while (VolumeTotal < CurrentPartic%Geometry%Volume)
+                                VolumeTotal = Me%EulerModel(em)%VolumeZ(i, j, k)
+                                Delta = 0
+                                do while (VolumeTotal < CurrentPartic%Geometry%Volume)
 
-                                Delta = Delta + 1
+                                    Delta = Delta + 1
 
-                                iInf  = max (i-Delta, WS_ILB)
-                                jInf  = max (j-Delta, WS_JLB)
-                                kInf  = max (k-Delta, WS_KLB)
+                                    iInf  = max (i-Delta, WS_ILB)
+                                    jInf  = max (j-Delta, WS_JLB)
+                                    kInf  = max (k-Delta, WS_KLB)
 
-                                iSup  = min (i+Delta, WS_IUB)
-                                jSup  = min (j+Delta, WS_JUB)
-                                kSup  = min (k+Delta, WS_KUB)
+                                    iSup  = min (i+Delta, WS_IUB)
+                                    jSup  = min (j+Delta, WS_JUB)
+                                    kSup  = min (k+Delta, WS_KUB)
 
-                                if (iInf == WS_ILB .and. iSup == WS_IUB .and. &
-                                    jInf == WS_JLB .and. jSup == WS_JUB .and. &
-                                    kInf == WS_KLB .and. kSup == WS_KUB) then
-                    
-                                    write(*, *)'Particle bigger then domain'
-                                    stop       'FillGridConcentration - ModuleLagrangianGlobal - ERR30'
+                                    if (iInf == WS_ILB .and. iSup == WS_IUB .and. &
+                                        jInf == WS_JLB .and. jSup == WS_JUB .and. &
+                                        kInf == WS_KLB .and. kSup == WS_KUB) then
+                        
+                                        write(*, *)'Particle bigger then domain'
+                                        stop       'FillGridConcentration - ModuleLagrangianGlobal - ERR30'
 
-                                endif
+                                    endif
 
-                                VolumeTotal = 0.
+                                    VolumeTotal = 0.
+                                    do iV = iInf, iSup
+                                    do jV = jInf, jSup
+                                    do kV = kinf, kSup
+                                        if (Me%EulerModel(em)%OpenPoints3D(iV, jV, kV) == OpenPoint) then
+                                            VolumeTotal = VolumeTotal +                              &
+                                                          Me%EulerModel(em)%VolumeZ(iV, jV, kV)
+                                        endif
+                                    enddo
+                                    enddo
+                                    enddo
+
+                                enddo
+                
                                 do iV = iInf, iSup
                                 do jV = jInf, jSup
                                 do kV = kinf, kSup
                                     if (Me%EulerModel(em)%OpenPoints3D(iV, jV, kV) == OpenPoint) then
-                                        VolumeTotal = VolumeTotal +                              &
-                                                      Me%EulerModel(em)%VolumeZ(iV, jV, kV)
+                        
+                                        Coef = Me%EulerModel(em)%VolumeZ(iV, jV, kV) / VolumeTotal
+                        
+                                        Me%EulerModel(em)%Lag2Euler%GridMass  (iV, jV, kV, :, ig) = &
+                                            Me%EulerModel(em)%Lag2Euler%GridMass  (iV, jV, kV, :, ig) + &
+                                            CurrentPartic%Mass(:) * Coef
+
+                                        Me%EulerModel(em)%Lag2Euler%GridVolume(iV, jV, kV, ig) = &
+                                            Me%EulerModel(em)%Lag2Euler%GridVolume(iV, jV, kV, ig)    + &
+                                            CurrentPartic%Geometry%Volume * Coef
+
                                     endif
                                 enddo
                                 enddo
                                 enddo
+                
+                            endif cd2
+                        
+                        endif cd0
 
-                            enddo
-            
-                            do iV = iInf, iSup
-                            do jV = jInf, jSup
-                            do kV = kinf, kSup
-                                if (Me%EulerModel(em)%OpenPoints3D(iV, jV, kV) == OpenPoint) then
-                    
-                                    Coef = Me%EulerModel(em)%VolumeZ(iV, jV, kV) / VolumeTotal
-                    
-                                    Me%EulerModel(em)%Lag2Euler%GridMass  (iV, jV, kV, :, ig) = &
-                                        Me%EulerModel(em)%Lag2Euler%GridMass  (iV, jV, kV, :, ig) + &
-                                        CurrentPartic%Mass(:) * Coef
-
-                                    Me%EulerModel(em)%Lag2Euler%GridVolume(iV, jV, kV, ig) = &
-                                        Me%EulerModel(em)%Lag2Euler%GridVolume(iV, jV, kV, ig)    + &
-                                        CurrentPartic%Geometry%Volume * Coef
-
-                                endif
-                            enddo
-                            enddo
-                            enddo
-            
-                        endif cd2
-
-                    else  cd1 ! The particle is deposited in the bottom
+                    else if (nProp > 0) then cd1    ! The particle is deposited in the bottom
                     !In this case no test is made to verify if the the particle occupies more then one cell
                     !to maintain the algothim simple.
 
@@ -15141,6 +15243,7 @@ dg:     do ig = 1, Me%NGroups
                         Me%EulerModel(em)%Lag2Euler%GridBottomMass (i, j, :, ig) =  &
                             Me%EulerModel(em)%Lag2Euler%GridBottomMass (i, j, :, ig) + CurrentPartic%Mass(:)
 
+                   
                     endif cd1
 
                     CurrentPartic => CurrentPartic%Next
@@ -16449,11 +16552,17 @@ CurrOr: do while (associated(CurrentOrigin))
                     write (UnitID) CurrentPartic%W
                 endif
 
-                              
-                write (UnitID) CurrentPartic%Concentration
-                write (UnitID) CurrentPartic%Mass
+                if (associated(CurrentPartic%Concentration)) then
+                    write (UnitID) CurrentPartic%Concentration
+                endif
+                
+                if (associated(CurrentPartic%Mass)) then
+                    write (UnitID) CurrentPartic%Mass
+                endif
 
                 write (UnitID) CurrentPartic%TpercursoH
+                !To maintain old versions of the fin results valid
+                write (UnitID) CurrentPartic%TpercursoH                
                 write (UnitID) CurrentPartic%TpercursoZ
                 write (UnitID) CurrentPartic%UD_old
                 write (UnitID) CurrentPartic%VD_old
@@ -16617,11 +16726,18 @@ d2:         do nP = 1, nParticle
                 if (NewOrigin%State%FarFieldBuoyancy) then
                     read (UnitID) NewParticle%W
                 endif
+                
+                if (associated(NewParticle%Concentration)) then
+                    read (UnitID) NewParticle%Concentration
+                endif                
 
-                read (UnitID) NewParticle%Concentration
-                read (UnitID) NewParticle%Mass
+                if (associated(NewParticle%Mass)) then
+                    read (UnitID) NewParticle%Mass
+                endif      
 
                 read (UnitID) NewParticle%TpercursoH
+                !To maintain old versions of the fin results valid
+                read (UnitID) NewParticle%TpercursoH                
                 read (UnitID) NewParticle%TpercursoZ
                 read (UnitID) NewParticle%UD_old
                 read (UnitID) NewParticle%VD_old
