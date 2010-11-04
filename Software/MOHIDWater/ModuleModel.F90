@@ -1060,10 +1060,15 @@ il:         if (Me%RunLagrangian) then
         
         else if (Me%OnLineType == ReadCommandLine_) then
 
-            !OnlineString="%TIME_STAMP=1207768344921%LAG_NORIGINS=1"
-            !OnlineString=trim(OnlineString)//"%LAG_XY=-10.113879003558718_38.95106761565837"
-            !OnlineString=trim(OnlineString)//"%LAG_START=2008_2_2_0_00_00%WIND_COEF=0%"
-            !OnlineString=trim(OnlineString)//"START=2008_2_2_0_0_0%END=2008_2_4_0_0_0%"
+!            OnlineString="%LAG_NORIGINS=1%EMISSION=1%LAG_XY=-3.7722_36.73037%LAG_START=2009_06_07_18_00_00%"
+!            OnlineString=trim(OnlineString)//"WIND_COEF=0.00%FLOW=200.0%CONCENTRATION=1.e7%T90=43200.%"
+!            OnlineString=trim(OnlineString)//"START=2009_06_07_04_00_00%END=2009_06_08_04_00_00%"
+
+!            OnlineString="%LAG_NORIGINS=1%EMISSION=1%LAG_XY=-9.285285_38.69494%LAG_START=2010_09_27_10_00_00%"
+!            OnlineString=trim(OnlineString)//"WIND_COEF=0.00%FLOW=1.0%CONCENTRATION=1.e7%T90=10800.%START=2010_09_27_10_00_00%END=2010_09_27_13_00_00%"
+
+
+            
             call GETARG (1, OnlineString, STAT_CALL)
             write(*,*) 'On line String=',trim(OnlineString)
             if (STAT_CALL == -1) stop 'ConstructModel - ModuleModel - ERR18'
