@@ -9,7 +9,7 @@ namespace MOHID.OpenMI.MohidWater.Wrapper
     public class MohidWaterEngineDLLAccess
     {
         //TODO: Check how to set this path during runtime ou by compiler reference...
-        private const string dllPath = @"D:\Software\Mohid\MOHID.Numerics\Solutions\VisualStudio2008_IntelFortran11\MOHIDNumerics\MohidWaterEngine\Debug OpenMI\MohidWaterEngine.dll";
+        private const string dllPath = @"D:\Software\Mohid\MOHID.Numerics\Solutions\VisualStudio2008_IntelFortran11\MOHIDNumerics\MohidWaterEngine\Release OpenMI\MohidWaterEngine.dll";
 
         [DllImport(dllPath, EntryPoint = "INITIALIZE", SetLastError = true, ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
         public static extern bool Initialize(string filePath, uint length);
@@ -38,6 +38,9 @@ namespace MOHID.OpenMI.MohidWater.Wrapper
         [DllImport(dllPath,EntryPoint = "GETMESSAGE",SetLastError = true,ExactSpelling = true,CallingConvention = CallingConvention.Cdecl)]
         public static extern int GetMessage(ref int messageID, [MarshalAs(UnmanagedType.LPStr)] StringBuilder id, uint length);
 
+        [DllImport(dllPath, EntryPoint = "GETPROPERTYNAMEBYID", SetLastError = true, ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+        public static extern bool GetPropertyNameByID(ref int propertyID, [MarshalAs(UnmanagedType.LPStr)] StringBuilder id, uint length);
+
         #region Module Discharges
 
         [DllImport(dllPath, EntryPoint = "GETNUMBEROFDISCHARGES", SetLastError = true, ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
@@ -57,6 +60,15 @@ namespace MOHID.OpenMI.MohidWater.Wrapper
 
         [DllImport(dllPath, EntryPoint = "SETDISCHARGEFLOW", SetLastError = true, ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
         public static extern bool SetDischargeFlow(ref int instanceID, ref int dischargeID, ref double flow);
+
+        [DllImport(dllPath, EntryPoint = "GETNUMBEROFDISCHARGEPROPERTIES", SetLastError = true, ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+        public static extern int GetNumberOfDischargeProperties(ref int instanceID, ref int dischargeID);
+
+        [DllImport(dllPath, EntryPoint = "GETDISCHARGEPROPERTYID", SetLastError = true, ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+        public static extern int GetDischargePropertyID(ref int instanceID, ref int dischargeID, ref int idx);
+
+        [DllImport(dllPath, EntryPoint = "SETDISCHARGECONCENTRATION", SetLastError = true, ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+        public static extern bool SetDischargeConcentration(ref int instanceID, ref int dischargeID, ref int propertyID, ref double concentration);
 
         #endregion
 
@@ -83,6 +95,16 @@ namespace MOHID.OpenMI.MohidWater.Wrapper
 
         [DllImport(dllPath, EntryPoint = "GETWATERLEVELATPOINT", SetLastError = true, ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
         public static extern double GetWaterLevelAtPoint(ref int hydrodynamicInstanceID, ref int i, ref int j);
+
+        [DllImport(dllPath, EntryPoint = "GETNUMBEROFPROPERTIES", SetLastError = true, ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+        public static extern int GetNumberOfProperties(ref int waterPropertiesID);
+
+        [DllImport(dllPath, EntryPoint = "GETWATERPROPERTIESPROPERTYID", SetLastError = true, ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+        public static extern int GetWaterPropertiesPropertyID(ref int waterPropertiesID, ref int idx);
+
+        [DllImport(dllPath, EntryPoint = "GETCONCENTRATIONATPOINT", SetLastError = true, ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+        public static extern double GetConcentrationAtPoint(ref int waterPropertiesID, ref int propertyID, ref int i, ref int j);
+
 
         #endregion
 

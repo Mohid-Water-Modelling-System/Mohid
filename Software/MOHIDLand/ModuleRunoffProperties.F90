@@ -611,6 +611,12 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             if (Me%CheckGlobalMass) then
                 call CalculateTotalStoredMass
             endif
+            
+            !First Output
+            if (Me%Output%HDF_ON) then
+                call OutPut_HDF
+            endif
+
 
             !Returns ID
             ObjRunoffPropertiesID          = Me%InstanceID

@@ -340,7 +340,7 @@ Module ModuleWaterProperties
     public  :: SetModelOverlapWater
 #endif OVERLAP
 
-    private ::      Search_Property  
+    private ::          Search_Property  
     private ::      Search_PropertyFather
     
     public  :: UngetWaterProperties
@@ -18523,6 +18523,119 @@ cd1:    if (WaterPropertiesID > 0) then
         if (.not. associated(ObjWaterPropertiesFather)) stop 'ModuleWaterProperties - LocateObjFather - ERR01'
 
     end subroutine LocateObjFather
+    
+    
+#ifdef _OPENMI_
+
+        !--------------------------------------------------------------------------
+    
+   
+    !DEC$ IFDEFINED (VF66)
+    !dec$ attributes dllexport::GetNumberOfProperties
+    !DEC$ ELSE
+    !dec$ attributes dllexport,alias:"_GETNUMBEROFPROPERTIES"::GetNumberOfProperties
+    !DEC$ ENDIF
+    !Return the number of Error Messages
+    integer function GetNumberOfProperties(WaterPropertiesID)
+    
+        !Arguments-------------------------------------------------------------
+        integer                                     :: WaterPropertiesID
+        
+        !Local-----------------------------------------------------------------
+        integer                                     :: STAT_CALL
+        integer                                     :: ready_         
+
+        call Ready(WaterPropertiesID, ready_)    
+        
+        if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
+            GetNumberOfProperties = Me%PropertiesNumber
+        else 
+            GetNumberOfProperties = -99
+        end if
+           
+    end function GetNumberOfProperties
+    
+    
+    !DEC$ IFDEFINED (VF66)
+    !dec$ attributes dllexport::GetWaterPropertiesPropertyID
+    !DEC$ ELSE
+    !dec$ attributes dllexport,alias:"_GETWATERPROPERTIESPROPERTYID"::GetWaterPropertiesPropertyID
+    !DEC$ ENDIF
+    !Return the number of Error Messages
+    integer function GetWaterPropertiesPropertyID(WaterPropertiesID, idx)
+    
+        !Arguments-------------------------------------------------------------
+        integer                                     :: WaterPropertiesID
+        integer                                     :: idx
+        
+        !Local-----------------------------------------------------------------
+        integer                                     :: STAT_CALL
+        integer                                     :: ready_         
+        type (T_Property), pointer                  :: Property
+        integer                                     :: iProp
+
+        call Ready(WaterPropertiesID, ready_)    
+        
+        if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            Property => Me%FirstProperty
+            iProp = 1
+            do while (associated (Property))
+                 
+                 if (iProp == idx) then
+                 
+                    GetWaterPropertiesPropertyID = Property%ID%IDNumber
+                    return
+                 
+                 endif
+                 
+                 Property => Property%Next
+                 iProp = iProp + 1
+            enddo
+        
+            GetWaterPropertiesPropertyID = -99
+        else 
+            GetWaterPropertiesPropertyID = -99
+        end if
+           
+    end function GetWaterPropertiesPropertyID    
+    
+    !DEC$ IFDEFINED (VF66)
+    !dec$ attributes dllexport::GetConcentrationAtPoint
+    !DEC$ ELSE
+    !dec$ attributes dllexport,alias:"_GETCONCENTRATIONATPOINT"::GetConcentrationAtPoint
+    !DEC$ ENDIF
+    real(8) function GetConcentrationAtPoint(WaterPropertiesID, PropertyIDNumber, i, j)
+    
+        !Arguments-------------------------------------------------------------
+        integer                                     :: WaterPropertiesID
+        integer                                     :: PropertyIDNumber
+        integer                                     :: i, j
+        
+        !Local-----------------------------------------------------------------
+        integer                                     :: STAT_CALL
+        integer                                     :: ready_         
+        type(T_Property), pointer                   :: PropertyX
+
+        call Ready(WaterPropertiesID, ready_)    
+        
+        if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
+        
+            call Search_Property(PropertyX, PropertyXID = PropertyIDNumber, STAT = STAT_CALL)
+            if (STAT_CALL == SUCCESS_) then
+                GetConcentrationAtPoint = PropertyX%Concentration(i, j, Me%WorkSize%KUB)
+            else
+                GetConcentrationAtPoint = -99.0
+            endif
+        else 
+            GetConcentrationAtPoint = - 99.0
+        end if
+           
+        return
+
+    end function GetConcentrationAtPoint
+
+#endif    
 
 end Module ModuleWaterProperties
 

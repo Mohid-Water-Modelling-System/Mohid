@@ -638,6 +638,13 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             if (Me%Coupled%Vegetation) then
                 call CalculateVegTotalStoredMass
             endif
+
+            !First HDF 5 Output
+            if (Me%Output%Yes) then
+                call HDF5OutPut       
+            endif
+
+
             
             !UnGets ExternalVars
             UnLockToWhichModules = 'AllModules'
@@ -5987,23 +5994,23 @@ cd2 :           if (BlockFound) then
                                   STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'HDF5Output - ModuleBasin - ERR040'
 
-           
-            !Writes the Water Column - should be on runoff
-            call HDF5WriteData   (Me%ObjHDF5, "//Results/water column",         &
-                                  "water column", "m",                          &
-                                  Array2D      = Me%ExtUpdate%WaterColumn,      &
-                                  OutputNumber = Me%OutPut%NextOutPut,          &
-                                  STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'HDF5Output - ModuleBasin - ERR050'
-
-       
-            !Writes the Water Level
-            call HDF5WriteData   (Me%ObjHDF5, "//Results/water level",          &
-                                  "water level", "m",                           &
-                                  Array2D      = Me%ExtUpdate%WaterLevel,       &
-                                  OutputNumber = Me%OutPut%NextOutPut,          &
-                                  STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'HDF5Output - ModuleBasin - ERR060'
+!MOVED TO RUN OFF           
+!            !Writes the Water Column - should be on runoff
+!            call HDF5WriteData   (Me%ObjHDF5, "//Results/water column",         &
+!                                  "water column", "m",                          &
+!                                  Array2D      = Me%ExtUpdate%WaterColumn,      &
+!                                  OutputNumber = Me%OutPut%NextOutPut,          &
+!                                  STAT = STAT_CALL)
+!            if (STAT_CALL /= SUCCESS_) stop 'HDF5Output - ModuleBasin - ERR050'
+!
+!       
+!            !Writes the Water Level
+!            call HDF5WriteData   (Me%ObjHDF5, "//Results/water level",          &
+!                                  "water level", "m",                           &
+!                                  Array2D      = Me%ExtUpdate%WaterLevel,       &
+!                                  OutputNumber = Me%OutPut%NextOutPut,          &
+!                                  STAT = STAT_CALL)
+!            if (STAT_CALL /= SUCCESS_) stop 'HDF5Output - ModuleBasin - ERR060'
 
             !Writes the Acc. Rain
             call HDF5WriteData   (Me%ObjHDF5, "//Results/AccRainFall",          &
@@ -6778,10 +6785,10 @@ cd2 :           if (BlockFound) then
         end if
 
         ID_DT = 0
-        if (AtmosfereDT < NewDT) then
-            NewDT = AtmosfereDT
-            ID_DT = 1
-        endif
+!        if (AtmosfereDT < NewDT) then
+!            NewDT = AtmosfereDT
+!            ID_DT = 1
+!        endif
         
         if (DNetDT      < NewDT) then
             NewDT = DNetDT
@@ -6815,9 +6822,9 @@ cd2 :           if (BlockFound) then
         !    NewDT = MaxDT
         !endif
         
-        if (NewDT < 10.0) then
-            call WriteDTLog ('ModuleBasin < 10', ID_DT, NewDT)
-            NewDT = 10.0
+        if (NewDT < 1.0) then
+            call WriteDTLog ('ModuleBasin < 1', ID_DT, NewDT)
+            NewDT = 1.0
             ID_DT = 7
         endif
 

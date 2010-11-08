@@ -347,6 +347,13 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
             call CalculateTotalStoredVolume
 
+            !Output Results
+            if (Me%OutPut%Yes) then
+                call ComputeCenterValues                   
+                call RunOffOutput
+            endif
+
+
             call ReadUnLockExternalVar (StaticOnly = .false.)
 
             !Returns ID
@@ -2617,9 +2624,24 @@ doIter:         do while (iter <= Niter)
             call HDF5SetLimits   (Me%ObjHDF5, ILB, IUB, JLB, JUB, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'RunOffOutput - ModuleRunOff - ERR03'
 
-
-              
             !Writes Flow values
+            !Writes the Water Column - should be on runoff
+            call HDF5WriteData   (Me%ObjHDF5, "//Results/water column",         &
+                                  "water column", "m",                          &
+                                  Array2D      = Me%MyWaterColumn,              &
+                                  OutputNumber = Me%OutPut%NextOutPut,          &
+                                  STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5Output - ModuleRunOff - ERR050'
+
+       
+            !Writes the Water Level
+            call HDF5WriteData   (Me%ObjHDF5, "//Results/water level",          &
+                                  "water level", "m",                           &
+                                  Array2D      = Me%MyWaterLevel,               &
+                                  OutputNumber = Me%OutPut%NextOutPut,          &
+                                  STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5Output - ModuleRunOff - ERR060'
+            
 
 
             !Writes Flow X

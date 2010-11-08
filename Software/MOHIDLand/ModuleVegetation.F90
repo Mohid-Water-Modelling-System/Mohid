@@ -887,6 +887,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
             call ConstructLog
 
+            !First Output
+            if (Me%OutPut%HDF_ON)           call Modify_OutputHDF                        
+
+
             !Returns ID
             ObjVegetationID  = Me%InstanceID
             UsePotLAI        = Me%UsePotLAI

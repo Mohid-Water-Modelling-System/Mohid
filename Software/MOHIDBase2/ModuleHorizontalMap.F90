@@ -1776,7 +1776,7 @@ cd1:    if (Me_ID > 0) then
     !DEC$ ELSE
     !dec$ attributes dllexport,alias:"_ISWATERPOINT"::IsWaterPoint
     !DEC$ ENDIF
-    real(8) function IsWaterPoint(HorizontalMapID, i, j)
+    logical function IsWaterPoint(HorizontalMapID, i, j)
     
         !Arguments-------------------------------------------------------------
         integer                                     :: HorizontalMapID
@@ -1790,7 +1790,11 @@ cd1:    if (Me_ID > 0) then
         
         if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
         
-            IsWaterPoint = Me%WaterPoints2D(i, j)
+            if (Me%WaterPoints2D(i, j) == 1) then
+                IsWaterPoint = .true.
+            else
+                IsWaterPoint = .false.
+            endif
         else 
             IsWaterPoint = .false.
         end if

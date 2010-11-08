@@ -3049,6 +3049,33 @@ do2:    do
     end subroutine LogKeyWord 
 
 
+#ifdef _OPENMI_
+
+    !DEC$ IFDEFINED (VF66)
+    !dec$ attributes dllexport::GetPropertyNameByID
+    !DEC$ ELSE
+    !dec$ attributes dllexport,alias:"_GETPROPERTYNAMEBYID"::GetPropertyNameByID
+    !DEC$ ENDIF
+    logical function GetPropertyNameByID(PropertyID, PropertyName)
+    
+        !Arguments-------------------------------------------------------------
+        integer                                     :: PropertyID
+        character(len=*)                            :: PropertyName        
+        
+        !Local-----------------------------------------------------------------
+
+        PropertyName = GetPropertyName(PropertyID)
+        GetPropertyNameByID = .true.
+
+        return
+
+    end function GetPropertyNameByID
+
+    
+
+#endif
+
+
 end module ModuleGlobalData
 
 !MOHID Water Modelling System.

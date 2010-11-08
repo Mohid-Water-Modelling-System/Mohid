@@ -3987,6 +3987,147 @@ cd1:    if (DischargesID > 0) then
         return
 
     end function SetDischargeFlow
+
+   
+    !DEC$ IFDEFINED (VF66)
+    !dec$ attributes dllexport::GetNumberOfDischargeProperties
+    !DEC$ ELSE
+    !dec$ attributes dllexport,alias:"_GETNUMBEROFDISCHARGEPROPERTIES"::GetNumberOfDischargeProperties
+    !DEC$ ENDIF
+    !Return the number of Error Messages
+    integer function GetNumberOfDischargeProperties(DischargeID, DischargeNumber)
+    
+        !Arguments-------------------------------------------------------------
+        integer                                     :: DischargeID
+        integer                                     :: DischargeNumber
+        
+        !Local-----------------------------------------------------------------
+        integer                                     :: STAT_CALL
+        integer                                     :: ready_
+        type(T_IndividualDischarge), pointer        :: DischargeX
+                 
+
+        call Ready(DischargeID, ready_)    
+        
+        if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
+        
+            call Search_Discharge(DischargeX, STAT_CALL, DischargeXIDNumber=DischargeNumber)
+            if (STAT_CALL/=SUCCESS_) then 
+                write(*,*) 'Can not find discharge number ', DischargeNumber, '.'
+                stop       'Subroutine GetDischargeXCoordinate; Module ModuleDischarges. ERR01.'
+            endif
+            GetNumberOfDischargeProperties = DischargeX%PropertiesNumber
+        else 
+            GetNumberOfDischargeProperties = -99
+        end if
+           
+    end function GetNumberOfDischargeProperties
+    
+    
+    !DEC$ IFDEFINED (VF66)
+    !dec$ attributes dllexport::GetDischargePropertyID
+    !DEC$ ELSE
+    !dec$ attributes dllexport,alias:"_GETDISCHARGEPROPERTYID"::GetDischargePropertyID
+    !DEC$ ENDIF
+    !Return the number of Error Messages
+    integer function GetDischargePropertyID(DischargeID, DischargeNumber, idx)
+    
+        !Arguments-------------------------------------------------------------
+        integer                                     :: DischargeID
+        integer                                     :: DischargeNumber
+        integer                                     :: idx
+        
+        !Local-----------------------------------------------------------------
+        integer                                     :: STAT_CALL
+        integer                                     :: ready_         
+        type (T_Property), pointer                  :: Property
+        integer                                     :: iProp
+        type(T_IndividualDischarge), pointer        :: DischargeX
+
+        call Ready(DischargeID, ready_)    
+        
+        if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            call Search_Discharge(DischargeX, STAT_CALL, DischargeXIDNumber=DischargeNumber)
+            if (STAT_CALL/=SUCCESS_) then 
+                write(*,*) 'Can not find discharge number ', DischargeNumber, '.'
+                stop       'Subroutine GetDischargeXCoordinate; Module ModuleDischarges. ERR01.'
+            endif
+
+            Property => DischargeX%FirstProperty
+            iProp = 1
+            do while (associated (Property))
+                 
+                 if (iProp == idx) then
+                 
+                    GetDischargePropertyID = Property%ID%IDNumber
+                    return
+                 
+                 endif
+                 
+                 Property => Property%Next
+                 iProp = iProp + 1
+            enddo
+        
+            GetDischargePropertyID = -99
+        else 
+            GetDischargePropertyID = -99
+        end if
+           
+    end function GetDischargePropertyID
+    
+
+    !--------------------------------------------------------------------------
+    
+    !DEC$ IFDEFINED (VF66)
+    !dec$ attributes dllexport::SetDischargeConcentration
+    !DEC$ ELSE
+    !dec$ attributes dllexport,alias:"_SETDISCHARGECONCENTRATION"::SetDischargeConcentration
+    !DEC$ ENDIF
+    logical function SetDischargeConcentration(DischargeID, DischargeNumber, PropertyIDNumber, Concentration)
+    
+        !Arguments-------------------------------------------------------------
+        integer                                     :: DischargeID
+        integer                                     :: DischargeNumber
+        integer                                     :: PropertyIDNumber
+        real(8)                                     :: Concentration
+        
+        !Local-----------------------------------------------------------------
+        integer                                     :: STAT_CALL
+        integer                                     :: ready_         
+        type(T_IndividualDischarge), pointer        :: DischargeX
+        type(T_Property), pointer                   :: PropertyX
+
+        call Ready(DischargeID, ready_)    
+        
+        if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
+        
+            call Search_Discharge(DischargeX, STAT_CALL, DischargeXIDNumber=DischargeNumber)
+            if (STAT_CALL/=SUCCESS_) then 
+                write(*,*) 'Can not find discharge number ', DischargeNumber, '.'
+                stop       'Subroutine GetDischargeXCoordinate; Module ModuleDischarges. ERR01.'
+            endif
+            
+            call Search_Property(DischargeX, PropertyX, STAT_CALL, PropertyXIDNumber=PropertyIDNumber)
+            if (STAT_CALL==SUCCESS_) then
+            
+                PropertyX%Scalar = Concentration
+            
+                SetDischargeConcentration = .true.
+            else
+            
+                SetDischargeConcentration = .false.
+            endif 
+
+        else
+        
+            SetDischargeConcentration = .false.
+
+        end if
+           
+        return
+
+    end function SetDischargeConcentration    
     
     !--------------------------------------------------------------------------
 

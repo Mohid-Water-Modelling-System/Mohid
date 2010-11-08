@@ -629,6 +629,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             if (Me%SoilOpt%CheckGlobalMass) then
                 call CalculateTotalStoredVolume
             endif
+            
+            !First Output
+            if (Me%OutPut%Yes .or. Me%OutPut%SurfaceOutput) call PorousMediaOutput                        
+
 
             call ReadUnLockExternalVar
 
@@ -3558,7 +3562,7 @@ i1:         if (CoordON) then
         real(8), dimension(:,:), pointer            :: InfiltrationColumn
         
         !Local-----------------------------------------------------------------
-        logical                                     :: StrongVariation !, OverSaturation            
+        logical                                     :: StrongVariation           
         integer                                     :: Niteration, iteration
         real                                        :: SumDT
         real                                        :: Zero = 0.0
@@ -3586,7 +3590,6 @@ i1:         if (CoordON) then
         Me%CV%CurrentDT   = Me%ExtVar%DT / Niteration
         SumDT             = 0.0
         StrongVariation   = .false.
-!        OverSaturation    = .false.
 
         Me%FluxWAcc = 0.
         Me%FluxVAcc = 0.
@@ -3602,11 +3605,6 @@ dConv:  do while (iteration <= Niteration)
             call Condutivity_Face
             
             call ComputeFinalHead
-            
-            !correct final head because of excess water
-!            if (OverSaturation) then
-!                call CorrectFinalHead
-!            endif
             
             !Calculates Water velocity
             call SoilWaterVelocity
@@ -4806,7 +4804,7 @@ dConv:  do while (iteration <= Niteration)
                 
                 if (abs(Me%WaterColumn(i, j)) < AllmostZero) Me%WaterColumn(i, j) = 0.0
                 
-                if (Me%WaterColumn(i, j) < 0.0) then
+                if (Me%WaterColumn(i, j) < -1.0e-10) then
                     write(*,*)'Bug Infiltration', i, j, Me%WaterColumn(i, j)
                 endif
                 
@@ -6347,7 +6345,7 @@ do5:                do K = Me%ExtVar%KFloor(i,j), Me%WorkSize%KUB
                 
                 !Please don't change the name of the data sets, since they are used by 
                 !MOHID Land Operational
-                call HDF5WriteData (Me%ObjHDF5, "/Results_2D/relative water content",               &
+                call HDF5WriteData (Me%ObjHDF5, "/Results/relative water content",                  &
                                     "relative water content",                                       &
                                     "m3water/m3water",                                              &
                                     Array2D      =  SurfaceSlice,                                   &
@@ -6359,7 +6357,7 @@ do5:                do K = Me%ExtVar%KFloor(i,j), Me%WorkSize%KUB
                 
                 !Please don't change the name of the data sets, since they are used by 
                 !MOHID Land Operational
-                call HDF5WriteData   (Me%ObjHDF5, "/Results_2D/water table depth",  &
+                call HDF5WriteData   (Me%ObjHDF5, "/Results/water table depth",     &
                                       "water table depth", "m",                     &
                                       Array2D      = Me%UGWaterDepth2D,             &
                                       OutputNumber = Me%OutPut%NextSurfaceOutput,   &

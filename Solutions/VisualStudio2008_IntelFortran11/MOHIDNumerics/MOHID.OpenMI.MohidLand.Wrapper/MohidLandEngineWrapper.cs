@@ -46,7 +46,6 @@ namespace MOHID.OpenMI.MohidLand.Wrapper
             Unit waterlevelUnit = new Unit("m", 1, 0, "m");
             Quantity waterLevelQuantity = new Quantity(waterlevelUnit, "description", "Water Level", global::OpenMI.Standard.ValueType.Scalar, waterlevelDimension);
 
-
             //Flow at the outlet
             OutputExchangeItem outletFlow = new OutputExchangeItem();
             outletFlow.Quantity = flowQuantity;
@@ -56,16 +55,41 @@ namespace MOHID.OpenMI.MohidLand.Wrapper
             outletNode.Elements[0].AddVertex(new Vertex(mohidLandEngine.GetXCoordinate(drainageNetworkInstanceID, outletNodeID), mohidLandEngine.GetYCoordinate(drainageNetworkInstanceID, outletNodeID), 0));
             outletFlow.ElementSet = outletNode;
             outletFlow.Quantity = flowQuantity;
-
             outputExchangeItems.Add(outletFlow);
 
             //Water level at the outlet
             InputExchangeItem outletLevel = new InputExchangeItem();
             outletLevel.Quantity = waterLevelQuantity;
             outletLevel.ElementSet = outletNode;
-            outletLevel.Quantity = waterLevelQuantity;
 
             inputExchangeItems.Add(outletLevel);
+
+
+            for (int i = 1; i <= mohidLandEngine.GetNumberOfProperties(drainageNetworkInstanceID); i++)
+			{
+                int propertyIDNumber = mohidLandEngine.GetPropertyIDNumber(drainageNetworkInstanceID, i);
+                string propertyName = mohidLandEngine.GetPropertyNameByIDNumber(propertyIDNumber);
+
+                Dimension concentrationDimension = new Dimension();
+                Unit concentrationUnit = new Unit("mg/l", 1, 0, "mg/l");
+                Quantity concentrationQuantity = new Quantity(concentrationUnit, propertyName, propertyIDNumber.ToString(), global::OpenMI.Standard.ValueType.Scalar, concentrationDimension);
+                
+                OutputExchangeItem outletConc = new OutputExchangeItem();
+                outletConc.Quantity = concentrationQuantity;
+                outletConc.ElementSet = outletNode;
+
+                outputExchangeItems.Add(outletConc);
+
+
+                InputExchangeItem boundaryConc = new InputExchangeItem();
+                boundaryConc.Quantity = concentrationQuantity;
+                boundaryConc.ElementSet = outletNode;
+
+                inputExchangeItems.Add(boundaryConc);
+
+			}
+
+
 
 
         }
@@ -171,9 +195,13 @@ namespace MOHID.OpenMI.MohidLand.Wrapper
                 returnValues = new double[1];
                 returnValues[0] = mohidLandEngine.GetOutletFlow(drainageNetworkInstanceID);
             }
-            else
+            else //Concentration of properties
             {
-                throw new Exception("Illegal QuantityID in GetValues method in MohidLandEngineWrapper");
+                returnValues = new double[1];
+                
+                int propertyID = Convert.ToInt32(QuantityID);
+
+                returnValues[0] = mohidLandEngine.GetOutletFlowConcentration(drainageNetworkInstanceID, propertyID);
             }
 
             ScalarSet values = new ScalarSet(returnValues);
@@ -187,9 +215,12 @@ namespace MOHID.OpenMI.MohidLand.Wrapper
                 double waterLevel = ((ScalarSet)values).data[0];
                 mohidLandEngine.SetDownstreamWaterLevel(drainageNetworkInstanceID, waterLevel);
             }
-            else
+            else //Concentration of properties
             {
-                throw new Exception("Illegal QuantityID in SetValues method in MohidLandEngineWrapper");
+
+                double concentration = ((ScalarSet)values).data[0];
+                int propertyID = Convert.ToInt32(QuantityID);
+                mohidLandEngine.SetDownStreamConcentration(drainageNetworkInstanceID, propertyID, concentration);
             }
         }
 

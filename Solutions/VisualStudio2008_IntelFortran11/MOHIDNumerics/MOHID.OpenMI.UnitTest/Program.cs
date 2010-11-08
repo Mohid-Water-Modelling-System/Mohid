@@ -21,7 +21,7 @@ namespace MOHID.OpenMI.UnitTest
         static void Main(string[] args)
         {
             //Runs a test of Mohid Land (usefull for debug)
-            runMohidLand();
+            //runMohidLand();
 
             //Runs a test of Mohid Water(usefull for debug)
             runMohidWater();
@@ -61,7 +61,7 @@ namespace MOHID.OpenMI.UnitTest
         private static void runMohidLand()
         {
             System.Collections.Hashtable ht = new System.Collections.Hashtable();
-            ht.Add("FilePath", @"D:\MohidProjects\Studio\03_MOHID OpenMI\Sample Catchment\exe\nomfich.dat");
+            ht.Add("FilePath", @"C:\Users\frank\Documents\Mohid Studio\Projects\Open MI\Trancao Catchment\exe\nomfich.dat");
             MohidLandEngineWrapper w = new MohidLandEngineWrapper();
             w.Initialize(ht);
 
@@ -115,7 +115,7 @@ namespace MOHID.OpenMI.UnitTest
         private static void runMohidWater()
         {
             System.Collections.Hashtable ht = new System.Collections.Hashtable();
-            ht.Add("FilePath", @"D:\MohidProjects\Studio\03_MOHID OpenMI\Sample Estuary\exe\nomfich.dat");
+            ht.Add("FilePath", @"C:\Users\frank\Documents\Mohid Studio\Projects\Open MI\Sample Estuary\exe\nomfich.dat");
             MohidWaterEngineWrapper w = new MohidWaterEngineWrapper();
             w.Initialize(ht);
 
@@ -123,34 +123,50 @@ namespace MOHID.OpenMI.UnitTest
             double now = modelSpan.Start.ModifiedJulianDay;
 
             double flow = 0.0;
+            double conc = 15.0;
 
             while (now < modelSpan.End.ModifiedJulianDay)
             {
 
-                flow = flow + 0.1;
+                if (flow < 1)
+                    flow = flow + 0.01;
+                
 
                 //Gets Output exchange items
                 for (int i = 0; i < w.GetOutputExchangeItemCount(); i++)
                 {
-                    OutputExchangeItem outputItem = w.GetOutputExchangeItem(i);
+                    //OutputExchangeItem outputItem = w.GetOutputExchangeItem(i);
 
-                    IValueSet values = w.GetValues(outputItem.Quantity.ID, outputItem.ElementSet.ID);
+                    //IValueSet values = w.GetValues(outputItem.Quantity.ID, outputItem.ElementSet.ID);
                 }
 
                 //Sets Input Items
                 for (int i = 0; i < w.GetInputExchangeItemCount(); i++)
                 {
+
                     InputExchangeItem inputItem = w.GetInputExchangeItem(i);
 
-                    double[] aux = new double[1];
-                    aux[0] = flow;
-                    IValueSet values = new ScalarSet(aux);
+                    if (i == 0)
+                    {
+                        double[] aux = new double[1];
+                        aux[0] = flow;
+                        IValueSet values = new ScalarSet(aux);
 
-                    w.SetValues(inputItem.Quantity.ID, inputItem.ElementSet.ID, values);
-                   
+                        w.SetValues(inputItem.Quantity.ID, inputItem.ElementSet.ID, values);
+                    }
+                    else
+                    {
+                        double[] aux = new double[1];
+                        aux[0] = conc;
+                        IValueSet values = new ScalarSet(aux);
+
+                        w.SetValues(inputItem.Quantity.ID, inputItem.ElementSet.ID, values);
+
+                    }                   
                 }
 
 
+                //Console.WriteLine(now.ToString());
                 w.PerformTimeStep();
 
 

@@ -543,7 +543,6 @@ Module ModuleDrainageNetwork
         real                                        :: Velocity                 = 0.0        
         real                                        :: VerticalArea             = 0.0
         real                                        :: PoolVerticalArea         = 0.0
-        real                                        :: BottomWidth              = 0.0        
         real                                        :: HydraulicRadius          = 0.0
         real                                        :: Manning                  = 0.0
         logical                                     :: TimeSerie
@@ -662,6 +661,7 @@ Module ModuleDrainageNetwork
         real                                        :: MinValue     
         real                                        :: InitialValue 
         real                                        :: BottomMinConc                        !kg m-2
+        real                                        :: BoundaryConcentration
         
         !Advection Diffusion
         real                                        :: Diffusivity 
@@ -733,6 +733,7 @@ Module ModuleDrainageNetwork
         logical                                     :: HasProperties         = .false.
         
         real                                        :: GlobalManning
+        logical                                     :: AllowBackwardWater    = .false.
         real                                        :: MinimumSlope
         real                                        :: InitialWaterDepth
         real                                        :: MinimumWaterDepth
@@ -979,6 +980,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
             !Opens Output files
             call ConstructOutput
+            
+            !First HDF Output
+            call HDF5Output
 
             !User Feed-Back
             call ConstructLog
@@ -1167,6 +1171,16 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      Default      = null_real,                                  &
                      STAT         = STAT_CALL)                                  
         if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR11'        
+
+        call GetData(Me%AllowBackwardWater,                                     &
+                     Me%ObjEnterData, flag,                                     &  
+                     keyword      = 'ALLOW_BACKWATER',                          &
+                     ClientModule = 'DrainageNetwork',                          &
+                     SearchType   = FromFile,                                   &
+                     Default      = .false.,                                    &
+                     STAT         = STAT_CALL)                                  
+        if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR11a'        
+            
 
         call GetData(Me%MinimumSlope,                                           &
                      Me%ObjEnterData, flag,                                     &  
@@ -1606,6 +1620,10 @@ if2:        if (Me%Downstream%Evolution == ReadTimeSerie) then
             call ReconnectNetwork
             call WriteOrderedNodes
         end if
+        
+        !Checks consistency and finds outlet Node / Reach Position
+        call CountOutlets ()
+
                         
                         
         call KillEnterData (Me%Files%ObjEnterDataNetwork, STAT = STAT_CALL)
@@ -3279,6 +3297,18 @@ cd2 :           if (BlockFound) then
         if (STAT_CALL .NE. SUCCESS_)                                            &
             stop 'ModuleDrainageNetwork - ConstructPropertyValues - ERR02' 
 
+
+        call GetData(NewProperty%BoundaryConcentration,                         &
+                     Me%ObjEnterData, iflag,                                    &
+                     Keyword        = 'DEFAULTBOUNDARY',                        &
+                     ClientModule   = 'ModuleDrainageNetwork',                  &
+                     SearchType     = FromBlock,                                &
+                     Default        = NewProperty%InitialValue,                 &
+                     STAT           = STAT_CALL)              
+        if (STAT_CALL .NE. SUCCESS_)                                            &
+            stop 'ModuleDrainageNetwork - ConstructPropertyValues - ERR02aa' 
+
+
         call GetData(OverLandConcentration,                                     &
                      Me%ObjEnterData, iflag,                                    &
                      Keyword        = 'OVERLAND_CONCENTRATION',                 &
@@ -3881,7 +3911,14 @@ ifB:    if (NewProperty%ComputeOptions%BottomFluxes) then
         Property => Me%FirstProperty
         do while (associated(Property))
                
-            if (.not. Me%Continuous) Property%Concentration = Property%InitialValue
+            if (.not. Me%Continuous) then
+                Property%Concentration = Property%InitialValue
+                
+                Property%Concentration(Me%OutletNodePos) = Property%BoundaryConcentration
+                
+            endif
+                
+                
             call ComputeToxicityForEachEffluent
                        
             Property => Property%Next
@@ -4508,30 +4545,31 @@ if1:        if (CurrNode%nDownstreamReaches /= 0) then
         
         if (.not. Me%Continuous) then
     
-            if (Me%HydrodynamicApproximation == DiffusionWave) then
+!            if (Me%HydrodynamicApproximation == DiffusionWave) then
 
-                do ReachID = 1, Me%TotalReaches
-                    CurrReach => Me%Reaches(ReachID)                
-
-                    !Update Slope based on water level
-                    CurrReach%Slope = (Me%Nodes(CurrReach%UpstreamNode)%Waterlevel -            &
-                                       Me%Nodes(CurrReach%DownstreamNode)%Waterlevel) /         &
-                                       CurrReach%Length
-                                       
-                    !Don't allow negative slopes and impose a minimum slope..
-                    CurrReach%Slope = max(CurrReach%Slope, Me%MinimumSlope)
-
-
-                    call ComputeKinematicWave (CurrReach) 
-                end do
-
-            else
+!                do ReachID = 1, Me%TotalReaches
+!                    CurrReach => Me%Reaches(ReachID)                
+!
+!                    !Update Slope based on water level
+!                    CurrReach%Slope = (Me%Nodes(CurrReach%UpstreamNode)%Waterlevel -            &
+!                                       Me%Nodes(CurrReach%DownstreamNode)%Waterlevel) /         &
+!                                       CurrReach%Length
+!                                       
+!                    !Don't allow negative slopes and impose a minimum slope..
+!                    if (.not. Me%AllowBackwardWater) then
+!                        CurrReach%Slope = max(CurrReach%Slope, Me%MinimumSlope)
+!                    endif
+!
+!                    call ComputeKinematicWave (CurrReach) 
+!                end do
+!
+!            else
 
                 do ReachID = 1, Me%TotalReaches
                     Me%Reaches(ReachID)%FlowNew = 0.0                
                 end do
         
-            end if
+!            end if
 
         end if
 
@@ -5376,10 +5414,8 @@ if0:    if (Me%HasProperties) then
         !Arguments--------------------------------------------------------------
 
         !Local------------------------------------------------------------------
-        integer                                     :: nOutlets
         type (T_Property), pointer                  :: Property
 
-        call CountOutlets ()
 
 #ifndef _OPENMI_
         write(*, *)
@@ -6825,6 +6861,7 @@ do2 :   do while (associated(PropertyX))
         type (T_Node), pointer                      :: CurrNode
         integer                                     :: STAT_CALL, ready_
         integer                                     :: NodeID
+        
         !-----------------------------------------------------------------------
 
         STAT_CALL = UNKNOWN_
@@ -7228,7 +7265,7 @@ do2 :   do while (associated(PropertyX))
             
                 do NodeID = 1, Me%TotalNodes
                 
-                    if (Me%OpenpointsFlow(NodeID) == OpenPoint) then
+                    !if (Me%OpenpointsFlow(NodeID) == OpenPoint) then
 
                         CurrNode  => Me%Nodes (NodeID)
 
@@ -7237,12 +7274,16 @@ do2 :   do while (associated(PropertyX))
                         !Adds Inflow due to channel flow
                         do i = 1, CurrNode%nDownStreamReaches
                             DownReach => Me%Reaches (CurrNode%DownStreamReaches (i))
-                            Flow = Flow +  dble(DownReach%FlowNew)
+                            
+                            if (Me%ComputeFaces(DownReach%ID) == OpenPoint) then
+                                Flow = Flow +  dble(DownReach%FlowNew)
+                            endif
+                            
                         enddo
                 
                         Property%Load(NodeID) = Property%Concentration(NodeID) * Flow
                         
-                    endif
+                    !endif
                     
                 enddo
 
@@ -7898,7 +7939,7 @@ do2 :   do while (associated(PropertyX))
             end do
 
             do NodeID = 1, Me%TotalNodes
-                call ModifyNode         (NodeID, LocalDT)
+                call ModifyNode          (NodeID, LocalDT)
                 call VerifyMinimumVolume (NodeID, Restart, Niter)
                 if (Restart) exit
             end do
@@ -7992,17 +8033,15 @@ if1:        if (DownNode%nDownstreamReaches .EQ. 0) then
                                    CurrReach%Length
                                    
                 !Don't allow negative slopes and impose a minimum slope..
-                CurrReach%Slope = max(CurrReach%Slope, Me%MinimumSlope)
+                if (.not. Me%AllowBackwardWater) then
+                    CurrReach%Slope = max(CurrReach%Slope, Me%MinimumSlope)
+                endif
                 
                 call ComputeKinematicWave (CurrReach)
 
             else !if1
 
-                !if (abs(CurrReach%FlowOld) .LE. AllmostZero) then
-                !    call ComputeKinematicWave (CurrReach)
-                !else
-                    call ComputeStVenant (CurrReach, DT)                
-                !end if
+                call ComputeStVenant (CurrReach, DT)                
         
             end if if1
                         
@@ -8046,10 +8085,9 @@ if2:        if (CurrNode%VolumeNew > PoolVolume) then
                    (CurrNode%CrossSection%Form == TrapezoidalFlood .AND.              &
                     VolNewAux <= CurrNode%VolumeMaxTrapez1)) then
 
-                    call TrapezoidWaterHeight (b  = CurrNode%CrossSection%BottomWidth,  &
-                                               m  = CurrNode%CrossSection%Slope,        &
-                                               Av = Av_New,                             &
-                                               h  = h_New)
+                    h_New = TrapezoidWaterHeight (b  = CurrNode%CrossSection%BottomWidth,  &
+                                                  m  = CurrNode%CrossSection%Slope,        &
+                                                  Av = Av_New)
 
                 elseif (CurrNode%CrossSection%Form == TrapezoidalFlood) then
                 ! from the previous if
@@ -8058,10 +8096,9 @@ if2:        if (CurrNode%VolumeNew > PoolVolume) then
 
                     AvTrapez2 = (VolNewAux - CurrNode%VolumeMaxTrapez1) / CurrNode%Length
 
-                    call TrapezoidWaterHeight (b  = CurrNode%CrossSection%MiddleWidth,  &
-                                               m  = CurrNode%CrossSection%SlopeTop,     &
-                                               Av = AvTrapez2,                          &
-                                               h  = TopH)
+                    TopH =  TrapezoidWaterHeight (b  = CurrNode%CrossSection%MiddleWidth,  &
+                                                  m  = CurrNode%CrossSection%SlopeTop,     &
+                                                  Av = AvTrapez2)
 
                     h_New = CurrNode%CrossSection%MiddleHeight + TopH
 
@@ -8091,7 +8128,7 @@ if2:        if (CurrNode%VolumeNew > PoolVolume) then
                 call ComputeXSFromWaterDepth (CurrNode)
 
                 !Substarcts minumum area (Stability resons)                                                                 
-                CurrNode%VerticalArea   = max(CurrNode%VerticalArea - Me%MinimumWaterDepth * CurrNode%CrossSection%BottomWidth, 0.0)
+                !CurrNode%VerticalArea   = max(CurrNode%VerticalArea - Me%MinimumWaterDepth * CurrNode%CrossSection%BottomWidth, 0.0)
 
             else !if2
 
@@ -8171,7 +8208,7 @@ if2:        if (CurrNode%VolumeNew > PoolVolume) then
             b = CrossSection%LevelBottomWidth(ilev)
             m = 0.5 * ( abs(CrossSection%LevelSlopeLeft(ilev)) + CrossSection%LevelSlopeRight(ilev) )
 
-            call TrapezoidWaterHeight (b, m, dAv, dH)
+            dH = TrapezoidWaterHeight (b, m, dAv)
 
             WaterLevel = CrossSection%Level(ilev) + dH
             
@@ -8183,13 +8220,14 @@ if2:        if (CurrNode%VolumeNew > PoolVolume) then
     !---------------------------------------------------------------------------
     !---------------------------------------------------------------------------
 
-    subroutine TrapezoidWaterHeight (b, m, Av, h)
+    real function TrapezoidWaterHeight (b, m, Av)
     
         !Arguments-------------------------------------------------------------
-        real, intent(in)                    :: b,m, Av
-        real, intent(out)                   :: h
+        real                                :: b,m, Av
+
         !Locals----------------------------------------------------------------
         real                                :: binomio, sqrt_binomio
+        real                                :: h
 
         if (m .LE. AllmostZero) then                   
             !Rectangular
@@ -8207,8 +8245,10 @@ if2:        if (CurrNode%VolumeNew > PoolVolume) then
             h = (- b + sqrt_binomio) / (2. * m)
 
         endif
+        
+        TrapezoidWaterHeight = h
 
-    end subroutine TrapezoidWaterHeight
+    end function TrapezoidWaterHeight
 
     !---------------------------------------------------------------------------            
     !---------------------------------------------------------------------------
@@ -8218,10 +8258,11 @@ if2:        if (CurrNode%VolumeNew > PoolVolume) then
         !Arguments--------------------------------------------------------------
         !Local------------------------------------------------------------------
         type (T_Reach), pointer                 :: CurrReach
-        type (T_Node ), pointer                 :: UpNode     
+        type (T_Node ), pointer                 :: UpNode, DownNode    
         real                                    :: PoolDepth, PoolVolume   
 
         UpNode    => Me%Nodes(CurrReach%UpstreamNode)
+        DownNode  => Me%Nodes(CurrReach%DownstreamNode)
 
         !Volume greater then volume in pools
         PoolVolume = UpNode%CrossSection%PoolDepth * UpNode%Length * UpNode%CrossSection%BottomWidth
@@ -8231,17 +8272,23 @@ if2:        if (CurrNode%VolumeNew > PoolVolume) then
             PoolDepth = UpNode%VolumeNew / (UpNode%Length * UpNode%CrossSection%BottomWidth)
         endif
 
-        CurrReach%VerticalArea    = UpNode%VerticalArea
+        if (Me%AllowBackwardWater .and. UpNode%WaterLevel < DownNode%WaterLevel .and. DownNode%ID /= Me%OutletNodePos) then
+            CurrReach%VerticalArea    = (UpNode%VerticalArea + DownNode%VerticalArea) / 2.0
+            CurrReach%HydraulicRadius = CurrReach%VerticalArea / ((UpNode%WetPerimeter + DownNode%WetPerimeter) / 2.0)
+        else
+            CurrReach%VerticalArea    = UpNode%VerticalArea
+            if (UpNode%WetPerimeter > 0.0) then
+                CurrReach%HydraulicRadius = UpNode%VerticalArea / UpNode%WetPerimeter
+            else            
+                CurrReach%HydraulicRadius = 0.0
+            end if
+        endif
+        
+        
         CurrReach%PoolVerticalArea= PoolDepth * UpNode%CrossSection%BottomWidth
-        CurrReach%BottomWidth     = UpNode%CrossSection%BottomWidth
         CurrReach%Manning         = UpNode%CrossSection%ManningCH
-        if (UpNode%WetPerimeter > 0.0) then
-            CurrReach%HydraulicRadius = UpNode%VerticalArea / UpNode%WetPerimeter
-        else            
-            CurrReach%HydraulicRadius = 0.0
-        end if
 
-        !CurrReach%HydraulicRadius  = UpNode%WaterDepth
+
         
     end subroutine UpdateReachCrossSection
 
@@ -8252,65 +8299,30 @@ if2:        if (CurrNode%VolumeNew > PoolVolume) then
 
         !Arguments--------------------------------------------------------------        
         type (T_Reach), pointer                 :: CurrReach
-        real                                    :: Slope, Level_Up, Min_Level_Down
-        !real                                    :: Slope, Level_Up, Level_Down
-        character(len=StringLength)             :: AuxString
+        real                                    :: sign
+
+        if (abs(CurrReach%Slope) >  AllmostZero) then
         
-                   
-        !Internal---------------------------------------------------------------
-        !type (T_Node ), pointer                 :: UpNode     
+            if (CurrReach%Slope > 0.0) then
+                sign = 1.0
+            else
+                sign = -1.0
+            endif
 
-        if (CurrReach%VerticalArea > AllmostZero) then
 
-!            if (CurrReach%Slope .LE. AlmostZero) then
-!
-!                !Update Slope based on water level
-!
-!                !V1--------------------------------------------------------
-!                !alterar tambem UpdateComputeFaces
-!
-!                Level_Up   = Me%Nodes(CurrReach%UpstreamNode)%Waterlevel
-!                Min_Level_Down = Me%Nodes(CurrReach%DownstreamNode)%CrossSection%BottomLevel + Me%MinimumWaterDepth
-!                
-!                Slope = (Level_Up - Min_Level_Down) / CurrReach%Length
-!                    
-!                !V2--------------------------------------------------------
-!                !alterar tambem UpdateComputeFaces
-!
-!                !Level_Up   = Me%Nodes(CurrReach%UpstreamNode)%Waterlevel
-!                !Level_Down = Me%Nodes(CurrReach%DownstreamNode)%WaterLevel
-!                
-!                !Slope = (Level_Up - Level_Down) / CurrReach%Length
-!                
-!
-!                !This never happens because the reach is a compute face                        
-!                if (Slope .LE. AlmostZero) then
-!                    !write(*,*) 'Negative slope and negative water level slope ate compute face reach', CurrReach%ID
-!                    !write(*,*) 'SlopeH =', Slope
-!                    write(AuxString,*) 'Negative slope and slopeH at ComputeFace reach (Ids, slopeH) = ', CurrReach%ID, Slope
-!                    call SetError(WARNING_, INTERNAL_, AuxString, ON)
-!
-!                    !stop 'ComputeKinematicWave - ModuleDrainageNetwork - ERR01'
-!                endif
-!
-!            else 
-!                Slope = CurrReach%Slope
-!            endif
-
-            !Don't allow negative slopes and impose a minimum slope..
-            Slope = max(CurrReach%Slope, Me%MinimumSlope)
-
-            CurrReach%FlowNew  = CurrReach%VerticalArea * CurrReach%HydraulicRadius **(2.0/3.0) &
-                                 * sqrt(Slope)  / CurrReach%Manning
+            CurrReach%FlowNew  = sign * CurrReach%VerticalArea * CurrReach%HydraulicRadius **(2.0/3.0) &
+                                 * sqrt(abs(CurrReach%Slope))  / CurrReach%Manning
             CurrReach%Velocity = CurrReach%FlowNew / (CurrReach%VerticalArea + CurrReach%PoolVerticalArea)
+
         else
+        
             CurrReach%FlowNew  = 0.0
             CurrReach%Velocity = 0.0
-        end if
+
+        endif
     
     end subroutine ComputeKinematicWave
 
-    !---------------------------------------------------------------------------
     !---------------------------------------------------------------------------
 
     subroutine ComputeStVenant (CurrReach, DT) 
@@ -8322,29 +8334,29 @@ if2:        if (CurrNode%VolumeNew > PoolVolume) then
         
         !Internal---------------------------------------------------------------
         type (T_Node ), pointer                 :: UpNode, DownNode 
- !       type (T_Reach), pointer                 :: UpReach, DownReach       
         real                                    :: LevelSlope, Pressure
         real                                    :: Friction, Advection !, AdvectionUp, AdvectionDown
-        !real                                    :: DownFlux, UpFlux
-        !real                                    :: DownProp, UpProp
-!        integer                                 :: i
 
         UpNode   => Me%Nodes (CurrReach%UpstreamNode  )
         DownNode => Me%Nodes (CurrReach%DownstreamNode)
                             
         !PRESSURE - explicit ----------------------------------------------------
         
-        LevelSlope        = (UpNode%WaterLevel - DownNode%WaterLevel) / CurrReach%Length               
-        Pressure          = DT * Gravity * CurrReach%VerticalArea * LevelSlope
+        LevelSlope        = (UpNode%WaterLevel - DownNode%WaterLevel) / CurrReach%Length 
+        if (abs(LevelSlope) > AllmostZero) then              
+            Pressure          = DT * Gravity * CurrReach%VerticalArea * LevelSlope
+        else
+            Pressure          = 0.0
+        endif
 
         !FRICTION - semi-implicit -----------------------------------------------
-
-        if (CurrReach%VerticalArea .LE. AlmostZero) then
-            Friction = 0.0
-        else 
+!        if (UpNode%WaterDepth > Me%MinimumWaterDepth) then
             Friction = DT * Gravity * abs(CurrReach%FlowOld) * CurrReach%Manning ** 2. &
                      / ( CurrReach%VerticalArea * CurrReach%HydraulicRadius ** (4./3.) ) 
-        endif
+!        else
+!            Friction = 0.0
+!        endif
+        
 
         !ADVECTION - upwind (in - out)-------------------------------------------
         !positive direction is downstream
@@ -8352,16 +8364,15 @@ if2:        if (CurrNode%VolumeNew > PoolVolume) then
 
         !EQUACAO ---------------------------------------------------------------
 
-        if (CurrReach%VerticalArea > AllmostZero) then
-            CurrReach%FlowNew = ( CurrReach%FlowOld + Advection + Pressure )    &
-                              / ( 1. + Friction )
-           
-            CurrReach%Velocity = CurrReach%FlowNew / (CurrReach%VerticalArea + CurrReach%PoolVerticalArea)
-
-        else
-            CurrReach%FlowNew  = 0.0
-            CurrReach%Velocity = 0.0
-        end if
+        CurrReach%FlowNew = ( CurrReach%FlowOld + Advection + Pressure )    &
+                          / ( 1. + Friction )
+       
+!        CurrReach%FlowNew = 0.0;
+!        if (abs(CurrReach%FlowNew) > 0.0) then
+!            CurrReach%FlowNew = 0.0;
+!        endif
+       
+        CurrReach%Velocity = CurrReach%FlowNew / (CurrReach%VerticalArea + CurrReach%PoolVerticalArea)
 
     
     end subroutine ComputeStVenant
@@ -8470,18 +8481,18 @@ if2:        if (CurrNode%VolumeNew > PoolVolume) then
                                        
         CurrNode => Me%Nodes(NodeID)                                    
 
-        if (Me%OpenPointsFlow (NodeID) == OpenPoint) then
+        !if (Me%OpenPointsFlow (NodeID) == OpenPoint) then
                     
             call ComputeNodeInFlow  (CurrNode, InFlow)
             call ComputeNodeOutFlow (CurrNode, OutFlow)
      
-            CurrNode%VolumeNew = CurrNode%VolumeNew + ( InFlow - OutFlow ) * DT
+            CurrNode%VolumeNew = CurrNode%VolumeOld + ( InFlow - OutFlow ) * DT
             
-        else
+        !else
         
-            CurrNode%VolumeNew = CurrNode%VolumeOld
+            !CurrNode%VolumeNew = CurrNode%VolumeOld
                         
-        end if        
+        !end if        
         
     end subroutine ModifyNode
 
@@ -8683,8 +8694,8 @@ do2:            do while (Iterate)
             !if (Level_Up > Min_Level_Up .and. Level_Up > Level_Down)                &
             !    ComputeFaceUpDown = 1
 
-            !Just open the face in Down Up Direction if Hydrodynamic aprox. is DynamicWave
-            if (Me%HydrodynamicApproximation == DynamicWave) then
+            !Open the face in Down Up Direction if Hydrodynamic aprox. allows backwater
+            if (Me%AllowBackwardWater) then
                 if (Level_Down > Min_Level_Down .and. Level_Down > Min_Level_Up)    &
                     ComputeFaceDownUp = 1
             endif
@@ -8835,11 +8846,15 @@ do2:            do while (Iterate)
             nullify (UpReach)
             UpReach => Me%Reaches (CurrNode%UpstreamReaches (i))            
 
-            if (Me%NumericalScheme == ExplicitScheme) then
-                InFlow = InFlow + UpReach%FlowNew
-            else 
-                InFlow = InFlow + (UpReach%FlowNew + UpReach%FlowOld) / 2. 
-            end if
+            if (Me%ComputeFaces(UpReach%ID) == OpenPoint) then
+
+                if (Me%NumericalScheme == ExplicitScheme) then
+                    InFlow = InFlow + UpReach%FlowNew
+                else 
+                    InFlow = InFlow + (UpReach%FlowNew + UpReach%FlowOld) / 2. 
+                end if
+            
+            endif
 
             !InFlow = InFlow + (1. - Me%NumericalScheme) * UpReach%FlowOld &
             !       + Me%NumericalScheme * UpReach%FlowNew            
@@ -8869,7 +8884,10 @@ do2:            do while (Iterate)
 
             nullify (DownReach)
             DownReach => Me%Reaches (CurrNode%DownstreamReaches (i))
-            OutFlow = OutFlow + dble(DownReach%FlowNew)
+            
+            if (Me%ComputeFaces(DownReach%ID) == OpenPoint) then
+                OutFlow = OutFlow + dble(DownReach%FlowNew)
+            endif
         end do
 
     end subroutine ComputeNodeOutFlow
@@ -8956,7 +8974,7 @@ do2:            do while (Iterate)
                         Property%Concentration (NodeID) = (Property%ConcentrationOld (NodeID) * CurrNode%VolumeOld + &
                                                            LocalDT * (-Advection + Diffusion )) / CurrNode%VolumeNew
                                                            
-                    end if
+                   end if
                 end do
                 
             endif
@@ -9004,13 +9022,18 @@ do2:            do while (Iterate)
         do i = 1, CurrNode%nDownstreamReaches
             DownReach   => Me%Reaches (CurrNode%DownstreamReaches (i))
 
-            if (DownReach%FlowNew.GE.0.0) then
-                DownProp = Property%ConcentrationOld (NodePos    )
-            else
-                DownProp = Property%ConcentrationOld (DownReach%DownstreamNode)
-            end if
-                                                                            
-            DownFlux    =  DownFlux + DownReach%FlowNew * DownProp
+            if (Me%ComputeFaces(DownReach%ID) == OpenPoint) then
+
+                if (DownReach%FlowNew.GE.0.0) then
+                    DownProp = Property%ConcentrationOld (NodePos    )
+                else
+                    DownProp = Property%ConcentrationOld (DownReach%DownstreamNode)
+                end if
+                                                                                
+                DownFlux    =  DownFlux + DownReach%FlowNew * DownProp
+
+            endif
+
         end do
         
         if (Me%CheckMass) then
@@ -9028,13 +9051,19 @@ do2:            do while (Iterate)
         UpFlux = 0.0
         do i = 1, CurrNode%nUpstreamReaches                    
            UpReach   => Me%Reaches (CurrNode%UpstreamReaches (i))
-            if (UpReach%FlowNew.GE.0.0) then
-                UpProp = Property%ConcentrationOld (UpReach%UpstreamNode)
-            else
-                UpProp = Property%ConcentrationOld (NodePos  )
-            end if
+           
+            if (Me%ComputeFaces(UpReach%ID) == OpenPoint) then
+           
+                if (UpReach%FlowNew.GE.0.0) then
+                    UpProp = Property%ConcentrationOld (UpReach%UpstreamNode)
+                else
+                    UpProp = Property%ConcentrationOld (NodePos  )
+                end if
 
-           UpFlux    =  UpFlux + UpReach%FlowNew * UpProp
+                UpFlux    =  UpFlux + UpReach%FlowNew * UpProp
+            
+            endif
+            
         end do
          
            
@@ -9061,9 +9090,7 @@ do2:            do while (Iterate)
         real                                    :: GradProp, DownVerticalArea, UpVerticalArea
 
 
-!        !DiffusionFlux = (-Difusivity * grad (Conc) * A)_Sai - (-Difusivity * grad (Conc) * A)_Entra 
-        !DiffusionFlux = (Difusivity * grad (Conc) * A)_Down - (Difusivity * grad (Conc) * A)_Up  !Revision 6/4/2010 David
-        
+       
         CurrNode => Me%Nodes(NodePos)
 
 if1:    if (Property%Diffusion_Scheme == CentralDif) then
@@ -9076,14 +9103,11 @@ if1:    if (Property%Diffusion_Scheme == CentralDif) then
 
                 if (Me%OpenPointsFlow(DownNodePos) == OpenPoint) then
 
-!                    GradProp    = (Property%ConcentrationOld (NodePos) - Property%ConcentrationOld (DownNodePos)) &
-!                                / DownReach%Length
                     GradProp    = (Property%ConcentrationOld (DownNodePos) - Property%ConcentrationOld (NodePos)) &
                                 / DownReach%Length
 
                     DownVerticalArea = ( CurrNode%VerticalArea + DownNode%VerticalArea ) / 2.
 
-!                    DownFlux    =  DownFlux - Property%Diffusivity * GradProp * DownVerticalArea
                     DownFlux    =  DownFlux + Property%Diffusivity * GradProp * DownVerticalArea
 
                 endif
@@ -9114,7 +9138,6 @@ if1:    if (Property%Diffusion_Scheme == CentralDif) then
 
                     UpVerticalArea = ( CurrNode%VerticalArea + UpNode%VerticalArea ) / 2.
 
-!                    UpFlux    =  UpFlux - Property%Diffusivity * GradProp * UpVerticalArea
                     UpFlux    =  UpFlux + Property%Diffusivity * GradProp * UpVerticalArea
 
                 endif
@@ -9128,7 +9151,6 @@ if1:    if (Property%Diffusion_Scheme == CentralDif) then
                 
         end if if1        
         
-!        DiffusionFlux = UpFlux + DownFlux         
         DiffusionFlux = DownFlux - UpFlux         
 
     end subroutine  ComputeDiffusion
@@ -12096,6 +12118,155 @@ cd1:    if (ObjDrainageNetwork_ID > 0) then
         return
 
     end function SetDownStreamWaterLevel
+    
+    
+    !DEC$ IFDEFINED (VF66)
+    !dec$ attributes dllexport::GetNumberOfProperties
+    !DEC$ ELSE
+    !dec$ attributes dllexport,alias:"_GETNUMBEROFPROPERTIES"::GetNumberOfProperties
+    !DEC$ ENDIF
+    !Return the number of Error Messages
+    integer function GetNumberOfProperties(DrainageNetworkID)
+    
+        !Arguments-------------------------------------------------------------
+        integer                                     :: DrainageNetworkID
+        
+        !Local-----------------------------------------------------------------
+        integer                                     :: STAT_CALL
+        integer                                     :: ready_         
+
+        call Ready(DrainageNetworkID, ready_)    
+        
+        if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
+            GetNumberOfProperties = Me%PropertiesNumber
+        else 
+            GetNumberOfProperties = -99
+        end if
+           
+    end function GetNumberOfProperties
+    
+    
+    !DEC$ IFDEFINED (VF66)
+    !dec$ attributes dllexport::GetDrainageNetworkPropertyID
+    !DEC$ ELSE
+    !dec$ attributes dllexport,alias:"_GETDRAINAGENETWORKPROPERTYID"::GetDrainageNetworkPropertyID
+    !DEC$ ENDIF
+    !Return the number of Error Messages
+    integer function GetDrainageNetworkPropertyID(DrainageNetworkID, idx)
+    
+        !Arguments-------------------------------------------------------------
+        integer                                     :: DrainageNetworkID
+        integer                                     :: idx
+        
+        !Local-----------------------------------------------------------------
+        integer                                     :: STAT_CALL
+        integer                                     :: ready_         
+        type (T_Property), pointer                  :: Property
+        integer                                     :: iProp
+
+        call Ready(DrainageNetworkID, ready_)    
+        
+        if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            Property => Me%FirstProperty
+            iProp = 1
+            do while (associated (Property))
+                 
+                 if (iProp == idx) then
+                 
+                    GetDrainageNetworkPropertyID = Property%ID%IDNumber
+                    return
+                 
+                 endif
+                 
+                 Property => Property%Next
+                 iProp = iProp + 1
+            enddo
+        
+            GetDrainageNetworkPropertyID = -99
+        else 
+            GetDrainageNetworkPropertyID = -99
+        end if
+           
+    end function GetDrainageNetworkPropertyID
+    
+    !DEC$ IFDEFINED (VF66)
+    !dec$ attributes dllexport::GetOutletFlowConcentration
+    !DEC$ ELSE
+    !dec$ attributes dllexport,alias:"_GETOUTLETFLOWCONCENTRATION"::GetOutletFlowConcentration
+    !DEC$ ENDIF
+    real(8) function GetOutletFlowConcentration(DrainageNetworkID, PropIDNumber)
+
+        !Arguments-------------------------------------------------------------
+        integer                                     :: DrainageNetworkID
+        integer                                     :: PropIDNumber
+        
+        !Local-----------------------------------------------------------------
+        integer                                     :: STAT_CALL
+        integer                                     :: ready_         
+        type (T_Property), pointer                  :: Property
+        type (T_Reach), pointer                     :: OutletReach
+
+        call Ready(DrainageNetworkID, ready_)    
+
+        if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
+        
+            call SearchProperty (Property, PropIDNumber, STAT = STAT_CALL)
+            if (STAT_CALL == SUCCESS_) then            
+                OutletReach => Me%Reaches(Me%OutletReachPos)
+                GetOutletFlowConcentration =  dble(Property%Concentration(OutletReach%UpstreamNode))
+            else
+                GetOutletFlowConcentration = -99.0
+            endif
+        else
+            GetOutletFlowConcentration = -99.0
+        endif
+        
+    end function    
+    
+
+    !DEC$ IFDEFINED (VF66)
+    !dec$ attributes dllexport::SetDownStreamConcentration
+    !DEC$ ELSE
+    !dec$ attributes dllexport,alias:"_SETDOWNSTREAMCONCENTRATION"::SetDownStreamConcentration
+    !DEC$ ENDIF
+    logical function SetDownStreamConcentration(DrainageNetworkID, PropIDNumber, Concentration)
+
+        !Arguments-------------------------------------------------------------
+        integer                                     :: DrainageNetworkID
+        integer                                     :: PropIDNumber
+        real(8)                                     :: Concentration
+        
+        !Local-----------------------------------------------------------------
+        integer                                     :: STAT_CALL
+        integer                                     :: ready_         
+        type (T_Property), pointer                  :: Property
+
+        call Ready(DrainageNetworkID, ready_)    
+
+        if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            
+            call SearchProperty (Property, PropIDNumber, STAT = STAT_CALL)
+            if (STAT_CALL == SUCCESS_) then            
+                Property%Concentration(Me%OutletNodePos) = Concentration
+                SetDownStreamConcentration = .true.
+            else
+                SetDownStreamConcentration = .false.
+            endif
+            
+        
+        else
+        
+            SetDownStreamConcentration = .false.
+        
+        endif        
+
+
+        return
+
+    end function SetDownStreamConcentration    
+    
     
 
 #endif

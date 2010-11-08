@@ -9,7 +9,7 @@ namespace MOHID.OpenMI.MohidLand.Wrapper
     public class MohidLandEngineDLLAccess
     {
         //TODO: Check how to set this path during runtime ou by compiler reference...
-        private const string dllPath = @"D:\Software\Mohid\MOHID.Numerics\Solutions\VisualStudio2008_IntelFortran11\MOHIDNumerics\MohidLandEngine\Debug OpenMI\MohidLandEngine.dll";
+        private const string dllPath = @"D:\Software\Mohid\MOHID.Numerics\Solutions\VisualStudio2008_IntelFortran11\MOHIDNumerics\MohidLandEngine\Release OpenMI\MohidLandEngine.dll";
 
         /// <summary>
         /// Calls the Initialize public method in the MOHID Land DLL
@@ -56,6 +56,9 @@ namespace MOHID.OpenMI.MohidLand.Wrapper
         [DllImport(dllPath,EntryPoint = "GETMESSAGE",SetLastError = true,ExactSpelling = true,CallingConvention = CallingConvention.Cdecl)]
         public static extern int GetMessage(ref int messageID, [MarshalAs(UnmanagedType.LPStr)] StringBuilder id, uint length);
 
+        [DllImport(dllPath,EntryPoint = "GETPROPERTYNAMEBYID",SetLastError = true,ExactSpelling = true,CallingConvention = CallingConvention.Cdecl)]
+        public static extern bool GetPropertyNameByID(ref int propertyID, [MarshalAs(UnmanagedType.LPStr)] StringBuilder id, uint length);
+
         #region Module Drainage Network
 
         [DllImport(dllPath, EntryPoint = "GETNUMBEROFNODES", SetLastError = true, ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
@@ -78,6 +81,19 @@ namespace MOHID.OpenMI.MohidLand.Wrapper
 
         [DllImport(dllPath, EntryPoint = "GETOUTLETNODEID", SetLastError = true, ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
         public static extern int GetOutletNodeID(ref int drainageNetworkInstanceID);
+
+        [DllImport(dllPath, EntryPoint = "GETNUMBEROFPROPERTIES", SetLastError = true, ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+        public static extern int GetNumberOfProperties(ref int drainageNetworkInstanceID);
+
+        [DllImport(dllPath, EntryPoint = "GETDRAINAGENETWORKPROPERTYID", SetLastError = true, ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+        public static extern int GetDrainageNetworkPropertyID(ref int drainageNetworkInstanceID, ref int idx);
+
+        [DllImport(dllPath, EntryPoint = "GETOUTLETFLOWCONCENTRATION", SetLastError = true, ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+        public static extern double GetOutletFlowConcentration(ref int drainageNetworkInstanceID, ref int propertyID);
+
+        [DllImport(dllPath, EntryPoint = "SETDOWNSTREAMCONCENTRATION", SetLastError = true, ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+        public static extern bool SetDownStreamConcentration(ref int drainageNetworkInstanceID, ref int propertyID, ref double concentration);
+
 
         #endregion
 

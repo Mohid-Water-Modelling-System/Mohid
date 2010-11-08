@@ -214,5 +214,35 @@ namespace MOHID.OpenMI.MohidLand.Wrapper
         {
             MohidLandEngineDLLAccess.SetDownStreamWaterLevel(ref drainageNetworkInstanceID, ref waterLevel);
         }
+
+        public int GetNumberOfProperties(int drainageNetworkInstanceID)
+        {
+            return MohidLandEngineDLLAccess.GetNumberOfProperties(ref drainageNetworkInstanceID);
+        }
+
+        public int GetPropertyIDNumber(int drainageNetworkInstanceID, int idx)
+        {
+            return MohidLandEngineDLLAccess.GetDrainageNetworkPropertyID(ref drainageNetworkInstanceID, ref idx);
+        }
+
+        public string GetPropertyNameByIDNumber(int propertyID)
+        {
+            StringBuilder stringBuilder = new StringBuilder("                         ");
+            if (!MohidLandEngineDLLAccess.GetPropertyNameByID(ref propertyID, stringBuilder, (uint)stringBuilder.Length))
+                CreateAndThrowException();
+            return stringBuilder.ToString().Trim();
+        }
+
+        public double GetOutletFlowConcentration(int drainageNetworkInstanceID, int propertyID)
+        {
+            return MohidLandEngineDLLAccess.GetOutletFlowConcentration(ref drainageNetworkInstanceID, ref propertyID);
+        }
+
+        public void SetDownStreamConcentration(int drainageNetworkInstanceID, int propertyID, double concentration)
+        {
+            MohidLandEngineDLLAccess.SetDownStreamConcentration(ref drainageNetworkInstanceID, ref propertyID, ref concentration);
+        }
+
+
     }
 }

@@ -20,7 +20,7 @@ namespace MOHID.OpenMI.MohidWater.Wrapper
         public void Initialize(string filePath)
         {
             //Loads the library
-            _FortranDllHandle =  Kernel32Wrapper.LoadLibrary(@"D:\Software\Mohid\MOHID.Numerics\Solutions\VisualStudio2008_IntelFortran11\MOHIDNumerics\MohidWaterEngine\Debug OpenMI\MohidWaterEngine.dll");
+            _FortranDllHandle =  Kernel32Wrapper.LoadLibrary(@"D:\Software\Mohid\MOHID.Numerics\Solutions\VisualStudio2008_IntelFortran11\MOHIDNumerics\MohidWaterEngine\Release OpenMI\MohidWaterEngine.dll");
 
             //Sets the directory temporary to the exe dir of the model
             String currentDir = Environment.CurrentDirectory;
@@ -186,6 +186,22 @@ namespace MOHID.OpenMI.MohidWater.Wrapper
             MohidWaterEngineDLLAccess.SetDischargeFlow(ref dischargeInstanceID, ref dischargeID, ref flow);
         }
 
+        public int GetNumberOfDischargeProperties(int dischargeInstanceID, int dischargeID)
+        {
+            return MohidWaterEngineDLLAccess.GetNumberOfDischargeProperties(ref dischargeInstanceID, ref dischargeID);
+        }
+
+        public int GetDischargePropertyID(int dischargeInstanceID, int dischargeID, int idx)
+        {
+            return MohidWaterEngineDLLAccess.GetDischargePropertyID(ref dischargeInstanceID, ref dischargeID, ref idx);
+        }
+
+        public void SetDischargeConcentration(int dischargeInstanceID, int dischargeID, int propertyID, double concentration)
+        {
+            MohidWaterEngineDLLAccess.SetDischargeConcentration(ref dischargeInstanceID, ref dischargeID, ref propertyID, ref concentration);
+        }
+
+
         #endregion
 
         #region Module HorinzontalGrid
@@ -227,6 +243,32 @@ namespace MOHID.OpenMI.MohidWater.Wrapper
 
         #endregion
 
+        #region Module Waterproperties
+
+        public int GetNumberOfProperties(int waterPropertiesInstanceID)
+        {
+            return MohidWaterEngineDLLAccess.GetNumberOfProperties(ref waterPropertiesInstanceID);
+        }
+
+        public int GetPropertyIDNumber(int waterPropertiesInstanceID, int idx)
+        {
+            return MohidWaterEngineDLLAccess.GetWaterPropertiesPropertyID(ref waterPropertiesInstanceID, ref idx);
+        }
+
+        public string GetPropertyNameByIDNumber(int propertyID)
+        {
+            StringBuilder stringBuilder = new StringBuilder("                         ");
+            if (!MohidWaterEngineDLLAccess.GetPropertyNameByID(ref propertyID, stringBuilder, (uint)stringBuilder.Length))
+                CreateAndThrowException();
+            return stringBuilder.ToString().Trim();
+        }
+
+        public double GetConcentrationAtPoint(int waterPropertiesInstanceID, int propertyID, int i, int j)
+        {
+            return MohidWaterEngineDLLAccess.GetConcentrationAtPoint(ref waterPropertiesInstanceID, ref propertyID, ref i, ref j);
+        }
+
+        #endregion
 
         private DateTime MohidTimeStringToDotNetTime(String mohidTimeString)
         {
