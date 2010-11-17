@@ -288,7 +288,7 @@ Module ModuleLagrangianGlobal
     use ModuleStatistic,        only : ConstructStatistic, ModifyStatistic, KillStatistic,  &
                                        GetStatisticClassesNumber, GetStatisticClasses,      &
                                        UnGetStatistic
-    use ModuleOil
+    use ModuleOil_0D
     use ModuleJet,              only : Construct_Jet, GetPlumeTemperature, GetOutPutMatrix, &
                                        GetPlumeLocation, GetPlumeVelocity, GetPlumeDilution,&
                                        GetPlumeDensity, GetPlumeMixingHorLength,            &
@@ -1512,7 +1512,7 @@ d2:         do ig = 1, Me%NGroups
                                                                    Me%EulerModel(em)%Size%JLB: &
                                                                    Me%EulerModel(em)%Size%JUB),&
                                                                    STAT = STAT_CALL)
-
+            
             if (STAT_CALL /= SUCCESS_) stop 'AllocateOil - ModuleLagrangianGlobal - ERR40'
 
             allocate (Me%EulerModel(em)%OilSpreading(ig)%VelocityY(Me%EulerModel(em)%Size%ILB: &
@@ -2764,13 +2764,14 @@ iDF:                if (.not. NewOrigin%Default) then
                                  STAT         = STAT_CALL)        
                     if (STAT_CALL /= SUCCESS_ .or. flag /= 1) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR440'
 
-
-                    call StartTimeSerieInput(NewOrigin%ObjTimeSerie,            &
-                                             NewOrigin%MovingOriginFile,        &
-                                             Me%ExternalVar%ObjTime,            &
-                                             STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR450'
-
+                    if (.not. NewOrigin%Default) then
+                        call StartTimeSerieInput(NewOrigin%ObjTimeSerie,            &
+                                                 NewOrigin%MovingOriginFile,        &
+                                                 Me%ExternalVar%ObjTime,            &
+                                                 STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR450'
+                    endif
+    
 
                 endif
 
@@ -3315,8 +3316,8 @@ DE:             if (NewOrigin%State%Deposition) then
 
 
         !Reads parameter specific to cada Spatial emission type
-PA:             if (NewOrigin%EmissionSpatial == Point_ .or.                             &
-                    NewOrigin%EmissionSpatial == Accident_ ) then
+PA:     if (NewOrigin%EmissionSpatial == Point_ .or.                             &
+            NewOrigin%EmissionSpatial == Accident_ ) then
 
             !Gets the number of particles to emit
             call GetData(NewOrigin%NbrParticlesIteration,                        &
@@ -3683,7 +3684,7 @@ BX:     if (NewOrigin%EmissionSpatial == Box_) then
 
        
         !Searches for Properties
-DOPROP:         do 
+DOPROP: do 
             call ExtractBlockFromBlock(Me%ObjEnterData, ClientNumber,            &
                                        property_begin, property_end,             &
                                        PropertyFound, STAT = STAT_CALL)
@@ -3801,7 +3802,7 @@ DOPROP:         do
                                  keyword      ='NOWQM',                                 &
                                  ClientModule ='ModuleLagrangianGlobal',                &
                                  STAT         = STAT_CALL)        
-                    if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR1240'
+                 if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR1240'
 
 
                 !MinimunConcentration 
@@ -3930,7 +3931,7 @@ DOPROP:         do
                             if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR1302'
                             if (flag == 0) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR1303'
 
-                            if (NewOrigin%Default) then
+                            if (.not. NewOrigin%Default) then
                                 call StartTimeSerieInput(NewProperty%TimeSerieT90,              &
                                                          NewProperty%T90File,                   &
                                                          Me%ExternalVar%ObjTime,                &
@@ -3995,7 +3996,7 @@ DOPROP:         do
                 if (STAT_CALL /= SUCCESS_)                                       &
                     call SetError (FATAL_, KEYWORD_, 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR1320')
 
-WP:                     if (NewProperty%WaterPartition%ON) then
+WP:             if (NewProperty%WaterPartition%ON) then
 
                     Me%State%Partition = ON
                     NewOrigin%State%Partition     = ON
@@ -4053,8 +4054,8 @@ WP:                     if (NewProperty%WaterPartition%ON) then
 
 SP:             if (NewProperty%SedimentPartition%ON) then
 
-                    Me%State%Partition = ON
-                    NewOrigin%State%Partition     = ON
+                    Me%State%Partition        = ON
+                    NewOrigin%State%Partition = ON
 
                     call GetData(NewProperty%SedimentPartition%Coefficient,      &
                                  Me%ObjEnterData,                                &
@@ -4191,7 +4192,7 @@ SP:             if (NewProperty%SedimentPartition%ON) then
 
 
 
-        !If neceassary Starts The WQM module for this origin
+        !If necessary Starts The WQM module for this origin
         if (NewOrigin%State%WQM) then
             
             !WQM Data File
@@ -4203,17 +4204,21 @@ SP:             if (NewProperty%SedimentPartition%ON) then
                          ClientModule ='ModuleLagrangianGlobal',                       &
                          STAT         = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR1480'
+            
+            if (.not. NewOrigin%Default) then
 
-            call StartWaterQuality(NewOrigin%WaterQualityID,                     &
-                                   NewOrigin%WQM_DataFile,                       &
-                                   STAT = STAT_CALL) 
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR1490'
+                call StartWaterQuality(NewOrigin%WaterQualityID,                     &
+                                       NewOrigin%WQM_DataFile,                       &
+                                       STAT = STAT_CALL) 
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR1490'
 
-            NewOrigin%NextWQMCompute = Me%ExternalVar%Now
-            call GetDTWQM (NewOrigin%WaterQualityID, DTSecond = NewOrigin%DTWQM, &
-                           STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR1500'
+                NewOrigin%NextWQMCompute = Me%ExternalVar%Now
+                call GetDTWQM (NewOrigin%WaterQualityID, DTSecond = NewOrigin%DTWQM, &
+                               STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR1500'
 
+            endif
+            
         endif
 
         !If neceassary Starts The Oil module for this origin
@@ -4229,7 +4234,9 @@ SP:             if (NewProperty%SedimentPartition%ON) then
                          STAT         = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR1510'
 
-            call ConstructParticOil (NewOrigin, ClientNumber)
+            if (.not. NewOrigin%Default) then
+                call ConstructParticOil (NewOrigin, ClientNumber)
+            endif
 
         endif
 
@@ -5052,7 +5059,7 @@ i6:                                         if (trim(KeywordClone) == trim(Keywo
         type (T_Origin),   pointer                  :: NewOrigin
         type (T_Property), pointer                  :: CurrentProperty
         character(Len=PathLength)                   :: String
-        integer                                     :: i, j, em
+        integer                                     :: i, em
         logical                                     :: NoDomain
 
 
@@ -5789,7 +5796,7 @@ OldOrigin:      do while (associated(CurrentOldOrigin))
         type (T_Origin), pointer                    :: CurrentOrigin
 
         !Local-----------------------------------------------------------------
-        integer                                     :: STAT_CALL, BoxCell, em
+        integer                                     :: STAT_CALL, em
         logical                                     :: BoxInsideDomain
             
         BestDomainForBox = Me%EulerModelNumber
@@ -5827,8 +5834,7 @@ OldOrigin:      do while (associated(CurrentOldOrigin))
         real                                        :: XI, YI, ZI
         real                                        :: auxX, auxY, auxZ, BoxThickness, DepthPartic
         integer, pointer, dimension(:,:,:)          :: Boxes
-        integer                                     :: STAT_CALL, BoxCell, emBox, em
-        logical                                     :: BoxInsideDomain
+        integer                                     :: STAT_CALL, BoxCell, emBox
 
         !Begin------------------------------------------------------------------
 
@@ -6694,7 +6700,7 @@ OP:         if ((EulerModel%OpenPoints3D(i, j, k) == OpenPoint) .and. &
 
                 !call LocateEulerModel(NewParticle)
 
-                em = NewParticle%Position%ModelID
+                em = CurrentOrigin%Position%ModelID
 
                 !Converts Horizontal Position
                 call Convert_XY_CellIJ (Me%EulerModel(em), NewPosition, Referential = AlongGrid_)
@@ -6811,9 +6817,6 @@ i1:     if (OilSectionFound .and. .not. NewOrigin%Old) then
             call StartOil(OilID             = NewOrigin%ObjOil,                     &     
                           TimeID            = Me%EulerModel(em)%ObjTime,            &     
                           EnterDataID       = Me%ObjEnterData,                      &
-                          HorizontalGridID  = Me%EulerModel(em)%ObjHorizontalGrid,  &     
-                          GeometryID        = Me%EulerModel(em)%ObjGeometry,        &     
-                          MapID             = Me%EulerModel(em)%ObjMap,             &     
                           DT                = Me%DT_PARTIC,                         &     
                           ContCalc          = NewOrigin%Old,                        &
                           ExtractType       = FromBlockInBlock,                     &
@@ -8383,34 +8386,38 @@ iON:        if (CurrentOrigin%EmissionON) then
 
         !Begin-----------------------------------------------------------------
                 !Fills Grid concentration
-        if (Me%Now > Me%ExternalVar%LastConcCompute) call FillGridConcentration 
+        if (Me%Now > Me%ExternalVar%LastConcCompute) then
+            
+            call FillGridConcentration 
 
-d1:     do em = 1, Me%EulerModelNumber
+d1:         do em = 1, Me%EulerModelNumber
 
-            ILB = Me%EulerModel(em)%WorkSize%ILB
-            JLB = Me%EulerModel(em)%WorkSize%JLB
-            IUB = Me%EulerModel(em)%WorkSize%IUB
-            JUB = Me%EulerModel(em)%WorkSize%JUB
-            KUB = Me%EulerModel(em)%WorkSize%KUB
+                ILB = Me%EulerModel(em)%WorkSize%ILB
+                JLB = Me%EulerModel(em)%WorkSize%JLB
+                IUB = Me%EulerModel(em)%WorkSize%IUB
+                JUB = Me%EulerModel(em)%WorkSize%JUB
+                KUB = Me%EulerModel(em)%WorkSize%KUB
 
-d2:         do ig = 1, Me%NGroups 
-d3:         do j  = JLB, JUB
-d4:         do i  = ILB, IUB
-                             
-i1:             if (Me%EulerModel(em)%WaterPoints3D(i, j, KUB) == WaterPoint) then 
+d2:             do ig = 1, Me%NGroups 
+d3:             do j  = JLB, JUB
+d4:             do i  = ILB, IUB
+                                 
+i1:                 if (Me%EulerModel(em)%WaterPoints3D(i, j, KUB) == WaterPoint) then 
 
-                !Calculates the GridThickness
-                    Me%EulerModel(em)%OilSpreading(ig)%GridThickness(i, j) =            &
-                        Me%EulerModel(em)%Lag2Euler%GridVolume(i, j, KUB, ig) /         &
-                        Me%EulerModel(em)%GridCellArea(i, j)
+                    !Calculates the GridThickness
+                        Me%EulerModel(em)%OilSpreading(ig)%GridThickness(i, j) =            &
+                            Me%EulerModel(em)%Lag2Euler%GridVolume(i, j, KUB, ig) /         &
+                            Me%EulerModel(em)%GridCellArea(i, j)
 
-                endif i1
+                    endif i1
 
-            enddo d4
-            enddo d3
-            enddo d2
+                enddo d4
+                enddo d3
+                enddo d2
 
-        enddo d1
+            enddo d1
+
+        endif
 
     end subroutine FillGridThickness
 
@@ -9020,9 +9027,10 @@ CurrOr: do while (associated(CurrentOrigin))
         type (T_Origin), pointer                    :: CurrentOrigin
         real, dimension(:, :, :), pointer           :: Temperature3D
         real                                        :: TemperatureX, DensityX
-        real                                        :: VolInic
+        real                                        :: VolInic, CoefVelMancha
         integer                                     :: STAT_CALL
         integer                                     :: i, j, k, em, ig
+        integer                                     :: ILB, JLB, IUB, JUB, KUB
         integer                                     :: ThicknessGradient, Fay
         integer                                     :: SpreadingMethod
 
@@ -9043,6 +9051,14 @@ CurrOr: do while (associated(CurrentOrigin))
                 
                 em           = CurrentOrigin%Position%ModelID
                 ig           = CurrentOrigin%GroupID
+                
+                ILB          = Me%EulerModel(em)%WorkSize%ILB
+                JLB          = Me%EulerModel(em)%WorkSize%JLB
+
+                IUB          = Me%EulerModel(em)%WorkSize%IUB
+                JUB          = Me%EulerModel(em)%WorkSize%JUB
+                
+                KUB          = Me%EulerModel(em)%WorkSize%KUB
 
                 !Gets the temperature and the Density from the Eulerian model
                 call GetConcentration(Me%EulerModel(em)%ObjWaterProperties,             &
@@ -9081,12 +9097,10 @@ CurrOr: do while (associated(CurrentOrigin))
 
                     VolInic = CurrentOrigin%PointVolume
 
-                end select            
-
-
+                end select
+                
                 !Calculates the Oil Active Processes    
                 call OilActiveProcesses(OilID              = CurrentOrigin%ObjOil,                            &
-                                        GridThickness      = Me%EulerModel(em)%OilSpreading(ig)%GridThickness,&
                                         WaterTemperature   = TemperatureX,              &
                                         WaterDensity       = DensityX,                  &
                                         VolInic            = VolInic,                   &
@@ -9103,14 +9117,49 @@ CurrOr: do while (associated(CurrentOrigin))
                                      STAT                  = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'MovePartic - ModuleLagrangianGlobal - ERR30'
 
-                
                 if     (SpreadingMethod == ThicknessGradient) then
 
-                    !call GetOilSpreadingVelocity(CurrentOrigin%ObjOil,                      &
-                    !     SpreadingVelocityX = Me%EulerModel(em)%SpreadingVelocityX, &
-                    !     SpreadingVelocityY = Me%EulerModel(em)%SpreadingVelocityY, &
-                    !     STAT               = STAT_CALL)
-                    !if (STAT_CALL /= SUCCESS_) stop 'MovePartic - ModuleLagrangianGlobal - ERR03b'
+                    call GetOilSpreadingVelocity(CurrentOrigin%ObjOil,                  &
+                         CoefVelMancha   = CoefVelMancha,                               &
+                         STAT           = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'MovePartic - ModuleLagrangianGlobal - ERR40'
+
+                    do j = JLB, JUB + 1
+                    do i = ILB, IUB
+
+                        if (Me%EulerModel(em)%ComputeFaces3D_U(i, j, KUB) == Compute) then
+
+                            Me%EulerModel(em)%OilSpreading(ig)%VelocityX(i, j) =  CoefVelMancha  *  &
+                                    (Me%EulerModel(em)%OilSpreading(ig)%GridThickness(i, j-1) - &
+                                     Me%EulerModel(em)%OilSpreading(ig)%GridThickness(i, j)) /  &
+                                     Me%EulerModel(em)%DZX(i,  j-1)
+                        else
+
+                            Me%EulerModel(em)%OilSpreading(ig)%VelocityX(i, j) = 0.
+
+                        endif
+
+                    enddo
+                    enddo
+
+                    do j = JLB, JUB
+                    do i = ILB, IUB + 1
+
+                        if (Me%EulerModel(em)%ComputeFaces3D_V(i, j, KUB) == Compute) then
+
+                            Me%EulerModel(em)%OilSpreading(ig)%VelocityY(i, j) =  CoefVelMancha  *  &
+                                    (Me%EulerModel(em)%OilSpreading(ig)%GridThickness(i-1, j) - &
+                                     Me%EulerModel(em)%OilSpreading(ig)%GridThickness(i, j)) /  &
+                                     Me%EulerModel(em)%DZY(i-1,  j)
+                        else
+
+                            Me%EulerModel(em)%OilSpreading(ig)%VelocityY(i, j) = 0.
+
+                        endif
+
+                    enddo
+                    enddo
+
 
                 elseif (SpreadingMethod == Fay              ) then
 
@@ -9124,25 +9173,6 @@ CurrOr: do while (associated(CurrentOrigin))
 
             !Moves the particles horizontaly
             call MoveParticHorizontal(CurrentOrigin, ThicknessGradient, Fay, SpreadingMethod)
-
-            !Ungets Spreading Velocity
-            if (CurrentOrigin%State%Oil .and. CurrentOrigin%nParticle > 0) then
-
-                if     (SpreadingMethod == ThicknessGradient) then
-
-                    !call UnGetOil (CurrentOrigin%ObjOil,                                 &
-                    !               Me%EulerModel(em)%SpreadingVelocityX,         &
-                    !               STAT = STAT_CALL)
-                    !if (STAT_CALL /= SUCCESS_) stop 'MovePartic - ModuleLagrangianGlobal - ERR50'
-
-                    !call UnGetOil (CurrentOrigin%ObjOil,                                 &
-                    !               Me%EulerModel(em)%SpreadingVelocityY,         &
-                    !               STAT = STAT_CALL)
-                    !if (STAT_CALL /= SUCCESS_) stop 'MovePartic - ModuleLagrangianGlobal - ERR60'
-
-                endif
-
-            endif
 
             CurrentOrigin => CurrentOrigin%Next
 
@@ -9191,7 +9221,7 @@ CurrOr: do while (associated(CurrentOrigin))
         real                                        :: VolOld, VolNew, dVol
         real                                        :: Modulus, WindX, WindY
         real                                        :: GradDWx, GradDWy, Aux
-        logical                                     :: NoIntU, NoIntV, ComputeTrajectory, NotChangeDomain, HaveDomain, MovePartic
+        logical                                     :: NoIntU, NoIntV, ComputeTrajectory, HaveDomain, MovePartic
         logical                                     :: SlipConditionX, SlipConditionY
 
 
@@ -9309,16 +9339,24 @@ MF:             if (CurrentOrigin%Movement%Float) then
                     if (CurrentOrigin%State%Oil) then
 
                         if      (SpreadingMethod == ThicknessGradient) then
+                            if  (emp == CurrentOrigin%Position%ModelID) then
                 
-                            UOil = LinearInterpolation(                                      &
-                                    Me%EulerModel(emp)%OilSpreading(ID_Group)%VelocityX(i, j  ),    &
-                                    Me%EulerModel(emp)%OilSpreading(ID_Group)%VelocityX(i, j+1),    &
-                                    Balx)
+                                UOil = LinearInterpolation(                                      &
+                                        Me%EulerModel(emp)%OilSpreading(ID_Group)%VelocityX(i, j  ),    &
+                                        Me%EulerModel(emp)%OilSpreading(ID_Group)%VelocityX(i, j+1),    &
+                                        Balx)
 
-                            VOil = LinearInterpolation(                                      &
-                                    Me%EulerModel(emp)%OilSpreading(ID_Group)%VelocityY(i, j  ),    &
-                                    Me%EulerModel(emp)%OilSpreading(ID_Group)%VelocityY(i+1, j),    &
-                                    Baly)
+                                VOil = LinearInterpolation(                                      &
+                                        Me%EulerModel(emp)%OilSpreading(ID_Group)%VelocityY(i, j  ),    &
+                                        Me%EulerModel(emp)%OilSpreading(ID_Group)%VelocityY(i+1, j),    &
+                                        Baly)
+                            else
+                            
+                                UOil  = 0.0
+                                VOil  = 0.0
+                           
+                            endif
+                           
                                             
                         elseif  (SpreadingMethod == Fay              ) then
 
@@ -9925,7 +9963,7 @@ cd2:        if (Me%EulerModel(emp)%BottomStress(i,j) <                          
         real                                        :: WStandardDeviation
         real                                        :: W, WD
         real                                        :: Radius, Area, VolOld, VolNew, dVol
-        real                                        :: ai, dw, Cd, DeltaD, AuxW, dwt
+        real                                        :: ai, dw, Cd, DeltaD, AuxW
         real                                        :: DT_Vert        
 
         !------------------------------------------------------------------------
@@ -10097,9 +10135,11 @@ PL:         if (CurrentOrigin%State%FarFieldBuoyancy) then
                 
 
                 if (CurrentPartic%SigmaDensity > 0) then
-                    CurrentPartic%SigmaDensity = CurrentPartic%SigmaDensity + DT_Vert * (Me%EulerModel(emp)%SigmaDensity(i, j, k) - CurrentPartic%SigmaDensity)  / (172800.+86400.)
+                    CurrentPartic%SigmaDensity = CurrentPartic%SigmaDensity                          + & 
+                                                 DT_Vert * (Me%EulerModel(emp)%SigmaDensity(i, j, k) - &
+                                                 CurrentPartic%SigmaDensity)  / (172800.+86400.)
                 else
-                    CurrentPartic%SigmaDensity = SigmaUNESCO     (CurrentPartic%Concentration (1), CurrentPartic%Concentration (2))
+                    CurrentPartic%SigmaDensity = SigmaUNESCO(CurrentPartic%Concentration (1), CurrentPartic%Concentration (2))
                 endif    
 
                 !Acceleration due density gradient
@@ -13272,7 +13312,8 @@ i0:             if (Me%RunOnline .and. em == emMax .and. Me%Online%EmissionTempo
                 call WriteGridConcentration(em) 
 
                 !Flushes All pending HDF5 commands
-                call HDF5FlushMemory (Me%ObjHDF5(em), ErrorMessage ='ParticleOutput - ModuleLagrangianGlobal - ERR75', STAT = STAT_CALL)
+                call HDF5FlushMemory (Me%ObjHDF5(em), ErrorMessage ='ParticleOutput - ModuleLagrangianGlobal - ERR75',&
+                                      STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ParticleOutput - ModuleLagrangianGlobal - ERR75'
 
 i1:             if (nP>0) then
@@ -13544,8 +13585,8 @@ i1:             if (nP>0) then
                             if (nP > 0) then
                                 !HDF 5
                                 call HDF5WriteData  (Me%ObjHDF5(em), "/Results/"//trim(CurrentOrigin%Name)//"/density", &
-                                                    "density",  "sigma density kg/m^3", Array1D = Matrix1D, OutputNumber = OutPutNumber,     &
-                                                     STAT = STAT_CALL)
+                                                    "density",  "sigma density kg/m^3", Array1D = Matrix1D,             &
+                                                    OutputNumber = OutPutNumber, STAT = STAT_CALL)
                                 if (STAT_CALL /= SUCCESS_) stop 'ParticleOutput - ModuleLagrangianGlobal - ERR165'
                             endif
 
@@ -14421,7 +14462,8 @@ idp:                    if (Me%State%Deposition) then
 
 
                     !Flushes All pending HDF5 commands
-                    call HDF5FlushMemory (Me%ObjHDF5(em), ErrorMessage ='ParticleOutput - ModuleLagrangianGlobal - ERR400', STAT = STAT_CALL)
+                    call HDF5FlushMemory (Me%ObjHDF5(em), ErrorMessage =                &
+                                         'ParticleOutput - ModuleLagrangianGlobal - ERR400', STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'ParticleOutput - ModuleLagrangianGlobal - ERR400'
 
                 endif i1
@@ -14574,7 +14616,8 @@ CurrOr:     do while (associated(CurrentOrigin))
         enddo CurrOr
 
         !Flushes All pending HDF5 commands
-        call HDF5FlushMemory (Me%ObjHDF5(em), ErrorMessage =  'DummyParticleStartDate - ModuleLagrangianGlobal - ERR130', STAT = STAT_CALL)
+        call HDF5FlushMemory (Me%ObjHDF5(em), ErrorMessage =                            &
+                             'DummyParticleStartDate - ModuleLagrangianGlobal - ERR130', STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'DummyParticleStartDate - ModuleLagrangianGlobal - ERR120'
 
 
@@ -16766,9 +16809,6 @@ i3:         if (NewOrigin%State%Oil) then
                 call StartOil(OilID             = NewOrigin%ObjOil,                     &
                               TimeID            = Me%EulerModel(em)%ObjTime,            &
                               EnterDataID       = Me%ObjEnterData,                      &
-                              HorizontalGridID  = Me%EulerModel(em)%ObjHorizontalGrid,  &
-                              GeometryID        = Me%EulerModel(em)%ObjGeometry,        &
-                              MapID             = Me%EulerModel(em)%ObjMap,             &
                               DT                = Me%DT_PARTIC,                         &     
                               ContCalc          = NewOrigin%Old,                        &
                               ExtractType       = FromBlockInBlock,                     &                   
@@ -16924,9 +16964,6 @@ d1:     do em = 1, Me%EulerModelNumber
 
 d1:     do em =1, Me%EulerModelNumber 
 
-            deallocate (Me%EulerModel(em)%OilSpreading, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'DeAllocateOil - ModuleLagrangianGlobal - ERR10'
-
 d2:         do ig = 1, Me%NGroups
 
             !Allocates GridThickness
@@ -16953,7 +16990,11 @@ d2:         do ig = 1, Me%NGroups
 
             enddo d2
 
+            deallocate (Me%EulerModel(em)%OilSpreading, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'DeAllocateOil - ModuleLagrangianGlobal - ERR70'
+
         enddo d1
+        
 
     end subroutine DeAllocateOil
 
