@@ -32320,7 +32320,7 @@ cd10:           if (ImposedTangentialFacesUV(i, j, KUB) == Imposed) then
         integer                            :: CHUNK
         
     !------------initialization----
-        !A if (MonitorPerformance) call StartWatch ("ModuleHydrodynamic", "Modify_ROX3")
+        if (MonitorPerformance) call StartWatch ("ModuleHydrodynamic", "Modify_ROX3")
 
 
         !Begin - Shorten variables name 
@@ -32634,9 +32634,9 @@ do27:           do  k=KUB, kbottom,-1
         !If the baroclinic force is not to be consider in the boundary then
         BoundaryBaroclinic = Me%ComputeOptions%BoundaryBaroclinic
         
-        if (MonitorPerformance) then
-            call StartWatch ("ModuleHydrodynamic", "Modify_ROX3")
-        endif
+!        if (MonitorPerformance) then
+!            call StartWatch ("ModuleHydrodynamic", "Modify_ROX3")
+!        endif
         
 cd10:   if ( .not. BoundaryBaroclinic ) then 
 
@@ -32726,9 +32726,9 @@ do62:                   do  K = kbottom, KUB
 
         endif cd12
 
-        if (MonitorPerformance) then
-            call StopWatch ("ModuleHydrodynamic", "Modify_ROX3")
-        endif
+!        if (MonitorPerformance) then
+!            call StopWatch ("ModuleHydrodynamic", "Modify_ROX3")
+!        endif
         
         !Nullify auxiliar pointers
         nullify (Kleft)
@@ -32752,7 +32752,7 @@ do62:                   do  K = kbottom, KUB
         nullify (DUX_VY)  
         nullify (DUZ_VZ)
 
-        !A if (MonitorPerformance) call StopWatch ("ModuleHydrodynamic", "Modify_ROX3")
+        if (MonitorPerformance) call StopWatch ("ModuleHydrodynamic", "Modify_ROX3")
 
     End Subroutine Modify_ROX3
 

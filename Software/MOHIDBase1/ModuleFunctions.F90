@@ -1503,6 +1503,8 @@ do1 :       do
 
         !----------------------------------------------------------------------
 
+        if (MonitorPerformance) call StartWatch ("ModuleFunctions", "THOMAS_2D")
+
 do2 :   do IJ = IJmin, IJmax
             I = IJmin-1 + IJ*dj + di
             J = JImin-1 + IJ*di + dj
@@ -1533,6 +1535,8 @@ do1 :       do II = JImin+1, JImax+1
             end do do1
         end do do2
 
+        if (MonitorPerformance) call StopWatch ("ModuleFunctions", "THOMAS_2D")
+
     end subroutine THOMAS_2D
 
     !--------------------------------------------------------------------------
@@ -1557,6 +1561,8 @@ do1 :       do II = JImin+1, JImax+1
 
         !Local-----------------------------------------------------------------
         
+        if (MonitorPerformance) call StartWatch ("ModuleFunctions", "THOMAS_3D")
+
         if (di == 0 .and. dj == 1) then
 
             call THOMAS_3D_i0_j1(IJmin, IJmax,                                        &
@@ -1580,6 +1586,8 @@ do1 :       do II = JImin+1, JImax+1
             stop 'THOMAS_3D_NoOpenMP - Module Functions - ERR01'
 
         endif
+
+        if (MonitorPerformance) call StopWatch ("ModuleFunctions", "THOMAS_3D")
 
     end subroutine THOMAS_3D_NoOpenMP
 
@@ -1701,6 +1709,8 @@ do1 :       do II = JImin+1, JImax+1
 
         !Local-----------------------------------------------------------------
         
+        if (MonitorPerformance) call StartWatch ("ModuleFunctions", "THOMAS_3D")
+
         if (di == 0 .and. dj == 1) then
 
             call THOMAS_3D_i0_j1_OMP(IJmin, IJmax,                                        &
@@ -1724,6 +1734,8 @@ do1 :       do II = JImin+1, JImax+1
             stop 'THOMAS_3D_OpenMP - Module Functions - ERR01'
 
         endif
+
+        if (MonitorPerformance) call StopWatch ("ModuleFunctions", "THOMAS_3D")
 
     end subroutine THOMAS_3D_OpenMP
 
@@ -1751,7 +1763,7 @@ do1 :       do II = JImin+1, JImax+1
 
         !Begin-----------------------------------------------------------------
 
-        if (MonitorPerformance) call StartWatch ("ModuleFunctions", "THOMAS_3D_i0_j1_OMP")
+!        if (MonitorPerformance) call StartWatch ("ModuleFunctions", "THOMAS_3D_i0_j1_OMP")
 
         !CHUNK = CHUNK_K(Kmin, Kmax)
         CHUNK = CHUNK_J(IJmin, IJmax)
@@ -1786,7 +1798,7 @@ do1 :       do II = JImin+1, JImax+1
         !!$OMP END DO NOWAIT
         !$OMP END PARALLEL
 
-        if (MonitorPerformance) call StopWatch ("ModuleFunctions", "THOMAS_3D_i0_j1_OMP")
+!        if (MonitorPerformance) call StopWatch ("ModuleFunctions", "THOMAS_3D_i0_j1_OMP")
 
     end subroutine THOMAS_3D_i0_j1_OMP
 
@@ -1814,7 +1826,7 @@ do1 :       do II = JImin+1, JImax+1
 
         !Begin-----------------------------------------------------------------
 
-        if (MonitorPerformance) call StartWatch ("ModuleFunctions", "THOMAS_3D_i1_j0_OMP")
+!        if (MonitorPerformance) call StartWatch ("ModuleFunctions", "THOMAS_3D_i1_j0_OMP")
 
         !CHUNK = CHUNK_K(Kmin, Kmax)
         CHUNK = CHUNK_J(IJmin, IJmax)
@@ -1849,7 +1861,7 @@ do1 :       do II = JImin+1, JImax+1
         !!$OMP END DO NOWAIT
         !$OMP END PARALLEL
         
-        if (MonitorPerformance) call StopWatch ("ModuleFunctions", "THOMAS_3D_i1_j0_OMP")
+!        if (MonitorPerformance) call StopWatch ("ModuleFunctions", "THOMAS_3D_i1_j0_OMP")
 
 
     end subroutine THOMAS_3D_i1_j0_OMP
@@ -1878,6 +1890,8 @@ do1 :       do II = JImin+1, JImax+1
 
         !------------------------------------------------------------------------
 
+        if (MonitorPerformance) call StartWatch ("ModuleFunctions", "THOMASZ")
+
 do2 :   DO J = JLB, JUB
 do1 :   DO I = ILB, IUB
             VECW(KLB) =-CW (I, J, 1) / BW(I, J, 1)
@@ -1899,6 +1913,8 @@ do4 :       DO II = KLB+1, KUB+1
         END DO do1
         END DO do2
         
+        if (MonitorPerformance) call StopWatch ("ModuleFunctions", "THOMASZ")
+
     end subroutine THOMASZ_NoOpenMP
 
     !--------------------------------------------------------------------------
