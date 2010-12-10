@@ -69,7 +69,9 @@ Module ModuleMERCATORFormat
     integer, parameter                          :: Version2     = 2
     integer, parameter                          :: Version3     = 3
     integer, parameter                          :: Version4     = 4
-
+    integer, parameter                          :: PSY2V4       = 5
+    
+    
     integer, parameter                          :: MercatorLayers = 43
 
     character(LEN = StringLength), parameter    :: input_files_begin   = '<<begin_input_files>>'
@@ -247,6 +249,18 @@ Module ModuleMERCATORFormat
                 stop 'ConvertMERCATORFormat - ModuleMERCATORFormat - ERR04'
 
             call OpenAndReadMERCATORFileV4
+            
+        else if (Me%ReadOptionType == PSY2V4) then
+
+            !The time in Mercator is compute in seconds from 2006/10/11 : 0h:0m:0s
+            call SetDate (Me%RefDateTime, Year=2006, Month=10, Day=11, Hour=0, Minute=0, Second=0) 
+
+            call StartComputeTime(Me%ObjTime, Me%RefDateTime, Me%RefDateTime, DT = 0.0, &
+                                  VariableDT = .false., STAT = STAT_CALL)   
+            if (STAT_CALL /= SUCCESS_)                                                  &
+                stop 'ConvertMERCATORFormat - ModuleMERCATORFormat - ERR05'
+
+            call OpenAndReadMERCATORFileV5
 
         endif
 
@@ -928,6 +942,23 @@ do0:    do n=1,nVars
         call OpenAndReadMERCATORFieldsV4
 
     end subroutine OpenAndReadMERCATORFileV4
+    
+    !------------------------------------------------------------------------
+    
+    subroutine OpenAndReadMERCATORFileV5
+        
+        !PSY2V4(version5) and PSYV3(version3) have the same format for grid/bathymetry 
+        call OpenAndReadBathymMERCATORV3  
+
+        call ConstructGridV2
+
+        call WriteMERCATORGeometry
+
+        call Open_HDF5_OutPut_File
+
+        call OpenAndReadMERCATORFieldsV5
+    
+    end subroutine OpenAndReadMERCATORFileV5
     
     
     !------------------------------------------------------------------------
@@ -1946,8 +1977,8 @@ i2:                     if (CheckName(nameAux, MohidName)) then
 
     end subroutine OpenAndReadBathymMERCATORV4
     
-    !------------------------------------------------------------------------
-
+    !--------------------------------------------------------------------------
+    
     subroutine OpenAndReadMERCATORFields
 
         !Arguments-------------------------------------------------------------
@@ -2125,6 +2156,64 @@ i1:             if (exist) then
     end subroutine OpenAndReadMERCATORFieldsV4
 
     !------------------------------------------------------------------------
+    
+    subroutine OpenAndReadMERCATORFieldsV5
+
+        !Arguments-------------------------------------------------------------
+        
+        !Local-----------------------------------------------------------------
+        character(len=PathLength)               :: InPutFile
+        logical                                 :: exist, BlockFound
+        integer                                 :: iflag, line, FirstLine, LastLine,    &
+                                                   STAT_CALL
+
+
+        !Begin----------------------------------------------------------------
+
+
+        call ExtractBlockFromBlock(Me%ObjEnterData, Me%ClientNumber,                    &
+                                   input_files_begin, input_files_end,                  &
+                                   BlockInBlockFound = BlockFound,                      &
+                                   FirstLine = FirstLine, LastLine = LastLine,          &
+                                   STAT = STAT_CALL)
+
+IS:     if(STAT_CALL .EQ. SUCCESS_) then
+
+            !The block is found to exist before when reading depth
+
+            do line = FirstLine + 1, LastLine - 1
+
+                call GetData(InputFile, EnterDataID = Me%ObjEnterData, flag = iflag,    &
+                             Buffer_Line = line, STAT = STAT_CALL)
+
+                if (STAT_CALL /= SUCCESS_)                                              &
+                    stop 'OpenAndReadMERCATORFieldsV5 - ModuleMERCATORFormat - ERR10'
+
+                inquire(file = InputFile, exist = exist)
+   
+i1:             if (exist) then
+                                                
+                    call ReadMercatorFileV5 (InputFile) 
+
+                endif i1
+            enddo
+
+            call Block_Unlock(Me%ObjEnterData, Me%ClientNumber, STAT = STAT_CALL) 
+
+            if (STAT_CALL /= SUCCESS_)                                                  &
+                stop 'OpenAndReadMERCATORFieldsV5 - ModuleMERCATORFormat - ERR20'
+
+        else   IS
+
+            stop 'OpenAndReadMERCATORFieldsV5 - ModuleMERCATORFormat - ERR30'
+
+        end if IS
+
+
+    end subroutine OpenAndReadMERCATORFieldsV5
+
+    !------------------------------------------------------------------------
+
 
     subroutine ReadMercatorFile(InputFile)
 
@@ -3007,6 +3096,435 @@ i1:         if (CheckName(nameAux, MohidName)) then
         endif
 
     end subroutine ReadMercatorFileV4
+    
+    !--------------------------------------------------------------------------
+
+    subroutine ReadMercatorFileV5(InputFile)
+
+        !Arguments-------------------------------------------------------------
+        character (Len=*)                       :: InputFile
+        
+        !Local-----------------------------------------------------------------
+        real, dimension(:,:,:,:), pointer       :: Aux4D, BaroAux4D
+        real, dimension(:,:,:  ), pointer       :: Aux3D, Aux3DModulus
+        real, dimension(:,:,:  ), pointer       :: BaroAux3D, SumScaFactor
+        real, dimension(:,:    ), pointer       :: Aux2D, BaroAux2D
+        real(8), dimension(:    ), allocatable  :: AuxDays
+        integer                                 :: ni, n, nInst, iOut, i, j, k
+        integer                                 :: ncid, status, dimid
+        integer                                 :: nDimensions
+        integer                                 :: nDims, nVars, nAtrr, xtype
+        integer                                 :: WestON, EastON, SouthON, NorthON
+        character (len=80)                      :: nameAux
+        character(Len=StringLength)             :: MohidName
+        type (T_Time)                           :: FieldTime
+        real                                    :: AddOffSet    = 0.
+        real                                    :: ScaleFactor  = 1.
+        real                                    :: WestValue, EastValue
+        real                                    :: SouthValue, NorthValue
+    
+        !Begin----------------------------------------------------------------
+
+        !Verifies if file exists
+
+        status=NF90_OPEN(trim(InputFile),NF90_NOWRITE,ncid)
+        if (status /= nf90_noerr)                                                       &
+            stop 'ReadMercatorFileV5 - ModuleMERCATORFormat - ERR10'
+
+        status=NF90_INQ_DIMID(ncid,"time_counter",dimid)
+        if (status /= nf90_noerr)                                                       &
+            stop 'ReadMercatorFileV5 - ModuleMERCATORFormat - ERR20'
+
+        status=NF90_INQUIRE_DIMENSION(ncid, dimid, len = nInst)
+        if (status /= nf90_noerr)                                                       &
+            stop 'ReadMercatorFileV5 - ModuleMERCATORFormat - ERR30'
+
+        allocate(AuxDays(1:nInst))
+
+        status = nf90_inq_varid(ncid, 'time_counter', n)
+        if (status /= nf90_noerr)                                                       &
+            stop 'ReadMercatorFileV5 - ModuleMERCATORFormat - ERR40'
+
+        status = NF90_GET_VAR(ncid,n,AuxDays)
+        if (status /= nf90_noerr)                                                       &
+            stop 'ReadMercatorFileV5 - ModuleMERCATORFormat - ERR50'
+
+        status=NF90_INQUIRE(ncid, nDims, nVars, nAtrr)
+        if (status /= nf90_noerr)                                                       &
+            stop 'ReadMercatorFileV5 - ModuleMERCATORFormat - ERR60'
+
+d0:     do n=1,nVars
+
+            status=NF90_INQUIRE_VARIABLE(ncid, n, nameAux, xtype, nDimensions)
+            if (status /= nf90_noerr)                                                   &
+                stop 'ReadMercatorFileV5 - ModuleMERCATORFormat - ERR70'
+
+            if (nDimensions == 4) then
+
+!                if (CheckNameV3(nameAux, MohidName)) then
+                !Temperature, Salinity, Meridional vel., Zonal vel.
+                allocate(Aux4D(Me%jmax, Me%imax, Me%kmax, nInst))
+                allocate(Aux3D(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB,        &
+                        Me%Size%KLB:Me%Size%KUB))
+                Aux3D(:,:,:) = FillValueReal
+
+                allocate(Aux3DModulus(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB, &
+                        Me%Size%KLB:Me%Size%KUB))
+                Aux3DModulus(:,:,:) = FillValueReal
+!                endif
+
+            elseif (nDimensions == 3) then
+
+!                if (CheckNameV3(nameAux, MohidName)) then
+                    !Sea surface height
+                    allocate(Aux4D(Me%jmax, Me%imax, 1      , nInst))
+                    allocate(Aux2D(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+                    Aux2D(:,:) = FillValueReal
+!                endif
+
+            elseif (nDimensions == 2 .or. nDimensions == 1) then
+                !Grid properties already written
+                cycle
+            endif
+
+            status = NF90_GET_VAR(ncid,n,Aux4D)
+            if (status /= nf90_noerr)                                                   &
+                stop 'ReadMercatorFileV5 - ModuleMERCATORFormat - ERR80'
+
+i2:         if (CheckNameV3(nameAux, MohidName)) then
+
+                status=NF90_GET_ATT(ncid,n,"add_offset",AddOffSet)
+                if (status /= nf90_noerr)                                                   &
+                    stop 'ReadMercatorFileV5 - ModuleMERCATORFormat - ERR81'
+                
+                status=NF90_GET_ATT(ncid,n,"scale_factor",ScaleFactor)
+                if (status /= nf90_noerr)                                                   &
+                    stop 'ReadMercatorFileV5 - ModuleMERCATORFormat - ERR82'
+
+d1:             do ni = 1, nInst
+
+                    iOut = OutputInstants(MohidName)
+
+                    FieldTime = Me%RefDateTime + (AuxDays(ni) - 43200.)
+
+                    if      (nDimensions == 4) then
+                        
+                        !The boundary cells are not read
+                        do k = Me%WorkSize%KLB, Me%WorkSize%KUB
+                        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+                        do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+
+                            if (Me%WaterPoints3D(i, j, k) == WaterPoint) then
+                                
+                                if      (MohidName == GetPropertyName(VelocityU_)) then
+
+                                    WestON = Me%ComputeFaces3DU(i, j-1, k) 
+                                    EastON = Me%ComputeFaces3DU(i, j  , k) 
+                                    
+                                    WestValue = Aux4D(j,  i+1,Me%WorkSize%KUB+1-k,ni) * ScaleFactor + AddOffSet
+                                    EastValue = Aux4D(j+1,i+1,Me%WorkSize%KUB+1-k,ni) * ScaleFactor + AddOffSet
+
+                                    Aux3D(i, j, k) = (WestValue * WestON  + &
+                                                      EastValue * EastON) / 2.
+
+                                    if (abs(Aux3D(i, j, k))> 200.) Aux3D(i, j, k) = 0.
+
+                                                    
+                                else if (MohidName == GetPropertyName(VelocityV_)) then
+                                    
+                                    SouthON = Me%ComputeFaces3DV(i-1, j, k) 
+                                    NorthON = Me%ComputeFaces3DV(i,   j, k) 
+                                    
+                                    SouthValue = Aux4D(j+1,i,  Me%WorkSize%KUB+1-k,ni) * ScaleFactor + AddOffSet
+                                    NorthValue = Aux4D(j+1,i+1,Me%WorkSize%KUB+1-k,ni) * ScaleFactor + AddOffSet
+                                    
+                                    Aux3D(i, j, k) = (SouthValue * SouthON  + &
+                                                      NorthValue * NorthON) / 2.
+
+                                   if (abs(Aux3D(i, j, k))> 200.) Aux3D(i, j, k) = 0.
+
+                                 
+                                else if (MohidName == GetPropertyName(Temperature_) .or. &
+                                         MohidName == GetPropertyName(Salinity_   )) then
+
+                                    Aux3D(i, j, k) = Aux4D(j+1,i+1,Me%WorkSize%KUB+1-k,ni)* ScaleFactor + AddOffSet
+                                    
+                                endif
+
+                            endif
+
+                        enddo
+                        enddo
+                        enddo
+
+                        
+                        call WriteHDF5Field(FieldTime, MohidName, iOut, Aux3D = Aux3D)
+
+
+                    else if (nDimensions == 3) then
+
+                        !The boundary cells are not read
+                        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+                        do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+
+                            if (Me%WaterPoints3D(i, j, Me%WorkSize%KUB) == WaterPoint) then
+                                
+                                if (MohidName == GetPropertyName(BarotropicVelocityU_)) then
+
+                                    WestON = Me%ComputeFaces3DU(i, j-1, Me%WorkSize%KUB) 
+                                    EastON = Me%ComputeFaces3DU(i, j  , Me%WorkSize%KUB) 
+                                    WestValue = Aux4D(j  ,i+1,1,ni) * ScaleFactor + AddOffSet
+                                    EastValue = Aux4D(j+1,i+1,1,ni) * ScaleFactor + AddOffSet
+
+                                    Aux2D(i, j) = (WestValue * WestON  + &
+                                                   EastValue * EastON) / 2.
+
+                                    if (abs(Aux2D(i, j))> 200.) Aux2D(i, j) = 0.
+
+                                else if (MohidName == GetPropertyName(BarotropicVelocityV_)) then
+                                    
+                                    SouthON = Me%ComputeFaces3DV(i-1, j, Me%WorkSize%KUB) 
+                                    NorthON = Me%ComputeFaces3DV(i,   j, Me%WorkSize%KUB) 
+                                    SouthValue = Aux4D(j+1,  i  ,1,ni) * ScaleFactor + AddOffSet
+                                    NorthValue = Aux4D(j+1,i+1  ,1,ni) * ScaleFactor + AddOffSet
+                                
+                                    Aux2D(i, j) = (SouthValue * SouthON  + &
+                                                   NorthValue * NorthON) / 2.
+
+                                    if (abs(Aux2D(i, j))> 200.) Aux2D(i, j) = 0.
+                                
+
+                                else if (MohidName == GetPropertyName(WaterLevel_ )) then
+
+                                    Aux2D(i, j) = Aux4D(j+1,i+1,1, ni) * ScaleFactor + AddOffSet
+                                    
+                                endif
+                            endif
+
+                        enddo
+                        enddo
+
+                        call WriteHDF5Field(FieldTime, MohidName, iOut, Aux2D = Aux2D)
+
+                    endif
+
+
+                enddo d1
+
+                if (MohidName == GetPropertyName(VelocityU_) .and.                      &
+                    Me%ComputeBarotropicVel) then
+
+                    allocate(BaroAux4D(Me%jmax, Me%imax, Me%kmax , nInst))
+                    allocate(BaroAux2D(Me%Size%ILB:Me%Size%IUB,                         &
+                                       Me%Size%JLB:Me%Size%JUB))
+                    allocate(BaroAux3D(Me%Size%ILB:Me%Size%IUB,                         &
+                                       Me%Size%JLB:Me%Size%JUB,                         &
+                                       nInst))
+                    allocate(SumScaFactor(Me%Size%ILB:Me%Size%IUB,                      &
+                                          Me%Size%JLB:Me%Size%JUB,                      &
+                                          nInst))
+                    BaroAux2D(:,:) = FillValueReal
+
+d2:                 do ni = 1, nInst
+
+                        SumScaFactor(:,:,ni) = 0.
+
+                        !The boundary cells are not read
+                        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+                        do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+                        do k = Me%WorkSize%KLB, Me%WorkSize%KUB
+
+                            if (k == Me%WorkSize%KLB) then
+
+                                BaroAux3D(i+1,j, ni) = 0.
+                                BaroAux3D(i+1,j+1, ni) = 0.
+
+                                SumScaFactor(i+1,j, ni) = 0.
+                                SumScaFactor(i+1,j+1, ni) = 0.
+
+                            endif
+
+                            if (Me%WaterPoints3D(i, j, k) == WaterPoint) then
+
+                                BaroAux2D(i, j) = 0.
+
+                                WestON = Me%ComputeFaces3DU(i, j-1, k) 
+                                EastON = Me%ComputeFaces3DU(i, j  , k) 
+
+                                if ((WestON <= 1) .and. (EastON <= 1)) then
+
+                                    BaroAux4D(j  ,i+1, Me%WorkSize%KUB+1-k,ni) =            &
+                                        (Aux4D(j  ,i+1, Me%WorkSize%KUB+1-k,ni) *           & 
+                                        ScaleFactor + AddOffSet) * WestON *    &
+                                        Me%ScaFactorU(i+1,j, Me%WorkSize%KUB+1-k)
+
+                                    SumScaFactor(i+1,j, ni) = SumScaFactor(i+1,j, ni) +     &
+                                        Me%ScaFactorU(i+1,j, Me%WorkSize%KUB+1-k)* WestON   
+
+                                    BaroAux4D(j+1,i+1,Me%WorkSize%KUB+1-k, ni) =            &
+                                        (Aux4D(j+1,i+1,Me%WorkSize%KUB+1-k, ni) *           &
+                                        ScaleFactor + AddOffSet) * EastON*                  &
+                                        Me%ScaFactorU(i+1,j+1,Me%WorkSize%KUB+1-k)
+
+                                    SumScaFactor(i+1,j+1, ni) = SumScaFactor(i+1,j+1,ni) +  &
+                                        Me%ScaFactorU(i+1,j+1, Me%WorkSize%KUB+1-k)* EastON   
+
+                                    BaroAux3D(i+1,j, ni) = BaroAux3D(i+1,j, ni) +           &
+                                        BaroAux4D(j,i+1, Me%WorkSize%KUB+1-k, ni)
+
+                                    BaroAux3D(i+1,j+1, ni) = BaroAux3D(i+1,j+1, ni) +       &
+                                        BaroAux4D(j+1,i+1,Me%WorkSize%KUB+1-k, ni)
+
+                                    if ((k == Me%WorkSize%KUB) .and.                        &
+                                       (SumScaFactor(i+1,j, ni) > 0. .and.                 &
+                                       SumScaFactor(i+1,j+1, ni) > 0.)) then
+
+                                        BaroAux2D(i,j) =                                    &
+                                        (BaroAux3D(i+1,j, ni)/SumScaFactor(i+1,j, ni) +     &
+                                        BaroAux3D(i+1,j+1, ni)/SumScaFactor(i+1,j+1, ni)) / 2.
+
+                                        if (abs(BaroAux2D(i, j))> 200.) BaroAux2D(i, j) = 0.
+                                    endif
+
+                                endif
+
+                            endif
+
+                        enddo
+                        enddo
+                        enddo
+
+                        call WriteHDF5Field(FieldTime,                                  &
+                                            GetPropertyName(BarotropicVelocityU_),      &
+                                            iOut, Aux2D = BaroAux2D)
+
+                    enddo d2
+
+                    deallocate(BaroAux4D)
+                    deallocate(BaroAux3D)
+                    deallocate(BaroAux2D)
+                    deallocate(SumScaFactor)
+
+                endif
+
+                if (MohidName == GetPropertyName(VelocityV_) .and.                      &
+                    Me%ComputeBarotropicVel) then
+
+                    allocate(BaroAux4D(Me%jmax, Me%imax, Me%kmax , nInst))
+                    allocate(BaroAux2D(Me%Size%ILB:Me%Size%IUB,                         &
+                                       Me%Size%JLB:Me%Size%JUB))
+                    allocate(BaroAux3D(Me%Size%ILB:Me%Size%IUB,                         &
+                                       Me%Size%JLB:Me%Size%JUB,                         &
+                                       nInst))
+                    allocate(SumScaFactor(Me%Size%ILB:Me%Size%IUB,                      &
+                                          Me%Size%JLB:Me%Size%JUB,                      &
+                                          nInst))
+                    BaroAux2D(:,:) = FillValueReal
+
+d3:                 do ni = 1, nInst
+
+                        SumScaFactor(:,:,ni) = 0.
+
+                        !The boundary cells are not read
+                        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+                        do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+                        do k = Me%WorkSize%KLB, Me%WorkSize%KUB
+
+                            if (k == Me%WorkSize%KLB) then
+
+                                BaroAux3D(i,j+1,ni) = 0.
+                                BaroAux3D(i+1,j+1, ni) = 0.
+
+                                SumScaFactor(i, j+1, ni) = 0.
+                                SumScaFactor(i+1,j+1, ni) = 0.
+
+                            endif
+
+                            if (Me%WaterPoints3D(i, j, k) == WaterPoint) then
+
+                                BaroAux2D(i, j) = 0.
+
+                                SouthON = Me%ComputeFaces3DV(i-1, j, k) 
+                                NorthON = Me%ComputeFaces3DV(i,   j, k) 
+
+                                if ((SouthON <= 1) .and. (NorthON <= 1)) then
+
+                                    BaroAux4D(j+1,i ,Me%WorkSize%KUB+1-k,ni) =              &
+                                        (Aux4D(j+1,i ,Me%WorkSize%KUB+1-k,ni)               & 
+                                        * ScaleFactor + AddOffSet) * SouthON*               &
+                                        Me%ScaFactorV(i, j+1,Me%WorkSize%KUB+1-k)
+
+                                    SumScaFactor(i, j+1, ni) = SumScaFactor(i, j+1, ni) +   &
+                                        Me%ScaFactorV(i, j+1, Me%WorkSize%KUB+1-k)* SouthON   
+
+                                    BaroAux4D(j+1,i+1,Me%WorkSize%KUB+1-k, ni) =            &
+                                        (Aux4D(j+1,i+1,Me%WorkSize%KUB+1-k, ni) *           &
+                                        ScaleFactor + AddOffSet) * NorthON *                &
+                                        Me%ScaFactorV(i+1,j+1,Me%WorkSize%KUB+1-k)
+
+                                    SumScaFactor(i+1,j+1, ni) = SumScaFactor(i+1,j+1, ni) + &
+                                        Me%ScaFactorV(i+1,j+1, Me%WorkSize%KUB+1-k)* NorthON   
+
+                                    BaroAux3D(i,j+1,ni) = BaroAux3D(i,j+1,ni) +             &
+                                        BaroAux4D(j+1,i ,Me%WorkSize%KUB+1-k,ni)
+
+                                    BaroAux3D(i+1,j+1, ni) = BaroAux3D(i+1,j+1, ni) +       &
+                                        BaroAux4D(j+1,i+1,Me%WorkSize%KUB+1-k, ni)
+
+                                    if ((k == Me%WorkSize%KUB) .and.                        &
+                                        (SumScaFactor(i, j+1, ni) > 0. .and.                 &
+                                        SumScaFactor(i+1,j+1, ni) > 0.)) then
+
+                                        BaroAux2D(i,j) =                                    &
+                                        (BaroAux3D(i,j+1,ni)/SumScaFactor(i, j+1, ni) +     &
+                                        BaroAux3D(i+1,j+1, ni)/SumScaFactor(i+1,j+1, ni)) / 2.
+                                
+                                        if (abs(BaroAux2D(i, j))> 200.) BaroAux2D(i, j) = 0.
+                                    endif
+
+                                endif
+
+                            endif
+
+                        enddo
+                        enddo
+                        enddo
+
+                        call WriteHDF5Field(FieldTime, GetPropertyName(BarotropicVelocityV_), &
+                                            iOut, Aux2D = BaroAux2D)
+
+                    enddo d3
+
+                    deallocate(BaroAux4D)
+                    deallocate(BaroAux3D)
+                    deallocate(BaroAux2D)
+                    deallocate(SumScaFactor)
+
+                endif
+
+!            else i2
+
+!                call SetError (WARNING_, INTERNAL_, &
+!                    'This property name was not defined yet - ReadMercatorFile - ModuleMERCATORFormat')
+
+            endif i2
+
+            deallocate(Aux4D)
+
+            if     (nDimensions == 4) then
+                deallocate(Aux3D       )
+                deallocate(Aux3DModulus)
+            elseif (nDimensions == 3) then
+                deallocate(Aux2D)
+            endif
+
+        enddo d0
+
+        deallocate(AuxDays)
+
+
+    end subroutine ReadMercatorFileV5
+    
 
     !------------------------------------------------------------------------
 
