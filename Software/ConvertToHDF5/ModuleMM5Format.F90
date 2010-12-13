@@ -152,6 +152,7 @@ Module ModuleMM5Format
     private ::      ComputeMeanSeaLevelPressure
     private ::      ComputeRelativeHumidity
     private ::      ComputeRelativeHumidity3D
+    private ::      ComputeCloudCover
     private ::      ComputePrecipitation
     private ::      OutputFields
     private ::      KillMM5Format
@@ -216,8 +217,12 @@ Module ModuleMM5Format
         logical                                             :: ComputeWindModulus       = .false.
         logical                                             :: ComputeRelativeHumidity  = .false.
         logical                                             :: ComputeRelativeHumidity3D= .false.
+        !because cloud cover needs HR3D but output is not required.
+        logical                                             :: OutputRelativeHumidity3D = .false. 
+        logical                                             :: ComputeCloudCover        = .false.
         logical                                             :: ComputePrecipitation     = .false.
         logical                                             :: ComputeMeanSeaLevelPressure = .false.
+        logical                                             :: ComputeVerticalZ         = .false.
         logical                                             :: WriteTerrain             = .false.
         logical                                             :: WriteHeaders             = .false.
         logical                                             :: TerrainFileNotSpecified  = .false.
@@ -283,7 +288,7 @@ Module ModuleMM5Format
 
         call CorrectInitialCondition
 
-        call ComputeVerticalCoordinate
+        if(Me%ComputeVerticalZ)                 call ComputeVerticalCoordinate
 
         if(Me%ComputeMeanSeaLevelPressure)      call ComputeMeanSeaLevelPressure
 
@@ -293,6 +298,7 @@ Module ModuleMM5Format
 
         if(Me%ComputeRelativeHumidity)          call ComputeRelativeHumidity
         if(Me%ComputeRelativeHumidity3D)        call ComputeRelativeHumidity3D
+        if(Me%ComputeCloudCover)                call ComputeCloudCover
 
         if(Me%ComputePrecipitation)             call ComputePrecipitation
 
@@ -425,6 +431,7 @@ Module ModuleMM5Format
                      STAT         = STAT_CALL)        
         if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleMM5Format - ERR08'
 
+        if (Me%ComputeRelativeHumidity3D) Me%OutputRelativeHumidity3D = .true.
 
         call GetData(Me%ComputePrecipitation,                           &
                      Me%ObjEnterData, iflag,                            &
@@ -457,7 +464,7 @@ Module ModuleMM5Format
                      Me%ObjEnterData, iflag,                            &
                      SearchType   = FromBlock,                          &
                      keyword      = 'WRITE_HEADERS',                    &
-                     Default      = ON,                                 &
+                     Default      = OFF,                                 &
                      ClientModule = 'ModuleMM5Format',                  &
                      STAT         = STAT_CALL)        
         if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleMM5Format - ERR09'
@@ -532,6 +539,7 @@ Module ModuleMM5Format
         logical                             :: NeedsConvectivePCP       = .false.
         logical                             :: NeedsNonConvectivePCP    = .false.
         logical                             :: NeedsTerrain             = .false.
+        logical                             :: NeedsVerticalZ           = .false.
 
 
         !Begin-----------------------------------------------------------------
@@ -585,6 +593,11 @@ Module ModuleMM5Format
 
         Count = nPropertiesToConvert + 1
 
+        if(FieldIsToConvert(trim(GetPropertyName((CloudCover_))))) then
+            NeedsPressure3D              = .true.
+            Me%ComputeCloudCover         = .true.
+            Me%ComputeRelativeHumidity3D = .true.
+        endif 
 
         if(FieldIsToConvert(trim(GetPropertyName(AtmosphericPressure_))))then
             NeedsPressure3D         = .true. ; NeedsTemperature3D       = .true.
@@ -599,7 +612,7 @@ Module ModuleMM5Format
             NeedsSurfacePressure    = .true. ; NeedsSurfaceTemperature  = .true.
             NeedsSurfaceMixingRatio = .true.
         end if
-
+        
         if(Me%ComputeRelativeHumidity3D)then
             NeedsPressure3D         = .true. ; NeedsTemperature3D       = .true.            
             NeedsMixingRatio        = .true.
@@ -615,6 +628,7 @@ Module ModuleMM5Format
             NeedsPressure3D             = .true.  
             NeedsTemperature3D          = .true.
             NeedsTerrain                = .true.
+            NeedsVerticalZ              = .true.
         end if
 
         if(Me%ComputeWindStress)then
@@ -630,6 +644,7 @@ Module ModuleMM5Format
         if(AtLeastOne3DFieldIsToConvert())then
             NeedsPressure3D         = .true. ; NeedsTemperature3D       = .true.
             NeedsSurfacePressure    = .true.
+            NeedsVerticalZ          = .true.
         end if
 
         if(FieldIsToConvert(trim(GetPropertyName(AtmosphericPressure_))))then
@@ -641,6 +656,11 @@ Module ModuleMM5Format
         if(FieldIsToConvert(trim(GetPropertyName(AirTemperature_))))then
             NeedsTemperature3D       = .true.
         end if
+
+        if (NeedsVerticalZ) then
+            Me%ComputeVerticalZ      = .true.
+        endif
+
 
         !allocate Me%FieldsToRead ------------------------------------------------
 
@@ -746,6 +766,7 @@ Module ModuleMM5Format
 
             if(scan(Me%FieldsToConvert(i), "_3D") .ne. 0)then
                 AtLeastOne3DFieldIsToConvert = .true.
+!                write(*,*) '3D field to convert is =', trim(adjustl(Me%FieldsToConvert(i)))
                 return
             end if
 
@@ -1420,6 +1441,7 @@ cd0:        if (flag == 0) then
 
                 end if
 
+
                 deallocate(DataAux)
 
             elseif (flag == 2) then cd0
@@ -1660,6 +1682,7 @@ if1:    if (Me%TimeWindow) then
         WIUB = Me%WorkSize%IUB 
         WJLB = Me%WorkSize%JLB 
         WJUB = Me%WorkSize%JUB 
+
 
         write(*,*)
         write(*,*)'Constructing xyz terrain file...'
@@ -2380,6 +2403,7 @@ if1:    if (Me%TimeWindow) then
         integer                                         :: WILB, WIUB, WJLB, WJUB, WKLB, WKUB
         integer                                         :: i, j, k
         real                                            :: es1, qs1
+        logical                                         :: Convert
 
         !Begin-----------------------------------------------------------------
     
@@ -2390,9 +2414,17 @@ if1:    if (Me%TimeWindow) then
         KLB = Me%Size%KLB; WKLB = Me%WorkSize%KLB 
         KUB = Me%Size%KUB; WKUB = Me%WorkSize%KUB 
 
+        if (Me%OutputRelativeHumidity3D) then
+            Convert = .true.
+        else 
+            Convert = .false.
+        endif 
+
+
         Pressure_OK      = .false.
         Temperature_OK   = .false.
         MixingRatio_OK   = .false.
+
 
         write(*,*)
         write(*,*)'Computing relative humidity 3D...'
@@ -2434,14 +2466,13 @@ if1:    if (Me%TimeWindow) then
                     
                     call AddField(Me%FirstField, RelativeHumidity)
 
-
                     call SetNewFieldAttributes(Field         = RelativeHumidity,                                &
                                                Name          = trim(GetPropertyName(RelativeHumidity_))//"_3D", &
                                                Units         = '-',                                             &
                                                Date          = CurrentDate%Date,                                &
                                                WorkSize      = Me%WorkSize,                                     &
                                                nDimensions   = 3,                                               &
-                                               Convert       = .true.)
+                                               Convert       = Convert)
 
                     allocate(RelativeHumidity%Values3D(ILB:IUB, JLB:JUB,KLB:KUB))
 
@@ -2489,6 +2520,133 @@ if1:    if (Me%TimeWindow) then
 
 
     end subroutine ComputeRelativeHumidity3D
+
+     !------------------------------------------------------------------------
+
+    !--------------------------------------------------------------------------
+    
+    subroutine ComputeCloudCover
+
+
+        !Local-----------------------------------------------------------------
+!        type(T_Field), pointer                          :: CloudCover
+!        type(T_Field), pointer                          :: Field
+!        type(T_Date), pointer                           :: CurrentDate
+!        real, dimension(:,:,:), pointer               :: Pressure, RH, CloudCover3D
+!        logical                                         :: Pressure_OK  = .false.
+!        logical                                         :: RH_OK        = .false.
+!        integer                                         :: ILB, IUB, JLB, JUB, KLB, KUB
+!        integer                                         :: WILB, WIUB, WJLB, WJUB, WKLB, WKUB
+!        integer                                         :: i, j, k
+!        real                                            :: mult,aux
+!        real                                            :: RH_crit = 0.8
+
+        !Begin-----------------------------------------------------------------
+    
+!        ILB = Me%Size%ILB; WILB = Me%WorkSize%ILB 
+!        IUB = Me%Size%IUB; WIUB = Me%WorkSize%IUB 
+!        JLB = Me%Size%JLB; WJLB = Me%WorkSize%JLB 
+!        JUB = Me%Size%JUB; WJUB = Me%WorkSize%JUB 
+!        KLB = Me%Size%KLB; WKLB = Me%WorkSize%KLB 
+!        KUB = Me%Size%KUB; WKUB = Me%WorkSize%KUB 
+
+!        Pressure_OK = .false.
+!        RH_OK       = .false.
+
+        write(*,*)
+        write(*,*)'Computing cloud cover ...'
+        write(*,*)'Cloud cover not ready. See ComputeCloudCover in ModuleAtmosphere'
+        
+!        CurrentDate => Me%FirstDate
+
+!        do while(associated(CurrentDate))
+
+!            Field => Me%FirstField
+
+!            do while(associated(Field))
+!            
+!                if(Field%Name == trim(GetPropertyName(RelativeHumidity_))//"_3D"    .and. &                
+!                   Field%Date == CurrentDate%Date)then
+!                    
+!                    RH      => Field%Values3D
+!                    RH_OK   = .true.
+
+!                end if
+
+!                if(Field%Name == trim(GetPropertyName(AtmosphericPressure_))//"_3D"    .and. &
+!                   Field%Date == CurrentDate%Date)then
+!                    
+!                    Pressure     => Field%Values3D
+!                    Pressure_OK         = .true.
+
+!                end if
+
+!                if(RH_OK .and. Pressure_OK)then
+
+!                    
+!                    call AddField(Me%FirstField, CloudCover)
+
+
+!                    call SetNewFieldAttributes(Field         = CloudCover,                                  &
+!                                               Name          = trim(GetPropertyName(CloudCover_)),          &
+!                                               Units         = '-',                                          &
+!                                               Date          = CurrentDate%Date,                             &
+!                                               WorkSize      = Me%WorkSize,                                  &
+!                                               nDimensions   = 2,                                            &
+!                                               Convert       = .true.)
+
+!                    allocate(CloudCover%Values2D(ILB:IUB, JLB:JUB))
+!                        
+!                    !Sundqvist et al, 1989, Monthly Weather Review
+
+!                    CloudCover%Values2D = 1.  !para multiplicar
+!                    CloudCover3D = 0.
+!                    mult = 1./(1.-RH_crit)
+
+!                    do k = WKLB, WKUB
+!                    do j = WJLB, WJUB
+!                    do i = WILB, WIUBComputeCloudCover
+!                                    
+!                        aux = ( 1-RH(i,j,k) ) * mult
+!                        if (aux < 0) then
+!                            write(*,*) 'negative values for sqrt in',i,j,k
+!                            write(*,*) RH(i,j,k)
+!                            stop 'CloudCover - ModuleMM5Format - ERR01'
+!                        endif
+!                    
+!                        CloudCover3D(i,j,k) = 1. - sqrt(aux) 
+
+!                        if (k > WKLB) then
+!    
+!                            CloudCover%Values2D(i,j) = CloudCover%Values2D(i,j) * &
+!                                                ( (1. - max(CloudCover3D(i,j,k-1), CloudCover3D(i,j,k-1) ) ) )/ &
+!                                                ( 1. -  CloudCover3D(i,j,k-1) )
+
+!                        endif
+
+!                    enddo
+!                    enddo
+!                    enddo                    
+
+!                    nullify(RH)
+!                    nullify(Pressure)
+
+!                    RH_OK       = .false.
+!                    Pressure_OK = .false.
+!                    
+!                end if
+
+!                Field => Field%Next
+
+!            end do
+
+
+!            CurrentDate => CurrentDate%Next
+
+!        end do           
+
+
+    end subroutine ComputeCloudCover
 
      !------------------------------------------------------------------------
     
@@ -3122,24 +3280,28 @@ ifDT:       if (CurrentDate%Date .EQ. Me%FirstDate%Date .OR. dt >= Me%OutputDTIn
 
                         elseif(Field%nDimensions == 3)then
 
-                            if(Field%Name == 'VerticalZ')then
+                            if(Field%Name == 'VerticalZ') then
+                    
+                                if (AtLeastOne3DFieldIsToConvert())then
 
-                                call HDF5SetLimits(Me%ObjHDF5, Field%WorkSize%ILB, Field%WorkSize%IUB,&
-                                                   Field%WorkSize%JLB, Field%WorkSize%JUB,            &
-                                                   Field%WorkSize%KLB - 1, Field%WorkSize%KUB, STAT = STAT_CALL)
-                                if (STAT_CALL /= SUCCESS_)stop 'OutputFields - ModuleMM5Format - ERR70'
+                                    call HDF5SetLimits(Me%ObjHDF5, Field%WorkSize%ILB, Field%WorkSize%IUB,&
+                                                       Field%WorkSize%JLB, Field%WorkSize%JUB,            &
+                                                       Field%WorkSize%KLB - 1, Field%WorkSize%KUB, STAT = STAT_CALL)
+                                    if (STAT_CALL /= SUCCESS_)stop 'OutputFields - ModuleMM5Format - ERR70'
 
-                                !Invert vertical axis
-                                Field%Values3D = -1. * Field%Values3D
+                                    !Invert vertical axis
+                                    Field%Values3D = -1. * Field%Values3D
 
-                                call HDF5WriteData(Me%ObjHDF5,                                  &
-                                               "/Grid/"//Field%Name,                            &
-                                               'Vertical',                                      &
-                                               Field%Units,                                     &
-                                               Array3D      = Field%Values3D,                   &
-                                               OutputNumber = Field%OutputNumber,               &
-                                               STAT         = STAT_CALL)
-                                if (STAT_CALL /= SUCCESS_)stop 'OutputFields - ModuleMM5Format - ERR80'
+                                    call HDF5WriteData(Me%ObjHDF5,                                  &
+                                                   "/Grid/"//Field%Name,                            &
+                                                   'Vertical',                                      &
+                                                   Field%Units,                                     &
+                                                   Array3D      = Field%Values3D,                   &
+                                                   OutputNumber = Field%OutputNumber,               &
+                                                   STAT         = STAT_CALL)
+                                    if (STAT_CALL /= SUCCESS_)stop 'OutputFields - ModuleMM5Format - ERR80'
+
+                                endif
 
                             else
                     
@@ -3242,9 +3404,9 @@ ifDT:       if (CurrentDate%Date .EQ. Me%FirstDate%Date .OR. dt >= Me%OutputDTIn
         if (STAT_CALL /= SUCCESS_)stop 'WriteGridToHDF5File - ModuleMM5Format - ERR02a'
 
         
-        call HDF5WriteData   (Me%ObjHDF5, "/Grid", "LandUse", "-",       &
-                              Array2D =  Me%LandUse, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)stop 'WriteGridToHDF5File - ModuleMM5Format - ERR03a'
+!        call HDF5WriteData   (Me%ObjHDF5, "/Grid", "LandUse", "-",       &
+!                              Array2D =  Me%LandUse, STAT = STAT_CALL)
+!        if (STAT_CALL /= SUCCESS_)stop 'WriteGridToHDF5File - ModuleMM5Format - ERR03a'
 
         if(Me%OutputGridNotSpecified)then
 
@@ -3741,6 +3903,7 @@ if1:        if (j < 8 .or. j>10) then
                 if (j == 6)     cycle !write(*, '(/,"MM5 Substrate Temp File big header:"    )')
                 if (j == 7)     cycle !write(*, '(/,"MM5 Boundary File big header:"          )')
                 if (j == 8)     cycle !write(*, '(/,"Interpolated MM5 Portion of big header:")')
+
 
                 
                 do i = 1, size(bhi,1)
