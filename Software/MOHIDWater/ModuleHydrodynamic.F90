@@ -172,6 +172,7 @@ Module ModuleHydrodynamic
 #endif
     use ModuleFillMatrix,       only : ConstructFillMatrix, ModifyFillMatrix, KillFillMatrix
     use ModuleDrawing
+    !$ use omp_lib
 
     implicit none 
 
@@ -885,7 +886,8 @@ Module ModuleHydrodynamic
         type(T_Coef_1D)                    :: D1
         type(T_Coef_2D)                    :: D2
         type(T_Coef_3D)                    :: D3
-        type(T_Coef_Baroc)                 :: Baroc
+        !griflet
+        type(T_Coef_Baroc), dimension(:), pointer   :: Baroc
     end type T_Coefficients
 
 
@@ -1375,6 +1377,9 @@ Module ModuleHydrodynamic
 
         !Instance of Waves      
         integer :: ObjWaves                 = 0
+
+        !griflet
+        integer :: MaxThreads
 
         type (T_Hydrodynamic), pointer :: Next
 
@@ -6312,6 +6317,10 @@ cd43:   if (.NOT. BlockFound) then
         integer :: STAT_CALL
 
         integer :: JImin, JImax
+        
+        !griflet
+        type(T_Coef_Baroc), pointer :: LocalBaroc
+        integer                     :: p
 
         !Begin------------------------------------------------------------------
 
@@ -6500,47 +6509,45 @@ cd2:    if (Me%ComputeOptions%BarotropicRadia == FlatherWindWave_ .or.      &
         Me%External_Var%ChezyZ    (:,:) = 0.
         Me%External_Var%ChezyVelUV(:,:) = 0.
 
-        
-        nullify (Me%Coef%Baroc%Hright     )
-        nullify (Me%Coef%Baroc%Hleft      )
-        nullify (Me%Coef%Baroc%Hcenter    )
-        nullify (Me%Coef%Baroc%Depth_integ)
-        nullify (Me%Coef%Baroc%Kright     )
-        nullify (Me%Coef%Baroc%Kleft      )
-        nullify (Me%Coef%Baroc%HroLeft    )
-        nullify (Me%Coef%Baroc%HroRight   )
-        nullify (Me%Coef%Baroc%DensRight  )
-        nullify (Me%Coef%Baroc%DensLeft   )
+        !griflet
+        !griflet start
+        Me%MaxThreads=1
+        !$ Me%MaxThreads = omp_get_max_threads()
                 
-cd3:    if (Me%ComputeOptions%Baroclinic) then 
+        allocate(Me%Coef%Baroc(1:Me%MaxThreads))        
+        do p=1,Me%MaxThreads
+        
+            LocalBaroc => Me%Coef%Baroc(p)
+                        
+    cd3:    if (Me%ComputeOptions%Baroclinic) then 
 
-            allocate (Me%Coef%Baroc%Kleft       (KLB : KUB+1))
-            allocate (Me%Coef%Baroc%Kright      (KLB : KUB+1))
-            allocate (Me%Coef%Baroc%Depth_integ (KLB : KUB+1))
-            allocate (Me%Coef%Baroc%Hcenter     (KLB : KUB+1))
-            allocate (Me%Coef%Baroc%Hleft       (KLB : KUB+1))
-            allocate (Me%Coef%Baroc%Hright      (KLB : KUB+1))
-            allocate (Me%Coef%Baroc%HroLeft     (KLB : KUB+1))
-            allocate (Me%Coef%Baroc%HroRight    (KLB : KUB+1))
-            allocate (Me%Coef%Baroc%DensLeft    (KLB : KUB+1))
-            allocate (Me%Coef%Baroc%DensRight   (KLB : KUB+1))
+                allocate (LocalBaroc%Kleft       (KLB : KUB+1))
+                allocate (LocalBaroc%Kright      (KLB : KUB+1))
+                allocate (LocalBaroc%Depth_integ (KLB : KUB+1))
+                allocate (LocalBaroc%Hcenter     (KLB : KUB+1))
+                allocate (LocalBaroc%Hleft       (KLB : KUB+1))
+                allocate (LocalBaroc%Hright      (KLB : KUB+1))
+                allocate (LocalBaroc%HroLeft     (KLB : KUB+1))
+                allocate (LocalBaroc%HroRight    (KLB : KUB+1))
+                allocate (LocalBaroc%DensLeft    (KLB : KUB+1))
+                allocate (LocalBaroc%DensRight   (KLB : KUB+1))
+    
+                LocalBaroc%Kleft         = FillValueInt
+                LocalBaroc%Kright        = FillValueInt
+                LocalBaroc%Depth_integ   = FillValueReal
+                LocalBaroc%Hcenter       = FillValueReal 
+                LocalBaroc%Hleft         = FillValueReal
+                LocalBaroc%Hright        = FillValueReal
+                LocalBaroc%HroLeft       = FillValueReal
+                LocalBaroc%HroRight      = FillValueReal
+                LocalBaroc%DensLeft      = FillValueReal
+                LocalBaroc%DensRight     = FillValueReal
 
-
-
-            Me%Coef%Baroc%Kleft         = FillValueInt
-            Me%Coef%Baroc%Kright        = FillValueInt
-            Me%Coef%Baroc%Depth_integ   = FillValueReal
-            Me%Coef%Baroc%Hcenter       = FillValueReal 
-            Me%Coef%Baroc%Hleft         = FillValueReal
-            Me%Coef%Baroc%Hright        = FillValueReal
-            Me%Coef%Baroc%HroLeft       = FillValueReal
-            Me%Coef%Baroc%HroRight      = FillValueReal
-            Me%Coef%Baroc%DensLeft      = FillValueReal
-            Me%Coef%Baroc%DensRight     = FillValueReal
-
-
-        endif cd3
-
+            endif cd3
+        
+        !griflet
+        enddo
+        
         IJKLB = MIN(ILB, JLB, KLB)
         IJKUB = MAX(IUB, JUB, KUB)
 
@@ -32284,25 +32291,22 @@ cd10:           if (ImposedTangentialFacesUV(i, j, KUB) == Imposed) then
     Subroutine Modify_ROX3 (SigmaDens, Rox3XY)
 
         !Arguments------------------------------------------------------------
-
-
         real,    dimension(:,:,:), pointer :: SigmaDens, Rox3XY
 
-
-        !Local---------------------------------------------------------------------
+        !Local----------------------------------------------------------------
         real,    dimension(:,:,:), pointer :: DWZ, DUZ_VZ, SZZ
 
         real,    dimension(:,:  ), pointer :: DZX_ZY, Coriolis_Freq, DUX_VY
 
         integer, dimension(:,:,:), pointer :: ComputeFaces3D_UV
         integer, dimension(:,:  ), pointer :: BoundaryFacesUV
-        integer, dimension(:,:),   pointer :: KFloor_UV 
+        integer, dimension(:,:),   pointer :: KFloor_UV
         Integer                            :: i, j, di, dj, k, kbottom, ileft, jleft
 
         Integer, dimension( : ), pointer   :: Kleft,Kright
 
-        Real(8), dimension( : ), pointer   :: Depth_integ, Hcenter, Hleft,&
-                                              Hright, HroLeft, HroRight,  &
+        Real(8), dimension( : ), pointer   :: Depth_integ, Hcenter, Hleft, &
+                                              Hright, HroLeft, HroRight,   &
                                               DensRight, DensLeft
 
         Real(8)                            :: DAux,DAuxRight,DAuxLeft, AuxRight, AuxLeft, &
@@ -32317,11 +32321,16 @@ cd10:           if (ImposedTangentialFacesUV(i, j, KUB) == Imposed) then
 
         logical                            :: FoundBottomRight, FoundBottomLeft, FoundSurfaceRight, FoundSurfaceLeft
         logical                            :: BaroclinicRAMP, BoundaryBaroclinic, PoliIsEven
-        integer                            :: CHUNK
+        !$ integer                            :: CHUNK
+        integer                            :: TID
+        !griflet
+        type(T_Coef_Baroc), pointer        :: LocalBaroc
         
     !------------initialization----
         if (MonitorPerformance) call StartWatch ("ModuleHydrodynamic", "Modify_ROX3")
 
+
+        !$ CHUNK = CHUNK_J(JLB,JUB)
 
         !Begin - Shorten variables name 
 
@@ -32345,20 +32354,8 @@ cd10:           if (ImposedTangentialFacesUV(i, j, KUB) == Imposed) then
         DZX_ZY            => Me%External_Var%DZX_ZY  
         DUX_VY            => Me%External_Var%DUX_VY  
 
-        Kleft             => Me%Coef%Baroc%Kleft
-        Kright            => Me%Coef%Baroc%Kright
-        Depth_integ       => Me%Coef%Baroc%Depth_integ
-        Hcenter           => Me%Coef%Baroc%Hcenter
-        Hleft             => Me%Coef%Baroc%Hleft
-        Hright            => Me%Coef%Baroc%Hright
-        HroLeft           => Me%Coef%Baroc%HroLeft
-        HroRight          => Me%Coef%Baroc%HroRight
-        DensRight         => Me%Coef%Baroc%DensRight
-        DensLeft          => Me%Coef%Baroc%DensLeft
-        
+        !End - Shorten variables name
 
-        !End - Shorten variables name 
-        
         call SetMatrixValue(Rox3XY, Me%WorkSize, FillValueReal)
 
 !        Kleft             = FillValueInt   !rcm 7
@@ -32371,29 +32368,62 @@ cd10:           if (ImposedTangentialFacesUV(i, j, KUB) == Imposed) then
 !        HroLeft           = FillValueReal
 !        HroRight          = FillValueReal
 
-
-        
-
     !------------Main cicle--------
 
-do4:     do J = JLB, JUB
-do5:     do I = ILB, IUB
-                    
+         !griflet
+         !$ CHUNK = CHUNK_J(JLB,JUB)
+         ! We don't compute turbulence coefficients at the limits of the domain. 
+         !!$OMP PARALLEL &
+         !!$OMP PRIVATE(i,j,k,kbottom,ileft,jleft,       &
+         !!$OMP         Kleft, Kright, Depth_integ,      &
+         !!$OMP         Hcenter, Hleft, Hright,          &
+         !!$OMP         HroLeft, HroRight,               &
+         !!$OMP         DensRight, DensLeft,             &
+         !!$OMP         DAuxRight, DAuxLeft, DAux,       &
+         !!$OMP         Zright, Zleft,                   &
+         !!$OMP         Dright, Dleft,                   &
+         !!$OMP         AuxRight, AuxLeft,               &
+         !!$OMP         DensZRight, DensZLeft,           &
+         !!$OMP         NRight, NLeft,                   &
+         !!$OMP         kbright, kbleft,                 &
+         !!$OMP         PoliDegree, PoliIsEven,          &
+         !!$OMP         FoundBottomRight, FoundBottomLeft,   & 
+         !!$OMP         FoundSurfaceRight, FoundSurfaceLeft, &
+         !!$OMP         TID, LocalBaroc)
+         !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+do4:     do j = JLB, JUB
+do5:     do i = ILB, IUB
+
+            TID = 1
+            !$ TID = 1 + omp_get_thread_num();
+            LocalBaroc => Me%Coef%Baroc(TID)
+
+            Kleft             => LocalBaroc%Kleft
+            Kright            => LocalBaroc%Kright
+            Depth_integ       => LocalBaroc%Depth_integ
+            Hcenter           => LocalBaroc%Hcenter
+            Hleft             => LocalBaroc%Hleft
+            Hright            => LocalBaroc%Hright
+            HroLeft           => LocalBaroc%HroLeft
+            HroRight          => LocalBaroc%HroRight
+            DensRight         => LocalBaroc%DensRight
+            DensLeft          => LocalBaroc%DensLeft
+
 cd1:        if (ComputeFaces3D_UV(i, j, KUB)== Covered) then 
 
-do7:            do K = KLB, KUB
-                    Kleft      (K)       = FillValueInt    !rcm 8
-                    Kright     (K)       = FillValueInt
+do7:            do k = KLB, KUB
+                    Kleft      (k)       = FillValueInt    !rcm 8
+                    Kright     (k)       = FillValueInt
 
-                    Depth_integ(K)       = FillValueReal
-                    Hcenter    (K)       = FillValueReal
-                    Hleft      (K)       = FillValueReal
-                    Hright     (K)       = FillValueReal
-                    HroLeft    (K)       = FillValueReal
-                    HroRight   (K)       = FillValueReal
+                    Depth_integ(k)       = FillValueReal
+                    Hcenter    (k)       = FillValueReal
+                    Hleft      (k)       = FillValueReal
+                    Hright     (k)       = FillValueReal
+                    HroLeft    (k)       = FillValueReal
+                    HroRight   (k)       = FillValueReal
 
-                    DensRight  (K)       = FillValueReal
-                    DensLeft   (K)       = FillValueReal 
+                    DensRight  (k)       = FillValueReal
+                    DensLeft   (k)       = FillValueReal 
                 end do do7
 
 
@@ -32405,25 +32435,24 @@ do7:            do K = KLB, KUB
                 call calc_depth_and_Hro (Hcenter, Hleft, Hright, HroLeft, HroRight,     &
                                          DensRight, DensLeft, DWZ, SZZ, DUZ_VZ, SigmaDens,&
                                          i, j, ileft, jleft, KUB, kbottom)
-                
+
                 if      (Me%ComputeOptions%BaroclinicMethod == MARSALEIX) then
 
                      HroRight(KUB+1) = 0.
                      HroLeft (KUB+1) = 0.      
-                     
+
                      HRight(KUB+1)   = 0.
                      HLeft (KUB+1)   = 0.      
-               
-do23:                do  k=KUB, kbottom,-1         
+
+do23:                do  k=KUB, kbottom,-1
 
                         !pressure in the lower face
                         HroRight(k) = HroRight(k + 1) + dble(SigmaDens(i    ,j    ,k)) * dble(DWZ (    i,    j,  k))
                         Hroleft (k) = Hroleft (k + 1) + dble(SigmaDens(ileft,jleft,k)) * dble(DWZ (ileft, jleft, k))
-                        
+
                         !depth of lower face
                         HRight(k)   = HRight  (k + 1) + dble(DWZ (    i,    j,  k))
                         HLeft (k)   = HLeft   (k + 1) + dble(DWZ (ileft, jleft, k))
-
 
                         !pressure in the center cell
                         DAuxRight  =  (HroRight(k) + HroRight(k+1)) / 2.
@@ -32435,16 +32464,12 @@ do23:                do  k=KUB, kbottom,-1
 
                         !Along the iso-sigma
                         DAux       =  (DAuxRight - DAuxLeft)/ dble(DZX_ZY(ileft, jleft))
-                        
-                       
+
                         !Correction for the cartesian space
                         Rox3XY(i,j,k) = Daux + (SigmaDens(i, j, k) + SigmaDens(ileft, jleft, k)) * &
                                         (Zright - Zleft) / dble(DZX_ZY(ileft, jleft)) / 2.
-                   
- 
 
-                    enddo do23
-                    
+                    enddo do23                    
                     
                 endif 
 
@@ -32611,9 +32636,8 @@ do27:           do  k=KUB, kbottom,-1
                         endif
 
                         DAux       =  (DensZLeft - DensZRight) * DUZ_VZ(i, j, k)  / dble(DZX_ZY(ileft, jleft))
-                   
-                    endif
 
+                    endif
 
                     Rox3XY(i,j,k) = Rox3XY(i,j,k+1) + DAux
 
@@ -32621,15 +32645,12 @@ do27:           do  k=KUB, kbottom,-1
 
             endif
 
-
             end if cd1
 
         enddo do5
         enddo do4
-
-
-        
-
+        !!$OMP END DO NOWAIT
+        !!$OMP END PARALLEL
 
         !If the baroclinic force is not to be consider in the boundary then
         BoundaryBaroclinic = Me%ComputeOptions%BoundaryBaroclinic
@@ -32640,10 +32661,9 @@ do27:           do  k=KUB, kbottom,-1
         
 cd10:   if ( .not. BoundaryBaroclinic ) then 
 
-            CHUNK = CHUNK_J(JLB, JUB)
+            !$ CHUNK = CHUNK_J(JLB, JUB)
 
             !$OMP PARALLEL PRIVATE(I,J,K,kbottom)
-
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
 do41:       do J = JLB, JUB
 do51:       do I = ILB, IUB
@@ -32680,10 +32700,9 @@ cd12:   if ( BaroclinicRAMP ) then
 
             Coriolis_Freq => Me%External_Var%Coriolis_Freq
 
-            CHUNK = CHUNK_J(JLB, JUB)
+            !$ CHUNK = CHUNK_J(JLB, JUB)
             
             !$OMP PARALLEL PRIVATE(I,J,K,ileft,jleft,F_UV,TimeCoef,kbottom)
-            
             !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
 do42:       do J = JLB, JUB
 do52:       do I = ILB, IUB
@@ -33257,13 +33276,16 @@ cd2:    if( Me%ComputeOptions%AltimetryAssimilation%flag)  then
         !Arguments
         Integer,  intent(in )              :: i, j, ileft, jleft, KUB, kbottom
         
+        !griflet: these arguments are intent(out)
         Real(8), pointer,  dimension ( : ) :: Hleft, Hright, Hcenter, HroLeft, HroRight, DensRight, DensLeft
+        
+        !griflet: these arguments are intent(in)
         Real, pointer, dimension(:, :, :)  :: DWZ, DUZ_VZ, SigmaDens, SZZ
 
         !Local variable
         Integer     :: k
 
-        integer                            :: CHUNK
+        !integer                            :: CHUNK
 
         !Begin---------------------------------------------------------------------
 
@@ -33316,44 +33338,42 @@ cd2:    if( Me%ComputeOptions%AltimetryAssimilation%flag)  then
                 DensRight(kbottom) = dble(SigmaDens(i    ,j    ,kbottom))
                 DensLeft (kbottom) = dble(SigmaDens(ileft,jleft,kbottom))
 
-                CHUNK = CHUNK_K(kbottom+1, KUB)
-                
-                if (MonitorPerformance) then
-                    call StartWatch ("ModuleHydrodynamic", "Calc_depth_and_Hro")
-                endif
-                
-                !$OMP PARALLEL PRIVATE(k)
-                !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+                !griflet: I want to parallelize the calling subroutine, so I un-parallelize the call-ee.
+                !CHUNK = CHUNK_K(kbottom+1, KUB)
+
+                !if (MonitorPerformance) then
+                !    call StartWatch ("ModuleHydrodynamic", "Calc_depth_and_Hro")
+                !endif
+
+                !!$OMP PARALLEL PRIVATE(k)
+                !!$OMP DO SCHEDULE(DYNAMIC,CHUNK)
                 do k = kbottom+1, KUB
                    DensRight(k) = (dble(SigmaDens(i    ,j    ,k  )) * dble(DWZ (    i,    j,  k-1)) +  &
                                    dble(SigmaDens(i    ,j    ,k-1)) * dble(DWZ (    i,    j,  k  ))) / &
                                   (dble(DWZ    (i    ,j    ,k-1)) + dble(DWZ (    i,    j,  k  )))
-               
+
                    DensLeft (k) = (dble(SigmaDens(ileft,jleft,k  )) * dble(DWZ (ileft,jleft,  k-1)) +  &
                                    dble(SigmaDens(ileft,jleft,k-1)) * dble(DWZ (ileft,jleft,  k  ))) / &
                                   (dble(DWZ    (ileft,jleft,k-1)) + dble(DWZ (ileft,jleft,  k  )))
-                enddo      
-                !$OMP END DO
-                !$OMP END PARALLEL
-                
-                if (MonitorPerformance) then
-                    call StopWatch ("ModuleHydrodynamic", "Calc_depth_and_Hro")
-                endif
-                
-                 DensRight(kbottom : KUB+1) =  DensRight(kbottom : KUB+1)
-                 DensLeft (kbottom : KUB+1) =  DensLeft (kbottom : KUB+1)
+                enddo
+                !!$OMP END DO
+                !!$OMP END PARALLEL
+
+                !if (MonitorPerformance) then
+                !    call StopWatch ("ModuleHydrodynamic", "Calc_depth_and_Hro")
+                !endif
+
+                DensRight(kbottom : KUB+1) =  DensRight(kbottom : KUB+1)
+                DensLeft (kbottom : KUB+1) =  DensLeft (kbottom : KUB+1)
 
                 do k = KUB , kbottom, -1
                    HroRight(k) = HroRight(k + 1) + (DensRight(k+1) + DensRight(k)) / 2. * dble(DWZ (    i,    j,  k))
                    Hroleft (k) = Hroleft (k + 1) + (DensLeft (k+1) + DensLeft (k)) / 2. * dble(DWZ (ileft, jleft, k))
-                enddo   
-            
+                enddo
+
             endif
 
         endif
-
-
-
 
     End subroutine calc_depth_and_Hro
 
@@ -33367,10 +33387,12 @@ cd2:    if( Me%ComputeOptions%AltimetryAssimilation%flag)  then
         ! External variables
 
         Integer, intent(in )             :: KUB, kbottom
+        
+        !griflet: these arguments are intent(out)
         Real(8), pointer, dimension( : ) :: Hleft, Hright, Hcenter
-        Integer, pointer, dimension( : ) :: kleft, kright
-
+        Integer, pointer, dimension( : ) :: kleft, kright        
         Real(8), pointer, dimension( : ) :: Depth_integ
+        
         ! Internal
 
         Integer  :: k    
@@ -41146,8 +41168,10 @@ cd2:    if (Me%SubModel%DeadZone) then
     Subroutine DeallocateVariables
 
         !Arguments-------------------------------------------------------------
-
         
+        !griflet
+        type(T_Coef_Baroc), pointer :: LocalBaroc
+        integer                     :: p
 
         !Local-----------------------------------------------------------------
 
@@ -41657,82 +41681,63 @@ cd3:    if (Me%OutPut%hdf5ON) then
                 
 cd4:    if (Me%ComputeOptions%Baroclinic) then 
 
-            deallocate (Me%Coef%Baroc%Kleft,       STAT = STAT_CALL)
-
-            if (STAT_CALL /= SUCCESS_)                                                   &            
-                stop 'Subroutine DeallocateVariables; Module ModuleHydrodynamic. ERR35.'  
-
-            nullify (Me%Coef%Baroc%Kleft)
-
-
-        
-            deallocate (Me%Coef%Baroc%Kright,      STAT = STAT_CALL)
-
-            if (STAT_CALL /= SUCCESS_)                                                   &            
-                stop 'Subroutine DeallocateVariables; Module ModuleHydrodynamic. ERR36'
-
-            nullify (Me%Coef%Baroc%Kright)
-
-        
-        
-            deallocate (Me%Coef%Baroc%Depth_integ, STAT = STAT_CALL)
-
-            if (STAT_CALL /= SUCCESS_)                                                   &            
-                stop 'Subroutine DeallocateVariables; Module ModuleHydrodynamic. ERR37'
-
-            nullify (Me%Coef%Baroc%Depth_integ)
-
-
-            deallocate (Me%Coef%Baroc%Hcenter,     STAT = STAT_CALL)
-
-            if (STAT_CALL /= SUCCESS_)                                                   &            
-                stop 'Subroutine DeallocateVariables; Module ModuleHydrodynamic. ERR38'
-
-            nullify (Me%Coef%Baroc%Hcenter)
-        
-        
-        
-            deallocate (Me%Coef%Baroc%Hleft,       STAT = STAT_CALL)
-
-            if (STAT_CALL /= SUCCESS_)                                                   &            
-                stop 'Subroutine DeallocateVariables; Module ModuleHydrodynamic. ERR39'
-
-            nullify (Me%Coef%Baroc%Hleft)
-
-        
-                 
-            deallocate (Me%Coef%Baroc%Hright,      STAT = STAT_CALL)
-
-            if (STAT_CALL /= SUCCESS_)                                                   &            
-                stop 'Subroutine DeallocateVariables; Module ModuleHydrodynamic. ERR40'
-        
-            nullify (Me%Coef%Baroc%Hright)
-
+            !griflet            
+            do p=1,Me%MaxThreads
             
+                LocalBaroc => Me%Coef%Baroc(p)
+                
+                deallocate (LocalBaroc%Kleft,       STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)                                                   &            
+                    stop 'Subroutine DeallocateVariables; Module ModuleHydrodynamic. ERR35.'  
+                nullify (LocalBaroc%Kleft)
+        
+                deallocate (LocalBaroc%Kright,      STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)                                                   &            
+                    stop 'Subroutine DeallocateVariables; Module ModuleHydrodynamic. ERR36'
+                nullify (LocalBaroc%Kright)
+
+                deallocate (LocalBaroc%Depth_integ, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)                                                   &            
+                    stop 'Subroutine DeallocateVariables; Module ModuleHydrodynamic. ERR37'
+                nullify (LocalBaroc%Depth_integ)
+
+                deallocate (LocalBaroc%Hcenter,     STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)                                                   &            
+                    stop 'Subroutine DeallocateVariables; Module ModuleHydrodynamic. ERR38'
+                nullify (LocalBaroc%Hcenter)
+               
+                deallocate (LocalBaroc%Hleft,       STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)                                                   &            
+                    stop 'Subroutine DeallocateVariables; Module ModuleHydrodynamic. ERR39'
+                nullify (LocalBaroc%Hleft)        
+                 
+                deallocate (LocalBaroc%Hright,      STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)                                                   &            
+                    stop 'Subroutine DeallocateVariables; Module ModuleHydrodynamic. ERR40'        
+                nullify (LocalBaroc%Hright)            
               
-            deallocate (Me%Coef%Baroc%HroLeft,     STAT = STAT_CALL)
-
-            if (STAT_CALL /= SUCCESS_)                                                   &            
-                stop 'Subroutine DeallocateVariables; Module ModuleHydrodynamic. ERR41'
-
-            nullify (Me%Coef%Baroc%HroLeft)
+                deallocate (LocalBaroc%HroLeft,     STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)                                                   &            
+                    stop 'Subroutine DeallocateVariables; Module ModuleHydrodynamic. ERR41'
+                nullify (LocalBaroc%HroLeft)
         
-        
-            deallocate (Me%Coef%Baroc%HroRight,    STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                   &            
-                stop 'Subroutine DeallocateVariables; Module ModuleHydrodynamic. ERR42'
-            nullify (Me%Coef%Baroc%HroRight)
+                deallocate (LocalBaroc%HroRight,    STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)                                                   &            
+                    stop 'Subroutine DeallocateVariables; Module ModuleHydrodynamic. ERR42'
+                nullify (LocalBaroc%HroRight)
+            
+                deallocate (LocalBaroc%DensRight,    STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)                                                   &            
+                    stop 'Subroutine DeallocateVariables; Module ModuleHydrodynamic. ERR420'
+                nullify (LocalBaroc%DensRight)
+    
+                deallocate (LocalBaroc%DensLeft,    STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)                                                   &            
+                    stop 'Subroutine DeallocateVariables; Module ModuleHydrodynamic. ERR430'
+                nullify (LocalBaroc%DensLeft)
 
-            deallocate (Me%Coef%Baroc%DensRight,    STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                   &            
-                stop 'Subroutine DeallocateVariables; Module ModuleHydrodynamic. ERR420'
-            nullify (Me%Coef%Baroc%DensRight)
-
-            deallocate (Me%Coef%Baroc%DensLeft,    STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                   &            
-                stop 'Subroutine DeallocateVariables; Module ModuleHydrodynamic. ERR430'
-            nullify (Me%Coef%Baroc%DensLeft)
-
+            enddo
+            
         endif cd4
 
 

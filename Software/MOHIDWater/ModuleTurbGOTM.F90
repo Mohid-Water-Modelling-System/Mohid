@@ -31,27 +31,26 @@
 Module ModuleTurbGOTM
 
     use ModuleGlobalData
-    use ModuleTime  
+    use ModuleTime
     use ModuleEnterData,        only : ReadFileName
     use ModuleFunctions,        only : TimeToString, ChangeSuffix, CHUNK_J, CHUNK_I, CHUNK_K
     use ModuleHorizontalMap,    only : GetBoundaries, GetWaterPoints2D, UnGetHorizontalMap
     use ModuleGeometry
     use ModuleMap
     use ModuleGOTM
-    use ModuleStopWatch,        only : StartWatch, StopWatch         
+    use ModuleStopWatch,        only : StartWatch, StopWatch
+    use omp_lib 
 
     Implicit none
 
-    private 
-
+    private
 
     !Subroutines & Functions---------------------------------------------------
 
     !Constructor
-    public  :: StartTurbGOTM        
-    private ::      AllocateInstance        
+    public  :: StartTurbGOTM
+    private ::      AllocateInstance
     private ::      AllocateVariables
-
 
     !Selector
     public  :: GetViscosityTurbGOTM
@@ -67,17 +66,15 @@ Module ModuleTurbGOTM
     public  :: SetTurbGOTMBottomShearVelocity
     public  :: SetTurbGOTMWindShearVelocity
 
-
     !Modifier
-    public  :: TurbGOTM  
-    private :: Read_Final_Turbulence_File      
-    public  :: Write_Final_Turbulence_File                                     
-    
+    public  :: TurbGOTM
+    private :: Read_Final_Turbulence_File
+    public  :: Write_Final_Turbulence_File
+
     !Destructor
-    public  ::  KillTurbGOTM   
+    public  ::  KillTurbGOTM
     private ::      DeAllocateInstance
 
-    
     !Management
     private ::      Ready
 
@@ -88,10 +85,9 @@ Module ModuleTurbGOTM
         module procedure UngetTurb1
     end interface UngetTurbGOTM
 
-    
     !Types---------------------------------------------------------------------
 
-    type       T_ID
+    type     T_ID
         integer                       :: IDnumber
         character(LEN = StringLength) :: name
     end type T_ID
@@ -121,7 +117,6 @@ Module ModuleTurbGOTM
         type(T_Time)                       :: Now, BeginTime, EndTime
     end type T_External
 
-
     type      T_TurbGOTM
         integer                                     :: InstanceID
         type(T_Size3D  )                            :: Size            !Allocated size -> former IIM,  JJM,  KKM
@@ -137,45 +132,46 @@ Module ModuleTurbGOTM
         !real,    pointer, dimension(:,:,:)          :: Ldownward
         real,    pointer, dimension(:,:,:)          :: P
         real,    pointer, dimension(:,:,:)          :: B
-        real(8), pointer, dimension(:    )          :: P_1D,B_1D,NN_1D,SS_1D,h
+!        real(8), pointer, dimension(:    )          :: P_1D,B_1D,NN_1D,SS_1D,h
 !        double precision, pointer, dimension(:)     :: tke_1D,L_1D,eps_1D,num_1D,nuh_1D
         real                           :: DT            = null_real
         !type(T_ID      ) :: ID
         type(T_External) :: ExternalVar
         type(T_Files   ) :: Files
-        type (T_Gotm), pointer :: ObjGotm
 
+        !griflet
+        type (T_Gotm), dimension(:), pointer            :: ObjGotm
+        integer                                         :: MaxThreads
         !Information associated with the Gotm model that does not change 
         !in time and in space 
-        type(T_Gotmparameters   ), pointer      :: ObjGOTMparameters
+        type(T_GOTMParameters), pointer                 :: ObjGOTMparameters
+
         !Instance of ModuleTime
         integer                                 :: ObjTime            = 0
 
         !Instance of ModuleBathymetry
         integer                                 :: ObjGridData        = 0
 
-     
         !Instance of ModuleHorizontalMap
         integer                                 :: ObjHorizontalMap   = 0
-       
+
         !Instance of ModuleHorizontalGrid
         integer                                 :: ObjHorizontalGrid  = 0
-       
+
         !Instance of ModuleMap
         integer                                 :: ObjMap             = 0
- 
+
         !Instance of ModuleGeometry
         integer                                 :: ObjGeometry        = 0
 
-        
     end type T_TurbGOTM
-     
+
     !Global Module Variables
     type (T_TurbGOTM), pointer                      :: FirstObjTurbGOTM
     type (T_TurbGOTM), pointer                      :: Me
 
     !--------------------------------------------------------------------------
-    
+
     contains
 
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -186,7 +182,6 @@ Module ModuleTurbGOTM
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-
     subroutine StartTurbGOTM(TurbGOTMID,                                        &
                              TimeID,                                            &
                              GridDataID,                                        &
@@ -196,9 +191,8 @@ Module ModuleTurbGOTM
                              GeometryID,                                        &
                              Continuous_Compute,  STAT)
 
-   
         !Arguments---------------------------------------------------------------
-        integer                                         :: TurbGOTMID 
+        integer                                         :: TurbGOTMID
         integer                                         :: TimeID
         integer                                         :: GridDataID
         integer                                         :: MapID
@@ -206,15 +200,15 @@ Module ModuleTurbGOTM
         integer                                         :: HorizontalGridID
         integer                                         :: GeometryID
         logical                                         :: Continuous_Compute
-        integer, optional, intent(OUT)                  :: STAT     
+        integer, optional, intent(OUT)                  :: STAT
 
         !External----------------------------------------------------------------
-        integer                                         :: ready_        
+        integer                                         :: ready_
         integer                                         :: STAT_CALL
         type(T_Time)                                    :: BeginTime, EndTime
-        
+
         !Local-------------------------------------------------------------------
-        integer                                         :: STAT_        
+        integer                                         :: STAT_
         integer                                         :: GOTM_UNIT
 
         !------------------------------------------------------------------------
@@ -232,7 +226,7 @@ Module ModuleTurbGOTM
 cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
             call AllocateInstance
-            
+
             !Associates External Instances
             Me%ObjTime           = AssociateInstance (mTIME_          , TimeID          )
             Me%ObjGridData       = AssociateInstance (mGRIDDATA_      , GridDataID      )
@@ -240,12 +234,12 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             Me%ObjHorizontalMap  = AssociateInstance (mHORIZONTALMAP_ , HorizontalMapID )
             Me%ObjHorizontalGrid = AssociateInstance (mHORIZONTALGRID_, HorizontalGridID)
             Me%ObjGeometry       = AssociateInstance (mGEOMETRY_      , GeometryID      )
-            
+
             call GetComputeTimeLimits(Me%ObjTime,                               &
                                       EndTime   = EndTime,                      &
                                       BeginTime = BeginTime,                    &
                                       STAT      = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_) stop 'StartTurbGOTM - ModuleTurbGOTM - ERR01'     
+            if (STAT_CALL .NE. SUCCESS_) stop 'StartTurbGOTM - ModuleTurbGOTM - ERR01'
 
             !Stores the begin and the end of the water properties compute
             Me%ExternalVar%BeginTime = BeginTime
@@ -253,48 +247,45 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
             !Actualizes the time
             call GetComputeCurrentTime(Me%ObjTime, Me%ExternalVar%Now, STAT = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_) stop 'StartTurbGOTM - ModuleTurbGOTM - ERR02'     
+            if (STAT_CALL .NE. SUCCESS_) stop 'StartTurbGOTM - ModuleTurbGOTM - ERR02'
 
             call GetComputeTimeStep(Me%ObjTime, Me%DT, STAT = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_) stop 'StartTurbGOTM - ModuleTurbGOTM - ERR03'     
+            if (STAT_CALL .NE. SUCCESS_) stop 'StartTurbGOTM - ModuleTurbGOTM - ERR03' 
 
-                                             
             call GetGeometrySize(Me%ObjGeometry, Size = Me%Size,                &
                                  WorkSize = Me%WorkSize, STAT = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_) stop 'StartTurbGOTM - ModuleTurbGOTM - ERR03'     
+            if (STAT_CALL .NE. SUCCESS_) stop 'StartTurbGOTM - ModuleTurbGOTM - ERR03'
 
-                 
             !Opens the data file with GOTM turbulence information
             call ReadFileName('TURB_GOTM', Me%Files%ConstructData,              &
                                Message = "GOTM Data File", STAT = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_) stop 'StartTurbGOTM - ModuleTurbGOTM - ERR04'     
+            if (STAT_CALL .NE. SUCCESS_) stop 'StartTurbGOTM - ModuleTurbGOTM - ERR04'
 
             if (Continuous_Compute) then
-                
+
                 !Data From previous run
                 call ReadFileName('TURB_INI', Me%Files%InitialTurbulence,         &
                                   Message = "GOTM Initial Conditions",            &
                                   STAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_) stop 'StartTurbGOTM - ModuleTurbGOTM - ERR05'     
+                if (STAT_CALL .NE. SUCCESS_) stop 'StartTurbGOTM - ModuleTurbGOTM - ERR05'
 
             end if
-
 
             call ReadFileName('TURB_FIN', Me%Files%FinalTurbulence,             &
                               Message = "GOTM Final Conditions",                &
                               STAT = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_) stop 'StartTurbGOTM - ModuleTurbGOTM - ERR06'     
-        
-            call UnitsManager (GOTM_UNIT, OPEN_FILE) 
+            if (STAT_CALL .NE. SUCCESS_) stop 'StartTurbGOTM - ModuleTurbGOTM - ERR06'
 
             !Initializes the value of the parameters in the turbulence module GOTM
+            call UnitsManager (GOTM_UNIT, OPEN_FILE)
+            !allocate(Me%ObjGotmParameters)
             call init_turbulence_parameters(Me%ObjGotmParameters,                        &
                                             GOTM_UNIT, Me%Files%ConstructData,           &
                                             STAT=STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_) stop 'StartTurbGOTM - ModuleTurbGOTM - ERR05'     
-           
-            call AllocateVariables 
-            
+            if (STAT_CALL .NE. SUCCESS_) stop 'StartTurbGOTM - ModuleTurbGOTM - ERR05'
+
+            call AllocateVariables
+
             if (Continuous_Compute) then
                 call Read_Final_Turbulence_File
             end if
@@ -304,11 +295,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             STAT_               = SUCCESS_
 
         else cd0
-            
-            stop 'ModuleTurbGOTM - StartTurbGOTM - ERR99' 
+
+            stop 'ModuleTurbGOTM - StartTurbGOTM - ERR99'
 
         end if cd0
-
 
         if (present(STAT)) STAT = STAT_
 
@@ -317,11 +307,11 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
     end subroutine StartTurbGOTM
 
     !--------------------------------------------------------------------------
-    
+
     subroutine AllocateInstance
 
         !Arguments-------------------------------------------------------------
-                                                    
+
         !Local-----------------------------------------------------------------
         type (T_TurbGOTM), pointer                      :: NewObjTurbGOTM
         type (T_TurbGOTM), pointer                      :: PreviousObjTurbGOTM
@@ -348,17 +338,13 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         Me%InstanceID = RegisterNewInstance (mTurbGOTM_)
 
-
     end subroutine AllocateInstance
 
-
     !--------------------------------------------------------------------------
-
 
     subroutine AllocateVariables
 
         !Arguments-------------------------------------------------------------
-
 
         !External--------------------------------------------------------------        
            
@@ -369,6 +355,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         integer :: ILB, IUB 
         integer :: JLB, JUB
         integer :: KLB, KUB
+        integer :: p
+        type(T_GOTM), pointer :: ptrObjGotm
+        type(T_GOTMParameters), pointer   :: ptrObjGotmParameters
         !----------------------------------------------------------------------
 
         ILB = Me%Size%ILB
@@ -379,58 +368,55 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         KLB = Me%Size%KLB
         KUB = Me%Size%KUB
+ 
+        !griflet start
+        Me%MaxThreads=1
+        !$ Me%MaxThreads = omp_get_max_threads()
+                
+        allocate(Me%ObjGotm(1:Me%MaxThreads))        
+        do p=1,Me%MaxThreads
 
+            !Create a memory duplicate of Me%ObjGOTMparameters for each thread
+            allocate(ptrObjGotmParameters)
+            call clear_turbulence_parameters(ptrObjGotmParameters) !griflet: optional, testing to see if it is relevant...
+            call copy_turbulence_parameters(ptrObjGotmParameters, Me%ObjGOTMparameters)
 
-        allocate(Me%TKE         (ILB:IUB, JLB:JUB, KLB:KUB))         
-        allocate(Me%L           (ILB:IUB, JLB:JUB, KLB:KUB))         
-        allocate(Me%EPS         (ILB:IUB, JLB:JUB, KLB:KUB))         
-        allocate(Me%NUM         (ILB:IUB, JLB:JUB, KLB:KUB))         
-        allocate(Me%NUH         (ILB:IUB, JLB:JUB, KLB:KUB))         
-        allocate(Me%P           (ILB:IUB, JLB:JUB, KLB:KUB))         
-        allocate(Me%B           (ILB:IUB, JLB:JUB, KLB:KUB))         
-        !allocate(Me%Lupward     (ILB:IUB, JLB:JUB, KLB:KUB))         
-        !allocate(Me%Ldownward   (ILB:IUB, JLB:JUB, KLB:KUB))         
+            ! Allocates matrices for GOTM 1D column. 
+            ! The local matrices in GOTM are allocated with the maximum numbers of layers, 
+            ! although the computation limits are 0:nlev and nlev is different for every point.
+            !Here 1D arrays of turbulent magnitudes(tke,eps,num,nuh,L) are allocated
+            ptrObjGotm => Me%ObjGotm(p)
+            call init_turbulence(ptrObjGotm, ptrObjGotmParameters, KLB, KUB, STAT=STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_)  stop 'AllocateVariables - ModuleTurbGOTM - ERR01'
+            
+            ptrObjGotm%Parameters => ptrObjGotmParameters
+            nullify(ptrObjGotmParameters)
 
-        Me%TKE                  = Me%ObjGOTMParameters%K_MIN 
-        Me%L                    = Me%ObjGOTMParameters%L_MIN 
-        Me%EPS                  = Me%ObjGOTMParameters%EPS_MIN     
+        enddo
+        !griflet end
+
+        allocate(Me%TKE         (ILB:IUB, JLB:JUB, KLB:KUB))
+        allocate(Me%L           (ILB:IUB, JLB:JUB, KLB:KUB))
+        allocate(Me%EPS         (ILB:IUB, JLB:JUB, KLB:KUB))
+        allocate(Me%NUM         (ILB:IUB, JLB:JUB, KLB:KUB))
+        allocate(Me%NUH         (ILB:IUB, JLB:JUB, KLB:KUB))
+        allocate(Me%P           (ILB:IUB, JLB:JUB, KLB:KUB))
+        allocate(Me%B           (ILB:IUB, JLB:JUB, KLB:KUB))
+
+        Me%TKE                  = Me%ObjGOTMparameters%K_MIN
+        Me%L                    = Me%ObjGOTMparameters%L_MIN
+        Me%EPS                  = Me%ObjGOTMparameters%EPS_MIN
         Me%NUM                  = 0.
         Me%NUH                  = 0.
         Me%P                    = null_real
         Me%B                    = null_real
-        !Me%Lupward              = null_real
-        !Me%Ldownward            = null_real
-                         
-        ! Allocates matrices for GOTM 1D column. 
-        ! The local matrices in GOTM are allocated with the maximum numbers of layers, 
-        ! although the computation limits are 0:nlev and nlev is different for every point.
-
-        !Variables transferred to ModuleGOTM as arguments
-        allocate(Me%NN_1D   (KLB:KUB))         
-        allocate(Me%SS_1D   (KLB:KUB))         
-        allocate(Me%P_1D    (KLB:KUB))         
-        allocate(Me%B_1D    (KLB:KUB))         
-        allocate(Me%h       (KLB:KUB))         
-        allocate(Me%ObjGotm         )
-
-        Me%NN_1D                    = null_real
-        Me%SS_1D                    = null_real
-        Me%P_1D                    = null_real
-        Me%B_1D                    = null_real
-        Me%h                       = null_real
-                
-        !Here 1D arrays of turbulent magnitudes(tke,eps,num,nuh,L) are allocated 
-        call init_turbulence(Me%ObjGotm, Me%ObjGOTMParameters, KLB, KUB, STAT=STAT_CALL) 
-        if (STAT_CALL .NE. SUCCESS_)  stop 'AllocateVariables - ModuleTurbGOTM - ERR01'    
-
-        Me%ObjGOTM%Parameters => Me%ObjGOTMParameters
 
         nullify(Me%ExternalVar%u_taus)
-        allocate(Me%ExternalVar%u_taus (ILB:IUB, JLB:JUB), STAT = STAT_CALL)         
+        allocate(Me%ExternalVar%u_taus (ILB:IUB, JLB:JUB), STAT = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_) stop 'AllocateVariables - ModuleTurbGOTM - ERR02'
         Me%ExternalVar%u_taus = 0.
 
-    end subroutine AllocateVariables 
+    end subroutine AllocateVariables
 
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -452,15 +438,16 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         !Local-----------------------------------------------------------------
         integer,    pointer, dimension(:,:) :: BoundaryPoints2D
-        real(8),    pointer, dimension(:)   :: h,NN_1D,SS_1D,P_1D,B_1D
-        real(8),    pointer, dimension(:)   :: tke_1D,eps_1D,L_1D,num_1D,nuh_1D   
+        !real(8),    pointer, dimension(:)   :: h,NN_1D,SS_1D,P_1D,B_1D
+        !real(8),    pointer, dimension(:)   :: tke_1D,eps_1D,L_1D,num_1D,nuh_1D   
         real(8)                             :: depth,u_taub,u_taus,dt,z0s,z0b
         integer                             :: KBottom,nlev
         integer                             :: i, j, k, ILB, IUB, JLB, JUB, KLB, KUB                            
         integer                             :: STAT_                
         integer                             :: STAT_CALL
-        integer                             :: ready_            
-        integer                             :: CHUNK            
+        integer                             :: ready_, TID            
+        !$ integer                             :: CHUNK
+        type(T_GOTM), pointer               :: LocalObjGOTM
 
         !----------------------------------------------------------------------                         
 
@@ -473,18 +460,14 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
 cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
+            !$ CHUNK = CHUNK_J(JLB,JUB)
+
             !Time Properties - Actualises CurrentTime
             call GetComputeCurrentTime(Me%ObjTime, Me%ExternalVar%Now, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'TurbGOTM - ModuleTurbGOTM - ERR01'
                 
             Me%ExternalVar%NN   => NN
             Me%ExternalVar%SS   => SS
-
-            NN_1D               => Me%NN_1D
-            SS_1D               => Me%SS_1D
-            P_1D                => Me%P_1D
-            B_1D                => Me%B_1D
-            h                   => Me%h            
 
             ILB = Me%WorkSize%ILB   
             IUB = Me%WorkSize%IUB
@@ -545,88 +528,95 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             ! Production terms for turbulence equations are computed here.
             ! We consider them as a hydrodynamic determined property.
             call Production
-            
-            !Call to module GOTM, 1D column model for turbulence   
-            
 
-            ! We only allocate ONCE space for these 1D variables. This is done in init_turbulence in ModuleGOTM
-            ! Here we associate these variables to those allocated there.
-            call Associate_to_ExportGOTM (Me%ObjGOTM, Tke_1D, L_1D, eps_1D, num_1D, nuh_1D)
-            
-            !Doesn't work CHUNK = CHUNK_J(JLB,JUB)
-            !Parallelize with private variables that are arrays doesn't work.
-            !Doesn't work !$OMP PARALLEL PRIVATE(I,J,k,Kbottom,Depth,u_taus,u_taub,z0b,z0s,nlev,NN_1D,
-            !SS_1D,P_1D,B_1D,Tke_1D,L_1D,eps_1D,num_1D,nuh_1D,h) 
+            !Call to module GOTM, 1D column model for turbulence   
+
+            !write(*,*) 'One iteration... griflet'
+
+            !$ CHUNK = CHUNK_J(JLB,JUB)
             ! We don't compute turbulence coefficients at the limits of the domain. 
-            !Doesn't work !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
-doj :       do J = JLB+1, JUB-1
-doi :       do I = ILB+1, IUB-1 
-      
+            !!$OMP PARALLEL &
+            !!$OMP PRIVATE(i,j,k,Kbottom,Depth, &
+            !!$OMP           u_taus,u_taub,z0b,z0s,nlev,dt, &
+            !!$OMP           LocalObjGOTM, &
+            !!$OMP           TID)
+            !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+doj :       do j = JLB+1, JUB-1
+doi :       do i = ILB+1, IUB-1
+
 ifwp :          if (Me%ExternalVar%OpenPoints3D(i,j,KUB) .EQ. Openpoint) then       
-                        
-                    Kbottom = Me%ExternalVar%KFloorZ        (i,j) 
+                    
+                    !griflet
+                    TID = 1
+                    !$ TID = 1 + omp_get_thread_num();
+                    LocalObjGOTM => Me%ObjGotm(TID)
+                                        
+                    Kbottom = Me%ExternalVar%KFloorZ        (i,j)
                     Depth   = Me%ExternalVar%HT             (i,j)
                     u_taus  = Me%ExternalVar%u_taus         (i,j)
                     u_taub  = Me%ExternalVar%u_taub         (i,j)
                     z0b     = Me%ExternalVar%BottomRugosity (i,j)
-                    z0s     = Me%ExternalVar%SurfaceRugosity(i,j) 
+                    z0s     = Me%ExternalVar%SurfaceRugosity(i,j)
+                    nlev    = KUB - Kbottom + 1
 
-                    nlev = KUB - KBottom + 1
-
+                    !if (i .EQ. 22) then
+                    !    write(*,*) 'Start TID: ', TID, '. Depth: ', Depth
+                    !endif
 
                     ! We must be careful with the limits of the matrix, as GOTM computes from 0 to nlev
-                    ! Kbottom face correspond to 0 in GOTM notation
-                    ! Level 0 is needed for boundary confitions of turbulent magnitudes...
-                    
-dok :               do k=KBottom,KUB+1
-                        NN_1D (k-KBottom) = dble(Me%ExternalVar%NN(i,j,k))
-                        SS_1D (k-KBottom) = dble(Me%ExternalVar%SS(i,j,k))
-                        P_1D  (k-KBottom) = dble(Me%P     (i,j,k))
-                        B_1D  (k-KBottom) = dble(Me%B     (i,j,k))
-                        Tke_1D(k-KBottom) = dble(Me%Tke   (i,j,k))
-                        L_1D  (k-KBottom) = dble(Me%L     (i,j,k))
-                        eps_1D(k-KBottom) = dble(Me%eps   (i,j,k))
-                        num_1D(k-KBottom) = dble(Me%num   (i,j,k))
-                        nuh_1D(k-KBottom) = dble(Me%nuh   (i,j,k))
+                    ! KBottom face correspond to 0 in GOTM notation
+                    ! Level 0 is needed for boundary confitions of turbulent magnitudes...0
+
+                    !griflet: use local structure LocalObjGotm to transfer information.
+dok :               do k=Kbottom,KUB+1
+                        LocalObjGOTM%Impor%nn(k-Kbottom) = dble(Me%ExternalVar%NN(i,j,k))
+                        LocalObjGOTM%Impor%ss(k-Kbottom) = dble(Me%ExternalVar%SS(i,j,k))
+                        LocalObjGOTM%Impor%P(k-Kbottom)  = dble(Me%P     (i,j,k))
+                        LocalObjGOTM%Impor%B(k-Kbottom)  = dble(Me%B     (i,j,k))
+                        LocalObjGOTM%Export%tke(k-Kbottom) = dble(Me%Tke   (i,j,k))
+                        LocalObjGOTM%Export%L(k-Kbottom)   = dble(Me%L     (i,j,k))
+                        LocalObjGOTM%Export%eps(k-Kbottom) = dble(Me%eps   (i,j,k))
+                        LocalObjGOTM%Export%num(k-Kbottom) = dble(Me%num   (i,j,k))
+                        LocalObjGOTM%Export%nuh(k-Kbottom) = dble(Me%nuh   (i,j,k))
                     end do dok
 
                     ! h is the distance between vertical faces (i.e. where turbulent quantities are defined)
                     ! See GOTM report page 34. In MOHID notation h = DWZ
-dok2:               do k=KBottom,KUB
-                     h(k+1-KBottom) = Me%ExternalVar%DWZ(i,j,k)
+dok2:               do k=Kbottom,KUB
+                        LocalObjGOTM%Impor%h(k+1-Kbottom) = Me%ExternalVar%DWZ(i,j,k)
                     end do dok2
-            
-                    !The information read in from 3d variables (like Me%tke) is transferred to ModuleGOTM
-                    call AssociateExportGOTM (Me%ObjGOTM, Tke_1D, L_1D, eps_1D, num_1D, nuh_1D)
 
                     !The resolution of turbulence equations is done here (ModuleGOTM.f90)
-                    call do_turbulence(Me%ObjGOTM, nlev,dt,depth,u_taus,u_taub,z0s,z0b, &
-                                                   h,NN_1D,SS_1D,P_1D,B_1D)
-                                    
-            
-dok4 :              do k=KBottom,KUB+1
-                        Me%Tke   (i,j,k) = real(Tke_1D(k-KBottom))  
-                        Me%L     (i,j,k) = real(L_1D(k-KBottom  ))  
-                        Me%eps   (i,j,k) = real(eps_1D(k-KBottom))  
-                        Me%num   (i,j,k) = real(num_1D(k-KBottom))  
-                        Me%nuh   (i,j,k) = real(nuh_1D(k-KBottom)) 
+                    call do_turbulence(LocalObjGOTM, nlev,dt,Depth,u_taus,u_taub,z0s,z0b, &
+                                                   LocalObjGOTM%Impor%h,  &
+                                                   LocalObjGOTM%Impor%nn, &
+                                                   LocalObjGOTM%Impor%ss, &
+                                                   LocalObjGOTM%Impor%P,  &
+                                                   LocalObjGOTM%Impor%B)
+
+dok4 :              do k=Kbottom,KUB+1
+                        Me%Tke   (i,j,k) = real(LocalObjGOTM%Export%tke(k-Kbottom))
+                        Me%L     (i,j,k) = real(LocalObjGOTM%Export%L(k-Kbottom  ))
+                        Me%eps   (i,j,k) = real(LocalObjGOTM%Export%eps(k-Kbottom))
+                        Me%num   (i,j,k) = real(LocalObjGOTM%Export%num(k-Kbottom))
+                        Me%nuh   (i,j,k) = real(LocalObjGOTM%Export%nuh(k-Kbottom))
                     end do dok4
+
+                    !if (i .EQ. 22) then
+                    !    write(*,*) 'End TID: ', TID, '. Depth: ', Depth
+                    !endif
 
                 end if ifwp
 
             end do doi
             end do doj
-            !Doesn't work !$OMP END DO
+            !!$OMP END DO NOWAIT
+            !!$OMP END PARALLEL
 
-            !Doesn't work !$OMP END PARALLEL          
-            
             !Values at open boundary points at the limits of the domain 
             ! are set to the values of the nearest interior point. Null_gradient
             i=IUB
-                       
-            CHUNK = CHUNK_J(JLB,JUB)
             !$OMP PARALLEL PRIVATE(j,k,Kbottom)
-            
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
             do j=JLB,JUB
                 if(BoundaryPoints2D(i,j) == 1) then
@@ -634,17 +624,14 @@ dok4 :              do k=KBottom,KUB+1
                     do k=Kbottom,KUB+1
                         Me%num   (i,j,k) = Me%num(i-1,j,k)  
                         Me%nuh   (i,j,k) = Me%nuh(i-1,j,k)
-                    end do 
-                end if 
+                    end do
+                end if
             end do
-            !$OMP END DO
-
-            !$OMP END PARALLEL          
+            !$OMP END DO NOWAIT
+            !$OMP END PARALLEL
 
             i=ILB
-            CHUNK = CHUNK_J(JLB,JUB)
             !$OMP PARALLEL PRIVATE(j,k,Kbottom)
-            
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
             do j=JLB,JUB
                 if(BoundaryPoints2D(i,j) == 1) then
@@ -655,14 +642,12 @@ dok4 :              do k=KBottom,KUB+1
                     end do 
                 end if 
             end do
-            !$OMP END DO
-
+            !$OMP END DO NOWAIT
             !$OMP END PARALLEL          
 
             j=JUB
-            CHUNK = CHUNK_I(ILB,IUB)
-            !$OMP PARALLEL PRIVATE(i,k,Kbottom)
-            
+            !$ CHUNK = CHUNK_I(ILB,IUB)
+            !$OMP PARALLEL PRIVATE(i,k,Kbottom)            
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
             do i=ILB,IUB
                 if(BoundaryPoints2D(i,j) == 1) then
@@ -673,12 +658,10 @@ dok4 :              do k=KBottom,KUB+1
                     end do 
                 end if 
             end do
-            !$OMP END DO
-
+            !$OMP END DO NOWAIT
             !$OMP END PARALLEL          
 
             j=JLB
-            CHUNK = CHUNK_I(ILB,IUB)
             !$OMP PARALLEL PRIVATE(i,k,Kbottom)            
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
             do i=ILB,IUB
@@ -690,7 +673,7 @@ dok4 :              do k=KBottom,KUB+1
                     end do 
                 end if 
             end do
-            !$OMP END DO
+            !$OMP END DO NOWAIT
             !$OMP END PARALLEL          
 
             !WaterPoints3D
@@ -804,7 +787,7 @@ dok4 :              do k=KBottom,KUB+1
 !        integer :: Kbottom
         real :: alpha
 
-        real,    pointer, dimension(:,:,:) :: NUM, NUH,NN,SS
+        real,    pointer, dimension(:,:,:) :: NUM, NUH,NN,SS, P, B
 
 !        integer, pointer, dimension(:,:  ) :: WaterPoints2D
 !        integer, pointer, dimension(:,:  ) :: KFloorZ
@@ -818,14 +801,24 @@ dok4 :              do k=KBottom,KUB+1
         SS              => Me%ExternalVar%SS
         NUM             => Me%NUM
         NUH             => Me%NUH
+        P               => Me%P
+        B               => Me%B
 
-        Me%P = (SS +alpha*NN)*NUM
-        Me%B = -NN*NUH
+        !griflet: trying out this...
+        !griflet: ... didn't work. Don't know why...
+        !!$OMP PARALLEL SHARED(P, B, SS, alpha, NN, NUM, NUH)
+        !!$OMP WORKSHARE
+        P = (SS +alpha*NN)*NUM
+        B = -NN*NUH
+        !!$OMP END WORKSHARE NOWAIT
+        !!$OMP END PARALLEL
 
         nullify(NUM            )
         nullify(NUH            )
         nullify(SS             )
         nullify(NN             )
+        nullify(B              )
+        nullify(P              )
 
     end subroutine Production
     !----------------------------------------------------------------------
@@ -1597,7 +1590,9 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
     subroutine KillGotmMemory
 
         !Arguments-------------------------------------------------------------
-
+        integer             :: p
+        type(T_GOTM), pointer :: ptrObjGotm
+        
         !Begin-----------------------------------------------------------------
      
         deallocate(Me%TKE       )
@@ -1607,15 +1602,16 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
         deallocate(Me%NUH       )
         deallocate(Me%P         )
         deallocate(Me%B         )
-        !deallocate(Me%Lupward   )         
-        !deallocate(Me%Ldownward )         
-        deallocate(Me%P_1D      )
-        deallocate(Me%B_1D      )
-        deallocate(Me%NN_1D     )
-        deallocate(Me%SS_1D     )
-        deallocate(Me%h         )
-        deallocate(Me%ObjGotm   )
-
+        
+        !griflet: doing a proper memory deallocation
+        do p=1,Me%MaxThreads
+            ptrObjGotm => Me%ObjGotm(p)
+            call kill_turbulence(ptrObjGotm)
+            deallocate(ptrObjGotm%Parameters)
+            !deallocate(ptrObjGotm)
+        enddo
+        deallocate(Me%ObjGotm)
+        deallocate(Me%ObjGotmParameters)
 
     end subroutine KillGotmMemory
 

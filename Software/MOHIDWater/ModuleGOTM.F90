@@ -28,6 +28,7 @@
 !
 ! !USES:
 !   use mtridiagonal
+   use omp_lib
    IMPLICIT NONE
    
 !
@@ -36,30 +37,35 @@
 !
 ! !PUBLIC MEMBER FUNCTIONS:
   
-   public :: init_turbulence  !Constructor
-   public :: init_turbulence_parameters
-   public :: AssociateExportGOTM 
-   public :: Associate_to_ExportGOTM
-   public :: do_turbulence    !Modifier
-  ! Others are private
-    private :: stabilityfunctions,do_tke,lengthscale
-    private :: kolpran
-    private :: internal_wave
-    private :: algebraiclength, dissipationeq,ispralength,lengthscaleeq,potentialml
-    private :: tkeeq,tkealgebraic
-    private :: cmue_kc,cmue_ca,cmue_cb
-!    private :: cmue_bb,cmue_bbqe
-    private :: cmue_kcqe,cmue_caqe,cmue_cbqe
-    private :: cmue_ma,cmue_sg,cmue_rf
+    public :: init_turbulence !Constructor
+    public :: init_turbulence_parameters
+    public :: clear_turbulence_parameters !griflet: new method
+    public :: copy_turbulence_parameters !griflet: new method
+    !public :: AssociateExportGOTM 
+    !public :: Associate_to_ExportGOTM
+    public :: do_turbulence    !Modifier
+    ! Others are private
+        private :: stabilityfunctions,do_tke,lengthscale
+        private :: kolpran
+        private :: internal_wave
+        private :: algebraiclength, dissipationeq,ispralength,lengthscaleeq,potentialml
+        private :: tkeeq,tkealgebraic
+        private :: cmue_kc,cmue_ca,cmue_cb
+    !    private :: cmue_bb,cmue_bbqe
+        private :: cmue_kcqe,cmue_caqe,cmue_cbqe
+        private :: cmue_ma,cmue_sg,cmue_rf
 
 !   public stabilityfunctions,do_tke,lengthscale
 !   public kolpran,do_turbulence,internal_wave 
+    
+    public :: kill_turbulence !Destructor ... griflet: The destructor was missing!
 
 ! !PUBLIC DATA TYPES
     public  :: T_Gotm
     public  :: T_GotmParameters
     public  :: T_GOTMexport
-    public  :: T_Trid
+    public  :: T_GOTMimport !griflet
+    public  :: T_GOTMTrid
 
 ! !REVISION HISTORY:
 !  Original author(s): GOTM code
@@ -79,13 +85,15 @@
     integer, parameter :: WRITE_LOCK_ERR_ = 4
     integer, parameter :: IDLE_ERR_       = 5
     integer, parameter :: NBUSERS_ERR_    = 6
+    integer, parameter :: Null_int        = -9999
+    real, parameter    :: Null_real       = -9.999E+15
 
     type T_GOTMexport
         double precision,  dimension(:), pointer    :: tke,L,eps 
         double precision,  dimension(:), pointer    :: num,nuh
     end type T_GOTMexport   
 
-    type T_GotmParameters
+    type T_GOTMParameters
         !The data are written aligned
         double precision    :: cde,sig_e0,sig_e1
         double precision    :: craig_m
@@ -111,7 +119,7 @@
         double precision    :: sig_k=1.
         !
         !  The MY model - 'my' namelist.
-        double precision        :: sl=0.2
+        double precision    :: sl=0.2
         double precision    :: e1=1.8
         double precision    :: e2=1.33
         double precision    :: e3=1.8
@@ -129,13 +137,13 @@
         double precision    :: qeghcrit=0.02
 
         !  Internal wave model - the 'iw' namelist.
-        double precision        :: alpha=0.0
-        double precision        :: klimiw=1e-6
+        double precision        :: alpha    = 0.0
+        double precision        :: klimiw   = 1e-6
         double precision        :: rich_cr  = 0.7
         double precision        :: numiw    = 1e-4
         double precision        :: nuhiw    = 5e-5
         double precision        :: numshear = 5e-3
-        integer                 :: iw_model=0
+        integer                 :: iw_model = 0
 
         !MY namelist
         integer     :: MY_length=1
@@ -154,12 +162,17 @@
         !keps namelist
         logical     :: flux_bdy
 
-    end type T_GotmParameters
+    end type T_GOTMParameters
 
-    type T_Trid
+    type T_GOTMTrid
         double precision,  dimension(:), pointer    :: au,bu,cu,du,ru,qu 
-    end type T_Trid
+    end type T_GOTMTrid
 
+    !griflet start
+    type T_GOTMimport
+        double precision,  dimension(:), pointer    :: nn,ss,P,B,h
+    end type T_GOTMimport
+    !riflet end
     
     type T_Gotm
         double precision,  dimension(:), pointer    :: cmue1,cmue2
@@ -170,7 +183,11 @@
         !Instance of ModuleGOTM
         type(T_GOTMParameters        ), pointer :: Parameters
         type(T_GOTMexport            ), pointer :: Export
-        type(T_Trid                  ), pointer :: Trid
+        !griflet start
+        type(T_GOTMimport           ), pointer :: Impor
+        !griflet end
+        type(T_GOTMTrid                  ), pointer :: Trid
+        integer                                     :: TID
          
     end type T_Gotm
     
@@ -206,10 +223,145 @@
    integer, parameter   :: BougeaultAndre=6
    integer, parameter   :: ispra_length=6
 
-
 !-----------------------------------------------------------------------
 
-   contains
+    contains
+
+!griflet-----------------------------------------------------------------------
+    subroutine clear_turbulence_parameters(ObjGotmparameters)
+   
+    !Arguments
+    type(T_Gotmparameters   ), pointer :: ObjGOTMparameters
+
+    !Local variables
+    logical craig_banner,length_lim
+    logical qesmooth,flux_bdy
+    integer turb_method,tke_method,len_scale_method,stab_method,MY_length
+    integer iw_model   
+    double precision  const_num,const_nuh,k_min,L_min,eps_min
+    double precision kappa,Prandtl0,cm0,cm_craig,cw,galp
+    double precision ce1,ce2,ce3minus,ce3plus,sig_k
+    double precision sl,e1,e2,e3
+    double precision a1,a2,b1,b2,c2,c3,qeghmax,qeghmin,qeghcrit   
+    double precision alpha,klimiw,rich_cr,numiw,nuhiw,numshear
+    double precision c1,cde,craig_m,sig_e0,sig_e1
+   
+    ObjGOTMParameters%turb_method           = null_int
+    ObjGOTMParameters%tke_method            = null_int
+    ObjGOTMParameters%len_scale_method      = null_int
+    ObjGOTMParameters%stab_method           = null_int
+    ObjGOTMParameters%MY_length             = null_int
+    ObjGOTMParameters%iw_model              = null_int
+
+    ObjGOTMParameters%craig_banner = .false.
+    ObjGOTMParameters%length_lim   = .false.
+    ObjGOTMParameters%flux_bdy     = .false.
+    ObjGOTMParameters%qesmooth     = .false.
+
+    ObjGOTMParameters%c1           = null_real
+    ObjGOTMParameters%cde          = null_real
+    ObjGOTMParameters%craig_m      = null_real
+    ObjGOTMParameters%sig_e0       = null_real
+    ObjGOTMParameters%sig_e1       = null_real
+    ObjGOTMParameters%const_num    = null_real
+    ObjGOTMParameters%const_nuh    = null_real
+    ObjGOTMParameters%k_min        = null_real
+    ObjGOTMParameters%L_min        = null_real
+    ObjGOTMParameters%eps_min      = null_real
+    ObjGOTMParameters%kappa        = null_real
+    ObjGOTMParameters%Prandtl0     = null_real
+    ObjGOTMParameters%cm0          = null_real
+    ObjGOTMParameters%cm_craig     = null_real
+    ObjGOTMParameters%cw           = null_real
+    ObjGOTMParameters%galp         = null_real
+    ObjGOTMParameters%ce1          = null_real
+    ObjGOTMParameters%ce2          = null_real
+    ObjGOTMParameters%ce3minus     = null_real
+    ObjGOTMParameters%ce3plus      = null_real
+    ObjGOTMParameters%sig_k        = null_real
+    ObjGOTMParameters%sl           = null_real
+    ObjGOTMParameters%e1           = null_real
+    ObjGOTMParameters%e2           = null_real
+    ObjGOTMParameters%e3           = null_real
+    ObjGOTMParameters%a1           = null_real
+    ObjGOTMParameters%a2           = null_real
+    ObjGOTMParameters%b1           = null_real
+    ObjGOTMParameters%b2           = null_real
+    ObjGOTMParameters%c2           = null_real
+    ObjGOTMParameters%c3           = null_real
+    ObjGOTMParameters%qeghmax      = null_real
+    ObjGOTMParameters%qeghmin      = null_real
+    ObjGOTMParameters%qeghcrit     = null_real
+    ObjGOTMParameters%alpha        = null_real
+    ObjGOTMParameters%klimiw       = null_real
+    ObjGOTMParameters%rich_cr      = null_real
+    ObjGOTMParameters%numiw        = null_real
+    ObjGOTMParameters%nuhiw        = null_real
+    ObjGOTMParameters%numshear     = null_real
+    
+    end subroutine clear_turbulence_parameters 
+!griflet-----------------------------------------------------------------------
+
+!griflet-----------------------------------------------------------------------
+    subroutine copy_turbulence_parameters(targetP, sourceP)
+   
+    !Arguments (already allocated)
+    type(T_Gotmparameters   ), pointer :: targetP, sourceP
+   
+    targetP%turb_method           = sourceP%turb_method
+    targetP%tke_method            = sourceP%tke_method
+    targetP%len_scale_method      = sourceP%len_scale_method
+    targetP%stab_method           = sourceP%stab_method
+    targetP%MY_length             = sourceP%MY_length
+    targetP%iw_model              = sourceP%iw_model
+
+    targetP%c1           = sourceP%c1
+    targetP%cde          = sourceP%cde
+    targetP%craig_m      = sourceP%craig_m
+    targetP%sig_e0       = sourceP%sig_e0
+    targetP%sig_e1       = sourceP%sig_e1
+    targetP%craig_banner = sourceP%craig_banner
+    targetP%length_lim   = sourceP%length_lim
+    targetP%const_num    = sourceP%const_num
+    targetP%const_nuh    = sourceP%const_nuh
+    targetP%k_min        = sourceP%k_min
+    targetP%L_min        = sourceP%L_min
+    targetP%eps_min      = sourceP%eps_min
+    targetP%kappa        = sourceP%kappa
+    targetP%Prandtl0     = sourceP%Prandtl0
+    targetP%cm0          = sourceP%cm0
+    targetP%cm_craig     = sourceP%cm_craig
+    targetP%cw           = sourceP%cw
+    targetP%galp         = sourceP%galp
+    targetP%ce1          = sourceP%ce1
+    targetP%ce2          = sourceP%ce2
+    targetP%ce3minus     = sourceP%ce3minus
+    targetP%ce3plus      = sourceP%ce3plus
+    targetP%sig_k        = sourceP%sig_k
+    targetP%flux_bdy     = sourceP%flux_bdy
+    targetP%sl           = sourceP%sl
+    targetP%e1           = sourceP%e1
+    targetP%e2           = sourceP%e2
+    targetP%e3           = sourceP%e3
+    targetP%a1           = sourceP%a1
+    targetP%a2           = sourceP%a2
+    targetP%b1           = sourceP%b1
+    targetP%b2           = sourceP%b2
+    targetP%c2           = sourceP%c2
+    targetP%c3           = sourceP%c3
+    targetP%qesmooth     = sourceP%qesmooth
+    targetP%qeghmax      = sourceP%qeghmax
+    targetP%qeghmin      = sourceP%qeghmin
+    targetP%qeghcrit     = sourceP%qeghcrit
+    targetP%alpha        = sourceP%alpha
+    targetP%klimiw       = sourceP%klimiw
+    targetP%rich_cr      = sourceP%rich_cr
+    targetP%numiw        = sourceP%numiw
+    targetP%nuhiw        = sourceP%nuhiw
+    targetP%numshear     = sourceP%numshear
+
+    end subroutine copy_turbulence_parameters
+!griflet-----------------------------------------------------------------------
 
 !-----------------------------------------------------------------------
 !BOP
@@ -254,6 +406,7 @@
    double precision a1,a2,b1,b2,c2,c3,qeghmax,qeghmin,qeghcrit   
    double precision alpha,klimiw,rich_cr,numiw,nuhiw,numshear
    double precision c1,cde,craig_m,sig_e0,sig_e1
+   
    namelist /turbulence/ turb_method,tke_method,len_scale_method,stab_method, &
                          craig_banner,length_lim,const_num,const_nuh,k_min,   &
                          L_min,eps_min
@@ -272,7 +425,7 @@
      allocate (ObjGOTMparameters, STAT = STAT_CALL)
      if (STAT_CALL .NE. SUCCESS_)                                       &
                 stop 'Subroutine init_turbulence_parameters; Module ModuleGOTM. Allocation of OBJGOTMParameters.'
-
+     
      write(0,*) '   ', 'init_turbulence'
 
      open(namlst,file=fn,status='old',action='read',err=80)
@@ -281,21 +434,15 @@
      read(namlst,nml=turb_parameters,err=82)
      read(namlst,nml=keps,err=83)
      read(namlst,nml=my,err=84)
-     read(namlst,nml=stabfunc,err=85)     
+     read(namlst,nml=stabfunc,err=85)
      read(namlst,nml=iw,err=86)
      close (namlst)
 
-     c1=(1.-B1**(-1./3.)/A1-6*A1/B1)/3. !See Kantha & Clayson 1994, eq. (23)
-     cde=cm0*cm0*cm0
-     craig_m=sqrt(1.5*cm_craig**2*sig_k/kappa**2)
-     sig_e0=(4./3.*craig_m+1.)*(craig_m+1.)*kappa**2/(ce2*cm_craig**2)
-     sig_e1= kappa*kappa*cm0/(ce2-ce1)/cde
-
-     ObjGOTMParameters%c1           = c1
-     ObjGOTMParameters%cde          = cde
-     ObjGOTMParameters%craig_m      = craig_m
-     ObjGOTMParameters%sig_e0       = sig_e0
-     ObjGOTMParameters%sig_e1       = sig_e1
+     ObjGOTMParameters%c1 =(1.-B1**(-1./3.)/A1-6*A1/B1)/3. !See Kantha & Clayson 1994, eq. (23)
+     ObjGOTMParameters%cde=cm0*cm0*cm0
+     ObjGOTMParameters%craig_m=sqrt(1.5*cm_craig**2*sig_k/kappa**2)
+     ObjGOTMParameters%sig_e0=(4./3.*ObjGOTMParameters%craig_m+1.)*(ObjGOTMParameters%craig_m+1.)*kappa**2/(ce2*cm_craig**2)
+     ObjGOTMParameters%sig_e1= kappa*kappa*cm0/(ce2-ce1)/ObjGOTMParameters%cde
 
      ObjGOTMParameters%turb_method  = turb_method
      ObjGOTMParameters%tke_method   = tke_method
@@ -380,134 +527,126 @@
 ! !DESCRIPTION:
 !  Allocates memory for turbulence related vectors.
 !
-! !Arguments
-   integer, optional, intent(OUT) :: STAT   
-   type(T_GOTM), pointer     :: ObjGOTM
-   type(T_GOTMParameters), pointer :: ObjGOTMParameters
-!   integer, intent(in)       :: nlev
-! !LOCAL VARIABLES:
-   integer      :: rc
-   integer      :: KLB,KUB
-   double precision k_min,eps_min,L_min     
-   double precision,  dimension(:), pointer    :: cmue1,cmue2
-   double precision,  dimension(:), pointer    :: tkeo 
-   double precision,  dimension(:), pointer    :: as,an
-   double precision,  dimension(:), pointer    :: xRf 
-   double precision,  dimension(:), pointer    :: au,bu,cu,du,ru,qu
-   double precision,  dimension(:), pointer    :: tke, L,eps,num,nuh
+!  Arguments
+   type(T_GOTM), pointer            :: ObjGOTM
+   type(T_GOTMParameters), pointer  :: ObjGOTMParameters
+   integer                          :: KLB,KUB
+   integer, optional, intent(OUT)   :: STAT   
+!  LOCAL VARIABLES:
    integer STAT_
 
-   
-! EOP
-   
    STAT_=UNKNOWN_
 
-   k_min   = ObjGOTMParameters%k_min 
-   eps_min = ObjGOTMParameters%eps_min
-   L_min   = ObjGOTMParameters%L_min
+   allocate(ObjGOTM%tkeo(KLB:KUB))
+   allocate(ObjGOTM%cmue1(KLB:KUB))
+   allocate(ObjGOTM%cmue2(KLB:KUB))
+   allocate(ObjGOTM%xRF(KLB:KUB))
+   allocate(ObjGOTM%an(KLB:KUB))
+   allocate(ObjGOTM%as(KLB:KUB))
 
-   allocate (tke(KLB:KUB), stat =rc)
-   if (rc /= 0) stop 'init_turbulence: Error allocating (tke)'
-   tke =k_min
- 
-   allocate (eps(KLB:KUB), stat =rc)
-   if (rc /= 0) stop 'init_turbulence: Error allocating (eps)'
-   eps = eps_min
+   ObjGOTM%tkeo     = ObjGOTMParameters%k_min
+   ObjGOTM%cmue1    = FillValueReal
+   ObjGOTM%cmue2    = FillValueReal
+   ObjGOTM%xRF      = FillValueReal
+   ObjGOTM%an       = FillValueReal
+   ObjGOTM%as       = FillValueReal
 
-   allocate (L(KLB:KUB), stat =rc)
-   if (rc /= 0) stop 'init_turbulence: Error allocating (L)'
-   L= L_min
+   allocate(ObjGOTM%Export)  
+   allocate(ObjGOTM%Export%tke(KLB:KUB))
+   allocate(ObjGOTM%Export%eps(KLB:KUB))
+   allocate(ObjGOTM%Export%L(KLB:KUB))
+   allocate(ObjGOTM%Export%num(KLB:KUB))
+   allocate(ObjGOTM%Export%nuh(KLB:KUB))
 
-   allocate (num(KLB:KUB), stat =rc)
-   if (rc /= 0) stop 'init_turbulence: Error allocating (num)'
-   num = 0.
+   ObjGOTM%Export%tke   = ObjGOTMParameters%k_min 
+   ObjGOTM%Export%eps   = ObjGOTMParameters%eps_min
+   ObjGOTM%Export%L     = ObjGOTMParameters%L_min
+   ObjGOTM%Export%num   = 0.
+   ObjGOTM%Export%nuh   = 0.
 
-   allocate (nuh(KLB:KUB), stat =rc)
-   if (rc /= 0) stop 'init_turbulence: Error allocating (nuh)'
-   nuh = 0.
+   allocate(ObjGOTM%Trid)
+   allocate(ObjGOTM%Trid%au(KLB:KUB))
+   allocate(ObjGOTM%Trid%bu(KLB:KUB))
+   allocate(ObjGOTM%Trid%cu(KLB:KUB))
+   allocate(ObjGOTM%Trid%du(KLB:KUB))
+   allocate(ObjGOTM%Trid%ru(KLB:KUB))
+   allocate(ObjGOTM%Trid%qu(KLB:KUB))
 
-   write(0,*) '       ', 'allocation memory GOTM..'
-   allocate(tkeo(KLB:KUB),stat=rc)
-   if (rc /= 0) stop 'init_turbulence: Error allocating (tkeo)'
-   tkeo = k_min
+   ObjGOTM%Trid%au = FillValueReal
+   ObjGOTM%Trid%bu = FillValueReal
+   ObjGOTM%Trid%cu = FillValueReal
+   ObjGOTM%Trid%du = FillValueReal
+   ObjGOTM%Trid%ru = FillValueReal
+   ObjGOTM%Trid%qu = FillValueReal
 
-   allocate(cmue1(KLB:KUB),stat=rc)
-   if (rc /= 0) stop 'init_turbulence: Error allocating (cmue1)'
-   cmue1 = FillValueReal
+   !griflet start
+   allocate(ObjGOTM%Impor)
+   allocate(ObjGOTM%Impor%nn(KLB:KUB))    
+   allocate(ObjGOTM%Impor%ss(KLB:KUB))
+   allocate(ObjGOTM%Impor%P(KLB:KUB))
+   allocate(ObjGOTM%Impor%B(KLB:KUB))
+   allocate(ObjGOTM%Impor%h(KLB:KUB))
+   
+   ObjGOTM%Impor%nn = FillValueReal
+   ObjGOTM%Impor%ss = FillValueReal
+   ObjGOTM%Impor%P  = FillValueReal
+   ObjGOTM%Impor%B  = FillValueReal
+   ObjGOTM%Impor%h  = FillValueReal
 
-   allocate(cmue2(KLB:KUB),stat=rc)
-   if (rc /= 0) stop 'init_turbulence: Error allocating (cmue2)'
-   cmue2 = FillValueReal
-
-   allocate(xRF(KLB:KUB),stat=rc)
-   if (rc /= 0) stop 'init_turbulence: Error allocating (xRF)'
-   xRF = FillValueReal
-
-   allocate(an(KLB:KUB),stat=rc)
-   if (rc /= 0) stop 'init_turbulence: Error allocating (an)'
-   an = FillValueReal
-
-   allocate(as(KLB:KUB),stat=rc)
-   if (rc /= 0) stop 'init_turbulence: Error allocating (as)'
-   as = FillValueReal
-
-!   write(0,*) '   ', 'init_tridiagonal'
-   allocate(au(KLB:KUB),stat=rc)
-   if (rc /= 0) stop 'init_tridiagonal: Error allocating au)'
-   au = FillValueReal
-
-   allocate(bu(KLB:KUB),stat=rc)
-   if (rc /= 0) stop 'init_tridiagonal: Error allocating bu)'
-   bu = FillValueReal
-
-   allocate(cu(KLB:KUB),stat=rc)
-   if (rc /= 0) stop 'init_tridiagonal: Error allocating cu)'
-   cu = FillValueReal
-
-   allocate(du(KLB:KUB),stat=rc)
-   if (rc /= 0) stop 'init_tridiagonal: Error allocating du)'
-   du = FillValueReal
-
-   allocate(ru(KLB:KUB),stat=rc)
-   if (rc /= 0) stop 'init_tridiagonal: Error allocating ru)'
-   cu = FillValueReal
-
-   allocate(qu(KLB:KUB),stat=rc)
-   if (rc /= 0) stop 'init_tridiagonal: Error allocating qu)'
-   du = FillValueReal
-
-   ObjGOTM%tkeo     => tkeo
-   ObjGOTM%cmue1    => cmue1
-   ObjGOTM%cmue2    => cmue2
-   ObjGOTM%xRF      => xRF 
-   ObjGOTM%an       => an
-   ObjGOTM%as       => as
-
-   allocate(ObjGOTM%Export,stat=rc)  
-
-   ObjGOTM%Export%tke  => tke
-   ObjGOTM%Export%eps  => eps
-   ObjGOTM%Export%L    => L
-   ObjGOTM%Export%num  => num
-   ObjGOTM%Export%nuh  => nuh
-
-   allocate(ObjGOTM%Trid,stat=rc)
-
-   ObjGOTM%Trid%au       => au
-   ObjGOTM%Trid%bu       => bu
-   ObjGOTM%Trid%cu       => cu
-   ObjGOTM%Trid%du       => du
-   ObjGOTM%Trid%ru       => ru
-   ObjGOTM%Trid%qu       => qu
-
-
-  
    STAT_=SUCCESS_
 
    if (present(STAT))                                                    &
             STAT = STAT_
 
    end subroutine init_turbulence
+   !-------------------------------------------------------------------------
+
+   !-------------------------------------------------------------------------
+   !griflet: This subroutine was missing and contributing to a slight memory leak!!!
+   subroutine kill_turbulence(ObjGotm, STAT)
+
+    integer, optional, intent(OUT)  :: STAT
+    type(T_GOTM), pointer           :: ObjGOTM
+    
+    integer                         :: STAT_
+
+    deallocate(ObjGOTM%Export%tke)
+    deallocate(ObjGOTM%Export%eps)
+    deallocate(ObjGOTM%Export%L)
+    deallocate(ObjGOTM%Export%num)
+    deallocate(ObjGOTM%Export%nuh)
+    deallocate(ObjGOTM%Export)  
+
+    deallocate(ObjGOTM%Trid%au)
+    deallocate(ObjGOTM%Trid%bu)
+    deallocate(ObjGOTM%Trid%cu)
+    deallocate(ObjGOTM%Trid%du)
+    deallocate(ObjGOTM%Trid%ru)
+    deallocate(ObjGOTM%Trid%qu)    
+    deallocate(ObjGOTM%Trid)
+
+    deallocate(ObjGOTM%Impor%nn)
+    deallocate(ObjGOTM%Impor%ss)
+    deallocate(ObjGOTM%Impor%P)
+    deallocate(ObjGOTM%Impor%B)
+    deallocate(ObjGOTM%Impor%h)    
+    deallocate(ObjGOTM%Impor)    
+
+    deallocate(ObjGOTM%tkeo)
+    deallocate(ObjGOTM%cmue1)
+    deallocate(ObjGOTM%cmue2)
+    deallocate(ObjGOTM%xRF)
+    deallocate(ObjGOTM%an)
+    deallocate(ObjGOTM%as)
+              
+    STAT_=SUCCESS_
+
+    if (present(STAT))                                                    &
+        STAT = STAT_
+            
+    end subroutine kill_turbulence
+   !-------------------------------------------------------------------------
+
    !-------------------------------------------------------------------------
 !BOP
 !
@@ -562,40 +701,6 @@
 
    end subroutine do_turbulence
 !EOC
-
-!-----------------------------------------------------------------------
-
-   subroutine AssociateExportGOTM (ObjGOTM,tke,L,eps,num,nuh)
-     !Arguments-------------------------------------------------------------
-     Type(T_GOTM), pointer :: ObjGOTM
-     double precision, dimension (:), pointer :: tke, L, eps, num, nuh
-     
-     ObjGOTM%Export%tke => tke
-     ObjGOTM%Export%L   => L 
-     ObjGOTM%Export%eps => eps
-     ObjGOTM%Export%num => num
-     ObjGOTM%Export%nuh => nuh
-
-     
-   end subroutine AssociateExportGOTM 
-         
-!-----------------------------------------------------------------------
-
-   subroutine Associate_to_ExportGOTM (ObjGOTM,tke,L,eps,num,nuh)
-     !Arguments-------------------------------------------------------------
-     Type(T_GOTM), pointer :: ObjGOTM
-     double precision, dimension (:), pointer :: tke, L, eps, num, nuh
-     
-     tke => ObjGOTM%Export%tke
-     L   => ObjGOTM%Export%L 
-     eps => ObjGOTM%Export%eps
-     num => ObjGOTM%Export%num
-     nuh => ObjGOTM%Export%nuh
-
-     
-   end subroutine Associate_to_ExportGOTM 
-
-      
 
 !-----------------------------------------------------------------------
 !BOP
@@ -675,7 +780,7 @@
    cmue2(0)=cmue2(1)
    cmue2(nlev)=cmue2(nlev-1)
 
-   include 'GOTMVariables_out.f90'
+   !include 'GOTMVariables_out.f90'
  
    end subroutine stabilityfunctions 
 !EOC
@@ -736,7 +841,7 @@
       case default
    end select
    
-   include 'GOTMVariables_out.f90'
+   !include 'GOTMVariables_out.f90'
       
    end subroutine do_tke 
 !EOC
@@ -797,7 +902,7 @@
          call algebraiclength(ObjGOTM,len_scale_method,nlev,z0b,z0s,depth,h,NN)
    end select
 
-   include 'GOTMVariables_out.f90'
+   !include 'GOTMVariables_out.f90'
  
    end subroutine lengthscale
 !EOC
@@ -1026,7 +1131,7 @@
       if (L(i).lt.L_min) L(i)=L_min
    end do
 
-   include 'GOTMVariables_out.f90'
+   !include 'GOTMVariables_out.f90'
 
    end subroutine dissipationeq
 !EOC
@@ -1190,7 +1295,7 @@
       if (eps(i).lt.eps_min) eps(i)=eps_min
    end do  
 
-   include 'GOTMVariables_out.f90'
+   !include 'GOTMVariables_out.f90'
 
    end subroutine algebraiclength 
 !EOC
@@ -1351,7 +1456,7 @@
       L(i)=L_min
    end do
 
-   include 'GOTMVariables_out.f90'
+   !include 'GOTMVariables_out.f90'
 
    end subroutine Ispralength
 !EOC
@@ -1446,7 +1551,7 @@
       case default
    end select
 
-   include 'GOTMVariables_out.f90'
+   !include 'GOTMVariables_out.f90'
 
    end subroutine internal_wave 
 !EOC
@@ -1502,7 +1607,7 @@
    nuh(0)=kappa*u_taub*z0b
    nuh(nlev)=kappa*u_taus*z0s 
 
-   include 'GOTMVariables_out.f90'
+   !include 'GOTMVariables_out.f90'
  
    end subroutine kolpran 
 !EOC
@@ -1629,7 +1734,7 @@
      if (eps(i).lt.eps_min) eps(i)=eps_min
    end do
 
-   include 'GOTMVariables_out.f90'
+   !include 'GOTMVariables_out.f90'
 
    end subroutine lengthscaleeq
 !EOC
@@ -1795,7 +1900,7 @@
       if(eps(i).lt.eps_min) eps(i)=eps_min
    end do  
 
-   include 'GOTMVariables_out.f90'
+   !include 'GOTMVariables_out.f90'
 
    end subroutine potentialml
 !EOC
@@ -1852,7 +1957,7 @@
       if (tke(i).lt.k_min) tke(i)=k_min 
    end do 
  
-   include 'GOTMVariables_out.f90'
+   !include 'GOTMVariables_out.f90'
   
    end subroutine tkealgebraic
 !EOC
@@ -2036,7 +2141,7 @@
 
    where (tke .lt. k_min) tke = k_min
 
-   include 'GOTMVariables_out.f90'
+   !include 'GOTMVariables_out.f90'
    
    end subroutine tkeeq
 !EOC
@@ -2127,7 +2232,7 @@
       cmue2(i) = a2_cm03 * sh
    end do
 
-   include 'GOTMVariables_out.f90'
+   !include 'GOTMVariables_out.f90'
 
    end subroutine cmue_ca
 !EOC
@@ -2219,7 +2324,7 @@
       cmue2(i) = a2_cm03 * sh
    end do
 
-   include 'GOTMVariables_out.f90'
+   !include 'GOTMVariables_out.f90'
 
    end subroutine cmue_caqe
 !EOC
@@ -2307,7 +2412,7 @@
       cmue2(i) = a2_cm03 * sh
    end do
 
-   include 'GOTMVariables_out.f90'
+   !include 'GOTMVariables_out.f90'
 
    end subroutine cmue_cb
 !EOC
@@ -2399,7 +2504,7 @@
       cmue2(i) = a2_cm03 * sh
    end do
 
-   include 'GOTMVariables_out.f90'
+   !include 'GOTMVariables_out.f90'
 
    end subroutine cmue_cbqe
 !EOC
@@ -2461,7 +2566,7 @@
       cmue2(i)=sqrt(2.)*sh     !Retransformation to GOTM notation
    end do
 
-   include 'GOTMVariables_out.f90'
+   !include 'GOTMVariables_out.f90'
 
    end subroutine cmue_kc
 !EOC
@@ -2520,7 +2625,7 @@
       cmue2(i)=sqrt(2.)*sh    ! Retransformation to GOTM notation
    end do
 
-   include 'GOTMVariables_out.f90'
+   !include 'GOTMVariables_out.f90'
 
    end subroutine cmue_kcqe
 !EOC
@@ -2584,7 +2689,7 @@
       cmue2(i)=cm0/Prandtl
    end do
 
-   include 'GOTMVariables_out.f90'
+   !include 'GOTMVariables_out.f90'
 
    end subroutine
 !EOC
@@ -2658,7 +2763,7 @@
 
    end do
 
-   include 'GOTMVariables_out.f90'
+   !include 'GOTMVariables_out.f90'
 
    end subroutine cmue_rf
 !EOC
@@ -2727,7 +2832,7 @@
 
    end do
 
-   include 'GOTMVariables_out.f90'
+   !include 'GOTMVariables_out.f90'
 
    end subroutine cmue_sg
 !EOC
@@ -2787,7 +2892,7 @@
       value(i)=qu(i)-ru(i)*value(i-1)
    end do
 
-   include 'GOTMVariables_out.f90'
+   !include 'GOTMVariables_out.f90'
 
    end subroutine tridiagonal
 

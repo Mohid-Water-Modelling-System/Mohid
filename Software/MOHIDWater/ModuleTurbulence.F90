@@ -63,7 +63,7 @@
 Module ModuleTurbulence
 
     use ModuleEnterData  
-    use ModuleFunctions,        only : SigmaUNESCO, SigmaUNESCOPressureCorrection,       &
+    use ModuleFunctions,        only : Sigma, SigmaUNESCO, SigmaUNESCOPressureCorrection,       &
                                        SigmaMel96PressureCorrection, ConvertTemperature, &
                                        SigmaJMD95PressureCorrection, SigmaLeendertse,    &
                                        SigmaWang, SetMatrixValue, CHUNK_J, CHUNK_K
@@ -3835,6 +3835,7 @@ do1 :           do K = kbottom, KUB+1
         integer, dimension(:,:,:), pointer      :: ComputeFacesU3D, ComputeFacesV3D
         integer, dimension(:,:  ), pointer      :: KFloorZ
         real                                    :: RICH
+        !$ integer                              :: CHUNK
         
         !----------------------------------------------------------------------
 
@@ -3858,159 +3859,106 @@ do1 :           do K = kbottom, KUB+1
         VelocityX       => Me%ExternalVar%VelocityX
         VelocityY       => Me%ExternalVar%VelocityY
         ComputeFacesU3D => Me%ExternalVar%ComputeFacesU3D
-        ComputeFacesV3D => Me%ExternalVar%ComputeFacesV3D        
-
-do2 :   do J = JLB, JUB
-do3 :   do I = ILB, IUB
+        ComputeFacesV3D => Me%ExternalVar%ComputeFacesV3D      
+        
+        !$ CHUNK = CHUNK_J(JLB, JUB)        
+        !$OMP PARALLEL PRIVATE(k,i,j,kbottom, &
+        !$OMP               U1,V1,U2,V2,RO,RO_PERT,Depth,DRODZ, &
+        !$OMP               RICH,VMODK1,VMODK2)
+        
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+do2 :   do j = JLB, JUB
+do3 :   do i = ILB, IUB
 
 cd1 :   if (Me%ExternalVar%WaterPoints3D(i, j, KUB)   == WaterPoint)         then
 
             kbottom = KFloorZ(i, j)
             
-do1 :       do K = kbottom, KUB-1                         
+do1 :       do k = kbottom, KUB-1                         
 
-                U1  =(VelocityX(I,  J+1,K  ) * ComputeFacesU3D(I,  J+1,K  )  + &
-                      VelocityX(I,  J,  K  ) * ComputeFacesU3D(I,  J,  K  )) / 2.0
+                U1  =(VelocityX(i,  j+1,k  ) * ComputeFacesU3D(i,  j+1,k  )  + &
+                      VelocityX(i,  j,  k  ) * ComputeFacesU3D(i,  j,  k  )) / 2.0
 
-                V1  =(VelocityY(I+1,J,  K  ) * ComputeFacesV3D(I+1,J,  K  )  + &
-                      VelocityY(I,  J,  K  ) * ComputeFacesV3D(I,  J,  K  )) / 2.0    
+                V1  =(VelocityY(i+1,j,  k  ) * ComputeFacesV3D(i+1,j,  k  )  + &
+                      VelocityY(i,  j,  k  ) * ComputeFacesV3D(i,  j,  k  )) / 2.0    
 
-                U2  =(VelocityX(I,  J+1,K+1) * ComputeFacesU3D(I,  J+1,K+1)  + &
-                      VelocityX(I,  J,  K+1) * ComputeFacesU3D(I,  J,  K+1)) / 2.0
+                U2  =(VelocityX(i,  j+1,k+1) * ComputeFacesU3D(i,  j+1,k+1)  + &
+                      VelocityX(i,  j,  k+1) * ComputeFacesU3D(i,  j,  k+1)) / 2.0
 
-                V2  =(VelocityY(I+1,J,  K+1) * ComputeFacesV3D(I+1,J,  K+1)  + &
-                      VelocityY(I,  J,  K+1) * ComputeFacesV3D(I,  J,  K+1)) / 2.0
+                V2  =(VelocityY(i+1,j,  k+1) * ComputeFacesV3D(i+1,j,  k+1)  + &
+                      VelocityY(i,  j,  k+1) * ComputeFacesV3D(i,  j,  k+1)) / 2.0
 
-                select case (Me%TurbOptions%DensityMethod)                   
-
-                    case (UNESCOState_)
-
-                        RO      = SigmaUNESCO(T(i, j, k+1), S(i, j, k+1))
-                        RO_PERT = SigmaUNESCO(T(i, j, k  ), S(i, j, k  ))
-
-                        if (Me%TurbOptions%PressureCorrec) then
-
-                            !calculo de Dro/Dz
-                            Depth = -1.0*ZCellCenter(i,j,k+1)
-
-                            RO      = SigmaUNESCOPressureCorrection (T(i, j, k+1), S(i, j, k+1), Depth, RO     )
-                            RO_PERT = SigmaUNESCOPressureCorrection (T(I, J, K  ), S(i, j, k  ), Depth, RO_PERT)
-
-                        end if
-
-                    case (Mel96State_)
-
-                            RO      = SigmaUNESCO(T(i, j, k+1), S(i, j, k+1))
-                            RO_PERT = SigmaUNESCO(T(i, j, k  ), S(i, j, k  ))
-                         
-                            if (Me%TurbOptions%PressureCorrec) then
-                            
-                               !calculo de Dro/Dz
-                               Depth = -1.0*ZCellCenter(i,j,k+1)
-
-                               RO      = SigmaMel96PressureCorrection (T(i, j, k+1), S(i, j, k+1), Depth, RO      )
-                               RO_PERT = SigmaMel96PressureCorrection (T(i, j, k  ), S(i, j, k  ), Depth, RO_PERT )
-                        
-                            end if
-
-                    case (JMD95State_)
-
-                        RO    = SigmaUNESCO(T(i, j, k+1), S(i, j, k+1))
-                        RO_PERT = SigmaUNESCO(T(i, j, k), S(i, j, k))
-
-                        if (Me%TurbOptions%PressureCorrec) then
-
-                           !calculo de Dro/Dz
-                           Depth = -1.0*ZCellCenter(i,j,k+1)
-
-                           RO      = SigmaJMD95PressureCorrection  (T(i, j, k+1), S(i, j, k+1), Depth, RO)
-                           RO_PERT = SigmaJMD95PressureCorrection  (T(i, j, k  ), S(i, j, k  ), Depth, RO_PERT)
-
-                        end if
-
-                    case (WangState_)
-
-                        RO      = SigmaWang  (T(i, j, k+1), S(i, j, k+1))
-                        RO_PERT = SigmaWang  (T(i, j, k  ), S(i, j, k  ))
-
-                    case (LeendertseState_)
-
-                        RO      = SigmaLeendertse  (T(i, j, k+1), S(i, j, k+1))
-                        RO_PERT = SigmaLeendertse  (T(i, j, k  ), S(i, j, k  ))
-
-                    case (Linear_)
-
-                        RO      = 1025. -  dble(SigmaDensityReference) + 0.78 * (S(i, j, k+1) - 33.75)
-                        RO_PERT = 1025. -  dble(SigmaDensityReference) + 0.78 * (S(i, j, k  ) - 33.75)
-                                    
-
-                    case(ConstantDensity_)
-                        
-                        !If density effects are not considered then DRODZ is null as well
-                        !as the Brunt-Vaisalla frequency
-                        RO      = SigmaDensityReference
-                        RO_PERT = SigmaDensityReference 
-                        !write(*,*)'WARNING: ConstantDensity_ method used in ModuleTurbulence'
-                        !write(*,*)'This method is inconsistent if S and T are calculated in ModuleWaterProperties'
-
-                    case default
-                        
-                        write(*,*)'Unknown method to compute density.'
-                        stop 'Richardson - ModuleTurbulence - ERR00'
-
-                 end select
-
+                 !griflet: bypass the sigma density calculation
+                 Depth = -1.0 * ZCellCenter(i,j,k+1)
+                 RO = Sigma(Me%TurbOptions%DensityMethod, &
+                            Me%TurbOptions%PressureCorrec, &
+                            T(i, j, k+1), &
+                            S(i, j, k+1), &
+                            Depth)
+                 RO_PERT = Sigma(Me%TurbOptions%DensityMethod, &
+                            Me%TurbOptions%PressureCorrec, &
+                            T(i, j, k), &
+                            S(i, j, k), &
+                            Depth)
+                 !griflet: end of bypass
+                 
                  DRODZ = (RO - RO_PERT) / DZZ(i,j,k)
 
 !MAnolo          AUXDENS1 = (Density(I,J,K) * DWZ(I,J,K+1) + Density(I,J,K+1) * DWZ(I,J,K))/(DWZ(I,J,K+1)+DWZ(I,J,K))
 
                  !Calculo do quadrado da frequencia de Prandtl. 
                  ! Fprandtl in the bottom face has index Kbottom.
-                 Me%TurbVar%FPRANDTL(I,J,K+1) = ((U2 - U1) / DZZ(I,J,K))**2.0 + &
-                                                ((V2 - V1) / DZZ(I,J,K))**2.0
+                 Me%TurbVar%FPRANDTL(i,j,k+1) = ((U2 - U1) / DZZ(i,j,k))**2.0 + &
+                                                ((V2 - V1) / DZZ(i,j,k))**2.0
                                                          
                  !Calculo do quadrado da frequencia de Brunt-Vaisalla
-                 Me%TurbVar%FBRUNTV(I,J,K+1) = -1.0 * G * DRODZ / SigmaDensityReference
+                 Me%TurbVar%FBRUNTV(i,j,k+1) = -1.0 * G * DRODZ / SigmaDensityReference
                    
-                 RICH = Me%TurbVar%FBRUNTV(I,J,K+1) / (Me%TurbVar%FPRANDTL(I,J,K+1)+1.e-10)
+                 RICH = Me%TurbVar%FBRUNTV(i,j,k+1) / (Me%TurbVar%FPRANDTL(i,j,k+1)+1.e-10)
 
-                 Me%TurbVar%Richardson(I,J,K+1) = MIN(RICH,RichardsonMAX)
+                 Me%TurbVar%Richardson(i,j,k+1) = MIN(RICH,RichardsonMAX)
 
                  if (Me%TurbOptions%MODTURB == backhaus_) then 
                      
                      VMODK1 = ABS(CMPLX(U1*U1,V1*V1))  
                      VMODK2 = ABS(CMPLX(U2*U2,V2*V2))  
                      !Calculo do modulo da velocidade
-                     Me%TurbVar%VMOD(I,J,K) = (VMODK1 * DWZ(I,J,K+1) + &
-                                               VMODK2 * DWZ(I,J,K )) / &
-                                              (DWZ(I,J,K+1) + DWZ(I,J,K))
+                     Me%TurbVar%VMOD(i,j,k) = (VMODK1 * DWZ(i,j,k+1) + &
+                                               VMODK2 * DWZ(i,j,k )) / &
+                                              (DWZ(i,j,k+1) + DWZ(i,j,k))
                  
                  end if
  
              end do do1
                 
            !Necessary if turbulence equations are solved            
-           Me%TurbVar%FBRUNTV (I,J,KBottom) = Me%TurbVar%FBRUNTV(I,J,KBottom+1)
-           Me%TurbVar%FPRANDTL(I,J,KBottom) = Me%TurbVar%FPRANDTL(I,J,KBottom+1)
+           Me%TurbVar%FBRUNTV (i,j,KBottom) = Me%TurbVar%FBRUNTV(i,j,KBottom+1)
+           Me%TurbVar%FPRANDTL(i,j,KBottom) = Me%TurbVar%FPRANDTL(i,j,KBottom+1)
 
-           Me%TurbVar%FBRUNTV (I,J,KUB+1)   = Me%TurbVar%FBRUNTV(I,J,KUB)
-           Me%TurbVar%FPRANDTL(I,J,KUB+1)   = Me%TurbVar%FPRANDTL(I,J,KUB)
+           Me%TurbVar%FBRUNTV (i,j,KUB+1)   = Me%TurbVar%FBRUNTV(i,j,KUB)
+           Me%TurbVar%FPRANDTL(i,j,KUB+1)   = Me%TurbVar%FPRANDTL(i,j,KUB)
            
-           RICH = Me%TurbVar%FBRUNTV(I,J,KBottom) / (Me%TurbVar%FPRANDTL(I,J,KBottom)+1.e-10)
-           Me%TurbVar%Richardson(I,J,KBottom) = MIN(RICH,RichardsonMAX)
+           RICH = Me%TurbVar%FBRUNTV(i,j,KBottom) / (Me%TurbVar%FPRANDTL(i,j,KBottom)+1.e-10)
+           Me%TurbVar%Richardson(i,j,KBottom) = MIN(RICH,RichardsonMAX)
 
-           RICH = Me%TurbVar%FBRUNTV(I,J,KUB+1) / (Me%TurbVar%FPRANDTL(I,J,KUB+1)+1.e-10)
-           Me%TurbVar%Richardson(I,J,KUB+1)   = MIN(RICH,RichardsonMAX)
+           RICH = Me%TurbVar%FBRUNTV(i,j,KUB+1) / (Me%TurbVar%FPRANDTL(i,j,KUB+1)+1.e-10)
+           Me%TurbVar%Richardson(i,j,KUB+1)   = MIN(RICH,RichardsonMAX)
 
         end if cd1          
 
         end do do3
         end do do2
+        !$OMP END DO NOWAIT
+        
+        !$OMP END PARALLEL
 
-        !ACanas: OpenMP directives removed because existed function calls inside
-        !ACanas: cycle iterations causing errors in parallelization.
-        !ACanas: Critical sections would cause the code to be almost sequential
-        !ACanas: plus the parallelization overheads.
+        !griflet: Function calls were not the problem (cite: Luis Assuncao). Global variable
+        !Me%TurbVar was the problem. Solved by creating local variable LocalTurbVar.
+        
+        !griflet !ACanas: OpenMP directives removed because existed function calls inside
+        !griflet !ACanas: cycle iterations causing errors in parallelization.
+        !griflet !ACanas: Critical sections would cause the code to be almost sequential
+        !griflet !ACanas: plus the parallelization overheads.
 
         nullify(DZZ    )
         nullify(DWZ    )
