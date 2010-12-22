@@ -32373,24 +32373,24 @@ cd10:           if (ImposedTangentialFacesUV(i, j, KUB) == Imposed) then
          !griflet
          !$ CHUNK = CHUNK_J(JLB,JUB)
          ! We don't compute turbulence coefficients at the limits of the domain. 
-         !!$OMP PARALLEL &
-         !!$OMP PRIVATE(i,j,k,kbottom,ileft,jleft,       &
-         !!$OMP         Kleft, Kright, Depth_integ,      &
-         !!$OMP         Hcenter, Hleft, Hright,          &
-         !!$OMP         HroLeft, HroRight,               &
-         !!$OMP         DensRight, DensLeft,             &
-         !!$OMP         DAuxRight, DAuxLeft, DAux,       &
-         !!$OMP         Zright, Zleft,                   &
-         !!$OMP         Dright, Dleft,                   &
-         !!$OMP         AuxRight, AuxLeft,               &
-         !!$OMP         DensZRight, DensZLeft,           &
-         !!$OMP         NRight, NLeft,                   &
-         !!$OMP         kbright, kbleft,                 &
-         !!$OMP         PoliDegree, PoliIsEven,          &
-         !!$OMP         FoundBottomRight, FoundBottomLeft,   & 
-         !!$OMP         FoundSurfaceRight, FoundSurfaceLeft, &
-         !!$OMP         TID, LocalBaroc)
-         !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+         !$OMP PARALLEL &
+         !$OMP PRIVATE(i,j,k,kbottom,ileft,jleft,       &
+         !$OMP         Kleft, Kright, Depth_integ,      &
+         !$OMP         Hcenter, Hleft, Hright,          &
+         !$OMP         HroLeft, HroRight,               &
+         !$OMP         DensRight, DensLeft,             &
+         !$OMP         DAuxRight, DAuxLeft, DAux,       &
+         !$OMP         Zright, Zleft,                   &
+         !$OMP         Dright, Dleft,                   &
+         !$OMP         AuxRight, AuxLeft,               &
+         !$OMP         DensZRight, DensZLeft,           &
+         !$OMP         NRight, NLeft,                   &
+         !$OMP         kbright, kbleft,                 &
+         !$OMP         PoliDegree, PoliIsEven,          &
+         !$OMP         FoundBottomRight, FoundBottomLeft,   & 
+         !$OMP         FoundSurfaceRight, FoundSurfaceLeft, &
+         !$OMP         TID, LocalBaroc)
+         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
 do4:     do j = JLB, JUB
 do5:     do i = ILB, IUB
 
@@ -32649,8 +32649,8 @@ do27:           do  k=KUB, kbottom,-1
 
         enddo do5
         enddo do4
-        !!$OMP END DO NOWAIT
-        !!$OMP END PARALLEL
+        !$OMP END DO NOWAIT
+        !$OMP END PARALLEL
 
         !If the baroclinic force is not to be consider in the boundary then
         BoundaryBaroclinic = Me%ComputeOptions%BoundaryBaroclinic
