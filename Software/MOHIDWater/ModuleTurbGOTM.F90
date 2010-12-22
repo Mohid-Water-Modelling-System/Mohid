@@ -39,7 +39,7 @@ Module ModuleTurbGOTM
     use ModuleMap
     use ModuleGOTM
     use ModuleStopWatch,        only : StartWatch, StopWatch
-    use omp_lib 
+    !$ use omp_lib 
 
     Implicit none
 

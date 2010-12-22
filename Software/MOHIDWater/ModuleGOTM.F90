@@ -28,7 +28,7 @@
 !
 ! !USES:
 !   use mtridiagonal
-   use omp_lib
+   !$ use omp_lib
    IMPLICIT NONE
    
 !
