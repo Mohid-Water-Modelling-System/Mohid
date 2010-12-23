@@ -119,7 +119,8 @@
 		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleInterfaceWaterAir.F90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleJet.F90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleLagrangian.F90"/>
-		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleLagrangianGlobal.F90"/>
+		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleLagrangianGlobal.F90">
+			<FileConfiguration Name="Debug|Win32" ExcludedFromBuild="true"/></File>
 		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleModel.F90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleOil.F90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleOil_0D.F90"/>
