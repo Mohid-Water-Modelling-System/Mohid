@@ -17,7 +17,7 @@ endif
 
 #Fortran compilation rule
 %.$(O) : $(SRCF)/%.$(F)
-	@$(CC) $(CCFLAGS) $(INCS) $<
+	$(CC) $(CCFLAGS) $(INCS) $<
 	@echo $* .................. [OK]
 
 #make clean

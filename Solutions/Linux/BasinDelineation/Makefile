@@ -26,31 +26,12 @@
 #
 #------------------------------------------------------------------------------
 
-INCS = -I$(HDF5INC) -I$(BASE1INC) -I$(BASE2INC)
+INCS = -I$(HDF5) -I$(BASE1INC) -I$(BASE2INC)
 LIBS = $(BASELIBS) $(HDFLIBS)
-
-ifeq ($(IS_NETCDF),true)
-     INCS := $(INCS) -I$(NETCDFINC)
-     LIBS := $(LIBS) $(NETCDFLIBS)
-endif
-
-SRCDIR = $(SRCREP)/ConvertToXYZ
-FILES := \
-    ModuleASCII.$(S) \
-    ModuleEtopo2.$(S) \
-    ModuleEtopo5.$(S) \
-    ModuleNASA.$(S) \
-    ModuleNOAAShoreLine.$(S) \
-    ModuleSRTM30.$(S) \
-    ConvertToXYZ.$(S)
-NCFILES := \
-    ModuleGEBCO.$(S)
-
-ifeq ($(IS_NETCDF),true)
-   FILES := $(FILES) $(NCFILES)
-endif
-
-TARGET = ConvertToXYZ$(SUFFPROG)
+SRCDIR = $(SRCREP)/BasinDelineation
+FILES = \
+    BasinDelimiter.$(S)
+TARGET = BasinDelineation$(SUFFPROG)
 
 #----------Makefile rules--------------
 
@@ -60,21 +41,8 @@ include ../Makefiles/Makefiles.mk
 
 #--------Dependencies list-------------
 
-CONVERTDEPEND := ModuleASCII.$(O) \
-       		ModuleEtopo2.$(O) \
-		ModuleEtopo5.$(O) \
-		ModuleNASA.$(O) \
-		ModuleNOAAShoreLine.$(O) \
-		ModuleSRTM30.$(O)
-NCCONVERTDEPEND := \
-		ModuleGEBCO.$(O)
-
-ifeq ($(IS_NETCDF),true)
-    CONVERTDEPEND := $(CONVERTDEPEND) $(NCCONVERTDEPEND)
-endif
-
-ConvertToXYZ.$(O) : $(CONVERTDEPEND)
-
+BasinDelimiter.$(O) : 
+#
 #--------End of dependencies list---------
 
 #---------------------------------------------------------------------------------------------------

@@ -36,6 +36,7 @@ FILES = \
        ModuleJet.$(S) \
        ModuleHydrodynamicFile.$(S) \
        ModuleOil.$(S) \
+       ModuleOil_0D.$(S) \
        ModuleToga.$(S) \
        ModuleWaves.$(S) \
        ModuleGauge.$(S) \
@@ -76,6 +77,7 @@ ModuleWaterProperties.${O} : ModuleFreeVerticalMovement.${O} \
                           ModuleHydrodynamic.${O}
 ModuleLagrangian.${O} : ModuleJet.${O} \
                      ModuleOil.${O} \
+                     ModuleOil_0D.${O} \
                      ModuleWaves.${O} \
                      ModuleWaterProperties.${O}
 ModuleInterfaceWaterAir.${O} : ModuleLagrangian.${O}
