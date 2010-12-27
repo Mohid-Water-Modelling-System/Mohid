@@ -75,11 +75,12 @@ MODULES = \
           Makefiles \
           MohidLand \
           MohidWater \
-         Mohid_Base_2 \
+          Mohid_Base_2 \
           Mohid_Base_1 \
           ConvertToHDF5 \
 	      ConvertToXYZ \
-	      MohidRiver
+	      MohidRiver \
+		  HDF5Extrator
 
 #------Makefile rules---------------
 
@@ -93,4 +94,4 @@ MohidWater.all : Mohid_Base_2.all
 ConvertToHDF5.all : Mohid_Base_2.all
 ConvertToXYZ.all : Mohid_Base_2.all	
 MohidRiver.all : Mohid_Base_2.all
-
+HDF5Extrator.all : Mohid_Base_2.all
