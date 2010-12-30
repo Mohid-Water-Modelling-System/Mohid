@@ -32,7 +32,7 @@ Module ModuleAdvectionDiffusion
                                     
     use ModuleGlobalData
     use ModuleFunctions     , only : OrlanskiCelerity2D, THOMAS_3D, THOMASZ, ComputeAdvection1D_V2,     &
-                                     SetMatrixValue, Chunk_J, Chunk_K, Chunk_I
+                                     SetMatrixValue, Chunk_J, Chunk_K, Chunk_I, T_THOMAS, T_VECGW, T_D_E_F
     use ModuleTime          , only : GetComputeCurrentTime, T_Time, KillComputeTime, &
                                      null_time, operator(+), operator(-),            &
                                      operator (==), operator (/=)
@@ -142,13 +142,6 @@ Module ModuleAdvectionDiffusion
         logical :: OpenBoundary = OFF
     end type T_State
 
-
-    type       T_D_E_F
-        real   , pointer, dimension(: , : , :)  :: D
-        real(8), pointer, dimension(: , : , :)  :: E
-        real   , pointer, dimension(: , : , :)  :: F
-    end type T_D_E_F
-
     type       T_FluxCoef
         real   , pointer, dimension(: , : , :)  :: C_flux    !Coeficient to calculate AdvFlux and DifFlux
         real   , pointer, dimension(: , : , :)  :: D_flux    !Coeficient to calculate AdvFlux and DifFlux
@@ -253,6 +246,8 @@ Module ModuleAdvectionDiffusion
         type(T_FluxCoef)                        :: COEF3_HorAdvYY           !Horinzontal advection coeficients
         real, pointer, dimension(: , : , :)     :: TICOEF3       
         real(8), pointer, dimension(:,:,:)      :: WaterFluxOBoundary
+        !griflet
+        type(T_THOMAS)                          :: THOMAS
         real(8), pointer, dimension(:)          :: VECG                     !Auxiliar thomas arrays 
         real(8), pointer, dimension(:)          :: VECW                     !Auxiliar thomas arrays     
 

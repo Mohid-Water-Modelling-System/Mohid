@@ -33,7 +33,8 @@ Module ModuleFunctions
     use ModuleGlobalData
     use ModuleTime
     use ModuleEnterData,        only : GetData
-    use ModuleStopWatch,        only : StartWatch, StopWatch         
+    use ModuleStopWatch,        only : StartWatch, StopWatch
+    !$ use omp_lib
 
     implicit none
 
@@ -44,6 +45,11 @@ Module ModuleFunctions
     integer, parameter                              :: SimpleHeight_            = 1
     integer, parameter                              :: ComplexHeight_           = 2
 
+    !types---------------------------------------------------------------------
+    !griflet
+    public  :: T_THOMAS
+    public  :: T_D_E_F
+    public  :: T_VECGW
 
     !Functions-----------------------------------------------------------------
     
@@ -218,6 +224,41 @@ Module ModuleFunctions
     private :: SortNumerically_3D
 
     private ::  QuadraticInterpolation
+    
+    !types -------------------------------------------------------------------
+
+    !griflet
+    type       T_D_E_F
+        real   , pointer, dimension(: , : , :)  :: D
+        real(8), pointer, dimension(: , : , :)  :: E
+        real   , pointer, dimension(: , : , :)  :: F
+    end type T_D_E_F
+
+    !griflet
+    type       T_VECGW
+        real(8), pointer, dimension(:)          :: G                     !Auxiliar thomas arrays 
+        real(8), pointer, dimension(:)          :: W                     !Auxiliar thomas arrays 
+    end type   T_VECGW        
+
+    !griflet
+    type       T_THOMAS
+        type(T_D_E_F)                           :: COEF3
+        real, pointer, dimension(: , : , :)     :: TI
+        type(T_VECGW), pointer, dimension(:)    :: VEC
+    end type   T_THOMAS
+
+    !interfaces -------------------------------------------------------------------
+    
+    !griflet: out with these non-working interfaces    
+    interface THOMAS_3D
+        module procedure THOMAS_3D_Original
+        module procedure THOMAS_3D_NewType
+    end interface THOMAS_3D
+    
+    interface THOMASZ
+        module procedure THOMASZ_Original
+        module procedure THOMASZ_NewType
+    end interface THOMASZ
 
     interface QuadraticInterpolation
         module procedure QuadraticInterpolationR8
@@ -248,16 +289,6 @@ Module ModuleFunctions
         module procedure SetMatrixValues3D_R8_FromMatrix
         module procedure SetMatrixValues3D_I4_FromMatrix
     end interface SetMatrixValue
-    
-    interface THOMAS_3D
-        module procedure THOMAS_3D_NoOpenMP
-        module procedure THOMAS_3D_OpenMP
-    end interface THOMAS_3D
-
-    interface THOMASZ
-        module procedure THOMASZ_NoOpenMP
-        module procedure THOMASZ_OpenMP
-    end interface THOMASZ
 
 #ifdef _USE_MPI
     public ::  MPIKind
@@ -1540,8 +1571,9 @@ do1 :       do II = JImin+1, JImax+1
     end subroutine THOMAS_2D
 
     !--------------------------------------------------------------------------
-
-    subroutine THOMAS_3D_NoOpenMP(IJmin, IJmax,                                        &
+    !griflet: New interface
+    !subroutine THOMAS_3D_NoOpenMP(IJmin, IJmax,                                        &
+    subroutine THOMAS_3D_Original(IJmin, IJmax,                                        &
                                   JImin, JImax,                                        &
                                   Kmin,  Kmax,                                         &
                                   di,    dj,                                           &
@@ -1583,13 +1615,13 @@ do1 :       do II = JImin+1, JImax+1
 
         else
             
-            stop 'THOMAS_3D_NoOpenMP - Module Functions - ERR01'
+            stop 'THOMAS_3D - Module Functions - ERR01'
 
         endif
 
         if (MonitorPerformance) call StopWatch ("ModuleFunctions", "THOMAS_3D")
 
-    end subroutine THOMAS_3D_NoOpenMP
+    end subroutine THOMAS_3D_Original
 
     !--------------------------------------------------------------------------
 
@@ -1688,7 +1720,67 @@ do1 :       do II = JImin+1, JImax+1
     end subroutine THOMAS_3D_i1_j0
 
     !--------------------------------------------------------------------------
+    !griflet: New interface
+    !subroutine THOMAS_3D_NoOpenMP(IJmin, IJmax,                                        &
+    subroutine THOMAS_3D_NewType(IJmin, IJmax,                                        &
+                                  JImin, JImax,                                        &
+                                  Kmin,  Kmax,                                         &
+                                  di,    dj,                                           &
+                                  Thomas,             &
+                                  ANSWER)
 
+        !Arguments-------------------------------------------------------------
+        integer,                         intent(IN) :: IJmin, IJmax
+        integer,                         intent(IN) :: JImin, JImax
+        integer,                         intent(IN) :: Kmin , Kmax
+        integer,                         intent(IN) :: di,    dj
+        type(T_THOMAS), pointer                     :: Thomas
+        real,    dimension(:,:,:), pointer          :: ANSWER
+
+        !Local-----------------------------------------------------------------
+        type(T_VECGW), pointer                      :: VEC
+        integer                                     :: TID
+        
+        if (MonitorPerformance) call StartWatch ("ModuleFunctions", "THOMAS_3D")
+
+        TID = 1
+        !$ TID = 1 + omp_get_thread_num()
+        VEC => Thomas%VEC(TID)
+
+        if (di == 0 .and. dj == 1) then
+
+            call THOMAS_3D_i0_j1(IJmin, IJmax,                                        &
+                                 JImin, JImax,                                        &
+                                 Kmin,  Kmax,                                         &
+                                 Thomas%COEF3%D, Thomas%COEF3%E, Thomas%COEF3%F,      &
+                                 Thomas%TI, &
+                                 ANSWER,                                              &
+                                 VEC%G, VEC%W)
+
+        else if (di == 1 .and. dj == 0) then
+
+            call THOMAS_3D_i1_j0(IJmin, IJmax,                                        &
+                                 JImin, JImax,                                        &
+                                 Kmin,  Kmax,                                         &
+                                 Thomas%COEF3%D, Thomas%COEF3%E, Thomas%COEF3%F,      &
+                                 Thomas%TI,             &
+                                 ANSWER,                                              &
+                                 Vec%G, Vec%W)
+
+        else
+            
+            stop 'THOMAS_3D - Module Functions - ERR01'
+
+        endif
+
+        if (MonitorPerformance) call StopWatch ("ModuleFunctions", "THOMAS_3D")
+
+    end subroutine THOMAS_3D_NewType
+
+    !--------------------------------------------------------------------------
+
+    !--------------------------------------------------------------------------
+    !griflet: this subroutine is non-functional.
     subroutine THOMAS_3D_OpenMP  (IJmin, IJmax,                                        &
                                   JImin, JImax,                                        &
                                   Kmin,  Kmax,                                         &
@@ -1740,7 +1832,7 @@ do1 :       do II = JImin+1, JImax+1
     end subroutine THOMAS_3D_OpenMP
 
     !--------------------------------------------------------------------------
-
+    !griflet: this subroutine is non-functional and should be erased.
     subroutine THOMAS_3D_i0_j1_OMP (IJmin, IJmax,                                        &
                                     JImin, JImax,                                        &
                                     Kmin,  Kmax,                                         &
@@ -1803,7 +1895,7 @@ do1 :       do II = JImin+1, JImax+1
     end subroutine THOMAS_3D_i0_j1_OMP
 
     !--------------------------------------------------------------------------
-
+    !this subroutine is non-functional and should be erased.
     subroutine THOMAS_3D_i1_j0_OMP(IJmin, IJmax,                                        &
                                    JImin, JImax,                                        &
                                    Kmin,  Kmax,                                         &
@@ -1867,8 +1959,9 @@ do1 :       do II = JImin+1, JImax+1
     end subroutine THOMAS_3D_i1_j0_OMP
     
     !--------------------------------------------------------------------------
-
-    subroutine THOMASZ_NoOpenMP (ILB, IUB,                                        &
+    !griflet: New public interface
+    !subroutine THOMASZ_NoOpenMP (ILB, IUB,                                        &
+    subroutine THOMASZ_Original (ILB, IUB,                                        &
                                  JLB, JUB,                                        &
                                  KLB, KUB,                                        &
                                  AW, BW, CW, TIW,                                 &
@@ -1915,10 +2008,73 @@ do4 :       DO II = KLB+1, KUB+1
         
         if (MonitorPerformance) call StopWatch ("ModuleFunctions", "THOMASZ")
 
-    end subroutine THOMASZ_NoOpenMP
+    end subroutine THOMASZ_Original
+
+    !--------------------------------------------------------------------------
+    !griflet: New public interface
+    !subroutine THOMASZ_NoOpenMP (ILB, IUB,                                       &
+    subroutine THOMASZ_NewType (ILB, IUB,                                         &
+                                 JLB, JUB,                                        &
+                                 KLB, KUB,                                        &
+                                 Thomas,                                          &
+                                 RES)
+
+        !Arguments---------------------------------------------------------------
+        integer,                         intent(IN) :: ILB, IUB
+        integer,                         intent(IN) :: JLB, JUB
+        integer,                         intent(IN) :: KLB, KUB
+        real,    dimension(:,:,:), pointer          :: RES
+        type(T_THOMAS), pointer                     :: Thomas
+
+        !Local-------------------------------------------------------------------
+        type(T_VECGW), pointer                      :: VEC
+        integer                                     :: TID
+        !$ integer                                  :: CHUNK
+        integer :: I, J, K
+        integer :: II, MM
+
+        !------------------------------------------------------------------------
+
+        if (MonitorPerformance) call StartWatch ("ModuleFunctions", "THOMASZ")
+
+        !$ CHUNK = CHUNK_J(JLB,JUB)
+
+        !$OMP PARALLEL PRIVATE(J,I,K,II,MM)
+        TID = 1
+        !$ TID = 1 + omp_get_thread_num()
+        VEC => Thomas%VEC(TID)
+        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+do2 :   DO J = JLB, JUB
+do1 :   DO I = ILB, IUB
+            VEC%W(KLB) =-Thomas%COEF3%F (I, J, 1) / Thomas%COEF3%E(I, J, 1)
+            VEC%G(KLB) = Thomas%TI(I, J, 1) / Thomas%COEF3%E(I, J, 1)
+
+do3 :       DO K  = KLB+1, KUB+1
+                VEC%W(K) = -Thomas%COEF3%F(I, J, K) / (Thomas%COEF3%E(I, J, K) + Thomas%COEF3%D(I, J, K) * VEC%W(K-1))
+
+                VEC%G(K) = (Thomas%TI(I, J, K) - Thomas%COEF3%D(I, J, K) * VEC%G(K-1))            &
+                         / (Thomas%COEF3%E (I, J, K) + Thomas%COEF3%D(I, J, K) * VEC%W(K-1))
+            END DO do3
+
+            RES(I, J, KUB+1) = VEC%G(KUB+1)
+
+do4 :       DO II = KLB+1, KUB+1
+                MM            = KUB + KLB + 1 - II
+                RES(I, J, MM) = VEC%W(MM) * RES(I, J, MM+1) + VEC%G(MM)
+            END DO do4
+        END DO do1
+        END DO do2
+        !$OMP END DO NOWAIT
+        !$OMP END PARALLEL
+        
+        if (MonitorPerformance) call StopWatch ("ModuleFunctions", "THOMASZ")
+
+    end subroutine THOMASZ_NewType
 
     !--------------------------------------------------------------------------
 
+    !--------------------------------------------------------------------------
+    !griflet: Non-functional: this subroutine should be erased.
     subroutine THOMASZ_OpenMP (ILB, IUB,                                        &
                                JLB, JUB,                                        &
                                KLB, KUB,                                        &
