@@ -95,6 +95,9 @@ Module ModulePorousMediaProperties
     use ModulePhreeqC
 #endif
 
+    !griflet
+    !$ use omp_lib
+
    implicit none
 
     private 
@@ -443,11 +446,11 @@ Module ModulePorousMediaProperties
     end type T_Coupled
     
     !Implicit coef for thomas matrix
-    type       T_D_E_F
+    type       T_DEF
         real   , pointer, dimension(: , : , :)  :: D
         real(8), pointer, dimension(: , : , :)  :: E
         real   , pointer, dimension(: , : , :)  :: F
-    end type T_D_E_F
+    end type T_DEF
     
     !Explicit coefs
     type       T_A_B_C_Explicit
@@ -509,7 +512,7 @@ Module ModulePorousMediaProperties
         type (T_PorousMediaProperties), pointer     :: Next             => null()
         type (T_Coupled)                            :: Coupled
         type (T_Time)                               :: LastOutputHDF5
-        type(T_D_E_F)                               :: COEF3
+        type(T_DEF)                                 :: COEF3
         type(T_A_B_C_Explicit)                      :: COEFExpl 
         type(T_FluxCoef)                            :: COEF3_VertAdv            !Vertical advection coeficients
         type(T_FluxCoef)                            :: COEF3_HorAdvXX           !Horizont advection coeficients
@@ -547,6 +550,10 @@ Module ModulePorousMediaProperties
         
         real(8), pointer, dimension(:,:,:)          :: WaterVolume
         real(8), pointer, dimension(:,:,:)          :: FluxWCorr             
+
+        !griflet, openmp
+        type(T_THOMAS), pointer                 :: THOMAS
+        integer                                 :: MaxThreads
 
     end type  T_PorousMediaProperties
 
@@ -1005,6 +1012,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         integer                                         :: ILB, IUB, JLB,  JUB 
         integer                                         :: KLB, KUB, IJKLB, IJKUB 
 
+        !griflet: openmp
+        integer                                 :: m
+        type(T_VECGW), pointer                  :: VECGW
+
         !Bounds
         ILB = Me%Size%ILB
         IUB = Me%Size%IUB
@@ -1108,7 +1119,33 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 Me%VECG                     = Null_real 
                 Me%VECW                     = Null_real 
            
-            endif
+            endif            
+            
+            !griflet: BEGIN this is the alternate version that allows parallel openmp
+
+            Me%MaxThreads = 1
+            !$ Me%MaxThreads = omp_get_max_threads()
+
+            allocate(Me%THOMAS)
+            allocate(Me%THOMAS%COEF3)
+            allocate(Me%THOMAS%VEC(1:Me%MaxThreads))
+
+            do m = 1, Me%MaxThreads
+
+                VECGW => Me%THOMAS%VEC(m)
+
+                allocate(VECGW%G(IJKLB:IJKUB))
+                allocate(VECGW%W(IJKLB:IJKUB))
+
+            enddo
+
+            Me%THOMAS%COEF3%D => Me%COEF3%D
+            Me%THOMAS%COEF3%E => Me%COEF3%E
+            Me%THOMAS%COEF3%F => Me%COEF3%F
+            Me%THOMAS%TI => Me%TICOEF3
+
+            !griflet: END
+            
         endif
         
     end subroutine AllocateVariables
@@ -5122,28 +5159,38 @@ cd2:            if (ImpExp_AdvXX == ImplicitScheme) then
                     di = 0
                     dj = 1
 
+                    !griflet: old call
+                    !call THOMAS_3D(ILBWS, IUBWS, JLBWS, JUBWS, KLBWS, KUBWS, di, dj,    &
+                    !     Me%COEF3%D,                                                    &
+                    !     Me%COEF3%E,                                                    &
+                    !     Me%COEF3%F,                                                    &
+                    !     Me%TICOEF3,                                                    &
+                    !     CurrProp%Concentration,                                        &
+                    !     Me%VECG,                                                       &
+                    !     Me%VECW)     
+                    !griflet: new call 
                     call THOMAS_3D(ILBWS, IUBWS, JLBWS, JUBWS, KLBWS, KUBWS, di, dj,    &
-                         Me%COEF3%D,                                                    &
-                         Me%COEF3%E,                                                    &
-                         Me%COEF3%F,                                                    &
-                         Me%TICOEF3,                                                    &
-                         CurrProp%Concentration,                                        &
-                         Me%VECG,                                                       &
-                         Me%VECW)      
+                         Me%THOMAS,                                                    &
+                         CurrProp%Concentration)      
                 
                 else if (ImpExp_AdvYY == ImplicitScheme) then cd2
 
                     di = 1
                     dj = 0
 
+                    !griflet: old call
+!                    call THOMAS_3D(JLBWS, JUBWS, ILBWS, IUBWS, KLBWS, KUBWS, di, dj,    &
+!                         Me%COEF3%D,                                                    &
+!                         Me%COEF3%E,                                                    &
+!                         Me%COEF3%F,                                                    &
+!                         Me%TICOEF3,                                                    &
+!                         CurrProp%Concentration,                                        &
+!                         Me%VECG,                                                       &
+!                         Me%VECW)  
+                    !griflet: new call    
                     call THOMAS_3D(JLBWS, JUBWS, ILBWS, IUBWS, KLBWS, KUBWS, di, dj,    &
-                         Me%COEF3%D,                                                    &
-                         Me%COEF3%E,                                                    &
-                         Me%COEF3%F,                                                    &
-                         Me%TICOEF3,                                                    &
-                         CurrProp%Concentration,                                        &
-                         Me%VECG,                                                       &
-                         Me%VECW)      
+                         Me%THOMAS,                                                    &
+                         CurrProp%Concentration)      
 
                 endif cd2
 
@@ -6283,16 +6330,23 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
            !$OMP END PARALLEL  
            
            !3D model or 1D vertical
+           !griflet: old call
+!            call THOMASZ(Me%WorkSize%ILB, Me%WorkSize%IUB,                              &
+!                         Me%WorkSize%JLB, Me%WorkSize%JUB,                              &
+!                         Me%WorkSize%KLB, Me%WorkSize%KUB,                              &
+!                         Me%COEF3%D,                                                    &
+!                         Me%COEF3%E,                                                    &
+!                         Me%COEF3%F,                                                    &
+!                         Me%TICOEF3,                                                    &
+!                         CurrProperty%Concentration,                                    &
+!                         Me%VECG,                                                       &
+!                         Me%VECW)      
+            !griflet: new call
             call THOMASZ(Me%WorkSize%ILB, Me%WorkSize%IUB,                              &
                          Me%WorkSize%JLB, Me%WorkSize%JUB,                              &
                          Me%WorkSize%KLB, Me%WorkSize%KUB,                              &
-                         Me%COEF3%D,                                                    &
-                         Me%COEF3%E,                                                    &
-                         Me%COEF3%F,                                                    &
-                         Me%TICOEF3,                                                    &
-                         CurrProperty%Concentration,                                    &
-                         Me%VECG,                                                       &
-                         Me%VECW)      
+                         Me%THOMAS,                                                    &
+                         CurrProperty%Concentration)      
                  
            
         endif
@@ -7724,6 +7778,9 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
         !Arguments-------------------------------------------------------------
 
         !Local-----------------------------------------------------------------
+        !griflet
+        integer                 :: p
+        type(T_VECGW), pointer  :: VECGW
 
         !Water Content---------------------------------------------------------
         deallocate (Me%ExtVar%WindVelocity3D   )         
@@ -7763,6 +7820,17 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                 deallocate(Me%VECW)
               
             endif
+            
+            !griflet
+            do p = 1, Me%MaxThreads
+                VECGW => Me%THOMAS%VEC(p)
+                deallocate(VECGW%G)
+                deallocate(VECGW%W)
+            enddo 
+            deallocate(Me%THOMAS%VEC)
+            deallocate(Me%THOMAS%COEF3)
+            deallocate(Me%THOMAS)
+
         endif
         
         deallocate (Me%CellWaterVolume)

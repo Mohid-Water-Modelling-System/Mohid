@@ -242,7 +242,7 @@ Module ModuleFunctions
 
     !griflet
     type       T_THOMAS
-        type(T_D_E_F)                           :: COEF3
+        type(T_D_E_F), pointer                  :: COEF3
         real, pointer, dimension(: , : , :)     :: TI
         type(T_VECGW), pointer, dimension(:)    :: VEC
     end type   T_THOMAS
@@ -1572,7 +1572,6 @@ do1 :       do II = JImin+1, JImax+1
 
     !--------------------------------------------------------------------------
     !griflet: New interface
-    !subroutine THOMAS_3D_NoOpenMP(IJmin, IJmax,                                        &
     subroutine THOMAS_3D_Original(IJmin, IJmax,                                        &
                                   JImin, JImax,                                        &
                                   Kmin,  Kmax,                                         &
@@ -1721,12 +1720,11 @@ do1 :       do II = JImin+1, JImax+1
 
     !--------------------------------------------------------------------------
     !griflet: New interface
-    !subroutine THOMAS_3D_NoOpenMP(IJmin, IJmax,                                        &
-    subroutine THOMAS_3D_NewType(IJmin, IJmax,                                        &
-                                  JImin, JImax,                                        &
-                                  Kmin,  Kmax,                                         &
-                                  di,    dj,                                           &
-                                  Thomas,             &
+    subroutine THOMAS_3D_NewType(IJmin, IJmax,                                          &
+                                  JImin, JImax,                                         &
+                                  Kmin,  Kmax,                                          &
+                                  di,    dj,                                            &
+                                  Thomas,                                               &
                                   ANSWER)
 
         !Arguments-------------------------------------------------------------
@@ -1749,26 +1747,22 @@ do1 :       do II = JImin+1, JImax+1
 
         if (di == 0 .and. dj == 1) then
 
-            call THOMAS_3D_i0_j1(IJmin, IJmax,                                        &
-                                 JImin, JImax,                                        &
-                                 Kmin,  Kmax,                                         &
-                                 Thomas%COEF3%D, Thomas%COEF3%E, Thomas%COEF3%F,      &
-                                 Thomas%TI, &
-                                 ANSWER,                                              &
-                                 VEC%G, VEC%W)
+            call THOMAS_3D_i0_j1_NewType(IJmin, IJmax,                                  &
+                                 JImin, JImax,                                          &
+                                 Kmin,  Kmax,                                           &
+                                 Thomas,                                                &
+                                 ANSWER)
 
         else if (di == 1 .and. dj == 0) then
 
-            call THOMAS_3D_i1_j0(IJmin, IJmax,                                        &
-                                 JImin, JImax,                                        &
-                                 Kmin,  Kmax,                                         &
-                                 Thomas%COEF3%D, Thomas%COEF3%E, Thomas%COEF3%F,      &
-                                 Thomas%TI,             &
-                                 ANSWER,                                              &
-                                 Vec%G, Vec%W)
+            call THOMAS_3D_i1_j0_NewType(IJmin, IJmax,                                  &
+                                 JImin, JImax,                                          &
+                                 Kmin,  Kmax,                                           &
+                                 Thomas,                                                &
+                                 ANSWER)
 
         else
-            
+
             stop 'THOMAS_3D - Module Functions - ERR01'
 
         endif
@@ -1778,189 +1772,130 @@ do1 :       do II = JImin+1, JImax+1
     end subroutine THOMAS_3D_NewType
 
     !--------------------------------------------------------------------------
-
-    !--------------------------------------------------------------------------
-    !griflet: this subroutine is non-functional.
-    subroutine THOMAS_3D_OpenMP  (IJmin, IJmax,                                        &
-                                  JImin, JImax,                                        &
-                                  Kmin,  Kmax,                                         &
-                                  di,    dj,                                           &
-                                  DCoef_3D, ECoef_3D, FCoef_3D, TiCoef_3D,             &
-                                  ANSWER,                                              &
-                                  VECG, VECW)
-
-        !Arguments-------------------------------------------------------------
-        integer,                         intent(IN) :: IJmin, IJmax
-        integer,                         intent(IN) :: JImin, JImax
-        integer,                         intent(IN) :: Kmin , Kmax
-        integer,                         intent(IN) :: di,    dj
-        real,    dimension(:,:,:), pointer          :: DCoef_3D, FCoef_3D, TiCoef_3D
-        real(8), dimension(:,:,:), pointer          :: ECoef_3D
-        real,    dimension(:,:,:), pointer          :: ANSWER
-        real(8), dimension(:,:  ), pointer          :: VECG, VECW
-
-        !Local-----------------------------------------------------------------
-        
-        if (MonitorPerformance) call StartWatch ("ModuleFunctions", "THOMAS_3D")
-
-        if (di == 0 .and. dj == 1) then
-
-            call THOMAS_3D_i0_j1_OMP(IJmin, IJmax,                                        &
-                                     JImin, JImax,                                        &
-                                     Kmin,  Kmax,                                         &
-                                     DCoef_3D, ECoef_3D, FCoef_3D, TiCoef_3D,             &
-                                     ANSWER,                                              &
-                                     VECG, VECW)
-
-        else if (di == 1 .and. dj == 0) then
-
-            call THOMAS_3D_i1_j0_OMP(IJmin, IJmax,                                        &
-                                     JImin, JImax,                                        &
-                                     Kmin,  Kmax,                                         &
-                                     DCoef_3D, ECoef_3D, FCoef_3D, TiCoef_3D,             &
-                                     ANSWER,                                              &
-                                     VECG, VECW)
-
-        else
-            
-            stop 'THOMAS_3D_OpenMP - Module Functions - ERR01'
-
-        endif
-
-        if (MonitorPerformance) call StopWatch ("ModuleFunctions", "THOMAS_3D")
-
-    end subroutine THOMAS_3D_OpenMP
-
-    !--------------------------------------------------------------------------
-    !griflet: this subroutine is non-functional and should be erased.
-    subroutine THOMAS_3D_i0_j1_OMP (IJmin, IJmax,                                        &
-                                    JImin, JImax,                                        &
-                                    Kmin,  Kmax,                                         &
-                                    DCoef_3D, ECoef_3D, FCoef_3D, TiCoef_3D,             &
-                                    ANSWER,                                              &
-                                    VECG, VECW)
-
-        !Arguments-------------------------------------------------------------
-        integer,                         intent(IN) :: IJmin, IJmax
-        integer,                         intent(IN) :: JImin, JImax
-        integer,                         intent(IN) :: Kmin , Kmax
-        real,    dimension(:,:,:), pointer          :: DCoef_3D, FCoef_3D, TiCoef_3D
-        real(8), dimension(:,:,:), pointer          :: ECoef_3D
-        real,    dimension(:,:,:), pointer          :: ANSWER
-        real(8), dimension(:,:  ), pointer          :: VECG, VECW
-
-        !Local-----------------------------------------------------------------
-        integer                                     :: IJ, JI, II, K
-        integer                                     :: CHUNK
-
-        !Begin-----------------------------------------------------------------
-
-!        if (MonitorPerformance) call StartWatch ("ModuleFunctions", "THOMAS_3D_i0_j1_OMP")
-
-        !CHUNK = CHUNK_K(Kmin, Kmax)
-        CHUNK = CHUNK_J(IJmin, IJmax)
-        
-        !$OMP PARALLEL PRIVATE(IJ, JI, II, K)
-
-        !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
-do4:    do K  = Kmin, Kmax
-        !$OMP DO SCHEDULE(STATIC, CHUNK)
-do2 :   do IJ = IJmin, IJmax
-
-            VECW(JImin, K) =-FCoef_3D (IJ, JImin, K)/ECoef_3D(IJ, JImin, K)
-            VECG(JImin, K) = TiCoef_3D(IJ, JImin, K)/ECoef_3D(IJ, JImin, K)
-
-do3 :       do JI=JImin+1,JImax+1
-                VECW(JI, K) = - FCoef_3D(IJ, JI, K) / (ECoef_3D(IJ, JI, K) +                    &
-                                DCoef_3D(IJ, JI, K) * VECW(JI-1, K))
-
-                VECG(JI, K) =  (TiCoef_3D(IJ, JI, K) - DCoef_3D(IJ, JI, K) * VECG(JI-1, K))/      &
-                               (ECoef_3D (IJ, JI, K) + DCoef_3D(IJ, JI, K) * VECW(JI-1, K))
-            end do do3
-
-            ANSWER(IJ, (JImax+1), K) = VECG(JImax+1, K)
-
-do1 :       do II = JImin+1, JImax+1
-                ANSWER(IJ, JImax+JImin+1-II, K) = VECW(JImax+JImin+1-II, K) * ANSWER(IJ, JImax+JImin+1-II+1, K) + &
-                                                  VECG(JImax+JImin+1-II, K)
-            end do do1
-        end do do2
-        !$OMP END DO NOWAIT
-        end do do4
-        !!$OMP END DO NOWAIT
-        !$OMP END PARALLEL
-
-!        if (MonitorPerformance) call StopWatch ("ModuleFunctions", "THOMAS_3D_i0_j1_OMP")
-
-    end subroutine THOMAS_3D_i0_j1_OMP
-
-    !--------------------------------------------------------------------------
-    !this subroutine is non-functional and should be erased.
-    subroutine THOMAS_3D_i1_j0_OMP(IJmin, IJmax,                                        &
-                                   JImin, JImax,                                        &
-                                   Kmin,  Kmax,                                         &
-                                   DCoef_3D, ECoef_3D, FCoef_3D, TiCoef_3D,             &
-                                   ANSWER,                                              &
-                                   VECG, VECW)
-
-        !Arguments-------------------------------------------------------------
-        integer,                         intent(IN) :: IJmin, IJmax
-        integer,                         intent(IN) :: JImin, JImax
-        integer,                         intent(IN) :: Kmin , Kmax
-        real,    dimension(:,:,:), pointer          :: DCoef_3D, FCoef_3D, TiCoef_3D
-        real(8), dimension(:,:,:), pointer          :: ECoef_3D
-        real,    dimension(:,:,:), pointer          :: ANSWER
-        real(8), dimension(:,:  ), pointer          :: VECG, VECW
-
-        !Local-----------------------------------------------------------------
-        integer                                     :: IJ, JI, II, K
-        integer                                     :: CHUNK
-
-        !Begin-----------------------------------------------------------------
-
-!        if (MonitorPerformance) call StartWatch ("ModuleFunctions", "THOMAS_3D_i1_j0_OMP")
-
-        !CHUNK = CHUNK_K(Kmin, Kmax)
-        CHUNK = CHUNK_J(IJmin, IJmax)
-        
-        !$OMP PARALLEL PRIVATE(IJ, JI, II, K)
-
-        !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
-do4:    do K  = Kmin, Kmax
-        !$OMP DO SCHEDULE(STATIC, CHUNK)
-do2 :   do IJ = IJmin, IJmax
-
-            VECW(JImin, K) =-FCoef_3D (JImin, IJ, K)/ECoef_3D(JImin, IJ, K)
-            VECG(JImin, K) = TiCoef_3D(JImin, IJ, K)/ECoef_3D(JImin, IJ, K)
-
-do3 :       do JI=JImin+1,JImax+1
-                VECW(JI, K) = - FCoef_3D(JI, IJ, K) / (ECoef_3D(JI, IJ, K) +                    &
-                                DCoef_3D(JI, IJ, K) * VECW(JI-1, K))
-
-                VECG(JI, K) = (TiCoef_3D(JI, IJ, K) - DCoef_3D(JI, IJ, K) * VECG(JI-1, K))/      &
-                              (ECoef_3D (JI, IJ, K) + DCoef_3D(JI, IJ, K) * VECW(JI-1, K))
-            end do do3
-
-            ANSWER(JImax+1, IJ, K) = VECG(JImax+1, K)
-
-do1 :       do II = JImin+1, JImax+1
-                ANSWER(JImax+JImin+1-II, IJ, K) = VECW(JImax+JImin+1-II, K) * ANSWER(JImax+JImin+1-II+1, IJ, K) + &
-                                                  VECG(JImax+JImin+1-II, K)
-            end do do1
-        end do do2
-        !$OMP END DO NOWAIT        
-        end do do4
-        !!$OMP END DO NOWAIT
-        !$OMP END PARALLEL
-        
-!        if (MonitorPerformance) call StopWatch ("ModuleFunctions", "THOMAS_3D_i1_j0_OMP")
-
-
-    end subroutine THOMAS_3D_i1_j0_OMP
     
+    !griflet: new Thomas3D subroutine for openmp
+    !--------------------------------------------------------------------------
+
+    subroutine THOMAS_3D_i0_j1_NewType (IJmin, IJmax,                                   &
+                                JImin, JImax,                                           &
+                                Kmin,  Kmax,                                            &
+                                Thomas,                                                 &
+                                ANSWER)
+
+        !Arguments-------------------------------------------------------------
+        integer,                         intent(IN) :: IJmin, IJmax
+        integer,                         intent(IN) :: JImin, JImax
+        integer,                         intent(IN) :: Kmin , Kmax
+        type(T_THOMAS), pointer                     :: Thomas
+        real,    dimension(:,:,:), pointer          :: ANSWER
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: IJ, JI, II, K
+        
+        !griflet
+        type(T_VECGW), pointer                      :: VEC
+        integer                                     :: TID
+        !$ integer                                  :: CHUNK
+
+        !Begin-----------------------------------------------------------------
+
+        !$ CHUNK = CHUNK_K(Kmin,Kmax)
+
+        !$OMP PARALLEL PRIVATE(TID,VEC,K,IJ,JI,II)
+        TID = 1
+        !$ TID = 1 + omp_get_thread_num()
+        VEC => Thomas%VEC(TID)
+        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+do4:    do K  = Kmin, Kmax
+do2 :   do IJ = IJmin, IJmax
+
+            VEC%W(JImin) =-Thomas%COEF3%F (IJ, JImin, K)/Thomas%COEF3%E(IJ, JImin, K)
+            VEC%G(JImin) = Thomas%TI(IJ, JImin, K)/Thomas%COEF3%E(IJ, JImin, K)
+
+do3 :       do JI=JImin+1,JImax+1
+                VEC%W(JI) = - Thomas%COEF3%F(IJ, JI, K) / (Thomas%COEF3%E(IJ, JI, K) +                    &
+                             Thomas%COEF3%D(IJ, JI, K) * VEC%W(JI-1))
+
+                VEC%G(JI) =  (Thomas%TI(IJ, JI, K) - Thomas%COEF3%D(IJ, JI, K) * VEC%G(JI-1))/      &
+                            (Thomas%COEF3%E (IJ, JI, K) + Thomas%COEF3%D(IJ, JI, K) * VEC%W(JI-1))
+            end do do3
+
+            ANSWER(IJ, (JImax+1), K) = VEC%G(JImax+1)
+
+do1 :       do II = JImin+1, JImax+1
+                ANSWER(IJ, JImax+JImin+1-II, K) = VEC%W(JImax+JImin+1-II) * ANSWER(IJ, JImax+JImin+1-II+1, K) + &
+                                                  VEC%G(JImax+JImin+1-II)
+            end do do1
+        end do do2
+        end do do4
+        !$OMP END DO NOWAIT
+        !$OMP END PARALLEL
+
+    end subroutine THOMAS_3D_i0_j1_NewType
+
+    !--------------------------------------------------------------------------
+
+    subroutine THOMAS_3D_i1_j0_NewType(IJmin, IJmax,                                &
+                               JImin, JImax,                                        &
+                               Kmin,  Kmax,                                         &
+                               Thomas,                                              &
+                               ANSWER)
+
+        !Arguments-------------------------------------------------------------
+        integer,                         intent(IN) :: IJmin, IJmax
+        integer,                         intent(IN) :: JImin, JImax
+        integer,                         intent(IN) :: Kmin , Kmax
+        type(T_THOMAS),pointer                      :: Thomas
+        real,    dimension(:,:,:), pointer          :: ANSWER
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: IJ, JI, II, K
+
+        !griflet
+        type(T_VECGW), pointer                      :: VEC
+        integer                                     :: TID
+        !$ integer                                  :: CHUNK
+
+        !Begin-----------------------------------------------------------------
+
+        !$ CHUNK = CHUNK_K(Kmin,Kmax)
+
+        !$OMP PARALLEL PRIVATE(TID,VEC,K,IJ,JI,II)
+        TID = 1
+        !$ TID = 1 + omp_get_thread_num()
+        VEC => Thomas%VEC(TID)
+        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+do4:    do K  = Kmin, Kmax
+do2 :   do IJ = IJmin, IJmax
+
+            VEC%W(JImin) =-Thomas%COEF3%F(JImin, IJ, K)/Thomas%COEF3%E(JImin, IJ, K)
+            VEC%G(JImin) = Thomas%TI(JImin, IJ, K)/Thomas%COEF3%E(JImin, IJ, K)
+
+do3 :       do JI=JImin+1,JImax+1
+                VEC%W(JI) = - Thomas%COEF3%F(JI, IJ, K) / (Thomas%COEF3%E(JI, IJ, K) +                    &
+                             Thomas%COEF3%D(JI, IJ, K) * VEC%W(JI-1))
+
+                VEC%G(JI) = (Thomas%TI(JI, IJ, K) - Thomas%COEF3%D(JI, IJ, K) * VEC%G(JI-1))/      &
+                            (Thomas%COEF3%E(JI, IJ, K) + Thomas%COEF3%D(JI, IJ, K) * VEC%W(JI-1))
+            end do do3
+
+            ANSWER(JImax+1, IJ, K) = VEC%G(JImax+1)
+
+do1 :       do II = JImin+1, JImax+1
+                ANSWER(JImax+JImin+1-II, IJ, K) = VEC%W(JImax+JImin+1-II) * ANSWER(JImax+JImin+1-II+1, IJ, K) + &
+                                                  VEC%G(JImax+JImin+1-II)
+            end do do1
+
+        end do do2
+        end do do4
+        !$OMP END DO NOWAIT
+        !$OMP END PARALLEL
+
+    end subroutine THOMAS_3D_i1_j0_NewType
+    !--------------------------------------------------------------------------
+
     !--------------------------------------------------------------------------
     !griflet: New public interface
-    !subroutine THOMASZ_NoOpenMP (ILB, IUB,                                        &
     subroutine THOMASZ_Original (ILB, IUB,                                        &
                                  JLB, JUB,                                        &
                                  KLB, KUB,                                        &
@@ -2012,7 +1947,6 @@ do4 :       DO II = KLB+1, KUB+1
 
     !--------------------------------------------------------------------------
     !griflet: New public interface
-    !subroutine THOMASZ_NoOpenMP (ILB, IUB,                                       &
     subroutine THOMASZ_NewType (ILB, IUB,                                         &
                                  JLB, JUB,                                        &
                                  KLB, KUB,                                        &
@@ -2039,7 +1973,7 @@ do4 :       DO II = KLB+1, KUB+1
 
         !$ CHUNK = CHUNK_J(JLB,JUB)
 
-        !$OMP PARALLEL PRIVATE(J,I,K,II,MM)
+        !$OMP PARALLEL PRIVATE(J,I,K,II,MM,TID,VEC)
         TID = 1
         !$ TID = 1 + omp_get_thread_num()
         VEC => Thomas%VEC(TID)
@@ -2073,65 +2007,6 @@ do4 :       DO II = KLB+1, KUB+1
 
     !--------------------------------------------------------------------------
 
-    !--------------------------------------------------------------------------
-    !griflet: Non-functional: this subroutine should be erased.
-    subroutine THOMASZ_OpenMP (ILB, IUB,                                        &
-                               JLB, JUB,                                        &
-                               KLB, KUB,                                        &
-                               AW, BW, CW, TIW,                                 &
-                               RES,                                             &
-                               VECG, VECW)
-
-        !Arguments---------------------------------------------------------------
-        integer,                         intent(IN) :: ILB, IUB
-        integer,                         intent(IN) :: JLB, JUB
-        integer,                         intent(IN) :: KLB, KUB
-        real,    dimension(:,:,:), pointer          :: AW, CW, TIW
-        real(8), dimension(:,:,:), pointer          :: BW
-        real,    dimension(:,:,:), pointer          :: RES
-        real(8), dimension(:,:  ), pointer          :: VECG, VECW
-
-        !Local-------------------------------------------------------------------
-        integer                                     :: I, J, K
-        integer                                     :: II, MM
-        integer                                     :: CHUNK
-
-        !Begin-----------------------------------------------------------------
-
-        if (MonitorPerformance) call StartWatch ("ModuleFunctions", "THOMASZ_OpenMP")
-
-        CHUNK = CHUNK_J(JLB, JUB)
-        
-        !$OMP PARALLEL PRIVATE(I, J, K, II, MM)
-
-        !$OMP DO SCHEDULE(GUIDED, CHUNK)
-do2 :   DO J = JLB, JUB
-do1 :   DO I = ILB, IUB
-            VECW(KLB, J) =-CW (I, J, 1) / BW(I, J, 1)
-            VECG(KLB, J) = TIW(I, J, 1) / BW(I, J, 1)
-
-do3 :       DO K  = KLB+1, KUB+1
-                VECW(K, J) = -CW(I, J, K) / (BW(I, J, K) + AW(I, J, K) * VECW(K-1, J))
-
-                VECG(K, J) = (TIW(I, J, K) - AW(I, J, K) * VECG(K-1, J))            &
-                         / (BW (I, J, K) + AW(I, J, K) * VECW(K-1, J))
-            END DO do3
-
-            RES(I, J, KUB+1) = VECG(KUB+1, J)
-
-do4 :       DO II = KLB+1, KUB+1
-                MM            = KUB + KLB + 1 - II
-                RES(I, J, MM) = VECW(MM, J) * RES(I, J, MM+1) + VECG(MM, J)
-            END DO do4
-        END DO do1
-        END DO do2
-        !$OMP END DO NOWAIT
-        !$OMP END PARALLEL
-
-        if (MonitorPerformance) call StopWatch ("ModuleFunctions", "THOMASZ_OpenMP")
-        
-    end subroutine THOMASZ_OpenMP
-    
     !--------------------------------------------------------------------------
 
     Subroutine OrlanskiCelerity2D(NewField, OldField, ReferenceField, ComputePoints,     &

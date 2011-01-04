@@ -391,11 +391,11 @@ Module ModuleRunoffProperties
     end type T_ComputeOptions
 
     !Implicit coef for thomas matrix
-    type       T_D_E_F
+    type       T_DEF
         real   , pointer, dimension(: , : )  :: D
         real(8), pointer, dimension(: , : )  :: E
         real   , pointer, dimension(: , : )  :: F
-    end type T_D_E_F
+    end type T_DEF
     
     !Explicit coefs
     type       T_A_B_C_Explicit
@@ -437,7 +437,7 @@ Module ModuleRunoffProperties
         type (T_Time)                               :: LastOutputHDF5
         type (T_ComputeOptions)                     :: ComputeOptions
 
-        type(T_D_E_F)                               :: COEF3
+        type(T_DEF)                                 :: COEF3
         type(T_A_B_C_Explicit)                      :: COEFExpl 
         type(T_FluxCoef)                            :: COEF3_HorAdvXX           !Horizont advection coeficients
         type(T_FluxCoef)                            :: COEF3_HorAdvYY           !Horizont advection coeficients

@@ -53,7 +53,7 @@ Module ModuleFreeVerticalMovement
 
     use ModuleGlobalData
     use ModuleFunctions,        only: THOMASZ, ConstructPropertyID, SettlingVelocity,          &
-                                      SetMatrixValue, CHUNK_J, CHUNK_K
+                                      SetMatrixValue, CHUNK_J, CHUNK_K, T_VECGW, T_THOMAS, T_D_E_F
     use ModuleTime
     use ModuleHorizontalGrid,   only: GetGridCellArea, UngetHorizontalGrid
     use ModuleGeometry,         only: GetGeometrySize, GetGeometryVolumes, UnGetGeometry,      &
@@ -62,6 +62,8 @@ Module ModuleFreeVerticalMovement
     use ModuleEnterData,        only: ReadFileName, ConstructEnterData, GetData, Block_Unlock, &
                                       ExtractBlockFromBuffer, KillEnterData
     use ModuleStopWatch,            only: StartWatch, StopWatch
+    !griflet: openmp
+    !$ use omp_lib
 
     implicit none 
 
@@ -129,13 +131,13 @@ Module ModuleFreeVerticalMovement
         type(T_Property), pointer               :: Next, Prev
     end type T_Property
 
-    type       T_D_E_F
+    type       T_DEF
         real,    pointer, dimension(: , : , :)  :: D 
         real(8), pointer, dimension(: , : , :)  :: E
         real,    pointer, dimension(: , : , :)  :: F
         real,    pointer, dimension(: , : , :)  :: D_flux    !Coeficient to calculate ConvFlux and DifFlux
         real,    pointer, dimension(: , : , :)  :: E_flux    !Coeficient to calculate ConvFlux and DifFlux
-    end type T_D_E_F
+    end type T_DEF
 
     type       T_External
         integer, pointer, dimension(: , : , :)  :: LandPoints
@@ -162,7 +164,7 @@ Module ModuleFreeVerticalMovement
         type(T_Size3D  )                        :: Size
         type(T_Size3D  )                        :: WorkSize
         type(T_External)                        :: ExternalVar
-        type(T_D_E_F   )                        :: COEF3
+        type(T_DEF   )                          :: COEF3
         type(T_Options )                        :: Needs
         real, pointer, dimension(:,:,:)         :: TICOEF3
                                                 
@@ -170,6 +172,10 @@ Module ModuleFreeVerticalMovement
         real(8), pointer, dimension(:)          :: VECG
         real(8), pointer, dimension(:)          :: VECW
         
+        !griflet, openmp
+        type(T_THOMAS), pointer                 :: THOMAS
+        integer                                 :: MaxThreads
+
         type(T_Property), pointer               :: FirstProperty
         type(T_Property), pointer               :: LastProperty
         integer                                 :: PropertiesNumber
@@ -339,6 +345,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         integer                                 :: ILB, IUB 
         integer                                 :: JLB, JUB 
         integer                                 :: KLB, KUB 
+        
+        !griflet: openmp
+        integer                                 :: m
+        type(T_VECGW), pointer                  :: VECGW
 
         !----------------------------------------------------------------------
 
@@ -400,6 +410,31 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         allocate(Me%VECW        (                  KLB:KUB), STAT = STAT_CALL)         
         if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleFreeVerticalMovement - ERR08'
         Me%VECW = FillValueReal
+
+        !griflet: BEGIN this is the alternate version that allows parallel openmp
+
+        Me%MaxThreads = 1
+        !$ Me%MaxThreads = omp_get_max_threads()
+
+        allocate(Me%THOMAS)
+        allocate(Me%THOMAS%COEF3)
+        allocate(Me%THOMAS%VEC(1:Me%MaxThreads))
+
+        do m = 1, Me%MaxThreads
+
+            VECGW => Me%THOMAS%VEC(m)
+
+            allocate(VECGW%G(KLB:KUB))
+            allocate(VECGW%W(KLB:KUB))
+
+        enddo
+
+        Me%THOMAS%COEF3%D => Me%COEF3%D
+        Me%THOMAS%COEF3%E => Me%COEF3%E
+        Me%THOMAS%COEF3%F => Me%COEF3%F
+        Me%THOMAS%TI => Me%TICOEF3
+
+        !griflet: END
 
         !----------------------------------------------------------------------
 
@@ -1003,17 +1038,24 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
         if (MonitorPerformance) call StopWatch ("ModuleFreeVerticalMovement", "FreeVerticalMovementIteration")
 
         if (PropertyX%ImpExp_AdvV/=1.) then  
-           !Inversao do sistema de equacoes pelo algoritmo de thomas                             
+            !Inversao do sistema de equacoes pelo algoritmo de thomas                             
+            !griflet: old call
+            !CALL THOMASZ(Me%WorkSize%ILB, Me%WorkSize%IUB,  &
+            !              Me%WorkSize%JLB, Me%WorkSize%JUB,  &
+            !              Me%WorkSize%KLB, Me%WorkSize%KUB,  &
+            !              Me%COEF3%D,                        &
+            !              Me%COEF3%E,                        &
+            !              Me%COEF3%F,                        &
+            !              Me%TICOEF3,                        &
+            !              Me%ExternalVar%Concentration,      &
+            !              Me%VECG,                           &
+            !              Me%VECW)
+            !griflet: new call
             CALL THOMASZ(Me%WorkSize%ILB, Me%WorkSize%IUB,  &
                          Me%WorkSize%JLB, Me%WorkSize%JUB,  &
                          Me%WorkSize%KLB, Me%WorkSize%KUB,  &
-                         Me%COEF3%D,                        &
-                         Me%COEF3%E,                        &
-                         Me%COEF3%F,                        &
-                         Me%TICOEF3,                        &
-                         Me%ExternalVar%Concentration,      &
-                         Me%VECG,                           &
-                         Me%VECW)
+                         Me%THOMAS,                        &
+                         Me%ExternalVar%Concentration)
         else ! Explicit
         
             call SetMatrixValue(Me%ExternalVar%Concentration, Me%Size, Me%TICOEF3)
@@ -1730,6 +1772,10 @@ cd1 :   if (ready_ == IDLE_ERR_)then
         integer                                 :: STAT_
         type(T_Property), pointer               :: PropertyX
 
+        !griflet
+        integer                 :: p
+        type(T_VECGW), pointer  :: VECGW
+
         !----------------------------------------------------------------------
 
 
@@ -1817,8 +1863,16 @@ cd1:    if (ready_ .NE. OFF_ERR_) then
                 if (STAT_CALL .NE. SUCCESS_) &
                     stop 'Kill_FreeVerticalMovement - ModuleFreeVerticalMovement - ERR15'
                 nullify(Me%VECW)
-
                 
+                !griflet
+                do p = 1, Me%MaxThreads
+                    VECGW => Me%THOMAS%VEC(p)
+                    deallocate(VECGW%G)
+                    deallocate(VECGW%W)
+                enddo 
+                deallocate(Me%THOMAS%VEC)
+                deallocate(Me%THOMAS%COEF3)
+                deallocate(Me%THOMAS)
 
                 !Deallocates Instance
                 call DeallocateInstance 

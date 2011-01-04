@@ -1299,6 +1299,7 @@ Module ModuleHydrodynamic
         type(T_NonHydrostatic) :: NonHydrostatic
         type(T_Generic4D     ) :: Generic4D
         type(T_Drag          ) :: Drag
+                
         logical                :: FirstIteration = .true.
 #ifdef _USE_SEQASSIMILATION
         !This variable is used to retain location of original memory space for variables
@@ -1380,6 +1381,7 @@ Module ModuleHydrodynamic
 
         !griflet
         integer :: MaxThreads
+        type(T_THOMAS), pointer         :: THOMAS
 
         type (T_Hydrodynamic), pointer :: Next
 
@@ -6320,6 +6322,7 @@ cd43:   if (.NOT. BlockFound) then
         
         !griflet
         type(T_Coef_Baroc), pointer :: LocalBaroc
+        type(T_VECGW), pointer      :: VECGW
         integer                     :: p
 
         !Begin------------------------------------------------------------------
@@ -6509,14 +6512,37 @@ cd2:    if (Me%ComputeOptions%BarotropicRadia == FlatherWindWave_ .or.      &
         Me%External_Var%ChezyZ    (:,:) = 0.
         Me%External_Var%ChezyVelUV(:,:) = 0.
 
+        IJKLB = MIN(ILB, JLB, KLB)
+        IJKUB = MAX(IUB, JUB, KUB)
+
+        allocate (Me%VECG_3D(IJKLB : IJKUB))
+        allocate (Me%VECW_3D(IJKLB : IJKUB))
+
+        Me%VECG_3D = FillValueReal
+        Me%VECW_3D = FillValueReal
+
+
+        JImin = MIN(ILB,JLB)
+        JImax = MAX(IUB,JUB)
+
+        allocate (Me%VECG_2D(JImin : JImax), STAT = STAT_CALL)
+        allocate (Me%VECW_2D(JImin : JImax),    STAT = STAT_CALL)
+
+        Me%VECG_2D = FillValueReal
+        Me%VECW_2D = FillValueReal
+
         !griflet
-        !griflet start
+        !griflet start                
         Me%MaxThreads=1
         !$ Me%MaxThreads = omp_get_max_threads()
-                
+        
+        allocate(Me%THOMAS)
+        allocate(Me%THOMAS%COEF3)
+        allocate(Me%THOMAS%VEC(1:Me%MaxThreads))                
         allocate(Me%Coef%Baroc(1:Me%MaxThreads))        
         do p=1,Me%MaxThreads
         
+            VECGW => Me%THOMAS%VEC(p)
             LocalBaroc => Me%Coef%Baroc(p)
                         
     cd3:    if (Me%ComputeOptions%Baroclinic) then 
@@ -6542,32 +6568,21 @@ cd2:    if (Me%ComputeOptions%BarotropicRadia == FlatherWindWave_ .or.      &
                 LocalBaroc%HroRight      = FillValueReal
                 LocalBaroc%DensLeft      = FillValueReal
                 LocalBaroc%DensRight     = FillValueReal
-
+                
             endif cd3
         
-        !griflet
+            allocate(VECGW%G(IJKLB:IJKUB))
+            allocate(VECGW%W(IJKLB:IJKUB))
+            
         enddo
         
-        IJKLB = MIN(ILB, JLB, KLB)
-        IJKUB = MAX(IUB, JUB, KUB)
-
-        allocate (Me%VECG_3D(IJKLB : IJKUB))
-        allocate (Me%VECW_3D(IJKLB : IJKUB))
-
-        Me%VECG_3D = FillValueReal
-        Me%VECW_3D = FillValueReal
-
-
-        JImin = MIN(ILB,JLB)
-        JImax = MAX(IUB,JUB)
-
-        allocate (Me%VECG_2D(JImin : JImax), STAT = STAT_CALL)
-        allocate (Me%VECW_2D(JImin : JImax),    STAT = STAT_CALL)
-
-        Me%VECG_2D = FillValueReal
-        Me%VECW_2D = FillValueReal
-
-
+        Me%THOMAS%COEF3%D => Me%Coef%D3%D
+        Me%THOMAS%COEF3%F => Me%Coef%D3%F
+        Me%THOMAS%Ti => Me%Coef%D3%Ti
+        Me%THOMAS%COEF3%E => Me%Coef%D3%E
+        
+        !griflet: END
+        
         if (Me%ComputeOptions%BarotropicRadia == BlumbergKantha_)           &
             call ConstructBlumbergKantha
 
@@ -19598,8 +19613,13 @@ cd2:        if      (Num_Discretization == Abbott    ) then
         !----Boundary condition
         call VerticalMomentumBoundary
         !----Solve
-        call THOMASZ(ilb, iub, jlb, jub, klb, kub, dCoef, eCoef, fCoef, tiCoef,        &
-                      Me%Velocity%Vertical%Cartesian, Me%VECG_3D, Me%VECW_3D)
+        !griflet: old call
+        !call THOMASZ(ilb, iub, jlb, jub, klb, kub, dCoef, eCoef, fCoef, tiCoef,        &
+        !              Me%Velocity%Vertical%Cartesian, Me%VECG_3D, Me%VECW_3D)
+        !griflet: new call                      
+        call THOMASZ(ilb, iub, jlb, jub, klb, kub, Me%THOMAS,        &
+                      Me%Velocity%Vertical%Cartesian)
+
         !----DeAllocate...
         deallocate(fx)
         deallocate(fy)
@@ -21369,17 +21389,24 @@ cd2D:   if (KUB == 1) then !If the model is 2D then the implicit direction is in
             JImax = IUB * di + JUB * dj
 
 
+            !griflet: olds call
+            !call THOMAS_3D(IJmin, IJmax, JImin, JImax, KLB, KUB, di, dj,                 &
+            !               DCoef_3D, ECoef_3D, FCoef_3D, TiCoef_3D, Velocity_UV_New,     &
+            !               Me%VECG_3D, Me%VECW_3D)
+            !griflet: new call
             call THOMAS_3D(IJmin, IJmax, JImin, JImax, KLB, KUB, di, dj,                 &
-                           DCoef_3D, ECoef_3D, FCoef_3D, TiCoef_3D, Velocity_UV_New,     &
-                           Me%VECG_3D, Me%VECW_3D)
+                           Me%THOMAS, Velocity_UV_New)
 
         else cd2D ! The implicit direction is in the vertical
 
 
             ! Vertical direction implicit
-            call THOMASZ(ILB, IUB, JLB, JUB, KLB, KUB, DCoef_3D, ECoef_3D,               &
-                         FCoef_3D, TiCoef_3D, Velocity_UV_New,                           &
-                         Me%VECG_3D, Me%VECW_3D)
+            !griflet: old call
+            !call THOMASZ(ILB, IUB, JLB, JUB, KLB, KUB, DCoef_3D, ECoef_3D,               &
+            !             FCoef_3D, TiCoef_3D, Velocity_UV_New,                           &
+            !             Me%VECG_3D, Me%VECW_3D)
+            !griflet: new call
+            call THOMASZ(ILB, IUB, JLB, JUB, KLB, KUB, Me%THOMAS, Velocity_UV_New)
 
         endif cd2D
 
@@ -27261,7 +27288,7 @@ do6 :           do  i = ILB, IUB
 
         logical                            :: ComputeFlux, NearBoundary
         
-        ! integer                            :: CHUNK
+        !$ integer                            :: CHUNK
 
         !Begin----------------------------------------------------------------
 
@@ -27304,6 +27331,16 @@ do6 :           do  i = ILB, IUB
             call StartWatch ("ModuleHydrodynamic", "Modify_Advection_UX_VY")
         endif
 
+        !$ CHUNK = CHUNK_J(JLB,JUB)
+
+        !griflet: Avoid inner parallel zones, avoid all barriers and critical sections...
+        !and you'll be fine.
+        !!$OMP PARALLEL PRIVATE( i,j,k, Kbottom, &
+        !!$OMP                   iSouth,jWest,j_East,i_North,jWest2,iSouth2,jWest3,iSouth3, &
+        !!$OMP                   ComputeFlux, FaceFlux_WestSouth, &
+        !!$OMP                   NearBoundary,Vel4,du4, &
+        !!$OMP                   V4,MomentumFlux,CFace)
+        !!$OMP DO SCHEDULE(DYNAMIC,CHUNK)
     doi: do j=JLB, JUB
     doj: do i=ILB, IUB
 
@@ -27338,19 +27375,6 @@ cd0:        if (ComputeFlux) then
 
                 Kbottom = max(KFloor_UV(i, j), KFloor_UV(iSouth, jWest))
 
-                ! CHUNK = CHUNK_K(Kbottom, KUB)
-                !ACanas(2010): Parallelization is commented because overheads are
-                !ACanas(2010): found very large due to cycle is inner and in index k.
-                !ACanas(2010): Since MOHID Water typical applications have horizontal
-                !ACanas(2010): grid much larger than vertical grid it is not 
-                !ACanas(2010): expected that performance could improve in other
-                !Acanas(2010): applications than the one used for test.
-                
-                ! !$OMP PARALLEL PRIVATE(k,FaceFlux_WestSouth,NearBoundary,Vel4,du4) &
-                ! !$OMP PRIVATE(V4,MomentumFlux,CFace)
-
-                ! West or South Face
-                ! !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
         dok1:   do k = Kbottom, KUB
                 
 
@@ -27439,8 +27463,6 @@ cd0:        if (ComputeFlux) then
                                               NearBoundary,                             &
                                               Me%ComputeOptions%Upwind2H, CFace)
 
-
-
                     MomentumFlux = dble(Vel4(1) * CFace(1)  + Vel4(2) * CFace(2)  +     &
                                         Vel4(3) * CFace(3)  + Vel4(4) * CFace(4)) *     &
                                         FaceFlux_WestSouth ![m/s*m^3/s]
@@ -27452,12 +27474,13 @@ cd0:        if (ComputeFlux) then
                                                                MomentumFlux
            
                 enddo dok1
-                ! !$OMP END DO
-                ! !$OMP END PARALLEL
+
             endif cd0
 
         enddo doj
         enddo doi
+        !!$OMP END DO NOWAIT
+        !!$OMP END PARALLEL
 
         if (MonitorPerformance) then
             call StopWatch ("ModuleHydrodynamic", "Modify_Advection_UX_VY")
@@ -27598,12 +27621,12 @@ cd0:        if (ComputeFlux) then
         !ACanas(2010): expected that performance could improve in other
         !Acanas(2010): applications than the one used for test.
 
-        !$OMP PARALLEL PRIVATE( i,j,k, Kbottom, &
-        !$OMP                   iSouth,jWest,i_West,j_South,i_East,j_North,i_West2,j_South2, &
-        !$OMP                   NotBoundary, FaceRightOK, FaceLeftOK, FaceFlux_SouthWest, &
-        !$OMP                   NearBoundary,Vel4,du4, &
-        !$OMP                   V4,MomentumFlux,CFace)        
-        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+        !!$OMP PARALLEL PRIVATE( i,j,k, Kbottom, &
+        !!$OMP                   iSouth,jWest,i_West,j_South,i_East,j_North,i_West2,j_South2, &
+        !!$OMP                   NotBoundary, FaceRightOK, FaceLeftOK, FaceFlux_SouthWest, &
+        !!$OMP                   NearBoundary,Vel4,du4, &
+        !!$OMP                   V4,MomentumFlux,CFace)        
+        !!$OMP DO SCHEDULE(DYNAMIC,CHUNK)
 doj:    do j=JLB, JUB
 doi:    do i=ILB, IUB
 
@@ -27777,8 +27800,8 @@ dok1:           do k = Kbottom, KUB
 
         enddo doi
         enddo doj
-        !$OMP END DO NOWAIT
-        !$OMP END PARALLEL
+        !!$OMP END DO NOWAIT
+        !!$OMP END PARALLEL
 
         if (MonitorPerformance) then
             call StopWatch ("ModuleHydrodynamic", "Modify_Advection_UY_VX")
@@ -28690,7 +28713,6 @@ cd0:        if (ComputeFaces3D_UV(i, j, KUB) == Covered .and.                   
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     Subroutine Modify_Diffusion_UX_VY ( Velocity_UV_Old, Biharmonic)           
      
-
         !Variables category 
         ! Geometry : Volume_Z, DUX_VY (Volume and length of the elevation control volume)
         ! Flow     : Visc_H_Center (Turbulent viscosity in the center of the elevation control volume), 
@@ -28726,7 +28748,7 @@ cd0:        if (ComputeFaces3D_UV(i, j, KUB) == Covered .and.                   
 
         integer                            :: IUB, ILB, JUB, JLB, KUB, KLB
                 
-        ! integer                            :: CHUNK
+        !$ integer                            :: CHUNK
         
         !Begin-----------------------------------------------------------------------------
 
@@ -28766,20 +28788,17 @@ cd0:        if (ComputeFaces3D_UV(i, j, KUB) == Covered .and.                   
             call StartWatch ("ModuleHydrodynamic", "Modify_Diffusion_UX_VY")
         endif
 
-        ! !$OMP PARALLEL PRIVATE(i,j,k,ViscAux,FaceFlux_WestSouth1,FaceFlux_WestSouth2) &
-        ! !$OMP PRIVATE(Aux)
-        
-        !ACanas(2010): Parallelization is commented because overheads are
-        !ACanas(2010): found very large due to cycle is inner and in index k.
-        !ACanas(2010): Since MOHID Water typical applications have horizontal
-        !ACanas(2010): grid much larger than vertical grid it is not 
-        !ACanas(2010): expected that performance could improve in other
-        !Acanas(2010): applications than the one used for test.
-        
+        !$ CHUNK = CHUNK_J(JLB,JUB)
+
+        !!$OMP PARALLEL PRIVATE( i,j,k, Kbottom, &
+        !!$OMP                   iSouth, jWest, i_North, j_East, &
+        !!$OMP                   ComputeFlux, &
+        !!$OMP                   ViscAux,FaceFlux_WestSouth1,FaceFlux_WestSouth2, &
+        !!$OMP                   Aux)        
+        !!$OMP DO SCHEDULE(DYNAMIC,CHUNK)
     doi: do j=JLB, JUB
     doj: do i=ILB, IUB
 
-            ! !$OMP MASTER
             iSouth  = i -   di
             jWest   = j -   dj
             i_North  = i +   di
@@ -28810,17 +28829,10 @@ cd0:        if (ComputeFaces3D_UV(i, j, KUB) == Covered .and.                   
                                                                            ComputeFlux = .true.
 
             endif
-            ! !$OMP END MASTER
-            ! !$OMP BARRIER
 
 cd0:        if (ComputeFlux) then  
-                ! !$OMP MASTER
                 Kbottom = max(KFloor_UV(i, j), KFloor_UV(iSouth, jWest)) 
-                ! CHUNK = CHUNK_K(Kbottom, KUB)
-                ! !$OMP END MASTER
-                ! !$OMP BARRIER
-                
-                ! !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+
 dok1:           do k = Kbottom, KUB
 
                     if (BiHarmonic) then
@@ -28871,29 +28883,21 @@ cd1:                if (ConservativeHorDif) then
                                                     DZX_ZY   (iSouth - di , jWest - dj)
 
                     endif cd1
-
                     
                     Horizontal_Transport(i, j, k)            = Horizontal_Transport(i, j, k) &
                                                               - FaceFlux_WestSouth1  
 
                     Horizontal_Transport(iSouth, jWest, k) = Horizontal_Transport(iSouth, jWest, k) & 
-                                                              + FaceFlux_WestSouth2  
-
-                                                     
-                 
+                                                              + FaceFlux_WestSouth2                   
 
                  enddo dok1
-                 ! !$OMP END DO
+
              endif cd0
-             ! !$OMP BARRIER
 
         enddo doj
         enddo doi
-        ! !$OMP END PARALLEL
-
-        if (MonitorPerformance) then
-            call StopWatch ("ModuleHydrodynamic", "Modify_Diffusion_UX_VY")
-        endif
+        !!$OMP END DO NOWAIT
+        !!$OMP END PARALLEL
 
         !Nullify auxiliar pointers
         nullify (Horizontal_Transport)
@@ -28906,6 +28910,9 @@ cd1:                if (ConservativeHorDif) then
         nullify (KFloor_UV           )
         nullify (Volume_UV           )
 
+        if (MonitorPerformance) then
+            call StopWatch ("ModuleHydrodynamic", "Modify_Diffusion_UX_VY")
+        endif
 
     End Subroutine Modify_Diffusion_UX_VY
 
@@ -28970,7 +28977,7 @@ cd1:                if (ConservativeHorDif) then
 
         integer                            :: IUB, ILB, JUB, JLB, KUB, KLB
 
-        ! integer                            :: CHUNK
+        !$ integer                            :: CHUNK
         
         !Begin-------------------------------------------------------------------------------
 
@@ -29006,19 +29013,17 @@ cd1:                if (ConservativeHorDif) then
             call StartWatch ("ModuleHydrodynamic", "Modify_Diffusion_UY_VX")
         endif
 
-        ! !$OMP PARALLEL PRIVATE(k,ViscAux,NoSlipFace,FaceFlux_SouthWest1,FaceFlux_SouthWest2,Aux)
+        !$ CHUNK = CHUNK_J(JLB,JUB)
 
-        !ACanas(2010): Parallelization is commented because overheads are
-        !ACanas(2010): found very large due to cycle is inner and in index k.
-        !ACanas(2010): Since MOHID Water typical applications have horizontal
-        !ACanas(2010): grid much larger than vertical grid it is not 
-        !ACanas(2010): expected that performance could improve in other
-        !Acanas(2010): applications than the one used for test.
-
+        !!$OMP PARALLEL PRIVATE( i,j,k, Kbottom, &
+        !!$OMP                   iSouth, jWest, i_West, j_South, &
+        !!$OMP                   ComputeFlux, ComputeFlux1, ComputeFlux2, &
+        !!$OMP                   ViscAux,FaceFlux_SouthWest1,FaceFlux_SouthWest2, &
+        !!$OMP                   NoSlipFace, Aux)
+        !!$OMP DO SCHEDULE(DYNAMIC,CHUNK)
     doi: do j=JLB, JUB
     doj: do i=ILB, IUB
 
-            ! !$OMP MASTER
             iSouth  = i - di
             jWest   = j - dj
 
@@ -29051,12 +29056,11 @@ cd1:                if (ConservativeHorDif) then
             if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == Me%Direction%XY .or. &
                                             Me%CyclicBoundary%Direction == DirectionXY_))  then
 
-
                 if ((ComputeFaces3D_UV       (i     , j       , KUB) == Covered .and.    &
                      ImposedTangentialFacesUV(i_West, j_South , KUB) == Imposed) .or.    &
                     (ComputeFaces3D_UV       (i_West, j_South , KUB) == Covered .and.    &
                      ImposedTangentialFacesUV(i     , j       , KUB) == Imposed)) then
-                                         
+
                     ComputeFlux = .true.
 
                     ComputeFlux1 = .true.
@@ -29066,20 +29070,12 @@ cd1:                if (ConservativeHorDif) then
                   endif
 
             endif
-            ! !$OMP END MASTER
-            ! !$OMP BARRIER
-            
+
 cd0:        if (ComputeFlux) then  
 
-                ! !$OMP MASTER
                 Kbottom = max(KFloor_UV(i, j), KFloor_UV(i_West, j_South))
-                ! CHUNK = CHUNK_K(Kbottom,KUB)
-                ! !$OMP END MASTER
-                ! !$OMP BARRIER
 
-                ! !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
-       dok1:    do k = Kbottom, KUB
-                    
+       dok1:    do k = Kbottom, KUB                    
 
                    ! West or South Face
 
@@ -29172,13 +29168,13 @@ cd2:                    if (ConservativeHorDif) then
 
 
                 enddo dok1
-                ! !$OMP END DO
                 
             endif cd0 
-            ! !$OMP BARRIER
+
         enddo doj
         enddo doi
-        ! !$OMP END PARALLEL
+        !!$OMP END DO NOWAIT
+        !!$OMP END PARALLEL
 
         if (MonitorPerformance) then
             call StopWatch ("ModuleHydrodynamic", "Modify_Diffusion_UY_VX")
@@ -41192,6 +41188,7 @@ cd2:    if (Me%SubModel%DeadZone) then
         
         !griflet
         type(T_Coef_Baroc), pointer :: LocalBaroc
+        type(T_VECGW), pointer      :: VECGW
         integer                     :: p
 
         !Local-----------------------------------------------------------------
@@ -41761,7 +41758,15 @@ cd4:    if (Me%ComputeOptions%Baroclinic) then
             
         endif cd4
 
-
+        !griflet
+        do p = 1, Me%MaxThreads
+            VECGW => Me%THOMAS%VEC(p)
+            deallocate(VECGW%G)
+            deallocate(VECGW%W)
+        enddo        
+        deallocate(Me%THOMAS%VEC)
+        deallocate(Me%THOMAS%COEF3)
+        deallocate(Me%THOMAS)
         
         deallocate (Me%VECG_3D,    STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                       &            

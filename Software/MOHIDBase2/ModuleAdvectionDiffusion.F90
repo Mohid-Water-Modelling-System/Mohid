@@ -41,6 +41,7 @@ Module ModuleAdvectionDiffusion
     use ModuleHorizontalMap , only : KillHorizontalMap, GetBoundaries, UnGetHorizontalMap
     use ModuleGeometry      , only : GetGeometrySize, GetGeometryKFloor, GetGeometryWaterColumn, &
                                      GetGeometryAreas, GetGeometryDistances, UnGetGeometry
+    !$ use omp_lib
 
     implicit none
 
@@ -247,9 +248,12 @@ Module ModuleAdvectionDiffusion
         real, pointer, dimension(: , : , :)     :: TICOEF3       
         real(8), pointer, dimension(:,:,:)      :: WaterFluxOBoundary
         !griflet
-        type(T_THOMAS)                          :: THOMAS
+        type(T_THOMAS), pointer                 :: THOMAS
         real(8), pointer, dimension(:)          :: VECG                     !Auxiliar thomas arrays 
         real(8), pointer, dimension(:)          :: VECW                     !Auxiliar thomas arrays     
+
+        !griflet
+        integer                                 :: MaxThreads
 
         type(T_External  )                      :: ExternalVar
 
@@ -432,6 +436,10 @@ cd0 :   if (ready_ == OFF_ERR_) then
         !Local-----------------------------------------------------------------
         integer                                     :: ILB, IUB, JLB, JUB, KLB, KUB
         integer                                     :: IJKLB, IJKUB
+        
+        !griflet
+        integer                                     :: m
+        type(T_VECGW), pointer                      :: VECGW
 
         !----------------------------------------------------------------------
 
@@ -485,22 +493,45 @@ cd0 :   if (ready_ == OFF_ERR_) then
         allocate(Me%VECG                    (IJKLB:IJKUB))
         allocate(Me%VECW                    (IJKLB:IJKUB))
 
+        !griflet: BEGIN this is the alternate version that allows parallel openmp
+
+        Me%MaxThreads = 1
+        !$ Me%MaxThreads = omp_get_max_threads()
+
+        allocate(Me%THOMAS)
+        allocate(Me%THOMAS%COEF3)
+        allocate(Me%THOMAS%VEC(1:Me%MaxThreads))
+
+        do m = 1, Me%MaxThreads
+
+            VECGW => Me%THOMAS%VEC(m)
+
+            allocate(VECGW%G(IJKLB:IJKUB))
+            allocate(VECGW%W(IJKLB:IJKUB))
+
+        enddo
+
+        Me%THOMAS%COEF3 => Me%COEF3
+        Me%THOMAS%TI => Me%TICOEF3
+
+        !griflet: END
+
         Me%Diffusion_CoeficientX    = Null_real
         Me%Diffusion_CoeficientY    = Null_real
         Me%Diffusion_CoeficientZ    = Null_real
-                                    
+                            
         Me%Fluxes%AdvFluxX          = Null_real
         Me%Fluxes%AdvFluxY          = Null_real
         Me%Fluxes%AdvFluxZ          = Null_Real
-                                    
+
         Me%Fluxes%DifFluxX          = Null_real
         Me%Fluxes%DifFluxY          = Null_real
         Me%Fluxes%DifFluxZ          = Null_Real
-                                    
+
         Me%COEF3%D                  = Null_real
         Me%COEF3%E                  = Null_real
         Me%COEF3%F                  = Null_real
-                                    
+
         Me%COEF3_VertAdv%C_Flux     = Null_real
         Me%COEF3_VertAdv%D_Flux     = Null_real
         Me%COEF3_VertAdv%E_Flux     = Null_real
@@ -1397,50 +1428,74 @@ cd3:    if (KUBWS == 1 .and. ImpExp_AdvXX == ImplicitScheme) then !ImplicitSchem
             di = 0
             dj = 1
 
+            !griflet: old call
+            !call THOMAS_3D(ILBWS, IUBWS,                                                &
+            !               JLBWS, JUBWS,                                                &
+            !               KLBWS, KUBWS,                                                &
+            !               di, dj,                                                      &
+            !               Me%COEF3%D,                                                  &
+            !               Me%COEF3%E,                                                  &
+            !               Me%COEF3%F,                                                  &
+            !               Me%TICOEF3,                                                  &
+            !               Me%ExternalVar%PROP,                                         &
+            !               Me%VECG,                                                     &
+            !               Me%VECW)      
+            !griflet: new  call
             call THOMAS_3D(ILBWS, IUBWS,                                                &
                            JLBWS, JUBWS,                                                &
                            KLBWS, KUBWS,                                                &
                            di, dj,                                                      &
-                           Me%COEF3%D,                                                  &
-                           Me%COEF3%E,                                                  &
-                           Me%COEF3%F,                                                  &
-                           Me%TICOEF3,                                                  &
-                           Me%ExternalVar%PROP,                                         &
-                           Me%VECG,                                                     &
-                           Me%VECW)      
+                           Me%THOMAS,                                                   &
+                           Me%ExternalVar%PROP)      
                             
         else if (KUBWS == 1 .and. ImpExp_AdvYY == ImplicitScheme) then cd3 !ImplicitScheme = 0
 
             di = 1
             dj = 0
-
+            
+            !griflet: old call
+            !call THOMAS_3D(JLBWS, JUBWS,                                                &
+            !               ILBWS, IUBWS,                                                &
+            !               KLBWS, KUBWS,                                                &
+            !               di, dj,                                                      &
+            !               Me%COEF3%D,                                                  &
+            !               Me%COEF3%E,                                                  &
+            !               Me%COEF3%F,                                                  &
+            !               Me%TICOEF3,                                                  &
+            !               Me%ExternalVar%PROP,                                         &
+            !               Me%VECG,                                                     &
+            !               Me%VECW)      
+            !griflet: new call                           
             call THOMAS_3D(JLBWS, JUBWS,                                                &
                            ILBWS, IUBWS,                                                &
                            KLBWS, KUBWS,                                                &
                            di, dj,                                                      &
-                           Me%COEF3%D,                                                  &
-                           Me%COEF3%E,                                                  &
-                           Me%COEF3%F,                                                  &
-                           Me%TICOEF3,                                                  &
-                           Me%ExternalVar%PROP,                                         &
-                           Me%VECG,                                                     &
-                           Me%VECW)      
+                           Me%THOMAS,                                                   &
+                           Me%ExternalVar%PROP)      
         else cd3
  
             ! If the model is 3D the vertical diffusion must be implicit so is necessary to 
             ! compute the vertical diffusion  implicitly
-               
+            
+            !griflet: old call   
+            !CALL THOMASZ(ILBWS, IUBWS,                                                  &
+            !             JLBWS, JUBWS,                                                  &
+            !             KLBWS, KUBWS,                                                  &
+            !             Me%COEF3%D,                                                    &
+            !             Me%COEF3%E,                                                    &
+            !             Me%COEF3%F,                                                    &
+            !             Me%TICOEF3,                                                    &
+            !             Me%ExternalVar%PROP,                                           &
+            !             Me%VECG,                                                       &
+            !             Me%VECW)      
+        
+            !griflet: new call
             CALL THOMASZ(ILBWS, IUBWS,                                                  &
                          JLBWS, JUBWS,                                                  &
                          KLBWS, KUBWS,                                                  &
-                         Me%COEF3%D,                                                    &
-                         Me%COEF3%E,                                                    &
-                         Me%COEF3%F,                                                    &
-                         Me%TICOEF3,                                                    &
-                         Me%ExternalVar%PROP,                                           &
-                         Me%VECG,                                                       &
-                         Me%VECW)      
-        
+                         Me%THOMAS,                                                     &
+                         Me%ExternalVar%PROP)
+
         endif cd3
 
         if (MonitorPerformance) call StopWatch ("ModuleAdvectionDiffusion", "AdvectionDiffusionIteration_TH")
@@ -2806,28 +2861,38 @@ cd2:            if (ImpExp_AdvXX == ImplicitScheme) then
                     di = 0
                     dj = 1
 
+                    !griflet: old call
+                    !call THOMAS_3D(ILBWS, IUBWS, JLBWS, JUBWS, KLBWS, KUBWS, di, dj,    &
+                    !     Me%COEF3%D,                                                    &
+                    !     Me%COEF3%E,                                                    &
+                    !     Me%COEF3%F,                                                    &
+                    !     Me%TICOEF3,                                                    &
+                    !     Me%ExternalVar%PROP,                                           &
+                    !     Me%VECG,                                                       &
+                    !     Me%VECW)     
+                    !griflet: new call 
                     call THOMAS_3D(ILBWS, IUBWS, JLBWS, JUBWS, KLBWS, KUBWS, di, dj,    &
-                         Me%COEF3%D,                                                    &
-                         Me%COEF3%E,                                                    &
-                         Me%COEF3%F,                                                    &
-                         Me%TICOEF3,                                                    &
-                         Me%ExternalVar%PROP,                                           &
-                         Me%VECG,                                                       &
-                         Me%VECW)      
+                         Me%THOMAS,                                                     &
+                         Me%ExternalVar%PROP)
                 
                 else if (ImpExp_AdvYY == ImplicitScheme) then cd2
 
                     di = 1
                     dj = 0
 
+                    !griflet: old call
+                    !call THOMAS_3D(JLBWS, JUBWS, ILBWS, IUBWS, KLBWS, KUBWS, di, dj,    &
+                    !     Me%COEF3%D,                                                    &
+                    !     Me%COEF3%E,                                                    &
+                    !     Me%COEF3%F,                                                    &
+                    !     Me%TICOEF3,                                                    &
+                    !     Me%ExternalVar%PROP,                                           &
+                    !     Me%VECG,                                                       &
+                    !     Me%VECW)      
+                    !griflet: new call
                     call THOMAS_3D(JLBWS, JUBWS, ILBWS, IUBWS, KLBWS, KUBWS, di, dj,    &
-                         Me%COEF3%D,                                                    &
-                         Me%COEF3%E,                                                    &
-                         Me%COEF3%F,                                                    &
-                         Me%TICOEF3,                                                    &
-                         Me%ExternalVar%PROP,                                           &
-                         Me%VECG,                                                       &
-                         Me%VECW)      
+                         Me%THOMAS,                                                     &
+                         Me%ExternalVar%PROP)      
 
                 endif cd2
 
@@ -3817,6 +3882,9 @@ cd6 :   if (associated(Me%ExternalVar%ReferenceProp)) then
         !Local-----------------------------------------------------------------
 
         integer :: STAT_, nUsers
+        !griflet
+        integer                 :: p
+        type(T_VECGW), pointer  :: VECGW
 
         !----------------------------------------------------------------------
 
@@ -3984,6 +4052,15 @@ cd1 :   if (ready_ /= OFF_ERR_) then
                     stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR21'
                 nullify   (Me%TICOEF3) 
 
+                !griflet
+                do p = 1, Me%MaxThreads
+                    VECGW => Me%THOMAS%VEC(p)
+                    deallocate(VECGW%G)
+                    deallocate(VECGW%W)
+                enddo 
+                deallocate(Me%THOMAS%VEC)
+                deallocate(Me%THOMAS%COEF3)
+                deallocate(Me%THOMAS)
 
                 deallocate(Me%VECW, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_)                                             &
