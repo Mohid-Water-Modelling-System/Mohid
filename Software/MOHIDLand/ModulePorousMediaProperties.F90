@@ -60,9 +60,13 @@ Module ModulePorousMediaProperties
     use ModuleProfile,            only : StartProfile, WriteProfile, KillProfile
     use ModuleGridData,           only : ConstructGridData, GetGridData, UngetGridData,    &
                                          KillGridData
-    use ModuleTimeSerie,          only : StartTimeSerie, WriteTimeSerie, KillTimeSerie         
+    use ModuleTimeSerie,          only : StartTimeSerie, WriteTimeSerie, KillTimeSerie,    &
+                                         GetNumberOfTimeSeries, GetTimeSerieLocation,      &
+                                         TryIgnoreTimeSerie, CorrectsCellsTimeSerie,       &
+                                         GetTimeSerieName
     use ModuleHorizontalGrid,     only : GetHorizontalGrid, GetGridCellArea,               &
-                                         WriteHorizontalGrid, UnGetHorizontalGrid
+                                         WriteHorizontalGrid, GetXYCellZ,                  &
+                                         UnGetHorizontalGrid
     use ModuleBasinGeometry,      only : GetBasinPoints, GetRiverPoints,  UnGetBasin 
                                        
     use ModuleFillMatrix,         only : ConstructFillMatrix, GetDefaultValue,             &
@@ -693,10 +697,14 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 call CalculateTotalStoredMass
             endif
 
+
             !First Output
             if (Me%Output%HDF_ON) then
+                call ReadLockExternalVar
                 call OutPut_HDF
+                call ReadUnLockExternalVar
             endif
+
 
 
             !Returns ID
@@ -759,7 +767,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         Me%XZFlow     = .false.
         
         
-        do I = ILB, IUB
+doI:    do I = ILB, IUB
         do J = JLB, JUB
         do K = KLB, KUB
             
@@ -784,14 +792,15 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 if (ComputeFacesX + ComputeFacesY .eq. 2) then
                     Me%Vertical1D = .false.
                     Me%XZFlow     = .false.
-                    return
+                    YFlow         = .true.
+                    exit doI
                 endif
                 
             endif
         
         enddo
         enddo
-        enddo   
+        enddo  doI
         
         !If in the end Xflow exists but never found Yflow then is a 2D XZflow
         if (ZFlow .and. XFlow .and. (.not. YFlow)) then
@@ -905,10 +914,6 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         call ReadFileName ('POROUS_PROP_FIN', Me%Files%FinalFile, "PorousMedia Final File", STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModulePorousMediaProperties - ERR01c'
    
-        !Reads the name of the file where to store final data
-        call ReadFileName ('POROUS_PROP_INI', Me%Files%InitialFile, "PorousMedia Initial File", STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModulePorousMediaProperties - ERR01d'
-
     end subroutine ReadFileNames
     
     !--------------------------------------------------------------------------
@@ -2481,6 +2486,11 @@ do1:    do while(associated(Property))
         character(len=StringLength)                         :: TimeSerieLocationFile
         type (T_Property), pointer                          :: PropertyX
         integer                                             :: n
+        integer                                             :: TimeSerieNumber, dn, Id, Jd
+        real                                                :: CoordX, CoordY
+        logical                                             :: CoordON, IgnoreOK
+        character(len=StringLength)                         :: TimeSerieName
+
         !Begin------------------------------------------------------------------
         
         !Counts the number of Properties which has timeserie option set to true (2x for inf col concentration)
@@ -2541,12 +2551,68 @@ do1:    do while(associated(Property))
                             STAT         = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_) stop 'ConstructTimeSerie - PorousMediaProperties - ERR02' 
 
-        !Unget
-        call UnGetMap                   (Me%ObjMap, Me%ExtVar%WaterPoints3D, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModulePorousMediaProperties - ERR085'
 
         !Deallocates PropertyList
         deallocate(PropertyList)
+        
+       
+        !Corrects if necessary the cell of the time serie based in the time serie coordinates
+        call GetNumberOfTimeSeries(Me%ObjTimeSerie, TimeSerieNumber, STAT  = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - PorousMediaProperties - ERR03'
+
+        do dn = 1, TimeSerieNumber
+
+            call GetTimeSerieLocation(Me%ObjTimeSerie, dn,                              &  
+                                      CoordX   = CoordX,                                &
+                                      CoordY   = CoordY,                                & 
+                                      CoordON  = CoordON,                               &
+                                      STAT     = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - PorousMediaProperties - ERR04'
+            
+            call GetTimeSerieName(Me%ObjTimeSerie, dn, TimeSerieName, STAT  = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - PorousMediaProperties - ERR04'
+            
+i1:         if (CoordON) then
+                call GetXYCellZ(Me%ObjHorizontalGrid, CoordX, CoordY, Id, Jd, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - PorousMediaProperties - ERR05'
+
+                if (Id < 0 .or. Jd < 0) then
+                
+                    call TryIgnoreTimeSerie(Me%ObjTimeSerie, dn, IgnoreOK, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - PorousMediaProperties - ERR06'
+
+                    if (IgnoreOK) then
+                        write(*,*) 'Time Serie outside the domain - ',trim(TimeSerieName),' - '
+                        cycle
+                    else
+                        stop 'ConstructTimeSerie - PorousMedia - ERR07'
+                    endif
+
+                endif
+
+
+                call CorrectsCellsTimeSerie(Me%ObjTimeSerie, dn, Id, Jd, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - PorousMediaProperties - ERR08'
+
+            endif i1
+
+            call GetTimeSerieLocation(Me%ObjTimeSerie, dn,                              &  
+                                      LocalizationI   = Id,                             &
+                                      LocalizationJ   = Jd,                             & 
+                                      STAT     = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - PorousMediaProperties - ERR09'
+
+            if (Me%ExtVar%WaterPoints3D(Id, Jd, Me%WorkSize%KUB) /= WaterPoint) then
+                 write(*,*) 'Time Serie in a land cell - ',trim(TimeSerieName),' - '
+            endif
+
+
+        enddo
+                
+        !Unget
+        call UnGetMap                   (Me%ObjMap, Me%ExtVar%WaterPoints3D, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModulePorousMediaProperties - ERR085'
+       
        
     end subroutine ConstructTimeSerie
 
@@ -2701,6 +2767,7 @@ do1:    do while(associated(Property))
         integer                                     :: WorkKLB, WorkKUB
         integer                                     :: ObjHDF5
         integer                                     :: HDF5_READ
+        logical, save                               :: FileNameRead = .false.                                     
         !----------------------------------------------------------------------
 
         ILB = Me%Size%ILB 
@@ -2718,6 +2785,17 @@ do1:    do while(associated(Property))
         WorkKUB = Me%WorkSize%KUB 
 
         !----------------------------------------------------------------------
+
+        !Reads name of the file from Nomfich
+        if (.not. FileNameRead) then
+        
+            !Reads the name of the file where to store final data
+            call ReadFileName ('POROUS_PROP_INI', Me%Files%InitialFile, "PorousMedia Initial File", STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ReadOldConcBoundariesHDF - ERR00'
+
+            FileNameRead = .true.
+
+        endif
 
 
         inquire (FILE=trim(Me%Files%InitialFile)//"5", EXIST = Exist)

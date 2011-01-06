@@ -59,9 +59,12 @@ Module ModuleRunoffProperties
     use ModuleProfile,          only : StartProfile, WriteProfile, KillProfile
     use ModuleGridData,         only : ConstructGridData, GetGridData, UngetGridData,    &
                                        KillGridData
-    use ModuleTimeSerie,        only : StartTimeSerie, WriteTimeSerie, KillTimeSerie         
+    use ModuleTimeSerie,        only : StartTimeSerie, WriteTimeSerie,                   &
+                                       GetNumberOfTimeSeries, GetTimeSerieLocation,      &
+                                       GetTimeSerieName, TryIgnoreTimeSerie,             &
+                                       CorrectsCellsTimeSerie, KillTimeSerie         
     use ModuleHorizontalGrid,   only : GetHorizontalGridSize, GetHorizontalGrid,         &
-                                       GetGridCellArea,                                  &
+                                       GetGridCellArea, GetXYCellZ,                      &
                                        WriteHorizontalGrid, UnGetHorizontalGrid
     use ModuleBasinGeometry,    only : GetBasinPoints, GetRiverPoints,  UnGetBasin 
                                        
@@ -472,6 +475,7 @@ Module ModuleRunoffProperties
 !        real, dimension(:,:), pointer               :: ShearStressY
                
         real(8), pointer, dimension(:,:)            :: WaterVolume
+        integer, pointer, dimension(:,:)            :: DummyOpenPoints
 
         real                                        :: HminChezy                !for shear stress computation
         real                                        :: HcriticSplash            !for splash erosion
@@ -576,9 +580,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 call ConstructPartition
             end if            
             
-            if (Me%Coupled%BottomFluxes) then            
+            !if (Me%Coupled%BottomFluxes) then            
                 call ConstructData2D
-            endif
+            !endif
             
             call AllocateVariables
             
@@ -737,10 +741,6 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         call ReadFileName ('RUNOFF_PROP_FIN', Me%Files%FinalFile, "Runoff Final File", STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunoffProperties - ERR01c'
 
-        !Reads the name of the file where to read restart options
-        call ReadFileName ('RUNOFF_PROP_INI', Me%Files%InitialFile, "Runoff Initial File", STAT = STAT_CALL)
-        !if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunoffProperties - ERR01d'
-   
 
     end subroutine ReadFileNames
     
@@ -889,6 +889,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         if (Me%Coupled%AdvectionDiffusion) then
             allocate(Me%WaterVolume(ILB:IUB, JLB:JUB))
             Me%WaterVolume = 0.0
+            
+            allocate(Me%DummyOpenPoints(ILB:IUB, JLB:JUB))
+            Me%DummyOpenPoints = 0
 
             allocate (Me%COEFExpl%CoefInterfDN     (ILB:IUB,JLB:JUB))
             Me%COEFExpl%CoefInterfDN     = 0.0
@@ -2534,6 +2537,11 @@ do1:    do while(associated(Property))
         character(len=StringLength)                         :: TimeSerieLocationFile
         type (T_Property), pointer                          :: PropertyX
         integer                                             :: n
+        integer                                             :: TimeSerieNumber, dn, Id, Jd
+        real                                                :: CoordX, CoordY
+        logical                                             :: CoordON, IgnoreOK
+        character(len=StringLength)                         :: TimeSerieName
+        
         !Begin------------------------------------------------------------------
         
         !Counts the number of Properties which has timeserie option set to true
@@ -2639,6 +2647,66 @@ do1:    do while(associated(Property))
 
         !Deallocates PropertyList
         deallocate(PropertyList)
+
+        !Corrects if necessary the cell of the time serie based in the time serie coordinates
+        call GetNumberOfTimeSeries(Me%ObjTimeSerie, TimeSerieNumber, STAT  = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleRunoffProperties - ERR03'
+
+        do dn = 1, TimeSerieNumber
+
+            call GetTimeSerieLocation(Me%ObjTimeSerie, dn,                              &  
+                                      CoordX   = CoordX,                                &
+                                      CoordY   = CoordY,                                & 
+                                      CoordON  = CoordON,                               &
+                                      STAT     = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleRunoffProperties - ERR04'
+            
+            call GetTimeSerieName(Me%ObjTimeSerie, dn, TimeSerieName, STAT  = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleRunoffProperties - ERR04'
+            
+i1:         if (CoordON) then
+                call GetXYCellZ(Me%ObjHorizontalGrid, CoordX, CoordY, Id, Jd, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleRunoffProperties - ERR05'
+
+                if (Id < 0 .or. Jd < 0) then
+                
+                    call TryIgnoreTimeSerie(Me%ObjTimeSerie, dn, IgnoreOK, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleRunoffProperties - ERR06'
+
+                    if (IgnoreOK) then
+                        write(*,*) 'Time Serie outside the domain - ',trim(TimeSerieName)
+                        cycle
+                    else
+                        stop 'ConstructTimeSerie - ModuleRunoffProperties - ERR07'
+                    endif
+
+                endif
+
+
+                call CorrectsCellsTimeSerie(Me%ObjTimeSerie, dn, Id, Jd, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleRunoffProperties - ERR08'
+
+            endif i1
+
+            call GetTimeSerieLocation(Me%ObjTimeSerie, dn,                              &  
+                                      LocalizationI   = Id,                             &
+                                      LocalizationJ   = Jd,                             & 
+                                      STAT     = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleRunoffProperties - ERR09'
+
+            call GetBasinPoints (Me%ObjBasinGeometry, Me%ExtVar%BasinPoints, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleRunoffProperties - ERR090'
+
+            if (Me%ExtVar%BasinPoints(Id, Jd) /= WaterPoint) then
+                 write(*,*) 'Time Serie in a cell outside basin - ',trim(TimeSerieName)
+            endif
+            
+            call UnGetBasin                (Me%ObjBasinGeometry, Me%ExtVar%BasinPoints, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleRunoffProperties - ERR0140'
+
+
+        enddo
+
        
     end subroutine ConstructTimeSerie
 
@@ -2815,6 +2883,8 @@ do1:     do
         integer                                     :: WorkJLB, WorkJUB
         integer                                     :: ObjHDF5
         integer                                     :: HDF5_READ
+        logical, save                               :: FileNameRead = .false.                                     
+
         !----------------------------------------------------------------------
 
         ILB = Me%Size%ILB 
@@ -2829,6 +2899,15 @@ do1:     do
 
         !----------------------------------------------------------------------
 
+        !Reads the name of the file where to read restart options
+        if (.not. FileNameRead) then
+
+            call ReadFileName ('RUNOFF_PROP_INI', Me%Files%InitialFile, "Runoff Initial File", STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadOldConcBoundariesHDF - ModuleRunoffProperties - ERR00'
+
+            FileNameRead = .true.
+
+        endif
 
         inquire (FILE=trim(Me%Files%InitialFile)//"5", EXIST = Exist)
 
@@ -4291,6 +4370,12 @@ cd0:    if (Exist) then
             if (Me%ExtVar%BasinPoints(i,j) == BasinPoint) then             
                  
                 Me%WaterVolume(i,j)        = Me%ExtVar%WaterColumn(i,j) * Me%ExtVar%Area(i,j)
+                
+                if (Me%WaterVolume(i, j) > AllMostZero) then
+                    Me%DummyOpenPoints(i,j) = 1
+                else
+                    Me%DummyOpenPoints(i,j) = 0
+                endif
 
             endif
         enddo
@@ -4670,7 +4755,7 @@ i1:     do i = ILB, IUB
                                     CurrProp%Concentration      (i,:),              &
                                     Me%ExtVar%FluxU             (i,:),              &
                                     Me%WaterVolume              (i,:),              & 
-                                    Me%ExtVar%BasinPoints       (i,:),              &
+                                    Me%DummyOpenPoints          (i,:),              &
                                     Me%COEF3_HorAdvXX%C_flux    (i,:),              &
                                     Me%COEF3_HorAdvXX%D_flux    (i,:),              &
                                     Me%COEF3_HorAdvXX%E_flux    (i,:),              &
@@ -4799,7 +4884,7 @@ j1:     do j = JLB, JUB
                                     CurrProp%Concentration      (:,j),                          &
                                     Me%ExtVar%FluxV             (:,j),                          &
                                     Me%WaterVolume              (:,j),                          & 
-                                    Me%ExtVar%BasinPoints       (:,j),                          &
+                                    Me%DummyOpenPoints          (:,j),                          &
                                     Me%COEF3_HorAdvYY%C_flux    (:,j),                          &
                                     Me%COEF3_HorAdvYY%D_flux    (:,j),                          &
                                     Me%COEF3_HorAdvYY%E_flux    (:,j),                          &
@@ -4917,7 +5002,9 @@ doi4 :      do i = ILB, IUB
         do J = Me%WorkSize%JLB, Me%WorkSize%JUB
         do I = Me%WorkSize%ILB, Me%WorkSize%IUB
             
-            if ((Me%ExtVar%BasinPoints(I,J) == BasinPoint) .and. (Me%ExtVar%RiverPoints(I,J) == BasinPoint)) then   
+            if ((Me%ExtVar%BasinPoints(I,J) == BasinPoint) .and.  &
+                (Me%ExtVar%RiverPoints(I,J) == BasinPoint) .and.  &
+                (Me%DummyOpenPoints(I,J)    == BasinPoint)) then   
                        
                 !Auxuliar value for transport - units of flow^-1
                 !s/m3

@@ -7861,38 +7861,42 @@ do2 :   do while (associated(PropertyX))
         ISDischargeConc = DischargeConc * ISCoef
         ISConcentration = Concentration * ISCoef
 
-        if      (DischargeFlow > 0.0) then
+        if (abs(DischargeFlow) > AllmostZero) then
+        
+            if      (DischargeFlow > 0.0) then
 
-            !Explicit discharges input 
-            DischargeVolume  = dble(LocalDT)*dble(DischargeFlow)
+                !Explicit discharges input 
+                DischargeVolume  = dble(LocalDT)*dble(DischargeFlow)
 
-            OldMass          = dble(ISConcentration) * Volume
-            NewMass          = OldMass + DischargeVolume * dble(ISDischargeConc)                                       
+                OldMass          = dble(ISConcentration) * Volume
+                NewMass          = OldMass + DischargeVolume * dble(ISDischargeConc)                                       
 
-            ISConcentration = NewMass / (Volume + DischargeFlow * LocalDT)
+                ISConcentration = NewMass / (Volume + DischargeFlow * LocalDT)
 
-        elseif (DischargeFlow < 0.0) then
-                
-            !If the discharge flow is negative (Output) then the concentration
-            !to consider is the concentration of the NOD ID where the discharge
-            !is located
+            elseif (DischargeFlow < 0.0) then
+                    
+                !If the discharge flow is negative (Output) then the concentration
+                !to consider is the concentration of the NOD ID where the discharge
+                !is located
 
-            !If the property acculumlates in the water column 
-            !(e.g particulate properties during infiltration) then the concentration will increase
+                !If the property acculumlates in the water column 
+                !(e.g particulate properties during infiltration) then the concentration will increase
 
-            !Implicit discharges output
-            DischargeVolume  = dble(LocalDT)*dble(DischargeFlow)
+                !Implicit discharges output
+                DischargeVolume  = dble(LocalDT)*dble(DischargeFlow)
 
-            OldMass          = dble(ISConcentration) * Volume
+                OldMass          = dble(ISConcentration) * Volume
 
-            if (Accumulate) then
-                !Concentration    = OldMass / (Volume + DischargeFlow * LocalDT)
-                NewMass          = OldMass
-            else
-                NewMass          = OldMass * (1.0 + DischargeVolume / Volume)
+                if (Accumulate) then
+                    !Concentration    = OldMass / (Volume + DischargeFlow * LocalDT)
+                    NewMass          = OldMass
+                else
+                    NewMass          = OldMass * (1.0 + DischargeVolume / Volume)
+                endif
+
+                ISConcentration    = NewMass / (Volume + DischargeFlow * LocalDT)
+
             endif
-
-            ISConcentration    = NewMass / (Volume + DischargeFlow * LocalDT)
 
         else
             

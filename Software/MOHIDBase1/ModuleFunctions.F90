@@ -5561,16 +5561,18 @@ i1:         if (ComputePoints(i-1) == Compute .and. ComputePoints(i) == Compute)
 
         call FaceConcUpFirstOrder(Cup1, QFace)
 
-        if (QFace > 0) then
-            Cr          = Courant (QFace,V(2),dt)  
-            
-            Aux         = min(V(1),V(2),V(3))
-            VolumeRel   = max(V(1),V(2),V(3)) / Aux 
-        else
-            Cr  = Courant (QFace,V(3),dt)
-            
-            Aux         = min(V(2),V(3),V(4))
-            VolumeRel   = max(V(2),V(3),V(4)) / Aux 
+        if (.not. NearBoundary) then
+            if (QFace > 0) then
+                Cr          = Courant (QFace,V(2),dt)  
+                
+                Aux         = min(V(1),V(2),V(3))
+                VolumeRel   = max(V(1),V(2),V(3)) / Aux 
+            else
+                Cr  = Courant (QFace,V(3),dt)
+                
+                Aux         = min(V(2),V(3),V(4))
+                VolumeRel   = max(V(2),V(3),V(4)) / Aux 
+            endif
         endif
 
 i2 :    if (Method == UpwindOrder1 .or. (NearBoundary.and.Upwind2)) then 

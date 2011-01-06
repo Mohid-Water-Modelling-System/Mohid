@@ -518,6 +518,8 @@ Module ModulePorousMedia
 
         !Local-------------------------------------------------------------------
         integer                                         :: STAT_, STAT_CALL
+        integer                                         :: DummyI
+        real                                            :: DummyR
 
         !------------------------------------------------------------------------
 
@@ -579,6 +581,13 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             GeometryID = Me%ObjGeometry
             MapID      = Me%ObjMap
 
+            !Updates Map (OpenPoints) for first output
+            call UpdateComputeFaces3D(  Map_ID         = Me%ObjMap,                       &
+                                        DummyR         = DummyR,                          &
+                                        DummyI         = DummyI,                          &
+                                        STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructPorousMedia - ModulePorousMedia - ERR01c'
+            
             call ReadLockExternalVar 
            
             call AllocateVariables
@@ -3580,11 +3589,6 @@ i1:         if (CoordON) then
         call SetMatrixValue (Me%iFlowToChannels,  Me%Size2D, Zero,              Me%ExtVar%BasinPoints)
         call SetMatrixValue (Me%iFlowToChannelsLayer,  Me%Size, Zero,         Me%ExtVar%WaterPoints3D)
         
-!        call SetMatrixValue (Me%FluxWAcc, Me%Size, dble(0.0), Me%ExtVar%WaterPoints3D) 
-!        call SetMatrixValue (Me%FluxVAcc, Me%Size, dble(0.0), Me%ExtVar%WaterPoints3D) 
-!        call SetMatrixValue (Me%FluxUAcc, Me%Size, dble(0.0), Me%ExtVar%WaterPoints3D) 
-!        call SetMatrixValue (Me%FluxWAccFinal, Me%Size, dble(0.0), Me%ExtVar%WaterPoints3D) 
-        
         iteration         = 1
         Niteration        = 1
         Me%CV%CurrentDT   = Me%ExtVar%DT / Niteration
@@ -3622,10 +3626,9 @@ dConv:  do while (iteration <= Niteration)
             endif
             
             !Calculates New Theta
-!            OverSaturation = .false.
-!            call CalculateNewTheta  (OverSaturation)
             call CalculateNewTheta  ()
 
+            !Checks for variation of theta values
             call variation_test     (StrongVariation)
 
             !Vertical Continuty            
@@ -3649,12 +3652,6 @@ dConv:  do while (iteration <= Niteration)
                 call SetMatrixValue (Me%iFlowToChannels,Me%Size2D, Zero,                Me%ExtVar%BasinPoints)
                 call SetMatrixValue (Me%iFlowToChannelsLayer,Me%Size, Zero,           Me%ExtVar%WaterPoints3D)
                 
-                !Resets Accumulated flows
-!                call SetMatrixValue (Me%FluxWAcc, Me%Size, dble(0.0), Me%ExtVar%WaterPoints3D) 
-!                call SetMatrixValue (Me%FluxVAcc, Me%Size, dble(0.0), Me%ExtVar%WaterPoints3D) 
-!                call SetMatrixValue (Me%FluxUAcc, Me%Size, dble(0.0), Me%ExtVar%WaterPoints3D) 
-!                call SetMatrixValue (Me%FluxWAccFinal, Me%Size, dble(0.0), Me%ExtVar%WaterPoints3D)  
-
                 Me%FluxWAcc = 0.
                 Me%FluxVAcc = 0.
                 Me%FluxUAcc = 0.
@@ -3662,6 +3659,7 @@ dConv:  do while (iteration <= Niteration)
                               
             else
                 
+                !Moves water in oversaturated cells up and down
                 call VerticalContinuity
 
                 !Calulates Heads / Conductivities from new Theta values
@@ -3669,9 +3667,6 @@ dConv:  do while (iteration <= Niteration)
 
                 !Removes water due to infiltration
                 call IntegrateValuesInTime(SumDT)
-                
-                !Advection of Properties
-!                call CalculateAdvection
                 
                 !Accumulate flows
                 call AccumulateFlows
