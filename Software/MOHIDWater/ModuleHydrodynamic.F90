@@ -1382,6 +1382,7 @@ Module ModuleHydrodynamic
         !griflet
         integer :: MaxThreads
         type(T_THOMAS), pointer         :: THOMAS
+        type(T_THOMAS2D), pointer       :: THOMAS2D
 
         type (T_Hydrodynamic), pointer :: Next
 
@@ -6538,11 +6539,16 @@ cd2:    if (Me%ComputeOptions%BarotropicRadia == FlatherWindWave_ .or.      &
         
         allocate(Me%THOMAS)
         allocate(Me%THOMAS%COEF3)
-        allocate(Me%THOMAS%VEC(1:Me%MaxThreads))                
+        allocate(Me%THOMAS%VEC(1:Me%MaxThreads))  
+                      
+        allocate(Me%THOMAS2D)
+        allocate(Me%THOMAS2D%COEF2)
+        allocate(Me%THOMAS2D%VEC(1:Me%MaxThreads))  
+
         allocate(Me%Coef%Baroc(1:Me%MaxThreads))        
+        
         do p=1,Me%MaxThreads
         
-            VECGW => Me%THOMAS%VEC(p)
             LocalBaroc => Me%Coef%Baroc(p)
                         
     cd3:    if (Me%ComputeOptions%Baroclinic) then 
@@ -6571,16 +6577,28 @@ cd2:    if (Me%ComputeOptions%BarotropicRadia == FlatherWindWave_ .or.      &
                 
             endif cd3
         
+            VECGW => Me%THOMAS2D%VEC(p)
+
+            allocate(VECGW%G(JImin:JImax))
+            allocate(VECGW%W(JImin:JImax))
+
+            VECGW => Me%THOMAS%VEC(p)
+
             allocate(VECGW%G(IJKLB:IJKUB))
             allocate(VECGW%W(IJKLB:IJKUB))
             
         enddo
         
+        Me%THOMAS2D%COEF2%D => Me%Coef%D2%D
+        Me%THOMAS2D%COEF2%F => Me%Coef%D2%F
+        Me%THOMAS2D%TI => Me%Coef%D2%Ti
+        Me%THOMAS2D%COEF2%E => Me%Coef%D2%E
+        
         Me%THOMAS%COEF3%D => Me%Coef%D3%D
         Me%THOMAS%COEF3%F => Me%Coef%D3%F
         Me%THOMAS%Ti => Me%Coef%D3%Ti
         Me%THOMAS%COEF3%E => Me%Coef%D3%E
-        
+
         !griflet: END
         
         if (Me%ComputeOptions%BarotropicRadia == BlumbergKantha_)           &
@@ -12449,10 +12467,10 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
         !Just consider Fluxes which leave cell
         CourantDT = -FillValueReal
 
-        !$OMP PARALLEL PRIVATE(i,j,k,TotalFlux,AuxDT)
+        !!$OMP PARALLEL PRIVATE(i,j,k,TotalFlux,AuxDT)
                 
         do k = Me%WorkSize%KLB, Me%WorkSize%KUB
-        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+        !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
         do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
@@ -12501,9 +12519,9 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             endif
         enddo
         enddo
-        !$OMP END DO NOWAIT
+        !!$OMP END DO NOWAIT
         enddo
-        !$OMP END PARALLEL
+        !!$OMP END PARALLEL
         
         
         if (MonitorPerformance) call StopWatch ("ModuleHydrodynamic", "CalcNewDT")
@@ -21705,9 +21723,12 @@ dok1:           do  k = Kbottom, KUB
             if (.not. Me%CyclicBoundary%ON .or.                                              &
                      (Me%CyclicBoundary%ON .and. Me%CyclicBoundary%Direction == Me%Direction%YX))  then
 
-                call THOMAS_2D(IJmin, IJmax, JImin, JImax, di, dj, DCoef_2D, ECoef_2D,       &
-                               FCoef_2D, TiCoef_2D, WaterLevel_New,                          &
-                               Me%VECG_2D, Me%VECW_2D)
+                !griflet: old call
+                !call THOMAS_2D(IJmin, IJmax, JImin, JImax, di, dj, DCoef_2D, ECoef_2D,       &
+                !               FCoef_2D, TiCoef_2D, WaterLevel_New,                          &
+                !               Me%VECG_2D, Me%VECW_2D)
+                !griflet: new call
+                call THOMAS_2D(IJmin, IJmax, JImin, JImax, di, dj, Me%THOMAS2D, WaterLevel_New)
 
             else
 
@@ -34973,10 +34994,10 @@ dok:            do  K = kbottom, KUB
         
         !griflet: Ok, it is assumed that *statically* allocated arrays may be safely replicated
         !with the private directive.
-        !$OMP PARALLEL PRIVATE( i,j,k,iSouth,jWest,Kbottom,CorrectionOld, &
-        !$OMP                   Face_Flux,CorrectionNew,NearBoundary,Vel4, &
-        !$OMP                   du4,V4,MomentumFlux,CFace)
-        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+        !!$OMP PARALLEL PRIVATE( i,j,k,iSouth,jWest,Kbottom,CorrectionOld, &
+        !!$OMP                   Face_Flux,CorrectionNew,NearBoundary,Vel4, &
+        !!$OMP                   du4,V4,MomentumFlux,CFace)
+        !!$OMP DO SCHEDULE(DYNAMIC,CHUNK)
 doi:     do j=JLB, JUB
 doj:     do i=ILB, IUB
 
@@ -35199,8 +35220,8 @@ dok1:           do  k = Kbottom + 1, KUB
 
         enddo doj
         enddo doi
-        !$OMP END DO NOWAIT
-        !$OMP END PARALLEL
+        !!$OMP END DO NOWAIT
+        !!$OMP END PARALLEL
 
         if (MonitorPerformance) then
             call StopWatch ("ModuleHydrodynamic", "Velocity_VerticalAdvection")
@@ -41759,6 +41780,15 @@ cd4:    if (Me%ComputeOptions%Baroclinic) then
         endif cd4
 
         !griflet
+        do p = 1, Me%MaxThreads
+            VECGW => Me%THOMAS2D%VEC(p)
+            deallocate(VECGW%G)
+            deallocate(VECGW%W)
+        enddo        
+        deallocate(Me%THOMAS2D%VEC)
+        deallocate(Me%THOMAS2D%COEF2)
+        deallocate(Me%THOMAS2D)
+
         do p = 1, Me%MaxThreads
             VECGW => Me%THOMAS%VEC(p)
             deallocate(VECGW%G)

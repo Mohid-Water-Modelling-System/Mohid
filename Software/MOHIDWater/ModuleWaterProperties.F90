@@ -13647,7 +13647,7 @@ cd2 :       if (Actual.GE.Property%Evolution%NextCompute) then
         integer                                 :: i, j, k
         real(8)                                 :: RoRef
         real                                    :: Depth
-        integer                                 :: CHUNK
+        !$ integer                                 :: CHUNK
         
         !Begin----------------------------------------------------------------- 
 
@@ -13660,7 +13660,7 @@ cd10:   if (CurrentTime > Me%Density%LastActualization) then
             KLB = Me%WorkSize%KLB 
             KUB = Me%WorkSize%KUB 
 
-            CHUNK = CHUNK_J(JLB, JUB)
+            !$ CHUNK = CHUNK_J(JLB, JUB)
 
             call Search_Property(PropertyX, PropertyXID = Salinity_, STAT = STAT_CALL)
             if (STAT_CALL/= SUCCESS_)stop 'ModifyDensity - ModuleWaterProperties - ERR01.'
@@ -13692,10 +13692,9 @@ cd10:   if (CurrentTime > Me%Density%LastActualization) then
 
                 Case (WangState_) 
 
-                    !ACanas(2010): Call of function in cycle iterations
-                    !ACanas(2010): prevents parallelization.
-
+                    !$OMP PARALLEL PRIVATE(k,j,i)
                     do k = KLB, KUB
+                    !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
                     do j = JLB, JUB
                     do i = ILB, IUB
 
@@ -13707,14 +13706,15 @@ cd10:   if (CurrentTime > Me%Density%LastActualization) then
 
                     enddo
                     enddo
+                    !$OMP END DO NOWAIT
                     enddo
+                    !$OMP END PARALLEL
 
                 Case (LeendertseState_) 
 
-                    !ACanas(2010): Call of function in cycle iterations
-                    !ACanas(2010): prevents parallelization.
-
+                    !$OMP PARALLEL PRIVATE(k,j,i)
                     do k = KLB, KUB
+                    !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
                     do j = JLB, JUB
                     do i = ILB, IUB
 
@@ -13726,14 +13726,15 @@ cd10:   if (CurrentTime > Me%Density%LastActualization) then
 
                     enddo
                     enddo
+                    !$OMP END DO NOWAIT
                     enddo
+                    !$OMP END PARALLEL
 
                 case (UNESCOState_)
 
-                    !ACanas(2010): Call of function in cycle iterations
-                    !ACanas(2010): prevents parallelization.
-                                  
+                    !$OMP PARALLEL PRIVATE(k,j,i)
                     do k = KLB, KUB
+                    !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
                     do j = JLB, JUB
                     do i = ILB, IUB
 
@@ -13745,14 +13746,15 @@ cd10:   if (CurrentTime > Me%Density%LastActualization) then
 
                     enddo
                     enddo
+                    !$OMP END DO NOWAIT
                     enddo
+                    !$OMP END PARALLEL
                         
                 case (Mel96State_)
 
-                    !ACanas(2010): Call of function in cycle iterations
-                    !ACanas(2010): prevents parallelization.
-
+                    !$OMP PARALLEL PRIVATE(k,j,i)
                     do k = KLB, KUB
+                    !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
                     do j = JLB, JUB
                     do i = ILB, IUB
 
@@ -13764,14 +13766,15 @@ cd10:   if (CurrentTime > Me%Density%LastActualization) then
 
                     enddo
                     enddo
+                    !$OMP END DO NOWAIT
                     enddo
+                    !$OMP END PARALLEL
 
                 case (JMD95State_)
 
-                    !ACanas(2010): Call of function in cycle iterations
-                    !ACanas(2010): prevents parallelization.
-
+                    !$OMP PARALLEL PRIVATE(k,j,i)
                     do k = KLB, KUB
+                    !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
                     do j = JLB, JUB
                     do i = ILB, IUB
 
@@ -13783,7 +13786,9 @@ cd10:   if (CurrentTime > Me%Density%LastActualization) then
 
                     enddo
                     enddo
+                    !$OMP END DO NOWAIT
                     enddo
+                    !$OMP END PARALLEL
 
                 case (Linear_)
 
@@ -13794,7 +13799,6 @@ cd10:   if (CurrentTime > Me%Density%LastActualization) then
                     !AlphaS= 0.78 kg/m^3/psu
 
                     !$OMP PARALLEL PRIVATE(I,J,K)
-
                     do k = KLB, KUB
                     !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
                     do j = JLB, JUB
@@ -13825,10 +13829,9 @@ cd10:   if (CurrentTime > Me%Density%LastActualization) then
 
                     case (UNESCOState_)
                     
-                        !ACanas(2010): Call of function in cycle iterations
-                        !ACanas(2010): prevents parallelization.
-
-                        do k = KLB, KUB
+                    !$OMP PARALLEL PRIVATE(k,j,i,Depth)
+                    do k = KLB, KUB
+                    !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
                         do j = JLB, JUB
                         do i = ILB, IUB
     
@@ -13844,14 +13847,15 @@ cd10:   if (CurrentTime > Me%Density%LastActualization) then
 
                         enddo
                         enddo
+                        !$OMP END DO NOWAIT
                         enddo
+                        !$OMP END PARALLEL
 
                     case (Mel96State_)
                         
-                        !ACanas(2010): Call of function in cycle iterations
-                        !ACanas(2010): prevents parallelization.
-
+                        !$OMP PARALLEL PRIVATE(k,j,i,Depth)
                         do k = KLB, KUB
+                        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
                         do j = JLB, JUB
                         do i = ILB, IUB
     
@@ -13867,14 +13871,15 @@ cd10:   if (CurrentTime > Me%Density%LastActualization) then
 
                         enddo
                         enddo
+                        !$OMP END DO NOWAIT
                         enddo
+                        !$OMP END PARALLEL
 
                     case (JMD95State_)
                         
-                        !ACanas(2010): Call of function in cycle iterations
-                        !ACanas(2010): prevents parallelization.
-
+                        !$OMP PARALLEL PRIVATE(k,j,i,Depth)
                         do k = KLB, KUB
+                        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
                         do j = JLB, JUB
                         do i = ILB, IUB
     
@@ -13890,7 +13895,9 @@ cd10:   if (CurrentTime > Me%Density%LastActualization) then
 
                         enddo
                         enddo
+                        !$OMP END DO NOWAIT
                         enddo
+                        !$OMP END PARALLEL
 
                 end select
 
@@ -13908,9 +13915,11 @@ cd10:   if (CurrentTime > Me%Density%LastActualization) then
 
             enddo
             enddo
-            !$OMP END DO
+            !$OMP END DO NOWAIT
             enddo
+            !$OMP END PARALLEL
 
+            !$OMP PARALLEL PRIVATE(I,J,K)
             do k = KLB, KUB
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
             do j = JLB, JUB

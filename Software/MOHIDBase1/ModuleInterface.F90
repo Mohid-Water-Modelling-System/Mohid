@@ -32,6 +32,9 @@ Module ModuleInterface
 
     use ModuleGlobalData
     use ModuleTime
+    !griflet
+    !$ use ModuleFunctions, only: CHUNK_J
+    use ModuleStopWatch, only: StartWatch, StopWatch
     use ModuleWaterQuality
     use ModuleSedimentQuality
     use ModuleCEQUALW2
@@ -47,7 +50,9 @@ Module ModuleInterface
 #ifdef _BFM_    
     use ModuleBFM
 #endif
-
+    !griflet
+    !$ use omp_lib
+    
     implicit none
 
     private
@@ -2224,11 +2229,14 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
         integer                                         :: PropLB, PropUB, ArrayLB, ArrayUB 
         real                                            :: DTProp_
         logical                                         :: Increment
+        !$ integer                                      :: CHUNK
         
 !        !DEBUG purposes--------------------------------------------------------
 !        real :: old_value, new_value
         
         !----------------------------------------------------------------------
+
+        if (MonitorPerformance) call StartWatch ("ModuleInterface", "Modify_Interface3D")
 
         STAT_ = UNKNOWN_
 
@@ -2243,6 +2251,8 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             KLB     = Me%Size3D%KLB
             KUB     = Me%Size3D%KUB
 
+            !$ CHUNK = CHUNK_J(JLB,JUB)
+            
             PropLB  = Me%Prop%ILB
             PropUB  = Me%Prop%IUB
 
@@ -2468,12 +2478,17 @@ cd4 :           if (ReadyToCompute) then
 #endif
                     end select
 
+                    !griflet
+                    !$OMP PARALLEL PRIVATE(prop,index)
+                    !$OMP DO
 do7 :               do prop  = PropLB,  PropUB
 do6 :               do index = ArrayLB, ArrayUB
                         Me%ConcentrationIncrement(prop, index) = Me%Mass(prop, index) - &
                                                                  Me%ConcentrationIncrement(prop, index)
                     end do do6
                     end do do7
+                    !$OMP END DO NOWAIT
+                    !$OMP END PARALLEL
                 
                 end if cd4
 
@@ -2493,7 +2508,10 @@ do6 :               do index = ArrayLB, ArrayUB
                         call GetDTWQM(Me%ObjWaterQuality, DTSecond = DT, STAT = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_) stop 'Modify_Interface3D - ModuleInterface - ERR09'
 
+                        !griflet
+                        !$OMP PARALLEL PRIVATE(k,j,i,Index)
 do1 :                   do k = KLB, KUB
+                        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
 do2 :                   do j = JLB, JUB
 do3 :                   do i = ILB, IUB
 cd2 :                       if (Me%ExternalVar%WaterPoints3D(i, j, k) == 1) then
@@ -2507,14 +2525,19 @@ cd2 :                       if (Me%ExternalVar%WaterPoints3D(i, j, k) == 1) then
                             end if cd2
                         end do do3
                         end do do2
+                        !$OMP END DO NOWAIT
                         end do do1
+                        !$OMP END PARALLEL
 
                     case(SedimentQualityModel)
                         
                         call GetDTSedimentQuality(Me%ObjSedimentQuality, DTSecond = DT, STAT = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_) stop 'Modify_Interface3D - ModuleInterface - ERR10'                
 
+                        !griflet
+                        !$OMP PARALLEL PRIVATE(k,j,i,Index)
 do8 :                   do k = KLB, KUB
+                        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
 do9 :                   do j = JLB, JUB
 do10:                   do i = ILB, IUB
 cd8 :                       if (Me%ExternalVar%WaterPoints3D(i, j, k) == 1) then
@@ -2525,7 +2548,9 @@ cd8 :                       if (Me%ExternalVar%WaterPoints3D(i, j, k) == 1) then
                             end if cd8
                         end do do10
                         end do do9
+                        !$OMP END DO NOWAIT
                         end do do8
+                        !$OMP END PARALLEL
 
 
 
@@ -2534,7 +2559,10 @@ cd8 :                       if (Me%ExternalVar%WaterPoints3D(i, j, k) == 1) then
                         call GetDTCEQUALW2(Me%ObjCEQUALW2, DTSecond = DT, STAT = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_) stop 'Modify_Interface3D - ModuleInterface - ERR11'
 
+                        !griflet
+                        !$OMP PARALLEL PRIVATE(k,j,i,Index)
 do11 :                   do k = KLB, KUB
+                        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
 do12 :                   do j = JLB, JUB
 do13 :                   do i = ILB, IUB
 cd9 :                       if (Me%ExternalVar%WaterPoints3D(i, j, k) == 1) then
@@ -2548,16 +2576,19 @@ cd9 :                       if (Me%ExternalVar%WaterPoints3D(i, j, k) == 1) then
                             end if cd9
                         end do do13
                         end do do12
+                        !$OMP END DO NOWAIT
                         end do do11
+                        !$OMP END PARALLEL
 
-
-                   
                     case(LifeModel)
 
                         call GetDTLife(Me%ObjLife, DT = DT, STAT = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_) stop 'Modify_Interface3D - ModuleInterface - ERR12'
 
+                        !griflet
+                        !$OMP PARALLEL PRIVATE(k,j,i,Index)
 do15 :                   do k = KLB, KUB
+                        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
 do16 :                   do j = JLB, JUB
 do17 :                   do i = ILB, IUB
 cd14 :                       if (Me%ExternalVar%WaterPoints3D(i, j, k) == 1) then
@@ -2571,14 +2602,19 @@ cd14 :                       if (Me%ExternalVar%WaterPoints3D(i, j, k) == 1) the
                             end if cd14
                         end do do17
                         end do do16
+                        !$OMP END DO NOWAIT
                         end do do15
+                        !$OMP END PARALLEL
 #ifdef _BFM_  
                     case(BFMModel)
 
                         call GetDTBFM(Me%ObjBFM, DTSecond = DT, STAT = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_) stop 'Modify_Interface3D - ModuleInterface - ERR13a'
 
+                        !griflet
+                        !$OMP PARALLEL PRIVATE(k,j,i,Index)
                         do k = KLB, KUB
+                        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
                         do j = JLB, JUB
                         do i = ILB, IUB
                             if (Me%ExternalVar%WaterPoints3D(i, j, k) == 1) then
@@ -2591,7 +2627,9 @@ cd14 :                       if (Me%ExternalVar%WaterPoints3D(i, j, k) == 1) the
                             end if 
                         end do 
                         end do 
+                        !$OMP END DO NOWAIT
                         end do 
+                        !$OMP END PARALLEL
 #endif
 
                     case(MacroAlgaeModel)
@@ -2600,7 +2638,10 @@ cd14 :                       if (Me%ExternalVar%WaterPoints3D(i, j, k) == 1) the
                         call GetDTMacroAlgae(Me%ObjMacroAlgae, DTSecond = DT, STAT = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_) stop 'Modify_Interface3D - ModuleInterface - ERR13'
 
+                        !griflet
+                        !$OMP PARALLEL PRIVATE(k,j,i,Index)
                         do k = KLB, KUB
+                        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
                         do j = JLB, JUB
                         do i = ILB, IUB
                             if (Me%ExternalVar%WaterPoints3D(i, j, k) == 1) then
@@ -2613,7 +2654,9 @@ cd14 :                       if (Me%ExternalVar%WaterPoints3D(i, j, k) == 1) the
                             end if 
                         end do 
                         end do 
+                        !$OMP END DO NOWAIT
                         end do 
+                        !$OMP END PARALLEL
                         
 #ifdef _PHREEQC_
 
@@ -2622,7 +2665,10 @@ cd14 :                       if (Me%ExternalVar%WaterPoints3D(i, j, k) == 1) the
                         call GetPhreeqCDT(Me%ObjPhreeqC, DTSecond = DT, STAT = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_) stop 'Modify_Interface3D - ModuleInterface - ERR15'                
 
+                        !griflet
+                        !$OMP PARALLEL PRIVATE(k,j,i,Index)
 do18:                   do k = KLB, KUB
+                        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
 do19:                   do j = JLB, JUB
 do20:                   do i = ILB, IUB
 
@@ -2638,7 +2684,9 @@ cd15:                       if (Me%ExternalVar%WaterPoints3D(i, j, k) == 1) then
                             
                         end do do20
                         end do do19
+                        !$OMP END DO NOWAIT
                         end do do18
+                        !$OMP END PARALLEL
 
 #endif                   
                 end select
@@ -2653,6 +2701,8 @@ cd15:                       if (Me%ExternalVar%WaterPoints3D(i, j, k) == 1) then
 
         if (present(STAT))STAT = STAT_
             
+        if (MonitorPerformance) call StopWatch ("ModuleInterface", "Modify_Interface3D")
+
         !----------------------------------------------------------------------
 
     end subroutine Modify_Interface3D
@@ -2687,8 +2737,12 @@ cd15:                       if (Me%ExternalVar%WaterPoints3D(i, j, k) == 1) then
         integer                                         :: PropLB, PropUB, ArrayLB, ArrayUB 
         real                                            :: DTProp_, DT
         logical                                         :: Increment
+        
+        !$ integer                                      :: CHUNK
 
         !----------------------------------------------------------------------
+
+        if (MonitorPerformance) call StartWatch ("ModuleInterface", "Modify_Interface2D")
 
         STAT_ = UNKNOWN_
 
@@ -2701,6 +2755,8 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             JLB     = Me%Size2D%JLB
             JUB     = Me%Size2D%JUB
 
+            !$ CHUNK = CHUNK_J(JLB,JUB)
+            
             PropLB  = Me%Prop%ILB
             PropUB  = Me%Prop%IUB
 
@@ -2811,6 +2867,9 @@ do6 :               do index = ArrayLB, ArrayUB
 
                 end select
 
+                !griflet
+                !$OMP PARALLEL PRIVATE(j,i,Index)            
+                !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
                 do j = JLB, JUB
                 do i = ILB, IUB
                     if (Me%ExternalVar%WaterPoints2D(i, j) == 1) then
@@ -2824,7 +2883,8 @@ do6 :               do index = ArrayLB, ArrayUB
                     end if
                 end do
                 end do
-
+                !$OMP END DO NOWAIT
+                !$OMP END PARALLEL
 
             end if cd5
 
@@ -2836,6 +2896,8 @@ do6 :               do index = ArrayLB, ArrayUB
 
         if (present(STAT))STAT = STAT_
             
+        if (MonitorPerformance) call StopWatch ("ModuleInterface", "Modify_Interface2D")
+
         !----------------------------------------------------------------------
 
     end subroutine Modify_Interface2D
@@ -2891,6 +2953,8 @@ do6 :               do index = ArrayLB, ArrayUB
         logical                                         :: Increment
 
         !----------------------------------------------------------------------
+
+        if (MonitorPerformance) call StartWatch ("ModuleInterface", "Modify_Interface1D")
 
         STAT_ = UNKNOWN_
 
@@ -3205,6 +3269,8 @@ cd10 :                      if (Me%ExternalVar%RiverPoints1D(i) == 1) then
 
         if (present(STAT))STAT = STAT_
             
+        if (MonitorPerformance) call StopWatch ("ModuleInterface", "Modify_Interface1D")
+
         !----------------------------------------------------------------------
 
     end subroutine Modify_Interface1D

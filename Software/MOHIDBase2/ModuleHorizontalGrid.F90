@@ -35,15 +35,18 @@ Module ModuleHorizontalGrid
     use ModuleFunctions, only   : Rodaxy, FromCartesianToGrid, FromGridToCartesian,     &
                                   UTMToLatLon, LatLonToUTM, ComputeGridZone,            &
                                   LatLonToLambertSP2, RelativePosition4VertPolygon,     &
-                                  GeographicToCartesian, CartesianToGeographic
+                                  GeographicToCartesian, CartesianToGeographic,         &
+                                  CHUNK_J
 
 #else                                  
     use ModuleFunctions, only   : Rodaxy, FromCartesianToGrid, FromGridToCartesian,     &
                                   UTMToLatLon, LatLonToUTM, ComputeGridZone,            &
-                                  LatLonToLambertSP2, RelativePosition4VertPolygon
+                                  LatLonToLambertSP2, RelativePosition4VertPolygon,     &
+                                  CHUNK_J
 
 #endif
-                                  
+    
+    use ModuleStopWatch, only   : StartWatch, StopWatch
     use ModuleEnterData
     use ModuleDrawing
     use ModuleHDF5
@@ -5391,7 +5394,11 @@ id:         if (InsideDomain) then
         real    :: XPosition, YPosition
         integer :: Dij, Dji
 
+        !$ integer :: CHUNK
+        
         !Begin------------------------------------------------------------------
+
+        if (MonitorPerformance) call StartWatch ("ModuleHorizontalGrid", "InterpolRegularGrid2D")
 
         STAT_ = UNKNOWN_
 
@@ -5561,6 +5568,21 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
             endif
 
 
+            !$ CHUNK = CHUNK_J(JLBSon,JUBSon)
+
+            !griflet
+            !!$OMP PARALLEL PRIVATE( j,i,                      &
+            !!$OMP                   Jlower, Jupper,             &
+            !!$OMP                   Ilower,Iupper,              &
+            !!$OMP                   XXLower,XXUpper,            &
+            !!$OMP                   YYLower,YYUpper,            &
+            !!$OMP                   XPosition,YPosition,        &
+            !!$OMP                   PropLowLeft,PropUpLeft,     &
+            !!$OMP                   PropLowRight,PropUpRight,   &
+            !!$OMP                   ONLowLeft,ONUpLeft,         &
+            !!$OMP                   ONLowRight,ONUpRight,       &
+            !!$OMP                   InterPolOK)            
+            !!$OMP DO SCHEDULE(DYNAMIC,CHUNK)
 doj:        do j = JLBSon, JUBSon
 doi:        do i = ILBSon, IUBSon
 
@@ -5595,6 +5617,8 @@ doi:        do i = ILBSon, IUBSon
 
                 else
 
+                    !griflet: All write argument variables are scalars and are all declared 
+                    !griflet: PRIVATE. Clear! Ok!
                     call CellReferential(DXFather, DYFather, XXFather2D, YYFather2D,    &
                                          ObjHorizontalGridFather%RotationX,             &
                                          ObjHorizontalGridFather%RotationY,             &
@@ -5619,6 +5643,7 @@ doi:        do i = ILBSon, IUBSon
 
                 endif
 
+                !griflet: All argument variables were declared PRIVATE: clear! Ok.
                 call InterpolPoint(XPosition, YPosition,                             &
                                    YYUpper, YYLower, XXUpper, XXLower,               &
                                    PropLowLeft, PropUpLeft, PropLowRight, PropUpRight,&
@@ -5634,6 +5659,8 @@ ifc:            if (.not. InterPolOK)   then
             
             enddo doi
             enddo doj
+            !!$OMP END DO NOWAIT
+            !!$OMP END PARALLEL
 
             nullify(XXSon,    YYSon   )
             nullify(JSon,     ISon    )
@@ -5647,6 +5674,8 @@ ifc:            if (.not. InterPolOK)   then
 
         if (present(STAT))                                                    &
             STAT = STAT_
+
+        if (MonitorPerformance) call StopWatch ("ModuleHorizontalGrid", "InterpolRegularGrid2D")
 
         !----------------------------------------------------------------------
 
@@ -5698,8 +5727,11 @@ ifc:            if (.not. InterPolOK)   then
         real    :: XPosition, YPosition
         integer :: Dij, Dji
 
+        !$ integer  :: CHUNK
 
         !Begin------------------------------------------------------------------
+
+        if (MonitorPerformance) call StartWatch ("ModuleHorizontalGrid", "InterpolRegularGrid3D")
 
         STAT_ = UNKNOWN_
 
@@ -5832,9 +5864,24 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
 
             endif
 
+            !$ CHUNK = CHUNK_J(JLBSon,JUBSon)
 
-            !INSERT CODE HERE
+            !griflet
+            !!$OMP PARALLEL PRIVATE( k,j,i,                     &
+            !!$OMP                   InterPolOK, Jlower, Jupper, &
+            !!$OMP                   Ilower,Iupper,              &
+            !!$OMP                   XXLower,XXUpper,            &
+            !!$OMP                   YYLower,YYUpper,            &
+            !!$OMP                   XPosition,YPosition,        &
+            !!$OMP                   PropLowLeft,PropUpLeft,     &
+            !!$OMP                   PropLowRight,PropUpRight,   &
+            !!$OMP                   ONLowLeft,ONUpLeft,         &
+            !!$OMP                   ONLowRight,ONUpRight,PropSon)
+            !!$OMP           SHARED ( DXFather,DYFather,         &
+            !!$OMP                   XXFather2D, YYFather2D,     &
+            !!$OMP                   XXSon, YYSon)  
 dok:        do k = KLBFather   , KUBFather
+            !!$OMP DO SCHEDULE(DYNAMIC,CHUNK)
 doj:        do j = JLBSon, JUBSon
 doi:        do i = ILBSon, IUBSon
 
@@ -5864,6 +5911,9 @@ doi:        do i = ILBSon, IUBSon
 
                 else
 
+                    !griflet: no problem: this subroutine only alters private scalar variables
+                    !griflet: All the arrays are for reading-only.
+                    !griflet: Written: XPosition, YPosition, XX/YYUpper, XX/YYLower
                     call CellReferential(DXFather, DYFather, XXFather2D, YYFather2D,    &
                                          ObjHorizontalGridFather%RotationX,             &
                                          ObjHorizontalGridFather%RotationY,             &
@@ -5896,7 +5946,7 @@ doi:        do i = ILBSon, IUBSon
                 ONLowRight  = ComputeFather(Ilower, Jupper, k)
                 ONUpRight   = ComputeFather(Iupper, Jupper, k)
 
-
+                !griflet: No problem: all variables are private. Written: PropSon & InterpolOk only.
                 call InterpolPoint(XPosition, YPosition,                             &
                                    YYUpper, YYLower, XXUpper, XXLower,               &
                                    PropLowLeft, PropUpLeft, PropLowRight, PropUpRight,&
@@ -5924,8 +5974,9 @@ doi:        do i = ILBSon, IUBSon
             
             enddo doi
             enddo doj
+            !!$OMP END DO NOWAIT
             enddo dok
-
+            !!$OMP END PARALLEL
 
             nullify(XXSon,    YYSon   )
             nullify(JSon,     ISon    )
@@ -5941,6 +5992,8 @@ doi:        do i = ILBSon, IUBSon
 
         if (present(STAT))                                                    &
             STAT = STAT_
+
+        if (MonitorPerformance) call StopWatch ("ModuleHorizontalGrid", "InterpolRegularGrid3D")
 
         !----------------------------------------------------------------------
 
@@ -5992,7 +6045,11 @@ doi:        do i = ILBSon, IUBSon
 
         real    :: XPosition, YPosition
         integer :: Dij, Dji
+        !$ integer  :: CHUNK
+        
         !Begin------------------------------------------------------------------
+
+        if (MonitorPerformance) call StartWatch ("ModuleHorizontalGrid", "InterpolRegularGrid3D8")
 
         STAT_ = UNKNOWN_
 
@@ -6121,7 +6178,24 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
             endif
 
 
+            !$ CHUNK = CHUNK_J(JLBSon,JUBSon)
+
+            !griflet
+            !!$OMP PARALLEL PRIVATE( k,j,i,                     &
+            !!$OMP                   InterPolOK, Jlower, Jupper, &
+            !!$OMP                   Ilower,Iupper,              &
+            !!$OMP                   XXLower,XXUpper,            &
+            !!$OMP                   YYLower,YYUpper,            &
+            !!$OMP                   XPosition,YPosition,        &
+            !!$OMP                   PropLowLeft,PropUpLeft,     &
+            !!$OMP                   PropLowRight,PropUpRight,   &
+            !!$OMP                   ONLowLeft,ONUpLeft,         &
+            !!$OMP                   ONLowRight,ONUpRight,PropSon)
+            !!$OMP           SHARED ( DXFather,DYFather,         &
+            !!$OMP                   XXFather2D, YYFather2D,     &
+            !!$OMP                   XXSon, YYSon)  
 dok:        do k = KLBFather, KUBFather
+            !!$OMP DO SCHEDULE(DYNAMIC,CHUNK)
 doj:        do j = JLBSon, JUBSon
 doi:        do i = ILBSon, IUBSon
 
@@ -6210,7 +6284,9 @@ doi:        do i = ILBSon, IUBSon
 
             enddo doi
             enddo doj
+            !!$OMP END DO NOWAIT
             enddo dok
+            !!$OMP END PARALLEL
 
 
             nullify(XXSon,    YYSon   )
@@ -6226,6 +6302,8 @@ doi:        do i = ILBSon, IUBSon
 
         if (present(STAT))                                                    &
             STAT = STAT_
+
+        if (MonitorPerformance) call StopWatch ("ModuleHorizontalGrid", "InterpolRegularGrid3D8")
 
         !----------------------------------------------------------------------
 
