@@ -34481,26 +34481,23 @@ dok:            do k = kbottom + 1, KUB
     !  in the velocity evolution                                                           !
     !                                                                                      !
     ! Input : Flow, Geometry, Mapping, Forces                                              !
-    ! OutPut: TiCoef_3D                                                                      !
+    ! OutPut: TiCoef_3D                                                                    !
     ! Author: Paulo Chambel (99/6)                                                         !
     !                                                                                      !
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    Subroutine Velocity_ExplicitForces 
+    Subroutine Velocity_ExplicitForces
 
-    
-
-        !Variables Categories  
-            !Geometry  : WaterLevel_New, DUX_VY, DZX_ZY 
+        !Variables Categories
+            !Geometry  : WaterLevel_New, DUX_VY, DZX_ZY
             !WaterProp : Density
-            !Forces    : Inertial_Aceleration, Horizontal_Transport, ROX3, AtmPressure 
+            !Forces    : Inertial_Aceleration, Horizontal_Transport, ROX3, AtmPressure
             !Time      : DT_Velocity
             !Mapping   : ComputeFaces3D_UV, KFloor_UV, Direction
             !Equations : TiCoef_3D
 
-         
          !Variables Direction Dependent
             !DUX_VY, DZX_ZY, ComputeFaces3D_UV, KFloor_UV, Direction
-        
+
         !Arguments------------------------------------------------------------
 
 
@@ -34532,6 +34529,7 @@ dok:            do k = kbottom + 1, KUB
         integer                            :: IUB, ILB, JUB, JLB, KUB, KLB
 
         real                               :: TimeCoef, F_UV, DT_RunPeriod, InertialPeriods
+        real                               :: TimeCoef2
         real,    dimension(:,:  ), pointer :: Coriolis_Freq
 
         !$ integer                            :: CHUNK
@@ -34617,29 +34615,35 @@ dok:            do k = kbottom + 1, KUB
         endif
 
         !griflet: removed critical. Added TimeCoef to private variables.        
-        !!!$OMP PARALLEL PRIVATE( i,j,iSouth,jWest,kbottom,FaceDensity, &
-        !!!$OMP                   WaterPressure_Aceleration,TidePotentialAceleration, &
-        !!!$OMP                   AtmosphericPressure_Aceleration,F_UV,Barotropic_Aceleration, &
-        !!!$OMP                   Baroclinic_Aceleration,Transport_Aceleration,TimeCoef)
-        !!!$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+        !$OMP PARALLEL PRIVATE( i,j,k,iSouth,jWest,kbottom,FaceDensity, &
+        !$OMP                   WaterPressure_Aceleration,TidePotentialAceleration, &
+        !$OMP                   AtmosphericPressure_Aceleration,F_UV,Barotropic_Aceleration, &
+        !$OMP                   Baroclinic_Aceleration,Transport_Aceleration,TimeCoef2)
+        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
 doj:     do j = JLB, JUB
 doi:     do i = ILB, IUB
 
-Cov1:       if (ComputeFaces3D_UV(I, J, KUB) == Covered) then
+Cov1:       if (ComputeFaces3D_UV(i, j, KUB) == Covered) then
 
-                iSouth     = I - di
-                jWest      = J - dj 
+                iSouth     = i - di
+                jWest      = j - dj 
 
-                kbottom = KFloor_UV(I, J)
+                kbottom = KFloor_UV(i, j)
+                
+                !griflet: this was the important step to make the
+                !code thread safe. The FIRSTPRIVATE clause could have been used
+                !but I'm more reliant on good old fortran logic, rather than
+                !openmp logic ;)
+                TimeCoef2 = TimeCoef
 
-dok:            do  K = kbottom, KUB
+dok:            do  k = kbottom, KUB
 
                     if (Me%ComputeOptions%LocalDensity) then
 
                         !!!$OMP CRITICAL (VEF1_FNC01)
-                        FaceDensity    = Face_Interpolation(Density(I, J, K),            &
-                                                            Density(iSouth, jWest, K), &
-                                                            DUX_VY(I, J),                &
+                        FaceDensity    = Face_Interpolation(Density(i, j, k),            &
+                                                            Density(iSouth, jWest, k), &
+                                                            DUX_VY(i, j),                &
                                                             DUX_VY(iSouth, jWest))
                         !!!$OMP END CRITICAL (VEF1_FNC01)
                     else
@@ -34652,18 +34656,21 @@ dok:            do  K = kbottom, KUB
                     !Aceleration due the coriolis and centrifugal force 
 
                     ![m/s]           = [m/s]            +     [s]     *     [m/s^2] 
-                    TiCoef_3D(I, J, K) = TiCoef_3D(I, J, K) + DT_Velocity * Inertial_Aceleration(I, J, K)  
+                    TiCoef_3D(i, j, k) = TiCoef_3D(i, j, k) + DT_Velocity * Inertial_Aceleration(i, j, k)  
 
 
                     ![m/s]           = [m/s]            +     [s]     *     [m/s^2] 
-                    if (Me%Relaxation%Force)                                &
-                        TiCoef_3D(I, J, K) = TiCoef_3D(I, J, K) + DT_Velocity *          &
-                                                                  Relax_aceleration(I, J, K)  
+                    if (Me%Relaxation%Force)   then                             
+                        !!!$OMP CRITICAL (VEF1_FNC023)
+                        TiCoef_3D(i, j, k) = TiCoef_3D(i, j, k) + DT_Velocity *          &
+                                                                  Relax_aceleration(i, j, k)  
+                        !!!$OMP END CRITICAL (VEF1_FNC023)
+                    endif 
 
                     ![m/s]           = [m/s]            +     [s]     *     [m/s^2] 
                     if (Me%ComputeOptions%Obstacle)                                &
-                        TiCoef_3D(I, J, K) = TiCoef_3D(I, J, K) + DT_Velocity *          &
-                                                                  Me%Forces%ObstacleDrag_Aceleration(I, J, K)  
+                        TiCoef_3D(i, j, k) = TiCoef_3D(i, j, k) + DT_Velocity *          &
+                                                                  Me%Forces%ObstacleDrag_Aceleration(i, j, k)  
 
                     !PCL
                     if (Me%ComputeOptions%XZFlow .and. Me%Direction%XY == DirectionY_) cycle
@@ -34673,13 +34680,13 @@ dok:            do  K = kbottom, KUB
 
                     ![m/s^2]                   = [m/s^2] * [m] / [m] 
                     WaterPressure_Aceleration  = Gravity * (WaterLevel_New(iSouth, jWest) - &
-                                                 WaterLevel_New(I, J)) /                    &
+                                                 WaterLevel_New(i, j)) /                    &
                                                  DZX_ZY(iSouth, jWest) *                    &
                                                  Me%NonHydrostatic%ThetaUV                                                  
 
                     WaterPressure_Aceleration  = WaterPressure_Aceleration                + &
                                                  Gravity * (WaterLevel_Old(iSouth, jWest) - &
-                                                 WaterLevel_Old(I, J)) /                    &
+                                                 WaterLevel_Old(i, j)) /                    &
                                                  DZX_ZY(iSouth, jWest) *                    &
                                                  (1. - Me%NonHydrostatic%ThetaUV)
 
@@ -34692,8 +34699,8 @@ dok:            do  K = kbottom, KUB
                         ![m/s^2]           = [m/s^2]  +     [m^2/s^2] / [m] 
                         WaterPressure_Aceleration = WaterPressure_Aceleration +            &
                                              (1. - Me%NonHydrostatic%ThetaUV) *            &
-                                             (PressureCorrect(iSouth, jWest, K) -          &
-                                              PressureCorrect(I     , J    , K))/          &
+                                             (PressureCorrect(iSouth, jWest, k) -          &
+                                              PressureCorrect(i     , j    , k))/          &
                                               DZX_ZY(iSouth, jWest)  
 
                     endif
@@ -34702,40 +34709,40 @@ dok:            do  K = kbottom, KUB
                     !Aceleration due the tide potential 
                     ![m/s^2]                   = [m/s^2] * [m] / [m]
                     TidePotentialAceleration   = - Gravity * (TidePotentialLevel(iSouth, jWest) - &
-                                                 TidePotentialLevel(I, J)) /                      &
+                                                 TidePotentialLevel(i, j)) /                      &
                                                  DZX_ZY(iSouth, jWest)
                 
                 
                     if (Me%ComputeOptions%AtmPressure) then
                     !Aceleration due to Atmospheric Pressure
                         ![m/s^2]                        = [M*m/s^2/m^2] / [M/m^3] / [m]
-                        AtmosphericPressure_Aceleration = (AtmPressure(iSouth, jWest) - AtmPressure(I, J)) / &
+                        AtmosphericPressure_Aceleration = (AtmPressure(iSouth, jWest) - AtmPressure(i, j)) / &
                                                            FaceDensity / DZX_ZY(iSouth, jWest)           
 
                         if (Me%ComputeOptions%atmosphereRAMP) then
                             
-                            if (TimeCoef < 1) then
+                            if (TimeCoef2 < 1) then
 
-                                AtmosphericPressure_Aceleration = TimeCoef * AtmosphericPressure_Aceleration
+                                AtmosphericPressure_Aceleration = TimeCoef2 * AtmosphericPressure_Aceleration
 
                             endif
 
                         elseif (Me%ComputeOptions%BaroclinicRamp) then
 
                             ! Interpolates Coriolis_Freq for the face 
-                            F_UV = (DUX_VY(iSouth, jWest) * Coriolis_Freq(I, J) + DUX_VY(I, J) * Coriolis_Freq(iSouth, jWest)) / &
-                                (DUX_VY(iSouth, jWest) + DUX_VY(I, J))
+                            F_UV = (DUX_VY(iSouth, jWest) * Coriolis_Freq(i, j) + DUX_VY(i, j) * Coriolis_Freq(iSouth, jWest)) / &
+                                (DUX_VY(iSouth, jWest) + DUX_VY(i, j))
                     
                             !!!$OMP CRITICAL (VEF2_SEC01)
-                            TimeCoef = abs (DT_RunPeriod * F_UV / (2 * Pi) / InertialPeriods)
+                            TimeCoef2 = abs (DT_RunPeriod * F_UV / (2 * Pi) / InertialPeriods)
                             !!!$OMP END CRITICAL (VEF2_SEC01)
 
-                            if (TimeCoef < 1) then
+                            if (TimeCoef2 < 1) then
 
-                                AtmosphericPressure_Aceleration = TimeCoef * AtmosphericPressure_Aceleration
+                                AtmosphericPressure_Aceleration = TimeCoef2 * AtmosphericPressure_Aceleration
 
                             endif
-
+                            
                         endif
 
                     else 
@@ -34751,33 +34758,33 @@ dok:            do  K = kbottom, KUB
                                              TidePotentialAceleration
 
                     ![m/s]           = [m/s]            +     [s]     *     [m/s^2] 
-                    TiCoef_3D(I, J, K) = TiCoef_3D(I, J, K) + DT_Velocity * Barotropic_Aceleration  
+                    TiCoef_3D(i, j, k) = TiCoef_3D(i, j, k) + DT_Velocity * Barotropic_Aceleration  
 
                     !Aceleration due to Baroclinic Pressure
 
                     ![m/s^2]               = [m/s^2] * [M/m^3] / [M/m^3]
-                    Baroclinic_Aceleration = Gravity * Rox3XY(I, J, K) / FaceDensity
+                    Baroclinic_Aceleration = Gravity * Rox3XY(i, j, k) / FaceDensity
 
                     ![m/s]           = [m/s]            +     [s]     *     [m/s^2] 
-                    TiCoef_3D(I, J, K) = TiCoef_3D(I, J, K) + DT_Velocity * Baroclinic_Aceleration  
+                    TiCoef_3D(i, j, k) = TiCoef_3D(i, j, k) + DT_Velocity * Baroclinic_Aceleration  
 
 
 
                     !Aceleration due to Horizontal transport = advection + diffusion
                     ![m/s^2]              = [m^4/s^2] / [m^3]                
-                    Transport_Aceleration = Horizontal_Transport (I, J, K) / Volume_UV(I, J, K)
+                    Transport_Aceleration = Horizontal_Transport (i, j, k) / Volume_UV(i, j, k)
 
 
                     !Aceleration due to Horizontal transport = advection + diffusion
 
                     ![m/s]           = [m/s]            +     [s]     *     [m/s^2] 
-                    TiCoef_3D(I, J, K) = TiCoef_3D(I, J, K) + DT_Velocity * Transport_Aceleration  
+                    TiCoef_3D(i, j, k) = TiCoef_3D(i, j, k) + DT_Velocity * Transport_Aceleration  
 
                     ![m/s]           = [m/s]            +     [s]     *     [m/s^2]     
                     if (Me%ComputeOptions%AltimetryAssimilation%flag .and.                          &
                         Me%CurrentTime .ge. Me%ComputeOptions%AltimetryAssimilation%NextCompute)    &
-                        TiCoef_3D(I, J, K) = TiCoef_3D(I, J, K) + DT_Velocity *                     &
-                                             Altim_Relax_Aceleration(I, J, K)  
+                        TiCoef_3D(i, j, k) = TiCoef_3D(i, j, k) + DT_Velocity *                     &
+                                             Altim_Relax_Aceleration(i, j, k)  
 
 
                 enddo dok      
@@ -34787,8 +34794,8 @@ dok:            do  K = kbottom, KUB
         enddo doi
         enddo doj
         !griflet: added NOWAIT
-        !!!$OMP END DO NOWAIT
-        !!!$OMP END PARALLEL
+        !$OMP END DO NOWAIT
+        !$OMP END PARALLEL
 
         if (MonitorPerformance) then
             call StopWatch ("ModuleHydrodynamic", "Velocity_ExplicitForces")

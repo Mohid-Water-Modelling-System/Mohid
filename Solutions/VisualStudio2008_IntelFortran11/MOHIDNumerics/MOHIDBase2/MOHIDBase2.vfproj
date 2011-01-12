@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <VisualStudioProject ProjectType="typeStaticLibrary" ProjectCreator="Intel Fortran" Keyword="Static Library" Version="11.0" ProjectIdGuid="{98ABA093-7927-4BCD-B011-BF409B5BBB78}">
 	<Platforms>
-		<Platform Name="Win32"/></Platforms>
+		<Platform Name="Win32"/>
+		<Platform Name="x64"/></Platforms>
 	<Configurations>
 		<Configuration Name="Debug|Win32" ConfigurationType="typeStaticLibrary">
 				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" DebugInformationFormat="debugEnabled" Optimization="optimizeDisabled" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\..\..\..\Solutions\VisualStudio2008_IntelFortran11\MOHIDNumerics\MOHIDBase1\Debug" PreprocessorDefinitions="_USE_PROJ4" Interfaces="true" StandardWarnings="standardWarningsF95" WarnDeclarations="true" WarnUnusedVariables="true" WarnTruncateSource="true" WarnInterfaces="true" LocalSavedScalarsZero="true" FloatingPointExceptionHandling="fpe0" Traceback="true" BoundsCheck="true" RuntimeLibrary="rtMultiThreadedDebug"/>
@@ -118,6 +119,126 @@
 				<Tool Name="VFLibrarianTool"/>
 				<Tool Name="VFResourceCompilerTool"/>
 				<Tool Name="VFMidlTool" SuppressStartupBanner="true"/>
+				<Tool Name="VFCustomBuildTool"/>
+				<Tool Name="VFPreLinkEventTool"/>
+				<Tool Name="VFPreBuildEventTool"/>
+				<Tool Name="VFPostBuildEventTool"/>
+				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
+		<Configuration Name="Debug|x64" ConfigurationType="typeStaticLibrary">
+				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" DebugInformationFormat="debugEnabled" Optimization="optimizeDisabled" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\..\..\..\Solutions\VisualStudio2008_IntelFortran11\MOHIDNumerics\MOHIDBase1\Debug" PreprocessorDefinitions="_USE_PROJ4" Interfaces="true" StandardWarnings="standardWarningsF95" WarnDeclarations="true" WarnUnusedVariables="true" WarnTruncateSource="true" WarnInterfaces="true" LocalSavedScalarsZero="true" FloatingPointExceptionHandling="fpe0" Traceback="true" BoundsCheck="true" RuntimeLibrary="rtMultiThreadedDebug"/>
+				<Tool Name="VFLibrarianTool"/>
+				<Tool Name="VFResourceCompilerTool"/>
+				<Tool Name="VFMidlTool" SuppressStartupBanner="true" TargetEnvironment="midlTargetAMD64"/>
+				<Tool Name="VFCustomBuildTool"/>
+				<Tool Name="VFPreLinkEventTool"/>
+				<Tool Name="VFPreBuildEventTool"/>
+				<Tool Name="VFPostBuildEventTool"/>
+				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
+		<Configuration Name="Release|x64" ConfigurationType="typeStaticLibrary">
+				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" BufferedIO="true" InterproceduralOptimizations="ipoSingleFile" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\..\..\..\Solutions\VisualStudio2008_IntelFortran11\MOHIDNumerics\MOHIDBase1\Release" PreprocessorDefinitions="_USE_PROJ4" StandardWarnings="standardWarningsF95" Diagnostics="diagnosticsShowAll" WarnDeclarations="true" WarnUnusedVariables="true" WarnTruncateSource="true" FloatingPointExceptionHandling="fpe0"/>
+				<Tool Name="VFLibrarianTool"/>
+				<Tool Name="VFResourceCompilerTool"/>
+				<Tool Name="VFMidlTool" SuppressStartupBanner="true" TargetEnvironment="midlTargetAMD64"/>
+				<Tool Name="VFCustomBuildTool"/>
+				<Tool Name="VFPreLinkEventTool"/>
+				<Tool Name="VFPreBuildEventTool"/>
+				<Tool Name="VFPostBuildEventTool"/>
+				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
+		<Configuration Name="Debug Double|x64" ConfigurationType="typeStaticLibrary">
+				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" DebugInformationFormat="debugEnabled" Optimization="optimizeDisabled" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\..\..\..\Solutions\VisualStudio2008_IntelFortran11\MOHIDNumerics\MOHIDBase1\Debug Double" Interfaces="true" StandardWarnings="standardWarningsF95" WarnDeclarations="true" WarnUnusedVariables="true" WarnTruncateSource="true" WarnInterfaces="true" RealKIND="realKIND8" FloatingPointExceptionHandling="fpe0" Traceback="true" BoundsCheck="true" RuntimeLibrary="rtMultiThreadedDebug"/>
+				<Tool Name="VFLibrarianTool"/>
+				<Tool Name="VFResourceCompilerTool"/>
+				<Tool Name="VFMidlTool" SuppressStartupBanner="true" TargetEnvironment="midlTargetAMD64"/>
+				<Tool Name="VFCustomBuildTool"/>
+				<Tool Name="VFPreLinkEventTool"/>
+				<Tool Name="VFPreBuildEventTool"/>
+				<Tool Name="VFPostBuildEventTool"/>
+				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
+		<Configuration Name="Release Double|x64" ConfigurationType="typeStaticLibrary">
+				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" InlineFunctionExpansion="expandDisable" BufferedIO="true" InterproceduralOptimizations="ipoSingleFile" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\..\..\..\Solutions\VisualStudio2008_IntelFortran11\MOHIDNumerics\MOHIDBase1\Release Double" PreprocessorDefinitions="_USE_PROJ4" StandardWarnings="standardWarningsF95" WarnDeclarations="true" WarnUnusedVariables="true" WarnTruncateSource="true" RealKIND="realKIND8" FloatingPointExceptionHandling="fpe0"/>
+				<Tool Name="VFLibrarianTool"/>
+				<Tool Name="VFResourceCompilerTool"/>
+				<Tool Name="VFMidlTool" SuppressStartupBanner="true" TargetEnvironment="midlTargetAMD64"/>
+				<Tool Name="VFCustomBuildTool"/>
+				<Tool Name="VFPreLinkEventTool"/>
+				<Tool Name="VFPreBuildEventTool"/>
+				<Tool Name="VFPostBuildEventTool"/>
+				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
+		<Configuration Name="Release Double OpenMP|x64" ConfigurationType="typeStaticLibrary">
+				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" InlineFunctionExpansion="expandDisable" BufferedIO="true" InterproceduralOptimizations="ipoSingleFile" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\..\..\..\Solutions\VisualStudio2008_IntelFortran11\MOHIDNumerics\MOHIDBase1\Release Double OpenMP" OpenMP="OpenMPParallelCode" StandardWarnings="standardWarningsF95" WarnDeclarations="true" WarnUnusedVariables="true" WarnTruncateSource="true" RealKIND="realKIND8" LocalSavedScalarsZero="true" FloatingPointExceptionHandling="fpe0" Traceback="true"/>
+				<Tool Name="VFLibrarianTool"/>
+				<Tool Name="VFResourceCompilerTool"/>
+				<Tool Name="VFMidlTool" SuppressStartupBanner="true" TargetEnvironment="midlTargetAMD64"/>
+				<Tool Name="VFCustomBuildTool"/>
+				<Tool Name="VFPreLinkEventTool"/>
+				<Tool Name="VFPreBuildEventTool"/>
+				<Tool Name="VFPostBuildEventTool"/>
+				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
+		<Configuration Name="Release OpenMP|x64" ConfigurationType="typeStaticLibrary">
+				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" BufferedIO="true" InterproceduralOptimizations="ipoSingleFile" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\..\..\..\Solutions\VisualStudio2008_IntelFortran11\MOHIDNumerics\MOHIDBase1\Release OpenMP" OpenMP="OpenMPParallelCode" StandardWarnings="standardWarningsF95" OpenMPDiagLevel="openMPDiagLevel1" WarnDeclarations="true" WarnUnusedVariables="true" WarnTruncateSource="true"/>
+				<Tool Name="VFLibrarianTool"/>
+				<Tool Name="VFResourceCompilerTool"/>
+				<Tool Name="VFMidlTool" SuppressStartupBanner="true" TargetEnvironment="midlTargetAMD64"/>
+				<Tool Name="VFCustomBuildTool"/>
+				<Tool Name="VFPreLinkEventTool"/>
+				<Tool Name="VFPreBuildEventTool"/>
+				<Tool Name="VFPostBuildEventTool"/>
+				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
+		<Configuration Name="Debug OpenMP|x64" ConfigurationType="typeStaticLibrary">
+				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" DebugInformationFormat="debugEnabled" Optimization="optimizeDisabled" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\..\..\..\Solutions\VisualStudio2008_IntelFortran11\MOHIDNumerics\MOHIDBase1\Debug OpenMP" PreprocessorDefinitions="_USE_PROJ4" Interfaces="true" OpenMP="OpenMPParallelCode" StandardWarnings="standardWarningsF95" WarnDeclarations="true" WarnUnusedVariables="true" WarnTruncateSource="true" WarnInterfaces="true" LocalSavedScalarsZero="true" FloatingPointExceptionHandling="fpe0" Traceback="true" BoundsCheck="true" RuntimeLibrary="rtMultiThreadedDebug"/>
+				<Tool Name="VFLibrarianTool"/>
+				<Tool Name="VFResourceCompilerTool"/>
+				<Tool Name="VFMidlTool" SuppressStartupBanner="true" TargetEnvironment="midlTargetAMD64"/>
+				<Tool Name="VFCustomBuildTool"/>
+				<Tool Name="VFPreLinkEventTool"/>
+				<Tool Name="VFPreBuildEventTool"/>
+				<Tool Name="VFPostBuildEventTool"/>
+				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
+		<Configuration Name="Debug Double PhreeqC|x64" ConfigurationType="typeStaticLibrary">
+				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" DebugInformationFormat="debugEnabled" Optimization="optimizeDisabled" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\..\..\..\Solutions\VisualStudio2008_IntelFortran11\MOHIDNumerics\MOHIDBase1\Debug Double PhreeqC" PreprocessorDefinitions="_PHREEQC_;_LONG_LINE_LENGTH" Interfaces="true" StandardWarnings="standardWarningsF95" WarnDeclarations="true" WarnUnusedVariables="true" WarnTruncateSource="true" WarnInterfaces="true" RealKIND="realKIND8" Traceback="true" BoundsCheck="true" RuntimeLibrary="rtMultiThreadedDebug"/>
+				<Tool Name="VFLibrarianTool"/>
+				<Tool Name="VFResourceCompilerTool"/>
+				<Tool Name="VFMidlTool" SuppressStartupBanner="true" TargetEnvironment="midlTargetAMD64"/>
+				<Tool Name="VFCustomBuildTool"/>
+				<Tool Name="VFPreLinkEventTool"/>
+				<Tool Name="VFPreBuildEventTool"/>
+				<Tool Name="VFPostBuildEventTool"/>
+				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
+		<Configuration Name="Release Double OpenMP PhreeqC|x64" ConfigurationType="typeStaticLibrary">
+				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" InlineFunctionExpansion="expandDisable" BufferedIO="true" InterproceduralOptimizations="ipoSingleFile" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\..\..\..\Solutions\VisualStudio2008_IntelFortran11\MOHIDNumerics\MOHIDBase1\Release Double OpenMP PhreeqC" PreprocessorDefinitions="_PHREEQC_;_LONG_LINE_LENGTH" OpenMP="OpenMPParallelCode" StandardWarnings="standardWarningsF95" WarnDeclarations="true" WarnUnusedVariables="true" WarnTruncateSource="true" RealKIND="realKIND8" LocalSavedScalarsZero="true" Traceback="true"/>
+				<Tool Name="VFLibrarianTool"/>
+				<Tool Name="VFResourceCompilerTool"/>
+				<Tool Name="VFMidlTool" SuppressStartupBanner="true" TargetEnvironment="midlTargetAMD64"/>
+				<Tool Name="VFCustomBuildTool"/>
+				<Tool Name="VFPreLinkEventTool"/>
+				<Tool Name="VFPreBuildEventTool"/>
+				<Tool Name="VFPostBuildEventTool"/>
+				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
+		<Configuration Name="Debug OpenMI|x64" ConfigurationType="typeStaticLibrary">
+				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" DebugInformationFormat="debugEnabled" Optimization="optimizeDisabled" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\..\..\..\Solutions\VisualStudio2008_IntelFortran11\MOHIDNumerics\MOHIDBase1\Debug OpenMI" PreprocessorDefinitions="_OPENMI_" Interfaces="true" FPS4Libs="false" StandardWarnings="standardWarningsF95" WarnDeclarations="true" WarnUnusedVariables="true" WarnTruncateSource="true" WarnInterfaces="true" LocalSavedScalarsZero="true" FloatingPointExceptionHandling="fpe0" Traceback="true" BoundsCheck="true" RuntimeLibrary="rtMultiThreadedDebug"/>
+				<Tool Name="VFLibrarianTool"/>
+				<Tool Name="VFResourceCompilerTool"/>
+				<Tool Name="VFMidlTool" SuppressStartupBanner="true" TargetEnvironment="midlTargetAMD64"/>
+				<Tool Name="VFCustomBuildTool"/>
+				<Tool Name="VFPreLinkEventTool"/>
+				<Tool Name="VFPreBuildEventTool"/>
+				<Tool Name="VFPostBuildEventTool"/>
+				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
+		<Configuration Name="Release OpenMI|x64" ConfigurationType="typeStaticLibrary">
+				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" BufferedIO="true" InterproceduralOptimizations="ipoSingleFile" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\..\..\..\Solutions\VisualStudio2008_IntelFortran11\MOHIDNumerics\MOHIDBase1\Release OpenMI" PreprocessorDefinitions="_OPENMI_" StandardWarnings="standardWarningsF95" Diagnostics="diagnosticsShowAll" WarnDeclarations="true" WarnUnusedVariables="true" WarnTruncateSource="true" RealKIND="realKIND8" FloatingPointExceptionHandling="fpe0"/>
+				<Tool Name="VFLibrarianTool"/>
+				<Tool Name="VFResourceCompilerTool"/>
+				<Tool Name="VFMidlTool" SuppressStartupBanner="true" TargetEnvironment="midlTargetAMD64"/>
+				<Tool Name="VFCustomBuildTool"/>
+				<Tool Name="VFPreLinkEventTool"/>
+				<Tool Name="VFPreBuildEventTool"/>
+				<Tool Name="VFPostBuildEventTool"/>
+				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
+		<Configuration Name="Debug Double Openmp|x64" ConfigurationType="typeStaticLibrary">
+				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" DebugInformationFormat="debugEnabled" Optimization="optimizeDisabled" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\..\..\..\Solutions\VisualStudio2008_IntelFortran11\MOHIDNumerics\MOHIDBase1\Debug Double Openmp" Interfaces="true" OpenMP="OpenMPParallelCode" StandardWarnings="standardWarningsF95" WarnDeclarations="true" WarnUnusedVariables="true" WarnTruncateSource="true" WarnInterfaces="true" RealKIND="realKIND8" FloatingPointExceptionHandling="fpe0" Traceback="true" BoundsCheck="true" RuntimeLibrary="rtMultiThreadedDebug"/>
+				<Tool Name="VFLibrarianTool"/>
+				<Tool Name="VFResourceCompilerTool"/>
+				<Tool Name="VFMidlTool" SuppressStartupBanner="true" TargetEnvironment="midlTargetAMD64"/>
 				<Tool Name="VFCustomBuildTool"/>
 				<Tool Name="VFPreLinkEventTool"/>
 				<Tool Name="VFPreBuildEventTool"/>
