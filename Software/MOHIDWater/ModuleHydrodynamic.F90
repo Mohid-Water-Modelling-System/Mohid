@@ -934,7 +934,7 @@ Module ModuleHydrodynamic
         real,    dimension(:, :),  pointer :: Coriolis_Freq, RotationX, RotationY
         logical                            :: Distortion
         real                               :: GridRotation
-        
+
         !3D Geometry 
 
         !Volume_Z_New - Last compute control volume of the water level compute point, 
@@ -950,11 +950,9 @@ Module ModuleHydrodynamic
         real,    dimension(:,:,:), pointer :: Area_U, Area_V, DWZ, SZZ, DUZ, DVZ, DUZ_VZ, DZZ
         real,    dimension(:,:),   pointer :: WaterColumn, WaterColumnU, WaterColumnV, WaterColumnUV, WaterColumnVU
 
-        
         !Auxiliar
         real(8), dimension(:,:,:), pointer :: Volume_UV
         real,    dimension(:,:,:), pointer :: Area_UV, Area_VU
-
 
         !KFloor variables (matrix that stores the first layer of the water column)
         integer, dimension(:,:),   pointer :: KFloor_Z, KFloor_U, KFloor_V
@@ -962,15 +960,13 @@ Module ModuleHydrodynamic
         !Auxiliar
         integer, dimension(:,:),   pointer :: KFloor_UV, KFloor_VU
 
-
-
         !Turbulence
         !Visc_H_Corner - Turbulent horizontal viscosity in the cell SW corner
         !Visc_H_Corner - Turbulent horizontal viscosity in the cell center
         !Visc_H_Corner - Turbulent vertical   viscosity 
         real,    dimension(:,:,:), pointer :: Visc_H_Corner, Visc_H_Center, Vertical_Viscosity
-        
-        
+
+
         !Water Properties
         real,    dimension(:,:,:), pointer :: Density, SigmaDens
 
@@ -979,7 +975,7 @@ Module ModuleHydrodynamic
         real                               :: Hmin_Chezy, Vmin_Chezy, ChezyCoef
         logical                            :: Manning, Chezy
 
-        
+
         !Surface
         real,    dimension(:,:),   pointer :: TauWindU, TauWindV, TauWind_UV
         real,    dimension(:,:  ), pointer :: SurfaceWaterFlux
@@ -1016,7 +1012,7 @@ Module ModuleHydrodynamic
         real(8) :: EnteringWaveDirection
         real, dimension(:,:,:), pointer :: BiHarmonicUX_VY, BiHarmonicUY_VX
         real, dimension(:,:),   pointer :: Tlag        
-        
+
         real                            :: BiHarmonicCoef   
         real                            :: BottomViscCoef     
 
@@ -1034,7 +1030,7 @@ Module ModuleHydrodynamic
         integer :: Evolution 
         integer :: VelTangentialBoundary
         integer :: VelNormalBoundary
-        
+
         logical :: Baroclinic
         logical :: BoundaryBaroclinic
         integer :: BaroclinicMethod
@@ -1060,8 +1056,7 @@ Module ModuleHydrodynamic
         logical :: InvertBarometer     
         logical :: InvertBaromSomeBound
         real, pointer, dimension(:,:)    :: InvertBarometerCells          
-        
-                                              
+                                                      
         integer :: Wind
         real    :: SmoothInitialPeriod
         logical :: AtmPressure
@@ -1085,11 +1080,9 @@ Module ModuleHydrodynamic
         logical :: BottomVisc_LIM         !MRV
         logical :: WaterLevelMaxMin
 
-
 #ifdef OVERLAP
         logical :: Overlap
 #endif OVERLAP
-
 
         integer :: BarotropicRadia
         integer :: BaroclinicRadia
@@ -1251,14 +1244,12 @@ Module ModuleHydrodynamic
         character(len=StringLength)          :: File
         integer                              :: NProp = 4
         integer, dimension(4)                :: PropList, ID
-
     end type T_HydroStatistic
 
     type T_CyclicBoundary
         logical                              :: ON
         integer                              :: Direction
     end type T_CyclicBoundary
-
        
     private :: T_Hydrodynamic
     type       T_Hydrodynamic
@@ -1314,7 +1305,6 @@ Module ModuleHydrodynamic
         real(8), pointer, dimension(:) :: VECW_3D
         real(8), pointer, dimension(:) :: VECG_2D  
         real(8), pointer, dimension(:) :: VECW_2D
-   
 
         !Instance of ModuleGridData
         integer :: ObjGridData              = 0
@@ -1333,7 +1323,6 @@ Module ModuleHydrodynamic
 
         !Instance of ModuleMap
         integer :: ObjMap                   = 0
-
 
         !Modules construct INSIDE the hydrodynamic module
 
@@ -1391,8 +1380,6 @@ Module ModuleHydrodynamic
     !Global Module Variables
     type (T_Hydrodynamic), pointer                  :: FirstHydrodynamic
     type (T_Hydrodynamic), pointer                  :: Me
-
-
 
     contains
 
@@ -1482,11 +1469,10 @@ Module ModuleHydrodynamic
 
 cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
-      
             call AllocateInstance 
 
             Me%ModelName = ModelName
-            
+
             !Associates External Instances
             Me%ObjTime           = AssociateInstance (mTIME_,           TimeID          )
             Me%ObjGridData       = AssociateInstance (mGRIDDATA_,       GridDataID      ) 
@@ -1500,13 +1486,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 Me%ObjWaves      = AssociateInstance (mWAVES_,          WavesID)
             end if
 
-
             call Construct_Hydrodynamic (DischargesID,  AssimilationID)
 
             if (Me%ComputeOptions%Evolution .NE. Read_File_)        &
                 call CourantGH()
-
-            
 
             call null_time   (Me%LastIteration)
             call null_time   (Me%CurrentTime)
@@ -1517,16 +1500,14 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             STAT_ = SUCCESS_
 
         else cd0
-            
+
             STAT_ = UNKNOWN_
 
         end if cd0
 
-
         if (present(STAT)) STAT = STAT_
 
-
-        !----------------------------------------------------------------------
+    !----------------------------------------------------------------------
 
     end subroutine StartHydrodynamic
 
@@ -12467,10 +12448,10 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
         !Just consider Fluxes which leave cell
         CourantDT = -FillValueReal
 
-        !!$OMP PARALLEL PRIVATE(i,j,k,TotalFlux,AuxDT)
+        !!!!$OMP PARALLEL PRIVATE(i,j,k,TotalFlux,AuxDT)
                 
         do k = Me%WorkSize%KLB, Me%WorkSize%KUB
-        !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+        !!!!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
         do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
@@ -12508,20 +12489,20 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
                 if (TotalFlux > 0.1 .and. Me%External_Var%Volume_Z_New(i, j, k) > 0. ) then   !To avoid division by zero
                     AuxDT = Me%External_Var%Volume_Z_New(i, j, k) / TotalFlux
                     if (AuxDT < CourantDT) then
-                        !!$OMP CRITICAL (CNDT_ModuleHydrodynamic_SEC01)
+                        !!!!$OMP CRITICAL (CNDT_ModuleHydrodynamic_SEC01)
                         if (AuxDT < CourantDT) then
                             CourantDT = AuxDT
                         endif
-                        !!$OMP END CRITICAL (CNDT_ModuleHydrodynamic_SEC01)
+                        !!!!$OMP END CRITICAL (CNDT_ModuleHydrodynamic_SEC01)
                     endif
                 endif
 
             endif
         enddo
         enddo
-        !!$OMP END DO NOWAIT
+        !!!!$OMP END DO NOWAIT
         enddo
-        !!$OMP END PARALLEL
+        !!!!$OMP END PARALLEL
         
         
         if (MonitorPerformance) call StopWatch ("ModuleHydrodynamic", "CalcNewDT")
@@ -13017,10 +12998,10 @@ cd4:            if (( Faces3D_USon        (i, j, k) == Covered              .or.
                 
                     if (Me%SubModel%qX(i, j, k)  < FillValueReal / 2.) then
 #ifndef _USE_MPI
-                        !!$OMP CRITICAL (ASMV1_OUT01)
+                        !!!$OMP CRITICAL (ASMV1_OUT01)
                         write(*,*)'Point [i,j,k] not covered',i, j,k
                         ErrorOccured = .true.
-                        !!$OMP END CRITICAL (ASMV1_OUT01)
+                        !!!$OMP END CRITICAL (ASMV1_OUT01)
 #endif
                         if (Me%SubModel%MissingNull)                                    &
                             Me%SubModel%qX(i, j, k) = 0.
@@ -13073,10 +13054,10 @@ cd5:            if (( Faces3D_VSon        (i, j, k) == Covered              .or.
                 
                     if (Me%SubModel%qY  (i, j, k) < FillValueReal / 2.) then
 #ifndef _USE_MPI
-                        !!$OMP CRITICAL (ASMV2_OUT02)
+                        !!!$OMP CRITICAL (ASMV2_OUT02)
                         write(*,*)'Point [i,j,k] not covered',i, j,k
                         ErrorOccured = .true.
-                        !!$OMP END CRITICAL (ASMV2_OUT02)
+                        !!!$OMP END CRITICAL (ASMV2_OUT02)
 #endif
                         if (Me%SubModel%MissingNull)                     &
                             Me%SubModel%qY(i, j, k) = 0.
@@ -13138,9 +13119,9 @@ cd6:            if (Water3DSon(i, j, KUB) == WaterPoint .and. .not. DeadZoneSon)
 
 
                         if (.not.Me%SubModel%MissingNull) then
-                            !!$OMP CRITICAL (ASMV3_ERR05)
+                            !!!$OMP CRITICAL (ASMV3_ERR05)
                             call SetError(FATAL_, INTERNAL_, "ActualizeSubModelValues; Hydrodynamic. ERR05") 
-                            !!$OMP END CRITICAL (ASMV3_ERR05)
+                            !!!$OMP END CRITICAL (ASMV3_ERR05)
                         endif
 
                     endif
@@ -13199,9 +13180,9 @@ cd67:           if (Boundary2DSon(i, j) == Boundary .and. Water3DSon(i, j, KUB) 
                             Me%SubModel%Z(i, j)  = - Bathymetry(i, j) + 0.75 * MinWaterColumn 
 
                         else
-                            !!$OMP CRITICAL (ASMV4_ERR06)
+                            !!!$OMP CRITICAL (ASMV4_ERR06)
                             call SetError(FATAL_, INTERNAL_, "ActualizeSubModelValues; Hydrodynamic. ERR06") 
-                            !!$OMP END CRITICAL (ASMV4_ERR06)
+                            !!!$OMP END CRITICAL (ASMV4_ERR06)
                         endif
                     endif
 
@@ -13259,9 +13240,9 @@ cd7:            if (Faces3D_USon(i, j, k) == Covered .and. .not. DeadZoneSon) th
                         if (Me%SubModel%MissingNull) then 
                             Me%SubModel%U_New(i, j, k)  = 0.
                         else
-                            !!$OMP CRITICAL (ASMV5_ERR07)
+                            !!!$OMP CRITICAL (ASMV5_ERR07)
                             call SetError(FATAL_, INTERNAL_, "ActualizeSubModelValues; Hydrodynamic. ERR07") 
-                            !!$OMP END CRITICAL (ASMV5_ERR07)
+                            !!!$OMP END CRITICAL (ASMV5_ERR07)
                         endif
 
                     endif
@@ -13282,9 +13263,9 @@ cd7:            if (Faces3D_USon(i, j, k) == Covered .and. .not. DeadZoneSon) th
                         if (Me%SubModel%MissingNull) then 
                             Me%SubModel%DUZ_New(i, j, k)  = 0.
                         else
-                            !!$OMP CRITICAL (ASMV6_ERR08)
+                            !!!$OMP CRITICAL (ASMV6_ERR08)
                             call SetError(FATAL_, INTERNAL_, "ActualizeSubModelValues; Hydrodynamic. ERR08") 
-                            !!$OMP END CRITICAL (ASMV6_ERR08)
+                            !!!$OMP END CRITICAL (ASMV6_ERR08)
                         endif
 
                     endif
@@ -13331,9 +13312,9 @@ cd77:       if ((ImposedTangFacesUSon(i, j, k) == Imposed  .or.                 
                     if (Me%SubModel%MissingNull) then 
                         Me%SubModel%U_New(i, j, k)  = 0.
                     else
-                        !!$OMP CRITICAL (ASMV7_ERR09)
+                        !!!$OMP CRITICAL (ASMV7_ERR09)
                         call SetError(FATAL_, INTERNAL_, "ActualizeSubModelValues; Hydrodynamic. ERR09") 
-                        !!$OMP END CRITICAL (ASMV7_ERR09)
+                        !!!$OMP END CRITICAL (ASMV7_ERR09)
                     endif
                 endif
 
@@ -13353,9 +13334,9 @@ cd77:       if ((ImposedTangFacesUSon(i, j, k) == Imposed  .or.                 
                     if (Me%SubModel%MissingNull) then 
                         Me%SubModel%DUZ_New(i, j, k)  = 0.
                     else
-                        !!$OMP CRITICAL (ASMV8_ERR10)
+                        !!!$OMP CRITICAL (ASMV8_ERR10)
                         call SetError(FATAL_, INTERNAL_, "ActualizeSubModelValues; Hydrodynamic. ERR10") 
-                        !!$OMP END CRITICAL (ASMV8_ERR10)
+                        !!!$OMP END CRITICAL (ASMV8_ERR10)
                     endif
 
                 endif
@@ -13407,9 +13388,9 @@ cd9:            if (Faces3D_VSon(i, j, k) == Covered .and. .not. DeadZoneSon) th
                         if (Me%SubModel%MissingNull) then 
                             Me%SubModel%V_New(i, j, k)  = 0.
                         else
-                            !!$OMP CRITICAL (ASMV9_ERR11)
+                            !!!$OMP CRITICAL (ASMV9_ERR11)
                             call SetError(FATAL_, INTERNAL_, "ActualizeSubModelValues; Hydrodynamic. ERR11") 
-                            !!$OMP END CRITICAL (ASMV9_ERR11)
+                            !!!$OMP END CRITICAL (ASMV9_ERR11)
                         endif
                     endif
 
@@ -13431,9 +13412,9 @@ cd9:            if (Faces3D_VSon(i, j, k) == Covered .and. .not. DeadZoneSon) th
                         if (Me%SubModel%MissingNull) then 
                             Me%SubModel%DVZ_New(i, j, k)  = 0.
                         else
-                            !!$OMP CRITICAL (ASMV10_ERR12)
+                            !!!$OMP CRITICAL (ASMV10_ERR12)
                             call SetError(FATAL_, INTERNAL_, "ActualizeSubModelValues; Hydrodynamic. ERR12") 
-                            !!$OMP END CRITICAL (ASMV10_ERR12)
+                            !!!$OMP END CRITICAL (ASMV10_ERR12)
                         endif
 
                     endif
@@ -13481,9 +13462,9 @@ cd99:       if ((ImposedTangFacesVSon(i, j, k) == Imposed  .or.                 
                     if (Me%SubModel%MissingNull) then 
                         Me%SubModel%V_New(i, j, k)  = 0.
                     else
-                        !!$OMP CRITICAL (ASMV11_ERR13)
+                        !!!$OMP CRITICAL (ASMV11_ERR13)
                         call SetError(FATAL_, INTERNAL_, "ActualizeSubModelValues; Hydrodynamic. ERR13") 
-                        !!$OMP END CRITICAL (ASMV11_ERR13)
+                        !!!$OMP END CRITICAL (ASMV11_ERR13)
                     endif
 
                 endif
@@ -13504,9 +13485,9 @@ cd99:       if ((ImposedTangFacesVSon(i, j, k) == Imposed  .or.                 
                     if (Me%SubModel%MissingNull) then 
                         Me%SubModel%DVZ_New(i, j, k)  = 0.
                     else
-                        !!$OMP CRITICAL (ASMV12_ERR14)
+                        !!!$OMP CRITICAL (ASMV12_ERR14)
                         call SetError(FATAL_, INTERNAL_, "ActualizeSubModelValues; Hydrodynamic. ERR14") 
-                        !!$OMP END CRITICAL (ASMV12_ERR14)
+                        !!!$OMP END CRITICAL (ASMV12_ERR14)
                     endif
 
                 endif
@@ -13581,12 +13562,10 @@ cd11:   if (InitialField .and. .not. Me%ComputeOptions%Continuous) then
             Me%SubModel%DUZ_Old(:,:,:)              =                    &
                 Me%SubModel%DUZ_Next(:,:,:)
 
-
             Me%SubModel%DVZ_Old(:,:,:)              =                    &
                 Me%SubModel%DVZ_Next(:,:,:)
 
         endif cd11
-
 
        !UnGets Bathymetry
         call UnGetGridData(Me%ObjGridData, Bathymetry, STAT = status)
@@ -13595,7 +13574,6 @@ cd11:   if (InitialField .and. .not. Me%ComputeOptions%Continuous) then
                 call SetError(FATAL_, INTERNAL_, "ActualizeSubModelValues; Hydrodynamic. ERR15") 
 
     end subroutine ActualizeSubModelValues
-
 
     !--------------------------------------------------------------------------
     subroutine ActualizeSon3DWithFather2D (InitialField)
@@ -13723,9 +13701,9 @@ cd4:            if ((Faces3D_USon        (i, j, KUB) == Covered   .or.          
                 
                     if (Me%SubModel%qX(i, j, KUB)  < FillValueReal / 2.) then
 #ifndef _USE_MPI
-                        !!$OMP CRITICAL (AS3DWF2D1_OUT01)
+                        !!!$OMP CRITICAL (AS3DWF2D1_OUT01)
                         write(*,*)'Point [i,j,k] not covered',i, j,KUB
-                        !!$OMP END CRITICAL (AS3DWF2D1_OUT01)
+                        !!!$OMP END CRITICAL (AS3DWF2D1_OUT01)
 #endif
                         ErrorOccured = .true.
                         if (Me%SubModel%MissingNull)                     &
@@ -13820,9 +13798,9 @@ cd5:            if ((Faces3D_VSon        (i, j, KUB) == Covered   .or.          
                 
                     if (Me%SubModel%qY  (i, j, KUB) < FillValueReal / 2.) then
 #ifndef _USE_MPI
-                        !!$OMP CRITICAL (AS3DWF2D2_OUT02)
+                        !!!$OMP CRITICAL (AS3DWF2D2_OUT02)
                         write(*,*)'Point [i,j,k] not covered',i, j,KUB
-                        !!$OMP END CRITICAL (AS3DWF2D2_OUT02)
+                        !!!$OMP END CRITICAL (AS3DWF2D2_OUT02)
 #endif
                         ErrorOccured = .true.
                         if (Me%SubModel%MissingNull)                     &
@@ -13932,9 +13910,9 @@ cd6:            if (Water3DSon(i, j, KUB) == WaterPoint .and. .not. DeadZoneSon)
                             Me%SubModel%Z(i, j)  = - Bathymetry(i, j) + 0.75 * MinWaterColumn 
 
                         else
-                            !!$OMP CRITICAL (AS3DWF2D3_ERR07)
+                            !!!$OMP CRITICAL (AS3DWF2D3_ERR07)
                             call SetError(FATAL_, INTERNAL_, "ActualizeSon3DWithFather2D; Hydrodynamic. ERR07") 
-                            !!$OMP END CRITICAL (AS3DWF2D3_ERR07)
+                            !!!$OMP END CRITICAL (AS3DWF2D3_ERR07)
                         endif
 
                     endif
@@ -14006,9 +13984,9 @@ cd67:           if (Boundary2DSon(i, j) == Boundary .and. Water3DSon(i, j, KUB) 
                             Me%SubModel%Z(i, j)  = - Bathymetry(i, j) + 0.75 * MinWaterColumn 
 
                         else
-                            !!$OMP CRITICAL (AS3DWF2D4_ERR08)
+                            !!!$OMP CRITICAL (AS3DWF2D4_ERR08)
                             call SetError(FATAL_, INTERNAL_, "ActualizeSon3DWithFather2D; Hydrodynamic. ERR08") 
-                            !!$OMP END CRITICAL (AS3DWF2D4_ERR08)
+                            !!!$OMP END CRITICAL (AS3DWF2D4_ERR08)
                         endif
 
                     endif
@@ -14067,9 +14045,9 @@ cd7:            if (Faces3D_USon(i, j, KUB) == Covered  .and. .not. DeadZoneSon)
                         if (Me%SubModel%MissingNull) then 
                             NullValue = .true.
                         else
-                            !!$OMP CRITICAL (AS3DWF2D5_ERR09)
+                            !!!$OMP CRITICAL (AS3DWF2D5_ERR09)
                             call SetError(FATAL_, INTERNAL_, "ActualizeSon3DWithFather2D; Hydrodynamic. ERR09") 
-                            !!$OMP END CRITICAL (AS3DWF2D5_ERR09)
+                            !!!$OMP END CRITICAL (AS3DWF2D5_ERR09)
                         endif
 
                     endif
@@ -14112,9 +14090,9 @@ cd7:            if (Faces3D_USon(i, j, KUB) == Covered  .and. .not. DeadZoneSon)
                             NullValue = .true.
 
                         else
-                            !!$OMP CRITICAL (AS3DWF2D6_ERR10)
+                            !!!$OMP CRITICAL (AS3DWF2D6_ERR10)
                             call SetError(FATAL_, INTERNAL_, "ActualizeSon3DWithFather2D; Hydrodynamic. ERR10") 
-                            !!$OMP END CRITICAL (AS3DWF2D6_ERR10)
+                            !!!$OMP END CRITICAL (AS3DWF2D6_ERR10)
                         endif
 
                     endif
@@ -14206,9 +14184,9 @@ cd77:       if ((ImposedTangFacesUSon(i, j, KUB) == Imposed  .or.               
                         NullValue = .true.
 
                     else
-                        !!$OMP CRITICAL (AS3DWF2D7_ERR11)
+                        !!!$OMP CRITICAL (AS3DWF2D7_ERR11)
                         call SetError(FATAL_, INTERNAL_, "ActualizeSon3DWithFather2D; Hydrodynamic. ERR11") 
-                        !!$OMP END CRITICAL (AS3DWF2D7_ERR11)
+                        !!!$OMP END CRITICAL (AS3DWF2D7_ERR11)
                     endif
 
                 endif
@@ -14247,9 +14225,9 @@ cd77:       if ((ImposedTangFacesUSon(i, j, KUB) == Imposed  .or.               
                         NullValue = .true.
 
                     else
-                        !!$OMP CRITICAL (AS3DWF2D8_ERR12)
+                        !!!$OMP CRITICAL (AS3DWF2D8_ERR12)
                         call SetError(FATAL_, INTERNAL_, "ActualizeSon3DWithFather2D; Hydrodynamic. ERR12") 
-                        !!$OMP END CRITICAL (AS3DWF2D8_ERR12)
+                        !!!$OMP END CRITICAL (AS3DWF2D8_ERR12)
                     endif
 
                 endif
@@ -14320,9 +14298,9 @@ cd9:            if (Faces3D_VSon(i, j, KUB) == Covered  .and. .not. DeadZoneSon)
                             NullValue = .true.
 
                         else
-                            !!$OMP CRITICAL (AS3DWF2D9_ERR13)
+                            !!!$OMP CRITICAL (AS3DWF2D9_ERR13)
                             call SetError(FATAL_, INTERNAL_, "ActualizeSon3DWithFather2D; Hydrodynamic. ERR13") 
-                            !!$OMP END CRITICAL (AS3DWF2D9_ERR13)
+                            !!!$OMP END CRITICAL (AS3DWF2D9_ERR13)
                         endif
 
                     endif
@@ -14360,9 +14338,9 @@ cd9:            if (Faces3D_VSon(i, j, KUB) == Covered  .and. .not. DeadZoneSon)
                         if (Me%SubModel%MissingNull) then 
                             NullValue = .true.
                         else
-                            !!$OMP CRITICAL (AS3DWF2D10_ERR14)
+                            !!!$OMP CRITICAL (AS3DWF2D10_ERR14)
                             call SetError(FATAL_, INTERNAL_, "ActualizeSon3DWithFather2D; Hydrodynamic. ERR14") 
-                            !!$OMP END CRITICAL (AS3DWF2D10_ERR14)
+                            !!!$OMP END CRITICAL (AS3DWF2D10_ERR14)
                         endif
                         
                     endif
@@ -14452,9 +14430,9 @@ cd99:       if ((ImposedTangFacesVSon(i, j, KUB) == Imposed  .or.               
                     if (Me%SubModel%MissingNull) then 
                         NullValue = .true.
                     else
-                        !!$OMP CRITICAL (AS3DWF2D11_ERR15)
+                        !!!$OMP CRITICAL (AS3DWF2D11_ERR15)
                         call SetError(FATAL_, INTERNAL_, "ActualizeSon3DWithFather2D; Hydrodynamic. ERR15") 
-                        !!$OMP END CRITICAL (AS3DWF2D11_ERR15)
+                        !!!$OMP END CRITICAL (AS3DWF2D11_ERR15)
                     endif
 
                 endif
@@ -14492,9 +14470,9 @@ cd99:       if ((ImposedTangFacesVSon(i, j, KUB) == Imposed  .or.               
                     if (Me%SubModel%MissingNull) then 
                         NullValue = .true.
                     else
-                        !!$OMP CRITICAL (AS3DWF2D12_ERR16)
+                        !!!$OMP CRITICAL (AS3DWF2D12_ERR16)
                         call SetError(FATAL_, INTERNAL_, "ActualizeSon3DWithFather2D; Hydrodynamic. ERR16") 
-                        !!$OMP END CRITICAL (AS3DWF2D12_ERR16)
+                        !!!$OMP END CRITICAL (AS3DWF2D12_ERR16)
                     endif
 
                 endif
@@ -15245,9 +15223,9 @@ cd5:                if ((Faces3D_VSon        (i, j, k) == Covered   .or.        
                         if (Me%SubModel%Aux_qY(i, j, KUBFather)                     & 
                         < FillValueReal / 2.) then
 #ifndef _USE_MPI
-                            !!$OMP CRITICAL (AS3DWF3D1_OUT01)
+                            !!!$OMP CRITICAL (AS3DWF3D1_OUT01)
                            write(*,*)'Point [i,j,k] not covered',i, j,k
-                            !!$OMP END CRITICAL (AS3DWF3D1_OUT01)
+                            !!!$OMP END CRITICAL (AS3DWF3D1_OUT01)
 #endif
                             ErrorOccured = .true.
                             if (Me%SubModel%MissingNull)                            &
@@ -15694,10 +15672,10 @@ cd9:            if (Water3DSon(i, j, KUB) == WaterPoint .and. .not. DeadZoneSon)
                                                    MinWaterColumn 
 
                         else
-                            !!$OMP CRITICAL (AS3DWF3D2_ERR09)
+                            !!!$OMP CRITICAL (AS3DWF3D2_ERR09)
                             call SetError(FATAL_, INTERNAL_,                        &
                                 "ActualizeSon3DWithFather3D; Hydrodynamic. ERR09") 
-                            !!$OMP END CRITICAL (AS3DWF3D2_ERR09)
+                            !!!$OMP END CRITICAL (AS3DWF3D2_ERR09)
                         endif
 
                     endif
@@ -15765,10 +15743,10 @@ cd10:           if (Boundary2DSon(i, j) == Boundary .and. Water3DSon(i, j, KUB) 
                                                    MinWaterColumn 
 
                         else
-                            !!$OMP CRITICAL (AS3DWF3D3_ERR10)
+                            !!!$OMP CRITICAL (AS3DWF3D3_ERR10)
                             call SetError(FATAL_, INTERNAL_,                        &
                                 "ActualizeSon3DWithFather3D; Hydrodynamic. ERR10") 
-                            !!$OMP END CRITICAL (AS3DWF3D3_ERR10)
+                            !!!$OMP END CRITICAL (AS3DWF3D3_ERR10)
                         endif
 
                     endif
@@ -23539,9 +23517,9 @@ cd15:           if (Me%ComputeOptions%ComputeEnteringWave) then
 
 
                 if (abs(XY_Component_L)  > 1. )  then
-                    !!$OMP CRITICAL (WLFWW1_STOP01)
+                    !!!$OMP CRITICAL (WLFWW1_STOP01)
                     Stop 'XY_Component_L = 1'
-                    !!$OMP END CRITICAL (WLFWW1_STOP01)
+                    !!!$OMP END CRITICAL (WLFWW1_STOP01)
                 endif
 
                 if (ImplicitFaces) then
@@ -26614,9 +26592,9 @@ cd3:                    if (Manning) then
                              WallDistance = AuxZ/2. + Rugosity
                 
                              if (WallDistance <= Rugosity) then                                    
-                                 !!$OMP CRITICAL (MCZ1_ERR04)
+                                 !!!$OMP CRITICAL (MCZ1_ERR04)
                                  call SetError (FATAL_, INTERNAL_, "Modify_ChezyZ - Hydrodynamic - ERR04")        
-                                 !!$OMP END CRITICAL (MCZ1_ERR04)
+                                 !!!$OMP END CRITICAL (MCZ1_ERR04)
                              endif    
                 
                              ! [] = [] / log ([m]/[m])
@@ -27356,12 +27334,12 @@ do6 :           do  i = ILB, IUB
 
         !griflet: Avoid inner parallel zones, avoid all barriers and critical sections...
         !and you'll be fine.
-        !!$OMP PARALLEL PRIVATE( i,j,k, Kbottom, &
-        !!$OMP                   iSouth,jWest,j_East,i_North,jWest2,iSouth2,jWest3,iSouth3, &
-        !!$OMP                   ComputeFlux, FaceFlux_WestSouth, &
-        !!$OMP                   NearBoundary,Vel4,du4, &
-        !!$OMP                   V4,MomentumFlux,CFace)
-        !!$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+        !!!$OMP PARALLEL PRIVATE( i,j,k, Kbottom, &
+        !!!$OMP                   iSouth,jWest,j_East,i_North,jWest2,iSouth2,jWest3,iSouth3, &
+        !!!$OMP                   ComputeFlux, FaceFlux_WestSouth, &
+        !!!$OMP                   NearBoundary,Vel4,du4, &
+        !!!$OMP                   V4,MomentumFlux,CFace)
+        !!!$OMP DO SCHEDULE(DYNAMIC,CHUNK)
     doi: do j=JLB, JUB
     doj: do i=ILB, IUB
 
@@ -27500,8 +27478,8 @@ cd0:        if (ComputeFlux) then
 
         enddo doj
         enddo doi
-        !!$OMP END DO NOWAIT
-        !!$OMP END PARALLEL
+        !!!$OMP END DO NOWAIT
+        !!!$OMP END PARALLEL
 
         if (MonitorPerformance) then
             call StopWatch ("ModuleHydrodynamic", "Modify_Advection_UX_VY")
@@ -27642,12 +27620,12 @@ cd0:        if (ComputeFlux) then
         !ACanas(2010): expected that performance could improve in other
         !Acanas(2010): applications than the one used for test.
 
-        !!$OMP PARALLEL PRIVATE( i,j,k, Kbottom, &
-        !!$OMP                   iSouth,jWest,i_West,j_South,i_East,j_North,i_West2,j_South2, &
-        !!$OMP                   NotBoundary, FaceRightOK, FaceLeftOK, FaceFlux_SouthWest, &
-        !!$OMP                   NearBoundary,Vel4,du4, &
-        !!$OMP                   V4,MomentumFlux,CFace)        
-        !!$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+        !!!$OMP PARALLEL PRIVATE( i,j,k, Kbottom, &
+        !!!$OMP                   iSouth,jWest,i_West,j_South,i_East,j_North,i_West2,j_South2, &
+        !!!$OMP                   NotBoundary, FaceRightOK, FaceLeftOK, FaceFlux_SouthWest, &
+        !!!$OMP                   NearBoundary,Vel4,du4, &
+        !!!$OMP                   V4,MomentumFlux,CFace)        
+        !!!$OMP DO SCHEDULE(DYNAMIC,CHUNK)
 doj:    do j=JLB, JUB
 doi:    do i=ILB, IUB
 
@@ -27821,8 +27799,8 @@ dok1:           do k = Kbottom, KUB
 
         enddo doi
         enddo doj
-        !!$OMP END DO NOWAIT
-        !!$OMP END PARALLEL
+        !!!$OMP END DO NOWAIT
+        !!!$OMP END PARALLEL
 
         if (MonitorPerformance) then
             call StopWatch ("ModuleHydrodynamic", "Modify_Advection_UY_VX")
@@ -28811,12 +28789,12 @@ cd0:        if (ComputeFaces3D_UV(i, j, KUB) == Covered .and.                   
 
         !$ CHUNK = CHUNK_J(JLB,JUB)
 
-        !!$OMP PARALLEL PRIVATE( i,j,k, Kbottom, &
-        !!$OMP                   iSouth, jWest, i_North, j_East, &
-        !!$OMP                   ComputeFlux, &
-        !!$OMP                   ViscAux,FaceFlux_WestSouth1,FaceFlux_WestSouth2, &
-        !!$OMP                   Aux)        
-        !!$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+        !!!$OMP PARALLEL PRIVATE( i,j,k, Kbottom, &
+        !!!$OMP                   iSouth, jWest, i_North, j_East, &
+        !!!$OMP                   ComputeFlux, &
+        !!!$OMP                   ViscAux,FaceFlux_WestSouth1,FaceFlux_WestSouth2, &
+        !!!$OMP                   Aux)        
+        !!!$OMP DO SCHEDULE(DYNAMIC,CHUNK)
     doi: do j=JLB, JUB
     doj: do i=ILB, IUB
 
@@ -28917,8 +28895,8 @@ cd1:                if (ConservativeHorDif) then
 
         enddo doj
         enddo doi
-        !!$OMP END DO NOWAIT
-        !!$OMP END PARALLEL
+        !!!$OMP END DO NOWAIT
+        !!!$OMP END PARALLEL
 
         !Nullify auxiliar pointers
         nullify (Horizontal_Transport)
@@ -29036,12 +29014,12 @@ cd1:                if (ConservativeHorDif) then
 
         !$ CHUNK = CHUNK_J(JLB,JUB)
 
-        !!$OMP PARALLEL PRIVATE( i,j,k, Kbottom, &
-        !!$OMP                   iSouth, jWest, i_West, j_South, &
-        !!$OMP                   ComputeFlux, ComputeFlux1, ComputeFlux2, &
-        !!$OMP                   ViscAux,FaceFlux_SouthWest1,FaceFlux_SouthWest2, &
-        !!$OMP                   NoSlipFace, Aux)
-        !!$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+        !!!$OMP PARALLEL PRIVATE( i,j,k, Kbottom, &
+        !!!$OMP                   iSouth, jWest, i_West, j_South, &
+        !!!$OMP                   ComputeFlux, ComputeFlux1, ComputeFlux2, &
+        !!!$OMP                   ViscAux,FaceFlux_SouthWest1,FaceFlux_SouthWest2, &
+        !!!$OMP                   NoSlipFace, Aux)
+        !!!$OMP DO SCHEDULE(DYNAMIC,CHUNK)
     doi: do j=JLB, JUB
     doj: do i=ILB, IUB
 
@@ -29194,8 +29172,8 @@ cd2:                    if (ConservativeHorDif) then
 
         enddo doj
         enddo doi
-        !!$OMP END DO NOWAIT
-        !!$OMP END PARALLEL
+        !!!$OMP END DO NOWAIT
+        !!!$OMP END PARALLEL
 
         if (MonitorPerformance) then
             call StopWatch ("ModuleHydrodynamic", "Modify_Diffusion_UY_VX")
@@ -30409,10 +30387,10 @@ dk:             do k = kmin,kmax
                             Horizontal_Transport(iNorth, jEast, k)   +   MomentumDischarge                       
 
                     else if (abs(MomentumDischarge) > AllmostZero) then
-                        !!$OMP CRITICAL (MMD1_WARN01)
+                        !!!$OMP CRITICAL (MMD1_WARN01)
                         write(*,*) 'WARNING_ - The Model is trying to discharge Momentum in a No Compute Face'
                         write(*,*) 'WARNING_ - ModifyMomentumDischarge - ModuleHydrodynamic - WARN01'
-                        !!$OMP END CRITICAL (MMD1_WARN01)
+                        !!!$OMP END CRITICAL (MMD1_WARN01)
                     endif 
 
                 enddo dk
@@ -32724,7 +32702,7 @@ do61:               do  K = kbottom, KUB
 
         !If the RAMP option is on then the baroclinic force is gradually imposed
         BaroclinicRAMP = Me%ComputeOptions%BaroclinicRAMP
-        
+
 cd12:   if ( BaroclinicRAMP ) then 
 
             CurrentTime  = Me%CurrentTime
@@ -32736,12 +32714,12 @@ cd12:   if ( BaroclinicRAMP ) then
             Coriolis_Freq => Me%External_Var%Coriolis_Freq
 
             !$ CHUNK = CHUNK_J(JLB, JUB)
-            
+
             !$OMP PARALLEL PRIVATE(I,J,K,ileft,jleft,F_UV,TimeCoef,kbottom)
             !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
 do42:       do J = JLB, JUB
 do52:       do I = ILB, IUB
-                        
+
 cd13:           if (ComputeFaces3D_UV(i, j, KUB)== Covered) then
 
                     ileft = i - di
@@ -32751,9 +32729,7 @@ cd13:           if (ComputeFaces3D_UV(i, j, KUB)== Covered) then
                     F_UV = (DUX_VY(ileft, jleft) * Coriolis_Freq(I, J) + DUX_VY(I, J) * Coriolis_Freq(ileft, jleft)) / &
                            (DUX_VY(ileft, jleft) + DUX_VY(I, J))
 
-                    
 !                    InertialPeriods = Me%ComputeOptions%InertialPeriods
-
 
                     TimeCoef = abs (DT_RunPeriod * F_UV / (2 * Pi) / InertialPeriods)
 
@@ -33380,8 +33356,8 @@ cd2:    if( Me%ComputeOptions%AltimetryAssimilation%flag)  then
                 !    call StartWatch ("ModuleHydrodynamic", "Calc_depth_and_Hro")
                 !endif
 
-                !!$OMP PARALLEL PRIVATE(k)
-                !!$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+                !!!$OMP PARALLEL PRIVATE(k)
+                !!!$OMP DO SCHEDULE(DYNAMIC,CHUNK)
                 do k = kbottom+1, KUB
                    DensRight(k) = (dble(SigmaDens(i    ,j    ,k  )) * dble(DWZ (    i,    j,  k-1)) +  &
                                    dble(SigmaDens(i    ,j    ,k-1)) * dble(DWZ (    i,    j,  k  ))) / &
@@ -33391,8 +33367,8 @@ cd2:    if( Me%ComputeOptions%AltimetryAssimilation%flag)  then
                                    dble(SigmaDens(ileft,jleft,k-1)) * dble(DWZ (ileft,jleft,  k  ))) / &
                                   (dble(DWZ    (ileft,jleft,k-1)) + dble(DWZ (ileft,jleft,  k  )))
                 enddo
-                !!$OMP END DO
-                !!$OMP END PARALLEL
+                !!!$OMP END DO
+                !!!$OMP END PARALLEL
 
                 !if (MonitorPerformance) then
                 !    call StopWatch ("ModuleHydrodynamic", "Calc_depth_and_Hro")
@@ -33727,8 +33703,6 @@ cd4:            if (BoundaryPoints(i, j) == Boundary) then
         nullify(DXX                    )
         nullify(qX                     )
         nullify(qY                     )
-
-
 
     end Subroutine Modify_VerticalWaterFlow
 
@@ -34643,11 +34617,11 @@ dok:            do k = kbottom + 1, KUB
         endif
 
         !griflet: removed critical. Added TimeCoef to private variables.        
-        !$OMP PARALLEL PRIVATE( i,j,iSouth,jWest,kbottom,FaceDensity, &
-        !$OMP                   WaterPressure_Aceleration,TidePotentialAceleration, &
-        !$OMP                   AtmosphericPressure_Aceleration,F_UV,Barotropic_Aceleration, &
-        !$OMP                   Baroclinic_Aceleration,Transport_Aceleration,TimeCoef)
-        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+        !!!$OMP PARALLEL PRIVATE( i,j,iSouth,jWest,kbottom,FaceDensity, &
+        !!!$OMP                   WaterPressure_Aceleration,TidePotentialAceleration, &
+        !!!$OMP                   AtmosphericPressure_Aceleration,F_UV,Barotropic_Aceleration, &
+        !!!$OMP                   Baroclinic_Aceleration,Transport_Aceleration,TimeCoef)
+        !!!$OMP DO SCHEDULE(DYNAMIC,CHUNK)
 doj:     do j = JLB, JUB
 doi:     do i = ILB, IUB
 
@@ -34662,12 +34636,12 @@ dok:            do  K = kbottom, KUB
 
                     if (Me%ComputeOptions%LocalDensity) then
 
-                        !!$OMP CRITICAL (VEF1_FNC01)
+                        !!!$OMP CRITICAL (VEF1_FNC01)
                         FaceDensity    = Face_Interpolation(Density(I, J, K),            &
                                                             Density(iSouth, jWest, K), &
                                                             DUX_VY(I, J),                &
                                                             DUX_VY(iSouth, jWest))
-                        !!$OMP END CRITICAL (VEF1_FNC01)
+                        !!!$OMP END CRITICAL (VEF1_FNC01)
                     else
 
                         FaceDensity    = SigmaDensityReference
@@ -34752,9 +34726,9 @@ dok:            do  K = kbottom, KUB
                             F_UV = (DUX_VY(iSouth, jWest) * Coriolis_Freq(I, J) + DUX_VY(I, J) * Coriolis_Freq(iSouth, jWest)) / &
                                 (DUX_VY(iSouth, jWest) + DUX_VY(I, J))
                     
-                            !!$OMP CRITICAL (VEF2_SEC01)
+                            !!!$OMP CRITICAL (VEF2_SEC01)
                             TimeCoef = abs (DT_RunPeriod * F_UV / (2 * Pi) / InertialPeriods)
-                            !!$OMP END CRITICAL (VEF2_SEC01)
+                            !!!$OMP END CRITICAL (VEF2_SEC01)
 
                             if (TimeCoef < 1) then
 
@@ -34813,8 +34787,8 @@ dok:            do  K = kbottom, KUB
         enddo doi
         enddo doj
         !griflet: added NOWAIT
-        !$OMP END DO NOWAIT
-        !$OMP END PARALLEL
+        !!!$OMP END DO NOWAIT
+        !!!$OMP END PARALLEL
 
         if (MonitorPerformance) then
             call StopWatch ("ModuleHydrodynamic", "Velocity_ExplicitForces")
@@ -34994,10 +34968,10 @@ dok:            do  K = kbottom, KUB
         
         !griflet: Ok, it is assumed that *statically* allocated arrays may be safely replicated
         !with the private directive.
-        !!$OMP PARALLEL PRIVATE( i,j,k,iSouth,jWest,Kbottom,CorrectionOld, &
-        !!$OMP                   Face_Flux,CorrectionNew,NearBoundary,Vel4, &
-        !!$OMP                   du4,V4,MomentumFlux,CFace)
-        !!$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+        !!!$OMP PARALLEL PRIVATE( i,j,k,iSouth,jWest,Kbottom,CorrectionOld, &
+        !!!$OMP                   Face_Flux,CorrectionNew,NearBoundary,Vel4, &
+        !!!$OMP                   du4,V4,MomentumFlux,CFace)
+        !!!$OMP DO SCHEDULE(DYNAMIC,CHUNK)
 doi:     do j=JLB, JUB
 doj:     do i=ILB, IUB
 
@@ -35108,9 +35082,9 @@ dok1:           do  k = Kbottom + 1, KUB
 
                     if (Me%SubModel%ON .and. BoundaryFacesUV  (i, j) == Boundary ) then
                     
-                        !!$OMP CRITICAL (VVA_SUB01)
+                        !!!$OMP CRITICAL (VVA_SUB01)
                         CorrectionNew = VertAdvectionSubModel ( CorrectionOld, DT, i, j, k)
-                        !!$OMP END CRITICAL (VVA_SUB01)
+                        !!!$OMP END CRITICAL (VVA_SUB01)
 
                         Face_Flux   = Face_Flux + CorrectionNew / 2.
 
@@ -35220,8 +35194,8 @@ dok1:           do  k = Kbottom + 1, KUB
 
         enddo doj
         enddo doi
-        !!$OMP END DO NOWAIT
-        !!$OMP END PARALLEL
+        !!!$OMP END DO NOWAIT
+        !!!$OMP END PARALLEL
 
         if (MonitorPerformance) then
             call StopWatch ("ModuleHydrodynamic", "Velocity_VerticalAdvection")
@@ -36025,11 +35999,11 @@ cd1:        if (ComputeFaces3D_UV(i, j, KUB)==Covered) then
                 if (Me%ComputeOptions%Wind /= NoWind_) then
 
                     if (Me%ComputeOptions%LocalDensity) then
-                        !!$OMP CRITICAL (VVDB1_FNC01)
+                        !!!$OMP CRITICAL (VVDB1_FNC01)
                         FaceDensity  = Face_Interpolation(Density(I, J, KUB),                &
                                                           Density(iSouth, jWest, KUB),     &
                                                           DUX_VY(I, J), DUX_VY(iSouth, jWest))
-                        !!$OMP END CRITICAL (VVDB1_FNC01)
+                        !!!$OMP END CRITICAL (VVDB1_FNC01)
                     else
 
                         FaceDensity  = SigmaDensityReference
@@ -36061,10 +36035,10 @@ cd1:        if (ComputeFaces3D_UV(i, j, KUB)==Covered) then
 
                     endif
 
-                    !!$OMP CRITICAL (VVDB2_FNC02)
+                    !!!$OMP CRITICAL (VVDB2_FNC02)
                     TauFace  = Face_Interpolation(TauWind_UV(I,J), TauWind_UV(iSouth, jWest), &
                                                   DUX_VY(I, J), DUX_VY(iSouth, jWest))
-                    !!$OMP END CRITICAL (VVDB2_FNC02)
+                    !!!$OMP END CRITICAL (VVDB2_FNC02)
 
                     TauFace  = SmoothCoef * TauFace
 
