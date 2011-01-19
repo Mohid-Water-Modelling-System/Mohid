@@ -31,6 +31,8 @@ program SmoothBatimNesting
     use ModuleFunctions
     use ModuleHorizontalGrid
     use ModuleGridData
+    use ModuleHorizontalMap
+    use ModuleFillMatrix
 
 
     implicit none
@@ -58,7 +60,8 @@ program SmoothBatimNesting
 
         integer                                     :: ObjGridDataSon               = 0
         integer                                     :: ObjGridDataFather            = 0
-        integer                                     :: ObjGridDataCoef              = 0
+        integer                                     :: ObjTime                      = 0
+        integer                                     :: ObjHorizontalMap
         character(LEN=StringLength)                 :: SmoothBatimFile, FahterFile, SonFile, CoefFile
         real                                        :: LandPoint
         real,           dimension(:,:),    pointer  :: NewDepth, SmoothCoef
@@ -104,6 +107,12 @@ program SmoothBatimNesting
         if(STAT_CALL .ne. SUCCESS_) stop 'OpenProject - SmoothBatimNesting - ERR01'
 
         call ReadGridFilesNames
+        
+        call Read_Lock_External_Var(Me%ObjGridFather, Me%ExtVarFather)
+
+        call Read_Lock_External_Var(Me%ObjGridSon,    Me%ExtVarSon) 
+       
+        call ConstructPropertyCoefficients
 
         call KillEnterData(Me%ObjEnterData, STAT = STAT_CALL)
         if(STAT_CALL .ne. SUCCESS_) stop 'OpenProject - SmoothBatimNesting - ERR190'
@@ -116,7 +125,10 @@ program SmoothBatimNesting
     subroutine ReadGridFilesNames
         
         !Local-----------------------------------------------------------------
+        type (T_Time)                       :: BeginTime, EndTime
+        real                                :: DT
         integer                             :: flag, STAT_CALL
+        
         
         !Begin-----------------------------------------------------------------
 
@@ -165,6 +177,9 @@ program SmoothBatimNesting
                      STAT         = STAT_CALL)        
         if(STAT_CALL .ne. SUCCESS_) stop 'ReadGridFilesNames - SmoothBatimNesting - ERR45'
         
+        call StartComputeTime(Me%ObjTime, BeginTime, EndTime, DT, VariableDT = .false., STAT = STAT_CALL)
+        if(STAT_CALL .ne. SUCCESS_) stop 'ReadGridFilesNames - SmoothBatimNesting - ERR48'
+        
         !Construct grids
         call ConstructHorizontalGrid(Me%ObjGridFather, trim(Me%FahterFile), STAT = STAT_CALL)
         if(STAT_CALL .ne. SUCCESS_) stop 'ReadGridFilesNames - SmoothBatimNesting - ERR50'
@@ -177,13 +192,16 @@ program SmoothBatimNesting
 
         call ConstructGridData(Me%ObjGridDataSon, Me%ObjGridSon, FileName = trim(Me%SonFile), STAT = STAT_CALL)
         if(STAT_CALL /= SUCCESS_)stop 'ReadGridFilesNames - SmoothBatimNesting - ERR80'
-
-        call ConstructGridData(Me%ObjGridDataCoef, Me%ObjGridSon, FileName = trim(Me%CoefFile), STAT = STAT_CALL)
+        
+        call ConstructHorizontalMap(Me%ObjHorizontalMap, Me%ObjGridDataSon, Me%ObjGridSon, STAT = STAT_CALL)
         if(STAT_CALL /= SUCCESS_)stop 'ReadGridFilesNames - SmoothBatimNesting - ERR90'
+        
+
+!        call ConstructGridData(Me%ObjGridDataCoef, Me%ObjGridSon, FileName = trim(Me%CoefFile), STAT = STAT_CALL)
+!        if(STAT_CALL /= SUCCESS_)stop 'ReadGridFilesNames - SmoothBatimNesting - ERR90'
 
 
     end subroutine ReadGridFilesNames
-
 
     !--------------------------------------------------------------------------
 
@@ -207,6 +225,73 @@ program SmoothBatimNesting
     end subroutine AllocateVariables
     !--------------------------------------------------------------------------
     
+    subroutine ConstructPropertyCoefficients
+
+        !Arguments-------------------------------------------------------------
+
+        !Local-----------------------------------------------------------------
+        integer, dimension(:,:  ), pointer      :: WaterPoints2D
+        type (T_PropertyID)                     :: SmoothCoefID
+        logical                                 :: BlockFound
+        integer                                 :: ClientNumber
+        integer                                 :: SizeILB, SizeIUB, SizeJLB, SizeJUB
+        integer                                 :: STAT_CALL
+
+        !----------------------------------------------------------------------
+ 
+        SizeILB = Me%ExtVarSon%Size%ILB
+        SizeIUB = Me%ExtVarSon%Size%IUB
+        SizeJLB = Me%ExtVarSon%Size%JLB
+        SizeJUB = Me%ExtVarSon%Size%JUB
+
+        call GetWaterPoints2D(Me%ObjHorizontalMap, WaterPoints2D, STAT = STAT_CALL) 
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructPropertyCoefficients - SmoothBatimNesting - ERR10'
+        
+        call ExtractBlockFromBuffer(Me%ObjEnterData, ClientNumber,                      &
+                                   "<begin_coef>", "<end_coef>", BlockFound,            &
+                                   STAT = STAT_CALL)
+
+        if(STAT_CALL .EQ. SUCCESS_)then
+
+cd0:        if (BlockFound) then
+
+                allocate(Me%SmoothCoef (SizeILB:SizeIUB, SizeJLB:SizeJUB))
+                
+
+                Me%SmoothCoef(:,:) = FillValueReal
+
+
+                call ConstructFillMatrix  (PropertyID           = SmoothCoefID,         &
+                                           EnterDataID          = Me%ObjEnterData,      &
+                                           TimeID               = Me%ObjTime,           &
+                                           HorizontalGridID     = Me%ObjGridSon,        &
+                                           ExtractType          = FromBlock_,           &
+                                           PointsToFill2D       = WaterPoints2D,        &
+                                           Matrix2D             = Me%SmoothCoef,        &
+                                           TypeZUV              = TypeZ_,               &
+                                           STAT                 = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructPropertyCoefficients - SmoothBatimNesting - ERR20'
+
+
+                if(.not. SmoothCoefID%SolutionFromFile)then
+
+                    call KillFillMatrix(SmoothCoefID%ObjFillMatrix, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructPropertyCoefficients - SmoothBatimNesting - ERR30'
+                
+                end if
+                
+
+            endif cd0
+            
+        endif          
+
+        call UnGetHorizontalMap(Me%ObjHorizontalMap, WaterPoints2D, STAT = STAT_CALL) 
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructPropertyCoefficients - SmoothBatimNesting - ERR40'
+
+
+    end subroutine ConstructPropertyCoefficients
+    
+    !----------------------------------------------------------------
     
     subroutine RunProject
 
@@ -218,18 +303,14 @@ program SmoothBatimNesting
        
         write(*,*)"Running..."
 
-        call Read_Lock_External_Var(Me%ObjGridFather, Me%ExtVarFather)
-
-        call Read_Lock_External_Var(Me%ObjGridSon,    Me%ExtVarSon) 
-
         call GetGridData(Me%ObjGridDataFather, Me%ExtVarFather%Batim, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'RunProject - SmoothBatimNesting - ERR10'
 
         call GetGridData(Me%ObjGridDataSon,    Me%ExtVarSon%Batim,    STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'RunProject - SmoothBatimNesting - ERR20'
 
-        call GetGridData(Me%ObjGridDataCoef,   Me%SmoothCoef,         STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'RunProject - SmoothBatimNesting - ERR30'
+!        call GetGridData(Me%ObjGridDataCoef,   Me%SmoothCoef,         STAT = STAT_CALL)
+!        if (STAT_CALL /= SUCCESS_) stop 'RunProject - SmoothBatimNesting - ERR30'
 
         call AllocateVariables
 
@@ -249,13 +330,11 @@ program SmoothBatimNesting
         call UnGetGridData(Me%ObjGridDataSon,    Me%ExtVarSon%Batim,    STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'RunProject - SmoothBatimNesting - ERR50'
 
-        call UnGetGridData(Me%ObjGridDataCoef,   Me%SmoothCoef,         STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'RunProject - SmoothBatimNesting - ERR60'
+!        call UnGetGridData(Me%ObjGridDataCoef,   Me%SmoothCoef,         STAT = STAT_CALL)
+!        if (STAT_CALL /= SUCCESS_) stop 'RunProject - SmoothBatimNesting - ERR60'
 
     end subroutine RunProject
-
-    !--------------------------------------------------------------------------
-
+    
     !--------------------------------------------------------------------------
     
     subroutine WriteSmoothBathym
@@ -462,9 +541,11 @@ idef:       if (Me%ExtVarSon%DefineCellsMap(i, j)==1 .and. Me%ExtVarSon%Batim(i,
 
                 GridPoint => Me%GridPoint(i, j)
 
+                flag = .false.
 
                 do ii = Me%ExtVarFather%WorkSize%ILB,  Me%ExtVarFather%WorkSize%IUB
                 do jj = Me%ExtVarFather%WorkSize%JLB , Me%ExtVarFather%WorkSize%JUB
+                    
                     
 
 id1:                if (Me%ExtVarFather%DefineCellsMap(ii, jj)==1 .and. Me%ExtVarFather%Batim(ii, jj) /= Me%LandPoint) then
@@ -496,11 +577,13 @@ id1:                if (Me%ExtVarFather%DefineCellsMap(ii, jj)==1 .and. Me%ExtVa
                             Me%NewDepth(i, j) = Me%ExtVarFather%Batim(ii, jj) * (1. -  Me%SmoothCoef(i, j)) + &
                                                 Me%ExtVarSon%Batim   (i,  j ) *        Me%SmoothCoef(i, j)
                             flag = .true.  
+                            exit
                         end if
 
                     end if id1
 
                 enddo
+                    if (flag) exit
                 enddo
 
                 !If the ij son grid point lies outside the father's    &
@@ -508,11 +591,11 @@ id1:                if (Me%ExtVarFather%DefineCellsMap(ii, jj)==1 .and. Me%ExtVa
                 if(.not.flag) then
                     Me%NewDepth(i,j) = Me%ExtVarSon%Batim   (i,  j )
                 end if
-                
-            elseif(Me%ExtVarSon%Batim(i, j) == Me%LandPoint) then
+
+            else
             
-                    Me%NewDepth(i,j) = Me%LandPoint                
-                    
+                Me%NewDepth(i,j) = Me%ExtVarSon%Batim   (i,  j )
+                
             endif idef     
 
         end do
@@ -535,8 +618,12 @@ id1:                if (Me%ExtVarFather%DefineCellsMap(ii, jj)==1 .and. Me%ExtVa
 
         !Begin-----------------------------------------------------------------
 
-        call KillGridData(Me%ObjGridDataCoef, STAT = STAT_CALL)
-        if(STAT_CALL .ne. SUCCESS_)stop 'CloseProject - SmoothBatimNesting - ERR25'
+!        call KillGridData(Me%ObjGridDataCoef, STAT = STAT_CALL)
+!        if(STAT_CALL .ne. SUCCESS_)stop 'CloseProject - SmoothBatimNesting - ERR25'
+
+        call KillHorizontalMap(Me%ObjHorizontalMap, STAT = STAT_CALL)
+        if(STAT_CALL .ne. SUCCESS_)stop 'CloseProject - SmoothBatimNesting - ERR30'
+
 
         call KillGridData(Me%ObjGridDataSon, STAT = STAT_CALL)
         if(STAT_CALL .ne. SUCCESS_)stop 'CloseProject - SmoothBatimNesting - ERR30'
