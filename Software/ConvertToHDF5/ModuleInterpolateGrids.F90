@@ -512,17 +512,17 @@ Module ModuleInterpolateGrids
 
                 write(*,*) 'If you want to interpolate the grid is because your grid is not standard'
                 write(*,*) 'Press enter'
-                pause
+                read (*,*)
                 write(*,*) 'If the grid is not standard is because is generic and can have a high degree of distoriton'
                 write(*,*) 'Press enter'
-                pause
+                read (*,*)
                 write(*,*) 'If the grid has a high degree of distortion to interpolate '
                 write(*,*) 'in the verticaly with a polinomial is dangerous' 
                 write(*,*) 'Press enter'
-                pause
+                read (*,*)
                 write(*,*) 'It is recomended to interpolate lineary in the vertical in this case POLI_DEGREE : 1'
                 write(*,*) 'Press enter'
-                pause
+                read (*,*)
 
             endif
 
