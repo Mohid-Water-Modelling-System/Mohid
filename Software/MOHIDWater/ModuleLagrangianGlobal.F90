@@ -8457,7 +8457,7 @@ i2:             if (Me%EulerModel(em)%WaterPoints3D(i, j, KUB) == WaterPoint) th
                     Me%EulerModel(em)%OilSpreading(ig)%OilGridConcentration(i, j) =                     &
                                   1.e6 * ((Me%EulerModel(em)%OilSpreading(ig)%GridThickness(i, j) * &
                                   Me%ExternalVar%OilDensity) + & 
-                                  (Me%ExternalVar%MDispersed / Me%EulerModel(em)%GridCellArea(i, j))) / & 
+                                  (Me%ExternalVar%MDispersed / max(AllmostZero,Me%ExternalVar%AreaTotal))) / & 
                                   (1.5 * WaveHeight * WaterDensity)                      
 
                 endif i2
@@ -11744,6 +11744,7 @@ CurrOr: do while (associated(CurrentOrigin))
             CurrentOrigin%VolTotOilBeached = 0.
             CurrentOrigin%VolTotBeached    = 0.
             CurrentOrigin%AreaTotal        = 0.
+
             CurrentOrigin%VolumeTotal      = 0.
             CurrentOrigin%VolumeOilTotal   = 0.
 
@@ -11828,7 +11829,7 @@ CurrOr: do while (associated(CurrentOrigin))
         real                                        :: UWIND, VWIND, Wind
         real                                        :: AtmPressure
         real                                        :: WaveHeight, WavePeriod
-        real                                        :: Factor
+        real(8)                                     :: Factor
         real                                        :: VWaterContent, MWaterContent
         real                                        :: MDispersed
         real                                        :: OilDensity
@@ -11844,8 +11845,8 @@ CurrOr: do while (associated(CurrentOrigin))
  
         CurrentOrigin => Me%FirstOrigin
 CurrOr: do while (associated(CurrentOrigin))
-
-            if (CurrentOrigin%State%Oil .and. CurrentOrigin%nParticle > 0) then
+            
+i1:         if (CurrentOrigin%State%Oil .and. CurrentOrigin%nParticle > 0) then
 
                 i       = CurrentOrigin%Position%I
                 j       = CurrentOrigin%Position%J
@@ -11906,8 +11907,8 @@ CurrOr: do while (associated(CurrentOrigin))
                                           OilDensity            = OilDensity,                     &
                                           MassINI               = MassINI,                        &
                                           OilViscosity          = OilViscosity,                   &
-                                          FMEvaporated          = FMEvaporated,                   &
                                           FMDispersed           = FMDispersed,                    &
+                                          FMEvaporated          = FMEvaporated,                   &
                                           VolTotOilBeached      = CurrentOrigin%VolTotOilBeached, &
                                           VolTotBeached         = CurrentOrigin%VolTotBeached,    &
                                           VolumeTotalIN         = CurrentOrigin%VolumeOilTotal,   &   
@@ -11933,7 +11934,11 @@ CurrOr: do while (associated(CurrentOrigin))
                 call OilGridConcentration  (CurrentOrigin, WaveHeight, WaterDensity)       
 
                 !Modifies OilVolume
-                Factor                                  =  VolumeTotalOUT / CurrentOrigin%VolumeTotal
+                if (CurrentOrigin%VolumeTotal > 0) then
+                    Factor                                  =  dble(VolumeTotalOUT) / dble(CurrentOrigin%VolumeTotal)
+                else
+                    Factor                                  = 1.
+                endif
                 CurrentPartic                           => CurrentOrigin%FirstPartic
                 do while (associated(CurrentPartic))
 
@@ -11943,13 +11948,17 @@ CurrOr: do while (associated(CurrentOrigin))
                         VolOld  = CurrentPartic%Geometry%Volume
                     
                         !New Volume
-                        CurrentPartic%Geometry%Volume    = CurrentPartic%Geometry%Volume * Factor
-                        CurrentPartic%Geometry%VolumeOil = CurrentPartic%Geometry%Volume *                 &
+                        CurrentPartic%Geometry%VolumeOil = CurrentPartic%Geometry%VolumeOil * real(Factor)
+                        CurrentPartic%Geometry%Volume    = CurrentPartic%Geometry%VolumeOil / &
                                                            (1 - Me%ExternalVar%VWaterContent)
+                                                           
+                        if (CurrentPartic%Geometry%Volume    <=0) CurrentPartic%KillPartic = ON 
+                        if (CurrentPartic%Geometry%VolumeOil <=0) CurrentPartic%KillPartic = ON
+
 
                         !Volume Variation
                         CurrentPartic%Geometry%VolVar = CurrentPartic%Geometry%Volume - VolOld
-
+                        
 
                     else if (CurrentPartic%Beached) then
 
@@ -11961,24 +11970,25 @@ CurrOr: do while (associated(CurrentOrigin))
 
                 enddo
 
-            endif    
-
-
 #ifndef _WAVES_
-            call UnGetWaves(Me%EulerModel(emp)%ObjWaves, WavePeriod2D, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'InternalParticOil - ModuleLagrangianGlobal - ERR08'
+                call UnGetWaves(Me%EulerModel(emp)%ObjWaves, WavePeriod2D, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'InternalParticOil - ModuleLagrangianGlobal - ERR08'
 
-            call UnGetWaves(Me%EulerModel(emp)%ObjWaves, WaveHeight2D, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'InternalParticOil - ModuleLagrangianGlobal - ERR09'
+                call UnGetWaves(Me%EulerModel(emp)%ObjWaves, WaveHeight2D, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'InternalParticOil - ModuleLagrangianGlobal - ERR09'
 #endif
-            !Ungets Concentration from the eulerian module
-            call UngetWaterProperties (Me%EulerModel(emp)%ObjWaterProperties, Temperature3D, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'InternalParticOil - ModuleLagrangianGlobal - ERR10'
+                !Ungets Concentration from the eulerian module
+                call UngetWaterProperties (Me%EulerModel(emp)%ObjWaterProperties, Temperature3D, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'InternalParticOil - ModuleLagrangianGlobal - ERR10'
 
-            call UngetWaterProperties (Me%EulerModel(emp)%ObjWaterProperties,  SPM3D, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'InternalParticOil - ModuleLagrangianGlobal - ERR11'
+                call UngetWaterProperties (Me%EulerModel(emp)%ObjWaterProperties,  SPM3D, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'InternalParticOil - ModuleLagrangianGlobal - ERR11'
+
+
+            endif i1
 
             CurrentOrigin => CurrentOrigin%Next
+
         enddo CurrOr
 
     end subroutine InternalParticOil
@@ -14238,10 +14248,10 @@ idp:                    if (Me%State%Deposition) then
 
 
                             !HDF 5
-                            call HDF5WriteData        (Me%ObjHDF5(em),                    &
+                            call HDF5WriteData        (Me%ObjHDF5(em),                           &
                                                        "/Results/Group_"//trim(adjustl(AuxChar)) &
                                                        //"/Data_1D/Age",                         &
-                                                       "Origin ID",                              &
+                                                       "Age",                                    &
                                                        "-",                                      &
                                                        Array1D = Matrix1D,                       &
                                                        OutputNumber = OutPutNumber,              &
@@ -15798,11 +15808,15 @@ Group:      do ig = 1, Me%nGroups
                 CurrentOrigin => Me%FirstOrigin
 CurrOr:         do while (associated(CurrentOrigin))
 
+                    if (CurrentOrigin%GroupID /= ig) then
+                        CurrentOrigin => CurrentOrigin%Next
+                        cycle
+                    endif
 
                     !Just writes the output if there are particle
                     if (CurrentOrigin%nParticle > 0) then
                         OilGridThick2D = Me%EulerModel(em)%OilSpreading(ig)%GridThickness * 1000.0 &
-                                         * CurrentOrigin%VolumeOilTotal / CurrentOrigin%VolumeTotal 
+                                          * (1 - Me%ExternalVar%VWaterContent) 
 
 
                         !HDF 5
@@ -15877,6 +15891,10 @@ Group:  do ig = 1, Me%nGroups
             CurrentOrigin => Me%FirstOrigin
 CurrOr:     do while (associated(CurrentOrigin))
 
+                if (CurrentOrigin%GroupID /= ig) then
+                    CurrentOrigin => CurrentOrigin%Next
+                    cycle
+                endif
 
                 !Just writes the output if there are particle
                 if (CurrentOrigin%nParticle > 0) then
