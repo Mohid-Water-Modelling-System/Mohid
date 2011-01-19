@@ -3664,7 +3664,8 @@ do1 :       do i=ReadValuesNumber,OutPutsNumber_
     !--------------------------------------------------------------------------
 
     subroutine GetOutPutTimeWindows(EnterDataID, CurrentTime, EndTime,             &
-                                    OutPutWindows, OutPutWindowsON, WindowsNumber, STAT)
+                                    OutPutWindows, OutPutWindowsON, WindowsNumber, &
+                                    BeginBlock, EndBlock, STAT)
 
         !Arguments---------------------------------------------------------------
         integer                                     :: EnterDataID
@@ -3672,9 +3673,11 @@ do1 :       do i=ReadValuesNumber,OutPutsNumber_
         type(T_OutPutTime), dimension(:), pointer   :: OutPutWindows
         logical,           intent(OUT)              :: OutPutWindowsON            
         integer,           intent(OUT)              :: WindowsNumber
-        integer, optional, intent(OUT)              :: STAT
+        character(Len=*) , intent(IN ),   optional  :: BeginBlock, EndBlock
+        integer,           intent(OUT),   optional  :: STAT
 
         !Local-----------------------------------------------------------------
+        character(Len=StringLength)                 :: BeginBlock_, EndBlock_
         integer                                     :: ready_, ClientNumber          
         integer                                     :: STAT_, STAT_CALL
         logical                                     :: FoundBlock
@@ -3688,8 +3691,20 @@ do1 :       do i=ReadValuesNumber,OutPutsNumber_
 cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                           &
             (ready_ .EQ. READ_LOCK_ERR_)) then
             
+            if (present(BeginBlock)) then
+                BeginBlock_ =  BeginBlock
+            else
+                BeginBlock_ =  '<beginoutput>'
+            endif
+
+            if (present(EndBlock  )) then
+                EndBlock_   =  EndBlock
+            else
+                EndBlock_   =  '<endoutput>'
+            endif
+            
             call ExtractBlockFromBuffer(Me%InstanceID, ClientNumber,                    &
-                                        '<beginoutput>', '<endoutput>',                 &
+                                        trim(BeginBlock_), trim(EndBlock_),             &
                                         FoundBlock, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'GetOutPutTimeWindows - EnterData - ERR10'
 
@@ -3699,7 +3714,7 @@ if1:        if (FoundBlock) then
                 
                 allocate(OutPutWindows   (WindowsNumber))
                 
-                if (WindowsNumber > 0) OutPutWindowsON = .true.
+                if (WindowsNumber > 0)    OutPutWindowsON = .true.
                 
                 call ReadOutPutWindows   (CurrentTime, EndTime, ClientNumber, OutPutWindows)
                 
