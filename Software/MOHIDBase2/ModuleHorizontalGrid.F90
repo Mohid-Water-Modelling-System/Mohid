@@ -5591,9 +5591,23 @@ doi:        do i = ILBSon, IUBSon
                 endif
 
                 Jlower = JSon(i, j)
+                
+                !Father domain smaller than son domain
+                if (Jlower < -100) then
+                    Field2DSon(i, j) = FillValueReal
+                    cycle
+                endif
+                
                 Jupper = JSon(i, j) + 1
 
                 Ilower = ISon(i, j)
+                
+                !Father domain smaller than son domain                
+                if (Ilower < -100) then
+                    Field2DSon(i, j) = FillValueReal
+                    cycle
+                endif
+                
                 Iupper = ISon(i, j) + 1
 
                 if (Jupper > JUBFather) Jupper = JUBFather
@@ -5892,9 +5906,25 @@ doi:        do i = ILBSon, IUBSon
                 InterPolOK    = .false.
 
                 Jlower = JSon(i, j)
+                
+                !Father domain smaller than son domain
+                if (Jlower < -100) then
+                    Field3DSon(i, j, k) = FillValueReal
+                    cycle
+                endif
+
+                
                 Jupper = JSon(i, j) + 1
 
                 Ilower = ISon(i, j)
+
+                !Father domain smaller than son domain
+                if (Ilower < -100) then
+                    Field3DSon(i, j, k) = FillValueReal
+                    cycle
+                endif
+                
+                
                 Iupper = ISon(i, j) + 1
 
                 if (.not. ObjHorizontalGridFather%CornersXYInput) then
@@ -6206,9 +6236,24 @@ doi:        do i = ILBSon, IUBSon
                 InterPolOK    = .false.
 
                 Jlower = JSon(i, j)
+                
+                !Father domain smaller than son domain
+                if (Jlower < -100) then
+                    Field3DSon(i, j, k) = FillValueReal
+                    cycle
+                endif
+
                 Jupper = JSon(i, j) + 1
 
                 Ilower = ISon(i, j)
+
+                !Father domain smaller than son domain
+                if (Jlower < -100) then
+                    Field3DSon(i, j, k) = FillValueReal
+                    cycle
+                endif
+
+
                 Iupper = ISon(i, j) + 1
 
                 if (Jupper > JUBFather) Jupper = JUBFather
