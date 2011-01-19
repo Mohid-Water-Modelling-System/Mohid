@@ -1224,7 +1224,7 @@ cd24:                       if (STAT_CALL == NOT_FOUND_ERR_) then
                     
                 !Inverted barometer effect
                 Me%ImposedElevation(i, j) = Me%ImposedElevation(i, j) + AtmosphericCoef * &
-                                            (101325 - AtmosphericPressure(i,j)) /( 1.e3 * Gravity) 
+                                            (AtmPressSeaLevelReference - AtmosphericPressure(i,j)) /( 1.e3 * Gravity) 
                              
             endif
 
