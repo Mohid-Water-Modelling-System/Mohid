@@ -1165,10 +1165,11 @@ doNext:     do while (associated(NextModel))
 
         !Local-----------------------------------------------------------------
         logical                                     :: Running
-        integer                                     :: STAT_CALL
-        type (T_MohidWater), pointer                :: CurrentModel
-        logical                                     :: DoNextStep
-        real                                        :: DTmin, DTmax, DT_Father
+        !integer                                     :: STAT_CALL
+        !type (T_MohidWater), pointer                :: CurrentModel
+        !logical                                     :: DoNextStep
+        !real                                        :: DT_Father
+        real                                        :: DTmin, DTmax
 
 #ifndef _OPENMI_
         write(*, *)"-------------------------- MOHID -------------------------"
