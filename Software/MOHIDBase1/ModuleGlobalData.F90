@@ -28,6 +28,7 @@
 !
 !------------------------------------------------------------------------------
 
+!Bom vamos lá testar isto no codeplex: vou fazer commit e depois o francisco tem que fazer um novo update!
 Module ModuleGlobalData
 
     implicit none
