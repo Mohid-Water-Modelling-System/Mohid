@@ -1273,6 +1273,9 @@ Module ModuleGlobalData
     real,    parameter  :: WaterDynamicVisc   = 1e-3
     real,    parameter  :: WaterCinematicVisc = 1e-6
     real,    parameter  :: SigmaDensityReference = 1e3
+    
+    !Average (or reference) atmospheric pressure at sea level
+    real,    parameter  :: AtmPressSeaLevelReference = 101325.    
 
     !PV = nRT - thermodynamic (n - number of moles)
     real,    parameter  :: R                  = 8.3144  
