@@ -6,9 +6,9 @@ SHELL = /bin/sh
 
 include Editme.mk
 francisco
+#David #-- NIX platform specific global variables --
 #Rodrigo
 
-#-- NIX platform specific global variables --
 
 export CP  = sudo cp
 export DEL = rm
