@@ -1,5 +1,5 @@
-SHELL = /bin/sh David
-SHELL = /bin/sh, guillaume, Rodrigo ROSA
+SHELL = /bin/sh, guillaume, Rodrigo, David, Rosa
+
 
 #------User configuration file---------------
 
