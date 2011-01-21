@@ -2,6 +2,8 @@ SHELL = /bin/sh
 
 #------User configuration file---------------
 
+# guillaume
+
 include Editme.mk
 francisco
 #-- NIX platform specific global variables --
