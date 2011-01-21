@@ -1,4 +1,4 @@
-SHELL = /bin/sh, guillaume
+SHELL = /bin/sh, guillaume, Rodrigo
 
 #------User configuration file---------------
 
