@@ -3050,11 +3050,11 @@ cd2 :           if (BlockFound) then
                     !Divides Precipitation into rain / snow
                     !Taken from Daisy describtion
                     if      (AirTemperature(i, j) < -2.0) then
-                        !SnowInput = 0.0 !Smow module not yet active
-                        SnowInput = GrossPrecipitation
+                        SnowInput = 0.0 !Smow module not yet active
+                        !SnowInput = GrossPrecipitation
                     elseif  (AirTemperature(i, j) <  2.0) then
-                        !SnowInput = 0.0 !Smow module not yet active
-                        SnowInput = (2.0 - AirTemperature(i, j)) / 4.0 * GrossPrecipitation
+                        SnowInput = 0.0 !Smow module not yet active
+                        !SnowInput = (2.0 - AirTemperature(i, j)) / 4.0 * GrossPrecipitation
                     else
                         SnowInput = 0.0
                     endif
