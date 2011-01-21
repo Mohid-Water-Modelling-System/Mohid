@@ -1,3 +1,4 @@
+SHELL = /bin/sh David
 SHELL = /bin/sh, guillaume, Rodrigo
 
 #------User configuration file---------------
