@@ -21,7 +21,9 @@
 !
 ! ADVDIFF_EXPLICIT              : 0/1               [1]        !REMARK: Horizontal diffusion is always explicit
 !                                                               (1 - horiz adv is explicit; 0 - horiz adv is implicit 
-!
+! ADVDIFF_METHOD_H              : integer      [UpwindOrder1]   !Spatial methods for horizontal advection
+!                                                               !UpwindOrder1 = 1, UpwindOrder2 = 2, UpwindOrder3 = 3, P2_TVD = 4,
+!                                                                CentralDif = 5, LeapFrog = 6    !
 ! <beginproperty>
 !   PARTICULATE                 : 0/1               [0]         !Property physical state: 0 - Dissolved ; 1 - Particulate
 !     EROSION                   : 0/1               [0]         !Compute erosion (source/sink term) - only read if PARTICULATE : 1
@@ -108,6 +110,8 @@ Module ModuleRunoffProperties
     public  :: GetRPPropertiesIDByIdx 
     public  :: GetRPOptions   
     public  :: GetRPConcentration
+    public  :: GetRPConcentrationOld
+    public  :: GetRPDecayRate
     public  :: CheckRPProperty
     public  :: SetDNConcRP        !RP gets DN conc 
     public  :: SetBasinConcRP     !RP gets Basin WC conc (updated each time a module changes water column)
@@ -282,6 +286,7 @@ Module ModuleRunoffProperties
     type T_Evolution
         logical                                 :: Partitioning         = .false.
         logical                                 :: Variable             = .false.
+        logical                                 :: Pesticide
         real                                    :: DTInterval
         type(T_Time)                            :: LastCompute
         type(T_Time)                            :: NextCompute
@@ -296,6 +301,8 @@ Module ModuleRunoffProperties
         logical                                 :: SoilWaterFluxes
         logical                                 :: Macropores
         logical                                 :: MinConcentration
+        logical                                 :: Decay
+        real                                    :: DecayRate
         type (T_AdvectionDiffusion)             :: AdvDiff
         type (T_Partition                    )  :: Partition
     end type T_Evolution
@@ -383,6 +390,7 @@ Module ModuleRunoffProperties
         logical                                 :: DepositionFluxes     = .false.
         logical                                 :: SplashErosionFluxes  = .false.
         logical                                 :: Partition            = .false.       
+        logical                                 :: Decay                = .false.
     end type T_Coupled
 
     type T_ComputeOptions
@@ -477,6 +485,10 @@ Module ModuleRunoffProperties
         real(8), pointer, dimension(:,:)            :: WaterVolume
         integer, pointer, dimension(:,:)            :: DummyOpenPoints
 
+        
+        logical                                     :: NewFormulation              !New formulation for advection being computed
+        integer                                     :: AdvDiff_AdvMethodH          !methods are general for all the properties
+        
         real                                        :: HminChezy                !for shear stress computation
         real                                        :: HcriticSplash            !for splash erosion
         real                                        :: Splash_ErosiveRainValue  !for splash erosion
@@ -580,9 +592,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 call ConstructPartition
             end if            
             
-            !if (Me%Coupled%BottomFluxes) then            
-                call ConstructData2D
-            !endif
+            call ConstructData2D
             
             call AllocateVariables
             
@@ -793,7 +803,31 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      STAT         = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)  &
             stop 'ReadGlobalOptions - ModuleRunoffProperties - ERR90'
-    
+
+        !Want new formulation with advection methods not depending on property
+        call GetData(Me%NewFormulation,                            &
+                     Me%ObjEnterData, iflag,                       &
+                     SearchType   = FromFile,                      &
+                     keyword      = 'NEW_FORMULATION',             &
+                     Default      = .false.,                       &
+                     ClientModule = 'ModuleRunoffProperties',      &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_)  &
+            stop 'ReadGlobalOptions - ModuleRunoffProperties - ERR100'
+
+        if (Me%NewFormulation) then
+            !horizontal advection method that will be general for all props
+            call GetData(Me%AdvDiff_AdvMethodH,                        &
+                         Me%ObjEnterData, iflag,                       &
+                         SearchType   = FromFile,                      &
+                         keyword      = 'ADVDIFF_METHOD_H',            &
+                         Default      = UpwindOrder1,                  &
+                         ClientModule = 'ModuleRunoffProperties', &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_)  &
+                stop 'ReadGlobalOptions - ModuleRunoffProperties - ERR110'
+            
+        endif    
 
         !Min water column for chezy computation - used if erosion active
         call GetData(Me%HminChezy,                                                  &
@@ -803,7 +837,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      Default      =  AlmostZero,                                    & 
                      ClientModule = 'ModuleRunoffProperties',                       &
                      STAT         = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_) stop 'ModuleRunoffProperties - ReadGlobalOptions - ERR110' 
+        if (STAT_CALL .NE. SUCCESS_) stop 'ModuleRunoffProperties - ReadGlobalOptions - ERR112' 
         if (Me%HminChezy .lt. 0.0) then
             write(*,*)'Minimum water column height for chezy computation HMIN_CHEZY can not be negative'
             stop 'ModuleRunoffProperties - ReadGlobalOptions - ERR115'
@@ -1453,6 +1487,46 @@ cd2 :           if (BlockFound) then
 !                     STAT         = STAT_CALL)
 !        if (STAT_CALL .NE. SUCCESS_) stop 'ModuleRunoffProperties - Construct_PropertyEvolution - ERR31' 
 
+
+!        call GetData(NewProperty%Evolution%Pesticide,                                   &
+!                     Me%ObjEnterData, iflag,                                             &
+!                     SearchType   = FromBlock,                                           &
+!                     keyword      = 'PESTICIDE',                                         &
+!                     Default      = .false.,                                             &
+!                     ClientModule = 'ModuleRunoffProperties',                            &
+!                     STAT         = STAT_CALL)
+!        if (STAT_CALL .NE. SUCCESS_)                                                     &
+!            stop 'Subroutine Construct_PropertyEvolution - ModuleRunoffProperties - ERR30'
+
+        call GetData(NewProperty%Evolution%Decay,                                        &
+                     Me%ObjEnterData,iflag,                                              &
+                     SearchType   = FromBlock,                                           &
+                     keyword      = 'DECAY',                                             &
+                     ClientModule = 'ModulePorousMediaProperties',                       &
+                     default      = OFF,                                                 &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_)                                                     &
+            stop 'Construct_PropertyEvolution - ModuleRunoffProperties - ERR60'
+
+        if (NewProperty%Evolution%Decay) then
+            Me%Coupled%Decay       = .true.
+        endif
+
+
+        if (NewProperty%Evolution%Decay) then
+            
+            !Decay rate k (day-1) in P = Po*exp(-kt)
+            call GetData(NewProperty%Evolution%DecayRate,                                    &
+                         Me%ObjEnterData,iflag,                                              &
+                         SearchType   = FromBlock,                                           &
+                         keyword      = 'DECAY_RATE',                                        &
+                         ClientModule = 'ModuleRunoffProperties',                            &
+                         default      = 0.,                                                  &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_)                                                     &
+                stop 'Construct_PropertyEvolution - ModuleRunoffProperties - ERR70'            
+            
+        endif
         
         !Property time step
         if (NewProperty%Evolution%Variable) then
@@ -2428,6 +2502,7 @@ cd2 :           if (BlockFound) then
         !Local-----------------------------------------------------------------
         type(T_Property), pointer                   :: Property
         type(T_Property), pointer                   :: DissolvedProperty
+        type(T_Property), pointer                   :: CohesiveSediment
         type(T_Property), pointer                   :: ParticulateProperty
         character(len=StringLength)                 :: PartPropName
         real                                        :: TotalPartition
@@ -2459,22 +2534,38 @@ do1:    do while(associated(Property))
                 
                 !Search for the particulate
                 call Search_Property(ParticulateProperty, PropertyXID = Couple_ID, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) &
-                    stop 'ConstructPartition - ModuleWaterProperties - ERR10'
+                if (STAT_CALL /= SUCCESS_) then
+                    write(*,*)
+                    write(*,*) 'Particulate property was not found'
+                    stop 'ConstructPartition - ModuleRunoffProperties - ERR10'
+                else
+                    if(.not. Check_Particulate_Property (Couple_ID)) then
+                        write(*,*)
+                        write(*,*) 'Couple property', trim(GetPropertyName(Couple_ID))
+                        write(*,*) 'is not recognized by the model as being particulate'
+                        stop 'ConstructPartition - ModuleRunoffProperties - ERR15'                        
+                    endif
+                endif
                 
                 !Check if coupled names of each other match
                 if(trim(ParticulateProperty%Evolution%Partition%Couple) .ne.                &
-                   trim(DissolvedProperty%ID%Name))                                         &
-                   stop 'ConstructPartition - ModuleWaterProperties - ERR20'
-
+                   trim(DissolvedProperty%ID%Name)) then
+                    write(*,*)
+                    write(*,*) 'Particulate property pair and dissolved property names do not match'
+                    stop 'ConstructPartition - ModuleRunoffProperties - ERR20'
+                endif
+                
                 if(ParticulateProperty%Evolution%DTInterval .ne.                            &
-                   DissolvedProperty%Evolution%DTInterval)                                  &
-                    stop 'ConstructPartition - ModuleWaterProperties - ERR30'
-
+                   DissolvedProperty%Evolution%DTInterval) then
+                    write(*,*)
+                    write(*,*) 'Particulate property and dissolved property DTs do not match'
+                    stop 'ConstructPartition - ModuleRunoffProperties - ERR30'
+                endif
+                
                 if(DissolvedProperty%Evolution%Partition%Rate /=                            &
                    ParticulateProperty%Evolution%Partition%Rate   )then
                     write(*,*)'Particulate and dissolved phases must have equal partition rates'
-                    stop 'ConstructPartition - ModuleWaterProperties - ERR40'
+                    stop 'ConstructPartition - ModuleRunoffProperties - ERR40'
                 end if
 
                 TotalPartition = DissolvedProperty%Evolution%Partition%Fraction  +          &
@@ -2484,7 +2575,7 @@ do1:    do while(associated(Property))
                      
                 if(Error > 0.001)then
                     write(*,*)'Particulate and dissolved phases fractions must sum iqual to 1.'
-                    stop 'ConstructPartition - ModuleWaterProperties - ERR50'
+                    stop 'ConstructPartition - ModuleRunoffProperties - ERR50'
                 end if
 
                 ! .EQV. = Logical equivalence: the expression is true if both A and B 
@@ -2498,14 +2589,25 @@ do1:    do while(associated(Property))
 !                    stop 'ConstructPartition - ModuleWaterProperties - ERR70'
 
                 if (.NOT. (DissolvedProperty%Evolution%Partition%UseSedimentRefConc .EQV.   &
-                           ParticulateProperty%Evolution%Partition%UseSedimentRefConc))     &
-                    stop 'ConstructPartition - ModuleWaterProperties - ERR80'
+                           ParticulateProperty%Evolution%Partition%UseSedimentRefConc)) then
+                    write(*,*)
+                    write(*,*) 'Both particulate property and dissolved property must use or not sediment ref conc'
+                    stop 'ConstructPartition - ModuleRunoffProperties - ERR80'
+                endif
 
+                if (DissolvedProperty%Evolution%Partition%UseSedimentRefConc) then
+                    call Search_Property(CohesiveSediment, PropertyXID = Cohesive_Sediment_, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) then
+                        write(*,*) 'Using sediment ref conc needs cohesive sediment property'
+                        stop 'ConstructPartition - ModuleRunoffProperties - ERR03'
+                    endif
+                endif
+                
                 if(DissolvedProperty%Evolution%Partition%SedimentRefConc /=                 &
                    ParticulateProperty%Evolution%Partition%SedimentRefConc   )then
                     write(*,*)'Particulate and dissolved phases must have equal cohesive sediment'
                     write(*,*)'reference concentration'
-                    stop 'ConstructPartition - ModuleWaterProperties - ERR90'
+                    stop 'ConstructPartition - ModuleRunoffProperties - ERR90'
                 end if
 
 
@@ -3457,6 +3559,112 @@ cd0:    if (Exist) then
 
     !--------------------------------------------------------------------------------
 
+    subroutine GetRPConcentrationOld(RunoffPropertiesID, ConcentrationXOld, &  !MassX, 
+                                PropertyXIDNumber,                    &
+                                PropertyXUnits, STAT)
+
+        !Arguments---------------------------------------------------------------
+        integer                                     :: RunoffPropertiesID
+        real, pointer, dimension(:,:)               :: ConcentrationXOld
+!        real, pointer, dimension(:,:), optional     :: MassX
+        character(LEN = *), optional, intent(OUT)   :: PropertyXUnits
+        integer,                      intent(IN )   :: PropertyXIDNumber
+        integer,            optional, intent(OUT)   :: STAT
+
+        !Local-------------------------------------------------------------------
+        integer                                     :: ready_          
+        integer                                     :: STAT_CALL              
+        type(T_Property), pointer                   :: PropertyX
+        integer                                     :: UnitsSize
+        integer                                     :: STAT_    
+
+        !------------------------------------------------------------------------
+
+
+        STAT_ = UNKNOWN_
+
+        call Ready(RunoffPropertiesID, ready_) 
+        
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+            call Read_Lock(mRunoffPROPERTIES_, Me%InstanceID) 
+
+            nullify(PropertyX)
+
+            call Search_Property(PropertyX, PropertyXID = PropertyXIDNumber, STAT = STAT_CALL)
+            if (STAT_CALL == SUCCESS_) then
+                
+                ConcentrationXOld => PropertyX%ConcentrationOld
+!                if (present(MassX)) MassX => PropertyX%Mass
+
+                if (present(PropertyXUnits)) then 
+                   UnitsSize      = LEN (PropertyXUnits)
+                   PropertyXUnits = PropertyX%ID%Units(1:UnitsSize)
+                end if
+
+                STAT_ = SUCCESS_
+            else
+                STAT_ = STAT_CALL
+            end if
+        else
+            STAT_ = ready_
+        end if
+
+
+        if (present(STAT))STAT = STAT_
+            
+    end subroutine GetRPConcentrationOld
+
+    !--------------------------------------------------------------------------------
+
+    subroutine GetRPDecayRate(RunoffPropertiesID, DecayRate,              &  
+                                PropertyXIDNumber,                        &
+                                STAT)
+
+        !Arguments---------------------------------------------------------------
+        integer                                     :: RunoffPropertiesID
+        real                                        :: DecayRate          !day-1
+        integer,                      intent(IN )   :: PropertyXIDNumber
+        integer,            optional, intent(OUT)   :: STAT
+
+        !Local-------------------------------------------------------------------
+        integer                                     :: ready_          
+        integer                                     :: STAT_CALL              
+        type(T_Property), pointer                   :: PropertyX
+        integer                                     :: STAT_    
+
+        !------------------------------------------------------------------------
+
+
+        STAT_ = UNKNOWN_
+
+        call Ready(RunoffPropertiesID, ready_) 
+        
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            nullify(PropertyX)
+
+            call Search_Property(PropertyX, PropertyXID = PropertyXIDNumber, STAT = STAT_CALL)
+            if (STAT_CALL == SUCCESS_) then
+                
+                DecayRate = PropertyX%Evolution%DecayRate
+
+                STAT_ = SUCCESS_
+            else
+                STAT_ = STAT_CALL
+            end if
+        else
+            STAT_ = ready_
+        end if
+
+
+        if (present(STAT))STAT = STAT_
+            
+    end subroutine GetRPDecayRate
+
+    !--------------------------------------------------------------------------------
+
 !    subroutine SetWindVelocity (RunoffPropertiesID, WindModulus, STAT)
 !                                  
 !        !Arguments--------------------------------------------------------------
@@ -3765,14 +3973,15 @@ cd0:    if (Exist) then
     !---------------------------------------------------------------------------
     !---------------------------------------------------------------------------
 
-    subroutine GetRPPropertiesIDByIdx (RunoffPropertiesID, Idx, ID,PropAdvDiff, Particulate, STAT)
+    subroutine GetRPPropertiesIDByIdx (RunoffPropertiesID, Idx, ID,PropAdvDiff, Particulate,Decay, STAT)
 
         !Arguments--------------------------------------------------------------
         integer                                         :: RunoffPropertiesID
         integer, intent(IN)                             :: Idx
         integer, intent(OUT)                            :: ID
-        logical, intent(OUT)                            :: PropAdvDiff
+        logical, intent(OUT), optional                  :: PropAdvDiff
         logical, intent(OUT), optional                  :: Particulate
+        logical, intent(OUT), optional                  :: Decay
         integer, intent(OUT), optional                  :: STAT
 
         !Local------------------------------------------------------------------
@@ -3793,10 +4002,9 @@ cd0:    if (Exist) then
             enddo
 
             ID        = CurrProp%ID%IDNumber
-            PropAdvDiff = CurrProp%Evolution%AdvectionDiffusion
-            if (present(Particulate)) then
-                Particulate = CurrProp%Particulate
-            endif
+            if (present(PropAdvDiff)) PropAdvDiff = CurrProp%Evolution%AdvectionDiffusion
+            if (present(Particulate)) Particulate = CurrProp%Particulate
+            if (present(Decay      )) Decay       = CurrProp%Evolution%Decay
 
             STAT_CALL = SUCCESS_
         else 
@@ -3857,11 +4065,12 @@ cd0:    if (Exist) then
 
     !---------------------------------------------------------------------------
 
-    subroutine GetRPOptions (RunoffPropertiesID, SplashErosion, Erosion, Deposition, STAT)
+    subroutine GetRPOptions (RunoffPropertiesID, SplashErosion, Erosion, Deposition, Decay, STAT)
 
         !Arguments--------------------------------------------------------------
         integer                                         :: RunoffPropertiesID
         logical, optional                               :: SplashErosion, Erosion, Deposition
+        logical, optional                               :: Decay
         integer, intent(OUT), optional                  :: STAT
 
         !Local------------------------------------------------------------------
@@ -3882,6 +4091,10 @@ cd0:    if (Exist) then
             endif
             if (present(Deposition)) then
                 Deposition          = Me%Coupled%DepositionFluxes
+            endif
+
+            if (present(Decay)) then
+                Decay          = Me%Coupled%Decay
             endif
             
             STAT_CALL = SUCCESS_
@@ -4068,6 +4281,10 @@ cd0:    if (Exist) then
 !#endif            
             if (Me%Coupled%BottomFluxes) then
                 call ModifyBottomFluxes
+            endif
+
+            if (Me%Coupled%Decay) then
+                call DecayProcesses
             endif
             
             if (Me%Coupled%Partition)then
@@ -4316,11 +4533,16 @@ cd0:    if (Exist) then
         type (T_Property), pointer                  :: PropertyX
         
         !begin--------------------------------------------------------------------
+
+        if (MonitorPerformance) call StartWatch ("ModuleRunoffProperties", "AdvectionDiffusionProcesses")
         
 
        !Compute water volume 
         call ComputeVolumes
-
+        
+        if (Me%NewFormulation) then
+            call ComputeAdvectionTerms
+        endif
              
         PropertyX => Me%FirstProperty
 
@@ -4348,6 +4570,9 @@ cd0:    if (Exist) then
             PropertyX => PropertyX%Next
 
         enddo
+
+        if (MonitorPerformance) call StopWatch ("ModuleRunoffProperties", "AdvectionDiffusionProcesses")
+
 
     end subroutine AdvectionDiffusionProcesses
 
@@ -4404,17 +4629,19 @@ cd0:    if (Exist) then
         
         call SetMatrixValue (Me%TICOEF3, Me%Size, 0.0)
 
+        if (.not. Me%NewFormulation) then
        
-        call SetMatrixValue (Me%COEF3_HorAdvXX%C_flux, Me%Size, 0.0)
-        call SetMatrixValue (Me%COEF3_HorAdvXX%D_flux, Me%Size, 0.0)
-        call SetMatrixValue (Me%COEF3_HorAdvXX%E_flux, Me%Size, 0.0)
-        call SetMatrixValue (Me%COEF3_HorAdvXX%F_flux, Me%Size, 0.0)
-        
-        call SetMatrixValue (Me%COEF3_HorAdvYY%C_flux, Me%Size, 0.0)
-        call SetMatrixValue (Me%COEF3_HorAdvYY%D_flux, Me%Size, 0.0)
-        call SetMatrixValue (Me%COEF3_HorAdvYY%E_flux, Me%Size, 0.0)
-        call SetMatrixValue (Me%COEF3_HorAdvYY%F_flux, Me%Size, 0.0)                
+            call SetMatrixValue (Me%COEF3_HorAdvXX%C_flux, Me%Size, 0.0)
+            call SetMatrixValue (Me%COEF3_HorAdvXX%D_flux, Me%Size, 0.0)
+            call SetMatrixValue (Me%COEF3_HorAdvXX%E_flux, Me%Size, 0.0)
+            call SetMatrixValue (Me%COEF3_HorAdvXX%F_flux, Me%Size, 0.0)
             
+            call SetMatrixValue (Me%COEF3_HorAdvYY%C_flux, Me%Size, 0.0)
+            call SetMatrixValue (Me%COEF3_HorAdvYY%D_flux, Me%Size, 0.0)
+            call SetMatrixValue (Me%COEF3_HorAdvYY%E_flux, Me%Size, 0.0)
+            call SetMatrixValue (Me%COEF3_HorAdvYY%F_flux, Me%Size, 0.0)                
+        
+        endif    
         
         if (.not. Me%ComputeOptions%AdvDiff_Explicit) then
             call SetMatrixValue (Me%COEF3%D, Me%Size, 0.0)
@@ -4426,6 +4653,191 @@ cd0:    if (Exist) then
     end subroutine RestartVariables
 
     !-----------------------------------------------------------------------------
+    subroutine ComputeAdvectionTerms         
+
+        !Local--------------------------------------------------------------------
+        character (Len = StringLength)           :: Direction
+        !Begin--------------------------------------------------------------------
+
+           
+
+        Direction = 'Horizontal'
+        
+        select case (Me%AdvDiff_AdvMethodH)
+        
+            case (UpwindOrder1)
+                
+                call AdvectionUpwindOrder1 (Direction)
+            
+            case (CentralDif)
+            
+                call AdvectionCentralDifferences(Direction)
+                
+            case default
+                
+                write(*,*) 'Undefined method for horizontal advection check ADVDIFF_METHOD_H'
+                stop 'AdvectionDiffusionProcesses - Runoff Properties - ERR01'
+            
+         end select
+             
+    
+    end subroutine ComputeAdvectionTerms
+
+    !-----------------------------------------------------------------------------
+
+    subroutine AdvectionUpwindOrder1(Direction)
+        
+        !Argument-----------------------------------------------------------------
+        character(len=StringLength)         :: Direction
+        !Local--------------------------------------------------------------------
+        integer                             :: i,j, CHUNK                             
+       
+        !begin-------------------------------------------------------------------- 
+
+        if (MonitorPerformance) call StartWatch ("ModuleRunoffProperties", "AdvectionUpwindOrder1")
+
+        
+        !By default at this point all adv fluxes are zero (routine RestartVariables) so only values different from zero are defined
+        
+        if (Direction == 'Horizontal') then
+
+            call SetMatrixValue (Me%COEF3_HorAdvXX%C_flux, Me%Size, 0.0)
+            call SetMatrixValue (Me%COEF3_HorAdvXX%D_flux, Me%Size, 0.0)
+            call SetMatrixValue (Me%COEF3_HorAdvXX%E_flux, Me%Size, 0.0)
+            call SetMatrixValue (Me%COEF3_HorAdvXX%F_flux, Me%Size, 0.0)
+            
+            call SetMatrixValue (Me%COEF3_HorAdvYY%C_flux, Me%Size, 0.0)
+            call SetMatrixValue (Me%COEF3_HorAdvYY%D_flux, Me%Size, 0.0)
+            call SetMatrixValue (Me%COEF3_HorAdvYY%E_flux, Me%Size, 0.0)
+            call SetMatrixValue (Me%COEF3_HorAdvYY%F_flux, Me%Size, 0.0)                
+
+            
+            CHUNK = Chunk_J(Me%WorkSize%JLB,Me%WorkSize%JUB)
+            !$OMP PARALLEL PRIVATE(i,j) 
+     
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+do2 :       do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+do1 :       do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+
+                if (Me%ExtVar%BasinPoints(i, j) == 1) then
+                    
+                    !x direction
+!                    if (Me%ExtVar%ComputeFaces2D(i,j) == 1) then
+                        if (Me%ExtVar%FluxU(i,j) .gt. 0.0) then
+                            Me%COEF3_HorAdvXX%D_flux(i,j) = Me%ExtVar%FluxU(i,j)
+                        else
+                            Me%COEF3_HorAdvXX%E_flux(i,j) = Me%ExtVar%FluxU(i,j)
+                        endif    
+!                    endif
+                    
+                    !y direction
+!                    if (Me%ExtVar%ComputeFaces2D(i,j) == 1) then                
+                        if (Me%ExtVar%FluxV(i,j) .gt. 0.0) then
+                            Me%COEF3_HorAdvYY%D_flux(i,j) = Me%ExtVar%FluxV(i,j)
+                        else
+                            Me%COEF3_HorAdvYY%E_flux(i,j) = Me%ExtVar%FluxV(i,j)
+                        endif   
+ !                   endif                 
+                    
+                endif
+
+            end do do1
+            end do do2
+            !$OMP END DO
+                
+            !$OMP END PARALLEL
+            
+        
+        else
+            stop 'AdvectionUpwindOrder1 - Runoff Properties - ERR010'
+        endif
+
+       
+        if (MonitorPerformance) call StopWatch ("ModuleRunoffProperties", "AdvectionUpwindOrder1")
+           
+           
+    end subroutine AdvectionUpwindOrder1
+    
+    !-----------------------------------------------------------------------------
+
+    subroutine AdvectionCentralDifferences(Direction)
+
+        !Argument-----------------------------------------------------------------
+        character(len=StringLength)         :: Direction
+        
+        !Local--------------------------------------------------------------------
+        integer                             :: i,j, CHUNK   
+        real                                :: Aux1, Aux2
+        real, dimension(:,:  ), pointer     :: DUX, DVY
+        !begin-------------------------------------------------------------------- 
+
+        if (MonitorPerformance) call StartWatch ("ModuleRunoffProperties", "AdvectionCentralDifferences")
+
+        
+        !By default at this point all adv fluxes are zero (routine RestartVariables) so only values different from zero are defined
+        
+        !xx and yy direction
+        if (Direction == 'Horizontal') then
+
+            call SetMatrixValue (Me%COEF3_HorAdvXX%C_flux, Me%Size, 0.0)
+            call SetMatrixValue (Me%COEF3_HorAdvXX%D_flux, Me%Size, 0.0)
+            call SetMatrixValue (Me%COEF3_HorAdvXX%E_flux, Me%Size, 0.0)
+            call SetMatrixValue (Me%COEF3_HorAdvXX%F_flux, Me%Size, 0.0)
+            
+            call SetMatrixValue (Me%COEF3_HorAdvYY%C_flux, Me%Size, 0.0)
+            call SetMatrixValue (Me%COEF3_HorAdvYY%D_flux, Me%Size, 0.0)
+            call SetMatrixValue (Me%COEF3_HorAdvYY%E_flux, Me%Size, 0.0)
+            call SetMatrixValue (Me%COEF3_HorAdvYY%F_flux, Me%Size, 0.0)                
+            
+        
+            DUX => Me%ExtVar%DUX
+            DVY => Me%ExtVar%DVY
+            
+            CHUNK = Chunk_J(Me%WorkSize%JLB,Me%WorkSize%JUB)
+            !$OMP PARALLEL PRIVATE(i,j, Aux1, Aux2) 
+     
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+do2 :       do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+do1 :       do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+
+                if (Me%ExtVar%BasinPoints(i, j) == 1) then
+                    
+                    !x direction
+ !                   if (Me%ExtVar%ComputeFaces2D(i,j) == 1) then
+                        Aux1 = DUX(i,j  )/(DUX(i,j) + DUX(i,j-1))
+                        Aux2 = DUX(i,j-1)/(DUX(i,j) + DUX(i,j-1))
+                        Me%COEF3_HorAdvXX%D_flux(i,j) = Me%ExtVar%FluxU(i,j) * Aux1
+                        Me%COEF3_HorAdvXX%E_flux(i,j) = Me%ExtVar%FluxU(i,j) * Aux2
+ !                   endif
+                    
+                    !y direction
+ !                   if (Me%ExtVar%ComputeFaces2D(i,j) == 1) then                
+                        Aux1 = DVY(i  ,j)/(DVY(i,j) + DVY(i-1,j))
+                        Aux2 = DVY(i-1,j)/(DVY(i,j) + DVY(i-1,j))
+                        Me%COEF3_HorAdvYY%D_flux(i,j) = Me%ExtVar%FluxV(i,j) * Aux1
+                        Me%COEF3_HorAdvYY%E_flux(i,j) = Me%ExtVar%FluxV(i,j) * Aux2
+ !                   endif                 
+                    
+                    
+                endif
+
+            end do do1
+            end do do2
+            !$OMP END DO
+                
+            !$OMP END PARALLEL
+        
+        else
+            stop 'AdvectionCentralDifferences - Runoff Properties - ERR010'
+        
+        endif
+        
+        if (MonitorPerformance) call StopWatch ("ModuleRunoffProperties", "AdvectionCentralDifferences")
+           
+           
+    end subroutine AdvectionCentralDifferences
+    
+    !-----------------------------------------------------------------------------
 
     subroutine ModifyCoefs(PropertyX)
 
@@ -4433,6 +4845,9 @@ cd0:    if (Exist) then
         type (T_Property), pointer                  :: PropertyX
        
         !begin--------------------------------------------------------------------
+
+        if (MonitorPerformance) call StartWatch ("ModuleRunoffProperties", "ModifyCoefs")
+
         
         !In this subroutine are computed all the sources/sinks of water and mass
         !that exist in the Runoff Module (for new Water Column computation)
@@ -4453,6 +4868,8 @@ cd0:    if (Exist) then
 
         !Boundary condition
         !Boundary Fluxes not yet accounted
+
+        if (MonitorPerformance) call StopWatch ("ModuleRunoffProperties", "ModifyCoefs")
         
         
     end subroutine ModifyCoefs
@@ -4466,7 +4883,8 @@ cd0:    if (Exist) then
         real                                             :: ImpExp_AdvXX, ImpExp_AdvYY           
         real                                             :: AdvectionH_Imp_Exp                  
         !begin--------------------------------------------------------------------
-        
+
+        if (MonitorPerformance) call StartWatch ("ModuleRunoffProperties", "ModifyAdvectionDiffusionCoefs")
        
        !check spatial and temporal options
         call CheckTransportOptions(PropertyX, AdvectionH_Imp_Exp, ImpExp_AdvXX, ImpExp_AdvYY)
@@ -4476,6 +4894,8 @@ cd0:    if (Exist) then
         !Routines from ModuleAdvectionDiffusion
         call HorizontalDiffusion(PropertyX)                              !always explicit
         call HorizontalAdvection(PropertyX, ImpExp_AdvXX, ImpExp_AdvYY)  !explicit or implicit
+
+        if (MonitorPerformance) call StopWatch ("ModuleRunoffProperties", "ModifyAdvectionDiffusionCoefs")
 
         
     end subroutine ModifyAdvectionDiffusionCoefs
@@ -4631,7 +5051,7 @@ do1 :   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
         !----------------------------------------------------------------------
 
-        if (MonitorPerformance) call StartWatch ("ModulePorousMediaProperties", "HorizontalDiffusionYY")
+        if (MonitorPerformance) call StartWatch ("ModuleRunoffProperties", "HorizontalDiffusionYY")
 
 
         DTPropDouble = dble(Me%ExtVar%DT) 
@@ -4668,7 +5088,7 @@ do1 :   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         !$OMP END PARALLEL
 
 
-        if (MonitorPerformance) call StopWatch ("ModulePorousMediaProperties", "HorizontalDiffusionYY")
+        if (MonitorPerformance) call StopWatch ("ModuleRunoffProperties", "HorizontalDiffusionYY")
 
 
     end subroutine HorizontalDiffusionYY
@@ -4688,7 +5108,7 @@ do1 :   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
         !----------------------------------------------------------------------
 
-        if (MonitorPerformance) call StartWatch ("ModulePorousMediaProperties", "HorizontalAdvection")
+        if (MonitorPerformance) call StartWatch ("ModuleRunoffProperties", "HorizontalAdvection")
 
         ILBWS = Me%WorkSize%ILB
         IUBWS = Me%WorkSize%IUB
@@ -4711,7 +5131,7 @@ do1 :   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         !The implicit method only needs a thomas array at this point in 3D cases
         !in the routine to update properties the thomas will be called if implicit and will go in implicit direction assigned
         
-        if (MonitorPerformance) call StopWatch ("ModulePorousMediaProperties", "HorizontalAdvection")
+        if (MonitorPerformance) call StopWatch ("ModuleRunoffProperties", "HorizontalAdvection")
 
 
     end subroutine HorizontalAdvection
@@ -4734,7 +5154,7 @@ do1 :   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         !----------------------------------------------------------------------
 
 
-        if (MonitorPerformance) call StartWatch ("ModulePorousMediaProperties", "HorizontalAdvectionXX")
+        if (MonitorPerformance) call StartWatch ("ModuleRunoffProperties", "HorizontalAdvectionXX")
 
         ILB = Me%WorkSize%ILB
         IUB = Me%WorkSize%IUB
@@ -4745,32 +5165,33 @@ do1 :   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         !CHUNK = CHUNK_I(ILB, IUB)
         !!$OMP PARALLEL PRIVATE(i,j,AdvFluxX,DT2,DT1)
 
+        if (.not. Me%NewFormulation) then
 
-        !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
-i1:     do i = ILB, IUB
-
-
-            call ComputeAdvection1D_V2(JLB+1, JUB+1, Me%ExtVar%DT,                  &
-                                    Me%ExtVar%DUX               (i,:),              &
-                                    CurrProp%Concentration      (i,:),              &
-                                    Me%ExtVar%FluxU             (i,:),              &
-                                    Me%WaterVolume              (i,:),              & 
-                                    Me%DummyOpenPoints          (i,:),              &
-                                    Me%COEF3_HorAdvXX%C_flux    (i,:),              &
-                                    Me%COEF3_HorAdvXX%D_flux    (i,:),              &
-                                    Me%COEF3_HorAdvXX%E_flux    (i,:),              &
-                                    Me%COEF3_HorAdvXX%F_flux    (i,:),              &
-                                    CurrProp%Evolution%AdvDiff%AdvMethodH,          &
-                                    CurrProp%Evolution%AdvDiff%TVDLimitationH,      &
-                                    CurrProp%Evolution%AdvDiff%VolumeRelMax,        &
-                                    CurrProp%Evolution%AdvDiff%Upwind2H)
-
-        end do i1
-        !!$OMP END DO
-        
-        !!$OMP END PARALLEL
+            !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+i1:         do i = ILB, IUB
 
 
+                call ComputeAdvection1D_V2(JLB+1, JUB+1, Me%ExtVar%DT,                  &
+                                        Me%ExtVar%DUX               (i,:),              &
+                                        CurrProp%Concentration      (i,:),              &
+                                        Me%ExtVar%FluxU             (i,:),              &
+                                        Me%WaterVolume              (i,:),              & 
+                                        Me%DummyOpenPoints          (i,:),              &
+                                        Me%COEF3_HorAdvXX%C_flux    (i,:),              &
+                                        Me%COEF3_HorAdvXX%D_flux    (i,:),              &
+                                        Me%COEF3_HorAdvXX%E_flux    (i,:),              &
+                                        Me%COEF3_HorAdvXX%F_flux    (i,:),              &
+                                        CurrProp%Evolution%AdvDiff%AdvMethodH,          &
+                                        CurrProp%Evolution%AdvDiff%TVDLimitationH,      &
+                                        CurrProp%Evolution%AdvDiff%VolumeRelMax,        &
+                                        CurrProp%Evolution%AdvDiff%Upwind2H)
+
+            end do i1
+            !!$OMP END DO
+            
+            !!$OMP END PARALLEL
+
+        endif
 
 cd6:    if (ImpExp_AdvXX == ExplicitScheme)  then !ExplicitScheme = 0
 
@@ -4840,7 +5261,7 @@ doi4 :      do i = ILB, IUB
         endif cd6
 
 
-        if (MonitorPerformance) call StopWatch ("ModulePorousMediaProperties", "HorizontalAdvectionXX")
+        if (MonitorPerformance) call StopWatch ("ModuleRunoffProperties", "HorizontalAdvectionXX")
 
 
     end subroutine HorizontalAdvectionXX
@@ -4861,7 +5282,7 @@ doi4 :      do i = ILB, IUB
 
         !----------------------------------------------------------------------
 
-        if (MonitorPerformance) call StartWatch ("ModulePorousMediaProperties", "HorizontalAdvectionYY")
+        if (MonitorPerformance) call StartWatch ("ModuleRunoffProperties", "HorizontalAdvectionYY")
 
         ILB = Me%WorkSize%ILB
         IUB = Me%WorkSize%IUB
@@ -4870,36 +5291,36 @@ doi4 :      do i = ILB, IUB
         JUB = Me%WorkSize%JUB
 
         
-        !CHUNK = CHUNK_J(JLB, JUB)
-      
-        !!$OMP PARALLEL PRIVATE(i,j,AdvFluxY,DT2,DT1)
+        if (.not. Me%NewFormulation) then
 
-       
-         !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
-j1:     do j = JLB, JUB
+            !CHUNK = CHUNK_J(JLB, JUB)
+          
+            !!$OMP PARALLEL PRIVATE(i,j,AdvFluxY,DT2,DT1)       
+             !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+j1:         do j = JLB, JUB
 
 
-            call ComputeAdvection1D_V2(ILB+1, IUB+1, Me%ExtVar%DT,                              &
-                                    Me%ExtVar%DVY               (:,j),                          &
-                                    CurrProp%Concentration      (:,j),                          &
-                                    Me%ExtVar%FluxV             (:,j),                          &
-                                    Me%WaterVolume              (:,j),                          & 
-                                    Me%DummyOpenPoints          (:,j),                          &
-                                    Me%COEF3_HorAdvYY%C_flux    (:,j),                          &
-                                    Me%COEF3_HorAdvYY%D_flux    (:,j),                          &
-                                    Me%COEF3_HorAdvYY%E_flux    (:,j),                          &
-                                    Me%COEF3_HorAdvYY%F_flux    (:,j),                          &
-                                    CurrProp%Evolution%AdvDiff%AdvMethodH,                      &
-                                    CurrProp%Evolution%AdvDiff%TVDLimitationH,                  &
-                                    CurrProp%Evolution%AdvDiff%VolumeRelMax,                    &
-                                    CurrProp%Evolution%AdvDiff%Upwind2H)
+                call ComputeAdvection1D_V2(ILB+1, IUB+1, Me%ExtVar%DT,                              &
+                                        Me%ExtVar%DVY               (:,j),                          &
+                                        CurrProp%Concentration      (:,j),                          &
+                                        Me%ExtVar%FluxV             (:,j),                          &
+                                        Me%WaterVolume              (:,j),                          & 
+                                        Me%DummyOpenPoints          (:,j),                          &
+                                        Me%COEF3_HorAdvYY%C_flux    (:,j),                          &
+                                        Me%COEF3_HorAdvYY%D_flux    (:,j),                          &
+                                        Me%COEF3_HorAdvYY%E_flux    (:,j),                          &
+                                        Me%COEF3_HorAdvYY%F_flux    (:,j),                          &
+                                        CurrProp%Evolution%AdvDiff%AdvMethodH,                      &
+                                        CurrProp%Evolution%AdvDiff%TVDLimitationH,                  &
+                                        CurrProp%Evolution%AdvDiff%VolumeRelMax,                    &
+                                        CurrProp%Evolution%AdvDiff%Upwind2H)
 
-        end do j1
-        !!$OMP END DO
-        
-        !!$OMP END DO NOWAIT
-        !!$OMP END PARALLEL
-
+            end do j1
+            !!$OMP END DO
+            
+            !!$OMP END DO NOWAIT
+            !!$OMP END PARALLEL
+        endif
 
 cd6:    if (ImpExp_AdvYY == ExplicitScheme)  then !ExplicitScheme = 0
             
@@ -4971,7 +5392,7 @@ doi4 :      do i = ILB, IUB
         endif cd6
 
 
-        if (MonitorPerformance) call StopWatch ("ModulePorousMediaProperties", "HorizontalAdvectionYY")
+        if (MonitorPerformance) call StopWatch ("ModuleRunoffProperties", "HorizontalAdvectionYY")
 
     end subroutine HorizontalAdvectionYY
     
@@ -4988,6 +5409,8 @@ doi4 :      do i = ILB, IUB
         integer                                     :: i, j, CHUNK
         real(8)                                     :: aux 
         !Begin-----------------------------------------------------------------
+
+        if (MonitorPerformance) call StartWatch ("ModuleRunoffProperties", "ModifyDrainageNetworkCoefs")
    
         
         CurrProperty => PropertyX
@@ -5035,7 +5458,8 @@ doi4 :      do i = ILB, IUB
         
         !$OMP END PARALLEL
                            
-  
+        if (MonitorPerformance) call StopWatch ("ModuleRunoffProperties", "ModifyDrainageNetworkCoefs")
+
    
    end subroutine ModifyDrainageNetworkCoefs
 
@@ -5052,6 +5476,9 @@ doi4 :      do i = ILB, IUB
         integer                                     :: IJmin, IJmax, JImin, JImax
         real(8)                                     :: coefB, CoefInterfDN
         !Begin-----------------------------------------------------------------    
+
+        if (MonitorPerformance) call StartWatch ("ModuleRunoffProperties", "ModifyPropertyValues")
+
         
         CurrProperty => PropertyX
         
@@ -5177,6 +5604,9 @@ doi4 :      do i = ILB, IUB
                 
             endif               
         endif
+
+        if (MonitorPerformance) call StopWatch ("ModuleRunoffProperties", "ModifyPropertyValues")
+
     
     end subroutine ModifyPropertyValues
     
@@ -5487,6 +5917,9 @@ doi4 :      do i = ILB, IUB
         integer                                     :: I,J, CHUNK
         real                                        :: DiffCoef, velU, VelV        
         !Begin-----------------------------------------------------------------
+
+        if (MonitorPerformance) call StartWatch ("ModuleRunoffProperties", "ModifyDiffusivity_New")
+
         
         CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
         
@@ -5521,6 +5954,7 @@ doi4 :      do i = ILB, IUB
         !$OMP END DO
         !$OMP END PARALLEL
 
+        if (MonitorPerformance) call StopWatch ("ModuleRunoffProperties", "ModifyDiffusivity_New")
 
     
     end subroutine ModifyDiffusivity_New
@@ -6254,6 +6688,69 @@ if3:                    if (Me%ShearStress (i,j) < Me%DepositionCriticalShear%Fi
 
     !---------------------------------------------------------------------------
 
+    subroutine DecayProcesses
+    
+        !Local--------------------------------------------------------------------
+        type (T_Property), pointer                         :: Property
+        real                                               :: DT
+        real(8)                                            :: WaterVolume
+        real(8)                                            :: OldMass
+        real(8)                                            :: NewMass
+        real(8)                                            :: MassSink
+        integer                                            :: i,j
+        !Begin--------------------------------------------------------------------
+        
+        
+        Property => Me%FirstProperty  
+
+do1 :   do while (associated(Property))    
+
+            if (Property%Evolution%Decay) then
+                
+                !days
+                DT = Me%ExtVar%DT / 86400.
+          
+                if(Me%ExtVar%Now .GE. Property%Evolution%NextCompute) then            
+            
+                    do J = Me%WorkSize%JLB, Me%WorkSize%JUB       
+                    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
+                    
+                        if ((Me%ExtVar%BasinPoints(I,J) == WaterPoint) .and. (Me%ExtVar%WaterColumn(i,j) .gt. 0.)) then
+                            
+                            !WQ process without volume change. only mass change
+                            !m3 H20
+                            WaterVolume = Me%ExtVar%WaterColumn(i,j) * Me%ExtVar%Area(i, j)
+                            
+                            !g  = g/m3 * m3
+                            OldMass = Property%Concentration(I,J) * WaterVolume
+                            
+                            !P = P0*exp(-kt)
+                            !g
+                            MassSink = min (OldMass - OldMass * exp(-Property%Evolution%DecayRate * DT),  OldMass)
+                            
+                            NewMass = OldMass - MassSink
+                            
+                            Property%Concentration(I,J) = NewMass / WaterVolume
+                            
+                        endif
+                    
+                    enddo
+                    enddo
+                
+                endif
+                
+            endif     
+
+            Property => Property%Next
+        end do do1   
+
+        nullify(Property)
+        
+            
+    end subroutine DecayProcesses
+
+    !-----------------------------------------------------------------------------
+
     subroutine Partition_Processes
 
         !Local----------------------------------------------------------------- 
@@ -6296,11 +6793,14 @@ cd1:            if(Me%ExtVar%Now .GE. PropertyX%Evolution%NextCompute) then
                     call Search_Property(PartPropX, PropertyXID = Couple_ID, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_)                                          &
                         stop 'Partition_Processes - ModuleRunoffProperties - ERR02'
-
-                    call Search_Property(CohesiveSediment, PropertyXID = Cohesive_Sediment_, STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_)                                      &
-                        stop 'Partition_Processes - ModuleRunoffProperties - ERR03'
-
+                    
+                    if(PropertyX%Evolution%Partition%UseSedimentRefConc)then
+                    
+                        call Search_Property(CohesiveSediment, PropertyXID = Cohesive_Sediment_, STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_)                                      &
+                            stop 'Partition_Processes - ModuleRunoffProperties - ERR03'
+                    
+                    endif
 
     !                if (PropertyX%Evolution%Partition%SalinityEffect) then
     !
@@ -6375,6 +6875,12 @@ cd1:            if(Me%ExtVar%Now .GE. PropertyX%Evolution%NextCompute) then
                             MassTransfer    =         DT * TransferRate *          &
                             (DissolvedFraction   * PartPropX%Concentration(i, j) -        &                  
                              ParticulateFraction * PropertyX%Concentration(i, j))
+
+                            if ((MassTransfer .gt. 0.0) .and. (MassTransfer .gt. PartPropX%Concentration(i, j))) then
+                                MassTransfer = PartPropX%Concentration(i, j)
+                            elseif ((MassTransfer .lt. 0.0) .and. (-MassTransfer .gt. PropertyX%Concentration(i, j))) then
+                                MassTransfer = -PropertyX%Concentration(i, j)
+                            endif
 
                             PartPropX%Concentration(i, j) =                               &
                                                PartPropX%Concentration(i, j) - MassTransfer 

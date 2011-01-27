@@ -86,7 +86,8 @@ Module ModuleBasin
                                      GetRPPropertiesIDByIdx, SetDNConcRP,                &
                                      UngetRunoffProperties, SetBasinConcRP,              &
                                      SetBasinToRPSplash, GetRPMassBalance,               &
-                                     CheckRPProperty
+                                     CheckRPProperty, GetRPConcentrationOld,             &
+                                     GetRPDecayRate
                                      
     use ModuleDrainageNetwork,only : ConstructDrainageNetwork, FillOutPutMatrix,         &
                                      ModifyDrainageNetwork,                              &
@@ -117,7 +118,8 @@ Module ModuleBasin
                                      SetWindVelocity, GetPMPnProperties,                 &
                                      GetPMPPropertiesIDByIdx, SetDNConcPMP,              &
                                      UngetPorousMediaProperties, CheckPMPProperty,       &
-                                     SetInfColConcPMP, GetPMPMassBalance                                     
+                                     SetInfColConcPMP, GetPMPMassBalance,                &
+                                     GetPMPConcentrationOld                                     
                                      
     use ModuleVegetation,     only : ConstructVegetation, ModifyVegetation,              &
                                      KillVegetation, GetLeafAreaIndex,                   &
@@ -127,7 +129,9 @@ Module ModuleBasin
                                      GetVegetationDT, GetRootDepth, GetNutrientFraction, &
                                      UnGetVegetation, UnGetVegetationSoilFluxes,         &
                                      GetCanopyHeight, GetTranspirationBottomLayer,       &
-                                     GetPotLeafAreaIndex, GetCanopyStorageType                  
+                                     GetPotLeafAreaIndex, GetCanopyStorageType,          &
+                                     GetVegetationAerialFluxes, UnGetVegetationAerialFluxes, &
+                                     GetVegetationGrowing                  
 
     use ModuleStopWatch,      only : StartWatch, StopWatch
     
@@ -302,6 +306,8 @@ Module ModuleBasin
         type (T_BasinProperty), pointer             :: Next                 => null()
         logical                                     :: AdvectionDiffusion
         logical                                     :: Particulate
+        logical                                     :: Decay
+        logical                                     :: DecayRate
         type (T_PropMassBalance)                    :: MB
         real(8), dimension(:,:), pointer            :: VegetationConc       => null()
         real(8), dimension(:,:), pointer            :: VegetationDrainage   => null()
@@ -1584,7 +1590,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         !Time Serie of properties variable in the Basin 
         i = 7
         if (Me%Coupled%Vegetation) then
-            i = i + 3
+            i = i + 4
         
             if (Me%EvapoTranspirationMethod == SeparateEvapoTranspiration) then        
                 i = i + 4
@@ -1619,6 +1625,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             i = i + 1
             PropertyList(i) = 'Canopy Storage [m]'
             i = i + 1
+            PropertyList(i) = 'Canopy Drainage [m]'
+            i = i + 1            
             PropertyList(i)  = 'Potential Crop EVTP [mm/h]'
             i = i + 1
         
@@ -2300,7 +2308,7 @@ i1:         if (CoordON) then
         integer                                     :: STAT_CALL, ErrorCount
         logical                                     :: BlockFound
         type (T_BasinProperty), pointer             :: PropertyX    => null()
-        logical                                     :: PropAdvDiff
+        logical                                     :: PropAdvDiff, Decay
         integer                                     :: i,j
 
         !----------------------------------------------------------------------
@@ -2338,7 +2346,7 @@ cd2 :           if (BlockFound) then
         
             if (Me%VerifyGloBalMass .or. Me%Coupled%Vegetation ) then
                 call GetRPnProperties (Me%ObjRunoffProperties, nProperties, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'DrainageNetworkProcesses - ModuleBasin - ERR010'
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructPropertyList - ModuleBasin - ERR010'
 
                 do iProp = 1, nProperties
 
@@ -2346,11 +2354,12 @@ cd2 :           if (BlockFound) then
                                                  Idx                     = iProp,                       &
                                                  ID                      = PropID,                      &
                                                  PropAdvDiff             = PropAdvDiff,                 &
+                                                 Decay                   = Decay,                       &
                                                  STAT                    = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'DrainageNetworkProcesses - ModuleBasin - ERR020' 
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructPropertyList - ModuleBasin - ERR020' 
                     
                     !For now only for properties with Advection diffusion 
-                    if (PropAdvDiff) then
+ !                   if (PropAdvDiff) then
                         
                         !Allocates new property
                         allocate (NewProperty, STAT = STAT_CALL)            
@@ -2360,7 +2369,8 @@ cd2 :           if (BlockFound) then
                         NewProperty%ID%IDNumber        = PropID
                         NewProperty%ID%Name            = trim(GetPropertyName(NewProperty%ID%IDNumber))                       
                         NewProperty%Particulate        = Check_Particulate_Property(NewProperty%ID%IDNumber)
-                        NewProperty%AdvectionDiffusion = .true.
+                        NewProperty%AdvectionDiffusion = PropAdvDiff
+                        NewProperty%Decay              = Decay
                         if (Me%Coupled%Vegetation) then
                             allocate (NewProperty%VegetationConc(Me%WorkSize%ILB:Me%WorkSize%IUB, Me%WorkSize%JLB:Me%WorkSize%JUB))
                             NewProperty%VegetationConc = 0.0
@@ -2375,7 +2385,7 @@ cd2 :           if (BlockFound) then
                         ! Add new Property to the Basin List 
                         call AddProperty(NewProperty)
                         
-                    endif
+!                    endif
                 enddo
            endif
         endif
@@ -3594,17 +3604,31 @@ cd2 :           if (BlockFound) then
         real(8)                                     :: VegetationNewVolume, RainVolume
         real(8)                                     :: DrainageVolume
         integer                                     :: STAT_CALL, i,j
+        integer                                     :: NumberOfPesticides, Pest, PesticideIDNumber
+        real, dimension(:,:), pointer               :: PesticideVegetation
+        real(8)                                     :: MassAdded, MassSink
+        real                                        :: VegDT, DT
+        real                                        :: DecayRate
+        logical, dimension(:,:), pointer            :: IsVegGrowing
         !Begin-----------------------------------------------------------------
         
                            
         !Mass Balance to vegetation water on leafs
-        Property => Me%FirstProperty
-        do while (associated(Property))
         
-            !only for runoff properties and exclude for instance evapotranspiration
-            if (Property%Inherited) then
-                
-                if (WarningString == "WaterMix") then
+        !To check if mass is to be accumulated
+        call GetVegetationGrowing(Me%ObjVegetation, IsVegGrowing, STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'UpdateVegConcentration - ModuleBasin - ERR00'  
+        
+        
+        !Mix after routine DividePrecipitation
+        if (WarningString == "WaterMix") then      
+
+            Property => Me%FirstProperty
+            do while (associated(Property))
+            
+                !only for runoff properties and exclude for instance evapotranspiration
+                if (Property%Inherited) then
+                    
                     if (AtmospherePropertyExists (Me%ObjAtmosphere, Property%ID%IDNumber)) then
             
                         call GetAtmosphereProperty(AtmosphereID       = Me%ObjAtmosphere,       &
@@ -3616,105 +3640,263 @@ cd2 :           if (BlockFound) then
                         allocate (AtmConcentration(Me%WorkSize%ILB:Me%WorkSize%IUB, Me%WorkSize%JLB:Me%WorkSize%JUB))
                         AtmConcentration = 0.0
                     endif
-                endif
                 
-                do j = Me%WorkSize%JLB, Me%WorkSize%JUB
-                do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+                    
+                    do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+                    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
-                    if (Me%ExtVar%BasinPoints(i, j) == WaterPoint) then
-                        
-                        !Mix after routine DividePrecipitation
-                        if (WarningString == "WaterMix") then
+                        if (Me%ExtVar%BasinPoints(i, j) == WaterPoint) then
                             
-                            !At this point old volume has to be the one from previous time step - covered fraction old
-                            !and canopystorage before the mix with rain and removal from drainage
-                            OldVolumeOnLeafs = Me%CoveredFractionOld(i, j) * Me%CanopyStorageOld(i, j)                        &
-                                               * Me%ExtVar%GridCellArea(i, j)
-                            
-                            !Mass from Rain
-                            !m3 = m * m2plant
-                            RainVolume          = Me%RainCovered(i,j) * Me%CoveredFraction(i, j)                              &
-                                                   * Me%ExtVar%GridCellArea(i, j) 
-                            !g = (m * m2plant) * g/m3
-                            RainMassToVeg       = RainVolume * AtmConcentration(i,j)
-                                                   
-                            !m3
-                            VegetationNewVolume = OldVolumeOnLeafs + RainVolume                                                   
-                            !g
-                            VegetationNewMass   = Property%VegetationOldMass(i,j) + RainMassToVeg
-                            
-                            !Update veg conc with rain because the drainage flux needs a new conc
-                            if (VegetationNewVolume .gt. 0.0) then
-                                !g/m3 = g / (m * m2)
-                                Property%VegetationConc(i,j) = VegetationNewMass / VegetationNewVolume
+                            if (IsVegGrowing(i,j)) then
+                                !At this point old volume has to be the one from previous time step - covered fraction old
+                                !and canopystorage before the mix with rain and removal from drainage
+                                OldVolumeOnLeafs = Me%CoveredFractionOld(i, j) * Me%CanopyStorageOld(i, j)                        &
+                                                   * Me%ExtVar%GridCellArea(i, j)
+                                
+                                !Mass from Rain
+                                !m3 = m * m2plant
+                                RainVolume          = Me%RainCovered(i,j) * Me%CoveredFraction(i, j)                              &
+                                                       * Me%ExtVar%GridCellArea(i, j) 
+                                !g = (m * m2plant) * g/m3
+                                RainMassToVeg       = RainVolume * AtmConcentration(i,j)
+                                                       
+                                !m3
+                                VegetationNewVolume = OldVolumeOnLeafs + RainVolume   
+                                !g
+                                VegetationNewMass   = Property%VegetationOldMass(i,j) + RainMassToVeg
+                                
+                                !Update veg conc with rain because the drainage flux needs a new conc
+                                if (VegetationNewVolume .gt. 0.0) then
+                                    !g/m3 = g / (m * m2)
+                                    Property%VegetationConc(i,j) = VegetationNewMass / VegetationNewVolume
+                                else
+                                    Property%VegetationConc(i,j) = 0.0
+                                endif                                                   
+                                
+                                !Mass drained to soil - with the new veg conc.
+                                !m3 = m * m2plant
+                                DrainageVolume      = Me%CanopyDrainage(i,j) * Me%ExtVar%GridCellArea(i, j)
+                                
+                                !g = (m * m2cel) * g/m3 - Canopy drainage is height in cell area
+                                DrainageMassFromVeg = DrainageVolume * Property%VegetationConc(i,j)
+                                
+                                Property%VegetationDrainage(i,j) = DrainageMassFromVeg
+
+                                if (Me%VerifyGlobalMass) then
+                                    !output for vegetation leafs
+                                    !kg = kg + ((m*m2cell * g/m3 * 1e-3 kg/g) - Canopy drainage is height in cell area
+                                    Property%MB%VegDrainedMass   = Property%MB%VegDrainedMass + DrainageMassFromVeg * 1e-3
+                                endif
+
+                                !m3
+                                VegetationNewVolume = VegetationNewVolume - DrainageVolume
+                                
+                                !g
+                                VegetationNewMass   = VegetationNewMass - DrainageMassFromVeg
+                                
+                                !Update the new conc now with drainage flux
+                                if (VegetationNewVolume .gt. 0.0) then
+                                    !g/m3 = g / (m * m2)
+                                    Property%VegetationConc(i,j) = VegetationNewMass / VegetationNewVolume
+                                else
+                                    Property%VegetationConc(i,j) = 0.0
+                                endif 
+                                
+                                Property%VegetationOldMass(i,j) = VegetationNewMass
                             else
-                                Property%VegetationConc(i,j) = 0.0
-                            endif                                                   
-                            
-                            !Mass drained to soil - with the new veg conc.
-                            !m3 = m * m2plant
-                            DrainageVolume      = Me%CanopyDrainage(i,j) * Me%ExtVar%GridCellArea(i, j)
-                            
-                            !g = (m * m2cel) * g/m3 - Canopy drainage is height in cell area
-                            DrainageMassFromVeg = DrainageVolume * Property%VegetationConc(i,j)
-                            
-                            Property%VegetationDrainage(i,j) = DrainageMassFromVeg
-
-                            if (Me%VerifyGlobalMass) then
-                                !output for vegetation leafs
-                                !kg = kg + ((m*m2cell * g/m3 * 1e-3 kg/g) - Canopy drainage is height in cell area
-                                Property%MB%VegDrainedMass   = Property%MB%VegDrainedMass + DrainageMassFromVeg * 1e-3
+                                Property%VegetationConc(i,j)    = 0.0
+                                Property%VegetationOldMass(i,j) = 0.0
+                                Property%VegetationDrainage(i,j)= 0.0
                             endif
-
-                            !m3
-                            VegetationNewVolume = VegetationNewVolume - DrainageVolume
-                            
-                            !g
-                            VegetationNewMass   = VegetationNewMass - DrainageMassFromVeg
-                            
-                            !Update the new conc now with drainage flux
-                            if (VegetationNewVolume .gt. 0.0) then
-                                !g/m3 = g / (m * m2)
-                                Property%VegetationConc(i,j) = VegetationNewMass / VegetationNewVolume
-                            else
-                                Property%VegetationConc(i,j) = 0.0
-                            endif 
-                            
-                            Property%VegetationOldMass(i,j) = VegetationNewMass
-                        
-                        !compute new concentration after routine ComputePotentialEvapotranspiration
-                        elseif (WarningString == "Evaporation") then 
-                            
-                            !Mass does not change with evaporation
-                            VegetationNewMass = Property%VegetationOldMass(i,j)
-                        
-                            if (Me%CanopyStorage(i, j) .gt. 0.0) then
-                                !g/m3 = g / (m * m2)
-                                Property%VegetationConc(i,j) = VegetationNewMass / (Me%CanopyStorage(i, j)                    &
-                                                               * Me%CoveredFraction(i, j) * Me%ExtVar%GridCellArea(i, j))
-                            else
-                                Property%VegetationConc(i,j) = 0.0
-                            endif                        
                         
                         endif
-                        
+                    enddo
+                    enddo
 
-                    endif
-                enddo
-                enddo
-                
-                if (WarningString == "WaterMix") then
                     if (AtmospherePropertyExists (Me%ObjAtmosphere, Property%ID%IDNumber)) then
                         call UngetAtmosphere (Me%ObjAtmosphere, AtmConcentration, STAT_CALL)
                         if (STAT_CALL /= SUCCESS_) stop 'DividePrecipitation - ModuleBasin - ERR10' 
                     else
                         deallocate (AtmConcentration)
                     endif
+
+                
                 endif
-            endif
-            Property => Property%Next
+                
+                Property => Property%Next
+
+           enddo
+                        
+        !compute new concentration after routine ComputePotentialEvapotranspiration
+        elseif (WarningString == "Evaporation") then 
+
+            Property => Me%FirstProperty
+            do while (associated(Property))
             
-        enddo                   
+                !only for runoff properties and exclude for instance evapotranspiration
+                if (Property%Inherited) then
+
+                    do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+                    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+
+                        if (Me%ExtVar%BasinPoints(i, j) == WaterPoint) then
+                            
+                            if (IsVegGrowing(i,j)) then
+                            
+                                !Mass does not change with evaporation
+                                VegetationNewMass = Property%VegetationOldMass(i,j)
+                            
+                                if (Me%CanopyStorage(i, j) .gt. 0.0) then
+                                    !g/m3 = g / (m * m2)
+                                    Property%VegetationConc(i,j) = VegetationNewMass / (Me%CanopyStorage(i, j)                    &
+                                                                   * Me%CoveredFraction(i, j) * Me%ExtVar%GridCellArea(i, j))
+                                else
+                                    Property%VegetationConc(i,j) = 0.0
+                                endif                        
+
+                            else
+                                Property%VegetationConc(i,j)    = 0.0
+                                Property%VegetationOldMass(i,j) = 0.0                           
+                            endif
+                        endif
+                    enddo
+                    enddo
+                    
+                endif
+                
+                Property => Property%Next
+                
+            enddo                        
+                
+        elseif (WarningString == "Pesticide") then
+                
+            call GetVegetationOptions (Me%ObjVegetation,                                     &
+                                       NumberOfPesticides = NumberOfPesticides,              &
+                                       STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)stop 'VegetationProcesses - ModuleBasin - ERR080'        
+
+            call GetVegetationDT  (Me%ObjVegetation, VegDT, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'VegetationProcesses - ModuleBasin - ERR02'
+        
+            do Pest = 1, NumberOfPesticides
+                call GetVegetationAerialFluxes(Me%ObjVegetation,                            &
+                                                Pest              = Pest,                   &
+                                                PesticideIDNumber = PesticideIDNumber,      &
+                                                PesticideVegetation = PesticideVegetation,  &
+                                                STAT                = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)stop 'VegetationProcesses - ModuleBasin - ERR090'                 
+            
+                call SearchProperty(Property, PropertyXIDNumber = PesticideIDNumber, STAT = STAT_CALL)
+                if (STAT_CALL == SUCCESS_) then
+
+                    do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+                    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+                    
+                        if (Me%ExtVar%BasinPoints(i, j) == WaterPoint) then
+                            
+                            if (IsVegGrowing(i,j)) then
+
+                                !g = kg/ha * dt/dtveg * 1e3 g/kg * (area) * 1ha/10000m2
+                                !area is from all cell because leaf pesticide did account all area
+                                MassAdded = PesticideVegetation(i,j) * Me%CurrentDT / VegDT * 1e3 * Me%ExtVar%GridCellArea(i,j)  &
+                                             / 10000.
+                                
+                                VegetationNewMass = Property%VegetationOldMass(i,j) + MassAdded
+                                
+                                if (Me%CanopyStorage(i, j) .gt. 0.0) then
+                                    !g/m3 = g / (m * m2)
+                                    Property%VegetationConc(i,j) = VegetationNewMass / (Me%CanopyStorage(i, j)                    &
+                                                                   * Me%CoveredFraction(i, j) * Me%ExtVar%GridCellArea(i, j))
+                                else
+                                    Property%VegetationConc(i,j) = 0.0
+                                endif                        
+                                
+                                Property%VegetationOldMass(i,j) = VegetationNewMass
+                            
+                            else
+                                Property%VegetationConc(i,j)    = 0.0
+                                Property%VegetationOldMass(i,j) = 0.0                           
+                            endif                        
+                        
+                        endif                    
+                    
+                    enddo 
+                    enddo
+                else
+                    write(*,*)
+                    write(*,*) 'Not found pesticide', GetPropertyName(PesticideIDNumber) 
+                    write(*,*) 'in runoff property list'
+                    stop ' UpdateVegConcentration - ModuleBasin - ERR10'
+                endif                                
+                
+                call UngetVegetationAerialFluxes (Me%ObjVegetation,                            &
+                                                Pest              = Pest,                   &
+                                                PesticideVegetation = PesticideVegetation,  &
+                                                STAT                = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)stop 'VegetationProcesses - ModuleBasin - ERR0100' 
+                
+            enddo    
+
+        elseif (WarningString == "Decay") then
+            
+
+            Property => Me%FirstProperty
+            do while (associated(Property))
+            
+                !only for runoff properties and exclude for instance evapotranspiration
+                !and properties with decay option
+                if (Property%Inherited .and. Property%Decay) then
+                    
+                    call GetRPDecayRate (Me%ObjRunoffProperties, DecayRate, Property%ID%IDNumber, STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_)stop 'VegetationProcesses - ModuleBasin - ERR0110' 
+                    
+                    DT = Me%CurrentDT / 86400.
+                    
+                    do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+                    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+
+                        if (Me%ExtVar%BasinPoints(i, j) == WaterPoint) then
+
+                            if (IsVegGrowing(i,j)) then
+                                !WQ process without volume change. only mass change
+                               
+                                !P = P0*exp(-kt)
+                                !g
+                                MassSink = min (Property%VegetationOldMass(i,j)                                       &
+                                                - Property%VegetationOldMass(i,j) * exp(-DecayRate * DT),             &
+                                                  Property%VegetationOldMass(i,j))
+                                
+                                VegetationNewMass = Property%VegetationOldMass(i,j) - MassSink
+                                
+                                if (Me%CanopyStorage(i, j) .gt. 0.0) then
+                                    !g/m3 = g / (m * m2)
+                                    Property%VegetationConc(i,j) = VegetationNewMass / (Me%CanopyStorage(i, j)                    &
+                                                                   * Me%CoveredFraction(i, j) * Me%ExtVar%GridCellArea(i, j))
+                                else
+                                    Property%VegetationConc(i,j) = 0.0
+                                endif                        
+                                
+                                Property%VegetationOldMass(i,j) = VegetationNewMass
+
+                            else
+                                Property%VegetationConc(i,j)    = 0.0
+                                Property%VegetationOldMass(i,j) = 0.0                           
+                            endif     
+                            
+                        endif
+                    enddo
+                    enddo
+                    
+                endif
+                
+                Property => Property%Next
+                
+            enddo                        
+            
+        endif                   
+
+        call UnGetVegetation  (Me%ObjVegetation, IsVegGrowing, STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'UpdateVegConcentration - ModuleBasin - ERR0100'
     
     end subroutine UpdateVegConcentration
 
@@ -3818,6 +4000,9 @@ cd2 :           if (BlockFound) then
         real, dimension(:,:,:), pointer             :: InorganicPhosphorus
         logical                                     :: ModelNitrogen
         logical                                     :: ModelPhosphorus
+        logical                                     :: Pesticide
+        logical                                     :: Decay
+        character (Len = StringLength)              :: WarningString
 
         !Begin-----------------------------------------------------------------
 
@@ -3827,6 +4012,7 @@ cd2 :           if (BlockFound) then
         call GetVegetationOptions (Me%ObjVegetation,                                     &
                                    ModelNitrogen = ModelNitrogen,                        &
                                    ModelPhosphorus = ModelPhosphorus,                    &
+                                   Pesticide       = Pesticide,                          &
                                    STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)stop 'VegetationProcesses - ModuleBasin - ERR01'
 
@@ -3906,7 +4092,25 @@ cd2 :           if (BlockFound) then
     
         !Points to computed variables to be used in porous media (vegetation uses ModulePorousMedia)
         Me%ExtVar%ActualTranspiration => ActualTranspiration
+        
+        !update leaf pesticide conc with applications
+        if (Pesticide) then
+                
+            WarningString = "Pesticide"
+            call UpdateVegConcentration(WarningString)
+                                                
+        endif
+        
+        !update leaf properties with decay
+        call GetRPOptions (Me%ObjRunoffProperties, Decay = Decay, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'VegetationProcesses - ModuleBasin - ERR080'
+        
+        if (Decay) then
 
+            WarningString = "Decay"
+            call UpdateVegConcentration(WarningString)
+        
+        endif
 
         if (MonitorPerformance) call StopWatch ("ModuleBasin", "VegetationProcesses")
     
@@ -4194,9 +4398,9 @@ cd2 :           if (BlockFound) then
                 !Particulate prop do not have advection diffusion in porous media so does not need double check
                 if (PropAdvDiff) then
                     
-                    !Get the conc from PMP
-                    call GetPMPConcentration(PorousMediaPropertiesID = Me%ObjPorousMediaProperties,  &
-                                             ConcentrationX          = PMPConcentration,             &
+                    !Get the conc from PMP Old because is explicit flux (is the same used in PMP)
+                    call GetPMPConcentrationOld(PorousMediaPropertiesID = Me%ObjPorousMediaProperties,  &
+                                             ConcentrationXOld       = PMPConcentration,             &
                                              PropertyXIDNumber       = PropID,                       &
                                              STAT                    = STAT_CALL)        
                     if (STAT_CALL /= SUCCESS_) stop 'DrainageNetworkProcesses - ModuleBasin - ERR04'
@@ -4270,9 +4474,9 @@ cd2 :           if (BlockFound) then
                 !with drainage network
                 if (PropAdvDiff) then
                     
-                    !Get the property conc from RP
-                    call GetRPConcentration(RunoffPropertiesID       = Me%ObjRunoffProperties,       &
-                                             ConcentrationX          = RPConcentration,              &
+                    !Get the property conc from RP Old because is explicit flux (is the same used in RP fluxes)
+                    call GetRPConcentrationOld(RunoffPropertiesID    = Me%ObjRunoffProperties,       &
+                                             ConcentrationXOld       = RPConcentration,              &
                                              PropertyXIDNumber       = PropID,                       &
                                              STAT                    = STAT_CALL)        
                     if (STAT_CALL /= SUCCESS_) stop 'DrainageNetworkProcesses - ModuleBasin - ERR030'
@@ -4574,10 +4778,10 @@ cd2 :           if (BlockFound) then
         real, dimension(:,:), pointer               :: GrazingBiomass
         real, dimension(:,:), pointer               :: GrazingNitrogen
         real, dimension(:,:), pointer               :: GrazingPhosphorus
-        real, dimension(:,:), pointer               :: ManagementAerialBiomass
-        real, dimension(:,:), pointer               :: ManagementNitrogen
-        real, dimension(:,:), pointer               :: ManagementPhosphorus
-        real, dimension(:,:), pointer               :: ManagementRootBiomass
+        real, dimension(:,:), pointer               :: HarvestKillAerialBiomass
+        real, dimension(:,:), pointer               :: HarvestKillNitrogen
+        real, dimension(:,:), pointer               :: HarvestKillPhosphorus
+        real, dimension(:,:), pointer               :: HarvestKillRootBiomass
         real, dimension(:,:), pointer               :: DormancyBiomass
         real, dimension(:,:), pointer               :: DormancyNitrogen
         real, dimension(:,:), pointer               :: DormancyPhosphorus
@@ -4597,7 +4801,7 @@ cd2 :           if (BlockFound) then
         real, dimension(:,:,:),pointer              :: NitrogenUptake
         real, dimension(:,:,:),pointer              :: PhosphorusUptake
         logical                                    :: Grazing
-        logical                                    :: Management
+        logical                                    :: HarvestKill
         logical                                    :: Dormancy
         logical                                    :: Fertilization
         logical                                    :: NutrientFluxesWithSoil
@@ -4605,6 +4809,7 @@ cd2 :           if (BlockFound) then
         logical                                    :: ModelNitrogen, ModelWater
         logical                                    :: ModelPhosphorus
         logical                                    :: GrowthModel
+        logical                                    :: Pesticide
         real, dimension(:,:), pointer               :: WindVelocity
         real                                        :: VegetationDT
         real, dimension (:), pointer               :: DNConcentration 
@@ -4612,6 +4817,9 @@ cd2 :           if (BlockFound) then
         integer, dimension(:, :), pointer          :: ChannelsID, TranspirationBottomLayer
         integer                                    :: nProperties, iProp, PropID
         logical                                    :: PropAdvDiff, PropParticulate !, PropRain, PropIrri
+        integer                                    :: NumberOfPesticides
+        integer                                    :: PesticideIDNumber, Pest
+        real, dimension (:,:), pointer             :: PesticideSoil
         !Begin-----------------------------------------------------------------
 
         if (MonitorPerformance) call StartWatch ("ModuleBasin", "PorousMediaPropertiesProcesses")
@@ -4662,13 +4870,14 @@ cd2 :           if (BlockFound) then
             call GetVegetationOptions (Me%ObjVegetation,                                          &
                                       NutrientFluxesWithSoil = NutrientFluxesWithSoil,           &
                                       Grazing                = Grazing,                          &
-                                      Management             = Management,                       &
+                                      HarvestKill            = HarvestKill,                      &
                                       Dormancy               = Dormancy,                         &
                                       Fertilization          = Fertilization,                    &
                                       ModelWater             = ModelWater,                       &
                                       ModelNitrogen          = ModelNitrogen,                    &
                                       ModelPhosphorus        = ModelPhosphorus,                  &
                                       GrowthModel            = GrowthModel,                      &
+                                      Pesticide              = Pesticide,                        &
                                       STAT                   = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'PorousMediaPropertiesProcesses - ModuleBasin - ERR01'
 
@@ -4762,21 +4971,21 @@ cd2 :           if (BlockFound) then
                         if (STAT_CALL /= SUCCESS_) stop 'PorousMediaPropertiesProcesses - ModuleBasin - ERR040'
                     endif
                 
-                    if (Management) then
-                        call GetVegetationSoilFluxes   (VegetationID             = Me%ObjVegetation,            &
-                                                        ManagementAerialBiomass  = ManagementAerialBiomass,     &
-                                                        ManagementNitrogen       = ManagementNitrogen,          &
-                                                        ManagementPhosphorus     = ManagementPhosphorus,        &
-                                                        ManagementRootBiomass    = ManagementRootBiomass,       &
+                    if (HarvestKill) then
+                        call GetVegetationSoilFluxes   (VegetationID              = Me%ObjVegetation,            &
+                                                        HarvestKillAerialBiomass  = HarvestKillAerialBiomass,     &
+                                                        HarvestKillNitrogen       = HarvestKillNitrogen,          &
+                                                        HarvestKillPhosphorus     = HarvestKillPhosphorus,        &
+                                                        HarvestKillRootBiomass    = HarvestKillRootBiomass,       &
                                                        STAT                     = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_) stop 'PorousMediaPropertiesProcesses - ModuleBasin - ERR050'
 
                         call SetVegetationPMProperties(PorousMediaPropertiesID  = Me%ObjPorousMediaProperties, &
-                                                       Management               = Management,                  &
-                                                       ManagementAerialBiomass  = ManagementAerialBiomass,     &
-                                                       ManagementNitrogen       = ManagementNitrogen,          &
-                                                       ManagementPhosphorus     = ManagementPhosphorus,        &
-                                                       ManagementRootBiomass    = ManagementRootBiomass,       &     
+                                                       HarvestKill              = HarvestKill,                  &
+                                                       HarvestKillAerialBiomass  = HarvestKillAerialBiomass,     &
+                                                       HarvestKillNitrogen       = HarvestKillNitrogen,          &
+                                                       HarvestKillPhosphorus     = HarvestKillPhosphorus,        &
+                                                       HarvestKillRootBiomass    = HarvestKillRootBiomass,       &     
                                                       STAT                     = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_) stop 'PorousMediaPropertiesProcesses - ModuleBasin - ERR060'
                     endif
@@ -4827,8 +5036,41 @@ cd2 :           if (BlockFound) then
                                                         FertilMineralPSubSurface = FertilMineralPSubSurface,   &       
                                                         STAT                     = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_) stop 'PorousMediaPropertiesProcesses - ModuleBasin - ERR0100'
+                    
                     endif
+                    
                 endif
+            endif
+                    
+            !get vegetation pesticide fluxes and send them to PMP
+            if (GrowthModel .and. Pesticide) then
+                call GetVegetationOptions      (VegetationID             = Me%ObjVegetation,           &
+                                                NumberOfPesticides       = NumberOfPesticides,         &
+                                                STAT                     = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'PorousMediaPropertiesProcesses - ModuleBasin - ERR0110'
+
+                call GetVegetationDT  (Me%ObjVegetation, VegetationDT, STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'PorousMediaPropertiesProcesses - ModuleBasin - ERR112'
+
+                
+                do Pest = 1, NumberOfPesticides
+
+                    call GetVegetationSoilFluxes   (VegetationID             = Me%ObjVegetation,           &
+                                                    Pest                     = Pest,                       &
+                                                    PesticideIDNumber        = PesticideIDNumber,          &
+                                                    PesticideSoil            = PesticideSoil,              &
+                                                    STAT                     = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'PorousMediaPropertiesProcesses - ModuleBasin - ERR0120'
+                    
+
+                    call SetVegetationPMProperties(PorousMediaPropertiesID  = Me%ObjPorousMediaProperties, &
+                                                    PesticideIDNumber       = PesticideIDNumber,           &
+                                                    PesticideSoilFlux       = PesticideSoil,               &
+                                                    GrowthModel             = GrowthModel,                 &
+                                                    VegetationDT            = VegetationDT,                &
+                                                    STAT                     = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'PorousMediaPropertiesProcesses - ModuleBasin - ERR0130'
+                enddo                        
             endif
         endif                                                    
         
@@ -4922,50 +5164,67 @@ cd2 :           if (BlockFound) then
                                                STAT                     = STAT_CALL)               
                 if (STAT_CALL /= SUCCESS_) stop 'PorousMediaPropertiesProcesses - ModuleBasin - ERR0120'
                
-                if (Grazing) then
-                    call UngetVegetationSoilFluxes   (VegetationID             = Me%ObjVegetation,            &
-                                                    GrazingBiomass           = GrazingBiomass,              &
-                                                    GrazingNitrogen          = GrazingNitrogen,             &   
-                                                    GrazingPhosphorus        = GrazingPhosphorus,           &
-                                                    STAT                     = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'PorousMediaPropertiesProcesses - ModuleBasin - ERR0130'
+                if (GrowthModel) then
+
+                    if (Grazing) then
+                        call UngetVegetationSoilFluxes   (VegetationID             = Me%ObjVegetation,            &
+                                                        GrazingBiomass           = GrazingBiomass,              &
+                                                        GrazingNitrogen          = GrazingNitrogen,             &   
+                                                        GrazingPhosphorus        = GrazingPhosphorus,           &
+                                                        STAT                     = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'PorousMediaPropertiesProcesses - ModuleBasin - ERR0130'
+                    endif
+                    
+                    if (HarvestKill) then
+                        call UngetVegetationSoilFluxes   (VegetationID             = Me%ObjVegetation,            &
+                                                        HarvestKillAerialBiomass  = HarvestKillAerialBiomass,     &
+                                                        HarvestKillNitrogen       = HarvestKillNitrogen,          &
+                                                        HarvestKillPhosphorus     = HarvestKillPhosphorus,        &
+                                                        HarvestKillRootBiomass    = HarvestKillRootBiomass,       &
+                                                       STAT                     = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'PorousMediaPropertiesProcesses - ModuleBasin - ERR0140'
+                    endif
+
+                    if (Dormancy) then
+                        call UngetVegetationSoilFluxes   (VegetationID             = Me%ObjVegetation,            &
+                                                        DormancyBiomass          = DormancyBiomass,             &
+                                                        DormancyNitrogen         = DormancyNitrogen,            &
+                                                        DormancyPhosphorus       = DormancyPhosphorus,          &
+                                                        STAT                     = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'PorousMediaPropertiesProcesses - ModuleBasin - ERR0150'
+                    endif
+
+                    if (Fertilization) then
+                        call UngetVegetationSoilFluxes   (VegetationID             = Me%ObjVegetation,           &
+                                                        FertilNitrateSurface     = FertilNitrateSurface,       &
+                                                        FertilNitrateSubSurface  = FertilNitrateSubSurface,    &
+                                                        FertilAmmoniaSurface     = FertilAmmoniaSurface,       &
+                                                        FertilAmmoniaSubSurface  = FertilAmmoniaSubSurface,    &
+                                                        FertilOrganicNSurface    = FertilOrganicNSurface,      &
+                                                        FertilOrganicNSubSurface = FertilOrganicNSubSurface,   &
+                                                        FertilOrganicPSurface    = FertilOrganicPSurface,      &
+                                                        FertilOrganicPSubSurface = FertilOrganicPSubSurface,   &
+                                                        FertilMineralPSurface    = FertilMineralPSurface,      &
+                                                        FertilMineralPSubSurface = FertilMineralPSubSurface,   &
+                                                        STAT                     = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'PorousMediaPropertiesProcesses - ModuleBasin - ERR0160'
+                    endif
                 endif
                 
-                if (Management) then
-                    call UngetVegetationSoilFluxes   (VegetationID             = Me%ObjVegetation,            &
-                                                    ManagementAerialBiomass  = ManagementAerialBiomass,     &
-                                                    ManagementNitrogen       = ManagementNitrogen,          &
-                                                    ManagementPhosphorus     = ManagementPhosphorus,        &
-                                                    ManagementRootBiomass    = ManagementRootBiomass,       &
-                                                   STAT                     = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'PorousMediaPropertiesProcesses - ModuleBasin - ERR0140'
-                endif
-
-                if (Dormancy) then
-                    call UngetVegetationSoilFluxes   (VegetationID             = Me%ObjVegetation,            &
-                                                    DormancyBiomass          = DormancyBiomass,             &
-                                                    DormancyNitrogen         = DormancyNitrogen,            &
-                                                    DormancyPhosphorus       = DormancyPhosphorus,          &
-                                                    STAT                     = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'PorousMediaPropertiesProcesses - ModuleBasin - ERR0150'
-                endif
-
-                if (Fertilization) then
-                    call UngetVegetationSoilFluxes   (VegetationID             = Me%ObjVegetation,           &
-                                                    FertilNitrateSurface     = FertilNitrateSurface,       &
-                                                    FertilNitrateSubSurface  = FertilNitrateSubSurface,    &
-                                                    FertilAmmoniaSurface     = FertilAmmoniaSurface,       &
-                                                    FertilAmmoniaSubSurface  = FertilAmmoniaSubSurface,    &
-                                                    FertilOrganicNSurface    = FertilOrganicNSurface,      &
-                                                    FertilOrganicNSubSurface = FertilOrganicNSubSurface,   &
-                                                    FertilOrganicPSurface    = FertilOrganicPSurface,      &
-                                                    FertilOrganicPSubSurface = FertilOrganicPSubSurface,   &
-                                                    FertilMineralPSurface    = FertilMineralPSurface,      &
-                                                    FertilMineralPSubSurface = FertilMineralPSubSurface,   &
-                                                    STAT                     = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'PorousMediaPropertiesProcesses - ModuleBasin - ERR0160'
-                endif
             endif
+            
+            if (GrowthModel .and. Pesticide) then
+
+                    do Pest = 1, NumberOfPesticides
+
+                        call UnGetVegetationSoilFluxes   (VegetationID             = Me%ObjVegetation,         &
+                                                        PesticideSoil            = PesticideSoil,              &
+                                                        STAT                     = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'PorousMediaPropertiesProcesses - ModuleBasin - ERR0161'
+                    
+                    enddo
+            endif
+                
         endif
 
         if (CoupledSedimentQuality) then
@@ -5249,6 +5508,7 @@ cd2 :           if (BlockFound) then
         logical                                     :: PropAdvDiff, PropParticulate
         real(8)                                     :: PropertyMassOld, PropertyMassNew
         real(8), dimension(:,:), pointer            :: MassInFlow, MassToBottom
+        real(8)                                     :: DebugMass
         !Begin-----------------------------------------------------------------
         
         if (MonitorPerformance) call StartWatch ("ModuleBasin", "ActualizeWaterColumnConcentration")
@@ -5295,6 +5555,8 @@ cd2 :           if (BlockFound) then
                         PropertyMassOld = RPConcentration(i,j) * (Me%ExtUpdate%WatercolumnOld(i,j) * Me%ExtVar%GridCellArea(i,j))
                         
                         PropertyMassNew = PropertyMassOld + MassInFlow(i,j)
+                        
+                        DebugMass = MassInFlow(i,j)
                         
                         if (Me%ExtUpdate%Watercolumn(i,j) .gt. AlmostZero) then
                             !g/m3 = g / (m * m2)
@@ -5367,13 +5629,20 @@ cd2 :           if (BlockFound) then
         if(WarningString == 'AtmosphereProcesses') then
         
             !!Precipitation flux
-            if (Me%Coupled%Atmosphere .and. (AtmospherePropertyExists (Me%ObjAtmosphere, PropID))) then
+            if (Me%Coupled%Atmosphere) then
+            
+                if (AtmospherePropertyExists (Me%ObjAtmosphere, PropID)) then
                 
-                call GetAtmosphereProperty(AtmosphereID       = Me%ObjAtmosphere,       &
-                                           Scalar             = AtmConcentration,       &
-                                           ID                 = PropID,                 &
-                                           STAT               = STAT_CALL)        
-                if (STAT_CALL /= SUCCESS_) stop 'ComputeMassInFlow - ModuleBasin - ERR07'                    
+                    call GetAtmosphereProperty(AtmosphereID       = Me%ObjAtmosphere,       &
+                                               Scalar             = AtmConcentration,       &
+                                               ID                 = PropID,                 &
+                                               STAT               = STAT_CALL)        
+                    if (STAT_CALL /= SUCCESS_) stop 'ComputeMassInFlow - ModuleBasin - ERR07'    
+                    
+                else
+                    allocate (AtmConcentration(Me%WorkSize%ILB:Me%WorkSize%IUB, Me%WorkSize%JLB:Me%WorkSize%JUB))
+                    AtmConcentration = 0.0
+                endif                
     
                 do j = Me%WorkSize%JLB, Me%WorkSize%JUB
                 do i = Me%WorkSize%ILB, Me%WorkSize%IUB
@@ -5405,9 +5674,13 @@ cd2 :           if (BlockFound) then
                     endif
                 enddo
                 enddo
-
-                call UngetAtmosphere (Me%ObjAtmosphere, AtmConcentration, STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ComputeMassInFlow - ModuleBasin - ERR08' 
+                
+                if (AtmospherePropertyExists (Me%ObjAtmosphere, PropID)) then
+                    call UngetAtmosphere (Me%ObjAtmosphere, AtmConcentration, STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'ComputeMassInFlow - ModuleBasin - ERR08' 
+                else
+                    deallocate (AtmConcentration)
+                endif
             else
                 !do nothing - if not atmosphere property mass is zero
             endif 
@@ -5422,9 +5695,11 @@ cd2 :           if (BlockFound) then
 
             !Particulate properties do not enter the soil or exit (particulate do not have advection diffusion in soil)
             if (.not. Particulate) then
-
-                call GetPMPConcentration(PorousMediaPropertiesID = Me%ObjPorousMediaProperties,  &
-                                         ConcentrationX          = PMPConcentration,             &
+                
+                !Get PMP old conc because is explicit infiltration flux (is the same used in PMP fluxes)
+                !RP concentration used is the new because is the same used in PMP
+                call GetPMPConcentrationOld(PorousMediaPropertiesID = Me%ObjPorousMediaProperties,  &
+                                         ConcentrationXOld       = PMPConcentration,             &
                                          PropertyXIDNumber       = PropID,                       &
                                          STAT                    = STAT_CALL)        
                 if (STAT_CALL /= SUCCESS_) stop 'ComputeMassInFlow - ModuleBasin - ERR04'
@@ -5684,7 +5959,8 @@ cd2 :           if (BlockFound) then
         type (T_BasinProperty), pointer             :: RefEvapotrans
         real, dimension(:,:), pointer               :: PotentialTranspiration, PotentialEvaporation
         real, dimension(:,:), pointer               :: PotentialEvapoTranspiration, CropEvapotrans
-        real, dimension(:,:), pointer               :: ActualTranspiration, ActualEvaporation
+        real, dimension(:,:), pointer               :: ActualTranspiration
+        real(8), dimension(:,:), pointer            :: ActualEvaporation
         real, dimension(:,:), pointer               :: ActualTP, ActualEVAP
         type (T_BasinProperty), pointer             :: Property
 
@@ -5750,6 +6026,12 @@ cd2 :           if (BlockFound) then
                                  STAT        = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'TimeSerieOutput - ModuleBasin - ERR09'
 
+            !Canopy Drainage
+            call WriteTimeSerie (TimeSerieID = Me%ObjTimeSerie,                     &
+                                 Data2D_8    = Me%CanopyDrainage,                   &                             
+                                 STAT        = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'TimeSerieOutput - ModuleBasin - ERR091'
+
 
            allocate(CropEvapotrans(Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
 
@@ -5776,7 +6058,7 @@ cd2 :           if (BlockFound) then
                 !m3/s
                 call GetTranspiration(Me%ObjVegetation, ActualTranspiration, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'TimeSerieOutput - ModuleBasin - ERR095'
-                !m3/s
+                !m
                 call GetEvaporation(Me%ObjPorousMedia, ActualEvaporation, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'TimeSerieOutput - ModuleBasin - ERR096'
                 
@@ -5793,8 +6075,9 @@ cd2 :           if (BlockFound) then
                         PotentialEvaporation(i,j)   = Me%PotentialEvaporation(i,j) * 1000. * 3600.
                         PotentialTranspiration(i,j) = Me%PotentialTranspiration(i,j) * 1000. * 3600.
                         
+                        !m /s * 1000 mm/m * 3600s/h = mm/h
+                        ActualEVAP(i,j) = ActualEvaporation(i,j) / Me%CurrentDT * 1000.0 * 3600.0
                         !m3/s / m2 * 1000 mm/m * 3600 s/h = mm/h
-                        ActualEVAP(i,j) = ActualEvaporation(i,j) / Me%ExtVar%GridCellArea(i,j) * 1000. * 3600.
                         ActualTP(i,j)   = ActualTranspiration(i,j) / Me%ExtVar%GridCellArea(i,j) * 1000. * 3600.
                     endif
                 enddo

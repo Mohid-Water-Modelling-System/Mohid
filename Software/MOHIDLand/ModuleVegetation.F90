@@ -34,13 +34,19 @@
 !   LAI            : m2leafs/m2area
 
 
-!DataFile
+!DATAFILE
 !         [Keyword]                 [Format]  [Units]  [Default]  [Short Description]
 ! VEGETATION_ID_FILE               : string      -        [-]     !Vegetation distribution grid path
 !
 ! VEGETATION_DT                    : real        s      [86400.]  !Vegetation DT
 ! INTEGRATION_DT                   : real        s      [ModelDT] !DT to integrate external variables until vegetation is
 !                                                                 ! is called (vegetation DT)
+! PARAMETERS_FILE                  : string      -         -      !agricultural practices definition
+! GROWTH_DATABASE                  : string      -         -      !Growth parameters for each vegetation type - readed in case 
+!                                                                  of vegetation growth simulation
+! PESTICIDE_DATABASE               : string      -         -      !Readed if growth simulation and PESTICIDE : 1
+! FERTILIZER_DATABASE              : string      -         -      !Readed if growth simulation and if FERTILIZATION : 1
+! FEDDES_DATABASE                  : string      -         -      !Readed if not usding growth simulation
 !
 ! WATER_STRESS                     : 0/1         -        1       !Connects/disconnects water limitation on plant growth
 ! NITROGEN_STRESS                  : 0/1         -        1       !Connects/disconnects N limitation on plant growth
@@ -51,7 +57,7 @@
 !                                                                  plant growth
 !
 ! GRAZING                          : 0/1         -        [0]     !Connects/disconnects grazing
-! MANAGEMENT                       : 0/1         -        [0]     !Connects/disconnects management
+! HARVEST_KILL                     : 0/1         -        [0]     !Connects/disconnects Harvest and/or Kill
 ! DORMANCY                         : 0/1         -        [0]     !Connects/disconnects dormancy
 ! FERTILIZATION                    : 0/1         -        [0]     !Connects/disconnects fertilization     
 ! NUTRIENT_FLUXES_WITH_SOIL        : 0/1         -        [1]     !Connects/disconnects nutrient fluxes with soil
@@ -83,29 +89,96 @@
 ! NITROGEN_DISTRIBUTION_PARAMETER  : real                [-20.]
 ! PHOSPHORUS_DISTRIBUTION_PARAMETER: real                [-20.]
 !
+!Potential total HU (yearly HU) -  SUMi=1to12(average monthly temperature in month i * days in month i)
+! <begin_TotalPotentialHU>
+! INITIALIZATION_METHOD     : CONSTANT
+! DEFAULTVALUE              : 5475.
+! REMAIN_CONSTANT           : 1
+! <end_TotalPotentialHU>
 
 ! <beginproperty>
 !  See module fillmatrix
 ! EVOLUTION                        : integer     -         1      !Property evolution: 1-Read from file
 !                                                                 !2-vegetation growth model
 ! <endproperty>
+
+!------------------------------------------------------------------------------------------------------------
+! PARAMETERS_FILE - always used
+! Arable Land - Trigo
+! <beginagriculturalpractice>
+! AGRIC_PRACT_ID            : 2                !agriculture practice ID
+! NAME                      : Agriculture
+! 
+! VEGETATION_ID             : 2                !crop ID used in this practice that has correspondence to 
+!                                                SWAT crop growth database (see growth database)
+! 
+! <begintimingparameters>
+! !active if growth model used
+! PLANTING_JULIANDAY                : -99.      !julian day when planting will occur
+! PLANTING_HUBASE                   : 0.15      !Percentage of POTENTIAL YEARLY HU when planting will occur
+! MATURITY_HU                       : 1700.     !Total PLANT ACCUMULATED HU when reaching maturity
+! <endtimingparameters>
+! 
+! <beginharvestkillparameters>
+! !active if growth model used and in data file HARVEST_KILL : 1
+! HARVESTKILL_JULIANDAY             : -99.      !julian day when harvestkill operation occur
+! HARVESTKILL_PLANTHU               : 1.2       !Percentage of PLANT ACCUMULATED HU when harvestkill operation occur
+! HARVEST_JULIANDAY                 : -99.      !julian day when harvest operation occur
+! HARVEST_PLANTHU                   : -99.      !Percentage of PLANT ACCUMULATED HU when harvest operation occur
+! HARVEST_EFFICIENCY                : 1.0       !Efficiency for harvest operation (residue if lower than 1)
+! KILL_JULIANDAY                    : -99.      !julian day when harvestkill operation occur
+! KILL_PLANTHU                      : -99.      !Percentage of PLANT ACCUMULATED HU when kill operation occur
+! <endharvestkillparameters>
+! 
+! <begingrazeparameters>
+! !Graze active if growth model used and in data file GRAZING : 1
+! GRAZING_START_JULIANDAY           : -99.      !julian day when grazing will occur
+! GRAZING_START_PLANTHU             : 0.5       !Percentage of POTENTIAL YEARLY HU when grazing will occur
+! GRAZING_DAYS                      : 10        !Days of grazing (continuous)
+! MINIMUM_BIOMASS_FOR_GRAZING       : 10.       !minimum biomass (kg/ha) for grazing
+! GRAZING_BIOMASS                   : 70.       !grazed biomass (kh/ha.day)
+! TRAMPLING_BIOMASS                 : 30.       !biomass not eaten but removed from plant and moved to soil, 
+!                                                related to grazing efficiency (kg/ha.day)
+! <endgrazeparameters>
+! 
+! <beginfertilizationparameters>
+! !Autofertilization - active if growth model used and in data file FERTILIZATION : 1 and (in data file NITROGEN : 1 
+!                                              and NITROGEN_TRESHOLD > 0) or (PHOSPHORUS : 1 and PHOSPHORUS_TRESHOLD > 0)
+! FERTILIZER_ID                     : 1      !Fertilizer used in autofertilization (see fertilizer database)
+! NITROGEN_TRESHOLD                 : 0.93   !Percentage of stress below which autofertilization starts
+! NITROGEN_APPLICATION_MAX          : 50.    !Maximum amount of fertilizer in one application (kg/ha)
+! NITROGEN_ANNUAL_MAX               : 300.   !Maximum amount of fertilizer in one year (kg/ha)
+! EXPLICIT_PHOSPHORUS               : 1      !1- explicit add phosphorus if needed; 0-add phosphorus if nitrogen needed 
+!                                              (SWAT method)
+! PHOSPHORUS_TRESHOLD               : 0.93   !only read if EXPLICIT_PHOSPHORUS : 1
+! PHOSPHORUS_APPLICATION_MAX        : 10.    !only read if EXPLICIT_PHOSPHORUS : 1
+! PHOSPHORUS_ANNUAL_MAX             : 60.    !only read if EXPLICIT_PHOSPHORUS : 1
+! 
+! !Scheduled Fertilization - not programmed - it should look like pesticide
+! FERTILIZATION_JULIANDAY           :-99.
+! FERTILIZATION_HU                  :-99.
+! <endfertilizationparameters>
+! 
+! <beginpesticideparameters>
+! !Active if growth model used and in data file PESTICIDE : 1
+! 
+!  <<beginpesticideapp>>
+!  PESTICIDE_ID                : 1           !Pesticide used in this application (see pesticide database)
+!  PESTICIDE_APPLICATION_JDAY  : -99.        !julian day when pesticide application will occur
+!  PESTICIDE_APPLICATION_HU    : 0.10        !Percentage of POTENTIAL YEARLY HU when pesticide application will occur
+!  PESTICIDE_APPLICATION_KG_HA : 1.          !Amount of pesticide applied (kg/ha)
+!  <<endpesticideapp>>
 !
-! <beginvegetationtype>
-!  ID
-!  NAME        
-!  HAS_LEAVES
-!  FEDDES_H1
-!  FEDDES_H2
-!  FEDDES_H3
-!  FEDDES_H4
+! <endpesticideparameters>
 !
-!   <begintimingdatabase>
-!    MATURITY_HU                       : 1700.
-!    PLANTING_JULIANDAY                : -99.
-!    PLANTING_HUBASE                   : 0.15
-!   <endgtimingdatabase>
-!
+! <endagriculturalpractice>
+
+
+!---------------------------------------------------------------------------------------------------------------
+!  GROWTH_DATABASE - used if using growth model
 !   <begingrowthdatabase>
+!    VEGETATION_ID                     : 1
+!    NAME                              : Forest    
 !    PLANT_TYPE                        : 5
 !    OPTIMAL_NITROGENFRACTION_N1       : 0.0663
 !    OPTIMAL_NITROGENFRACTION_N2       : 0.0255
@@ -137,47 +210,26 @@
 !    BIOMASS_FRAC_REMOVED_DORMANCY     : 0.30    
 !    LAI_MIN_DORMANCY                  : 0.75
 !   <endgrowthdatabase>
-!        
-!   <beginmanagementandgrazedatabase>
-!    GRAZING_START_JULIANDAY           : -99.
-!    GRAZING_START_PLANTHU             : 0.5
-!    GRAZING_DAYS                      : 10
-!    MINIMUM_BIOMASS_FOR_GRAZING       : 10.
-!    GRAZING_BIOMASS                   : 70.
-!    TRAMPLING_BIOMASS                 : 30.
-!    HARVESTKILL_JULIANDAY             : -99.
-!    HARVESTKILL_PLANTHU               : 1.2
-!    HARVEST_JULIANDAY                 : -99.
-!    HARVEST_PLANTHU                   : -99.
-!    HARVEST_EFFICIENCY                : 1.0
-!    KILL_JULIANDAY                    : -99.
-!    KILL_PLANTHU                      : -99.
-!   <endmanagementandgrazedatabase>
-!
-!   <beginfertilizationdatabase>
-!    MINERAL_N_FRACTION_IN_FERTILIZER  : -99.
-!    ORGANIC_N_FRACTION_IN_FERTILIZER  : -99.
-!    AMMONIA_FRACTION_IN_MINERAL_N     : -99.
-!    MINERAL_P_FRACTION_IN_FERTILIZER  : -99.
-!    ORGANIC_P_FRACTION_IN_FERTILIZER  : -99.
-!    FERTILIZER_FRACTION_IN_SURFACE    : -99.
-!     !!beginautofertilization!!
-!       NITROGEN_TRESHOLD              : -99.
-!       NITROGEN_APPLICATION_MAX       : -99.
-!       NITROGEN_ANNUAL_MAX            : -99.
-!       EXPLICIT_PHOSPHORUS            : 0
-!       PHOSPHORUS_TRESHOLD            : -99.
-!       PHOSPHORUS_APPLICATION_MAX     : -99.
-!       PHOSPHORUS_ANNUAL_MAX          : -99.
-!     !!endautofertilization!!
-!     !!beginscheduledfertilization!!
-!       FERTILIZATION_JULIANDAY        :-99.
-!       FERTILIZATION_HU               :-99.
-!     !!endscheduledfertilization!!
-!    <endfertilizationdatabase>
 !      
-! <endvegetationtype>
-            
+
+!--------------------------------------------------------------------------------------------------------------
+! PESTICIDE_DATABASE - used if using growth model and PESTICIDE :1
+! <beginPesticide>
+! PESTICIDE_ID : 1
+! PESTICIDE_NAME : generic pesticide 1
+! <endPesticide>
+
+!---------------------------------------------------------------------------------------------------------------
+! FEDDES_DATABASE - Used if not using growth model
+! <beginfeddesdatabase>
+! VEGETATION_ID             : 2                !crop ID used in this practice that has correspondence to 
+!                                                SWAT crop growth database (see growth database)
+! 
+! FEDDES_H1                 : -0.1             !higher head for transpiration (saturation and oxygen loss)
+! FEDDES_H2                 : -0.25            !1st optimal head for transpiration
+! FEDDES_H3                 : -2.0             !2nd optimal head for transpiration
+! FEDDES_H4                 : -80.0            !lower head  for transpiration (wilting)
+! <endfeddesdatabase>            
 
 Module ModuleVegetation
 
@@ -193,12 +245,14 @@ Module ModuleVegetation
     use ModuleFunctions,      only : SetMatrixValue, ConstructPropertyID, LinearInterpolation,   &
                                      InterpolateValueInTime
     use ModuleHorizontalGrid, only : GetHorizontalGridSize, GetGridCellArea, WriteHorizontalGrid, &
-                                     UngetHorizontalGrid, GetGridLatitudeLongitude
+                                     UngetHorizontalGrid, GetGridLatitudeLongitude, GetXYCellZ
 !    use ModuleHorizontalMap,  only : GetOpenPoints2D, UngetHorizontalMap
     use ModuleFillMatrix,     only : ConstructFillMatrix, GetDefaultValue, ModifyFillMatrix,      &
                                      KillFillMatrix, GetIfMatrixRemainsConstant
     use ModuleTimeSerie,      only : StartTimeSerie, WriteTimeSerie, KillTimeSerie,               &
-                                     StartTimeSerieInput, GetTimeSerieValue
+                                     StartTimeSerieInput, GetTimeSerieValue, GetNumberOfTimeSeries, &
+                                     GetTimeSerieLocation, GetTimeSerieName,                      &
+                                     TryIgnoreTimeSerie, CorrectsCellsTimeSerie
     use ModuleGridData,       only : ConstructGridData, GetGridData, UngetGridData,               &
                                      KillGridData
     use ModuleGeometry,       only : GetGeometryDistances, GetGeometrySize, GetGeometryKFloor,    &
@@ -225,10 +279,13 @@ Module ModuleVegetation
     private ::      CheckOptionsConsistence 
     private ::      ConstructVegetationGrids
     private ::      ConstructVegetationParameters
-    private ::          ReadTimingDatabase
+    private ::          ReadFeddesDatabase
+    private ::          ReadTimingParameters
     private ::          ReadGrowthDatabase
-    private ::          ReadManagementAndGrazeDatabase           !new
-    private ::          ReadFertilizationDatabase
+    private ::          ReadHarvestKillParameters
+    private ::          ReadGrazingParameters
+    private ::          ReadFertilizationParameters
+    private ::          ReadPesticideParameters
     private ::      ConstructTimeSerie
     private ::      ConstructHDF
     private ::          ConstructHDF5Output 
@@ -245,14 +302,17 @@ Module ModuleVegetation
     public  :: GetTranspiration
     public  :: GetTranspirationBottomLayer
     public  :: GetVegetationOptions
+    public  :: GetVegetationGrowing
     public  :: GetNutrientFraction
     public  :: GetCanopyStorageType
 !    public  :: GetFeddesH
 !    public  :: GetVegetationRootProfile
     public  :: GetVegetationSoilFluxes
+    public  :: GetVegetationAerialFluxes
     public  :: SetSoilConcVegetation
     public  :: UngetVegetation
     public  :: UngetVegetationSoilFluxes
+    public  :: UngetVegetationAerialFluxes    
 
     !Modifier
     public  :: ModifyVegetation
@@ -268,7 +328,7 @@ Module ModuleVegetation
     private ::              BiomassGrowthFromRadiationSWAT
     private ::              LAIGrowthSWAT
     private ::          GrazingFluxes
-    private ::          ManagementFluxes
+    private ::          HarvestKillFluxes
     private ::              HarvestOperation
     private ::              HarvestKillOperation
     private ::              KillOperation
@@ -297,6 +357,7 @@ Module ModuleVegetation
     interface  UngetVegetation
         module procedure UngetVegetation2D
         module procedure UngetVegetation2D_I
+        module procedure UngetVegetation2D_L
         module procedure UngetVegetation3D
     end interface UngetVegetation
 
@@ -449,21 +510,25 @@ Module ModuleVegetation
         real                                            :: LAIMinDormant
     end type T_GrowthDatabase
 
-    type T_ManagementDatabase
+    type T_GrazingDatabase
         real                                            :: GrazingStartJulianDay
-        real, dimension (:), pointer                    :: GrazingStartPlantHU
+        real                                            :: GrazingStartPlantHU
         integer                                         :: GrazingDays
         real                                            :: GrazingMinimumBiomass
         real                                            :: GrazingBiomass
         real                                            :: TramplingBiomass
+    end type T_GrazingDatabase
+
+    type T_HarvestKillDatabase
+        real                                            :: TramplingBiomass
         real                                            :: HarvestKillJulianDay
         real                                            :: HarvestKillPlantHU
         real                                            :: HarvestJulianDay
-        real, dimension (:), pointer                    :: HarvestPlantHU
+        real                                            :: HarvestPlantHU
         real                                            :: KillJulianDay
         real                                            :: KillPlantHU
         real                                            :: HarvestEfficiency
-    end type T_ManagementDatabase
+    end type T_HarvestKillDatabase
 
     type T_ScheduledFertilization
         integer                                         :: FertilizationJulianDay
@@ -481,6 +546,7 @@ Module ModuleVegetation
     end type T_AutoFertilization
 
     type T_FertilizerDatabase
+        integer                                         :: FertilizerID
         real                                            :: FertilizerFracApplyedInSurface
         real                                            :: AmmoniaFracInMineralN
         real                                            :: MineralNFracInFertilizer
@@ -490,6 +556,19 @@ Module ModuleVegetation
         type(T_AutoFertilization)                       :: Auto
         type(T_ScheduledFertilization)                  :: Scheduled
     end type T_FertilizerDatabase
+
+    type T_PesticideApps
+        integer                                         :: PesticideID
+        real                                            :: PesticideAppJDay
+        real                                            :: PesticideAppHU
+        real                                            :: PesticideAppAmount
+        character(StringLength)                         :: PesticideName
+    end type T_PesticideApps
+
+    type T_PesticideDatabase
+        integer                                         :: NumberPesticideApps = 0
+        type(T_PesticideApps), dimension(:), pointer    :: PesticideApps
+    end type T_PesticideDatabase
 
     type       T_TranspirationMOHID
         real, dimension(:,:), pointer                   :: RootFeddesH1
@@ -507,9 +586,10 @@ Module ModuleVegetation
 
     type       T_ComputeOptions
         logical                                         :: Grazing              = .false.
-        logical                                         :: Management           = .false.
+        logical                                         :: HarvestKill          = .false.
         logical                                         :: Dormancy             = .false.
         logical                                         :: Fertilization        = .false.
+        logical                                         :: Pesticide            = .false.
         integer                                         :: RootProfile          
         integer                                         :: TranspirationMethod
         integer                                         :: NutrientUptakeMethod
@@ -575,17 +655,20 @@ Module ModuleVegetation
         integer                                         :: ID
         character(StringLength)                         :: Name
         type(T_VegetationType), pointer                 :: Next, Prev
-        type(T_VegetationType), pointer                 :: FirstVegetation
-        type(T_VegetationType), pointer                 :: LastVegetation
+!        type(T_VegetationType), pointer                 :: FirstVegetation
+!        type(T_VegetationType), pointer                 :: LastVegetation
         integer                                         :: VegetationsNumber     = 0
         real                                            :: RootFeddesH1
         real                                            :: RootFeddesH2
         real                                            :: RootFeddesH3
         real                                            :: RootFeddesH4
+        integer                                         :: VegetationID
         type (T_TimingDatabase)                         :: TimingDatabase
         type (T_GrowthDatabase)                         :: GrowthDatabase
-        type (T_ManagementDatabase)                     :: ManagementDatabase
+        type (T_HarvestKillDatabase)                    :: HarvestKillDatabase
+        type (T_GrazingDatabase)                        :: GrazingDatabase
         type (T_FertilizerDatabase)                     :: FertilizerDatabase
+        type (T_PesticideDatabase)                      :: PesticideDatabase
         logical                                         :: ComputeRoot
         logical                                         :: ComputeStem
         logical                                         :: HasLeaves
@@ -595,10 +678,10 @@ Module ModuleVegetation
         real, dimension(:,:), pointer                   :: GrazingBiomassToSoil
         real, dimension(:,:), pointer                   :: GrazingNitrogenToSoil
         real, dimension(:,:), pointer                   :: GrazingPhosphorusToSoil
-        real, dimension(:,:), pointer                   :: ManagementBiomassToSoil
-        real, dimension(:,:), pointer                   :: ManagementNitrogenToSoil
-        real, dimension(:,:), pointer                   :: ManagementPhosphorusToSoil
-        real, dimension(:,:), pointer                   :: ManagementRootBiomassLeftInSoil  !In Kill operation.
+        real, dimension(:,:), pointer                   :: HarvestKillBiomassToSoil
+        real, dimension(:,:), pointer                   :: HarvestKillNitrogenToSoil
+        real, dimension(:,:), pointer                   :: HarvestKillPhosphorusToSoil
+        real, dimension(:,:), pointer                   :: KillRootBiomassLeftInSoil  !In Kill operation.
         real, dimension(:,:), pointer                   :: DormancyBiomassToSoil
         real, dimension(:,:), pointer                   :: DormancyNitrogenToSoil
         real, dimension(:,:), pointer                   :: DormancyPhosphorusToSoil
@@ -619,6 +702,19 @@ Module ModuleVegetation
         real, dimension(:,:,:), pointer                 :: NitrogenUptakeFromSoil
         real, dimension(:,:,:), pointer                 :: PhosphorusUptakeFromSoil
     end type T_FluxesFromSoil
+
+    type T_PesticideApp
+        integer                                        :: PesticideID
+        type (T_ID)                                    :: ID
+        real, dimension(:,:), pointer                  :: Soil                   !pesticide flux to soil
+        real, dimension(:,:), pointer                  :: Vegetation             !pesticide flux to vegetation
+        logical, dimension(:,:), pointer               :: PesticideAppOccurred 
+    end type T_PesticideApp    
+    
+    type T_PesticideFlux
+        integer                                        :: UniquePesticides
+        type (T_PesticideApp), dimension(:), pointer   :: Application  !for every unique pesticide
+    end type T_PesticideFlux
 
     type T_Fluxes
         real, dimension(:,:  ), pointer                 :: BiomassGrazed
@@ -650,6 +746,7 @@ Module ModuleVegetation
         real, dimension(:,:  ), pointer                 :: FertilOrganicPInSubSurface
         real, dimension(:,:  ), pointer                 :: FertilMineralPInSurface
         real, dimension(:,:  ), pointer                 :: FertilMineralPInSubSurface
+        type (T_PesticideFlux)                          :: Pesticides                    
 
 !        real, dimension(:,:  ), pointer                 :: BiomassDormancyFraction
         type(T_FluxesToSoil)                            :: ToSoil
@@ -690,6 +787,9 @@ Module ModuleVegetation
         type(T_Property    ), pointer                   :: LastProperty
         integer                                         :: PropertiesNumber     = 0
 
+        type(T_VegetationType    ), pointer             :: FirstVegetation
+        type(T_VegetationType    ), pointer             :: LastVegetation
+        integer                                         :: VegetationsNumber     = 0
        
         !DataMatrixes
         integer, dimension(:,:), pointer                :: VegetationID
@@ -716,13 +816,13 @@ Module ModuleVegetation
         logical, dimension(:,:), pointer                :: KillOccurred        
         logical, dimension(:,:), pointer                :: HarvestOnlyOccurred   
         logical, dimension(:,:), pointer                :: HarvestKillOccurred
-        logical, dimension(:,:), pointer                :: FertilizationOccurred   
+        logical, dimension(:,:), pointer                :: FertilizationOccurred
         logical, dimension(:,:), pointer                :: IsPlantDormant       
         logical, dimension(:,:), pointer                :: PlantGoingDormant    
         logical, dimension(:,:), pointer                :: IsPlantBeingGrazed
         logical, dimension(:,:), pointer                :: LAISenescence        
-        logical, dimension(:,:), pointer                :: HarvestFinished
-        logical, dimension(:,:), pointer                :: GrazingFinished
+!        logical, dimension(:,:), pointer                :: HarvestFinished
+!        logical, dimension(:,:), pointer                :: GrazingFinished
         logical, dimension(:,:), pointer                :: ChangeCanopyEnabled      
         logical, dimension(:,:), pointer                :: SoilFluxesActive
 
@@ -735,6 +835,11 @@ Module ModuleVegetation
         real, dimension(:,:), pointer                   :: DayLength
         real, dimension(:,:), pointer                   :: MinimumDayLength
         integer, dimension(:,:), pointer                :: TranspirationBottomLayer
+        
+        character(len = StringLength)                   :: GrowthDatabase
+        character(len = StringLength)                   :: FertilizerDatabase
+        character(len = StringLength)                   :: PesticideDatabase
+        character(len = StringLength)                   :: FeddesDatabase
 
         !global counter
         real, dimension(:,:), pointer                   :: DaysOfGrazing                    !counter to days of grazing
@@ -742,14 +847,16 @@ Module ModuleVegetation
         real, dimension(:,:), pointer                   :: AnnualPhosphorusFertilized
         real, dimension(:,:), pointer                   :: OptimalTotalPlantNitrogen
         real, dimension(:,:), pointer                   :: OptimalTotalPlantPhosphorus
-        integer, dimension(:,:), pointer                :: HarvestOperations
-        integer, dimension(:,:), pointer                :: GrazingOperations
-        integer, dimension(:,:), pointer                :: HarvestKillOperations
-        integer, dimension(:,:), pointer                :: KillOperations
+!        integer, dimension(:,:), pointer                :: HarvestOperations
+!        integer, dimension(:,:), pointer                :: GrazingOperations
+!        integer, dimension(:,:), pointer                :: HarvestKillOperations
+!        integer, dimension(:,:), pointer                :: KillOperations
         integer                                         :: nIterations                      !counter to atmosphere integration
-
-
-        integer                                         :: VegetationsNumber     = 0
+        
+        integer, dimension(:), pointer                  :: PesticideListID
+        character(len = StringLength), dimension(:), pointer   :: PesticideListName
+        
+!        integer                                         :: VegetationsNumber     = 0
         type (T_VegetationType), dimension(:), pointer  :: VegetationTypes  => null()
         type(T_ComputeOptions)                          :: ComputeOptions
         type(T_HeatUnits)                               :: HeatUnits
@@ -850,6 +957,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             call ConstructGlobalVariables
 
             call ConstructPropertyList
+            
+            call ConstructVegetationList
 
             call ConstructVegetationParameters 
             
@@ -1201,9 +1310,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      STAT           = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR0160'
 
-        call GetData(Me%ComputeOptions%Management,                                      &
+        call GetData(Me%ComputeOptions%HarvestKill,                                     &
                      Me%ObjEnterData, iflag,                                            &
-                     Keyword        = 'MANAGEMENT',                                     &
+                     Keyword        = 'HARVEST_KILL',                                   &
                      Default        = .false.,                                          &
                      SearchType     = FromFile,                                         &
                      ClientModule   = 'ModuleVegetation',                               &
@@ -1228,6 +1337,14 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      STAT           = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR0181'
 
+        call GetData(Me%ComputeOptions%Pesticide,                                       &
+                     Me%ObjEnterData, iflag,                                            &
+                     Keyword        = 'PESTICIDE',                                      &
+                     Default        = .false.,                                          &
+                     SearchType     = FromFile,                                         &
+                     ClientModule   = 'ModuleVegetation',                               &
+                     STAT           = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR0182'
         
         if (Me%ComputeOptions%ModelNitrogen .or. Me%ComputeOptions%ModelPhosphorus) then
             call GetData(Me%ComputeOptions%NutrientFluxesWithSoil,                          &
@@ -1237,7 +1354,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                          SearchType     = FromFile,                                         &
                          ClientModule   = 'ModuleVegetation',                               &
                          STAT           = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR0182'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR0183'
         else
             !PorousMedia properties does not need to compute nutrient fluxes from vegetation
             Me%ComputeOptions%NutrientFluxesWithSoil = .false.
@@ -1278,6 +1395,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      ClientModule   = 'ModuleVegetation',                               &
                      STAT           = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR0202'
+
 
         call GetData(Me%ComputeOptions%Continuous,                                      &
                      Me%ObjEnterData, iflag,                                            &
@@ -1868,6 +1986,99 @@ cd0:    if (Exist) then
 
    !--------------------------------------------------------------------------
 
+
+    ! This subroutine adds a new vegetation type to the vegetation List  
+    subroutine AddVegetation(NewVegetation)
+
+        !Arguments-------------------------------------------------------------
+        type(T_VegetationType),           pointer     :: NewVegetation
+
+        !----------------------------------------------------------------------
+
+        ! Add to the WaterProperty List a new property
+        if (.not.associated(Me%FirstVegetation)) then
+            Me%VegetationsNumber    = 1
+            Me%FirstVegetation      => NewVegetation
+            Me%LastVegetation       => NewVegetation
+        else
+            NewVegetation%Prev      => Me%LastVegetation
+            Me%LastVegetation%Next  => NewVegetation
+            Me%LastVegetation       => NewVegetation
+            Me%VegetationsNumber    = Me%VegetationsNumber + 1
+        end if 
+
+
+    end subroutine AddVegetation 
+
+   !--------------------------------------------------------------------------
+    
+    subroutine ConstructVegetationList
+
+        !Local----------------------------------------------------------------
+        integer                                 :: STAT_CALL
+        integer                                 :: ObjGD, i, j
+        real, dimension(:,:), pointer           :: AuxID
+        type (T_VegetationType), pointer        :: VegetationX, VegetationInList
+        logical                                 :: FoundVegetation
+        !Begin----------------------------------------------------------------
+    
+        !Gets Vegetation IDs
+        ObjGD = 0
+        call ConstructGridData  (ObjGD, Me%ObjHorizontalGrid, FileName = Me%Files%VegetationIDFile, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructVegetationList - ModuleVegetation - ERR03'
+        
+        !allocate (AuxID(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+        call GetGridData (ObjGD, AuxID, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructVegetationList - ModuleVegetation - ERR04'
+
+        !A vegetation type is an agricultural practice. For now land use from grid has only one agricultural practice object
+        !In the future one land use can have several (rotation)
+        FoundVegetation = .false.
+        
+        do j = Me%Size%JLB, Me%Size%JUB
+        do i = Me%Size%ILB, Me%Size%IUB
+            
+            if (Me%ExternalVar%MappingPoints2D(i, j) == 1) then
+                
+                VegetationInList => Me%FirstVegetation
+doV:            do while (associated(VegetationInList))
+
+                    if (VegetationInList%ID == AuxID(i,j)) then
+                        FoundVegetation = .true.
+                        exit doV
+                    endif
+                    
+                    VegetationInList => VegetationInList%Next
+                
+                enddo doV                
+                
+                if (.not. FoundVegetation) then
+                    allocate (VegetationX)
+                    nullify  (VegetationX%Prev,VegetationX%Next)
+                    VegetationX%ID           = AuxID(i,j)     !vegetation type ID
+!                    VegetationX%VegetationID = AuxID(i,j)     !crop ID growing - for now is the same
+                   
+                    call AddVegetation(VegetationX)
+                endif
+                
+            endif
+        enddo
+        enddo
+        
+
+        !deallocate (AuxID)
+        
+        call UnGetGridData (ObjGD, AuxID, STAT = STAT_CALL)        
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructVegetationGrid - ModuleVegetation - ERR08'
+       
+        
+        call KillGridData (ObjGD, STAT = STAT_CALL)   
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructVegetationGrid - ModuleVegetation - ERR09'
+        
+    end subroutine ConstructVegetationList
+
+   !--------------------------------------------------------------------------
+
     subroutine CheckOptionsConsistence
 
         !Local----------------------------------------------------------------
@@ -1877,7 +2088,7 @@ cd0:    if (Exist) then
         type(T_Property), pointer               :: LeafAreaIndex, SpecificLeafStorage, CanopyHeight
         type(T_Property), pointer               :: EVTPCropCoefficient
         logical                                 :: NitrogenFound, PhosphorusFound, RootBiomassFound
-        logical                                 :: Grazing, Management, Dormancy
+        logical                                 :: Grazing, HarvestKill, Dormancy
         !Begin----------------------------------------------------------------
         
         if(Me%ComputeOptions%Evolution%ModelSWAT .and. Me%ComputeOptions%Evolution%ModelDEB) then
@@ -1937,12 +2148,13 @@ cd0:    if (Exist) then
         
         if (.not. Me%ComputeOptions%Evolution%GrowthModelNeeded) then
             
-            if(Me%ComputeOptions%Management .or. Me%ComputeOptions%Grazing .or. Me%ComputeOptions%Dormancy          &
-               .or. Me%ComputeOptions%Fertilization .or. Me%ComputeOptions%NutrientFluxesWithSoil) then
+            if(Me%ComputeOptions%HarvestKill .or. Me%ComputeOptions%Grazing .or. Me%ComputeOptions%Dormancy          &
+               .or. Me%ComputeOptions%Fertilization .or. Me%ComputeOptions%NutrientFluxesWithSoil                   &
+               .or. Me%ComputeOptions%Pesticide) then
                 
                 write(*,*    ) 
                 write(*,*    ) 'Fatal error ! Vegetation growth model is disconnected' 
-                write(*,*    ) 'but trying to simulate management or grazing or dormancy or fertilization' 
+                write(*,*    ) 'but trying to simulate HarvestKill or grazing or dormancy or fertilization' 
                 write(*,*    ) 'or fluxes with soil. Check this processes keywords in vegetation data file' 
                 stop 'CheckOptionsConsistence - ModuleVegetation - ERR020.5'
             endif
@@ -2083,7 +2295,7 @@ cd0:    if (Exist) then
             endif
 
             !Optional
-            Management       = Me%ComputeOptions%Management
+            HarvestKill       = Me%ComputeOptions%HarvestKill
 
             Me%ComputeOptions%ModelRootBiomass = .false.
             call SearchProperty(RootBiomass, RootBiomass_, .false., STAT = STAT_CALL)
@@ -2096,11 +2308,11 @@ cd0:    if (Exist) then
                     write(*,*    ) 'Check EVOLUTION keyword consistency in all properties blocks.'
                     stop 'CheckOptionsConsistence - ModuleVegetation - ERR070'
                 endif
-            elseif (STAT_CALL /= SUCCESS_ .and. Management) then
+            elseif (STAT_CALL /= SUCCESS_ .and. HarvestKill) then
                 write(*,*    )
                 write(*,*    ) 'root biomass is a mandatory Property'
                 write(*,*    ) 'if you want to run vegetation model and want to model'
-                write(*,*    ) 'management practices (e.g. hatvest where aerial biomass must be known'
+                write(*,*    ) 'HarvestKill practices (e.g. hatvest where aerial biomass must be known'
                 stop 'CheckOptionsConsistence - ModuleVegetation - ERR071'
 
             endif                                                      
@@ -2123,11 +2335,11 @@ cd0:    if (Exist) then
                     stop 'CheckOptionsConsistence - ModuleVegetation - ERR080'
                 endif                                                      
             elseif (STAT_CALL /= SUCCESS_ .and.(NitrogenFound .or. PhosphorusFound .or. RootBiomassFound .or. Grazing &
-                                                .or. Management .or. Dormancy))  then
+                                                .or. HarvestKill .or. Dormancy))  then
                 write(*,*    )
                 write(*,*    ) 'total plant biomass is a mandatory Property'
                 write(*,*    ) 'if you want to run vegetation model and want to model'
-                write(*,*    ) 'nitrogen, phosphorus, root biomass, grazing or management practices'
+                write(*,*    ) 'nitrogen, phosphorus, root biomass, grazing or HarvestKill practices'
                 stop 'CheckOptionsConsistence - ModuleVegetation - ERR090'
             endif
 
@@ -2260,10 +2472,10 @@ cd0:    if (Exist) then
             else
                 write(*,*    ) '---Temperature Stress       : OFF'
             endif
-            if (Me%ComputeOptions%Management) then
-                write(*,*    ) '---Management Operations    : ON'
+            if (Me%ComputeOptions%HarvestKill) then
+                write(*,*    ) '---HarvestKill Operations    : ON'
             else
-                write(*,*    ) '---Management Operations    : OFF'
+                write(*,*    ) '---HarvestKill Operations    : OFF'
             endif              
             if (Me%ComputeOptions%Grazing) then
                 write(*,*    ) '---Grazing Operations       : ON'
@@ -2280,6 +2492,11 @@ cd0:    if (Exist) then
             else
                 write(*,*    ) '---Fertilization            : OFF'
             endif                      
+            if (Me%ComputeOptions%Pesticide) then
+                write(*,*    ) '---Pesticide                : ON'
+            else
+                write(*,*    ) '---Pesticide                : OFF'
+            endif                                  
             if (Me%ComputeOptions%NutrientFluxesWithSoil) then
                 write(*,*    ) '---NutrientFluxesWithSoil   : ON'
                 write(*,*    ) 
@@ -2322,7 +2539,7 @@ cd0:    if (Exist) then
                 endif
             endif
             write(*,*    ) '---Temperature Stress       : OFF'
-            write(*,*    ) '---Grazing, Management'       
+            write(*,*    ) '---Grazing, HarvestKill'       
             write(*,*    ) '   Dormancy & Fertilization : OFF'
             write(*,*    ) 
         endif
@@ -2390,6 +2607,7 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
         integer                                             :: STAT_CALL
         real                                                :: InitialHUBase
         type (T_property), pointer                          :: PropertyX
+        integer                                             :: Pest
         !Begin-----------------------------------------------------------------
 
 
@@ -2614,10 +2832,10 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
                 allocate(Me%IsPlantBeingGrazed                                (ILB:IUB,JLB:JUB)) 
                 Me%DaysOfGrazing        (:,:) = 0.0 
                 Me%IsPlantBeingGrazed   (:,:) = .false.
-                allocate(Me%GrazingFinished                                   (ILB:IUB,JLB:JUB))
-                allocate(Me%GrazingOperations                                 (ILB:IUB,JLB:JUB))
-                Me%GrazingFinished      (:,:) = .false.
-                Me%GrazingOperations    (:,:) = 1
+!                allocate(Me%GrazingFinished                                   (ILB:IUB,JLB:JUB))
+!                allocate(Me%GrazingOperations                                 (ILB:IUB,JLB:JUB))
+!                Me%GrazingFinished      (:,:) = .false.
+!                Me%GrazingOperations    (:,:) = 1
             
                 allocate(Me%Fluxes%BiomassGrazed                              (ILB:IUB,JLB:JUB)) 
                 allocate(Me%Fluxes%BiomassGrazedFraction                      (ILB:IUB,JLB:JUB)) 
@@ -2642,43 +2860,43 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
 
             endif
         
-            if (Me%ComputeOptions%Management) then
+            if (Me%ComputeOptions%HarvestKill) then
                 allocate(Me%HarvestOnlyOccurred                               (ILB:IUB,JLB:JUB))
                 allocate(Me%HarvestKillOccurred                               (ILB:IUB,JLB:JUB))
                 allocate(Me%KillOccurred                                      (ILB:IUB,JLB:JUB))
-                allocate(Me%HarvestFinished                                   (ILB:IUB,JLB:JUB))
-                allocate(Me%HarvestOperations                                 (ILB:IUB,JLB:JUB))
-                allocate(Me%HarvestKillOperations                             (ILB:IUB,JLB:JUB)) 
-                allocate(Me%KillOperations                                    (ILB:IUB,JLB:JUB)) 
+!                allocate(Me%HarvestFinished                                   (ILB:IUB,JLB:JUB))
+!                allocate(Me%HarvestOperations                                 (ILB:IUB,JLB:JUB))
+!                allocate(Me%HarvestKillOperations                             (ILB:IUB,JLB:JUB)) 
+!                allocate(Me%KillOperations                                    (ILB:IUB,JLB:JUB)) 
                 Me%HarvestOnlyOccurred  (:,:) = .false.
                 Me%HarvestKillOccurred  (:,:) = .false.
                 Me%KillOccurred         (:,:) = .false.
-                Me%HarvestFinished      (:,:) = .false.
-                Me%HarvestOperations    (:,:) = 1
-                Me%HarvestKillOperations(:,:) = 1 
-                Me%KillOperations       (:,:) = 1   
+!                Me%HarvestFinished      (:,:) = .false.
+!                Me%HarvestOperations    (:,:) = 1
+!                Me%HarvestKillOperations(:,:) = 1 
+!                Me%KillOperations       (:,:) = 1   
                       
                 allocate(Me%Fluxes%BiomassRemovedInHarvest                    (ILB:IUB,JLB:JUB)) 
                 allocate(Me%Fluxes%BiomassHarvestedFraction                   (ILB:IUB,JLB:JUB)) 
-                allocate(Me%Fluxes%ToSoil%ManagementBiomassToSoil             (ILB:IUB,JLB:JUB)) 
-                allocate(Me%Fluxes%ToSoil%ManagementRootBiomassLeftInSoil     (ILB:IUB,JLB:JUB))
+                allocate(Me%Fluxes%ToSoil%HarvestKillBiomassToSoil             (ILB:IUB,JLB:JUB)) 
+                allocate(Me%Fluxes%ToSoil%KillRootBiomassLeftInSoil     (ILB:IUB,JLB:JUB))
 !                Me%Fluxes%BiomassRemovedInHarvest                             (:,:) = 0.0  
 !                Me%Fluxes%BiomassHarvestedFraction                            (:,:) = 0.0
-!                Me%Fluxes%ToSoil%ManagementBiomassToSoil                      (:,:) = 0.0 
-!                Me%Fluxes%ToSoil%ManagementRootBiomassLeftInSoil              (:,:) = 0.0
+!                Me%Fluxes%ToSoil%HarvestKillBiomassToSoil                      (:,:) = 0.0 
+!                Me%Fluxes%ToSoil%KillRootBiomassLeftInSoil              (:,:) = 0.0
             
                 if (Me%ComputeOptions%ModelNitrogen) then            
                     allocate(Me%Fluxes%NitrogenRemovedInHarvest               (ILB:IUB,JLB:JUB))  
-                    allocate(Me%Fluxes%ToSoil%ManagementNitrogenToSoil        (ILB:IUB,JLB:JUB)) 
+                    allocate(Me%Fluxes%ToSoil%HarvestKillNitrogenToSoil        (ILB:IUB,JLB:JUB)) 
 !                    Me%Fluxes%NitrogenRemovedInHarvest                        (:,:) = 0.0 
-!                    Me%Fluxes%ToSoil%ManagementNitrogenToSoil                 (:,:) = 0.0 
+!                    Me%Fluxes%ToSoil%HarvestKillNitrogenToSoil                 (:,:) = 0.0 
                 endif
             
                 if (Me%ComputeOptions%ModelPhosphorus) then
                     allocate(Me%Fluxes%PhosphorusRemovedInHarvest             (ILB:IUB,JLB:JUB)) 
-                    allocate(Me%Fluxes%ToSoil%ManagementPhosphorusToSoil      (ILB:IUB,JLB:JUB))
+                    allocate(Me%Fluxes%ToSoil%HarvestKillPhosphorusToSoil      (ILB:IUB,JLB:JUB))
 !                    Me%Fluxes%PhosphorusRemovedInHarvest                      (:,:) = 0.0
-!                    Me%Fluxes%ToSoil%ManagementPhosphorusToSoil               (:,:) = 0.0 
+!                    Me%Fluxes%ToSoil%HarvestKillPhosphorusToSoil               (:,:) = 0.0 
                 endif
 
             endif
@@ -2748,6 +2966,17 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
                 endif
 
             endif
+
+            if (Me%ComputeOptions%Pesticide) then
+                do  Pest = 1, Me%Fluxes%Pesticides%UniquePesticides
+                    allocate (Me%Fluxes%Pesticides%Application(Pest)%Soil(ILB:IUB,JLB:JUB))
+                    allocate (Me%Fluxes%Pesticides%Application(Pest)%Vegetation(ILB:IUB,JLB:JUB))                        
+                    allocate (Me%Fluxes%Pesticides%Application(Pest)%PesticideAppOccurred(ILB:IUB,JLB:JUB)) 
+                    Me%Fluxes%Pesticides%Application(Pest)%PesticideAppOccurred(:,:) = .false.
+                enddo                
+            
+            endif
+            
             
             if (Me%ComputeOptions%ModelPlantBiomass) then
                 allocate(Me%Fluxes%BiomassGrowth                              (ILB:IUB,JLB:JUB)) 
@@ -2796,7 +3025,12 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
         integer                                             :: nPropertiesToSoil
         integer                                             :: iflag, AddProperties, i
         character(len=StringLength)                         :: TimeSerieLocationFile
-
+        integer                                             :: Pest
+        integer                                             :: TimeSerieNumber, dn, Id, Jd
+        real                                                :: CoordX, CoordY
+        logical                                             :: CoordON, IgnoreOK
+        character(len=StringLength)                         :: TimeSerieName
+                
         !----------------------------------------------------------------------
 
         !First checks out how many properties will have time series
@@ -2982,7 +3216,7 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
                             nPropertiesToSoil = nPropertiesToSoil + 5
                         endif
                     endif
-                    if (Me%ComputeOptions%Management) then
+                    if (Me%ComputeOptions%HarvestKill) then
                         nPropertiesToSoil = nPropertiesToSoil + 2
                         if (Me%ComputeOptions%ModelNitrogen) then
                             nPropertiesToSoil = nPropertiesToSoil + 1
@@ -3008,7 +3242,12 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
                         if (Me%ComputeOptions%ModelPhosphorus) then
                             nPropertiesToSoil = nPropertiesToSoil + 1
                         endif
-                    endif  
+                    endif 
+                    if (Me%ComputeOptions%Pesticide) then
+                        do Pest = 1, Me%Fluxes%Pesticides%UniquePesticides
+                            nPropertiesToSoil = nPropertiesToSoil + 2
+                        enddo
+                    endif 
 
                     allocate(PropertyList(1:nPropertiesToSoil), STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) &
@@ -3046,18 +3285,18 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
                             PropertyList(i) = "Fert_YearlyAccumulated_Phosphorus_KgN/ha"                 
                         endif
                     endif
-                    if (Me%ComputeOptions%Management) then
+                    if (Me%ComputeOptions%HarvestKill) then
                         i = i + 1
-                        PropertyList(i) = "Management_AerialBiomass_To_Soil_Kg/ha"
+                        PropertyList(i) = "HarvestKill_AerialBiomass_To_Soil_Kg/ha"
                         i = i + 1
-                        PropertyList(i) = "Management_RootBiomass_Left_In_Soil_Kg/ha"                    
+                        PropertyList(i) = "HarvestKill_RootBiomass_Left_In_Soil_Kg/ha"                    
                         if (Me%ComputeOptions%ModelNitrogen) then
                             i = i + 1
-                            PropertyList(i) = "Management_Nitrogen_To_Soil_KgN/ha"
+                            PropertyList(i) = "HarvestKill_Nitrogen_To_Soil_KgN/ha"
                         endif
                         if (Me%ComputeOptions%ModelPhosphorus) then
                             i = i + 1
-                            PropertyList(i) = "Management_Phosphorus_To_Soil_KgP/ha"
+                            PropertyList(i) = "HarvestKill_Phosphorus_To_Soil_KgP/ha"
                         endif
                     endif                
                     if (Me%ComputeOptions%Grazing) then
@@ -3084,7 +3323,14 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
                             PropertyList(i) = "Dormancy_Phosphorus_To_Soil_KgP/ha"
                         endif
                     endif  
-
+                    if (Me%ComputeOptions%Pesticide) then
+                        do Pest = 1, Me%Fluxes%Pesticides%UniquePesticides
+                            i = i + 1
+                            PropertyList(i) = trim(Me%Fluxes%Pesticides%Application(Pest)%ID%Name)//"_Soil_Kg/ha"
+                            i = i + 1
+                            PropertyList(i) = trim(Me%Fluxes%Pesticides%Application(Pest)%ID%Name)//"_Veg_Kg/ha"  
+                        enddo
+                    endif 
                     call StartTimeSerie(Me%ObjTimeSerieToSoil,                                      &
                                         Me%ObjTime,                                                 &
                                         TimeSerieLocationFile,                                      &
@@ -3099,82 +3345,74 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
             
             endif
 
-
-
-            ! Time serie with fertilization fluxes to soil
-!            if (Me%ComputeOptions%Fertilization) then
-!
-!                call GetData(Me%ComputeOptions%FertilizationOutput,                 &
-!                             Me%ObjEnterData,iflag,                                 &
-!                             SearchType   = FromFile,                               &
-!                             keyword      = 'FERTILIZATION_OUTPUT',                 &
-!                             ClientModule = 'ModuleVegetation',                     &
-!                             Default      = .false.,                                &
-!                             STAT         = STAT_CALL)
-!                if (STAT_CALL .NE. SUCCESS_)                                        &
-!                    stop 'Construct_Time_Serie - ModuleVegetation - ERR07' 
-!                
-!                if (Me%ComputeOptions%FertilizationOutput) then
-!                                
-!                    if (Me%ComputeOptions%ModelNitrogen) then
-!                        if (Me%ComputeOptions%ModelPhosphorus) then
-!                            allocate (PropertyList(12))
-!                        else
-!                            allocate (PropertyList(7))
-!                        endif
-!                    else
-!                        if (Me%ComputeOptions%ModelPhosphorus) then
-!                            allocate (PropertyList(5))
-!                        endif
-!                    endif
-!                    
-!                    i = 1                        
-!                    if (Me%ComputeOptions%ModelNitrogen) then
-!                        PropertyList(i)   = "Fert_Nitrate_Surface_KgN/ha"
-!                        i = i + 1
-!                        PropertyList(i) = "Fert_Nitrate_SubSurface_KgN/ha"
-!                        i = i + 1
-!                        PropertyList(i) = "Fert_Ammonia_Surface_KgN/ha"
-!                        i = i + 1
-!                        PropertyList(i) = "Fert_Ammonia_SubSurface_KgN/ha"
-!                        i = i + 1
-!                        PropertyList(i) = "Fert_OrganicN_Surface_KgN/ha"
-!                        i = i + 1
-!                        PropertyList(i) = "Fert_OrganicN_SubSurface_KgN/ha"
-!                        i = i + 1
-!                        PropertyList(i) = "Fert_YearlyAccumulated_Nitrogen_KgN/ha"
-!                        i = i + 1
-!                    endif
-!
-!                    if (Me%ComputeOptions%ModelPhosphorus) then
-!                        PropertyList(i) = "Fert_OrganicP_Surface_KgN/ha"
-!                        i = i + 1
-!                        PropertyList(i) = "Fert_OrganicP_SubSurface_KgN/ha"
-!                        i = i + 1
-!                        PropertyList(i) = "Fert_MineralP_Surface_KgN/ha"
-!                        i = i + 1
-!                        PropertyList(i) = "Fert_MineralP_SubSurface_KgN/ha"
-!                        i = i + 1
-!                        PropertyList(i) = "Fert_YearlyAccumulated_Phosphorus_KgN/ha"
-!                        i = i + 1
-!                    endif
-!        
-!                    call StartTimeSerie(Me%ObjTimeSerieFert,                                        &
-!                                        Me%ObjTime,                                                 &
-!                                        TimeSerieLocationFile,                                      &
-!                                        PropertyList, "vgf",                                        &
-!                                        WaterPoints2D = Me%ExternalVar%MappingPoints2D,             &
-!                                        Instance = 'Vegetation_Fertilization',                      &
-!                                        STAT           = STAT_CALL) 
-!                    if (STAT_CALL /= SUCCESS_) stop 'Construct_Time_Serie - ModuleVegetation - ERR06'
-!
-!                    deallocate(PropertyList)
-!
-!                endif
-!
-!            endif
-
         endif
+       
+        !Corrects if necessary the cell of the time serie based in the time serie coordinates
+        call GetNumberOfTimeSeries(Me%ObjTimeSerie, TimeSerieNumber, STAT  = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - PorousMedia - ERR03'
+
+        do dn = 1, TimeSerieNumber
+
+            call GetTimeSerieLocation(Me%ObjTimeSerie, dn,                              &  
+                                      CoordX   = CoordX,                                &
+                                      CoordY   = CoordY,                                & 
+                                      CoordON  = CoordON,                               &
+                                      STAT     = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - PorousMedia - ERR04'
+            
+            call GetTimeSerieName(Me%ObjTimeSerie, dn, TimeSerieName, STAT  = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - PorousMedia - ERR04'
+            
+i1:         if (CoordON) then
+                call GetXYCellZ(Me%ObjHorizontalGrid, CoordX, CoordY, Id, Jd, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - PorousMedia - ERR05'
+
+                if (Id < 0 .or. Jd < 0) then
+                
+                    call TryIgnoreTimeSerie(Me%ObjTimeSerie, dn, IgnoreOK, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - PorousMedia - ERR06'
+
+                    if (IgnoreOK) then
+                        write(*,*) 'Time Serie outside the domain - ',trim(TimeSerieName)
+                        cycle
+                    else
+                        stop 'ConstructTimeSerie - PorousMedia - ERR07'
+                    endif
+
+                endif
+
+
+                call CorrectsCellsTimeSerie(Me%ObjTimeSerie, dn, Id, Jd, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - PorousMedia - ERR08'
+                
+                if (Me%ComputeOptions%Evolution%GrowthModelNeeded) then   
+                    if(Me%ComputeOptions%AtmospherePropertiesOutput) then
+                        call CorrectsCellsTimeSerie(Me%ObjTimeSerieAtm, dn, Id, Jd, STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - PorousMedia - ERR10'                        
+                    endif
+                    
+                    if(Me%ComputeOptions%FluxesToSoilOutput) then             
+                        call CorrectsCellsTimeSerie(Me%ObjTimeSerieToSoil, dn, Id, Jd, STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - PorousMedia - ERR20'                    
+                    endif
+                    
+                endif
+
+            endif i1
+
+            call GetTimeSerieLocation(Me%ObjTimeSerie, dn,                              &  
+                                      LocalizationI   = Id,                             &
+                                      LocalizationJ   = Jd,                             & 
+                                      STAT     = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - PorousMedia - ERR30'
+
+            if (Me%ExternalVar%MappingPoints2D(Id, Jd) /= WaterPoint) then
+                 write(*,*) 'Time Serie in a outside boundaries cell - ',trim(TimeSerieName)
+            endif
+
+
+        enddo
+       
        
     end subroutine ConstructTimeSerie
 
@@ -3492,185 +3730,361 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
 
         !Local-----------------------------------------------------------------
         integer                                     :: STAT_CALL
-        logical                                     :: VegetationTypeFound
-        logical                                     :: BlockFound
         integer                                     :: ClientNumber, iflag
-        integer                                     :: ivt
+        integer                                     :: ivt, VegetationTypeID
+        character (Len = StringLength)              :: ParameterFile
+        integer                                     :: ParameterObjEnterData
+        logical                                     :: VegetationFound, DatabaseFound
+        type (T_VegetationType), pointer            :: VegetationType
+        integer                                     :: Pest
         !----------------------------------------------------------------------
 
-        !Counts the number of VegetationTypes
-        call RewindBuffer(Me%ObjEnterData, STAT = STAT_CALL)
-        Me%VegetationsNumber = 0
-doS:    do
-            !Gets Vegetations type
-            call ExtractBlockFromBuffer(Me%ObjEnterData,                                        &
-                                        ClientNumber    = ClientNumber,                         &
-                                        block_begin     = '<beginvegetationtype>',              &
-                                        block_end       = '<endvegetationtype>',                &
-                                        BlockFound      = VegetationTypeFound,                  &   
-                                        STAT            = STAT_CALL)
-SF:         if (STAT_CALL == SUCCESS_ .and. VegetationTypeFound) then
-                Me%VegetationsNumber = Me%VegetationsNumber + 1
-            else
-
-                call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_) stop 'ConstructVegetationParameters - ModuleVegetation - ERR02'
-               
-                exit doS
-
-            end if SF
-
-            !old version of vegetation
-            call ExtractBlockFromBlock(Me%ObjEnterData,                                         &
-                                        ClientNumber        = ClientNumber,                     &
-                                        block_begin         = '<<begin_property>>',             &
-                                        block_end           = '<<end_property>>',               &
-                                        BlockInBlockFound   = BlockFound,                       &   
-                                        STAT                = STAT_CALL)
-            if (STAT_CALL .EQ. SUCCESS_ .and. BlockFound) then  
-                write(*,*)  
-                write(*,*) 'Using old formulation on vegetation' 
-                write(*,*) 'Vegetation properties are now defined as MOHID'
-                write(*,*) 'fill matrix standard with <beginproperty>, <endproperty> block.'
-                write(*,*) 'For support verify options at MOHID'
-                write(*,*) 'wiki in http://www.mohid.com/wiki'
-                stop 'ConstructVegetationParameters - ModuleVegetation - ERR03'
-
-            endif                   
-        enddo doS            
-        
+        !After constructing vegetation list module knows how many vegetations exist
         allocate(Me%VegetationTypes(Me%VegetationsNumber))
         
-        call RewindBuffer(Me%ObjEnterData, STAT = STAT_CALL)
+        !Get Vegetation parameters file 
+        call GetData(ParameterFile, Me%ObjEnterData, iflag,                                                       &
+                     SearchType     = FromFile,                                                                   &
+                     keyword        = 'PARAMETERS_FILE',                                                          &
+                     ClientModule   = 'ModuleVegetation',                                                         &
+                     STAT           = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructVegetationParameters - ModuleVegetation - ERR70'     
 
         ivt = 0
-
-doH:    do 
-            !Gets Vegetations type
-            call ExtractBlockFromBuffer(Me%ObjEnterData,                                        &
-                                        ClientNumber    = ClientNumber,                         &
-                                        block_begin     = '<beginvegetationtype>',              &
-                                        block_end       = '<endvegetationtype>',                &
-                                        BlockFound      = VegetationTypeFound,                  &   
-                                        STAT            = STAT_CALL)
-HF:         if (STAT_CALL == SUCCESS_ .and. VegetationTypeFound) then
-
-                ivt = ivt + 1
-                
-                !Reads ID
-                call GetData(Me%VegetationTypes(ivt)%ID, Me%ObjEnterData,  iflag,               &
-                             SearchType     = FromBlock,                                        &
-                             keyword        = 'ID',                                             &
-                             ClientModule   = 'ModuleVegetation',                               &
-                             STAT           = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_) stop 'ConstructVegetationParameters - ModuleVegetation - ERR10'
-                if (iflag /= 1) then
-                    write(*,*)'Missing ID in Vegetation Type definition'
-                    stop 'ConstructVegetationParameters - ModuleVegetation - ERR15'
-                endif
-
-                !Reads Name
-                call GetData(Me%VegetationTypes(ivt)%Name, Me%ObjEnterData,  iflag,             &
-                             SearchType     = FromBlock,                                        &
-                             keyword        = 'NAME',                                           &
-                             ClientModule   = 'ModuleVegetation',                               &
-                             STAT           = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_) stop 'ConstructVegetationParameters - ModuleVegetation - ERR20'
-                if (iflag /= 1) then
-                    write(*,*)'Missing NAME in Vegetation Type definition'
-                    stop 'ConstructVegetationParameters - ModuleVegetation - ERR30'
-                endif
-                
-                if (Me%ComputeOptions%Evolution%GrowthModelNeeded) then
-
-                    call GetData(Me%VegetationTypes(ivt)%HasLeaves, Me%ObjEnterData,  iflag,        &
-                                 SearchType     = FromBlock,                                        &
-                                 keyword        = 'HAS_LEAVES',                                     &
-                                 ClientModule   = 'ModuleVegetation',                               &
-                                 STAT           = STAT_CALL)
-                    if (STAT_CALL .NE. SUCCESS_) stop 'ConstructVegetationParameters - ModuleVegetation - ERR31'
-                    if (iflag /= 1) then
-                        write(*,*)'Missing HAS_LEAVES in Vegetation Type definition'
-                        stop 'ConstructVegetationParameters - ModuleVegetation - ERR32'
-                    endif
-                endif
-                
-                if (Me%ComputeOptions%TranspirationMethod == TranspirationMOHID) then
-                    !Reads Feddes
-                    call GetData(Me%VegetationTypes(ivt)%RootFeddesH1, Me%ObjEnterData,  iflag,     &
-                                 SearchType     = FromBlock,                                        &
-                                 keyword        = 'FEDDES_H1',                                      &
-                                 ClientModule   = 'ModuleVegetation',                               &
-                                 STAT           = STAT_CALL)
-                    if (STAT_CALL .NE. SUCCESS_) stop 'ConstructVegetationParameters - ModuleVegetation - ERR40'
-                    if (iflag /= 1) then
-                        write(*,*)'Missing FEDDES_H1 in Vegetation Type definition'
-                        stop 'ConstructVegetationParameters - ModuleVegetation - ERR50'
-                    endif
-                    call GetData(Me%VegetationTypes(ivt)%RootFeddesH2, Me%ObjEnterData,  iflag,     &
-                                 SearchType     = FromBlock,                                        &
-                                 keyword        = 'FEDDES_H2',                                      &
-                                 ClientModule   = 'ModuleVegetation',                               &
-                                 STAT           = STAT_CALL)
-                    if (STAT_CALL .NE. SUCCESS_) stop 'ConstructVegetationParameters - ModuleVegetation - ERR60'
-                    if (iflag /= 1) then
-                        write(*,*)'Missing FEDDES_H2 in Vegetation Type definition'
-                        stop 'ConstructVegetationParameters - ModuleVegetation - ERR70'
-                    endif
-                    call GetData(Me%VegetationTypes(ivt)%RootFeddesH3, Me%ObjEnterData,  iflag,     &
-                                 SearchType     = FromBlock,                                        &
-                                 keyword        = 'FEDDES_H3',                                      &
-                                 ClientModule   = 'ModuleVegetation',                               &
-                                 STAT           = STAT_CALL)
-                    if (STAT_CALL .NE. SUCCESS_) stop 'ConstructVegetationParameters - ModuleVegetation - ERR80'
-                    if (iflag /= 1) then
-                        write(*,*)'Missing FEDDES_H3 in Vegetation Type definition'
-                        stop 'ConstructVegetationParameters - ModuleVegetation - ERR90'
-                    endif
-                    call GetData(Me%VegetationTypes(ivt)%RootFeddesH4, Me%ObjEnterData,  iflag,     &
-                                 SearchType     = FromBlock,                                        &
-                                 keyword        = 'FEDDES_H4',                                      &
-                                 ClientModule   = 'ModuleVegetation',                               &
-                                 STAT           = STAT_CALL)
-                    if (STAT_CALL .NE. SUCCESS_) stop 'ConstructVegetationParameters - ModuleVegetation - ERR100'
-                    if (iflag /= 1) then
-                        write(*,*)'Missing FEDDES_H4 in Vegetation Type definition'
-                        stop 'ConstructVegetationParameters - ModuleVegetation - ERR110'
-                    endif
-  
-                endif
-
-                if (Me%ComputeOptions%Evolution%GrowthModelNeeded) then
-                    call ReadTimingDatabase(ivt, ClientNumber)
-                    call ReadGrowthDatabase(ivt, ClientNumber)
-                    if (Me%ComputeOptions%Management .or. Me%ComputeOptions%Grazing) then 
-                        call ReadManagementAndGrazeDatabase(ivt, ClientNumber)
-                    endif
-                    if (Me%ComputeOptions%Fertilization) then 
-                        call ReadFertilizationDatabase(ivt, ClientNumber)
-                    endif
-                endif
-            else
-
-                call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_) stop 'ConstructVegetationParameters - ModuleVegetation - ERR120'
-               
-                exit doH
-
-            end if HF
+        ParameterObjEnterData = 0
+        !Open and save parameter file
+        call ConstructEnterData(ParameterObjEnterData, ParameterFile, STAT = STAT_CALL) 
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructVegetationParameters - ModuleVegetation - ERR80'        
         
-        enddo doH
+        if (Me%ComputeOptions%Pesticide) then
+            !temporary lists used to allocate unique pesticides
+            allocate (Me%PesticideListID(100))  
+            allocate (Me%PesticideListName(100))   
+            Me%Fluxes%Pesticides%UniquePesticides  = 1              
+        endif
+        
+        !Check for every vegetation type (agricultural practice) for info
+        VegetationType => Me%FirstVegetation
+doV:    do while (associated(VegetationType))
+            
+            !each property cycle restart from the beggining og the file
+            call RewindBuffer(ParameterObjEnterData, STAT = STAT_CALL)
+            if(STAT_CALL .NE. SUCCESS_) stop 'ConstructVegetationParameters - ModuleVegetation - ERR85'
+
+            
+            VegetationFound = .false. 
+            
+doH1:       do 
+                call ExtractBlockFromBuffer(ParameterObjEnterData,                                    &
+                                            ClientNumber      = ClientNumber,                         &
+                                            block_begin       = '<beginagriculturalpractice>',        &
+                                            block_end         = '<endagriculturalpractice>',         &
+                                            BlockFound        = DatabaseFound,                        &   
+                                            STAT              = STAT_CALL)
+HF1:            if (STAT_CALL == SUCCESS_ .and. DatabaseFound) then
+
+                    call GetData(VegetationTypeID, ParameterObjEnterData, iflag,                                             &
+                                 SearchType     = FromBlock,                                                                 &
+                                 keyword        = 'AGRIC_PRACT_ID',                                                          &
+                                 ClientModule   = 'ModuleVegetation',                                                        &
+                                 STAT           = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_) stop 'ConstructVegetationParameters - ModuleVegetation - ERR90'     
+                    if (iflag /= 1) then
+                        write(*,*)'Missing AGRIC_PRACT_ID in agricultural practice definition'
+                        write(*,*)'Check vegetation definition in',ParameterFile
+                        stop 'ConstructVegetationParameters - ModuleVegetation - ERR30'
+                    endif
+                    
+                    if (VegetationTypeID == VegetationType%ID) then
+                        
+                        VegetationFound = .true.
+                        ivt = ivt + 1
+                        Me%VegetationTypes(ivt)%ID = VegetationType%ID
+                        
+                        !Reads Name
+                        call GetData(Me%VegetationTypes(ivt)%Name, ParameterObjEnterData,  iflag,             &
+                                     SearchType     = FromBlock,                                        &
+                                     keyword        = 'NAME',                                           &
+                                     ClientModule   = 'ModuleVegetation',                               &
+                                     STAT           = STAT_CALL)
+                        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructVegetationParameters - ModuleVegetation - ERR20'
+                        if (iflag /= 1) then
+                            write(*,*)'Missing NAME in Vegetation Type definition'
+                            stop 'ConstructVegetationParameters - ModuleVegetation - ERR30'
+                        endif
+
+                        !Reads Crop ID associated
+                        call GetData(Me%VegetationTypes(ivt)%VegetationID, ParameterObjEnterData,  iflag,     &
+                                     SearchType     = FromBlock,                                        &
+                                     keyword        = 'VEGETATION_ID',                                  &
+                                     ClientModule   = 'ModuleVegetation',                               &
+                                     STAT           = STAT_CALL)
+                        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructVegetationParameters - ModuleVegetation - ERR25'
+                        if (iflag /= 1) then
+                            write(*,*)'Missing VEGETATION_ID in Vegetation Type definition'
+                            stop 'ConstructVegetationParameters - ModuleVegetation - ERR30'
+                        endif
+                        
+                        
+                        if (Me%ComputeOptions%TranspirationMethod == TranspirationMOHID) then
+
+                            !Get Feddes from database
+                            call GetData(Me%FeddesDatabase, Me%ObjEnterData, iflag,                                          &
+                                         SearchType     = FromFile,                                                          &
+                                         keyword        = 'FEDDES_DATABASE',                                                 &
+                                         ClientModule   = 'ModuleVegetation',                                                &
+                                         STAT           = STAT_CALL)
+                            if (STAT_CALL .NE. SUCCESS_) stop 'ConstructVegetationParameters - ModuleVegetation - ERR70'  
+                        
+                            call ReadFeddesDatabase (ivt)
+                            
+                        endif
+
+                        if (Me%ComputeOptions%Evolution%GrowthModelNeeded) then
+
+                            call GetData(Me%VegetationTypes(ivt)%HasLeaves, ParameterObjEnterData,  iflag,        &
+                                         SearchType     = FromBlock,                                        &
+                                         keyword        = 'HAS_LEAVES',                                     &
+                                         default        = .true.,                                           &
+                                         ClientModule   = 'ModuleVegetation',                               &
+                                         STAT           = STAT_CALL)
+                            if (STAT_CALL .NE. SUCCESS_) stop 'ConstructVegetationParameters - ModuleVegetation - ERR31'
+!                            if (iflag /= 1) then
+!                                write(*,*)'Missing HAS_LEAVES in Vegetation Type definition'
+!                                stop 'ConstructVegetationParameters - ModuleVegetation - ERR32'
+!                            endif
+                            
+                            call ReadTimingParameters(ivt, ClientNumber,ParameterObjEnterData)
+
+                            if (Me%ComputeOptions%HarvestKill) then 
+                                call ReadHarvestKillParameters(ivt, ClientNumber,ParameterObjEnterData)
+                            endif
+
+                            if (Me%ComputeOptions%Grazing) then 
+                                call ReadGrazingParameters(ivt, ClientNumber,ParameterObjEnterData)
+                            endif
+                            
+                            if (Me%ComputeOptions%Fertilization) then 
+                            
+                                !Get fertilizers from database
+                                call GetData(Me%FertilizerDatabase, Me%ObjEnterData, iflag,                                      &
+                                             SearchType     = FromFile,                                                          &
+                                             keyword        = 'FERTILIZER_DATABASE',                                             &
+                                             ClientModule   = 'ModuleVegetation',                                                &
+                                             STAT           = STAT_CALL)
+                                if (STAT_CALL .NE. SUCCESS_) stop 'ConstructVegetationParameters - ModuleVegetation - ERR70'   
+                            
+                                call ReadFertilizationParameters(ivt, ClientNumber,ParameterObjEnterData)
+                            endif
+                            if (Me%ComputeOptions%Pesticide) then 
+
+                                !Get Pesticide from database
+                                call GetData(Me%PesticideDatabase, Me%ObjEnterData, iflag,                                       &
+                                             SearchType     = FromFile,                                                          &
+                                             keyword        = 'PESTICIDE_DATABASE',                                              &
+                                             ClientModule   = 'ModuleVegetation',                                                &
+                                             STAT           = STAT_CALL)
+                                if (STAT_CALL .NE. SUCCESS_) stop 'ConstructVegetationParameters - ModuleVegetation - ERR70'     
+                            
+                                call ReadPesticideParameters(ivt, ClientNumber,ParameterObjEnterData)
+                            endif                    
+
+                            !Get growth database (SWAT growth parameters)
+                            call GetData(Me%GrowthDatabase, Me%ObjEnterData, iflag,                                              &
+                                         SearchType     = FromFile,                                                              &
+                                         keyword        = 'GROWTH_DATABASE',                                                     &
+                                         ClientModule   = 'ModuleVegetation',                                                    &
+                                         STAT           = STAT_CALL)
+                            if (STAT_CALL .NE. SUCCESS_) stop 'ConstructVegetationParameters - ModuleVegetation - ERR70'   
+                            
+                            !Read growth parameters (from SWAT database)
+                            call ReadGrowthDatabase(ivt)
+                        
+                        endif
+                        
+                        exit doH1
+                        
+                    endif
+                    
+                else
+                    
+                    call Block_Unlock(ParameterObjEnterData, ClientNumber, STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_) stop 'ConstructVegetationParameters - ModuleVegetation - ERR120'
+                   
+                    exit doH1 
+                              
+                endif HF1
+                
+            enddo doH1
+             
+            if (.not. VegetationFound) then
+                write(*,*)
+                write(*,*) 'Vegetation ID read in Vegetation Grid', trim(Me%Files%VegetationIDFile)
+                write(*,*) 'not found in parameter file.'
+                write(*,*) 'Check that ID' , VegetationType%ID
+                write(*,*) 'was defined in parameter file', trim(ParameterFile)
+                stop 'ConstructVegetationParameters - ModuleVegetation - ERR130' 
+            endif 
+            
+            VegetationType => VegetationType%Next
+        
+        enddo doV
+        
+        if (Me%ComputeOptions%Pesticide) then
+            !Fill unique global pesticide list
+            !allocate one position less because first position was phantom
+            allocate(Me%Fluxes%Pesticides%Application(Me%Fluxes%Pesticides%UniquePesticides - 1))
+            do Pest = 2, Me%Fluxes%Pesticides%UniquePesticides
+                
+                Me%Fluxes%Pesticides%Application(Pest - 1)%PesticideID  = Me%PesticideListID(Pest)
+                Me%Fluxes%Pesticides%Application(Pest - 1)%ID%Name      = Me%PesticideListName(Pest)
+                if (.not. CheckPropertyName (Me%Fluxes%Pesticides%Application(Pest - 1)%ID%Name,     &
+                                             Me%Fluxes%Pesticides%Application(Pest - 1)%ID%IDNumber)) then
+                    write (*,*)'The property isnt recognized by the model :'
+                    write (*,*) trim(Me%Fluxes%Pesticides%Application(Pest - 1)%ID%Name)
+                    stop 'ConstructPropertyID - ModuleFunctions - ERR03'
+                endif
+                
+            enddo
+            Me%Fluxes%Pesticides%UniquePesticides = size(Me%Fluxes%Pesticides%Application)
+        endif
+       
+        call KillEnterData(ParameterObjEnterData, STAT = STAT_CALL)         
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructVegetationParameters - ModuleVegetation - ERR140'        
+
 
    
     end subroutine ConstructVegetationParameters
 
    !--------------------------------------------------------------------------
+
+    subroutine ReadFeddesDatabase(ivt)
+        
+        !Arguments-------------------------------------------------------------
+        integer                                     :: ivt
+        !Local-----------------------------------------------------------------
+        integer                                     :: STAT_CALL
+        logical                                     :: DatabaseFound, VegetationFound
+        integer                                     :: iflag
+        integer                                     :: FeddesObjEnterData
+        integer                                     :: VegetationID
+        integer                                     :: FeddesClientNumber
+        !Begin-----------------------------------------------------------------
+
+        FeddesObjEnterData = 0
+        !Open and save growth database
+        call ConstructEnterData(FeddesObjEnterData, Me%FeddesDatabase, STAT = STAT_CALL) 
+        if (STAT_CALL /= SUCCESS_) stop 'ReadFeddesDatabase - ModuleVegetation - ERR80'        
+        
+           
+        VegetationFound = .false. 
+            
+doH1:   do 
+            call ExtractBlockFromBuffer(FeddesObjEnterData,                                    &
+                                        ClientNumber      = FeddesClientNumber,                   &
+                                        block_begin       = '<beginfeddesdatabase>',              &
+                                        block_end         = '<endfeddesdatabase>',                &
+                                        BlockFound        = DatabaseFound,                        &   
+                                        STAT              = STAT_CALL)
+HF1:        if (STAT_CALL == SUCCESS_ .and. DatabaseFound) then
+                
+                call GetData(VegetationID, FeddesObjEnterData, iflag,                            &
+                             SearchType     = FromBlock,                                         &
+                             keyword        = 'VEGETATION_ID',                                   &
+                             ClientModule   = 'ModuleVegetation',                                &
+                             STAT           = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_) stop 'ReadFeddedDatabase - ModuleVegetation - ERR90'     
+                if (iflag /= 1) then
+                    write(*,*)'Missing VEGETATION_ID in Feddes definition'
+                    write(*,*)'Check vegetation definition in',Me%FeddesDatabase
+                    stop 'ReadFeddesDatabase - ModuleVegetation - ERR30'
+                endif
+                                    
+                if (VegetationID == Me%VegetationTypes(ivt)%VegetationID) then
+                    
+                    VegetationFound = .true.
+                    
+                    !Reads Feddes
+                    call GetData(Me%VegetationTypes(ivt)%RootFeddesH1, FeddesObjEnterData,  iflag,  &
+                                 SearchType     = FromBlock,                                        &
+                                 keyword        = 'FEDDES_H1',                                      &
+                                 ClientModule   = 'ModuleVegetation',                               &
+                                 STAT           = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_) stop 'ReadFeddesDatabase - ModuleVegetation - ERR40'
+                    if (iflag /= 1) then
+                        write(*,*)'Missing FEDDES_H1 in Vegetation Type definition'
+                        stop 'ReadFeddesDatabase - ModuleVegetation - ERR50'
+                    endif
+                    call GetData(Me%VegetationTypes(ivt)%RootFeddesH2, FeddesObjEnterData,  iflag,  &
+                                 SearchType     = FromBlock,                                        &
+                                 keyword        = 'FEDDES_H2',                                      &
+                                 ClientModule   = 'ModuleVegetation',                               &
+                                 STAT           = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_) stop 'ReadFeddesDatabase - ModuleVegetation - ERR60'
+                    if (iflag /= 1) then
+                        write(*,*)'Missing FEDDES_H2 in Vegetation Type definition'
+                        stop 'ReadFeddesDatabase - ModuleVegetation - ERR70'
+                    endif
+                    call GetData(Me%VegetationTypes(ivt)%RootFeddesH3, FeddesObjEnterData,  iflag,     &
+                                 SearchType     = FromBlock,                                        &
+                                 keyword        = 'FEDDES_H3',                                      &
+                                 ClientModule   = 'ModuleVegetation',                               &
+                                 STAT           = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_) stop 'ReadFeddesDatabase - ModuleVegetation - ERR80'
+                    if (iflag /= 1) then
+                        write(*,*)'Missing FEDDES_H3 in Vegetation Type definition'
+                        stop 'ReadFeddesDatabase - ModuleVegetation - ERR90'
+                    endif
+                    call GetData(Me%VegetationTypes(ivt)%RootFeddesH4, FeddesObjEnterData,  iflag,     &
+                                 SearchType     = FromBlock,                                        &
+                                 keyword        = 'FEDDES_H4',                                      &
+                                 ClientModule   = 'ModuleVegetation',                               &
+                                 STAT           = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_) stop 'ReadFeddesDatabase - ModuleVegetation - ERR100'
+                    if (iflag /= 1) then
+                        write(*,*)'Missing FEDDES_H4 in Vegetation Type definition'
+                        stop 'ReadFeddesDatabase - ModuleVegetation - ERR110'
+                    endif
+                    
+                    exit doH1
+                    
+                endif
+                
+            else
+                
+                call Block_Unlock(FeddesObjEnterData, FeddesClientNumber, STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_) stop 'ReadFeddedDatabase - ModuleVegetation - ERR120'
+               
+                exit doH1 
+                          
+            endif HF1
+            
+        enddo doH1
+             
+        if (.not. VegetationFound) then
+            write(*,*)
+            write(*,*) 'Vegetation ID not found:', Me%VegetationTypes(ivt)%VegetationID
+            write(*,*) 'Check that ID is defined in database:',Me%FeddesDatabase
+            stop 'ReadFeddesDatabase - ModuleVegetation - ERR130' 
+        endif           
     
-    subroutine ReadTimingDatabase(ivt, ClientNumber)
+    
+        call KillEnterData(FeddesObjEnterData, STAT = STAT_CALL)         
+        if (STAT_CALL /= SUCCESS_) stop 'ReadFeddeshDatabase - ModuleVegetation - ERR140'        
+
+        
+
+    end subroutine ReadFeddesDatabase
+
+    !--------------------------------------------------------------------------
+
+    
+    subroutine ReadTimingParameters(ivt, ClientNumber,ParameterObjEnterData)
         
         !Arguments-------------------------------------------------------------
         integer                                     :: ivt
         integer                                     :: ClientNumber
+        integer                                     :: ParameterObjEnterData
         !Local-----------------------------------------------------------------
         integer                                     :: STAT_CALL
         logical                                     :: DatabaseFound
@@ -3679,18 +4093,17 @@ HF:         if (STAT_CALL == SUCCESS_ .and. VegetationTypeFound) then
         !Begin-----------------------------------------------------------------
 
 
-
-        call ExtractBlockFromBlock(Me%ObjEnterData,                                           &
+        call ExtractBlockFromBlock(ParameterObjEnterData,                                     &
                                     ClientNumber      = ClientNumber,                         &
-                                    block_begin       = '<begintimingdatabase>',              &
-                                    block_end         = '<endtimingdatabase>',                &
+                                    block_begin       = '<begintimingparameters>',            &
+                                    block_end         = '<endtimingparameters>',              &
                                     BlockInBlockFound = DatabaseFound,                        &   
                                     STAT              = STAT_CALL)
 HF:     if (STAT_CALL == SUCCESS_ .and. DatabaseFound) then
 
             !Reads timing Parameters
 
-            call GetData(Me%VegetationTypes(ivt)%TimingDatabase%PlantHUAtMaturity, Me%ObjEnterData,  iflag,               &
+            call GetData(Me%VegetationTypes(ivt)%TimingDatabase%PlantHUAtMaturity, ParameterObjEnterData,  iflag,               &
                          SearchType     = FromBlockInBlock,                                                               &
                          Default        = -99.,                                                                           &
                          keyword        = 'MATURITY_HU',                                                                  &
@@ -3702,7 +4115,7 @@ HF:     if (STAT_CALL == SUCCESS_ .and. DatabaseFound) then
                 stop 'ReadTimingDatabase - ModuleVegetation - ERR15'
             endif
                     
-            call GetData(Me%VegetationTypes(ivt)%TimingDatabase%PlantingJulianDay, Me%ObjEnterData,  iflag,               &
+            call GetData(Me%VegetationTypes(ivt)%TimingDatabase%PlantingJulianDay, ParameterObjEnterData,  iflag,               &
                          SearchType     = FromBlockInBlock,                                                               &
                          Default        = -99.,                                                                           &
                          keyword        = 'PLANTING_JULIANDAY',                                                           &
@@ -3714,7 +4127,7 @@ HF:     if (STAT_CALL == SUCCESS_ .and. DatabaseFound) then
                 FailRead = FailRead +1
             endif
                         
-            call GetData(Me%VegetationTypes(ivt)%TimingDatabase%PlantingHUBase, Me%ObjEnterData,  iflag,                  &
+            call GetData(Me%VegetationTypes(ivt)%TimingDatabase%PlantingHUBase, ParameterObjEnterData,  iflag,                  &
                          SearchType     = FromBlockInBlock,                                                               &
                          Default        = -99.,                                                                           &
                          keyword        = 'PLANTING_HUBASE',                                                              &
@@ -3730,423 +4143,465 @@ HF:     if (STAT_CALL == SUCCESS_ .and. DatabaseFound) then
                 endif
             endif
 
-        else
-
-            call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_) stop 'ReadTimingDatabase - ModuleVegetation - ERR40'
-           
         endif HF
 
-    end subroutine ReadTimingDatabase
+    end subroutine ReadTimingParameters
 
     !--------------------------------------------------------------------------
     
-    subroutine ReadGrowthDatabase(ivt, ClientNumber)
+    subroutine ReadGrowthDatabase(ivt)
         
         !Arguments-------------------------------------------------------------
         integer                                     :: ivt
-        integer                                     :: ClientNumber
         !Local-----------------------------------------------------------------
         integer                                     :: STAT_CALL
-        logical                                     :: DatabaseFound
+        logical                                     :: DatabaseFound, VegetationFound
         integer                                     :: iflag, PlantType
-
+        integer                                     :: GrowthObjEnterData
+        integer                                     :: VegetationID
+        integer                                     :: GrowthClientNumber
         !Begin-----------------------------------------------------------------
 
-
-
-        call ExtractBlockFromBlock(Me%ObjEnterData,                                           &
-                                    ClientNumber      = ClientNumber,                         &
-                                    block_begin       = '<begingrowthdatabase>',              &
-                                    block_end         = '<endgrowthdatabase>',                &
-                                    BlockInBlockFound = DatabaseFound,                        &   
-                                    STAT              = STAT_CALL)
-HF:     if (STAT_CALL == SUCCESS_ .and. DatabaseFound) then
-
-            !Reads Growth Parameters
-            call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%PlantType, Me%ObjEnterData,  iflag,                       &
-                         SearchType     = FromBlockInBlock,                                                               &
-                         keyword        = 'PLANT_TYPE',                                                                   &
-                         ClientModule   = 'ModuleVegetation',                                                             &
-                         STAT           = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_) stop 'ReadGrowthDatabase - ModuleVegetation - ERR10'
-            if (iflag /= 1) then
-                write(*,*)'Missing plant type in growth parameters definition -', trim(Me%VegetationTypes(ivt)%Name)
-                stop 'ReadGrowthDatabase - ModuleVegetation - ERR15'
-            endif
-
-            call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%PlantFractionN1, Me%ObjEnterData,  iflag,                 &
-                         SearchType     = FromBlockInBlock,                                                               &
-                         keyword        = 'OPTIMAL_NITROGENFRACTION_N1',                                                  &
-                         ClientModule   = 'ModuleVegetation',                                                             &
-                         STAT           = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_) stop 'ReadGrowthDatabase - ModuleVegetation - ERR20'
-            if (iflag /= 1) then
-                write(*,*)'Missing optimal nitrogen fraction parameter in growth parameters definition -',                &
-                           trim(Me%VegetationTypes(ivt)%Name)
-                stop 'ReadGrowthDatabase - ModuleVegetation - ERR25'
-            endif
-
-            call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%PlantFractionN2, Me%ObjEnterData,  iflag,                 &
-                         SearchType     = FromBlockInBlock,                                                               &
-                         keyword        = 'OPTIMAL_NITROGENFRACTION_N2',                                                  &
-                         ClientModule   = 'ModuleVegetation',                                                             &
-                         STAT           = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_) stop 'ReadGrowthDatabase - ModuleVegetation - ERR30'
-            if (iflag /= 1) then
-                write(*,*)'Missing optimal nitrogen fraction parameter in growth parameters definition -',                &
-                           trim(Me%VegetationTypes(ivt)%Name)
-                stop 'ReadGrowthDatabase - ModuleVegetation - ERR35'
-            endif
-
-            call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%PlantFractionN3, Me%ObjEnterData,  iflag,                 &
-                         SearchType     = FromBlockInBlock,                                                               & 
-                         keyword        = 'OPTIMAL_NITROGENFRACTION_N3',                                                  &
-                         ClientModule   = 'ModuleVegetation',                                                             &
-                         STAT           = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_) stop 'ReadGrowthDatabase - ModuleVegetation - ERR40'
-            if (iflag /= 1) then
-                write(*,*)'Missing optimal nitrogen fraction parameter in growth parameters definition -',                &
-                           trim(Me%VegetationTypes(ivt)%Name)
-                stop 'ReadGrowthDatabase - ModuleVegetation - ERR45'
-            endif
-            
-            call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%PlantFractionP1, Me%ObjEnterData,  iflag,                 &
-                         SearchType     = FromBlockInBlock,                                                               &
-                         keyword        = 'OPTIMAL_PHOSPHORUSFRACTION_P1',                                                &
-                         ClientModule   = 'ModuleVegetation',                                                             &
-                         STAT           = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_) stop 'ReadGrowthDatabase - ModuleVegetation - ERR50'
-            if (iflag /= 1) then
-                write(*,*)'Missing optimal phosphorus fraction parameter in growth parameters definition -',              &
-                           trim(Me%VegetationTypes(ivt)%Name)
-                stop 'ReadGrowthDatabase - ModuleVegetation - ERR55'
-            endif
-
-            call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%PlantFractionP2, Me%ObjEnterData,  iflag,                 &
-                         SearchType     = FromBlockInBlock,                                                               &
-                         keyword        = 'OPTIMAL_PHOSPHORUSFRACTION_P2',                                                &
-                         ClientModule   = 'ModuleVegetation',                                                             &
-                         STAT           = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_) stop 'ReadGrowthDatabase - ModuleVegetation - ERR60'
-            if (iflag /= 1) then
-                write(*,*)'Missing optimal phosphorus fraction parameter in growth parameters definition -',              &
-                           trim(Me%VegetationTypes(ivt)%Name)
-                stop 'ReadGrowthDatabase - ModuleVegetation - ERR65'
-            endif
-
-            call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%PlantFractionP3, Me%ObjEnterData,  iflag,                 &
-                         SearchType     = FromBlockInBlock,                                                               &
-                         keyword        = 'OPTIMAL_PHOSPHORUSFRACTION_P3',                                                &
-                         ClientModule   = 'ModuleVegetation',                                                             &
-                         STAT           = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_) stop 'ReadGrowthDatabase - ModuleVegetation - ERR70'
-            if (iflag /= 1) then
-                write(*,*)'Missing optimal phosphorus fraction parameter in growth parameters definition -',              &
-                           trim(Me%VegetationTypes(ivt)%Name)
-                stop 'ReadGrowthDatabase - ModuleVegetation - ERR75'
-            endif
-
-            call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%PlantBaseTemperature, Me%ObjEnterData,  iflag,            &
-                         SearchType     = FromBlockInBlock,                                                               &
-                         keyword        = 'BASE_TEMPERATURE',                                                             &
-                         ClientModule   = 'ModuleVegetation',                                                             &
-                         STAT           = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_) stop 'ReadGrowthDatabase - ModuleVegetation - ERR80'
-            if (iflag /= 1) then
-                write(*,*)'Missing base temperature in growth parameters definition -',                                   &
-                           trim(Me%VegetationTypes(ivt)%Name)
-                stop 'ReadGrowthDatabase - ModuleVegetation - ERR85'
-            endif
-
-            call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%PlantOptimalTemperature, Me%ObjEnterData,  iflag,         &
-                         SearchType     = FromBlockInBlock,                                                               &
-                         keyword        = 'OPTIMAL_TEMPERATURE',                                                          &
-                         ClientModule   = 'ModuleVegetation',                                                             &
-                         STAT           = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_) stop 'ReadGrowthDatabase - ModuleVegetation - ERR90'
-            if (iflag /= 1) then
-                write(*,*)'Missing optimal temperature in growth parameters definition -',                                &
-                           trim(Me%VegetationTypes(ivt)%Name)
-                stop 'ReadGrowthDatabase - ModuleVegetation - ERR95'
-            endif
-
-            call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%ExtinctCoef, Me%ObjEnterData,  iflag,                     &
-                         SearchType     = FromBlockInBlock,                                                               &
-                         keyword        = 'RADIATION_EXTINCTION_COEF',                                                    &
-                         ClientModule   = 'ModuleVegetation',                                                             &
-                         STAT           = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_) stop 'ReadGrowthDatabase - ModuleVegetation - ERR100'
-            if (iflag /= 1) then
-                write(*,*)'Missing radiation extiction coefficient in growth parameters definition -',                    &
-                           trim(Me%VegetationTypes(ivt)%Name)
-                stop 'ReadGrowthDatabase - ModuleVegetation - ERR105'
-            endif
-
-            call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%BiomassEnergyRatio, Me%ObjEnterData,  iflag,              &
-                         SearchType     = FromBlockInBlock,                                                               &
-                         keyword        = 'BIOMASS_ENERGY_RATIO',                                                         &
-                         ClientModule   = 'ModuleVegetation',                                                             &
-                         STAT           = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_) stop 'ReadGrowthDatabase - ModuleVegetation - ERR110'
-            if (iflag /= 1) then
-                write(*,*)'Missing biomass energy ratio in growth parameters definition -',                               &
-                           trim(Me%VegetationTypes(ivt)%Name)
-                stop 'ReadGrowthDatabase - ModuleVegetation - ERR115'
-            endif
-
-            call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%CO2ConcHigh, Me%ObjEnterData,  iflag,                     &
-                         SearchType     = FromBlockInBlock,                                                               &
-                         keyword        = 'CO2_HIGH',                                                                     &
-                         ClientModule   = 'ModuleVegetation',                                                             &
-                         STAT           = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_) stop 'ReadGrowthDatabase - ModuleVegetation - ERR120'
-            if (iflag /= 1) then
-                write(*,*)'Missing high CO2 concentration in growth parameters definition -',                             &
-                           trim(Me%VegetationTypes(ivt)%Name)
-                stop 'ReadGrowthDatabase - ModuleVegetation - ERR125'
-            endif
-
-            call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%BiomassEnergyRatioHigh, Me%ObjEnterData,  iflag,          &
-                         SearchType     = FromBlockInBlock,                                                               &
-                         keyword        = 'BIOMASS_ENERGY_RATIO_HIGH',                                                    &
-                         ClientModule   = 'ModuleVegetation',                                                             &
-                         STAT           = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_) stop 'ReadGrowthDatabase - ModuleVegetation - ERR130'
-            if (iflag /= 1) then
-                write(*,*)'Missing high biomass energy ratio in growth parameters definition -',                          &
-                           trim(Me%VegetationTypes(ivt)%Name)
-                stop 'ReadGrowthDatabase - ModuleVegetation - ERR135'
-            endif
-
-            call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%RUEDeclineRate, Me%ObjEnterData,  iflag,                  &
-                         SearchType     = FromBlockInBlock,                                                               &
-                         keyword        = 'RUE_DECLINE_RATE',                                                             &
-                         ClientModule   = 'ModuleVegetation',                                                             &
-                         STAT           = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_) stop 'ReadGrowthDatabase - ModuleVegetation - ERR140'
-            if (iflag /= 1) then
-                write(*,*)'Missing RUE decline rate in growth parameters definition -',                                   &
-                           trim(Me%VegetationTypes(ivt)%Name)
-                stop 'ReadGrowthDatabase - ModuleVegetation - ERR145'
-            endif
-
-            call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%FrLAIMax1, Me%ObjEnterData,  iflag,                       &
-                         SearchType     = FromBlockInBlock,                                                               &
-                         keyword        = 'OPTIMAL_LAIMAXFRACTION_1',                                                     &
-                         ClientModule   = 'ModuleVegetation',                                                             &
-                         STAT           = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_) stop 'ReadGrowthDatabase - ModuleVegetation - ERR150'
-            if (iflag /= 1) then
-                write(*,*)'Missing optimal fraction of maximum LAI in growth parameters definition -',                    &
-                           trim(Me%VegetationTypes(ivt)%Name)
-                stop 'ReadGrowthDatabase - ModuleVegetation - ERR155'
-            endif
-
-            call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%FrLAIMax2, Me%ObjEnterData,  iflag,                       &
-                         SearchType     = FromBlockInBlock,                                                               &
-                         keyword        = 'OPTIMAL_LAIMAXFRACTION_2',                                                     &
-                         ClientModule   = 'ModuleVegetation',                                                             &
-                         STAT           = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_) stop 'ReadGrowthDatabase - ModuleVegetation - ERR160'
-            if (iflag /= 1) then
-                write(*,*)'Missing optimal fraction of maximum LAI in growth parameters definition -',                    &
-                           trim(Me%VegetationTypes(ivt)%Name)
-                stop 'ReadGrowthDatabase - ModuleVegetation - ERR165'
-            endif
-
-            call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%FrGrow1, Me%ObjEnterData,  iflag,                         &
-                         SearchType     = FromBlockInBlock,                                                               &
-                         keyword        = 'GROWFRACTION_1',                                                               &
-                         ClientModule   = 'ModuleVegetation',                                                             &
-                         STAT           = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_) stop 'ReadGrowthDatabase - ModuleVegetation - ERR170'
-            if (iflag /= 1) then
-                write(*,*)'Missing grow stage fraction asscoiated with LAI curve in growth parameters definition -',      &
-                           trim(Me%VegetationTypes(ivt)%Name)
-                stop 'ReadGrowthDatabase - ModuleVegetation - ERR175'
-            endif
-
-            call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%FrGrow2, Me%ObjEnterData,  iflag,                         &
-                         SearchType     = FromBlockInBlock,                                                               &
-                         keyword        = 'GROWFRACTION_2',                                                               &
-                         ClientModule   = 'ModuleVegetation',                                                             &
-                         STAT           = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_) stop 'ReadGrowthDatabase - ModuleVegetation - ERR180'
-            if (iflag /= 1) then
-                write(*,*)'Missing grow stage fraction asscoiated with LAI curve in growth parameters definition -',      &
-                           trim(Me%VegetationTypes(ivt)%Name)
-                stop 'ReadGrowthDatabase - ModuleVegetation - ERR185'
-            endif
-
-            call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%FrGrowLAIDecline, Me%ObjEnterData,  iflag,                &
-                         SearchType     = FromBlockInBlock,                                                               &
-                         keyword        = 'GROWFRACTION_LAIDECLINE',                                                      &
-                         ClientModule   = 'ModuleVegetation',                                                             &
-                         STAT           = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_) stop 'ReadGrowthDatabase - ModuleVegetation - ERR190'
-            if (iflag /= 1) then
-                write(*,*)'Missing grow stage fraction asscoiated with LAI curve in growth parameters definition -',      &
-                           trim(Me%VegetationTypes(ivt)%Name)
-                stop 'ReadGrowthDatabase - ModuleVegetation - ERR195'
-            endif
-
-            call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%LAIMax, Me%ObjEnterData,  iflag,                          &
-                         SearchType     = FromBlockInBlock,                                                               &
-                         keyword        = 'LAI_MAX',                                                                      &
-                         ClientModule   = 'ModuleVegetation',                                                             &
-                         STAT           = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_) stop 'ReadGrowthDatabase - ModuleVegetation - ERR200'
-            if (iflag /= 1) then
-                write(*,*)'Missing maximum LAI in growth parameters definition -',                                        &
-                           trim(Me%VegetationTypes(ivt)%Name)
-                stop 'ReadGrowthDatabase - ModuleVegetation - ERR205'
-            endif
-
-            call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%MaximumRootDepth, Me%ObjEnterData,  iflag,                &
-                         SearchType     = FromBlockInBlock,                                                               &
-                         keyword        = 'ROOT_DEPTH_MAX',                                                               &
-                         ClientModule   = 'ModuleVegetation',                                                             &
-                         STAT           = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_) stop 'ReadGrowthDatabase - ModuleVegetation - ERR210'
-            if (iflag /= 1) then
-                write(*,*)'Missing maximum root depth in growth parameters definition -',                                 &
-                           trim(Me%VegetationTypes(ivt)%Name)
-                stop 'ReadGrowthDatabase - ModuleVegetation - ERR215'
-            endif
-
-            call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%MaxCanopyHeight, Me%ObjEnterData,  iflag,                 &
-                         SearchType     = FromBlockInBlock,                                                               &
-                         keyword        = 'CANOPY_HEIGHT_MAX',                                                            &
-                         ClientModule   = 'ModuleVegetation',                                                             &
-                         STAT           = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_) stop 'ReadGrowthDatabase - ModuleVegetation - ERR220'
-            if (iflag /= 1) then
-                write(*,*)'Missing maximum canopy height in growth parameters definition -',                              &
-                           trim(Me%VegetationTypes(ivt)%Name)
-                stop 'ReadGrowthDatabase - ModuleVegetation - ERR225'
-            endif
-
-            call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%OptimalHarvestIndex, Me%ObjEnterData,  iflag,             &
-                         SearchType     = FromBlockInBlock,                                                               &
-                         keyword        = 'OPTIMAL_HARVEST_INDEX',                                                        &
-                         ClientModule   = 'ModuleVegetation',                                                             &
-                         STAT           = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_) stop 'ReadGrowthDatabase - ModuleVegetation - ERR230'
-            if (iflag /= 1) then
-                write(*,*)'Missing optimal harvest index in growth parameters definition -',                              &
-                           trim(Me%VegetationTypes(ivt)%Name)
-                stop 'ReadGrowthDatabase - ModuleVegetation - ERR235'
-            endif
-
-            call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%MinimumHarvestIndex, Me%ObjEnterData,  iflag,             &
-                         SearchType     = FromBlockInBlock,                                                               &
-                         keyword        = 'MINIMUM_HARVEST_INDEX',                                                        &
-                         ClientModule   = 'ModuleVegetation',                                                             &
-                         STAT           = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_) stop 'ReadGrowthDatabase - ModuleVegetation - ERR240'
-            if (iflag /= 1) then
-                write(*,*)'Missing minimum harvest index in growth parameters definition -',                              &
-                           trim(Me%VegetationTypes(ivt)%Name)
-                stop 'ReadGrowthDatabase - ModuleVegetation - ERR245'
-            endif
-
-            call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%NitrogenFractionInYeld, Me%ObjEnterData,  iflag,          &
-                         SearchType     = FromBlockInBlock,                                                               &
-                         keyword        = 'YELD_NITROGENFRACTION',                                                        &
-                         ClientModule   = 'ModuleVegetation',                                                             &
-                         STAT           = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_) stop 'ReadGrowthDatabase - ModuleVegetation - ERR250'
-            if (iflag /= 1) then
-                write(*,*)'Missing nitrogen fraction in yeld in growth parameters definition -',                          &
-                           trim(Me%VegetationTypes(ivt)%Name)
-                stop 'ReadGrowthDatabase - ModuleVegetation - ERR255'
-            endif
-
-            call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%PhosphorusFractionInYeld, Me%ObjEnterData,  iflag,        &
-                         SearchType     = FromBlockInBlock,                                                               &
-                         keyword        = 'YELD_PHOSPHORUSFRACTION',                                                      &
-                         ClientModule   = 'ModuleVegetation',                                                             &
-                         STAT           = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_) stop 'ReadGrowthDatabase - ModuleVegetation - ERR260'
-            if (iflag /= 1) then
-                write(*,*)'Missing phosphorus fraction in yeld in growth parameters definition -',                        &
-                           trim(Me%VegetationTypes(ivt)%Name)
-                stop 'ReadGrowthDatabase - ModuleVegetation - ERR265'
-            endif
-
-            PlantType = Me%VegetationTypes(ivt)%GrowthDatabase%PlantType
-            if (PlantType == 7) then
-            
-                call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%TreeYearsToMaturity, Me%ObjEnterData,  iflag,         &
-                             SearchType     = FromBlockInBlock,                                                           &
-                             keyword        = 'TREE_YEARSTOMATURITY',                                                     &
-                             ClientModule   = 'ModuleVegetation',                                                         &
-                             STAT           = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_) stop 'ReadGrowthDatabase - ModuleVegetation - ERR270'
-                if (iflag /= 1) then
-                    write(*,*)'Missing tree years too maturity in growth parameters definition -',                        &
-                               trim(Me%VegetationTypes(ivt)%Name)
-                    stop 'ReadGrowthDatabase - ModuleVegetation - ERR275'
-                endif
-
-                call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%TreeMaximumBiomass, Me%ObjEnterData,  iflag,          &
-                             SearchType     = FromBlockInBlock,                                                           &
-                             keyword        = 'TREE_MAXIMUMBIOMASS',                                                      &
-                             ClientModule   = 'ModuleVegetation',                                                         &
-                             STAT           = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_) stop 'ReadGrowthDatabase - ModuleVegetation - ERR280'
-                if (iflag /= 1) then
-                    write(*,*)'Missing tree maximum biomass in growth parameters definition -',                           &
-                               trim(Me%VegetationTypes(ivt)%Name)
-                    stop 'ReadGrowthDatabase - ModuleVegetation - ERR285'
-                endif
-            
-            endif
-            
-            if (Me%ComputeOptions%Dormancy) then
-                call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%BiomassFracRemovedInDormancy, Me%ObjEnterData,  iflag,    &
-                             SearchType     = FromBlockInBlock,                                                               &
-                             keyword        = 'BIOMASS_FRAC_REMOVED_DORMANCY',                                                &
-                             ClientModule   = 'ModuleVegetation',                                                             &
-                             STAT           = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_) stop 'ReadGrowthDatabase - ModuleVegetation - ERR290'
-                if (iflag /= 1) then
-                    write(*,*)'Missing biomass fraction removed in dormancy in growth parameters definition -',               &
-                               trim(Me%VegetationTypes(ivt)%Name)
-                    stop 'ReadGrowthDatabase - ModuleVegetation - ERR295'
-                endif
+        GrowthObjEnterData = 0
+        !Open and save growth database
+        call ConstructEnterData(GrowthObjEnterData, Me%GrowthDatabase, STAT = STAT_CALL) 
+        if (STAT_CALL /= SUCCESS_) stop 'ReadGrowthDatabase - ModuleVegetation - ERR80'        
         
-                call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%LAIMinDormant, Me%ObjEnterData,  iflag,                   &
-                             SearchType     = FromBlockInBlock,                                                               &
-                             keyword        = 'LAI_MIN_DORMANCY',                                                             &
-                             ClientModule   = 'ModuleVegetation',                                                             &
-                             STAT           = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_) stop 'ReadGrowthDatabase - ModuleVegetation - ERR300'
-                if (iflag /= 1) then
-                    write(*,*)'Missing LAI minimum in dormancy in growth parameters definition -',                        &
-                               trim(Me%VegetationTypes(ivt)%Name)
-                    stop 'ReadGrowthDatabase - ModuleVegetation - ERR305'
-                endif
-            endif
-        
-        else
-
-            call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_) stop 'ReadGrowthDatabase - ModuleVegetation - ERR290'
            
-        endif HF
+        VegetationFound = .false. 
+            
+doH1:   do 
+            call ExtractBlockFromBuffer(GrowthObjEnterData,                                    &
+                                        ClientNumber      = GrowthClientNumber,                   &
+                                        block_begin       = '<begingrowthdatabase>',              &
+                                        block_end         = '<endgrowthdatabase>',                &
+                                        BlockFound        = DatabaseFound,                        &   
+                                        STAT              = STAT_CALL)
+HF1:        if (STAT_CALL == SUCCESS_ .and. DatabaseFound) then
+                
+                call GetData(VegetationID, GrowthObjEnterData, iflag,                                                     &
+                             SearchType     = FromBlock,                                                                  &
+                             keyword        = 'VEGETATION_ID',                                                            &
+                             ClientModule   = 'ModuleVegetation',                                                         &
+                             STAT           = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_) stop 'ReadGrowthDatabase - ModuleVegetation - ERR90'     
+                if (iflag /= 1) then
+                    write(*,*)'Missing VEGETATION_ID in Vegetation Type definition'
+                    write(*,*)'Check vegetation definition in',Me%GrowthDatabase
+                    stop 'ReadGrowthDatabase - ModuleVegetation - ERR30'
+                endif
+                                    
+                if (VegetationID == Me%VegetationTypes(ivt)%VegetationID) then
+                    
+                    VegetationFound = .true.
+                    
+                    !Reads Growth Parameters
+                    call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%PlantType, GrowthObjEnterData,  iflag,                  &
+                                 SearchType     = FromBlock,                                                          &
+                                 keyword        = 'PLANT_TYPE',                                                              &
+                                 ClientModule   = 'ModuleVegetation',                                                        &
+                                 STAT           = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_) stop 'ReadGrowthDatabase - ModuleVegetation - ERR10'
+                    if (iflag /= 1) then
+                        write(*,*)'Missing plant type in growth parameters definition -', trim(Me%VegetationTypes(ivt)%Name)
+                        stop 'ReadGrowthDatabase - ModuleVegetation - ERR15'
+                    endif
+
+                    call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%PlantFractionN1, GrowthObjEnterData,  iflag,            &
+                                 SearchType     = FromBlock,                                                          &
+                                 keyword        = 'OPTIMAL_NITROGENFRACTION_N1',                                             &
+                                 ClientModule   = 'ModuleVegetation',                                                        &
+                                 STAT           = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_) stop 'ReadGrowthDatabase - ModuleVegetation - ERR20'
+                    if (iflag /= 1) then
+                        write(*,*)'Missing optimal nitrogen fraction parameter in growth parameters definition -',           &
+                                   trim(Me%VegetationTypes(ivt)%Name)
+                        stop 'ReadGrowthDatabase - ModuleVegetation - ERR25'
+                    endif
+
+                    call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%PlantFractionN2, GrowthObjEnterData,  iflag,            &
+                                 SearchType     = FromBlock,                                                          &
+                                 keyword        = 'OPTIMAL_NITROGENFRACTION_N2',                                             &
+                                 ClientModule   = 'ModuleVegetation',                                                        &
+                                 STAT           = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_) stop 'ReadGrowthDatabase - ModuleVegetation - ERR30'
+                    if (iflag /= 1) then
+                        write(*,*)'Missing optimal nitrogen fraction parameter in growth parameters definition -',           &
+                                   trim(Me%VegetationTypes(ivt)%Name)
+                        stop 'ReadGrowthDatabase - ModuleVegetation - ERR35'
+                    endif
+
+                    call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%PlantFractionN3, GrowthObjEnterData,  iflag,            &
+                                 SearchType     = FromBlock,                                                          & 
+                                 keyword        = 'OPTIMAL_NITROGENFRACTION_N3',                                             &
+                                 ClientModule   = 'ModuleVegetation',                                                        &
+                                 STAT           = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_) stop 'ReadGrowthDatabase - ModuleVegetation - ERR40'
+                    if (iflag /= 1) then
+                        write(*,*)'Missing optimal nitrogen fraction parameter in growth parameters definition -',           &
+                                   trim(Me%VegetationTypes(ivt)%Name)
+                        stop 'ReadGrowthDatabase - ModuleVegetation - ERR45'
+                    endif
+                    
+                    call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%PlantFractionP1, GrowthObjEnterData,  iflag,            &
+                                 SearchType     = FromBlock,                                                          &
+                                 keyword        = 'OPTIMAL_PHOSPHORUSFRACTION_P1',                                           &
+                                 ClientModule   = 'ModuleVegetation',                                                        &
+                                 STAT           = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_) stop 'ReadGrowthDatabase - ModuleVegetation - ERR50'
+                    if (iflag /= 1) then
+                        write(*,*)'Missing optimal phosphorus fraction parameter in growth parameters definition -',         &
+                                   trim(Me%VegetationTypes(ivt)%Name)
+                        stop 'ReadGrowthDatabase - ModuleVegetation - ERR55'
+                    endif
+
+                    call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%PlantFractionP2, GrowthObjEnterData,  iflag,            &
+                                 SearchType     = FromBlock,                                                          &
+                                 keyword        = 'OPTIMAL_PHOSPHORUSFRACTION_P2',                                           &
+                                 ClientModule   = 'ModuleVegetation',                                                        &
+                                 STAT           = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_) stop 'ReadGrowthDatabase - ModuleVegetation - ERR60'
+                    if (iflag /= 1) then
+                        write(*,*)'Missing optimal phosphorus fraction parameter in growth parameters definition -',         &
+                                   trim(Me%VegetationTypes(ivt)%Name)
+                        stop 'ReadGrowthDatabase - ModuleVegetation - ERR65'
+                    endif
+
+                    call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%PlantFractionP3, GrowthObjEnterData,  iflag,            &
+                                 SearchType     = FromBlock,                                                          &
+                                 keyword        = 'OPTIMAL_PHOSPHORUSFRACTION_P3',                                           &
+                                 ClientModule   = 'ModuleVegetation',                                                        &
+                                 STAT           = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_) stop 'ReadGrowthDatabase - ModuleVegetation - ERR70'
+                    if (iflag /= 1) then
+                        write(*,*)'Missing optimal phosphorus fraction parameter in growth parameters definition -',         &
+                                   trim(Me%VegetationTypes(ivt)%Name)
+                        stop 'ReadGrowthDatabase - ModuleVegetation - ERR75'
+                    endif
+
+                    call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%PlantBaseTemperature, GrowthObjEnterData,  iflag,       &
+                                 SearchType     = FromBlock,                                                          &
+                                 keyword        = 'BASE_TEMPERATURE',                                                        &
+                                 ClientModule   = 'ModuleVegetation',                                                        &
+                                 STAT           = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_) stop 'ReadGrowthDatabase - ModuleVegetation - ERR80'
+                    if (iflag /= 1) then
+                        write(*,*)'Missing base temperature in growth parameters definition -',                              &
+                                   trim(Me%VegetationTypes(ivt)%Name)
+                        stop 'ReadGrowthDatabase - ModuleVegetation - ERR85'
+                    endif
+
+                    call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%PlantOptimalTemperature, GrowthObjEnterData,  iflag,    &
+                                 SearchType     = FromBlock,                                                          &
+                                 keyword        = 'OPTIMAL_TEMPERATURE',                                                     &
+                                 ClientModule   = 'ModuleVegetation',                                                        &
+                                 STAT           = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_) stop 'ReadGrowthDatabase - ModuleVegetation - ERR90'
+                    if (iflag /= 1) then
+                        write(*,*)'Missing optimal temperature in growth parameters definition -',                           &
+                                   trim(Me%VegetationTypes(ivt)%Name)
+                        stop 'ReadGrowthDatabase - ModuleVegetation - ERR95'
+                    endif
+
+                    call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%ExtinctCoef, GrowthObjEnterData,  iflag,                &
+                                 SearchType     = FromBlock,                                                          &
+                                 keyword        = 'RADIATION_EXTINCTION_COEF',                                               &
+                                 ClientModule   = 'ModuleVegetation',                                                        &
+                                 STAT           = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_) stop 'ReadGrowthDatabase - ModuleVegetation - ERR100'
+                    if (iflag /= 1) then
+                        write(*,*)'Missing radiation extiction coefficient in growth parameters definition -',               &
+                                   trim(Me%VegetationTypes(ivt)%Name)
+                        stop 'ReadGrowthDatabase - ModuleVegetation - ERR105'
+                    endif
+
+                    call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%BiomassEnergyRatio, GrowthObjEnterData,  iflag,         &
+                                 SearchType     = FromBlock,                                                          &
+                                 keyword        = 'BIOMASS_ENERGY_RATIO',                                                    &
+                                 ClientModule   = 'ModuleVegetation',                                                        &
+                                 STAT           = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_) stop 'ReadGrowthDatabase - ModuleVegetation - ERR110'
+                    if (iflag /= 1) then
+                        write(*,*)'Missing biomass energy ratio in growth parameters definition -',                          &
+                                   trim(Me%VegetationTypes(ivt)%Name)
+                        stop 'ReadGrowthDatabase - ModuleVegetation - ERR115'
+                    endif
+
+                    call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%CO2ConcHigh, GrowthObjEnterData,  iflag,                &
+                                 SearchType     = FromBlock,                                                          &
+                                 keyword        = 'CO2_HIGH',                                                                &
+                                 ClientModule   = 'ModuleVegetation',                                                        &
+                                 STAT           = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_) stop 'ReadGrowthDatabase - ModuleVegetation - ERR120'
+                    if (iflag /= 1) then
+                        write(*,*)'Missing high CO2 concentration in growth parameters definition -',                        &
+                                   trim(Me%VegetationTypes(ivt)%Name)
+                        stop 'ReadGrowthDatabase - ModuleVegetation - ERR125'
+                    endif
+
+                    call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%BiomassEnergyRatioHigh, GrowthObjEnterData,  iflag,     &
+                                 SearchType     = FromBlock,                                                          &
+                                 keyword        = 'BIOMASS_ENERGY_RATIO_HIGH',                                               &
+                                 ClientModule   = 'ModuleVegetation',                                                        &
+                                 STAT           = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_) stop 'ReadGrowthDatabase - ModuleVegetation - ERR130'
+                    if (iflag /= 1) then
+                        write(*,*)'Missing high biomass energy ratio in growth parameters definition -',                     &
+                                   trim(Me%VegetationTypes(ivt)%Name)
+                        stop 'ReadGrowthDatabase - ModuleVegetation - ERR135'
+                    endif
+
+                    call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%RUEDeclineRate, GrowthObjEnterData,  iflag,             &
+                                 SearchType     = FromBlock,                                                          &
+                                 keyword        = 'RUE_DECLINE_RATE',                                                        &
+                                 ClientModule   = 'ModuleVegetation',                                                        &
+                                 STAT           = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_) stop 'ReadGrowthDatabase - ModuleVegetation - ERR140'
+                    if (iflag /= 1) then
+                        write(*,*)'Missing RUE decline rate in growth parameters definition -',                              &
+                                   trim(Me%VegetationTypes(ivt)%Name)
+                        stop 'ReadGrowthDatabase - ModuleVegetation - ERR145'
+                    endif
+
+                    call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%FrLAIMax1, GrowthObjEnterData,  iflag,                  &
+                                 SearchType     = FromBlock,                                                          &
+                                 keyword        = 'OPTIMAL_LAIMAXFRACTION_1',                                                &
+                                 ClientModule   = 'ModuleVegetation',                                                        &
+                                 STAT           = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_) stop 'ReadGrowthDatabase - ModuleVegetation - ERR150'
+                    if (iflag /= 1) then
+                        write(*,*)'Missing optimal fraction of maximum LAI in growth parameters definition -',               &
+                                   trim(Me%VegetationTypes(ivt)%Name)
+                        stop 'ReadGrowthDatabase - ModuleVegetation - ERR155'
+                    endif
+
+                    call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%FrLAIMax2, GrowthObjEnterData,  iflag,                  &
+                                 SearchType     = FromBlock,                                                          &
+                                 keyword        = 'OPTIMAL_LAIMAXFRACTION_2',                                                &
+                                 ClientModule   = 'ModuleVegetation',                                                        &
+                                 STAT           = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_) stop 'ReadGrowthDatabase - ModuleVegetation - ERR160'
+                    if (iflag /= 1) then
+                        write(*,*)'Missing optimal fraction of maximum LAI in growth parameters definition -',               &
+                                   trim(Me%VegetationTypes(ivt)%Name)
+                        stop 'ReadGrowthDatabase - ModuleVegetation - ERR165'
+                    endif
+
+                    call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%FrGrow1, GrowthObjEnterData,  iflag,                    &
+                                 SearchType     = FromBlock,                                                          &
+                                 keyword        = 'GROWFRACTION_1',                                                          &
+                                 ClientModule   = 'ModuleVegetation',                                                        &
+                                 STAT           = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_) stop 'ReadGrowthDatabase - ModuleVegetation - ERR170'
+                    if (iflag /= 1) then
+                        write(*,*)'Missing grow stage fraction asscoiated with LAI curve in growth parameters definition -', &
+                                   trim(Me%VegetationTypes(ivt)%Name)
+                        stop 'ReadGrowthDatabase - ModuleVegetation - ERR175'
+                    endif
+
+                    call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%FrGrow2, GrowthObjEnterData,  iflag,                    &
+                                 SearchType     = FromBlock,                                                          &
+                                 keyword        = 'GROWFRACTION_2',                                                          &
+                                 ClientModule   = 'ModuleVegetation',                                                        &
+                                 STAT           = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_) stop 'ReadGrowthDatabase - ModuleVegetation - ERR180'
+                    if (iflag /= 1) then
+                        write(*,*)'Missing grow stage fraction asscoiated with LAI curve in growth parameters definition -', &
+                                   trim(Me%VegetationTypes(ivt)%Name)
+                        stop 'ReadGrowthDatabase - ModuleVegetation - ERR185'
+                    endif
+
+                    call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%FrGrowLAIDecline, GrowthObjEnterData,  iflag,           &
+                                 SearchType     = FromBlock,                                                          &
+                                 keyword        = 'GROWFRACTION_LAIDECLINE',                                                 &
+                                 ClientModule   = 'ModuleVegetation',                                                        &
+                                 STAT           = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_) stop 'ReadGrowthDatabase - ModuleVegetation - ERR190'
+                    if (iflag /= 1) then
+                        write(*,*)'Missing grow stage fraction asscoiated with LAI curve in growth parameters definition -', &
+                                   trim(Me%VegetationTypes(ivt)%Name)
+                        stop 'ReadGrowthDatabase - ModuleVegetation - ERR195'
+                    endif
+
+                    call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%LAIMax, GrowthObjEnterData,  iflag,                     &
+                                 SearchType     = FromBlock,                                                          &
+                                 keyword        = 'LAI_MAX',                                                                 &
+                                 ClientModule   = 'ModuleVegetation',                                                        &
+                                 STAT           = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_) stop 'ReadGrowthDatabase - ModuleVegetation - ERR200'
+                    if (iflag /= 1) then
+                        write(*,*)'Missing maximum LAI in growth parameters definition -',                                   &
+                                   trim(Me%VegetationTypes(ivt)%Name)
+                        stop 'ReadGrowthDatabase - ModuleVegetation - ERR205'
+                    endif
+
+                    call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%MaximumRootDepth, GrowthObjEnterData,  iflag,           &
+                                 SearchType     = FromBlock,                                                          &
+                                 keyword        = 'ROOT_DEPTH_MAX',                                                          &
+                                 ClientModule   = 'ModuleVegetation',                                                        &
+                                 STAT           = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_) stop 'ReadGrowthDatabase - ModuleVegetation - ERR210'
+                    if (iflag /= 1) then
+                        write(*,*)'Missing maximum root depth in growth parameters definition -',                            &
+                                   trim(Me%VegetationTypes(ivt)%Name)
+                        stop 'ReadGrowthDatabase - ModuleVegetation - ERR215'
+                    endif
+
+                    call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%MaxCanopyHeight, GrowthObjEnterData,  iflag,            &
+                                 SearchType     = FromBlock,                                                          &
+                                 keyword        = 'CANOPY_HEIGHT_MAX',                                                       &
+                                 ClientModule   = 'ModuleVegetation',                                                        &
+                                 STAT           = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_) stop 'ReadGrowthDatabase - ModuleVegetation - ERR220'
+                    if (iflag /= 1) then
+                        write(*,*)'Missing maximum canopy height in growth parameters definition -',                         &
+                                   trim(Me%VegetationTypes(ivt)%Name)
+                        stop 'ReadGrowthDatabase - ModuleVegetation - ERR225'
+                    endif
+
+                    call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%OptimalHarvestIndex, GrowthObjEnterData,  iflag,        &
+                                 SearchType     = FromBlock,                                                          &
+                                 keyword        = 'OPTIMAL_HARVEST_INDEX',                                                   &
+                                 ClientModule   = 'ModuleVegetation',                                                        &
+                                 STAT           = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_) stop 'ReadGrowthDatabase - ModuleVegetation - ERR230'
+                    if (iflag /= 1) then
+                        write(*,*)'Missing optimal harvest index in growth parameters definition -',                         &
+                                   trim(Me%VegetationTypes(ivt)%Name)
+                        stop 'ReadGrowthDatabase - ModuleVegetation - ERR235'
+                    endif
+
+                    call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%MinimumHarvestIndex, GrowthObjEnterData,  iflag,        &
+                                 SearchType     = FromBlock,                                                          &
+                                 keyword        = 'MINIMUM_HARVEST_INDEX',                                                   &
+                                 ClientModule   = 'ModuleVegetation',                                                        &
+                                 STAT           = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_) stop 'ReadGrowthDatabase - ModuleVegetation - ERR240'
+                    if (iflag /= 1) then
+                        write(*,*)'Missing minimum harvest index in growth parameters definition -',                         &
+                                   trim(Me%VegetationTypes(ivt)%Name)
+                        stop 'ReadGrowthDatabase - ModuleVegetation - ERR245'
+                    endif
+
+                    call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%NitrogenFractionInYeld, GrowthObjEnterData,  iflag,     &
+                                 SearchType     = FromBlock,                                                          &
+                                 keyword        = 'YELD_NITROGENFRACTION',                                                   &
+                                 ClientModule   = 'ModuleVegetation',                                                        &
+                                 STAT           = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_) stop 'ReadGrowthDatabase - ModuleVegetation - ERR250'
+                    if (iflag /= 1) then
+                        write(*,*)'Missing nitrogen fraction in yeld in growth parameters definition -',                     &
+                                   trim(Me%VegetationTypes(ivt)%Name)
+                        stop 'ReadGrowthDatabase - ModuleVegetation - ERR255'
+                    endif
+
+                    call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%PhosphorusFractionInYeld, GrowthObjEnterData,  iflag,   &
+                                 SearchType     = FromBlock,                                                          &
+                                 keyword        = 'YELD_PHOSPHORUSFRACTION',                                                 &
+                                 ClientModule   = 'ModuleVegetation',                                                        &
+                                 STAT           = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_) stop 'ReadGrowthDatabase - ModuleVegetation - ERR260'
+                    if (iflag /= 1) then
+                        write(*,*)'Missing phosphorus fraction in yeld in growth parameters definition -',                   &
+                                   trim(Me%VegetationTypes(ivt)%Name)
+                        stop 'ReadGrowthDatabase - ModuleVegetation - ERR265'
+                    endif
+
+                    PlantType = Me%VegetationTypes(ivt)%GrowthDatabase%PlantType
+                    if (PlantType == 7) then
+                    
+                        call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%TreeYearsToMaturity, GrowthObjEnterData,  iflag,    &
+                                     SearchType     = FromBlock,                                                      &
+                                     keyword        = 'TREE_YEARSTOMATURITY',                                                &
+                                     ClientModule   = 'ModuleVegetation',                                                    &
+                                     STAT           = STAT_CALL)
+                        if (STAT_CALL .NE. SUCCESS_) stop 'ReadGrowthDatabase - ModuleVegetation - ERR270'
+                        if (iflag /= 1) then
+                            write(*,*)'Missing tree years too maturity in growth parameters definition -',                   &
+                                       trim(Me%VegetationTypes(ivt)%Name)
+                            stop 'ReadGrowthDatabase - ModuleVegetation - ERR275'
+                        endif
+
+                        call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%TreeMaximumBiomass, GrowthObjEnterData,  iflag,     &
+                                     SearchType     = FromBlock,                                                      &
+                                     keyword        = 'TREE_MAXIMUMBIOMASS',                                                 &
+                                     ClientModule   = 'ModuleVegetation',                                                    &
+                                     STAT           = STAT_CALL)
+                        if (STAT_CALL .NE. SUCCESS_) stop 'ReadGrowthDatabase - ModuleVegetation - ERR280'
+                        if (iflag /= 1) then
+                            write(*,*)'Missing tree maximum biomass in growth parameters definition -',                      &
+                                       trim(Me%VegetationTypes(ivt)%Name)
+                            stop 'ReadGrowthDatabase - ModuleVegetation - ERR285'
+                        endif
+                    
+                    endif
+                    
+                    if (Me%ComputeOptions%Dormancy) then
+                        call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%BiomassFracRemovedInDormancy, GrowthObjEnterData,  &
+                                     iflag,                                                                                 &
+                                     SearchType     = FromBlock,                                                     &
+                                     keyword        = 'BIOMASS_FRAC_REMOVED_DORMANCY',                                      &
+                                     ClientModule   = 'ModuleVegetation',                                                   &
+                                     STAT           = STAT_CALL)
+                        if (STAT_CALL .NE. SUCCESS_) stop 'ReadGrowthDatabase - ModuleVegetation - ERR290'
+                        if (iflag /= 1) then
+                            write(*,*)'Missing biomass fraction removed in dormancy in growth parameters definition -',     &
+                                       trim(Me%VegetationTypes(ivt)%Name)
+                            stop 'ReadGrowthDatabase - ModuleVegetation - ERR295'
+                        endif
+                
+                        call GetData(Me%VegetationTypes(ivt)%GrowthDatabase%LAIMinDormant, GrowthObjEnterData,  iflag,         &
+                                     SearchType     = FromBlock,                                                     &
+                                     keyword        = 'LAI_MIN_DORMANCY',                                                   &
+                                     ClientModule   = 'ModuleVegetation',                                                   &
+                                     STAT           = STAT_CALL)
+                        if (STAT_CALL .NE. SUCCESS_) stop 'ReadGrowthDatabase - ModuleVegetation - ERR300'
+                        if (iflag /= 1) then
+                            write(*,*)'Missing LAI minimum in dormancy in growth parameters definition -',                  &
+                                       trim(Me%VegetationTypes(ivt)%Name)
+                            stop 'ReadGrowthDatabase - ModuleVegetation - ERR305'
+                        endif
+                    endif
+                    
+                    exit doH1
+                    
+                endif
+                
+            else
+                
+                call Block_Unlock(GrowthObjEnterData, GrowthClientNumber, STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_) stop 'ReadPesticideDatabase - ModuleVegetation - ERR120'
+               
+                exit doH1 
+                          
+            endif HF1
+            
+        enddo doH1
+             
+        if (.not. VegetationFound) then
+            write(*,*)
+            write(*,*) 'Vegetation ID not found:', Me%VegetationTypes(ivt)%ID
+            write(*,*) 'Check that ID is defined in database:',Me%GrowthDatabase
+            stop 'ReadGrowthDatabase - ModuleVegetation - ERR130' 
+        endif           
+    
+    
+        call KillEnterData(GrowthObjEnterData, STAT = STAT_CALL)         
+        if (STAT_CALL /= SUCCESS_) stop 'ReadGrowthDatabase - ModuleVegetation - ERR140'        
+
+        
 
     end subroutine ReadGrowthDatabase
 
     !--------------------------------------------------------------------------
 
 
-    subroutine ReadManagementAndGrazeDatabase (ivt, ClientNumber)
+    subroutine ReadHarvestKillParameters (ivt, ClientNumber,ParameterObjEnterData)
 
         !Arguments-------------------------------------------------------------
         integer                                     :: ivt
         integer                                     :: ClientNumber
+        integer                                     :: ParameterObjEnterData
         !Local-----------------------------------------------------------------
         integer                                     :: STAT_CALL
         logical                                     :: DatabaseFound
@@ -4155,149 +4610,88 @@ HF:     if (STAT_CALL == SUCCESS_ .and. DatabaseFound) then
         !Begin-----------------------------------------------------------------
 
 
-        call ExtractBlockFromBlock(Me%ObjEnterData,                                           &
+        call ExtractBlockFromBlock(ParameterObjEnterData,                                           &
                                     ClientNumber      = ClientNumber,                         &
-                                    block_begin       = '<beginmanagementandgrazedatabase>',  &
-                                    block_end         = '<endmanagementandgrazedatabase>',    &
+                                    block_begin       = '<beginharvestkillparameters>',  &
+                                    block_end         = '<endharvestkillparameters>',    &
                                     BlockInBlockFound = DatabaseFound,                        &   
                                     STAT              = STAT_CALL)
 HF:     if (STAT_CALL == SUCCESS_ .and. DatabaseFound) then
 
             !Reads Parameters
             
-            if (Me%ComputeOptions%Grazing) then
+            call GetData(Me%VegetationTypes(ivt)%HarvestKillDatabase%HarvestKillJulianDay, ParameterObjEnterData,  iflag,    &
+                         SearchType     = FromBlockInBlock,                                                           &
+                         Default        = -99.,                                                                       &
+                         keyword        = 'HARVESTKILL_JULIANDAY',                                                    &
+                         ClientModule   = 'ModuleVegetation',                                                         &
+                         STAT           = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_) stop 'ReadHarvestKillDatabase - ModuleVegetation - ERR100'     
 
-                call GetData(Me%VegetationTypes(ivt)%ManagementDatabase%GrazingStartJulianDay, Me%ObjEnterData,  iflag,   &
-                             SearchType     = FromBlockInBlock,                                                           &
-                             Default        = -99.,                                                                       &
-                             keyword        = 'GRAZING_START_JULIANDAY',                                                  &
-                             ClientModule   = 'ModuleVegetation',                                                         &
-                             STAT           = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_) stop 'ReadManagementAndGrazeDatabase - ModuleVegetation - ERR40'     
-                
-                allocate (Me%VegetationTypes(ivt)%ManagementDatabase%GrazingStartPlantHU(1))
-                
-                call GetData(Me%VegetationTypes(ivt)%ManagementDatabase%GrazingStartPlantHU(1), Me%ObjEnterData,  iflag,  &
-                             SearchType     = FromBlockInBlock,                                                           &
-                             Default        = -99.,                                                                       &
-                             keyword        = 'GRAZING_START_PLANTHU',                                                    &
-                             ClientModule   = 'ModuleVegetation',                                                         &
-                             STAT           = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_) stop 'ReadManagementAndGrazeDatabase - ModuleVegetation - ERR50'     
+            call GetData(Me%VegetationTypes(ivt)%HarvestKillDatabase%HarvestKillPlantHU, ParameterObjEnterData,  iflag,&
+                         SearchType     = FromBlockInBlock,                                                           &
+                         Default        = -99.,                                                                       &
+                         keyword        = 'HARVESTKILL_PLANTHU',                                                      &
+                         ClientModule   = 'ModuleVegetation',                                                         &
+                         STAT           = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_) stop 'ReadHarvestKillDatabase - ModuleVegetation - ERR110'     
 
-                call GetData(Me%VegetationTypes(ivt)%ManagementDatabase%GrazingDays, Me%ObjEnterData,  iflag,             &
-                             SearchType     = FromBlockInBlock,                                                           &
-                             Default        = 0,                                                                          &
-                             keyword        = 'GRAZING_DAYS',                                                             &
-                             ClientModule   = 'ModuleVegetation',                                                         &
-                             STAT           = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_) stop 'ReadManagementAndGrazeDatabase - ModuleVegetation - ERR60'     
-                
-                call GetData(Me%VegetationTypes(ivt)%ManagementDatabase%GrazingMinimumBiomass, Me%ObjEnterData,  iflag,   &
-                             SearchType     = FromBlockInBlock,                                                           &
-                             Default        = 0.,                                                                         &
-                             keyword        = 'MINIMUM_BIOMASS_FOR_GRAZING',                                              &
-                             ClientModule   = 'ModuleVegetation',                                                         &
-                             STAT           = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_) stop 'ReadManagementAndGrazeDatabase - ModuleVegetation - ERR70'      
-
-                call GetData(Me%VegetationTypes(ivt)%ManagementDatabase%GrazingBiomass, Me%ObjEnterData,  iflag,          &
-                             SearchType     = FromBlockInBlock,                                                           &
-                             Default        = 0.,                                                                         &
-                             keyword        = 'GRAZING_BIOMASS',                                                          &
-                             ClientModule   = 'ModuleVegetation',                                                         &
-                             STAT           = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_) stop 'ReadManagementAndGrazeDatabase - ModuleVegetation - ERR80'
-
-                call GetData(Me%VegetationTypes(ivt)%ManagementDatabase%TramplingBiomass, Me%ObjEnterData,  iflag,        &
-                             SearchType     = FromBlockInBlock,                                                           &
-                             Default        = 0.,                                                                         &
-                             keyword        = 'TRAMPLING_BIOMASS',                                                        &
-                             ClientModule   = 'ModuleVegetation',                                                         &
-                             STAT           = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_) stop 'ReadManagementAndGrazeDatabase - ModuleVegetation - ERR90'     
-
-            endif
-
-            if (Me%ComputeOptions%Management) then
-                
-                call GetData(Me%VegetationTypes(ivt)%ManagementDatabase%HarvestKillJulianDay, Me%ObjEnterData,  iflag,    &
-                             SearchType     = FromBlockInBlock,                                                           &
-                             Default        = -99.,                                                                       &
-                             keyword        = 'HARVESTKILL_JULIANDAY',                                                    &
-                             ClientModule   = 'ModuleVegetation',                                                         &
-                             STAT           = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_) stop 'ReadManagementAndGrazeDatabase - ModuleVegetation - ERR100'     
-
-                call GetData(Me%VegetationTypes(ivt)%ManagementDatabase%HarvestKillPlantHU, Me%ObjEnterData,  iflag,      &
-                             SearchType     = FromBlockInBlock,                                                           &
-                             Default        = -99.,                                                                       &
-                             keyword        = 'HARVESTKILL_PLANTHU',                                                      &
-                             ClientModule   = 'ModuleVegetation',                                                         &
-                             STAT           = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_) stop 'ReadManagementAndGrazeDatabase - ModuleVegetation - ERR110'     
-
-                call GetData(Me%VegetationTypes(ivt)%ManagementDatabase%HarvestJulianDay, Me%ObjEnterData,  iflag,        &
-                             SearchType     = FromBlockInBlock,                                                           &
-                             Default        = -99.,                                                                       &
-                             keyword        = 'HARVEST_JULIANDAY',                                                        &
-                             ClientModule   = 'ModuleVegetation',                                                         &
-                             STAT           = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_) stop 'ReadManagementAndGrazeDatabase - ModuleVegetation - ERR120'     
+            call GetData(Me%VegetationTypes(ivt)%HarvestKillDatabase%HarvestJulianDay, ParameterObjEnterData,  iflag,  &
+                         SearchType     = FromBlockInBlock,                                                           &
+                         Default        = -99.,                                                                       &
+                         keyword        = 'HARVEST_JULIANDAY',                                                        &
+                         ClientModule   = 'ModuleVegetation',                                                         &
+                         STAT           = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_) stop 'ReadHarvestKillDatabase - ModuleVegetation - ERR120'     
 
 
-                allocate (Me%VegetationTypes(ivt)%ManagementDatabase%HarvestPlantHU(1))
+!                allocate (Me%VegetationTypes(ivt)%HarvestKillDatabase%HarvestPlantHU(1))
 
-                call GetData(Me%VegetationTypes(ivt)%ManagementDatabase%HarvestPlantHU(1), Me%ObjEnterData,  iflag,       &
-                             SearchType     = FromBlockInBlock,                                                           &
-                             Default        = -99.,                                                                       &
-                             keyword        = 'HARVEST_PLANTHU',                                                          &
-                             ClientModule   = 'ModuleVegetation',                                                         &
-                             STAT           = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_) stop 'ReadManagementAndGrazeDatabase - ModuleVegetation - ERR130'     
+            call GetData(Me%VegetationTypes(ivt)%HarvestKillDatabase%HarvestPlantHU, ParameterObjEnterData,  iflag, &
+                         SearchType     = FromBlockInBlock,                                                           &
+                         Default        = -99.,                                                                       &
+                         keyword        = 'HARVEST_PLANTHU',                                                          &
+                         ClientModule   = 'ModuleVegetation',                                                         &
+                         STAT           = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_) stop 'ReadHarvestKillDatabase - ModuleVegetation - ERR130'     
 
-                call GetData(Me%VegetationTypes(ivt)%ManagementDatabase%KillJulianDay, Me%ObjEnterData,  iflag,           &
-                             SearchType     = FromBlockInBlock,                                                           &
-                             Default        = -99.,                                                                       &
-                             keyword        = 'KILL_JULIANDAY',                                                           &
-                             ClientModule   = 'ModuleVegetation',                                                         &
-                             STAT           = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_) stop 'ReadManagementAndGrazeDatabase - ModuleVegetation - ERR140'     
+            call GetData(Me%VegetationTypes(ivt)%HarvestKillDatabase%KillJulianDay, ParameterObjEnterData,  iflag,     &
+                         SearchType     = FromBlockInBlock,                                                           &
+                         Default        = -99.,                                                                       &
+                         keyword        = 'KILL_JULIANDAY',                                                           &
+                         ClientModule   = 'ModuleVegetation',                                                         &
+                         STAT           = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_) stop 'ReadHarvestKillDatabase - ModuleVegetation - ERR140'     
 
-                call GetData(Me%VegetationTypes(ivt)%ManagementDatabase%KillPlantHU, Me%ObjEnterData,  iflag,             &
-                             SearchType     = FromBlockInBlock,                                                           &
-                             Default        = -99.,                                                                       &
-                             keyword        = 'KILL_PLANTHU',                                                             &
-                             ClientModule   = 'ModuleVegetation',                                                         &
-                             STAT           = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_) stop 'ReadManagementAndGrazeDatabase - ModuleVegetation - ERR150'     
-                
-                call GetData(Me%VegetationTypes(ivt)%ManagementDatabase%HarvestEfficiency, Me%ObjEnterData,  iflag,       &
-                             SearchType     = FromBlockInBlock,                                                           &
-                             Default        = 1.,                                                                         &
-                             keyword        = 'HARVEST_EFFICIENCY',                                                       &
-                             ClientModule   = 'ModuleVegetation',                                                         &
-                             STAT           = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_) stop 'ReadManagementAndGrazeDatabase - ModuleVegetation - ERR160'     
-            endif
-        else
-
-            call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_) stop 'ReadGrowthDatabase - ModuleVegetation - ERR170'
+            call GetData(Me%VegetationTypes(ivt)%HarvestKillDatabase%KillPlantHU, ParameterObjEnterData,  iflag,       &
+                         SearchType     = FromBlockInBlock,                                                           &
+                         Default        = -99.,                                                                       &
+                         keyword        = 'KILL_PLANTHU',                                                             &
+                         ClientModule   = 'ModuleVegetation',                                                         &
+                         STAT           = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_) stop 'ReadHarvestKillDatabase - ModuleVegetation - ERR150'     
+            
+            call GetData(Me%VegetationTypes(ivt)%HarvestKillDatabase%HarvestEfficiency, ParameterObjEnterData,  iflag, &
+                         SearchType     = FromBlockInBlock,                                                           &
+                         Default        = 1.,                                                                         &
+                         keyword        = 'HARVEST_EFFICIENCY',                                                       &
+                         ClientModule   = 'ModuleVegetation',                                                         &
+                         STAT           = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_) stop 'ReadHarvestKillDatabase - ModuleVegetation - ERR160'     
            
         endif HF
 
 
-    end subroutine ReadManagementAndGrazeDatabase
+    end subroutine ReadHarvestKillParameters
 
     !--------------------------------------------------------------------------
-    
-    
-    subroutine ReadFertilizationDatabase (ivt, ClientNumber)
+
+    subroutine ReadGrazingParameters (ivt, ClientNumber,ParameterObjEnterData)
 
         !Arguments-------------------------------------------------------------
         integer                                     :: ivt
         integer                                     :: ClientNumber
+        integer                                     :: ParameterObjEnterData
         !Local-----------------------------------------------------------------
         integer                                     :: STAT_CALL
         logical                                     :: DatabaseFound
@@ -4306,68 +4700,222 @@ HF:     if (STAT_CALL == SUCCESS_ .and. DatabaseFound) then
         !Begin-----------------------------------------------------------------
 
 
-        call ExtractBlockFromBlock(Me%ObjEnterData,                                           &
-                                    ClientNumber      = ClientNumber,                         &
-                                    block_begin       = '<beginfertilizationdatabase>',       &
-                                    block_end         = '<endfertilizationdatabase>',         &
-                                    BlockInBlockFound = DatabaseFound,                        &   
+        call ExtractBlockFromBlock(ParameterObjEnterData,                            &
+                                    ClientNumber      = ClientNumber,                &
+                                    block_begin       = '<begingrazeparameters>',   &
+                                    block_end         = '<endgrazeparameters>',     &
+                                    BlockInBlockFound = DatabaseFound,               &   
                                     STAT              = STAT_CALL)
 HF:     if (STAT_CALL == SUCCESS_ .and. DatabaseFound) then
 
             !Reads Parameters
             
-            call GetData(Me%VegetationTypes(ivt)%FertilizerDatabase%MineralNFracInFertilizer, Me%ObjEnterData,  iflag,&
+            call GetData(Me%VegetationTypes(ivt)%GrazingDatabase%GrazingStartJulianDay, ParameterObjEnterData,  iflag,   &
                          SearchType     = FromBlockInBlock,                                                           &
                          Default        = -99.,                                                                       &
-                         keyword        = 'MINERAL_N_FRACTION_IN_FERTILIZER',                                         &
+                         keyword        = 'GRAZING_START_JULIANDAY',                                                  &
                          ClientModule   = 'ModuleVegetation',                                                         &
                          STAT           = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_) stop 'ReadFertilizationDatabase - ModuleVegetation - ERR40'     
+            if (STAT_CALL .NE. SUCCESS_) stop 'GrazingDatabase - ModuleVegetation - ERR40'     
             
-            call GetData(Me%VegetationTypes(ivt)%FertilizerDatabase%OrganicNFracInFertilizer, Me%ObjEnterData,  iflag,&
-                         SearchType     = FromBlockInBlock,                                                           &
-                         Default        = -99.,                                                                       &
-                         keyword        = 'ORGANIC_N_FRACTION_IN_FERTILIZER',                                         &
-                         ClientModule   = 'ModuleVegetation',                                                         &
-                         STAT           = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_) stop 'ReadFertilizationDatabase - ModuleVegetation - ERR50'     
-
-            call GetData(Me%VegetationTypes(ivt)%FertilizerDatabase%AmmoniaFracInMineralN, Me%ObjEnterData,  iflag,   &
-                         SearchType     = FromBlockInBlock,                                                           &
-                         Default        = -99.,                                                                       &
-                         keyword        = 'AMMONIA_FRACTION_IN_MINERAL_N',                                            &
-                         ClientModule   = 'ModuleVegetation',                                                         &
-                         STAT           = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_) stop 'ReadFertilizationDatabase - ModuleVegetation - ERR60'     
+!            allocate (Me%VegetationTypes(ivt)%GrazingDatabase%GrazingStartPlantHU(1))
             
-            call GetData(Me%VegetationTypes(ivt)%FertilizerDatabase%MineralPFracInFertilizer, Me%ObjEnterData,  iflag,&
+            call GetData(Me%VegetationTypes(ivt)%GrazingDatabase%GrazingStartPlantHU, ParameterObjEnterData,  iflag,  &
                          SearchType     = FromBlockInBlock,                                                           &
                          Default        = -99.,                                                                       &
-                         keyword        = 'MINERAL_P_FRACTION_IN_FERTILIZER',                                         &
+                         keyword        = 'GRAZING_START_PLANTHU',                                                    &
                          ClientModule   = 'ModuleVegetation',                                                         &
                          STAT           = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_) stop 'ReadFertilizationDatabase - ModuleVegetation - ERR70'      
+            if (STAT_CALL .NE. SUCCESS_) stop 'ReadGrazingDatabase - ModuleVegetation - ERR50'     
 
-            call GetData(Me%VegetationTypes(ivt)%FertilizerDatabase%OrganicPFracInFertilizer, Me%ObjEnterData,  iflag,&
+            call GetData(Me%VegetationTypes(ivt)%GrazingDatabase%GrazingDays, ParameterObjEnterData,  iflag,       &
                          SearchType     = FromBlockInBlock,                                                           &
-                         Default        = -99.,                                                                       &
-                         keyword        = 'ORGANIC_P_FRACTION_IN_FERTILIZER',                                         &
+                         Default        = 0,                                                                          &
+                         keyword        = 'GRAZING_DAYS',                                                             &
                          ClientModule   = 'ModuleVegetation',                                                         &
                          STAT           = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_) stop 'ReadFertilizationDatabase - ModuleVegetation - ERR80'                               
-
-            call GetData(Me%VegetationTypes(ivt)%FertilizerDatabase%FertilizerFracApplyedInSurface, Me%ObjEnterData,  iflag,   &
-                         SearchType     = FromBlockInBlock,                                                           &
-                         Default        = -99.,                                                                       &
-                         keyword        = 'FERTILIZER_FRACTION_IN_SURFACE',                                           &
-                         ClientModule   = 'ModuleVegetation',                                                         &
-                         STAT           = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_) stop 'ReadFertilizationDatabase - ModuleVegetation - ERR90'     
-
-
+            if (STAT_CALL .NE. SUCCESS_) stop 'ReadGrazingDatabase - ModuleVegetation - ERR60'     
             
+            call GetData(Me%VegetationTypes(ivt)%GrazingDatabase%GrazingMinimumBiomass, ParameterObjEnterData,  iflag,   &
+                         SearchType     = FromBlockInBlock,                                                           &
+                         Default        = 0.,                                                                         &
+                         keyword        = 'MINIMUM_BIOMASS_FOR_GRAZING',                                              &
+                         ClientModule   = 'ModuleVegetation',                                                         &
+                         STAT           = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_) stop 'ReadGrazingDatabase - ModuleVegetation - ERR70'      
+
+            call GetData(Me%VegetationTypes(ivt)%GrazingDatabase%GrazingBiomass, ParameterObjEnterData,  iflag,    &
+                         SearchType     = FromBlockInBlock,                                                           &
+                         Default        = 0.,                                                                         &
+                         keyword        = 'GRAZING_BIOMASS',                                                          &
+                         ClientModule   = 'ModuleVegetation',                                                         &
+                         STAT           = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_) stop 'ReadGrazingDatabase - ModuleVegetation - ERR80'
+
+            call GetData(Me%VegetationTypes(ivt)%GrazingDatabase%TramplingBiomass, ParameterObjEnterData,  iflag,  &
+                         SearchType     = FromBlockInBlock,                                                           &
+                         Default        = 0.,                                                                         &
+                         keyword        = 'TRAMPLING_BIOMASS',                                                        &
+                         ClientModule   = 'ModuleVegetation',                                                         &
+                         STAT           = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_) stop 'ReadGrazingDatabase - ModuleVegetation - ERR90'     
+
+
+        endif HF
+
+
+    end subroutine ReadGrazingParameters
+
+    !--------------------------------------------------------------------------
+    
+    
+    subroutine ReadFertilizationParameters (ivt, ClientNumber,ParameterObjEnterData)
+
+        !Arguments-------------------------------------------------------------
+        integer                                     :: ivt
+        integer                                     :: ClientNumber
+        integer                                     :: ParameterObjEnterData
+        !Local-----------------------------------------------------------------
+        integer                                     :: STAT_CALL
+        logical                                     :: DatabaseFound
+        integer                                     :: iflag
+        integer                                     :: FertilizerObjEnterData
+        integer                                     :: FertFileClientNumber
+        logical                                     :: FertilizerFound
+        integer                                     :: FertilizerID
+        !Begin-----------------------------------------------------------------
+
+
+        call ExtractBlockFromBlock(ParameterObjEnterData,                                     &
+                                    ClientNumber      = ClientNumber,                         &
+                                    block_begin       = '<beginfertilizationparameters>',     &
+                                    block_end         = '<endfertilizationparameters>',       &
+                                    BlockInBlockFound = DatabaseFound,                        &   
+                                    STAT              = STAT_CALL)
+HF:     if (STAT_CALL == SUCCESS_ .and. DatabaseFound) then
+
+            !Reads Parameters
+            call GetData(Me%VegetationTypes(ivt)%FertilizerDatabase%FertilizerID, ParameterObjEnterData,  iflag,      &
+                         SearchType     = FromBlockInBlock,                                                           &
+                         keyword        = 'FERTILIZER_ID',                                                            &
+                         ClientModule   = 'ModuleVegetation',                                                         &
+                         STAT           = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_) stop 'ReadFertilizationDatabase - ModuleVegetation - ERR30'     
+            if (iflag /= 1) then
+                write(*,*)'Missing FERTILIZER_ID in Vegetation parameter file'
+                stop 'ReadFertilizationDatabase - ModuleVegetation - ERR40'
+            endif       
+                 
+            !Read fertilizer database to check fertilizer
+            FertilizerObjEnterData = 0
+            !Open and save fertilizer database file
+            call ConstructEnterData(FertilizerObjEnterData, Me%FertilizerDatabase, STAT = STAT_CALL) 
+            if (STAT_CALL /= SUCCESS_) stop 'ReadFertilizationDatabase - ModuleVegetation - ERR185'  
+            
+doH1:       do 
+                FertilizerFound = .false.
+                call ExtractBlockFromBuffer(FertilizerObjEnterData,                                   &
+                                            ClientNumber      = FertFileClientNumber,                 &
+                                            block_begin       = '<beginFertilizer>',                   &
+                                            block_end         = '<endFertilizer>',                     &
+                                            BlockFound        = DatabaseFound,                        &   
+                                            STAT              = STAT_CALL)
+HF1:            if (STAT_CALL == SUCCESS_ .and. DatabaseFound) then
+                    
+                    call GetData(FertilizerID, FertilizerObjEnterData, iflag,                                                 &
+                                 SearchType     = FromBlock,                                                                  &
+                                 keyword        = 'FERTILIZER_ID',                                                            &
+                                 ClientModule   = 'ModuleVegetation',                                                         &
+                                 STAT           = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_) stop 'ReadFertilizationDatabase - ModuleVegetation - ERR90'     
+                    if (iflag /= 1) then
+                        write(*,*)'Missing FERTILIZER_ID in Fertilizer database:', Me%FertilizerDatabase
+                        stop 'ReadFertilizationDatabase - ModuleVegetation - ERR40'
+                    endif  
+                                      
+                    if (FertilizerID == Me%VegetationTypes(ivt)%FertilizerDatabase%FertilizerID) then
+                        
+                        FertilizerFound = .true.
+                        
+                        call GetData(Me%VegetationTypes(ivt)%FertilizerDatabase%MineralNFracInFertilizer, FertilizerObjEnterData,  &
+                                     iflag,                                                                                       &
+                                     SearchType     = FromBlock,                                                                  &
+                                     Default        = -99.,                                                                       &
+                                     keyword        = 'MINERAL_N_FRACTION_IN_FERTILIZER',                                         &
+                                     ClientModule   = 'ModuleVegetation',                                                         &
+                                     STAT           = STAT_CALL)
+                        if (STAT_CALL .NE. SUCCESS_) stop 'ReadFertilizationDatabase - ModuleVegetation - ERR40'     
+                        
+                        call GetData(Me%VegetationTypes(ivt)%FertilizerDatabase%OrganicNFracInFertilizer, FertilizerObjEnterData,  &
+                                     iflag,                                                                                       &
+                                     SearchType     = FromBlock,                                                                  &
+                                     Default        = -99.,                                                                       &
+                                     keyword        = 'ORGANIC_N_FRACTION_IN_FERTILIZER',                                         &
+                                     ClientModule   = 'ModuleVegetation',                                                         &
+                                     STAT           = STAT_CALL)
+                        if (STAT_CALL .NE. SUCCESS_) stop 'ReadFertilizationDatabase - ModuleVegetation - ERR50'     
+
+                        call GetData(Me%VegetationTypes(ivt)%FertilizerDatabase%AmmoniaFracInMineralN, FertilizerObjEnterData,     &
+                                     iflag,                                                                                       &
+                                     SearchType     = FromBlock,                                                                  &
+                                     Default        = -99.,                                                                       &
+                                     keyword        = 'AMMONIA_FRACTION_IN_MINERAL_N',                                            &
+                                     ClientModule   = 'ModuleVegetation',                                                         &
+                                     STAT           = STAT_CALL)
+                        if (STAT_CALL .NE. SUCCESS_) stop 'ReadFertilizationDatabase - ModuleVegetation - ERR60'     
+                        
+                        call GetData(Me%VegetationTypes(ivt)%FertilizerDatabase%MineralPFracInFertilizer, FertilizerObjEnterData, &
+                                     iflag,                                                                                       &
+                                     SearchType     = FromBlock,                                                                  &
+                                     Default        = -99.,                                                                       &
+                                     keyword        = 'MINERAL_P_FRACTION_IN_FERTILIZER',                                         &
+                                     ClientModule   = 'ModuleVegetation',                                                         &
+                                     STAT           = STAT_CALL)
+                        if (STAT_CALL .NE. SUCCESS_) stop 'ReadFertilizationDatabase - ModuleVegetation - ERR70'      
+
+                        call GetData(Me%VegetationTypes(ivt)%FertilizerDatabase%OrganicPFracInFertilizer, FertilizerObjEnterData, &
+                                     iflag,                                                                                       &
+                                     SearchType     = FromBlock,                                                                  &
+                                     Default        = -99.,                                                                       &
+                                     keyword        = 'ORGANIC_P_FRACTION_IN_FERTILIZER',                                         &
+                                     ClientModule   = 'ModuleVegetation',                                                         &
+                                     STAT           = STAT_CALL)
+                        if (STAT_CALL .NE. SUCCESS_) stop 'ReadFertilizationDatabase - ModuleVegetation - ERR80'  
+
+                        call GetData(Me%VegetationTypes(ivt)%FertilizerDatabase%FertilizerFracApplyedInSurface,                   &
+                                     FertilizerObjEnterData,  iflag,                                                              &
+                                     SearchType     = FromBlock,                                                                  &
+                                     Default        = -99.,                                                                       &
+                                     keyword        = 'FERTILIZER_FRACTION_IN_SURFACE',                                           &
+                                     ClientModule   = 'ModuleVegetation',                                                         &
+                                     STAT           = STAT_CALL)
+                        if (STAT_CALL .NE. SUCCESS_) stop 'ReadFertilizationDatabase - ModuleVegetation - ERR90'     
+
+                        
+                        exit doH1
+                        
+                    endif
+                    
+                else
+                    
+                    call Block_Unlock(FertilizerObjEnterData, FertFileClientNumber, STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_) stop 'ReadFertilizationDatabase - ModuleVegetation - ERR120'
+                   
+                    exit doH1 
+                              
+                endif HF1
+                
+            enddo doH1
+             
+            if (.not. FertilizerFound) then
+                write(*,*)
+                write(*,*) 'Fertilizer ID not found:', Me%VegetationTypes(ivt)%FertilizerDatabase%FertilizerID
+                write(*,*) 'Check fertilizer database in: ', Me%FertilizerDatabase
+                stop 'ReadPesticideDatabase - ModuleVegetation - ERR130' 
+            endif   
+
             !AutoFertilization
-            call GetData(Me%VegetationTypes(ivt)%FertilizerDatabase%Auto%NTreshold, Me%ObjEnterData,  iflag,          &
+            call GetData(Me%VegetationTypes(ivt)%FertilizerDatabase%Auto%NTreshold, ParameterObjEnterData,  iflag,    &
                          SearchType     = FromBlockInBlock,                                                           &
                          Default        = -99.,                                                                       &
                          keyword        = 'NITROGEN_TRESHOLD',                                                        &
@@ -4375,7 +4923,7 @@ HF:     if (STAT_CALL == SUCCESS_ .and. DatabaseFound) then
                          STAT           = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_) stop 'ReadFertilizationDatabase - ModuleVegetation - ERR100'     
         
-            call GetData(Me%VegetationTypes(ivt)%FertilizerDatabase%Auto%NitrogenApplicationMax, Me%ObjEnterData,  iflag,  &
+            call GetData(Me%VegetationTypes(ivt)%FertilizerDatabase%Auto%NitrogenApplicationMax, ParameterObjEnterData,  iflag,  &
                          SearchType     = FromBlockInBlock,                                                           &
                          Default        = -99.,                                                                       &
                          keyword        = 'NITROGEN_APPLICATION_MAX',                                                 &
@@ -4383,7 +4931,7 @@ HF:     if (STAT_CALL == SUCCESS_ .and. DatabaseFound) then
                          STAT           = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_) stop 'ReadFertilizationDatabase - ModuleVegetation - ERR110'     
 
-            call GetData(Me%VegetationTypes(ivt)%FertilizerDatabase%Auto%NitrogenAnnualMax, Me%ObjEnterData,  iflag,  &
+            call GetData(Me%VegetationTypes(ivt)%FertilizerDatabase%Auto%NitrogenAnnualMax, ParameterObjEnterData,  iflag,  &
                          SearchType     = FromBlockInBlock,                                                           &
                          Default        = -99.,                                                                       &
                          keyword        = 'NITROGEN_ANNUAL_MAX',                                                      &
@@ -4391,7 +4939,7 @@ HF:     if (STAT_CALL == SUCCESS_ .and. DatabaseFound) then
                          STAT           = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_) stop 'ReadFertilizationDatabase - ModuleVegetation - ERR120'     
 
-            call GetData(Me%VegetationTypes(ivt)%FertilizerDatabase%Auto%ExplicitPhosphorus, Me%ObjEnterData,  iflag, &
+            call GetData(Me%VegetationTypes(ivt)%FertilizerDatabase%Auto%ExplicitPhosphorus, ParameterObjEnterData,  iflag, &
                          SearchType     = FromBlockInBlock,                                                           &
                          Default        = .false.,                                                                    &
                          keyword        = 'EXPLICIT_PHOSPHORUS',                                                      &
@@ -4401,7 +4949,7 @@ HF:     if (STAT_CALL == SUCCESS_ .and. DatabaseFound) then
 
             if (Me%VegetationTypes(ivt)%FertilizerDatabase%Auto%ExplicitPhosphorus) then
 
-                call GetData(Me%VegetationTypes(ivt)%FertilizerDatabase%Auto%PTreshold, Me%ObjEnterData,  iflag,          &
+                call GetData(Me%VegetationTypes(ivt)%FertilizerDatabase%Auto%PTreshold, ParameterObjEnterData,  iflag,    &
                              SearchType     = FromBlockInBlock,                                                           &
                              Default        = -99.,                                                                       &
                              keyword        = 'PHOSPHORUS_TRESHOLD',                                                      &
@@ -4409,7 +4957,8 @@ HF:     if (STAT_CALL == SUCCESS_ .and. DatabaseFound) then
                              STAT           = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_) stop 'ReadFertilizationDatabase - ModuleVegetation - ERR140'     
         
-                call GetData(Me%VegetationTypes(ivt)%FertilizerDatabase%Auto%PhosphorusApplicationMax, Me%ObjEnterData,  iflag,  &
+                call GetData(Me%VegetationTypes(ivt)%FertilizerDatabase%Auto%PhosphorusApplicationMax, ParameterObjEnterData,  &
+                             iflag,                                                                                       &
                              SearchType     = FromBlockInBlock,                                                           &
                              Default        = -99.,                                                                       &
                              keyword        = 'PHOSPHORUS_APPLICATION_MAX',                                               &
@@ -4417,7 +4966,7 @@ HF:     if (STAT_CALL == SUCCESS_ .and. DatabaseFound) then
                              STAT           = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_) stop 'ReadFertilizationDatabase - ModuleVegetation - ERR150'     
 
-                call GetData(Me%VegetationTypes(ivt)%FertilizerDatabase%Auto%PhosphorusAnnualMax, Me%ObjEnterData,  iflag,&
+                call GetData(Me%VegetationTypes(ivt)%FertilizerDatabase%Auto%PhosphorusAnnualMax, ParameterObjEnterData,  iflag, &
                              SearchType     = FromBlockInBlock,                                                           &
                              Default        = -99.,                                                                       &
                              keyword        = 'PHOSPHORUS_ANNUAL_MAX',                                                    &
@@ -4426,38 +4975,320 @@ HF:     if (STAT_CALL == SUCCESS_ .and. DatabaseFound) then
                 if (STAT_CALL .NE. SUCCESS_) stop 'ReadFertilizationDatabase - ModuleVegetation - ERR160'   
                 
             endif
-
-
             
-            !Scheduled fertilization
-            call GetData(Me%VegetationTypes(ivt)%FertilizerDatabase%Scheduled%FertilizationJulianDay, Me%ObjEnterData,  iflag,   &
-                         SearchType     = FromBlockInBlock,                                                           &
-                         Default        = -99,                                                                       &
-                         keyword        = 'FERTILIZATION_JULIANDAY',                                                  &
-                         ClientModule   = 'ModuleVegetation',                                                         &
+            !Scheduled fertilization - not yet implemented - follow pesticide example
+            call GetData(Me%VegetationTypes(ivt)%FertilizerDatabase%Scheduled%FertilizationJulianDay, ParameterObjEnterData,  &
+                         iflag,                                                                                               &
+                         SearchType     = FromBlockInBlock,                                                                   &
+                         Default        = -99,                                                                                &
+                         keyword        = 'FERTILIZATION_JULIANDAY',                                                          &
+                         ClientModule   = 'ModuleVegetation',                                                                 &
                          STAT           = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_) stop 'ReadFertilizationDatabase - ModuleVegetation - ERR170'     
         
-            call GetData(Me%VegetationTypes(ivt)%FertilizerDatabase%Scheduled%FertilizationHU, Me%ObjEnterData,  iflag,  &
-                         SearchType     = FromBlockInBlock,                                                           &
-                         Default        = -99.,                                                                       &
-                         keyword        = 'FERTILIZATION_HU',                                                         &
-                         ClientModule   = 'ModuleVegetation',                                                         &
+            call GetData(Me%VegetationTypes(ivt)%FertilizerDatabase%Scheduled%FertilizationHU, ParameterObjEnterData,  iflag,  &
+                         SearchType     = FromBlockInBlock,                                                                    &
+                         Default        = -99.,                                                                                &
+                         keyword        = 'FERTILIZATION_HU',                                                                  &
+                         ClientModule   = 'ModuleVegetation',                                                                  &
                          STAT           = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_) stop 'ReadFertilizationDatabase - ModuleVegetation - ERR180'   
             
-
-        else
-
-            call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_) stop 'ReadFertilizationDatabase - ModuleVegetation - ERR190'
-           
+          
         endif HF
 
 
-    end subroutine ReadFertilizationDatabase
+    end subroutine ReadFertilizationParameters
 
     !--------------------------------------------------------------------------        
+
+
+    subroutine ReadPesticideParameters (ivt, ClientNumber,ParameterObjEnterData)
+
+        !Arguments-------------------------------------------------------------
+        integer                                     :: ivt
+        integer                                     :: ClientNumber
+        integer                                     :: ParameterObjEnterData
+        !Local-----------------------------------------------------------------
+        integer                                     :: STAT_CALL
+        logical                                     :: DatabaseFound, ApplicationFound
+        integer                                     :: iflag, NumberOfPesticideApps
+        integer, dimension(:), pointer              :: PesticideList
+        integer                                     :: NumberOfUniquePesticides, UniquePest
+ !       character (Len = StringLength)              :: PesticideDatabase
+        integer                                     :: PesticideObjEnterData, PesticideID, PestApp
+        logical                                     :: PesticideFound
+        integer                                     :: PestAppllication
+        integer                                     :: PestFileClientNumber
+
+        !Begin-----------------------------------------------------------------
+        
+        call ExtractBlockFromBlock(ParameterObjEnterData,                                     &
+                                    ClientNumber      = ClientNumber,                         &
+                                    block_begin       = '<beginpesticideparameters>',         &
+                                    block_end         = '<endpesticideparameters>',           &
+                                    BlockInBlockFound = DatabaseFound,                        &   
+                                    STAT              = STAT_CALL)
+HF4:    if (STAT_CALL == SUCCESS_ .and. DatabaseFound) then        
+
+           
+            !Count number of applications
+            NumberOfPesticideApps = 0
+doH:        do 
+                call ExtractBlockFromBlockFromBlock(ParameterObjEnterData,                            &
+                                            ClientNumber      = ClientNumber,                         &
+                                            block_begin       = '<<beginpesticideapp>>',                &
+                                            block_end         = '<<endpesticideapp>>',                  &
+                                            BlockInBlockInBlockFound = ApplicationFound,              &   
+                                            STAT              = STAT_CALL)
+HF:             if (STAT_CALL == SUCCESS_ .and. ApplicationFound) then
+                    NumberOfPesticideApps = NumberOfPesticideApps + 1
+                    
+                else
+                    
+                    exit doH  
+                              
+                endif HF
+                
+            enddo doH
+            
+        endif HF4
+            
+        
+HF6:    if (NumberOfPesticideApps .gt. 0) then
+        
+            allocate (Me%VegetationTypes(ivt)%PesticideDatabase%PesticideApps(NumberOfPesticideApps))
+            Me%VegetationTypes(ivt)%PesticideDatabase%NumberPesticideApps = NumberOfPesticideApps
+            !Read pesticide application info    
+            !Rewind block so it can search again from beggining father block
+            call RewindBlock(ParameterObjEnterData, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadPesticideDatabase - ModuleVegetation - ERR30' 
+
+            call ExtractBlockFromBlock(ParameterObjEnterData,                                     &
+                                        ClientNumber      = ClientNumber,                         &
+                                        block_begin       = '<beginpesticideparameters>',         &
+                                        block_end         = '<endpesticideparameters>',           &
+                                        BlockInBlockFound = DatabaseFound,                        &   
+                                        STAT              = STAT_CALL)
+HF5:        if (STAT_CALL == SUCCESS_ .and. DatabaseFound) then        
+
+               
+                PestApp = 0
+                
+doE:            do
+                    call ExtractBlockFromBlockFromBlock(ParameterObjEnterData,                            &
+                                                ClientNumber      = ClientNumber,                         &
+                                                block_begin       = '<<beginpesticideapp>>',                &
+                                                block_end         = '<<endpesticideapp>>',                  &
+                                                BlockInBlockInBlockFound = ApplicationFound,              &   
+                                                STAT              = STAT_CALL)
+HF3:                if (STAT_CALL == SUCCESS_ .and. ApplicationFound) then   
+                        
+                        PestApp = PestApp + 1         
+                        
+                        call GetData(Me%VegetationTypes(ivt)%PesticideDatabase%PesticideApps(PestApp)%PesticideID,               &
+                                     ParameterObjEnterData,  iflag,                                                               &
+                                     SearchType     = FromBlockInBlockInBlock,                                                    &
+                                     keyword        = 'PESTICIDE_ID',                                                             &
+                                     ClientModule   = 'ModuleVegetation',                                                         &
+                                     STAT           = STAT_CALL)
+                        if (STAT_CALL .NE. SUCCESS_) stop 'ReadPesticideDatabase - ModuleVegetation - ERR40'    
+                        if (iflag /= 1) then
+                            write(*,*)'Missing PESTICIDE_ID in Vegetation parameter file'
+                            stop 'ReadPesticideDatabase - ModuleVegetation - ERR50'
+                        endif  
+
+                        call GetData(Me%VegetationTypes(ivt)%PesticideDatabase%PesticideApps(PestApp)%PesticideAppJDay,           &
+                                     ParameterObjEnterData,  iflag,                                                               &
+                                     SearchType     = FromBlockInBlockInBlock,                                                    &
+                                     Default        = -99.,                                                                       &
+                                     keyword        = 'PESTICIDE_APPLICATION_JDAY',                                               &
+                                     ClientModule   = 'ModuleVegetation',                                                         &
+                                     STAT           = STAT_CALL)
+                        if (STAT_CALL .NE. SUCCESS_) stop 'ReadPesticideDatabase - ModuleVegetation - ERR45'    
+                                            
+                        call GetData(Me%VegetationTypes(ivt)%PesticideDatabase%PesticideApps(PestApp)%PesticideAppHU,             &
+                                     ParameterObjEnterData,  iflag,                                                               &
+                                     SearchType     = FromBlockInBlockInBlock,                                                    &
+                                     Default        = -99.,                                                                       &
+                                     keyword        = 'PESTICIDE_APPLICATION_HU',                                                 &
+                                     ClientModule   = 'ModuleVegetation',                                                         &
+                                     STAT           = STAT_CALL)
+                        if (STAT_CALL .NE. SUCCESS_) stop 'ReadPesticideDatabase - ModuleVegetation - ERR50'     
+
+                        call GetData(Me%VegetationTypes(ivt)%PesticideDatabase%PesticideApps(PestApp)%PesticideAppAmount,         &
+                                     ParameterObjEnterData,  iflag,                                                               &
+                                     SearchType     = FromBlockInBlockInBlock,                                                    &
+                                     Default        = -99.,                                                                       &
+                                     keyword        = 'PESTICIDE_APPLICATION_KG_HA',                                              &
+                                     ClientModule   = 'ModuleVegetation',                                                         &
+                                     STAT           = STAT_CALL)
+                        if (STAT_CALL .NE. SUCCESS_) stop 'ReadPesticideDatabase - ModuleVegetation - ERR60'     
+
+                    else
+                    
+                        exit  doE
+                              
+                    
+                    endif HF3
+                
+                enddo doE
+                
+               
+                !First Count number of different pesticides - only for pesticides inside vegetationtype
+                
+                allocate (PesticideList(NumberOfPesticideApps))
+                NumberOfUniquePesticides = 1
+                PesticideList(1) = Me%VegetationTypes(ivt)%PesticideDatabase%PesticideApps(1)%PesticideID
+                
+                if (NumberOfPesticideApps .gt. 1) then
+                    
+                    !Go from second pesticide application to all
+do1:                do PestAppllication = 2, NumberOfPesticideApps
+                       
+                        !go to every unique pesticide list position
+do2:                    do UniquePest = 1,  NumberOfUniquePesticides
+                            if ((Me%VegetationTypes(ivt)%PesticideDatabase%PesticideApps(PestAppllication)%PesticideID)   &
+                                 == PesticideList(UniquePest)) then
+                                !found equal, go to next in application list    
+                                cycle do1
+                            endif
+                        enddo do2
+                        
+                        !not found in unique list, so add it
+                        NumberOfUniquePesticides = NumberOfUniquePesticides + 1
+                        PesticideList(NumberOfUniquePesticides) =                                      &
+                        Me%VegetationTypes(ivt)%PesticideDatabase%PesticideApps(PestAppllication)%PesticideID
+                    enddo do1
+
+                endif                
+                
+                !Now get the info needed about every pesticide in pesticide list
+                
+                PesticideObjEnterData = 0
+                !Open and save pesticide database
+                call ConstructEnterData(PesticideObjEnterData, Me%PesticideDatabase, STAT = STAT_CALL) 
+                if (STAT_CALL /= SUCCESS_) stop 'ReadPesticideDatabase - ModuleVegetation - ERR80'        
+                
+                
+                !Check for every application that pesticide is in database and get pesticide info
+doP1:           do PestApp = 1, NumberOfPesticideApps  
+                    
+                    PesticideFound = .false. 
+                    
+                    !look again from the beggining
+                    call RewindBuffer(PesticideObjEnterData, STAT = STAT_CALL)
+                    if(STAT_CALL .NE. SUCCESS_) stop 'ReadPesticideDatabase - ModuleVegetation - ERR85'
+                    
+doH1:               do 
+                        call ExtractBlockFromBuffer(PesticideObjEnterData,                                    &
+                                                    ClientNumber      = PestFileClientNumber,                 &
+                                                    block_begin       = '<beginPesticide>',                   &
+                                                    block_end         = '<endPesticide>',                     &
+                                                    BlockFound        = DatabaseFound,                        &   
+                                                    STAT              = STAT_CALL)
+HF1:                    if (STAT_CALL == SUCCESS_ .and. DatabaseFound) then
+                            
+                            call GetData(PesticideID, PesticideObjEnterData, iflag,                            &
+                                         SearchType     = FromBlock,                                           &
+                                         keyword        = 'PESTICIDE_ID',                                      &
+                                         ClientModule   = 'ModuleVegetation',                                  &
+                                         STAT           = STAT_CALL)
+                            if (STAT_CALL .NE. SUCCESS_) stop 'ReadPesticideDatabase - ModuleVegetation - ERR90'     
+                            if (iflag /= 1) then
+                                write(*,*)'Missing PESTICIDE_ID in Pesticide database:', Me%PesticideDatabase
+                                stop 'ReadPesticideDatabase - ModuleVegetation - ERR100'
+                            endif       
+                                               
+                            if (PesticideID == Me%VegetationTypes(ivt)%PesticideDatabase%PesticideApps(PestApp)%PesticideID) then
+                                
+                                PesticideFound = .true.
+                                
+                                call GetData(Me%VegetationTypes(ivt)%PesticideDatabase%PesticideApps(PestApp)%PesticideName,  &
+                                             EnterDataID    = PesticideObjEnterData,                                          &
+                                             flag           = iflag,                                                          &
+                                             SearchType     = FromBlock,                                                      &
+                                             keyword        = 'PESTICIDE_NAME',                                               &
+                                             ClientModule   = 'ModuleVegetation',                                             &
+                                             STAT           = STAT_CALL)
+                                if (STAT_CALL .NE. SUCCESS_) stop 'ReadPesticideDatabase - ModuleVegetation - ERR110'
+
+                                exit doH1
+                                
+                            endif
+                            
+                        else
+                            
+                            call Block_Unlock(PesticideObjEnterData, PestFileClientNumber, STAT_CALL)
+                            if (STAT_CALL .NE. SUCCESS_) stop 'ReadPesticideDatabase - ModuleVegetation - ERR120'
+                           
+                            exit doH1 
+                                      
+                        endif HF1
+                        
+                    enddo doH1
+                     
+                     if (.not. PesticideFound) then
+                        write(*,*)
+                        write(*,*) 'Pesticide ID not found:'
+                        write(*,*) Me%VegetationTypes(ivt)%PesticideDatabase%PesticideApps(PestApp)%PesticideID
+                        write(*,*) 'Check that ID in pesticide database:', Me%PesticideDatabase
+                        stop 'ReadPesticideDatabase - ModuleVegetation - ERR130' 
+                    endif           
+                
+                enddo doP1
+                
+                call KillEnterData(PesticideObjEnterData, STAT = STAT_CALL)         
+                if (STAT_CALL /= SUCCESS_) stop 'ReadPesticideDatabase - ModuleVegetation - ERR140'        
+                
+                !get global list of unique pesticides (all vegetation types) - for fluxes
+                call GetUniquePesticide(ivt, NumberOfPesticideApps)
+                      
+            endif HF5
+        endif  HF6                  
+        
+    end subroutine ReadPesticideParameters
+
+    !--------------------------------------------------------------------------        
+
+    subroutine GetUniquePesticide(ivt, NumberOfPesticideApps)
+    
+        !Arguments-------------------------------------------------------------
+        integer                                          :: ivt
+        integer                                          :: NumberOfPesticideApps
+        !Local-----------------------------------------------------------------
+        integer                                          :: PestApp, GlobalUniquePest
+        !Begin-----------------------------------------------------------------
+
+
+        !Do the same process for unique pesticide for all the vegetation types 
+        !needed for pesticide fluxes
+        
+        !Go from first pesticide app to all 
+do3:    do PestApp = 1, NumberOfPesticideApps
+           
+            !go to every unique pesticide list position now global list
+do4:        do GlobalUniquePest = 1,  Me%Fluxes%Pesticides%UniquePesticides
+                if (Me%VegetationTypes(ivt)%PesticideDatabase%PesticideApps(PestApp)%PesticideID      &
+                     == Me%PesticideListID(GlobalUniquePest)) then
+                    !found equal, go to next in vegetation type unique list    
+                    cycle do3
+                endif
+            enddo do4
+            
+            !not found in global unique list, so add it
+            Me%Fluxes%Pesticides%UniquePesticides = Me%Fluxes%Pesticides%UniquePesticides + 1
+            Me%PesticideListID(Me%Fluxes%Pesticides%UniquePesticides) =                           &
+             Me%VegetationTypes(ivt)%PesticideDatabase%PesticideApps(PestApp)%PesticideID
+            Me%PesticideListName(Me%Fluxes%Pesticides%UniquePesticides) =                           &
+             Me%VegetationTypes(ivt)%PesticideDatabase%PesticideApps(PestApp)%PesticideName
+        enddo do3
+        
+    
+    end subroutine GetUniquePesticide
+    
+    !--------------------------------------------------------------------------        
+
 
     subroutine ReadInitialFile
 
@@ -5143,17 +5974,57 @@ cd0:    if (Exist) then
 
     !--------------------------------------------------------------------------
 
+
+    subroutine GetVegetationGrowing(VegetationID, Growing, STAT)
+                                  
+        !Arguments--------------------------------------------------------------
+        integer                                     :: VegetationID
+        logical, dimension(:,:), pointer            :: Growing
+        integer, optional, intent(OUT)              :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: ready_        
+        integer                                     :: STAT_
+        
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(VegetationID, ready_) 
+
+        
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            call Read_Lock(mVEGETATION_, Me%InstanceID)
+
+            Growing  => Me%IsPlantGrowing
+
+            STAT_ = SUCCESS_
+        else 
+            STAT_ = ready_
+        end if 
+
+        if (present(STAT)) STAT = STAT_
+
+
+    end subroutine GetVegetationGrowing
+
+    !--------------------------------------------------------------------------
+
     subroutine GetVegetationOptions(VegetationID,                              &
                                     ModelWater,                                &
                                     ModelNitrogen,                             &
                                     ModelPhosphorus,                           &
                                     NutrientFluxesWithSoil,                    &
                                     Grazing,                                   &
-                                    Management,                                &
+                                    HarvestKill,                                &
                                     Dormancy,                                  &
                                     Fertilization,                             &
                                     GrowthModel,                               &
                                     ModelCanopyHeight,                         &
+                                    Pesticide,                                 &
+                                    NumberOfPesticides,                        &
                                     STAT)
                                   
         !Arguments--------------------------------------------------------------
@@ -5163,11 +6034,13 @@ cd0:    if (Exist) then
         logical, optional                 :: ModelPhosphorus
         logical, optional                 :: NutrientFluxesWithSoil
         logical, optional                 :: Grazing
-        logical, optional                 :: Management
+        logical, optional                 :: HarvestKill
         logical, optional                 :: Dormancy
         logical, optional                 :: Fertilization
         logical, optional                 :: GrowthModel
         logical, optional                 :: ModelCanopyHeight
+        logical, optional                 :: Pesticide
+        integer, optional                 :: NumberOfPesticides
 
         integer, optional, intent(OUT)              :: STAT
 
@@ -5191,11 +6064,13 @@ cd0:    if (Exist) then
             if(present(ModelPhosphorus       )) ModelPhosphorus       = Me%ComputeOptions%ModelPhosphorus
             if(present(NutrientFluxesWithSoil)) NutrientFluxesWithSoil= Me%ComputeOptions%NutrientFluxesWithSoil
             if(present(Grazing               )) Grazing               = Me%ComputeOptions%Grazing
-            if(present(Management            )) Management            = Me%ComputeOptions%Management
+            if(present(HarvestKill           )) HarvestKill            = Me%ComputeOptions%HarvestKill
             if(present(Dormancy              )) Dormancy              = Me%ComputeOptions%Dormancy
             if(present(Fertilization         )) Fertilization         = Me%ComputeOptions%Fertilization
             if(present(GrowthModel           )) GrowthModel           = Me%ComputeOptions%Evolution%GrowthModelNeeded
             if(present(ModelCanopyHeight     )) ModelCanopyHeight     = Me%ComputeOptions%ModelCanopyHeight
+            if(present(Pesticide             )) Pesticide             = Me%ComputeOptions%Pesticide
+            if(present(NumberOfPesticides    )) NumberOfPesticides    = Me%Fluxes%Pesticides%UniquePesticides
 
             STAT_ = SUCCESS_
         else 
@@ -5207,6 +6082,7 @@ cd0:    if (Exist) then
 
     end subroutine GetVegetationOptions
 
+    !Fluxes to soil and from soil
     !--------------------------------------------------------------------------
 
     subroutine GetVegetationSoilFluxes(VegetationID,                             &
@@ -5214,10 +6090,10 @@ cd0:    if (Exist) then
                                        GrazingBiomass,                           &
                                        GrazingNitrogen,                          &
                                        GrazingPhosphorus,                        &
-                                       ManagementAerialBiomass,                  &
-                                       ManagementNitrogen,                       &
-                                       ManagementPhosphorus,                     &
-                                       ManagementRootBiomass,                    &
+                                       HarvestKillAerialBiomass,                  &
+                                       HarvestKillNitrogen,                       &
+                                       HarvestKillPhosphorus,                     &
+                                       HarvestKillRootBiomass,                    &
                                        DormancyBiomass,                          &
                                        DormancyNitrogen,                         &
                                        DormancyPhosphorus,                       &
@@ -5231,6 +6107,9 @@ cd0:    if (Exist) then
                                        FertilOrganicPSubSurface,                 &
                                        FertilMineralPSurface,                    &
                                        FertilMineralPSubSurface,                 &
+                                       Pest,                                     &
+                                       PesticideIDNumber,                        &
+                                       PesticideSoil,                            &
                                        NitrogenUptake,                           &
                                        PhosphorusUptake,                         &
                                        STAT)
@@ -5241,10 +6120,10 @@ cd0:    if (Exist) then
         real, dimension(:,:), pointer, optional     :: GrazingBiomass
         real, dimension(:,:), pointer, optional     :: GrazingNitrogen
         real, dimension(:,:), pointer, optional     :: GrazingPhosphorus
-        real, dimension(:,:), pointer, optional     :: ManagementAerialBiomass
-        real, dimension(:,:), pointer, optional     :: ManagementNitrogen
-        real, dimension(:,:), pointer, optional     :: ManagementPhosphorus
-        real, dimension(:,:), pointer, optional     :: ManagementRootBiomass
+        real, dimension(:,:), pointer, optional     :: HarvestKillAerialBiomass
+        real, dimension(:,:), pointer, optional     :: HarvestKillNitrogen
+        real, dimension(:,:), pointer, optional     :: HarvestKillPhosphorus
+        real, dimension(:,:), pointer, optional     :: HarvestKillRootBiomass
         real, dimension(:,:), pointer, optional     :: DormancyBiomass
         real, dimension(:,:), pointer, optional     :: DormancyNitrogen
         real, dimension(:,:), pointer, optional     :: DormancyPhosphorus
@@ -5258,6 +6137,9 @@ cd0:    if (Exist) then
         real, dimension(:,:), pointer, optional     :: FertilOrganicPSubSurface
         real, dimension(:,:), pointer, optional     :: FertilMineralPSurface
         real, dimension(:,:), pointer, optional     :: FertilMineralPSubSurface
+        integer, optional                           :: Pest
+        integer, optional                           :: PesticideIDNumber
+        real, dimension(:,:), pointer, optional     :: PesticideSoil
         real, dimension(:,:,:),pointer,optional     :: NitrogenUptake
         real, dimension(:,:,:),pointer,optional     :: PhosphorusUptake
 
@@ -5283,10 +6165,10 @@ cd0:    if (Exist) then
             if (present(GrazingBiomass           )) GrazingBiomass           => Me%Fluxes%ToSoil%GrazingBiomassToSoil
             if (present(GrazingNitrogen          )) GrazingNitrogen          => Me%Fluxes%ToSoil%GrazingNitrogenToSoil
             if (present(GrazingPhosphorus        )) GrazingPhosphorus        => Me%Fluxes%ToSoil%GrazingPhosphorusToSoil
-            if (present(ManagementAerialBiomass  )) ManagementAerialBiomass  => Me%Fluxes%ToSoil%ManagementBiomassToSoil 
-            if (present(ManagementNitrogen       )) ManagementNitrogen       => Me%Fluxes%ToSoil%ManagementNitrogenToSoil
-            if (present(ManagementPhosphorus     )) ManagementPhosphorus     => Me%Fluxes%ToSoil%ManagementPhosphorusToSoil
-            if (present(ManagementRootBiomass    )) ManagementRootBiomass    => Me%Fluxes%ToSoil%ManagementRootBiomassLeftInSoil
+            if (present(HarvestKillAerialBiomass )) HarvestKillAerialBiomass => Me%Fluxes%ToSoil%HarvestKillBiomassToSoil 
+            if (present(HarvestKillNitrogen      )) HarvestKillNitrogen      => Me%Fluxes%ToSoil%HarvestKillNitrogenToSoil
+            if (present(HarvestKillPhosphorus    )) HarvestKillPhosphorus    => Me%Fluxes%ToSoil%HarvestKillPhosphorusToSoil
+            if (present(HarvestKillRootBiomass   )) HarvestKillRootBiomass   => Me%Fluxes%ToSoil%KillRootBiomassLeftInSoil
             if (present(DormancyBiomass          )) DormancyBiomass          => Me%Fluxes%ToSoil%DormancyBiomassToSoil
             if (present(DormancyNitrogen         )) DormancyNitrogen         => Me%Fluxes%ToSoil%DormancyNitrogenToSoil
             if (present(DormancyPhosphorus       )) DormancyPhosphorus       => Me%Fluxes%ToSoil%DormancyPhosphorusToSoil
@@ -5302,7 +6184,13 @@ cd0:    if (Exist) then
             if (present(FertilMineralPSubSurface )) FertilMineralPSubSurface => Me%Fluxes%ToSoil%FertilMineralPToSoilSubSurface
             if (present(NitrogenUptake           )) NitrogenUptake           => Me%Fluxes%FromSoil%NitrogenUptakeFromSoil
             if (present(PhosphorusUptake         )) PhosphorusUptake         => Me%Fluxes%FromSoil%PhosphorusUptakeFromSoil
-
+            
+            if (present(PesticideSoil            )) then
+                if( .not. present(Pest)) stop 'GetVegetationSoilFluxes - ModuleVegetation - ERR10'
+                PesticideIDNumber        =  Me%Fluxes%Pesticides%Application(Pest)%ID%IDNumber
+                PesticideSoil            => Me%Fluxes%Pesticides%Application(Pest)%Soil
+            endif
+            
             STAT_ = SUCCESS_
         else 
             STAT_ = ready_
@@ -5314,6 +6202,101 @@ cd0:    if (Exist) then
     end subroutine GetVegetationSoilFluxes
 
     !--------------------------------------------------------------------------
+
+    !Fluxes to aerial part of vegetation - pesticide in leafs    
+    subroutine GetVegetationAerialFluxes(VegetationID,                           &
+                                       Pest,                                     &
+                                       PesticideIDNumber,                        &
+                                       PesticideVegetation,                      &
+                                       STAT)
+                                  
+        !Arguments--------------------------------------------------------------
+        integer                                     :: VegetationID
+        integer, optional                           :: Pest
+        integer, optional                           :: PesticideIDNumber
+        real, dimension(:,:), pointer, optional     :: PesticideVegetation
+
+        integer, optional, intent(OUT)              :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: ready_        
+        integer                                     :: STAT_
+        
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(VegetationID, ready_) 
+
+        
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            call Read_Lock(mVEGETATION_, Me%InstanceID)
+            
+            if (present(PesticideVegetation      )) then
+                if( .not. present(Pest)) stop 'GetVegetationAerialFluxes - ModuleVegetation - ERR10'
+                PesticideIDNumber        =  Me%Fluxes%Pesticides%Application(Pest)%ID%IDNumber
+                PesticideVegetation      => Me%Fluxes%Pesticides%Application(Pest)%Vegetation
+            endif
+            
+            STAT_ = SUCCESS_
+        else 
+            STAT_ = ready_
+        end if 
+
+        if (present(STAT)) STAT = STAT_
+
+
+    end subroutine GetVegetationAerialFluxes
+
+    !--------------------------------------------------------------------------
+
+    subroutine UnGetVegetationAerialFluxes(VegetationID,                           &
+                                       Pest,                                     &
+                                       PesticideVegetation,                      &
+                                       STAT)
+                                  
+        !Arguments--------------------------------------------------------------
+        integer                                     :: VegetationID
+        integer, optional                           :: Pest
+        real, dimension(:,:), pointer, optional     :: PesticideVegetation
+
+        integer, optional, intent(OUT)              :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: ready_        
+        integer                                     :: STAT_
+        
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(VegetationID, ready_) 
+
+        
+        if ((ready_ .EQ. READ_LOCK_ERR_)) then
+
+            if (present(PesticideVegetation      )) then
+                if( .not. present(Pest)) stop 'GetVegetationAerialFluxes - ModuleVegetation - ERR10'
+                
+                nullify(PesticideVegetation)
+                
+                call Read_UnLock(mVEGETATION_, Me%InstanceID, "UngetVegetationAerialFluxes")
+            endif
+           
+            STAT_ = SUCCESS_
+        else 
+            STAT_ = ready_
+        end if 
+
+        if (present(STAT)) STAT = STAT_
+
+
+    end subroutine UnGetVegetationAerialFluxes
+
+    !--------------------------------------------------------------------------
+
 
     subroutine SetSoilConcVegetation   (ObjVegetationID,                        & 
                                         Nitrate,                                &
@@ -5358,10 +6341,10 @@ cd0:    if (Exist) then
                                          GrazingBiomass,                           &
                                          GrazingNitrogen,                          &
                                          GrazingPhosphorus,                        &
-                                         ManagementAerialBiomass,                  &
-                                         ManagementNitrogen,                       &
-                                         ManagementPhosphorus,                     &
-                                         ManagementRootBiomass,                    &
+                                         HarvestKillAerialBiomass,                  &
+                                         HarvestKillNitrogen,                       &
+                                         HarvestKillPhosphorus,                     &
+                                         HarvestKillRootBiomass,                    &
                                          DormancyBiomass,                          &
                                          DormancyNitrogen,                         &
                                          DormancyPhosphorus,                       &
@@ -5377,6 +6360,7 @@ cd0:    if (Exist) then
                                          FertilMineralPSubSurface,                 &
                                          NitrogenUptake,                           &
                                          PhosphorusUptake,                         &
+                                         PesticideSoil,                            &
                                          STAT)
                                   
         !Arguments--------------------------------------------------------------
@@ -5385,10 +6369,10 @@ cd0:    if (Exist) then
         real, dimension(:,:), pointer, optional     :: GrazingBiomass
         real, dimension(:,:), pointer, optional     :: GrazingNitrogen
         real, dimension(:,:), pointer, optional     :: GrazingPhosphorus
-        real, dimension(:,:), pointer, optional     :: ManagementAerialBiomass
-        real, dimension(:,:), pointer, optional     :: ManagementNitrogen
-        real, dimension(:,:), pointer, optional     :: ManagementPhosphorus
-        real, dimension(:,:), pointer, optional     :: ManagementRootBiomass
+        real, dimension(:,:), pointer, optional     :: HarvestKillAerialBiomass
+        real, dimension(:,:), pointer, optional     :: HarvestKillNitrogen
+        real, dimension(:,:), pointer, optional     :: HarvestKillPhosphorus
+        real, dimension(:,:), pointer, optional     :: HarvestKillRootBiomass
         real, dimension(:,:), pointer, optional     :: DormancyBiomass
         real, dimension(:,:), pointer, optional     :: DormancyNitrogen
         real, dimension(:,:), pointer, optional     :: DormancyPhosphorus
@@ -5404,6 +6388,7 @@ cd0:    if (Exist) then
         real, dimension(:,:), pointer, optional     :: FertilMineralPSubSurface
         real, dimension(:,:,:),pointer,optional     :: NitrogenUptake
         real, dimension(:,:,:),pointer,optional     :: PhosphorusUptake
+        real, dimension(:,:), pointer, optional     :: PesticideSoil        
 
         integer, optional, intent(OUT)              :: STAT
 
@@ -5423,10 +6408,10 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
             if (present(GrazingBiomass          )) nullify(GrazingBiomass)
             if (present(GrazingNitrogen         )) nullify(GrazingNitrogen)
             if (present(GrazingPhosphorus       )) nullify(GrazingPhosphorus)
-            if (present(ManagementAerialBiomass )) nullify(ManagementAerialBiomass)
-            if (present(ManagementNitrogen      )) nullify(ManagementNitrogen)
-            if (present(ManagementPhosphorus    )) nullify(ManagementPhosphorus)
-            if (present(ManagementRootBiomass   )) nullify(ManagementRootBiomass)
+            if (present(HarvestKillAerialBiomass)) nullify(HarvestKillAerialBiomass)
+            if (present(HarvestKillNitrogen     )) nullify(HarvestKillNitrogen)
+            if (present(HarvestKillPhosphorus   )) nullify(HarvestKillPhosphorus)
+            if (present(HarvestKillRootBiomass  )) nullify(HarvestKillRootBiomass)
             if (present(DormancyBiomass         )) nullify(DormancyBiomass)
             if (present(DormancyNitrogen        )) nullify(DormancyNitrogen)
             if (present(DormancyPhosphorus      )) nullify(DormancyPhosphorus)
@@ -5442,6 +6427,7 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
             if (present(FertilMineralPSubSurface)) nullify(FertilMineralPSubSurface)
             if (present(NitrogenUptake          )) nullify(NitrogenUptake)
             if (present(PhosphorusUptake        )) nullify(PhosphorusUptake)
+            if (present(PesticideSoil           )) nullify(PesticideSoil)
 
             call Read_UnLock(mVegetation_, Me%InstanceID, "UngetVegetationSoilFluxes")
 
@@ -5529,6 +6515,42 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
     end subroutine UngetVegetation2D_I    
 
    !----------------------------------------------------------------------
+   
+    subroutine UngetVegetation2D_L(VegetationID, Array, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                         :: VegetationID
+        logical, pointer, dimension(:,:) :: Array
+        integer, optional, intent (OUT) :: STAT
+   
+        !External--------------------------------------------------------------
+        integer                         :: ready_   
+
+        !Local-----------------------------------------------------------------
+        integer                         :: STAT_
+        
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(VegetationID, ready_) 
+
+cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
+            nullify(Array)
+
+            call Read_UnLock(mVegetation_, Me%InstanceID, "UngetVegetation2D_I")
+
+            STAT_ = SUCCESS_
+        else 
+            STAT_ = ready_
+        end if cd1
+
+        if (present(STAT)) STAT = STAT_
+
+
+    end subroutine UngetVegetation2D_L    
+
+   !----------------------------------------------------------------------   
 
     subroutine UngetVegetation3D(VegetationID, Array, STAT)
 
@@ -5819,6 +6841,7 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
         !Arguments-------------------------------------------------------------
                                                     
         !Local-----------------------------------------------------------------
+        integer                                              :: Pest
         !Begin-----------------------------------------------------------------
 
 
@@ -5838,19 +6861,19 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
 
         endif
         
-        if (Me%ComputeOptions%Management) then
+        if (Me%ComputeOptions%HarvestKill) then
 
             Me%Fluxes%BiomassRemovedInHarvest                             (:,:) = 0.0  
             Me%Fluxes%BiomassHarvestedFraction                            (:,:) = 0.0
-            Me%Fluxes%ToSoil%ManagementBiomassToSoil                      (:,:) = 0.0 
-            Me%Fluxes%ToSoil%ManagementRootBiomassLeftInSoil              (:,:) = 0.0
+            Me%Fluxes%ToSoil%HarvestKillBiomassToSoil                      (:,:) = 0.0 
+            Me%Fluxes%ToSoil%KillRootBiomassLeftInSoil              (:,:) = 0.0
             if (Me%ComputeOptions%ModelNitrogen) then
                 Me%Fluxes%NitrogenRemovedInHarvest                        (:,:) = 0.0 
-                Me%Fluxes%ToSoil%ManagementNitrogenToSoil                 (:,:) = 0.0 
+                Me%Fluxes%ToSoil%HarvestKillNitrogenToSoil                 (:,:) = 0.0 
             endif
             if (Me%ComputeOptions%ModelPhosphorus) then
                 Me%Fluxes%PhosphorusRemovedInHarvest                      (:,:) = 0.0
-                Me%Fluxes%ToSoil%ManagementPhosphorusToSoil               (:,:) = 0.0 
+                Me%Fluxes%ToSoil%HarvestKillPhosphorusToSoil               (:,:) = 0.0 
             endif
         endif
 
@@ -5896,7 +6919,13 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
             endif
 
         endif
-
+        
+        if (Me%ComputeOptions%Pesticide) then
+            do Pest = 1, Me%Fluxes%Pesticides%UniquePesticides
+                Me%Fluxes%Pesticides%Application(Pest)%Soil      (:,:) = 0.0
+                Me%Fluxes%Pesticides%Application(Pest)%Vegetation(:,:) = 0.0
+            enddo
+        endif
 
         Me%Fluxes%WaterUptake           (:,:  ) = 0.0 
         Me%Fluxes%WaterUptakeLayer      (:,:,:) = 0.0 
@@ -5931,6 +6960,7 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
         integer                                            :: i,j, PlantType
         logical                                            :: Dormant
         integer                                            :: JulDay, JulDay_Old
+        integer                                            :: Pest
        !Begin-----------------------------------------------------------------
         
         !If dormancy and day changed, compute day lenght
@@ -5965,7 +6995,7 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
                 endif
                 
                 !Reset global state variables
-                if (Me%ComputeOptions%Management) then
+                if (Me%ComputeOptions%HarvestKill) then
                     if (Me%KillOccurred(i,j) .or. Me%HarvestKillOccurred(i,j)) then
                         Me%IsPlantGrowing(i,j)      = .false.
                         Me%KillOccurred(i,j)        = .false.        
@@ -5996,7 +7026,13 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
                         Me%PlantGoingDormant(i,j) = .false.
                     endif
                 endif
-                
+                if (Me%ComputeOptions%Pesticide) then
+                    do Pest = 1, Me%Fluxes%Pesticides%UniquePesticides
+                        if (Me%Fluxes%Pesticides%Application(Pest)%PesticideAppOccurred(i,j)) then
+                            Me%Fluxes%Pesticides%Application(Pest)%PesticideAppOccurred(i,j) = .false.
+                        endif
+                    enddo
+                endif                
                 
 
                 !SWAT Base Heat Units counter (for planting schedule)
@@ -6012,6 +7048,13 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
                     call CheckPlanting(i,j)
                 
                 endif
+                
+                 !Check if it is pesticide application time
+                if (Me%ComputeOptions%Pesticide) then
+                    
+                    call CheckPlantPesticide(i,j)
+                
+                endif                
     
                 if (Me%IsPlantGrowing(i,j)) then
                     
@@ -6037,10 +7080,10 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
                     
                     endif
  
-                    !Check if management will occurr (harvest, kill... etc)
-                    if (Me%ComputeOptions%Management) then
+                    !Check if HarvestKill will occurr (harvest, kill... etc)
+                    if (Me%ComputeOptions%HarvestKill) then
                         
-                        call CheckPlantManagement(i,j)
+                        call CheckPlantHarvestKill(i,j)
                     
                     endif
 
@@ -6083,9 +7126,9 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
         call PlantAerialFluxes
  
         !Harvest and kill operations
-        if (Me%ComputeOptions%Management) then
-            !Management fluxes are computed if plant is being managed (kill, harvest)            
-            call ManagementFluxes
+        if (Me%ComputeOptions%HarvestKill) then
+            !HarvestKill fluxes are computed if plant is being managed (kill, harvest)            
+            call HarvestKillFluxes
         endif
 
         if (Me%ComputeOptions%Dormancy) then
@@ -6101,6 +7144,11 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
         if(Me%ComputeOptions%Fertilization) then
             !Fertilization fluxes are computed (based on plant needs or scheduled)    
             call FertilizationFluxes
+        endif
+        
+        if(Me%ComputeOptions%Pesticide) then
+            !Pesticide fluxes are copmputed
+            call PesticideFluxes
         endif
 
     end subroutine ModifyFluxes
@@ -6295,8 +7343,8 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
         integer                                         ::   JulDay, JulDay_Old
         character (Len = StringLength)                  :: WarningString
         !SandBoxTest-----------------------------------------------------------
-!        Me%VegetationTypes(Me%VegetationID(i,j))%ManagementDatabase%PlantingJulianDay = -99
-!        Me%VegetationTypes(Me%VegetationID(i,j))%ManagementDatabase%PlantingHUBase = Me%ComputeOptions%PlantingHUBase
+!        Me%VegetationTypes(Me%VegetationID(i,j))%HarvestKillDatabase%PlantingJulianDay = -99
+!        Me%VegetationTypes(Me%VegetationID(i,j))%HarvestKillDatabase%PlantingHUBase = Me%ComputeOptions%PlantingHUBase
         !Begin-----------------------------------------------------------------
 
 
@@ -6343,15 +7391,15 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
             WarningString = 'Planting'
             call UpdatePlantGrowingStage (i,j, WarningString)
             
-            if (Me%ComputeOptions%Management) then
-                Me%HarvestOperations       = 1
-                Me%HarvestKillOperations   = 1
-                Me%KillOperations          = 1
-                Me%HarvestFinished(i,j)    = .false.     
+            if (Me%ComputeOptions%HarvestKill) then
+!                Me%HarvestOperations       = 1
+!                Me%HarvestKillOperations   = 1
+!                Me%KillOperations          = 1
+!                Me%HarvestFinished(i,j)    = .false.     
             endif           
             if (Me%ComputeOptions%Grazing) then
-                Me%GrazingOperations       = 1
-                Me%GrazingFinished(i,j)    = .false.
+!                Me%GrazingOperations       = 1
+!                Me%GrazingFinished(i,j)    = .false.
             endif
             
         endif
@@ -6403,7 +7451,7 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
         real                                            :: PlantBaseTemperature
         real                                            :: HUAcc, AccumulatedTemperature
         !SandBoxTest-----------------------------------------------------------
-!        Me%VegetationTypes(Me%VegetationID(i,j))%ManagementDatabase%PlantHUatMaturity = Me%ComputeOptions%PlantHUatMaturity
+!        Me%VegetationTypes(Me%VegetationID(i,j))%HarvestKillDatabase%PlantHUatMaturity = Me%ComputeOptions%PlantHUatMaturity
 !        Me%VegetationTypes(Me%VegetationID(i,j))%GrowthDatabase%PlantBaseTemperature = 0.
         !Begin-----------------------------------------------------------------
 
@@ -8300,7 +9348,7 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                 if (Me%ComputeOptions%Dormancy) then
                     if (Me%IsPlantDormant(i,j)) then
                         Dormant = .true.
-                        !Do not compute senescence if dormant. The only fluxes allowed will be management and grazing
+                        !Do not compute senescence if dormant. The only fluxes allowed will be HarvestKill and grazing
                         Me%LAISenescence(i,j) = .false.
                     endif
                 endif
@@ -8406,7 +9454,7 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
     !--------------------------------------------------------------------------
 
-    subroutine CheckPlantManagement(i,j)
+    subroutine CheckPlantHarvestKill(i,j)
 
         !Arguments-------------------------------------------------------------
         integer, intent(IN)                             :: i, j
@@ -8415,32 +9463,32 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         real                                            :: HarvestKillJulianDay 
         real                                            :: HarvestJulianDay, KillJulianDay
         integer                                         :: PlantType, JulDay, JulDay_Old
-        integer                                         :: Op
+!        integer                                         :: Op
         real                                            :: HarvestKillPlantHU 
         real                                            :: KillPlantHU
-        real, dimension (:), pointer                    :: HarvestHU
+        real                                            :: HarvestHU
         logical                                         :: Dormant
         !SandBoxTest-----------------------------------------------------------
-!        allocate(Me%VegetationTypes(Me%VegetationID(i,j))%ManagementDatabase%HarvestPlantHU(1))
-!        Me%VegetationTypes(Me%VegetationID(i,j))%ManagementDatabase%HarvestKillJulianDay = -99.
-!        Me%VegetationTypes(Me%VegetationID(i,j))%ManagementDatabase%HarvestKillPlantHU   = 1.2
-!        Me%VegetationTypes(Me%VegetationID(i,j))%ManagementDatabase%HarvestJulianDay     = -99.
-!        Me%VegetationTypes(Me%VegetationID(i,j))%ManagementDatabase%HarvestPlantHU(1)    = -99.
-!        Me%VegetationTypes(Me%VegetationID(i,j))%ManagementDatabase%HarvestPlantHU(2)    = -99.
-!        Me%VegetationTypes(Me%VegetationID(i,j))%ManagementDatabase%KillJulianDay        = -99.
-!        Me%VegetationTypes(Me%VegetationID(i,j))%ManagementDatabase%KillPlantHU          = -99.
+!        allocate(Me%VegetationTypes(Me%VegetationID(i,j))%HarvestKillDatabase%HarvestPlantHU(1))
+!        Me%VegetationTypes(Me%VegetationID(i,j))%HarvestKillDatabase%HarvestKillJulianDay = -99.
+!        Me%VegetationTypes(Me%VegetationID(i,j))%HarvestKillDatabase%HarvestKillPlantHU   = 1.2
+!        Me%VegetationTypes(Me%VegetationID(i,j))%HarvestKillDatabase%HarvestJulianDay     = -99.
+!        Me%VegetationTypes(Me%VegetationID(i,j))%HarvestKillDatabase%HarvestPlantHU(1)    = -99.
+!        Me%VegetationTypes(Me%VegetationID(i,j))%HarvestKillDatabase%HarvestPlantHU(2)    = -99.
+!        Me%VegetationTypes(Me%VegetationID(i,j))%HarvestKillDatabase%KillJulianDay        = -99.
+!        Me%VegetationTypes(Me%VegetationID(i,j))%HarvestKillDatabase%KillPlantHU          = -99.
         !Begin-----------------------------------------------------------------
 
 
         HUAcc                = Me%HeatUnits%PlantHUAccumulated(i,j)
         HUAcc_Old            = Me%HeatUnits%PlantHUAccumulated_Old(i,j)
         PlantType            = Me%VegetationTypes(Me%VegetationID(i,j))%GrowthDatabase%PlantType
-        HarvestKillJulianDay = Me%VegetationTypes(Me%VegetationID(i,j))%ManagementDatabase%HarvestKillJulianDay
-        HarvestKillPlantHU   = Me%VegetationTypes(Me%VegetationID(i,j))%ManagementDatabase%HarvestKillPlantHU
-        HarvestJulianDay     = Me%VegetationTypes(Me%VegetationID(i,j))%ManagementDatabase%HarvestJulianDay
-        HarvestHU            =>Me%VegetationTypes(Me%VegetationID(i,j))%ManagementDatabase%HarvestPlantHU
-        KillJulianDay        = Me%VegetationTypes(Me%VegetationID(i,j))%ManagementDatabase%KillJulianDay
-        KillPlantHU          = Me%VegetationTypes(Me%VegetationID(i,j))%ManagementDatabase%KillPlantHU
+        HarvestKillJulianDay = Me%VegetationTypes(Me%VegetationID(i,j))%HarvestKillDatabase%HarvestKillJulianDay
+        HarvestKillPlantHU   = Me%VegetationTypes(Me%VegetationID(i,j))%HarvestKillDatabase%HarvestKillPlantHU
+        HarvestJulianDay     = Me%VegetationTypes(Me%VegetationID(i,j))%HarvestKillDatabase%HarvestJulianDay
+        HarvestHU            = Me%VegetationTypes(Me%VegetationID(i,j))%HarvestKillDatabase%HarvestPlantHU
+        KillJulianDay        = Me%VegetationTypes(Me%VegetationID(i,j))%HarvestKillDatabase%KillJulianDay
+        KillPlantHU          = Me%VegetationTypes(Me%VegetationID(i,j))%HarvestKillDatabase%KillPlantHU
 
         !! check if end of annual growing season
 
@@ -8478,9 +9526,9 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         endif
 
         !! harvest operation (no kill)
-        if (.not. Me%HarvestFinished(i,j)) then
+!        if (.not. Me%HarvestFinished(i,j)) then
             
-            Op = Me%HarvestOperations(i,j)
+!            Op = Me%HarvestOperations(i,j)
             
             if (HarvestJulianDay .gt. 0.0) then
                 if(JulDay .ge. HarvestJulianDay .and. JulDay_Old .lt. HarvestJulianDay) then
@@ -8488,21 +9536,21 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                     Me%HarvestOnlyOccurred(i,j) = .true.
             
                 endif
-            elseif (HarvestHU(Op) .gt. 0.0) then
-                if(HUAcc .ge. HarvestHU(Op) .and. HUAcc_Old .lt. HarvestHU(Op)) then
+            elseif (HarvestHU .gt. 0.0) then
+                if(HUAcc .ge. HarvestHU .and. HUAcc_Old .lt. HarvestHU) then
             
                     Me%HarvestOnlyOccurred(i,j) = .true.
                 
-                    Me%HarvestOperations(i,j) = Me%HarvestOperations(i,j) + 1
-                    if (Me%HarvestOperations(i,j) .gt. size(HarvestHU)) then
-                        Me%HarvestFinished(i,j) = .true. 
-                    endif
+!                    Me%HarvestOperations(i,j) = Me%HarvestOperations(i,j) + 1
+!                    if (Me%HarvestOperations(i,j) .gt. size(HarvestHU)) then
+!                        Me%HarvestFinished(i,j) = .true. 
+!                    endif
 
                 endif
             else
-                Me%HarvestFinished(i,j) = .true. 
+!                Me%HarvestFinished(i,j) = .true. 
             endif
-        endif
+!        endif
 
 
         !! kill operation
@@ -8519,30 +9567,13 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             endif
         endif
         
-!        deallocate(Me%VegetationTypes(Me%VegetationID(i,j))%ManagementDatabase%HarvestPlantHU)
+!        deallocate(Me%VegetationTypes(Me%VegetationID(i,j))%HarvestKillDatabase%HarvestPlantHU)
 
    
-    end subroutine CheckPlantManagement
+    end subroutine CheckPlantHarvestKill
     !--------------------------------------------------------------------------
     
-    subroutine ManagementFluxes
-
-        !Arguments-------------------------------------------------------------
-        !Begin-----------------------------------------------------------------
-        
-                
-        !Harvest, kill operations
-        call PlantManagementFluxes
-        
-        !Fertilization, tillage
-        call SoilManagementFluxes
-
-
-    end subroutine ManagementFluxes
-
-    !--------------------------------------------------------------------------
-
-    subroutine PlantManagementFluxes
+    subroutine HarvestKillFluxes
 
         !Arguments-------------------------------------------------------------
         !Local-----------------------------------------------------------------
@@ -8583,7 +9614,7 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         enddo do1
 
    
-    end subroutine PlantManagementFluxes
+    end subroutine HarvestKillFluxes
     !--------------------------------------------------------------------------
 
     subroutine HarvestOperation(i,j)
@@ -8606,7 +9637,7 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 !        Me%VegetationTypes(Me%VegetationID(i,j))%GrowthDatabase%MinimumHarvestIndex      = 0.20
 !        Me%VegetationTypes(Me%VegetationID(i,j))%GrowthDatabase%NitrogenFractionInYeld   = 0.0250
 !        Me%VegetationTypes(Me%VegetationID(i,j))%GrowthDatabase%PhosphorusFractionInYeld = 0.0022
-!        Me%VegetationTypes(Me%VegetationID(i,j))%ManagementDatabase%HarvestEfficiency    = 1.0
+!        Me%VegetationTypes(Me%VegetationID(i,j))%HarvestKillDatabase%HarvestEfficiency    = 1.0
         !Begin-----------------------------------------------------------------
 
 
@@ -8667,7 +9698,7 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         endif
         
         !! determine clippings (biomass left behind) and update yield
-        HarvestEfficiency = Me%VegetationTypes(Me%VegetationID(i,j))%ManagementDatabase%HarvestEfficiency
+        HarvestEfficiency = Me%VegetationTypes(Me%VegetationID(i,j))%HarvestKillDatabase%HarvestEfficiency
         Clip = 0.0
         Clip = Yeld * (1. - HarvestEfficiency)
         Yeld = Yeld *  HarvestEfficiency
@@ -8704,7 +9735,7 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
 
         !!Biomass to soil. The fraction left by clippings
-        Me%Fluxes%ToSoil%ManagementBiomassToSoil(i,j) = Clip
+        Me%Fluxes%ToSoil%HarvestKillBiomassToSoil(i,j) = Clip
         
         !StateVariables Fluxes
         Me%Fluxes%BiomassRemovedInHarvest(i,j)    = Yeld + Clip
@@ -8735,7 +9766,7 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             NitrogenClipping   = max(NitrogenClipping, 0.0)
             
             !!Nitrogen to soil. The fraction left by clippings
-            Me%Fluxes%ToSoil%ManagementNitrogenToSoil(i,j) = NitrogenClipping
+            Me%Fluxes%ToSoil%HarvestKillNitrogenToSoil(i,j) = NitrogenClipping
  
             !StateVariables Fluxes
             Me%Fluxes%NitrogenRemovedInHarvest(i,j)   = NitrogenYeld + NitrogenClipping
@@ -8760,7 +9791,7 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             PhosphorusClipping = max(PhosphorusClipping, 0.0)
             
             !!Phosphorus to soil. The fraction left by clippings
-            Me%Fluxes%ToSoil%ManagementPhosphorusToSoil(i,j) = PhosphorusClipping
+            Me%Fluxes%ToSoil%HarvestKillPhosphorusToSoil(i,j) = PhosphorusClipping
 
             !StateVariables Fluxes
             Me%Fluxes%PhosphorusRemovedInHarvest(i,j) = PhosphorusYeld + PhosphorusClipping
@@ -8927,9 +9958,9 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
         
         !!Biomass to soil. The fraction not removed by yeld because plant will die
-        Me%Fluxes%ToSoil%ManagementBiomassToSoil(i,j) = Residue
+        Me%Fluxes%ToSoil%HarvestKillBiomassToSoil(i,j) = Residue
         !The remaining biomass in soil - Not accounted in SWAT because N and P to soil come from all plant
-        Me%Fluxes%ToSoil%ManagementRootBiomassLeftInSoil(i,j) = Me%StateVariables%RootBiomass(i,j)
+        Me%Fluxes%ToSoil%KillRootBiomassLeftInSoil(i,j) = Me%StateVariables%RootBiomass(i,j)
 
         if (Me%ComputeOptions%ModelNitrogen) then        
             
@@ -8947,7 +9978,7 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                 NitrogenToSoil = 0.0
             endif
 
-            Me%Fluxes%ToSoil%ManagementNitrogenToSoil(i,j) = NitrogenToSoil
+            Me%Fluxes%ToSoil%HarvestKillNitrogenToSoil(i,j) = NitrogenToSoil
 
         endif
 
@@ -8967,7 +9998,7 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                 PhosphorusToSoil = 0.0
             endif
             
-            Me%Fluxes%ToSoil%ManagementPhosphorusToSoil(i,j) = PhosphorusToSoil
+            Me%Fluxes%ToSoil%HarvestKillPhosphorusToSoil(i,j) = PhosphorusToSoil
 
         endif
 
@@ -9048,21 +10079,21 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
         !Biomass to soil
         Residue = AerialBiomass
-        Me%Fluxes%ToSoil%ManagementBiomassToSoil(i,j) = Residue
+        Me%Fluxes%ToSoil%HarvestKillBiomassToSoil(i,j) = Residue
         !The remaining biomass in soil - Not accounted in SWAT because N and P to soil come from all plant
-        Me%Fluxes%ToSoil%ManagementRootBiomassLeftInSoil(i,j) = Me%StateVariables%RootBiomass(i,j)
+        Me%Fluxes%ToSoil%KillRootBiomassLeftInSoil(i,j) = Me%StateVariables%RootBiomass(i,j)
 
 !      sol_rsd(1,j) = sol_rsd(1,j) + resnew
 !      sol_rsd(1,j) = Max(sol_rsd(1,j),0.)
 
         if (Me%ComputeOptions%ModelNitrogen) then
             !Nitrogen to soil
-            Me%Fluxes%ToSoil%ManagementNitrogenToSoil(i,j) = Me%StateVariables%TotalPlantNitrogen(i,j)
+            Me%Fluxes%ToSoil%HarvestKillNitrogenToSoil(i,j) = Me%StateVariables%TotalPlantNitrogen(i,j)
         endif
         
         if (Me%ComputeOptions%ModelPhosphorus) then
             !Phosphorus to soil
-            Me%Fluxes%ToSoil%ManagementPhosphorusToSoil(i,j) = Me%StateVariables%TotalPlantPhosphorus(i,j)
+            Me%Fluxes%ToSoil%HarvestKillPhosphorusToSoil(i,j) = Me%StateVariables%TotalPlantPhosphorus(i,j)
         endif
 
         !Biomass or nutrients fluxes for plant are not computed because plant dies.
@@ -9100,15 +10131,6 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
     !--------------------------------------------------------------------------
 
-    subroutine SoilManagementFluxes
-        
-        !Arguments-------------------------------------------------------------
-!        integer, intent(IN)                             :: i, j
-
-
-    end subroutine SoilManagementFluxes
-
-    !--------------------------------------------------------------------------
 
     subroutine ComputeDayLength
 
@@ -9306,7 +10328,7 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                             BiomassRemovedInDormancy    = TotalPlantBiomass * BiomassFracRemovedInDormancy
 
                             BiomassRemovedInHarvest = 0.0
-                            if (Me%ComputeOptions%Management .and. Me%HarvestOnlyOccurred(i,j)) then
+                            if (Me%ComputeOptions%HarvestKill .and. Me%HarvestOnlyOccurred(i,j)) then
                                 BiomassRemovedInHarvest = Me%Fluxes%BiomassRemovedInHarvest(i,j)
                             endif
                         
@@ -9417,21 +10439,21 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 !        real                                            ::   GrazingStartPlantHU
         integer                                         ::  GrazingDays, JulDay, JulDay_Old
         real                                            :: HUAcc, HUAcc_Old
-        real, dimension (:), pointer                    :: GrazingStartPlantHU
-        integer                                         :: Op
+        real                                            :: GrazingStartPlantHU
+!        integer                                         :: Op
 
         !SandBoxTest-----------------------------------------------------------
-!        allocate(Me%VegetationTypes(Me%VegetationID(i,j))%ManagementDatabase%GrazingStartPlantHU(1))
+!        allocate(Me%VegetationTypes(Me%VegetationID(i,j))%HarvestKillDatabase%GrazingStartPlantHU(1))
        
-!        Me%VegetationTypes(Me%VegetationID(i,j))%ManagementDatabase%GrazingStartJulianDay = -99.
-!        Me%VegetationTypes(Me%VegetationID(i,j))%ManagementDatabase%GrazingStartPlantHU(1) = 0.5
-!        Me%VegetationTypes(Me%VegetationID(i,j))%ManagementDatabase%GrazingStartPlantHU(2) = 0.8
+!        Me%VegetationTypes(Me%VegetationID(i,j))%GrazingDatabase%GrazingStartJulianDay = -99.
+!        Me%VegetationTypes(Me%VegetationID(i,j))%GrazingKillDatabase%GrazingStartPlantHU(1) = 0.5
+!        Me%VegetationTypes(Me%VegetationID(i,j))%GrazingKillDatabase%GrazingStartPlantHU(2) = 0.8
 
         !Begin-----------------------------------------------------------------
         
-        if (.not. Me%GrazingFinished(i,j)) then
+!        if (.not. Me%GrazingFinished(i,j)) then
             
-            Op = Me%GrazingOperations(i,j)
+!            Op = Me%GrazingOperations(i,j)
             
 
             !! if cell currently not grazed, check to see if it is time
@@ -9441,8 +10463,8 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                 call JulianDay(Me%ExternalVar%Now, JulDay)
                 JulDay_Old = Me%ExternalVar%JulianDay_Old
 
-                GrazingStartJulianDate = Me%VegetationTypes(Me%VegetationID(i,j))%ManagementDatabase%GrazingStartJulianDay 
-                GrazingStartPlantHU    =>Me%VegetationTypes(Me%VegetationID(i,j))%ManagementDatabase%GrazingStartPlantHU
+                GrazingStartJulianDate = Me%VegetationTypes(Me%VegetationID(i,j))%GrazingDatabase%GrazingStartJulianDay 
+                GrazingStartPlantHU    = Me%VegetationTypes(Me%VegetationID(i,j))%GrazingDatabase%GrazingStartPlantHU
                 DT_day                 = Me%ComputeOptions%VegetationDT / (60 * 60 * 24)
                 HUAcc                  = Me%HeatUnits%PlantHUAccumulated(i,j)
                 HUAcc_Old              = Me%HeatUnits%PlantHUAccumulated_Old(i,j)
@@ -9457,16 +10479,16 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                 
                     endif
 
-                else if (GrazingStartPlantHU(Op) .gt. 0.) then
+                else if (GrazingStartPlantHU .gt. 0.) then
                 
-                    if(HUAcc .ge. GrazingStartPlantHU(Op) .and. HUAcc_Old .lt. GrazingStartPlantHU(Op)) then
+                    if(HUAcc .ge. GrazingStartPlantHU .and. HUAcc_Old .lt. GrazingStartPlantHU) then
                 
                         Me%IsPlantBeingGrazed(i,j) = .true.
                         Me%DaysOfGrazing(i,j) = 1
                 
                     endif
-                else
-                    Me%GrazingFinished(i,j) = .true. 
+!                else
+!                    Me%GrazingFinished(i,j) = .true. 
 
                 endif
                 
@@ -9475,7 +10497,7 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                 !! if not first day of grazing increment total days of grazing by one
                 DT_day                 = Me%ComputeOptions%VegetationDT / (60 * 60 * 24)
                 Me%DaysOfGrazing(i,j)  = Me%DaysOfGrazing(i,j) + DT_day
-                GrazingDays            = Me%VegetationTypes(Me%VegetationID(i,j))%ManagementDatabase%GrazingDays 
+                GrazingDays            = Me%VegetationTypes(Me%VegetationID(i,j))%GrazingDatabase%GrazingDays 
                 !! check to set if grazing period is over
                 if (Me%DaysOfGrazing(i,j) .ge. GrazingDays) then
     
@@ -9483,19 +10505,19 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
     
                     Me%DaysOfGrazing(i,j) = 0.
 
-                    Me%GrazingOperations(i,j) = Me%GrazingOperations(i,j) + 1
+!                    Me%GrazingOperations(i,j) = Me%GrazingOperations(i,j) + 1
 
-                    if (Me%GrazingOperations(i,j) .gt. size(GrazingStartPlantHU)) then
-                        Me%GrazingFinished(i,j) = .true. 
-                    endif
+!                    if (Me%GrazingOperations(i,j) .gt. size(GrazingStartPlantHU)) then
+!                        Me%GrazingFinished(i,j) = .true. 
+!                    endif
 
                 end if
 
             end if
 
-        endif
+!        endif
 
-!        deallocate(Me%VegetationTypes(Me%VegetationID(i,j))%ManagementDatabase%GrazingStartPlantHU)
+!        deallocate(Me%VegetationTypes(Me%VegetationID(i,j))%HarvestKillDatabase%GrazingStartPlantHU)
     
     end subroutine CheckPlantGrazing
 
@@ -9543,13 +10565,13 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                     .and. .not. PlantKilled) then     
 
             !SandBoxTest-----------------------------------------------------------
-    !         Me%VegetationTypes(Me%VegetationID(i,j))%ManagementDatabase%GrazingDays = 10
-    !         Me%VegetationTypes(Me%VegetationID(i,j))%ManagementDatabase%GrazingMinimumBiomass = 10.
-    !         Me%VegetationTypes(Me%VegetationID(i,j))%ManagementDatabase%GrazingBiomass = 70.
-    !         Me%VegetationTypes(Me%VegetationID(i,j))%ManagementDatabase%TramplingBiomass = 30.
+    !         Me%VegetationTypes(Me%VegetationID(i,j))%GrazingDatabase%GrazingDays = 10
+    !         Me%VegetationTypes(Me%VegetationID(i,j))%GrazingDatabase%GrazingMinimumBiomass = 10.
+    !         Me%VegetationTypes(Me%VegetationID(i,j))%GrazingDatabase%GrazingBiomass = 70.
+    !         Me%VegetationTypes(Me%VegetationID(i,j))%GrazingDatabase%TramplingBiomass = 30.
             !----------------------------------------------------------------------
                 
-                    GrazingMinimumBiomass = Me%VegetationTypes(Me%VegetationID(i,j))%ManagementDatabase%GrazingMinimumBiomass
+                    GrazingMinimumBiomass = Me%VegetationTypes(Me%VegetationID(i,j))%GrazingDatabase%GrazingMinimumBiomass
                     TotalPlantBiomass     = Me%StateVariables%TotalPlantBiomass(i,j)
                 
                     BiomassRemovedInDormancy = 0.0
@@ -9559,7 +10581,7 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                         endif
                     endif
                     BiomassRemovedInHarvest = 0.0
-                    if (Me%ComputeOptions%Management) then
+                    if (Me%ComputeOptions%HarvestKill) then
                         if(Me%HarvestOnlyOccurred(i,j)) then
                             BiomassRemovedInHarvest = Me%Fluxes%BiomassRemovedInHarvest(i,j)
                         endif
@@ -9570,8 +10592,8 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                     if (PredictedBiomass .gt. GrazingMinimumBiomass) then
 
                         !Kg/ha
-                        GrazingBiomass        = Me%VegetationTypes(Me%VegetationID(i,j))%ManagementDatabase%GrazingBiomass
-                        TramplingBiomass      = Me%VegetationTypes(Me%VegetationID(i,j))%ManagementDatabase%TramplingBiomass
+                        GrazingBiomass        = Me%VegetationTypes(Me%VegetationID(i,j))%GrazingDatabase%GrazingBiomass
+                        TramplingBiomass      = Me%VegetationTypes(Me%VegetationID(i,j))%GrazingDatabase%TramplingBiomass
             
                         !! biomass grazing flux
                         BiomassGrazed = GrazingBiomass
@@ -9609,7 +10631,7 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                                 NitrogenRemovedInDormancy = Me%Fluxes%NitrogenRemovedInDormancy(i,j)
                             endif
                             BiomassRemovedInHarvest = 0.0
-                            if (Me%ComputeOptions%Management .and. Me%HarvestOnlyOccurred(i,j)) then
+                            if (Me%ComputeOptions%HarvestKill .and. Me%HarvestOnlyOccurred(i,j)) then
                                 NitrogenRemovedInHarvest = Me%Fluxes%NitrogenRemovedInHarvest(i,j)
                             endif
                         
@@ -9642,7 +10664,7 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                                 endif
                             endif
                             PhosphorusRemovedInHarvest = 0.0
-                            if (Me%ComputeOptions%Management) then
+                            if (Me%ComputeOptions%HarvestKill) then
                                 if(Me%HarvestOnlyOccurred(i,j)) then
                                     PhosphorusRemovedInHarvest = Me%Fluxes%PhosphorusRemovedInHarvest(i,j)
                                 endif
@@ -9767,6 +10789,70 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
     !--------------------------------------------------------------------------
 
+    subroutine CheckPlantPesticide(i,j)
+
+        !Arguments-------------------------------------------------------------
+        integer, intent(IN)                             :: i, j
+        !Local-----------------------------------------------------------------
+        real                                            :: PotentialHU, PotentialHU_Old
+        real                                            :: PesticideAppJulianDay, PesticideAppHU
+        integer                                         :: JulDay, JulDay_Old
+        integer                                         :: PesticideAppID, PesticideApps
+        integer                                         :: PestApp, UniquePest
+        !Begin-----------------------------------------------------------------
+
+        PotentialHU          = Me%HeatUnits%PotentialHUBase(i,j)
+        PotentialHU_Old      = Me%HeatUnits%PotentialHUBase_Old(i,j)
+        PesticideApps        = Me%VegetationTypes(Me%VegetationID(i,j))%PesticideDatabase%NumberPesticideApps
+        
+if2:    if (PesticideApps .gt. 0) then
+            
+            !For every pesticide application
+do3:        do PestApp = 1, PesticideApps
+                
+                PesticideAppID    = Me%VegetationTypes(Me%VegetationID(i,j))%PesticideDatabase%PesticideApps(PestApp)%PesticideID
+                PesticideAppJulianDay   = &
+                Me%VegetationTypes(Me%VegetationID(i,j))%PesticideDatabase%PesticideApps(PestApp)%PesticideAppJDay
+                PesticideAppHU          = &
+                 Me%VegetationTypes(Me%VegetationID(i,j))%PesticideDatabase%PesticideApps(PestApp)%PesticideAppHU
+               
+                call JulianDay(Me%ExternalVar%Now, JulDay)
+                JulDay_Old = Me%ExternalVar%JulianDay_Old
+                
+                !! pesticide application check
+if3:            if (PesticideAppJulianDay .gt. 0.0) then
+if4:                if(JulDay .ge. PesticideAppJulianDay .and. JulDay_Old .lt. PesticideAppJulianDay) then
+                        
+                        !correspondent in global pesticide list
+do4:                    do UniquePest = 1, Me%Fluxes%Pesticides%UniquePesticides
+if5:                        if (PesticideAppID == Me%Fluxes%Pesticides%Application(UniquePest)%PesticideID) then
+                                Me%Fluxes%Pesticides%Application(UniquePest)%PesticideAppOccurred(i,j) = .true.
+                                exit do4
+                            endif if5
+                        enddo do4
+                    
+                    endif if4
+                elseif (PesticideAppHU .gt. 0.0) then
+if6:                if(PotentialHU .ge. PesticideAppHU .and. PotentialHU_Old .lt. PesticideAppHU) then
+                    
+                        !correspondent in global pesticide list
+do5:                    do UniquePest = 1, Me%Fluxes%Pesticides%UniquePesticides
+if7:                        if (PesticideAppID == Me%Fluxes%Pesticides%Application(UniquePest)%PesticideID) then
+                                Me%Fluxes%Pesticides%Application(UniquePest)%PesticideAppOccurred(i,j) = .true.
+                                exit do5
+                            endif if7
+                        enddo do5                        
+                    
+                    endif if6
+                endif if3
+                
+            enddo do3
+        endif if2
+   
+    end subroutine CheckPlantPesticide
+    
+    !--------------------------------------------------------------------------
+
     subroutine UpdatePlantGrowingStage (i,j, WarningString )
        
         !Arguments-------------------------------------------------------------
@@ -9868,7 +10954,7 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                 BiomassRemovedInHarvest     = 0.0
                 NitrogenRemovedInHarvest    = 0.0
                 PhosphorusRemovedInHarvest  = 0.0
-                if (Me%ComputeOptions%Management) then
+                if (Me%ComputeOptions%HarvestKill) then
                     if (Me%HarvestOnlyOccurred(i,j)) then
                     
                         BiomassRemovedInHarvest     = Me%Fluxes%BiomassRemovedInHarvest(i,j)
@@ -9918,7 +11004,7 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                 endif
             
                 PlantKilled = .false.
-                if (Me%ComputeOptions%Management) then
+                if (Me%ComputeOptions%HarvestKill) then
                     if (Me%KillOccurred(i,j) .or. Me%HarvestKillOccurred(i,j)) then
                         PlantKilled = .true.
                     endif
@@ -9999,7 +11085,7 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         !----------------------------------------------------------------------- 
                 
                 PlantKilled = .false.
-                if (Me%ComputeOptions%Management) then
+                if (Me%ComputeOptions%HarvestKill) then
                     if (Me%KillOccurred(i,j) .or. Me%HarvestKillOccurred(i,j)) then
                         PlantKilled = .true.
                     endif
@@ -10093,7 +11179,7 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                 if (Me%VegetationTypes(Me%VegetationID(i,j))%HasLeaves) then
 
                     PlantKilled = .false.
-                    if (Me%ComputeOptions%Management) then
+                    if (Me%ComputeOptions%HarvestKill) then
                         if (Me%KillOccurred(i,j) .or. Me%HarvestKillOccurred(i,j)) then
                             PlantKilled = .true.
                         endif
@@ -10130,7 +11216,7 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                         endif
 
                         BiomassHarvestedFraction = 0.0
-                        if (Me%ComputeOptions%Management) then
+                        if (Me%ComputeOptions%HarvestKill) then
                             if (Me%HarvestOnlyOccurred(i,j)) then
                                 BiomassHarvestedFraction = Me%Fluxes%BiomassHarvestedFraction(i,j)
                             endif
@@ -10234,13 +11320,13 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
                 Me%ChangeCanopyEnabled(i,j) = .false.
                 PlantKilled = .false.
-                if (Me%ComputeOptions%Management) then
+                if (Me%ComputeOptions%HarvestKill) then
                     if (Me%KillOccurred(i,j) .or. Me%HarvestKillOccurred(i,j)) then
                         PlantKilled = .true.
                     endif
                 endif
 
-                if (Me%ComputeOptions%Management .and. PlantKilled) then
+                if (Me%ComputeOptions%HarvestKill .and. PlantKilled) then
 
                     Me%StateVariables%CanopyHeight(i,j) = 0.0
 
@@ -10276,7 +11362,7 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 !                            endif
 
                             BiomassHarvestedFraction = 0.0
-                            if (Me%ComputeOptions%Management) then
+                            if (Me%ComputeOptions%HarvestKill) then
                                 if (Me%HarvestOnlyOccurred(i,j)) then
                                     BiomassHarvestedFraction = Me%Fluxes%BiomassHarvestedFraction(i,j)
                                 endif
@@ -10484,6 +11570,7 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         real                                        :: AmmoniaFracInMineralN, OrganicNFracInFertilizer
         real                                        :: MineralPFracInFertilizer, OrganicPFracInFertilizer
         real                                        :: MineralPFrac
+        real                                        :: PotentialAnnualNitrogen, PotentialAnnualPhosphorus
         !Begin-----------------------------------------------------------------
 
         !Compute fertilizer applyance
@@ -10502,10 +11589,9 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             endif
             
             !KgN/ha
-            Me%AnnualNitrogenFertilized(i,j) = Me%AnnualNitrogenFertilized(i,j) + NitrogenDemand
-            if (Me%AnnualNitrogenFertilized(i,j) .ge. NitrogenAnnualMax) then
-                NitrogenDemand = NitrogenAnnualMax - (Me%AnnualNitrogenFertilized(i,j) - NitrogenDemand)
-                Me%AnnualNitrogenFertilized(i,j) = NitrogenAnnualMax
+            PotentialAnnualNitrogen = Me%AnnualNitrogenFertilized(i,j) + NitrogenDemand
+            if (PotentialAnnualNitrogen .ge. NitrogenAnnualMax) then
+                NitrogenDemand = NitrogenAnnualMax - (PotentialAnnualNitrogen - NitrogenDemand)
             endif
 
 !!         if (targn <= 1.e-6) return
@@ -10515,6 +11601,7 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             MineralNFracInFertilizer = Me%VegetationTypes(Me%VegetationID(i,j))%FertilizerDatabase%MineralNFracInFertilizer
             
             if (MineralNFracInFertilizer .gt. 0.0001) then
+                Me%AnnualNitrogenFertilized(i,j) = Me%AnnualNitrogenFertilized(i,j) + NitrogenDemand
                 FertilizerAmount = NitrogenDemand / MineralNFracInFertilizer
             else
                 FertilizerAmount = 0.0
@@ -10576,10 +11663,9 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                 PhosphorusDemand = PhosphorusDemand
             endif
                         
-            Me%AnnualPhosphorusFertilized(i,j) = Me%AnnualPhosphorusFertilized(i,j) + PhosphorusDemand
-            if (Me%AnnualPhosphorusFertilized(i,j) .ge. PhosphorusAnnualMax) then
-                PhosphorusDemand = PhosphorusAnnualMax - (Me%AnnualPhosphorusFertilized(i,j) - PhosphorusDemand)
-                Me%AnnualPhosphorusFertilized(i,j) = PhosphorusAnnualMax
+            PotentialAnnualPhosphorus = Me%AnnualPhosphorusFertilized(i,j) + PhosphorusDemand
+            if (PotentialAnnualPhosphorus .ge. PhosphorusAnnualMax) then
+                PhosphorusDemand = PhosphorusAnnualMax - (PotentialAnnualPhosphorus - PhosphorusDemand)
             endif
 
 !!         if (targn <= 1.e-6) return
@@ -10588,6 +11674,7 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             MineralPFracInFertilizer = Me%VegetationTypes(Me%VegetationID(i,j))%FertilizerDatabase%MineralPFracInFertilizer
             
             if (MineralPFracInFertilizer .gt. 0.0001) then
+                Me%AnnualPhosphorusFertilized(i,j) = Me%AnnualPhosphorusFertilized(i,j) + PhosphorusDemand
                 FertilizerAmount = PhosphorusDemand / MineralPFracInFertilizer
             else
                 FertilizerAmount = 0.0
@@ -10612,6 +11699,69 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         endif
 
     end subroutine AutoFertilization
+
+    !--------------------------------------------------------------------------
+    
+    subroutine PesticideFluxes
+        !Local-----------------------------------------------------------------
+        integer, dimension(:,:), pointer                   :: MappingPoints
+        integer                                            :: i,j
+        real                                               :: PesticideAmount
+        real                                               :: ExtinctionCoef
+        real                                               :: GroundCover
+        integer                                            :: NumberPestApp, UniquePest
+        integer                                            :: PestApp
+        !Begin-----------------------------------------------------------------
+        
+        MappingPoints => Me%ExternalVar%MappingPoints2D
+       
+do1:    do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+                
+if1:        if (MappingPoints (i, j) == 1) then    
+            
+                NumberPestApp = Me%VegetationTypes(Me%VegetationID(i,j))%PesticideDatabase%NumberPesticideApps
+if2:            if (NumberPestApp .gt. 0) then
+                    
+                    !Check unique pesticide list if applications occured
+do3:                do UniquePest = 1, Me%Fluxes%Pesticides%UniquePesticides
+if3:                    if (Me%Fluxes%Pesticides%Application(UniquePest)%PesticideAppOccurred(i,j)) then
+                            
+                            !if application occurred check for that id in agricultural practices and put the 
+                            !right amount
+do4:                        do PestApp = 1, NumberPestApp
+if4:                            if (Me%VegetationTypes(Me%VegetationID(i,j))%PesticideDatabase%PesticideApps(PestApp)%PesticideID &
+                                     == Me%Fluxes%Pesticides%Application(UniquePest)%PesticideID) then
+                                        
+                                        !Kg/ha
+                                        PesticideAmount =  &
+                        Me%VegetationTypes(Me%VegetationID(i,j))%PesticideDatabase%PesticideApps(PestApp)%PesticideAppAmount
+                                        ExtinctionCoef = Me%VegetationTypes(Me%VegetationID(i,j))%GrowthDatabase%ExtinctCoef
+                                        GroundCover = 1.0 - exp(-ExtinctionCoef * Me%StateVariables%LeafAreaIndex(i, j)) 
+                                        !kg/ha
+                                        Me%Fluxes%Pesticides%Application(UniquePest)%Soil(i,j)   = PesticideAmount       &
+                                         * (1 - GroundCover)
+                                        !kg/ha
+                                        Me%Fluxes%Pesticides%Application(UniquePest)%Vegetation(i,j) = PesticideAmount   &
+                                         * (GroundCover)  
+                                        
+                                        exit do4
+                                endif if4                                   
+                            enddo do4
+                           
+                        endif if3
+                    enddo do3
+                
+                endif if2
+
+            endif if1
+            
+        enddo do2
+        enddo do1            
+     
+
+        
+    endsubroutine PesticideFluxes
 
     !--------------------------------------------------------------------------
     
@@ -10729,6 +11879,7 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         !Local-----------------------------------------------------------------
         type (T_Property), pointer                  :: PropertyX
         integer                                     :: STAT_CALL
+        integer                                     :: Pest
         !Begin-----------------------------------------------------------------
         
         PropertyX => Me%FirstProperty
@@ -10870,22 +12021,22 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                         if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModuleVegetation - ERR040.5'                  
                     endif
                 endif
-                if (Me%ComputeOptions%Management) then
-                    call WriteTimeSerie (Me%ObjTimeSerieToSoil, Data2D = Me%Fluxes%ToSoil%ManagementBiomassToSoil,       &
+                if (Me%ComputeOptions%HarvestKill) then
+                    call WriteTimeSerie (Me%ObjTimeSerieToSoil, Data2D = Me%Fluxes%ToSoil%HarvestKillBiomassToSoil,       &
                                          STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModuleVegetation - ERR041'     
 
-                    call WriteTimeSerie (Me%ObjTimeSerieToSoil, Data2D = Me%Fluxes%ToSoil%ManagementRootBiomassLeftInSoil, &
+                    call WriteTimeSerie (Me%ObjTimeSerieToSoil, Data2D = Me%Fluxes%ToSoil%KillRootBiomassLeftInSoil,     &
                                          STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModuleVegetation - ERR042'     
 
                     if (Me%ComputeOptions%ModelNitrogen) then
-                        call WriteTimeSerie (Me%ObjTimeSerieToSoil, Data2D = Me%Fluxes%ToSoil%ManagementNitrogenToSoil,   &
+                        call WriteTimeSerie (Me%ObjTimeSerieToSoil, Data2D = Me%Fluxes%ToSoil%HarvestKillNitrogenToSoil,   &
                                              STAT = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModuleVegetation - ERR043'     
                     endif
                     if (Me%ComputeOptions%ModelPhosphorus) then
-                        call WriteTimeSerie (Me%ObjTimeSerieToSoil, Data2D = Me%Fluxes%ToSoil%ManagementPhosphorusToSoil, &
+                        call WriteTimeSerie (Me%ObjTimeSerieToSoil, Data2D = Me%Fluxes%ToSoil%HarvestKillPhosphorusToSoil, &
                                              STAT = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModuleVegetation - ERR044'     
                     endif
@@ -10922,7 +12073,17 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                         if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModuleVegetation - ERR050'     
                     endif
                 endif  
-
+                if (Me%ComputeOptions%Pesticide) then
+                    do Pest = 1, Me%Fluxes%Pesticides%UniquePesticides
+                        call WriteTimeSerie (Me%ObjTimeSerieToSoil, Data2D = Me%Fluxes%Pesticides%Application(Pest)%Soil, &
+                                             STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModuleVegetation - ERR060'
+                        call WriteTimeSerie (Me%ObjTimeSerieToSoil, Data2D = Me%Fluxes%Pesticides%Application(Pest)%Vegetation, &
+                                             STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModuleVegetation - ERR060'                        
+                    enddo                        
+                endif
+                
             endif
 
         endif
@@ -11374,6 +12535,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
         !Local------------------------------------------------------------------
         type (T_Property), pointer :: PropertyX
         integer                    :: STAT_CALL
+        integer                    :: Pest
         !----------------------------------------------------------------------
 
 
@@ -11490,8 +12652,8 @@ do1 :   do while(associated(PropertyX))
                 deallocate(Me%DaysOfGrazing                                     ) 
                 deallocate(Me%IsPlantBeingGrazed                                ) 
 
-                deallocate(Me%GrazingFinished                                   )
-                deallocate(Me%GrazingOperations                                 )
+!                deallocate(Me%GrazingFinished                                   )
+!                deallocate(Me%GrazingOperations                                 )
             
                 deallocate(Me%Fluxes%BiomassGrazed                              ) 
                 deallocate(Me%Fluxes%BiomassGrazedFraction                      ) 
@@ -11509,28 +12671,28 @@ do1 :   do while(associated(PropertyX))
 
             endif
         
-            if (Me%ComputeOptions%Management) then
+            if (Me%ComputeOptions%HarvestKill) then
                 deallocate(Me%HarvestOnlyOccurred                               )
                 deallocate(Me%HarvestKillOccurred                               )
                 deallocate(Me%KillOccurred                                      )
-                deallocate(Me%HarvestFinished                                   )
-                deallocate(Me%HarvestOperations                                 )
-                deallocate(Me%HarvestKillOperations                             ) 
-                deallocate(Me%KillOperations                                    ) 
+!                deallocate(Me%HarvestFinished                                   )
+!                deallocate(Me%HarvestOperations                                 )
+!                deallocate(Me%HarvestKillOperations                             ) 
+!                deallocate(Me%KillOperations                                    ) 
                       
                 deallocate(Me%Fluxes%BiomassRemovedInHarvest                    ) 
                 deallocate(Me%Fluxes%BiomassHarvestedFraction                   ) 
-                deallocate(Me%Fluxes%ToSoil%ManagementBiomassToSoil             ) 
-                deallocate(Me%Fluxes%ToSoil%ManagementRootBiomassLeftInSoil     )
+                deallocate(Me%Fluxes%ToSoil%HarvestKillBiomassToSoil             ) 
+                deallocate(Me%Fluxes%ToSoil%KillRootBiomassLeftInSoil     )
 
                 if (Me%ComputeOptions%ModelNitrogen) then            
                     deallocate(Me%Fluxes%NitrogenRemovedInHarvest               )  
-                    deallocate(Me%Fluxes%ToSoil%ManagementNitrogenToSoil        ) 
+                    deallocate(Me%Fluxes%ToSoil%HarvestKillNitrogenToSoil        ) 
                 endif
             
                 if (Me%ComputeOptions%ModelPhosphorus) then
                     deallocate(Me%Fluxes%PhosphorusRemovedInHarvest             ) 
-                    deallocate(Me%Fluxes%ToSoil%ManagementPhosphorusToSoil      )
+                    deallocate(Me%Fluxes%ToSoil%HarvestKillPhosphorusToSoil      )
                 endif
 
             endif
@@ -11576,6 +12738,14 @@ do1 :   do while(associated(PropertyX))
                 endif
 
             endif        
+            
+            if (Me%ComputeOptions%Pesticide) then
+                do  Pest = 1, Me%Fluxes%Pesticides%UniquePesticides
+                    deallocate (Me%Fluxes%Pesticides%Application(Pest)%Soil       )
+                    deallocate (Me%Fluxes%Pesticides%Application(Pest)%Vegetation )                        
+                    deallocate (Me%Fluxes%Pesticides%Application(Pest)%PesticideAppOccurred) 
+                enddo                            
+            endif
             
             if (Me%ComputeOptions%ModelPlantBiomass) then
                 deallocate(Me%Fluxes%BiomassGrowth                              ) 

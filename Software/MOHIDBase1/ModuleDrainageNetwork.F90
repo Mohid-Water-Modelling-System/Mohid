@@ -97,7 +97,8 @@
 !       VIRTUAL_COEF        : 0.01
 !   WATER_QUALITY           : 0
 !   BENTHOS                 : 0
-!   Decay                   : 0       !uses T90 decay model for fecal coliforms
+!   DECAY_T90               : 0       !uses T90 decay model for fecal coliforms
+!   DECAY_GENERIC           : 0       !uses generic decay (for now 1st order)
 !                                       [2] -                                   
 !   TIME_SERIE              : 1
 !<endproperty>
@@ -595,6 +596,7 @@ Module ModuleDrainageNetwork
         logical                                     :: Discharges               = .false.
         logical                                     :: Toxicity                 = .false.
         logical                                     :: T90_Decay                = .false.
+        logical                                     :: Generic_Decay            = .false.
         logical                                     :: SurfaceFluxes            = .false.
         logical                                     :: BottomFluxes             = .false.
         logical                                     :: Erosion                  = .false.
@@ -670,6 +672,10 @@ Module ModuleDrainageNetwork
 
         !Toxicity
         type (T_Toxicity)                           :: Toxicity
+        
+        !Decay
+        real                                        :: DecayRate
+
         
         type (T_MassBalance)                        :: MB
 
@@ -3258,6 +3264,7 @@ cd2 :           if (BlockFound) then
         real                                        :: GWaterConcentration
         real                                        :: DWaterConcentration
         real                                        :: BottomInitialConc
+        logical                                     :: Aux
         
         !Begin-----------------------------------------------------------------
 
@@ -3542,18 +3549,33 @@ if2:        if (NewProperty%Toxicity%Evolution == Saturation .OR.               
 
         end if ifTox
 
+
+        call GetData(Aux,                                                                &
+                     Me%ObjEnterData,iflag,                                              &
+                     SearchType   = FromBlock,                                           &
+                     keyword      = 'DECAY',                                             &
+                     ClientModule = 'ModuleDrainageNetwork',                             &
+                     STAT         = STAT_CALL)
+        if (iflag == 1) then
+            write(*,*)
+            write(*,*) 'ERROR: '
+            write(*,*) 'DECAY keyword is now obsolete in drainage properties'
+            write(*,*) 'if want to simulate Coliform decay please use DECAY_T90'
+            write(*,*) 'if want to simulate generic decay please use DECAY_GENERIC'
+            stop 'ConstructPropertyValues - ModuleDrainageNetwork - ERR60'
+        endif
         
         !Dacay Time
         call GetData(NewProperty%ComputeOptions%T90_Decay,                          &
                      Me%ObjEnterData, iflag,                                        &
-                     Keyword        = 'DECAY',                                      &
+                     Keyword        = 'DECAY_T90',                                  &
                      ClientModule   = 'ModuleDrainageNetwork',                      &
                      SearchType     = FromBlock,                                    &
                      Default        = OFF,                                          &
                      STAT           = STAT_CALL)              
         if (STAT_CALL .NE. SUCCESS_)                                                &
             stop 'ModuleDrainageNetwork - ConstructPropertyValues - ERR11' 
-
+        
         if (NewProperty%ComputeOptions%T90_Decay .and. .not. NewProperty%ComputeOptions%Discharges) then
             write (*,*) 'Decaying properties must be discharged',                   &
                          trim(adjustl(adjustr(NewProperty%ID%Name)))
@@ -3564,6 +3586,34 @@ if2:        if (NewProperty%Toxicity%Evolution == Saturation .OR.               
             Me%ComputeOptions%T90_Decay = ON
         endif
 
+        !Generic decay
+        call GetData(NewProperty%ComputeOptions%Generic_Decay,                           &
+                     Me%ObjEnterData,iflag,                                              &
+                     SearchType   = FromBlock,                                           &
+                     keyword      = 'DECAY_GENERIC',                                     &
+                     ClientModule = 'ModuleDrainageNetwork',                             &
+                     default      = OFF,                                                 &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_)                                                     &
+            stop 'ConstructPropertyValues - ModuleDrainageNetwork - ERR50'
+        if (NewProperty%ComputeOptions%Generic_Decay) then
+            Me%ComputeOptions%Generic_Decay       = .true.
+        endif
+
+        if (NewProperty%ComputeOptions%Generic_Decay) then
+            
+            !Decay rate k (s-1) in P = Po*exp(-kt)
+            call GetData(NewProperty%DecayRate,                                              &
+                         Me%ObjEnterData,iflag,                                              &
+                         SearchType   = FromBlock,                                           &
+                         keyword      = 'DECAY_RATE',                                        &
+                         ClientModule = 'ModuleDrainageNetwork',                             &
+                         default      = 0.,                                                  &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_)                                                     &
+                stop 'ConstructPropertyValues - ModuleDrainageNetwork - ERR70'            
+            
+        endif
 
         !Checks for Surface Fluxes
         call GetData(NewProperty%ComputeOptions%SurfaceFluxes,                      &
@@ -5489,8 +5539,9 @@ if0:    if (Me%HasProperties) then
                     write(*, *)"---SurfaceFluxes        : ", Property%ComputeOptions%SurfaceFluxes
                     write(*, *)"---BottomFluxes         : ", Property%ComputeOptions%BottomFluxes
                     write(*, *)"---WaterQuality         : ", Property%ComputeOptions%WaterQuality                    
-                    write(*, *)"---Benthos              : ", Property%ComputeOptions%Benthos                    
-                    write(*, *)"---Decay                : ", Property%ComputeOptions%T90_Decay
+                    write(*, *)"---Benthos              : ", Property%ComputeOptions%Benthos   
+                    write(*, *)"---GenericDecay         : ", Property%ComputeOptions%Generic_Decay                 
+                    write(*, *)"---T90Decay             : ", Property%ComputeOptions%T90_Decay
                     write(*, *)
                 
                                 
@@ -7085,6 +7136,9 @@ do2 :   do while (associated(PropertyX))
         !Exchages heat with surface
         if (Me%ComputeOptions%SurfaceFluxes     ) call ComputeSurfaceFluxes     ()      
         
+        !Exponential decay
+        if (Me%ComputeOptions%Generic_Decay     ) call GenericDecay             ()
+
         !Coliform decay
         if (Me%ComputeOptions%T90_Decay         ) call ColiformDecay            ()
 
@@ -9522,6 +9576,56 @@ if1:    if (Property%Diffusion_Scheme == CentralDif) then
 
 
     end subroutine ComputeSurfaceFluxes
+
+    !---------------------------------------------------------------------------
+
+    subroutine GenericDecay ()
+        
+        !Arguments--------------------------------------------------------------
+
+        !Local------------------------------------------------------------------       
+        type (T_Property), pointer                  :: Property
+        integer                                     :: NodeID
+        type (T_node), pointer                      :: CurrNode
+        real                                        :: OldMass, MassSink, NewMass
+        !Begin------------------------------------------------------------------
+        
+        
+        nullify (Property)
+        Property => Me%FirstProperty
+        
+        do while (associated (Property))
+        
+            if (Property%ComputeOptions%Generic_Decay) then
+        
+                do NodeID = 1, Me%TotalNodes
+
+                    if (Me%OpenPointsProcess (NodeID) == OpenPoint) then                    
+                        
+                        CurrNode => Me%Nodes (NodeID)
+                        
+                        !Decay occurs as WQ process without volume change
+                        !g = g/m3 * m3
+                        OldMass = Property%Concentration (NodeID) * CurrNode%VolumeNew
+                        
+                        !P = P0*exp(-kt)  
+                        MassSink = min (OldMass - OldMass * exp(-Property%DecayRate * Me%ExtVar%DT),  OldMass)
+                        
+                        NewMass = OldMass - MassSink
+                        
+                        Property%Concentration (NodeID) =  NewMass / CurrNode%VolumeNew
+                                                           
+                    endif
+                                                                      
+                end do
+                
+            endif
+            
+            Property => Property%Next
+            
+        enddo
+
+    end subroutine GenericDecay
 
     !---------------------------------------------------------------------------
 

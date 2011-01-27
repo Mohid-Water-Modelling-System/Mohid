@@ -87,14 +87,15 @@ Module ModuleGlobalData
 
 
     !Search in Block, file, etc...
-    integer, parameter :: FromFile_             = 1
-    integer, parameter :: FromBlock_            = 2
-    integer, parameter :: FromBlockInBlock_     = 3
+    integer, parameter :: FromFile_                = 1
+    integer, parameter :: FromBlock_               = 2
+    integer, parameter :: FromBlockInBlock_        = 3
+    integer, parameter :: FromBlockInBlockINBlock_ = 4
 
-
-    integer, parameter :: FromFile              = 1
-    integer, parameter :: FromBlock             = 2
-    integer, parameter :: FromBlockInBlock      = 3
+    integer, parameter :: FromFile                = 1
+    integer, parameter :: FromBlock               = 2
+    integer, parameter :: FromBlockInBlock        = 3
+    integer, parameter :: FromBlockInBlockInBlock = 4
 
     !Matrix Types (Centered in Z, U, V, W)
     integer, parameter :: TypeZ_                = 1
@@ -719,6 +720,11 @@ Module ModuleGlobalData
     
     !ChainReactions 
     integer, parameter :: SoilVolumetricDensity_           = 13000
+    
+    !Pesticides
+    integer, parameter :: GenericPesticide_1_              = 15001
+    integer, parameter :: GenericPesticide_2_              = 15002
+    integer, parameter :: GenericPesticide_3_              = 15003
 
     !Spatial emission discharge
     integer, parameter :: DischPoint_                       = 1
@@ -1238,7 +1244,11 @@ Module ModuleGlobalData
 
     !ChainReactions
     character(StringLength), private, parameter :: Char_SoilVolumetricDensity    = 'soil volumetric density'
-
+    
+    !Pesticides
+    character(StringLength), private, parameter :: Char_GenericPesticide_1       = 'generic pesticide 1'
+    character(StringLength), private, parameter :: Char_GenericPesticide_2       = 'generic pesticide 2'
+    character(StringLength), private, parameter :: Char_GenericPesticide_3       = 'generic pesticide 3'
 
     !Mapping
     integer, parameter :: Compute         = 1
@@ -1501,44 +1511,44 @@ Module ModuleGlobalData
     end type T_Module
 
     type (T_Module), dimension(MaxModules), parameter  :: MohidModules =  (/             &
-          T_Module(mGLOBALDATA_             , "GlobalData"),            T_Module(mTIME_                   , "Time"),                  &
-          T_Module(mENTERDATA_              , "EnterData"),             T_Module(mFUNCTIONS_              , "Functions"),             &
-          T_Module(mLUD_                    , "LUD"),                   T_Module(mWATERQUALITY_           , "WaterQuality"),          &
-          T_Module(mGRIDDATA_               , "GridData"),              T_Module(mHDF5_                   , "HDF5"),                  &
-          T_Module(mHORIZONTALGRID_         , "HorizontalGrid"),        T_Module(mHORIZONTALMAP_          , "HorizontalMap"),         &
-          T_Module(mGEOMETRY_               , "Geometry"),              T_Module(mSTOPWATCH_              , "StopWatch"),             &
-          T_Module(mADVECTIONDIFFUSION_     , "AdvectionDiffusion"),    T_Module(mMAP_                    , "Map"),                   &
-          T_Module(mTIMESERIE_              , "TimeSerie"),             T_Module(mSOIL_                   , "Soil"),                  &
-          T_Module(mBOXDIF_                 , "BoxDif"),                T_Module(mASSIMILATION_           , "Assimilation"),          &
-          T_Module(mSTATISTIC_              , "Statistic"),             T_Module(mDISCHARGES_             , "Discharges"),            &
-          T_Module(mATMOSPHERE_             , "Atmosphere"),            T_Module(mHYDROINTEGRATION_       , "HydroIntegration"),      &
-          T_Module(mHYDRODYNAMICFILE_       , "HydrodynamicFile"),      T_Module(mTOGA_                   , "Toga"),                  &
-          T_Module(mGAUGE_                  , "Gauge"),                 T_Module(mTRIANGULATION_          , "Triangulation"),         &
-          T_Module(mGOTM_                   , "GOTM"),                  T_Module(mTURBGOTM_               , "TurbGOTM"),              &
-          T_Module(mTURBULENCE_             , "Turbulence"),            T_Module(mOPENBOUNDARY_           , "OpenBoundary"),          &
-          T_Module(mHYDRODYNAMIC_           , "Hydrodynamic"),          T_Module(mFREEVERTICALMOVEMENT_   , "FreeVerticalMovement"),  &
-          T_Module(mSEDIMENTQUALITY_        , "SedimentQuality"),       T_Module(mINTERFACE_              , "Interface"),             &
-          T_Module(mWATERPROPERTIES_        , "WaterProperties"),       T_Module(mOIL_                    , "Oil"),                   &
-          T_Module(mJET_                    , "Jet"),                   T_Module(mLAGRANGIAN_             , "Lagrangian"),            &
-          T_Module(mMODEL_                  , "Model"),                 T_Module(mCONSOLIDATION_          , "Consolidation"),         &
-          T_Module(mSEDIMENTPROPERTIES_     , "SedimentProperties"),    T_Module(mLIFE_                   , "Life"),                  &
-          T_Module(mCEQUALW2_               , "CEQUALW2"),              T_Module(mBASINGEOMETRY_          , "BasinGeometry"),         &
-          T_Module(mRUNOFF_                 , "RunOff"),                T_Module(mDRAINAGENETWORK_        , "DrainageNetwork"),       &
-          T_Module(mINTERFACEWATERAIR_      , "InterfaceWaterAir"),     T_Module(mINTERFACESEDIMENTWATER_ , "InterfaceWaterSediment"),&
-          T_Module(mLIGHTEXTINCTION_        , "LightExtinction"),       T_Module(mRIVERHYDRODYNAMIC_      , "RiverHydrodynamic"),     &
-          T_Module(mFILLMATRIX_             , "FillMatrix"),            T_Module(mWAVES_                  , "Waves"),                 &
-          T_Module(mBASIN_                  , "Basin"),                 T_Module(mSOILPROPERTIES_         , "SoilProperties"),        &
-          T_Module(mINFILTRATION_           , "Infiltration"),          T_Module(mSOILPLANTAIR_           , "SoilPlantAir"),          &
-          T_Module(mSOILMACROPORES_         , "SoilMacropores"),        T_Module(mSAND_                   , "Sand"),                  &
-          T_Module(mMACROPOREPROPERTIES_    , "MacroporeProperties"),   T_Module(mPOROUSMEDIA_            , "PorousMedia"),           &
-          T_Module(mSWAT_                   , "ModuleSwat"),            T_Module(mPROFILE_                , "Profile"),               &
-          T_Module(mBENTHOS_                , "Benthos"),               T_Module(mCLIMATOLOGY_            , "Climatology"),           &
-          T_Module(mFIREINDEX_              , "FireIndex"),             T_Module(mINTERPOLATION_          , "Interpolation"),         &
-          T_Module(mVEGETATION_             , "Vegetation"),            T_Module(mRESERVOIROPTIMIZATION_  , "ReservoirOptimization"), &
-          T_Module(mMACROALGAE_             , "MacroAlgae"),            T_Module(mBFM_                    , "BFM"),                   &
-          T_Module(mNETCDF_                 , "NETCDF"),                T_Module(mSEQUENTIALASSIMILATION_ , "SequentialAssimilation"),& 
-          T_Module(mPOROUSMEDIAPROPERTIES_  , "PorousMediaProperties"), T_Module(mPHREEQC_                , "PhreeqC"),               &
-          T_Module(mRUNOFFPROPERTIES_       , "RunoffProperties"),      T_Module(mCHAINREACTIONS_         , "ChainReactions") /)
+        T_Module(mGLOBALDATA_            , "GlobalData"),            T_Module(mTIME_                   , "Time"),                  &
+        T_Module(mENTERDATA_             , "EnterData"),             T_Module(mFUNCTIONS_              , "Functions"),             &
+        T_Module(mLUD_                   , "LUD"),                   T_Module(mWATERQUALITY_           , "WaterQuality"),          &
+        T_Module(mGRIDDATA_              , "GridData"),              T_Module(mHDF5_                   , "HDF5"),                  &
+        T_Module(mHORIZONTALGRID_        , "HorizontalGrid"),        T_Module(mHORIZONTALMAP_          , "HorizontalMap"),         &
+        T_Module(mGEOMETRY_              , "Geometry"),              T_Module(mSTOPWATCH_              , "StopWatch"),             &
+        T_Module(mADVECTIONDIFFUSION_    , "AdvectionDiffusion"),    T_Module(mMAP_                    , "Map"),                   &
+        T_Module(mTIMESERIE_             , "TimeSerie"),             T_Module(mSOIL_                   , "Soil"),                  &
+        T_Module(mBOXDIF_                , "BoxDif"),                T_Module(mASSIMILATION_           , "Assimilation"),          &
+        T_Module(mSTATISTIC_             , "Statistic"),             T_Module(mDISCHARGES_             , "Discharges"),            &
+        T_Module(mATMOSPHERE_            , "Atmosphere"),            T_Module(mHYDROINTEGRATION_       , "HydroIntegration"),      &
+        T_Module(mHYDRODYNAMICFILE_      , "HydrodynamicFile"),      T_Module(mTOGA_                   , "Toga"),                  &
+        T_Module(mGAUGE_                 , "Gauge"),                 T_Module(mTRIANGULATION_          , "Triangulation"),         &
+        T_Module(mGOTM_                  , "GOTM"),                  T_Module(mTURBGOTM_               , "TurbGOTM"),              &
+        T_Module(mTURBULENCE_            , "Turbulence"),            T_Module(mOPENBOUNDARY_           , "OpenBoundary"),          &
+        T_Module(mHYDRODYNAMIC_          , "Hydrodynamic"),          T_Module(mFREEVERTICALMOVEMENT_   , "FreeVerticalMovement"),  &
+        T_Module(mSEDIMENTQUALITY_       , "SedimentQuality"),       T_Module(mINTERFACE_              , "Interface"),             &
+        T_Module(mWATERPROPERTIES_       , "WaterProperties"),       T_Module(mOIL_                    , "Oil"),                   &
+        T_Module(mJET_                   , "Jet"),                   T_Module(mLAGRANGIAN_             , "Lagrangian"),            &
+        T_Module(mMODEL_                 , "Model"),                 T_Module(mCONSOLIDATION_          , "Consolidation"),         &
+        T_Module(mSEDIMENTPROPERTIES_    , "SedimentProperties"),    T_Module(mLIFE_                   , "Life"),                  &
+        T_Module(mCEQUALW2_              , "CEQUALW2"),              T_Module(mBASINGEOMETRY_          , "BasinGeometry"),         &
+        T_Module(mRUNOFF_                , "RunOff"),                T_Module(mDRAINAGENETWORK_        , "DrainageNetwork"),       &
+        T_Module(mINTERFACEWATERAIR_     , "InterfaceWaterAir"),     T_Module(mINTERFACESEDIMENTWATER_ , "InterfaceWaterSediment"),&
+        T_Module(mLIGHTEXTINCTION_       , "LightExtinction"),       T_Module(mRIVERHYDRODYNAMIC_      , "RiverHydrodynamic"),     &
+        T_Module(mFILLMATRIX_            , "FillMatrix"),            T_Module(mWAVES_                  , "Waves"),                 &
+        T_Module(mBASIN_                 , "Basin"),                 T_Module(mSOILPROPERTIES_         , "SoilProperties"),        &
+        T_Module(mINFILTRATION_          , "Infiltration"),          T_Module(mSOILPLANTAIR_           , "SoilPlantAir"),          &
+        T_Module(mSOILMACROPORES_        , "SoilMacropores"),        T_Module(mSAND_                   , "Sand"),                  &
+        T_Module(mMACROPOREPROPERTIES_   , "MacroporeProperties"),   T_Module(mPOROUSMEDIA_            , "PorousMedia"),           &
+        T_Module(mSWAT_                  , "ModuleSwat"),            T_Module(mPROFILE_                , "Profile"),               &
+        T_Module(mBENTHOS_               , "Benthos"),               T_Module(mCLIMATOLOGY_            , "Climatology"),           &
+        T_Module(mFIREINDEX_             , "FireIndex"),             T_Module(mINTERPOLATION_          , "Interpolation"),         &
+        T_Module(mVEGETATION_            , "Vegetation"),            T_Module(mRESERVOIROPTIMIZATION_  , "ReservoirOptimization"), &
+        T_Module(mMACROALGAE_            , "MacroAlgae"),            T_Module(mBFM_                    , "BFM"),                   &
+        T_Module(mNETCDF_                , "NETCDF"),                T_Module(mSEQUENTIALASSIMILATION_ , "SequentialAssimilation"),&
+        T_Module(mPOROUSMEDIAPROPERTIES_ , "PorousMediaProperties"), T_Module(mPHREEQC_                , "PhreeqC"),               &
+        T_Module(mRUNOFFPROPERTIES_      , "RunoffProperties"),      T_Module(mCHAINREACTIONS_         , "ChainReactions") /)
 
     !Variables
     logical, dimension(MaxModules)                                  :: RegisteredModules = .false.
@@ -2297,7 +2307,10 @@ Module ModuleGlobalData
             call AddPropList (RainAmmonia_,             Char_RainAmmonia,                ListNumber)  
             !END of PhreeqC temporary code for tests
             call AddPropList (SoilVolumetricDensity_,   Char_SoilVolumetricDensity,      ListNumber)  
-
+            call AddPropList (GenericPesticide_1_,      Char_GenericPesticide_1,         ListNumber)
+            call AddPropList (GenericPesticide_2_,      Char_GenericPesticide_2,         ListNumber)
+            call AddPropList (GenericPesticide_3_,      Char_GenericPesticide_3,         ListNumber) 
+            
             !Place to add new properties to the names list
         
             !Ends building the property name list
@@ -3028,6 +3041,8 @@ do2:    do
             lSearchType = "From Block"
         case (FromBlockInBlock_)
             lSearchType = "From Block In Block"
+        case (FromBlockInBlockInBlock_)
+            lSearchType = "From Block In Block In Block"            
         end select
 
         if (CaseSensitive) then

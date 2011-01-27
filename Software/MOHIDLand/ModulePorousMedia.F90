@@ -384,6 +384,7 @@ Module ModulePorousMedia
         real(8),    pointer, dimension(:,:  )   :: WaterColumn              => null()
         real(8),    pointer, dimension(:,:  )   :: Infiltration             => null()
         real(8),    pointer, dimension(:,:  )   :: EfectiveEVTP             => null()
+        real(8),    pointer, dimension(:,:  )   :: EfectiveEVAP             => null()
 
         !Watertable Properties
         real,    dimension(:,:), pointer        :: UGWaterLevel2D           => null()
@@ -1389,6 +1390,7 @@ do1:     do
         
         if (Me%ExtVar%ConstructEvaporation) then
             allocate(Me%EvaporationFlux     (ILB:IUB,JLB:JUB        ))
+            allocate(Me%EfectiveEVAP    (ILB:IUB,JLB:JUB))
         endif
         
         allocate(Me%InfiltrationVelocity(ILB:IUB,JLB:JUB        ))
@@ -1404,6 +1406,7 @@ do1:     do
         Me%FluxWFinal           = 0.0
         if (Me%ExtVar%ConstructEvaporation) then
             Me%EvaporationFlux      = 0.0
+            Me%EfectiveEVAP         = null_real
         endif
 
         Me%InfiltrationVelocity = null_real
@@ -3059,7 +3062,7 @@ i1:         if (CoordON) then
 
         !Arguments-------------------------------------------------------------
         integer                                         :: ObjPorousMediaID
-        real   ,    pointer, dimension(:,:)             :: Evaporation
+        real(8)   ,    pointer, dimension(:,:)          :: Evaporation
         integer, intent(OUT), optional                  :: STAT
 
         !Local-----------------------------------------------------------------
@@ -3072,7 +3075,7 @@ i1:         if (CoordON) then
 
             call Read_Lock(mPorousMedia_, Me%InstanceID)
             
-            Evaporation => Me%EvaporationFlux
+            Evaporation => Me%EfectiveEVAP
 
             STAT_ = SUCCESS_
         else 
@@ -3588,7 +3591,9 @@ i1:         if (CoordON) then
         call SetMatrixValue (Me%EfectiveEVTP,     Me%Size2D, dble(0.0),         Me%ExtVar%BasinPoints)
         call SetMatrixValue (Me%iFlowToChannels,  Me%Size2D, Zero,              Me%ExtVar%BasinPoints)
         call SetMatrixValue (Me%iFlowToChannelsLayer,  Me%Size, Zero,         Me%ExtVar%WaterPoints3D)
-        
+        if (Me%EvaporationExists) then
+            call SetMatrixValue (Me%EfectiveEVAP,     Me%Size2D, dble(0.0),         Me%ExtVar%BasinPoints)
+        endif        
         iteration         = 1
         Niteration        = 1
         Me%CV%CurrentDT   = Me%ExtVar%DT / Niteration
@@ -3651,7 +3656,10 @@ dConv:  do while (iteration <= Niteration)
                 call SetMatrixValue (Me%EfectiveEVTP,   Me%Size2D, dble(0.0),           Me%ExtVar%BasinPoints)
                 call SetMatrixValue (Me%iFlowToChannels,Me%Size2D, Zero,                Me%ExtVar%BasinPoints)
                 call SetMatrixValue (Me%iFlowToChannelsLayer,Me%Size, Zero,           Me%ExtVar%WaterPoints3D)
-                
+                if (Me%EvaporationExists) then
+                    call SetMatrixValue (Me%EfectiveEVAP,     Me%Size2D, dble(0.0),         Me%ExtVar%BasinPoints)
+                endif                 !Resets Accumulated flows
+
                 Me%FluxWAcc = 0.
                 Me%FluxVAcc = 0.
                 Me%FluxUAcc = 0.
@@ -4859,6 +4867,8 @@ dConv:  do while (iteration <= Niteration)
           
                     Me%EfectiveEVTP(i,j) = Me%EfectiveEVTP(i,j) + Me%EvaporationFlux(i, j) * Me%CV%CurrentDT / &
                                            Me%ExtVar%Area(i, j)
+                    Me%EfectiveEVAP(i,j) = Me%EfectiveEVAP(i,j) + Me%EvaporationFlux(i, j) * Me%CV%CurrentDT / &
+                                           Me%ExtVar%Area(i, j)                                           
                 endif
         
             enddo

@@ -1087,7 +1087,11 @@ cd1 :   if      (SearchType_ .EQ. FromBlock_       ) then
 
             StartSearch = Me%BlockFromBlock%BeginBlock
             EndSearch   = Me%BlockFromBlock%EndBlock
-
+        
+        else if (SearchType_ .EQ. FromBlockInBlockInBlock_) then
+            StartSearch = Me%BlockFromBlockFromBlock%BeginBlock
+            EndSearch   = Me%BlockFromBlockFromBlock%EndBlock
+        
         else
             write(*,*)  
             write(*,*) "Error SearchType_ = 0. "
