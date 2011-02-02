@@ -2266,7 +2266,7 @@ i1:         if (CoordON) then
             call GetCanopyStorageType(Me%ObjVegetation, IsConstant, ConstantValue, STAT = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_) stop 'ConstructCoupledModules - ModuleBasin - ERR100' 
             
-            if (Me%EvapFromCanopy .AND. ((.NOT. IsConstant) .OR. (ConstantValue /= 0.0))) then
+            if (.not. Me%EvapFromCanopy .AND. ((.NOT. IsConstant) .OR. (ConstantValue /= 0.0))) then
                 write (*,*)
                 write (*,*) 'WARNING: EVAP_FROM_CANOPY keyword (Basin) is set to FALSE and '
                 write (*,*) '         "specific leaf storage" value is not constant or have '
@@ -3635,7 +3635,7 @@ cd2 :           if (BlockFound) then
                                                    Scalar             = AtmConcentration,       &
                                                    ID                 = Property%ID%IDNumber,   &
                                                    STAT               = STAT_CALL)        
-                        if (STAT_CALL /= SUCCESS_) stop 'DividePrecipitation - ModuleBasin - ERR01'  
+                        if (STAT_CALL /= SUCCESS_) stop 'UpdateVegConcentration - ModuleBasin - ERR10'  
                     else
                         allocate (AtmConcentration(Me%WorkSize%ILB:Me%WorkSize%IUB, Me%WorkSize%JLB:Me%WorkSize%JUB))
                         AtmConcentration = 0.0
@@ -3715,7 +3715,7 @@ cd2 :           if (BlockFound) then
 
                     if (AtmospherePropertyExists (Me%ObjAtmosphere, Property%ID%IDNumber)) then
                         call UngetAtmosphere (Me%ObjAtmosphere, AtmConcentration, STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'DividePrecipitation - ModuleBasin - ERR10' 
+                        if (STAT_CALL /= SUCCESS_) stop 'UpdateVegConcentration - ModuleBasin - ERR20' 
                     else
                         deallocate (AtmConcentration)
                     endif
@@ -3773,10 +3773,10 @@ cd2 :           if (BlockFound) then
             call GetVegetationOptions (Me%ObjVegetation,                                     &
                                        NumberOfPesticides = NumberOfPesticides,              &
                                        STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)stop 'VegetationProcesses - ModuleBasin - ERR080'        
+            if (STAT_CALL /= SUCCESS_)stop 'UpdateVegConcentration - ModuleBasin - ERR30'        
 
             call GetVegetationDT  (Me%ObjVegetation, VegDT, STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'VegetationProcesses - ModuleBasin - ERR02'
+            if (STAT_CALL /= SUCCESS_) stop 'UpdateVegConcentration - ModuleBasin - ERR40'
         
             do Pest = 1, NumberOfPesticides
                 call GetVegetationAerialFluxes(Me%ObjVegetation,                            &
@@ -3784,7 +3784,7 @@ cd2 :           if (BlockFound) then
                                                 PesticideIDNumber = PesticideIDNumber,      &
                                                 PesticideVegetation = PesticideVegetation,  &
                                                 STAT                = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)stop 'VegetationProcesses - ModuleBasin - ERR090'                 
+                if (STAT_CALL /= SUCCESS_)stop 'UpdateVegConcentration - ModuleBasin - ERR50'                 
             
                 call SearchProperty(Property, PropertyXIDNumber = PesticideIDNumber, STAT = STAT_CALL)
                 if (STAT_CALL == SUCCESS_) then
@@ -3826,14 +3826,14 @@ cd2 :           if (BlockFound) then
                     write(*,*)
                     write(*,*) 'Not found pesticide', GetPropertyName(PesticideIDNumber) 
                     write(*,*) 'in runoff property list'
-                    stop ' UpdateVegConcentration - ModuleBasin - ERR10'
+                    stop ' UpdateVegConcentration - ModuleBasin - ERR60'
                 endif                                
                 
                 call UngetVegetationAerialFluxes (Me%ObjVegetation,                            &
                                                 Pest              = Pest,                   &
                                                 PesticideVegetation = PesticideVegetation,  &
                                                 STAT                = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)stop 'VegetationProcesses - ModuleBasin - ERR0100' 
+                if (STAT_CALL /= SUCCESS_)stop 'UpdateVegConcentration - ModuleBasin - ERR70' 
                 
             enddo    
 
@@ -3848,7 +3848,7 @@ cd2 :           if (BlockFound) then
                 if (Property%Inherited .and. Property%Decay) then
                     
                     call GetRPDecayRate (Me%ObjRunoffProperties, DecayRate, Property%ID%IDNumber, STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_)stop 'VegetationProcesses - ModuleBasin - ERR0110' 
+                    if (STAT_CALL /= SUCCESS_)stop 'UpdateVegConcentration - ModuleBasin - ERR80' 
                     
                     DT = Me%CurrentDT / 86400.
                     
@@ -4101,17 +4101,19 @@ cd2 :           if (BlockFound) then
                                                 
         endif
         
-        !update leaf properties with decay
-        call GetRPOptions (Me%ObjRunoffProperties, Decay = Decay, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'VegetationProcesses - ModuleBasin - ERR080'
-        
-        if (Decay) then
+        if (Me%Coupled%RunoffProperties) then
+            !update leaf properties with decay
+            call GetRPOptions (Me%ObjRunoffProperties, Decay = Decay, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'VegetationProcesses - ModuleBasin - ERR080'
+            
+            if (Decay) then
 
-            WarningString = "Decay"
-            call UpdateVegConcentration(WarningString)
-        
+                WarningString = "Decay"
+                call UpdateVegConcentration(WarningString)
+            
+            endif
         endif
-
+        
         if (MonitorPerformance) call StopWatch ("ModuleBasin", "VegetationProcesses")
     
     end subroutine VegetationProcesses

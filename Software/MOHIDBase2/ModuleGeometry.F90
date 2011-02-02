@@ -232,7 +232,8 @@ Module ModuleGeometry
         real                                    :: MaxThicknessGrad          = FillValueReal 
         real                                    :: MinEvolveLayerThickness   = FillValueReal
         real                                    :: MinEsp                    = FillValueReal
-        real                                    :: MinLayerThickness         = FillValueReal
+!        real                                    :: MinLayerThickness         = FillValueReal
+        real                                    :: BottomLayerThickness      = FillValueReal
         real                                    :: GridMovementDump          = FillValueReal
         real                                    :: DisplacementLimit         = FillValueReal 
         integer                                 :: InitializationMethod      = FillValueInt
@@ -1172,12 +1173,20 @@ cd2 :                       if (BlockLayersFound) then
                     !Seraches for the minimum thickness of bottom layer
                     if (NewDomain%DomainType == CartesianTop) then
 
-                        call GetData(NewDomain%MinLayerThickness,                       &
+!                        call GetData(NewDomain%MinLayerThickness,                       &
+!                                     ObjEnterData, iflag,                               &
+!                                     SearchType     = FromBlock,                        &
+!                                     keyword        = 'MIN_LAYER_THICKNESS',            &
+!                                     ClientModule   = 'ModuleGeometry',                 &
+!                                     Default        = 0.01,                             &
+!                                     STAT           = STATUS)
+!                        if (STATUS /= SUCCESS_) stop "GetDomainsFromFile - Geometry - ERR281"
+                        call GetData(NewDomain%BottomLayerThickness,                       &
                                      ObjEnterData, iflag,                               &
                                      SearchType     = FromBlock,                        &
-                                     keyword        = 'MIN_LAYER_THICKNESS',            &
+                                     keyword        = 'MIN_BOTTOM_THICKNESS',           &
                                      ClientModule   = 'ModuleGeometry',                 &
-                                     Default        = 0.01,                             &
+                                     Default        = Me%WaterColumn%ZMin,              &
                                      STAT           = STATUS)
                         if (STATUS /= SUCCESS_) stop "GetDomainsFromFile - Geometry - ERR281"
 
@@ -1454,7 +1463,7 @@ cd2 :                       if (BlockLayersFound) then
         real                                        :: TopDepth, DomainThickness
         real                                        :: LayerTopDepth, LayerMinBottomDepth
         real                                        :: LayerTop, LayerBottom
-        real                                        :: DistToBottom, DistToTop, LayerThickness
+        real                                        :: DistToBottom, DistToTop !, LayerThickness
         real                                        :: MinimalThickness, AllmostZero_ 
         real                                        :: BottomDepth
         character(len=StringLength)                 :: BathymetryFile
@@ -1630,46 +1639,6 @@ doi:                do i = ILB, IUB
             elseif (CurrentDomain%DomainType == CartesianTop) then
 
 
-                do j = JLB, JUB
-                do i = ILB, IUB
-
-                    if (Bathymetry(i, j) > -55.) then
-
-                        TopDepth        = SurfaceElevation(i, j)
-                        BottomDepth     = Bathymetry(i, j)
-
-                        iLayer          = CurrentDomain%UpperLayer        
-                        LayerTop        = TopDepth
-                        do while (iLayer >= CurrentDomain%LowerLayer)
-
-                            !Bottom of the layer, independent of BottomDepth
-                            LayerBottom     = max(LayerTop - CurrentDomain%LayerThickness(iLayer), BottomDepth)
-                            
-                            LayerThickness  = LayerTop - LayerBottom
-                            
-                            if (LayerThickness < CurrentDomain%MinLayerThickness) then
-                                    NewBathymetry(i, j)         = LayerTop - CurrentDomain%MinLayerThickness
-                                    WriteNewBathymetry          = .true.
-                                    write(*,*)'i                = ', i
-                                    write(*,*)'j                = ', j
-                                    write(*,*)'Bathymetry       = ',Bathymetry(i, j)
-                                    write(*,*)'New Bathymetry   = ',NewBathymetry(i, j)
-                            endif
-                            
-                            if (LayerTop - CurrentDomain%LayerThickness(iLayer) <= BottomDepth) then
-                                exit
-                            else                           
-                                iLayer   = iLayer - 1
-                                LayerTop = LayerBottom
-                            endif
-
-                        enddo
-
-                    endif
-                enddo
-                enddo
-                
-
 !                do j = JLB, JUB
 !                do i = ILB, IUB
 !
@@ -1680,50 +1649,93 @@ doi:                do i = ILB, IUB
 !
 !                        iLayer          = CurrentDomain%UpperLayer        
 !                        LayerTop        = TopDepth
-!                        LayerBottom     = LayerTop - CurrentDomain%LayerThickness(iLayer)
 !                        do while (iLayer >= CurrentDomain%LowerLayer)
-!                        
+!
+!                            !Bottom of the layer, independent of BottomDepth
+!                            LayerBottom     = max(LayerTop - CurrentDomain%LayerThickness(iLayer), BottomDepth)
+!                            
+!                            LayerThickness  = LayerTop - LayerBottom
+!                            
 !                            AllmostZero_ = AllmostZeroFraction * CurrentDomain%LayerThickness(iLayer)
-!
-!                            if (LayerBottom - AllmostZero_ <= BottomDepth  .and. LayerTop + AllmostZero_ >= BottomDepth) then
 !                            
-!                                DistToBottom = BottomDepth - LayerBottom
-!                                DistToTop    = LayerTop - BottomDepth
-!                                
-!                                if (DistToBottom < CurrentDomain%BottomLayerThickness .and. DistToBottom > AllmostZero_) then
-!                                    NewBathymetry(i, j)         = LayerBottom
+!                            if (LayerThickness + AllmostZero_ < CurrentDomain%MinLayerThickness) then
+!                                    NewBathymetry(i, j)         = LayerTop - CurrentDomain%MinLayerThickness
 !                                    WriteNewBathymetry          = .true.
 !                                    write(*,*)'i                = ', i
 !                                    write(*,*)'j                = ', j
 !                                    write(*,*)'Bathymetry       = ',Bathymetry(i, j)
 !                                    write(*,*)'New Bathymetry   = ',NewBathymetry(i, j)
-!                                endif
+!                            endif
 !                            
-!                                if (DistToTop < CurrentDomain%BottomLayerThickness .and. DistToTop > AllmostZero_) then
-!                                    NewBathymetry(i, j)         = LayerTop
-!                                    WriteNewBathymetry          = .true.
-!                                    write(*,*)'i                = ', i
-!                                    write(*,*)'j                = ', j
-!                                    write(*,*)'Bathymetry       = ',Bathymetry(i, j)
-!                                    write(*,*)'New Bathymetry   = ',NewBathymetry(i, j)
-!                                endif
-!                                
-!                                exit 
-!
-!                            else
-!                            
-!                                iLayer       = iLayer - 1
-!                                LayerTop     = LayerBottom
-!                                LayerBottom  = LayerTop - CurrentDomain%LayerThickness(iLayer)
-!                                
+!                            if (LayerTop - CurrentDomain%LayerThickness(iLayer) <= BottomDepth) then
+!                                exit
+!                            else                           
+!                                iLayer   = iLayer - 1
+!                                LayerTop = LayerBottom
 !                            endif
 !
 !                        enddo
-!                    
-!                    endif
 !
+!                    endif
 !                enddo
 !                enddo
+                
+                AllmostZero_ = 5e-4
+                
+                do j = JLB, JUB
+                do i = ILB, IUB
+
+                    if (Bathymetry(i, j) > -55.) then
+
+                        TopDepth        = SurfaceElevation(i, j)
+                        BottomDepth     = Bathymetry(i, j)
+
+                        iLayer          = CurrentDomain%UpperLayer        
+                        LayerTop        = TopDepth
+                        LayerBottom     = LayerTop - CurrentDomain%LayerThickness(iLayer)
+                        do while (iLayer >= CurrentDomain%LowerLayer)
+                        
+!                            AllmostZero_ = AllmostZeroFraction * CurrentDomain%LayerThickness(iLayer)
+
+                            if (LayerBottom - AllmostZero_ <= BottomDepth  .and. LayerTop + AllmostZero_ >= BottomDepth) then
+                            
+                                DistToBottom = BottomDepth - LayerBottom
+                                DistToTop    = LayerTop - BottomDepth
+                                
+                                if (DistToBottom < CurrentDomain%BottomLayerThickness .and. DistToBottom > AllmostZero_) then
+                                    NewBathymetry(i, j)         = LayerBottom
+                                    WriteNewBathymetry          = .true.
+                                    write(*,*)'i                = ', i
+                                    write(*,*)'j                = ', j
+                                    write(*,*)'Bathymetry       = ',Bathymetry(i, j)
+                                    write(*,*)'New Bathymetry   = ',NewBathymetry(i, j)
+                                endif
+                            
+                                if (DistToTop < CurrentDomain%BottomLayerThickness .and. DistToTop > AllmostZero_) then
+                                    NewBathymetry(i, j)         = LayerTop
+                                    WriteNewBathymetry          = .true.
+                                    write(*,*)'i                = ', i
+                                    write(*,*)'j                = ', j
+                                    write(*,*)'Bathymetry       = ',Bathymetry(i, j)
+                                    write(*,*)'New Bathymetry   = ',NewBathymetry(i, j)
+                                endif
+                                
+                                exit 
+
+                            else
+                            
+                                iLayer       = iLayer - 1
+                                LayerTop     = LayerBottom
+                                LayerBottom  = LayerTop - CurrentDomain%LayerThickness(iLayer)
+                                
+                            endif
+
+                        enddo
+                    
+                    endif
+
+                enddo
+                enddo
 
             endif cd1
 

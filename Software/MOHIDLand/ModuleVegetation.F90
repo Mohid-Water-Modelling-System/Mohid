@@ -1092,6 +1092,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         integer                                 :: STAT_CALL, iflag
         real                                    :: auxFactor, Erroraux, DTaux, ModelDT
         real                                    :: PotentialHUTotal
+        logical                                 :: Aux
         !Begin------------------------------------------------------------------
 
         call GetComputeTimeLimits(Me%ObjTime, BeginTime = Me%BeginTime,                 &
@@ -1310,6 +1311,19 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      STAT           = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR0160'
 
+        call GetData(Aux,                                                               &
+                     Me%ObjEnterData, iflag,                                            &
+                     Keyword        = 'MANAGEMENT',                                     &
+                     SearchType     = FromFile,                                         &
+                     ClientModule   = 'ModuleVegetation',                               &
+                     STAT           = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR0170'
+        if (iflag /= 0) then
+            write(*,*)'Found MANAGEMENT keyword in Vegetation data file'
+            write(*,*)'This keyword is obsolete and is now HARVEST_KILL'
+            stop 'ConstructGlobalVariables - ModuleVegetation - ERR0175'
+        endif
+        
         call GetData(Me%ComputeOptions%HarvestKill,                                     &
                      Me%ObjEnterData, iflag,                                            &
                      Keyword        = 'HARVEST_KILL',                                   &
@@ -2033,12 +2047,13 @@ cd0:    if (Exist) then
 
         !A vegetation type is an agricultural practice. For now land use from grid has only one agricultural practice object
         !In the future one land use can have several (rotation)
-        FoundVegetation = .false.
         
         do j = Me%Size%JLB, Me%Size%JUB
         do i = Me%Size%ILB, Me%Size%IUB
             
             if (Me%ExternalVar%MappingPoints2D(i, j) == 1) then
+
+                FoundVegetation = .false.
                 
                 VegetationInList => Me%FirstVegetation
 doV:            do while (associated(VegetationInList))
@@ -3620,7 +3635,6 @@ i1:         if (CoordON) then
                     if (ivt .eq. Me%VegetationsNumber .and. Me%VegetationID(i,j) < FillValueInt / 2) then
                         write(*,*)'Vegetation ID not found in vegetation type definition.'
                         write(*,*)'Check in vegetation grid or in vegetation types in data file, the ID:', NINT(AuxID(i,j))
-                        write(*,*)'or Name:', trim(Me%VegetationTypes(ivt)%Name)
                         stop 'ConstructVegetationGrid - ModuleVegetation - ERR06'
                     endif
                 enddo
@@ -3748,13 +3762,17 @@ i1:         if (CoordON) then
                      keyword        = 'PARAMETERS_FILE',                                                          &
                      ClientModule   = 'ModuleVegetation',                                                         &
                      STAT           = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructVegetationParameters - ModuleVegetation - ERR70'     
-
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructVegetationParameters - ModuleVegetation - ERR10'     
+        if (iflag /= 1) then
+            write(*,*)'Missing PARAMETERS_FILE in vegetation data file'
+            stop 'ConstructVegetationParameters - ModuleVegetation - ERR75'            
+        endif
+        
         ivt = 0
         ParameterObjEnterData = 0
         !Open and save parameter file
         call ConstructEnterData(ParameterObjEnterData, ParameterFile, STAT = STAT_CALL) 
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructVegetationParameters - ModuleVegetation - ERR80'        
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructVegetationParameters - ModuleVegetation - ERR20'        
         
         if (Me%ComputeOptions%Pesticide) then
             !temporary lists used to allocate unique pesticides
@@ -3769,7 +3787,7 @@ doV:    do while (associated(VegetationType))
             
             !each property cycle restart from the beggining og the file
             call RewindBuffer(ParameterObjEnterData, STAT = STAT_CALL)
-            if(STAT_CALL .NE. SUCCESS_) stop 'ConstructVegetationParameters - ModuleVegetation - ERR85'
+            if(STAT_CALL .NE. SUCCESS_) stop 'ConstructVegetationParameters - ModuleVegetation - ERR30'
 
             
             VegetationFound = .false. 
@@ -3788,11 +3806,11 @@ HF1:            if (STAT_CALL == SUCCESS_ .and. DatabaseFound) then
                                  keyword        = 'AGRIC_PRACT_ID',                                                          &
                                  ClientModule   = 'ModuleVegetation',                                                        &
                                  STAT           = STAT_CALL)
-                    if (STAT_CALL .NE. SUCCESS_) stop 'ConstructVegetationParameters - ModuleVegetation - ERR90'     
+                    if (STAT_CALL .NE. SUCCESS_) stop 'ConstructVegetationParameters - ModuleVegetation - ERR40'     
                     if (iflag /= 1) then
                         write(*,*)'Missing AGRIC_PRACT_ID in agricultural practice definition'
                         write(*,*)'Check vegetation definition in',ParameterFile
-                        stop 'ConstructVegetationParameters - ModuleVegetation - ERR30'
+                        stop 'ConstructVegetationParameters - ModuleVegetation - ERR50'
                     endif
                     
                     if (VegetationTypeID == VegetationType%ID) then
@@ -3807,10 +3825,10 @@ HF1:            if (STAT_CALL == SUCCESS_ .and. DatabaseFound) then
                                      keyword        = 'NAME',                                           &
                                      ClientModule   = 'ModuleVegetation',                               &
                                      STAT           = STAT_CALL)
-                        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructVegetationParameters - ModuleVegetation - ERR20'
+                        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructVegetationParameters - ModuleVegetation - ERR60'
                         if (iflag /= 1) then
                             write(*,*)'Missing NAME in Vegetation Type definition'
-                            stop 'ConstructVegetationParameters - ModuleVegetation - ERR30'
+                            stop 'ConstructVegetationParameters - ModuleVegetation - ERR70'
                         endif
 
                         !Reads Crop ID associated
@@ -3819,10 +3837,10 @@ HF1:            if (STAT_CALL == SUCCESS_ .and. DatabaseFound) then
                                      keyword        = 'VEGETATION_ID',                                  &
                                      ClientModule   = 'ModuleVegetation',                               &
                                      STAT           = STAT_CALL)
-                        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructVegetationParameters - ModuleVegetation - ERR25'
+                        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructVegetationParameters - ModuleVegetation - ERR80'
                         if (iflag /= 1) then
                             write(*,*)'Missing VEGETATION_ID in Vegetation Type definition'
-                            stop 'ConstructVegetationParameters - ModuleVegetation - ERR30'
+                            stop 'ConstructVegetationParameters - ModuleVegetation - ERR90'
                         endif
                         
                         
@@ -3834,8 +3852,11 @@ HF1:            if (STAT_CALL == SUCCESS_ .and. DatabaseFound) then
                                          keyword        = 'FEDDES_DATABASE',                                                 &
                                          ClientModule   = 'ModuleVegetation',                                                &
                                          STAT           = STAT_CALL)
-                            if (STAT_CALL .NE. SUCCESS_) stop 'ConstructVegetationParameters - ModuleVegetation - ERR70'  
-                        
+                            if (STAT_CALL .NE. SUCCESS_) stop 'ConstructVegetationParameters - ModuleVegetation - ERR100'  
+                            if (iflag /= 1) then
+                                write(*,*)'Missing FEDDES_DATABASE in vegetation data file'
+                                stop 'ConstructVegetationParameters - ModuleVegetation - ERR110'            
+                            endif                        
                             call ReadFeddesDatabase (ivt)
                             
                         endif
@@ -3848,7 +3869,7 @@ HF1:            if (STAT_CALL == SUCCESS_ .and. DatabaseFound) then
                                          default        = .true.,                                           &
                                          ClientModule   = 'ModuleVegetation',                               &
                                          STAT           = STAT_CALL)
-                            if (STAT_CALL .NE. SUCCESS_) stop 'ConstructVegetationParameters - ModuleVegetation - ERR31'
+                            if (STAT_CALL .NE. SUCCESS_) stop 'ConstructVegetationParameters - ModuleVegetation - ERR120'
 !                            if (iflag /= 1) then
 !                                write(*,*)'Missing HAS_LEAVES in Vegetation Type definition'
 !                                stop 'ConstructVegetationParameters - ModuleVegetation - ERR32'
@@ -3872,8 +3893,11 @@ HF1:            if (STAT_CALL == SUCCESS_ .and. DatabaseFound) then
                                              keyword        = 'FERTILIZER_DATABASE',                                             &
                                              ClientModule   = 'ModuleVegetation',                                                &
                                              STAT           = STAT_CALL)
-                                if (STAT_CALL .NE. SUCCESS_) stop 'ConstructVegetationParameters - ModuleVegetation - ERR70'   
-                            
+                                if (STAT_CALL .NE. SUCCESS_) stop 'ConstructVegetationParameters - ModuleVegetation - ERR130'   
+                                if (iflag /= 1) then
+                                    write(*,*)'Missing FERTILIZER_DATABASE in vegetation data file'
+                                    stop 'ConstructVegetationParameters - ModuleVegetation - ERR140'            
+                                endif                            
                                 call ReadFertilizationParameters(ivt, ClientNumber,ParameterObjEnterData)
                             endif
                             if (Me%ComputeOptions%Pesticide) then 
@@ -3884,8 +3908,11 @@ HF1:            if (STAT_CALL == SUCCESS_ .and. DatabaseFound) then
                                              keyword        = 'PESTICIDE_DATABASE',                                              &
                                              ClientModule   = 'ModuleVegetation',                                                &
                                              STAT           = STAT_CALL)
-                                if (STAT_CALL .NE. SUCCESS_) stop 'ConstructVegetationParameters - ModuleVegetation - ERR70'     
-                            
+                                if (STAT_CALL .NE. SUCCESS_) stop 'ConstructVegetationParameters - ModuleVegetation - ERR150'     
+                                if (iflag /= 1) then
+                                    write(*,*)'Missing PESTICIDE_DATABASE in vegetation data file'
+                                    stop 'ConstructVegetationParameters - ModuleVegetation - ERR160'            
+                                endif                                
                                 call ReadPesticideParameters(ivt, ClientNumber,ParameterObjEnterData)
                             endif                    
 
@@ -3895,8 +3922,11 @@ HF1:            if (STAT_CALL == SUCCESS_ .and. DatabaseFound) then
                                          keyword        = 'GROWTH_DATABASE',                                                     &
                                          ClientModule   = 'ModuleVegetation',                                                    &
                                          STAT           = STAT_CALL)
-                            if (STAT_CALL .NE. SUCCESS_) stop 'ConstructVegetationParameters - ModuleVegetation - ERR70'   
-                            
+                            if (STAT_CALL .NE. SUCCESS_) stop 'ConstructVegetationParameters - ModuleVegetation - ERR170'   
+                            if (iflag /= 1) then
+                                write(*,*)'Missing GROWTH_DATABASE in vegetation data file'
+                                stop 'ConstructVegetationParameters - ModuleVegetation - ERR180'            
+                            endif                            
                             !Read growth parameters (from SWAT database)
                             call ReadGrowthDatabase(ivt)
                         
@@ -3909,7 +3939,7 @@ HF1:            if (STAT_CALL == SUCCESS_ .and. DatabaseFound) then
                 else
                     
                     call Block_Unlock(ParameterObjEnterData, ClientNumber, STAT_CALL)
-                    if (STAT_CALL .NE. SUCCESS_) stop 'ConstructVegetationParameters - ModuleVegetation - ERR120'
+                    if (STAT_CALL .NE. SUCCESS_) stop 'ConstructVegetationParameters - ModuleVegetation - ERR190'
                    
                     exit doH1 
                               
@@ -3923,7 +3953,7 @@ HF1:            if (STAT_CALL == SUCCESS_ .and. DatabaseFound) then
                 write(*,*) 'not found in parameter file.'
                 write(*,*) 'Check that ID' , VegetationType%ID
                 write(*,*) 'was defined in parameter file', trim(ParameterFile)
-                stop 'ConstructVegetationParameters - ModuleVegetation - ERR130' 
+                stop 'ConstructVegetationParameters - ModuleVegetation - ERR200' 
             endif 
             
             VegetationType => VegetationType%Next
@@ -3942,7 +3972,7 @@ HF1:            if (STAT_CALL == SUCCESS_ .and. DatabaseFound) then
                                              Me%Fluxes%Pesticides%Application(Pest - 1)%ID%IDNumber)) then
                     write (*,*)'The property isnt recognized by the model :'
                     write (*,*) trim(Me%Fluxes%Pesticides%Application(Pest - 1)%ID%Name)
-                    stop 'ConstructPropertyID - ModuleFunctions - ERR03'
+                    stop 'ConstructVegetationParameters - ConstructVegetationParameters - ERR210'
                 endif
                 
             enddo
@@ -3950,7 +3980,7 @@ HF1:            if (STAT_CALL == SUCCESS_ .and. DatabaseFound) then
         endif
        
         call KillEnterData(ParameterObjEnterData, STAT = STAT_CALL)         
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructVegetationParameters - ModuleVegetation - ERR140'        
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructVegetationParameters - ConstructVegetationParameters - ERR220'        
 
 
    
@@ -5883,7 +5913,7 @@ cd0:    if (Exist) then
 
             IsConstant = SpecificLeafStorage%IsConstant
         
-            if (present(ConstantValue)) ConstantValue = ConstantValue
+            if (present(ConstantValue)) ConstantValue = SpecificLeafStorage%ConstantValue
 
             call Read_UnLock(mVegetation_, Me%InstanceID, "UngetCanopyStorageType")
             STAT_ = SUCCESS_
@@ -10307,8 +10337,10 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             if (MappingPoints (i, j) == 1) then
                 
                 PlantKilled = .false.
-                if (Me%HarvestKillOccurred(i,j) .or. Me%KillOccurred(i,j)) then
-                    PlantKilled = .true.
+                if (Me%ComputeOptions%HarvestKill) then
+                    if (Me%HarvestKillOccurred(i,j) .or. Me%KillOccurred(i,j)) then
+                        PlantKilled = .true.
+                    endif
                 endif
                 
                 if (Me%IsPlantGrowing(i,j) .and. Me%PlantGoingDormant(i,j)      &
@@ -10557,8 +10589,10 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             if (MappingPoints (i, j) == 1) then
             
                 PlantKilled = .false.
-                if (Me%HarvestKillOccurred(i,j) .or. Me%KillOccurred(i,j)) then
-                    PlantKilled = .true.
+                if (Me%ComputeOptions%HarvestKill) then
+                    if (Me%HarvestKillOccurred(i,j) .or. Me%KillOccurred(i,j)) then
+                        PlantKilled = .true.
+                    endif
                 endif
                 
                 if (Me%IsPlantGrowing(i,j) .and. Me%IsPlantBeingGrazed(i,j)      &
