@@ -259,13 +259,13 @@ Module ModuleLagrangianGlobal
                                        GetLightExtinctionOptions, KillLightExtinction,      &
                                        GetShortWaveExtinctionField, UnGetLightExtinction,   &
                                        GetLongWaveExtinctionCoef, GetRadiationPercentages
-    use ModuleHorizontalMap,    only : GetBoundaries, UnGetHorizontalMap
+    use ModuleHorizontalMap,    only : GetBoundaries, GetWaterPoints2D, UnGetHorizontalMap
     use ModuleHorizontalGrid,   only : GetHorizontalGrid, WriteHorizontalGrid,              &
                                        UnGetHorizontalGrid, GetGridCoordType, GetCoordTypeList,&
                                        LocateCell, GetDefineCellsMap, GetGridLatitudeLongitude,&
                                        GetXYInsideDomain, GetXYCellZ, GetCellZ_XY,          &
                                        GetLatitudeLongitude, GetGridCellArea,               &
-                                       GetGridBorderType
+                                       GetGridBorderType, InterpolXYPoint
     use ModuleAssimilation,     only : StartAssimilation, GetAssimilationField,             &
                                        UnGetAssimilation, KillAssimilation
     use ModuleGeometry,         only : GetGeometrySize, GetGeometryWaterColumn,             &
@@ -607,7 +607,7 @@ Module ModuleLagrangianGlobal
         real,    dimension(:, : ), pointer      :: GridCellArea
 
         !ObjHorizontalMObj
-        integer, pointer, dimension(:,:  )      :: BoundaryPoints2D
+        integer, pointer, dimension(:,:  )      :: BoundaryPoints2D, WaterPoints2D
 
   
         !ObjGeometry
@@ -660,6 +660,10 @@ Module ModuleLagrangianGlobal
         real,    pointer, dimension(:,:,:)      :: Salinity3D
         real,    pointer, dimension(:,:,:)      :: FishFood3D
         real,    pointer, dimension(:,:,:)      :: SPM3D
+        
+        !ObjWaves
+        real,    pointer, dimension(:,:  )      :: WaveHeight2D
+        real,    pointer, dimension(:,:  )      :: WavePeriod2D
 
 
         real   , dimension(:,:,:),    pointer   :: BeachingProbability
@@ -809,6 +813,8 @@ Module ModuleLagrangianGlobal
         logical                                 :: WindOriginON             = .false.
         real                                    :: WindX, WindY
 
+        logical                                 :: StokesDrift              = .false.        
+        
         !Sediment stuff
         integer                                 :: SedimentationType        = null_int
         real                                    :: SedVel                   = null_real
@@ -1112,6 +1118,7 @@ Module ModuleLagrangianGlobal
         logical                                 :: RunOnlyMov2D         = .false.
         logical                                 :: Overlay
         logical                                 :: FirstIteration       = .true.
+        logical                                 :: ConstructPhase       = .true.
 
         integer, dimension(:), pointer          :: ObjHDF5              
 
@@ -1421,6 +1428,8 @@ em2:            do em =1, Me%EulerModelNumber
             call ReadUnLockExternalVar()
 
             call ReadUnLockEulerianDensity()
+            
+            Me%ConstructPhase = .false. 
 
 !            nullify(TimeID, GridDataID, HorizontalGridID, HorizontalMapID, GeometryID)
 !            nullify(MapID, AssimilationID, HydrodynamicID, TurbulenceID, WavesID, WaterPropertiesID)
@@ -3103,10 +3112,21 @@ TURB_V:                 if (flag == 1) then
                      flag,                                                       &
                      SearchType   = FromBlock,                                   &
                      keyword      ='KILL_LAND_PARTICLES',                        &
-                     ClientModule ='ModuleLagrangianGlobal',                           &  
+                     ClientModule ='ModuleLagrangianGlobal',                     &  
                      Default      = OFF,                                         &
                      STAT         = STAT_CALL)             
         if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR820'
+
+
+        call GetData(NewOrigin%Movement%StokesDrift,                             &
+                     Me%ObjEnterData,                                            &
+                     flag,                                                       &
+                     SearchType   = FromBlock,                                   &
+                     keyword      ='STOKES_DRIFT',                               &
+                     ClientModule ='ModuleLagrangianGlobal',                     &  
+                     Default      = OFF,                                         &
+                     STAT         = STAT_CALL)             
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructOrigins - ModuleLagrangian - ERR830'
 
 
 
@@ -3116,10 +3136,10 @@ TURB_V:                 if (flag == 1) then
                      flag,                                                       &
                      SearchType   = FromBlock,                                   &
                      keyword      ='WINDCOEF',                                   &
-                     ClientModule ='ModuleLagrangianGlobal',                           &  
+                     ClientModule ='ModuleLagrangianGlobal',                     &  
                      Default      = 0.03,                                        &
                      STAT         = STAT_CALL)             
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR830'
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR840'
 
 
         allocate(Aux2(2))
@@ -3134,7 +3154,7 @@ TURB_V:                 if (flag == 1) then
                      keyword      ='WINDXY',                                     &
                      ClientModule ='ModuleLagrangianGlobal',                           &  
                      STAT         = STAT_CALL)             
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR840'
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR850'
 
         
         if (flag == 2) then
@@ -3156,7 +3176,7 @@ TURB_V:                 if (flag == 1) then
                      keyword      ='SEDIMENTATION',                              &
                      ClientModule ='ModuleLagrangianGlobal',                           &  
                      STAT         = STAT_CALL)             
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR850'
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR860'
 
 SE:             if (flag == 1) then
 
@@ -3167,14 +3187,14 @@ SE:             if (flag == 1) then
                 NewOrigin%Movement%SedimentationType = Stokes_
 
                 call GetData(NewOrigin%Movement%D50,                             &
-                             Me%ObjEnterData,                         &
+                             Me%ObjEnterData,                                    &
                              flag,                                               &
                              SearchType   = FromBlock,                           &
                              keyword      ='D50',                                &
                              default      = 0.002,                               & 
-                             ClientModule ='ModuleLagrangianGlobal',                   &
+                             ClientModule ='ModuleLagrangianGlobal',             &
                              STAT         = STAT_CALL)             
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR860'
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR870'
 
                 NewOrigin%State%Sedimentation = ON
 
@@ -3183,16 +3203,16 @@ SE:             if (flag == 1) then
                 NewOrigin%Movement%SedimentationType = Imposed_
 
                 call GetData(NewOrigin%Movement%SedVel,                          &
-                             Me%ObjEnterData,                         &
+                             Me%ObjEnterData,                                    &
                              flag,                                               &
                              SearchType   = FromBlock,                           &
                              keyword      ='SED_VELOCITY',                       &
-                             ClientModule ='ModuleLagrangianGlobal',                   &
+                             ClientModule ='ModuleLagrangianGlobal',             &
                              STAT         = STAT_CALL)             
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR870'
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR880'
                 if (flag == 0) then
                     write(*,*)'Sedimentation velocity not defined, keyword SED_VELOCITY'
-                    stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR880'
+                    stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR890'
                 endif
 
                 NewOrigin%State%Sedimentation     = ON
@@ -3200,7 +3220,7 @@ SE:             if (flag == 1) then
             case default
             
                 write(*,*)'Invalid Sedimentaion type, keyword SEDIMENTATION'
-                stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR890'
+                stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR900'
 
             end select
 
@@ -3213,13 +3233,13 @@ SE:             if (flag == 1) then
                      SearchType   = FromBlock,                                   &
                      keyword      ='DEPOSITION',                                 &
                      default      = .false.,                                     & 
-                     ClientModule ='ModuleLagrangianGlobal',                           &
+                     ClientModule ='ModuleLagrangianGlobal',                     &
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                               &
-            call SetError(FATAL_, KEYWORD_, 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR900')
+            call SetError(FATAL_, KEYWORD_, 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR910')
 
         if (NewOrigin%State%Deposition .and. .not.NewOrigin%State%Sedimentation) &
-            call SetError(FATAL_, KEYWORD_, 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR910')
+            call SetError(FATAL_, KEYWORD_, 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR920')
 
 
 DE:             if (NewOrigin%State%Deposition) then
@@ -3227,26 +3247,26 @@ DE:             if (NewOrigin%State%Deposition) then
             Me%State%Deposition = ON
 
             call GetData(NewOrigin%Deposition%TauErosion,                        &
-                         Me%ObjEnterData,                             &
+                         Me%ObjEnterData,                                        &
                          flag,                                                   &
                          SearchType   = FromBlock,                               &
                          keyword      ='TAU_ERO',                                &
                          default      = 0.2,                                     &                                  
-                         ClientModule ='ModuleLagrangianGlobal',                       &
+                         ClientModule ='ModuleLagrangianGlobal',                 &
                          STAT         = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                           &
-                call SetError(FATAL_, INTERNAL_, 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR920')
+                call SetError(FATAL_, INTERNAL_, 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR930')
 
             call GetData(NewOrigin%Deposition%TauDeposition,                     &
-                         Me%ObjEnterData,                             &
+                         Me%ObjEnterData,                                        &
                          flag,                                                   &
                          SearchType   = FromBlock,                               &
                          keyword      ='TAU_DEP',                                &
                          default      = 0.1,                                     &                                  
-                         ClientModule ='ModuleLagrangianGlobal',                       &
+                         ClientModule ='ModuleLagrangianGlobal',                 &
                          STAT         = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                           &
-                call SetError(FATAL_, INTERNAL_, 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR930')
+                call SetError(FATAL_, INTERNAL_, 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR940')
 
            call GetData(NewOrigin%Deposition%BottomDistance,                     &
                          Me%ObjEnterData,                                        &
@@ -3258,7 +3278,7 @@ DE:             if (NewOrigin%State%Deposition) then
                          STAT         = STAT_CALL)
 
             if (STAT_CALL /= SUCCESS_)                                           &
-                call SetError(FATAL_, INTERNAL_, 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR940')
+                call SetError(FATAL_, INTERNAL_, 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR950')
 
            call GetData(NewOrigin%Deposition%Tdecay,                             &
                          Me%ObjEnterData,                                        &
@@ -3271,7 +3291,7 @@ DE:             if (NewOrigin%State%Deposition) then
                          STAT         = STAT_CALL)
 
             if (STAT_CALL /= SUCCESS_)                                           &
-                call SetError(FATAL_, INTERNAL_, 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR950')
+                call SetError(FATAL_, INTERNAL_, 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR960')
 
            call GetData(NewOrigin%Deposition%BottomEmission,                     &
                          Me%ObjEnterData,                                        &
@@ -3280,11 +3300,11 @@ DE:             if (NewOrigin%State%Deposition) then
                          keyword      ='BOTTOM_EMISSION',                        &
                          !by default the particle are emitted in the water column
                          default      = .false.,                                 &
-                         ClientModule ='ModuleLagrangianGlobal',                       &
+                         ClientModule ='ModuleLagrangianGlobal',                 &
                          STAT         = STAT_CALL)
 
             if (STAT_CALL /= SUCCESS_)                                           &
-                call SetError(FATAL_, INTERNAL_, 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR960')
+                call SetError(FATAL_, INTERNAL_, 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR970')
 
            call GetData(NewOrigin%Deposition%ErosionRate,                        &
                          Me%ObjEnterData,                                        &
@@ -3294,11 +3314,11 @@ DE:             if (NewOrigin%State%Deposition) then
                          !by default the erosion rate in 5e-2 g/m2/s             
                          !This value make sense if the concentration is in mg/l = g/m3
                          default      = 5.e-2,                                   &
-                         ClientModule ='ModuleLagrangianGlobal',                       &
+                         ClientModule ='ModuleLagrangianGlobal',                 &
                          STAT         = STAT_CALL)
 
             if (STAT_CALL /= SUCCESS_)                                           &
-                call SetError(FATAL_, INTERNAL_, 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR970')
+                call SetError(FATAL_, INTERNAL_, 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR980')
 
         endif DE
 
@@ -3310,9 +3330,9 @@ DE:             if (NewOrigin%State%Deposition) then
                      SearchType   =  FromBlock,                                  &
                      keyword      = 'MIN_SED_VELOCITY',                          &
                      default      =  0.0,                                        &
-                     ClientModule = 'ModuleLagrangianGlobal',                          &
+                     ClientModule = 'ModuleLagrangianGlobal',                    &
                      STAT         = STAT_CALL)             
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR980'
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR990'
 
 
         !Reads parameter specific to cada Spatial emission type
@@ -3321,14 +3341,14 @@ PA:     if (NewOrigin%EmissionSpatial == Point_ .or.                            
 
             !Gets the number of particles to emit
             call GetData(NewOrigin%NbrParticlesIteration,                        &
-                         Me%ObjEnterData,                             &
+                         Me%ObjEnterData,                                        &
                          flag,                                                   &
                          SearchType   = FromBlock,                               &
                          keyword      ='NBR_PARTIC',                             &
-                         ClientModule ='ModuleLagrangianGlobal',                       &
+                         ClientModule ='ModuleLagrangianGlobal',                 &
                          Default      = 1,                                       &
                          STAT         = STAT_CALL)        
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR990'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR1000'
 
 
             !Horizontal position in meters
@@ -3338,12 +3358,12 @@ PA:     if (NewOrigin%EmissionSpatial == Point_ .or.                            
 NDF:        if (.not. NewOrigin%Default) then
         
                 !Horizontal position in coordinates X, Y
-                call GetData(Position,                                  &
-                             Me%ObjEnterData,                           &
-                             flag,                                      &
-                             SearchType   = FromBlock,                  &
-                             keyword      ='POSITION_COORDINATES',      &
-                             ClientModule ='ModuleLagrangianGlobal',          &
+                call GetData(Position,                                                  &
+                             Me%ObjEnterData,                                           &
+                             flag,                                                      &
+                             SearchType   = FromBlock,                                  &
+                             keyword      ='POSITION_COORDINATES',                      &
+                             ClientModule ='ModuleLagrangianGlobal',                    &
                              STAT         = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR1020'
 
@@ -9223,10 +9243,8 @@ CurrOr: do while (associated(CurrentOrigin))
         real                                        :: GradDWx, GradDWy, Aux
         logical                                     :: NoIntU, NoIntV, ComputeTrajectory, HaveDomain, MovePartic
         logical                                     :: SlipConditionX, SlipConditionY
-
-
-
-
+        real                                        :: WavePeriod, WaveHeight, WindAngle,UStokesDrift, VStokesDrift
+        real                                        :: AngFrequency, WaveNumber, VelStokesDrift
 
         CurrentPartic => CurrentOrigin%FirstPartic
 CP:     do while (associated (CurrentPartic))
@@ -9563,6 +9581,38 @@ MT:             if (CurrentOrigin%Movement%MovType == SullivanAllen_) then
                     CurrentPartic%SD   = StandardDeviation
 
                 endif
+
+                ! Velocity due Stokes Drift
+                if (CurrentOrigin%State%Oil .and. CurrentOrigin%Movement%StokesDrift) then    
+                
+                    WaveHeight          = Me%EulerModel(emp)%WaveHeight2D(i, j)
+                    WavePeriod          = Me%EulerModel(emp)%WavePeriod2D(i, j)
+
+
+                    AngFrequency        = 2 * Pi / WavePeriod
+                    WaveNumber          = AngFrequency * AngFrequency / gravity
+                    VelStokesDrift      = 0.5 * (WaveHeight /  2 )**2 * WaveNumber * AngFrequency * & 
+                                          exp(2* WaveNumber *                                       &
+                                          abs(Me%EulerModel(emp)%SZZ(i, j, k) - CurrentOrigin%Position%Z) )
+                                          
+                    if (CurrentOrigin%Movement%WindOriginON) then
+
+                        WindX = CurrentOrigin%Movement%WindX
+                        WindY = CurrentOrigin%Movement%WindY
+
+                    else
+
+                        WindX = Me%EulerModel(emp)%WindX(i, j)
+                        WindY = Me%EulerModel(emp)%WindY(i, j)
+
+                    endif
+
+                    WindAngle           = atan2(WindY, WindX)
+                    UStokesDrift        = cos(WindAngle) * VelStokesDrift
+                    VStokesDrift        = sin(WindAngle) * VelStokesDrift
+                    UOIL = UOIL + UStokesDrift
+                    VOIL = VOIL + VStokesDrift
+                end if
 
 
                 if (CurrentOrigin%Movement%Advection) then
@@ -11823,7 +11873,6 @@ CurrOr: do while (associated(CurrentOrigin))
         type (T_Partic), pointer                    :: CurrentPartic    
         real, dimension(:, :, :), pointer           :: Temperature3D
         real, dimension(:, :, :), pointer           :: SPM3D
-        real, dimension(:, :   ), pointer           :: WavePeriod2D, WaveHeight2D
         integer                                     :: i, j, k, emp 
         real                                        :: WaterTemperature, WaterDensity, SPM
         real                                        :: UWIND, VWIND, Wind
@@ -11867,23 +11916,16 @@ i1:         if (CurrentOrigin%State%Oil .and. CurrentOrigin%nParticle > 0) then
                                       STAT              = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'InternalParticOil - ModuleLagrangianGlobal - ERR02'
 
-#ifndef _WAVES_
-                call GetWaves (WavesID    = Me%EulerModel(emp)%ObjWaves,                 &
-                               WavePeriod = WavePeriod2D,                               &
-                               WaveHeight = WaveHeight2D,                               &
-                               STAT       = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'InternalParticOil - ModuleLagrangianGlobal - ERR03'
-#endif
-        
+       
                 UWIND   = Me%EulerModel(emp)%WindX (i, j)
                 VWIND   = Me%EulerModel(emp)%WindY (i, j)
                 Wind    = abs(cmplx(UWIND, VWIND))
 
                 AtmPressure         = Me%EulerModel(emp)%AtmPressure(i, j)
                 
-                WaveHeight          = WaveHeight2D (i, j)
+                WaveHeight          = Me%EulerModel(emp)%WaveHeight2D (i, j)
 
-                WavePeriod          = WavePeriod2D (i, j)
+                WavePeriod          = Me%EulerModel(emp)%WavePeriod2D (i, j)
 
                 WaterTemperature    = Temperature3D             (i, j, k)
                 WaterDensity        = Me%EulerModel(emp)%Density (i, j, k)
@@ -11934,8 +11976,8 @@ i1:         if (CurrentOrigin%State%Oil .and. CurrentOrigin%nParticle > 0) then
                 call OilGridConcentration  (CurrentOrigin, WaveHeight, WaterDensity)       
 
                 !Modifies OilVolume
-                if (CurrentOrigin%VolumeTotal > 0) then
-                    Factor                                  =  dble(VolumeTotalOUT) / dble(CurrentOrigin%VolumeTotal)
+                if (CurrentOrigin%VolumeOilTotal > 0) then
+                    Factor                                  =  dble(VolumeTotalOUT) / dble(CurrentOrigin%VolumeOilTotal)
                 else
                     Factor                                  = 1.
                 endif
@@ -11970,13 +12012,6 @@ i1:         if (CurrentOrigin%State%Oil .and. CurrentOrigin%nParticle > 0) then
 
                 enddo
 
-#ifndef _WAVES_
-                call UnGetWaves(Me%EulerModel(emp)%ObjWaves, WavePeriod2D, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'InternalParticOil - ModuleLagrangianGlobal - ERR08'
-
-                call UnGetWaves(Me%EulerModel(emp)%ObjWaves, WaveHeight2D, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'InternalParticOil - ModuleLagrangianGlobal - ERR09'
-#endif
                 !Ungets Concentration from the eulerian module
                 call UngetWaterProperties (Me%EulerModel(emp)%ObjWaterProperties, Temperature3D, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'InternalParticOil - ModuleLagrangianGlobal - ERR10'
@@ -13577,7 +13612,42 @@ i1:             if (nP>0) then
                             endif
 
                         endif
-                        
+
+                        if (CurrentOrigin%State%Oil) then
+
+                            !oil Thickness 
+                            CurrentPartic   => CurrentOrigin%FirstPartic
+                            nP = 0
+                            do while (associated(CurrentPartic))
+                                nP = nP + 1
+                                emp = CurrentPartic%Position%ModelID
+                                ig  = CurrentOrigin%GroupID
+                                
+                                Matrix1D(nP)  = InterpolXYPoint                                            &
+                                    (HorizontalGridID = Me%EulerModel(emp)%ObjHorizontalGrid,              &
+                                     Field2DFather    = Me%EulerModel(emp)%OilSpreading(ig)%GridThickness, &
+                                     ComputeFather    = Me%EulerModel(emp)%WaterPoints2D,                  &
+                                     XInput           = CurrentPartic%Position%CoordX,                     &
+                                     YInput           = CurrentPartic%Position%CoordY,                     &
+                                     STAT             = STAT_CALL)
+                                if (STAT_CALL /= SUCCESS_) stop 'ParticleOutput - ModuleLagrangianGlobal - ERR165'
+                                
+                                Matrix1D(nP)  =  Matrix1D(nP) * 1e6 * (1 - Me%ExternalVar%VWaterContent)
+                                CurrentPartic => CurrentPartic%Next
+                                
+                            enddo  
+                            
+                            nullify(CurrentPartic)
+                                      
+                            if (nP > 0) then
+                                !HDF 5
+                                call HDF5WriteData  (Me%ObjHDF5(em), "/Results/"//trim(CurrentOrigin%Name)//"/Thickness", &
+                                                    "Thickness",  "micro m", Array1D = Matrix1D, OutputNumber = OutPutNumber,     &
+                                                     STAT = STAT_CALL)
+                                if (STAT_CALL /= SUCCESS_) stop 'ParticleOutput - ModuleLagrangianGlobal - ERR167'
+                            endif
+
+                        endif                        
                         
                         if (CurrentOrigin%State%FarFieldBuoyancy) then                        
 
@@ -14252,7 +14322,7 @@ idp:                    if (Me%State%Deposition) then
                                                        "/Results/Group_"//trim(adjustl(AuxChar)) &
                                                        //"/Data_1D/Age",                         &
                                                        "Age",                                    &
-                                                       "-",                                      &
+                                                       "days",                                   &
                                                        Array1D = Matrix1D,                       &
                                                        OutputNumber = OutPutNumber,              &
                                                        STAT = STAT_CALL)
@@ -14260,6 +14330,53 @@ idp:                    if (Me%State%Deposition) then
 
                         end if
                         
+                        !Oil thickness
+                        if (Me%State%Oil) then
+
+                            nP = 1
+                            CurrentOrigin => Me%FirstOrigin
+thick:                      do while (associated(CurrentOrigin))
+                            
+                                if (CurrentOrigin%GroupID == Me%GroupIDs(ig)) then                        
+                        
+                                    if (CurrentOrigin%State%Oil) then
+
+                                        !oil Thickness 
+                                        CurrentPartic   => CurrentOrigin%FirstPartic
+                                        do while (associated(CurrentPartic))
+                                            emp = CurrentPartic%Position%ModelID
+                                           
+                                            Matrix1D(nP)  = InterpolXYPoint                                            &
+                                                (HorizontalGridID = Me%EulerModel(emp)%ObjHorizontalGrid,              &
+                                                 Field2DFather    = Me%EulerModel(emp)%OilSpreading(ig)%GridThickness, &
+                                                 ComputeFather    = Me%EulerModel(emp)%WaterPoints2D,                  &
+                                                 XInput           = CurrentPartic%Position%CoordX,                     &
+                                                 YInput           = CurrentPartic%Position%CoordY,                     &
+                                                 STAT             = STAT_CALL)
+                                            if (STAT_CALL /= SUCCESS_) stop 'ParticleOutput - ModuleLagrangianGlobal - ERR165'
+                                            
+                                            Matrix1D(nP)  =  Matrix1D(nP) * 1e6 * (1 - Me%ExternalVar%VWaterContent)
+                                            CurrentPartic => CurrentPartic%Next
+                                            nP = nP + 1
+                                        enddo  
+                                        nullify(CurrentPartic)
+                                    endif
+                                endif      
+                                CurrentOrigin => CurrentOrigin%Next                              
+                            enddo thick
+                                      
+                            !HDF 5
+                            call HDF5WriteData        (Me%ObjHDF5(em),                           &
+                                                       "/Results/Group_"//trim(adjustl(AuxChar)) &
+                                                       //"/Data_1D/Thickness",                   &
+                                                       "Thickness",                              &
+                                                       "micro m",                                &
+                                                       Array1D = Matrix1D,                       &
+                                                       OutputNumber = OutPutNumber,              &
+                                                       STAT = STAT_CALL)
+
+
+                        endif                              
                         
                         !density
                         if (Me%State%FarFieldBuoyancy) then
@@ -17157,6 +17274,11 @@ em1:    do em =1, Me%EulerModelNumber
                                          STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - ModuleLagrangianGlobal - ERR30'
 
+                !Gets water points 2D
+                call GetWaterPoints2D   (EulerModel%ObjHorizontalMap, EulerModel%WaterPoints2D, &
+                                         STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - ModuleLagrangianGlobal - ERR35'
+
 
                 !WaterColumn
                 call GetGeometryWaterColumn(EulerModel%ObjGeometry, EulerModel%WaterColumn, STAT = STAT_CALL)
@@ -17238,6 +17360,19 @@ em1:    do em =1, Me%EulerModelNumber
                                          Velocity_W      = EulerModel%Velocity_W,       &
                                          STAT            = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - ModuleLagrangianGlobal - ERR150'
+                
+               
+#ifndef _WAVES_
+                if (Me%State%Oil .and. .not.Me%ConstructPhase) then
+                
+                    call GetWaves (WavesID    = EulerModel%ObjWaves,                    &
+                                   WavePeriod = EulerModel%WavePeriod2D,                &
+                                   WaveHeight = EulerModel%WaveHeight2D,                &
+                                   STAT       = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - ModuleLagrangianGlobal - ERR160'
+                
+                endif      
+#endif          
 
             else i1
 
@@ -17318,19 +17453,21 @@ em1:    do em =1, Me%EulerModelNumber
 
         !XX_IE, YY_IE
         call UnGetHorizontalGrid (EulerModel%ObjHorizontalGrid, EulerModel%XX_IE, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadUnLockExternalVar - ModuleLagrangianGlobal - ERR30'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadUnLockHorizontalGrid - ModuleLagrangianGlobal - ERR30'
 
         call UnGetHorizontalGrid (EulerModel%ObjHorizontalGrid, EulerModel%YY_IE, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadUnLockExternalVar - ModuleLagrangianGlobal - ERR40'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadUnLockHorizontalGrid - ModuleLagrangianGlobal - ERR40'
 
         call UnGetHorizontalGrid (EulerModel%ObjHorizontalGrid, EulerModel%DZX, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadUnLockExternalVar - ModuleLagrangianGlobal - ERR50'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadUnLockHorizontalGrid - ModuleLagrangianGlobal - ERR50'
 
         call UnGetHorizontalGrid (EulerModel%ObjHorizontalGrid, EulerModel%DZY, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadUnLockExternalVar - ModuleLagrangianGlobal - ERR60'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadUnLockHorizontalGrid - ModuleLagrangianGlobal - ERR60'
 
         call UnGetHorizontalGrid (EulerModel%ObjHorizontalGrid, EulerModel%GridCellArea, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadUnLockExternalVar - ModuleLagrangianGlobal - ERR70'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadUnLockHorizontalGrid - ModuleLagrangianGlobal - ERR70'
+        
+    
 
     end subroutine ReadUnLockHorizontalGrid
 
@@ -17363,6 +17500,10 @@ i1:         if (.not. Me%RunOnlyMov2D) then
                 call UngetHorizontalMap (EulerModel%ObjHorizontalMap, EulerModel%BoundaryPoints2D,   &
                                          STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ReadUnLockExternalVar - ModuleLagrangianGlobal - ERR60'
+
+                call UngetHorizontalMap (EulerModel%ObjHorizontalMap, EulerModel%WaterPoints2D,   &
+                                         STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ReadUnLockExternalVar - ModuleLagrangianGlobal - ERR65'
 
 
                 !WaterColumn
@@ -17453,6 +17594,18 @@ i1:         if (.not. Me%RunOnlyMov2D) then
                 !Velocity_W
                 call UngetHydrodynamic (EulerModel%ObjHydrodynamic, EulerModel%Velocity_W, STAT = STAT_CALL)                    
                 if (STAT_CALL /= SUCCESS_) stop 'ReadUnLockExternalVar - ModuleLagrangianGlobal - ERR240'
+                
+#ifndef _WAVES_
+                if (Me%State%Oil .and. .not.Me%ConstructPhase) then
+
+                    call UnGetWaves (EulerModel%ObjWaves, EulerModel%WavePeriod2D, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'ReadUnLockExternalVar - ModuleLagrangianGlobal - ERR250'
+
+                    call UnGetWaves (EulerModel%ObjWaves, EulerModel%WaveHeight2D, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'ReadUnLockExternalVar - ModuleLagrangianGlobal - ERR260'
+
+                endif      
+#endif                         
 
             else i1
 
