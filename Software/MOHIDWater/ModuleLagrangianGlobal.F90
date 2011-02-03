@@ -608,7 +608,6 @@ Module ModuleLagrangianGlobal
 
         !ObjHorizontalMObj
         integer, pointer, dimension(:,:  )      :: BoundaryPoints2D, WaterPoints2D
-
   
         !ObjGeometry
         type (T_Size3D)                         :: Size
@@ -13648,6 +13647,7 @@ i1:             if (nP>0) then
                             endif
 
                         endif                        
+                        
                         
                         if (CurrentOrigin%State%FarFieldBuoyancy) then                        
 
