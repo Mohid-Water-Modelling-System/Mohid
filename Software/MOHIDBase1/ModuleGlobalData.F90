@@ -1285,8 +1285,8 @@ Module ModuleGlobalData
     real,    parameter  :: WaterCinematicVisc = 1e-6
     real,    parameter  :: SigmaDensityReference = 1e3
     
-    !Average (or reference) atmospheric pressure at sea level
-    real,    parameter  :: AtmPressSeaLevelReference = 101325.    
+    !Reference atmospheric pressure at sea level in Pa
+    real,    parameter  :: AtmPressSeaLevelReference = 101325 
 
     !PV = nRT - thermodynamic (n - number of moles)
     real,    parameter  :: R                  = 8.3144  
@@ -3094,7 +3094,7 @@ do2:    do
 
 #endif
 
-!rosa2
+
 end module ModuleGlobalData
 
 !MOHID Water Modelling System.
