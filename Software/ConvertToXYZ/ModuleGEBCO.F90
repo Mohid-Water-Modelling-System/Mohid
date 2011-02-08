@@ -259,11 +259,14 @@ Module ModuleGEBCO
 
                     Me%Size%ILB = 1
                     Me%Size%JLB = 1
-                    Me%Size%IUB = DimensionsArray(1)
-                    Me%Size%JUB = DimensionsArray(2)
+                    Me%Size%IUB = DimensionsArray(2)
+                    Me%Size%JUB = DimensionsArray(1)
 
                     allocate(Me%Longitude(1:Me%Size%JUB))
                     allocate(Me%Latitude (1:Me%Size%IUB))
+
+                    print*, 'Size longitude: ',size(Me%Longitude)
+                    print*, 'Size latitude : ',size(Me%Latitude)
 
 
                 case('z')
@@ -294,20 +297,19 @@ Module ModuleGEBCO
 
         end do
 
-        
         do iPoint = Me%Size%ILB + 1, Me%Size%IUB
 
             Me%Latitude (iPoint) = Me%Latitude (iPoint - 1) - Me%SpacingY
 
         end do
 
-
         write(Me%OutputUnit,*)"<begin_xyz>"
 
         iPoint = 1
 
-        do j = Me%Size%JLB, Me%Size%JUB
         do i = Me%Size%ILB, Me%Size%IUB
+        do j = Me%Size%JLB, Me%Size%JUB
+
 
             if(Me%Topography(iPoint) .ge. Me%Window%MinimumValue .and. &
                Me%Topography(iPoint) .le. Me%Window%MaximumValue)then
@@ -318,9 +320,9 @@ Module ModuleGEBCO
                    Me%Latitude (j) .ge. Me%Window%Bottom)then
             
                     if(Me%WriteAsBathymetry)then
-                        write(Me%OutputUnit,99) Me%Longitude(i), Me%Latitude(j),-Me%Topography(iPoint)
+                        write(Me%OutputUnit,99) Me%Longitude(j), Me%Latitude(i),-Me%Topography(iPoint)
                     else
-                        write(Me%OutputUnit,99) Me%Longitude(i), Me%Latitude(j), Me%Topography(iPoint)
+                        write(Me%OutputUnit,99) Me%Longitude(j), Me%Latitude(i), Me%Topography(iPoint)
                     endif
 
                  endif
