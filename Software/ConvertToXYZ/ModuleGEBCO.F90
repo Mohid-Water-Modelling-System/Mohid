@@ -26,7 +26,11 @@ Module ModuleGEBCO
     use ModuleDrawing
     use ModuleEnterData
     use ModuleHDF5
-    use netcdf90
+#ifdef _USE_NIX
+    use netcdf
+#else
+    Use netcdf90
+#endif    
 
     implicit none
 
