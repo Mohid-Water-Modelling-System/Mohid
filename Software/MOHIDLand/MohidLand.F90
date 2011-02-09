@@ -348,10 +348,7 @@ program MohidLand
 !        Initialize = .false.
 !        return
         
-      !  write(*,*)'Hello'
         FilesName = workingDirectory
-       ! write(*,*)'FilesName', FilesName
-        
         
         call ConstructMohidLand()
 

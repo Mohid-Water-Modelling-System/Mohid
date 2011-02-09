@@ -27,6 +27,11 @@
 !Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 !
 !----------------------------------------------------------------------------------------------------------------------------------
+!
+! UNITS:
+!     ZERO order rate  : mg/s 
+!     FIRST order rate : 1/s
+!
 
 Module ModuleChainReactions
 
@@ -50,26 +55,19 @@ Module ModuleChainReactions
 !    private ::      ReadFileNames
     private ::      ReadInputFile
     private ::          ReadChainReactionsOptions
-    private ::              ConstructSinkList
-    private ::                  ConstructSinkProperty
-    private ::                      ConstructSinkOptions
-    private ::                      ConstructSinkValues
-    private ::                          ConstructSinkValues2D
-    private ::                          ConstructSinkValues3D
-    private ::                  AddSinkProperty 
-    private ::                  LinkProducts
-    private ::                      ConstructProduct
-    private ::              CheckSinkProperties 
-    private ::              ConstructPartitionList
-    private ::                  ConstructPartitionProperty
-    private ::                      ConstructPartitionOptions
-    private ::                      ConstructPartitionValues
-    private ::                          ConstructPartitionValues2D
-    private ::                          ConstructPartitionValues3D    
-    private ::                  AddPartition
-    private ::      ResetSinkProperty
+    private ::              ConstructPropertiesList
+    private ::                  ConstructProperty
+    private ::                      ConstructPropertyKd
+    private ::                      ConstructPropertySink
+    private ::                          ConstructValues
+    private ::                  AddPropertyToList
+    private ::                  MakeConnections
+    private ::              CheckProperties 
+    private ::      ResetProperty
+    private ::          ResetCalculatedValues
     private ::      CreatePropertiesList  
-    private ::      SearchSinkProperty                      
+    private ::      SearchProperty 
+    public  :: InitCRSoilPhase                     
                 
     !Selector
     public  :: GetCRPropertiesList
@@ -80,12 +78,11 @@ Module ModuleChainReactions
                         
     !Modifier
     public  :: ModifyChainReactions 
-    private ::      ModifyChainReactions2D
+    !private ::      ModifyChainReactions2D
     private ::      ModifyChainReactions3D
     
     private ::          ActualizePropertiesFromFile
-    private ::          GetSinkrate
-    private ::          GetPartitionCoef
+!    private ::          GetSinkrate
         
     !Destructor
     public  :: KillChainReactions                                                     
@@ -100,9 +97,9 @@ Module ModuleChainReactions
         module procedure SetPropertyConcentration2D
         module procedure SetPropertyConcentration3D
     end interface SetCRPropertyConcentration
-    
+
     interface ModifyChainReactions
-        module procedure ModifyChainReactions2D
+!        module procedure ModifyChainReactions2D
         module procedure ModifyChainReactions3D
     end interface ModifyChainReactions
         
@@ -111,112 +108,83 @@ Module ModuleChainReactions
     
     integer,                       parameter :: UnknownGeometry    = 0
     integer,                       parameter :: Geometry2D         = 1
-    integer,                       parameter :: Geometry3D         = 2
+    integer,                       parameter :: Geometry3D         = 2    
     
-    integer,                       parameter :: NoReaction         = 0
-    integer,                       parameter :: ZeroOrder          = 1
-    integer,                       parameter :: FirstOrder         = 2
-    
-    integer,                       parameter :: RateUnknown        = 0
-    integer,                       parameter :: RateDefault        = 1
-    integer,                       parameter :: RateAlternative    = 2
-    
-    integer,                       parameter :: NoSink             = 0
-    integer,                       parameter :: ConstantSink       = 1 !Single value
-    integer,                       parameter :: VariableSink       = 2
-    
-    integer,                       parameter :: NoPartition        = 0
-    integer,                       parameter :: ConstantPartition  = 1 !Single value
-    integer,                       parameter :: VariablePartition  = 2
-    
-    integer,                       parameter :: PartCoefSimple     = 1
-    integer,                       parameter :: PartCoefAdsorption = 2 
-    
-    integer,                       parameter :: WaterPhase         = 1
-    integer,                       parameter :: SolidPhase         = 2
-    
-    character(LEN = StringLength), parameter :: prop_block_begin   = '<beginproperty>'
-    character(LEN = StringLength), parameter :: prop_block_end     = '<endproperty>'
+    integer,                       parameter :: NoEvolution        = 0
+    integer,                       parameter :: ConstantEvolution  = 1 !Single value
+    integer,                       parameter :: VariableEvolution  = 2
        
-    character(LEN = StringLength), parameter :: sink_block_begin   = '<beginsink>'
-    character(LEN = StringLength), parameter :: sink_block_end     = '<endsink>'
-
-    character(LEN = StringLength), parameter :: part_block_begin   = '<beginpartition>'
-    character(LEN = StringLength), parameter :: part_block_end     = '<endpartition>'
-
-    !Types-------------------------------------------------------------------------------------------------------------------------            
+    character(LEN = StringLength), parameter :: prop_block_begin   = '<begin_property>'
+    character(LEN = StringLength), parameter :: prop_block_end     = '<end_property>'
        
-    type T_Property2D
-        real, pointer, dimension(:,:)   :: SinkRate       !ZERO order: mg/s - FIRST order: 1/s
-        real, pointer, dimension(:,:)   :: PartitionCoef  
-        real, pointer, dimension(:,:)   :: Concentration  !In mg/L
-    end type T_Property2D
+    character(LEN = StringLength), parameter :: sink_block_begin   = '<begin_sink>'
+    character(LEN = StringLength), parameter :: sink_block_end     = '<end_sink>'
+
+    character(LEN = StringLength), parameter :: kd_block_begin     = '<begin_kd>'
+    character(LEN = StringLength), parameter :: kd_block_end       = '<end_kd>'
+
+    !Types-------------------------------------------------------------------------------------------------------------------------
+                
+    type T_PropertyAttribute
+        integer                         :: Evolution    = NoEvolution
+        real                            :: DefaultValue = 0.0 
+        real, pointer, dimension(:,:)   :: Values2D       
+        real, pointer, dimension(:,:,:) :: Values3D       
+    end type T_PropertyAttribute             
+                 
+    type T_SPConnection
+        type(T_Property), pointer     :: Source      => null()
+        integer                       :: ProductID 
+        character(MaxStrLength)       :: ProductName  
+        type(T_SPConnection), pointer :: Next        => null()
+        type(T_SPConnection), pointer :: Prev        => null()
+    end type T_SPConnection
     
-    type T_Property3D
-        real, pointer, dimension(:,:,:) :: SinkRate       !ZERO order: mg/s - FIRST order: 1/s
-        real, pointer, dimension(:,:,:) :: PartitionCoef  
-        real, pointer, dimension(:,:,:) :: Concentration  !In mg/L
-    end type T_Property3D
-    
+    type T_Sink
+        type(T_PropertyAttribute) :: Soil_0  !ZERO order sink from soil phase
+        type(T_PropertyAttribute) :: Soil_1  !FIRST order sink from soil phase
+        type(T_PropertyAttribute) :: Water_0 !ZERO order sink from water phase
+        type(T_PropertyAttribute) :: Water_1 !FIRST order sink from the water phase
+    end type T_Sink
+        
+    type T_Calc
+        real :: OldSoilMass  = 0.0
+        real :: SoilMassLost = 0.0
+        real :: OldMass      = 0.0
+        real :: MassLost     = 0.0
+        real :: MassGained   = 0.0
+    end type T_Calc
+        
+    type T_SoilPhase
+        type(T_PropertyAttribute) :: Kd   
+        type(T_PropertyAttribute) :: Mass 
+    end type T_SoilPhase
+        
     type T_Property
         type(T_PropertyID)        :: ID
-        integer                   :: ProductID 
-        character(MaxStrLength)   :: ProductName
-        integer                   :: RateOrder           
-        integer                   :: RateMethod
-        real                      :: NewMass
-        real                      :: Sink
-        real                      :: Source
-        real                      :: Mass
-        logical                   :: IsOnlyProduct
-        integer                   :: SinkEvolution         !0 - no Sink, 1 - constant, 2 - variable
-        real                      :: SinkRate              !SinkRate if SinkEvolution is constant
-        integer                   :: Phase
-        logical                   :: NewConcCalculated    
-        type(T_Property2D)        :: G2D
-        type(T_Property3D)        :: G3D        
-        type(T_Property), pointer :: Next 
-        type(T_Property), pointer :: Prev         
-        type(T_Property), pointer :: Product        
+        type(T_Sink)              :: Sink
+        type(T_SoilPhase)         :: Soil
+        type(T_PropertyAttribute) :: Concentration 
+        type(T_Property), pointer :: Product => null()
+        type(T_Calc)              :: Calc
+        type(T_Property), pointer :: Next => null()
+        type(T_Property), pointer :: Prev => null()      
     end type T_Property
-    
-    type T_Partition
-        type(T_PropertyID)             :: ID
-        type(T_Property), pointer      :: Pair1
-        type(T_Property), pointer      :: Pair2         
-        real                           :: PartitionCoef
-        integer                        :: PartitionEvolution
-        type(T_Property2D)             :: G2D
-        type(T_Property3D)             :: G3D         
-        type(T_Partition), pointer :: Next
-        type(T_Partition), pointer :: Prev  
-    end type T_Partition
-    
+       
     type T_External
         integer, pointer, dimension(:,:,:) :: WaterPoints3D
         integer, pointer, dimension(:,:)   :: WaterPoints2D
-        real,    pointer, dimension(:,:,:) :: WaterVolume3D
-        real,    pointer, dimension(:,:)   :: WaterVolume2D
-        real,    pointer, dimension(:,:,:) :: SoilMass3D
-        real,    pointer, dimension(:,:)   :: SoilMass2D
+        real,    pointer, dimension(:,:,:) :: Theta3D
+        real,    pointer, dimension(:,:)   :: Theta2D
+        real,    pointer, dimension(:,:,:) :: SoilDensity3D
+        real,    pointer, dimension(:,:)   :: SoilDensity2D
         integer, pointer, dimension(:)     :: Properties
-    end type T_External
-          
-    type T_ChainReactionsOptions
-        integer :: GeometryType  !0 -> Unknown; 1 -> 2D; 2 -> 3D
-        logical :: Compensate
-        integer :: RateMethod
-        integer :: RateOrder
-    end type 
-       
-    type T_Files
-        character(PathLength) :: DataFile
-    end type T_Files           
+    end type T_External 
        
     type T_ChainReactions
         private
         integer                             :: InstanceID                    !ID of the ModuleChainReactions instance 
-        type(T_ChainReactions), pointer     :: Next                          !Collection of instances of ModuleChainReactions
+        type(T_ChainReactions), pointer     :: Next => null()                !Collection of instances of ModuleChainReactions
         
         character(MaxStrLength)             :: CallingModule
 
@@ -228,18 +196,19 @@ Module ModuleChainReactions
         integer                             :: ObjBasinGeometry     = 0
         integer                             :: ObjMap               = 0
 
-        type(T_ChainReactionsOptions)       :: Options
-        type(T_Files)                       :: Files
-                
+        integer                             :: GeometryType         = 0      !0 -> Unknown; 1 -> 2D; 2 -> 3D        
+        character(PathLength)               :: DataFile   
+                     
         type(T_External)                    :: Ext                           !Pointers to Water Mass, Properties Values 
-                                                                             !and other required data 
+                                                                             !and other required data         
+        type(T_Property), pointer           :: FirstProperty => null()            
+        type(T_Property), pointer           :: LastProperty  => null()
         
-        type(T_Property), pointer           :: FirstProperty               
-        type(T_Property), pointer           :: LastProperty
-        type(T_Partition), pointer          :: FirstPartition
-        type(T_Partition), pointer          :: LastPartition
-        integer, pointer, dimension(:)      :: PropertiesList                !List of properties ID's
-        integer                             :: PropertiesCount               !Number of properties
+        type(T_SPConnection), pointer       :: FirstConnection => null()
+        type(T_SPConnection), pointer       :: LastConnection  => null()
+
+        integer, pointer, dimension(:)      :: PropertiesList  => null()     !List of properties ID's
+        integer                             :: PropertiesCount = 0           !Number of properties
         
         integer                             :: ClientNumber
         
@@ -349,11 +318,8 @@ Module ModuleChainReactions
                 stop 'StartChainReactions - ModuleChainReactions. ERR020'
             endif
         
-            Me%Options%GeometryType = GeometryType
-            
-!            !Read files names
-!            call ReadFileNames
-            
+            Me%GeometryType = GeometryType
+                     
             !Read ModuleChainReactions Input File  
             call ReadInputFile (FileName)
                        
@@ -370,7 +336,7 @@ Module ModuleChainReactions
             
         else     
             
-            stop 'Subroutine StartChainReactions; ModuleChainReactions. ERR070'
+            stop 'Subroutine StartChainReactions; ModuleChainReactions. ERR030'
 
         end if    
 
@@ -438,9 +404,9 @@ Module ModuleChainReactions
         
         nullify(Me%FirstProperty)
         nullify(Me%LastProperty)
-        nullify(Me%FirstPartition)
-        nullify(Me%LastPartition) 
-                     
+        
+        nullify(Me%FirstConnection)
+        nullify(Me%LastConnection)                             
         !--------------------------------------------------------------------------------------------------------------------------
 
     end subroutine InitializeInstance    
@@ -478,70 +444,70 @@ Module ModuleChainReactions
 
         !Local-----------------------------------------------------------------
         integer                 :: FromFile
-        integer                 :: STAT_CALL
-        integer                 :: flag
-        character(MaxStrLength) :: Text
+!        integer                 :: STAT_CALL
+!        integer                 :: flag
+!        character(MaxStrLength) :: Text
         
         !Begin-----------------------------------------------------------------               
         call GetExtractType (FromFile = FromFile)
 
-        call GetData(Me%Options%RateOrder,                  &
-                     Me%ObjEnterData, flag,                 &
-                     SearchType   = FromFile,               &
-                     keyword      = 'RATE_ORDER',           &
-                     default      = NoReaction,             & 
-                     ClientModule = 'ModuleChainReactions', &
-                     STAT         = STAT_CALL)
-                     
-        if (STAT_CALL .NE. SUCCESS_) &
-            stop 'Subroutine ReadChainReactionsOptions; Module ModuleChainReactions. ERR010.'                
-
-        if (Me%Options%RateOrder .NE. NoReaction) then
-            if (Me%Options%RateOrder .EQ. ZeroOrder) then
-                Text = 'ZERO Order Rate type'
-            else
-                Text = 'FIRST Order Rate type'
-            endif
-            
-            write(*,*)
-            write(*,*) 'Warning: All properties will be set to be of ', trim(Text)
-        endif
-
-        if (Me%Options%RateOrder .EQ. FirstOrder) then
-            
-            call GetData(Me%Options%RateMethod,                 &
-                         Me%ObjEnterData, flag,                 &
-                         SearchType   = FromFile,               &
-                         keyword      = 'RATE_METHOD',          &
-                         default      = RateUnknown,            & 
-                         ClientModule = 'ModuleChainReactions', &
-                         STAT         = STAT_CALL)
-                         
-            if (STAT_CALL .NE. SUCCESS_) &
-                stop 'Subroutine ReadChainReactionsOptions; Module ModuleChainReactions. ERR010.'                
-                
-            if (Me%Options%RateMethod .NE. RateUnknown) then
-                if (Me%Options%RateMethod .EQ. RateDefault) then
-                    Text = 'Default First Order equation'
-                else
-                    Text = 'Alternative First Order equation'
-                endif
-                
-                write(*,*)
-                write(*,*) 'Warning: All properties will be set to use the ', trim(Text)
-            endif
-
-        else
-        
-            Me%Options%RateMethod = RateUnknown    
-        
-        endif
+!        call GetData(Me%Options%RateOrder,                  &
+!                     Me%ObjEnterData, flag,                 &
+!                     SearchType   = FromFile,               &
+!                     keyword      = 'RATE_ORDER',           &
+!                     default      = NoReaction,             & 
+!                     ClientModule = 'ModuleChainReactions', &
+!                     STAT         = STAT_CALL)
+!                     
+!        if (STAT_CALL .NE. SUCCESS_) &
+!            stop 'Subroutine ReadChainReactionsOptions; Module ModuleChainReactions. ERR010.'                
+!
+!        if (Me%Options%RateOrder .NE. NoReaction) then
+!            if (Me%Options%RateOrder .EQ. ZeroOrder) then
+!                Text = 'ZERO Order Rate type'
+!            else
+!                Text = 'FIRST Order Rate type'
+!            endif
+!            
+!            write(*,*)
+!            write(*,*) 'Warning: All properties will be set to be of ', trim(Text)
+!        endif
+!
+!        if (Me%Options%RateOrder .EQ. FirstOrder) then
+!            
+!            call GetData(Me%Options%RateMethod,                 &
+!                         Me%ObjEnterData, flag,                 &
+!                         SearchType   = FromFile,               &
+!                         keyword      = 'RATE_METHOD',          &
+!                         default      = RateUnknown,            & 
+!                         ClientModule = 'ModuleChainReactions', &
+!                         STAT         = STAT_CALL)
+!                         
+!            if (STAT_CALL .NE. SUCCESS_) &
+!                stop 'Subroutine ReadChainReactionsOptions; Module ModuleChainReactions. ERR010.'                
+!                
+!            if (Me%Options%RateMethod .NE. RateUnknown) then
+!                if (Me%Options%RateMethod .EQ. RateDefault) then
+!                    Text = 'Default First Order equation'
+!                else
+!                    Text = 'Alternative First Order equation'
+!                endif
+!                
+!                write(*,*)
+!                write(*,*) 'Warning: All properties will be set to use the ', trim(Text)
+!            endif
+!
+!        else
+!        
+!            Me%Options%RateMethod = RateUnknown    
+!        
+!        endif
                         
-        call ConstructSinkList  
-        call LinkProducts
-        call CheckSinkProperties 
+        call ConstructPropertiesList  
+        call MakeConnections
+        call CheckProperties 
         
-        call ConstructPartitionList
+!        call ConstructPartitionList
         !--------------------------------------------------------------------------------------------------------------------------
 
     end subroutine ReadChainReactionsOptions         
@@ -549,12 +515,12 @@ Module ModuleChainReactions
 
 
     !------------------------------------------------------------------------------------------------------------------------------    
-    subroutine ConstructSinkList 
+    subroutine ConstructPropertiesList 
 
         !Local---------------------------------------------------------------------------------------------------------------------
-        integer                    :: STAT_CALL
-        logical                    :: BlockFound
-        type (T_Property), pointer :: NewProperty
+        integer                       :: STAT_CALL
+        logical                       :: BlockFound
+        type(T_Property), pointer     :: NewProperty
 
         !Begin---------------------------------------------------------------------------------------------------------------------
         do
@@ -569,10 +535,10 @@ Module ModuleChainReactions
                 if (BlockFound) then                                                  
                     
                     !Construct a New Property 
-                    Call ConstructSinkProperty(NewProperty)
+                    Call ConstructProperty(NewProperty)
 
                     !Add new Property to the Properties List 
-                    Call AddSinkProperty(NewProperty)                                        
+                    Call AddPropertyToList(NewProperty)                                        
                     
                 else
 
@@ -588,278 +554,389 @@ Module ModuleChainReactions
                 
                 write(*,*)  
                 write(*,*) 'Error calling ExtractBlockFromBuffer. '
-                stop       'ConstructPropertyList - ModuleChainReactions - ERR020'
+                stop       'ConstructPropertyList - ModuleChainReactions - ERR030'
             
             else    
                 
-                stop 'ConstructPropertyList - ModuleChainReactions - ERR030'
+                stop 'ConstructPropertyList - ModuleChainReactions - ERR040'
             
             end if    
         
         end do            
         !--------------------------------------------------------------------------------------------------------------------------
                 
-    end subroutine ConstructSinkList
+    end subroutine ConstructPropertiesList
     !------------------------------------------------------------------------------------------------------------------------------   
 
 
     !------------------------------------------------------------------------------------------------------------------------------   
-    subroutine ConstructSinkProperty(NewProperty)
+    subroutine ConstructProperty(NewProperty)
 
         !Arguments-----------------------------------------------------------------------------------------------------------------
         type(T_property), pointer :: NewProperty
 
         !External------------------------------------------------------------------------------------------------------------------
-        integer                   :: STAT_CALL
+        integer                   :: STAT_CALL, iflag
+        character(StringLength)   :: product_name
 
         !Begin---------------------------------------------------------------------------------------------------------------------             
         allocate (NewProperty, STAT = STAT_CALL)            
         if(STAT_CALL .NE. SUCCESS_) &
-            stop 'ConstructSinkProperty - ModuleChainReactions - ERR010'
+            stop 'ConstructProperty - ModuleChainReactions - ERR010'
         
-        call ResetSinkProperty (NewProperty)                        
+        call ResetProperty (NewProperty)                        
         call ConstructPropertyID (NewProperty%ID, Me%ObjEnterData, FromBlock)
-        call ConstructSinkOptions (NewProperty)
-        call ConstructSinkValues (NewProperty)
+        call ConstructPropertyKd (newProperty)
+        call ConstructPropertySink (NewProperty)
+        
+        call GetData(product_name,                          &   
+                     Me%ObjEnterData, iflag,                &
+                     SearchType   = FromBlock,              &
+                     keyword      = 'PRODUCT_NAME',         &
+                     Default      = '',                     &
+                     ClientModule = 'ModuleChainReactions', &
+                     STAT         = STAT_CALL)                     
+        if (STAT_CALL /= SUCCESS_) &
+            stop 'ConstructProperty - ModuleChainReactions - ERR020'
+                
+        if (iFlag .NE. 0) then
+            call AddConnectionToList (NewProperty, product_name)
+        endif
+              
         !--------------------------------------------------------------------------------------------------------------------------
 
-    end subroutine ConstructSinkProperty    
+    end subroutine ConstructProperty    
     !------------------------------------------------------------------------------------------------------------------------------    
 
-    
+
     !------------------------------------------------------------------------------------------------------------------------------        
-    subroutine ConstructSinkOptions (NewProperty)
+    subroutine ConstructPropertyKd (NewProperty)
     
         !Arguments-----------------------------------------------------------------------------------------------------------------
         type(T_property), pointer :: NewProperty
 
         !External------------------------------------------------------------------------------------------------------------------
         integer                   :: STAT_CALL, iflag
+        logical                   :: BlockInBlockFound
 
         !Begin---------------------------------------------------------------------------------------------------------------------                 
-        call GetData(NewProperty%SinkEvolution,             &   
-                     Me%ObjEnterData, iflag,                &
-                     SearchType   = FromBlock,              &
-                     keyword      = 'SINK_EVOLUTION',       &
-                     Default      = ConstantSink,           &
-                     ClientModule = 'ModuleChainReactions', &
-                     STAT         = STAT_CALL)
-                     
-        if (STAT_CALL /= SUCCESS_) &
-            stop 'ConstructSinkOptions - ModuleChainReactions - ERR040'            
-        
-        if (NewProperty%SinkEvolution .NE. NoSink) then
-        
-            NewProperty%IsOnlyProduct = .false.
-            
-            if (Me%Options%RateOrder .NE. NoReaction) then
-                NewProperty%RateOrder = Me%Options%RateOrder
-            else
-                call GetData(NewProperty%RateOrder,                 &   
-                             Me%ObjEnterData, iflag,                &
-                             SearchType   = FromBlock,              &
-                             keyword      = 'RATE_ORDER',           &
-                             Default      = ZeroOrder,              &
-                             ClientModule = 'ModuleChainReactions', &
-                             STAT         = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) &
-                    stop 'ConstructSinkOptions - ModuleChainReactions - ERR010'
-            endif
-        
-            if (Me%Options%RateMethod .NE. RateUnknown) then
-                NewProperty%RateMethod = Me%Options%RateMethod
-            else
-                call GetData(NewProperty%RateMethod,                &   
-                             Me%ObjEnterData, iflag,                &
-                             SearchType   = FromBlock,              &
-                             keyword      = 'RATE_METHOD',          &
-                             Default      = RateDefault,            &
-                             ClientModule = 'ModuleChainReactions', &
-                             STAT         = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) &
-                    stop 'ConstructSinkOptions - ModuleChainReactions - ERR020'
-            endif
-                       
-            call GetData(NewProperty%ProductName,               &   
-                         Me%ObjEnterData, iflag,                &
-                         SearchType   = FromBlock,              &
-                         keyword      = 'PRODUCT_NAME',         &
-                         ClientModule = 'ModuleChainReactions', &
-                         STAT         = STAT_CALL)
-                         
-            if (STAT_CALL /= SUCCESS_) &
-                stop 'ConstructSinkOptions - ModuleChainReactions - ERR020'
-                    
-            if (iFlag .EQ. 0) then
-                write(*,*)
-                write(*,*) 'You MUST provide a PRODUCT property name '
-                write(*,*) '(keyword PRODUCT_NAME) for property ', trim(NewProperty%ID%Name)
-                stop 'ConstructSinkOptions - ModuleChainReactions - ERR030'
-            endif
+        call ExtractBlockFromBlock (Me%ObjEnterData,                       &
+                                    ClientNumber      = Me%ClientNumber,   &
+                                    block_begin       = kd_block_begin,    &
+                                    block_end         = kd_block_end,      &
+                                    BlockInBlockFound = BlockInBlockFound, &
+                                    STAT              = STAT_CALL)
+        if (STAT_CALL .EQ. SUCCESS_) then    
 
-            NewProperty%ProductID = GetPropertyIDNumber(NewProperty%ProductName)
-        
-        else
-        
-            NewProperty%IsOnlyProduct = .true.
-        
-        endif
+            if (BlockInBlockFound) then                                                            
                 
-        call GetData(NewProperty%Phase,                     &   
-                     Me%ObjEnterData, iflag,                &
-                     SearchType   = FromBlock,              &
-                     keyword      = 'PHASE',                &
-                     Default      = WaterPhase,             &
-                     ClientModule = 'ModuleChainReactions', &
-                     STAT         = STAT_CALL)
-                     
-        if (STAT_CALL /= SUCCESS_) &
-            stop 'ConstructSinkOptions - ModuleChainReactions - ERR050'  
-        
-        !--------------------------------------------------------------------------------------------------------------------------
-        
-    end subroutine ConstructSinkOptions
-    !------------------------------------------------------------------------------------------------------------------------------            
-
-
-    !------------------------------------------------------------------------------------------------------------------------------        
-    subroutine ConstructSinkValues (NewProperty)
-    
-        !Arguments-----------------------------------------------------------------------------------------------------------------
-        type(T_property), pointer           :: NewProperty
-        
-        !Local---------------------------------------------------------------------------------------------------------------------
-        logical                             :: BlockFound
-        integer                             :: iflag
-        integer                             :: STAT_CALL
-
-        !Begin---------------------------------------------------------------------------------------------------------------------             
-    
-        if (NewProperty%SinkEvolution .EQ. ConstantSink) then
-
-            call GetData(NewProperty%SinkRate,                  &   
-                         Me%ObjEnterData, iflag,                &
-                         SearchType   = FromBlock,              &
-                         keyword      = 'SINK_RATE',            &
-                         ClientModule = 'ModuleChainReactions', &
-                         STAT         = STAT_CALL)
-                         
-            if (STAT_CALL /= SUCCESS_) &
-                stop 'ConstructSinkValues - ModuleChainReactions - ERR010'
-            
-            if (iFlag .EQ. 0) then
-                write(*,*)
-                write(*,*) 'You MUST provide a value for keyword SINK_RATE for '
-                write(*,*) 'property ', trim(NewProperty%ID%Name)
-                stop 'ConstructSinkValues - ModuleChainReactions - ERR020'
-            endif
-                    
-        elseif (NewProperty%SinkEvolution .EQ. VariableSink) then
-        
-            call ExtractBlockFromBlock(Me%ObjEnterData,     & 
-                                       Me%ClientNumber,     &
-                                       sink_block_begin,    &
-                                       sink_block_end,      &
-                                       BlockFound,          &
-                                       STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) &
-                stop 'ConstructSinkValues - ConstructSinkValues - ERR030'
+                call GetData(NewProperty%Soil%Kd%Evolution,         &   
+                             Me%ObjEnterData, iflag,                &
+                             SearchType   = FromBlockInBlock,       &
+                             keyword      = 'EVOLUTION',            &
+                             Default      = ConstantEvolution,      &
+                             ClientModule = 'ModuleChainReactions', &
+                             STAT         = STAT_CALL)                             
+                if (STAT_CALL /= SUCCESS_) &
+                    stop 'ConstructPropertyKd - ModuleChainReactions - ERR010'            
                 
-            if (.NOT. BlockFound) then
-                write(*,*)
-                write(*,*) 'You MUST provide the block for Sink Rate for '
-                write(*,*) 'property ', trim(NewProperty%ID%Name)
-                write(*,*) 'Block: <beginsink> <endsink>'
-                stop 'ConstructSinkValues - ModuleChainReactions - ERR040'
-            endif
-        
-            if (Me%Options%GeometryType .EQ. Geometry2D) then
-                call ConstructSinkValues2D (NewProperty)
+                call GetData(NewProperty%Soil%Kd%DefaultValue,      &   
+                             Me%ObjEnterData, iflag,                &
+                             SearchType   = FromBlockInBlock,       &
+                             keyword      = 'DEFAULT',              &
+                             Default      = 0.0,                    &
+                             ClientModule = 'ModuleChainReactions', &
+                             STAT         = STAT_CALL)                             
+                if (STAT_CALL .NE. SUCCESS_) &
+                    stop 'ConstructPropertyKd - ModuleChainReactions - ERR020' 
+                                            
+                if (Me%GeometryType .EQ. Geometry2D) then
+                    call ConstructValues (NewProperty,                                 &
+                                          NewProperty%Soil%Kd,                         &
+                                          Matrix2D     = NewProperty%Soil%Kd%Values2D, &
+                                          DefaultValue = NewProperty%Soil%Kd%DefaultValue)
+                                     
+                    NewProperty%Soil%Mass%Evolution = ConstantEvolution
+                    call ConstructValues (NewProperty,                                            &
+                                          NewProperty%Soil%Mass,                         &
+                                          Matrix2D     = NewProperty%Soil%Mass%Values2D, &
+                                          DefaultValue = 0.0)                                          
+                else
+                    call ConstructValues (NewProperty,                                 &
+                                          NewProperty%Soil%Kd,                         &
+                                          Matrix3D     = NewProperty%Soil%Kd%Values3D, &
+                                          DefaultValue = NewProperty%Soil%Kd%DefaultValue)
+                                          
+                    NewProperty%Soil%Mass%Evolution = ConstantEvolution
+                    call ConstructValues (NewProperty,                                            &
+                                          NewProperty%Soil%Mass,                         &
+                                          Matrix3D     = NewProperty%Soil%Mass%Values3D, &
+                                          DefaultValue = 0.0)                                            
+                endif                 
+                
+!                select case (NewProperty%kd%Evolution)                
+!                    case (VariablePartition)                
+!                        if (Me%GeometryType .EQ. Geometry2D) then
+!                            call ConstructValues (NewProperty, &
+!                                                  NewProperty%Kd%Evolution,              &
+!                                                  Matrix2D = NewProperty%Kd%Values2D)
+!                        else
+!                            call ConstructValues (NewProperty, Matrix3D = NewProperty%Kd%Values3D)
+!                        endif    
+!                        
+!                    case (ConstantPartition)
+!                        call GetData(NewProperty%Kd%DefaultValue,           &   
+!                                     Me%ObjEnterData, iflag,                &
+!                                     SearchType   = FromBlockInBlock,       &
+!                                     keyword      = 'DEFAULT',              &
+!                                     ClientModule = 'ModuleChainReactions', &
+!                                     STAT         = STAT_CALL)
+!                                     
+!                        if ((STAT_CALL .NE. SUCCESS_) .OR. (iFlag .EQ. 0)) &
+!                            stop 'ConstructPropertyKd - ModuleChainReactions - ERR020'            
+!                    
+!                    case (NoPartition)
+!                        !Nothing to do
+!                        
+!                    case default
+!                        stop 'ConstructPropertyKd - ModuleChainReactions - ERR030'
+!                end select                
             else
-                call ConstructSinkValues3D (NewProperty)
-            endif    
+
+                NewProperty%Soil%Kd%Evolution    = NoEvolution
+                NewProperty%Soil%Kd%DefaultValue = 0.0
+                
+                if (Me%GeometryType .EQ. Geometry2D) then
+                    call ConstructValues (NewProperty,                                 &
+                                          NewProperty%Soil%Kd,                         &
+                                          Matrix2D     = NewProperty%Soil%Kd%Values2D, &
+                                          DefaultValue = NewProperty%Soil%Kd%DefaultValue)
+                else
+                    call ConstructValues (NewProperty,                                 &
+                                          NewProperty%Soil%Kd,                         &
+                                          Matrix3D     = NewProperty%Soil%Kd%Values3D, &
+                                          DefaultValue = NewProperty%Soil%Kd%DefaultValue)
+                endif                 
+            
+            end if  
             
             call RewindBlock(Me%ObjEnterData, Me%ClientNumber, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) &
-                stop 'ConstructSinkValues - ConstructSinkValues - ERR040'
-                    
-        endif            
-        !--------------------------------------------------------------------------------------------------------------------------
-    
-    end subroutine ConstructSinkValues
-    !------------------------------------------------------------------------------------------------------------------------------            
-
-
-
-    !------------------------------------------------------------------------------------------------------------------------------        
-    subroutine ConstructSinkValues2D (NewProperty)
-    
-        !Arguments-----------------------------------------------------------------------------------------------------------------
-        type(T_property), pointer           :: NewProperty
-
-        !Local---------------------------------------------------------------------------------------------------------------------
-        integer                             :: STAT_CALL
-        integer                             :: ILB,IUB
-        integer                             :: JLB,JUB
-        integer                             :: WorkSizeILB, WorkSizeIUB
-        integer                             :: WorkSizeJLB, WorkSizeJUB       
-
-        !Begin---------------------------------------------------------------------------------------------------------------------             
-        !Boundaries
-        ILB = Me%Size%ILB
-        IUB = Me%Size%IUB
-        JLB = Me%Size%JLB
-        JUB = Me%Size%JUB
-
-        WorkSizeILB = Me%WorkSize%ILB
-        WorkSizeIUB = Me%WorkSize%IUB
-        WorkSizeJLB = Me%WorkSize%JLB
-        WorkSizeJUB = Me%WorkSize%JUB
-
-        allocate(NewProperty%G2D%SinkRate(ILB:IUB, JLB:JUB), STAT = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_) &
-            stop 'ConstructSinkValues2D - ModuleChainReactions - ERR010'
-        NewProperty%G2D%SinkRate(:,:) = 0.0
-    
-        !Get water points
-        call GetBasinPoints (Me%ObjBasinGeometry, Me%Ext%WaterPoints2D, STAT = STAT_CALL)        
-        if (STAT_CALL /= SUCCESS_) &
-            stop 'ConstructSinkValues2D - ModuleChainReactions - ERR020'
-    
-        call ConstructFillMatrix (PropertyID       = NewProperty%ID,            &
-                                  EnterDataID      = Me%ObjEnterData,           &
-                                  TimeID           = Me%ObjTime,                &
-                                  HorizontalGridID = Me%ObjHorizontalGrid,      &
-                                  ExtractType      = FromBlockInBlock,          &
-                                  PointsToFill2D   = Me%Ext%WaterPoints2D,      &
-                                  Matrix2D         = NewProperty%G2D%SinkRate,  &
-                                  TypeZUV          = TypeZ_,                    &
-                                  STAT             = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) &
-            stop 'ConstructSinkValues2D - ModuleChainReactions - ERR030'
-
-        if(.NOT. NewProperty%ID%SolutionFromFile)then
-
-            call KillFillMatrix(NewProperty%ID%ObjFillMatrix, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)&
-                stop 'ConstructSinkValues2D - ModuleChainReactions - ERR040'
-                
-        end if  
+                stop 'ConstructPropertyKd - ConstructSinkValues - ERR040'              
+       
+        else    
+            
+            stop 'ConstructPropertyKd - ModuleChainReactions - ERR050'
         
-        call UnGetBasin (Me%ObjBasinGeometry, Me%Ext%WaterPoints2D, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) &
-            stop 'ConstructSinkValues2D - ModuleChainReactions - ERR050'                              
+        end if                   
         !--------------------------------------------------------------------------------------------------------------------------
-    
-    end subroutine ConstructSinkValues2D
+        
+    end subroutine ConstructPropertyKd
     !------------------------------------------------------------------------------------------------------------------------------            
 
-
+   
     !------------------------------------------------------------------------------------------------------------------------------        
-    subroutine ConstructSinkValues3D (NewProperty)
+    subroutine ConstructPropertySink (NewProperty)
     
         !Arguments-----------------------------------------------------------------------------------------------------------------
         type(T_property), pointer :: NewProperty
+
+        !External------------------------------------------------------------------------------------------------------------------
+        integer                            :: STAT_CALL, iflag
+        integer                            :: sink_type
+        Type(T_PropertyAttribute), pointer :: sink
+        logical                            :: BlockInBlockFound
+
+        !Begin---------------------------------------------------------------------------------------------------------------------                 
+        do
+            call ExtractBlockFromBlock (Me%ObjEnterData,                       &
+                                        ClientNumber      = Me%ClientNumber,   &
+                                        block_begin       = sink_block_begin,  &
+                                        block_end         = sink_block_end,    &
+                                        BlockInBlockFound = BlockInBlockFound, &
+                                        STAT              = STAT_CALL)
+            if (STAT_CALL .EQ. SUCCESS_) then    
+
+                if (BlockInBlockFound) then  
+                         
+                    call GetData(sink_type,                             &   
+                                 Me%ObjEnterData, iflag,                &
+                                 SearchType   = FromBlockInBlock,       &
+                                 keyword      = 'TYPE',                 &
+                                 ClientModule = 'ModuleChainReactions', &
+                                 STAT         = STAT_CALL)                             
+                    if ((STAT_CALL /= SUCCESS_) .OR. (iflag .EQ. 0)) &
+                        stop 'ConstructPropertySink - ModuleChainReactions - ERR010'            
+                            
+                    select case (sink_type)
+                        case (0)
+                            sink => NewProperty%Sink%Soil_0
+                        case (1)
+                            sink => NewProperty%Sink%Soil_1
+                        case (2)
+                            sink => NewProperty%Sink%Water_0
+                        case (3)
+                            sink => NewProperty%Sink%Water_1
+                        case default
+                            stop 'ConstructPropertySink - ModuleChainReactions - ERR020'
+                    end select
+                            
+                    call GetData(sink%Evolution,                        &   
+                                 Me%ObjEnterData, iflag,                &
+                                 SearchType   = FromBlockInBlock,       &
+                                 keyword      = 'EVOLUTION',            &
+                                 Default      = ConstantEvolution,      &
+                                 ClientModule = 'ModuleChainReactions', &
+                                 STAT         = STAT_CALL)                             
+                    if (STAT_CALL /= SUCCESS_) &
+                        stop 'ConstructPropertySink - ModuleChainReactions - ERR030'            
+                
+                    call GetData(sink%DefaultValue,                     &   
+                                 Me%ObjEnterData, iflag,                &
+                                 SearchType   = FromBlockInBlock,       &
+                                 keyword      = 'DEFAULT',              &
+                                 Default      = 0.0,                    &
+                                 ClientModule = 'ModuleChainReactions', &
+                                 STAT         = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) &
+                        stop 'ConstructPropertySink - ModuleChainReactions - ERR040'  
+                                      
+                    if (Me%GeometryType .EQ. Geometry2D) then
+                        call ConstructValues (NewProperty,                  &
+                                              sink,                         &
+                                              Matrix2D     = sink%Values2D, &
+                                              DefaultValue = sink%DefaultValue)
+                    else
+                        call ConstructValues (NewProperty,                  &
+                                              sink,                         &
+                                              Matrix3D     = sink%Values3D, &
+                                              DefaultValue = sink%DefaultValue)
+                    endif    
+!                                                                         
+!                    select case (sink%Evolution)                
+!                        case (VariableSink)                
+!                            if (Me%GeometryType .EQ. Geometry2D) then
+!                                call ConstructValues (NewProperty, Matrix2D = sink%Values2D)
+!                            else
+!                                call ConstructValues (NewProperty, Matrix3D = sink%Values3D)
+!                            endif    
+!                            
+!                        case (ConstantPartition)
+!                            call GetData(sink%DefaultValue,                     &   
+!                                         Me%ObjEnterData, iflag,                &
+!                                         SearchType   = FromBlockInBlock,       &
+!                                         keyword      = 'DEFAULT',              &
+!                                         Default      = 0.0,                    &
+!                                         ClientModule = 'ModuleChainReactions', &
+!                                         STAT         = STAT_CALL)
+!                                         
+!                            if ((STAT_CALL /= SUCCESS_) .OR. (iFlag .EQ. 0)) &
+!                                stop 'ConstructPropertySink - ModuleChainReactions - ERR040'            
+!                        
+!                        case (NoPartition)
+!                            !Nothing to do
+!                            
+!                        case default
+!                            stop 'ConstructPropertySink - ModuleChainReactions - ERR050'
+!                    end select                                                      
+
+!                    call RewindBlock(Me%ObjEnterData, Me%ClientNumber, STAT = STAT_CALL)
+!                    if (STAT_CALL /= SUCCESS_) &
+!                        stop 'ConstructPropertySink - ConstructSinkValues - ERR060' 
+                                                                
+                else
+
+                    call RewindBlock(Me%ObjEnterData, Me%ClientNumber, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) &
+                        stop 'ConstructPropertySink - ConstructSinkValues - ERR070' 
+
+                    exit !No more blocks
+                
+                end if    
+            
+            end if
+            
+        end do
+        !--------------------------------------------------------------------------------------------------------------------------
+        
+    end subroutine ConstructPropertySink
+    !------------------------------------------------------------------------------------------------------------------------------            
+
+
+!    !------------------------------------------------------------------------------------------------------------------------------        
+!    subroutine ConstructValues2D (NewProperty, Matrix)
+!    
+!        !Arguments-----------------------------------------------------------------------------------------------------------------
+!        type(T_property), pointer           :: NewProperty
+!        real, dimension(:,:), pointer       :: Matrix
+!
+!        !Local---------------------------------------------------------------------------------------------------------------------
+!        integer                             :: STAT_CALL
+!        integer                             :: ILB,IUB
+!        integer                             :: JLB,JUB
+!        integer                             :: WorkSizeILB, WorkSizeIUB
+!        integer                             :: WorkSizeJLB, WorkSizeJUB       
+!
+!        !Begin---------------------------------------------------------------------------------------------------------------------             
+!        !Boundaries
+!        ILB = Me%Size%ILB
+!        IUB = Me%Size%IUB
+!        JLB = Me%Size%JLB
+!        JUB = Me%Size%JUB
+!
+!        WorkSizeILB = Me%WorkSize%ILB
+!        WorkSizeIUB = Me%WorkSize%IUB
+!        WorkSizeJLB = Me%WorkSize%JLB
+!        WorkSizeJUB = Me%WorkSize%JUB
+!
+!        allocate(NewProperty%G2D%SinkRate(ILB:IUB, JLB:JUB), STAT = STAT_CALL)
+!        if (STAT_CALL .NE. SUCCESS_) &
+!            stop 'ConstructSinkValues2D - ModuleChainReactions - ERR010'
+!        Matrix(:,:) = 0.0
+!    
+!        !Get water points
+!        call GetBasinPoints (Me%ObjBasinGeometry, Me%Ext%WaterPoints2D, STAT = STAT_CALL)        
+!        if (STAT_CALL /= SUCCESS_) &
+!            stop 'ConstructSinkValues2D - ModuleChainReactions - ERR020'
+!    
+!        call ConstructFillMatrix (PropertyID       = NewProperty%ID,            &
+!                                  EnterDataID      = Me%ObjEnterData,           &
+!                                  TimeID           = Me%ObjTime,                &
+!                                  HorizontalGridID = Me%ObjHorizontalGrid,      &
+!                                  ExtractType      = FromBlockInBlock,          &
+!                                  PointsToFill2D   = Me%Ext%WaterPoints2D,      &
+!                                  Matrix2D         = Matrix,                    &
+!                                  TypeZUV          = TypeZ_,                    &
+!                                  STAT             = STAT_CALL)
+!        if (STAT_CALL /= SUCCESS_) &
+!            stop 'ConstructSinkValues2D - ModuleChainReactions - ERR030'
+!
+!        if(.NOT. NewProperty%ID%SolutionFromFile)then
+!
+!            call KillFillMatrix(NewProperty%ID%ObjFillMatrix, STAT = STAT_CALL)
+!            if (STAT_CALL /= SUCCESS_)&
+!                stop 'ConstructSinkValues2D - ModuleChainReactions - ERR040'
+!                
+!        end if  
+!        
+!        call UnGetBasin (Me%ObjBasinGeometry, Me%Ext%WaterPoints2D, STAT = STAT_CALL)
+!        if (STAT_CALL /= SUCCESS_) &
+!            stop 'ConstructSinkValues2D - ModuleChainReactions - ERR050'                              
+!        !--------------------------------------------------------------------------------------------------------------------------
+!    
+!    end subroutine ConstructValues2D
+!    !------------------------------------------------------------------------------------------------------------------------------            
+
+
+    !------------------------------------------------------------------------------------------------------------------------------        
+    subroutine ConstructValues (NewProperty, Attribute, Matrix2D, Matrix3D, DefaultValue)
+    
+        !Arguments-----------------------------------------------------------------------------------------------------------------
+        type(T_property), pointer                 :: NewProperty
+        type(T_PropertyAttribute)                 :: Attribute
+        real, dimension(:,:), pointer, optional   :: Matrix2D
+        real, dimension(:,:,:), pointer, optional :: Matrix3D
+        real, optional                            :: DefaultValue
 
         !Local---------------------------------------------------------------------------------------------------------------------
         integer                   :: STAT_CALL
@@ -886,49 +963,114 @@ Module ModuleChainReactions
         WorkSizeKLB = Me%WorkSize%KLB
         WorkSizeKUB = Me%WorkSize%KUB
 
-        allocate(NewProperty%G3D%SinkRate(ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_) &
-            stop 'ConstructSinkValues3D - ModuleChainReactions - ERR010'
-        NewProperty%G3D%SinkRate(:,:,:) = 0.0
+        if (present(Matrix2D) .AND. present(Matrix3D)) &
+            stop 'ConstructValues - ModuleChainReactions - ERR010'
+        
+        if ((.NOT. present(Matrix2D)) .AND. (.NOT. present(Matrix3D))) &
+            stop 'ConstructValues - ModuleChainReactions - ERR020'
+        
+        if (present (Matrix2D)) then
+            allocate(Matrix2D(ILB:IUB, JLB:JUB), STAT = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_) &
+                stop 'ConstructValues - ModuleChainReactions - ERR030'
+            Matrix2D(:,:) = 0.0        
+        else        
+            allocate(Matrix3D(ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_) &
+                stop 'ConstructValues - ModuleChainReactions - ERR040'
+            Matrix3D(:,:,:) = 0.0
+        endif
     
-    
-        !Get water points
-        call GetWaterPoints3D (Me%ObjMap, Me%Ext%WaterPoints3D, STAT = STAT_CALL)        
-        if (STAT_CALL /= SUCCESS_) &
-            stop 'ConstructSinkValues3D - ModuleChainReactions - ERR020'
+        if (Attribute%Evolution .EQ. VariableEvolution) then
+            !Get water points
+            call GetWaterPoints3D (Me%ObjMap, Me%Ext%WaterPoints3D, STAT = STAT_CALL)        
+            if (STAT_CALL /= SUCCESS_) &
+                stop 'ConstructValues - ModuleChainReactions - ERR050'
+                        
+            if (present (Matrix2D)) then
+                call ConstructFillMatrix  (PropertyID       = NewProperty%ID,           &
+                                           EnterDataID      = Me%ObjEnterData,          &
+                                           TimeID           = Me%ObjTime,               &
+                                           HorizontalGridID = Me%ObjHorizontalGrid,     &
+                                           ExtractType      = FromBlockInBlock,         &
+                                           PointsToFill2D   = Me%Ext%WaterPoints2D,     &
+                                           Matrix2D         = Matrix2D,                 &
+                                           TypeZUV          = TypeZ_,                   &
+                                           STAT             = STAT_CALL)
+            else
+                call ConstructFillMatrix  (PropertyID       = NewProperty%ID,           &
+                                           EnterDataID      = Me%ObjEnterData,          &
+                                           TimeID           = Me%ObjTime,               &
+                                           HorizontalGridID = Me%ObjHorizontalGrid,     &
+                                           GeometryID       = Me%ObjGeometry,           &
+                                           ExtractType      = FromBlockInBlock,         &
+                                           PointsToFill3D   = Me%Ext%WaterPoints3D,     &
+                                           Matrix3D         = Matrix3D,                 &
+                                           TypeZUV          = TypeZ_,                   &
+                                           STAT             = STAT_CALL)
+            endif
+                                                   
+            if (STAT_CALL /= SUCCESS_) &
+                stop 'ConstructValues - ModuleChainReactions - ERR060'
+
+            if(.NOT. NewProperty%ID%SolutionFromFile)then
+
+                call KillFillMatrix(NewProperty%ID%ObjFillMatrix, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)&
+                    stop 'ConstructValues - ModuleChainReactions - ERR070'
+                
+                If (present(DefaultValue) .and. (DefaultValue > 0.0)) then
+                
+                    Attribute%Evolution = ConstantEvolution
                     
-        call ConstructFillMatrix  (PropertyID       = NewProperty%ID,           &
-                                   EnterDataID      = Me%ObjEnterData,          &
-                                   TimeID           = Me%ObjTime,               &
-                                   HorizontalGridID = Me%ObjHorizontalGrid,     &
-                                   GeometryID       = Me%ObjGeometry,           &
-                                   ExtractType      = FromBlockInBlock,         &
-                                   PointsToFill3D   = Me%Ext%WaterPoints3D,     &
-                                   Matrix3D         = NewProperty%G3D%SinkRate, &
-                                   TypeZUV          = TypeZ_,                   &
-                                   STAT             = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) &
-            stop 'ConstructSinkValues3D - ModuleChainReactions - ERR030'
+                    if (present (Matrix2D)) then
+                        Matrix2D = DefaultValue
+                    else
+                        Matrix3D = DefaultValue
+                    endif        
+                
+                else
+                
+                    Attribute%Evolution = NoEvolution
+                    
+                    if (present (Matrix2D)) then
+                        Matrix2D = 0.0
+                    else
+                        Matrix3D = 0.0
+                    endif        
+                
+                endif
+                                              
+            end if    
 
-        if(.NOT. NewProperty%ID%SolutionFromFile)then
-
-            call KillFillMatrix(NewProperty%ID%ObjFillMatrix, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)&
-                stop 'ConstructSinkValues3D - ModuleChainReactions - ERR040'
-                                          
-        end if    
-
-        call UnGetMap (Me%ObjMap, Me%Ext%WaterPoints3D, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) &
-            stop 'ConstructSinkValues3D - ModuleChainReactions - ERR050'                
+            call UnGetMap (Me%ObjMap, Me%Ext%WaterPoints3D, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) &
+                stop 'ConstructValues - ModuleChainReactions - ERR080' 
+                
+        elseif (Attribute%Evolution .EQ. ConstantEvolution) then
+            if (.NOT. present(DefaultValue)) &
+                stop 'ConstructValues - ModuleChainReactions - ERR090' 
+                
+            if (present (Matrix2D)) then
+                Matrix2D = DefaultValue
+            else
+                Matrix3D = DefaultValue
+            endif
+        else
+            if (present (Matrix2D)) then
+                Matrix2D = 0.0
+            else
+                Matrix3D = 0.0
+            endif        
+        endif              
         !--------------------------------------------------------------------------------------------------------------------------
     
-    end subroutine ConstructSinkValues3D
+    end subroutine ConstructValues
     !------------------------------------------------------------------------------------------------------------------------------            
 
 
     !------------------------------------------------------------------------------------------------------------------------------    
-    subroutine AddSinkProperty(NewProperty)
+    subroutine AddPropertyToList(NewProperty)
 
         !Arguments-----------------------------------------------------------------------------------------------------------------
         type(T_Property), pointer :: NewProperty
@@ -950,85 +1092,103 @@ Module ModuleChainReactions
         end if 
         !--------------------------------------------------------------------------------------------------------------------------
 
-    end subroutine AddSinkProperty 
+    end subroutine AddPropertyToList
     !------------------------------------------------------------------------------------------------------------------------------ 
 
 
     !------------------------------------------------------------------------------------------------------------------------------ 
-    subroutine LinkProducts
-    
-        !Local---------------------------------------------------------------------------------------------------------------------
-        type(T_Property), pointer :: PropertyX
-        type(T_Property), pointer :: ProductX
+    subroutine AddConnectionToList(NewProperty, ProductName)
+
+        !Arguments-----------------------------------------------------------------------------------------------------------------
         type(T_Property), pointer :: NewProperty
-        integer                   :: STAT
+        character(LEN = *)        :: ProductName
+        
+        !Local---------------------------------------------------------------------------------------------------------------------
+        type(T_SPConnection), pointer :: NewConnection
+        integer                       :: STAT
 
         !Begin---------------------------------------------------------------------------------------------------------------------
 
-        PropertyX => Me%FirstProperty
-        
-        do while (associated(PropertyX))
-            
-            if (.NOT. PropertyX%IsOnlyProduct) then
+        allocate (NewConnection, STAT = STAT)
+        if (STAT /= 0) &
+            stop 'AddConnectionToList - ModuleChainReactions - ERR010'
 
-                call SearchSinkProperty(PropertyX%ProductID, ProductX, STAT)
-                
-                if (STAT .NE. SUCCESS_) then
-                
-                    nullify (NewProperty)
-                    
-                    call ConstructProduct (NewProperty,  PropertyX%ProductName,  PropertyX%ProductID)
-                    call AddSinkProperty (NewProperty)  
-                                      
-                    PropertyX%Product => NewProperty                    
-                    
-                else
-                
-                    PropertyX%Product => ProductX
-                    
-                endif
-                
-            endif
-            
-            PropertyX => PropertyX%Next
+        NewConnection%Source => NewProperty
+        NewConnection%ProductName = ProductName
+        NewConnection%ProductID = GetPropertyIDNumber(ProductName)
         
+        ! Add to the Property List a new property
+        if (.NOT. associated(Me%FirstConnection)) then           
+            Me%FirstConnection => NewConnection
+            Me%LastConnection  => NewConnection
+
+        else
+            NewConnection%Prev     => Me%LastConnection
+            Me%LastConnection%Next => NewConnection
+            Me%LastConnection      => NewConnection
+        end if 
+        !--------------------------------------------------------------------------------------------------------------------------
+
+    end subroutine AddConnectionToList
+    !------------------------------------------------------------------------------------------------------------------------------ 
+    
+    
+    !------------------------------------------------------------------------------------------------------------------------------ 
+    subroutine MakeConnections
+    
+        !Local---------------------------------------------------------------------------------------------------------------------
+        type(T_Property), pointer     :: PropertyX
+        type(T_SPConnection), pointer :: ConnectionX
+        integer                       :: STAT
+
+        !Begin---------------------------------------------------------------------------------------------------------------------
+
+        ConnectionX => Me%FirstConnection
+        
+        do while (associated(ConnectionX))            
+            call SearchProperty(ConnectionX%ProductID, PropertyX, STAT)
+            if (STAT .NE. SUCCESS_) &
+                stop 'MakeConnections - ModuleChainReactions - ERR010'
+
+            ConnectionX%Source%Product => PropertyX           
+            ConnectionX => ConnectionX%Next      
         enddo
 
         !--------------------------------------------------------------------------------------------------------------------------
     
-    end subroutine LinkProducts
+    end subroutine MakeConnections
     !------------------------------------------------------------------------------------------------------------------------------ 
     
     
-    !------------------------------------------------------------------------------------------------------------------------------   
-    subroutine ConstructProduct(NewProperty, Name, IDNumber)
-
-        !Arguments-----------------------------------------------------------------------------------------------------------------
-        type(T_property), pointer :: NewProperty
-        character(LEN=*)          :: Name
-        integer                   :: IDNumber
-
-        !External------------------------------------------------------------------------------------------------------------------
-        integer                   :: STAT_CALL
-
-        !Begin---------------------------------------------------------------------------------------------------------------------             
-        allocate (NewProperty, STAT = STAT_CALL)            
-        if(STAT_CALL .NE. SUCCESS_) &
-            stop 'ConstructProduct - ModuleChainReactions - ERR010'
-        
-        call ResetSinkProperty(NewProperty)
-        
-        NewProperty%IsOnlyProduct = .true.        
-        NewProperty%ID%Name       = Name
-        NewProperty%ID%IDNumber   = IDNumber
-        !--------------------------------------------------------------------------------------------------------------------------
-
-    end subroutine ConstructProduct    
-    !------------------------------------------------------------------------------------------------------------------------------    
+!    !------------------------------------------------------------------------------------------------------------------------------   
+!    subroutine ConstructProduct(NewProperty, Name, IDNumber)
+!
+!        !Arguments-----------------------------------------------------------------------------------------------------------------
+!        type(T_property), pointer :: NewProperty
+!        character(LEN=*)          :: Name
+!        integer                   :: IDNumber
+!
+!        !External------------------------------------------------------------------------------------------------------------------
+!        integer                   :: STAT_CALL
+!
+!        !Begin---------------------------------------------------------------------------------------------------------------------             
+!        allocate (NewProperty, STAT = STAT_CALL)            
+!        if(STAT_CALL .NE. SUCCESS_) &
+!            stop 'ConstructProduct - ModuleChainReactions - ERR010'
+!        
+!        call ResetProperty(NewProperty)
+!        
+!        NewProperty%IsOnlyProduct = .true.        
+!        NewProperty%ID%Name       = Name
+!        NewProperty%ID%IDNumber   = IDNumber
+!        !--------------------------------------------------------------------------------------------------------------------------
+!
+!    end subroutine ConstructProduct    
+!    !------------------------------------------------------------------------------------------------------------------------------    
 
     
     !------------------------------------------------------------------------------------------------------------------------------ 
-    subroutine CheckSinkProperties 
+    subroutine CheckProperties 
     
         !Local---------------------------------------------------------------------------------------------------------------------
         integer                   :: Index
@@ -1043,7 +1203,7 @@ Module ModuleChainReactions
         PropertyX => Me%FirstProperty
         
         do while (associated(PropertyX))
-            Found        = .false.
+            Found = .false.
                
             do Index = LB, UB
                 if (Me%Ext%Properties(Index) .EQ. PropertyX%ID%IDNumber) then
@@ -1056,496 +1216,496 @@ Module ModuleChainReactions
                 write(*,*)
                 write(*,*) 'Property ', trim(PropertyX%ID%Name), ' was not found in the ', trim(Me%CallingModule)
                 write(*,*) 'list of properties '
-                stop 'CheckSinkProperties - ModuleChainReactions - ERR010' 
+                stop 'CheckProperties - ModuleChainReactions - ERR010' 
             endif
             
             PropertyX => PropertyX%Next
         end do
         !--------------------------------------------------------------------------------------------------------------------------
 
-    end subroutine CheckSinkProperties
+    end subroutine CheckProperties
     !------------------------------------------------------------------------------------------------------------------------------ 
 
     
-    !------------------------------------------------------------------------------------------------------------------------------    
-    subroutine ConstructPartitionList 
-
-        !Local---------------------------------------------------------------------------------------------------------------------
-        integer                     :: STAT_CALL
-        logical                     :: BlockFound
-        type(T_Partition), pointer  :: NewPartition
-
-        !Begin---------------------------------------------------------------------------------------------------------------------
-        do
-            call ExtractBlockFromBuffer(Me%ObjEnterData,                    &
-                                        ClientNumber    = Me%ClientNumber,  &
-                                        block_begin     = part_block_begin, &
-                                        block_end       = part_block_end,   &
-                                        BlockFound      = BlockFound,       &
-                                        STAT            = STAT_CALL)
-            if (STAT_CALL .EQ. SUCCESS_) then    
-
-                if (BlockFound) then                                                  
-                    
-                    !Construct a New Property 
-                    Call ConstructPartitionProperty(NewPartition)
-
-                    !Add new Property to the Properties List 
-                    Call AddPartition(NewPartition)                                        
-                    
-                else
-
-                    call Block_Unlock(Me%ObjEnterData, Me%ClientNumber, STAT = STAT_CALL) 
-
-                    if (STAT_CALL .NE. SUCCESS_) &
-                        stop 'ConstructPartitionList - ModuleChainReactions - ERR010'
-                    exit !No more blocks
-                
-                end if    
-
-            elseif (STAT_CALL .EQ. BLOCK_END_ERR_) then
-                
-                write(*,*)  
-                write(*,*) 'Error calling ExtractBlockFromBuffer. '
-                stop       'ConstructPartitionList - ModuleChainReactions - ERR020'
-            
-            else    
-                
-                stop 'ConstructPartitionList - ModuleChainReactions - ERR030'
-            
-            end if    
-        
-        end do            
-        !--------------------------------------------------------------------------------------------------------------------------
-                
-    end subroutine ConstructPartitionList
-    !------------------------------------------------------------------------------------------------------------------------------   
-
-
-    !------------------------------------------------------------------------------------------------------------------------------   
-    subroutine ConstructPartitionProperty (NewPartition)
-
-        !Arguments-----------------------------------------------------------------------------------------------------------------
-        type(T_Partition), pointer :: NewPartition
-
-        !External------------------------------------------------------------------------------------------------------------------
-        integer                   :: STAT_CALL
-
-        !Begin---------------------------------------------------------------------------------------------------------------------             
-        allocate (NewPartition, STAT = STAT_CALL)            
-        if(STAT_CALL .NE. SUCCESS_) &
-            stop 'ConstructPartitionProperty - ModuleChainReactions - ERR010'
-        
-        nullify(NewPartition%Prev)
-        nullify(NewPartition%Next)
-        nullify(NewPartition%Pair1)
-        nullify(NewPartition%Pair2)
-       
-        NewPartition%PartitionEvolution = NoPartition
-        NewPartition%PartitionCoef      = 0.0
-        
-        call ConstructPartitionID (NewPartition%ID, Me%ObjEnterData, FromBlock)
-        call ConstructPartitionOptions (NewPartition)
-        call ConstructPartitionValues (NewPartition)
-        !--------------------------------------------------------------------------------------------------------------------------
-
-    end subroutine ConstructPartitionProperty    
-    !------------------------------------------------------------------------------------------------------------------------------    
+!    !------------------------------------------------------------------------------------------------------------------------------    
+!    subroutine ConstructPartitionList 
+!
+!        !Local---------------------------------------------------------------------------------------------------------------------
+!        integer                     :: STAT_CALL
+!        logical                     :: BlockFound
+!        type(T_Partition), pointer  :: NewPartition
+!
+!        !Begin---------------------------------------------------------------------------------------------------------------------
+!        do
+!            call ExtractBlockFromBuffer(Me%ObjEnterData,                    &
+!                                        ClientNumber    = Me%ClientNumber,  &
+!                                        block_begin     = part_block_begin, &
+!                                        block_end       = part_block_end,   &
+!                                        BlockFound      = BlockFound,       &
+!                                        STAT            = STAT_CALL)
+!            if (STAT_CALL .EQ. SUCCESS_) then    
+!
+!                if (BlockFound) then                                                  
+!                    
+!                    !Construct a New Property 
+!                    Call ConstructPartitionProperty(NewPartition)
+!
+!                    !Add new Property to the Properties List 
+!                    Call AddPartition(NewPartition)                                        
+!                    
+!                else
+!
+!                    call Block_Unlock(Me%ObjEnterData, Me%ClientNumber, STAT = STAT_CALL) 
+!
+!                    if (STAT_CALL .NE. SUCCESS_) &
+!                        stop 'ConstructPartitionList - ModuleChainReactions - ERR010'
+!                    exit !No more blocks
+!                
+!                end if    
+!
+!            elseif (STAT_CALL .EQ. BLOCK_END_ERR_) then
+!                
+!                write(*,*)  
+!                write(*,*) 'Error calling ExtractBlockFromBuffer. '
+!                stop       'ConstructPartitionList - ModuleChainReactions - ERR020'
+!            
+!            else    
+!                
+!                stop 'ConstructPartitionList - ModuleChainReactions - ERR030'
+!            
+!            end if    
+!        
+!        end do            
+!        !--------------------------------------------------------------------------------------------------------------------------
+!                
+!    end subroutine ConstructPartitionList
+!    !------------------------------------------------------------------------------------------------------------------------------   
 
 
-    !------------------------------------------------------------------------------------------------------------------------------    
-    subroutine ConstructPartitionID (PartitionID, ObjEnterData, ExtractType)
-
-        !Arguments-----------------------------------------------------------------------------------------------------------------
-        type (T_PropertyID)                         :: PartitionID
-        integer                                     :: ObjEnterData
-        integer                                     :: ExtractType
-
-        !Local---------------------------------------------------------------------------------------------------------------------
-        integer                                     :: flag
-        integer                                     :: STAT_CALL
-
-        !Partition Name
-        call GetData(PartitionID%Name, ObjEnterData, flag,  &
-                     SearchType   = ExtractType,            &
-                     keyword      = 'NAME',                 &
-                     Default      = '***',                  &
-                     STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) &
-            stop 'ConstructPartitionID - ModuleChainReactions - ERR010'
-
-        !Units
-        call GetData(PartitionID%Units, ObjEnterData, flag, &
-                     SearchType   = ExtractType,            &
-                     keyword      = 'UNITS',                &
-                     STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) &
-            stop 'ConstructPartitionID - ModuleChainReactions - ERR030'
-
-        !Description
-        call GetData(PartitionID%Description, ObjEnterData, flag,   &
-                     SearchType   = ExtractType,                    &
-                     keyword      = 'DESCRIPTION',                  &
-                     STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructPartitionID - ModuleChainReactions - ERR040'
-        !--------------------------------------------------------------------------------------------------------------------------
-
-    end subroutine ConstructPartitionID
-    !------------------------------------------------------------------------------------------------------------------------------    
-
-    
-    !------------------------------------------------------------------------------------------------------------------------------        
-    subroutine ConstructPartitionOptions (NewPartition)
-    
-        !Arguments-----------------------------------------------------------------------------------------------------------------
-        type(T_Partition), pointer :: NewPartition
-
-        !External------------------------------------------------------------------------------------------------------------------
-        integer                   :: STAT_CALL, iflag
-        character(MaxStrLength)   :: PairName
-        integer                   :: Phase
-
-        !Begin---------------------------------------------------------------------------------------------------------------------                             
-        call GetData(NewPartition%PartitionEvolution,       &   
-                     Me%ObjEnterData, iflag,                &
-                     SearchType   = FromBlock,              &
-                     keyword      = 'EVOLUTION',            &
-                     ClientModule = 'ModuleChainReactions', &
-                     STAT         = STAT_CALL)                     
-        if (STAT_CALL /= SUCCESS_) &
-            stop 'ConstructPartitionOptions - ModuleChainReactions - ERR010'              
-        if (iFlag .EQ. 0) then
-            stop 'ConstructPartitionOptions - ModuleChainReactions - ERR020'  
-        endif
-            
-        call GetData(PairName,                              &   
-                     Me%ObjEnterData, iflag,                &
-                     SearchType   = FromBlock,              &
-                     keyword      = 'PAIR1',                &
-                     ClientModule = 'ModuleChainReactions', &
-                     STAT         = STAT_CALL)                   
-        if (STAT_CALL /= SUCCESS_) &
-            stop 'ConstructPartitionOptions - ModuleChainReactions - ERR030'              
-        if (iFlag .EQ. 0) then
-            stop 'ConstructPartitionOptions - ModuleChainReactions - ERR040'  
-        endif
-        
-        call GetData(Phase,                                 &   
-                     Me%ObjEnterData, iflag,                &
-                     SearchType   = FromBlock,              &
-                     keyword      = 'PAIR1_PHASE',          &
-                     Default      = WaterPhase,             &
-                     ClientModule = 'ModuleChainReactions', &
-                     STAT         = STAT_CALL)                   
-        if (STAT_CALL /= SUCCESS_) &
-            stop 'ConstructPartitionOptions - ModuleChainReactions - ERR050'              
-        
-        call ConstructPairProperty(NewPartition%Pair1, PairName, Phase, STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) &
-            stop 'ConstructPartitionOptions - ModuleChainReactions - ERR060'  
-            
-        call GetData(PairName,                              &   
-                     Me%ObjEnterData, iflag,                &
-                     SearchType   = FromBlock,              &
-                     keyword      = 'PAIR2',                &
-                     ClientModule = 'ModuleChainReactions', &
-                     STAT         = STAT_CALL)                   
-        if (STAT_CALL /= SUCCESS_) &
-            stop 'ConstructPartitionOptions - ModuleChainReactions - ERR070'              
-        if (iFlag .EQ. 0) then
-            stop 'ConstructPartitionOptions - ModuleChainReactions - ERR080'  
-        endif
-        
-        call GetData(Phase,                                 &   
-                     Me%ObjEnterData, iflag,                &
-                     SearchType   = FromBlock,              &
-                     keyword      = 'PAIR2_PHASE',          &
-                     Default      = WaterPhase,             &
-                     ClientModule = 'ModuleChainReactions', &
-                     STAT         = STAT_CALL)                   
-        if (STAT_CALL /= SUCCESS_) &
-            stop 'ConstructPartitionOptions - ModuleChainReactions - ERR090'              
-        
-        call ConstructPairProperty(NewPartition%Pair2, PairName, Phase, STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) &
-            stop 'ConstructPartitionOptions - ModuleChainReactions - ERR100'   
-        !--------------------------------------------------------------------------------------------------------------------------
-        
-    end subroutine ConstructPartitionOptions
-    !------------------------------------------------------------------------------------------------------------------------------            
-
-
-    !------------------------------------------------------------------------------------------------------------------------------        
-    subroutine ConstructPairProperty (PropertyX, PropertyName, Phase, STAT)
-    
-        !Arguments-----------------------------------------------------------------------------------------------------------------
-        type(T_Property), pointer :: PropertyX
-        character(MaxStrLength)   :: PropertyName
-        integer                   :: Phase
-        integer, optional         :: STAT
-        
-        !Local---------------------------------------------------------------------------------------------------------------------
-        integer                   :: STAT_CALL, STAT_
-        integer                   :: Index
-        integer                   :: UB, LB
-        logical                   :: Found
-        integer                   :: PropertyID
-        type(T_property), pointer :: NewProperty
-        
-        !Begin---------------------------------------------------------------------------------------------------------------------        
-        STAT_ = UNKNOWN_
-        
-        LB = lbound(Me%Ext%Properties, 1)
-        UB = ubound(Me%Ext%Properties, 1)
-       
-        PropertyID = GetPropertyIDNumber (PropertyName) 
-        call SearchSinkProperty (PropertyID, PropertyX, STAT_CALL)
-        
-        if  (STAT_CALL .NE. SUCCESS_) then
-        
-            Found = .false.        
-            do Index = LB, UB
-                if (Me%Ext%Properties(Index) .EQ. PropertyID) then
-                    Found = .true.
-                    exit
-                endif                
-            end do
-       
-            if (.NOT. Found) then 
-                write(*,*)
-                write(*,*) 'Property ', trim(PropertyName), ' was not found in the ', trim(Me%CallingModule)
-                write(*,*) 'list of properties '
-                stop 'ConstructPairProperty - ModuleChainReactions - ERR010' 
-            endif
-            
-            allocate (NewProperty)
-            call ResetSinkProperty (NewProperty)
-            
-            NewProperty%ID%Name     = PropertyName
-            NewProperty%ID%IDNumber = PropertyID 
-            NewProperty%Phase       = Phase
-            
-            call AddSinkProperty (NewProperty)
-            
-            STAT_ = SUCCESS_
-            
-        else
-        
-            STAT_ = SUCCESS_
-            
-        endif
-        
-        if (present(STAT)) STAT = STAT_                
-        !--------------------------------------------------------------------------------------------------------------------------
-    
-    end subroutine ConstructPairProperty
-    !------------------------------------------------------------------------------------------------------------------------------        
-    
-
-    !------------------------------------------------------------------------------------------------------------------------------        
-    subroutine ConstructPartitionValues (NewPartition)
-    
-        !Arguments-----------------------------------------------------------------------------------------------------------------
-        type(T_Partition), pointer          :: NewPartition
-        
-        !Local---------------------------------------------------------------------------------------------------------------------
-        integer                             :: iflag
-        integer                             :: STAT_CALL
-
-        !Begin---------------------------------------------------------------------------------------------------------------------             
-        if (NewPartition%PartitionEvolution .EQ. ConstantPartition) then
-        
-            call GetData(NewPartition%PartitionCoef,            &   
-                         Me%ObjEnterData, iflag,                &
-                         SearchType   = FromBlock,              &
-                         keyword      = 'PARTITION_COEF',       &
-                         ClientModule = 'ModuleChainReactions', &
-                         STAT         = STAT_CALL)
-                         
-            if (STAT_CALL /= SUCCESS_) &
-                stop 'ConstructPartitionValues - ModuleChainReactions - ERR010'
-            
-            if (iFlag .EQ. 0) then
-                write(*,*)
-                write(*,*) 'You MUST provide a value for keyword PARTITION_COEF for '
-                write(*,*) 'property ', trim(NewPartition%ID%Name)
-                stop 'ConstructPartitionValues - ModuleChainReactions - ERR020'
-            endif
-
-        else
-               
-            if (Me%Options%GeometryType .EQ. Geometry2D) then
-                call ConstructPartitionValues2D (NewPartition)
-            else
-                call ConstructPartitionValues3D (NewPartition)
-            endif    
-                    
-        endif    
-        !--------------------------------------------------------------------------------------------------------------------------
-    
-    end subroutine ConstructPartitionValues
-    !------------------------------------------------------------------------------------------------------------------------------            
-
-
-    !------------------------------------------------------------------------------------------------------------------------------        
-    subroutine ConstructPartitionValues2D (NewPartition)
-    
-        !Arguments-----------------------------------------------------------------------------------------------------------------
-        type(T_Partition), pointer          :: NewPartition
-
-        !Local---------------------------------------------------------------------------------------------------------------------
-        integer                             :: STAT_CALL
-        integer                             :: ILB,IUB
-        integer                             :: JLB,JUB
-        integer                             :: WorkSizeILB, WorkSizeIUB
-        integer                             :: WorkSizeJLB, WorkSizeJUB       
-
-        !Begin---------------------------------------------------------------------------------------------------------------------             
-        !Boundaries
-        ILB = Me%Size%ILB
-        IUB = Me%Size%IUB
-        JLB = Me%Size%JLB
-        JUB = Me%Size%JUB
-
-        WorkSizeILB = Me%WorkSize%ILB
-        WorkSizeIUB = Me%WorkSize%IUB
-        WorkSizeJLB = Me%WorkSize%JLB
-        WorkSizeJUB = Me%WorkSize%JUB
-
-        allocate(NewPartition%G2D%PartitionCoef(ILB:IUB, JLB:JUB), STAT = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_) &
-            stop 'ConstructPartitionValues2D - ModuleChainReactions - ERR010'
-        NewPartition%G2D%PartitionCoef(:,:) = 0.0
-    
-        !Get water points
-        call GetBasinPoints (Me%ObjBasinGeometry, Me%Ext%WaterPoints2D, STAT = STAT_CALL)        
-        if (STAT_CALL /= SUCCESS_) &
-            stop 'ConstructPartitionValues2D - ModuleChainReactions - ERR020'
-    
-        call ConstructFillMatrix (PropertyID       = NewPartition%ID,                   &
-                                  EnterDataID      = Me%ObjEnterData,                   &
-                                  TimeID           = Me%ObjTime,                        &
-                                  HorizontalGridID = Me%ObjHorizontalGrid,              &
-                                  ExtractType      = FromBlock,                         &
-                                  PointsToFill2D   = Me%Ext%WaterPoints2D,              &
-                                  Matrix2D         = NewPartition%G2D%PartitionCoef,    &
-                                  TypeZUV          = TypeZ_,                            &
-                                  STAT             = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) &
-            stop 'ConstructPartitionValues2D - ModuleChainReactions - ERR030'
-
-        if(.NOT. NewPartition%ID%SolutionFromFile)then
-
-            call KillFillMatrix(NewPartition%ID%ObjFillMatrix, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)&
-                stop 'ConstructPartitionValues2D - ModuleChainReactions - ERR040'
-                
-        end if  
-        
-        call UnGetBasin (Me%ObjBasinGeometry, Me%Ext%WaterPoints2D, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) &
-            stop 'ConstructPartitionValues2D - ModuleChainReactions - ERR050'                              
-        !--------------------------------------------------------------------------------------------------------------------------
-    
-    end subroutine ConstructPartitionValues2D
-    !------------------------------------------------------------------------------------------------------------------------------            
-
-
-    !------------------------------------------------------------------------------------------------------------------------------        
-    subroutine ConstructPartitionValues3D (NewPartition)
-    
-        !Arguments-----------------------------------------------------------------------------------------------------------------
-        type(T_Partition), pointer :: NewPartition
-
-        !Local---------------------------------------------------------------------------------------------------------------------
-        integer                   :: STAT_CALL
-        integer                   :: ILB,IUB
-        integer                   :: JLB,JUB
-        integer                   :: KLB,KUB        
-        integer                   :: WorkSizeILB, WorkSizeIUB
-        integer                   :: WorkSizeJLB, WorkSizeJUB       
-        integer                   :: WorkSizeKLB, WorkSizeKUB
-
-        !Begin---------------------------------------------------------------------------------------------------------------------             
-        !Boundaries
-        ILB = Me%Size%ILB
-        IUB = Me%Size%IUB
-        JLB = Me%Size%JLB
-        JUB = Me%Size%JUB
-        KLB = Me%Size%KLB
-        KUB = Me%Size%KUB
-
-        WorkSizeILB = Me%WorkSize%ILB
-        WorkSizeIUB = Me%WorkSize%IUB
-        WorkSizeJLB = Me%WorkSize%JLB
-        WorkSizeJUB = Me%WorkSize%JUB
-        WorkSizeKLB = Me%WorkSize%KLB
-        WorkSizeKUB = Me%WorkSize%KUB
-
-        allocate(NewPartition%G3D%PartitionCoef(ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_) &
-            stop 'ConstructPartitionValues3D - ModuleChainReactions - ERR010'
-        NewPartition%G3D%PartitionCoef(:,:,:) = 0.0
-    
-    
-        !Get water points
-        call GetWaterPoints3D (Me%ObjMap, Me%Ext%WaterPoints3D, STAT = STAT_CALL)        
-        if (STAT_CALL /= SUCCESS_) &
-            stop 'ConstructPartitionValues3D - ModuleChainReactions - ERR020'
-                    
-        call ConstructFillMatrix (PropertyID       = NewPartition%ID,                   &
-                                  EnterDataID      = Me%ObjEnterData,                   &       
-                                  TimeID           = Me%ObjTime,                        &
-                                  HorizontalGridID = Me%ObjHorizontalGrid,              &       
-                                  GeometryID       = Me%ObjGeometry,                    &
-                                  ExtractType      = FromBlockInBlock,                  &
-                                  PointsToFill3D   = Me%Ext%WaterPoints3D,              &
-                                  Matrix3D         = NewPartition%G3D%PartitionCoef,    &
-                                  TypeZUV          = TypeZ_,                            &
-                                  STAT             = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) &
-            stop 'ConstructPartitionValues3D - ModuleChainReactions - ERR030'
-
-        if(.NOT. NewPartition%ID%SolutionFromFile)then
-
-            call KillFillMatrix(NewPartition%ID%ObjFillMatrix, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)&
-                stop 'ConstructPartitionValues3D - ModuleChainReactions - ERR040'
-                                          
-        end if    
-
-        call UnGetMap (Me%ObjMap, Me%Ext%WaterPoints3D, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) &
-            stop 'ConstructPartitionValues3D - ModuleChainReactions - ERR050'                
-        !--------------------------------------------------------------------------------------------------------------------------
-    
-    end subroutine ConstructPartitionValues3D
-    !------------------------------------------------------------------------------------------------------------------------------            
-        
-    
-    !------------------------------------------------------------------------------------------------------------------------------
-    subroutine AddPartition (NewPartition)
-    
-        !Arguments-----------------------------------------------------------------------------------------------------------------
-        type(T_Partition), pointer :: NewPartition
-        
-        !Begin---------------------------------------------------------------------------------------------------------------------             
-        if (.NOT. associated(Me%FirstPartition)) then           
-            Me%FirstPartition => NewPartition
-            Me%LastPartition  => NewPartition
-        else
-            NewPartition%Prev     => Me%LastPartition
-            Me%LastPartition%Next => NewPartition
-            Me%LastPartition      => NewPartition
-        end if 
-        !--------------------------------------------------------------------------------------------------------------------------
-    
-    end subroutine AddPartition
-    !------------------------------------------------------------------------------------------------------------------------------
+!    !------------------------------------------------------------------------------------------------------------------------------   
+!    subroutine ConstructPartitionProperty (NewPartition)
+!
+!        !Arguments-----------------------------------------------------------------------------------------------------------------
+!        type(T_Partition), pointer :: NewPartition
+!
+!        !External------------------------------------------------------------------------------------------------------------------
+!        integer                   :: STAT_CALL
+!
+!        !Begin---------------------------------------------------------------------------------------------------------------------             
+!        allocate (NewPartition, STAT = STAT_CALL)            
+!        if(STAT_CALL .NE. SUCCESS_) &
+!            stop 'ConstructPartitionProperty - ModuleChainReactions - ERR010'
+!        
+!        nullify(NewPartition%Prev)
+!        nullify(NewPartition%Next)
+!        nullify(NewPartition%Pair1)
+!        nullify(NewPartition%Pair2)
+!       
+!        NewPartition%PartitionEvolution = NoPartition
+!        NewPartition%PartitionCoef      = 0.0
+!        
+!        call ConstructPartitionID (NewPartition%ID, Me%ObjEnterData, FromBlock)
+!        call ConstructPartitionOptions (NewPartition)
+!        call ConstructPartitionValues (NewPartition)
+!        !--------------------------------------------------------------------------------------------------------------------------
+!
+!    end subroutine ConstructPartitionProperty    
+!    !------------------------------------------------------------------------------------------------------------------------------    
+!
+!
+!    !------------------------------------------------------------------------------------------------------------------------------    
+!    subroutine ConstructPartitionID (PartitionID, ObjEnterData, ExtractType)
+!
+!        !Arguments-----------------------------------------------------------------------------------------------------------------
+!        type (T_PropertyID)                         :: PartitionID
+!        integer                                     :: ObjEnterData
+!        integer                                     :: ExtractType
+!
+!        !Local---------------------------------------------------------------------------------------------------------------------
+!        integer                                     :: flag
+!        integer                                     :: STAT_CALL
+!
+!        !Partition Name
+!        call GetData(PartitionID%Name, ObjEnterData, flag,  &
+!                     SearchType   = ExtractType,            &
+!                     keyword      = 'NAME',                 &
+!                     Default      = '***',                  &
+!                     STAT         = STAT_CALL)
+!        if (STAT_CALL /= SUCCESS_) &
+!            stop 'ConstructPartitionID - ModuleChainReactions - ERR010'
+!
+!        !Units
+!        call GetData(PartitionID%Units, ObjEnterData, flag, &
+!                     SearchType   = ExtractType,            &
+!                     keyword      = 'UNITS',                &
+!                     STAT         = STAT_CALL)
+!        if (STAT_CALL /= SUCCESS_) &
+!            stop 'ConstructPartitionID - ModuleChainReactions - ERR030'
+!
+!        !Description
+!        call GetData(PartitionID%Description, ObjEnterData, flag,   &
+!                     SearchType   = ExtractType,                    &
+!                     keyword      = 'DESCRIPTION',                  &
+!                     STAT         = STAT_CALL)
+!        if (STAT_CALL /= SUCCESS_) stop 'ConstructPartitionID - ModuleChainReactions - ERR040'
+!        !--------------------------------------------------------------------------------------------------------------------------
+!
+!    end subroutine ConstructPartitionID
+!    !------------------------------------------------------------------------------------------------------------------------------    
+!
+!    
+!    !------------------------------------------------------------------------------------------------------------------------------        
+!    subroutine ConstructPartitionOptions (NewPartition)
+!    
+!        !Arguments-----------------------------------------------------------------------------------------------------------------
+!        type(T_Partition), pointer :: NewPartition
+!
+!        !External------------------------------------------------------------------------------------------------------------------
+!        integer                   :: STAT_CALL, iflag
+!        character(MaxStrLength)   :: PairName
+!        integer                   :: Phase
+!
+!        !Begin---------------------------------------------------------------------------------------------------------------------                             
+!        call GetData(NewPartition%PartitionEvolution,       &   
+!                     Me%ObjEnterData, iflag,                &
+!                     SearchType   = FromBlock,              &
+!                     keyword      = 'EVOLUTION',            &
+!                     ClientModule = 'ModuleChainReactions', &
+!                     STAT         = STAT_CALL)                     
+!        if (STAT_CALL /= SUCCESS_) &
+!            stop 'ConstructPartitionOptions - ModuleChainReactions - ERR010'              
+!        if (iFlag .EQ. 0) then
+!            stop 'ConstructPartitionOptions - ModuleChainReactions - ERR020'  
+!        endif
+!            
+!        call GetData(PairName,                              &   
+!                     Me%ObjEnterData, iflag,                &
+!                     SearchType   = FromBlock,              &
+!                     keyword      = 'PAIR1',                &
+!                     ClientModule = 'ModuleChainReactions', &
+!                     STAT         = STAT_CALL)                   
+!        if (STAT_CALL /= SUCCESS_) &
+!            stop 'ConstructPartitionOptions - ModuleChainReactions - ERR030'              
+!        if (iFlag .EQ. 0) then
+!            stop 'ConstructPartitionOptions - ModuleChainReactions - ERR040'  
+!        endif
+!        
+!        call GetData(Phase,                                 &   
+!                     Me%ObjEnterData, iflag,                &
+!                     SearchType   = FromBlock,              &
+!                     keyword      = 'PAIR1_PHASE',          &
+!                     Default      = WaterPhase,             &
+!                     ClientModule = 'ModuleChainReactions', &
+!                     STAT         = STAT_CALL)                   
+!        if (STAT_CALL /= SUCCESS_) &
+!            stop 'ConstructPartitionOptions - ModuleChainReactions - ERR050'              
+!        
+!        call ConstructPairProperty(NewPartition%Pair1, PairName, Phase, STAT_CALL)
+!        if (STAT_CALL /= SUCCESS_) &
+!            stop 'ConstructPartitionOptions - ModuleChainReactions - ERR060'  
+!            
+!        call GetData(PairName,                              &   
+!                     Me%ObjEnterData, iflag,                &
+!                     SearchType   = FromBlock,              &
+!                     keyword      = 'PAIR2',                &
+!                     ClientModule = 'ModuleChainReactions', &
+!                     STAT         = STAT_CALL)                   
+!        if (STAT_CALL /= SUCCESS_) &
+!            stop 'ConstructPartitionOptions - ModuleChainReactions - ERR070'              
+!        if (iFlag .EQ. 0) then
+!            stop 'ConstructPartitionOptions - ModuleChainReactions - ERR080'  
+!        endif
+!        
+!        call GetData(Phase,                                 &   
+!                     Me%ObjEnterData, iflag,                &
+!                     SearchType   = FromBlock,              &
+!                     keyword      = 'PAIR2_PHASE',          &
+!                     Default      = WaterPhase,             &
+!                     ClientModule = 'ModuleChainReactions', &
+!                     STAT         = STAT_CALL)                   
+!        if (STAT_CALL /= SUCCESS_) &
+!            stop 'ConstructPartitionOptions - ModuleChainReactions - ERR090'              
+!        
+!        call ConstructPairProperty(NewPartition%Pair2, PairName, Phase, STAT_CALL)
+!        if (STAT_CALL /= SUCCESS_) &
+!            stop 'ConstructPartitionOptions - ModuleChainReactions - ERR100'   
+!        !--------------------------------------------------------------------------------------------------------------------------
+!        
+!    end subroutine ConstructPartitionOptions
+!    !------------------------------------------------------------------------------------------------------------------------------            
+!
+!
+!    !------------------------------------------------------------------------------------------------------------------------------        
+!    subroutine ConstructPairProperty (PropertyX, PropertyName, Phase, STAT)
+!    
+!        !Arguments-----------------------------------------------------------------------------------------------------------------
+!        type(T_Property), pointer :: PropertyX
+!        character(MaxStrLength)   :: PropertyName
+!        integer                   :: Phase
+!        integer, optional         :: STAT
+!        
+!        !Local---------------------------------------------------------------------------------------------------------------------
+!        integer                   :: STAT_CALL, STAT_
+!        integer                   :: Index
+!        integer                   :: UB, LB
+!        logical                   :: Found
+!        integer                   :: PropertyID
+!        type(T_property), pointer :: NewProperty
+!        
+!        !Begin---------------------------------------------------------------------------------------------------------------------        
+!        STAT_ = UNKNOWN_
+!        
+!        LB = lbound(Me%Ext%Properties, 1)
+!        UB = ubound(Me%Ext%Properties, 1)
+!       
+!        PropertyID = GetPropertyIDNumber (PropertyName) 
+!        call SearchSinkProperty (PropertyID, PropertyX, STAT_CALL)
+!        
+!        if  (STAT_CALL .NE. SUCCESS_) then
+!        
+!            Found = .false.        
+!            do Index = LB, UB
+!                if (Me%Ext%Properties(Index) .EQ. PropertyID) then
+!                    Found = .true.
+!                    exit
+!                endif                
+!            end do
+!       
+!            if (.NOT. Found) then 
+!                write(*,*)
+!                write(*,*) 'Property ', trim(PropertyName), ' was not found in the ', trim(Me%CallingModule)
+!                write(*,*) 'list of properties '
+!                stop 'ConstructPairProperty - ModuleChainReactions - ERR010' 
+!            endif
+!            
+!            allocate (NewProperty)
+!            call ResetSinkProperty (NewProperty)
+!            
+!            NewProperty%ID%Name     = PropertyName
+!            NewProperty%ID%IDNumber = PropertyID 
+!            NewProperty%Phase       = Phase
+!            
+!            call AddSinkProperty (NewProperty)
+!            
+!            STAT_ = SUCCESS_
+!            
+!        else
+!        
+!            STAT_ = SUCCESS_
+!            
+!        endif
+!        
+!        if (present(STAT)) STAT = STAT_                
+!        !--------------------------------------------------------------------------------------------------------------------------
+!    
+!    end subroutine ConstructPairProperty
+!    !------------------------------------------------------------------------------------------------------------------------------        
+!    
+!
+!    !------------------------------------------------------------------------------------------------------------------------------        
+!    subroutine ConstructPartitionValues (NewPartition)
+!    
+!        !Arguments-----------------------------------------------------------------------------------------------------------------
+!        type(T_Partition), pointer          :: NewPartition
+!        
+!        !Local---------------------------------------------------------------------------------------------------------------------
+!        integer                             :: iflag
+!        integer                             :: STAT_CALL
+!
+!        !Begin---------------------------------------------------------------------------------------------------------------------             
+!        if (NewPartition%PartitionEvolution .EQ. ConstantPartition) then
+!        
+!            call GetData(NewPartition%PartitionCoef,            &   
+!                         Me%ObjEnterData, iflag,                &
+!                         SearchType   = FromBlock,              &
+!                         keyword      = 'PARTITION_COEF',       &
+!                         ClientModule = 'ModuleChainReactions', &
+!                         STAT         = STAT_CALL)
+!                         
+!            if (STAT_CALL /= SUCCESS_) &
+!                stop 'ConstructPartitionValues - ModuleChainReactions - ERR010'
+!            
+!            if (iFlag .EQ. 0) then
+!                write(*,*)
+!                write(*,*) 'You MUST provide a value for keyword PARTITION_COEF for '
+!                write(*,*) 'property ', trim(NewPartition%ID%Name)
+!                stop 'ConstructPartitionValues - ModuleChainReactions - ERR020'
+!            endif
+!
+!        else
+!               
+!            if (Me%Options%GeometryType .EQ. Geometry2D) then
+!                call ConstructPartitionValues2D (NewPartition)
+!            else
+!                call ConstructPartitionValues3D (NewPartition)
+!            endif    
+!                    
+!        endif    
+!        !--------------------------------------------------------------------------------------------------------------------------
+!    
+!    end subroutine ConstructPartitionValues
+!    !------------------------------------------------------------------------------------------------------------------------------            
+!
+!
+!    !------------------------------------------------------------------------------------------------------------------------------        
+!    subroutine ConstructPartitionValues2D (NewPartition)
+!    
+!        !Arguments-----------------------------------------------------------------------------------------------------------------
+!        type(T_Partition), pointer          :: NewPartition
+!
+!        !Local---------------------------------------------------------------------------------------------------------------------
+!        integer                             :: STAT_CALL
+!        integer                             :: ILB,IUB
+!        integer                             :: JLB,JUB
+!        integer                             :: WorkSizeILB, WorkSizeIUB
+!        integer                             :: WorkSizeJLB, WorkSizeJUB       
+!
+!        !Begin---------------------------------------------------------------------------------------------------------------------             
+!        !Boundaries
+!        ILB = Me%Size%ILB
+!        IUB = Me%Size%IUB
+!        JLB = Me%Size%JLB
+!        JUB = Me%Size%JUB
+!
+!        WorkSizeILB = Me%WorkSize%ILB
+!        WorkSizeIUB = Me%WorkSize%IUB
+!        WorkSizeJLB = Me%WorkSize%JLB
+!        WorkSizeJUB = Me%WorkSize%JUB
+!
+!        allocate(NewPartition%G2D%PartitionCoef(ILB:IUB, JLB:JUB), STAT = STAT_CALL)
+!        if (STAT_CALL .NE. SUCCESS_) &
+!            stop 'ConstructPartitionValues2D - ModuleChainReactions - ERR010'
+!        NewPartition%G2D%PartitionCoef(:,:) = 0.0
+!    
+!        !Get water points
+!        call GetBasinPoints (Me%ObjBasinGeometry, Me%Ext%WaterPoints2D, STAT = STAT_CALL)        
+!        if (STAT_CALL /= SUCCESS_) &
+!            stop 'ConstructPartitionValues2D - ModuleChainReactions - ERR020'
+!    
+!        call ConstructFillMatrix (PropertyID       = NewPartition%ID,                   &
+!                                  EnterDataID      = Me%ObjEnterData,                   &
+!                                  TimeID           = Me%ObjTime,                        &
+!                                  HorizontalGridID = Me%ObjHorizontalGrid,              &
+!                                  ExtractType      = FromBlock,                         &
+!                                  PointsToFill2D   = Me%Ext%WaterPoints2D,              &
+!                                  Matrix2D         = NewPartition%G2D%PartitionCoef,    &
+!                                  TypeZUV          = TypeZ_,                            &
+!                                  STAT             = STAT_CALL)
+!        if (STAT_CALL /= SUCCESS_) &
+!            stop 'ConstructPartitionValues2D - ModuleChainReactions - ERR030'
+!
+!        if(.NOT. NewPartition%ID%SolutionFromFile)then
+!
+!            call KillFillMatrix(NewPartition%ID%ObjFillMatrix, STAT = STAT_CALL)
+!            if (STAT_CALL /= SUCCESS_)&
+!                stop 'ConstructPartitionValues2D - ModuleChainReactions - ERR040'
+!                
+!        end if  
+!        
+!        call UnGetBasin (Me%ObjBasinGeometry, Me%Ext%WaterPoints2D, STAT = STAT_CALL)
+!        if (STAT_CALL /= SUCCESS_) &
+!            stop 'ConstructPartitionValues2D - ModuleChainReactions - ERR050'                              
+!        !--------------------------------------------------------------------------------------------------------------------------
+!    
+!    end subroutine ConstructPartitionValues2D
+!    !------------------------------------------------------------------------------------------------------------------------------            
+!
+!
+!    !------------------------------------------------------------------------------------------------------------------------------        
+!    subroutine ConstructPartitionValues3D (NewPartition)
+!    
+!        !Arguments-----------------------------------------------------------------------------------------------------------------
+!        type(T_Partition), pointer :: NewPartition
+!
+!        !Local---------------------------------------------------------------------------------------------------------------------
+!        integer                   :: STAT_CALL
+!        integer                   :: ILB,IUB
+!        integer                   :: JLB,JUB
+!        integer                   :: KLB,KUB        
+!        integer                   :: WorkSizeILB, WorkSizeIUB
+!        integer                   :: WorkSizeJLB, WorkSizeJUB       
+!        integer                   :: WorkSizeKLB, WorkSizeKUB
+!
+!        !Begin---------------------------------------------------------------------------------------------------------------------             
+!        !Boundaries
+!        ILB = Me%Size%ILB
+!        IUB = Me%Size%IUB
+!        JLB = Me%Size%JLB
+!        JUB = Me%Size%JUB
+!        KLB = Me%Size%KLB
+!        KUB = Me%Size%KUB
+!
+!        WorkSizeILB = Me%WorkSize%ILB
+!        WorkSizeIUB = Me%WorkSize%IUB
+!        WorkSizeJLB = Me%WorkSize%JLB
+!        WorkSizeJUB = Me%WorkSize%JUB
+!        WorkSizeKLB = Me%WorkSize%KLB
+!        WorkSizeKUB = Me%WorkSize%KUB
+!
+!        allocate(NewPartition%G3D%PartitionCoef(ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT_CALL)
+!        if (STAT_CALL .NE. SUCCESS_) &
+!            stop 'ConstructPartitionValues3D - ModuleChainReactions - ERR010'
+!        NewPartition%G3D%PartitionCoef(:,:,:) = 0.0
+!    
+!    
+!        !Get water points
+!        call GetWaterPoints3D (Me%ObjMap, Me%Ext%WaterPoints3D, STAT = STAT_CALL)        
+!        if (STAT_CALL /= SUCCESS_) &
+!            stop 'ConstructPartitionValues3D - ModuleChainReactions - ERR020'
+!                    
+!        call ConstructFillMatrix (PropertyID       = NewPartition%ID,                   &
+!                                  EnterDataID      = Me%ObjEnterData,                   &       
+!                                  TimeID           = Me%ObjTime,                        &
+!                                  HorizontalGridID = Me%ObjHorizontalGrid,              &       
+!                                  GeometryID       = Me%ObjGeometry,                    &
+!                                  ExtractType      = FromBlockInBlock,                  &
+!                                  PointsToFill3D   = Me%Ext%WaterPoints3D,              &
+!                                  Matrix3D         = NewPartition%G3D%PartitionCoef,    &
+!                                  TypeZUV          = TypeZ_,                            &
+!                                  STAT             = STAT_CALL)
+!        if (STAT_CALL /= SUCCESS_) &
+!            stop 'ConstructPartitionValues3D - ModuleChainReactions - ERR030'
+!
+!        if(.NOT. NewPartition%ID%SolutionFromFile)then
+!
+!            call KillFillMatrix(NewPartition%ID%ObjFillMatrix, STAT = STAT_CALL)
+!            if (STAT_CALL /= SUCCESS_)&
+!                stop 'ConstructPartitionValues3D - ModuleChainReactions - ERR040'
+!                                          
+!        end if    
+!
+!        call UnGetMap (Me%ObjMap, Me%Ext%WaterPoints3D, STAT = STAT_CALL)
+!        if (STAT_CALL /= SUCCESS_) &
+!            stop 'ConstructPartitionValues3D - ModuleChainReactions - ERR050'                
+!        !--------------------------------------------------------------------------------------------------------------------------
+!    
+!    end subroutine ConstructPartitionValues3D
+!    !------------------------------------------------------------------------------------------------------------------------------            
+!        
+!    
+!    !------------------------------------------------------------------------------------------------------------------------------
+!    subroutine AddPartition (NewPartition)
+!    
+!        !Arguments-----------------------------------------------------------------------------------------------------------------
+!        type(T_Partition), pointer :: NewPartition
+!        
+!        !Begin---------------------------------------------------------------------------------------------------------------------             
+!        if (.NOT. associated(Me%FirstPartition)) then           
+!            Me%FirstPartition => NewPartition
+!            Me%LastPartition  => NewPartition
+!        else
+!            NewPartition%Prev     => Me%LastPartition
+!            Me%LastPartition%Next => NewPartition
+!            Me%LastPartition      => NewPartition
+!        end if 
+!        !--------------------------------------------------------------------------------------------------------------------------
+!    
+!    end subroutine AddPartition
+!    !------------------------------------------------------------------------------------------------------------------------------
     
     
     !------------------------------------------------------------------------------------------------------------------------------ 
-    subroutine ResetSinkProperty (NewProperty)
+    subroutine ResetProperty (NewProperty)
     
         !Arguments-----------------------------------------------------------------------------------------------------------------
         type(T_Property), pointer :: NewProperty
@@ -1553,38 +1713,42 @@ Module ModuleChainReactions
         !Begin---------------------------------------------------------------------------------------------------------------------    
         nullify(NewProperty%Prev)
         nullify(NewProperty%Next)
-        nullify(NewProperty%Product)        
+        nullify(NewProperty%Product)  
+        
+        NewProperty%Sink%Soil_0%Evolution = NoEvolution      
+        NewProperty%Sink%Soil_1%Evolution = NoEvolution
+        NewProperty%Sink%Water_0%Evolution = NoEvolution
+        NewProperty%Sink%Water_1%Evolution = NoEvolution
 
-        NewProperty%IsOnlyProduct = .true.
-        NewProperty%RateOrder     = NoReaction        
-        NewProperty%RateMethod    = RateUnknown
+!        NewProperty%IsOnlyProduct = .true.
+!        NewProperty%RateOrder     = NoReaction        
+!        NewProperty%RateMethod    = RateUnknown
         
-        NewProperty%SinkEvolution = NoSink
-        NewProperty%SinkRate      = 0.0
+!        NewProperty%SinkEvolution = NoSink
+!        NewProperty%SinkRate      = 0.0
         
-        call ResetMass (NewProperty)      
+        call ResetCalculatedValues (NewProperty)      
         !--------------------------------------------------------------------------------------------------------------------------
     
-    end subroutine ResetSinkProperty
+    end subroutine ResetProperty
     !------------------------------------------------------------------------------------------------------------------------------ 
     
     
     !------------------------------------------------------------------------------------------------------------------------------
-    subroutine ResetMass (PropertyX)
+    subroutine ResetCalculatedValues (PropertyX)
     
         !Arguments-----------------------------------------------------------------------------------------------------------------
         type(T_Property), pointer :: PropertyX        
         
         !Begin---------------------------------------------------------------------------------------------------------------------
-        PropertyX%Sink    = 0.0
-        PropertyX%Mass    = 0.0
-        PropertyX%NewMass = 0.0
-        PropertyX%Source  = 0.0    
-        
-        PropertyX%NewConcCalculated = .false. 
+        PropertyX%Calc%OldMass      = 0.0
+        PropertyX%Calc%MassLost     = 0.0
+        PropertyX%Calc%MassGained   = 0.0
+        PropertyX%Calc%OldSoilMass  = 0.0
+        PropertyX%Calc%SoilMassLost = 0.0
         !--------------------------------------------------------------------------------------------------------------------------
     
-    end subroutine ResetMass
+    end subroutine ResetCalculatedValues
     !------------------------------------------------------------------------------------------------------------------------------
     
     
@@ -1616,7 +1780,7 @@ Module ModuleChainReactions
 
 
     !------------------------------------------------------------------------------------------------------------------------------ 
-    subroutine SearchSinkProperty (PropertyID, PropertyX, STAT)
+    subroutine SearchProperty (PropertyID, PropertyX, STAT)
 
         !Arguments-----------------------------------------------------------------------------------------------------------------
         integer                     :: PropertyID
@@ -1647,7 +1811,7 @@ Module ModuleChainReactions
         if (present(STAT)) STAT = STAT_CALL                
         !--------------------------------------------------------------------------------------------------------------------------        
         
-    end subroutine SearchSinkProperty
+    end subroutine SearchProperty
 
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -1698,6 +1862,110 @@ cd1:    if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
     
     
     !------------------------------------------------------------------------------------------------------------------------------    
+    subroutine InitCRSoilPhase (ChainReactionsID, SoilDensity2D, SoilDensity3D, STAT)
+
+        !Arguments-----------------------------------------------------------------------------------------------------------------
+        integer                                   :: ChainReactionsID
+        real, dimension(:,:), pointer, optional   :: SoilDensity2D
+        real, dimension(:,:,:), pointer, optional :: SoilDensity3D
+        integer, optional, intent(OUT) :: STAT
+
+        !Local---------------------------------------------------------------------------------------------------------------------
+        integer :: ready_                     
+        integer :: STAT_CALL              !Auxiliar local variable
+        integer :: I, J, K
+        type(T_Property), pointer :: PropertyX
+        
+        !Begin---------------------------------------------------------------------------------------------------------------------
+        STAT_CALL = UNKNOWN_
+
+        call Ready(ChainReactionsID, ready_)    
+        
+cd1:    if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            if ((Me%GeometryType == 1) .AND. (.NOT. present(SoilDensity2D))) then
+                stop 'InitCRSoilPhase - ModuleChainReactions - ERR010'
+            elseif ((Me%GeometryType == 2) .AND. (.NOT. present(SoilDensity3D))) then
+                stop 'InitCRSoilPhase - ModuleChainReactions - ERR020'  
+            endif
+
+            call Read_Lock(mCHAINREACTIONS_, Me%InstanceID)
+
+            PropertyX => Me%FirstProperty
+            do while (associated(PropertyX))
+            
+                if (PropertyX%Soil%Kd%Evolution /= NoEvolution) then                
+                    if (Me%GeometryType == 1) then
+                    
+                        !Get water points
+                        call GetBasinPoints (Me%ObjBasinGeometry, Me%Ext%WaterPoints2D, STAT = STAT_CALL)        
+                        if (STAT_CALL /= SUCCESS_) &
+                            stop 'InitCRSoilPhase - ModuleChainReactions - ERR030'
+                            
+                        do I = Me%WorkSize%ILB, Me%WorkSize%IUB
+                        do J = Me%WorkSize%JLB, Me%WorkSize%JUB
+                        
+                            if (Me%Ext%WaterPoints2D(I, J) .EQ. WaterPoint) then
+                                PropertyX%Soil%Mass%Values2D(I, J) = PropertyX%Concentration%Values2D(I, J) * &
+                                                                     SoilDensity2D(I, J) * 0.001 * &
+                                                                     PropertyX%Soil%Kd%Values2D(I, J) 
+                            endif                
+                        enddo
+                        enddo
+                        
+                        call UnGetBasin (Me%ObjBasinGeometry, Me%Ext%WaterPoints2D, STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) &
+                            stop 'InitCRSoilPhase - ModuleChainReactions - ERR040'                    
+                        
+                    
+                    else
+                    
+                        !Get water points
+                        call GetWaterPoints3D (Me%ObjMap, Me%Ext%WaterPoints3D, STAT = STAT_CALL)        
+                        if (STAT_CALL /= SUCCESS_) &
+                            stop 'InitCRSoilPhase - ModuleChainReactions - ERR050'
+                    
+                        do I = Me%WorkSize%ILB, Me%WorkSize%IUB
+                        do J = Me%WorkSize%JLB, Me%WorkSize%JUB
+                        do K = Me%WorkSize%KLB, Me%WorkSize%KUB
+                        
+                            if (Me%Ext%WaterPoints3D(I, J, K) .EQ. WaterPoint) then
+                                PropertyX%Soil%Mass%Values3D(I, J, K) = PropertyX%Concentration%Values3D(I, J, K) * &
+                                                                        SoilDensity3D(I, J, K) * 0.001 * &
+                                                                        PropertyX%Soil%Kd%Values3D(I, J, K) 
+                            endif
+                                                                                                  
+                        enddo
+                        enddo
+                        enddo
+
+                        call UnGetMap (Me%ObjMap, Me%Ext%WaterPoints3D, STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) &
+                            stop 'InitCRSoilPhase - ModuleChainReactions - ERR060'                    
+
+                    endif
+                endif
+                
+                PropertyX => PropertyX%Next
+            enddo
+            
+            call Read_Unlock(mCHAINREACTIONS_, Me%InstanceID, "InitCRSoilPhase")            
+            STAT_CALL = SUCCESS_
+            
+        else 
+        
+            STAT_CALL = ready_
+            
+        end if cd1
+
+        if (present(STAT)) STAT = STAT_CALL
+        !--------------------------------------------------------------------------------------------------------------------------
+
+    end subroutine InitCRSoilPhase
+    !------------------------------------------------------------------------------------------------------------------------------    
+    
+    
+    !------------------------------------------------------------------------------------------------------------------------------    
     subroutine SetPropertyConcentration2D (ChainReactionsID, PropertyID, Concentration, STAT)
     
         !Arguments-----------------------------------------------------------------------------------------------------------------
@@ -1718,11 +1986,11 @@ cd1:    if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
 
         if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
 
-            call SearchSinkProperty(PropertyID, PropertyX, STAT_CALL)
+            call SearchProperty(PropertyID, PropertyX, STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_) &
                 stop 'SetPropertyConcentrations2D - ModuleChainReactions - ERR010'
             
-            PropertyX%G2D%Concentration => Concentration
+            PropertyX%Concentration%Values2D => Concentration
 
             STAT_CALL = SUCCESS_
             
@@ -1760,11 +2028,11 @@ cd1:    if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
 
         if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
 
-            call SearchSinkProperty(PropertyID, PropertyX, STAT_CALL)
+            call SearchProperty(PropertyID, PropertyX, STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_) &
                 stop 'SetPropertyConcentrations3D - ModuleChainReactions - ERR010'
             
-            PropertyX%G3D%Concentration => Concentration
+            PropertyX%Concentration%Values3D => Concentration
 
             STAT_CALL = SUCCESS_
             
@@ -1801,8 +2069,8 @@ cd1:    if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
         if (ready_ .EQ. READ_LOCK_ERR_) then
 
             nullify(Array)
-            call Read_Unlock(mCHAINREACTIONS_, Me%InstanceID, "UnGetChainReactions")
-
+            call Read_Unlock(mCHAINREACTIONS_, Me%InstanceID, "UnGetChainReactions") 
+             
             STAT_CALL = SUCCESS_
             
         else
@@ -1826,223 +2094,206 @@ cd1:    if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-    subroutine ModifyChainReactions2D (ChainReactionsID, &
-                                       WaterVolume,      &
-                                       SoilMass,         &
-                                       DT,               &
-                                       STAT)  
-
-        !Arguments-----------------------------------------------------------------------------------------------------------------
-        integer                                 :: ChainReactionsID
-        real, pointer, dimension(:,:)           :: WaterVolume      !L
-        real, pointer, dimension(:,:), optional :: SoilMass         !kg
-        real                                    :: DT
-        integer, optional,  intent(OUT)         :: STAT
-
-        !Local---------------------------------------------------------------------------------------------------------------------
-        integer                         :: STAT_CALL
-        integer                         :: I, J  
-        integer                         :: ILB,IUB
-        integer                         :: JLB,JUB
-        integer                         :: ready_
-        type(T_Property), pointer       :: PropertyX, ProductX
-        type(T_Partition), pointer      :: PairX
-        real, pointer, dimension(:,:)   :: k1, k2
-        real                            :: ChangeOfMass
-        real                            :: Kd
-        real                            :: SinkRate
-
-        !Begin---------------------------------------------------------------------------------------------------------------------             
-        STAT_CALL = UNKNOWN_
-
-        call Ready(ChainReactionsID, ready_)
-
-        if (ready_ .EQ. IDLE_ERR_) then
-
-            ILB = Me%WorkSize%ILB
-            IUB = Me%WorkSize%IUB
-            JLB = Me%WorkSize%JLB
-            JUB = Me%WorkSize%JUB
-
-            call ActualizePropertiesFromFile
-
-            Me%Ext%WaterVolume2D => WaterVolume
-            if (present(SoilMass)) Me%Ext%SoilMass2D => SoilMass
-            
-            !Get water points
-            call GetBasinPoints (Me%ObjBasinGeometry, Me%Ext%WaterPoints2D, STAT = STAT_CALL)        
-            if (STAT_CALL /= SUCCESS_) &
-                stop 'ModifyChainReactions2D - ModuleChainReactions - ERR010'
-            
-            do I = ILB, IUB
-            do J = JLB, JUB
-                                
-                if (Me%Ext%WaterPoints2D(I, J) .EQ. WaterPoint) then
-                            
-                    PropertyX => Me%FirstProperty
-                    
-                    do while (associated(PropertyX))
-                                                
-                        if (PropertyX%Phase .EQ. WaterPhase) then
-                        
-                            PropertyX%Mass = PropertyX%G2D%Concentration(I, J) * Me%Ext%WaterVolume2D(i, j)
-                            
-                        else
-                        
-                            if (.NOT. present(SoilMass)) &                            
-                                stop 'ModifyChainReactions2D - ModuleChainReactions - ERR020'    
-                            
-                            PropertyX%Mass = PropertyX%G2D%Concentration(I, J) * Me%Ext%SoilMass2D(I, J)
-                            
-                        endif
-                                                 
-                        if (.NOT. PropertyX%IsOnlyProduct) then
-                                               
-                            ProductX => PropertyX%Product
-                            
-                            call GetSinkRate(PropertyX, SinkRate, I, J)
-                                                    
-                            if (PropertyX%RateOrder .EQ. ZeroOrder) then
-
-                                if (PropertyX%Phase .EQ. WaterPhase) then        
-                                                                               
-                                    PropertyX%Sink = min(SinkRate * Me%Ext%WaterVolume2D(i, j) * DT / 86400, PropertyX%Mass)
-                                    
-                                else
-                                
-                                    PropertyX%Sink = min(SinkRate * Me%Ext%SoilMass2D(i, j) * DT / 86400, PropertyX%Mass)
-                                    
-                                endif
-                                
-                            elseif (PropertyX%RateOrder .EQ. FirstOrder) then
-                            
-                                select case (PropertyX%RateMethod)
-                                
-                                case (RateDefault)
-                                
-                                    PropertyX%Sink = min(PropertyX%Mass - PropertyX%Mass * &
-                                                         exp(-SinkRate * DT / 86400), PropertyX%Mass)                                                             
-                                                         
-                                case (RateAlternative)
-                                
-                                    PropertyX%Sink = min(PropertyX%Mass - PropertyX%Mass * &
-                                                        ((1 - SinkRate) ** (DT / 86400)), PropertyX%Mass)
-                                                        
-                                end select
-                                
-                            endif
-                                                    
-                            !     mg        =       mg                 mg      
-                            ProductX%Source = ProductX%Source + PropertyX%Sink
-                                                
-                        endif                                                
-                                                
-                        PropertyX => PropertyX%Next
-                        
-                    enddo
-                                            
-                    PairX => Me%FirstPartition
-                    
-                    do while (associated(PairX))
-                    
-                        call GetPartitionCoef (PairX, Kd, I, J)
-                    
-                        ChangeOfMass = (PairX%Pair1%Sink + PairX%Pair2%Sink) - (PairX%Pair1%Source + PairX%Pair2%Source) 
-                        
-                        if (PairX%Pair1%Phase .EQ. WaterPhase) then
-                            k1 => Me%Ext%WaterVolume2D
-                        else
-                            k1 => Me%Ext%SoilMass2D
-                        endif
-                        
-                        if (PairX%Pair2%Phase .EQ. WaterPhase) then
-                            k2 => Me%Ext%WaterVolume2D
-                        else
-                            k2 => Me%Ext%SoilMass2D
-                        endif
-
-                        PairX%Pair1%G2D%Concentration(I, J) = - ChangeOfMass / (k1(I, J) + Kd * k2(I, J)) + &
-                                                                PairX%Pair1%G2D%Concentration(I, J)
-                        PairX%Pair2%G2D%Concentration(I, J) = Kd * PairX%Pair1%G2D%Concentration(I, J) 
-                    
-                        PairX => PairX%Next
-                    
-                    enddo
-
-
-                    PropertyX => Me%FirstProperty
-                    
-                    do while (associated(PropertyX))
-                        
-                        if (.NOT. PropertyX%NewConcCalculated) then
-                        
-                            PropertyX%NewMass = PropertyX%Mass + PropertyX%Source - PropertyX%Sink
-                            
-                            if (PropertyX%Phase .EQ. WaterPhase) then
-                                PropertyX%G2D%Concentration(I, J) = PropertyX%NewMass / Me%Ext%WaterVolume2D(I, J)
-                            else
-                                PropertyX%G2D%Concentration(I, J) = PropertyX%NewMass / Me%Ext%SoilMass2D(I, J)
-                            endif
-                        
-                        endif
-                        
-                        call ResetMass(PropertyX)
-                                                
-                        PropertyX => PropertyX%Next
-                        
-                    enddo
-
-                endif 
-            
-            enddo
-            enddo
-                                      
-            call UnGetBasin (Me%ObjBasinGeometry, Me%Ext%WaterPoints2D, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) &
-                stop 'ModifyChainReactions2D - ModuleChainReactions - ERR030'                    
-                                                         
-            STAT_CALL = SUCCESS_
-            
-        else              
-         
-            STAT_CALL = ready_
-            
-        end if 
-
-        if (present(STAT)) STAT = STAT_CALL
-        !--------------------------------------------------------------------------------------------------------------------------
-
-    end subroutine ModifyChainReactions2D
-    !------------------------------------------------------------------------------------------------------------------------------
+!    subroutine ModifyChainReactions2D (ChainReactionsID, &
+!                                       WaterVolume,      &
+!                                       DT,               &
+!                                       SoilMass,         &                                       
+!                                       STAT)  
+!
+!        !Arguments-----------------------------------------------------------------------------------------------------------------
+!        integer                                 :: ChainReactionsID
+!        real, pointer, dimension(:,:)           :: WaterVolume      !L
+!        real                                    :: DT
+!        real, pointer, dimension(:,:), optional :: SoilMass         !kg
+!        integer, optional,  intent(OUT)         :: STAT
+!
+!        !Local---------------------------------------------------------------------------------------------------------------------
+!        integer                         :: STAT_CALL
+!        integer                         :: I, J  
+!        integer                         :: ILB,IUB
+!        integer                         :: JLB,JUB
+!        integer                         :: ready_
+!        type(T_Property), pointer       :: PropertyX
+!        type(T_Property), pointer       :: Product
+!!        real                            :: ChangeOfMass
+!        real                            :: MassLost_w0, MassLost_w1
+!        real                            :: MassLost_s0, MassLost_s1
+!        real                            :: SoilMassLost
+!        real                            :: SolidMass
+!        real                            :: NewMass
+!
+!        !Begin---------------------------------------------------------------------------------------------------------------------
+!        STAT_CALL = UNKNOWN_
+!
+!        call Ready(ChainReactionsID, ready_)
+!
+!        if (ready_ .EQ. IDLE_ERR_) then
+!
+!            call ActualizePropertiesFromFile
+!
+!            Me%Ext%Theta2D => WaterContent
+!            if (present(SoilDensity)) Me%Ext%SoilDensity2D => SoilDensity
+!                        
+!            !Get water points
+!            call GetBasinPoints (Me%ObjMap, Me%Ext%WaterPoints2D, STAT = STAT_CALL)        
+!            if (STAT_CALL /= SUCCESS_) &
+!                stop 'ModifyChainReactions3D - ModuleChainReactions - ERR010'
+!            
+!            do I = Me%WorkSize%ILB, Me%WorkSize%IUB
+!            do J = Me%WorkSize%JLB, Me%WorkSize%JUB
+!                                
+!                if (Me%Ext%WaterPoints2D(I, J) .EQ. WaterPoint) then
+!
+!                    theta = WaterContent (I, J) 
+!                    
+!                    PropertyX => Me%FirstProperty                    
+!                    do while (associated(PropertyX))                        
+!                        
+!                        if (PropertyX%Soil%Kd%Evolution /= NoEvolution) then
+!                            mass = PropertyX%Concentration%Values3D(I, J) * theta +          &
+!                                   PropertyX%Soil%Mass%Values3D(I, J, K)
+!                        
+!                            PropertyX%Concentration%Values3D(I, J, K) =                         &
+!                                    mass /                                                      &      
+!                                    (theta + SoilDensity(I, J, K) * 0.001 *                     &
+!                                    PropertyX%Soil%Kd%Values3D(I, J, K))                                    
+!
+!                            PropertyX%Soil%Mass%Values3D(I, J, K)     =                         &
+!                                    PropertyX%Concentration%Values3D(I, J, K) *                 &
+!                                    PropertyX%Soil%Kd%Values3D(I, J, K) *                       & 
+!                                    SoilDensity(I, J, K) * 0.001                                                            
+!                        endif
+!                                                
+!                        PropertyX => PropertyX%Next                        
+!                    enddo
+!
+!                    PropertyX => Me%FirstProperty                                                                              
+!                    do while (associated(PropertyX))
+!                    
+!                        PropertyX%Calc%OldMass = PropertyX%Concentration%Values3D(I, J, K) * theta
+!                                               
+!                        if (PropertyX%Soil%Kd%Evolution .NE. NoEvolution) then
+!                            if (.NOT. present(SoilDensity)) &                            
+!                                stop 'ModifyChainReactions3D - ModuleChainReactions - ERR020' 
+!                                                           
+!                            PropertyX%Calc%OldSoilMass = PropertyX%Soil%Mass%Values3D (I, J, K)
+!                        else
+!                            PropertyX%Calc%OldSoilMass = 0.0
+!                        endif
+!                                                
+!                        if (associated(PropertyX%Product)) then
+!                                                                                                                                                     
+!                            Product => PropertyX%Product
+!                                                        
+!                            if (PropertyX%Sink%Water_1%Evolution /= NoEvolution) then
+!                                MassLost_w1 = PropertyX%Calc%OldMass - PropertyX%Calc%OldMass * &
+!                                              exp(-PropertyX%Sink%Water_1%Values3D(I, J, K) * DT / 86400)
+!                            else
+!                                MassLost_w1 = 0.0
+!                            endif
+!                                
+!
+!                            if (PropertyX%Sink%Soil_1%Evolution /= NoEvolution) then
+!                                MassLost_s1 = PropertyX%Calc%OldSoilMass - PropertyX%Calc%OldSoilMass * &
+!                                              exp(-PropertyX%Sink%Soil_1%Values3D(I, J, K) * DT / 86400)
+!                            else
+!                                MassLost_s1 = 0.0
+!                            endif
+!                                          
+!                            PropertyX%Calc%SoilMassLost = min(MassLost_s1, PropertyX%Calc%OldSoilMass)                                                                                                                
+!                            PropertyX%Calc%MassLost     = min(MassLost_w1, PropertyX%Calc%OldMass)
+!                            
+!                            Product%Calc%MassGained = Product%Calc%MassGained + PropertyX%Calc%MassLost + &
+!                                                      PropertyX%Calc%SoilMassLost
+!                        endif                                                
+!                                                
+!                        PropertyX => PropertyX%Next                                 
+!                        
+!                    enddo
+!                        
+!                    PropertyX => Me%FirstProperty
+!                    
+!                    do while (associated(PropertyX))                        
+!                        
+!                        if (PropertyX%Soil%Kd%Evolution /= NoEvolution) then
+!                            PropertyX%Concentration%Values3D(I, J, K) =                         &
+!                                    PropertyX%Concentration%Values3D(I, J, K) +                 &
+!                                    (PropertyX%Calc%MassGained - (PropertyX%Calc%MassLost +     &
+!                                    PropertyX%Calc%SoilMassLost)) /                             &      
+!                                    (theta + SoilDensity(I, J, K) * 0.001 *                     &
+!                                    PropertyX%Soil%Kd%Values3D(I, J, K))                                    
+!
+!                            PropertyX%Soil%Mass%Values3D(I, J, K)     =                         &
+!                                    PropertyX%Concentration%Values3D(I, J, K) *                 &
+!                                    PropertyX%Soil%Kd%Values3D(I, J, K) *                       & 
+!                                    SoilDensity(I, J, K) * 0.001                                    
+!                        else            
+!                            PropertyX%Concentration%Values3D(I, J, K) =                         &
+!                                    (PropertyX%Calc%OldMass + PropertyX%Calc%MassGained -       &
+!                                    PropertyX%Calc%MassLost) / theta                          
+!                        endif
+!                                                       
+!                        call ResetCalculatedValues(PropertyX)
+!                                                
+!                        PropertyX => PropertyX%Next                        
+!                    enddo
+!
+!                endif 
+!                                      
+!            enddo
+!            enddo
+!            enddo
+!                                      
+!            call UnGetMap (Me%ObjMap, Me%Ext%WaterPoints3D, STAT = STAT_CALL)
+!            if (STAT_CALL /= SUCCESS_) &
+!                stop 'ModifyChainReactions3D - ModuleChainReactions - ERR030'                    
+!                                                         
+!            STAT_CALL = SUCCESS_
+!            
+!        else              
+!         
+!            STAT_CALL = ready_
+!            
+!        end if 
+!
+!        if (present(STAT)) STAT = STAT_CALL
+!        !--------------------------------------------------------------------------------------------------------------------------
+!
+!    end subroutine ModifyChainReactions2D
+!    !------------------------------------------------------------------------------------------------------------------------------
 
 
     !------------------------------------------------------------------------------------------------------------------------------
     subroutine ModifyChainReactions3D (ChainReactionsID, &
-                                       WaterVolume,      &
-                                       SoilMass,         &
+                                       WaterContent,     &
                                        DT,               &
+                                       SoilDensity,      &
                                        STAT)  
 
         !Arguments-----------------------------------------------------------------------------------------------------------------
         integer                                     :: ChainReactionsID
-        real, pointer, dimension(:,:,:)             :: WaterVolume
-        real, pointer, dimension(:,:,:), optional   :: SoilMass
+        real, pointer, dimension(:,:,:)             :: WaterContent
         real                                        :: DT
+        real, pointer, dimension(:,:,:), optional   :: SoilDensity
         integer, optional,  intent(OUT)             :: STAT
 
         !Local---------------------------------------------------------------------------------------------------------------------
         integer                         :: STAT_CALL
-        integer                         :: I, J, K  
-        integer                         :: ILB, IUB
-        integer                         :: JLB, JUB
-        integer                         :: KLB, KUB
+        integer                         :: I, J, K 
         integer                         :: ready_
-        type(T_Property), pointer       :: PropertyX, ProductX
-        type(T_Partition), pointer      :: PairX
-        real, pointer, dimension(:,:,:) :: k1, k2
-        real                            :: ChangeOfMass
-        real                            :: Kd
-        real                            :: SinkRate
+        type(T_Property), pointer       :: PropertyX
+        type(T_Property), pointer       :: Product
+        
+        real                            :: theta
+!        real                            :: soil_density
+!        real                            :: soil_kd
+        
+        real                            :: MassLost_w1
+        real                            :: MassLost_s1
+        
+!        real                            :: soil_conc
+        
+        real                            :: mass
 
         !Begin---------------------------------------------------------------------------------------------------------------------             
         STAT_CALL = UNKNOWN_
@@ -2051,144 +2302,125 @@ cd1:    if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
 
         if (ready_ .EQ. IDLE_ERR_) then
 
-            ILB = Me%WorkSize%ILB
-            IUB = Me%WorkSize%IUB
-            JLB = Me%WorkSize%JLB
-            JUB = Me%WorkSize%JUB
-            KLB = Me%WorkSize%KLB
-            KUB = Me%WorkSize%KUB
-
             call ActualizePropertiesFromFile
 
-            Me%Ext%WaterVolume3D => WaterVolume
-            if (present(SoilMass)) Me%Ext%SoilMass3D => SoilMass
+            Me%Ext%Theta3D => WaterContent
+            if (present(SoilDensity)) Me%Ext%SoilDensity3D => SoilDensity
                         
             !Get water points
             call GetWaterPoints3D (Me%ObjMap, Me%Ext%WaterPoints3D, STAT = STAT_CALL)        
             if (STAT_CALL /= SUCCESS_) &
-                stop 'ModifyChainReactions2D - ModuleChainReactions - ERR010'
+                stop 'ModifyChainReactions3D - ModuleChainReactions - ERR010'
             
-            do I = ILB, IUB
-            do J = JLB, JUB
-            do K = KLB, KUB
+            do I = Me%WorkSize%ILB, Me%WorkSize%IUB
+            do J = Me%WorkSize%JLB, Me%WorkSize%JUB
+            do K = Me%WorkSize%KLB, Me%WorkSize%KUB
                                 
                 if (Me%Ext%WaterPoints3D(I, J, K) .EQ. WaterPoint) then
-                            
-                    PropertyX => Me%FirstProperty
+
+                    theta = WaterContent (I, J, K) 
                     
-                    do while (associated(PropertyX))
-                                                
-                        if (PropertyX%Phase .EQ. WaterPhase) then
-                            PropertyX%Mass = PropertyX%G3D%Concentration(I, J, K) * Me%Ext%WaterVolume3D(i, j, K)
-                        else
-                            PropertyX%Mass = PropertyX%G3D%Concentration(I, J, K) * Me%Ext%SoilMass3D(I, J, K)
+                    PropertyX => Me%FirstProperty                    
+                    do while (associated(PropertyX))                        
+                        
+                        if (PropertyX%Soil%Kd%Evolution /= NoEvolution) then
+                            mass = PropertyX%Concentration%Values3D(I, J, K) * theta +          &
+                                   PropertyX%Soil%Mass%Values3D(I, J, K)
+                        
+                            PropertyX%Concentration%Values3D(I, J, K) =                         &
+                                    mass /                                                      &      
+                                    (theta + SoilDensity(I, J, K) * 0.001 *                     &
+                                    PropertyX%Soil%Kd%Values3D(I, J, K))                                    
+
+                            PropertyX%Soil%Mass%Values3D(I, J, K)     =                         &
+                                    PropertyX%Concentration%Values3D(I, J, K) *                 &
+                                    PropertyX%Soil%Kd%Values3D(I, J, K) *                       & 
+                                    SoilDensity(I, J, K) * 0.001                                                            
                         endif
-                                                 
-                        if (.NOT. PropertyX%IsOnlyProduct) then
-                                               
-                            ProductX => PropertyX%Product
-                            
-                            call GetSinkRate(PropertyX, SinkRate, I, J, K)
-                                                    
-                            if (PropertyX%RateOrder .EQ. ZeroOrder) then
-                                                 
-                                if (PropertyX%Phase .EQ. WaterPhase) then        
-                                                                                               
-                                    PropertyX%Sink = min(SinkRate * Me%Ext%WaterVolume3D(I, J, K) * DT / 86400, PropertyX%Mass)
-                                    
-                                else
-                                
-                                    PropertyX%Sink = min(SinkRate * Me%Ext%SoilMass3D(I, J, K) * DT / 86400, PropertyX%Mass)
-                                
-                                endif
-                                
-                            elseif (PropertyX%RateOrder .EQ. FirstOrder) then
-                            
-                                select case (PropertyX%RateMethod)
-                                
-                                case (RateDefault)
-                                
-                                    PropertyX%Sink = min(PropertyX%Mass - PropertyX%Mass * &
-                                                         exp(-SinkRate * DT / 86400), PropertyX%Mass)
-                                                         
-                                case (RateAlternative)
-                                
-                                    PropertyX%Sink = min(PropertyX%Mass - PropertyX%Mass * &
-                                                        ((1 - SinkRate) ** (DT / 86400)), PropertyX%Mass)
-                                                        
-                                end select
-                                
-                            endif
-                                                    
-                            !     mg        =       mg                 mg      
-                            ProductX%Source = ProductX%Source + PropertyX%Sink
                                                 
+                        PropertyX => PropertyX%Next                        
+                    enddo
+
+                    PropertyX => Me%FirstProperty                                                                              
+                    do while (associated(PropertyX))
+                    
+                        PropertyX%Calc%OldMass = PropertyX%Concentration%Values3D(I, J, K) * theta
+                                               
+                        if (PropertyX%Soil%Kd%Evolution .NE. NoEvolution) then
+                            if (.NOT. present(SoilDensity)) &                            
+                                stop 'ModifyChainReactions3D - ModuleChainReactions - ERR020' 
+                                                           
+                            PropertyX%Calc%OldSoilMass = PropertyX%Soil%Mass%Values3D (I, J, K)
+                        else
+                            PropertyX%Calc%OldSoilMass = 0.0
+                        endif
+                                                
+                        if (associated(PropertyX%Product)) then
+
+                            Product => PropertyX%Product
+                                                        
+                            if (PropertyX%Sink%Water_1%Evolution /= NoEvolution) then
+                                MassLost_w1 = PropertyX%Calc%OldMass - PropertyX%Calc%OldMass * &
+                                              exp(-PropertyX%Sink%Water_1%Values3D(I, J, K) * DT / 86400)
+                            else
+                                MassLost_w1 = 0.0
+                            endif
+                                
+
+                            if (PropertyX%Sink%Soil_1%Evolution /= NoEvolution) then
+                                MassLost_s1 = PropertyX%Calc%OldSoilMass - PropertyX%Calc%OldSoilMass * &
+                                              exp(-PropertyX%Sink%Soil_1%Values3D(I, J, K) * DT / 86400)
+                            else
+                                MassLost_s1 = 0.0
+                            endif
+                                          
+                            PropertyX%Calc%SoilMassLost = min(MassLost_s1, PropertyX%Calc%OldSoilMass)
+                            PropertyX%Calc%MassLost     = min(MassLost_w1, PropertyX%Calc%OldMass)
+                            
+                            Product%Calc%MassGained = Product%Calc%MassGained + PropertyX%Calc%MassLost + &
+                                                      PropertyX%Calc%SoilMassLost
                         endif                                                
                                                 
-                        PropertyX => PropertyX%Next
+                        PropertyX => PropertyX%Next                                 
                         
                     enddo
-                                            
-                    PairX => Me%FirstPartition
-                    
-                    do while (associated(PairX))
-                    
-                        call GetPartitionCoef (PairX, Kd, I, J, K)
-                    
-                        ChangeOfMass = (PairX%Pair1%Sink + PairX%Pair2%Sink) - (PairX%Pair1%Source + PairX%Pair2%Source) 
                         
-                        if (PairX%Pair1%Phase .EQ. WaterPhase) then
-                            k1 => Me%Ext%WaterVolume3D
-                        else
-                            k1 => Me%Ext%SoilMass3D
-                        endif
-                        
-                        if (PairX%Pair2%Phase .EQ. WaterPhase) then
-                            k2 => Me%Ext%WaterVolume3D
-                        else
-                            k2 => Me%Ext%SoilMass3D
-                        endif
-
-                        PairX%Pair1%G3D%Concentration(I, J, K) = - ChangeOfMass / (k1(I, J, K) + Kd * k2(I, J, K)) + &
-                                                                   PairX%Pair1%G3D%Concentration(I, J, K)
-                        PairX%Pair2%G3D%Concentration(I, J, K) = Kd * PairX%Pair1%G3D%Concentration(I, J, K) 
-                    
-                        PairX => PairX%Next
-                    
-                    enddo
-
-
                     PropertyX => Me%FirstProperty
                     
-                    do while (associated(PropertyX))
+                    do while (associated(PropertyX))                        
                         
-                        if (.NOT. PropertyX%NewConcCalculated) then
-                        
-                            PropertyX%NewMass = PropertyX%Mass + PropertyX%Source - PropertyX%Sink
-                            
-                            if (PropertyX%Phase .EQ. WaterPhase) then
-                                PropertyX%G3D%Concentration(I, J, K) = PropertyX%NewMass / Me%Ext%WaterVolume3D(I, J, K)
-                            else
-                                PropertyX%G3D%Concentration(I, J, K) = PropertyX%NewMass / Me%Ext%SoilMass3D(I, J, K)
-                            endif
-                        
+                        if (PropertyX%Soil%Kd%Evolution /= NoEvolution) then
+                            PropertyX%Concentration%Values3D(I, J, K) =                         &
+                                    PropertyX%Concentration%Values3D(I, J, K) +                 &
+                                    (PropertyX%Calc%MassGained - (PropertyX%Calc%MassLost +     &
+                                    PropertyX%Calc%SoilMassLost)) /                             &      
+                                    (theta + SoilDensity(I, J, K) * 0.001 *                     &
+                                    PropertyX%Soil%Kd%Values3D(I, J, K))                                    
+
+                            PropertyX%Soil%Mass%Values3D(I, J, K)     =                         &
+                                    PropertyX%Concentration%Values3D(I, J, K) *                 &
+                                    PropertyX%Soil%Kd%Values3D(I, J, K) *                       & 
+                                    SoilDensity(I, J, K) * 0.001                                    
+                        else            
+                            PropertyX%Concentration%Values3D(I, J, K) =                         &
+                                    (PropertyX%Calc%OldMass + PropertyX%Calc%MassGained -       &
+                                    PropertyX%Calc%MassLost) / theta                          
                         endif
-                        
-                        call ResetMass(PropertyX)
+                                                       
+                        call ResetCalculatedValues(PropertyX)
                                                 
-                        PropertyX => PropertyX%Next
-                        
+                        PropertyX => PropertyX%Next                        
                     enddo
 
                 endif 
-            
+                                      
             enddo
             enddo
             enddo
                                       
             call UnGetMap (Me%ObjMap, Me%Ext%WaterPoints3D, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) &
-                stop 'ModifyChainReactions3D - ModuleChainReactions - ERR020'                    
+                stop 'ModifyChainReactions3D - ModuleChainReactions - ERR030'                    
                                                          
             STAT_CALL = SUCCESS_
             
@@ -2210,7 +2442,7 @@ cd1:    if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
     
         !Local---------------------------------------------------------------------------------------------------------------------
         type(T_Property), pointer   :: PropertyX 
-        type(T_Partition), pointer  :: PartitionX
+!        type(T_Partition), pointer  :: PartitionX
         integer                     :: STAT_CALL   
         
         !Begin---------------------------------------------------------------------------------------------------------------------    
@@ -2218,122 +2450,158 @@ cd1:    if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
 
         do while (associated(PropertyX))
 
-            if ((PropertyX%SinkEvolution .EQ. VariableSink) .AND. (PropertyX%ID%SolutionFromFile)) then
+            if (PropertyX%Sink%Water_0%Evolution .EQ. VariableEvolution) then            
+                if (Me%GeometryType .EQ. Geometry3D) then
+                    call ModifyFillMatrix (FillMatrixID   = PropertyX%ID%ObjFillMatrix,      &
+                                           Matrix3D       = PropertyX%Sink%Water_0%Values3D, &
+                                           PointsToFill3D = Me%Ext%WaterPoints3D,            &
+                                           STAT           = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'ActualizePropertiesFromFile - ModuleChainReactions - ERR010'
+                else
+                    call ModifyFillMatrix (FillMatrixID   = PropertyX%ID%ObjFillMatrix,      &
+                                           Matrix2D       = PropertyX%Sink%Water_0%Values2D, &  
+                                           PointsToFill2D = Me%Ext%WaterPoints2D,            &
+                                           STAT           = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'ActualizePropertiesFromFile - ModuleChainReactions - ERR020'
+                endif                            
+            endif
             
-                if (Me%Options%GeometryType .EQ. Geometry3D) then
+            if (PropertyX%Sink%Water_1%Evolution .EQ. VariableEvolution) then            
+                if (Me%GeometryType .EQ. Geometry3D) then
+                    call ModifyFillMatrix (FillMatrixID   = PropertyX%ID%ObjFillMatrix,      &
+                                           Matrix3D       = PropertyX%Sink%Water_1%Values3D, &
+                                           PointsToFill3D = Me%Ext%WaterPoints3D,            &
+                                           STAT           = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'ActualizePropertiesFromFile - ModuleChainReactions - ERR030'
+                else
+                    call ModifyFillMatrix (FillMatrixID   = PropertyX%ID%ObjFillMatrix,      &
+                                           Matrix2D       = PropertyX%Sink%Water_1%Values2D, &  
+                                           PointsToFill2D = Me%Ext%WaterPoints2D,            &
+                                           STAT           = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'ActualizePropertiesFromFile - ModuleChainReactions - ERR040'
+                endif                            
+            endif
+                        
+            if (PropertyX%Sink%Soil_0%Evolution .EQ. VariableEvolution) then            
+                if (Me%GeometryType .EQ. Geometry3D) then
+                    call ModifyFillMatrix (FillMatrixID   = PropertyX%ID%ObjFillMatrix,     &
+                                           Matrix3D       = PropertyX%Sink%Soil_0%Values3D, &
+                                           PointsToFill3D = Me%Ext%WaterPoints3D,           &
+                                           STAT           = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'ActualizePropertiesFromFile - ModuleChainReactions - ERR010'
+                else
+                    call ModifyFillMatrix (FillMatrixID   = PropertyX%ID%ObjFillMatrix,     &
+                                           Matrix2D       = PropertyX%Sink%Soil_0%Values2D, &  
+                                           PointsToFill2D = Me%Ext%WaterPoints2D,           &
+                                           STAT           = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'ActualizePropertiesFromFile - ModuleChainReactions - ERR020'
+                endif  
+            endif          
+                
+            if (PropertyX%Sink%Soil_1%Evolution .EQ. VariableEvolution) then            
+                if (Me%GeometryType .EQ. Geometry3D) then
+                    call ModifyFillMatrix (FillMatrixID   = PropertyX%ID%ObjFillMatrix,     &
+                                           Matrix3D       = PropertyX%Sink%Soil_1%Values3D, &
+                                           PointsToFill3D = Me%Ext%WaterPoints3D,           &
+                                           STAT           = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'ActualizePropertiesFromFile - ModuleChainReactions - ERR010'
+                else
+                    call ModifyFillMatrix (FillMatrixID   = PropertyX%ID%ObjFillMatrix,     &
+                                           Matrix2D       = PropertyX%Sink%Soil_1%Values2D, &  
+                                           PointsToFill2D = Me%Ext%WaterPoints2D,           &
+                                           STAT           = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'ActualizePropertiesFromFile - ModuleChainReactions - ERR020'
+                endif                                   
+            endif             
+            
+            if (PropertyX%Soil%Kd%Evolution .EQ. VariableEvolution) then            
+                if (Me%GeometryType .EQ. Geometry3D) then
                     call ModifyFillMatrix (FillMatrixID   = PropertyX%ID%ObjFillMatrix, &
-                                           Matrix3D       = PropertyX%G3D%SinkRate,     &
+                                           Matrix3D       = PropertyX%Soil%Kd%Values3D, &
                                            PointsToFill3D = Me%Ext%WaterPoints3D,       &
                                            STAT           = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'ActualizePropertiesFromFile - ModuleChainReactions - ERR010'
                 else
                     call ModifyFillMatrix (FillMatrixID   = PropertyX%ID%ObjFillMatrix, &
-                                           Matrix2D       = PropertyX%G2D%SinkRate,     &       
+                                           Matrix2D       = PropertyX%Soil%Kd%Values2D, &  
                                            PointsToFill2D = Me%Ext%WaterPoints2D,       &
                                            STAT           = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'ActualizePropertiesFromFile - ModuleChainReactions - ERR020'
-                endif
-                            
-            endif
-            
+                endif                                   
+            endif        
+                                   
             PropertyX => PropertyX%Next
             
-        enddo    
-        
-        PartitionX => Me%FirstPartition
-
-        do while (associated(PartitionX))
-
-            if ((PartitionX%PartitionEvolution .EQ. VariablePartition) .AND. (PropertyX%ID%SolutionFromFile)) then
-            
-                if (Me%Options%GeometryType .EQ. Geometry3D) then
-                    call ModifyFillMatrix (FillMatrixID   = PartitionX%ID%ObjFillMatrix,    &
-                                           Matrix3D       = PartitionX%G3D%PartitionCoef,   &
-                                           PointsToFill3D = Me%Ext%WaterPoints3D,           &
-                                           STAT           = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'ActualizePropertiesFromFile - ModuleChainReactions - ERR030'
-                else
-                    call ModifyFillMatrix (FillMatrixID   = PartitionX%ID%ObjFillMatrix,    &
-                                           Matrix2D       = PartitionX%G2D%PartitionCoef,   &
-                                           PointsToFill2D = Me%Ext%WaterPoints2D,           &
-                                           STAT           = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'ActualizePropertiesFromFile - ModuleChainReactions - ERR040'
-                endif
-                            
-            endif
-            
-            PartitionX => PartitionX%Next
-            
-        enddo            
+        enddo             
         !--------------------------------------------------------------------------------------------------------------------------    
     
     end subroutine ActualizePropertiesFromFile    
     !------------------------------------------------------------------------------------------------------------------------------    
 
 
-    !------------------------------------------------------------------------------------------------------------------------------    
-    subroutine GetSinkRate (PropertyX, SinkRate, I, J, K)
-    
-        !Arguments-----------------------------------------------------------------------------------------------------------------
-        type(T_Property), pointer   :: PropertyX
-        real                        :: SinkRate
-        integer                     :: I, J
-        integer, optional           :: K
-    
-        !Begin---------------------------------------------------------------------------------------------------------------------
-        if (PropertyX%SinkEvolution .EQ. ConstantSink) then
-        
-            SinkRate = PropertyX%SinkRate
-            
-        else
-        
-            if (present(K)) then
-            
-                SinkRate = PropertyX%G3D%SinkRate(I, J, K)
-            
-            else
-            
-                SinkRate = PropertyX%G2D%SinkRate(I, J)
-            
-            endif
-        
-        endif
-        !--------------------------------------------------------------------------------------------------------------------------    
-        
-    end subroutine GetSinkRate
-    !------------------------------------------------------------------------------------------------------------------------------    
+!    !------------------------------------------------------------------------------------------------------------------------------    
+!    subroutine GetSinkRate (PropertyX, SinkRate, I, J, K)
+!    
+!        !Arguments-----------------------------------------------------------------------------------------------------------------
+!        type(T_Property), pointer   :: PropertyX
+!        real                        :: SinkRate
+!        integer                     :: I, J
+!        integer, optional           :: K
+!    
+!        !Begin---------------------------------------------------------------------------------------------------------------------
+!        if (PropertyX%SinkEvolution .EQ. ConstantSink) then
+!        
+!            SinkRate = PropertyX%SinkRate
+!            
+!        else
+!        
+!            if (present(K)) then
+!            
+!                SinkRate = PropertyX%G3D%SinkRate(I, J, K)
+!            
+!            else
+!            
+!                SinkRate = PropertyX%G2D%SinkRate(I, J)
+!            
+!            endif
+!        
+!        endif
+!        !--------------------------------------------------------------------------------------------------------------------------    
+!        
+!    end subroutine GetSinkRate
+!    !------------------------------------------------------------------------------------------------------------------------------    
 
         
-    !------------------------------------------------------------------------------------------------------------------------------    
-    subroutine GetPartitionCoef (PartitionX, PartitionCoef, I, J, K)
-    
-        !Arguments-----------------------------------------------------------------------------------------------------------------
-        type(T_Partition), pointer  :: PartitionX
-        real                        :: PartitionCoef
-        integer                     :: I, J
-        integer, optional           :: K
-    
-        !Begin---------------------------------------------------------------------------------------------------------------------
-        if (PartitionX%PartitionEvolution .EQ. ConstantPartition) then
-        
-            PartitionCoef = PartitionX%PartitionCoef
-            
-        else
-        
-            if (present(K)) then
-            
-                PartitionCoef = PartitionX%G3D%PartitionCoef(I, J, K)
-            
-            else
-            
-                PartitionCoef = PartitionX%G2D%PartitionCoef(I, J)
-            
-            endif
-        
-        endif
-        !--------------------------------------------------------------------------------------------------------------------------    
-        
-    end subroutine GetPartitionCoef
+!    !------------------------------------------------------------------------------------------------------------------------------    
+!    subroutine GetPartitionCoef (PartitionX, PartitionCoef, I, J, K)
+!    
+!        !Arguments-----------------------------------------------------------------------------------------------------------------
+!!        type(T_Partition), pointer  :: PartitionX
+!        real                        :: PartitionCoef
+!        integer                     :: I, J
+!        integer, optional           :: K
+!    
+!        !Begin---------------------------------------------------------------------------------------------------------------------
+!        if (PartitionX%PartitionEvolution .EQ. ConstantPartition) then
+!        
+!            PartitionCoef = PartitionX%PartitionCoef
+!            
+!        else
+!        
+!            if (present(K)) then
+!            
+!                PartitionCoef = PartitionX%G3D%PartitionCoef(I, J, K)
+!            
+!            else
+!            
+!                PartitionCoef = PartitionX%G2D%PartitionCoef(I, J)
+!            
+!            endif
+!        
+!        endif
+!        !--------------------------------------------------------------------------------------------------------------------------    
+!        
+!    end subroutine GetPartitionCoef
     
     
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -2358,7 +2626,7 @@ cd1:    if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
         integer                         :: STAT_CALL
         integer                         :: nUsers 
         type(T_Property), pointer       :: PropertyX
-        type(T_Partition), pointer      :: PartitionX
+!        type(T_Partition), pointer      :: PartitionX
 
         !------------------------------------------------------------------------                      
 
@@ -2374,7 +2642,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
             
             do while (associated(PropertyX)) 
             
-                if((PropertyX%SinkEvolution .EQ. VariableSink) .AND. PropertyX%ID%SolutionFromFile) then
+                if(PropertyX%ID%SolutionFromFile) then
 
                     call KillFillMatrix(PropertyX%ID%ObjFillMatrix, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_)&
@@ -2382,21 +2650,6 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                 end if
                 
                 PropertyX => PropertyX%Next
-                
-            end do 
-
-            PartitionX => Me%FirstPartition
-            
-            do while (associated(PartitionX)) 
-                 
-                if((PartitionX%PartitionEvolution .EQ. VariablePartition) .AND. PartitionX%ID%SolutionFromFile) then
-
-                    call KillFillMatrix(PartitionX%ID%ObjFillMatrix, STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_)&
-                        stop 'KillChainReactions - ModuleChainReactions - ERR020'
-                end if
-
-                PartitionX => PartitionX%Next
                 
             end do 
 

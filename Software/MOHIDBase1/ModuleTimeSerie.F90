@@ -189,6 +189,8 @@ Module ModuleTimeSerie
         integer                                     :: ObjTime          = 0
 
         type (T_TimeSerieInOutPut), pointer         :: Next
+        
+        logical                                     :: UseTabulatedData = .true.
 
     end type T_TimeSerieInOutPut
 
@@ -212,7 +214,7 @@ Module ModuleTimeSerie
     subroutine StartTimeSerie(TimeSerieID, ObjTime,                                      &
                               TimeSerieDataFile, PropertyList, Extension, WaterPoints3D, &
                               WaterPoints2D, WaterPoints1D, ResultFileName, Instance,    &
-                              ModelName, CoordX, CoordY, STAT)
+                              ModelName, CoordX, CoordY, UseTabulatedData, STAT)
 
         !Arguments-------------------------------------------------------------
         integer                                     :: TimeSerieID
@@ -228,7 +230,8 @@ Module ModuleTimeSerie
         character(len=*), optional, intent(IN )     :: ModelName
         real, optional                              :: CoordX
         real, optional                              :: CoordY        
-        integer, optional,          intent(OUT)     :: STAT
+        logical, optional, intent(IN )              :: UseTabulatedData
+        integer, optional, intent(OUT)              :: STAT        
                                     
         !Local-----------------------------------------------------------------
         integer                                     :: STAT_CALL
@@ -264,6 +267,10 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
             if (present(ModelName)) then
                 Me%ModelName    = ModelName
                 Me%ModelNameON  = .true.
+            endif
+            
+            if (present(UseTabulatedData)) then
+                Me%UseTabulatedData = UseTabulatedData
             endif
             
             !Constructs EnterData
@@ -1243,7 +1250,12 @@ cd1 :       if (present(ResultFileName)) then
                 enddo
             enddo
 
-            write(unit, fmt=1000)(PropertyList(iP), iP = 1, nProp)
+            if (Me%UseTabulatedData) then
+                write(unit, fmt=1000)(trim(PropertyList(iP)), iP = 1, nProp)
+            else
+                write(unit, fmt=2000)(trim(PropertyList(iP)), iP = 1, nProp)
+            endif
+            
             call WriteDataLine(unit, block_begin)
 
             if(Me%ComputeResidual)then
@@ -1254,6 +1266,7 @@ cd1 :       if (present(ResultFileName)) then
        enddo
 
         1000 format(1x,"     Seconds   YY  MM  DD  hh  mm       ss", 2x, 1000(1x, A44))
+        2000 format(1x,"     Seconds   YY  MM  DD  hh  mm       ss", 2x, 1000(1x, A))
 !        1000 format(1x," Seconds    YY   MM  DD  HH  MM  SS", 6x, 1x, 1000(1x, A12))
 
     end subroutine OpenTimeSerieFiles
@@ -2370,19 +2383,24 @@ cd2 :       if (Me%Points) then
                              Day = Day, Hour = Hour, Minute = Minute, Second = Second)
 
 
-
             !Writes time in seconds since the beginning of the output
             !Writes all properties in the buffer in exp format
-            write(unit, fmt=1000) TimeSerie%TimeBuffer(iB) - TimeSerie%BeginOutPut,      &
-                                int(Year), int(Month), int(Day), int(Hour), int(Minute), &
-                                Second,                                                  &
-                                (TimeSerie%TimeSerieData(iP, iB), iP = 1, nProperties)
-
-
+            if (Me%UseTabulatedData) then
+                write(unit, fmt=1000) TimeSerie%TimeBuffer(iB) - TimeSerie%BeginOutPut,      &
+                                    int(Year), int(Month), int(Day), int(Hour), int(Minute), &
+                                    Second,                                                  &
+                                    (TimeSerie%TimeSerieData(iP, iB), iP = 1, nProperties)
+            else
+                write(unit, fmt=2000) TimeSerie%TimeBuffer(iB) - TimeSerie%BeginOutPut,      &
+                                    int(Year), int(Month), int(Day), int(Hour), int(Minute), &
+                                    Second,                                                  &
+                                    (TimeSerie%TimeSerieData(iP, iB), iP = 1, nProperties)
+            endif
 
         enddo
 
     1000 format(1x, f13.2, 1x, i4, 2x, i2, 2x, i2, 2x, i2, 2x, i2, 2x, f7.4, 1x, 1000(24x, e20.12e3))
+    2000 format(1x, f13.2, 1x, i4, 2x, i2, 2x, i2, 2x, i2, 2x, i2, 2x, f7.4, 1x, 1000(1x, e20.12e3))
 
 
     end subroutine WriteBufferToFile

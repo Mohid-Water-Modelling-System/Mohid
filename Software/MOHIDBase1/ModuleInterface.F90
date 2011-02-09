@@ -204,6 +204,7 @@ Module ModuleInterface
         real,    pointer, dimension(:    )      :: WaterVolume  
         real,    pointer, dimension(:    )      :: WaterMass  
         real,    pointer, dimension(:    )      :: SolidMass   
+        integer, pointer, dimension(:    )      :: PhreeqCID
 #endif        
         real,    pointer, dimension(:    )      :: IonicStrength
         real,    pointer, dimension(:    )      :: PhosphorusAdsortionIndex
@@ -267,6 +268,9 @@ Module ModuleInterface
                                     SinksSourcesModel,                     &
                                     DT,PropertiesList,                     &
                                     WaterPoints3D,                         &
+                                    PhreeqCDatabase,                       &
+                                    PhreeqCDatabaseAux,                    &
+                                    PhreeqCModelID,                        &                                 
                                     Size3D,                                &
                                     Vertical1D,                            &
                                     STAT)
@@ -275,9 +279,14 @@ Module ModuleInterface
         integer                                                 :: InterfaceID
         integer                                                 :: TimeID
         character(len=StringLength)                             :: SinksSourcesModel
-        integer, dimension(:    ), pointer                      :: PropertiesList
-        real,   intent (OUT)                                    :: DT
-        integer,                     dimension(:,:,:), pointer  :: WaterPoints3D
+        integer, dimension(:), pointer, optional                :: PropertiesList
+        real, intent (OUT)                                      :: DT
+        integer, dimension(:,:,:), pointer                      :: WaterPoints3D
+        
+        character(LEN=*), optional                              :: PhreeqCDatabase
+        character(LEN=*), optional                              :: PhreeqCDatabaseAux
+        integer, intent(OUT), optional                          :: PhreeqCModelID
+
         type(T_Size3D)                                          :: Size3D
         logical,intent (IN),  optional                          :: Vertical1D
         integer,intent (OUT), optional                          :: STAT     
@@ -310,8 +319,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             Me%SinksSourcesModel            =  SinksSourcesModel
             Me%ExternalVar%WaterPoints3D    => WaterPoints3D
             Me%Size3D                       =  Size3D 
-            Me%Array%ILB                    = 1
-            Me%Array%IUB                    = sum(Me%ExternalVar%WaterPoints3D)
+            Me%Array%ILB                    =  1
+            Me%Array%IUB                    =  sum(Me%ExternalVar%WaterPoints3D)
 
             if (present(Vertical1D)) then
                 Me%ExternalVar%Vertical1D = Vertical1D
@@ -323,11 +332,19 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             !Path to data file
             call ReadInterfaceFilesName
 
-            !Start sinks and sources model
-            call StartSinksSourcesModel(DT)
+            
+            call StartSinksSourcesModel(DT, PhreeqCDatabase, PhreeqCDatabaseAux, PhreeqCModelID)
 
-            !Verify compute options
-            call Check_Options(PropertiesList)
+!            !Start sinks and sources model
+!            call StartSinksSourcesModel(DT)
+
+            !Verify model DT's
+            call CheckDT
+
+            if (present(PropertiesList)) then
+                !Verify compute options
+                call Check_Options(PropertiesList)
+            endif
 
             !Allocate variables global to whole module
             call AllocateVariables
@@ -409,6 +426,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             !Start sinks and sources model
             call StartSinksSourcesModel(DT)
  
+             !Verify model DT's
+            call CheckDT
+
             !Verify compute options
             call Check_Options(PropertiesList)
 
@@ -490,6 +510,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
             !Start sinks and sources model
             call StartSinksSourcesModel(DT)
+
+            !Verify model DT's
+            call CheckDT
 
             !Verify compute options
             call Check_Options(PropertiesList)
@@ -813,7 +836,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR29B'
                 
                 allocate (Me%SolidMass(ArrayLB:ArrayUB), STAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR29C'                
+                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR29C'
+                
+                allocate (Me%PhreeqCID(ArrayLB:ArrayUB), STAT = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR29D'
 
                 Me%WaterVolume  = FillValueReal
                 Me%WaterMass    = FillValueReal
@@ -821,6 +847,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 Me%pE           = FillValueReal
                 Me%Temperature  = FillValueReal
                 Me%SolidMass    = FillValueReal
+                Me%PhreeqCID    = 0
 #endif
 
             case default
@@ -946,10 +973,14 @@ cd1 :           if(STAT_CALL .EQ. KEYWORD_NOT_FOUND_ERR_) then
 
     !--------------------------------------------------------------------------
     
-    subroutine StartSinksSourcesModel (DT)
+    subroutine StartSinksSourcesModel (DT, PhreeqCDatabase, PhreeqCDatabaseAux, PhreeqCModelID)
 
         !Arguments-------------------------------------------------------------
         real, intent(OUT)                       :: DT
+        character(LEN=*), optional              :: PhreeqCDatabase
+        character(LEN=*), optional              :: PhreeqCDatabaseAux
+        integer, intent(INOUT), optional        :: PhreeqCModelID
+
         
         !External--------------------------------------------------------------
         integer                                 :: STAT_CALL
@@ -1179,23 +1210,19 @@ cd1 :           if(STAT_CALL .EQ. KEYWORD_NOT_FOUND_ERR_) then
             case (PhreeqCModel)
             
                 !Construct PhreeqC Model
-                call StartPhreeqC (Me%ObjPhreeqC, FileName = Me%FileName, STAT = STAT_CALL)
+                call StartPhreeqC (Me%ObjPhreeqC,                    &
+                                   FileName    = Me%FileName,        &
+                                   Database    = PhreeqCDatabase,    &
+                                   DatabaseAux = PhreeqCDatabaseAux, &
+                                   STAT = STAT_CALL)
                     
-                !ToDo: Because I don't know the number of properties, maybe this is inappropriated               
-                !Get number of properties involved
-!                call GetPhreeqCSize(Me%ObjPhreeqC,   &
-!                                    PropLB = PropLB, &
-!                                    PropUB = PropUB, &
-!                                    STAT   = STAT_CALL)
-!                if (STAT_CALL /= SUCCESS_) stop 'StartSinksSourcesModel - ModuleInterface - ERR21'
-!                
-!                !Store number of properties involved
-!                Me%Prop%ILB = PropLB
-!                Me%Prop%IUB = PropUB
-
                 call GetPhreeqCDT(Me%ObjPhreeqC, DTSecond = DT, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'StartSinksSourcesModel - ModuleInterface - ERR22'
-                
+                 
+                if (present(PhreeqCModelID)) then
+                    PhreeqCModelID = Me%ObjPhreeqC
+                endif
+                                
 #endif
             case default
                 write(*,*) 
@@ -1212,13 +1239,107 @@ cd1 :           if(STAT_CALL .EQ. KEYWORD_NOT_FOUND_ERR_) then
     !--------------------------------------------------------------------------
      
 
+    subroutine CheckDT
+    
+        !Local-----------------------------------------------------------------
+        real                                                 :: error_aux, aux_factor 
+        real                                                 :: run_period, dt_lag
+        character(256)                                       :: model_name
+        real                                                 :: dt
+        type(T_Time)                                         :: end_time
+        integer                                              :: status
+        
+        !----------------------------------------------------------------------
+        call GetComputeCurrentTime(Me%ObjTime, Me%ExternalVar%Now, STAT = status)                    
+        if (status /= SUCCESS_) &
+            stop 'CheckDT - ModuleInterface - ERR010' 
+
+        call GetComputeTimeLimits(Me%ObjTime, EndTime = end_time, STAT = status)
+        if (status /= SUCCESS_) &
+            stop 'CheckDT - ModuleInterface - ERR020' 
+
+        select case (Me%SinksSourcesModel)
+            case (WaterQualityModel)
+            
+                model_name = 'Water Quality'
+                call GetDTWQM(Me%ObjWaterQuality, DTSecond = dt, STAT = status)
+                
+            case (SedimentQualityModel)
+            
+                model_name = 'Sediment Quality'
+                call GetDTSedimentQuality(Me%ObjSedimentQuality, DTSecond = dt, STAT = status)
+                
+            case (CEQUALW2Model, BenthicCEQUALW2Model)
+            
+                model_name = 'CEQUALW2'
+                call GetDTCEQUALW2(Me%ObjCEQUALW2, DTSecond = dt, STAT = status)
+            
+            case (LifeModel)
+            
+                model_name = 'Life'
+                call GetDTLife(Me%ObjLife, DT = dt, STAT = status)
+                
+#ifdef _BFM_  
+            case (BFMModel)
+            
+                model_name = 'BFM'
+                call GetDTBFM(Me%ObjBFM, DTSecond = dt, STAT = status)
+#endif
+
+            case (BenthosModel)
+            
+                model_name = 'Benthos'
+                call GetDTBenthos(Me%ObjBenthos, DTSecond = dt, STAT = status)
+            
+            case (MacroAlgaeModel)
+            
+                model_name = 'Macro Algae'
+                call GetDTMacroAlgae(Me%ObjMacroAlgae, DTSecond = dt, STAT = status)
+                
+#ifdef _PHREEQC_
+            case (PhreeqCModel) 
+            
+                model_name = 'PhreeqC'
+                call GetPhreeqCDT(Me%ObjPhreeqC, DTSecond = dt, STAT = status)                                   
+#endif
+        end select
+        
+        if (status /= SUCCESS_) then
+            write(*,*)
+            write(*,*) 'Error when trying to get DT from '//trim(model_name)
+            stop 'CheckDT - ModuleInterface - ERR030'
+        endif
+        
+        !Run period in seconds
+        run_period = end_time - Me%ExternalVar%Now
+
+        !The run period must be a multiple of the SedimentQuality DT
+        aux_factor = run_period / dt
+        error_aux  = aux_factor - int(aux_factor)
+        
+        if (error_aux /= 0) then
+            dt_lag = int(error_aux * dt)
+            write(*,*) 
+            write(*,*) 'DTSECONDS is not multiple of the run period.'
+            write(*,*) trim(model_name)//' wont be computed in the last', dt_lag, ' seconds.'
+            write(*,*) 'CheckDT - ModuleInterface - WRN010.'
+        endif   
+        
+        call null_time (Me%ExternalVar%Now)     
+        !----------------------------------------------------------------------
+    
+    end subroutine CheckDT
+
+    !--------------------------------------------------------------------------
+
+
     subroutine Check_Options(PropertiesList)
 
         !Arguments-------------------------------------------------------------
         integer, dimension(:), pointer                      :: PropertiesList   
 
         !External--------------------------------------------------------------
-        type(T_Time)                                         :: EndTime
+!        type(T_Time)                                         :: EndTime
         logical                                              :: Zoo, Phyto
         logical                                              :: Diatoms 
         logical                                              :: Nitrogen, Phosphorus
@@ -1228,12 +1349,12 @@ cd1 :           if(STAT_CALL .EQ. KEYWORD_NOT_FOUND_ERR_) then
         logical                                              :: Bacteria, Ciliate 
         logical                                              :: Larvae
         logical                                              :: Pompools
-        real                                                 :: DT
+!        real                                                 :: DT
         integer                                              :: STAT_CALL
 
         !Local-----------------------------------------------------------------
-        real                                                 :: ErrorAux, auxFactor 
-        real                                                 :: RunPeriod, Dtlag
+!        real                                                 :: ErrorAux, auxFactor 
+!        real                                                 :: RunPeriod, Dtlag
         integer, dimension(:), pointer                       :: CEQUALW2List
         integer, dimension(:), pointer                       :: MacroAlgaeList
         integer                                              :: i,PropLB, PropUB
@@ -1243,37 +1364,37 @@ cd1 :           if(STAT_CALL .EQ. KEYWORD_NOT_FOUND_ERR_) then
 #endif
         !----------------------------------------------------------------------
         
-        call GetComputeCurrentTime(Me%ObjTime,                  &
-                                   Me%ExternalVar%Now,          &
-                                   STAT = STAT_CALL)                    
-        if (STAT_CALL /= SUCCESS_) stop 'Check_Options - ModuleInterface - ERR00' 
-
-        !Get end time
-        call GetComputeTimeLimits(Me%ObjTime, EndTime = EndTime, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Check_Options - ModuleInterface - ERR01' 
+!        call GetComputeCurrentTime(Me%ObjTime,                  &
+!                                   Me%ExternalVar%Now,          &
+!                                   STAT = STAT_CALL)                    
+!        if (STAT_CALL /= SUCCESS_) stop 'Check_Options - ModuleInterface - ERR00' 
+!
+!        !Get end time
+!        call GetComputeTimeLimits(Me%ObjTime, EndTime = EndTime, STAT = STAT_CALL)
+!        if (STAT_CALL /= SUCCESS_) stop 'Check_Options - ModuleInterface - ERR01' 
             
         select case (Me%SinksSourcesModel)
 
             case (WaterQualityModel)
-                !Get water quality model time step
-                call GetDTWQM(Me%ObjWaterQuality, DTSecond = DT, STAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)stop 'Check_Options - ModuleInterface - ERR02' 
-        
-                !Run period in seconds
-                RunPeriod = EndTime - Me%ExternalVar%Now
-
-                !The run period must be a multiple of the WQ DT
-                auxFactor = RunPeriod / DT
-
-                ErrorAux  = auxFactor - int(auxFactor)
-                
-                if (ErrorAux /= 0) then
-                    Dtlag = int(ErrorAux * DT)
-                    write(*,*) 
-                    write(*,*) 'DTSECONDS is not multiple of the run period.'
-                    write(*,*) 'Water Quality wont be computed in the last', Dtlag, ' seconds.'
-                    write(*,*) 'Check_Options - ModuleInterface - WRN01.'
-                endif 
+!                !Get water quality model time step
+!                call GetDTWQM(Me%ObjWaterQuality, DTSecond = DT, STAT = STAT_CALL)
+!                if (STAT_CALL .NE. SUCCESS_)stop 'Check_Options - ModuleInterface - ERR02' 
+!        
+!                !Run period in seconds
+!                RunPeriod = EndTime - Me%ExternalVar%Now
+!
+!                !The run period must be a multiple of the WQ DT
+!                auxFactor = RunPeriod / DT
+!
+!                ErrorAux  = auxFactor - int(auxFactor)
+!                
+!                if (ErrorAux /= 0) then
+!                    Dtlag = int(ErrorAux * DT)
+!                    write(*,*) 
+!                    write(*,*) 'DTSECONDS is not multiple of the run period.'
+!                    write(*,*) 'Water Quality wont be computed in the last', Dtlag, ' seconds.'
+!                    write(*,*) 'Check_Options - ModuleInterface - WRN01.'
+!                endif 
 
                 !Sinks and sources compute options 
                 call GetWQOptions(Me%ObjWaterQuality,   Phyto            = Phyto,           &
@@ -1440,25 +1561,25 @@ cd60 :         if (Pompools) then
             
             case (SedimentQualityModel)
 
-                !Get SedimentQuality model time step
-                call GetDTSedimentQuality(Me%ObjSedimentQuality, DTSecond = DT, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'Check_Options - ModuleInterface - ERR04' 
-        
-                !Run period in seconds
-                RunPeriod = EndTime - Me%ExternalVar%Now
-
-                !The run period must be a multiple of the SedimentQuality DT
-                auxFactor = RunPeriod / DT
-
-                ErrorAux  = auxFactor - int(auxFactor)
-                
-                if (ErrorAux /= 0) then
-                    Dtlag = int(ErrorAux * DT)
-                    write(*,*) 
-                    write(*,*) 'DTSECONDS is not multiple of the run period.'
-                    write(*,*) 'SedimentQuality wont be computed in the last', Dtlag, ' seconds.'
-                    write(*,*) 'Check_Options - ModuleInterface - WRN02.'
-                endif
+!                !Get SedimentQuality model time step
+!                call GetDTSedimentQuality(Me%ObjSedimentQuality, DTSecond = DT, STAT = STAT_CALL)
+!                if (STAT_CALL /= SUCCESS_) stop 'Check_Options - ModuleInterface - ERR04' 
+!        
+!                !Run period in seconds
+!                RunPeriod = EndTime - Me%ExternalVar%Now
+!
+!                !The run period must be a multiple of the SedimentQuality DT
+!                auxFactor = RunPeriod / DT
+!
+!                ErrorAux  = auxFactor - int(auxFactor)
+!                
+!                if (ErrorAux /= 0) then
+!                    Dtlag = int(ErrorAux * DT)
+!                    write(*,*) 
+!                    write(*,*) 'DTSECONDS is not multiple of the run period.'
+!                    write(*,*) 'SedimentQuality wont be computed in the last', Dtlag, ' seconds.'
+!                    write(*,*) 'Check_Options - ModuleInterface - WRN02.'
+!                endif
                 
               !Sinks and sources compute options 
                 call GetSQOptions(Me%ObjSedimentQuality,  Nitrogen    = Nitrogen  ,   &
@@ -1577,25 +1698,25 @@ cd14 :          if (Phosphorus) then
              
             case(CEQUALW2Model, BenthicCEQUALW2Model)
                 
-                !Get CEQUALW2 model time step
-                call GetDTCEQUALW2(Me%ObjCEQUALW2, DTSecond = DT, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'Check_Options - ModuleInterface - ERR05' 
-        
-                !Run period in seconds
-                RunPeriod = EndTime - Me%ExternalVar%Now
-
-                !The run period must be a multiple of the SedimentQuality DT
-                auxFactor = RunPeriod / DT
-
-                ErrorAux  = auxFactor - int(auxFactor)
-                
-                if (ErrorAux /= 0) then
-                    Dtlag = int(ErrorAux * DT)
-                    write(*,*) 
-                    write(*,*) 'DTSECONDS is not multiple of the run period.'
-                    write(*,*) 'CEQUALW2 wont be computed in the last', Dtlag, ' seconds.'
-                    write(*,*) 'Check_Options - ModuleInterface - WRN03.'
-                endif
+!                !Get CEQUALW2 model time step
+!                call GetDTCEQUALW2(Me%ObjCEQUALW2, DTSecond = DT, STAT = STAT_CALL)
+!                if (STAT_CALL /= SUCCESS_) stop 'Check_Options - ModuleInterface - ERR05' 
+!        
+!                !Run period in seconds
+!                RunPeriod = EndTime - Me%ExternalVar%Now
+!
+!                !The run period must be a multiple of the SedimentQuality DT
+!                auxFactor = RunPeriod / DT
+!
+!                ErrorAux  = auxFactor - int(auxFactor)
+!                
+!                if (ErrorAux /= 0) then
+!                    Dtlag = int(ErrorAux * DT)
+!                    write(*,*) 
+!                    write(*,*) 'DTSECONDS is not multiple of the run period.'
+!                    write(*,*) 'CEQUALW2 wont be computed in the last', Dtlag, ' seconds.'
+!                    write(*,*) 'Check_Options - ModuleInterface - WRN03.'
+!                endif
                 
                 call GetCEQUALW2PropertyList (Me%ObjCEQUALW2, CEQUALW2List, STAT=STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'Check_Options - ModuleInterface - ERR06'
@@ -1617,25 +1738,25 @@ cd14 :          if (Phosphorus) then
 
             case(LifeModel)
 
-                !Get Life model time step
-                call GetDTLife(Me%ObjLife, DT = DT, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'Check_Options - ModuleInterface - ERR09' 
-        
-                !Run period in seconds
-                RunPeriod = EndTime - Me%ExternalVar%Now
-
-                !The run period must be a multiple of the SedimentQuality DT
-                auxFactor = RunPeriod / DT
-
-                ErrorAux  = auxFactor - int(auxFactor)
-                
-                if (ErrorAux /= 0) then
-                    Dtlag = int(ErrorAux * DT)
-                    write(*,*) 
-                    write(*,*) 'DTSECONDS is not multiple of the run period.'
-                    write(*,*) 'Life wont be computed in the last', Dtlag, ' seconds.'
-                    write(*,*) 'Check_Options - ModuleInterface - WRN03.'
-                endif
+!                !Get Life model time step
+!                call GetDTLife(Me%ObjLife, DT = DT, STAT = STAT_CALL)
+!                if (STAT_CALL /= SUCCESS_) stop 'Check_Options - ModuleInterface - ERR09' 
+!        
+!                !Run period in seconds
+!                RunPeriod = EndTime - Me%ExternalVar%Now
+!
+!                !The run period must be a multiple of the SedimentQuality DT
+!                auxFactor = RunPeriod / DT
+!
+!                ErrorAux  = auxFactor - int(auxFactor)
+!                
+!                if (ErrorAux /= 0) then
+!                    Dtlag = int(ErrorAux * DT)
+!                    write(*,*) 
+!                    write(*,*) 'DTSECONDS is not multiple of the run period.'
+!                    write(*,*) 'Life wont be computed in the last', Dtlag, ' seconds.'
+!                    write(*,*) 'Check_Options - ModuleInterface - WRN03.'
+!                endif
                 
                 call GetLifePropertyList (Me%ObjLife, LifeList, STAT=STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'Check_Options - ModuleInterface - ERR10'
@@ -1656,25 +1777,25 @@ cd14 :          if (Phosphorus) then
 #ifdef _BFM_  
             case(BFMModel)
 
-                !Get BFM model time step
-                call GetDTBFM(Me%ObjBFM, DTSecond = DT, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'Check_Options - ModuleInterface - ERR09a' 
-        
-                !Run period in seconds
-                RunPeriod = EndTime - Me%ExternalVar%Now
-
-                !The run period must be a multiple of the SedimentQuality DT
-                auxFactor = RunPeriod / DT
-
-                ErrorAux  = auxFactor - int(auxFactor)
-                
-                if (ErrorAux /= 0) then
-                    Dtlag = int(ErrorAux * DT)
-                    write(*,*) 
-                    write(*,*) 'DTSECONDS is not multiple of the run period.'
-                    write(*,*) 'Life wont be computed in the last', Dtlag, ' seconds.'
-                    write(*,*) 'Check_Options - ModuleInterface - WRN03a.'
-                endif
+!                !Get BFM model time step
+!                call GetDTBFM(Me%ObjBFM, DTSecond = DT, STAT = STAT_CALL)
+!                if (STAT_CALL /= SUCCESS_) stop 'Check_Options - ModuleInterface - ERR09a' 
+!        
+!                !Run period in seconds
+!                RunPeriod = EndTime - Me%ExternalVar%Now
+!
+!                !The run period must be a multiple of the SedimentQuality DT
+!                auxFactor = RunPeriod / DT
+!
+!                ErrorAux  = auxFactor - int(auxFactor)
+!                
+!                if (ErrorAux /= 0) then
+!                    Dtlag = int(ErrorAux * DT)
+!                    write(*,*) 
+!                    write(*,*) 'DTSECONDS is not multiple of the run period.'
+!                    write(*,*) 'Life wont be computed in the last', Dtlag, ' seconds.'
+!                    write(*,*) 'Check_Options - ModuleInterface - WRN03a.'
+!                endif
                 
                 call GetBFMPropertyList (Me%ObjBFM, BFMList, STAT=STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'Check_Options - ModuleInterface - ERR10a'
@@ -1695,25 +1816,25 @@ cd14 :          if (Phosphorus) then
 #endif
             case(BenthosModel)
 
-                !Get Benthos model time step
-                call GetDTBenthos(Me%ObjBenthos, DTSecond = DT, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'Check_Options - ModuleInterface - ERR13' 
-        
-                !Run period in seconds
-                RunPeriod = EndTime - Me%ExternalVar%Now
-
-                !The run period must be a multiple of the SedimentQuality DT
-                auxFactor = RunPeriod / DT
-
-                ErrorAux  = auxFactor - int(auxFactor)
-                
-                if (ErrorAux /= 0) then
-                    Dtlag = int(ErrorAux * DT)
-                    write(*,*) 
-                    write(*,*) 'DTSECONDS is not multiple of the run period.'
-                    write(*,*) 'Benthos wont be computed in the last', Dtlag, ' seconds.'
-                    write(*,*) 'Check_Options - ModuleInterface - WRN04.'
-                endif
+!                !Get Benthos model time step
+!                call GetDTBenthos(Me%ObjBenthos, DTSecond = DT, STAT = STAT_CALL)
+!                if (STAT_CALL /= SUCCESS_) stop 'Check_Options - ModuleInterface - ERR13' 
+!        
+!                !Run period in seconds
+!                RunPeriod = EndTime - Me%ExternalVar%Now
+!
+!                !The run period must be a multiple of the SedimentQuality DT
+!                auxFactor = RunPeriod / DT
+!
+!                ErrorAux  = auxFactor - int(auxFactor)
+!                
+!                if (ErrorAux /= 0) then
+!                    Dtlag = int(ErrorAux * DT)
+!                    write(*,*) 
+!                    write(*,*) 'DTSECONDS is not multiple of the run period.'
+!                    write(*,*) 'Benthos wont be computed in the last', Dtlag, ' seconds.'
+!                    write(*,*) 'Check_Options - ModuleInterface - WRN04.'
+!                endif
                 
                 call GetBenthosPropertyList (Me%ObjBenthos, BenthosList, STAT=STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'Check_Options - ModuleInterface - ERR14'
@@ -1734,25 +1855,25 @@ cd14 :          if (Phosphorus) then
 
             case(MacroAlgaeModel)
 
-                !Get MacroAlgae model time step
-                call GetDTMacroAlgae(Me%ObjMacroAlgae, DTSecond = DT, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'Check_Options - ModuleInterface - ERR17' 
-        
-                !Run period in seconds
-                RunPeriod = EndTime - Me%ExternalVar%Now
-
-                !The run period must be a multiple of the SedimentQuality DT
-                auxFactor = RunPeriod / DT
-
-                ErrorAux  = auxFactor - int(auxFactor)
-                
-                if (ErrorAux /= 0) then
-                    Dtlag = int(ErrorAux * DT)
-                    write(*,*) 
-                    write(*,*) 'DTSECONDS is not multiple of the run period.'
-                    write(*,*) 'MacroAlgae wont be computed in the last', Dtlag, ' seconds.'
-                    write(*,*) 'Check_Options - ModuleInterface - WRN05.'
-                endif
+!                !Get MacroAlgae model time step
+!                call GetDTMacroAlgae(Me%ObjMacroAlgae, DTSecond = DT, STAT = STAT_CALL)
+!                if (STAT_CALL /= SUCCESS_) stop 'Check_Options - ModuleInterface - ERR17' 
+!        
+!                !Run period in seconds
+!                RunPeriod = EndTime - Me%ExternalVar%Now
+!
+!                !The run period must be a multiple of the SedimentQuality DT
+!                auxFactor = RunPeriod / DT
+!
+!                ErrorAux  = auxFactor - int(auxFactor)
+!                
+!                if (ErrorAux /= 0) then
+!                    Dtlag = int(ErrorAux * DT)
+!                    write(*,*) 
+!                    write(*,*) 'DTSECONDS is not multiple of the run period.'
+!                    write(*,*) 'MacroAlgae wont be computed in the last', Dtlag, ' seconds.'
+!                    write(*,*) 'Check_Options - ModuleInterface - WRN05.'
+!                endif
                 
                 call GetMacroAlgaePropertyList (Me%ObjMacroAlgae, MacroAlgaeList, STAT=STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'Check_Options - ModuleInterface - ERR18'
@@ -1776,25 +1897,25 @@ cd14 :          if (Phosphorus) then
 
             case (PhreeqCModel)
 
-                !Get PhreeqC model time step
-                call GetPhreeqCDT(Me%ObjPhreeqC, DTSecond = DT, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'Check_Options - ModuleInterface - ERR21' 
-        
-                !Run period in seconds
-                RunPeriod = EndTime - Me%ExternalVar%Now
-
-                !The run period must be a multiple of the SedimentQuality DT
-                auxFactor = RunPeriod / DT
-
-                ErrorAux  = auxFactor - int(auxFactor)
-                
-                if (ErrorAux /= 0) then
-                    Dtlag = int(ErrorAux * DT)
-                    write(*,*) 
-                    write(*,*) 'DTSECONDS is not multiple of the run period.'
-                    write(*,*) 'PhreeqC wont be computed in the last', Dtlag, ' seconds.'
-                    write(*,*) 'Check_Options - ModuleInterface - WRN06.'
-                endif
+!                !Get PhreeqC model time step
+!                call GetPhreeqCDT(Me%ObjPhreeqC, DTSecond = DT, STAT = STAT_CALL)
+!                if (STAT_CALL /= SUCCESS_) stop 'Check_Options - ModuleInterface - ERR21' 
+!        
+!                !Run period in seconds
+!                RunPeriod = EndTime - Me%ExternalVar%Now
+!
+!                !The run period must be a multiple of the SedimentQuality DT
+!                auxFactor = RunPeriod / DT
+!
+!                ErrorAux  = auxFactor - int(auxFactor)
+!                
+!                if (ErrorAux /= 0) then
+!                    Dtlag = int(ErrorAux * DT)
+!                    write(*,*) 
+!                    write(*,*) 'DTSECONDS is not multiple of the run period.'
+!                    write(*,*) 'PhreeqC wont be computed in the last', Dtlag, ' seconds.'
+!                    write(*,*) 'Check_Options - ModuleInterface - WRN06.'
+!                endif
                 
                 if (.NOT. FindProperty(PropertiesList, Temperature_)) &
                     stop 'PhreeqC needs property "temperature" - Check_Options'
@@ -1824,7 +1945,7 @@ cd14 :          if (Phosphorus) then
         end select
 
 
-        call null_time   (Me%ExternalVar%Now)
+!        call null_time   (Me%ExternalVar%Now)
 
         !----------------------------------------------------------------------
 
@@ -2182,6 +2303,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
                                   pH, IonicStrength, PhosphorusAdsortionIndex,          &
 #ifdef _PHREEQC_
                                   WaterVolume, WaterMass, SolidMass, pE, Temperature,   &
+                                  PhreeqCID,                                             &
 #endif
                                   WindVelocity,  DTProp, STAT)
                                  
@@ -2203,6 +2325,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
         real,    optional, dimension(:,:,:), pointer    :: SolidMass
         real,    optional, dimension(:,:,:), pointer    :: pE
         real,    optional, dimension(:,:,:), pointer    :: Temperature
+        integer, optional, dimension(:,:,:), pointer    :: PhreeqCID
 #endif
         real,    optional, dimension(:,:,:), pointer    :: IonicStrength
         real,    optional, dimension(:,:,:), pointer    :: PhosphorusAdsortionIndex
@@ -2438,6 +2561,7 @@ cd4 :           if (ReadyToCompute) then
                             call UnfoldMatrix(pH, Me%pH)
                             call UnfoldMatrix(pE, Me%pE)
                             call UnfoldMatrix(Temperature, Me%Temperature)
+                            call UnfoldMatrix(PhreeqCID, Me%PhreeqCID)
                             
                             if (present(SolidMass)) then
                             
@@ -2453,7 +2577,8 @@ cd4 :           if (ReadyToCompute) then
                                                    SolidMass = Me%SolidMass,      &
                                                    CellsArrayLB = Me%Array%ILB,   &
                                                    CellsArrayUB = Me%Array%IUB,   &
-                                                   OpenPoints = Me%OpenPoints,    & 
+                                                   OpenPoints = Me%OpenPoints,    &
+                                                   ModelID = Me%PhreeqCID,        & 
                                                    STAT = STAT_CALL)
                                 if (STAT_CALL /= SUCCESS_) &
                                     stop 'Modify_Interface3D - ModuleInterface - ERR14'
@@ -2470,6 +2595,7 @@ cd4 :           if (ReadyToCompute) then
                                                    CellsArrayLB = Me%Array%ILB,   &
                                                    CellsArrayUB = Me%Array%IUB,   &
                                                    OpenPoints = Me%OpenPoints,    & 
+                                                   ModelID = Me%PhreeqCID,        & 
                                                    STAT = STAT_CALL)
                                 if (STAT_CALL /= SUCCESS_) &
                                     stop 'Modify_Interface3D - ModuleInterface - ERR14'
@@ -2561,10 +2687,10 @@ cd8 :                       if (Me%ExternalVar%WaterPoints3D(i, j, k) == 1) then
 
                         !griflet
                         !$OMP PARALLEL PRIVATE(k,j,i,Index)
-do11 :                   do k = KLB, KUB
+do11 :                  do k = KLB, KUB
                         !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
-do12 :                   do j = JLB, JUB
-do13 :                   do i = ILB, IUB
+do12 :                  do j = JLB, JUB
+do13 :                  do i = ILB, IUB
 cd9 :                       if (Me%ExternalVar%WaterPoints3D(i, j, k) == 1) then
                                 Index = Index + 1
                                 !Concentrations are only actualized in OpenPoints because of instability
@@ -2587,10 +2713,10 @@ cd9 :                       if (Me%ExternalVar%WaterPoints3D(i, j, k) == 1) then
 
                         !griflet
                         !$OMP PARALLEL PRIVATE(k,j,i,Index)
-do15 :                   do k = KLB, KUB
+do15 :                  do k = KLB, KUB
                         !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
-do16 :                   do j = JLB, JUB
-do17 :                   do i = ILB, IUB
+do16 :                  do j = JLB, JUB
+do17 :                  do i = ILB, IUB
 cd14 :                       if (Me%ExternalVar%WaterPoints3D(i, j, k) == 1) then
                                 Index = Index + 1
                                 !Concentrations are only actualized in OpenPoints because of instability
@@ -2666,27 +2792,25 @@ cd14 :                       if (Me%ExternalVar%WaterPoints3D(i, j, k) == 1) the
                         if (STAT_CALL /= SUCCESS_) stop 'Modify_Interface3D - ModuleInterface - ERR15'                
 
                         !griflet
-                        !$OMP PARALLEL PRIVATE(k,j,i,Index)
+                        !!$OMP PARALLEL PRIVATE(k,j,i,Index)
 do18:                   do k = KLB, KUB
-                        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+                        !!$OMP DO SCHEDULE(DYNAMIC,CHUNK)
 do19:                   do j = JLB, JUB
 do20:                   do i = ILB, IUB
 
 cd15:                       if (Me%ExternalVar%WaterPoints3D(i, j, k) == 1) then
 
                                 Index = Index + 1
-!                                old_value = Concentration( i, j, k)
-                                Concentration(i, j, k) = Concentration( i, j, k) +                     &
+                                Concentration(i, j, k) = Concentration(i, j, k) +                      &
                                                          Me%ConcentrationIncrement(nProperty, Index) * &
                                                          DTProp / DT 
-!                                new_value = Concentration(i, j, k)
                             end if cd15
                             
                         end do do20
                         end do do19
-                        !$OMP END DO NOWAIT
+                        !!$OMP END DO NOWAIT
                         end do do18
-                        !$OMP END PARALLEL
+                        !!$OMP END PARALLEL
 
 #endif                   
                 end select
@@ -3352,11 +3476,11 @@ cd10 :                      if (Me%ExternalVar%RiverPoints1D(i) == 1) then
         logical                                 :: FishFoodAdded = .false.
         logical                                 :: AlkalinityAdded = .false.
         
-#ifdef _PHREEQC_
-        logical                                 :: pHAdded = .false.
-        logical                                 :: pEAdded = .false.
-!        logical                                 :: SoilDryDensityAdded = .false.
-#endif        
+!#ifdef _PHREEQC_
+!        logical                                 :: pHAdded = .false.
+!        logical                                 :: pEAdded = .false.
+!!        logical                                 :: SoilDryDensityAdded = .false.
+!#endif        
         !----------------------------------------------------------------------
 
         PropLB  = Me%Prop%ILB

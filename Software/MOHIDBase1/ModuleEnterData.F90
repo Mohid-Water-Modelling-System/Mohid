@@ -65,7 +65,7 @@ Module ModuleEnterData
     private ::      ExtractBlockFromBuffer1
     public  :: ExtractBlockFromBlock
     public  :: ExtractBlockFromBlockFromBlock
-
+    public  :: GetNumberOfBlocks
 
     public  :: GetOutPutTime
     private ::      OutPutTimeInternal
@@ -3434,6 +3434,153 @@ cd5 :           if      (       FoundBegin  .AND.        FoundEnd ) then
 
     end subroutine ExtractBlockFromBlockFromBlock
 
+    !--------------------------------------------------------------------------
+    
+    subroutine GetNumberOfBlocks (EnterDataID, BlockBegin, BlockEnd, &
+                                  SearchType, NumberOfBlocks, ClientNumber, STAT)
+        
+        !Arguments-------------------------------------------------------------
+        integer, intent(IN)            :: EnterDataID
+        character(*), intent(IN)       :: BlockBegin
+        character(*), intent(IN)       :: BlockEnd
+        integer, intent(IN)            :: SearchType
+        integer, intent(OUT)           :: NumberOfBlocks                   
+        integer, intent(IN), optional  :: ClientNumber
+        integer, intent(OUT), optional :: STAT
+        
+        !Local-----------------------------------------------------------------
+        integer                        :: stat_
+        integer                        :: ready_
+        integer                        :: client_number_
+        logical                        :: block_found_
+        
+        !----------------------------------------------------------------------
+        NumberOfBlocks = 0
+        stat_          = UNKNOWN_
+
+        call Ready(EnterDataID, ready_)
+        
+        if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
+                    
+            select case (SearchType)
+            case (FromFile_)
+
+                call RewindBuffer(EnterDataID, STAT = stat_)
+                if (stat_ /= SUCCESS_) &
+                    stop 'GetNumberOfBlocks - ModuleEnterData - ERR010.'
+
+                do
+                
+                    call ExtractBlockFromBuffer(EnterDataID,                      &
+                                                ClientNumber    = client_number_, &
+                                                block_begin     = BlockBegin,     &
+                                                block_end       = BlockEnd,       &
+                                                BlockFound      = block_found_,   &   
+                                                STAT            = stat_)
+                    if (stat_ /= SUCCESS_) &
+                        stop 'GetNumberOfBlocks - ModuleEnterData - ERR020.'
+                    
+                    if (block_found_) then
+                        NumberOfBlocks = NumberOfBlocks + 1
+                    else
+                        call Block_Unlock(EnterDataID, client_number_, stat_)
+                        if (stat_ .NE. SUCCESS_) &
+                            stop 'GetNumberOfBlocks - ModuleEnterData - ERR030.'
+                        exit                        
+                    end if 
+                    
+                enddo
+
+                call RewindBuffer(EnterDataID, STAT = stat_)
+                if (stat_ /= SUCCESS_) &
+                    stop 'GetNumberOfBlocks - ModuleEnterData - ERR040.'
+
+            case (FromBlock_)
+
+                if (.not. (present(ClientNumber))) &
+                    stop 'GetNumberOfBlocks - ModuleEnterData - ERR050.'
+
+                call RewindBlock(EnterDataID, ClientNumber, STAT = stat_)
+                if (stat_ /= SUCCESS_) &
+                    stop 'GetNumberOfBlocks - ModuleEnterData - ERR060.'
+                    
+                do
+                
+                    call ExtractBlockFromBlock (EnterDataID,                        &
+                                                ClientNumber      = ClientNumber,   &
+                                                block_begin       = BlockBegin,     &
+                                                block_end         = BlockEnd,       &
+                                                BlockInBlockFound = block_found_,   &   
+                                                STAT              = stat_)
+                    if (stat_ /= SUCCESS_) &
+                        stop 'GetNumberOfBlocks - ModuleEnterData - ERR070.'
+                    
+                    if (block_found_) then
+                        NumberOfBlocks = NumberOfBlocks + 1
+                    else
+                        call Block_Unlock(EnterDataID, ClientNumber, stat_)
+                        if (stat_ .NE. SUCCESS_) &
+                            stop 'GetNumberOfBlocks - ModuleEnterData - ERR080.'
+                        exit                        
+                    end if 
+                
+                enddo                
+
+                call RewindBlock(EnterDataID, ClientNumber, STAT = stat_)
+                if (stat_ /= SUCCESS_) &
+                    stop 'GetNumberOfBlocks - ModuleEnterData - ERR090.'
+
+            case (FromBlockInBlock_)
+            
+                if (.not. (present(ClientNumber))) &
+                    stop 'GetNumberOfBlocks - ModuleEnterData - ERR100.'
+
+                call RewindBlock(EnterDataID, ClientNumber, STAT = stat_)
+                if (stat_ /= SUCCESS_) &
+                    stop 'GetNumberOfBlocks - ModuleEnterData - ERR110.'
+                    
+                do
+                    call ExtractBlockFromBlockFromBlock (EnterDataID,                             &
+                                                         ClientNumber             = ClientNumber, &
+                                                         block_begin              = BlockBegin,   &
+                                                         block_end                = BlockEnd,     &
+                                                         BlockInBlockInBlockFound = block_found_, &
+                                                         STAT                     = stat_)
+                    if (stat_ /= SUCCESS_) &
+                        stop 'GetNumberOfBlocks - ModuleEnterData - ERR120.'
+                    
+                    if (block_found_) then
+                        NumberOfBlocks = NumberOfBlocks + 1
+                    else
+                        call Block_Unlock(EnterDataID, ClientNumber, stat_)
+                        if (stat_ .NE. SUCCESS_) &
+                            stop 'GetNumberOfBlocks - ModuleEnterData - ERR130.'
+                        exit                        
+                    end if 
+                                                         
+                enddo
+
+                call RewindBlock(EnterDataID, ClientNumber, STAT = stat_)
+                if (stat_ /= SUCCESS_) &
+                    stop 'GetNumberOfBlocks - ModuleEnterData - ERR140.'
+
+            case default
+                write(*,*)
+                stop "GetNumberOfBlocks - ModuleEnterData - ERR150."
+            end select
+            
+            stat_ = SUCCESS_
+
+        else
+        
+            stat_ = ready_
+            
+        endif
+        
+        if (present(STAT)) STAT = stat_
+        !----------------------------------------------------------------------
+        
+    end subroutine GetNumberOfBlocks
 
     !--------------------------------------------------------------------------
 

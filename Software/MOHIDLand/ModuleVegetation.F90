@@ -68,9 +68,10 @@
 !   ROOT_PROFILE                   : integer     -        [1]     !Read if WATER_UPTAKE_METHOD == 1: 
 !                                                                   !1-Triangular; 2-Constant; 3-Exponential(SWAT like)
 !   WATER_UPTAKE_STRESS_METHOD     : integer     -        [1]     !Read if WATER_UPTAKE_METHOD == 1;1-Feddes;2-VanGenuchten
+!   SALINITY_STRESS_METHOD         : integer     -        [1]     !Read if WATER_UPTAKE_METHOD == 1;1-Threshold/Slope;2-VanGenuchten (not implemented yet)
 !
 ! NUTRIENT_UPTAKE_METHOD           : integer     -        [2]     !1- uptake is: conc * water uptake; 2- SWAT based 
-!                                                                  (independent of water uptake)
+!                                                                  (independent of water uptake); 3 - NO nutrient uptake
 ! NUTRIENT_STRESS_METHOD           : integer     -        [2]     !1- effective/optimal; 2- SWAT based
 !
 ! CHANGE_LAI_SENESCENCE            : 0/1         -        [0]     !Changes made to swat code because showed error with 
@@ -225,10 +226,21 @@
 ! VEGETATION_ID             : 2                !crop ID used in this practice that has correspondence to 
 !                                                SWAT crop growth database (see growth database)
 ! 
+! FEDDES_TYPE               : 1 - Normal 2 - With ponint 3 variable consoant the transpiration
 ! FEDDES_H1                 : -0.1             !higher head for transpiration (saturation and oxygen loss)
 ! FEDDES_H2                 : -0.25            !1st optimal head for transpiration
 ! FEDDES_H3                 : -2.0             !2nd optimal head for transpiration
+! FEDDES_H3H                : 
+! FEDDES_H3L                :
 ! FEDDES_H4                 : -80.0            !lower head  for transpiration (wilting)
+! FEDDES_R2L                :
+! FEDDES_R2H                :
+! 
+!
+! USE_SALINITY              : 1 (yes) - 0 (no)
+! SALINITY_STRESS_THRESHOLD : 
+! SALINITY_STRESS_SLOPE     :  
+! STRESS_INTERACTION        : 1 - Additive; 2 - Multiplicative; 3 - Min of all  
 ! <endfeddesdatabase>            
 
 Module ModuleVegetation
@@ -238,11 +250,12 @@ Module ModuleVegetation
     use ModuleEnterData
     use ModuleHDF5,           only : ConstructHDF5, GetHDF5FileAccess, HDF5SetLimits,             &
                                      HDF5WriteData, HDF5FlushMemory, HDF5ReadData, KillHDF5
-    use ModuleAtmosphere,     only : GetAtmosphereProperty, AtmospherePropertyExists, UnGetAtmosphere
+    use ModuleAtmosphere,     only : GetAtmosphereProperty, AtmospherePropertyExists,             &
+                                     UnGetAtmosphere
     use ModuleBasinGeometry,  only : GetBasinPoints, UngetBasin
     use ModulePorousMedia,    only : GetWaterContent, GetHead, GetThetaR, GetComputeSoilField,    &
                                      GetThetaField, GetLimitThetaLow, GetUnsatK, UngetPorousMedia
-    use ModuleFunctions,      only : SetMatrixValue, ConstructPropertyID, LinearInterpolation,   &
+    use ModuleFunctions,      only : SetMatrixValue, ConstructPropertyID, LinearInterpolation,    &
                                      InterpolateValueInTime
     use ModuleHorizontalGrid, only : GetHorizontalGridSize, GetGridCellArea, WriteHorizontalGrid, &
                                      UngetHorizontalGrid, GetGridLatitudeLongitude, GetXYCellZ
@@ -250,9 +263,9 @@ Module ModuleVegetation
     use ModuleFillMatrix,     only : ConstructFillMatrix, GetDefaultValue, ModifyFillMatrix,      &
                                      KillFillMatrix, GetIfMatrixRemainsConstant
     use ModuleTimeSerie,      only : StartTimeSerie, WriteTimeSerie, KillTimeSerie,               &
-                                     StartTimeSerieInput, GetTimeSerieValue, GetNumberOfTimeSeries, &
-                                     GetTimeSerieLocation, GetTimeSerieName,                      &
-                                     TryIgnoreTimeSerie, CorrectsCellsTimeSerie
+                                     StartTimeSerieInput, GetTimeSerieValue,                      &
+                                     GetNumberOfTimeSeries, GetTimeSerieLocation,                 &
+                                     GetTimeSerieName, TryIgnoreTimeSerie, CorrectsCellsTimeSerie
     use ModuleGridData,       only : ConstructGridData, GetGridData, UngetGridData,               &
                                      KillGridData
     use ModuleGeometry,       only : GetGeometryDistances, GetGeometrySize, GetGeometryKFloor,    &
@@ -271,11 +284,15 @@ Module ModuleVegetation
     private ::      ConstructGlobalVariables
     private ::      ConstructPropertyList             
     private ::          ConstructProperty             
-    private ::              ConstructPropertyID       
+!    private ::              ConstructPropertyID       
     private ::              ConstructPropertyValues
     private ::              ConstructPropertyEvolution   
     private ::              ConstructPropertyOutput  
     private ::          AddProperty
+!    private ::      ConstructSoilConcList
+!    private ::          ConstructSoilConc
+!    private ::              ConstructSoilConcOptions
+!    private ::          AddSoilConc
     private ::      CheckOptionsConsistence 
     private ::      ConstructVegetationGrids
     private ::      ConstructVegetationParameters
@@ -286,6 +303,7 @@ Module ModuleVegetation
     private ::          ReadGrazingParameters
     private ::          ReadFertilizationParameters
     private ::          ReadPesticideParameters
+    private ::              GetUniquePesticide
     private ::      ConstructTimeSerie
     private ::      ConstructHDF
     private ::          ConstructHDF5Output 
@@ -310,6 +328,8 @@ Module ModuleVegetation
     public  :: GetVegetationSoilFluxes
     public  :: GetVegetationAerialFluxes
     public  :: SetSoilConcVegetation
+!    public  :: GetSoilConcID
+    public  :: SetECw
     public  :: UngetVegetation
     public  :: UngetVegetationSoilFluxes
     public  :: UngetVegetationAerialFluxes    
@@ -379,12 +399,16 @@ Module ModuleVegetation
     !Nutrient uptake Method               
     integer, parameter                          :: NutrientUptake_TranspConc     = 1   !nutrient uptake is soil conc * water uptake
     integer, parameter                          :: NutrientUptakeSWAT            = 2
+    integer, parameter                          :: NoNutrientUptake              = 3
     !Nutrient stress Method               
     integer, parameter                          :: NutrientStressUptake          = 1   !stress is actual / potential uptake
     integer, parameter                          :: NutrientStressSWAT            = 2   ! nutrient stress is equations from swat
 
     character(StringLength), parameter          :: beginproperty                 = '<beginproperty>'
     character(StringLength), parameter          :: endproperty                   = '<endproperty>'
+
+    character(StringLength), parameter          :: beginsoilconc                 = '<beginsoilconc>'
+    character(StringLength), parameter          :: endsoilconc                   = '<endsoilconc>'
 
     !Types---------------------------------------------------------------------
     type       T_ID
@@ -423,16 +447,17 @@ Module ModuleVegetation
         real, dimension(:,:  ), pointer                 :: SolarRadiation                 !W/m2
         real, dimension(:,:  ), pointer                 :: RelativeHumidity               !0-1
         real, dimension(:,:  ), pointer                 :: PotentialTranspiration         !m/s     
-        real,    dimension(:,:  ), pointer              :: Latitude                       !deg
-        real,    dimension(:,:,:), pointer              :: SoilWaterContent               !m3H2O/m3soil
-        real,    dimension(:,:,:), pointer              :: Head                           !m
-        real,    dimension(:,:,:), pointer              :: ResidualWaterContent           !m3H2O/m3soil                    
-        real,    dimension(:,:,:), pointer              :: SoilNitrate                    !ug/m3H2O    
-        real,    dimension(:,:,:), pointer              :: SoilPhosphorus                 !ug/m3H2O   
-        real,    dimension(:,:,:), pointer              :: FieldCapacity                  !m3H2O/m3soil  
-        real,    dimension(:,:  ), pointer              :: GridCellArea
+        real, dimension(:,:  ), pointer                 :: Latitude                       !deg
+        real, dimension(:,:,:), pointer                 :: SoilWaterContent               !m3H2O/m3soil
+        real, dimension(:,:,:), pointer                 :: Head                           !m
+        real, dimension(:,:,:), pointer                 :: ResidualWaterContent           !m3H2O/m3soil                    
+        real, dimension(:,:,:), pointer                 :: SoilNitrate                    !ug/m3H2O    
+        real, dimension(:,:,:), pointer                 :: SoilPhosphorus                 !ug/m3H2O   
+        real, dimension(:,:,:), pointer                 :: FieldCapacity                  !m3H2O/m3soil  
+        real, dimension(:,:  ), pointer                 :: GridCellArea
         real(8), dimension(:,:,:), pointer              :: CellVolume
         type(T_Integration)                             :: Integration
+        real, dimension(:,:,:), pointer                 :: ECw        
     end type   T_External
 
 
@@ -469,6 +494,15 @@ Module ModuleVegetation
         character(PathLength)                           :: TimeSeriesName
         type(T_Property), pointer                       :: Next, Prev
     end type T_Property
+
+!    type T_SoilConc
+!        type(T_PropertyID)                              :: ID
+!        real, dimension(:,:,:), pointer                 :: Conc                 => null()
+!        real                                            :: ConversionFactor     =  1.0
+!        logical                                         :: UseForSalinityStress =  .true.    
+!        type(T_SoilConc), pointer                       :: Next                 => null()
+!        type(T_SoilConc), pointer                       :: Prev                 => null()
+!    end type T_SoilConc
 
     type T_TimingDatabase
         real                                            :: PlantHUatMaturity
@@ -571,10 +605,15 @@ Module ModuleVegetation
     end type T_PesticideDatabase
 
     type       T_TranspirationMOHID
+        integer, dimension(:,:), pointer                :: FeddesType
         real, dimension(:,:), pointer                   :: RootFeddesH1
         real, dimension(:,:), pointer                   :: RootFeddesH2
         real, dimension(:,:), pointer                   :: RootFeddesH3
         real, dimension(:,:), pointer                   :: RootFeddesH4
+        real, dimension(:,:), pointer                   :: RootFeddesH3L
+        real, dimension(:,:), pointer                   :: RootFeddesH3H
+        real, dimension(:,:), pointer                   :: RootFeddesR2L
+        real, dimension(:,:), pointer                   :: RootFeddesR2H
     end type   T_TranspirationMOHID
 
     type T_Evolution
@@ -608,6 +647,7 @@ Module ModuleVegetation
         real                                            :: PhosphorusDistributionParameter
         real                                            :: AtmosphereCO2
         integer                                         :: WaterUptakeStressMethod
+        integer                                         :: SalinityStressMethod
         logical                                         :: ModelNitrogen, ModelPhosphorus
         logical                                         :: ModelRootBiomass, ModelPlantBiomass
         logical                                         :: ModelCanopyHeight, ModelTemperatureStress
@@ -650,6 +690,11 @@ Module ModuleVegetation
         logical, dimension(:,:), pointer                :: TreeComingFromContinuous
     end type   T_Growth
 
+    type T_SalinityStressParams
+        real :: ECt
+        real :: EC0
+        real :: Slope        
+    end type T_SalinityStressParams
 
     type T_VegetationType
         integer                                         :: ID
@@ -658,20 +703,28 @@ Module ModuleVegetation
 !        type(T_VegetationType), pointer                 :: FirstVegetation
 !        type(T_VegetationType), pointer                 :: LastVegetation
         integer                                         :: VegetationsNumber     = 0
+        integer                                         :: FeddesType
         real                                            :: RootFeddesH1
         real                                            :: RootFeddesH2
         real                                            :: RootFeddesH3
         real                                            :: RootFeddesH4
+        real                                            :: RootFeddesH3L
+        real                                            :: RootFeddesH3H
+        real                                            :: RootFeddesR2L
+        real                                            :: RootFeddesR2H
         integer                                         :: VegetationID
         type (T_TimingDatabase)                         :: TimingDatabase
         type (T_GrowthDatabase)                         :: GrowthDatabase
         type (T_HarvestKillDatabase)                    :: HarvestKillDatabase
         type (T_GrazingDatabase)                        :: GrazingDatabase
         type (T_FertilizerDatabase)                     :: FertilizerDatabase
+        type (T_SalinityStressParams)                   :: SalinityStressParams
         type (T_PesticideDatabase)                      :: PesticideDatabase
         logical                                         :: ComputeRoot
         logical                                         :: ComputeStem
         logical                                         :: HasLeaves
+        logical                                         :: UseSalinityStress
+        integer                                         :: StressInteraction        
     end type T_VegetationType
 
     type T_FluxesToSoil
@@ -765,8 +818,6 @@ Module ModuleVegetation
         real, dimension(:,:  ), pointer                       :: EVTPCropCoefficient
         
         real, dimension(:,:  ), pointer                       :: CanopyHeight
-
-
     end type T_StateVariables
 
     private :: T_Vegetation
@@ -790,7 +841,7 @@ Module ModuleVegetation
         type(T_VegetationType    ), pointer             :: FirstVegetation
         type(T_VegetationType    ), pointer             :: LastVegetation
         integer                                         :: VegetationsNumber     = 0
-       
+
         !DataMatrixes
         integer, dimension(:,:), pointer                :: VegetationID
         integer                                         :: ObjEnterData         = 0
@@ -853,16 +904,22 @@ Module ModuleVegetation
 !        integer, dimension(:,:), pointer                :: KillOperations
         integer                                         :: nIterations                      !counter to atmosphere integration
         
-        integer, dimension(:), pointer                  :: PesticideListID
-        character(len = StringLength), dimension(:), pointer   :: PesticideListName
+        integer, dimension(:), pointer                       :: PesticideListID
+        character(len = StringLength), dimension(:), pointer :: PesticideListName
         
 !        integer                                         :: VegetationsNumber     = 0
-        type (T_VegetationType), dimension(:), pointer  :: VegetationTypes  => null()
+        type(T_VegetationType), dimension(:), pointer   :: VegetationTypes  => null()
         type(T_ComputeOptions)                          :: ComputeOptions
         type(T_HeatUnits)                               :: HeatUnits
         type(T_Growth)                                  :: Growth
         type(T_Fluxes)                                  :: Fluxes
         type(T_StateVariables)                          :: StateVariables
+
+!        type(T_SoilConc), pointer                       :: FirstSoilConc  => null()
+!        type(T_SoilConc), pointer                       :: LastSoilConc   => null()
+!        integer                                         :: SoilConcNumber =  0
+        
+        real, dimension(:,:,:), pointer                 :: ECw => null()        
     end type  T_Vegetation
 
     !Global Module Variables
@@ -958,6 +1015,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
             call ConstructPropertyList
             
+!            call ConstructSoilConcList
+
             call ConstructVegetationList
 
             call ConstructVegetationParameters 
@@ -998,7 +1057,6 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
             !First Output
             if (Me%OutPut%HDF_ON)           call Modify_OutputHDF                        
-
 
             !Returns ID
             ObjVegetationID  = Me%InstanceID
@@ -1097,7 +1155,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         call GetComputeTimeLimits(Me%ObjTime, BeginTime = Me%BeginTime,                 &
                                   EndTime = Me%EndTime, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR01'
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR010'
         
         !Actualize the time
         Me%ActualTime  = Me%BeginTime
@@ -1108,13 +1166,13 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                    WorkSize = Me%WorkSize2D,                            &
                                    STAT     = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                      &
-            stop 'ConstructGlobalVariables - ModuleVegetation  - ERR02'
+            stop 'ConstructGlobalVariables - ModuleVegetation  - ERR020'
 
         call GetGeometrySize    (Me%ObjGeometry,                                        &    
                                  Size     = Me%Size,                                    &
                                  WorkSize = Me%WorkSize,                                &
                                  STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation  - ERR010'
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation  - ERR030'
         
 
         call GetData(Me%Files%VegetationIDFile,                                         &
@@ -1123,7 +1181,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      SearchType     = FromFile,                                         &
                      ClientModule   = 'ModuleVegetation',                               &
                      STAT           = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR020'
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR040'
 
         call GetData(Me%ComputeOptions%ModelTemperatureStress,                          &
                      Me%ObjEnterData, iflag,                                            &
@@ -1132,7 +1190,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      SearchType     = FromFile,                                         &
                      ClientModule   = 'ModuleVegetation',                               &
                      STAT           = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR021'
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR050'
 
         call GetData(Me%ComputeOptions%ModelNitrogen,                                   &
                      Me%ObjEnterData, iflag,                                            &
@@ -1141,7 +1199,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      SearchType     = FromFile,                                         &
                      ClientModule   = 'ModuleVegetation',                               &
                      STAT           = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR022'
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR060'
 
         call GetData(Me%ComputeOptions%ModelPhosphorus,                                 &
                      Me%ObjEnterData, iflag,                                            &
@@ -1150,7 +1208,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      SearchType     = FromFile,                                         &
                      ClientModule   = 'ModuleVegetation',                               &
                      STAT           = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR023'
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR070'
         
         call GetData(Me%ComputeOptions%ModelWater,                                      &
                      Me%ObjEnterData, iflag,                                            &
@@ -1159,7 +1217,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      SearchType     = FromFile,                                         &
                      ClientModule   = 'ModuleVegetation',                               &
                      STAT           = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR024'
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR080'
 
         if (Me%ComputeOptions%ModelWater) then
             call GetData(Me%ComputeOptions%TranspirationMethod,                             &
@@ -1169,7 +1227,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                          SearchType     = FromFile,                                         &
                          ClientModule   = 'ModuleVegetation',                               &
                          STAT           = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR030'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR090'
         
             if (Me%ComputeOptions%TranspirationMethod == TranspirationMOHID) then        
 
@@ -1180,7 +1238,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                              SearchType     = FromFile,                                     &
                              ClientModule   = 'ModuleVegetation',                           &
                              STAT           = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR040'
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR100'
             
             
                 call GetData(Me%ComputeOptions%RootProfile,                                 &
@@ -1190,7 +1248,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                              SearchType     = FromFile,                                     &
                              ClientModule   = 'ModuleVegetation',                           &
                              STAT           = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR050'
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR110'
 
                 call GetData(Me%ComputeOptions%WaterUptakeOld,                              &
                              Me%ObjEnterData, iflag,                                        &
@@ -1199,7 +1257,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                              SearchType     = FromFile,                                     &
                              ClientModule   = 'ModuleVegetation',                           &
                              STAT           = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR060'        
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR120'        
 
                 call GetData(Me%ComputeOptions%WaterUptakeStressMethod,                     &
                              Me%ObjEnterData, iflag,                                        &
@@ -1208,8 +1266,19 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                              SearchType     = FromFile,                                     &
                              ClientModule   = 'ModuleVegetation',                           &
                              STAT           = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR070'
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR130'
+                
+                call GetData(Me%ComputeOptions%SalinityStressMethod,                        &
+                             Me%ObjEnterData, iflag,                                        &
+                             Keyword        = 'SALINITY_STRESS_METHOD',                     &
+                             Default        = 1,                                            & !Threshold/Slope
+                             SearchType     = FromFile,                                     &
+                             ClientModule   = 'ModuleVegetation',                           &
+                             STAT           = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR140'    
+                                
             endif
+            
             call GetData(Me%ComputeOptions%WaterUptakeCompensationFactor,                   &
                          Me%ObjEnterData, iflag,                                            &
                          Keyword        = 'WATER_UPTAKE_COMPENSATION_FACTOR',               &
@@ -1217,20 +1286,20 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                          SearchType     = FromFile,                                         &
                          ClientModule   = 'ModuleVegetation',                               &
                          STAT           = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR090'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR150'
        
         endif
         
+        call GetData(Me%ComputeOptions%NutrientUptakeMethod,                            &
+                     Me%ObjEnterData, iflag,                                            &
+                     Keyword        = 'NUTRIENT_UPTAKE_METHOD',                         &
+                     Default        = NutrientUptake_TranspConc,                        &
+                     SearchType     = FromFile,                                         &
+                     ClientModule   = 'ModuleVegetation',                               &
+                     STAT           = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR160'  
+        
         if (Me%ComputeOptions%ModelNitrogen .or. Me%ComputeOptions%ModelPhosphorus) then
-            call GetData(Me%ComputeOptions%NutrientUptakeMethod,                            &
-                         Me%ObjEnterData, iflag,                                            &
-                         Keyword        = 'NUTRIENT_UPTAKE_METHOD',                         &
-                         Default        = NutrientUptake_TranspConc,                        &
-                         SearchType     = FromFile,                                         &
-                         ClientModule   = 'ModuleVegetation',                               &
-                         STAT           = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR075'
-
             call GetData(Me%ComputeOptions%NutrientStressMethod,                            &
                          Me%ObjEnterData, iflag,                                            &
                          Keyword        = 'NUTRIENT_STRESS_METHOD',                         &
@@ -1238,7 +1307,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                          SearchType     = FromFile,                                         &
                          ClientModule   = 'ModuleVegetation',                               &
                          STAT           = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR075'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR170'
 
             call GetData(Me%ComputeOptions%NitrogenDistributionParameter,                   &
                          Me%ObjEnterData, iflag,                                            &
@@ -1247,7 +1316,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                          SearchType     = FromFile,                                         &
                          ClientModule   = 'ModuleVegetation',                               &
                          STAT           = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR076'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR180'
 
             call GetData(Me%ComputeOptions%PhosphorusDistributionParameter,                 &
                          Me%ObjEnterData, iflag,                                            &
@@ -1256,7 +1325,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                          SearchType     = FromFile,                                         &
                          ClientModule   = 'ModuleVegetation',                               &
                          STAT           = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR077'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR190'
         endif
 
         call GetData(Me%ComputeOptions%AtmosphereCO2,                                   &
@@ -1266,7 +1335,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      SearchType     = FromFile,                                         &
                      ClientModule   = 'ModuleVegetation',                               &
                      STAT           = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR080'
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR200'
 
 
         !Tests with initial conditions for one cell. Model in the future should try to contruct initial conditions for grid
@@ -1298,7 +1367,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             write(*,*) 'Potential Annual HU  for the simulation is now defined in'
             write(*,*) ' <begin_TotalPotentialHU>/<end_TotalPotentialHU> block'
             write(*,*) 'and not with POTENTIALHUTOTAL keyword'    
-            stop 'ConstructGlobalVariables - ModuleVegetation - ERR0141'
+            stop 'ConstructGlobalVariables - ModuleVegetation - ERR210'
         endif
 
 
@@ -1309,7 +1378,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      SearchType     = FromFile,                                         &
                      ClientModule   = 'ModuleVegetation',                               &
                      STAT           = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR0160'
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR220'
 
         call GetData(Aux,                                                               &
                      Me%ObjEnterData, iflag,                                            &
@@ -1331,7 +1400,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      SearchType     = FromFile,                                         &
                      ClientModule   = 'ModuleVegetation',                               &
                      STAT           = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR0170'
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR230'
   
         call GetData(Me%ComputeOptions%Dormancy,                                        &
                      Me%ObjEnterData, iflag,                                            &
@@ -1340,7 +1409,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      SearchType     = FromFile,                                         &
                      ClientModule   = 'ModuleVegetation',                               &
                      STAT           = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR0180'
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR240'
 
         call GetData(Me%ComputeOptions%Fertilization,                                   &
                      Me%ObjEnterData, iflag,                                            &
@@ -1349,7 +1418,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      SearchType     = FromFile,                                         &
                      ClientModule   = 'ModuleVegetation',                               &
                      STAT           = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR0181'
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR250'
 
         call GetData(Me%ComputeOptions%Pesticide,                                       &
                      Me%ObjEnterData, iflag,                                            &
@@ -1358,7 +1427,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      SearchType     = FromFile,                                         &
                      ClientModule   = 'ModuleVegetation',                               &
                      STAT           = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR0182'
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR260'
         
         if (Me%ComputeOptions%ModelNitrogen .or. Me%ComputeOptions%ModelPhosphorus) then
             call GetData(Me%ComputeOptions%NutrientFluxesWithSoil,                          &
@@ -1368,7 +1437,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                          SearchType     = FromFile,                                         &
                          ClientModule   = 'ModuleVegetation',                               &
                          STAT           = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR0183'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR270'
         else
             !PorousMedia properties does not need to compute nutrient fluxes from vegetation
             Me%ComputeOptions%NutrientFluxesWithSoil = .false.
@@ -1381,7 +1450,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      SearchType     = FromFile,                                         &
                      ClientModule   = 'ModuleVegetation',                               &
                      STAT           = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR0190'
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR280'
 
         call GetData(Me%ComputeOptions%ChangeCanopyHeight,                              &
                      Me%ObjEnterData, iflag,                                            &
@@ -1390,7 +1459,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      SearchType     = FromFile,                                         &
                      ClientModule   = 'ModuleVegetation',                               &
                      STAT           = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR0200'
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR290'
 
         call GetData(Me%ComputeOptions%AdjustRUEForCO2,                                 &
                      Me%ObjEnterData, iflag,                                            &
@@ -1399,7 +1468,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      SearchType     = FromFile,                                         &
                      ClientModule   = 'ModuleVegetation',                               &
                      STAT           = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR0201'
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR300'
 
         call GetData(Me%ComputeOptions%AdjustRUEForVPD,                                 &
                      Me%ObjEnterData, iflag,                                            &
@@ -1408,8 +1477,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      SearchType     = FromFile,                                         &
                      ClientModule   = 'ModuleVegetation',                               &
                      STAT           = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR0202'
-
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR0310'
 
         call GetData(Me%ComputeOptions%Continuous,                                      &
                      Me%ObjEnterData, iflag,                                            &
@@ -1418,12 +1486,12 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      Default    = .false.,                                              &                                           
                      ClientModule ='ModulePorousMedia',                                 &
                      STAT       = STAT_CALL)            
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR0203'
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR320'
         
         if (Me%ComputeOptions%Continuous) then
             !Reads the name of the file where to read initial data
             call ReadFileName ('VEGETATION_INI', Me%Files%InitialFile, "Vegetation Initial File", STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR0204'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR330'
 
             call GetData(Me%ComputeOptions%StopOnWrongDate,                             &
                          Me%ObjEnterData, iflag,                                        &
@@ -1432,28 +1500,28 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                          Default    = .true.,                                           &                                           
                          ClientModule ='ModulePorousMedia',                             &
                          STAT       = STAT_CALL)            
-            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModulePorousMedia - ERR09'
+            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModulePorousMedia - ERR340'
 
         endif
 
         call GetComputeTimeStep(Me%ObjTime, ModelDT, STAT = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)                                                    &
-            stop 'ConstructGlobalVariables - ModuleVegetation - ERR0210'
+            stop 'ConstructGlobalVariables - ModuleVegetation - ERR350'
 
         Me%ExternalVar%DT = ModelDT
 
         call GetComputeCurrentTime(Me%ObjTime, Me%ExternalVar%Now, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR0220'
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR360'
 
         call GetData(Me%ComputeOptions%VegetationDT,                                     &
                      Me%ObjEnterData, iflag,                                             &
                      keyword      = 'VEGETATION_DT',                                     &
-                     Default      = ModelDT,                                              &
+                     Default      = ModelDT,                                             &
                      SearchType   = FromFile,                                            &
                      ClientModule = 'ModuleVegetation',                                  &
                      STAT         = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)                                                     &
-            stop 'ConstructGlobalVariables - ModuleVegetation - ERR0230'
+            stop 'ConstructGlobalVariables - ModuleVegetation - ERR370'
                                    
         call GetData(Me%ComputeOptions%IntegrationDT,                                    &
                      Me%ObjEnterData, iflag,                                             &
@@ -1463,24 +1531,24 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      ClientModule = 'ModuleVegetation',                                  &
                      STAT         = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)                                                     &
-            stop 'ConstructGlobalVariables - ModuleVegetation - ERR240'
+            stop 'ConstructGlobalVariables - ModuleVegetation - ERR380'
 
         if (Me%ComputeOptions%VegetationDT .lt. Me%ComputeOptions%IntegrationDT) then
             write(*,*) 
             write(*,*) 'Vegetation DT time step is smaller then the external variables integration time step'
-            stop 'ConstructGlobalVariables - ModuleVegetation - ERR250'
+            stop 'ConstructGlobalVariables - ModuleVegetation - ERR390'
         endif
         
         if (Me%ComputeOptions%IntegrationDT .lt. Me%ExternalVar%DT) then
             write(*,*) 
             write(*,*) 'Integration DT time step is smaller then the model time step'
-            stop 'ConstructGlobalVariables - ModuleVegetation - ERR260'  
+            stop 'ConstructGlobalVariables - ModuleVegetation - ERR400'  
         endif      
         
         if (Me%ComputeOptions%VegetationDT .lt. ModelDT) then
             write(*,*) 
             write(*,*) 'Vegetation DT time step is smaller then model time step'
-            stop 'ConstructGlobalVariables - ModuleVegetation - ERR270'
+            stop 'ConstructGlobalVariables - ModuleVegetation - ERR410'
 
         else
 
@@ -1492,7 +1560,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 write(*,*) 
                 write(*,*) 'Vegetation time step must be a multiple of model time step.'
                 write(*,*) 'Please review your input data.'
-                stop 'ConstructGlobalVariables - ModuleVegetation - ERR280'
+                stop 'ConstructGlobalVariables - ModuleVegetation - ERR420'
             endif
 
             !Run period in seconds
@@ -1507,7 +1575,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 write(*,*) 
                 write(*,*) 'Model run time is not a multiple of vegetation time step.'
                 write(*,*) 'Please review your input data.'
-                stop 'ConstructGlobalVariables - ModuleVegetation - ERR290'
+                stop 'ConstructGlobalVariables - ModuleVegetation - ERR430'
             end if
         endif
 
@@ -2000,6 +2068,145 @@ cd0:    if (Exist) then
 
    !--------------------------------------------------------------------------
 
+!    subroutine ConstructSoilConcList
+!
+!        !Arguments-------------------------------------------------------------
+!
+!        !External--------------------------------------------------------------                                  
+!        integer :: STAT_CALL
+!        integer :: ClientNumber
+!        logical :: BlockFound
+!                                  
+!        !Local-----------------------------------------------------------------
+!        type (T_SoilConc), pointer :: NewSoilConc
+!
+!        !----------------------------------------------------------------------
+!        do
+!            call ExtractBlockFromBuffer(Me%ObjEnterData, ClientNumber,                &
+!                                        beginsoilconc, endsoilconc, BlockFound,       &
+!                                        STAT = STAT_CALL)
+!
+!            if (STAT_CALL .EQ. SUCCESS_) then
+!    
+!                if (BlockFound) then                                  
+!                
+!                    ! Construct a new Soil Concentration Property 
+!                    call ConstructSoilConc(NewSoilConc)
+!                                             
+!                    ! Add new Soil Concentration Property to the Soil Concentration Property List 
+!                    call AddSoilConc(NewSoilConc)
+!                    
+!                else
+!                
+!                    call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL) 
+!                    if (STAT_CALL .NE. SUCCESS_) &
+!                        stop 'ConstructSoilConcList - ModuleVegetation. ERR010.'
+!                    exit !No more blocks
+!                    
+!                end if    
+!
+!            else
+!            
+!                write(*,*)  
+!                write(*,*) 'Error calling ExtractBlockFromBuffer. '
+!                stop 'ConstructSoilConcList - ModuleVegetation - ERR020'
+!
+!            end if     
+!            
+!        end do    
+!        !----------------------------------------------------------------------
+!        
+!    end subroutine ConstructSoilConcList
+!       
+!    !--------------------------------------------------------------------------
+!               
+!    subroutine ConstructSoilConc (NewSoilConc)
+!
+!        !Arguments-------------------------------------------------------------
+!        type(T_SoilConc), pointer :: NewSoilConc
+!
+!        !----------------------------------------------------------------------             
+!        allocate (NewSoilConc)
+!
+!        nullify (NewSoilConc%Conc)
+!        nullify (NewSoilConc%Prev)
+!        nullify (NewSoilConc%Next)        
+!
+!        call ConstructPropertyID (NewSoilConc%ID, Me%ObjEnterData, FromBlock)
+!        call ConstructSoilConcOptions (NewSoilConc)
+!        !----------------------------------------------------------------------        
+!
+!    end subroutine ConstructSoilConc
+!
+!    !--------------------------------------------------------------------------    
+!
+!    subroutine ConstructSoilConcOptions (NewSoilConc)
+!
+!        !Arguments-------------------------------------------------------------
+!        type(T_SoilConc), pointer :: NewSoilConc
+!
+!        !External--------------------------------------------------------------
+!        integer                   :: STAT_CALL
+!
+!        !Local-----------------------------------------------------------------
+!        integer                   :: iflag
+!
+!        !----------------------------------------------------------------------       
+!        call GetData(NewSoilConc%UseForSalinityStress,                                  &
+!                     Me%ObjEnterData, iflag,                                            &
+!                     keyword      = 'USE_FOR_SALINITY_STRESS',                          &
+!                     Default      = .true.,                                             &                        
+!                     SearchType   = FromBlock,                                          &
+!                     ClientModule = 'ModuleVegetation',                                 &
+!                     STAT         = STAT_CALL)              
+!        if (STAT_CALL .NE. SUCCESS_) &
+!            stop 'ConstructSoilConcOptions - ModuleVegetation - ERR010'
+!        
+!        if (NewSoilConc%UseForSalinityStress) then
+!        
+!            call GetData(NewSoilConc%ConversionFactor,                                      &
+!                         Me%ObjEnterData, iflag,                                            &
+!                         keyword      = 'CONVERSION_FACTOR',                                &
+!                         SearchType   = FromBlock,                                          &
+!                         ClientModule = 'ModuleVegetation',                                 &
+!                         STAT         = STAT_CALL)              
+!            if (STAT_CALL .NE. SUCCESS_) &
+!                stop 'ConstructSoilConcOptions - ModuleVegetation - ERR020' 
+!            if (iflag .NE. 1) &
+!                stop 'ConstructSoilConcOptions - ModuleVegetation - ERR030' 
+!                    
+!        else
+!        
+!            NewSoilConc%ConversionFactor = 0.0
+!            
+!        endif               
+!        !----------------------------------------------------------------------
+! 
+!    end subroutine ConstructSoilConcOptions
+!
+!    !--------------------------------------------------------------------------
+!     
+!    subroutine AddSoilConc (NewSoilConc)
+!
+!        !Arguments-------------------------------------------------------------
+!        type(T_SoilConc), pointer :: NewSoilConc
+!
+!        !----------------------------------------------------------------------
+!        if (.not.associated(Me%FirstSoilConc)) then
+!            Me%SoilConcNumber     =  1
+!            Me%FirstSoilConc      => NewSoilConc
+!            Me%LastSoilConc       => NewSoilConc
+!        else
+!            NewSoilConc%Prev      => Me%LastSoilConc
+!            Me%LastSoilConc%Next  => NewSoilConc
+!            Me%LastSoilConc       => NewSoilConc
+!            Me%SoilConcNumber     =  Me%SoilConcNumber + 1
+!        end if 
+!        !----------------------------------------------------------------------
+!
+!    end subroutine AddSoilConc 
+
+   !--------------------------------------------------------------------------
 
     ! This subroutine adds a new vegetation type to the vegetation List  
     subroutine AddVegetation(NewVegetation)
@@ -2163,7 +2370,7 @@ doV:            do while (associated(VegetationInList))
         
         if (.not. Me%ComputeOptions%Evolution%GrowthModelNeeded) then
             
-            if(Me%ComputeOptions%HarvestKill .or. Me%ComputeOptions%Grazing .or. Me%ComputeOptions%Dormancy          &
+            if(Me%ComputeOptions%HarvestKill .or. Me%ComputeOptions%Grazing .or. Me%ComputeOptions%Dormancy         &
                .or. Me%ComputeOptions%Fertilization .or. Me%ComputeOptions%NutrientFluxesWithSoil                   &
                .or. Me%ComputeOptions%Pesticide) then
                 
@@ -2468,14 +2675,14 @@ doV:            do while (associated(VegetationInList))
                 write(*,*    ) '---Phosphorus Uptake        : OFF'
             endif
             if(Me%ComputeOptions%ModelNitrogen .or. Me%ComputeOptions%ModelPhosphorus) then
-                if (Me%ComputeOptions%NutrientUptakeMethod .eq. 1) then
-                    write(*,*    ) '   ---NutrientUptake Method : Q*Conc'
-                else
-                    write(*,*    ) '   ---NutrientUptake Method : SWAT based'
-                    write(*,*    ) '       WARNING - This option gives mass errors'
-                endif
-            endif
-            if(Me%ComputeOptions%ModelNitrogen .or. Me%ComputeOptions%ModelPhosphorus) then
+                select case (Me%ComputeOptions%NutrientUptakeMethod)
+                    case (1)
+                        write(*,*    ) '   ---NutrientUptake Method : Q*Conc'
+                    case (2)
+                        write(*,*    ) '   ---NutrientUptake Method : SWAT based'
+                        write(*,*    ) '       WARNING - This option gives mass errors'
+                end select
+                
                 if (Me%ComputeOptions%NutrientStressMethod .eq. 1) then
                     write(*,*    ) '   ---NutrientStress Method : Actual/Pot'
                 else
@@ -2488,9 +2695,9 @@ doV:            do while (associated(VegetationInList))
                 write(*,*    ) '---Temperature Stress       : OFF'
             endif
             if (Me%ComputeOptions%HarvestKill) then
-                write(*,*    ) '---HarvestKill Operations    : ON'
+                write(*,*    ) '---HarvestKill Operations   : ON'
             else
-                write(*,*    ) '---HarvestKill Operations    : OFF'
+                write(*,*    ) '---HarvestKill Operations   : OFF'
             endif              
             if (Me%ComputeOptions%Grazing) then
                 write(*,*    ) '---Grazing Operations       : ON'
@@ -2547,11 +2754,14 @@ doV:            do while (associated(VegetationInList))
                 write(*,*    ) '---Phosphorus Uptake        : OFF'
             endif
             if(Me%ComputeOptions%ModelNitrogen .or. Me%ComputeOptions%ModelPhosphorus) then
-                if (Me%ComputeOptions%NutrientUptakeMethod .eq. 1) then
-                    write(*,*    ) '   ---NutrientUptake Method : 1'
-                else
-                    write(*,*    ) '   ---NutrientUptake Method : 2'
-                endif
+                select case (Me%ComputeOptions%NutrientUptakeMethod)
+                    case (1)
+                        write(*,*    ) '   ---NutrientUptake Method : 1'
+                    case (2)
+                        write(*,*    ) '   ---NutrientUptake Method : 2'
+                    case (3)
+                        write(*,*    ) '   ---NutrientUptake Method : 3'
+                end select
             endif
             write(*,*    ) '---Temperature Stress       : OFF'
             write(*,*    ) '---Grazing, HarvestKill'       
@@ -2893,25 +3103,25 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
                       
                 allocate(Me%Fluxes%BiomassRemovedInHarvest                    (ILB:IUB,JLB:JUB)) 
                 allocate(Me%Fluxes%BiomassHarvestedFraction                   (ILB:IUB,JLB:JUB)) 
-                allocate(Me%Fluxes%ToSoil%HarvestKillBiomassToSoil             (ILB:IUB,JLB:JUB)) 
-                allocate(Me%Fluxes%ToSoil%KillRootBiomassLeftInSoil     (ILB:IUB,JLB:JUB))
+                allocate(Me%Fluxes%ToSoil%HarvestKillBiomassToSoil            (ILB:IUB,JLB:JUB)) 
+                allocate(Me%Fluxes%ToSoil%KillRootBiomassLeftInSoil           (ILB:IUB,JLB:JUB))
 !                Me%Fluxes%BiomassRemovedInHarvest                             (:,:) = 0.0  
 !                Me%Fluxes%BiomassHarvestedFraction                            (:,:) = 0.0
-!                Me%Fluxes%ToSoil%HarvestKillBiomassToSoil                      (:,:) = 0.0 
-!                Me%Fluxes%ToSoil%KillRootBiomassLeftInSoil              (:,:) = 0.0
+!                Me%Fluxes%ToSoil%HarvestKillBiomassToSoil                     (:,:) = 0.0 
+!                Me%Fluxes%ToSoil%KillRootBiomassLeftInSoil                    (:,:) = 0.0
             
                 if (Me%ComputeOptions%ModelNitrogen) then            
                     allocate(Me%Fluxes%NitrogenRemovedInHarvest               (ILB:IUB,JLB:JUB))  
-                    allocate(Me%Fluxes%ToSoil%HarvestKillNitrogenToSoil        (ILB:IUB,JLB:JUB)) 
+                    allocate(Me%Fluxes%ToSoil%HarvestKillNitrogenToSoil       (ILB:IUB,JLB:JUB)) 
 !                    Me%Fluxes%NitrogenRemovedInHarvest                        (:,:) = 0.0 
-!                    Me%Fluxes%ToSoil%HarvestKillNitrogenToSoil                 (:,:) = 0.0 
+!                    Me%Fluxes%ToSoil%HarvestKillNitrogenToSoil                (:,:) = 0.0 
                 endif
             
                 if (Me%ComputeOptions%ModelPhosphorus) then
                     allocate(Me%Fluxes%PhosphorusRemovedInHarvest             (ILB:IUB,JLB:JUB)) 
-                    allocate(Me%Fluxes%ToSoil%HarvestKillPhosphorusToSoil      (ILB:IUB,JLB:JUB))
+                    allocate(Me%Fluxes%ToSoil%HarvestKillPhosphorusToSoil     (ILB:IUB,JLB:JUB))
 !                    Me%Fluxes%PhosphorusRemovedInHarvest                      (:,:) = 0.0
-!                    Me%Fluxes%ToSoil%HarvestKillPhosphorusToSoil               (:,:) = 0.0 
+!                    Me%Fluxes%ToSoil%HarvestKillPhosphorusToSoil              (:,:) = 0.0 
                 endif
 
             endif
@@ -2988,11 +3198,9 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
                     allocate (Me%Fluxes%Pesticides%Application(Pest)%Vegetation(ILB:IUB,JLB:JUB))                        
                     allocate (Me%Fluxes%Pesticides%Application(Pest)%PesticideAppOccurred(ILB:IUB,JLB:JUB)) 
                     Me%Fluxes%Pesticides%Application(Pest)%PesticideAppOccurred(:,:) = .false.
-                enddo                
-            
-            endif
-            
-            
+                enddo                            
+            endif            
+
             if (Me%ComputeOptions%ModelPlantBiomass) then
                 allocate(Me%Fluxes%BiomassGrowth                              (ILB:IUB,JLB:JUB)) 
                 allocate(Me%Growth%BiomassGrowthOld                           (ILB:IUB,JLB:JUB))  
@@ -3012,10 +3220,15 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
         endif
 
         if (Me%ComputeOptions%TranspirationMethod == TranspirationMOHID) then
-            allocate(Me%ComputeOptions%TranspirationMOHID%RootFeddesH1 (ILB:IUB,JLB:JUB))
-            allocate(Me%ComputeOptions%TranspirationMOHID%RootFeddesH2 (ILB:IUB,JLB:JUB))
-            allocate(Me%ComputeOptions%TranspirationMOHID%RootFeddesH3 (ILB:IUB,JLB:JUB))
-            allocate(Me%ComputeOptions%TranspirationMOHID%RootFeddesH4 (ILB:IUB,JLB:JUB))
+            allocate(Me%ComputeOptions%TranspirationMOHID%FeddesType    (ILB:IUB,JLB:JUB))
+            allocate(Me%ComputeOptions%TranspirationMOHID%RootFeddesH1  (ILB:IUB,JLB:JUB))
+            allocate(Me%ComputeOptions%TranspirationMOHID%RootFeddesH2  (ILB:IUB,JLB:JUB))
+            allocate(Me%ComputeOptions%TranspirationMOHID%RootFeddesH3  (ILB:IUB,JLB:JUB))
+            allocate(Me%ComputeOptions%TranspirationMOHID%RootFeddesH4  (ILB:IUB,JLB:JUB))
+            allocate(Me%ComputeOptions%TranspirationMOHID%RootFeddesH3L (ILB:IUB,JLB:JUB))
+            allocate(Me%ComputeOptions%TranspirationMOHID%RootFeddesH3H (ILB:IUB,JLB:JUB))
+            allocate(Me%ComputeOptions%TranspirationMOHID%RootFeddesR2L (ILB:IUB,JLB:JUB))
+            allocate(Me%ComputeOptions%TranspirationMOHID%RootFeddesR2H (ILB:IUB,JLB:JUB))
         endif
         
 
@@ -3045,7 +3258,6 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
         real                                                :: CoordX, CoordY
         logical                                             :: CoordON, IgnoreOK
         character(len=StringLength)                         :: TimeSerieName
-                
         !----------------------------------------------------------------------
 
         !First checks out how many properties will have time series
@@ -3360,6 +3572,79 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
             
             endif
 
+            ! Time serie with fertilization fluxes to soil
+!            if (Me%ComputeOptions%Fertilization) then
+!
+!                call GetData(Me%ComputeOptions%FertilizationOutput,                 &
+!                             Me%ObjEnterData,iflag,                                 &
+!                             SearchType   = FromFile,                               &
+!                             keyword      = 'FERTILIZATION_OUTPUT',                 &
+!                             ClientModule = 'ModuleVegetation',                     &
+!                             Default      = .false.,                                &
+!                             STAT         = STAT_CALL)
+!                if (STAT_CALL .NE. SUCCESS_)                                        &
+!                    stop 'Construct_Time_Serie - ModuleVegetation - ERR07' 
+!                
+!                if (Me%ComputeOptions%FertilizationOutput) then
+!                                
+!                    if (Me%ComputeOptions%ModelNitrogen) then
+!                        if (Me%ComputeOptions%ModelPhosphorus) then
+!                            allocate (PropertyList(12))
+!                        else
+!                            allocate (PropertyList(7))
+!                        endif
+!                    else
+!                        if (Me%ComputeOptions%ModelPhosphorus) then
+!                            allocate (PropertyList(5))
+!                        endif
+!                    endif
+!                    
+!                    i = 1                        
+!                    if (Me%ComputeOptions%ModelNitrogen) then
+!                        PropertyList(i)   = "Fert_Nitrate_Surface_KgN/ha"
+!                        i = i + 1
+!                        PropertyList(i) = "Fert_Nitrate_SubSurface_KgN/ha"
+!                        i = i + 1
+!                        PropertyList(i) = "Fert_Ammonia_Surface_KgN/ha"
+!                        i = i + 1
+!                        PropertyList(i) = "Fert_Ammonia_SubSurface_KgN/ha"
+!                        i = i + 1
+!                        PropertyList(i) = "Fert_OrganicN_Surface_KgN/ha"
+!                        i = i + 1
+!                        PropertyList(i) = "Fert_OrganicN_SubSurface_KgN/ha"
+!                        i = i + 1
+!                        PropertyList(i) = "Fert_YearlyAccumulated_Nitrogen_KgN/ha"
+!                        i = i + 1
+!                    endif
+!
+!                    if (Me%ComputeOptions%ModelPhosphorus) then
+!                        PropertyList(i) = "Fert_OrganicP_Surface_KgN/ha"
+!                        i = i + 1
+!                        PropertyList(i) = "Fert_OrganicP_SubSurface_KgN/ha"
+!                        i = i + 1
+!                        PropertyList(i) = "Fert_MineralP_Surface_KgN/ha"
+!                        i = i + 1
+!                        PropertyList(i) = "Fert_MineralP_SubSurface_KgN/ha"
+!                        i = i + 1
+!                        PropertyList(i) = "Fert_YearlyAccumulated_Phosphorus_KgN/ha"
+!                        i = i + 1
+!                    endif
+!        
+!                    call StartTimeSerie(Me%ObjTimeSerieFert,                                        &
+!                                        Me%ObjTime,                                                 &
+!                                        TimeSerieLocationFile,                                      &
+!                                        PropertyList, "vgf",                                        &
+!                                        WaterPoints2D = Me%ExternalVar%MappingPoints2D,             &
+!                                        Instance = 'Vegetation_Fertilization',                      &
+!                                        STAT           = STAT_CALL) 
+!                    if (STAT_CALL /= SUCCESS_) stop 'Construct_Time_Serie - ModuleVegetation - ERR06'
+!
+!                    deallocate(PropertyList)
+!
+!                endif
+!
+!            endif
+
         endif
        
         !Corrects if necessary the cell of the time serie based in the time serie coordinates
@@ -3425,9 +3710,7 @@ i1:         if (CoordON) then
                  write(*,*) 'Time Serie in a outside boundaries cell - ',trim(TimeSerieName)
             endif
 
-
-        enddo
-       
+        enddo       
        
     end subroutine ConstructTimeSerie
 
@@ -3722,6 +4005,9 @@ i1:         if (CoordON) then
         do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             if (Me%ExternalVar%MappingPoints2D(i, j) == 1) then
+                Me%ComputeOptions%TranspirationMOHID%FeddesType(i,j) = &
+                Me%VegetationTypes(Me%VegetationID(i, j))%FeddesType 
+
                 Me%ComputeOptions%TranspirationMOHID%RootFeddesH1(i,j) = &
                 Me%VegetationTypes(Me%VegetationID(i, j))%RootFeddesH1 
                 Me%ComputeOptions%TranspirationMOHID%RootFeddesH2(i,j) = &
@@ -3730,7 +4016,15 @@ i1:         if (CoordON) then
                 Me%VegetationTypes(Me%VegetationID(i, j))%RootFeddesH3 
                 Me%ComputeOptions%TranspirationMOHID%RootFeddesH4(i,j) = &
                 Me%VegetationTypes(Me%VegetationID(i, j))%RootFeddesH4 
-
+                
+                Me%ComputeOptions%TranspirationMOHID%RootFeddesH3L(i,j) = &
+                Me%VegetationTypes(Me%VegetationID(i, j))%RootFeddesH3L 
+                Me%ComputeOptions%TranspirationMOHID%RootFeddesH3H(i,j) = &
+                Me%VegetationTypes(Me%VegetationID(i, j))%RootFeddesH3H 
+                Me%ComputeOptions%TranspirationMOHID%RootFeddesR2L(i,j) = &
+                Me%VegetationTypes(Me%VegetationID(i, j))%RootFeddesR2L 
+                Me%ComputeOptions%TranspirationMOHID%RootFeddesR2H(i,j) = &
+                Me%VegetationTypes(Me%VegetationID(i, j))%RootFeddesR2H 
             endif
         enddo
         enddo
@@ -3981,8 +4275,6 @@ HF1:            if (STAT_CALL == SUCCESS_ .and. DatabaseFound) then
        
         call KillEnterData(ParameterObjEnterData, STAT = STAT_CALL)         
         if (STAT_CALL /= SUCCESS_) stop 'ConstructVegetationParameters - ConstructVegetationParameters - ERR220'        
-
-
    
     end subroutine ConstructVegetationParameters
 
@@ -4004,17 +4296,17 @@ HF1:            if (STAT_CALL == SUCCESS_ .and. DatabaseFound) then
         FeddesObjEnterData = 0
         !Open and save growth database
         call ConstructEnterData(FeddesObjEnterData, Me%FeddesDatabase, STAT = STAT_CALL) 
-        if (STAT_CALL /= SUCCESS_) stop 'ReadFeddesDatabase - ModuleVegetation - ERR80'        
+        if (STAT_CALL /= SUCCESS_) stop 'ReadFeddesDatabase - ModuleVegetation - ERR010'        
         
            
         VegetationFound = .false. 
             
 doH1:   do 
-            call ExtractBlockFromBuffer(FeddesObjEnterData,                                    &
-                                        ClientNumber      = FeddesClientNumber,                   &
-                                        block_begin       = '<beginfeddesdatabase>',              &
-                                        block_end         = '<endfeddesdatabase>',                &
-                                        BlockFound        = DatabaseFound,                        &   
+            call ExtractBlockFromBuffer(FeddesObjEnterData,                                      &
+                                        ClientNumber      = FeddesClientNumber,                  &
+                                        block_begin       = '<beginfeddesdatabase>',             &
+                                        block_end         = '<endfeddesdatabase>',               &
+                                        BlockFound        = DatabaseFound,                       &   
                                         STAT              = STAT_CALL)
 HF1:        if (STAT_CALL == SUCCESS_ .and. DatabaseFound) then
                 
@@ -4023,11 +4315,11 @@ HF1:        if (STAT_CALL == SUCCESS_ .and. DatabaseFound) then
                              keyword        = 'VEGETATION_ID',                                   &
                              ClientModule   = 'ModuleVegetation',                                &
                              STAT           = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_) stop 'ReadFeddedDatabase - ModuleVegetation - ERR90'     
+                if (STAT_CALL .NE. SUCCESS_) stop 'ReadFeddedDatabase - ModuleVegetation - ERR020'     
                 if (iflag /= 1) then
                     write(*,*)'Missing VEGETATION_ID in Feddes definition'
                     write(*,*)'Check vegetation definition in',Me%FeddesDatabase
-                    stop 'ReadFeddesDatabase - ModuleVegetation - ERR30'
+                    stop 'ReadFeddesDatabase - ModuleVegetation - ERR030'
                 endif
                                     
                 if (VegetationID == Me%VegetationTypes(ivt)%VegetationID) then
@@ -4035,17 +4327,26 @@ HF1:        if (STAT_CALL == SUCCESS_ .and. DatabaseFound) then
                     VegetationFound = .true.
                     
                     !Reads Feddes
-                    call GetData(Me%VegetationTypes(ivt)%RootFeddesH1, FeddesObjEnterData,  iflag,  &
+                    call GetData(Me%VegetationTypes(ivt)%FeddesType, FeddesObjEnterData, iflag,     &
+                                 SearchType     = FromBlock,                                        &
+                                 keyword        = 'FEDDES_TYPE',                                    &
+                                 default        = 1,                                                &
+                                 ClientModule   = 'ModuleVegetation',                               &
+                                 STAT           = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_) stop 'ReadFeddesDatabase - ModuleVegetation - ERR040'
+                    
+                    call GetData(Me%VegetationTypes(ivt)%RootFeddesH1, FeddesObjEnterData, iflag,   &
                                  SearchType     = FromBlock,                                        &
                                  keyword        = 'FEDDES_H1',                                      &
                                  ClientModule   = 'ModuleVegetation',                               &
                                  STAT           = STAT_CALL)
-                    if (STAT_CALL .NE. SUCCESS_) stop 'ReadFeddesDatabase - ModuleVegetation - ERR40'
+                    if (STAT_CALL .NE. SUCCESS_) stop 'ReadFeddesDatabase - ModuleVegetation - ERR050'
                     if (iflag /= 1) then
                         write(*,*)'Missing FEDDES_H1 in Vegetation Type definition'
                         stop 'ReadFeddesDatabase - ModuleVegetation - ERR50'
                     endif
-                    call GetData(Me%VegetationTypes(ivt)%RootFeddesH2, FeddesObjEnterData,  iflag,  &
+                    
+                    call GetData(Me%VegetationTypes(ivt)%RootFeddesH2, FeddesObjEnterData, iflag,   &
                                  SearchType     = FromBlock,                                        &
                                  keyword        = 'FEDDES_H2',                                      &
                                  ClientModule   = 'ModuleVegetation',                               &
@@ -4055,27 +4356,122 @@ HF1:        if (STAT_CALL == SUCCESS_ .and. DatabaseFound) then
                         write(*,*)'Missing FEDDES_H2 in Vegetation Type definition'
                         stop 'ReadFeddesDatabase - ModuleVegetation - ERR70'
                     endif
-                    call GetData(Me%VegetationTypes(ivt)%RootFeddesH3, FeddesObjEnterData,  iflag,     &
-                                 SearchType     = FromBlock,                                        &
-                                 keyword        = 'FEDDES_H3',                                      &
-                                 ClientModule   = 'ModuleVegetation',                               &
-                                 STAT           = STAT_CALL)
-                    if (STAT_CALL .NE. SUCCESS_) stop 'ReadFeddesDatabase - ModuleVegetation - ERR80'
-                    if (iflag /= 1) then
-                        write(*,*)'Missing FEDDES_H3 in Vegetation Type definition'
-                        stop 'ReadFeddesDatabase - ModuleVegetation - ERR90'
-                    endif
-                    call GetData(Me%VegetationTypes(ivt)%RootFeddesH4, FeddesObjEnterData,  iflag,     &
+                    
+                    select case (Me%VegetationTypes(ivt)%FeddesType) 
+                    case (1)
+                        call GetData(Me%VegetationTypes(ivt)%RootFeddesH3, FeddesObjEnterData, iflag,  &
+                                     SearchType     = FromBlock,                                       &
+                                     keyword        = 'FEDDES_H3',                                     &
+                                     ClientModule   = 'ModuleVegetation',                              &
+                                     STAT           = STAT_CALL)
+                        if (STAT_CALL .NE. SUCCESS_) stop 'ReadFeddesDatabase - ModuleVegetation - ERR070'
+                        if (iflag /= 1) then
+                            write(*,*)'Missing FEDDES_H3 in Vegetation Type definition'
+                            stop 'ReadFeddesDatabase - ModuleVegetation - ERR080'
+                        endif
+                    case (2)
+                        call GetData(Me%VegetationTypes(ivt)%RootFeddesH3L, FeddesObjEnterData, iflag, &
+                                     SearchType     = FromBlock,                                       &
+                                     keyword        = 'FEDDES_H3L',                                    &
+                                     ClientModule   = 'ModuleVegetation',                              &
+                                     STAT           = STAT_CALL)
+                        if (STAT_CALL .NE. SUCCESS_) stop 'ReadFeddesDatabase - ModuleVegetation - ERR090'
+                        if (iflag /= 1) then
+                            write(*,*)'Missing FEDDES_H3L in Vegetation Type definition'
+                            stop 'ReadFeddesDatabase - ModuleVegetation - ERR100'
+                        endif
+                        call GetData(Me%VegetationTypes(ivt)%RootFeddesH3H, FeddesObjEnterData, iflag, &
+                                     SearchType     = FromBlock,                                       &
+                                     keyword        = 'FEDDES_H3H',                                    &
+                                     ClientModule   = 'ModuleVegetation',                              &
+                                     STAT           = STAT_CALL)
+                        if (STAT_CALL .NE. SUCCESS_) stop 'ReadFeddesDatabase - ModuleVegetation - ERR110'
+                        if (iflag /= 1) then
+                            write(*,*)'Missing FEDDES_R2L in Vegetation Type definition'
+                            stop 'ReadFeddesDatabase - ModuleVegetation - ERR120'
+                        endif
+                    
+                        call GetData(Me%VegetationTypes(ivt)%RootFeddesR2L, FeddesObjEnterData, iflag, &
+                                     SearchType     = FromBlock,                                       &
+                                     keyword        = 'FEDDES_R2L',                                    &
+                                     ClientModule   = 'ModuleVegetation',                              &
+                                     STAT           = STAT_CALL)
+                        if (STAT_CALL .NE. SUCCESS_) stop 'ReadFeddesDatabase - ModuleVegetation - ERR130'
+                        if (iflag /= 1) then
+                            write(*,*)'Missing FEDDES_H3H in Vegetation Type definition'
+                            stop 'ReadFeddesDatabase - ModuleVegetation - ERR140'
+                        endif
+
+                        call GetData(Me%VegetationTypes(ivt)%RootFeddesR2H, FeddesObjEnterData, iflag, &
+                                     SearchType     = FromBlock,                                       &
+                                     keyword        = 'FEDDES_R2H',                                    &
+                                     ClientModule   = 'ModuleVegetation',                              &
+                                     STAT           = STAT_CALL)
+                        if (STAT_CALL .NE. SUCCESS_) stop 'ReadFeddesDatabase - ModuleVegetation - ERR150'
+                        if (iflag /= 1) then
+                            write(*,*)'Missing FEDDES_R2H in Vegetation Type definition'
+                            stop 'ReadFeddesDatabase - ModuleVegetation - ERR160'
+                        endif
+
+                    case default
+                        write(*,*)'Invalid FEDDES_TYPE in Vegetation Type definition'
+                        stop 'ReadFeddesDatabase - ModuleVegetation - ERR170'
+                    end select                    
+                    
+                    call GetData(Me%VegetationTypes(ivt)%RootFeddesH4, FeddesObjEnterData,  iflag,  &
                                  SearchType     = FromBlock,                                        &
                                  keyword        = 'FEDDES_H4',                                      &
                                  ClientModule   = 'ModuleVegetation',                               &
                                  STAT           = STAT_CALL)
-                    if (STAT_CALL .NE. SUCCESS_) stop 'ReadFeddesDatabase - ModuleVegetation - ERR100'
+                    if (STAT_CALL .NE. SUCCESS_) stop 'ReadFeddesDatabase - ModuleVegetation - ERR180'
                     if (iflag /= 1) then
                         write(*,*)'Missing FEDDES_H4 in Vegetation Type definition'
-                        stop 'ReadFeddesDatabase - ModuleVegetation - ERR110'
+                        stop 'ReadFeddesDatabase - ModuleVegetation - ERR190'
                     endif
                     
+                    !Load SALINITY STRESS parameters
+                    call GetData(Me%VegetationTypes(ivt)%UseSalinityStress,                         &
+                                 FeddesObjEnterData,  iflag,                                        &
+                                 SearchType     = FromBlock,                                        &
+                                 keyword        = 'USE_SALINITY_STRESS',                            &
+                                 default        = .false.,                                          &
+                                 ClientModule   = 'ModuleVegetation',                               &
+                                 STAT           = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_) stop 'ReadFeddesDatabase - ModuleVegetation - ERR200'
+                    
+                    if (Me%VegetationTypes(ivt)%UseSalinityStress) then
+                    
+                        call GetData(Me%VegetationTypes(ivt)%SalinityStressParams%ECt,                  &
+                                     FeddesObjEnterData,  iflag,                                        &
+                                     SearchType     = FromBlock,                                        &
+                                     keyword        = 'SALINITY_STRESS_THRESHOLD',                      &
+                                     ClientModule   = 'ModuleVegetation',                               &
+                                     STAT           = STAT_CALL)
+                        if (STAT_CALL .NE. SUCCESS_) stop 'ReadFeddesDatabase - ModuleVegetation - ERR210'
+                        if (iflag .NE. 1) stop 'ReadFeddesDatabase - ModuleVegetation - ERR220'     
+                        
+                        call GetData(Me%VegetationTypes(ivt)%SalinityStressParams%Slope,                &
+                                     FeddesObjEnterData,  iflag,                                        &
+                                     SearchType     = FromBlock,                                        &
+                                     keyword        = 'SALINITY_STRESS_SLOPE',                          &
+                                     ClientModule   = 'ModuleVegetation',                               &
+                                     STAT           = STAT_CALL)
+                        if (STAT_CALL .NE. SUCCESS_) stop 'ReadFeddesDatabase - ModuleVegetation - ERR230'
+                        if (iflag .NE. 1) stop 'ReadFeddesDatabase - ModuleVegetation - ERR240' 
+                                                               
+                        Me%VegetationTypes(ivt)%SalinityStressParams%EC0 = Me%VegetationTypes(ivt)%SalinityStressParams%ECt + &
+                                                                           (100 / Me%VegetationTypes(ivt)%SalinityStressParams%Slope)
+                    endif
+
+                    call GetData(Me%VegetationTypes(ivt)%StressInteraction,                         &
+                                 FeddesObjEnterData,  iflag,                                        &
+                                 SearchType     = FromBlock,                                        &
+                                 keyword        = 'STRESS_INTERACTION',                             &
+                                 default        = 1,                                                &
+                                 ClientModule   = 'ModuleVegetation',                               &
+                                 STAT           = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_) stop 'ReadFeddesDatabase - ModuleVegetation - ERR250'
+                                        
                     exit doH1
                     
                 endif
@@ -4083,7 +4479,7 @@ HF1:        if (STAT_CALL == SUCCESS_ .and. DatabaseFound) then
             else
                 
                 call Block_Unlock(FeddesObjEnterData, FeddesClientNumber, STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_) stop 'ReadFeddedDatabase - ModuleVegetation - ERR120'
+                if (STAT_CALL .NE. SUCCESS_) stop 'ReadFeddedDatabase - ModuleVegetation - ERR260'
                
                 exit doH1 
                           
@@ -4095,19 +4491,16 @@ HF1:        if (STAT_CALL == SUCCESS_ .and. DatabaseFound) then
             write(*,*)
             write(*,*) 'Vegetation ID not found:', Me%VegetationTypes(ivt)%VegetationID
             write(*,*) 'Check that ID is defined in database:',Me%FeddesDatabase
-            stop 'ReadFeddesDatabase - ModuleVegetation - ERR130' 
+            stop 'ReadFeddesDatabase - ModuleVegetation - ERR270' 
         endif           
     
     
         call KillEnterData(FeddesObjEnterData, STAT = STAT_CALL)         
-        if (STAT_CALL /= SUCCESS_) stop 'ReadFeddeshDatabase - ModuleVegetation - ERR140'        
-
-        
+        if (STAT_CALL /= SUCCESS_) stop 'ReadFeddeshDatabase - ModuleVegetation - ERR280'        
 
     end subroutine ReadFeddesDatabase
 
     !--------------------------------------------------------------------------
-
     
     subroutine ReadTimingParameters(ivt, ClientNumber,ParameterObjEnterData)
         
@@ -4123,6 +4516,7 @@ HF1:        if (STAT_CALL == SUCCESS_ .and. DatabaseFound) then
         !Begin-----------------------------------------------------------------
 
 
+
         call ExtractBlockFromBlock(ParameterObjEnterData,                                     &
                                     ClientNumber      = ClientNumber,                         &
                                     block_begin       = '<begintimingparameters>',            &
@@ -4133,7 +4527,7 @@ HF:     if (STAT_CALL == SUCCESS_ .and. DatabaseFound) then
 
             !Reads timing Parameters
 
-            call GetData(Me%VegetationTypes(ivt)%TimingDatabase%PlantHUAtMaturity, ParameterObjEnterData,  iflag,               &
+            call GetData(Me%VegetationTypes(ivt)%TimingDatabase%PlantHUAtMaturity, ParameterObjEnterData,  iflag,         &
                          SearchType     = FromBlockInBlock,                                                               &
                          Default        = -99.,                                                                           &
                          keyword        = 'MATURITY_HU',                                                                  &
@@ -4145,7 +4539,7 @@ HF:     if (STAT_CALL == SUCCESS_ .and. DatabaseFound) then
                 stop 'ReadTimingDatabase - ModuleVegetation - ERR15'
             endif
                     
-            call GetData(Me%VegetationTypes(ivt)%TimingDatabase%PlantingJulianDay, ParameterObjEnterData,  iflag,               &
+            call GetData(Me%VegetationTypes(ivt)%TimingDatabase%PlantingJulianDay, ParameterObjEnterData,  iflag,         &
                          SearchType     = FromBlockInBlock,                                                               &
                          Default        = -99.,                                                                           &
                          keyword        = 'PLANTING_JULIANDAY',                                                           &
@@ -4157,7 +4551,7 @@ HF:     if (STAT_CALL == SUCCESS_ .and. DatabaseFound) then
                 FailRead = FailRead +1
             endif
                         
-            call GetData(Me%VegetationTypes(ivt)%TimingDatabase%PlantingHUBase, ParameterObjEnterData,  iflag,                  &
+            call GetData(Me%VegetationTypes(ivt)%TimingDatabase%PlantingHUBase, ParameterObjEnterData,  iflag,            &
                          SearchType     = FromBlockInBlock,                                                               &
                          Default        = -99.,                                                                           &
                          keyword        = 'PLANTING_HUBASE',                                                              &
@@ -4617,14 +5011,11 @@ HF1:        if (STAT_CALL == SUCCESS_ .and. DatabaseFound) then
     
     
         call KillEnterData(GrowthObjEnterData, STAT = STAT_CALL)         
-        if (STAT_CALL /= SUCCESS_) stop 'ReadGrowthDatabase - ModuleVegetation - ERR140'        
-
-        
+        if (STAT_CALL /= SUCCESS_) stop 'ReadGrowthDatabase - ModuleVegetation - ERR140'                
 
     end subroutine ReadGrowthDatabase
 
     !--------------------------------------------------------------------------
-
 
     subroutine ReadHarvestKillParameters (ivt, ClientNumber,ParameterObjEnterData)
 
@@ -5319,7 +5710,6 @@ do4:        do GlobalUniquePest = 1,  Me%Fluxes%Pesticides%UniquePesticides
     
     !--------------------------------------------------------------------------        
 
-
     subroutine ReadInitialFile
 
         !Arguments-------------------------------------------------------------
@@ -6004,7 +6394,6 @@ cd0:    if (Exist) then
 
     !--------------------------------------------------------------------------
 
-
     subroutine GetVegetationGrowing(VegetationID, Growing, STAT)
                                   
         !Arguments--------------------------------------------------------------
@@ -6048,11 +6437,12 @@ cd0:    if (Exist) then
                                     ModelPhosphorus,                           &
                                     NutrientFluxesWithSoil,                    &
                                     Grazing,                                   &
-                                    HarvestKill,                                &
+                                    HarvestKill,                               &
                                     Dormancy,                                  &
                                     Fertilization,                             &
                                     GrowthModel,                               &
                                     ModelCanopyHeight,                         &
+                                    NutrientUptakeMethod,                      &
                                     Pesticide,                                 &
                                     NumberOfPesticides,                        &
                                     STAT)
@@ -6069,6 +6459,7 @@ cd0:    if (Exist) then
         logical, optional                 :: Fertilization
         logical, optional                 :: GrowthModel
         logical, optional                 :: ModelCanopyHeight
+        integer, optional                 :: NutrientUptakeMethod
         logical, optional                 :: Pesticide
         integer, optional                 :: NumberOfPesticides
 
@@ -6094,11 +6485,12 @@ cd0:    if (Exist) then
             if(present(ModelPhosphorus       )) ModelPhosphorus       = Me%ComputeOptions%ModelPhosphorus
             if(present(NutrientFluxesWithSoil)) NutrientFluxesWithSoil= Me%ComputeOptions%NutrientFluxesWithSoil
             if(present(Grazing               )) Grazing               = Me%ComputeOptions%Grazing
-            if(present(HarvestKill           )) HarvestKill            = Me%ComputeOptions%HarvestKill
+            if(present(HarvestKill           )) HarvestKill           = Me%ComputeOptions%HarvestKill
             if(present(Dormancy              )) Dormancy              = Me%ComputeOptions%Dormancy
             if(present(Fertilization         )) Fertilization         = Me%ComputeOptions%Fertilization
             if(present(GrowthModel           )) GrowthModel           = Me%ComputeOptions%Evolution%GrowthModelNeeded
             if(present(ModelCanopyHeight     )) ModelCanopyHeight     = Me%ComputeOptions%ModelCanopyHeight
+            if(present(NutrientUptakeMethod  )) NutrientUptakeMethod  = Me%ComputeOptions%NutrientUptakeMethod
             if(present(Pesticide             )) Pesticide             = Me%ComputeOptions%Pesticide
             if(present(NumberOfPesticides    )) NumberOfPesticides    = Me%Fluxes%Pesticides%UniquePesticides
 
@@ -6120,10 +6512,10 @@ cd0:    if (Exist) then
                                        GrazingBiomass,                           &
                                        GrazingNitrogen,                          &
                                        GrazingPhosphorus,                        &
-                                       HarvestKillAerialBiomass,                  &
-                                       HarvestKillNitrogen,                       &
-                                       HarvestKillPhosphorus,                     &
-                                       HarvestKillRootBiomass,                    &
+                                       HarvestKillAerialBiomass,                 &
+                                       HarvestKillNitrogen,                      &
+                                       HarvestKillPhosphorus,                    &
+                                       HarvestKillRootBiomass,                   &
                                        DormancyBiomass,                          &
                                        DormancyNitrogen,                         &
                                        DormancyPhosphorus,                       &
@@ -6233,6 +6625,127 @@ cd0:    if (Exist) then
 
     !--------------------------------------------------------------------------
 
+    subroutine SetSoilConcVegetation   (ObjVegetationID,                        & 
+                                        Nitrate,                                &
+                                        InorganicPhosphorus,                    &
+                                        STAT)
+
+        !Arguments--------------------------------------------------------------
+        integer                                         :: ObjVegetationID
+        real, dimension(:,:,:), pointer, optional       :: Nitrate
+        real, dimension(:,:,:), pointer, optional       :: InorganicPhosphorus
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local------------------------------------------------------------------
+        integer                                         :: STAT_, ready_
+
+        !-----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(ObjVegetationID, ready_)
+
+        if (ready_ .EQ. IDLE_ERR_)then
+
+            if (present(Nitrate)) Me%ExternalVar%SoilNitrate  => Nitrate
+
+            if (present(InorganicPhosphorus)) Me%ExternalVar%SoilPhosphorus  => InorganicPhosphorus
+
+
+            STAT_ = SUCCESS_
+        else
+            STAT_ = ready_
+        end if
+
+        if (present(STAT))STAT = STAT_
+
+    end subroutine SetSoilConcVegetation 
+
+    !---------------------------------------------------------------------------
+
+!    subroutine GetSoilConcID (ObjVegetationID, SoilConcIndex, PropertyID, STAT)
+!    
+!        !Arguments--------------------------------------------------------------
+!        integer                         :: ObjVegetationID
+!        integer, intent(IN)             :: SoilConcIndex
+!        integer, intent(OUT)            :: PropertyID
+!        integer, intent(OUT), optional  :: STAT
+!
+!        !Local------------------------------------------------------------------
+!        integer                         :: STAT_, ready_, index
+!        type(T_SoilConc), pointer       :: SoilConcX
+!
+!        !-----------------------------------------------------------------------
+!        STAT_ = UNKNOWN_
+!
+!        call Ready(ObjVegetationID, ready_)
+!
+!        if (ready_ .EQ. IDLE_ERR_)then
+!
+!            index = 1
+!            SoilConcX => Me%FirstSoilConc
+!            
+!            do while (associated (SoilConcX))
+!                if (index .EQ. SoilConcIndex) exit
+!                
+!                SoilConcX => SoilConcX%Next
+!                index = index + 1
+!            end do
+!
+!            if (associated (SoilConcX)) then
+!                PropertyID = SoilConcX%ID%IDNumber                
+!            else
+!                PropertyID = -1                            
+!            endif
+!                
+!            STAT_ = SUCCESS_
+!                            
+!        else
+!        
+!            STAT_ = ready_
+!            
+!        end if
+!
+!        if (present(STAT))STAT = STAT_
+!        !-----------------------------------------------------------------------
+!        
+!    end subroutine GetSoilConcID 
+!    
+!    !---------------------------------------------------------------------------
+
+    subroutine SetECw (ObjVegetationID, ECw, STAT)
+
+        !Arguments--------------------------------------------------------------
+        integer                         :: ObjVegetationID
+        real, dimension(:,:,:), pointer :: ECw
+        integer, intent(OUT), optional  :: STAT
+
+        !Local------------------------------------------------------------------
+        integer                         :: STAT_, ready_ !, index
+        
+        !-----------------------------------------------------------------------
+        STAT_ = UNKNOWN_
+
+        call Ready(ObjVegetationID, ready_)
+
+        if (ready_ .EQ. IDLE_ERR_)then
+
+            Me%ExternalVar%ECw => ECw            
+            STAT_ = SUCCESS_
+
+        else
+        
+            STAT_ = ready_
+            
+        end if
+
+        if (present(STAT)) STAT = STAT_
+        !-----------------------------------------------------------------------
+    
+    end subroutine SetECw
+    
+    !---------------------------------------------------------------------------
+
     !Fluxes to aerial part of vegetation - pesticide in leafs    
     subroutine GetVegetationAerialFluxes(VegetationID,                           &
                                        Pest,                                     &
@@ -6282,10 +6795,10 @@ cd0:    if (Exist) then
 
     !--------------------------------------------------------------------------
 
-    subroutine UnGetVegetationAerialFluxes(VegetationID,                           &
-                                       Pest,                                     &
-                                       PesticideVegetation,                      &
-                                       STAT)
+    subroutine UnGetVegetationAerialFluxes(VegetationID,                         &
+                                           Pest,                                 &
+                                           PesticideVegetation,                  &
+                                           STAT)
                                   
         !Arguments--------------------------------------------------------------
         integer                                     :: VegetationID
@@ -6327,54 +6840,15 @@ cd0:    if (Exist) then
 
     !--------------------------------------------------------------------------
 
-
-    subroutine SetSoilConcVegetation   (ObjVegetationID,                        & 
-                                        Nitrate,                                &
-                                        InorganicPhosphorus,                    &
-                                        STAT)
-
-        !Arguments--------------------------------------------------------------
-        integer                                         :: ObjVegetationID
-        real, dimension(:,:,:), pointer, optional       :: Nitrate
-        real, dimension(:,:,:), pointer, optional       :: InorganicPhosphorus
-        integer, intent(OUT), optional                  :: STAT
-
-        !Local------------------------------------------------------------------
-        integer                                         :: STAT_, ready_
-
-        !-----------------------------------------------------------------------
-
-        STAT_ = UNKNOWN_
-
-        call Ready(ObjVegetationID, ready_)
-
-        if (ready_ .EQ. IDLE_ERR_)then
-
-            if (present(Nitrate)) Me%ExternalVar%SoilNitrate  => Nitrate
-
-            if (present(InorganicPhosphorus)) Me%ExternalVar%SoilPhosphorus  => InorganicPhosphorus
-
-
-            STAT_ = SUCCESS_
-        else
-            STAT_ = ready_
-        end if
-
-        if (present(STAT))STAT = STAT_
-
-    end subroutine SetSoilConcVegetation 
-
-    !---------------------------------------------------------------------------
-
     subroutine UngetVegetationSoilFluxes(VegetationID,                             &
                                          SoilFluxesActive,                         &
                                          GrazingBiomass,                           &
                                          GrazingNitrogen,                          &
                                          GrazingPhosphorus,                        &
-                                         HarvestKillAerialBiomass,                  &
-                                         HarvestKillNitrogen,                       &
-                                         HarvestKillPhosphorus,                     &
-                                         HarvestKillRootBiomass,                    &
+                                         HarvestKillAerialBiomass,                 &
+                                         HarvestKillNitrogen,                      &
+                                         HarvestKillPhosphorus,                    &
+                                         HarvestKillRootBiomass,                   &
                                          DormancyBiomass,                          &
                                          DormancyNitrogen,                         &
                                          DormancyPhosphorus,                       &
@@ -6418,7 +6892,7 @@ cd0:    if (Exist) then
         real, dimension(:,:), pointer, optional     :: FertilMineralPSubSurface
         real, dimension(:,:,:),pointer,optional     :: NitrogenUptake
         real, dimension(:,:,:),pointer,optional     :: PhosphorusUptake
-        real, dimension(:,:), pointer, optional     :: PesticideSoil        
+        real, dimension(:,:), pointer, optional     :: PesticideSoil      
 
         integer, optional, intent(OUT)              :: STAT
 
@@ -6630,6 +7104,7 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
                                 MappingPoints,                    &
                                 PotentialTranspiration,           &
                                 ActualTranspiration,              &
+                                ECw,                              &
                                 STAT)
 
         !Arguments-------------------------------------------------------------
@@ -6637,6 +7112,7 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
         integer, dimension(:,:  ), pointer             :: MappingPoints           !IN
         real,    dimension(:,:  ), pointer             :: PotentialTranspiration  !IN
         real,    dimension(:,:,:), pointer             :: ActualTranspiration     !OUT
+        real,    dimension(:,:,:), pointer, optional   :: ECw                     !IN
         integer, intent(OUT),      optional            :: STAT                    !OUT
 
         !Local-----------------------------------------------------------------
@@ -6649,6 +7125,12 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
 
         call Ready(ObjVegetationID, ready_)
 
+        if (present(ECw)) then
+            Me%ECw => ECw
+        else
+            Me%ECw => null()
+        endif
+        
         if (ready_ .EQ. IDLE_ERR_) then
 
             !Actualize the time
@@ -6872,9 +7354,8 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
                                                     
         !Local-----------------------------------------------------------------
         integer                                              :: Pest
+        
         !Begin-----------------------------------------------------------------
-
-
         if (Me%ComputeOptions%Grazing) then
 
             Me%Fluxes%BiomassGrazed                                       (:,:) = 0.0 
@@ -6895,15 +7376,15 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
 
             Me%Fluxes%BiomassRemovedInHarvest                             (:,:) = 0.0  
             Me%Fluxes%BiomassHarvestedFraction                            (:,:) = 0.0
-            Me%Fluxes%ToSoil%HarvestKillBiomassToSoil                      (:,:) = 0.0 
-            Me%Fluxes%ToSoil%KillRootBiomassLeftInSoil              (:,:) = 0.0
+            Me%Fluxes%ToSoil%HarvestKillBiomassToSoil                     (:,:) = 0.0 
+            Me%Fluxes%ToSoil%KillRootBiomassLeftInSoil                    (:,:) = 0.0
             if (Me%ComputeOptions%ModelNitrogen) then
                 Me%Fluxes%NitrogenRemovedInHarvest                        (:,:) = 0.0 
-                Me%Fluxes%ToSoil%HarvestKillNitrogenToSoil                 (:,:) = 0.0 
+                Me%Fluxes%ToSoil%HarvestKillNitrogenToSoil                (:,:) = 0.0 
             endif
             if (Me%ComputeOptions%ModelPhosphorus) then
                 Me%Fluxes%PhosphorusRemovedInHarvest                      (:,:) = 0.0
-                Me%Fluxes%ToSoil%HarvestKillPhosphorusToSoil               (:,:) = 0.0 
+                Me%Fluxes%ToSoil%HarvestKillPhosphorusToSoil              (:,:) = 0.0 
             endif
         endif
 
@@ -7062,8 +7543,7 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
                             Me%Fluxes%Pesticides%Application(Pest)%PesticideAppOccurred(i,j) = .false.
                         endif
                     enddo
-                endif                
-                
+                endif
 
                 !SWAT Base Heat Units counter (for planting schedule)
                 if (Me%ComputeOptions%Evolution%ModelSWAT) then
@@ -7645,19 +8125,19 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
 
         !Arguments-------------------------------------------------------------
         !Local-----------------------------------------------------------------
-        integer, dimension(:,:), pointer                   :: MappingPoints
+        integer, dimension(:,:), pointer                :: MappingPoints
         integer                                         :: i,j
         real                                            :: TopDepth, BottomDepth
-        real                                            ::              PotTP
-        logical                                         ::         FoundRoot
+        real                                            :: PotTP
+        logical                                         :: FoundRoot
         real                                            :: NormalizationParameter
-        real                                            ::            RootDepth
+        real                                            :: RootDepth
         real                                            :: TopUptake, BottomUptake
         real                                            :: PotentialWaterUptake
         real                                            :: EffectiveWaterUptake
         real                                            :: GridCellArea, CellVolume
-        real                                            ::   LayerFieldCapacity
-        real                                            ::    LayerWaterContent
+        real                                            :: LayerFieldCapacity
+        real                                            :: LayerWaterContent
         real                                            :: SumDemand, SumUptake
         real                                            :: DemandNotMetInUpperLayers
         real                                            :: IncreaseUptake, ReduceUptake
@@ -7840,13 +8320,13 @@ do3 :               do k = KUB, KLB, -1
 
         !Arguments-------------------------------------------------------------
         !Local-----------------------------------------------------------------
-        integer, dimension(:,:), pointer                   :: MappingPoints
+        integer, dimension(:,:), pointer                :: MappingPoints
         real, dimension(:,:,:), pointer                 :: UnsatK
         integer                                         :: i, j
         real                                            :: SumUptake, RootDepth, BottomDepth
         real                                            :: TopDepth, CenterDepth, TotalCol
         real                                            :: FeddesH1, FeddesH2, FeddesH3, FeddesH4
-        real                                            :: Head, Factor, h50, p1
+        real                                            :: Head, Factor, h50, p1, WFactor, SFactor
         real                                            :: Aux, RootHeightInCell, CellBase
         real                                            :: ColToTransp, TranspirationDistribution
         real                                            :: SoilVolume, WaterVolume, TranspVolume
@@ -7855,7 +8335,11 @@ do3 :               do k = KUB, KLB, -1
         integer                                         :: k, KLB, KUB, RootProfile
         real                                            :: VelocityVolume, NewTheta
         real                                            :: LimitThetaLow
+        integer                                         :: StressInteraction
+        type(T_SalinityStressParams), pointer           :: StressParams
+        logical                                         :: UseSalinityStress
         integer                                         :: STAT_CALL
+        real                                            :: P2L, P2H, R2L, R2H, TP        
         !Begin-----------------------------------------------------------------
 
 
@@ -7895,12 +8379,12 @@ do3 :               do k = KUB, KLB, -1
         Me%Fluxes%WaterUptake     (:,:  ) = 0.0
 
         call GetLimitThetaLow(Me%ObjPorousMedia, LimitThetaLow, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'WaterUptakeMOHID - ModuleVegetation - ERR000'   
+        if (STAT_CALL /= SUCCESS_) stop 'WaterUptakeMOHID - ModuleVegetation - ERR010'   
         
         if (Me%ComputeOptions%LimitTPVel) then 
 
             call GetUnsatK(Me%ObjPorousMedia, UnsatK, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'WaterUptakeMOHID - ModuleVegetation - ERR001'   
+            if (STAT_CALL /= SUCCESS_) stop 'WaterUptakeMOHID - ModuleVegetation - ERR020'   
         
         endif
 
@@ -7949,7 +8433,7 @@ do3 :               do k = KUB, KLB, -1
                             exit do3
                         endif
 
-                        !Layer depths to consider trnaspiration
+                        !Layer depths to consider transpiration
                         TopDepth        = BottomDepth
                         BottomDepth     = BottomDepth + Me%ExternalVar%DWZ(i, j, k)
 
@@ -7969,20 +8453,39 @@ do3 :               do k = KUB, KLB, -1
                             ! stress functions by Feddes
                             FeddesH1 = Me%ComputeOptions%TranspirationMOHID%RootFeddesH1(i,j)
                             FeddesH2 = Me%ComputeOptions%TranspirationMOHID%RootFeddesH2(i,j)
-                            FeddesH3 = Me%ComputeOptions%TranspirationMOHID%RootFeddesH3(i,j)
                             FeddesH4 = Me%ComputeOptions%TranspirationMOHID%RootFeddesH4(i,j)
                             Head     = Me%ExternalVar%Head(i, j, k)
 
+                            select case (Me%ComputeOptions%TranspirationMOHID%FeddesType(i,j))
+                            case (1)
+                                FeddesH3 = Me%ComputeOptions%TranspirationMOHID%RootFeddesH3(i,j)
+                            case (2)
+                                TP  = Me%ExternalVar%Integration%AveragePotTPDuringDT(i,j)
+                                R2L = Me%ComputeOptions%TranspirationMOHID%RootFeddesR2L(i,j)
+                                R2H = Me%ComputeOptions%TranspirationMOHID%RootFeddesR2H(i,j)
+                                P2L = Me%ComputeOptions%TranspirationMOHID%RootFeddesH3L(i,j)
+                                P2H = Me%ComputeOptions%TranspirationMOHID%RootFeddesH3H(i,j)
+                                
+                                if (TP > R2H) then
+                                    FeddesH3 = P2H
+                                elseif (TP < R2L) then
+                                    FeddesH3 = P2L
+                                else
+                                    FeddesH3 = P2H + (P2L - P2H) / (R2H - R2L) * (R2H - TP)                                    
+                                endif
+                                
+                            end select
+                            
                             if      (Head .gt. FeddesH1) then
-                                Factor = 0.0
+                                WFactor = 0.0
                             else if (Head .gt. FeddesH2) then
-                                Factor = LinearInterpolation(FeddesH2, 1.0, FeddesH1, 0.0, Head)
+                                WFactor = LinearInterpolation(FeddesH2, 1.0, FeddesH1, 0.0, Head)
                             else if (Head .gt. FeddesH3) then
-                                Factor = 1.0
+                                WFactor = 1.0
                             else if (Head .gt. FeddesH4) then
-                                Factor = LinearInterpolation(FeddesH4, 0.0, FeddesH3, 1.0, Head)
+                                WFactor = LinearInterpolation(FeddesH4, 0.0, FeddesH3, 1.0, Head)
                             else
-                                Factor = 0.0
+                                WFactor = 0.0
                             endif
           
                         elseif (Me%ComputeOptions%WaterUptakeStressMethod .eq. Genuchten) then  
@@ -7990,10 +8493,50 @@ do3 :               do k = KUB, KLB, -1
                             !or stress functions by S-Shape (van Genuchten)
                             h50 =-8.0
                             p1 =3.0
-                            Factor= 1/(1+(Head/h50)**p1)
+                            WFactor= 1/(1+(Head/h50)**p1)
 
                         endif
+
+                        call GetVegetationSalinityParameters (I, J, UseSalinityStress, StressParams, StressInteraction)
                 
+                        if (UseSalinityStress) then
+                            select case (Me%ComputeOptions%SalinityStressMethod)
+                            case (1) !Threshold/slope                        
+                                !call ComputeECw (I, J, K, ECw)                               
+                                
+                                if (.not. (associated(Me%ExternalVar%ECw))) then
+                                    stop 'WaterUptakeMOHID - ModuleVegetation - ERR030'
+                                endif
+                                
+                                if (Me%ExternalVar%ECw(i, j, k) < StressParams%ECt) then
+                                    SFactor = 1.0
+                                else if (Me%ExternalVar%ECw(i, j, k) > StressParams%EC0) then
+                                    SFactor = 0.0
+                                else
+                                    SFactor = 1.0 - (Me%ExternalVar%ECw(i, j, k) - StressParams%ECt) * 0.01 * StressParams%Slope
+                                endif
+                            case (2) !S shape
+                                write (*,*) 'The S-Shape method for water uptake salinity stress (SALINITY_STRESS_METHOD keyword)'
+                                write (*,*) 'isn''t implemented yet. Use 1 (Threshold/slope) instead.'
+                                stop
+                            case default
+                                stop 'WaterUptakeMOHID - ModuleVegetation - ERR040'
+                            end select
+                    
+                            select case (StressInteraction)
+                            case (1) !Additive
+                                Factor = abs(WFactor - SFactor)
+                            case (2) !Multiplicative
+                                Factor = Wfactor * SFactor
+                            case (3) !Less of
+                                Factor = min(WFactor, SFactor)
+                            case default
+                                stop 'WaterUptakeMOHID - ModuleVegetation - ERR050'
+                            end select                       
+                        else
+                            Factor = WFactor
+                        endif
+               
                         !If transpiration occurs
                         if (Factor .gt. 0.0) then
                             
@@ -8062,7 +8605,7 @@ do3 :               do k = KUB, KLB, -1
                                 ColToTransp = Factor * TotalCol * TranspirationDistribution
                             else
                                write(*,*)'Invalid Root Profile'
-                               stop 'WaterUptakeMOHID - ModuleVegetation - ERR02'
+                               stop 'WaterUptakeMOHID - ModuleVegetation - ERR060'
                             endif
 
 
@@ -8128,7 +8671,7 @@ do3 :               do k = KUB, KLB, -1
         if (Me%ComputeOptions%LimitTPVel) then 
 
             call UnGetPorousMedia(Me%ObjPorousMedia, UnsatK, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'WaterUptakeMOHID - ModuleVegetation - ERR003'   
+            if (STAT_CALL /= SUCCESS_) stop 'WaterUptakeMOHID - ModuleVegetation - ERR070'   
         
         endif
 
@@ -8136,13 +8679,66 @@ do3 :               do k = KUB, KLB, -1
 
     !--------------------------------------------------------------------------
 
+!    subroutine ComputeECw (I, J, K, ECw)
+!    
+!        !Arguments-------------------------------------------------------------
+!        integer           :: I, J, K
+!        real, intent(OUT) :: ECw
+!        
+!        !Local-----------------------------------------------------------------
+!        type(T_SoilConc), pointer :: SoilConcX
+!
+!        !----------------------------------------------------------------------
+!        ECw = 0.0
+!        
+!        SoilConcX => Me%FirstSoilConc
+!        do while (associated (SoilConcX))
+!            ECw = ECw + &
+!                  (SoilConcX%Conc(I, J, K) * SoilConcX%ConversionFactor)
+!        
+!            SoilConcX => SoilConcX%Next
+!            
+!        end do
+!        
+!        if (associated(Me%ECw)) then
+!            Me%ECw(I, J, K) = ECw
+!        endif
+!        !----------------------------------------------------------------------
+!
+!    end subroutine ComputeECw
+
+    !--------------------------------------------------------------------------
+
+    subroutine GetVegetationSalinityParameters (I, J, UseSalinityStress, StressParams, StressInteraction)
+    
+        !Arguments-------------------------------------------------------------
+        integer                               :: I, J
+        logical, intent(OUT)                  :: UseSalinityStress
+        type(T_SalinityStressParams), pointer :: StressParams
+        integer, intent(OUT)                  :: StressInteraction
+        
+        !Local-----------------------------------------------------------------
+        type(T_VegetationType), pointer :: Vegetation_
+        
+        !----------------------------------------------------------------------
+        Vegetation_  => Me%VegetationTypes(Me%VegetationID(I, J))
+        
+        UseSalinityStress =  Vegetation_%UseSalinityStress
+        StressParams      => Vegetation_%SalinityStressParams        
+        StressInteraction =  Vegetation_%StressInteraction
+        !----------------------------------------------------------------------
+        
+    end subroutine GetVegetationSalinityParameters
+    
+    !--------------------------------------------------------------------------
+    
     subroutine NitrogenUptakeSWAT
 
         !Arguments-------------------------------------------------------------
         !Local-----------------------------------------------------------------
-        integer, dimension(:,:), pointer                   :: MappingPoints
+        integer, dimension(:,:), pointer                :: MappingPoints
         integer                                         :: i, j
-        integer                                         ::         VegetationID
+        integer                                         :: VegetationID
         real                                            :: TotalPlantNitrogen, TotalPlantBiomass
         real                                            :: PredictedNitrogenBiomass
         real                                            :: PlantFractionN1, PlantFractionN2
@@ -8152,14 +8748,14 @@ do3 :               do k = KUB, KLB, -1
         real                                            :: NitrogenDemand, OptimalNContent
         real                                            :: Stress, HUAcc
         real                                            :: TopDepth, BottomDepth
-        logical                                         ::         FoundRoot
+        logical                                         :: FoundRoot
         real                                            :: NormalizationParameter
-        real                                            ::            RootDepth
+        real                                            :: RootDepth
         real                                            :: TopUptake, BottomUptake
         real                                            :: PotentialNitrogenUptake
         real                                            :: GridCellArea, CellVolume
         real                                            :: DistributionParameter
-        real                                            ::   LayerNitrogenContent
+        real                                            :: LayerNitrogenContent
         real                                            :: SumDemand, SumUptake
         real                                            :: DemandNotMetInUpperLayers
         integer                                         :: k, KUB, KLB, PlantType
@@ -8340,9 +8936,9 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
         !Arguments-------------------------------------------------------------
         !Local-----------------------------------------------------------------
-        integer, dimension(:,:), pointer                   :: MappingPoints
+        integer, dimension(:,:), pointer                :: MappingPoints
         integer                                         :: i, j
-        integer                                         ::         VegetationID
+        integer                                         :: VegetationID
         real                                            :: TotalPlantNitrogen, TotalPlantBiomass
         real                                            :: PredictedNitrogenBiomass
         real                                            :: PlantFractionN1, PlantFractionN2
@@ -8352,11 +8948,11 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         real                                            :: NitrogenDemand, OptimalNContent
         real                                            :: Stress, HUAcc
         real                                            :: TopDepth, BottomDepth
-        logical                                         ::         FoundRoot
-        real                                            ::            RootDepth
+        logical                                         :: FoundRoot
+        real                                            :: RootDepth
         real                                            :: PotentialNitrogenUptake
         real                                            :: GridCellArea, CellVolume
-        real                                            ::   LayerNitrogenContent
+        real                                            :: LayerNitrogenContent
         real                                            :: SumUptake
         integer                                         :: k, KUB, KLB, PlantType
         logical                                         :: Dormant, ComputeCell
@@ -8591,9 +9187,9 @@ do3:                do k = KUB, KLB, -1
 
         !Arguments-------------------------------------------------------------
         !Local-----------------------------------------------------------------
-        integer, dimension(:,:), pointer                   :: MappingPoints
+        integer, dimension(:,:), pointer                :: MappingPoints
         integer                                         :: i, j
-        integer                                         ::         VegetationID
+        integer                                         :: VegetationID
         real                                            :: TotalPlantBiomass, TotalPlantPhosphorus
         real                                            :: PredictedPhosphorusBiomass
         real                                            :: PlantFractionP1, PlantFractionP2
@@ -8603,14 +9199,14 @@ do3:                do k = KUB, KLB, -1
         real                                            :: PhosphorusDemand, OptimalPContent
         real                                            :: Stress, HUAcc
         real                                            :: TopDepth, BottomDepth
-        logical                                         ::         FoundRoot
+        logical                                         :: FoundRoot
         real                                            :: NormalizationParameter
-        real                                            ::            RootDepth
+        real                                            :: RootDepth
         real                                            :: TopUptake, BottomUptake
         real                                            :: PotentialPhosphorusUptake
         real                                            :: GridCellArea, CellVolume
         real                                            :: DistributionParameter
-        real                                            ::   LayerPhosphorusContent
+        real                                            :: LayerPhosphorusContent
         real                                            :: SumDemand, SumUptake
         real                                            :: DemandNotMetInUpperLayers
         integer                                         :: k, KUB, KLB, PlantType
@@ -8794,9 +9390,9 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
         !Arguments-------------------------------------------------------------
         !Local-----------------------------------------------------------------
-        integer, dimension(:,:), pointer                   :: MappingPoints
+        integer, dimension(:,:), pointer                :: MappingPoints
         integer                                         :: i, j
-        integer                                         ::         VegetationID
+        integer                                         :: VegetationID
         real                                            :: TotalPlantBiomass, TotalPlantPhosphorus
         real                                            :: PredictedPhosphorusBiomass
         real                                            :: PlantFractionP1, PlantFractionP2
@@ -8806,11 +9402,11 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         real                                            :: PhosphorusDemand, OptimalPContent
         real                                            :: Stress, HUAcc
         real                                            :: TopDepth, BottomDepth
-        logical                                         ::         FoundRoot
-        real                                            ::            RootDepth
+        logical                                         :: FoundRoot
+        real                                            :: RootDepth
         real                                            :: PotentialPhosphorusUptake
         real                                            :: GridCellArea, CellVolume
-        real                                            ::   LayerPhosphorusContent
+        real                                            :: LayerPhosphorusContent
         real                                            :: SumUptake
         integer                                         :: k, KUB, KLB, PlantType
         logical                                         :: Dormant, ComputeCell
@@ -9062,10 +9658,10 @@ do3 :               do k = KUB, KLB, -1
 
         !Arguments-------------------------------------------------------------
         !Local-----------------------------------------------------------------
-        integer, dimension(:,:), pointer                     :: MappingPoints
+        integer, dimension(:,:), pointer                  :: MappingPoints
         integer                                           :: i, j
-        real                                              ::        ExtinctCoef
-        integer                                           ::       VegetationID
+        real                                              :: ExtinctCoef
+        integer                                           :: VegetationID
         real                                              :: LAI, PAR, RUE
         real                                              :: BiomassEnergyRatio
         real                                              :: BiomassEnergyRatioHigh
@@ -9339,7 +9935,7 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
         !Arguments-------------------------------------------------------------
         !Local-----------------------------------------------------------------
-        integer, dimension(:,:), pointer                   :: MappingPoints
+        integer, dimension(:,:), pointer                :: MappingPoints
         integer                                         :: i, j
         integer                                         :: VegetationID
         real                                            :: FrLAIMax1, FrLAIMax2
@@ -9598,9 +10194,9 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         endif
         
 !        deallocate(Me%VegetationTypes(Me%VegetationID(i,j))%HarvestKillDatabase%HarvestPlantHU)
-
    
     end subroutine CheckPlantHarvestKill
+
     !--------------------------------------------------------------------------
     
     subroutine HarvestKillFluxes
@@ -9645,6 +10241,7 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
    
     end subroutine HarvestKillFluxes
+    
     !--------------------------------------------------------------------------
 
     subroutine HarvestOperation(i,j)
@@ -10161,7 +10758,6 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
     !--------------------------------------------------------------------------
 
-
     subroutine ComputeDayLength
 
         !Arguments-------------------------------------------------------------
@@ -10559,7 +11155,7 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
         !Arguments-------------------------------------------------------------
         !Local-----------------------------------------------------------------
-        integer, dimension(:,:), pointer             :: MappingPoints
+        integer, dimension(:,:), pointer          :: MappingPoints
         integer                                   :: i, j
         real                                      :: TotalPlantBiomass, PredictedBiomass
         real                                      :: BiomassRemovedInDormancy, BiomassRemovedInHarvest
@@ -10567,15 +11163,15 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         real                                      :: NitrogenRemovedInDormancy, NitrogenRemovedInHarvest
         real                                      :: TotalPlantPhosphorus, PredictedPhosphorus
         real                                      :: PhosphorusRemovedInDormancy, PhosphorusRemovedInHarvest
-        real                                      ::GrazingMinimumBiomass
-        real                                      ::       GrazingBiomass
-        real                                      ::     TramplingBiomass
-        real                                      ::        BiomassGrazed
-        real                                      ::       NitrogenGrazed
-        real                                      ::     PhosphorusGrazed
-        real                                      ::      BiomassTrampled
-        real                                      ::     NitrogenTrampled
-        real                                      ::   PhosphorusTrampled
+        real                                      :: GrazingMinimumBiomass
+        real                                      :: GrazingBiomass
+        real                                      :: TramplingBiomass
+        real                                      :: BiomassGrazed
+        real                                      :: NitrogenGrazed
+        real                                      :: PhosphorusGrazed
+        real                                      :: BiomassTrampled
+        real                                      :: NitrogenTrampled
+        real                                      :: PhosphorusTrampled
         real                                      :: BiomassGrazedFraction
         character (Len = StringLength)            :: WarningString
         logical                                   :: PlantKilled
@@ -11189,7 +11785,7 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
         !Arguments-------------------------------------------------------------
         !Local----------------------------------------------------------
-        integer, dimension(:,:), pointer                   :: MappingPoints
+        integer, dimension(:,:), pointer                :: MappingPoints
         integer                                         :: i, j
         logical                                         :: PlantKilled, PlantGoingDormant
         real                                            :: LAI, BiomassGrazedFraction, BiomassHarvestedFraction
@@ -11791,10 +12387,8 @@ if4:                            if (Me%VegetationTypes(Me%VegetationID(i,j))%Pes
             endif if1
             
         enddo do2
-        enddo do1            
-     
+        enddo do1
 
-        
     endsubroutine PesticideFluxes
 
     !--------------------------------------------------------------------------
@@ -12056,11 +12650,11 @@ if4:                            if (Me%VegetationTypes(Me%VegetationID(i,j))%Pes
                     endif
                 endif
                 if (Me%ComputeOptions%HarvestKill) then
-                    call WriteTimeSerie (Me%ObjTimeSerieToSoil, Data2D = Me%Fluxes%ToSoil%HarvestKillBiomassToSoil,       &
+                    call WriteTimeSerie (Me%ObjTimeSerieToSoil, Data2D = Me%Fluxes%ToSoil%HarvestKillBiomassToSoil,        &
                                          STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModuleVegetation - ERR041'     
 
-                    call WriteTimeSerie (Me%ObjTimeSerieToSoil, Data2D = Me%Fluxes%ToSoil%KillRootBiomassLeftInSoil,     &
+                    call WriteTimeSerie (Me%ObjTimeSerieToSoil, Data2D = Me%Fluxes%ToSoil%KillRootBiomassLeftInSoil,       &
                                          STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModuleVegetation - ERR042'     
 
@@ -12117,7 +12711,7 @@ if4:                            if (Me%VegetationTypes(Me%VegetationID(i,j))%Pes
                         if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModuleVegetation - ERR060'                        
                     enddo                        
                 endif
-                
+
             endif
 
         endif
@@ -12716,17 +13310,17 @@ do1 :   do while(associated(PropertyX))
                       
                 deallocate(Me%Fluxes%BiomassRemovedInHarvest                    ) 
                 deallocate(Me%Fluxes%BiomassHarvestedFraction                   ) 
-                deallocate(Me%Fluxes%ToSoil%HarvestKillBiomassToSoil             ) 
-                deallocate(Me%Fluxes%ToSoil%KillRootBiomassLeftInSoil     )
+                deallocate(Me%Fluxes%ToSoil%HarvestKillBiomassToSoil            ) 
+                deallocate(Me%Fluxes%ToSoil%KillRootBiomassLeftInSoil           )
 
                 if (Me%ComputeOptions%ModelNitrogen) then            
                     deallocate(Me%Fluxes%NitrogenRemovedInHarvest               )  
-                    deallocate(Me%Fluxes%ToSoil%HarvestKillNitrogenToSoil        ) 
+                    deallocate(Me%Fluxes%ToSoil%HarvestKillNitrogenToSoil       ) 
                 endif
             
                 if (Me%ComputeOptions%ModelPhosphorus) then
                     deallocate(Me%Fluxes%PhosphorusRemovedInHarvest             ) 
-                    deallocate(Me%Fluxes%ToSoil%HarvestKillPhosphorusToSoil      )
+                    deallocate(Me%Fluxes%ToSoil%HarvestKillPhosphorusToSoil     )
                 endif
 
             endif
@@ -12780,7 +13374,7 @@ do1 :   do while(associated(PropertyX))
                     deallocate (Me%Fluxes%Pesticides%Application(Pest)%PesticideAppOccurred) 
                 enddo                            
             endif
-            
+
             if (Me%ComputeOptions%ModelPlantBiomass) then
                 deallocate(Me%Fluxes%BiomassGrowth                              ) 
                 deallocate(Me%Growth%BiomassGrowthOld                           )  
@@ -12796,10 +13390,15 @@ do1 :   do while(associated(PropertyX))
         endif
 
         if (Me%ComputeOptions%TranspirationMethod == TranspirationMOHID) then
+            deallocate(Me%ComputeOptions%TranspirationMOHID%FeddesType   )
             deallocate(Me%ComputeOptions%TranspirationMOHID%RootFeddesH1 )
             deallocate(Me%ComputeOptions%TranspirationMOHID%RootFeddesH2 )
             deallocate(Me%ComputeOptions%TranspirationMOHID%RootFeddesH3 )
             deallocate(Me%ComputeOptions%TranspirationMOHID%RootFeddesH4 )
+            deallocate(Me%ComputeOptions%TranspirationMOHID%RootFeddesH3L)
+            deallocate(Me%ComputeOptions%TranspirationMOHID%RootFeddesH3H)
+            deallocate(Me%ComputeOptions%TranspirationMOHID%RootFeddesR2L)
+            deallocate(Me%ComputeOptions%TranspirationMOHID%RootFeddesR2H)
         endif
         
 

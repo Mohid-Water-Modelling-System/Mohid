@@ -69,9 +69,9 @@ Module ModulePorousMediaProperties
     use ModuleProfile,            only : StartProfile, WriteProfile, KillProfile
     use ModuleGridData,           only : ConstructGridData, GetGridData, UngetGridData,    &
                                          KillGridData
-    use ModuleTimeSerie,          only : StartTimeSerie, WriteTimeSerie, KillTimeSerie,      &
-                                         GetNumberOfTimeSeries, GetTimeSerieLocation,        &
-                                         TryIgnoreTimeSerie, CorrectsCellsTimeSerie,         &
+    use ModuleTimeSerie,          only : StartTimeSerie, WriteTimeSerie, KillTimeSerie,    &
+                                         GetNumberOfTimeSeries, GetTimeSerieLocation,      &
+                                         TryIgnoreTimeSerie, CorrectsCellsTimeSerie,       &
                                          GetTimeSerieName
     use ModuleHorizontalGrid,     only : GetHorizontalGrid, GetGridCellArea,               &
                                          WriteHorizontalGrid, UnGetHorizontalGrid, GetXYCellZ
@@ -83,15 +83,16 @@ Module ModulePorousMediaProperties
     use ModuleMap
     use ModulePorousMedia,        only : GetOldWaterContent, GetWaterContent, GetFluxU,    &
                                          GetFluxV, GetFluxW, GetUnsatW, GetUnsatV,         &
-                                         GetUnsatU, UnGetPorousMedia,                      &
+                                         GetUnsatU, UnGetPorousMedia, GetUnsatWFinal,      &
                                          GetThetaS, GetGWFlowToChannels,                   &
                                          GetGWLayerOld, GetPotentialInfiltration,          &
-                                         GetGWFlowToChannelsByLayer, GetGWToChannelsLayers,  &
+                                         GetGWFlowToChannelsByLayer, GetGWToChannelsLayers,&
                                          GetGWFlowOption, GetTranspiration
                                          
     use ModuleChainReactions,     only : StartChainReactions, SetCRPropertyConcentration,  &
                                          GetCRPropertiesList, UnGetChainReactions,         &
-                                         ModifyChainReactions, KillChainReactions
+                                         ModifyChainReactions, KillChainReactions,         &
+                                         InitCRSoilPhase
                                          
 #ifdef _PHREEQC_                                          
     use ModuleInterface,          only : ConstructInterface, Modify_Interface, GetPhreeqCID 
@@ -121,6 +122,10 @@ Module ModulePorousMediaProperties
     private ::      AllocateInstance
     private ::      ReadFileNames
     private ::      ReadGlobalOptions
+#ifdef _PHREEQC_    
+    private ::      ConstructPhreeqCModels
+    private ::          LoadPhreeqCModelInfo
+#endif
     private ::      Construct_PropertyList
     private ::          Construct_Property
     private ::              Construct_PropertyState
@@ -147,6 +152,7 @@ Module ModulePorousMediaProperties
     public  :: GetPMPConcentration
     public  :: GetPMPConcentrationOld
     public  :: GetPMPCoupled
+    public  :: GetECw
     public  :: CheckPMPProperty
     public  :: SetDNConcPMP              !PMP gets conc from Drainage network
     public  :: SetInfColConcPMP          !PMP gets infcol conc from basin
@@ -161,12 +167,15 @@ Module ModulePorousMediaProperties
     private ::      AdvectionDiffusionProcesses 
     private ::          ComputeVolumes
     private ::          ComputeThetaAtFaces
+    private ::              ComputeThetaAtFacesByAvg
+    private ::              ComputeThetaAtFacesByMin
     private ::      SoilQualityProcesses
 #ifdef _PHREEQC_    
     private ::      SoilChemistryProcesses
 #endif        
     private ::      ChainReactionsProcesses
     private ::      Partition_Processes
+    private ::      ComputeECw
     private ::      OutPut_TimeSeries
     private ::      Output_HDF
     
@@ -314,6 +323,7 @@ Module ModulePorousMediaProperties
         logical                                     :: GrowthModel
         logical                                     :: CoupledVegetation
         real                                        :: VegetationDT
+        integer                                     :: NutrientUptakeMethod
         
         logical                                     :: CoupledDN  = .false.
         !from basin
@@ -386,10 +396,12 @@ Module ModulePorousMediaProperties
         logical                                 :: SoilWaterFluxes
         logical                                 :: Macropores
         logical                                 :: MinConcentration
+        logical                                 :: UseMaxForUptakeConc = .false.      
+        real                                    :: MaxForUptakeConc    = 0.0   
         logical                                 :: Decay
         real                                    :: DecayRate   !day-1
         type (T_AdvectionDiffusion)             :: AdvDiff
-        type (T_Partition                    )  :: Partition
+        type (T_Partition)                      :: Partition
     end type T_Evolution
     
     type T_ThetaAtFaces
@@ -419,29 +431,32 @@ Module ModulePorousMediaProperties
         type (T_PropertyID)                     :: ID
         real, dimension(:,:,:), pointer         :: Concentration            => null()
         real, dimension(:,:,:), pointer         :: ConcentrationOld         => null()
-        real, dimension(:,:), pointer           :: ConcentrationOnInfColumn      => null()
-        real, dimension(:,:), pointer           :: ConcentrationDN               => null()
-        real, dimension(:,:,:), pointer         :: ConcInInterfaceDN             => null()
-        real, dimension(:,:),   pointer         :: PesticideFlux                 => null()
-        real, pointer, dimension(:,:,:)         :: Mass_Created
+        real, dimension(:,:), pointer           :: ConcentrationOnInfColumn => null()
+        real, dimension(:,:), pointer           :: ConcentrationDN          => null()
+        real, dimension(:,:,:), pointer         :: ConcInInterfaceDN        => null()
+        real, dimension(:,:),   pointer         :: PesticideFlux            => null()
+        logical, pointer, dimension(:,:,:)      :: UptakeActive             => null()
+        real, pointer, dimension(:,:,:)         :: Mass_Created             => null()
         real(8)                                 :: TotalStoredMass
-        real, pointer, dimension(:,:,:)         :: ViscosityU
-        real, pointer, dimension(:,:,:)         :: ViscosityV
-        type (T_Property), pointer              :: Next, Prev                     => null()
+        real, pointer, dimension(:,:,:)         :: ViscosityU               => null()
+        real, pointer, dimension(:,:,:)         :: ViscosityV               => null()
+        type (T_Property), pointer              :: Next, Prev               => null()
         logical                                 :: Particulate
         logical                                 :: Pesticide
         type (T_Evolution)                      :: Evolution
         type (T_MassBalance)                    :: MB
         real, pointer, dimension(:,:,:)         :: Diffusivity
-        real, pointer, dimension(:,:,:)         :: Diff_Turbulence_H
-        real, pointer, dimension(:,:,:)         :: Diff_Turbulence_V
-        real, pointer, dimension(:,:,:)         :: Viscosity
-        logical                                 :: Old     = .false.
-        real                                    :: MinValue        = FillValueReal
-        logical                                 :: TimeSerie        = .false.
-        logical                                 :: BoxTimeSerie     = .false.
-        logical                                 :: BoxTimeSerie2D   = .false.
-        logical                                 :: OutputHDF        = .false.       
+        real, pointer, dimension(:,:,:)         :: Diff_Turbulence_H        => null()
+        real, pointer, dimension(:,:,:)         :: Diff_Turbulence_V        => null()
+        real, pointer, dimension(:,:,:)         :: Viscosity                => null()
+        logical                                 :: Old                      = .false.
+        real                                    :: MinValue                 = FillValueReal
+        logical                                 :: TimeSerie                = .false.
+        logical                                 :: BoxTimeSerie             = .false.
+        logical                                 :: BoxTimeSerie2D           = .false.
+        logical                                 :: OutputHDF                = .false. 
+        logical                                 :: UseToCalcECw             = .false.
+        real                                    :: ECwFactor                = 0.0
     end type T_Property
 
     type T_Coupled
@@ -493,96 +508,119 @@ Module ModulePorousMediaProperties
         real   , pointer, dimension(: , : , :)  :: F_flux    !Coeficient to calculate AdvFlux and DifFlux
     end type T_FluxCoef
 
+#ifdef _PHREEQC_  
+    type T_PhreeqCModel
+        integer               :: ID
+        integer               :: KUB
+        integer               :: KLB
+        character(PathLength) :: Database     = ''
+        character(PathLength) :: DatabaseAux  = ''
+        integer               :: ObjID        =  0
+        integer               :: ObjInterface =  0 
+    end type T_PhreeqCModel  
+    
+    type T_PhreeqC
+        real, dimension(:,:,:), pointer              :: CellSoilMass              => null()
+        real, dimension(:,:,:), pointer              :: CellWaterMass             => null()
+        type(T_Property), pointer                    :: SoilDryDensity            => null()    
+        type(T_PhreeqCModel), dimension(:), pointer  :: Models                    => null()
+        integer                                      :: NumberOfModels            =  0
+        integer, dimension(:,:,:), pointer           :: Filter                    => null()            
+    end type T_PhreeqC
+#endif   
+    
     type T_PorousMediaProperties
-        integer                                     :: ObjTime              = 0
-        integer                                     :: ObjHorizontalGrid    = 0
-        integer                                     :: ObjHorizontalMap     = 0
-        integer                                     :: ObjAdvectionDiffusion = 0
-        integer                                     :: ObjBasinGeometry     = 0
-        integer                                     :: ObjPorousMedia       = 0
-        integer                                     :: ObjGeometry          = 0
-        integer                                     :: ObjMap               = 0
-        integer                                     :: ObjGridData          = 0
-        integer                                     :: ObjEnterData         = 0
-        integer                                     :: ObjtimeSerie         = 0
-        integer                                     :: ObjSedimentQuality   = 0
-        integer                                     :: ObjHDF5              = 0
-        integer                                     :: ObjBottomTopography  = 0
-        integer                                     :: ObjProfile           = 0
-        integer                                     :: ObjInterface         = 0
-        integer                                     :: ObjChainReactions         = 0 !ChainReactionsID
-        
-#ifdef _PHREEQC_        
-        integer                                     :: ObjPhreeqC                = 0
-        integer                                     :: ObjInterfaceSoilChemistry = 0 
-        real,    pointer, dimension(:,:,:)          :: CellSoilMass
-        real,    pointer, dimension(:,:,:)          :: CellWaterMass          
-        type (T_Property), pointer                  :: PropertySoilDryDensity
-#endif        
-        real,    pointer, dimension(:,:,:)          :: CellWaterVolume            !Used by SoilChemistry & ChainReactions modules        
-        integer, pointer, dimension(:)              :: PropertiesList             !List with ID of all properties used 
+        integer                                      :: ObjTime               = 0
+        integer                                      :: ObjHorizontalGrid     = 0
+        integer                                      :: ObjHorizontalMap      = 0
+        integer                                      :: ObjAdvectionDiffusion = 0
+        integer                                      :: ObjBasinGeometry      = 0
+        integer                                      :: ObjPorousMedia        = 0
+        integer                                      :: ObjGeometry           = 0
+        integer                                      :: ObjMap                = 0
+        integer                                      :: ObjGridData           = 0
+        integer                                      :: ObjEnterData          = 0
+        integer                                      :: ObjtimeSerie          = 0
+        integer                                      :: ObjSedimentQuality    = 0
+        integer                                      :: ObjHDF5               = 0
+        integer                                      :: ObjBottomTopography   = 0
+        integer                                      :: ObjProfile            = 0
+        integer                                      :: ObjInterface          = 0
+        integer                                      :: ObjChainReactions     = 0 !ChainReactionsID
+
+        real,    pointer, dimension(:,:,:)           :: CellWaterVolume            !Used by SoilChemistry & ChainReactions modules        
+        integer, pointer, dimension(:)               :: PropertiesList             !List with ID of all properties used 
  
-        type (T_ExtVar)                             :: ExtVar
-        type (T_Files)                              :: Files
-        type (T_OutPut)                             :: OutPut
-        type (T_Property), pointer                  :: FirstProperty    => null() 
-        type (T_Property), pointer                  :: LastProperty        
-        type (T_PorousMediaProperties), pointer     :: Next             => null()
-        type (T_Coupled)                            :: Coupled
-        type (T_Time)                               :: LastOutputHDF5
-        type(T_DEF)                                 :: COEF3
-        type(T_A_B_C_Explicit)                      :: COEFExpl 
-        type(T_FluxCoef)                            :: COEF3_VertAdv            !Vertical advection coeficients
-        type(T_FluxCoef)                            :: COEF3_HorAdvXX           !Horizont advection coeficients
-        type(T_FluxCoef)                            :: COEF3_HorAdvYY           !Horizont advection coeficients
-        real, pointer, dimension(: , : , :)         :: TICOEF3               
-        real(8), pointer, dimension(:)              :: VECG                     !Auxiliar thomas arrays 
-        real(8), pointer, dimension(:)              :: VECW                     !Auxiliar thomas arrays     
+        type (T_ExtVar)                              :: ExtVar
+        type (T_Files)                               :: Files
+        type (T_OutPut)                              :: OutPut
+        type (T_Property), pointer                   :: FirstProperty    => null() 
+        type (T_Property), pointer                   :: LastProperty     => null()   
+        type (T_PorousMediaProperties), pointer      :: Next             => null()
+        type (T_Coupled)                             :: Coupled
+        type (T_Time)                                :: LastOutputHDF5
+        type(T_D_E_F)                                :: COEF3
+        type(T_A_B_C_Explicit)                       :: COEFExpl 
+        type(T_FluxCoef)                             :: COEF3_VertAdv            !Vertical advection coeficients
+        type(T_FluxCoef)                             :: COEF3_HorAdvXX           !Horizont advection coeficients
+        type(T_FluxCoef)                             :: COEF3_HorAdvYY           !Horizont advection coeficients
+        real, pointer, dimension(: , : , :)          :: TICOEF3               
+        real(8), pointer, dimension(:)               :: VECG                     !Auxiliar thomas arrays 
+        real(8), pointer, dimension(:)               :: VECW                     !Auxiliar thomas arrays     
 
-        logical                                     :: PorousMediaProperties
-        real,    pointer, dimension(:,:,:)          :: Volume   
-        integer                                     :: PropertiesNumber    = 0
-        real   , pointer, dimension(:,:,:)          :: DissolvedToParticulate3D
-        real                                        :: ResidualTime
+        logical                                      :: PorousMediaProperties
+        real,    pointer, dimension(:,:,:)           :: Volume   
+        integer                                      :: PropertiesNumber    = 0
+        real   , pointer, dimension(:,:,:)           :: DissolvedToParticulate3D
+        real                                         :: ResidualTime
         
-        integer                                     :: InstanceID
-        type (T_Size3D)                             :: Size, WorkSize
-        type (T_Size2D)                             :: Size2D
+        integer                                      :: InstanceID
+        type (T_Size3D)                              :: Size, WorkSize
+        type (T_Size2D)                              :: Size2D
 
-        type(T_Property_3D)                         :: Disper_Trans
-        type(T_Property_3D)                         :: Disper_Longi
+        type(T_Property_3D)                          :: Disper_Trans
+        type(T_Property_3D)                          :: Disper_Longi
                
-        logical                                     :: AdvDiff_Explicit            ! True - All explicit; False - Vertical Implicit
-        logical                                     :: AdvDiff_AdvectionH_ImpExp   ! True - Horiz Adv Expl; False - Horiz Adv Impl
-        logical                                     :: AdvDiff_CheckCoefs    !
-        logical                                     :: Vertical1D
-        logical                                     :: XZFlow
+        logical                                      :: AdvDiff_Explicit            ! True - All explicit; False - Vertical Implicit
+        logical                                      :: AdvDiff_AdvectionH_ImpExp   ! True - Horiz Adv Expl; False - Horiz Adv Impl
+        logical                                      :: AdvDiff_CheckCoefs    !
+        logical                                      :: Vertical1D
+        logical                                      :: XZFlow
         
-        logical                                     :: NewFormulation              !New formulation for advection being computed
-        integer                                     :: AdvDiff_AdvMethodV          !inside porou smedia properties. the advection
-        integer                                     :: AdvDiff_AdvMethodH          !methods are general for all the properties
-        
-        
-        type(T_ThetaAtFaces)                        :: ThetaAtFaces
-        
+        logical                                      :: NewFormulation              !New formulation for advection being computed
+        integer                                      :: AdvDiff_AdvMethodV          !inside porou smedia properties. the advection
+        integer                                      :: AdvDiff_AdvMethodH          !methods are general for all the properties
+       
+
+        type(T_ThetaAtFaces)                         :: ThetaAtFaces
+        integer                                      :: ThetaAtFacesMethod
+         
+#ifdef _PHREEQC_
+        type(T_PhreeqC)                              :: PhreeqC
+#endif        
+
+        logical                                      :: CalculateECw =  .false.
+        real, dimension(:,:,:), pointer              :: ECw          => null()
+
         !--For PorousMediaProperties Advection-Diffusion Method
-        real,    pointer, dimension(:,:,:)          :: DifusionNumber
-        real,    pointer, dimension(:,:,:)          :: ReynoldsMNumber    
+        real,    pointer, dimension(:,:,:)           :: DifusionNumber
+        real,    pointer, dimension(:,:,:)           :: ReynoldsMNumber    
+
         
-        logical                                     :: CheckGlobalMass       
+        logical                                      :: CheckGlobalMass       
         
-        real(8), pointer, dimension(:,:,:)          :: WaterVolume
-        real(8), pointer, dimension(:,:,:)          :: FluxWCorr             
+		real(8), pointer, dimension(:,:,:)           :: WaterVolume
+        real(8), pointer, dimension(:,:,:)           :: FluxWCorr       
 
         !griflet, openmp
-        type(T_THOMAS), pointer                 :: THOMAS
-        integer                                 :: MaxThreads
+        type(T_THOMAS), pointer                      :: THOMAS
+        integer                                      :: MaxThreads
 
     end type  T_PorousMediaProperties
 
     !Global Module Variables
-    type (T_PorousMediaProperties), pointer         :: FirstObjPorousMediaProperties
-    type (T_PorousMediaProperties), pointer         :: Me
+    type (T_PorousMediaProperties), pointer          :: FirstObjPorousMediaProperties
+    type (T_PorousMediaProperties), pointer          :: Me
 
     !--------------------------------------------------------------------------
     
@@ -653,7 +691,6 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             Me%ObjGeometry       = AssociateInstance (mGEOMETRY_,       GeometryID      )
             Me%ObjMap            = AssociateInstance (mMap_,            MapID           )
         
-
             if (present(CoupledDN)) then
                 Me%ExtVar%CoupledDN = CoupledDN
             endif
@@ -670,6 +707,12 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             call ReadGlobalOptions
 
             call Construct_PropertyList
+
+#ifdef _PHREEQC_ 
+            if (Me%Coupled%SoilChemistry) then           
+                call ConstructPhreeqCModels
+            endif
+#endif    
 
             if (Me%Coupled%Partition) then
                 call ConstructPartition
@@ -944,15 +987,15 @@ doi3:   do J = JLB, JUB
 
         !Reads the name of the data file from nomfich
         call ReadFileName ('POROUS_PROP_DATA', Me%Files%DataFile, "PorousMedia Data File", STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModulePorousMediaProperties - ERR01'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModulePorousMediaProperties - ERR010'
 
         !Reads the name of the transient HDF file from nomfich
         call ReadFileName ('POROUS_PROP_HDF', Me%Files%TransientHDF, "PorousMedia HDF File", STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModulePorousMediaProperties - ERR01b'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModulePorousMediaProperties - ERR020'
                 
         !Reads the name of the file where to store final data
         call ReadFileName ('POROUS_PROP_FIN', Me%Files%FinalFile, "PorousMedia Final File", STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModulePorousMediaProperties - ERR01c'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModulePorousMediaProperties - ERR030'
    
     end subroutine ReadFileNames
     
@@ -1020,7 +1063,7 @@ doi3:   do J = JLB, JUB
                      ClientModule = 'ModulePorousMediaProperties', &
                      STAT         = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)  &
-            stop 'ReadGlobalOptions - ModulePorousMediaProeprties - ERR90'
+            stop 'ReadGlobalOptions - ModulePorousMediaProeprties - ERR070'
         
         if (.not. Me%AdvDiff_Explicit) then
             !If implicit model, only vertical is forced to be implicit (adv + diff) and horizontal is explicit (adv + diff)
@@ -1033,8 +1076,22 @@ doi3:   do J = JLB, JUB
                          ClientModule = 'ModulePorousMediaProperties', &
                          STAT         = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)  &
-                stop 'ReadGlobalOptions - ModulePorousMediaProeprties - ERR95'
+                stop 'ReadGlobalOptions - ModulePorousMediaProeprties - ERR080'
         endif 
+                
+        ! 1 - MINIMUN of the Theta in the cells
+        ! 2 - AVERAGE of the Theta in the cells
+                
+        !Want Theta on faces using min or average? Default is min
+        call GetData(Me%ThetaAtFacesMethod,                        &
+                     Me%ObjEnterData, iflag,                       &
+                     SearchType   = FromFile,                      &
+                     keyword      = 'THETAFACE',                   &
+                     Default      = 1,                             &
+                     ClientModule = 'ModulePorousMediaProperties', &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_)  &
+            stop 'ReadGlobalOptions - ModulePorousMediaProeprties - ERR090'                                
                 
         !Want new formulation with advection methods not depending on property
         call GetData(Me%NewFormulation,                            &
@@ -1045,7 +1102,7 @@ doi3:   do J = JLB, JUB
                      ClientModule = 'ModulePorousMediaProperties', &
                      STAT         = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)  &
-            stop 'ReadGlobalOptions - ModulePorousMediaProeprties - ERR100'
+            stop 'ReadGlobalOptions - ModulePorousMediaProeprties - ERR100'                
 
         if (Me%NewFormulation) then
             !horizontal advection method that will be general for all props
@@ -1068,7 +1125,7 @@ doi3:   do J = JLB, JUB
                          ClientModule = 'ModulePorousMediaProperties', &
                          STAT         = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)  &
-                stop 'ReadGlobalOptions - ModulePorousMediaProeprties - ERR110'
+                stop 'ReadGlobalOptions - ModulePorousMediaProeprties - ERR120'
         
         endif
         
@@ -1084,6 +1141,116 @@ doi3:   do J = JLB, JUB
 
     end subroutine ReadGlobalOptions        
 
+    !--------------------------------------------------------------------------
+
+#ifdef _PHREEQC_
+    subroutine ConstructPhreeqCModels
+    
+        !Local-----------------------------------------------------------------        
+        integer :: status
+        integer :: client
+        logical :: found
+        integer :: index
+
+        !----------------------------------------------------------------------
+        call GetNumberOfBlocks (Me%ObjEnterData,           &
+                                '<beginphreeqcmodel>',     &
+                                '<endphreeqcmodel>',       &
+                                FromFile_,                 &
+                                Me%PhreeqC%NumberOfModels, &
+                                STAT = status)
+        if (status /= SUCCESS_) &
+            stop 'ConstructPhreeqCModels - ModulePorousMediaProperties - ERR010'
+
+        allocate (Me%PhreeqC%Models (1:Me%PhreeqC%NumberOfModels))
+        
+        do index = 1, Me%PhreeqC%NumberOfModels
+
+            call ExtractBlockFromBuffer(Me%ObjEnterData,                      &
+                                        ClientNumber = client,                &
+                                        block_begin  = '<beginphreeqcmodel>', &
+                                        block_end    = '<endphreeqcmodel>',   &
+                                        BlockFound   = found,                 &
+                                        STAT         = status)
+            if (status /= SUCCESS_) &
+                stop 'ConstructPhreeqCModels - ModulePorousMediaProperties - ERR020'
+
+            if (found) then
+
+                call LoadPhreeqCModelInfo (index)                
+                
+            else
+
+                stop 'ConstructPhreeqCModels - ModulePorousMediaProperties - ERR030'
+
+            endif
+
+        enddo   
+
+        call Block_Unlock(Me%ObjEnterData, client, status)
+        if (status .NE. SUCCESS_) &
+            stop 'ConstructPhreeqCModels - ModulePorousMediaProperties - ERR040'
+        !----------------------------------------------------------------------
+
+    endsubroutine ConstructPhreeqCModels
+
+    !--------------------------------------------------------------------------
+
+    subroutine LoadPhreeqCModelInfo (Index)
+    
+        !Arguments-------------------------------------------------------------
+        integer, intent(IN) :: Index
+        
+        !Local----------------------------------------------------------------
+        integer               :: status
+        integer               :: iflag
+        
+        !----------------------------------------------------------------------
+        call GetData(Me%PhreeqC%Models(Index)%Database,            &
+                     Me%ObjEnterData, iflag,                       &
+                     SearchType   = FromBlock,                     &
+                     keyword      = 'DATABASE',                    &
+                     default      = '',                            &
+                     ClientModule = 'ModulePorousMediaProperties', &
+                     STAT         = status)
+        if (status .NE. SUCCESS_) &
+            stop 'LoadPhreeqCModelInfo - ModulePorousMediaProperties - ERR010'
+            
+        call GetData(Me%PhreeqC%Models(Index)%DatabaseAux,         &
+                     Me%ObjEnterData, iflag,                       &
+                     SearchType   = FromBlock,                     &
+                     keyword      = 'DATABASE_AUX',                &
+                     default      = '',                            &
+                     ClientModule = 'ModulePorousMediaProperties', &
+                     STAT         = status)
+        if (status .NE. SUCCESS_) &
+            stop 'LoadPhreeqCModelInfo - ModulePorousMediaProperties - ERR020'
+                        
+        call GetData(Me%PhreeqC%Models(Index)%KUB,                 &
+                     Me%ObjEnterData, iflag,                       &
+                     SearchType   = FromBlock,                     &
+                     keyword      = 'KUB',                         &
+                     ClientModule = 'ModulePorousMediaProperties', &
+                     STAT         = status)
+        if (status .NE. SUCCESS_) &
+            stop 'LoadPhreeqCModelInfo - ModulePorousMediaProperties - ERR030'
+        if (iflag .NE. 1) &
+            stop 'LoadPhreeqCModelInfo - ModulePorousMediaProperties - ERR040'
+        
+        call GetData(Me%PhreeqC%Models(Index)%KLB,                 &
+                     Me%ObjEnterData, iflag,                       &
+                     SearchType   = FromBlock,                     &
+                     keyword      = 'KLB',                         &
+                     ClientModule = 'ModulePorousMediaProperties', &
+                     STAT         = status)
+        if (status .NE. SUCCESS_) &
+            stop 'LoadPhreeqCModelInfo - ModulePorousMediaProperties - ERR050' 
+        if (iflag .NE. 1) &
+            stop 'LoadPhreeqCModelInfo - ModulePorousMediaProperties - ERR060'                                          
+        !----------------------------------------------------------------------
+        
+    endsubroutine LoadPhreeqCModelInfo 
+#endif
     !--------------------------------------------------------------------------
 
     subroutine AllocateVariables        
@@ -1115,11 +1282,15 @@ doi3:   do J = JLB, JUB
         Me%CellWaterVolume = 0.
 
 #ifdef _PHREEQC_
-        allocate (Me%CellWaterMass (ILB:IUB,JLB:JUB,KLB:KUB))
-        allocate (Me%CellSoilMass (ILB:IUB,JLB:JUB,KLB:KUB))
+        if (Me%Coupled%SoilChemistry) then
+            allocate (Me%PhreeqC%CellWaterMass (ILB:IUB,JLB:JUB,KLB:KUB))
+            allocate (Me%PhreeqC%CellSoilMass  (ILB:IUB,JLB:JUB,KLB:KUB))
+            allocate (Me%PhreeqC%Filter        (ILB:IUB,JLB:JUB,KLB:KUB))
         
-        Me%CellWaterMass = 0.
-        Me%CellSoilMass  = 0.                
+            Me%PhreeqC%CellWaterMass = 0.
+            Me%PhreeqC%CellSoilMass  = 0.
+            Me%PhreeqC%Filter        = 0                
+        endif
 #endif
 
         if (Me%Coupled%AdvectionDiffusion) then
@@ -1199,7 +1370,7 @@ doi3:   do J = JLB, JUB
                 Me%VECG                     = Null_real 
                 Me%VECW                     = Null_real 
            
-            endif            
+            endif
             
             !griflet: BEGIN this is the alternate version that allows parallel openmp
 
@@ -1222,12 +1393,16 @@ doi3:   do J = JLB, JUB
             Me%THOMAS%COEF3%D => Me%COEF3%D
             Me%THOMAS%COEF3%E => Me%COEF3%E
             Me%THOMAS%COEF3%F => Me%COEF3%F
-            Me%THOMAS%TI => Me%TICOEF3
+            Me%THOMAS%TI      => Me%TICOEF3
 
             !griflet: END
-            
+
         endif
         
+        if (Me%CalculateECw) then
+            allocate (Me%ECw(ILB:IUB,JLB:JUB,KLB:KUB))
+        endif
+
     end subroutine AllocateVariables
 
     !--------------------------------------------------------------------------
@@ -1491,17 +1666,36 @@ cd2 :           if (BlockFound) then
                      keyword      = 'PARTICULATE',                                       &
                      ClientModule = 'ModulePorousMediaProeprties',                       &
                      STAT         = STAT_CALL)
-        if(STAT_CALL .NE. SUCCESS_) stop 'Construct_PropertyState - ModulePorousMediaProeprties - ERR01'
+        if(STAT_CALL .NE. SUCCESS_) stop 'Construct_PropertyState - ModulePorousMediaProeprties - ERR010'
 
         if (NewProperty%Particulate)then
             if(.not. Check_Particulate_Property(NewProperty%ID%IDNumber)) then 
                 write(*,*) 'Property '//trim(NewProperty%ID%Name)// 'is not'
                 write(*,*) 'recognised as PARTICULATE'
-                stop 'Construct_PropertyState - ModulePorousMediaProeprties - ERR03'
+                stop 'Construct_PropertyState - ModulePorousMediaProeprties - ERR020'
             end if
         endif
         
+        call GetData(NewProperty%UseToCalcECw,                                           &
+                     Me%ObjEnterData,  iflag,                                            &
+                     SearchType   = FromBlock,                                           &
+                     keyword      = 'USE_TO_CALC_ECW',                                   &
+                     default      = .false.,                                             &
+                     ClientModule = 'ModulePorousMediaProeprties',                       &
+                     STAT         = STAT_CALL)
+        if(STAT_CALL .NE. SUCCESS_) stop 'Construct_PropertyState - ModulePorousMediaProeprties - ERR030'
 
+        if (NewProperty%UseToCalcECw) then
+            call GetData(NewProperty%ECwFactor,                                              &
+                         Me%ObjEnterData,  iflag,                                            &
+                         SearchType   = FromBlock,                                           &
+                         keyword      = 'ECW_FACTOR',                                        &
+                         ClientModule = 'ModulePorousMediaProeprties',                       &
+                         STAT         = STAT_CALL)
+            if(STAT_CALL .NE. SUCCESS_) stop 'Construct_PropertyState - ModulePorousMediaProeprties - ERR040'
+            Me%CalculateECw = .true.
+        endif
+        
     end subroutine Construct_PropertyState
 
     !--------------------------------------------------------------------------
@@ -1520,6 +1714,21 @@ cd2 :           if (BlockFound) then
         real                                        :: ModelDT
         !----------------------------------------------------------------------
 
+        call GetData(NewProperty%Evolution%MaxForUptakeConc,                             &
+                     Me%ObjEnterData, iflag,                                             &
+                     SearchType   = FromBlock,                                           &
+                     keyword      = 'MAX_CONC_FOR_UPTAKE',                               &
+                     ClientModule = 'ModulePorousMediaProperties',                       &
+                     Default      = 0.0,                                                 &
+                     STAT         = STAT_CALL)
+        if(STAT_CALL .NE. SUCCESS_)                                                      &
+            stop 'Construct_PropertyEvolution - ModulePorousMediaProperties - ERR010'
+        if (iflag .NE. 1) then
+            NewProperty%Evolution%UseMaxForUptakeConc = .false.
+        else
+            NewProperty%Evolution%UseMaxForUptakeConc = .true.
+        end if
+
         call GetData(NewProperty%Evolution%AdvectionDiffusion,                           &
                      Me%ObjEnterData, iflag,                                             &
                      SearchType   = FromBlock,                                           &
@@ -1528,26 +1737,29 @@ cd2 :           if (BlockFound) then
                      Default      = .false.,                                             &
                      STAT         = STAT_CALL)
         if(STAT_CALL .NE. SUCCESS_)                                                      &
-            stop 'Construct_PropertyEvolution - ModulePorousMediaProperties - ERR10'
+            stop 'Construct_PropertyEvolution - ModulePorousMediaProperties - ERR020'
 
         if (NewProperty%Evolution%AdvectionDiffusion .and. NewProperty%Particulate) then
             write(*,*) 'Property '//trim(NewProperty%ID%Name)// 'is Particulate'
             write(*,*) 'and can not have ADVECTION_DIFFUSION on'
-            stop 'Construct_PropertyEvolution - ModulePorousMediaProeprties - ERR15'      
+            stop 'Construct_PropertyEvolution - ModulePorousMediaProeprties - ERR030'      
         endif  
 
         if (NewProperty%Evolution%AdvectionDiffusion) then
-            Me%Coupled%AdvectionDiffusion = .true.
+            Me%Coupled%AdvectionDiffusion  = .true.
             NewProperty%Evolution%Variable = .true.
+            
+            call ReadAdvectionDiffusionParam (NewProperty)
+            call ConstructPropertyDiffusivity (NewProperty)
         endif
         
-        if (NewProperty%Evolution%AdvectionDiffusion) then
-
-            call ReadAdvectionDiffusionParam (NewProperty)
-        
-        end if
-
-        call ConstructPropertyDiffusivity (NewProperty)
+!        if (NewProperty%Evolution%AdvectionDiffusion) then
+!
+!            call ReadAdvectionDiffusionParam (NewProperty)
+!        
+!        end if
+!
+!        call ConstructPropertyDiffusivity (NewProperty)
 
 
         !<BeginKeyword>
@@ -1571,7 +1783,7 @@ cd2 :           if (BlockFound) then
                      default      = OFF,                                                 &
                      STAT         = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)                                                     &
-            stop 'Construct_PropertyEvolution - ModulePorousMediaProperties - ERR20'
+            stop 'Construct_PropertyEvolution - ModulePorousMediaProperties - ERR040'
 
         if (NewProperty%Evolution%SoilQuality) then
             Me%Coupled%SoilQuality     = .true.
@@ -1601,7 +1813,7 @@ cd2 :           if (BlockFound) then
                      default      = OFF,                                                 &
                      STAT         = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)                                                     &
-            stop 'Construct_PropertyEvolution - ModulePorousMediaProperties - ERR30'
+            stop 'Construct_PropertyEvolution - ModulePorousMediaProperties - ERR050'
 
         if (NewProperty%Evolution%SoilChemistry) then
             Me%Coupled%SoilChemistry       = .true.
@@ -1632,7 +1844,7 @@ cd2 :           if (BlockFound) then
                      ClientModule = 'ModuleRunoffProperties',                            &
                      STAT         = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)                                                     &
-            stop 'Subroutine Construct_PropertyEvolution - ModuleRunoffProperties - ERR50'
+            stop 'Subroutine Construct_PropertyEvolution - ModuleRunoffProperties - ERR060'
 
         if(NewProperty%Evolution%Partitioning) then
             NewProperty%Evolution%Variable = .true.
@@ -1679,7 +1891,8 @@ cd2 :           if (BlockFound) then
         if (NewProperty%Evolution%Variable) then
 
             call GetComputeTimeStep     (Me%ObjTime, Me%ExtVar%DT, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'Construct_PropertyEvolution - ModulePorousMediaProperties - ERR40'
+            if (STAT_CALL /= SUCCESS_) &
+                stop 'Construct_PropertyEvolution - ModulePorousMediaProperties - ERR080'
 
             ModelDT = Me%ExtVar%DT
 
@@ -1691,13 +1904,13 @@ cd2 :           if (BlockFound) then
                          ClientModule = 'ModulePorousMediaProperties',                   &
                          STAT         = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                                 &
-                stop 'Construct_PropertyEvolution - ModulePorousMediaProperties - ERR050'
+                stop 'Construct_PropertyEvolution - ModulePorousMediaProperties - ERR090'
                                        
             
             if (NewProperty%Evolution%DTInterval < ModelDT) then
                 write(*,*) 
                 write(*,*) 'Property time step is smaller then model time step'
-                stop 'Construct_PropertyEvolution - ModulePorousMediaProperties - ERR60'
+                stop 'Construct_PropertyEvolution - ModulePorousMediaProperties - ERR100'
 
             elseif (NewProperty%Evolution%DTInterval > ModelDT) then 
 
@@ -1709,7 +1922,7 @@ cd2 :           if (BlockFound) then
                     write(*,*) 
                     write(*,*) 'Property time step must be a multiple of model time step.'
                     write(*,*) 'Please review your input data.'
-                    stop 'Construct_PropertyEvolution - ModulePorousMediaProperties - ERR70'
+                    stop 'Construct_PropertyEvolution - ModulePorousMediaProperties - ERR110'
                 endif
 
                 !Run period in seconds
@@ -1723,7 +1936,7 @@ cd2 :           if (BlockFound) then
 
                     write(*,*) 
                     write(*,*) 'Property time step is not a multiple of model time step.'
-                    stop 'Construct_PropertyEvolution - ModulePorousMediaProperties - ERR80'
+                    stop 'Construct_PropertyEvolution - ModulePorousMediaProperties - ERR120'
                 end if
             endif
 
@@ -2073,7 +2286,7 @@ cd2 :           if (BlockFound) then
         !Spatial Method for horizontal advection
         call GetData(NewProperty%Evolution%AdvDiff%AdvMethodH,     &
                      Me%ObjEnterData, iflag,                       &
-                     SearchType   = FromBlock,                      &
+                     SearchType   = FromBlock,                     &
                      keyword      = 'ADVDIFF_METHOD_H',            &
                      Default      = UpwindOrder1,                  &
                      ClientModule = 'ModulePorousMediaProperties', &
@@ -2083,7 +2296,7 @@ cd2 :           if (BlockFound) then
 
         call GetData(NewProperty%Evolution%AdvDiff%TVDLimitationH, &
                      Me%ObjEnterData, iflag,                       &
-                     SearchType   = FromBlock,                      &
+                     SearchType   = FromBlock,                     &
                      keyword      = 'ADVDIFF_TVD_LIMIT_H',         &
                      Default      = Superbee,                      &
                      ClientModule = 'ModulePorousMediaProperties', &
@@ -2094,7 +2307,7 @@ cd2 :           if (BlockFound) then
         !Spatial Method for horizontal advection
         call GetData(NewProperty%Evolution%AdvDiff%AdvMethodV,     &
                      Me%ObjEnterData, iflag,                       &
-                     SearchType   = FromBlock,                      &
+                     SearchType   = FromBlock,                     &
                      keyword      = 'ADVDIFF_METHOD_V',            &
                      Default      = UpwindOrder1,                  &
                      ClientModule = 'ModulePorousMediaProperties', &
@@ -2104,7 +2317,7 @@ cd2 :           if (BlockFound) then
 
         call GetData(NewProperty%Evolution%AdvDiff%TVDLimitationV, &
                      Me%ObjEnterData, iflag,                       &
-                     SearchType   = FromBlock,                      &
+                     SearchType   = FromBlock,                     &
                      keyword      = 'ADVDIFF_TVD_LIMIT_V',         &
                      Default      = Superbee,                      &
                      ClientModule = 'ModulePorousMediaProperties', &
@@ -2117,7 +2330,7 @@ cd2 :           if (BlockFound) then
                      Me%ObjEnterData, iflag,                       &
                      Keyword      = 'ADVDIFF_VOLUME_RELATION_MAX', &
                      Default      = 5.,                            &
-                     SearchType   = FromBlock,                      &
+                     SearchType   = FromBlock,                     &
                      ClientModule = 'ModulePorousMediaProperties', &
                      STAT         = STAT_CALL)
 
@@ -2184,12 +2397,12 @@ cd2 :           if (BlockFound) then
         KLB = Me%Size%KLB
         KUB = Me%Size%KUB
         allocate (NewProperty%Diffusivity (ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_)stop 'ConstructPropertyDiffusivity - ModulePorousMediaProperties - ERR10'
+        if (STAT_CALL .NE. SUCCESS_)stop 'ConstructPropertyDiffusivity - ModulePorousMediaProperties - ERR010'
         NewProperty%Diffusivity       = 0. 
         
            
         allocate (NewProperty%Viscosity (ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_)stop 'ConstructPropertyDiffusivity - ModulePorousMediaProperties - ERR20'
+        if (STAT_CALL .NE. SUCCESS_)stop 'ConstructPropertyDiffusivity - ModulePorousMediaProperties - ERR020'
         NewProperty%Viscosity         = 0.
         
 !        allocate (NewProperty%Diff_Turbulence_H (ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT_CALL)
@@ -2201,16 +2414,20 @@ cd2 :           if (BlockFound) then
 !        NewProperty%Diff_Turbulence_V = 0.                   
         
         allocate (NewProperty%ViscosityU (ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_)stop 'ConstructPropertyDiffusivity - ModulePorousMediaProperties - ERR60'
+        if (STAT_CALL .NE. SUCCESS_)stop 'ConstructPropertyDiffusivity - ModulePorousMediaProperties - ERR050'
         
         NewProperty%ViscosityU  = 0.0
         
         allocate (NewProperty%ViscosityV (ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_)stop 'ConstructPropertyDiffusivity - ModulePorousMediaProperties - ERR70'
+        if (STAT_CALL .NE. SUCCESS_)stop 'ConstructPropertyDiffusivity - ModulePorousMediaProperties - ERR060'
     
         NewProperty%ViscosityV  = 0.0    
             
-
+        allocate (NewProperty%UptakeActive (ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_)stop 'ConstructPropertyDiffusivity - ModulePorousMediaProperties - ERR070'
+        
+        NewProperty%UptakeActive  = .false.
+        
     end subroutine ConstructPropertyDiffusivity
 
     !--------------------------------------------------------------------------
@@ -2260,7 +2477,7 @@ cd2 :           if (BlockFound) then
         !by default zero because not all properties need to be written from basin (e.g. property not existing in runoff)
         allocate(NewProperty%ConcentrationOnInfColumn(ILB:IUB, JLB:JUB), STAT = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)stop 'Construct_PropertyValues - ModulePorousMediaProperties - ERR40'
-        NewProperty%ConcentrationOnInfColumn(:,:) = 0. 
+        NewProperty%ConcentrationOnInfColumn(:,:) = 0.
         
         if (Me%ExtVar%CoupledDN) then
             allocate(NewProperty%ConcentrationDN(ILB:IUB, JLB:JUB), STAT = STAT_CALL)
@@ -2296,7 +2513,7 @@ cd2 :           if (BlockFound) then
                      Me%ObjEnterData,iflag,                                                 &
                      SearchType   = FromBlock,                                              &
                      keyword      = 'MIN_VALUE',                                            &
-                     ClientModule = 'ModulePorousMediaProperties',                                 &
+                     ClientModule = 'ModulePorousMediaProperties',                          &
                      STAT         = STAT_CALL)              
         if (STAT_CALL .NE. SUCCESS_)stop 'Construct_PropertyValues - ModulePorousMediaProperties - ERR100'
         if (iflag==1)  then
@@ -2320,7 +2537,7 @@ cd2 :           if (BlockFound) then
                      keyword      = 'OLD',                                              &
                      Default      = .false.,                                            &                        
                      SearchType   = FromBlock,                                          &
-                     ClientModule = 'ModuleVegetation',                                 &
+                     ClientModule = 'ModulePorousMediaProperties',                      &
                      STAT         = STAT_CALL)              
         if (STAT_CALL .NE. SUCCESS_)stop 'ConstructPropertyValues - ModulePorousMediaProperties - ERR120'
           
@@ -2340,7 +2557,7 @@ cd2 :           if (BlockFound) then
                                        HorizontalGridID     = Me%ObjHorizontalGrid,             &
                                        GeometryID           = Me%ObjGeometry,                   &
                                        ExtractType          = FromBlock,                        &
-                                       PointsToFill3D       = Me%ExtVar%WaterPoints3D,     &
+                                       PointsToFill3D       = Me%ExtVar%WaterPoints3D,          &
                                        Matrix3D             = NewProperty%Concentration,        &
                                        TypeZUV              = TypeZ_,                           &
                                        STAT                 = STAT_CALL)
@@ -2404,7 +2621,7 @@ do1:    do while(associated(Property))
                 if (.not. CheckPropertyName(PartPropName, Couple_ID)) then
                     write(*,*)
                     write(*,*) 'Particulate property name is not recognised by the model'
-                    stop       'ConstructPartition - ModulePorousMediaProperties - ERR00'
+                    stop       'ConstructPartition - ModulePorousMediaProperties - ERR010'
                 else
                     
                     DissolvedProperty%Evolution%Partition%Couple_ID = Couple_ID
@@ -2422,7 +2639,7 @@ do1:    do while(associated(Property))
                         write(*,*)
                         write(*,*) 'Couple property', trim(GetPropertyName(Couple_ID))
                         write(*,*) 'is not recognized by the model as being particulate'
-                        stop 'ConstructPartition - ModulePorousMediaProperties - ERR15'                        
+                        stop 'ConstructPartition - ModulePorousMediaProperties - ERR020'                        
                     endif
                 endif
                 
@@ -2431,20 +2648,20 @@ do1:    do while(associated(Property))
                    trim(DissolvedProperty%ID%Name)) then
                     write(*,*)
                     write(*,*) 'Particulate property pair and dissolved property names do not match'
-                    stop 'ConstructPartition - ModulePorousMediaProperties - ERR20'
+                    stop 'ConstructPartition - ModulePorousMediaProperties - ERR030'
                 endif
                 
                 if(ParticulateProperty%Evolution%DTInterval .ne.                            &
                    DissolvedProperty%Evolution%DTInterval) then
                     write(*,*)
                     write(*,*) 'Particulate property and dissolved property DTs do not match'
-                    stop 'ConstructPartition - ModulePorousMediaProperties - ERR30'
+                    stop 'ConstructPartition - ModulePorousMediaProperties - ERR040'
                 endif
                 
                 if(DissolvedProperty%Evolution%Partition%Rate /=                            &
                    ParticulateProperty%Evolution%Partition%Rate   )then
                     write(*,*)'Particulate and dissolved phases must have equal partition rates'
-                    stop 'ConstructPartition - ModulePorousMediaProperties - ERR40'
+                    stop 'ConstructPartition - ModulePorousMediaProperties - ERR050'
                 end if
 
                 TotalPartition = DissolvedProperty%Evolution%Partition%Fraction  +          &
@@ -2454,7 +2671,7 @@ do1:    do while(associated(Property))
                      
                 if(Error > 0.001)then
                     write(*,*)'Particulate and dissolved phases fractions must sum iqual to 1.'
-                    stop 'ConstructPartition - ModulePorousMediaProperties - ERR50'
+                    stop 'ConstructPartition - ModulePorousMediaProperties - ERR060'
                 end if
 
                 ! .EQV. = Logical equivalence: the expression is true if both A and B 
@@ -2471,7 +2688,7 @@ do1:    do while(associated(Property))
 !                           ParticulateProperty%Evolution%Partition%UseSedimentRefConc)) then
 !                    write(*,*)
 !                    write(*,*) 'Both particulate property and dissolved property must use or not sediment ref conc'
-!                    stop 'ConstructPartition - ModulePorousMediaProperties - ERR80'
+!                    stop 'ConstructPartition - ModulePorousMediaProperties - ERR070'
 !                endif
 !
 !                if(DissolvedProperty%Evolution%Partition%UseSedimentRefConc)then
@@ -2480,7 +2697,7 @@ do1:    do while(associated(Property))
 !                    if (STAT_CALL /= SUCCESS_) then                                      
 !                        write(*,*)
 !                        write(*,*) 'If using sediment ref conc need cohesive sediment property'
-!                        stop 'ConstructPartition - ModulePorousMediaProperties - ERR85'
+!                        stop 'ConstructPartition - ModulePorousMediaProperties - ERR080'
 !                    endif
 !                endif
 !                
@@ -2488,7 +2705,7 @@ do1:    do while(associated(Property))
 !                   ParticulateProperty%Evolution%Partition%SedimentRefConc   )then
 !                    write(*,*)'Particulate and dissolved phases must have equal cohesive sediment'
 !                    write(*,*)'reference concentration'
-!                    stop 'ConstructPartition - ModulePorousMediaProperties - ERR90'
+!                    stop 'ConstructPartition - ModulePorousMediaProperties - ERR090'
 !                end if
 
 
@@ -2556,7 +2773,7 @@ do1:    do while(associated(Property))
                             ObjTime         = Me%ObjTime,                               &
                             ProfileDataFile = trim(TimeSerieLocationFile),              &
                             WaterPoints2D   = Me%ExtVar%BasinPoints,                    &
-                            nProperties     = Me%PropertiesNumber ,                                        &
+                            nProperties     = Me%PropertiesNumber ,                     &
                             PropertyList    = PropertyList,                             &
                             KUB             = Me%WorkSize%KUB,                          &
                             ClientName      = "PorousMedia",                            &
@@ -2653,30 +2870,47 @@ do1:    do while(associated(Property))
         nProperties = 0
         do while (associated(PropertyX))
             if (PropertyX%TimeSerie) then
-                nProperties = nProperties + 4
+                if (PropertyX%Evolution%AdvectionDiffusion) then
+                    nProperties = nProperties + 2
+                else
+                    nProperties = nProperties + 1
+                endif
             endif
             PropertyX => PropertyX%Next
         enddo
 
-        !Allocates PropertyList
-        allocate(PropertyList(nProperties))
+        if (Me%CalculateECw) then
+            allocate(PropertyList(nProperties + 1))
+        else
+            allocate(PropertyList(nProperties))
+        endif
+
+!        !Allocates PropertyList
+!        allocate(PropertyList(nProperties))
         
         !Property names
         n=1
         PropertyX  => Me%FirstProperty
         do while (associated(PropertyX))
             if (PropertyX%TimeSerie) then
-                PropertyList(n)  = trim(PropertyX%ID%Name) //' [mg/l]'
+                PropertyList(n)  = trim(PropertyX%ID%Name)//'['//trim(PropertyX%ID%Units)//']'
                 n=n+1
-                PropertyList(n)  = trim(PropertyX%ID%Name) //'_in_InfilColumn [mg/l]'
-                n=n+1
-                PropertyList(n)  = trim(PropertyX%ID%Name) //'_Diffusivity [m2/s]'
-                n=n+1
-                PropertyList(n)  = trim(PropertyX%ID%Name) //'_DiffusivitySurface [m2/s]'
-                n=n+1                
+                
+                if (PropertyX%Evolution%AdvectionDiffusion) then
+                    PropertyList(n)  = trim(PropertyX%ID%Name)//'_in_InfilColumn['//trim(PropertyX%ID%Units)//']'
+                    n=n+1
+!                    PropertyList(n)  = trim(PropertyX%ID%Name)//'_Diffusivity[m2/s]'
+!                    n=n+1
+!                    PropertyList(n)  = trim(PropertyX%ID%Name)//'_DiffusivitySurface[m2/s]'
+!                    n=n+1                
+                endif
             endif
             PropertyX=>PropertyX%Next
         enddo
+
+        if (Me%CalculateECw) then
+            PropertyList (n) = 'ECw[dS/L]'
+        endif
 
         call GetData(TimeSerieLocationFile,                                             &
                      Me%ObjEnterData, iflag,                                            &
@@ -2685,7 +2919,7 @@ do1:    do while(associated(Property))
                      ClientModule = 'ModulePorousMediaProperties',                      &
                      Default      = Me%Files%DataFile,                                  &
                      STAT         = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructTimeSerie - ModulePorousMediaProperties - ERR01' 
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructTimeSerie - ModulePorousMediaProperties - ERR010' 
 
         if (iflag == 1) then
             Me%OutPut%TimeSerie_ON = .true.
@@ -2695,20 +2929,20 @@ do1:    do while(associated(Property))
         
         !Get water points
         call GetWaterPoints3D   (Me%ObjMap, Me%ExtVar%WaterPoints3D, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModulePorousMediaProperties - ERR03.7'
+        if (STAT_CALL /= SUCCESS_) stop 'ContructTimeSerie - ModulePorousMediaProperties - ERR020'
 
 
         !Constructs TimeSerie
         call StartTimeSerie(Me%ObjTimeSerie, Me%ObjTime,                                &
                             TimeSerieLocationFile,                                      &
                             PropertyList, "spp",                                        &
-                            WaterPoints3D = Me%ExtVar%WaterPoints3D,                    &
-                            STAT         = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructTimeSerie - ModulePorousMediaProperties - ERR02' 
+                            WaterPoints3D    = Me%ExtVar%WaterPoints3D,                 &
+                            UseTabulatedData = .false.,                                 &
+                            STAT             = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructTimeSerie - ModulePorousMediaProperties - ERR030' 
 
         call UnGetMap                   (Me%ObjMap, Me%ExtVar%WaterPoints3D, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModulePorousMediaProperties - ERR0140'
-
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModulePorousMediaProperties - ERR040'
 
         !Deallocates PropertyList
         deallocate(PropertyList)
@@ -3241,14 +3475,16 @@ cd0:    if (Exist) then
     subroutine CoupleSoilChemistry        
 
         !Local-----------------------------------------------------------------
-        type(T_Property), pointer                           :: PropertyX
-        integer, pointer, dimension(:)                      :: SoilChemistryPropertyList
-        integer                                             :: STAT_CALL
-        real                                                :: SoilChemistryDT
-        integer                                             :: nProp = 0 
+        type(T_Property), pointer       :: PropertyX
+        integer, pointer, dimension(:)  :: SoilChemistryPropertyList
+        integer                         :: STAT_CALL
+        real                            :: SoilChemistryDT
+        integer                         :: nProp = 0 
+        type(T_PhreeqCModel), pointer   :: phreeqc
+        integer                         :: index
+        integer                         :: i, j, k
 
         !Begin------------------------------------------------------------------
-
         !Counts the number of Properties which has SoilChemistry option set to true
         PropertyX => Me%FirstProperty
         do while (associated(PropertyX))
@@ -3270,28 +3506,45 @@ cd0:    if (Exist) then
                 SoilChemistryPropertyList(nProp) = PropertyX%ID%IDNumber
             endif
             PropertyX => PropertyX%Next
+        enddo       
+        
+        do index = 1, Me%PhreeqC%NumberOfModels       
+            
+            phreeqc => Me%PhreeqC%Models(index) 
+               
+            call GetWaterPoints3D   (Me%ObjMap, Me%ExtVar%WaterPoints3D, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'CoupleSoilChemistry - ModulePorousMediaProperties - ERR01'
+
+            !Start Interface
+            call ConstructInterface(InterfaceID         = phreeqc%ObjInterface,          &
+                                    TimeID              = Me%ObjTime,                    &
+                                    SinksSourcesModel   = PhreeqCModel,                  &
+                                    DT                  = SoilChemistryDT,               &
+                                    PropertiesList      = SoilChemistryPropertyList,     &
+                                    WaterPoints3D       = Me%ExtVar%WaterPoints3D,       &
+                                    PhreeqCDatabase     = phreeqc%Database,              &
+                                    PhreeqCDatabaseAux  = phreeqc%DatabaseAux,           &
+                                    PhreeqCModelID      = phreeqc%ID,                    &
+                                    Size3D              = Me%WorkSize,                   &
+                                    STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                   &
+                stop 'CoupleSoilChemistry - ModulePorousMediaProperties - ERR02'
+
+            call SetupSoilChemistry  
+
+            do k = phreeqc%KLB, phreeqc%KUB
+            do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+            do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+                Me%PhreeqC%Filter(i, j, k) = phreeqc%ID
+            enddo
+            enddo
+            enddo   
+            
+            call UnGetMap (Me%ObjMap, Me%ExtVar%WaterPoints3D, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'CoupleSoilChemistry - ModulePorousMediaProperties - ERR03'
+            
         enddo
         
-        call GetWaterPoints3D   (Me%ObjMap, Me%ExtVar%WaterPoints3D, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'CoupleSoilChemistry - ModulePorousMediaProperties - ERR01'
-
-        !Start Interface
-        call ConstructInterface(InterfaceID         = Me%ObjInterfaceSoilChemistry,  &
-                                TimeID              = Me%ObjTime,                    &
-                                SinksSourcesModel   = PhreeqCModel,                  &
-                                DT                  = SoilChemistryDT,               &
-                                PropertiesList      = SoilChemistryPropertyList,     &
-                                WaterPoints3D       = Me%ExtVar%WaterPoints3D,       &
-                                Size3D              = Me%WorkSize,                   &
-                                STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                                   &
-            stop 'CoupleSoilChemistry - ModulePorousMediaProperties - ERR02'
-
-        call SetupSoilChemistry  
-
-        call UnGetMap (Me%ObjMap, Me%ExtVar%WaterPoints3D, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'CoupleSoilChemistry - ModulePorousMediaProperties - ERR03'
-
         deallocate (SoilChemistryPropertyList)
 
         Me%Coupled%SoilChemistry_DT          = SoilChemistryDT 
@@ -3311,10 +3564,10 @@ cd0:    if (Exist) then
         PropertyX => Me%FirstProperty
         do while (associated(PropertyX) .AND. (.NOT. found))
             if (PropertyX%ID%IDNumber .EQ. SoilDryDensity_) then
-                Me%PropertySoilDryDensity => PropertyX  
+                Me%PhreeqC%SoilDryDensity => PropertyX  
                 
                 !Done to ensure that this property will not be sended to PhreeqC
-                Me%PropertySoilDryDensity%Evolution%SoilChemistry = .false.
+                Me%PhreeqC%SoilDryDensity%Evolution%SoilChemistry = .false.
                 
                 found = .true.
                     
@@ -3325,11 +3578,9 @@ cd0:    if (Exist) then
 
         if (.not. found) then !stop 'PhreeqC needs property soil dry density - PorousMediaProperties - SetupSoilChemistry - ERR04'
         
-            Me%PropertySoilDryDensity => null()            
+            Me%PhreeqC%SoilDryDensity => null()            
         
         end if
-        
-!        end if
     
     end subroutine SetupSoilChemistry
    
@@ -3341,8 +3592,9 @@ cd0:    if (Exist) then
     subroutine CoupleChainReactions
         
         !Local-----------------------------------------------------------------
-        integer :: STAT
-        integer :: PropertiesCount
+        integer                   :: STAT
+        integer                   :: PropertiesCount
+        type(T_Property), pointer :: SoilDensity
 
         !Begin-----------------------------------------------------------------
         call StartChainReactions (Me%ObjChainReactions,             &   
@@ -3359,16 +3611,27 @@ cd0:    if (Exist) then
                                   PropertiesCount,                  &
                                   STAT = STAT)
         if (STAT /= SUCCESS_) &
-            stop 'PorousMediaProperties - CoupleChainReaction - Err010'
+            stop 'PorousMediaProperties - CoupleChainReactions - ERR010'
             
         if (PropertiesCount .EQ. 0) then
             
             call KillChainReactions(Me%ObjChainReactions, STAT = STAT)
             if (STAT /= SUCCESS_) &
-                stop 'PorousMediaProperties - CoupleChainReaction - Err020'
+                stop 'PorousMediaProperties - CoupleChainReactions - ERR020'
                 
             Me%Coupled%ChainReactions = .false.
             
+        else
+        
+            call SetChainReactionsProperties
+            
+            call Search_Property(SoilDensity, SoilDryDensity_, STAT) 
+            if (STAT == SUCCESS_) then            
+                call InitCRSoilPhase (Me%ObjChainReactions, SoilDensity3D = SoilDensity%Concentration, STAT = STAT)
+                if (STAT .NE. SUCCESS_) &
+                    stop 'PorousMediaProperties - CoupleChainReactions - ERR030' 
+            endif     
+                               
         endif        
         !----------------------------------------------------------------------
         
@@ -3476,8 +3739,53 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.     &
         !----------------------------------------------------------------------
 
     end subroutine GetPMPCoupled
+    
     !--------------------------------------------------------------------------
     
+    subroutine GetECw (PorousMediaPropertiesID, ECw, STAT) 
+
+        !Arguments-------------------------------------------------------------
+        integer                         :: PorousMediaPropertiesID
+        real, dimension(:,:,:), pointer :: ECw
+        integer, optional, intent(OUT)  :: STAT
+
+        !External--------------------------------------------------------------
+        integer :: ready_              
+
+        !Local-----------------------------------------------------------------
+        integer :: STAT_              !Auxiliar local variable
+        
+        !----------------------------------------------------------------------
+        STAT_ = UNKNOWN_
+
+        call Ready(PorousMediaPropertiesID, ready_)
+        
+cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            call Read_Lock(mPOROUSMEDIAPROPERTIES_, Me%InstanceID)
+
+            if (associated(Me%ECw)) then
+                ECw   => Me%ECw
+                STAT_ =  SUCCESS_
+            else
+                STAT_ =  NOT_ASSOCIATE_
+            endif
+            
+        else
+         
+            STAT_ = ready_
+            
+        end if cd1
+
+        if (present(STAT)) STAT = STAT_
+
+        !----------------------------------------------------------------------
+
+    end subroutine GetECw
+
+    !--------------------------------------------------------------------------
+
     subroutine GetPMPConcentration(PorousMediaPropertiesID, ConcentrationX, PropertyXIDNumber, &
                                 PropertyXUnits, STAT)
 
@@ -3677,10 +3985,10 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.     &
                                          GrazingBiomass,                           &
                                          GrazingNitrogen,                          &
                                          GrazingPhosphorus,                        &
-                                         HarvestKillAerialBiomass,                  &
-                                         HarvestKillNitrogen,                       &
-                                         HarvestKillPhosphorus,                     &
-                                         HarvestKillRootBiomass,                    &
+                                         HarvestKillAerialBiomass,                 &
+                                         HarvestKillNitrogen,                      &
+                                         HarvestKillPhosphorus,                    &
+                                         HarvestKillRootBiomass,                   &
                                          DormancyBiomass,                          &
                                          DormancyNitrogen,                         &
                                          DormancyPhosphorus,                       &
@@ -3697,19 +4005,23 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.     &
                                          NitrogenUptake,                           &
                                          PhosphorusUptake,                         &
                                          Grazing,                                  &
-                                         HarvestKill,                               &
+                                         HarvestKill,                              &
                                          Dormancy,                                 &
                                          Fertilization,                            &
                                          NutrientFluxesWithSoil,                   &
                                          RootDepth,                                &
                                          ModelWater,                               &
-                                         ModelNitrogen, ModelPhosphorus,           &
+                                         ModelNitrogen,                            &
+                                         ModelPhosphorus,                          &
                                          GrowthModel,                              &
                                          CoupledVegetation,                        &
-                                         NitrogenFraction,PhosphorusFraction,      &
+                                         NitrogenFraction,                         &
+                                         PhosphorusFraction,                       &
                                          VegetationDT,                             &
                                          TranspirationBottomLayer,                 &
-                                         PesticideIDNumber,PesticideSoilFlux,      &
+                                         NutrientUptakeMethod,                     &
+                                         PesticideIDNumber,                        &
+                                         PesticideSoilFlux,                        &
                                          STAT)
                                   
         !Arguments--------------------------------------------------------------
@@ -3752,6 +4064,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.     &
         logical,  optional                          :: GrowthModel
         logical,  optional                          :: CoupledVegetation
         real,     optional                          :: VegetationDT
+        integer,  optional                          :: NutrientUptakeMethod
         integer, optional                           :: PesticideIDNumber
         real, dimension(:,:), pointer, optional     :: PesticideSoilFlux
         integer, optional, intent(OUT)              :: STAT
@@ -3829,6 +4142,8 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.     &
             if (present(NitrogenFraction        )) Me%ExtVar%NitrogenFraction         => NitrogenFraction
             if (present(PhosphorusFraction      )) Me%ExtVar%PhosphorusFraction       => PhosphorusFraction
             
+			if (present(NutrientUptakeMethod    )) Me%ExtVar%NutrientUptakeMethod     =  NutrientUptakeMethod
+
             if (present(PesticideIDNumber       )) then
                 call SearchProperty(PropertyX, PropertyXIDNumber = PesticideIDNumber, STAT = STAT_)
                 if (STAT_ == SUCCESS_) then
@@ -4348,6 +4663,10 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.     &
                 call AdvectionDiffusionProcesses
             endif
 
+            if (Me%Coupled%ChainReactions) then
+                call ChainReactionsProcesses
+            endif
+            
             if (Me%Coupled%SoilQuality) then
                 call SoilQualityProcesses
             endif
@@ -4357,10 +4676,6 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.     &
                 call SoilChemistryProcesses
             endif
 #endif            
-
-            if (Me%Coupled%ChainReactions) then
-                call ChainReactionsProcesses
-            endif
 
             if (Me%Coupled%Decay) then
                 call DecayProcesses
@@ -4372,6 +4687,10 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.     &
 
             if (Me%Coupled%MinConcentration) then
                 call SetLimitsConcentration 
+            endif
+            
+            if (Me%CalculateECw) then
+                call ComputeECw
             endif
 
             if (Me%Output%Timeserie_ON) then
@@ -4401,8 +4720,35 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.     &
         
         if (MonitorPerformance) call StopWatch ("ModulePorousMediaProperties", "ModifyPorousMediaProperties")
 
-
     end subroutine ModifyPorousMediaProperties
+
+    !-----------------------------------------------------------------------------
+
+    subroutine ComputeECw 
+    
+        !Local--------------------------------------------------------------------
+        integer                   :: i, j, k
+        type(T_Property), pointer :: PropertyX
+
+        !-------------------------------------------------------------------------        
+        do k = Me%WorkSize%KLB, Me%WorkSize%KUB
+        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+        do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+            if (Me%ExtVar%WaterPoints3D(i,j,k) == WaterPoint) then             
+                Me%ECw(i, j, k) = 0.0
+                PropertyX => Me%FirstProperty
+                do while (associated (PropertyX))
+                    Me%ECw(i, j, k) = Me%ECw(i, j, k) + &
+                          (PropertyX%Concentration(i, j, k) * PropertyX%ECwFactor)                
+                    PropertyX => PropertyX%Next                    
+                end do
+            endif
+        enddo
+        enddo
+        enddo
+        !-------------------------------------------------------------------------
+
+    endsubroutine ComputeECw
 
     !-----------------------------------------------------------------------------
 
@@ -4460,6 +4806,116 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.     &
     !----------------------------------------------------------------------
 
     subroutine ComputeThetaAtFaces
+    
+        select case (Me%ThetaAtFacesMethod)
+
+        case (1) !Minimun
+
+            call ComputeThetaAtFacesByMin
+
+        case (2) !Average
+
+            call ComputeThetaAtFacesByAvg            
+
+        end select
+    
+    end subroutine ComputeThetaAtFaces
+
+    !----------------------------------------------------------------------
+
+    subroutine ComputeThetaAtFacesByAvg
+    
+        !Local-----------------------------------------------------------------
+        integer                         :: I,J,K, CHUNK
+        real, pointer, dimension(:,:,:) :: ThetaOld, Theta
+        !Begin-----------------------------------------------------------------
+        
+        CHUNK = CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)
+        
+        !$OMP PARALLEL PRIVATE(I,J,K)
+
+        ThetaOld  => Me%ExtVar%WaterContentOld
+        Theta     => Me%ExtVar%WaterContent
+
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+        
+        do K = Me%WorkSize%KLB, Me%WorkSize%KUB
+        do J = Me%WorkSize%JLB, Me%WorkSize%JUB
+        do I = Me%WorkSize%ILB, Me%WorkSize%IUB
+
+            if (Me%ExtVar%WaterPoints3D(I,J,K) == WaterPoint) then
+                
+                !Z direction
+                
+                !condition so that does not produce NAN, in WaterContetFace in the boundary
+                !in boundary, diffusivity is zero (computefaces) but in release version model when evaluates disp/watercontent_face
+                !produces NAN. In debug version this does not appen and the result is the total evaluation (zero).
+                if (Me%ExtVar%WaterPoints3D(I,J,K-1) /= WaterPoint) then
+                    if (Me%AdvDiff_Explicit) then
+                        Me%ThetaAtFaces%ThetaW(i, j, k) = ThetaOld(i,j,k)
+                    else
+                        Me%ThetaAtFaces%ThetaW(i, j, k) = Theta(i,j,k)
+                    endif
+                else
+                    if (Me%AdvDiff_Explicit) then
+                        Me%ThetaAtFaces%ThetaW(i, j, k) = ((ThetaOld(i,j,k)      * Me%ExtVar%DWZ(i,j,k))    + &
+                                                           (ThetaOld(i,j,k-1)    * Me%ExtVar%DWZ(i,j,k-1))) / &
+                                                          (Me%ExtVar%DWZ(i,j,k) + Me%ExtVar%DWZ(i,j,k-1))
+                    else
+                        Me%ThetaAtFaces%ThetaW(i, j, k) = ((Theta(i,j,k)         * Me%ExtVar%DWZ(i,j,k))    + &
+                                                           (Theta(i,j,k-1)       * Me%ExtVar%DWZ(i,j,k-1))) / &
+                                                          (Me%ExtVar%DWZ(i,j,k) + Me%ExtVar%DWZ(i,j,k-1))
+                    endif
+                endif                               
+                
+                !U direction
+                
+                if (Me%ExtVar%WaterPoints3D(I,J-1,K) /= WaterPoint) then
+                    Me%ThetaAtFaces%ThetaU(i, j, k) = ThetaOld(i,j,k)
+                else                                                                                       
+                    Me%ThetaAtFaces%ThetaU(i, j, k) = ((ThetaOld(i,j,k)   * Me%ExtVar%DUX(i,j))    + &
+                                                       (ThetaOld(i,j-1,k) * Me%ExtVar%DUX(i,j-1))) / &
+                                                      (Me%ExtVar%DUX(i,j) + Me%ExtVar%DUX(i,j-1))
+                endif
+                
+                !V direction
+                
+                if (Me%ExtVar%WaterPoints3D(I-1,J,K) /= WaterPoint) then
+                    Me%ThetaAtFaces%ThetaV(i, j, k) = ThetaOld(i,j,k)
+                else                                                           
+                    Me%ThetaAtFaces%ThetaV(i, j, k) = ((ThetaOld(i,j,k)   * Me%ExtVar%DVY(i,j))    + &
+                                                       (ThetaOld(i-1,j,k) * Me%ExtVar%DVY(i-1,j))) / &
+                                                      (Me%ExtVar%DVY(i,j) + Me%ExtVar%DVY(i-1,j))
+                endif
+
+            endif     
+                                                                               
+        enddo
+        enddo
+        enddo
+        !$OMP END DO
+        !$OMP END PARALLEL
+
+        do J = Me%WorkSize%JLB, Me%WorkSize%JUB
+        do I = Me%WorkSize%ILB, Me%WorkSize%IUB
+        
+            K = Me%WorkSize%KUB
+        
+            if (Me%ExtVar%WaterPoints3D(I,J,K) == WaterPoint) then
+            
+                !UpperFace computation
+                Me%ThetaAtFaces%ThetaW(i, j, k) = ThetaOld(i,j,k)
+                                
+            endif                                                                        
+            
+        enddo
+        enddo
+            
+    end subroutine ComputeThetaAtFacesByAvg
+
+    !----------------------------------------------------------------------
+    
+    subroutine ComputeThetaAtFacesByMin
     
         !Local-----------------------------------------------------------------
         integer                         :: I,J,K, CHUNK
@@ -4539,7 +4995,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.     &
         enddo
         enddo
             
-    end subroutine ComputeThetaAtFaces
+    end subroutine ComputeThetaAtFacesByMin
 
     !----------------------------------------------------------------------
     
@@ -5542,7 +5998,6 @@ do4 :       do i = Me%WorkSize%ILB, Me%WorkSize%IUB
     
     !-----------------------------------------------------------------------------
 
-
     subroutine ModifyCoefs(PropertyX)
 
         !Argument-----------------------------------------------------------------
@@ -5565,7 +6020,7 @@ do4 :       do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         !Evaporation fluxes do not take mass and do not need to be accounted
         
         !Transpiration fluxes - in cells along roots - take all dissolved properties
-        if (Me%ExtVar%CoupledVegetation .and. Me%ExtVar%ModelWater ) then
+        if (Me%ExtVar%CoupledVegetation .and. Me%ExtVar%ModelWater .and. (Me%ExtVar%NutrientUptakeMethod .NE. 3)) then
             call ModifyVegetationCoefs(PropertyX)
         endif
         
@@ -6877,7 +7332,7 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
 
         !Local-----------------------------------------------------------------
-        type (T_Property), pointer                  :: CurrProperty
+        !type (T_Property), pointer                  :: CurrProperty
         real, pointer, dimension(:,:,:)             :: TranspirationLayer
         integer                                     :: i, j, k, STAT_CALL, CHUNK
 !        real                                        :: NitrogenUptake, PhosphorusUptake
@@ -6893,7 +7348,7 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         !if in vegetation module is used swat uptake, then nitrate and phosphorus uptake has to be changed.
         !see this in the future
         
-        CurrProperty => PropertyX
+        !CurrProperty => PropertyX
         
         call GetTranspiration(Me%ObjPorousMedia, TranspirationLayer, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop ' ModifyVegetationCoefs - ModulePorousMediaProperties - ERR01'
@@ -6911,13 +7366,19 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                 
                 if(K .ge. Me%ExtVar%TranspirationBottomLayer(i,j)) then
                     
-                    !Auxuliar value for transport - units of flow-1
-                    !s/m3
-                    aux             = (Me%ExtVar%DT/(Me%ExtVar%WaterContent(i,j,k) * Me%ExtVar%Cellvolume(i,j,k)))
-                    
-                    !Positive flow - looses mass
-                    Me%COEFExpl%CoefInterfVeg(i,j,k) = - aux * TranspirationLayer(i,j,k)
-                    
+                    if ((PropertyX%Evolution%UseMaxForUptakeConc) .AND. &
+                        (PropertyX%Concentration(I, J, K) > PropertyX%Evolution%MaxForUptakeConc)) then
+                        Me%COEFExpl%CoefInterfVeg(i,j,k) = 0.0
+                        PropertyX%UptakeActive(i,j,k)    = .false.
+                    else
+                        !Auxuliar value for transport - units of flow-1
+                        !s/m3
+                        aux             = (Me%ExtVar%DT/(Me%ExtVar%WaterContent(i,j,k) * Me%ExtVar%Cellvolume(i,j,k)))
+                        
+                        !Positive flow - looses mass
+                        Me%COEFExpl%CoefInterfVeg(i,j,k) = - aux * TranspirationLayer(i,j,k)
+                        PropertyX%UptakeActive(i,j,k)    = .true.
+                    end if
                     
 !                    !Change nitrate and diss phosphorus flux because it may be disconnected from flow (if SWAT model original
 !                    ! formulation is used)
@@ -7233,11 +7694,10 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         
         !!Vegetation mass balance
         if (Me%ExtVar%CoupledVegetation .and. Me%ExtVar%ModelWater) then
-    
+                                    
             call GetTranspiration(Me%ObjPorousMedia, TranspirationLayer, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop ' ModifyInterfaceMassFluxes - ModulePorousMediaProperties - ERR01'
-    
-    
+        
             do K = Me%WorkSize%KLB, Me%WorkSize%KUB
             do J = Me%WorkSize%JLB, Me%WorkSize%JUB
             do I = Me%WorkSize%ILB, Me%WorkSize%IUB
@@ -7246,11 +7706,13 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                            
                     if(K .ge. Me%ExtVar%TranspirationBottomLayer(i,j) ) then
                         
-                        !kg = [kg] + [m3/s] * [g/m3] * [1e-3kg/g] * [s] 
-                        CurrProperty%MB%TranspiredMass = CurrProperty%MB%TranspiredMass +                                   &
-                                                          (TranspirationLayer(i,j,k) * CurrProperty%Concentration(i,j,k)    &
-                                                            *  1E-3 * Me%ExtVar%DT)
-                        
+                        if (CurrProperty%UptakeActive(i, j, k)) then                        
+                            !kg = [kg] + [m3/s] * [g/m3] * [1e-3kg/g] * [s] 
+                            CurrProperty%MB%TranspiredMass = CurrProperty%MB%TranspiredMass +    &
+                                                             (TranspirationLayer(i,j,k) *        &
+                                                             CurrProperty%Concentration(i,j,k) * &
+                                                             1E-3 * Me%ExtVar%DT)
+                        endif
     
                     endif
                endif
@@ -7262,10 +7724,8 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             call UngetPorousMedia (Me%ObjPorousMedia, TranspirationLayer, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ModifyInterfaceMassFluxes - ModulePorousMediaProperties - ERR050'
 
-        
         endif
-
-    
+                
     end subroutine ModifyInterfaceMassFluxes
     
     !---------------------------------------------------------------------------
@@ -7833,7 +8293,8 @@ cd1 :       if (Property%Evolution%MinConcentration) then
         integer                                      :: I, J, K
         real             , pointer, dimension(:,:,:) :: CellTheta
         real             , pointer, dimension(:,:,:) :: CellThetaS
-        real(8)          , pointer, dimension(:,:,:) :: CellVolume        
+        real(8)          , pointer, dimension(:,:,:) :: CellVolume   
+        integer                                      :: index     
         
         !Begin-----------------------------------------------------------------
         if (MonitorPerformance) call StartWatch ("ModulePorousMediaProperties", "SoilChemistryProcesses")
@@ -7851,14 +8312,14 @@ cd1 :       if (Property%Evolution%MinConcentration) then
                 !            m3                =          %         *        m3
                 Me%CellWaterVolume(I, J, K) = CellTheta(I, J, K) * CellVolume(I, J, K)
                 !          kg             =         kg/m3         *            m3
-                Me%CellWaterMass(I, J, K) = WaterReferenceDensity * Me%CellWaterVolume(I, J, K)
+                Me%PhreeqC%CellWaterMass(I, J, K) = WaterReferenceDensity * Me%CellWaterVolume(I, J, K)
                 
-                if (associated(Me%PropertySoilDryDensity)) then
+                if (associated(Me%PhreeqC%SoilDryDensity)) then
                     !          kg            =                      kg/m3                       *         m3
-                    Me%CellSoilMass(I, J, K) = Me%PropertySoilDryDensity%Concentration(I, J, K) * CellVolume(I, J, K)
+                    Me%PhreeqC%CellSoilMass(I, J, K) = Me%PhreeqC%SoilDryDensity%Concentration(I, J, K) * CellVolume(I, J, K)
                 else
                     !          kg            = 1000 *         m3
-                    Me%CellSoilMass(I, J, K) = 1000 * CellVolume(I, J, K)
+                    Me%PhreeqC%CellSoilMass(I, J, K) = 1000 * CellVolume(I, J, K)
                 end if
                         
             end if
@@ -7900,20 +8361,25 @@ cd1 :       if (Property%Evolution%MinConcentration) then
                     case (Temperature_, pH_, pE_, SoilDryDensity_)
                         !Do nothing
                     case default
-                        call Modify_Interface(InterfaceID        = Me%ObjInterfaceSoilChemistry,  &
-                                              PropertyID         = PropertyX%ID%IDNumber,         &
-                                              WaterVolume        = Me%CellWaterVolume,            &
-                                              WaterMass          = Me%CellWaterMass,              &
-                                              SolidMass          = Me%CellSoilMass,               &
-                                              Temperature        = TemperatureProp%Concentration, &
-                                              pH                 = pHProp%Concentration,          &
-                                              pE                 = pEProp%Concentration,          &
-                                              Concentration      = PropertyX%Concentration,       &
-                                              WaterPoints3D      = Me%ExtVar%WaterPoints3D,       &
-                                              OpenPoints3D       = Me%ExtVar%OpenPoints3D,        &
-                                              STAT               = STAT_CALL)
-                        if (STAT_CALL .NE. SUCCESS_) &
-                            stop 'SoilChemistryProcesses - ModulePorousMediaProperties - ERR001'
+                    
+                        do index = 1, Me%PhreeqC%NumberOfModels
+                            call Modify_Interface(InterfaceID        = Me%PhreeqC%Models(index)%ObjInterface, &
+                                                  PropertyID         = PropertyX%ID%IDNumber,                 &
+                                                  WaterVolume        = Me%CellWaterVolume,                    &
+                                                  WaterMass          = Me%PhreeqC%CellWaterMass,              &
+                                                  SolidMass          = Me%PhreeqC%CellSoilMass,               &
+                                                  Temperature        = TemperatureProp%Concentration,         &
+                                                  pH                 = pHProp%Concentration,                  &
+                                                  pE                 = pEProp%Concentration,                  &
+                                                  Concentration      = PropertyX%Concentration,               &
+                                                  WaterPoints3D      = Me%ExtVar%WaterPoints3D,               &
+                                                  OpenPoints3D       = Me%ExtVar%OpenPoints3D,                &
+                                                  PhreeqCID          = Me%PhreeqC%Filter,                     &
+                                                  STAT               = STAT_CALL)
+                            if (STAT_CALL .NE. SUCCESS_) &
+                                stop 'SoilChemistryProcesses - ModulePorousMediaProperties - ERR010'                                
+                        enddo
+                        
                     end select
 
                 end if
@@ -7939,14 +8405,18 @@ cd1 :       if (Property%Evolution%MinConcentration) then
                     select case (PropertyX%ID%IDNumber)
                     case (Temperature_, pH_, pE_, SoilDryDensity_)
                     case default
-                        call Modify_Interface(InterfaceID   = Me%ObjInterfaceSoilChemistry,     &
-                                              PropertyID    = PropertyX%ID%IDNumber,            &
-                                              Concentration = PropertyX%Concentration,          &
-                                              WaterPoints3D = Me%ExtVar%WaterPoints3D,          &
-                                              DTProp        = PropertyX%Evolution%DTInterval,   &
-                                              STAT          = STAT_CALL)
-                        if (STAT_CALL .NE. SUCCESS_)                                            &
-                            stop 'SoilChemistryProcesses - ModulePorousMediaProperties - ERR002'
+                    
+                        do index = 1, Me%PhreeqC%NumberOfModels                        
+                            call Modify_Interface(InterfaceID   = Me%PhreeqC%Models(index)%ObjInterface, &
+                                                  PropertyID    = PropertyX%ID%IDNumber,                 &
+                                                  Concentration = PropertyX%Concentration,               &
+                                                  WaterPoints3D = Me%ExtVar%WaterPoints3D,               &
+                                                  DTProp        = PropertyX%Evolution%DTInterval,        &
+                                                  STAT          = STAT_CALL)
+                            if (STAT_CALL .NE. SUCCESS_) &
+                                stop 'SoilChemistryProcesses - ModulePorousMediaProperties - ERR020'
+                        enddo
+                        
                     end select
 
                 end if
@@ -7969,91 +8439,84 @@ cd1 :       if (Property%Evolution%MinConcentration) then
     subroutine ChainReactionsProcesses
     
         !Local-------------------------------------------------------------------- 
-        type (T_Property), pointer         :: PropertyX
-        integer, dimension(:), pointer     :: CRPropertiesList
-        integer                            :: PropertiesCount
         integer                            :: STAT
-        integer                            :: Index
-        real, pointer, dimension(:,:,:)    :: WaterVolume !L
-        real, pointer, dimension(:,:,:)    :: SoilMass    !kg
-        type (T_Property), pointer         :: SoilDensity !kg/m3
-        integer                            :: I, J, K
+        real, dimension(:,:,:), pointer    :: SoilDensity 
+        type (T_Property), pointer         :: PropertyX 
+        logical                            :: UseSoilMass
         
         !Begin-----------------------------------------------------------------
         if (MonitorPerformance) call StartWatch ("ModulePorousMediaProperties", "ChainReactionsProcesses")
 
-        !Change this so the allocation/deallocation will be done out of this function if ChainReactions is used
-        allocate (WaterVolume(Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB,Me%Size%KLB:Me%Size%KUB))
-        allocate (SoilMass(Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB,Me%Size%KLB:Me%Size%KUB))
+        call Search_Property(PropertyX, SoilVolumetricDensity_, STAT) 
+        if (STAT .NE. SUCCESS_) then
+            UseSoilMass = .false.            
+        else
+            UseSoilMass = .true.
+            SoilDensity => PropertyX%Concentration
+        endif
         
-        do K = Me%WorkSize%KLB, Me%WorkSize%KUB
-        do J = Me%WorkSize%JLB, Me%WorkSize%JUB       
-        do I = Me%WorkSize%ILB, Me%WorkSize%IUB
+        call SetChainReactionsProperties
         
-            if (Me%ExtVar%WaterPoints3D(I,J,K) == WaterPoint) then
-                WaterVolume(I, J, K) = Me%ExtVar%WaterContent(I, J, K) * WaterReferenceDensity
-            endif
-        
-        enddo
-        enddo
-        enddo
-        
-        !Change this code because in some situations will not exist "soil properties"
-        call Search_Property(SoilDensity, SoilVolumetricDensity_, STAT)        
-        
-        do K = Me%WorkSize%KLB, Me%WorkSize%KUB
-        do J = Me%WorkSize%JLB, Me%WorkSize%JUB       
-        do I = Me%WorkSize%ILB, Me%WorkSize%IUB
-        
-            if (Me%ExtVar%WaterPoints3D(I,J,K) == WaterPoint) then
-                SoilMass(I,J,K) = Me%ExtVar%CellVolume(I,J,K) * SoilDensity%Concentration(I,J,K)
-            endif
-        
-        enddo
-        enddo
-        enddo
-        
-        call GetCRPropertiesList(Me%ObjChainReactions, CRPropertiesList, PropertiesCount, STAT = STAT)
-        if (STAT .NE. SUCCESS_) &
-            stop 'ChainReactionsProcesses - ModulePororusMediaProperties - ERR010'
-    
-        do Index = 1, PropertiesCount
-    
-            call Search_Property(PropertyX, CRPropertiesList(Index), STAT)    
-            if (STAT .NE. SUCCESS_) &                            
+        if (UseSoilMass) then
+            call ModifyChainReactions (Me%ObjChainReactions,       &
+                                       Me%ExtVar%WaterContent,     &
+                                       Me%ExtVar%DT,               &                                   
+                                       SoilDensity = SoilDensity,  &
+                                       STAT = STAT)                                       
+            if (STAT .NE. SUCCESS_) &
+                stop 'ChainReactionsProcesses - ModulePororusMediaProperties - ERR010'
+        else
+            call ModifyChainReactions (Me%ObjChainReactions,       &
+                                       Me%ExtVar%WaterContent,     &                                       
+                                       Me%ExtVar%DT,               &                                   
+                                       STAT = STAT)                                       
+            if (STAT .NE. SUCCESS_) &
                 stop 'ChainReactionsProcesses - ModulePororusMediaProperties - ERR020'
-                    
-            call SetCRPropertyConcentration (Me%ObjChainReactions,      &
-                                             CRPropertiesList(Index),   &
-                                             PropertyX%Concentration,   &
-                                             STAT)
-            if (STAT .NE. SUCCESS_) &                            
-                stop 'ChainReactionsProcesses - ModulePororusMediaProperties - ERR030'
-                                    
-        end do                
-        
-        call UnGetChainReactions(Me%ObjChainReactions, CRPropertiesList, STAT)
-        if (STAT .NE. SUCCESS_) &
-            stop 'ChainReactionsProcesses - ModulePororusMediaProperties - ERR040'        
-               
-        if (STAT .NE. SUCCESS_) &
-            stop 'ChainReactionsProcesses - ModulePororusMediaProperties - ERR050'
-        
-        call ModifyChainReactions (Me%ObjChainReactions, &
-                                   WaterVolume,          &
-                                   SoilMass,             &
-                                   Me%ExtVar%DT,         &                                   
-                                   STAT)                                       
-        if (STAT .NE. SUCCESS_) &
-            stop 'ChainReactionsProcesses - ModulePororusMediaProperties - ERR060'
-            
-        deallocate (SoilMass)
-        deallocate (WaterVolume)
+        endif        
                                     
         if (MonitorPerformance) call StopWatch ("ModulePorousMediaProperties", "ChainReactionsProcesses")    
         !-------------------------------------------------------------------------
     
     end subroutine ChainReactionsProcesses
+    !-----------------------------------------------------------------------------    
+    
+
+    !-----------------------------------------------------------------------------    
+    subroutine SetChainReactionsProperties
+    
+        !Local-------------------------------------------------------------------- 
+        type (T_Property), pointer         :: PropertyX
+        integer, dimension(:), pointer     :: CRPropertiesList
+        integer                            :: PropertiesCount
+        integer                            :: STAT
+        integer                            :: Index
+        
+        !Begin-----------------------------------------------------------------
+        call GetCRPropertiesList(Me%ObjChainReactions, CRPropertiesList, PropertiesCount, STAT = STAT)
+        if (STAT .NE. SUCCESS_) &
+            stop 'SetChainReactionsProperties - ModulePororusMediaProperties - ERR010'
+    
+        do Index = 1, PropertiesCount
+    
+            call Search_Property(PropertyX, CRPropertiesList(Index), STAT)    
+            if (STAT .NE. SUCCESS_) &                            
+                stop 'SetChainReactionsProperties - ModulePororusMediaProperties - ERR020'
+                    
+            call SetCRPropertyConcentration (Me%ObjChainReactions,       &
+                                             CRPropertiesList(Index),    &
+                                             PropertyX%Concentration,    &
+                                             STAT)
+            if (STAT .NE. SUCCESS_) &                            
+                stop 'SetChainReactionsProperties - ModulePororusMediaProperties - ERR030'
+                                    
+        end do                
+        
+        call UnGetChainReactions(Me%ObjChainReactions, CRPropertiesList, STAT)
+        if (STAT .NE. SUCCESS_) &
+            stop 'SetChainReactionsProperties - ModulePororusMediaProperties - ERR040'        
+        !-------------------------------------------------------------------------
+    
+    end subroutine SetChainReactionsProperties
     !-----------------------------------------------------------------------------    
     
     subroutine DecayProcesses
@@ -8181,42 +8644,53 @@ cd2 :       if (Actual.GE.Property%Evolution%NextCompute) then
                                     Data3D = PropertyX%Concentration,   &
                                     STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_)                              &
-                    stop 'OutPut_TimeSeries - ModulePorousMediaProperties - ERR01'
+                    stop 'OutPut_TimeSeries - ModulePorousMediaProperties - ERR010'
 
-                call WriteTimeSerie(Me%ObjTimeSerie,                    &
-                                    Data2D = PropertyX%ConcentrationOnInfColumn,   &
-                                    STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)                              &
-                    stop 'OutPut_TimeSeries - ModulePorousMediaProperties - ERR02'
-                
-                call WriteTimeSerie(Me%ObjTimeSerie,                    &
-                                    Data3D = PropertyX%Diffusivity,     &
-                                    STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)                              &
-                    stop 'OutPut_TimeSeries - ModulePorousMediaProperties - ERR03'
-                
-                allocate(SurfaceDiffusivity(Me%WorkSize%ILB:Me%WorkSize%IUB, Me%WorkSize%JLB:Me%WorkSize%JUB))
-                
-                !Only For Debug
-                do j = Me%WorkSize%JLB, Me%WorkSize%JUB
-                do i = Me%WorkSize%ILB, Me%WorkSize%IUB
-                    SurfaceDiffusivity(i, j) =  PropertyX%Diffusivity(i, j, Me%WorkSize%KUB +1)
-                enddo            
-                enddo         
+                if (PropertyX%Evolution%AdvectionDiffusion) then
 
-                call WriteTimeSerie(Me%ObjTimeSerie,                    &
-                                    Data2D = SurfaceDiffusivity,        &
-                                    STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)                              &
-                    stop 'OutPut_TimeSeries - ModulePorousMediaProperties - ERR04'
+                    call WriteTimeSerie(Me%ObjTimeSerie,                    &
+                                        Data2D = PropertyX%ConcentrationOnInfColumn,   &
+                                        STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_)                              &
+                        stop 'OutPut_TimeSeries - ModulePorousMediaProperties - ERR020'
                     
-                deallocate(SurfaceDiffusivity)
+!                    call WriteTimeSerie(Me%ObjTimeSerie,                    &
+!                                        Data3D = PropertyX%Diffusivity,     &
+!                                        STAT = STAT_CALL)
+!                    if (STAT_CALL /= SUCCESS_)                              &
+!                        stop 'OutPut_TimeSeries - ModulePorousMediaProperties - ERR030'
+!                    
+!                    allocate(SurfaceDiffusivity(Me%WorkSize%ILB:Me%WorkSize%IUB, Me%WorkSize%JLB:Me%WorkSize%JUB))
+!                    
+!                    !Only For Debug
+!                    do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+!                    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+!                        SurfaceDiffusivity(i, j) =  PropertyX%Diffusivity(i, j, Me%WorkSize%KUB +1)
+!                    enddo            
+!                    enddo         
+!
+!                    call WriteTimeSerie(Me%ObjTimeSerie,                    &
+!                                        Data2D = SurfaceDiffusivity,        &
+!                                        STAT = STAT_CALL)
+!                    if (STAT_CALL /= SUCCESS_)                              &
+!                        stop 'OutPut_TimeSeries - ModulePorousMediaProperties - ERR040'
+!                        
+!                    deallocate(SurfaceDiffusivity)
+                    
+                endif
             endif
             PropertyX=>PropertyX%Next
         enddo
+        
+        if (Me%CalculateECw) then
+            call WriteTimeSerie(Me%ObjTimeSerie,     &
+                                Data3D = Me%ECw,     &
+                                STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) &
+                stop 'OutPut_TimeSeries - ModulePorousMediaProperties - ERR050'        
+        endif
 
-        if (MonitorPerformance) call StopWatch ("ModulePorousMediaProperties", "OutPut_TimeSeries")
-
+		if (MonitorPerformance) call StopWatch ("ModulePorousMediaProperties", "OutPut_TimeSeries")
 
     end subroutine OutPut_TimeSeries
 
@@ -8671,8 +9145,10 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
         
         deallocate (Me%CellWaterVolume)
         
-#ifdef _PHREEQC_        
-        deallocate (Me%CellSoilMass)    
+#ifdef _PHREEQC_   
+        if (associated(Me%PhreeqC%CellSoilMass)) then   
+            deallocate (Me%PhreeqC%CellSoilMass)    
+        endif
 #endif      
     
         if (associated(Me%PropertiesList)) then
@@ -8810,7 +9286,10 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
         call GetFluxW           (Me%ObjPorousMedia, Me%ExtVar%FluxW, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - ModulePorousMediaProperties - ERR050'
 
-        call GetUnsatW          (Me%ObjPorousMedia, Me%ExtVar%UnsatW, STAT = STAT_CALL)
+!        call GetUnsatW          (Me%ObjPorousMedia, Me%ExtVar%UnsatW, STAT = STAT_CALL)
+!        if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - ModulePorousMediaProperties - ERR060'
+        
+        call GetUnsatWFinal     (Me%ObjPorousMedia, Me%ExtVar%UnsatW, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - ModulePorousMediaProperties - ERR060'
         
         call GetThetaS          (Me%ObjPorousMedia, Me%ExtVar%ThetaS, STAT = STAT_CALL) 

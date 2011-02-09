@@ -741,15 +741,15 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         !Reads the name of the data file from nomfich
         call ReadFileName ('RUNOFF_PROP_DATA', Me%Files%DataFile, "Runoff Data File", STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunoffProperties - ERR01'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunoffProperties - ERR010'
 
         !Reads the name of the transient HDF file from nomfich
         call ReadFileName ('RUNOFF_PROP_HDF', Me%Files%TransientHDF, "Runoff HDF File", STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunoffProperties - ERR01b'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunoffProperties - ERR020'
                 
         !Reads the name of the file where to store final data
         call ReadFileName ('RUNOFF_PROP_FIN', Me%Files%FinalFile, "Runoff Final File", STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunoffProperties - ERR01c'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunoffProperties - ERR030'
 
 
     end subroutine ReadFileNames
@@ -837,7 +837,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      Default      =  AlmostZero,                                    & 
                      ClientModule = 'ModuleRunoffProperties',                       &
                      STAT         = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_) stop 'ModuleRunoffProperties - ReadGlobalOptions - ERR112' 
+        if (STAT_CALL .NE. SUCCESS_) stop 'ModuleRunoffProperties - ReadGlobalOptions - ERR120' 
         if (Me%HminChezy .lt. 0.0) then
             write(*,*)'Minimum water column height for chezy computation HMIN_CHEZY can not be negative'
             stop 'ModuleRunoffProperties - ReadGlobalOptions - ERR115'

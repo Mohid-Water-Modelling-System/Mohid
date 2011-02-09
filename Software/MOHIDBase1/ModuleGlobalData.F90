@@ -28,7 +28,6 @@
 !
 !------------------------------------------------------------------------------
 
-!Bom vamos lá testar isto no codeplex: vou fazer commit e depois o francisco tem que fazer um novo update!
 Module ModuleGlobalData
 
     implicit none
@@ -90,7 +89,7 @@ Module ModuleGlobalData
     integer, parameter :: FromFile_                = 1
     integer, parameter :: FromBlock_               = 2
     integer, parameter :: FromBlockInBlock_        = 3
-    integer, parameter :: FromBlockInBlockINBlock_ = 4
+    integer, parameter :: FromBlockInBlockInBlock_ = 4
 
     integer, parameter :: FromFile                = 1
     integer, parameter :: FromBlock               = 2
@@ -743,8 +742,13 @@ Module ModuleGlobalData
     integer, parameter :: DischLayer_                       = 4
     integer, parameter :: DischUniform_                     = 5
 
+    !Other properties
+    integer, parameter :: SolEC_                            = 14000 !Solution electrical conductivity
+
 !_______________________________________________________________________________________________
 
+    !Other Properties
+    character(StringLength), private, parameter :: Char_SolEC                = 'solution electrical conductivity'
       
     !Name of PhreeqC properties
     character(StringLength), private, parameter :: Char_SolutionMagnesium    = 'solution magnesium'
@@ -2307,6 +2311,7 @@ Module ModuleGlobalData
             call AddPropList (RainAmmonia_,             Char_RainAmmonia,                ListNumber)  
             !END of PhreeqC temporary code for tests
             call AddPropList (SoilVolumetricDensity_,   Char_SoilVolumetricDensity,      ListNumber)  
+            call AddPropList (SolEC_,                   Char_SolEC,                      ListNumber)
             call AddPropList (GenericPesticide_1_,      Char_GenericPesticide_1,         ListNumber)
             call AddPropList (GenericPesticide_2_,      Char_GenericPesticide_2,         ListNumber)
             call AddPropList (GenericPesticide_3_,      Char_GenericPesticide_3,         ListNumber) 

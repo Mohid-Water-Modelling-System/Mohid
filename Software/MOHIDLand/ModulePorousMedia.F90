@@ -135,6 +135,7 @@ Module ModulePorousMedia
     public  ::  GetUnsatU
     public  ::  GetUnsatV
     public  ::  GetUnsatW
+    public  ::  GetUnsatWFinal
 !    public  ::  GetWaterColumn
     public  ::  GetWaterContent
     public  ::  GetHead
@@ -588,7 +589,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                         DummyI         = DummyI,                          &
                                         STAT           = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructPorousMedia - ModulePorousMedia - ERR01c'
-            
+
             call ReadLockExternalVar 
            
             call AllocateVariables
@@ -639,10 +640,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             if (Me%SoilOpt%CheckGlobalMass) then
                 call CalculateTotalStoredVolume
             endif
-            
+
             !First Output
             if (Me%OutPut%Yes .or. Me%OutPut%SurfaceOutput) call PorousMediaOutput                        
-
 
             call ReadUnLockExternalVar
 
@@ -1389,7 +1389,7 @@ do1:     do
         allocate(Me%FluxWAccFinal       (ILB:IUB,JLB:JUB,KLB:KUB))
         
         if (Me%ExtVar%ConstructEvaporation) then
-            allocate(Me%EvaporationFlux     (ILB:IUB,JLB:JUB        ))
+            allocate(Me%EvaporationFlux (ILB:IUB,JLB:JUB))
             allocate(Me%EfectiveEVAP    (ILB:IUB,JLB:JUB))
         endif
         
@@ -2845,6 +2845,36 @@ i1:         if (CoordON) then
 
     !---------------------------------------------------------------------------
 
+    subroutine GetUnsatWFinal (ObjPorousMediaID, UnsatW, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                                         :: ObjPorousMediaID
+        real,dimension(:,:,:), pointer                  :: UnsatW                        
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                         :: STAT_, ready_
+        
+        call Ready(ObjPorousMediaID, ready_)    
+        
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            call Read_Lock(mPorousMedia_, Me%InstanceID)
+            
+            UnsatW => Me%UnsatVelWFinal
+
+            STAT_ = SUCCESS_
+        else 
+            STAT_ = ready_
+        end if
+
+        if (present(STAT)) STAT = STAT_
+
+    end subroutine GetUnsatWFinal
+
+    !---------------------------------------------------------------------------
+
     subroutine GetWaterColumn (ObjPorousMediaID, WaterColumn, STAT)
     
         !Arguments-------------------------------------------------------------
@@ -3062,7 +3092,7 @@ i1:         if (CoordON) then
 
         !Arguments-------------------------------------------------------------
         integer                                         :: ObjPorousMediaID
-        real(8)   ,    pointer, dimension(:,:)          :: Evaporation
+        real(8), pointer, dimension(:,:)                :: Evaporation
         integer, intent(OUT), optional                  :: STAT
 
         !Local-----------------------------------------------------------------
@@ -3574,7 +3604,7 @@ i1:         if (CoordON) then
         real(8), dimension(:,:), pointer            :: InfiltrationColumn
         
         !Local-----------------------------------------------------------------
-        logical                                     :: StrongVariation           
+        logical                                     :: StrongVariation
         integer                                     :: Niteration, iteration
         real                                        :: SumDT
         real                                        :: Zero = 0.0
@@ -3614,7 +3644,7 @@ dConv:  do while (iteration <= Niteration)
             call Condutivity_Face
             
             call ComputeFinalHead
-            
+
             !Calculates Water velocity
             call SoilWaterVelocity
            
@@ -4492,7 +4522,7 @@ dConv:  do while (iteration <= Niteration)
                     !m = m/s * s
                     TotalCol = Me%ExtVar%PotentialEvaporationFlux(i, j) * Me%CV%CurrentDT    ! available water for evaporation
                     ! m3               
-                    WaterVolume = TotalCol * Me%ExtVar%Area (i,j)      
+                    WaterVolume = TotalCol * Me%ExtVar%Area (i,j)
 
                     !Velocity Volume
                     if (Me%SoilOpt%LimitEVAPWaterVelocity) then
@@ -4868,7 +4898,7 @@ dConv:  do while (iteration <= Niteration)
                     Me%EfectiveEVTP(i,j) = Me%EfectiveEVTP(i,j) + Me%EvaporationFlux(i, j) * Me%CV%CurrentDT / &
                                            Me%ExtVar%Area(i, j)
                     Me%EfectiveEVAP(i,j) = Me%EfectiveEVAP(i,j) + Me%EvaporationFlux(i, j) * Me%CV%CurrentDT / &
-                                           Me%ExtVar%Area(i, j)                                           
+                                           Me%ExtVar%Area(i, j)
                 endif
         
             enddo
