@@ -34634,7 +34634,7 @@ Cov1:       if (ComputeFaces3D_UV(i, j, KUB) == Covered) then
                 !code thread safe. The FIRSTPRIVATE clause could have been used
                 !but I'm more reliant on good old fortran logic, rather than
                 !openmp logic ;)
-                TimeCoef2 = TimeCoef
+                if (Me%ComputeOptions%atmosphereRAMP) TimeCoef2 = TimeCoef
 
 dok:            do  k = kbottom, KUB
 
