@@ -1504,6 +1504,8 @@ d2:         do ig = 1, Me%NGroups
                                                                        Me%EulerModel(em)%Size%JUB),&
                                                                        STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'AllocateOil - ModuleLagrangianGlobal - ERR20'
+            
+            Me%EulerModel(em)%OilSpreading(ig)%GridThickness(:,:)=0.
 
 
             !Allocates OilGridConcentration
@@ -1514,6 +1516,8 @@ d2:         do ig = 1, Me%NGroups
                                                                               STAT = STAT_CALL)
 
             if (STAT_CALL /= SUCCESS_) stop 'AllocateOil - ModuleLagrangianGlobal - ERR30'
+            
+            Me%EulerModel(em)%OilSpreading(ig)%OilGridConcentration(:,:) = 0.
 
             allocate (Me%EulerModel(em)%OilSpreading(ig)%VelocityX(Me%EulerModel(em)%Size%ILB: &
                                                                    Me%EulerModel(em)%Size%IUB, &
@@ -1522,6 +1526,8 @@ d2:         do ig = 1, Me%NGroups
                                                                    STAT = STAT_CALL)
             
             if (STAT_CALL /= SUCCESS_) stop 'AllocateOil - ModuleLagrangianGlobal - ERR40'
+            
+            Me%EulerModel(em)%OilSpreading(ig)%VelocityX(:,:) = 0.
 
             allocate (Me%EulerModel(em)%OilSpreading(ig)%VelocityY(Me%EulerModel(em)%Size%ILB: &
                                                                    Me%EulerModel(em)%Size%IUB, &
@@ -1530,7 +1536,8 @@ d2:         do ig = 1, Me%NGroups
                                                                    STAT = STAT_CALL)
 
             if (STAT_CALL /= SUCCESS_) stop 'AllocateOil - ModuleLagrangianGlobal - ERR50'
-
+            
+            Me%EulerModel(em)%OilSpreading(ig)%VelocityY(:,:) = 0.
 
             allocate (Me%EulerModel(em)%OilSpreading(ig)%AreaFlag (Me%EulerModel(em)%Size%ILB: &
                                                                    Me%EulerModel(em)%Size%IUB, &
@@ -15891,7 +15898,7 @@ i1:     if (Me%Statistic%OptionsStat(p)%Lag) then
         real, dimension(:, :), pointer              :: OilGridThick2D 
         character(StringLength)                     :: AuxChar
         integer                                     :: WS_ILB, WS_IUB, WS_JLB, WS_JUB
-        integer                                     :: WS_KLB, WS_KUB
+        integer                                     :: WS_KLB, WS_KUB, i, j
 
 
 !em1:    do em =1, Me%EulerModelNumber
@@ -15929,12 +15936,14 @@ CurrOr:         do while (associated(CurrentOrigin))
                         CurrentOrigin => CurrentOrigin%Next
                         cycle
                     endif
-
                     !Just writes the output if there are particle
                     if (CurrentOrigin%nParticle > 0) then
-                        OilGridThick2D = Me%EulerModel(em)%OilSpreading(ig)%GridThickness * 1000.0 &
-                                          * (1 - Me%ExternalVar%VWaterContent) 
-
+                        do j = WS_JLB, WS_JUB
+                        do i = WS_ILB, WS_IUB
+                            OilGridThick2D(i,j) = Me%EulerModel(em)%OilSpreading(ig)%GridThickness (i,j) * &
+                                                  1000.0 * (1.0 - Me%ExternalVar%VWaterContent) 
+                        enddo
+                        enddo                        
 
                         !HDF 5
                         call HDF5WriteData        (Me%ObjHDF5(em),                       &
@@ -15944,15 +15953,13 @@ CurrOr:         do while (associated(CurrentOrigin))
                                                    "mm",                                        &
                                                    Array2D = OilGridThick2D,                    &
                                                    OutputNumber = Me%OutPut%NextOutPut)
-
-
                     endif
 
                 CurrentOrigin => CurrentOrigin%Next
                 enddo CurrOr
 
             enddo Group
-
+            
             deallocate (OilGridThick2D )
 
         !enddo em1
