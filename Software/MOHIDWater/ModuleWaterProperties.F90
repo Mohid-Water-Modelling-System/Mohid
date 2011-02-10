@@ -223,6 +223,7 @@ Module ModuleWaterProperties
                                           SpecificHeatUNESCO, ComputeT90_Chapra,                &
                                           ComputeT90_Canteras, SetMatrixValue, CHUNK_J, CHUNK_K, &
                                           InterpolateProfileR8, TimeToString, ChangeSuffix, ExtraPol3DNearestCell 
+    use mpi
 #else _USE_MPI
     use ModuleFunctions,            only: SigmaLeendertse, SigmaUNESCO, SigmaWang,              &
                                           SigmaUNESCOPressureCorrection,InterpolateValueInTime, &
@@ -435,7 +436,7 @@ Module ModuleWaterProperties
     public  :: SendWaterPropertiesMPI
     public  :: RecvWaterPropertiesMPI
     public  :: UpdateWaterMPI
-    include "mpif.f90"
+    !include "mpif.f90"
 #endif _USE_MPI
 
 

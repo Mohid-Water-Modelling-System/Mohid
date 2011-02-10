@@ -173,6 +173,10 @@ Module ModuleHydrodynamic
     use ModuleFillMatrix,       only : ConstructFillMatrix, ModifyFillMatrix, KillFillMatrix
     use ModuleDrawing
     !$ use omp_lib
+    
+#if _USE_MPI
+    use mpi
+#endif    
 
     implicit none 
 
@@ -522,7 +526,7 @@ Module ModuleHydrodynamic
     public  :: SendHydrodynamicMPI
     public  :: RecvHydrodynamicMPI
     public  :: UpdateHydroMPI
-    include  "mpif.f90"
+    !include  "mpif.f90"
 #endif _USE_MPI
 
     !ModuleHydrodynamic parameters---------------------------------------------------------------------------

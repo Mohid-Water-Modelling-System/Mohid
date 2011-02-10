@@ -102,6 +102,7 @@ program MohidWater
                                        SetWaterPropFather, SendWaterPropertiesMPI,       &
                                        RecvWaterPropertiesMPI, UpdateWaterMPI
     use ModuleFunctions,        only : MPIKind
+    use mpi
 #else _USE_MPI
                                        
 #ifdef OVERLAP
@@ -176,7 +177,6 @@ program MohidWater
     integer                                                 :: nMPI_Processes
 
 #ifdef _USE_MPI
-    include "mpif.f90"
     character(MPI_MAX_PROCESSOR_NAME)                       :: myMPI_Processor
     integer                                                 :: Precision
 #else  _USE_MPI
@@ -196,9 +196,11 @@ program MohidWater
     integer                                                 :: ObjLagrangianGlobal        = 0
     integer,                      dimension(:,:), pointer   :: LagInstance
     character(len=StringLength),  dimension(:  ), pointer   :: ModelNames 
+    real, dimension(:), allocatable                         :: ModelDTs             !MPI only
 
 
 #ifndef _OPENMI_
+
 
 #ifdef _USE_MPI
     RunInParallel = .true.
@@ -241,7 +243,6 @@ program MohidWater
         logical                                     :: SubModelWindowON, NotDefinedCells
         type(T_Time)                                :: SubModelBeginTime, SubModelEndTime
         !Begin-----------------------------------------------------------------
-
 
         !Common Startup tasks
         call StartUpMohid   ("Mohid Water")
@@ -521,11 +522,15 @@ program MohidWater
         type(T_Time)                                :: SubModelBeginTime, SubModelEndTime
 
 
+
         call MPI_INIT               (STAT_CALL )
         call MPI_COMM_RANK          (MPI_COMM_WORLD, myMPI_ID, STAT_CALL)
         call MPI_COMM_SIZE          (MPI_COMM_WORLD, nMPI_Processes, STAT_CALL)
         call MPI_GET_PROCESSOR_NAME (myMPI_Processor, length, STAT_CALL)
         call MPI_Barrier            (MPI_COMM_WORLD, STAT_CALL)
+
+        !This must be shifted elsewhere
+        allocate (ModelDTs          (nMPI_Processes))
 
         !Reads the file Tree.dat and constructs the list of models
         !Like this every model has access to the whole model list
@@ -579,7 +584,7 @@ program MohidWater
 
                 call ConstructModel(LagInstance, ModelNames,                            &
                                     NumberOfModels, ObjLagrangianGlobal, CurrentModel%ModelID, STAT = STAT_CALL)
-            
+                
                 !Get the Instance IDs of the Objects which are necessary for Model/SubModel
                 !comunication
                 call GetModelInstanceIDs      (CurrentModel%ModelID,                              &
@@ -730,10 +735,8 @@ do1 :       do while (associated(CurrentModel))
 
 
 
-            !Checks if the time limits for each sub-model is 
-!            CurrentModel => FirstModel%Next
 
-            write (*,*) 'MPIProcess: ', CurrentModel%MPI_ID, 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+            write (*,*) 'MPIProcess: ', CurrentModel%MPI_ID
             call GetModelTimeLimits (CurrentModel%ModelID, SubModelBeginTime, SubModelEndTime, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) then 
                 write (*,*) 'MPIProcess: ', CurrentModel%MPI_ID
@@ -1190,108 +1193,8 @@ doNext:     do while (associated(NextModel))
 
         do while (Running)
             
-!            GlobalCurrentTime = GlobalCurrentTime + DTmin
-!            
-!            if (DTmin == 0.) then
-!                write(*,*) 'Time step equal to zero dt =', dtmin
-!                exit 
-!            endif
-!
-!            if (RunInParallel) then
-!
-!                CurrentModel => FirstModel
-!                do while (associated(CurrentModel))
-!
-!                    if (CurrentModel%MPI_ID == myMPI_ID) then
-!
-!                        call UpdateTimeAndMapping    (CurrentModel%ModelID, GlobalCurrentTime, DoNextStep, STAT = STAT_CALL)
-!                        if (STAT_CALL /= SUCCESS_) stop 'ModifyMohidWater - MohidWater - ERR10'
-!                        
-!                        if (associated(CurrentModel%FatherModel))  then
-!                            call GetModelTimeStep (CurrentModel%FatherModel%ModelID, DT_Father, STAT = STAT_CALL)
-!                            if (STAT_CALL /= SUCCESS_) stop 'ModifyMohidWater - MohidWater - ERR20'
-!                        else
-!                            DT_Father = - FillValueReal
-!                        endif
-!
-!                        if (DoNextStep) then
-!                            !Waits for information from father
-!                            if (associated(CurrentModel%FatherModel)) then
-!
-!                                !Post next recieve...
-!                                if (CurrentModel%CurrentTime == CurrentModel%InfoTime) then
-!
-!                                    call ReceiveInformationMPI (CurrentModel)
-!
-!                                else if (CurrentModel%CurrentTime < CurrentModel%InfoTime) then 
-!
-!                                    call UpdateSubModelValues (CurrentModel)
-!
-!                                else if (CurrentModel%CurrentTime > CurrentModel%InfoTime) then
-!
-!                                    stop 'ModifyMohidWater - MohidWater - ERR30'
-!
-!                                endif
-!
-!                            endif
-!
-!                            call RunModel(CurrentModel%ModelID, DT_Father, STAT = STAT_CALL)
-!                            if (STAT_CALL /= SUCCESS_) stop 'ModifyMohidWater - MohidWater - ERR40'
-!
-!                            call SendInformationMPI (CurrentModel)
-!                        endif
-!
-!                    endif
-!
-!                    CurrentModel => CurrentModel%Next
-!                enddo
-!
-!            else
-!
-!                CurrentModel => FirstModel
-!                do while (associated(CurrentModel))
-!
-!                    call UpdateTimeAndMapping (CurrentModel%ModelID, GlobalCurrentTime,  &
-!                                               DoNextStep, STAT = STAT_CALL)
-!                    if (STAT_CALL /= SUCCESS_) stop 'ModifyMohidWater - MohidWater - ERR50'
-!
-!                    if (DoNextStep) then    
-!                        call SubModelComunication     (CurrentModel)
-!
-!#ifdef OVERLAP
-!                        call OverlapModelCommunication(CurrentModel)
-!#endif OVERLAP
-!
-!
-!                        if (associated(CurrentModel%FatherModel))  then
-!                            call GetModelTimeStep (CurrentModel%FatherModel%ModelID, DT_Father, STAT = STAT_CALL)
-!                            if (STAT_CALL /= SUCCESS_) stop 'ModifyMohidWater - MohidWater - ERR60'
-!                        else
-!                            DT_Father = - FillValueReal
-!                        endif
-!
-!                        call RunModel             (CurrentModel%ModelID, DT_Father, STAT = STAT_CALL)
-!                        if (STAT_CALL /= SUCCESS_) stop 'ModifyMohidWater - MohidWater - ERR70'
-!                        
-!                    endif
-!
-!                    CurrentModel => CurrentModel%Next
-!                enddo
-!
-!                !Search again MinMax, so the test DTmin / 10.0 can be safely done
-!                !
-!                DTmin   = - FillValueReal
-!                DTmax   =   FillValueReal
-!                call SearchMinMaxTimeStep (DTmin, DTmax)
-!            endif
-!            
-!
-!            if (abs(GlobalCurrentTime - GlobalEndTime) > DTmin / 10.0) then
-!                Running = .true.
-!            else
-!                Running = .false.
-!            endif
-            
+            !The which was here has been refactored into a function, 
+            !so it can be called from here and from OpenMP
             Running = DoOneTimeStep ()
             
         enddo
@@ -1338,8 +1241,20 @@ doNext:     do while (associated(NextModel))
                     if (STAT_CALL /= SUCCESS_) stop 'ModifyMohidWater - MohidWater - ERR10'
                     
                     if (associated(CurrentModel%FatherModel))  then
-                        call GetModelTimeStep (CurrentModel%FatherModel%ModelID, DT_Father, STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'ModifyMohidWater - MohidWater - ERR20'
+                    
+                    
+                        !
+                        !THESE NEXT LINES HAVE TO BE RECODED. The used approach only works if nesting is done like
+                        !Main
+                        !   Sub
+                        !       SubSub
+                        !Frank Fev 2011                        
+                    
+                        DT_Father = ModelDTs(CurrentModel%FatherModel%MPI_ID+1)
+                        write(*,*)"CurrentModel%FatherModel%MPI_ID: ", CurrentModel%FatherModel%MPI_ID
+                        write(*,*)"DT_Father                      : ", DT_Father
+                        !call GetModelTimeStep (CurrentModel%FatherModel%ModelID, DT_Father, STAT = STAT_CALL)
+                        !if (STAT_CALL /= SUCCESS_) stop 'ModifyMohidWater - MohidWater - ERR20'
                     else
                         DT_Father = - FillValueReal
                     endif
@@ -1685,36 +1600,17 @@ do1:        do i=2,StringLength
         real                                        :: DT
         integer                                     :: STAT_CALL
         type (T_MohidWater), pointer                :: CurrentModel
-#ifdef _USE_MPI
-        real, dimension(:), allocatable             :: DTs
-        integer                                     :: status(MPI_STATUS_SIZE)
-#endif _USE_MPI
 
         !Begin-----------------------------------------------------------------
 
 #ifdef _USE_MPI
-        allocate(DTs(nMPI_Processes))
 
-
-        !Get the DT of the current model
-        CurrentModel => FirstModel
-        do while (associated(CurrentModel))
-            if (CurrentModel%MPI_ID == myMPI_ID) then
-                call GetModelTimeStep (CurrentModel%ModelID, DT, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'SearchMinMaxTimeStep - MohidWater - ERR01'
-            endif
-            CurrentModel => CurrentModel%Next
-        enddo
-
-
-        !Sends the information to all the others 
-        call MPI_Allgather(DT, 1, Precision, DTs, 1, Precision, MPI_COMM_WORLD, status)
+        call UpdateTimeStepsByMPI()
 
         !Determines the minimum time step
-        DTmin = minval(DTs)
-        DTmax = maxval(DTs)
+        DTmin = minval(ModelDTs)
+        DTmax = maxval(ModelDTs)
         
-        deallocate(DTs)
 #else _USE_MPI
         
         CurrentModel => FirstModel
@@ -1732,6 +1628,37 @@ do1:        do i=2,StringLength
 #endif _USE_MPI
 
     end subroutine SearchMinMaxTimeStep
+
+    !--------------------------------------------------------------------------
+
+#ifdef _USE_MPI
+    subroutine UpdateTimeStepsByMPI()
+
+        !Arguments-------------------------------------------------------------
+        
+        !Local-----------------------------------------------------------------
+        real                                        :: DT
+        integer                                     :: STAT_CALL
+        type (T_MohidWater), pointer                :: CurrentModel
+        integer                                     :: status(MPI_STATUS_SIZE)
+
+        !Get the DT of the current model
+        CurrentModel => FirstModel
+        do while (associated(CurrentModel))
+            if (CurrentModel%MPI_ID == myMPI_ID) then
+                call GetModelTimeStep (CurrentModel%ModelID, DT, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'UpdateTimeStepsByMPI - MohidWater - ERR01'
+            endif
+            CurrentModel => CurrentModel%Next
+        enddo
+
+
+        !Sends the information to all the others 
+        call MPI_Allgather(DT, 1, Precision, ModelDTs, 1, Precision, MPI_COMM_WORLD, status)
+
+    
+    end subroutine UpdateTimeStepsByMPI
+#endif _USE_MPI
 
     !--------------------------------------------------------------------------
 

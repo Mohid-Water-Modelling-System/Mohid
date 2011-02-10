@@ -36,6 +36,12 @@ Module ModuleFunctions
     use ModuleStopWatch,        only : StartWatch, StopWatch
     use omp_lib !!!$
 
+#if _USE_MPI
+    use mpi
+#endif    
+ 
+    
+
     implicit none
 
     private
@@ -317,8 +323,7 @@ Module ModuleFunctions
         module procedure MPIKind2D
         module procedure MPIKind3D
     end interface MPIKind
-
-    include "mpif.f90"
+    !include "mpif.f90"
 #endif
  
 
