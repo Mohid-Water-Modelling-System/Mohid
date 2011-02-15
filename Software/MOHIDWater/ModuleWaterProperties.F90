@@ -15053,8 +15053,27 @@ i2:     if (Me%OutPut%Radiation) then
                                  OutputNumber = OutPutNumber, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'OutPutHDF_AditionalFields - ModuleWaterProperties - ERR110'
 
-            nullify(PropCO2)     
-          
+
+  ! CO2 flux Ouput in mmol m-2 d-1
+                do j=WJLB, WJUB
+                do i=WILB, WIUB
+
+                    if (Me%ExternalVar%OpenPoints3D(i, j, WKUB) == OpenPoint) then
+                   
+                    Me%OutPut%Aux2D(i, j) = Me%OutPut%Aux2D(i, j) * 86400.
+
+                    endif
+               enddo
+               enddo
+               
+               
+            call HDF5WriteData  (ObjHDF5, "/Results/Carbon Dioxide/CO2flux_day", "CO2flux_day",'mmol m-2 d-1',  &
+                                 Array2D = Me%OutPut%Aux2D,                             &
+                                 OutputNumber = OutPutNumber, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'OutPutHDF_AditionalFields - ModuleWaterProperties - ERR120'
+
+
+            nullify(PropCO2)            
           
           endif i5
           
@@ -15076,7 +15095,7 @@ i2:     if (Me%OutPut%Radiation) then
 
         !Writes everything to disk
         call HDF5FlushMemory (ObjHDF5, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'OutPutHDF_AditionalFields - ModuleWaterProperties - ERR110'
+        if (STAT_CALL /= SUCCESS_) stop 'OutPutHDF_AditionalFields - ModuleWaterProperties - ERR130'
                   
           
 
