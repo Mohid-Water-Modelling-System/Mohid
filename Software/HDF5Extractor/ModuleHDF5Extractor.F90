@@ -1078,8 +1078,8 @@ cd2 :           if (BlockFound) then
         end do
         
         !Mandatory items to be detected should be a total of 4 :
-        !ConnectionX, ConnectionY, Latitude, Longitude
-        if (Me%SpatialWindow%XY_ON .and. MANDATORY_ITEMS /= 4)                                              &
+        !ConnectionX, ConnectionY or/and Latitude, Longitude
+        if (Me%SpatialWindow%XY_ON .and. MANDATORY_ITEMS < 2)                                              &
         stop 'OpenOutputFile - ModuleHDF5Extractor - ERR80'
 
         !Writes everything to disk
