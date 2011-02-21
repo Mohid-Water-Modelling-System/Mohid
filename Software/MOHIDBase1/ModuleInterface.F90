@@ -5337,7 +5337,7 @@ cd45 :                  if (.NOT. Me%AddedProperties(i)) then
     subroutine ConstructMapping_3D(Size3D)
         
         !Arguments ------------------------------------------------------------
-        type(T_SIZE3D)                          :: Size3D
+        type(T_Size3D)                          :: Size3D
 
         !Local-----------------------------------------------------------------
         integer                                 :: Index
@@ -5390,7 +5390,7 @@ cd45 :                  if (.NOT. Me%AddedProperties(i)) then
     subroutine ConstructMapping_2D(Size2D)
         
         !Arguments ------------------------------------------------------------
-        type(T_SIZE2D)                          :: Size2D
+        type(T_Size2D)                          :: Size2D
 
         !Local-----------------------------------------------------------------
         integer                                 :: Index
@@ -5437,7 +5437,7 @@ cd45 :                  if (.NOT. Me%AddedProperties(i)) then
     subroutine ConstructMapping_1D(Size1D)
         
         !Arguments ------------------------------------------------------------
-        type(T_SIZE1D)                          :: Size1D
+        type(T_Size1D)                          :: Size1D
 
         !Local-----------------------------------------------------------------
         integer                                 :: Index

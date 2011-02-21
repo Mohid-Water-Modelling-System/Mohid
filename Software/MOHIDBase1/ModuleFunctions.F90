@@ -109,7 +109,6 @@ Module ModuleFunctions
     !Diffusion routines
     public  :: ComputeDiffusion3D
 
-
     public  :: OrlanskiCelerity2D
     public  :: OxygenSaturation
     public  :: OxygenSaturationHenry

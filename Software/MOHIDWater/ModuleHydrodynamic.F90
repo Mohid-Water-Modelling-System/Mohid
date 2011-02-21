@@ -1600,35 +1600,30 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         if (STAT_CALL /= SUCCESS_)                                                      &
             stop 'Subroutine Construct_Hydrodynamic; Module ModuleHydrodynamic. ERR02.'
 
-
         call Construct_Numerical_Options
-        
+
         call Verify_Numerical_Options   
 
         call Construct_OutPutTime
-     
+
         !Opens the HDF 5 file
         if (Me%OutPut%hdf5ON)          call Open_HDF5_OutPut_File
-        
-        
+
         if (Me%OutW%OutPutWindowsON)  then
             do iW = 1, Me%OutW%WindowsNumber
                 call Open_HDF5_OutPut_File(iW)
             enddo
         endif
 
-        
         !Opens the HDF 5 file for surface outputs
         if (Me%OutPut%HDF5_Surface_ON) call Open_Surface_HDF5_OutPut_File
 
-
         call Actualize_HydrodynamicTimeStep
-
 
         call InitialHydrodynamicField (DischargesID, AssimilationID) 
 
         call StartOutputBoxFluxes     
-        
+
 #ifdef OVERLAP
         call ConstructHydroOverlap
 #endif OVERLAP
@@ -1646,7 +1641,6 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         !Do the first output
         call Hydrodynamic_OutPut
-
 
         !call External Modules
         call ReadUnLock_External_Modules
