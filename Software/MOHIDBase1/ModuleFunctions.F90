@@ -231,6 +231,9 @@ Module ModuleFunctions
 
     private ::  QuadraticInterpolation
     
+    public  :: maxival
+    public  :: minival
+    
     !types -------------------------------------------------------------------
 
     !griflet
@@ -295,10 +298,10 @@ Module ModuleFunctions
     end interface interpolate3D
 
     interface SetMatrixValue
-#ifdef _USE_SEQASSIMILATION
+        module procedure SetMatrixValues1D_I4_FromMatrix
         module procedure SetMatrixValues1D_R4_FromMatrix
+        module procedure SetMatrixValues1D_I8_FromMatrix
         module procedure SetMatrixValues1D_R8_FromMatrix
-#endif
         module procedure SetMatrixValues2D_I4_Constant
         module procedure SetMatrixValues2D_R4_Constant
         module procedure SetMatrixValues2D_R8_Constant
@@ -324,13 +327,44 @@ Module ModuleFunctions
     end interface MPIKind
     !include "mpif.f90"
 #endif
- 
+
+    !griflet: ersatz functions to minval and maxval. The goal is to lift
+    !potential stacksize bottlenecks.
+    interface minival
+        module procedure minival1D_R4
+        module procedure minival2D_R4
+        module procedure minival3D_R4
+        module procedure minival1D_R8
+        module procedure minival2D_R8
+        module procedure minival3D_R8
+        module procedure minival1D_I4
+        module procedure minival2D_I4
+        module procedure minival3D_I4
+        module procedure minival1D_I8
+        module procedure minival2D_I8
+        module procedure minival3D_I8
+    end interface minival
+
+    interface maxival
+        module procedure maxival1D_R4
+        module procedure maxival2D_R4
+        module procedure maxival3D_R4
+        module procedure maxival1D_R8
+        module procedure maxival2D_R8
+        module procedure maxival3D_R8
+        module procedure maxival1D_I4
+        module procedure maxival2D_I4
+        module procedure maxival3D_I4
+        module procedure maxival1D_I8
+        module procedure maxival2D_I8
+        module procedure maxival3D_I8
+    end interface maxival
+
 
     !--------------------------------------------------------------------------
 
     contains
 
-#ifdef _USE_SEQASSIMILATION
     !--------------------------------------------------------------------------
 
     subroutine SetMatrixValues1D_R4_FromMatrix (Matrix, Size, InMatrix, MapMatrix)
@@ -377,6 +411,52 @@ Module ModuleFunctions
     end subroutine SetMatrixValues1D_R4_FromMatrix
 
     !--------------------------------------------------------------------------
+    !--------------------------------------------------------------------------
+
+    subroutine SetMatrixValues1D_I4_FromMatrix (Matrix, Size, InMatrix, MapMatrix)
+
+        !Arguments-------------------------------------------------------------
+        integer(4), dimension(:), pointer                  :: Matrix
+        type (T_Size1D)                                 :: Size
+        integer(4), dimension(:), pointer                  :: InMatrix
+        integer, dimension(:), pointer, optional        :: MapMatrix
+
+        !Local-----------------------------------------------------------------
+        integer                                         :: i
+        integer                                         :: CHUNK !!$
+
+        !Begin-----------------------------------------------------------------
+
+        if (MonitorPerformance) call StartWatch ("ModuleFunctions", "SetMatrixValues1D_R4_FromMatrix")
+
+        CHUNK = CHUNK_I(Size%ILB, Size%IUB) !!$
+        
+        if (present(MapMatrix)) then
+            !!$OMP PARALLEL PRIVATE(I)
+            !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            do i = Size%ILB, Size%IUB
+                if (MapMatrix(i) == 1) then
+                    Matrix (i) = InMatrix(i)
+                endif
+            enddo
+            !!$OMP END DO NOWAIT
+            !!$OMP END PARALLEL
+        else
+            !!$OMP PARALLEL PRIVATE(I)
+            !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            do i = Size%ILB, Size%IUB
+                Matrix (i) = InMatrix(i)
+            enddo
+            !!$OMP END DO NOWAIT
+            !!$OMP END PARALLEL
+        endif    
+
+
+        if (MonitorPerformance) call StopWatch ("ModuleFunctions", "SetMatrixValues1D_I4_FromMatrix")
+
+    end subroutine SetMatrixValues1D_I4_FromMatrix
+
+    !--------------------------------------------------------------------------
 
     subroutine SetMatrixValues1D_R8_FromMatrix (Matrix, Size, InMatrix, MapMatrix)
 
@@ -419,8 +499,52 @@ Module ModuleFunctions
         if (MonitorPerformance) call StopWatch ("ModuleFunctions", "SetMatrixValues1D_R8_FromMatrix")
 
     end subroutine SetMatrixValues1D_R8_FromMatrix
-#endif
 
+    !--------------------------------------------------------------------------
+
+    subroutine SetMatrixValues1D_I8_FromMatrix (Matrix, Size, InMatrix, MapMatrix)
+
+        !Arguments-------------------------------------------------------------
+        integer(8), dimension(:), pointer                  :: Matrix
+        type (T_Size1D)                                 :: Size
+        integer(8), dimension(:), pointer                  :: InMatrix
+        integer, dimension(:), pointer, optional        :: MapMatrix
+
+        !Local-----------------------------------------------------------------
+        integer                                         :: i
+        integer                                         :: CHUNK !!$
+
+        !Begin-----------------------------------------------------------------
+
+        if (MonitorPerformance) call StartWatch ("ModuleFunctions", "SetMatrixValues1D_R8_FromMatrix")
+
+        CHUNK = CHUNK_I(Size%ILB, Size%IUB) !!$
+        
+        if (present(MapMatrix)) then
+            !!$OMP PARALLEL PRIVATE(I)
+            !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            do i = Size%ILB, Size%IUB
+                if (MapMatrix(i) == 1) then
+                    Matrix (i) = InMatrix(i)
+                endif
+            enddo
+            !!$OMP END DO NOWAIT
+            !!$OMP END PARALLEL
+        else
+            !!$OMP PARALLEL PRIVATE(I)
+            !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            do i = Size%ILB, Size%IUB
+                Matrix (i) = InMatrix(i)
+            enddo
+            !!$OMP END DO NOWAIT
+            !!$OMP END PARALLEL
+        endif    
+
+        if (MonitorPerformance) call StopWatch ("ModuleFunctions", "SetMatrixValues1D_R8_FromMatrix")
+
+    end subroutine SetMatrixValues1D_I8_FromMatrix
+
+    !--------------------------------------------------------------------------
     !--------------------------------------------------------------------------
 
     subroutine SetMatrixValues2D_I4_Constant (Matrix, Size, Value, MapMatrix)
@@ -8557,6 +8681,440 @@ D2:     do I=imax-1,2,-1
     end function
 
     !--------------------------------------------------------------------------
+    !griflet: adding minval and maxval ersatz functions in order to lift
+    !stacksize and heapsize limitations
+    
+    function minival1D_R4(array, size1D)
+            
+        real(4), dimension(:), pointer     :: array
+        type(T_size1D)                  :: size1D
+        integer                         :: i
+        real(4)                           :: minival1D_R4
+        
+        minival1D_R4 = 1e7
+        do i = size1D%ILB,size1D%IUB
+            if ( minival1D_R4 > array(i) ) then
+                minival1D_R4 = array(i)
+            end if
+        end do
+        
+    end function minival1D_R4
+
+    function minival2D_R4(array, size2D)
+            
+        real(4), dimension(:,:), pointer   :: array
+        type(T_size2D)                  :: size2D
+        integer                         :: i,j
+        real(4)                            :: minival2D_R4
+        
+        minival2D_R4 = 1e7
+        do j = size2D%JLB,size2D%JUB
+        do i = size2D%ILB,size2D%IUB
+            if ( minival2D_R4 > array(i,j) ) then
+                minival2D_R4 = array(i,j)
+            end if
+        end do
+        end do
+        
+    end function minival2D_R4
+
+    function minival3D_R4(array, size3D)
+            
+        real(4), dimension(:,:,:), pointer :: array
+        type(T_size3D)                  :: size3D
+        integer                         :: i,j,k
+        real(4)                            :: minival3D_R4
+        
+        minival3D_R4 = 1e7
+        do k = size3D%KLB,size3D%KUB
+        do j = size3D%JLB,size3D%JUB
+        do i = size3D%ILB,size3D%IUB
+            if ( minival3D_R4 > array(i,j,k) ) then
+                minival3D_R4 = array(i,j,k)
+            end if
+        end do
+        end do
+        end do
+        
+    end function minival3D_R4
+
+    function maxival1D_R4(array, size1D)
+            
+        real(4), dimension(:), pointer     :: array
+        type(T_size1D)                  :: size1D
+        integer                         :: i
+        real(4)                            :: maxival1D_R4
+        
+        maxival1D_R4 = -1e7
+        do i = size1D%ILB,size1D%IUB
+            if ( maxival1D_R4 < array(i) ) then
+                maxival1D_R4 = array(i)
+            end if
+        end do
+        
+    end function maxival1D_R4
+
+    function maxival2D_R4(array, size2D)
+            
+        real(4), dimension(:,:), pointer   :: array
+        type(T_size2D)                  :: size2D
+        integer                         :: i,j
+        real(4)                            :: maxival2D_R4
+        
+        maxival2D_R4 = -1e7
+        do j = size2D%JLB,size2D%JUB
+        do i = size2D%ILB,size2D%IUB
+            if ( maxival2D_R4 < array(i,j) ) then
+                maxival2D_R4 = array(i,j)
+            end if
+        end do
+        end do
+        
+    end function maxival2D_R4
+
+    function maxival3D_R4(array, size3D)
+            
+        real(4), dimension(:,:,:), pointer :: array
+        type(T_size3D)                  :: size3D
+        integer                         :: i,j,k
+        real(4)                            :: maxival3D_R4
+        
+        maxival3D_R4 = -1e7
+        do k = size3D%KLB,size3D%KUB
+        do j = size3D%JLB,size3D%JUB
+        do i = size3D%ILB,size3D%IUB
+            if ( maxival3D_R4 < array(i,j,k) ) then
+                maxival3D_R4 = array(i,j,k)
+            end if
+        end do
+        end do
+        end do
+        
+    end function maxival3D_R4
+
+    function minival1D_R8(array, size1D)
+            
+        real(8), dimension(:), pointer     :: array
+        type(T_size1D)                  :: size1D
+        integer                         :: i
+        real(8)                            :: minival1D_R8
+        
+        minival1D_R8 = 1e7
+        do i = size1D%ILB,size1D%IUB
+            if ( minival1D_R8 > array(i) ) then
+                minival1D_R8 = array(i)
+            end if
+        end do
+        
+    end function minival1D_R8
+
+    function minival2D_R8(array, size2D)
+            
+        real(8), dimension(:,:), pointer   :: array
+        type(T_size2D)                  :: size2D
+        integer                         :: i,j
+        real(8)                         :: minival2D_R8
+        
+        minival2D_R8 = 1e7
+        do j = size2D%JLB,size2D%JUB
+        do i = size2D%ILB,size2D%IUB
+            if ( minival2D_R8 > array(i,j) ) then
+                minival2D_R8 = array(i,j)
+            end if
+        end do
+        end do
+        
+    end function minival2D_R8
+
+    function minival3D_R8(array, size3D)
+            
+        real(8), dimension(:,:,:), pointer :: array
+        type(T_size3D)                  :: size3D
+        integer                         :: i,j,k
+        real(8)                         :: minival3D_R8
+        
+        minival3D_R8 = 1e7
+        do k = size3D%KLB,size3D%KUB
+        do j = size3D%JLB,size3D%JUB
+        do i = size3D%ILB,size3D%IUB
+            if ( minival3D_R8 > array(i,j,k) ) then
+                minival3D_R8 = array(i,j,k)
+            end if
+        end do
+        end do
+        end do
+        
+    end function minival3D_R8
+
+    function maxival1D_R8(array, size1D)
+            
+        real(8), dimension(:), pointer  :: array
+        type(T_size1D)                  :: size1D
+        integer                         :: i
+        real(8)                         :: maxival1D_R8
+        
+        maxival1D_R8 = -1e7
+        do i = size1D%ILB,size1D%IUB
+            if ( maxival1D_R8 < array(i) ) then
+                maxival1D_R8 = array(i)
+            end if
+        end do
+        
+    end function maxival1D_R8
+
+    function maxival2D_R8(array, size2D)
+            
+        real(8), dimension(:,:), pointer   :: array
+        type(T_size2D)                  :: size2D
+        integer                         :: i,j
+        real(8)                         :: maxival2D_R8
+        
+        maxival2D_R8 = -1e7
+        do j = size2D%JLB,size2D%JUB
+        do i = size2D%ILB,size2D%IUB
+            if ( maxival2D_R8 < array(i,j) ) then
+                maxival2D_R8 = array(i,j)
+            end if
+        end do
+        end do
+        
+    end function maxival2D_R8
+
+    function maxival3D_R8(array, size3D)
+            
+        real(8), dimension(:,:,:), pointer :: array
+        type(T_size3D)                  :: size3D
+        integer                         :: i,j,k
+        real(8)                         :: maxival3D_R8
+        
+        maxival3D_R8 = -1e7
+        do k = size3D%KLB,size3D%KUB
+        do j = size3D%JLB,size3D%JUB
+        do i = size3D%ILB,size3D%IUB
+            if ( maxival3D_R8 < array(i,j,k) ) then
+                maxival3D_R8 = array(i,j,k)
+            end if
+        end do
+        end do
+        end do
+        
+    end function maxival3D_R8
+
+    function minival1D_I4(array, size1D)
+            
+        integer, dimension(:), pointer     :: array
+        type(T_size1D)                  :: size1D
+        integer                         :: i
+        integer                            :: minival1D_I4
+        
+        minival1D_I4 = 1e7
+        do i = size1D%ILB,size1D%IUB
+            if ( minival1D_I4 > array(i) ) then
+                minival1D_I4 = array(i)
+            end if
+        end do
+        
+    end function minival1D_I4
+
+    function minival2D_I4(array, size2D)
+            
+        integer, dimension(:,:), pointer   :: array
+        type(T_size2D)                  :: size2D
+        integer                         :: i,j
+        integer                            :: minival2D_I4
+        
+        minival2D_I4 = 1e7
+        do j = size2D%JLB,size2D%JUB
+        do i = size2D%ILB,size2D%IUB
+            if ( minival2D_I4 > array(i,j) ) then
+                minival2D_I4 = array(i,j)
+            end if
+        end do
+        end do
+        
+    end function minival2D_I4
+
+    function minival3D_I4(array, size3D)
+            
+        integer, dimension(:,:,:), pointer :: array
+        type(T_size3D)                  :: size3D
+        integer                         :: i,j,k
+        integer                            :: minival3D_I4
+        
+        minival3D_I4 = 1e7
+        do k = size3D%KLB,size3D%KUB
+        do j = size3D%JLB,size3D%JUB
+        do i = size3D%ILB,size3D%IUB
+            if ( minival3D_I4 > array(i,j,k) ) then
+                minival3D_I4 = array(i,j,k)
+            end if
+        end do
+        end do
+        end do
+        
+    end function minival3D_I4
+
+    function maxival1D_I4(array, size1D)
+            
+        integer, dimension(:), pointer     :: array
+        type(T_size1D)                  :: size1D
+        integer                         :: i
+        integer                            :: maxival1D_I4
+        
+        maxival1D_I4 = -1e7
+        do i = size1D%ILB,size1D%IUB
+            if ( maxival1D_I4 < array(i) ) then
+                maxival1D_I4 = array(i)
+            end if
+        end do
+        
+    end function maxival1D_I4
+
+    function maxival2D_I4(array, size2D)
+            
+        integer, dimension(:,:), pointer   :: array
+        type(T_size2D)                  :: size2D
+        integer                         :: i,j
+        integer                            :: maxival2D_I4
+        
+        maxival2D_I4 = -1e7
+        do j = size2D%JLB,size2D%JUB
+        do i = size2D%ILB,size2D%IUB
+            if ( maxival2D_I4 < array(i,j) ) then
+                maxival2D_I4 = array(i,j)
+            end if
+        end do
+        end do
+        
+    end function maxival2D_I4
+
+    function maxival3D_I4(array, size3D)
+            
+        integer, dimension(:,:,:), pointer :: array
+        type(T_size3D)                  :: size3D
+        integer                         :: i,j,k
+        integer                         :: maxival3D_I4
+        
+        maxival3D_I4 = -1e7
+        do k = size3D%KLB,size3D%KUB
+        do j = size3D%JLB,size3D%JUB
+        do i = size3D%ILB,size3D%IUB
+            if ( maxival3D_I4 < array(i,j,k) ) then
+                maxival3D_I4 = array(i,j,k)
+            end if
+        end do
+        end do
+        end do
+        
+    end function maxival3D_I4
+
+    function minival1D_I8(array, size1D)
+            
+        integer(8), dimension(:), pointer     :: array
+        type(T_size1D)                  :: size1D
+        integer                         :: i
+        integer(8)                            :: minival1D_I8
+        
+        minival1D_I8 = 1e7
+        do i = size1D%ILB,size1D%IUB
+            if ( minival1D_I8 > array(i) ) then
+                minival1D_I8 = array(i)
+            end if
+        end do
+        
+    end function minival1D_I8
+
+    function minival2D_I8(array, size2D)
+            
+        integer(8), dimension(:,:), pointer   :: array
+        type(T_size2D)                  :: size2D
+        integer                         :: i,j
+        integer(8)                         :: minival2D_I8
+        
+        minival2D_I8 = 1e7
+        do j = size2D%JLB,size2D%JUB
+        do i = size2D%ILB,size2D%IUB
+            if ( minival2D_I8 > array(i,j) ) then
+                minival2D_I8 = array(i,j)
+            end if
+        end do
+        end do
+        
+    end function minival2D_I8
+
+    function minival3D_I8(array, size3D)
+            
+        integer(8), dimension(:,:,:), pointer :: array
+        type(T_size3D)                  :: size3D
+        integer                         :: i,j,k
+        integer(8)                         :: minival3D_I8
+        
+        minival3D_I8 = 1e7
+        do k = size3D%KLB,size3D%KUB
+        do j = size3D%JLB,size3D%JUB
+        do i = size3D%ILB,size3D%IUB
+            if ( minival3D_I8 > array(i,j,k) ) then
+                minival3D_I8 = array(i,j,k)
+            end if
+        end do
+        end do
+        end do
+        
+    end function minival3D_I8
+
+    function maxival1D_I8(array, size1D)
+            
+        integer(8), dimension(:), pointer  :: array
+        type(T_size1D)                  :: size1D
+        integer                         :: i
+        integer(8)                         :: maxival1D_I8
+        
+        maxival1D_I8 = -1e7
+        do i = size1D%ILB,size1D%IUB
+            if ( maxival1D_I8 < array(i) ) then
+                maxival1D_I8 = array(i)
+            end if
+        end do
+        
+    end function maxival1D_I8
+
+    function maxival2D_I8(array, size2D)
+            
+        integer(8), dimension(:,:), pointer   :: array
+        type(T_size2D)                  :: size2D
+        integer                         :: i,j
+        integer(8)                         :: maxival2D_I8
+        
+        maxival2D_I8 = -1e7
+        do j = size2D%JLB,size2D%JUB
+        do i = size2D%ILB,size2D%IUB
+            if ( maxival2D_I8 < array(i,j) ) then
+                maxival2D_I8 = array(i,j)
+            end if
+        end do
+        end do
+        
+    end function maxival2D_I8
+
+    function maxival3D_I8(array, size3D)
+            
+        integer(8), dimension(:,:,:), pointer :: array
+        type(T_size3D)                  :: size3D
+        integer                         :: i,j,k
+        integer(8)                         :: maxival3D_I8
+        
+        maxival3D_I8 = -1e7
+        do k = size3D%KLB,size3D%KUB
+        do j = size3D%JLB,size3D%JUB
+        do i = size3D%ILB,size3D%IUB
+            if ( maxival3D_I8 < array(i,j,k) ) then
+                maxival3D_I8 = array(i,j,k)
+            end if
+        end do
+        end do
+        end do
+        
+    end function maxival3D_I8
 
 end module ModuleFunctions
 

@@ -31,6 +31,7 @@
 Module ModuleHDF5
 
     use ModuleGlobalData
+    use ModuleFunctions     , only :  minival, maxival, SetMatrixValue
     use HDF5 
 
 #ifdef _GUI_    
@@ -128,13 +129,13 @@ Module ModuleHDF5
     integer, parameter                              :: HDF5_READ_       = 2
     integer, parameter                              :: HDF5_READWRITE_  = 3 
     
-    !Type definition
-    type T_Limits
-        integer                                     :: ILB, IUB
-        integer                                     :: JLB, JUB
-        integer                                     :: KLB, KUB
-    end type T_Limits
-
+!    !Type definition
+!    type T_Limits
+!        integer                                     :: ILB, IUB
+!        integer                                     :: JLB, JUB
+!        integer                                     :: KLB, KUB
+!    end type T_Limits
+!
     !GUI
     type T_HDF5_DATA_ITEM
         sequence
@@ -174,7 +175,9 @@ Module ModuleHDF5
         integer                                     :: InstanceID
         integer (HID_T)                             :: FileID
         character(Pathlength)                       :: FileName, FileName2
-        type    (T_Limits)                          :: Limits
+        type    (T_Size3D)                          :: Limits3D, Limits
+        type    (T_Size2D)                          :: Limits2D
+        type    (T_Size1D)                          :: Limits1D
         type    (T_AuxMatrixes)                     :: AuxMatrixes
         type    (T_HDF5), pointer                   :: Next
     end type T_HDF5
@@ -389,12 +392,36 @@ Module ModuleHDF5
         if (ready_ .EQ. IDLE_ERR_) then
 
 
-            if (present(ILB)) Me%Limits%ILB = ILB
-            if (present(IUB)) Me%Limits%IUB = IUB
-            if (present(JLB)) Me%Limits%JLB = JLB
-            if (present(JUB)) Me%Limits%JUB = JUB
-            if (present(KLB)) Me%Limits%KLB = KLB
-            if (present(KUB)) Me%Limits%KUB = KUB
+            if (present(ILB)) then
+                Me%Limits%ILB = ILB
+                Me%Limits3D%ILB = ILB
+                Me%Limits2D%ILB = ILB
+                Me%Limits1D%ILB = ILB                
+            endif
+            if (present(IUB)) then
+                Me%Limits%IUB = IUB
+                Me%Limits3D%IUB = IUB
+                Me%Limits2D%IUB = IUB
+                Me%Limits1D%IUB = IUB
+            endif
+            if (present(JLB)) then
+                Me%Limits%JLB = JLB
+                Me%Limits3D%JLB = JLB
+                Me%Limits2D%JLB = JLB
+            endif
+            if (present(JUB)) then
+                Me%Limits%JUB = JUB
+                Me%Limits3D%JUB = JUB
+                Me%Limits2D%JUB = JUB
+            endif
+            if (present(KLB)) then
+                Me%Limits%KLB = KLB
+                Me%Limits3D%KLB = KLB
+            endif
+            if (present(KUB)) then
+                Me%Limits%KUB = KUB
+                Me%Limits3D%KUB = KUB
+            endif
 
             STAT_ = SUCCESS_
 
@@ -932,8 +959,10 @@ Module ModuleHDF5
             NumType = H5T_NATIVE_REAL 
 
             Rank    = 1
-            Minimum = minval(Array1D(Me%Limits%ILB:Me%Limits%IUB))
-            Maximum = maxval(Array1D(Me%Limits%ILB:Me%Limits%IUB))
+            !Minimum = minval(Array1D(Me%Limits%ILB:Me%Limits%IUB))
+            !Maximum = maxval(Array1D(Me%Limits%ILB:Me%Limits%IUB))
+            Minimum = minival(Array1D,Me%Limits1D)
+            Maximum = maxival(Array1D,Me%Limits1D)
 
             dims(1) = Me%Limits%IUB - Me%Limits%ILB + 1
 
@@ -964,11 +993,11 @@ Module ModuleHDF5
             endif
             
             if (AllocateMatrix) then
-                allocate(Me%AuxMatrixes%DataR4_1D(1:dims(1)))
+                allocate(Me%AuxMatrixes%DataR4_1D(Me%Limits%ILB:Me%Limits%IUB))
                 Me%AuxMatrixes%dims_R4_1D(1) = dims(1)
             endif
             
-            Me%AuxMatrixes%DataR4_1D(1:dims(1)) = Array1D(Me%Limits%ILB:Me%Limits%IUB)
+            call SetMatrixValue( Me%AuxMatrixes%DataR4_1D, Me%Limits1D, Array1D)
 
             !Writes the data to the file
             call h5dwrite_f  (dset_id, NumType,                                         &
@@ -1035,10 +1064,12 @@ Module ModuleHDF5
             NumType = H5T_NATIVE_REAL 
 
             Rank    = 2
-            Minimum = minval(Array2D(Me%Limits%ILB:Me%Limits%IUB,          &
-                                     Me%Limits%JLB:Me%Limits%JUB))
-            Maximum = maxval(Array2D(Me%Limits%ILB:Me%Limits%IUB,          &
-                                     Me%Limits%JLB:Me%Limits%JUB))
+            !Minimum = minval(Array2D(Me%Limits%ILB:Me%Limits%IUB,          &
+            !                         Me%Limits%JLB:Me%Limits%JUB))
+            !Maximum = maxval(Array2D(Me%Limits%ILB:Me%Limits%IUB,          &
+            !                         Me%Limits%JLB:Me%Limits%JUB))
+            Minimum = minival(Array2D,Me%Limits2D)
+            Maximum = maxival(Array2D,Me%Limits2D)
 
             dims(1) = Me%Limits%IUB - Me%Limits%ILB + 1
             dims(2) = Me%Limits%JUB - Me%Limits%JLB + 1
@@ -1071,14 +1102,12 @@ Module ModuleHDF5
             endif
             
             if (AllocateMatrix) then
-                allocate(Me%AuxMatrixes%DataR4_2D(dims (1), dims (2)))
+                allocate(Me%AuxMatrixes%DataR4_2D(Me%Limits%ILB:Me%Limits%IUB,          &
+                                                Me%Limits%JLB:Me%Limits%JUB))
                 Me%AuxMatrixes%dims_R4_2D(1:2) = dims(1:2)
             endif
         
-            Me%AuxMatrixes%DataR4_2D(1:dims(1), 1:dims(2)) =                            &
-                             Array2D(Me%Limits%ILB:Me%Limits%IUB,                       &
-                                     Me%Limits%JLB:Me%Limits%JUB)
- 
+            call SetMatrixValue(Me%AuxMatrixes%DataR4_2D, Me%Limits2D, Array2D)
 
             !Writes the data to the file
             call h5dwrite_f  (dset_id, NumType,                                         &
@@ -1143,12 +1172,14 @@ Module ModuleHDF5
             NumType = H5T_NATIVE_REAL 
 
             Rank    = 3
-            Minimum = minval(Array3D(Me%Limits%ILB:Me%Limits%IUB,          &
-                                     Me%Limits%JLB:Me%Limits%JUB,          &
-                                     Me%Limits%KLB:Me%Limits%KUB))
-            Maximum = maxval(Array3D(Me%Limits%ILB:Me%Limits%IUB,          &
-                                     Me%Limits%JLB:Me%Limits%JUB,          &
-                                     Me%Limits%KLB:Me%Limits%KUB))
+!            Minimum = minval(Array3D(Me%Limits%ILB:Me%Limits%IUB,          &
+!                                     Me%Limits%JLB:Me%Limits%JUB,          &
+!                                     Me%Limits%KLB:Me%Limits%KUB))
+!            Maximum = maxval(Array3D(Me%Limits%ILB:Me%Limits%IUB,          &
+!                                     Me%Limits%JLB:Me%Limits%JUB,          &
+!                                     Me%Limits%KLB:Me%Limits%KUB))
+            Minimum = minival(Array3D,Me%Limits3D)
+            Maximum = maxival(Array3D,Me%Limits3D)
 
             dims(1) = Me%Limits%IUB - Me%Limits%ILB + 1
             dims(2) = Me%Limits%JUB - Me%Limits%JLB + 1
@@ -1183,16 +1214,14 @@ Module ModuleHDF5
             endif
             
             if (AllocateMatrix) then
-                allocate(Me%AuxMatrixes%DataR4_3D(dims (1), dims (2), dims (3)))
+                allocate(Me%AuxMatrixes%DataR4_3D(Me%Limits%ILB:Me%Limits%IUB,          &
+                                                Me%Limits%JLB:Me%Limits%JUB,            &
+                                                Me%Limits%KLB:Me%Limits%KUB))
                 Me%AuxMatrixes%dims_R4_3D(1:3) = dims(1:3)
             endif
         
-            Me%AuxMatrixes%DataR4_3D(1:dims(1), 1:dims(2),  1:dims(3))  =               &
-                             Array3D(Me%Limits%ILB:Me%Limits%IUB,                       &
-                                     Me%Limits%JLB:Me%Limits%JUB,                       &
-                                     Me%Limits%KLB:Me%Limits%KUB)
+            call SetMatrixValue(Me%AuxMatrixes%DataR4_3D, Me%Limits3D, Array3D)
  
-
             !Writes the data to the file
             call h5dwrite_f  (dset_id, NumType,                                         &
                               Me%AuxMatrixes%DataR4_3D,                                 &
@@ -1260,8 +1289,10 @@ Module ModuleHDF5
             NumType = H5T_NATIVE_DOUBLE 
 
             Rank    = 1
-            Minimum = minval(Array1D(Me%Limits%ILB:Me%Limits%IUB))
-            Maximum = maxval(Array1D(Me%Limits%ILB:Me%Limits%IUB))
+!            Minimum = minval(Array1D(Me%Limits%ILB:Me%Limits%IUB))
+!            Maximum = maxval(Array1D(Me%Limits%ILB:Me%Limits%IUB))
+            Minimum = minival(Array1D,Me%Limits1D)
+            Maximum = maxival(Array1D,Me%Limits1D)
 
             dims(1) = Me%Limits%IUB - Me%Limits%ILB + 1
 
@@ -1293,11 +1324,11 @@ Module ModuleHDF5
             endif
             
             if (AllocateMatrix) then
-                allocate(Me%AuxMatrixes%DataR8_1D(1:dims(1)))
+                allocate(Me%AuxMatrixes%DataR8_1D(Me%Limits%ILB:Me%Limits%IUB))
                 Me%AuxMatrixes%dims_R8_1D(1) = dims(1)
             endif
             
-            Me%AuxMatrixes%DataR8_1D(1:dims(1)) = Array1D(Me%Limits%ILB:Me%Limits%IUB)
+            call SetMatrixValue(Me%AuxMatrixes%DataR8_1D, Me%Limits1D, Array1D)
 
             !Writes the data to the file
             call h5dwrite_f  (dset_id, NumType,                                         &
@@ -1368,10 +1399,12 @@ Module ModuleHDF5
             NumType = H5T_NATIVE_DOUBLE 
 
             Rank    = 2
-            Minimum = minval(Array2D(Me%Limits%ILB:Me%Limits%IUB,          &
-                                     Me%Limits%JLB:Me%Limits%JUB))
-            Maximum = maxval(Array2D(Me%Limits%ILB:Me%Limits%IUB,          &
-                                     Me%Limits%JLB:Me%Limits%JUB))
+!            Minimum = minval(Array2D(Me%Limits%ILB:Me%Limits%IUB,          &
+!                                     Me%Limits%JLB:Me%Limits%JUB))
+!            Maximum = maxval(Array2D(Me%Limits%ILB:Me%Limits%IUB,          &
+!                                     Me%Limits%JLB:Me%Limits%JUB))
+            Minimum = minival(Array2D,Me%Limits2D)
+            Maximum = maxival(Array2D,Me%Limits2D)
 
             dims(1) = Me%Limits%IUB - Me%Limits%ILB + 1
             dims(2) = Me%Limits%JUB - Me%Limits%JLB + 1
@@ -1404,14 +1437,12 @@ Module ModuleHDF5
             endif
             
             if (AllocateMatrix) then
-                allocate(Me%AuxMatrixes%DataR8_2D(dims (1), dims (2)))
+                allocate(Me%AuxMatrixes%DataR8_2D(Me%Limits%ILB:Me%Limits%IUB,          &
+                                                Me%Limits%JLB:Me%Limits%JUB))
                 Me%AuxMatrixes%dims_R8_2D(1:2) = dims(1:2)
             endif
         
-            Me%AuxMatrixes%DataR8_2D(1:dims(1), 1:dims(2)) =                            &
-                             Array2D(Me%Limits%ILB:Me%Limits%IUB,                       &
-                                     Me%Limits%JLB:Me%Limits%JUB)
- 
+            call SetMatrixValue(Me%AuxMatrixes%DataR8_2D, Me%Limits2D, Array2D)
 
             !Writes the data to the file
             call h5dwrite_f  (dset_id, NumType,                                         &
@@ -1475,12 +1506,14 @@ Module ModuleHDF5
             NumType = H5T_NATIVE_DOUBLE 
 
             Rank    = 3
-            Minimum = minval(Array3D(Me%Limits%ILB:Me%Limits%IUB,          &
-                                     Me%Limits%JLB:Me%Limits%JUB,          &
-                                     Me%Limits%KLB:Me%Limits%KUB))
-            Maximum = maxval(Array3D(Me%Limits%ILB:Me%Limits%IUB,          &
-                                     Me%Limits%JLB:Me%Limits%JUB,          &
-                                     Me%Limits%KLB:Me%Limits%KUB))
+!            Minimum = minval(Array3D(Me%Limits%ILB:Me%Limits%IUB,          &
+!                                     Me%Limits%JLB:Me%Limits%JUB,          &
+!                                     Me%Limits%KLB:Me%Limits%KUB))
+!            Maximum = maxval(Array3D(Me%Limits%ILB:Me%Limits%IUB,          &
+!                                     Me%Limits%JLB:Me%Limits%JUB,          &
+!                                     Me%Limits%KLB:Me%Limits%KUB))
+            Minimum = minival(Array3D,Me%Limits3D)
+            Maximum = maxival(Array3D,Me%Limits3D)
 
             dims(1) = Me%Limits%IUB - Me%Limits%ILB + 1
             dims(2) = Me%Limits%JUB - Me%Limits%JLB + 1
@@ -1515,23 +1548,21 @@ Module ModuleHDF5
             endif
             
             if (AllocateMatrix) then
-                allocate(Me%AuxMatrixes%DataR8_3D(dims (1), dims (2), dims (3)))
+                allocate(Me%AuxMatrixes%DataR8_3D(Me%Limits%ILB:Me%Limits%IUB,      &
+                                                    Me%Limits%JLB:Me%Limits%JUB,    &
+                                                    Me%Limits%KLB:Me%Limits%KUB))
                 Me%AuxMatrixes%dims_R8_3D(1:3) = dims(1:3)
             endif
-        
-            Me%AuxMatrixes%DataR8_3D(1:dims(1), 1:dims(2),  1:dims(3))  =               &
-                             Array3D(Me%Limits%ILB:Me%Limits%IUB,                       &
-                                     Me%Limits%JLB:Me%Limits%JUB,                       &
-                                     Me%Limits%KLB:Me%Limits%KUB)
- 
+
+            call SetMatrixValue(Me%AuxMatrixes%DataR8_3D, Me%Limits3D, Array3D)
 
             !Writes the data to the file
             call h5dwrite_f  (dset_id, NumType,                                         &
                               Me%AuxMatrixes%DataR8_3D,                                 &
                               dims, STAT_CALL)
-                              
+
             if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteDataR8 - ModuleHDF5 - ERR08b'
-            
+
             !Creates attributes
             call CreateMinMaxAttribute (dset_id, Units, Minimum, Maximum)
 
@@ -1588,8 +1619,10 @@ Module ModuleHDF5
             NumType = H5T_NATIVE_INTEGER 
 
             Rank    = 1
-            Minimum = minval(Array1D(Me%Limits%ILB:Me%Limits%IUB))
-            Maximum = maxval(Array1D(Me%Limits%ILB:Me%Limits%IUB))
+!            Minimum = minval(Array1D(Me%Limits%ILB:Me%Limits%IUB))
+!            Maximum = maxval(Array1D(Me%Limits%ILB:Me%Limits%IUB))
+            Minimum = minival(Array1D,Me%Limits1D)
+            Maximum = maxival(Array1D,Me%Limits1D)
 
             dims(1) = Me%Limits%IUB - Me%Limits%ILB + 1
 
@@ -1621,11 +1654,11 @@ Module ModuleHDF5
             endif
             
             if (AllocateMatrix) then
-                allocate(Me%AuxMatrixes%DataI4_1D(1:dims(1)))
+                allocate(Me%AuxMatrixes%DataI4_1D(Me%Limits%ILB:Me%Limits%IUB))
                 Me%AuxMatrixes%dims_I4_1D(1) = dims(1)
             endif
             
-            Me%AuxMatrixes%DataI4_1D(1:dims(1)) = Array1D(Me%Limits%ILB:Me%Limits%IUB)
+            call SetMatrixValue(Me%AuxMatrixes%DataI4_1D, Me%Limits1D, Array1D)
 
             !Writes the data to the file
             call h5dwrite_f  (dset_id, NumType,                                         &
@@ -1689,10 +1722,12 @@ Module ModuleHDF5
             NumType = H5T_NATIVE_INTEGER 
 
             Rank    = 2
-            Minimum = minval(Array2D(Me%Limits%ILB:Me%Limits%IUB,          &
-                                     Me%Limits%JLB:Me%Limits%JUB))
-            Maximum = maxval(Array2D(Me%Limits%ILB:Me%Limits%IUB,          &
-                                     Me%Limits%JLB:Me%Limits%JUB))
+!            Minimum = minval(Array2D(Me%Limits%ILB:Me%Limits%IUB,          &
+!                                     Me%Limits%JLB:Me%Limits%JUB))
+!            Maximum = maxval(Array2D(Me%Limits%ILB:Me%Limits%IUB,          &
+!                                     Me%Limits%JLB:Me%Limits%JUB))
+            Minimum = minival(Array2D,Me%Limits2D)
+            Maximum = maxival(Array2D,Me%Limits2D)
             dims(1) = Me%Limits%IUB - Me%Limits%ILB + 1
             dims(2) = Me%Limits%JUB - Me%Limits%JLB + 1
 
@@ -1724,13 +1759,12 @@ Module ModuleHDF5
             endif
             
             if (AllocateMatrix) then
-                allocate(Me%AuxMatrixes%DataI4_2D(dims (1), dims (2)))
+                allocate(Me%AuxMatrixes%DataI4_2D(Me%Limits%ILB:Me%Limits%IUB,  &
+                                                    Me%Limits%JLB:Me%Limits%JUB))
                 Me%AuxMatrixes%dims_I4_2D(1:2) = dims(1:2)
             endif
         
-            Me%AuxMatrixes%DataI4_2D(1:dims(1), 1:dims(2)) =                            &
-                             Array2D(Me%Limits%ILB:Me%Limits%IUB,                       &
-                                     Me%Limits%JLB:Me%Limits%JUB)
+            call SetMatrixValue(Me%AuxMatrixes%DataI4_2D, Me%Limits2D, Array2D)
  
 
             !Writes the data to the file
@@ -1795,16 +1829,18 @@ Module ModuleHDF5
             NumType = H5T_NATIVE_INTEGER 
 
             Rank    = 3
-            Minimum = minval(Array3D(Me%Limits%ILB:Me%Limits%IUB,          &
-                                     Me%Limits%JLB:Me%Limits%JUB,          &
-                                     Me%Limits%KLB:Me%Limits%KUB))
-            Maximum = maxval(Array3D(Me%Limits%ILB:Me%Limits%IUB,          &
-                                     Me%Limits%JLB:Me%Limits%JUB,          &
-                                     Me%Limits%KLB:Me%Limits%KUB))
+!            Minimum = minval(Array3D(Me%Limits%ILB:Me%Limits%IUB,          &
+!                                     Me%Limits%JLB:Me%Limits%JUB,          &
+!                                     Me%Limits%KLB:Me%Limits%KUB))
+!            Maximum = maxval(Array3D(Me%Limits%ILB:Me%Limits%IUB,          &
+!                                     Me%Limits%JLB:Me%Limits%JUB,          &
+!                                     Me%Limits%KLB:Me%Limits%KUB))
+            Minimum = minival(Array3D,Me%Limits3D)
+            Maximum = maxival(Array3D,Me%Limits3D)
+            
             dims(1) = Me%Limits%IUB - Me%Limits%ILB + 1
             dims(2) = Me%Limits%JUB - Me%Limits%JLB + 1
             dims(3) = Me%Limits%KUB - Me%Limits%KLB + 1
-
 
             !Creates the dataset with default properties
             if (present(OutputNumber)) then
@@ -1835,14 +1871,13 @@ Module ModuleHDF5
             endif
             
             if (AllocateMatrix) then
-                allocate(Me%AuxMatrixes%DataI4_3D(dims (1), dims (2), dims (3)))
+                allocate(Me%AuxMatrixes%DataI4_3D(Me%Limits%ILB:Me%Limits%IUB,      &   
+                                                    Me%Limits%JLB:Me%Limits%JUB,    & 
+                                                    Me%Limits%KLB:Me%Limits%KUB))
                 Me%AuxMatrixes%dims_I4_3D(1:3) = dims(1:3)
             endif
         
-            Me%AuxMatrixes%DataI4_3D(1:dims(1), 1:dims(2),  1:dims(3))  =               &
-                             Array3D(Me%Limits%ILB:Me%Limits%IUB,                       &
-                                     Me%Limits%JLB:Me%Limits%JUB,                       &
-                                     Me%Limits%KLB:Me%Limits%KUB)
+            call SetMatrixValue(Me%AuxMatrixes%DataI4_3D,Me%Limits3D,Array3D)
  
 
             !Writes the data to the file
@@ -2073,7 +2108,7 @@ Module ModuleHDF5
             endif
             
             if (AllocateMatrix) then
-                allocate(Me%AuxMatrixes%DataR4_1D(1:dims(1)))
+                allocate(Me%AuxMatrixes%DataR4_1D(Me%Limits%ILB:Me%Limits%IUB))
                 Me%AuxMatrixes%dims_R4_1D(1) = dims(1)
             endif
             
@@ -2083,7 +2118,7 @@ Module ModuleHDF5
                              dims, STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadDataR4_1D - ModuleHDF5 - ERR08'
             
-            Array1D(Me%Limits%ILB:Me%Limits%IUB) = Me%AuxMatrixes%DataR4_1D(1:dims(1))           
+            call SetMatrixValue(Array1D, Me%Limits1D, Me%AuxMatrixes%DataR4_1D)           
 
             !End access to the dataset
             call h5dclose_f  (dset_id, STAT_CALL)
@@ -2173,7 +2208,8 @@ Module ModuleHDF5
             endif
             
             if (AllocateMatrix) then
-                allocate(Me%AuxMatrixes%DataR4_2D(dims (1), dims (2)))
+                allocate(Me%AuxMatrixes%DataR4_2D(Me%Limits%ILB:Me%Limits%IUB,      &
+                                                    Me%Limits%JLB:Me%Limits%JUB))
                 Me%AuxMatrixes%dims_R4_2D(1:2) = dims(1:2)
             endif
         
@@ -2186,8 +2222,7 @@ Module ModuleHDF5
             
             if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadDataR4_2D - ModuleHDF5 - ERR08a'
             
-            Array2D(Me%Limits%ILB:Me%Limits%IUB,                                        &
-                    Me%Limits%JLB:Me%Limits%JUB) =  Me%AuxMatrixes%DataR4_2D(1:dims(1), 1:dims(2))
+            call SetMatrixValue(Array2D, Me%Limits2D, Me%AuxMatrixes%DataR4_2D)
 
             !End access to the dataset
             call h5dclose_f  (dset_id, STAT_CALL)
@@ -2280,7 +2315,9 @@ Module ModuleHDF5
             endif
             
             if (AllocateMatrix) then
-                allocate(Me%AuxMatrixes%DataR4_3D(dims (1), dims (2), dims (3)))
+                allocate(Me%AuxMatrixes%DataR4_3D(Me%Limits%ILB:Me%Limits%IUB,      &
+                                                Me%Limits%JLB:Me%Limits%JUB,        &
+                                                Me%Limits%KLB:Me%Limits%KUB))
                 Me%AuxMatrixes%dims_R4_3D(1:3) = dims(1:3)
             endif
         
@@ -2292,10 +2329,7 @@ Module ModuleHDF5
                               dims, STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadDataR4_3D - ModuleHDF5 - ERR08b'
 
-            Array3D(Me%Limits%ILB:Me%Limits%IUB,                                        &
-                    Me%Limits%JLB:Me%Limits%JUB,                                        &
-                    Me%Limits%KLB:Me%Limits%KUB)  =                                     &
-                    Me%AuxMatrixes%DataR4_3D(1:dims(1), 1:dims(2),  1:dims(3))                       
+            call SetMatrixValue(Array3D, Me%Limits3D, Me%AuxMatrixes%DataR4_3D)
 
             !End access to the dataset
             call h5dclose_f  (dset_id, STAT_CALL)
@@ -2384,7 +2418,7 @@ Module ModuleHDF5
                 
                 nullify(Me%AuxMatrixes%DataR8_1D)
 
-                allocate(Me%AuxMatrixes%DataR8_1D(1:dims(1)))
+                allocate(Me%AuxMatrixes%DataR8_1D(Me%Limits%ILB:Me%Limits%IUB))
                 Me%AuxMatrixes%dims_R8_1D(1) = dims(1)
             endif
             
@@ -2395,7 +2429,7 @@ Module ModuleHDF5
                               dims, STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadDataR8_1D - ModuleHDF5 - ERR30'
 
-            Array1D(Me%Limits%ILB:Me%Limits%IUB) = Me%AuxMatrixes%DataR8_1D(1:dims(1))
+            call SetMatrixValue(Array1D, Me%Limits1D, Me%AuxMatrixes%DataR8_1D)
 
             !End access to the dataset
             call h5dclose_f  (dset_id, STAT_CALL)
@@ -2487,7 +2521,8 @@ Module ModuleHDF5
             endif
             
             if (AllocateMatrix) then
-                allocate(Me%AuxMatrixes%DataR8_2D(dims (1), dims (2)))
+                allocate(Me%AuxMatrixes%DataR8_2D(Me%Limits%ILB:Me%Limits%IUB,  &
+                                                    Me%Limits%JLB:Me%Limits%JUB))
                 Me%AuxMatrixes%dims_R8_2D(1:2) = dims(1:2)
             endif
         
@@ -2498,8 +2533,7 @@ Module ModuleHDF5
                              dims, STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadDataR8_2D - ModuleHDF5 - ERR30'
 
-            Array2D(Me%Limits%ILB:Me%Limits%IUB,                                        &
-                    Me%Limits%JLB:Me%Limits%JUB) = Me%AuxMatrixes%DataR8_2D(1:dims(1), 1:dims(2)) 
+            call SetMatrixValue(Array2D, Me%Limits2D, Me%AuxMatrixes%DataR8_2D)
                              
             !End access to the dataset
             call h5dclose_f  (dset_id, STAT_CALL)
@@ -2591,7 +2625,9 @@ Module ModuleHDF5
             endif
             
             if (AllocateMatrix) then
-                allocate(Me%AuxMatrixes%DataR8_3D(dims (1), dims (2), dims (3)))
+                allocate(Me%AuxMatrixes%DataR8_3D(Me%Limits%ILB:Me%Limits%IUB,          &
+                                                Me%Limits%JLB:Me%Limits%JUB,            &
+                                                Me%Limits%KLB:Me%Limits%KUB))
                 Me%AuxMatrixes%dims_R8_3D(1:3) = dims(1:3)
             endif
         
@@ -2601,10 +2637,7 @@ Module ModuleHDF5
                               dims, STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadDataR8_3D - ModuleHDF5 - ERR30'
 
-            Array3D(Me%Limits%ILB:Me%Limits%IUB,                                        &
-                    Me%Limits%JLB:Me%Limits%JUB,                                        &
-                    Me%Limits%KLB:Me%Limits%KUB) =                                      &
-                    Me%AuxMatrixes%DataR8_3D(1:dims(1), 1:dims(2),  1:dims(3))
+            call SetMatrixValue(Array3D, Me%Limits3D, Me%AuxMatrixes%DataR8_3D)
                              
             !End access to the dataset
             call h5dclose_f  (dset_id, STAT_CALL)
@@ -2691,7 +2724,7 @@ Module ModuleHDF5
             endif
             
             if (AllocateMatrix) then
-                allocate(Me%AuxMatrixes%DataI4_1D(1:dims(1)))
+                allocate(Me%AuxMatrixes%DataI4_1D(Me%Limits%ILB:Me%Limits%IUB))
                 Me%AuxMatrixes%dims_I4_1D(1) = dims(1)
             endif
             
@@ -2703,7 +2736,7 @@ Module ModuleHDF5
                               
             if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadDataI4_1D - ModuleHDF5 - ERR08'
             
-            Array1D(Me%Limits%ILB:Me%Limits%IUB) = Me%AuxMatrixes%DataI4_1D(1:dims(1))
+            call SetMatrixValue(Array1D, Me%Limits1D, Me%AuxMatrixes%DataI4_1D)
 
             !End access to the dataset
             call h5dclose_f  (dset_id, STAT_CALL)
@@ -2793,7 +2826,8 @@ Module ModuleHDF5
             endif
             
             if (AllocateMatrix) then
-                allocate(Me%AuxMatrixes%DataI4_2D(dims (1), dims (2)))
+                allocate(Me%AuxMatrixes%DataI4_2D(Me%Limits%ILB:Me%Limits%IUB,      &
+                                                Me%Limits%JLB:Me%Limits%JUB))
                 Me%AuxMatrixes%dims_I4_2D(1:2) = dims(1:2)
             endif
         
@@ -2805,9 +2839,7 @@ Module ModuleHDF5
                              dims, STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadDataI4_2D - ModuleHDF5 - ERR08a'
 
-            Array2D(Me%Limits%ILB:Me%Limits%IUB,                                        &
-                    Me%Limits%JLB:Me%Limits%JUB)    =                                   &
-                    Me%AuxMatrixes%DataI4_2D(1:dims(1), 1:dims(2))
+            call SetMatrixValue(Array2D,Me%Limits2D,Me%AuxMatrixes%DataI4_2D)
                              
 
             !End access to the dataset
@@ -2899,7 +2931,9 @@ Module ModuleHDF5
             endif
             
             if (AllocateMatrix) then
-                allocate(Me%AuxMatrixes%DataI4_3D(dims (1), dims (2), dims (3)))
+                allocate(Me%AuxMatrixes%DataI4_3D(Me%Limits%ILB:Me%Limits%IUB,          &
+                                                Me%Limits%JLB:Me%Limits%JUB,            &
+                                                Me%Limits%KLB:Me%Limits%KUB))
                 Me%AuxMatrixes%dims_I4_3D(1:3) = dims(1:3)
             endif
         
@@ -2909,12 +2943,8 @@ Module ModuleHDF5
                               dims, STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadDataI4_3D - ModuleHDF5 - ERR08b'
             
-            Array3D(Me%Limits%ILB:Me%Limits%IUB,                                        &
-                    Me%Limits%JLB:Me%Limits%JUB,                                        &
-                    Me%Limits%KLB:Me%Limits%KUB)   =                                    &
-                    Me%AuxMatrixes%DataI4_3D(1:dims(1), 1:dims(2),  1:dims(3))
+            call SetMatrixValue(Array3D,Me%Limits3D,Me%AuxMatrixes%DataI4_3D)
                                          
-
             !End access to the dataset
             call h5dclose_f  (dset_id, STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadDataI4_3D - ModuleHDF5 - ERR09'

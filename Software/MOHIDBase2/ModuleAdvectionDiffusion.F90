@@ -4059,7 +4059,7 @@ cd1 :   if (ready_ /= OFF_ERR_) then
                     deallocate(VECGW%W)
                 enddo 
                 deallocate(Me%THOMAS%VEC)
-                deallocate(Me%THOMAS%COEF3)
+                !deallocate(Me%THOMAS%COEF3)
                 deallocate(Me%THOMAS)
 
                 deallocate(Me%VECW, STAT = STAT_CALL)
