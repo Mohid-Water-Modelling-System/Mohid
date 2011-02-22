@@ -123,6 +123,7 @@ Module ModuleModel
                                                GetSeqAssimilationOptions
 #endif _USE_SEQASSIMILATION
     use ModuleStopWatch,            only: StartWatch, StopWatch
+    !$ use omp_lib
 
 
     implicit none
@@ -326,6 +327,7 @@ Module ModuleModel
         logical                                     :: HydroSeqAssim = .false.
         logical                                     :: WaterSeqAssim = .false.
 #endif _USE_SEQASSIMILATION
+        integer                                     :: openmp_num_threads
         !----------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
@@ -496,6 +498,28 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
 
 #endif OVERLAP
 
+            !griflet: Adding a new keyword in model.dat to define the number of threads to use.
+            !Reads OPENMP_NUM_THREADS (number of threads to use with openmp)
+            !$ call GetData(openmp_num_threads, ObjEnterData, flag, keyword = 'OPENMP_NUM_THREADS',  &
+            !$         SearchType   = FromFile,                                                      &
+            !$         ClientModule = 'ModuleModel',                                                 &
+            !$         default      = 0,                                                             &
+            !$         STAT         = STAT_CALL)
+            !$ if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR94'            
+            !$ write(*,*)
+            !$ write(*,*)"OPENMP: Max number of threads available is ", omp_get_max_threads()
+            !$ if ( openmp_num_threads .gt. 0 ) then
+            !$    write(*,*)"OPENMP: Number of threads requested is ", openmp_num_threads
+            !$    if (openmp_num_threads .gt. omp_get_max_threads()) then
+            !$        openmp_num_threads = omp_get_max_threads()
+            !$        write(*,*)"<Compilation Options Warning>"
+            !$    endif
+            !$    call omp_set_num_threads(openmp_num_threads)
+            !$    write(*,*)"OPENMP: Number of threads implemented is ", openmp_num_threads
+            !$ else
+            !$    write(*,*)"OPENMP: Using the minimum value between max number of threads available"
+            !$    write(*,*)"OPENMP: and OMP_NUM_THREADS environment variable value."
+            !$ endif
 
             call KillEnterData    (ObjEnterData, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR50'
