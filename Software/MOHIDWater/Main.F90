@@ -298,6 +298,7 @@ program MohidWater
             if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWater - MohidWater - ERR40'
 
             CurrentModel => CurrentModel%Next
+
         enddo
 
         !Checks the limits of the model (always model one which controls it)

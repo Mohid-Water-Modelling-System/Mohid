@@ -327,7 +327,7 @@ Module ModuleModel
         logical                                     :: HydroSeqAssim = .false.
         logical                                     :: WaterSeqAssim = .false.
 #endif _USE_SEQASSIMILATION
-        integer                                     :: openmp_num_threads
+        !$ integer                                     :: openmp_num_threads
         !----------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
@@ -506,19 +506,25 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
             !$         default      = 0,                                                             &
             !$         STAT         = STAT_CALL)
             !$ if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR94'            
-            !$ write(*,*)
-            !$ write(*,*)"OPENMP: Max number of threads available is ", omp_get_max_threads()
-            !$ if ( openmp_num_threads .gt. 0 ) then
-            !$    write(*,*)"OPENMP: Number of threads requested is ", openmp_num_threads
-            !$    if (openmp_num_threads .gt. omp_get_max_threads()) then
+            !$ if ( ModelID .eq. 0) then
+            !$    write(*,*)
+            !$    write(*,*)"OPENMP: Max number of threads available is ", omp_get_max_threads()
+            !$    if ( openmp_num_threads .gt. 0 ) then
+            !$       write(*,*)"OPENMP: Number of threads requested is ", openmp_num_threads
+            !$       if (openmp_num_threads .gt. omp_get_max_threads()) then
             !$        openmp_num_threads = omp_get_max_threads()
             !$        write(*,*)"<Compilation Options Warning>"
+            !$       endif
+            !$       call omp_set_num_threads(openmp_num_threads)
+            !$       write(*,*)"OPENMP: Number of threads implemented is ", openmp_num_threads
+            !$    else
+            !$       write(*,*)"OPENMP: Using the minimum value between max number of threads available"
+            !$       write(*,*)"OPENMP: and OMP_NUM_THREADS environment variable value."
             !$    endif
-            !$    call omp_set_num_threads(openmp_num_threads)
-            !$    write(*,*)"OPENMP: Number of threads implemented is ", openmp_num_threads
             !$ else
-            !$    write(*,*)"OPENMP: Using the minimum value between max number of threads available"
-            !$    write(*,*)"OPENMP: and OMP_NUM_THREADS environment variable value."
+            !$    if ( openmp_num_threads .gt. 0 ) then
+            !$       write(*,*) "OPENMP: WARNING, OPENMP_NUM_THREADS should be defined in the father model only!"
+            !$    endif
             !$ endif
 
             call KillEnterData    (ObjEnterData, STAT = STAT_CALL)

@@ -4045,8 +4045,6 @@ cd1 :   if (ready_ /= OFF_ERR_) then
                     stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR20i'
                 nullify   (Me%COEF3_HorAdvYY%F_Flux) 
 
-
-
                 deallocate(Me%TICOEF3, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_)                                             &
                     stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR21'
@@ -4125,13 +4123,8 @@ cd1 :   if (ready_ /= OFF_ERR_) then
         !Deallocates instance
         deallocate (Me)
         nullify    (Me) 
-
             
     end subroutine DeallocateInstance
-
-
-
-
 
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
