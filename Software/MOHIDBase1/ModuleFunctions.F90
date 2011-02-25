@@ -4610,7 +4610,10 @@ cd1 :   if ((Property == Temperature_           ) .OR.  (Property == Salinity_  
             (Property == TransportCapacityX_    ) .OR.  (Property == TransportCapacityY_    ) .OR.          &
             (Property == ConsolidationFlux_     ) .OR.  (Property == Porosity_              ) .OR.          &
             (Property == TSS_                   ) .OR.  (Property == COHSED_FINE_           ) .OR.          &
-            (Property == COHSED_MEDIUM_         ) .OR.  (Property == COHSED_COARSE_         )) then
+            (Property == COHSED_MEDIUM_         ) .OR.  (Property == COHSED_COARSE_         ) .OR.          &
+            (Property == DissolvedMetal_        ) .OR.  (Property == DissolvedCopper_       ) .OR.          &
+            (Property == DissolvedCadmium_      ) .OR.  (Property == DissolvedLead_         ) .OR.          &
+            (Property == DissolvedMercury_      ) .OR.  (Property == DissolvedZinc_         )   ) then
 
             Check_Water_Property = .TRUE.
         

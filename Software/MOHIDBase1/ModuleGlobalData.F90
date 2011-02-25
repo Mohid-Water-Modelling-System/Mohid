@@ -277,6 +277,21 @@ Module ModuleGlobalData
     integer, parameter :: IonicStrength_                    = 7013
     integer, parameter :: PhosphorusAdsortionIndex_         = 7014
     
+    ! Generic metal
+    integer, parameter :: ParticulateMetal_                 = 8000
+    integer, parameter :: DissolvedMetal_                   = 8001
+    
+    ! Metals
+    integer, parameter :: ParticulateCopper_                = 8002  ! Cu
+    integer, parameter :: DissolvedCopper_                  = 8003  
+    integer, parameter :: ParticulateZinc_                  = 8004  ! Zn
+    integer, parameter :: DissolvedZinc_                    = 8005
+    integer, parameter :: ParticulateLead_                  = 8006  ! Pb
+    integer, parameter :: DissolvedLead_                    = 8007
+    integer, parameter :: ParticulateCadmium_               = 8008  ! Cd
+    integer, parameter :: DissolvedCadmium_                 = 8009
+    integer, parameter :: ParticulateMercury_               = 8010  ! Hg
+    integer, parameter :: DissolvedMercury_                 = 8011
     
 !____POM pools (for aquaculture cages)__________________________________________    
     
@@ -899,6 +914,21 @@ Module ModuleGlobalData
     character(StringLength), private, parameter :: Char_DriftingMacroAlgae   = 'drifting macroalgae'
     character(StringLength), private, parameter :: Char_MicroPhytoBenthos    = 'microphytobenthos' !Rosa
     character(StringLength), private, parameter :: Char_GenericProperty      = 'generic property'
+    
+    ! metals
+    character(StringLength), private, parameter :: Char_ParticulateMetal     = 'particulate metal'
+    character(StringLength), private, parameter :: Char_DissolvedMetal       = 'dissolved metal'
+    character(StringLength), private, parameter :: Char_ParticulateCopper    = 'particulate copper'
+    character(StringLength), private, parameter :: Char_DissolvedCopper      = 'dissolved copper'
+    character(StringLength), private, parameter :: Char_ParticulateCadmium   = 'particulate cadmium'
+    character(StringLength), private, parameter :: Char_DissolvedCadmium     = 'dissolved cadmium'
+    character(StringLength), private, parameter :: Char_ParticulateZinc      = 'particulate zinc'
+    character(StringLength), private, parameter :: Char_DissolvedZinc        = 'dissolved zinc'
+    character(StringLength), private, parameter :: Char_ParticulateMercury   = 'particulate mercury'
+    character(StringLength), private, parameter :: Char_DissolvedMercury     = 'dissolved mercury'
+    character(StringLength), private, parameter :: Char_ParticulateLead      = 'particulate lead'
+    character(StringLength), private, parameter :: Char_DissolvedLead        = 'dissolved lead'
+    
 
     character(StringLength), private, parameter :: Char_GrossProd            = 'grossprod'
     character(StringLength), private, parameter :: Char_NutrientLim          = 'nutrientlim'
@@ -1959,6 +1989,19 @@ Module ModuleGlobalData
             call AddPropList (Bacteria_,                Char_Bacteria,                  ListNumber)
             call AddPropList (ParticulateArsenic_,      Char_ParticulateArsenic,        ListNumber)
             call AddPropList (DissolvedArsenic_,        Char_DissolvedArsenic,          ListNumber)
+            call AddPropList (ParticulateZinc_,         Char_ParticulateZinc,           ListNumber)
+            call AddPropList (DissolvedZinc_,           Char_DissolvedZinc,             ListNumber)
+            call AddPropList (ParticulateCopper_,       Char_ParticulateCopper,         ListNumber)
+            call AddPropList (DissolvedCopper_,         Char_DissolvedCopper,           ListNumber)
+            call AddPropList (ParticulateCadmium_,      Char_ParticulateCadmium,        ListNumber)
+            call AddPropList (DissolvedCadmium_,        Char_DissolvedCadmium,          ListNumber)
+            call AddPropList (ParticulateMercury_,      Char_ParticulateMercury,        ListNumber)
+            call AddPropList (DissolvedMercury_,        Char_DissolvedMercury,          ListNumber)
+            call AddPropList (ParticulateLead_,         Char_ParticulateLead,           ListNumber)
+            call AddPropList (DissolvedLead_,           Char_DissolvedLead,             ListNumber)
+            call AddPropList (ParticulateMetal_,        Char_ParticulateMetal,          ListNumber)
+            call AddPropList (DissolvedMetal_,          Char_DissolvedMetal,            ListNumber)
+            
             call AddPropList (Larvae_,                  Char_Larvae,                    ListNumber)
             call AddPropList (Age_,                     Char_Age,                       ListNumber)
             call AddPropList (Fish_,                    Char_Fish,                      ListNumber)
@@ -2487,7 +2530,10 @@ cd1 :   if ((Property == POC_                   ) .OR.  (Property == PON_       
             (Property == POP2_                  ) .OR.  (Property == POP3_                  ) .OR.          &
             (Property == POP4_                  ) .OR.  (Property == POP5_                  ) .OR.          &
             
-            (Property == SolubilizingP_         )) then
+            (Property == SolubilizingP_         ) .OR.  (Property == ParticulateMetal_      ) .OR.          &
+            (Property == ParticulateCadmium_    ) .OR.  (Property == ParticulateCopper_     ) .OR.          &
+            (Property == ParticulateLead_       ) .OR.  (Property == ParticulateZinc_       ) .OR.          &
+            (Property == ParticulateMercury_    )    ) then
 
             Check_Particulate_Property = .TRUE.    
         
