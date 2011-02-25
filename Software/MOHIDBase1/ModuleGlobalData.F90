@@ -290,7 +290,7 @@ Module ModuleGlobalData
     integer, parameter :: DissolvedLead_                    = 8007
     integer, parameter :: ParticulateCadmium_               = 8008  ! Cd
     integer, parameter :: DissolvedCadmium_                 = 8009
-    integer, parameter :: ParticulateMercury_               = 8010  ! Hg
+    integer, parameter :: ParticulateMercury_               = 8010  !  Hg
     integer, parameter :: DissolvedMercury_                 = 8011
     
 !____POM pools (for aquaculture cages)__________________________________________    
