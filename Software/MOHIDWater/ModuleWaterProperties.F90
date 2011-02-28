@@ -257,15 +257,14 @@ Module ModuleWaterProperties
     private ::          ConstructDoSat
     private ::      Construct_PropertyList
     private ::          Construct_Property  
-    private ::              Construct_PropertyValues
-    private ::                  DefaultValueProp            !Function
-    private ::                  ReadOldConcBoundariesHDF
-    private ::              Construct_PropertyEvolution
+    private ::               Construct_Property_Keywords
     private ::                  Read_Advec_Difus_Parameters
     private ::                  Read_Partition_Parameters
     private ::                  Read_Filtration_Parameters
     private ::                  Read_Reinitialize_Parameters
-    private ::              Construct_PropertyOutPut
+    private ::               Construct_Property_Arrays
+    private ::                  DefaultValueProp            !Function
+    private ::                  ReadOldConcBoundariesHDF
     private ::          Add_Property
     private ::      Construct_WQrateList
     private ::          Construct_WQrate 
@@ -471,6 +470,10 @@ Module ModuleWaterProperties
     integer, parameter                          :: NudgingAdvVert       = 2
     integer, parameter                          :: Hybrid               = 3
     
+    !Boundary Method
+    integer, parameter                          :: BInterior            = 0
+    integer, parameter                          :: BExterior            = 1
+    
     character(LEN = StringLength), parameter    :: prop_block_begin     = '<beginproperty>'
     character(LEN = StringLength), parameter    :: prop_block_end       = '<endproperty>'
     character(LEN = StringLength), parameter    :: wqrateblock_begin    = '<beginwqrate>'
@@ -611,7 +614,8 @@ Module ModuleWaterProperties
         logical                                 :: Life                 = .false.
         logical                                 :: Partitioning         = .false.
         logical                                 :: FreeVerticalMovement = .false.
-        logical                                 :: AdvectionDiffusion   = .false. 
+        logical                                 :: AdvectionDiffusion   = .false.
+        integer                                 :: BoundaryMethod       =  BInterior 
         logical                                 :: Discharges           = .false.
         logical                                 :: DischargesTracking   = .false.
         logical                                 :: SurfaceFluxes        = .false.
@@ -3392,40 +3396,1247 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
         integer                         :: ClientNumber
 
         !----------------------------------------------------------------------
-             
+
         allocate (NewProperty)
-
-        nullify(NewProperty%Concentration        )
-        nullify(NewProperty%Mass_Created         )
-        nullify(NewProperty%SurfaceFlux          )
-        nullify(NewProperty%Mass_Destroid        )        
-        nullify(NewProperty%Assimilation%Field   )
-        nullify(NewProperty%Prev,NewProperty%Next)
-        
-        nullify(NewProperty%SubModel%PreviousField, NewProperty%SubModel%NextField)
-
 
         !Construct property ID
         call ConstructPropertyID        (NewProperty%ID, Me%ObjEnterData, FromBlock)
 
-        !Construct property values
-        call Construct_PropertyState    (NewProperty)
-        
-        !Construct property values
-        call Construct_PropertyValues   (NewProperty)
+        !Griflet: READ KEYWORDS and set Variables
+        call Construct_Property_Keywords(NewProperty, ClientNumber)        
 
-        !Construct property evolution parameters
-        call Construct_PropertyEvolution(NewProperty,ClientNumber)
-
-        !Defines the property output
-        call Construct_PropertyOutPut   (NewProperty)
+        !Griflet: Allocate arrays
+        call Construct_Property_Arrays  (NewProperty)
 
         if (NewProperty%Evolution%DecayRateProperty)                                    &
             call SetDecayRatePropertyOptions(NewProperty)
 
-
     end subroutine Construct_Property
+    !--------------------------------------------------------------------------
 
+    !--------------------------------------------------------------------------
+    subroutine Construct_Property_Keywords  (NewProperty, ClientNumber)
+
+        !Arguments-------------------------------------------------------------
+        type(T_property), pointer       :: NewProperty
+        integer                         :: ClientNumber
+
+        !Local-----------------------------------------------------------------
+        integer                         :: STAT_CALL
+        integer                         :: iflag
+        character(len=8)                :: BoundaryMethod
+        real                            :: ModelDT
+      
+        real                            :: ErrorAux, auxFactor, DTaux
+        logical                         :: VariableDT, Dummy
+        character(LEN = StringLength)   :: AuxName
+        !----------------------------------------------------------------------
+
+        !<BeginKeyword>
+            !Keyword          : PARTICULATE
+            !<BeginDescription>      
+                !Checks if the user wants this property to be particulate.
+                !This property will be used to define particulated properties
+            !<EndDescription>
+            !Type             : Boolean   
+            !Default          : .false.
+            !File keyword     : DISPQUAL
+            !Multiple Options : 1 (.true.), 0 (.false.)
+            !Search Type      : From Block
+            !Begin Block      : <beginproperty>
+            !End Block        : <endproperty>
+        !<EndKeyword>
+        call GetData(NewProperty%Particulate,                                           &
+                     Me%ObjEnterData,iflag,                                             &
+                     SearchType   = FromBlock,                                          &
+                     keyword      = 'PARTICULATE',                                      &
+                     Default      = .false.,                                            &
+                     ClientModule = 'ModuleWaterProperties',                            &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_)                                                    &
+            stop 'Construct_Property_Keywords - ModuleWaterProperties - ERR01' 
+
+        if (NewProperty%Particulate)then
+            if(.not. Check_Particulate_Property(NewProperty%ID%IDNumber)) then 
+                write(*,*) 'Property '//trim(NewProperty%ID%Name)// 'is not'
+                write(*,*) 'recognised as PARTICULATE'
+                stop 'Construct_Property_Keywords - ModuleWaterProperties - ERR02'
+            end if
+        endif
+
+        !<BeginKeyword>
+            !Keyword          : IS_COEF
+            !<BeginDescription>      
+                !This coeficient can only be used when the 
+                !relation between the IS units and units that 
+                !the user wants to use is linear
+            !<EndDescription>
+            !Type             : Real   
+            !Default          : 1.
+            !File keyword     : DISPQUAL
+            !Multiple Options : Do not have
+            !Search Type      : From Block
+            !Begin Block      : <beginproperty>
+            !End Block        : <endproperty>
+        !<EndKeyword>
+        call GetData(NewProperty%IScoefficient,                                         &
+                     Me%ObjEnterData, iflag,                                            &
+                     KeyWord        = 'IS_COEF',                                        &
+                     Default        = 1.e-3,                                            &      
+                     SearchType     = FromBlock,                                        &
+                     ClientModule   = 'ModuleWaterProperties',                          &
+                     STAT           = STAT_CALL)            
+        if (STAT_CALL .NE. SUCCESS_)                                                    &
+            stop 'Construct_Property_Keywords - ModuleWaterProperties - ERR03' 
+
+        !<BeginKeyword>
+            !Keyword          : OLD
+            !<BeginDescription>       
+               ! This variable is a logic one is true if the property is old
+               ! and the user wants to continue the run with results of a previous run.
+               !
+            !<EndDescription>
+            !Type             : Boolean 
+            !Default          : .false.
+            !File keyword     : DISPQUAL
+            !Multiple Options : 1 (.true.), 0 (.false.)
+            !Search Type      : FromBlock
+            !Begin Block      : <beginproperty>
+            !End Block        : <endproperty>
+        !<EndKeyword>
+        call GetData(NewProperty%Old,                                                   &
+                     Me%ObjEnterData,iflag,                                             &
+                     SearchType     = FromBlock,                                        &
+                     keyword        = 'OLD',                                            &
+                     Default        = .false.,                                          &
+                     ClientModule   = 'ModuleWaterProperties',                          &
+                     STAT           = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_)                                                    &
+            stop 'Construct_Property_Keywords - ModuleWaterProperties - ERR04' 
+
+        !<BeginKeyword>
+            !Keyword          : MIN_VALUE
+            !<BeginDescription>       
+               ! This variable is to avoid negative concentration for properties which
+               ! have concentrations close to zero.
+               !
+            !<EndDescription>
+            !Type             : Real 
+            !Default          : .false.
+            !File keyword     : DISPQUAL
+            !Search Type      : FromBlock
+            !Begin Block      : <beginproperty>
+            !End Block        : <endproperty>
+        !<EndKeyword>
+        NewProperty%Evolution%MinConcentration = .false.
+
+        call GetData(NewProperty%MinValue,                                              &
+                     Me%ObjEnterData, iflag,                                            &
+                     SearchType     = FromBlock,                                        &
+                     keyword        = 'MIN_VALUE',                                      &
+                     default        = FillValueReal,                                    &
+                     ClientModule   = 'ModuleWaterProperties',                          &
+                     STAT           = STAT_CALL)              
+        if (STAT_CALL .NE. SUCCESS_)                                                    &
+            stop 'Construct_Property_Keywords - ModuleWaterProperties - ERR05' 
+        if (iflag==1)  then
+            NewProperty%Evolution%MinConcentration = .true.
+        endif
+
+        !<BeginKeyword>
+            !Keyword          : MAX_VALUE
+            !<BeginDescription>       
+               ! This variable is to avoid very large concentrationsassociated with instabilities
+               !
+            !<EndDescription>
+            !Type             : Real 
+            !Default          : .false.
+            !File keyword     : DISPQUAL
+            !Search Type      : FromBlock
+            !Begin Block      : <beginproperty>
+            !End Block        : <endproperty>
+        !<EndKeyword>
+        NewProperty%Evolution%MaxConcentration = .false.
+
+        call GetData(NewProperty%MaxValue,                                              &
+                     Me%ObjEnterData, iflag,                                            &
+                     SearchType     = FromBlock,                                        &
+                     keyword        = 'MAX_VALUE',                                      &
+                     default        = - FillValueReal,                                  &                     
+                     ClientModule   = 'ModuleWaterProperties',                          &
+                     STAT           = STAT_CALL)              
+        if (STAT_CALL .NE. SUCCESS_)                                                    &
+            stop 'Construct_Property_Keywords - ModuleWaterProperties - ERR06' 
+        if (iflag==1)  then
+            NewProperty%Evolution%MaxConcentration = .true.
+        endif
+
+        !<BeginKeyword>
+            !Keyword          : WARN_ON_NEGATIVE_VALUES
+            !<BeginDescription>       
+               ! Write a warning to screen when property has negative value
+               !
+            !<EndDescription>
+            !Type             : Real 
+            !Default          : .false.
+            !File keyword     : DISPQUAL
+            !Search Type      : FromBlock
+            !Begin Block      : <beginproperty>
+            !End Block        : <endproperty>
+        !<EndKeyword>
+        call GetData(NewProperty%WarnOnNegativeValues,                                   &
+                     Me%ObjEnterData, iflag,                                             &
+                     SearchType     = FromBlock,                                         &
+                     keyword        = 'WARN_ON_NEGATIVE_VALUES',                         &
+                     ClientModule   = 'ModuleWaterProperties',                           &
+                     STAT           = STAT_CALL)              
+        if (STAT_CALL .NE. SUCCESS_)                                                     &
+            stop 'Construct_Property_Keywords - ModuleWaterProperties - ERR07' 
+
+        !<BeginKeyword>
+            !Keyword          : DEFAULTBOUNDARY
+            !<BeginDescription>      
+                ! The default value of a specific water property imposed in the open boundary
+            !<EndDescription>
+            !Type             : Real   
+            !Default          : Is function of property (see routine DefaultValueProp in moduleWaterProperites)
+            !File keyword     : DISPQUAL
+            !Multiple Options : Do not have
+            !Search Type      : From Block 
+            !Begin Block      : <beginproperty>
+            !End Block        : <endproperty>
+        !<EndKeyword>
+        call GetData(NewProperty%Assimilation%scalar,                                   &
+                     Me%ObjEnterData,iflag,                                             &
+                     SearchType = FromBlock,                                            &
+                     keyword    = 'DEFAULTBOUNDARY',                                    &
+                     ClientModule = 'ModuleWaterProperties',                            &
+                     STAT       = STAT_CALL)            
+        if (STAT_CALL .NE. SUCCESS_)                                                    &
+            stop 'Construct_Property_Keywords - ModuleWaterProperties - ERR08' 
+        if (iflag==0)                                                                   &
+            NewProperty%Assimilation%scalar = DefaultValueProp(NewProperty%ID%IDNumber)
+
+            !Only the EXTERIOR and the INTERIOR process were considered
+
+            !<BeginKeyword>
+                !Keyword          : BOUNDARY_INITIALIZATION
+                !<BeginDescription>       
+                   ! Two processes were consider to initialize the boundary values:
+                   !         EXTERIOR - A value exterior to the domain is be imposed. 
+                   !                    For this option was only consider a constant value.
+                   !         INTERIOR - The boundary are admitted equal to the values given 
+                   !                    in the same cells during the domain initialization.              
+                   !
+                !<EndDescription>
+                !Type             : Character 
+                !Default          : 'INTERIOR'
+                !File keyword     : DISPQUAL
+                !Multiple Options : EXTERIOR, INTERIOR
+                !Search Type      : FromBlock
+                !Begin Block      : <beginproperty>
+                !End Block        : <endproperty>
+            !<EndKeyword>
+
+            call GetData(BoundaryMethod,                                                &
+                         Me%ObjEnterData, iflag,                                        &
+                         SearchType = FromBlock,                                        &
+                         keyword    = 'BOUNDARY_INITIALIZATION',                        &
+                         Default    = 'INTERIOR',                                       &
+                         ClientModule = 'ModuleWaterProperties',                        &
+                         STAT       = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_)                                                &
+                stop 'Construct_Property_Keywords - ModuleWaterProperties - ERR09' 
+               
+            if      (BoundaryMethod == 'EXTERIOR'       ) then
+            
+                NewProperty%Evolution%BoundaryMethod = BExterior
+                
+            elseif  (BoundaryMethod == 'INTERIOR'       ) then
+            
+                NewProperty%Evolution%BoundaryMethod = BInterior                
+                
+            elseif(BoundaryMethod .ne. 'EXTERIOR' .and. BoundaryMethod .ne. 'INTERIOR') then
+
+                    write(*,*) 
+                    write(*,*) 'The boundary initialization methods can only be two: '
+                    write(*,*) '    INTERIOR OR EXTERIOR'
+                    stop       'Construct_Property_Allocate - ModuleWaterProperties - ERR190'  
+        
+            endif
+
+        !Read the options associated with the Nesting 
+        call ReadSubModelOptions(NewProperty)
+
+        !<BeginKeyword>
+            !Keyword          : ADVECTION_DIFFUSION
+            !<BeginDescription>       
+               ! By default the transport due to advection and Diffusion computed for all properties
+            !<EndDescription>
+            !Type             : Boolean 
+            !Default          : .true.
+            !File keyword     : DISPQUAL
+            !Multiple Options : 1 (.true.), 0 (.false.)
+            !Search Type      : FromBlock
+            !Begin Block      : <beginproperty>
+            !End Block        : <endproperty>
+        !<EndKeyword>
+        call GetData(NewProperty%Evolution%AdvectionDiffusion,                           &
+                     Me%ObjEnterData, iflag,                                             &
+                     SearchType   = FromBlock,                                           &
+                     keyword      = 'ADVECTION_DIFFUSION',                               &
+                     Default      = .true.,                                              &
+                     ClientModule = 'ModuleWaterProperties',                             &
+                     STAT       = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_)                                                     &
+            stop 'Subroutine Construct_Property_Keywords - ModuleWaterProperties - ERR10'
+
+        if (NewProperty%Evolution%AdvectionDiffusion)                                    &
+            NewProperty%Evolution%Variable = .true.
+
+        if (NewProperty%evolution%AdvectionDiffusion)                                    &
+            call Read_Advec_Difus_Parameters(NewProperty)
+
+
+        !<BeginKeyword>
+            !Keyword          : INSTANT_MIXING
+            !<BeginDescription>       
+               ! This option mix instantaneously the all water column
+            !<EndDescription>
+            !Type             : Boolean 
+            !Default          : .false.
+            !File keyword     : DISPQUAL
+            !Multiple Options : 1 (.true.), 0 (.false.)
+            !Search Type      : FromBlock
+            !Begin Block      : <beginproperty>
+            !End Block        : <endproperty>
+        !<EndKeyword>
+
+        call GetData(NewProperty%Evolution%InstantMixing,                                &
+                     Me%ObjEnterData, iflag,                                             &
+                     SearchType   = FromBlock,                                           &
+                     keyword      = 'INSTANT_MIXING',                                    &
+                     Default      = .false.,                                             &
+                     ClientModule = 'ModuleWaterProperties',                             &
+                     STAT       = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_)                                                     &
+            stop 'Subroutine Construct_Property_Keywords - ModuleWaterProperties - ERR11'
+
+        if (NewProperty%Evolution%InstantMixing .and. NewProperty%evolution%AdvectionDiffusion) &
+            stop 'Subroutine Construct_Property_Keywords - ModuleWaterProperties - ERR12'
+
+        if(NewProperty%Evolution%InstantMixing)                                          &
+           NewProperty%Evolution%Variable = .true.
+        
+        !<BeginKeyword>
+            !Keyword          : WATER_QUALITY
+            !<BeginDescription>       
+               ! This property has Water Quality Model as a sink and source
+            !<EndDescription>
+            !Type             : Logical 
+            !Default          : FALSE
+            !File keyword     : DISPQUAL
+            !Multiple Options : NO, WQM
+            !Search Type      : FromBlock
+            !Begin Block      : <beginproperty>
+            !End Block        : <endproperty>
+        !<EndKeyword>       
+        call GetData(NewProperty%Evolution%WaterQuality,                                 &
+                     Me%ObjEnterData, iflag,                                             &
+                     SearchType   = FromBlock,                                           &
+                     keyword      = 'WATER_QUALITY',                                     &
+                     Default      = OFF,                                                 &
+                     ClientModule = 'ModuleWaterProperties',                             &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_)                                                     &
+            stop 'Subroutine Construct_Property_Keywords - ModuleWaterProperties - ERR13'
+
+        if(NewProperty%Evolution%WaterQuality) NewProperty%evolution%Variable = .true.
+
+        !<BeginKeyword>
+            !Keyword          : MACROALGAE
+            !<BeginDescription>       
+               ! This property has Macroalgae Model as a sink and source
+            !<EndDescription>
+            !Type             : Logical 
+            !Default          : FALSE
+            !File keyword     : DISPQUAL
+            !Multiple Options : NO, WQM
+            !Search Type      : FromBlock
+            !Begin Block      : <beginproperty>
+            !End Block        : <endproperty>
+        !<EndKeyword>       
+        call GetData(NewProperty%Evolution%MacroAlgae,                                  &
+                     Me%ObjEnterData, iflag,                                            &
+                     SearchType   = FromBlock,                                          &
+                     keyword      = 'MACROALGAE',                                       &
+                     Default      = OFF,                                                &
+                     ClientModule = 'ModuleWaterProperties',                            &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_)                                                    &
+            stop 'Subroutine Construct_Property_Keywords - ModuleWaterProperties - ERR14'
+
+        if(NewProperty%Evolution%Macroalgae) NewProperty%evolution%Variable = .true.
+
+        !<BeginKeyword>
+            !Keyword          : CEQUALW2
+            !<BeginDescription>       
+               ! This property has CEQUALW2 model as a sink and source
+            !<EndDescription>
+            !Type             : Logical 
+            !Default          : FALSE
+            !File keyword     : DISPQUAL
+            !Multiple Options : NO, WQM
+            !Search Type      : FromBlock
+            !Begin Block      : <beginproperty>
+            !End Block        : <endproperty>
+        !<EndKeyword>       
+        call GetData(NewProperty%evolution%CEQUALW2,                                     &
+                     Me%ObjEnterData, iflag,                                             &
+                     SearchType   = FromBlock,                                           &
+                     keyword      = 'CEQUALW2',                                          &
+                     Default      = OFF,                                                 &
+                     ClientModule = 'ModuleWaterProperties',                             &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_)                                                     &
+            stop 'Subroutine Construct_Property_Keywords - ModuleWaterProperties - ERR15'
+
+        if(NewProperty%evolution%CEQUALW2) NewProperty%evolution%Variable = .true.
+        
+
+        !<BeginKeyword>
+            !Keyword          : LIFE
+            !<BeginDescription>       
+               ! This property has Life model as a sink and source
+            !<EndDescription>
+            !Type             : Logical 
+            !Default          : FALSE
+            !File keyword     : DISPQUAL
+            !Multiple Options : NO, WQM
+            !Search Type      : FromBlock
+            !Begin Block      : <beginproperty>
+            !End Block        : <endproperty>
+        !<EndKeyword>       
+        call GetData(NewProperty%evolution%Life,                                         &
+                     Me%ObjEnterData, iflag,                                             &
+                     SearchType   = FromBlock,                                           &
+                     keyword      = 'LIFE',                                              &
+                     Default      = OFF,                                                 &
+                     ClientModule = 'ModuleWaterProperties',                             &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_)                                                     &
+            stop 'Subroutine Construct_Property_Keywords - ModuleWaterProperties - ERR16'
+
+        if(NewProperty%evolution%Life) NewProperty%evolution%Variable = .true.
+
+        !<BeginKeyword>
+            !Keyword          : PARTITION
+            !<BeginDescription>       
+               ! This property has partition as a sink and source
+            !<EndDescription>
+            !Type             : Logical 
+            !Default          : FALSE
+            !File keyword     : DISPQUAL
+            !Multiple Options : NO, WQM
+            !Search Type      : FromBlock
+            !Begin Block      : <beginproperty>
+            !End Block        : <endproperty>
+        !<EndKeyword>       
+        call GetData(NewProperty%Evolution%Partitioning,                                 &
+                     Me%ObjEnterData, iflag,                                             &
+                     SearchType   = FromBlock,                                           &
+                     keyword      = 'PARTITION',                                         &
+                     Default      = OFF,                                                 &
+                     ClientModule = 'ModuleWaterProperties',                             &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_)                                                     &
+            stop 'Subroutine Construct_Property_Keywords - ModuleWaterProperties - ERR17'
+
+        if(NewProperty%evolution%Partitioning) NewProperty%evolution%Variable = .true.
+        
+        if(NewProperty%Evolution%Partitioning)                                           &
+            call Read_Partition_Parameters(NewProperty)
+
+
+        !<BeginKeyword>
+            !Keyword          : DISCHARGES
+            !<BeginDescription>       
+               !  This property has discharges ? no - 0;  yes - 1
+            !<EndDescription>
+            !Type             : Boolean 
+            !Default          : .false.
+            !File keyword     : DISPQUAL
+            !Multiple Options : 1 (.true.), 0 (.false.)
+            !Search Type      : FromBlock
+            !Begin Block      : <beginproperty>
+            !End Block        : <endproperty>
+        !<EndKeyword>       
+        call GetData(NewProperty%evolution%Discharges,                                   &
+                     Me%ObjEnterData, iflag,                                             &
+                     SearchType   = FromBlock,                                           &
+                     keyword      = 'DISCHARGES',                                        &
+                     Default      = .false.,                                             &
+                     ClientModule = 'ModuleWaterProperties',                             &
+                     STAT       = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_)                                                     &
+            stop 'Subroutine Construct_Property_Keywords - ModuleWaterProperties - ERR18'
+
+
+        if (NewProperty%evolution%Discharges .and. (.not. NewProperty%evolution%AdvectionDiffusion))  then
+            write(*,*) 
+            write(*,*)' Property ', trim(NewProperty%ID%Name), ' discharged without advection-diffusion.' 
+            stop 'Subroutine Construct_Property_Keywords - ModuleWaterProperties - ERR19'
+        end if
+      
+        if (NewProperty%evolution%Discharges)                                            &
+            NewProperty%Evolution%Variable = .true.
+
+        !<BeginKeyword>
+            !Keyword          : DISCHARGES_TRACKING
+            !<BeginDescription>       
+               !  This property writes discharges as time serie ? no - 0;  yes - 1
+            !<EndDescription>
+            !Type             : Boolean 
+            !Default          : .false.
+            !File keyword     : DISPQUAL
+            !Multiple Options : 1 (.true.), 0 (.false.)
+            !Search Type      : FromBlock
+            !Begin Block      : <beginproperty>
+            !End Block        : <endproperty>
+        !<EndKeyword>       
+        call GetData(NewProperty%evolution%DischargesTracking,                           &
+                     Me%ObjEnterData, iflag,                                             &
+                     SearchType   = FromBlock,                                           &
+                     keyword      = 'DISCHARGES_TRACKING',                               &
+                     Default      = .false.,                                             &
+                     ClientModule = 'ModuleWaterProperties',                             & 
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_)                                                     &
+            stop 'Subroutine Construct_Property_Keywords - ModuleWaterProperties - ERR20'
+
+
+        !<BeginKeyword>
+            !Keyword          : VERTICAL_MOVEMENT
+            !<BeginDescription>       
+               !  This property has free vertical movement ? no - 0;  yes - 1
+            !<EndDescription>
+            !Type             : Boolean 
+            !Default          : .false.
+            !File keyword     : DISPQUAL
+            !Multiple Options : 1 (.true.), 0 (.false.)
+            !Search Type      : FromBlock
+            !Begin Block      : <beginproperty>
+            !End Block        : <endproperty>
+        !<EndKeyword>
+        call GetData(NewProperty%evolution%FreeVerticalMovement,                         &
+                     Me%ObjEnterData, iflag,                                             &
+                     SearchType   = FromBlock,                                           &
+                     keyword      = 'VERTICAL_MOVEMENT',                                 &
+                     Default      = .false.,                                             &
+                     ClientModule = 'ModuleWaterProperties',                             &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_)                                                     &
+            stop 'Subroutine Construct_Property_Keywords - ModuleWaterProperties - ERR21'
+
+        if (NewProperty%evolution%FreeVerticalMovement)                                  &
+            !PropertyX change in time
+            NewProperty%Evolution%Variable = .true.
+        
+        !<BeginKeyword>
+            !Keyword          : SURFACE_FLUXES
+            !<BeginDescription>       
+               !  This property has surface fluxes ? no - 0;  yes - 1
+            !<EndDescription>
+            !Type             : Boolean 
+            !Default          : .false.
+            !File keyword     : DISPQUAL
+            !Multiple Options : 1 (.true.), 0 (.false.)
+            !Search Type      : FromBlock
+            !Begin Block      : <beginproperty>
+            !End Block        : <endproperty>
+        !<EndKeyword>
+        call GetData(NewProperty%evolution%SurfaceFluxes,                                &
+                     Me%ObjEnterData, iflag,                                             &
+                     SearchType   = FromBlock,                                           &
+                     keyword      = 'SURFACE_FLUXES',                                    &
+                     Default      = .false.,                                             & 
+                     ClientModule = 'ModuleWaterProperties',                             &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_)                                                     &
+            stop 'Subroutine Construct_Property_Keywords - ModuleWaterProperties - ERR22'
+
+        if (NewProperty%evolution%SurfaceFluxes)                                         &
+            NewProperty%Evolution%Variable = .true.
+            
+        if (NewProperty%evolution%SurfaceFluxes .and. .not. Me%ExtSurface%PrecipitationON) then
+        
+            call GetHydrodynamicAirOptions (Me%ObjHydrodynamic,                         & 
+                                            SurfaceWaterFluxYes =                       &
+                                            Me%ExtSurface%PrecipitationON,              &
+                                            WindYes = Dummy,             &
+                                            AtmPressureYes = Dummy,      &
+                                            MslpYes = Dummy,             &
+                                            STAT = STAT_CALL)
+
+            
+            if (STAT_CALL .NE. SUCCESS_)                                                &
+                stop 'Subroutine Construct_Property_Keywords - ModuleWaterProperties - ERR22'
+        
+        endif 
+
+        !<BeginKeyword>
+            !Keyword          : BOTTOM_FLUXES
+            !<BeginDescription>       
+               !  This property has bottom fluxes ? no - 0;  yes - 1
+            !<EndDescription>
+            !Type             : Boolean 
+            !Default          : .false.
+            !File keyword     : DISPQUAL
+            !Multiple Options : 1 (.true.), 0 (.false.)
+            !Search Type      : FromBlock
+            !Begin Block      : <beginproperty>
+            !End Block        : <endproperty>
+        !<EndKeyword>
+        call GetData(NewProperty%Evolution%BottomFluxes,                                 &
+                     Me%ObjEnterData, iflag,                                             &
+                     SearchType   = FromBlock,                                           &
+                     keyword      = 'BOTTOM_FLUXES',                                     &
+                     Default      = .false.,                                             &
+                     ClientModule = 'ModuleWaterProperties',                             &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_)                                                     &
+            stop 'Subroutine Construct_Property_Keywords - ModuleWaterProperties - ERR23'
+
+        if (NewProperty%Evolution%BottomFluxes)                                          &
+            NewProperty%Evolution%Variable = .true.
+
+        !<BeginKeyword>
+            !Keyword          : DATA_ASSIMILATION
+            !<BeginDescription>       
+               !  Chek is this property has data assimilation ? no - 0;  yes - 1
+            !<EndDescription>
+            !Type             : integer 
+            !Default          : NoNudging
+            !File keyword     : DISPQUAL
+            !Multiple Options : 1 (.true.), 0 (.false.)
+            !Search Type      : FromBlock
+            !Begin Block      : <beginproperty>
+            !End Block        : <endproperty>
+        !<EndKeyword>
+        call GetData(NewProperty%Evolution%DataAssimilation,                             &
+                     Me%ObjEnterData, iflag,                                             &
+                     ClientModule ='ModuleWaterProperties',                              &
+                     Default      = NoNudging,                                           &
+                     SearchType   = FromBlock,                                           &
+                     keyword      ='DATA_ASSIMILATION',                                  &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_)                                                     &
+            stop 'Subroutine Construct_Property_Keywords - ModuleWaterProperties - ERR24'
+        
+        if (NewProperty%Evolution%DataAssimilation /= NoNudging)then
+            NewProperty%Evolution%Variable = .true.
+        endif
+
+        if (NewProperty%Evolution%DataAssimilation /= NoNudging      .and.              &
+            NewProperty%Evolution%DataAssimilation /= NudgingToRef   .and.              &
+            NewProperty%Evolution%DataAssimilation /= NudgingAdvVert .and.              &
+            NewProperty%Evolution%DataAssimilation /= Hybrid)then
+            stop 'Subroutine Construct_Property_Keywords - ModuleWaterProperties - ERR25'
+        endif
+
+        if(NewProperty%Evolution%DataAssimilation == Hybrid .and. .not. &
+           NewProperty%SubModel%ON)then
+            write(*,*)'Data assimilation scheme set to Hybrid but SUBMODEL is not set'
+            write(*,*)'Property : ', trim(NewProperty%ID%Name)
+            stop 'Subroutine Construct_Property_Keywords - ModuleWaterProperties - ERR26'
+        endif
+
+
+        !<BeginKeyword>
+            !Keyword          : LIGHT_EXTINCTION
+            !<BeginDescription>       
+               !  Chek is this property is used to compute light extinction? no - 0;  yes - 1
+            !<EndDescription>
+            !Type             : Boolean 
+            !Default          : .false.
+            !File keyword     : DISPQUAL
+            !Multiple Options : 1 (.true.), 0 (.false.)
+            !Search Type      : FromBlock
+            !Begin Block      : <beginproperty>
+            !End Block        : <endproperty>
+        !<EndKeyword>
+        call GetData(NewProperty%Evolution%LightExtinction,                             &
+                     Me%ObjEnterData, iflag,                                            &
+                     ClientModule ='ModuleWaterProperties',                             &
+                     Default      = OFF,                                                &
+                     SearchType   = FromBlock,                                          &
+                     keyword      ='LIGHT_EXTINCTION',                                  &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_)                                                    &
+            stop 'Subroutine Construct_Property_Keywords - ModuleWaterProperties - ERR27'
+
+        if(NewProperty%Evolution%LightExtinction)then
+            
+            call GetData(NewProperty%Evolution%Extinction%Coefficient,                  &
+                         Me%ObjEnterData, iflag,                                        &
+                         ClientModule ='ModuleWaterProperties',                         &
+                         Default      = 1.0,                                            &
+                         SearchType   = FromBlock,                                      &
+                         keyword      ='EXTINCTION_PARAMETER',                          &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_)                                                &
+                stop 'Subroutine Construct_Property_Keywords - ModuleWaterProperties - ERR28'
+
+        end if
+
+
+       !aqui
+       !<BeginKeyword>
+            !Keyword          : FILTRATION
+            !<BeginDescription>       
+            ! This property has filtration as a sink 
+            !<EndDescription>
+            !Type             : Logical 
+            !Default          : FALSE
+            !File keyword     : DISPQUAL
+            !Multiple Options : NO, WQM
+            !Search Type      : FromBlock
+            !Begin Block      : <beginproperty>
+            !End Block        : <endproperty>
+        !<EndKeyword>       
+        call GetData(NewProperty%Evolution%Filtration%On,                               &
+                     Me%ObjEnterData, iflag,                                            &
+                     SearchType   = FromBlock,                                          &
+                     keyword      = 'FILTRATION',                                       &
+                     Default      = OFF,                                                &
+                     ClientModule = 'ModuleWaterProperties',                            &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_)                                                    &
+            stop 'Subroutine Construct_Property_Keywords - ModuleWaterProperties - ERR29'
+
+        if(NewProperty%Evolution%Filtration%On) NewProperty%evolution%Variable = .true.
+        
+        if(NewProperty%Evolution%Filtration%On)                                           &
+            call Read_Filtration_Parameters(NewProperty,ClientNumber)
+
+       !<BeginKeyword>
+            !Keyword          : LAG_SINKS_SOURCES
+            !<BeginDescription>       
+            ! This property has sinks and sources computed in the lagrangian module
+            !<EndDescription>
+            !Type             : Logical 
+            !Default          : FALSE
+            !File keyword     : DISPQUAL
+            !Multiple Options : NO, WQM
+            !Search Type      : FromBlock
+            !Begin Block      : <beginproperty>
+            !End Block        : <endproperty>
+        !<EndKeyword>       
+        call GetData(NewProperty%Evolution%LagSinksSources,                             &
+                     Me%ObjEnterData, iflag,                                            &
+                     SearchType   = FromBlock,                                          &
+                     keyword      = 'LAG_SINKS_SOURCES',                                &
+                     Default      = OFF,                                                &
+                     ClientModule = 'ModuleWaterProperties',                            &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_)                                                    &
+            stop 'Subroutine Construct_Property_Keywords - ModuleWaterProperties - ERR30'
+
+        if(NewProperty%Evolution%LagSinksSources) NewProperty%evolution%Variable = .true.
+
+
+        !<BeginKeyword>
+            !Keyword          : FIRST_ORDER_DECAY
+            !<BeginDescription>       
+               !  This property has a first order decay ? no - 0;  yes - 1
+            !<EndDescription>
+            !Type             : Boolean 
+            !Default          : .false.
+            !File keyword     : DISPQUAL
+            !Multiple Options : 1 (.true.), 0 (.false.)
+            !Search Type      : FromBlock
+            !Begin Block      : <beginproperty>
+            !End Block        : <endproperty>
+        !<EndKeyword>
+        call GetData(NewProperty%evolution%FirstOrderDecay,                              &
+                     Me%ObjEnterData, iflag,                                             &
+                     SearchType   = FromBlock,                                           &
+                     keyword      = 'FIRST_ORDER_DECAY',                                 &
+                     Default      = .false.,                                             &
+                     ClientModule = 'ModuleWaterProperties',                             &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_)                                                     &
+            stop 'Subroutine Construct_Property_Keywords - ModuleWaterProperties - ERR31'
+
+        if (NewProperty%evolution%FirstOrderDecay) then
+
+            NewProperty%evolution%Variable = .true.
+
+            !<BeginKeyword>
+                !Keyword          : T90_PROPERTY_NAME
+                !<BeginDescription>       
+                  !  The time in seconds to decay an order of magnitude ? 
+                !<EndDescription>
+                !Type             : real 
+                !Default          : 'T90'
+                !File keyword     : DISPQUAL
+                !Search Type      : FromBlock
+                !Begin Block      : <beginproperty>
+                !End Block        : <endproperty>
+            !<EndKeyword>
+            call GetData(AuxName,                                                       &
+                         Me%ObjEnterData, iflag,                                        &
+                         SearchType   = FromBlock,                                      &
+                         keyword      = 'T90_PROPERTY_NAME',                            &
+                         Default      = trim(GetPropertyName(T90_)),                    &
+                         ClientModule = 'ModuleWaterProperties',                        &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_)                                                &
+                stop 'Subroutine Construct_Property_Keywords - ModuleWaterProperties - ERR32'
+                      
+            if (.not.CheckPropertyName(trim(AuxName),NewProperty%evolution%T90PropertyID)) then
+                stop 'Subroutine Construct_Property_Keywords - ModuleWaterProperties - ERR33'
+            endif
+
+        endif
+
+        !<BeginKeyword>
+            !Keyword          : DECAY_RATE_PROPERTY
+            !<BeginDescription>       
+               !  This property is a decay rate ? no - 0;  yes - 1
+            !<EndDescription>
+            !Type             : Boolean 
+            !Default          : .false.
+            !File keyword     : DISPQUAL
+            !Multiple Options : 1 (.true.), 0 (.false.)
+            !Search Type      : FromBlock
+            !Begin Block      : <beginproperty>
+            !End Block        : <endproperty>
+        !<EndKeyword>
+        call GetData(NewProperty%evolution%DecayRateProperty,                            &
+                     Me%ObjEnterData, iflag,                                             &
+                     SearchType   = FromBlock,                                           &
+                     keyword      = 'DECAY_RATE_PROPERTY',                               &
+                     Default      = .false.,                                             &
+                     ClientModule = 'ModuleWaterProperties',                             &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_)                                                     &
+            stop 'Subroutine Construct_Property_Keywords - ModuleWaterProperties - ERR34'
+
+        if (NewProperty%evolution%DecayRateProperty) then
+            
+            NewProperty%Evolution%AdvectionDiffusion = .false.
+
+            call GetData(NewProperty%evolution%T90Variable,                             &
+                             Me%ObjEnterData,                                           &
+                             iflag,                                                     &
+                             SearchType   = FromBlock,                                  &
+                             keyword      ='T90_VARIABLE',                              &
+                             ClientModule ='ModuleWaterProperties',                     &
+                             Default      = .false.,                                    &    
+                             STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                  &
+                stop 'Subroutine Construct_Property_Keywords - ModuleWaterProperties - ERR35'
+
+            call GetData(NewProperty%evolution%T90Hours,                                &
+                             Me%ObjEnterData,                                           &
+                             iflag,                                                     &
+                             SearchType   = FromBlock,                                  &
+                             keyword      ='T90_HOURS',                                 &
+                             ClientModule ='ModuleWaterProperties',                     &
+                             Default      = .false.,                                    &    
+                             STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                  &
+                stop 'Subroutine Construct_Property_Keywords - ModuleWaterProperties - ERR36'
+
+            if (NewProperty%evolution%T90Variable) then
+                
+                call GetData(NewProperty%evolution%T90Var_Method,                       &
+                             Me%ObjEnterData,                                           &
+                             iflag,                                                     &
+                             SearchType   = FromBlock,                                  &
+                             keyword      ='T90_VAR_METHOD',                            &
+                             ClientModule ='ModuleWaterProperties',                     &
+                             STAT         = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)                                              &
+                    stop 'Subroutine Construct_Property_Keywords - ModuleWaterProperties - ERR37'
+
+                if (iflag /= 1) then
+                    write(*,*)'Keyword T90_VAR_METHOD not defined for decay of variable fecal coliforms decay'
+                    stop 'Subroutine Construct_Property_Keywords - ModuleWaterProperties - ERR38'
+                endif
+
+                if (NewProperty%evolution%T90Var_Method /= Canteras .and.           &
+                    NewProperty%evolution%T90Var_Method /= Chapra) then
+                    write (*,*) 'T90 calculation method unknown'
+                    stop 'Subroutine Construct_Property_Keywords - ModuleWaterProperties - ERR39'
+                endif
+
+            endif
+        
+        endif
+
+
+        if (NewProperty%ID%IDNumber == Oxygen_) then
+            call GetData(NewProperty%evolution%OxygenSaturation,                        &
+                             Me%ObjEnterData,                                           &
+                             iflag,                                                     &
+                             SearchType   = FromBlock,                                  &
+                             keyword      ='OXYGEN_SATURATION',                         &
+                             ClientModule ='ModuleWaterProperties',                     &
+                             Default      = .false.,                                    &    
+                             STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                              &
+                stop 'Subroutine Construct_Property_Keywords - ModuleWaterProperties - ERR40'
+
+            if (NewProperty%evolution%OxygenSaturation) then 
+                
+                Me%OxygenSaturation = .true. 
+                NewProperty%Evolution%AdvectionDiffusion = .false.
+
+            endif
+
+        else
+            NewProperty%evolution%OxygenSaturation = .false. 
+        endif
+            
+  
+        if (NewProperty%ID%IDNumber == CarbonDioxide_) then
+            call GetData(NewProperty%evolution%CO2_PP_Output,                           &
+                             Me%ObjEnterData,                                           &
+                             iflag,                                                     &
+                             SearchType   = FromBlock,                                  &
+                             keyword      ='CO2_PPRESSURE_OUTPUT',                      &
+                             ClientModule ='ModuleWaterProperties',                     &
+                             Default      = .false.,                                    &    
+                             STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                              &
+                stop 'Subroutine Construct_Property_Keywords - ModuleWaterProperties - ERR41'
+
+        endif
+        
+        
+        if (NewProperty%ID%IDNumber == Oxygen_) then
+            call GetData(NewProperty%evolution%O2_Sat_Output,                           &
+                             Me%ObjEnterData,                                           &
+                             iflag,                                                     &
+                             SearchType   = FromBlock,                                  &
+                             keyword      ='O2_SATURATION_OUTPUT',                      &
+                             ClientModule ='ModuleWaterProperties',                     &
+                             Default      = .false.,                                    &    
+                             STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                              &
+                stop 'Subroutine Construct_Property_Keywords - ModuleWaterProperties - ERR42'
+
+        endif   
+
+       !<BeginKeyword>
+            !Keyword          : REINITIALIZE
+            !<BeginDescription>       
+            ! This property will be reinitialize in run time using boxes (option introduce in the framework of cowama)
+            !<EndDescription>
+            !Type             : Logical 
+            !Default          : FALSE
+            !File keyword     : DISPQUAL
+            !Multiple Options : NO, WQM
+            !Search Type      : FromBlock
+            !Begin Block      : <beginproperty>
+            !End Block        : <endproperty>
+        !<EndKeyword>       
+        call GetData(NewProperty%Evolution%Reinitialize%On,                             &
+                     Me%ObjEnterData, iflag,                                            &
+                     SearchType   = FromBlock,                                          &
+                     keyword      = 'REINITIALIZE',                                     &
+                     Default      = OFF,                                                &
+                     ClientModule = 'ModuleWaterProperties',                            &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_)                                                    &
+            stop 'Subroutine Construct_Property_Keywords - ModuleWaterProperties - ERR43'
+
+        if (NewProperty%Evolution%Reinitialize%On) call Read_Reinitialize_Parameters(NewProperty, ClientNumber)
+
+        
+        !Time Step if the property field is variable in time
+        if (NewProperty%Evolution%Variable) then
+
+            call GetComputeTimeStep(Me%ObjTime, ModelDT, STAT = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_)                                                 &
+                stop 'Subroutine Construct_Property_Keywords - ModuleWaterProperties - ERR44'
+
+            call GetVariableDT (Me%ObjTime, VariableDT, STAT = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_)                                                 &
+                stop 'Subroutine Construct_Property_Keywords - ModuleWaterProperties - ERR45'
+    
+            if (VariableDT) then
+                
+                NewProperty%Evolution%DTInterval       = ModelDT
+
+                NewProperty%Evolution%HydroIntegration = .false.
+
+        else
+
+            !<BeginKeyword>
+                !Keyword          : DT_INTERVAL
+                !<BeginDescription>       
+                   ! In the future a GET_DT_Hydro to a hydrodynamic module should be done to know the DT value  
+                   ! that is been used to computethe the velocity field
+                   ! By default the DTinterval is equal to the time step of the hydrodynamic model. In this case 
+                   ! is admitted that the hydrodynamic model is computing the velocity field using a ADI method.
+                !<EndDescription>
+                !Type             : Real 
+                !Default          : Time step of hydrodynamic model
+                !File keyword     : DISPQUAL
+                !Multiple Options : Do not have
+                !Search Type      : FromBlock
+                !Begin Block      : <beginproperty>
+                !End Block        : <endproperty>
+            !<EndKeyword>
+
+            call GetData(NewProperty%evolution%DTInterval,                          &
+                         Me%ObjEnterData, iflag,                                    &
+                         SearchType     = FromBlock,                                &
+                         keyword        = 'DT_INTERVAL',                            &
+                         Default        = ModelDT,                                  &
+                         ClientModule   = 'ModuleWaterProperties',                  &
+                         STAT           = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_)                                            &
+                stop 'Subroutine Construct_Property_Keywords - ModuleWaterProperties - ERR46'
+
+
+            if (NewProperty%evolution%DTInterval < (ModelDT)) then
+                write(*,*) 
+                write(*,*) ' Time step error.'
+                stop       'Subroutine Construct_Property_Keywords - ModuleWaterProperties - ERR47'
+
+            elseif (NewProperty%evolution%DTInterval > (ModelDT)) then
+
+                !Property DT  must be a multiple of the ModelDT
+                auxFactor = NewProperty%evolution%DTInterval  / ModelDT
+
+                Erroraux = auxFactor - int(auxFactor)
+                if (Erroraux /= 0) then
+                    write(*,*) 
+                    write(*,*) ' Time step error.'
+                    stop       'Subroutine Construct_Property_Keywords - ModuleWaterProperties - ERR48'
+                endif
+
+                    ! Run period in seconds
+                    DTaux = Me%EndTime - Me%ExternalVar%Now
+
+                    !The run period   must be a multiple of the Property DT
+                    auxFactor = DTaux / NewProperty%evolution%DTInterval
+
+                    ErrorAux = auxFactor - int(auxFactor)
+                    if (ErrorAux /= 0) then
+                        write(*,*) 
+                        write(*,*) ' Time step error.'
+                        stop       'Subroutine Construct_Property_Keywords - ModuleWaterProperties - ERR49'
+                    endif
+
+                    NewProperty%Evolution%HydroIntegration = .true.
+
+                else
+
+                    NewProperty%Evolution%HydroIntegration = .false.
+
+                end if
+
+            endif
+
+            NewProperty%Evolution%NextCompute = Me%ExternalVar%Now + NewProperty%Evolution%DTInterval
+                                                
+        else 
+
+            call null_time(NewProperty%Evolution%NextCompute)
+
+            NewProperty%evolution%DTInterval = FillValueReal
+
+        endif
+
+        !<BeginKeyword>
+            !Keyword          : OUTPUT_HDF
+            !<BeginDescription>       
+               ! 
+               ! Checks out if the user pretends to write a HDF format file for this property
+               ! 
+            !<EndDescription>
+            !Type             : Boolean 
+            !Default          : .false.
+            !File keyword     : DISPQUAL
+            !Multiple Options : Do not have
+            !Search Type      : FromBlock
+            !Begin Block      : <beginproperty>
+            !End Block        : <endproperty>
+        !<EndKeyword>
+        call GetData(NewProperty%OutputHDF,                                             &
+                     Me%ObjEnterData, iflag,                                            &
+                     Keyword        = 'OUTPUT_HDF',                                     &
+                     Default        = .false.,                                          &
+                     SearchType     = FromBlock,                                        &
+                     ClientModule   = 'ModuleWaterProperties',                          &
+                     STAT           = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Construct_Property_Keywords - ModuleWaterProperties - ERR50'
+
+
+        !<BeginKeyword>
+            !Keyword          : OUTPUT_SURFACE_HDF
+            !<BeginDescription>       
+               ! 
+               ! Checks out if the user pretends to write a HDF format file for this property
+               ! at the surface layer
+               ! 
+            !<EndDescription>
+            !Type             : Boolean 
+            !Default          : .false.
+            !File keyword     : DISPQUAL
+            !Multiple Options : Do not have
+            !Search Type      : FromBlock
+            !Begin Block      : <beginproperty>
+            !End Block        : <endproperty>
+        !<EndKeyword>
+        call GetData(NewProperty%OutputSurfaceHDF,                                      &
+                     Me%ObjEnterData, iflag,                                            &
+                     Keyword        = 'OUTPUT_SURFACE_HDF',                             &
+                     Default        = .false.,                                          &
+                     SearchType     = FromBlock,                                        &
+                     ClientModule   = 'ModuleWaterProperties',                          &
+                     STAT           = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Construct_Property_Keywords - ModuleWaterProperties - ERR51'
+
+
+        if(NewProperty%OutputSurfaceHDF .and. .not. NewProperty%OutputHDF)then
+            write(*,*)"OUTPUT_SURFACE_HDF is on but OUTPUT_HDF is off"
+            write(*,*)"Property: ", trim(NewProperty%ID%Name)
+            stop 'Construct_Property_Keywords - ModuleWaterProperties - ERR51b'
+        endif
+
+           
+        !<BeginKeyword>
+            !Keyword          : TIME_SERIE
+            !<BeginDescription>       
+               ! 
+               ! Checks out if the user pretends to write a time serie for this property
+               ! 
+            !<EndDescription>
+            !Type             : Boolean 
+            !Default          : .false.
+            !File keyword     : DISPQUAL
+            !Multiple Options : Do not have
+            !Search Type      : FromBlock
+            !Begin Block      : <beginproperty>
+            !End Block        : <endproperty>
+        !<EndKeyword>
+        call GetData(NewProperty%TimeSerie,                                             &
+                     Me%ObjEnterData, iflag,                                            &
+                     Keyword        = 'TIME_SERIE',                                     &
+                     Default        = .false.,                                          &
+                     SearchType     = FromBlock,                                        &
+                     ClientModule   = 'ModuleWaterProperties',                          &
+                     STAT           = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Construct_Property_Keywords - ModuleWaterProperties - ERR52'
+
+        !<BeginKeyword>
+            !Keyword          : OUTPUT_PROFILE
+            !<BeginDescription>       
+               ! 
+               ! Checks out if the user pretends to write a profile output for this property
+               ! 
+            !<EndDescription>
+            !Type             : Boolean 
+            !Default          : .false.
+            !File keyword     : DISPQUAL
+            !Multiple Options : Do not have
+            !Search Type      : FromBlock
+            !Begin Block      : <beginproperty>
+            !End Block        : <endproperty>
+        !<EndKeyword>
+        call GetData(NewProperty%OutputProfile,                                         &
+                     Me%ObjEnterData, iflag,                                            &
+                     Keyword        = 'OUTPUT_PROFILE',                                 &
+                     Default        = .false.,                                          &
+                     SearchType     = FromBlock,                                        &
+                     ClientModule   = 'ModuleWaterProperties',                          &
+                     STAT           = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Construct_Property_Keywords - ModuleWaterProperties - ERR53'
+        !<BeginKeyword>
+            !Keyword          : BOX_TIME_SERIE
+            !<BeginDescription>       
+                ! Checks out if the user pretends to write a time serie inside each box for this property
+            !<EndDescription>
+            !Type             : Boolean 
+            !Default          : .false.
+            !File keyword     : DISPQUAL
+            !Multiple Options : 1 (.true.) , 0 (.false.) 
+            !Search Type      : FromBlock
+            !Begin Block      : <beginproperty>
+            !End Block        : <endproperty>
+        !<EndKeyword>
+        call GetData(NewProperty%BoxTimeSerie,                                           &
+                     Me%ObjEnterData, iflag,                                             &
+                     Keyword        = 'BOX_TIME_SERIE',                                  &
+                     Default        = .false.,                                           &
+                     SearchType     = FromBlock,                                         &
+                     ClientModule   = 'ModuleWaterProperties',                           &
+                     STAT           = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Construct_Property_Keywords - ModuleWaterProperties - ERR54'
+
+
+        !<BeginKeyword>
+            !Keyword          : STATISTICS
+            !<BeginDescription>       
+               ! 
+               ! Checks out if the user pretends the statistics of this property
+               ! 
+            !<EndDescription>
+            !Type             : Boolean 
+            !Default          : .false.
+            !File keyword     : DISPQUAL
+            !Multiple Options : Do not have
+            !Search Type      : FromBlock
+            !Begin Block      : <beginproperty>
+            !End Block        : <endproperty>
+        !<EndKeyword>
+        call GetData(NewProperty%Statistics,                                            &
+                     Me%ObjEnterData, iflag,                                            &
+                     Keyword    = 'STATISTICS',                                         &
+                     Default    = .false.,                                              &
+                     SearchType = FromBlock,                                            &
+                     ClientModule = 'ModuleWaterProperties',                            &
+                     STAT           = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Construct_Property_Keywords - ModuleWaterProperties - ERR55'
+
+        
+        if (NewProperty%Statistics) then
+
+            !<BeginKeyword>
+                !Keyword          : STATISTICS_FILE
+                !<BeginDescription>       
+                   ! 
+                   ! The statistics definition file of this property
+                   ! 
+                !<EndDescription>
+                !Type             : Character
+                !Default          : Do not have
+                !File keyword     : DISPQUAL
+                !Multiple Options : Do not have
+                !Search Type      : FromBlock
+                !Begin Block      : <beginproperty>
+                !End Block        : <endproperty>
+            !<EndKeyword>
+            call GetData(NewProperty%StatisticsFile,                                    &
+                 Me%ObjEnterData, iflag,                                                &
+                 Keyword        = 'STATISTICS_FILE',                                    &
+                 SearchType     = FromBlock,                                            &
+                 ClientModule   = 'ModuleWaterProperties',                              &
+                 STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_ .or. iflag /= 1)                                  &
+                stop 'Construct_Property_Keywords - ModuleWaterProperties - ERR56'
+
+        endif    
+
+    end subroutine Construct_Property_Keywords
+    !--------------------------------------------------------------------------
+    
     !--------------------------------------------------------------------------
    !This subroutine set the evolutions options of a decay rate property.           
 
@@ -3491,89 +4702,9 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
         !Construct property values
         call Construct_WqRateValues (NewWqRate)
 
-
     end subroutine Construct_WqRate
 
-    !--------------------------------------------------------------------------
-    !This subroutine reads all the information needed to construct the property ID          
-
-    subroutine Construct_PropertyState(NewProperty)
-
-        !Arguments-------------------------------------------------------------
-        type(T_property),        pointer    :: NewProperty
-
-        !External--------------------------------------------------------------
-        integer                             :: STAT_CALL
-
-        !Local-----------------------------------------------------------------
-        integer                             :: iflag
-      
-        !----------------------------------------------------------------------
-
-        !<BeginKeyword>
-            !Keyword          : PARTICULATE
-            !<BeginDescription>      
-                !Checks if the user wants this property to be particulate.
-                !This property will be used to define particulated properties
-            !<EndDescription>
-            !Type             : Boolean   
-            !Default          : .false.
-            !File keyword     : DISPQUAL
-            !Multiple Options : 1 (.true.), 0 (.false.)
-            !Search Type      : From Block
-            !Begin Block      : <beginproperty>
-            !End Block        : <endproperty>
-        !<EndKeyword>
-
-        call GetData(NewProperty%Particulate,                                           &
-                     Me%ObjEnterData,iflag,                                            &
-                     SearchType   = FromBlock,                                          &
-                     keyword      = 'PARTICULATE',                                      &
-                     Default      = .false.,                                            &
-                     ClientModule = 'ModuleWaterProperties',                            &
-                     STAT         = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_)                                                    &
-            stop 'Construct_PropertyState - ModuleWaterProperties - ERR01' 
-
-        if (NewProperty%Particulate)then
-            if(.not. Check_Particulate_Property(NewProperty%ID%IDNumber)) then 
-                write(*,*) 'Property '//trim(NewProperty%ID%Name)// 'is not'
-                write(*,*) 'recognised as PARTICULATE'
-                stop 'Construct_PropertyState - ModuleWaterProperties - ERR02'
-            end if
-        endif
-
-
-        !<BeginKeyword>
-            !Keyword          : IS_COEF
-            !<BeginDescription>      
-                !This coeficient can only be used when the 
-                !relation between the IS units and units that 
-                !the user wants to use is linear
-            !<EndDescription>
-            !Type             : Real   
-            !Default          : 1.
-            !File keyword     : DISPQUAL
-            !Multiple Options : Do not have
-            !Search Type      : From Block
-            !Begin Block      : <beginproperty>
-            !End Block        : <endproperty>
-        !<EndKeyword>
-
-        call GetData(NewProperty%IScoefficient,                                         &
-                     Me%ObjEnterData, iflag,                                           &
-                     KeyWord        = 'IS_COEF',                                        &
-                     Default        = 1.e-3,                                            &      
-                     SearchType     = FromBlock,                                        &
-                     ClientModule   = 'ModuleWaterProperties',                          &
-                     STAT           = STAT_CALL)            
-        if (STAT_CALL .NE. SUCCESS_)                                                    &
-            stop 'Construct_PropertyState - ModuleWaterProperties - ERR03' 
-
-
-     end subroutine Construct_PropertyState
-
-    !--------------------------------------------------------------------------
+    !--------------------------------------------------------------------------------
 
     !This subroutine reads all the information needed to construct the property ID          
     subroutine Construct_WqRateID(NewWqRate)
@@ -3772,10 +4903,9 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
 
 
     !--------------------------------------------------------------------------
-    !This subroutine reads all the information needed to construct the property values       
-    ! in the domain and in the boundaries            
-
-    subroutine Construct_PropertyValues(NewProperty)
+    !This subroutine reads all the information needed to construct the property values
+    ! in the domain and in the boundaries
+    subroutine Construct_Property_Arrays(NewProperty)
 
         !Arguments-------------------------------------------------------------
         type(T_property), pointer       :: NewProperty
@@ -3784,15 +4914,13 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
         integer                         :: STAT_CALL
 
         !Local-----------------------------------------------------------------
-        character(len=8)                :: BoundaryMethod
-        integer                         :: iflag
-        integer                         :: i,j,k
+        integer                         :: I,J,K
         integer                         :: ILB, IUB, JLB, JUB, KLB, KUB
         integer                         :: WILB, WIUB, WJLB, WJUB
         integer                         :: WKLB, WKUB
 
         !----------------------------------------------------------------------
- 
+
         ILB = Me%Size%ILB
         IUB = Me%Size%IUB
         JLB = Me%Size%JLB
@@ -3807,183 +4935,62 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
         WKLB = Me%WorkSize%KLB
         WKUB = Me%WorkSize%KUB
 
-
+        nullify(NewProperty%Concentration        )
+        nullify(NewProperty%Mass_Created         )
+        nullify(NewProperty%SurfaceFlux          )
+        nullify(NewProperty%Mass_Destroid        )        
+        nullify(NewProperty%Assimilation%Field   )
+        nullify(NewProperty%Prev,NewProperty%Next)
+        
+        nullify(NewProperty%SubModel%PreviousField, NewProperty%SubModel%NextField)
         allocate(NewProperty%Concentration(ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)                                                     &
-            stop 'Construct_PropertyValues - ModuleWaterProperties - ERR10' 
+            stop 'Construct_Property_Allocate - ModuleWaterProperties - ERR10'
         NewProperty%Concentration(:,:,:) = FillValueReal
 
-        !To store oxygen and CO2 fluxes across the water-air interface 
+        !To store oxygen and CO2 fluxes across the water-air interface
         if(NewProperty%ID%IDNumber == CarbonDioxide_ .OR. &
            NewProperty%ID%IDNumber == Oxygen_) then
-        
+
             allocate(NewProperty%SurfaceFlux(ILB:IUB, JLB:JUB), STAT = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                                     &
-                stop 'Construct_PropertyValues - ModuleWaterProperties - ERR20' 
+                stop 'Construct_Property_Allocate - ModuleWaterProperties - ERR20'
             NewProperty%Surfaceflux(:,:) = FillValueReal
-        
+
         endif
 
+        if (NewProperty%Evolution%DataAssimilation /= NoNudging) then
 
-        allocate (NewProperty%Assimilation%Field(ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT_CALL)            
-        if (STAT_CALL .NE. SUCCESS_)                                                     &
-            stop 'Construct_PropertyValues - ModuleWaterProperties - ERR30' 
-        NewProperty%Assimilation%Field(:,:,:) = FillValueReal
+            allocate (NewProperty%Assimilation%Field(ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_)                                                     &
+                stop 'Construct_Property_Allocate - ModuleWaterProperties - ERR30' 
+            NewProperty%Assimilation%Field(:,:,:) = FillValueReal
 
-        !<BeginKeyword>
-            !Keyword          : OLD
-            !<BeginDescription>       
-               ! This variable is a logic one is true if the property is old
-               ! and the user wants to continue the run with results of a previous run.
-               !
-            !<EndDescription>
-            !Type             : Boolean 
-            !Default          : .false.
-            !File keyword     : DISPQUAL
-            !Multiple Options : 1 (.true.), 0 (.false.)
-            !Search Type      : FromBlock
-            !Begin Block      : <beginproperty>
-            !End Block        : <endproperty>
-        !<EndKeyword>
+        endif
 
-
-        call GetData(NewProperty%Old,                                                   &
-                     Me%ObjEnterData,iflag,                                             &
-                     SearchType     = FromBlock,                                        &
-                     keyword        = 'OLD',                                            &
-                     Default        = .false.,                                          &
-                     ClientModule   = 'ModuleWaterProperties',                          &
-                     STAT           = STAT_CALL)              
-        if (STAT_CALL .NE. SUCCESS_)                                                    &
-            stop 'Construct_PropertyValues - ModuleWaterProperties - ERR40' 
-
-        !<BeginKeyword>
-            !Keyword          : MIN_VALUE
-            !<BeginDescription>       
-               ! This variable is to avoid negative concentration for properties which
-               ! have concentrations close to zero.
-               !
-            !<EndDescription>
-            !Type             : Real 
-            !Default          : .false.
-            !File keyword     : DISPQUAL
-            !Search Type      : FromBlock
-            !Begin Block      : <beginproperty>
-            !End Block        : <endproperty>
-        !<EndKeyword>
-
-        NewProperty%Evolution%MinConcentration = .false.
-
-        call GetData(NewProperty%MinValue,                                              &
-                     Me%ObjEnterData, iflag,                                            &
-                     SearchType     = FromBlock,                                        &
-                     keyword        = 'MIN_VALUE',                                      &
-                     default        = FillValueReal,                                    &
-                     ClientModule   = 'ModuleWaterProperties',                          &
-                     STAT           = STAT_CALL)              
-        if (STAT_CALL .NE. SUCCESS_)                                                    &
-            stop 'Construct_PropertyValues - ModuleWaterProperties - ERR50' 
-        if (iflag==1)  then
-            NewProperty%Evolution%MinConcentration = .true.
+        if (NewProperty%Evolution%MinConcentration) then
 
             allocate(NewProperty%Mass_Created(ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                                     &
-                stop 'Construct_PropertyValues - ModuleWaterProperties - ERR60' 
+                stop 'Construct_Property_Allocate - ModuleWaterProperties - ERR60' 
             NewProperty%Mass_Created(:,:,:) = 0.  
-            
+
         endif
-
-        !<BeginKeyword>
-            !Keyword          : MAX_VALUE
-            !<BeginDescription>       
-               ! This variable is to avoid very large concentrationsassociated with instabilities
-               !
-            !<EndDescription>
-            !Type             : Real 
-            !Default          : .false.
-            !File keyword     : DISPQUAL
-            !Search Type      : FromBlock
-            !Begin Block      : <beginproperty>
-            !End Block        : <endproperty>
-        !<EndKeyword>
-
-        NewProperty%Evolution%MaxConcentration = .false.
-
-        call GetData(NewProperty%MaxValue,                                              &
-                     Me%ObjEnterData, iflag,                                            &
-                     SearchType     = FromBlock,                                        &
-                     keyword        = 'MAX_VALUE',                                      &
-                     default        = - FillValueReal,                                  &                     
-                     ClientModule   = 'ModuleWaterProperties',                          &
-                     STAT           = STAT_CALL)              
-        if (STAT_CALL .NE. SUCCESS_)                                                    &
-            stop 'Construct_PropertyValues - ModuleWaterProperties - ERR70' 
-        if (iflag==1)  then
-            NewProperty%Evolution%MaxConcentration = .true.
+        
+        if (NewProperty%Evolution%MaxConcentration) then
             
             allocate(NewProperty%Mass_Destroid(ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                                &
-                stop 'Construct_PropertyValues - ModuleWaterProperties - ERR80' 
+                stop 'Construct_Property_Allocate - ModuleWaterProperties - ERR80' 
             NewProperty%Mass_Destroid(:,:,:) = 0.  
             
         endif
-
-        !<BeginKeyword>
-            !Keyword          : WARN_ON_NEGATIVE_VALUES
-            !<BeginDescription>       
-               ! Write a warning to screen when property has negative value
-               !
-            !<EndDescription>
-            !Type             : Real 
-            !Default          : .false.
-            !File keyword     : DISPQUAL
-            !Search Type      : FromBlock
-            !Begin Block      : <beginproperty>
-            !End Block        : <endproperty>
-        !<EndKeyword>
-
-
-        call GetData(NewProperty%WarnOnNegativeValues,                                   &
-                     Me%ObjEnterData, iflag,                                             &
-                     SearchType     = FromBlock,                                         &
-                     keyword        = 'WARN_ON_NEGATIVE_VALUES',                         &
-                     ClientModule   = 'ModuleWaterProperties',                           &
-                     STAT           = STAT_CALL)              
-        if (STAT_CALL .NE. SUCCESS_)                                                     &
-            stop 'Construct_PropertyValues - ModuleWaterProperties - ERR90' 
-
-        !<BeginKeyword>
-            !Keyword          : DEFAULTBOUNDARY
-            !<BeginDescription>      
-                ! The default value of a specific water property imposed in the open boundary
-            !<EndDescription>
-            !Type             : Real   
-            !Default          : Is function of property (see routine DefaultValueProp in moduleWaterProperites)
-            !File keyword     : DISPQUAL
-            !Multiple Options : Do not have
-            !Search Type      : From Block 
-            !Begin Block      : <beginproperty>
-            !End Block        : <endproperty>
-        !<EndKeyword>
-
-        call GetData(NewProperty%Assimilation%scalar,                                   &
-                     Me%ObjEnterData,iflag,                                             &
-                     SearchType = FromBlock,                                            &
-                     keyword    = 'DEFAULTBOUNDARY',                                    &
-                     ClientModule = 'ModuleWaterProperties',                            &
-                     STAT       = STAT_CALL)            
-        if (STAT_CALL .NE. SUCCESS_)                                                    &
-            stop 'Construct_PropertyValues - ModuleWaterProperties - ERR100' 
-        if (iflag==0)                                                                   &
-            NewProperty%Assimilation%scalar = DefaultValueProp(NewProperty%ID%IDNumber)
-
 
         ! if the property is not 'OLD' the property values in the domain and 
         ! in the boundaries are initialized
         ! if it's true ('OLD') this same values are read from the final file of the
         ! previous run
-cd1 :   if (.not.NewProperty%Old) then
-
+cd1 :   if (.not. NewProperty%Old) then
 
             call ConstructFillMatrix  (PropertyID           = NewProperty%ID,               &
                                        EnterDataID          = Me%ObjEnterData,              &
@@ -3996,11 +5003,11 @@ cd1 :   if (.not.NewProperty%Old) then
                                        TypeZUV              = TypeZ_,                       &
                                        STAT                 = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                                      &
-                stop 'Construct_PropertyValues - ModuleWaterProperties - ERR110'
+                stop 'Construct_Property_Allocate - ModuleWaterProperties - ERR110'
 
             call GetDefaultValue(NewProperty%ID%ObjFillMatrix, NewProperty%Scalar, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                                      &
-                stop 'Construct_PropertyValues - ModuleWaterProperties - ERR120'
+                stop 'Construct_Property_Allocate - ModuleWaterProperties - ERR120'
 
             if(NewProperty%ID%SolutionFromFile)then
 
@@ -4010,7 +5017,7 @@ cd1 :   if (.not.NewProperty%Old) then
 
                 call KillFillMatrix(NewProperty%ID%ObjFillMatrix, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_)&
-                    stop 'Construct_PropertyValues - ModuleWaterProperties - ERR170'
+                    stop 'Construct_Property_Allocate - ModuleWaterProperties - ERR170'
 
             end if
 
@@ -4019,63 +5026,29 @@ cd1 :   if (.not.NewProperty%Old) then
             !By default the exterior points have values equal to nearst interior point
             NewProperty%Concentration(WILB:WIUB,  JLB, WKLB:WKUB) = &
             NewProperty%Concentration(WILB:WIUB, WJLB, WKLB:WKUB)   
-                                                                    
+
             NewProperty%Concentration(WILB:WIUB,  JUB, WKLB:WKUB) = &
             NewProperty%Concentration(WILB:WIUB, WJUB, WKLB:WKUB)   
-                                                                    
+
             NewProperty%Concentration( ILB, WJLB:WJUB, WKLB:WKUB) = &
             NewProperty%Concentration(WILB, WJLB:WJUB, WKLB:WKUB)   
-                                                                    
+
             NewProperty%Concentration( IUB, WJLB:WJUB, WKLB:WKUB) = &
-            NewProperty%Concentration(WIUB, WJLB:WJUB, WKLB:WKUB)   
+            NewProperty%Concentration(WIUB, WJLB:WJUB, WKLB:WKUB)
 
-
-            !By default the assimilation field is equal to the initial one 
-
-do3 :       do K = WKLB, WKUB
-do2 :       do J = JLB, JUB
-do1 :       do I = ILB, IUB
-
-                NewProperty%Assimilation%Field(I, J, K) = NewProperty%Concentration(i,j,k)
-                    
-            end do do1
-            end do do2
-            end do do3
-         
-            !Only the EXTERIOR and the INTERIOR process were considered
-
-            !<BeginKeyword>
-                !Keyword          : BOUNDARY_INITIALIZATION
-                !<BeginDescription>       
-                   ! Two processes were consider to initialize the boundary values:
-                   !         EXTERIOR - A value exterior to the domain is be imposed. 
-                   !                    For this option was only consider a constant value.
-                   !         INTERIOR - The boundary are admitted equal to the values given 
-                   !                    in the same cells during the domain initialization.              
-                   !
-                !<EndDescription>
-                !Type             : Character 
-                !Default          : 'INTERIOR'
-                !File keyword     : DISPQUAL
-                !Multiple Options : EXTERIOR, INTERIOR
-                !Search Type      : FromBlock
-                !Begin Block      : <beginproperty>
-                !End Block        : <endproperty>
-            !<EndKeyword>
-
-            call GetData(BoundaryMethod,                                                &
-                         Me%ObjEnterData, iflag,                                        &
-                         SearchType = FromBlock,                                        &
-                         keyword    = 'BOUNDARY_INITIALIZATION',                        &
-                         Default    = 'INTERIOR',                                       &
-                         ClientModule = 'ModuleWaterProperties',                        &
-                         STAT       = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_)                                                &
-                stop 'Construct_PropertyValues - ModuleWaterProperties - ERR180' 
-
+            if (NewProperty%Evolution%DataAssimilation /= NoNudging) then
+                !By default the assimilation field is equal to the initial one
+do3 :           do K = WKLB, WKUB
+do2 :           do J = JLB, JUB
+do1 :           do I = ILB, IUB
+                    NewProperty%Assimilation%Field(I, J, K) = NewProperty%Concentration(I,J,K)
+                end do do1
+                end do do2
+                end do do3
+            endif
 
 cd4 :       if (associated(Me%ExternalVar%BoundaryPoints2D)) then
-cd2 :           if      (BoundaryMethod=='EXTERIOR'        ) then
+cd2 :           if      (NewProperty%Evolution%BoundaryMethod == BExterior        ) then
 
 do4 :               do J = JLB, JUB
 do5 :               do I = ILB, IUB
@@ -4094,12 +5067,12 @@ do6 :                       do K = WKLB, WKUB
                     end do do5
                     end do do4
                  
-                elseif(BoundaryMethod .ne. 'EXTERIOR' .and. BoundaryMethod .ne. 'INTERIOR') then
+                elseif(NewProperty%Evolution%BoundaryMethod .ne. BExterior .and. NewProperty%Evolution%BoundaryMethod .ne. BInterior) then
 
                     write(*,*) 
                     write(*,*) 'The boundary initialization methods can only be two: '
                     write(*,*) '    INTERIOR OR EXTERIOR'
-                    stop       'Construct_PropertyValues - ModuleWaterProperties - ERR190'  
+                    stop       'Construct_Property_Allocate - ModuleWaterProperties - ERR190'  
         
                end if cd2
 
@@ -4113,8 +5086,7 @@ do6 :                       do K = WKLB, WKUB
 
         end if cd1   
 
-
-    end subroutine Construct_PropertyValues
+    end subroutine Construct_Property_Arrays
 
     !--------------------------------------------------------------------------
     
@@ -4339,833 +5311,6 @@ case1 : select case(PropertyID)
 
 
     end Function DefaultValueProp
-
-    !--------------------------------------------------------------------------
-    !This subroutine reads all the information needed to construct the property                          
-    ! evolution parameters             
-
-    subroutine Construct_PropertyEvolution(NewProperty,ClientNumber)
-
-        !Arguments-------------------------------------------------------------
-        type(T_property),           pointer     :: NewProperty
-        integer                                 :: ClientNumber
-
-        !External--------------------------------------------------------------
-        integer                                 :: STAT_CALL
-        real                                    :: ModelDT
-
-        !Local-----------------------------------------------------------------
-        integer                                 :: iflag
-        real                                    :: ErrorAux, auxFactor, DTaux
-        logical                                 :: VariableDT, Dummy
-        character(LEN = StringLength)           :: AuxName
-        !----------------------------------------------------------------------
-
-        !Read the options associated with the Nesting 
-        call ReadSubModelOptions(NewProperty)
-
-        !<BeginKeyword>
-            !Keyword          : ADVECTION_DIFFUSION
-            !<BeginDescription>       
-               ! By default the transport due to advection and Diffusion computed for all properties
-            !<EndDescription>
-            !Type             : Boolean 
-            !Default          : .true.
-            !File keyword     : DISPQUAL
-            !Multiple Options : 1 (.true.), 0 (.false.)
-            !Search Type      : FromBlock
-            !Begin Block      : <beginproperty>
-            !End Block        : <endproperty>
-        !<EndKeyword>
-
-        call GetData(NewProperty%Evolution%AdvectionDiffusion,                           &
-                     Me%ObjEnterData, iflag,                                             &
-                     SearchType   = FromBlock,                                           &
-                     keyword      = 'ADVECTION_DIFFUSION',                               &
-                     Default      = .true.,                                              &
-                     ClientModule = 'ModuleWaterProperties',                             &
-                     STAT       = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_)                                                     &
-            stop 'Subroutine Construct_PropertyEvolution - ModuleWaterProperties - ERR10'
-
-        if (NewProperty%Evolution%AdvectionDiffusion)                                    &
-            NewProperty%Evolution%Variable = .true.
-
-        if (NewProperty%evolution%AdvectionDiffusion)                                    &
-            call Read_Advec_Difus_Parameters(NewProperty)
-
-
-        !<BeginKeyword>
-            !Keyword          : INSTANT_MIXING
-            !<BeginDescription>       
-               ! This option mix instantaneously the all water column
-            !<EndDescription>
-            !Type             : Boolean 
-            !Default          : .false.
-            !File keyword     : DISPQUAL
-            !Multiple Options : 1 (.true.), 0 (.false.)
-            !Search Type      : FromBlock
-            !Begin Block      : <beginproperty>
-            !End Block        : <endproperty>
-        !<EndKeyword>
-
-        call GetData(NewProperty%Evolution%InstantMixing,                                &
-                     Me%ObjEnterData, iflag,                                             &
-                     SearchType   = FromBlock,                                           &
-                     keyword      = 'INSTANT_MIXING',                                    &
-                     Default      = .false.,                                             &
-                     ClientModule = 'ModuleWaterProperties',                             &
-                     STAT       = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_)                                                     &
-            stop 'Subroutine Construct_PropertyEvolution - ModuleWaterProperties - ERR20'
-
-        if (NewProperty%Evolution%InstantMixing .and. NewProperty%evolution%AdvectionDiffusion) &
-            stop 'Subroutine Construct_PropertyEvolution - ModuleWaterProperties - ERR30'
-
-        if(NewProperty%Evolution%InstantMixing)                                          &
-           NewProperty%Evolution%Variable = .true.
-        
-        !<BeginKeyword>
-            !Keyword          : WATER_QUALITY
-            !<BeginDescription>       
-               ! This property has Water Quality Model as a sink and source
-            !<EndDescription>
-            !Type             : Logical 
-            !Default          : FALSE
-            !File keyword     : DISPQUAL
-            !Multiple Options : NO, WQM
-            !Search Type      : FromBlock
-            !Begin Block      : <beginproperty>
-            !End Block        : <endproperty>
-        !<EndKeyword>       
-        call GetData(NewProperty%Evolution%WaterQuality,                                 &
-                     Me%ObjEnterData, iflag,                                             &
-                     SearchType   = FromBlock,                                           &
-                     keyword      = 'WATER_QUALITY',                                     &
-                     Default      = OFF,                                                 &
-                     ClientModule = 'ModuleWaterProperties',                             &
-                     STAT         = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_)                                                     &
-            stop 'Subroutine Construct_PropertyEvolution - ModuleWaterProperties - ERR40'
-
-        if(NewProperty%Evolution%WaterQuality) NewProperty%evolution%Variable = .true.
-
-        !<BeginKeyword>
-            !Keyword          : MACROALGAE
-            !<BeginDescription>       
-               ! This property has Macroalgae Model as a sink and source
-            !<EndDescription>
-            !Type             : Logical 
-            !Default          : FALSE
-            !File keyword     : DISPQUAL
-            !Multiple Options : NO, WQM
-            !Search Type      : FromBlock
-            !Begin Block      : <beginproperty>
-            !End Block        : <endproperty>
-        !<EndKeyword>       
-        call GetData(NewProperty%Evolution%MacroAlgae,                                  &
-                     Me%ObjEnterData, iflag,                                            &
-                     SearchType   = FromBlock,                                          &
-                     keyword      = 'MACROALGAE',                                       &
-                     Default      = OFF,                                                &
-                     ClientModule = 'ModuleWaterProperties',                            &
-                     STAT         = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_)                                                    &
-            stop 'Subroutine Construct_PropertyEvolution - ModuleWaterProperties - ERR50'
-
-        if(NewProperty%Evolution%Macroalgae) NewProperty%evolution%Variable = .true.
-
-        !<BeginKeyword>
-            !Keyword          : CEQUALW2
-            !<BeginDescription>       
-               ! This property has CEQUALW2 model as a sink and source
-            !<EndDescription>
-            !Type             : Logical 
-            !Default          : FALSE
-            !File keyword     : DISPQUAL
-            !Multiple Options : NO, WQM
-            !Search Type      : FromBlock
-            !Begin Block      : <beginproperty>
-            !End Block        : <endproperty>
-        !<EndKeyword>       
-        call GetData(NewProperty%evolution%CEQUALW2,                                     &
-                     Me%ObjEnterData, iflag,                                             &
-                     SearchType   = FromBlock,                                           &
-                     keyword      = 'CEQUALW2',                                          &
-                     Default      = OFF,                                                 &
-                     ClientModule = 'ModuleWaterProperties',                             &
-                     STAT         = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_)                                                     &
-            stop 'Subroutine Construct_PropertyEvolution - ModuleWaterProperties - ERR60'
-
-        if(NewProperty%evolution%CEQUALW2) NewProperty%evolution%Variable = .true.
-        
-
-        !<BeginKeyword>
-            !Keyword          : LIFE
-            !<BeginDescription>       
-               ! This property has Life model as a sink and source
-            !<EndDescription>
-            !Type             : Logical 
-            !Default          : FALSE
-            !File keyword     : DISPQUAL
-            !Multiple Options : NO, WQM
-            !Search Type      : FromBlock
-            !Begin Block      : <beginproperty>
-            !End Block        : <endproperty>
-        !<EndKeyword>       
-        call GetData(NewProperty%evolution%Life,                                         &
-                     Me%ObjEnterData, iflag,                                             &
-                     SearchType   = FromBlock,                                           &
-                     keyword      = 'LIFE',                                              &
-                     Default      = OFF,                                                 &
-                     ClientModule = 'ModuleWaterProperties',                             &
-                     STAT         = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_)                                                     &
-            stop 'Subroutine Construct_PropertyEvolution - ModuleWaterProperties - ERR70'
-
-        if(NewProperty%evolution%Life) NewProperty%evolution%Variable = .true.
-
-
-        !<BeginKeyword>
-            !Keyword          : PARTITION
-            !<BeginDescription>       
-               ! This property has partition as a sink and source
-            !<EndDescription>
-            !Type             : Logical 
-            !Default          : FALSE
-            !File keyword     : DISPQUAL
-            !Multiple Options : NO, WQM
-            !Search Type      : FromBlock
-            !Begin Block      : <beginproperty>
-            !End Block        : <endproperty>
-        !<EndKeyword>       
-        call GetData(NewProperty%Evolution%Partitioning,                                 &
-                     Me%ObjEnterData, iflag,                                             &
-                     SearchType   = FromBlock,                                           &
-                     keyword      = 'PARTITION',                                         &
-                     Default      = OFF,                                                 &
-                     ClientModule = 'ModuleWaterProperties',                             &
-                     STAT         = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_)                                                     &
-            stop 'Subroutine Construct_PropertyEvolution - ModuleWaterProperties - ERR80'
-
-        if(NewProperty%evolution%Partitioning) NewProperty%evolution%Variable = .true.
-        
-        if(NewProperty%Evolution%Partitioning)                                           &
-            call Read_Partition_Parameters(NewProperty)
-
-
-        !<BeginKeyword>
-            !Keyword          : DISCHARGES
-            !<BeginDescription>       
-               !  This property has discharges ? no - 0;  yes - 1
-            !<EndDescription>
-            !Type             : Boolean 
-            !Default          : .false.
-            !File keyword     : DISPQUAL
-            !Multiple Options : 1 (.true.), 0 (.false.)
-            !Search Type      : FromBlock
-            !Begin Block      : <beginproperty>
-            !End Block        : <endproperty>
-        !<EndKeyword>       
-        call GetData(NewProperty%evolution%Discharges,                                   &
-                     Me%ObjEnterData, iflag,                                             &
-                     SearchType   = FromBlock,                                           &
-                     keyword      = 'DISCHARGES',                                        &
-                     Default      = .false.,                                             &
-                     ClientModule = 'ModuleWaterProperties',                             &
-                     STAT       = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_)                                                     &
-            stop 'Subroutine Construct_PropertyEvolution - ModuleWaterProperties - ERR90'
-
-
-        if (NewProperty%evolution%Discharges .and. (.not. NewProperty%evolution%AdvectionDiffusion))  then
-            write(*,*) 
-            write(*,*)' Property ', trim(NewProperty%ID%Name), ' discharged without advection-diffusion.' 
-            stop 'Subroutine Construct_PropertyEvolution - ModuleWaterProperties - ERR100'
-        end if
-      
-        if (NewProperty%evolution%Discharges)                                            &
-            NewProperty%Evolution%Variable = .true.
-
-
-        !<BeginKeyword>
-            !Keyword          : DISCHARGES_TRACKING
-            !<BeginDescription>       
-               !  This property writes discharges as time serie ? no - 0;  yes - 1
-            !<EndDescription>
-            !Type             : Boolean 
-            !Default          : .false.
-            !File keyword     : DISPQUAL
-            !Multiple Options : 1 (.true.), 0 (.false.)
-            !Search Type      : FromBlock
-            !Begin Block      : <beginproperty>
-            !End Block        : <endproperty>
-        !<EndKeyword>       
-        call GetData(NewProperty%evolution%DischargesTracking,                           &
-                     Me%ObjEnterData, iflag,                                             &
-                     SearchType   = FromBlock,                                           &
-                     keyword      = 'DISCHARGES_TRACKING',                               &
-                     Default      = .false.,                                             &
-                     ClientModule = 'ModuleWaterProperties',                             & 
-                     STAT         = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_)                                                     &
-            stop 'Subroutine Construct_PropertyEvolution - ModuleWaterProperties - ERR110'
-
-
-        !<BeginKeyword>
-            !Keyword          : VERTICAL_MOVEMENT
-            !<BeginDescription>       
-               !  This property has free vertical movement ? no - 0;  yes - 1
-            !<EndDescription>
-            !Type             : Boolean 
-            !Default          : .false.
-            !File keyword     : DISPQUAL
-            !Multiple Options : 1 (.true.), 0 (.false.)
-            !Search Type      : FromBlock
-            !Begin Block      : <beginproperty>
-            !End Block        : <endproperty>
-        !<EndKeyword>
-        call GetData(NewProperty%evolution%FreeVerticalMovement,                         &
-                     Me%ObjEnterData, iflag,                                             &
-                     SearchType   = FromBlock,                                           &
-                     keyword      = 'VERTICAL_MOVEMENT',                                 &
-                     Default      = .false.,                                             &
-                     ClientModule = 'ModuleWaterProperties',                             &
-                     STAT         = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_)                                                     &
-            stop 'Subroutine Construct_PropertyEvolution - ModuleWaterProperties - ERR120'
-
-        if (NewProperty%evolution%FreeVerticalMovement)                                  &
-            !PropertyX change in time
-            NewProperty%Evolution%Variable = .true.
-        
-        !<BeginKeyword>
-            !Keyword          : SURFACE_FLUXES
-            !<BeginDescription>       
-               !  This property has surface fluxes ? no - 0;  yes - 1
-            !<EndDescription>
-            !Type             : Boolean 
-            !Default          : .false.
-            !File keyword     : DISPQUAL
-            !Multiple Options : 1 (.true.), 0 (.false.)
-            !Search Type      : FromBlock
-            !Begin Block      : <beginproperty>
-            !End Block        : <endproperty>
-        !<EndKeyword>
-        
-        call GetData(NewProperty%evolution%SurfaceFluxes,                                &
-                     Me%ObjEnterData, iflag,                                             &
-                     SearchType   = FromBlock,                                           &
-                     keyword      = 'SURFACE_FLUXES',                                    &
-                     Default      = .false.,                                             & 
-                     ClientModule = 'ModuleWaterProperties',                             &
-                     STAT         = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_)                                                     &
-            stop 'Subroutine Construct_PropertyEvolution - ModuleWaterProperties - ERR130'
-
-        if (NewProperty%evolution%SurfaceFluxes)                                         &
-            NewProperty%Evolution%Variable = .true.
-            
-        if (NewProperty%evolution%SurfaceFluxes .and. .not. Me%ExtSurface%PrecipitationON) then
-        
-            call GetHydrodynamicAirOptions (Me%ObjHydrodynamic,                         & 
-                                            SurfaceWaterFluxYes =                       &
-                                            Me%ExtSurface%PrecipitationON,              &
-                                            WindYes = Dummy,             &
-                                            AtmPressureYes = Dummy,      &
-                                            MslpYes = Dummy,             &
-                                            STAT = STAT_CALL)
-
-            
-            if (STAT_CALL .NE. SUCCESS_)                                                &
-                stop 'Subroutine Construct_PropertyEvolution - ModuleWaterProperties - ERR135'
-        
-        endif 
-
-        !<BeginKeyword>
-            !Keyword          : BOTTOM_FLUXES
-            !<BeginDescription>       
-               !  This property has bottom fluxes ? no - 0;  yes - 1
-            !<EndDescription>
-            !Type             : Boolean 
-            !Default          : .false.
-            !File keyword     : DISPQUAL
-            !Multiple Options : 1 (.true.), 0 (.false.)
-            !Search Type      : FromBlock
-            !Begin Block      : <beginproperty>
-            !End Block        : <endproperty>
-        !<EndKeyword>
-        call GetData(NewProperty%Evolution%BottomFluxes,                                 &
-                     Me%ObjEnterData, iflag,                                             &
-                     SearchType   = FromBlock,                                           &
-                     keyword      = 'BOTTOM_FLUXES',                                     &
-                     Default      = .false.,                                             &
-                     ClientModule = 'ModuleWaterProperties',                             &
-                     STAT         = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_)                                                     &
-            stop 'Subroutine Construct_PropertyEvolution - ModuleWaterProperties - ERR140'
-
-        if (NewProperty%Evolution%BottomFluxes)                                          &
-            NewProperty%Evolution%Variable = .true.
-
-        !<BeginKeyword>
-            !Keyword          : DATA_ASSIMILATION
-            !<BeginDescription>       
-               !  Chek is this property has data assimilation ? no - 0;  yes - 1
-            !<EndDescription>
-            !Type             : integer 
-            !Default          : NoNudging
-            !File keyword     : DISPQUAL
-            !Multiple Options : 1 (.true.), 0 (.false.)
-            !Search Type      : FromBlock
-            !Begin Block      : <beginproperty>
-            !End Block        : <endproperty>
-        !<EndKeyword>
-        call GetData(NewProperty%Evolution%DataAssimilation,                             &
-                     Me%ObjEnterData, iflag,                                             &
-                     ClientModule ='ModuleWaterProperties',                              &
-                     Default      = NoNudging,                                           &
-                     SearchType   = FromBlock,                                           &
-                     keyword      ='DATA_ASSIMILATION',                                  &
-                     STAT         = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_)                                                     &
-            stop 'Subroutine Construct_PropertyEvolution - ModuleWaterProperties - ERR150'
-        
-        if (NewProperty%Evolution%DataAssimilation /= NoNudging)then
-            NewProperty%Evolution%Variable = .true.
-        endif
-
-        if (NewProperty%Evolution%DataAssimilation /= NoNudging      .and.              &
-            NewProperty%Evolution%DataAssimilation /= NudgingToRef   .and.              &
-            NewProperty%Evolution%DataAssimilation /= NudgingAdvVert .and.              &
-            NewProperty%Evolution%DataAssimilation /= Hybrid)then
-            stop 'Subroutine Construct_PropertyEvolution - ModuleWaterProperties - ERR160'
-        endif
-
-        if(NewProperty%Evolution%DataAssimilation == Hybrid .and. .not. &
-           NewProperty%SubModel%ON)then
-            write(*,*)'Data assimilation scheme set to Hybrid but SUBMODEL is not set'
-            write(*,*)'Property : ', trim(NewProperty%ID%Name)
-            stop 'Subroutine Construct_PropertyEvolution - ModuleWaterProperties - ERR170'
-        endif
-
-
-        !<BeginKeyword>
-            !Keyword          : LIGHT_EXTINCTION
-            !<BeginDescription>       
-               !  Chek is this property is used to compute light extinction? no - 0;  yes - 1
-            !<EndDescription>
-            !Type             : Boolean 
-            !Default          : .false.
-            !File keyword     : DISPQUAL
-            !Multiple Options : 1 (.true.), 0 (.false.)
-            !Search Type      : FromBlock
-            !Begin Block      : <beginproperty>
-            !End Block        : <endproperty>
-        !<EndKeyword>
-        
-        call GetData(NewProperty%Evolution%LightExtinction,                             &
-                     Me%ObjEnterData, iflag,                                            &
-                     ClientModule ='ModuleWaterProperties',                             &
-                     Default      = OFF,                                                &
-                     SearchType   = FromBlock,                                          &
-                     keyword      ='LIGHT_EXTINCTION',                                  &
-                     STAT         = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_)                                                    &
-            stop 'Subroutine Construct_PropertyEvolution - ModuleWaterProperties - ERR180'
-        
-
-        if(NewProperty%Evolution%LightExtinction)then
-            
-            call GetData(NewProperty%Evolution%Extinction%Coefficient,                  &
-                         Me%ObjEnterData, iflag,                                        &
-                         ClientModule ='ModuleWaterProperties',                         &
-                         Default      = 1.0,                                            &
-                         SearchType   = FromBlock,                                      &
-                         keyword      ='EXTINCTION_PARAMETER',                          &
-                         STAT         = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_)                                                &
-                stop 'Subroutine Construct_PropertyEvolution - ModuleWaterProperties - ERR190'
-
-        end if
-
-
-       !aqui
-       !<BeginKeyword>
-            !Keyword          : FILTRATION
-            !<BeginDescription>       
-            ! This property has filtration as a sink 
-            !<EndDescription>
-            !Type             : Logical 
-            !Default          : FALSE
-            !File keyword     : DISPQUAL
-            !Multiple Options : NO, WQM
-            !Search Type      : FromBlock
-            !Begin Block      : <beginproperty>
-            !End Block        : <endproperty>
-        !<EndKeyword>       
-        call GetData(NewProperty%Evolution%Filtration%On,                               &
-                     Me%ObjEnterData, iflag,                                            &
-                     SearchType   = FromBlock,                                          &
-                     keyword      = 'FILTRATION',                                       &
-                     Default      = OFF,                                                &
-                     ClientModule = 'ModuleWaterProperties',                            &
-                     STAT         = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_)                                                    &
-            stop 'Subroutine Construct_PropertyEvolution - ModuleWaterProperties - ERR200'
-
-        if(NewProperty%Evolution%Filtration%On) NewProperty%evolution%Variable = .true.
-        
-        if(NewProperty%Evolution%Filtration%On)                                           &
-            call Read_Filtration_Parameters(NewProperty,ClientNumber)
-
-       !<BeginKeyword>
-            !Keyword          : LAG_SINKS_SOURCES
-            !<BeginDescription>       
-            ! This property has sinks and sources computed in the lagrangian module
-            !<EndDescription>
-            !Type             : Logical 
-            !Default          : FALSE
-            !File keyword     : DISPQUAL
-            !Multiple Options : NO, WQM
-            !Search Type      : FromBlock
-            !Begin Block      : <beginproperty>
-            !End Block        : <endproperty>
-        !<EndKeyword>       
-        call GetData(NewProperty%Evolution%LagSinksSources,                             &
-                     Me%ObjEnterData, iflag,                                            &
-                     SearchType   = FromBlock,                                          &
-                     keyword      = 'LAG_SINKS_SOURCES',                                &
-                     Default      = OFF,                                                &
-                     ClientModule = 'ModuleWaterProperties',                            &
-                     STAT         = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_)                                                    &
-            stop 'Subroutine Construct_PropertyEvolution - ModuleWaterProperties - ERR210'
-
-        if(NewProperty%Evolution%LagSinksSources) NewProperty%evolution%Variable = .true.
-
-
-        !<BeginKeyword>
-            !Keyword          : FIRST_ORDER_DECAY
-            !<BeginDescription>       
-               !  This property has a first order decay ? no - 0;  yes - 1
-            !<EndDescription>
-            !Type             : Boolean 
-            !Default          : .false.
-            !File keyword     : DISPQUAL
-            !Multiple Options : 1 (.true.), 0 (.false.)
-            !Search Type      : FromBlock
-            !Begin Block      : <beginproperty>
-            !End Block        : <endproperty>
-        !<EndKeyword>
-        call GetData(NewProperty%evolution%FirstOrderDecay,                              &
-                     Me%ObjEnterData, iflag,                                             &
-                     SearchType   = FromBlock,                                           &
-                     keyword      = 'FIRST_ORDER_DECAY',                                 &
-                     Default      = .false.,                                             &
-                     ClientModule = 'ModuleWaterProperties',                             &
-                     STAT         = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_)                                                     &
-            stop 'Subroutine Construct_PropertyEvolution - ModuleWaterProperties - ERR220'
-
-        if (NewProperty%evolution%FirstOrderDecay) then
-
-            NewProperty%evolution%Variable = .true.
-
-            !<BeginKeyword>
-                !Keyword          : T90_PROPERTY_NAME
-                !<BeginDescription>       
-                  !  The time in seconds to decay an order of magnitude ? 
-                !<EndDescription>
-                !Type             : real 
-                !Default          : 'T90'
-                !File keyword     : DISPQUAL
-                !Search Type      : FromBlock
-                !Begin Block      : <beginproperty>
-                !End Block        : <endproperty>
-            !<EndKeyword>
-            call GetData(AuxName,                                                       &
-                         Me%ObjEnterData, iflag,                                        &
-                         SearchType   = FromBlock,                                      &
-                         keyword      = 'T90_PROPERTY_NAME',                            &
-                         Default      = trim(GetPropertyName(T90_)),                    &
-                         ClientModule = 'ModuleWaterProperties',                        &
-                         STAT         = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_)                                                &
-                stop 'Subroutine Construct_PropertyEvolution - ModuleWaterProperties - ERR230'
-
-
-                      
-            if (.not.CheckPropertyName(trim(AuxName),NewProperty%evolution%T90PropertyID)) then
-                stop 'Subroutine Construct_PropertyEvolution - ModuleWaterProperties - ERR240'
-            endif
-
-        endif
-
-        !<BeginKeyword>
-            !Keyword          : DECAY_RATE_PROPERTY
-            !<BeginDescription>       
-               !  This property is a decay rate ? no - 0;  yes - 1
-            !<EndDescription>
-            !Type             : Boolean 
-            !Default          : .false.
-            !File keyword     : DISPQUAL
-            !Multiple Options : 1 (.true.), 0 (.false.)
-            !Search Type      : FromBlock
-            !Begin Block      : <beginproperty>
-            !End Block        : <endproperty>
-        !<EndKeyword>
-        call GetData(NewProperty%evolution%DecayRateProperty,                            &
-                     Me%ObjEnterData, iflag,                                             &
-                     SearchType   = FromBlock,                                           &
-                     keyword      = 'DECAY_RATE_PROPERTY',                               &
-                     Default      = .false.,                                             &
-                     ClientModule = 'ModuleWaterProperties',                             &
-                     STAT         = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_)                                                     &
-            stop 'Subroutine Construct_PropertyEvolution - ModuleWaterProperties - ERR250'
-
-        if (NewProperty%evolution%DecayRateProperty) then
-            
-            NewProperty%Evolution%AdvectionDiffusion = .false.
-
-            call GetData(NewProperty%evolution%T90Variable,                             &
-                             Me%ObjEnterData,                                           &
-                             iflag,                                                     &
-                             SearchType   = FromBlock,                                  &
-                             keyword      ='T90_VARIABLE',                              &
-                             ClientModule ='ModuleWaterProperties',                     &
-                             Default      = .false.,                                    &    
-                             STAT         = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                  &
-                stop 'Subroutine Construct_PropertyEvolution - ModuleWaterProperties - ERR260'
-
-            call GetData(NewProperty%evolution%T90Hours,                                &
-                             Me%ObjEnterData,                                           &
-                             iflag,                                                     &
-                             SearchType   = FromBlock,                                  &
-                             keyword      ='T90_HOURS',                                 &
-                             ClientModule ='ModuleWaterProperties',                     &
-                             Default      = .false.,                                    &    
-                             STAT         = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                  &
-                stop 'Subroutine Construct_PropertyEvolution - ModuleWaterProperties - ERR265'
-
-            if (NewProperty%evolution%T90Variable) then
-                
-                call GetData(NewProperty%evolution%T90Var_Method,                       &
-                             Me%ObjEnterData,                                           &
-                             iflag,                                                     &
-                             SearchType   = FromBlock,                                  &
-                             keyword      ='T90_VAR_METHOD',                            &
-                             ClientModule ='ModuleWaterProperties',                     &
-                             STAT         = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)                                              &
-                    stop 'Subroutine Construct_PropertyEvolution - ModuleWaterProperties - ERR270'
-
-                if (iflag /= 1) then
-                    write(*,*)'Keyword T90_VAR_METHOD not defined for decay of variable fecal coliforms decay'
-                    stop 'Subroutine Construct_PropertyEvolution - ModuleWaterProperties - ERR280'
-                endif
-
-                if (NewProperty%evolution%T90Var_Method /= Canteras .and.           &
-                    NewProperty%evolution%T90Var_Method /= Chapra) then
-                    write (*,*) 'T90 calculation method unknown'
-                    stop 'Subroutine Construct_PropertyEvolution - ModuleWaterProperties - ERR290'
-                endif
-
-            endif
-        
-        endif
-
-
-        if (NewProperty%ID%IDNumber == Oxygen_) then
-            call GetData(NewProperty%evolution%OxygenSaturation,                        &
-                             Me%ObjEnterData,                                           &
-                             iflag,                                                     &
-                             SearchType   = FromBlock,                                  &
-                             keyword      ='OXYGEN_SATURATION',                         &
-                             ClientModule ='ModuleWaterProperties',                     &
-                             Default      = .false.,                                    &    
-                             STAT         = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                              &
-                stop 'Subroutine Construct_PropertyEvolution - ModuleWaterProperties - ERR260'
-
-            if (NewProperty%evolution%OxygenSaturation) then 
-                
-                Me%OxygenSaturation = .true. 
-                NewProperty%Evolution%AdvectionDiffusion = .false.
-
-            endif
-
-        else
-            NewProperty%evolution%OxygenSaturation = .false. 
-        endif
-            
-  
-        if (NewProperty%ID%IDNumber == CarbonDioxide_) then
-            call GetData(NewProperty%evolution%CO2_PP_Output,                           &
-                             Me%ObjEnterData,                                           &
-                             iflag,                                                     &
-                             SearchType   = FromBlock,                                  &
-                             keyword      ='CO2_PPRESSURE_OUTPUT',                      &
-                             ClientModule ='ModuleWaterProperties',                     &
-                             Default      = .false.,                                    &    
-                             STAT         = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                              &
-                stop 'Subroutine Construct_PropertyEvolution - ModuleWaterProperties - ERR270'
-
-        endif
-        
-        
-        if (NewProperty%ID%IDNumber == Oxygen_) then
-            call GetData(NewProperty%evolution%O2_Sat_Output,                           &
-                             Me%ObjEnterData,                                           &
-                             iflag,                                                     &
-                             SearchType   = FromBlock,                                  &
-                             keyword      ='O2_SATURATION_OUTPUT',                      &
-                             ClientModule ='ModuleWaterProperties',                     &
-                             Default      = .false.,                                    &    
-                             STAT         = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                              &
-                stop 'Subroutine Construct_PropertyEvolution - ModuleWaterProperties - ERR280'
-
-        endif   
-
-
-
-       !<BeginKeyword>
-            !Keyword          : REINITIALIZE
-            !<BeginDescription>       
-            ! This property will be reinitialize in run time using boxes (option introduce in the framework of cowama)
-            !<EndDescription>
-            !Type             : Logical 
-            !Default          : FALSE
-            !File keyword     : DISPQUAL
-            !Multiple Options : NO, WQM
-            !Search Type      : FromBlock
-            !Begin Block      : <beginproperty>
-            !End Block        : <endproperty>
-        !<EndKeyword>       
-        call GetData(NewProperty%Evolution%Reinitialize%On,                             &
-                     Me%ObjEnterData, iflag,                                            &
-                     SearchType   = FromBlock,                                          &
-                     keyword      = 'REINITIALIZE',                                     &
-                     Default      = OFF,                                                &
-                     ClientModule = 'ModuleWaterProperties',                            &
-                     STAT         = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_)                                                    &
-            stop 'Subroutine Construct_PropertyEvolution - ModuleWaterProperties - ERR295'
-
-        if (NewProperty%Evolution%Reinitialize%On) call Read_Reinitialize_Parameters(NewProperty, ClientNumber)
-
-        
-        !Time Step if the property field is variable in time
-        if (NewProperty%Evolution%Variable) then
-
-            call GetComputeTimeStep(Me%ObjTime, ModelDT, STAT = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_)                                                 &
-                stop 'Subroutine Construct_PropertyEvolution - ModuleWaterProperties - ERR300'
-
-            call GetVariableDT (Me%ObjTime, VariableDT, STAT = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_)                                                 &
-                stop 'Subroutine Construct_PropertyEvolution - ModuleWaterProperties - ERR310'
-    
-            if (VariableDT) then
-                
-                NewProperty%Evolution%DTInterval       = ModelDT
-
-                NewProperty%Evolution%HydroIntegration = .false.
-
-        else
-
-            !<BeginKeyword>
-                !Keyword          : DT_INTERVAL
-                !<BeginDescription>       
-                   ! In the future a GET_DT_Hydro to a hydrodynamic module should be done to know the DT value  
-                   ! that is been used to computethe the velocity field
-                   ! By default the DTinterval is equal to the time step of the hydrodynamic model. In this case 
-                   ! is admitted that the hydrodynamic model is computing the velocity field using a ADI method.
-                !<EndDescription>
-                !Type             : Real 
-                !Default          : Time step of hydrodynamic model
-                !File keyword     : DISPQUAL
-                !Multiple Options : Do not have
-                !Search Type      : FromBlock
-                !Begin Block      : <beginproperty>
-                !End Block        : <endproperty>
-            !<EndKeyword>
-
-            call GetData(NewProperty%evolution%DTInterval,                          &
-                         Me%ObjEnterData, iflag,                                    &
-                         SearchType     = FromBlock,                                &
-                         keyword        = 'DT_INTERVAL',                            &
-                         Default        = ModelDT,                                  &
-                         ClientModule   = 'ModuleWaterProperties',                  &
-                         STAT           = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine Construct_PropertyEvolution - ModuleWaterProperties - ERR320'
-
-
-            if (NewProperty%evolution%DTInterval < (ModelDT)) then
-                write(*,*) 
-                write(*,*) ' Time step error.'
-                stop       'Subroutine Construct_PropertyEvolution - ModuleWaterProperties - ERR330'
-
-            elseif (NewProperty%evolution%DTInterval > (ModelDT)) then
-
-                !Property DT  must be a multiple of the ModelDT
-                auxFactor = NewProperty%evolution%DTInterval  / ModelDT
-
-                Erroraux = auxFactor - int(auxFactor)
-                if (Erroraux /= 0) then
-                    write(*,*) 
-                    write(*,*) ' Time step error.'
-                    stop       'Subroutine Construct_PropertyEvolution - ModuleWaterProperties - ERR340'
-                endif
-
-                    ! Run period in seconds
-                    DTaux = Me%EndTime - Me%ExternalVar%Now
-
-                    !The run period   must be a multiple of the Property DT
-                    auxFactor = DTaux / NewProperty%evolution%DTInterval
-
-                    ErrorAux = auxFactor - int(auxFactor)
-                    if (ErrorAux /= 0) then
-                        write(*,*) 
-                        write(*,*) ' Time step error.'
-                        stop       'Subroutine Construct_PropertyEvolution - ModuleWaterProperties - ERR350'
-                    endif
-
-                    NewProperty%Evolution%HydroIntegration = .true.
-
-                else
-
-                    NewProperty%Evolution%HydroIntegration = .false.
-
-                end if
-
-            endif
-
-            NewProperty%Evolution%NextCompute = Me%ExternalVar%Now + NewProperty%Evolution%DTInterval
-                                                
-        else 
-
-            call null_time(NewProperty%Evolution%NextCompute)
-
-            NewProperty%evolution%DTInterval = FillValueReal
-
-        endif
-
-        !----------------------------------------------------------------------
-
-    end subroutine Construct_PropertyEvolution     
-
-    !--------------------------------------------------------------------------
-
-
 
     !--------------------------------------------------------------------------
     !Advection / Diffusion parameters
@@ -6180,7 +6325,7 @@ cd1:    if (NewProperty%Evolution%Partition%SalinityEffect) then
      
     !-------------------------------------------------------------------------
     
-        !--------------------------------------------------------------------------    
+    !--------------------------------------------------------------------------    
 
     subroutine Read_Reinitialize_Parameters(NewProperty, ClientNumber)
 
@@ -6305,202 +6450,6 @@ cd1:    if (NewProperty%Evolution%Partition%SalinityEffect) then
         enddo
 
     end subroutine Read_Reinitialize_Parameters
-     
-    !-------------------------------------------------------------------------
-    subroutine Construct_PropertyOutPut(NewProperty)
-
-        !Arguments------------------------------------------------------------
-        type(T_property),           pointer     :: NewProperty
-
-        !Local-----------------------------------------------------------------
-        integer                                 :: STAT_CALL
-        integer                                 :: iflag
-
-        !Begin----------------------------------------------------------------
-
-        !<BeginKeyword>
-            !Keyword          : OUTPUT_HDF
-            !<BeginDescription>       
-               ! 
-               ! Checks out if the user pretends to write a HDF format file for this property
-               ! 
-            !<EndDescription>
-            !Type             : Boolean 
-            !Default          : .false.
-            !File keyword     : DISPQUAL
-            !Multiple Options : Do not have
-            !Search Type      : FromBlock
-            !Begin Block      : <beginproperty>
-            !End Block        : <endproperty>
-        !<EndKeyword>
-        call GetData(NewProperty%OutputHDF,                                             &
-                     Me%ObjEnterData, iflag,                                            &
-                     Keyword        = 'OUTPUT_HDF',                                     &
-                     Default        = .false.,                                          &
-                     SearchType     = FromBlock,                                        &
-                     ClientModule   = 'ModuleWaterProperties',                          &
-                     STAT           = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Construct_PropertyOutPut - ModuleWaterProperties - ERR00'
-
-
-        !<BeginKeyword>
-            !Keyword          : OUTPUT_SURFACE_HDF
-            !<BeginDescription>       
-               ! 
-               ! Checks out if the user pretends to write a HDF format file for this property
-               ! at the surface layer
-               ! 
-            !<EndDescription>
-            !Type             : Boolean 
-            !Default          : .false.
-            !File keyword     : DISPQUAL
-            !Multiple Options : Do not have
-            !Search Type      : FromBlock
-            !Begin Block      : <beginproperty>
-            !End Block        : <endproperty>
-        !<EndKeyword>
-        call GetData(NewProperty%OutputSurfaceHDF,                                      &
-                     Me%ObjEnterData, iflag,                                            &
-                     Keyword        = 'OUTPUT_SURFACE_HDF',                             &
-                     Default        = .false.,                                          &
-                     SearchType     = FromBlock,                                        &
-                     ClientModule   = 'ModuleWaterProperties',                          &
-                     STAT           = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Construct_PropertyOutPut - ModuleWaterProperties - ERR01'
-
-
-        if(NewProperty%OutputSurfaceHDF .and. .not. NewProperty%OutputHDF)then
-            write(*,*)"OUTPUT_SURFACE_HDF is on but OUTPUT_HDF is off"
-            write(*,*)"Property: ", trim(NewProperty%ID%Name)
-            stop 'Construct_PropertyOutPut - ModuleWaterProperties - ERR01'
-        endif
-
-           
-        !<BeginKeyword>
-            !Keyword          : TIME_SERIE
-            !<BeginDescription>       
-               ! 
-               ! Checks out if the user pretends to write a time serie for this property
-               ! 
-            !<EndDescription>
-            !Type             : Boolean 
-            !Default          : .false.
-            !File keyword     : DISPQUAL
-            !Multiple Options : Do not have
-            !Search Type      : FromBlock
-            !Begin Block      : <beginproperty>
-            !End Block        : <endproperty>
-        !<EndKeyword>
-        call GetData(NewProperty%TimeSerie,                                             &
-                     Me%ObjEnterData, iflag,                                            &
-                     Keyword        = 'TIME_SERIE',                                     &
-                     Default        = .false.,                                          &
-                     SearchType     = FromBlock,                                        &
-                     ClientModule   = 'ModuleWaterProperties',                          &
-                     STAT           = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Construct_PropertyOutPut - ModuleWaterProperties - ERR02'
-
-        !<BeginKeyword>
-            !Keyword          : OUTPUT_PROFILE
-            !<BeginDescription>       
-               ! 
-               ! Checks out if the user pretends to write a profile output for this property
-               ! 
-            !<EndDescription>
-            !Type             : Boolean 
-            !Default          : .false.
-            !File keyword     : DISPQUAL
-            !Multiple Options : Do not have
-            !Search Type      : FromBlock
-            !Begin Block      : <beginproperty>
-            !End Block        : <endproperty>
-        !<EndKeyword>
-        call GetData(NewProperty%OutputProfile,                                         &
-                     Me%ObjEnterData, iflag,                                            &
-                     Keyword        = 'OUTPUT_PROFILE',                                 &
-                     Default        = .false.,                                          &
-                     SearchType     = FromBlock,                                        &
-                     ClientModule   = 'ModuleWaterProperties',                          &
-                     STAT           = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Construct_PropertyOutPut - ModuleWaterProperties - ERR03'
-        !<BeginKeyword>
-            !Keyword          : BOX_TIME_SERIE
-            !<BeginDescription>       
-                ! Checks out if the user pretends to write a time serie inside each box for this property
-            !<EndDescription>
-            !Type             : Boolean 
-            !Default          : .false.
-            !File keyword     : DISPQUAL
-            !Multiple Options : 1 (.true.) , 0 (.false.) 
-            !Search Type      : FromBlock
-            !Begin Block      : <beginproperty>
-            !End Block        : <endproperty>
-        !<EndKeyword>
-        call GetData(NewProperty%BoxTimeSerie,                                           &
-                     Me%ObjEnterData, iflag,                                             &
-                     Keyword        = 'BOX_TIME_SERIE',                                  &
-                     Default        = .false.,                                           &
-                     SearchType     = FromBlock,                                         &
-                     ClientModule   = 'ModuleWaterProperties',                           &
-                     STAT           = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Construct_PropertyOutPut - ModuleWaterProperties - ERR04'
-
-
-        !<BeginKeyword>
-            !Keyword          : STATISTICS
-            !<BeginDescription>       
-               ! 
-               ! Checks out if the user pretends the statistics of this property
-               ! 
-            !<EndDescription>
-            !Type             : Boolean 
-            !Default          : .false.
-            !File keyword     : DISPQUAL
-            !Multiple Options : Do not have
-            !Search Type      : FromBlock
-            !Begin Block      : <beginproperty>
-            !End Block        : <endproperty>
-        !<EndKeyword>
-        call GetData(NewProperty%Statistics,                                            &
-                     Me%ObjEnterData, iflag,                                            &
-                     Keyword    = 'STATISTICS',                                         &
-                     Default    = .false.,                                              &
-                     SearchType = FromBlock,                                            &
-                     ClientModule = 'ModuleWaterProperties',                            &
-                     STAT           = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Construct_PropertyOutPut - ModuleWaterProperties - ERR05'
-
-        
-        if (NewProperty%Statistics) then
-
-            !<BeginKeyword>
-                !Keyword          : STATISTICS_FILE
-                !<BeginDescription>       
-                   ! 
-                   ! The statistics definition file of this property
-                   ! 
-                !<EndDescription>
-                !Type             : Character
-                !Default          : Do not have
-                !File keyword     : DISPQUAL
-                !Multiple Options : Do not have
-                !Search Type      : FromBlock
-                !Begin Block      : <beginproperty>
-                !End Block        : <endproperty>
-            !<EndKeyword>
-            call GetData(NewProperty%StatisticsFile,                                    &
-                 Me%ObjEnterData, iflag,                                                &
-                 Keyword        = 'STATISTICS_FILE',                                    &
-                 SearchType     = FromBlock,                                            &
-                 ClientModule   = 'ModuleWaterProperties',                              &
-                 STAT           = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_ .or. iflag /= 1)                                  &
-                stop 'Construct_PropertyOutPut - ModuleWaterProperties - ERR06'
-
-        endif    
-
-
-    end subroutine Construct_PropertyOutPut
 
     !--------------------------------------------------------------------------
     !If the user want's to use the values of a previous   
