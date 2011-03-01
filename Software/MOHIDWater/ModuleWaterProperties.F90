@@ -3824,14 +3824,14 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
         
         endif
 
-        if (NewProperty%Evolution%DataAssimilation /= NoNudging) then
+        !if (NewProperty%Evolution%DataAssimilation /= NoNudging) then
 
             allocate (NewProperty%Assimilation%Field(ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT_CALL)            
             if (STAT_CALL .NE. SUCCESS_)                                                     &
                 stop 'Construct_PropertyValues - ModuleWaterProperties - ERR30' 
                 NewProperty%Assimilation%Field(:,:,:) = FillValueReal
 
-        endif
+        !endif
 
         !<BeginKeyword>
             !Keyword          : OLD
@@ -4033,7 +4033,7 @@ cd1 :   if (.not.NewProperty%Old) then
             NewProperty%Concentration(WIUB, WJLB:WJUB, WKLB:WKUB)   
 
 
-            if (NewProperty%Evolution%DataAssimilation /= NoNudging) then
+            !if (NewProperty%Evolution%DataAssimilation /= NoNudging) then
                 !By default the assimilation field is equal to the initial one
 
 do3 :           do K = WKLB, WKUB
@@ -4046,7 +4046,7 @@ do1 :           do I = ILB, IUB
                 end do do2
                 end do do3
 
-            endif
+            !endif
                      
             !Only the EXTERIOR and the INTERIOR process were considered
 
@@ -8785,7 +8785,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
             endif
 
-            if      (PropertySon%SubModel%VertComunic == FatherSonEqualDim) then
+            if      (PropertySon%SubModel%VertComunic == FatherSonEqualDim ) then
                 
                 call ActualizeSubModelValues(PropertySon, PropFatherOld, InitialField)
 
