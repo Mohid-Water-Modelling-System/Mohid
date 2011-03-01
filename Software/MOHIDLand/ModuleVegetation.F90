@@ -7699,6 +7699,7 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
     subroutine ModifyReadedProperties
  
        !Local-----------------------------------------------------------------
+       integer :: i, j
        !Begin-----------------------------------------------------------------
  
         !Local-----------------------------------------------------------------
@@ -7719,6 +7720,18 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
                                        STAT           = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ReadSolution - ModuleAtmosphere - ERR01'
             
+            endif
+            
+            !This code exists to avoid Leaf Area Index (LAI) negative
+            !The best is to preprocess data to avoid negative values (maybe interpolate to fill missing values)
+            if (PropertyX%ID%IDNumber .EQ. LeafAreaIndex_) then
+do1:            do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+do2:            do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+                    if (PropertyX%Field(i, j) < 0.0) then
+                        PropertyX%Field(i, j) = 0.0
+                    endif
+                enddo do2
+                enddo do1
             endif
             
             PropertyX => PropertyX%Next

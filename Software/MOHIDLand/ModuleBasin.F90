@@ -3229,6 +3229,9 @@ cd2 :           if (BlockFound) then
         logical                                     :: CalcET0                  = .false.
         real(8)                                     :: Evaporation
         real, dimension(:,:), pointer               :: EvaporationMatrix => null()
+        real                                        :: LAI
+        real                                        :: Year, Month, Day, hour, minute, second
+        integer                                     :: days
         !Begin-----------------------------------------------------------------
 
        
@@ -3326,23 +3329,47 @@ cd2 :           if (BlockFound) then
                     RefEvapotrans%Field(i, j)  = max(RefEvapotrans%Field(i, j) * Me%ETConversionFactor, 0.0)
                 
                 endif        
-                                                                            
+                       
+!                call ExtractDate(Me%CurrentTime, Year, Month, Day, hour, minute, second) 
+!                call DateToGregorianDay(Me%CurrentTime, days)
+!                                                                     
                 if (Me%Coupled%Vegetation) then
                     
+!                    if (Me%ExtVar%CropCoefficient(i, j) < 0.0) then
+!                        write (*,*) 'Me%ExtVar%CropCoefficient(', i, ',', j, ') NEGATIVO em ', days, Year, Month, Day, hour, minute, second
+!                        stop
+!                    endif
+                 
                     if (Me%UsePotLAI) then
                         Kc = AdjustCropCoefficient(i, j)
                     else
                         Kc = Me%ExtVar%CropCoefficient(i, j)
                     endif
                     
+!                    if (Kc < 0.0) then
+!                        write (*,*) 'Kc(', i, ',', j, ') NEGATIVO em ', days, Year, Month, Day, hour, minute, second
+!                        stop
+!                    endif
+                    
                     !m/s
                     Me%CropEvapotrans(i, j) = RefEvapotrans%Field(i, j) * Kc
+!                    if (Me%CropEvapotrans(i, j) < 0.0) then
+!                        write (*,*) 'I/J: ', i, '/', j, 'CropEvapotrans NEGATIVO em ',Year, Month, Day, hour, minute, second
+!                        stop
+!                    endif
 
                     if (Me%EvapoTranspirationMethod .EQ. SeparateEvapoTranspiration) then
                         
+!                        if (Me%ExtVar%LeafAreaIndex(i, j) < 0.) then
+!!                            write (*,*) 'LAI NEGATIVO em ', days, Year, Month, Day, hour, minute, second                            
+!                            LAI = 0.
+!                        else                            
+!                            LAI = Me%ExtVar%LeafAreaIndex(i, j)                            
+!                        endif
+                        
                         !m/s
-                        Me%PotentialTranspiration(i, j) = Me%CropEvapotrans(i, j)                      &
-                                                         * ( 1.0 - exp(-0.463 * Me%ExtVar%LeafAreaIndex(i, j)))
+                        Me%PotentialTranspiration(i, j) = Me%CropEvapotrans(i, j) * &
+                                                          (1.0 - exp(-0.463 * Me%ExtVar%LeafAreaIndex(i, j)))
                         !m/s
                         Me%PotentialEvaporation  (i, j) = Me%CropEvapotrans(i, j) - Me%PotentialTranspiration(i, j)
 
@@ -3536,31 +3563,54 @@ cd2 :           if (BlockFound) then
         real :: LAI, PotLAI, Kc
         
         !Begin---------------------------------------------------------------------
-        LAI = Me%ExtVar%LeafAreaIndex(I, J)
+        LAI = max(Me%ExtVar%LeafAreaIndex(I, J), 0.0)
         PotLAI = Me%ExtVar%PotLeafAreaIndex(I, J)
         Kc = Me%ExtVar%CropCoefficient(I, J)
         
-        !From 'Necessidades de Água e Métodos de Rega', Luis Santos Pereira, 2004
-        !Publicações Europa-América, pg 85-86
-        if ((Me%UseDefaultKcWhenLAI0) .AND. (LAI .EQ. 0.0)) then
+        if (LAI .EQ. 0) then
             if (Me%UseKcMin) then
-                AdjustCropCoefficient = max(Me%DefaultKcWhenLAI0, Me%KcMin)
+                AdjustCropCoefficient = Me%KcMin                
             else
-                AdjustCropCoefficient = Me%DefaultKcWhenLAI0
-            endif
-        else if ((PotLAI > LAI) .AND. (PotLAI > 0.0)) then
-            if (Me%UseKcMin) then
-                AdjustCropCoefficient = max(Kc - (1 - (LAI / PotLAI)**0.5), Me%KcMin)                
-            else
-                AdjustCropCoefficient = Kc - (1 - (LAI / PotLAI)**0.5)
+                AdjustCropCoefficient = 0.0
             endif
         else
-            if (Me%UseKcMin) then
-                AdjustCropCoefficient = max(Kc, Me%KcMin)
+        
+            !From 'Necessidades de Água e Métodos de Rega', Luis Santos Pereira, 2004
+            !Publicações Europa-América, pg 85-86
+            if ((Me%UseDefaultKcWhenLAI0) .AND. (LAI .EQ. 0.0)) then
+                if (Me%UseKcMin) then
+                    AdjustCropCoefficient = max(Me%DefaultKcWhenLAI0, Me%KcMin)
+                else
+                    AdjustCropCoefficient = Me%DefaultKcWhenLAI0
+                endif
+            else if ((PotLAI > LAI) .AND. (PotLAI > 0.0)) then           
+                if (Me%UseKcMin) then
+                    AdjustCropCoefficient = max(Kc - (1 - (LAI / PotLAI)**0.5), Me%KcMin)                
+                else
+                    AdjustCropCoefficient = max(Kc - (1 - (LAI / PotLAI)**0.5), 0.0)
+                endif
             else
-                AdjustCropCoefficient = Kc
+                if (Me%UseKcMin) then
+                    AdjustCropCoefficient = max(Kc, Me%KcMin)
+                else
+                    AdjustCropCoefficient = max(Kc, 0.0)
+                endif
             endif
+            
         endif
+        
+!        if (AdjustCropCoefficient < 0.0) then
+!            write (*,*) 'I: ', I, ', J: ', J
+!            write (*,*) 'LAI: ', LAI
+!            write (*,*) 'PotLAI: ', PotLAI
+!            write (*,*) 'CropCoefficient: ', Me%ExtVar%CropCoefficient(I, J) 
+!            if (Me%UseKcMin) then
+!                write (*,*) 'Uses Kc Min. Value: ', Me%KcMin
+!            endif
+!            write (*,*) 'Kc: ', kc
+!            stop
+!        endif
+        
         !--------------------------------------------------------------------------
     
     end function AdjustCropCoefficient
@@ -4090,25 +4140,29 @@ cd2 :           if (BlockFound) then
             endif
         endif
 
-        call GetECw (PorousMediaPropertiesID = Me%ObjPorousMediaProperties,  &
-                     ECw                     = ECw,                          &
-                     STAT                    = STAT_CALL)
-        if (STAT_CALL .EQ. SUCCESS_) then
-        
-            call SetECw (Me%ObjVegetation, ECw, STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) &
-                stop 'VegetationProcesses - ModuleBasin - ERR100'
+        if (Me%Coupled%PorousMediaProperties) then
 
-        elseif (STAT_CALL /= NOT_ASSOCIATE_) then
-        
-            stop 'VegetationProcesses - ModuleBasin - ERR110'
+            call GetECw (PorousMediaPropertiesID = Me%ObjPorousMediaProperties,  &
+                         ECw                     = ECw,                          &
+                         STAT                    = STAT_CALL)
+            if (STAT_CALL .EQ. SUCCESS_) then
             
-        endif
-                         
-        call UnGetPorousMediaProperties (Me%ObjPorousMediaProperties, ECw, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) &
-            stop 'VegetationProcesses - ModuleBasin - ERR120'
+                call SetECw (Me%ObjVegetation, ECw, STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) &
+                    stop 'VegetationProcesses - ModuleBasin - ERR100'
 
+            elseif (STAT_CALL /= NOT_ASSOCIATE_) then
+            
+                stop 'VegetationProcesses - ModuleBasin - ERR110'
+                
+            endif
+                             
+            call UnGetPorousMediaProperties (Me%ObjPorousMediaProperties, ECw, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) &
+                stop 'VegetationProcesses - ModuleBasin - ERR120'
+
+        endif
+            
         !Transpiration
         if (Me%EvapoTranspirationMethod == SeparateEvapoTranspiration) then
             PotentialTranspiration => Me%PotentialTranspiration
