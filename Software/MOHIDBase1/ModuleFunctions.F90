@@ -1760,11 +1760,11 @@ do1 :       do II = JImin+1, JImax+1
         
         CHUNK = CHUNK_J(IJmin,IJmax) !!$
 
-        !!$OMP PARALLEL PRIVATE(TID,VEC,IJ,I,J,JI,II,MM)
+        !$OMP PARALLEL PRIVATE(TID,VEC,IJ,I,J,JI,II,MM)
         TID = 1
-        !TID = 1 + omp_get_thread_num() !!$
+        TID = 1 + omp_get_thread_num() !!$
         VEC => THOMAS%VEC(TID)
-        !!$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
 do2 :   do IJ = IJmin, IJmax
             I = IJmin-1 + IJ*dj + di
             J = JImin-1 + IJ*di + dj
@@ -1794,8 +1794,8 @@ do1 :       do II = JImin+1, JImax+1
                 ANSWER(I,J) = VEC%W(MM) * ANSWER(I+di,J+dj) + VEC%G(MM)
             end do do1
         end do do2
-        !!$OMP END DO NOWAIT
-        !!$OMP END PARALLEL
+        !$OMP END DO NOWAIT
+        !$OMP END PARALLEL
 
         if (MonitorPerformance) call StopWatch ("ModuleFunctions", "THOMAS_2D")
 
@@ -2028,11 +2028,11 @@ do1 :       do II = JImin+1, JImax+1
 
         CHUNK = CHUNK_K(Kmin,Kmax) !!$
 
-        !!$OMP PARALLEL PRIVATE(TID,VEC,K,IJ,JI,II)
+        !$OMP PARALLEL PRIVATE(TID,VEC,K,IJ,JI,II)
         TID = 1
-        !TID = 1 + omp_get_thread_num() !!$
+        TID = 1 + omp_get_thread_num() !!$
         VEC => Thomas%VEC(TID)
-        !!$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
 do4:    do K  = Kmin, Kmax
 do2 :   do IJ = IJmin, IJmax
 
@@ -2055,8 +2055,8 @@ do1 :       do II = JImin+1, JImax+1
             end do do1
         end do do2
         end do do4
-        !!$OMP END DO NOWAIT
-        !!$OMP END PARALLEL
+        !$OMP END DO NOWAIT
+        !$OMP END PARALLEL
 
     end subroutine THOMAS_3D_i0_j1_NewType
 
@@ -2087,11 +2087,11 @@ do1 :       do II = JImin+1, JImax+1
 
         CHUNK = CHUNK_K(Kmin,Kmax) !!$
 
-        !!$OMP PARALLEL PRIVATE(TID,VEC,K,IJ,JI,II)
+        !$OMP PARALLEL PRIVATE(TID,VEC,K,IJ,JI,II)
         TID = 1
-        !TID = 1 + omp_get_thread_num() !!$
+        TID = 1 + omp_get_thread_num() !!$
         VEC => Thomas%VEC(TID)
-        !!$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
 do4:    do K  = Kmin, Kmax
 do2 :   do IJ = IJmin, IJmax
 
@@ -2115,8 +2115,8 @@ do1 :       do II = JImin+1, JImax+1
 
         end do do2
         end do do4
-        !!$OMP END DO NOWAIT
-        !!$OMP END PARALLEL
+        !$OMP END DO NOWAIT
+        !$OMP END PARALLEL
 
     end subroutine THOMAS_3D_i1_j0_NewType
     !--------------------------------------------------------------------------
@@ -2200,11 +2200,11 @@ do4 :       DO II = KLB+1, KUB+1
 
         CHUNK = CHUNK_J(JLB,JUB) !!$
 
-        !!$OMP PARALLEL PRIVATE(J,I,K,II,MM,TID,VEC)
+        !$OMP PARALLEL PRIVATE(J,I,K,II,MM,TID,VEC)
         TID = 1
-        !TID = 1 + omp_get_thread_num() !!$
+        TID = 1 + omp_get_thread_num() !!$
         VEC => Thomas%VEC(TID)
-        !!$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
 do2 :   DO J = JLB, JUB
 do1 :   DO I = ILB, IUB
             VEC%W(KLB) =-Thomas%COEF3%F (I, J, 1) / Thomas%COEF3%E(I, J, 1)
@@ -2225,8 +2225,8 @@ do4 :       DO II = KLB+1, KUB+1
             END DO do4
         END DO do1
         END DO do2
-        !!$OMP END DO NOWAIT
-        !!$OMP END PARALLEL
+        !$OMP END DO NOWAIT
+        !$OMP END PARALLEL
         
         if (MonitorPerformance) call StopWatch ("ModuleFunctions", "THOMASZ")
 
@@ -8938,12 +8938,12 @@ D2:     do I=imax-1,2,-1
     end function minival2D_I4
 
     function minival3D_I4(array, size3D)
-            
+
         integer, dimension(:,:,:), pointer :: array
         type(T_size3D)                  :: size3D
         integer                         :: i,j,k
         integer                            :: minival3D_I4
-        
+
         minival3D_I4 = 1e7
         do k = size3D%KLB,size3D%KUB
         do j = size3D%JLB,size3D%JUB
@@ -8954,15 +8954,15 @@ D2:     do I=imax-1,2,-1
         end do
         end do
         end do
-        
+
     end function minival3D_I4
 
     function maxival1D_I4(array, size1D)
-            
-        integer, dimension(:), pointer     :: array
+
+        integer, dimension(:), pointer  :: array
         type(T_size1D)                  :: size1D
         integer                         :: i
-        integer                            :: maxival1D_I4
+        integer                         :: maxival1D_I4
         
         maxival1D_I4 = -1e7
         do i = size1D%ILB,size1D%IUB
