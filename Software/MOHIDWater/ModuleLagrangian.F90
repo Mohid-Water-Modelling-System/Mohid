@@ -766,6 +766,7 @@ Module ModuleLagrangian
         real                                    :: TpercursoX               = -null_real
         real                                    :: TpercursoY               = -null_real
         real                                    :: TpercursoZ               = -null_real
+        real                                    :: TpercursoH               = -null_real
         real                                    :: UD_old                   = null_real
         real                                    :: VD_old                   = null_real
         real                                    :: WD_old                   = null_real
@@ -6767,6 +6768,7 @@ CurrOr: do while (associated(CurrentOrigin))
         NewPartic%TpercursoX = abs(null_real)
         NewPartic%TpercursoY = abs(null_real)
         NewPartic%TpercursoZ = abs(null_real)
+        NewPartic%TpercursoH = abs(null_real)
 
         NewPartic%ID         = NextParticID
         NextParticID         = NextParticID + 1
@@ -8344,7 +8346,7 @@ CurrOr: do while (associated(CurrentOrigin))
         real                                        :: UINT, VINT
         real                                        :: UWind, VWind
         real                                        :: U1, V1
-        real                                        :: UD, VD
+        real                                        :: UD, VD, HD
         real                                        :: DX, DY
         real                                        :: UOil
         real                                        :: VOil
@@ -8354,8 +8356,8 @@ CurrOr: do while (associated(CurrentOrigin))
         real                                        :: EspSup, Esp, EspInf
         real, dimension(:, :, :), pointer           :: Velocity_U, Velocity_V
         real                                        :: VelModH
-        real                                        :: UStandardDeviation, VStandardDeviation
-        real                                        :: TlagrangeX, TlagrangeY
+        real                                        :: StandardDeviation
+        real                                        :: TlagrangeH, MixingLength
         real                                        :: RAND, R1, R2
         type (T_Position)                           :: NewPosition
         integer                                     :: NewI, NewJ
@@ -8366,7 +8368,7 @@ CurrOr: do while (associated(CurrentOrigin))
         real                                        :: Radius, Area
         real                                        :: VolOld, VolNew, dVol
         real                                        :: Modulus, WindX, WindY
-        real                                        :: GradDWx, GradDWy, Aux
+        real                                        :: GradDWx, GradDWy
         logical                                     :: NoIntU, NoIntV
         real                                        :: AngFrequency
         real                                        :: WaveNumber
@@ -8674,68 +8676,59 @@ MF:             if (CurrentOrigin%Movement%Float .or. CurrentPartic%Position%Sur
 
 
 MT:             if (CurrentOrigin%Movement%MovType == SullivanAllen_) then 
-            
-                    VelModH  = abs(cmplx(U, V))
+ 
+                     VelModH  = abs(cmplx(U, V))
 
-                    UStandardDeviation = CurrentOrigin%Movement%VarVelHX * VelModH +         &
-                                         CurrentOrigin%Movement%VarVelH
-                    VStandardDeviation = CurrentOrigin%Movement%VarVelHX * VelModH +         &
-                                         CurrentOrigin%Movement%VarVelH
+                    StandardDeviation = CurrentOrigin%Movement%VarVelHX * VelModH +     &
+                                        CurrentOrigin%Movement%VarVelH
+                                         
+                    MixingLength =abs(cmplx(Me%ExternalVar%MixingLengthX(i, j, k),  &
+                                            Me%ExternalVar%MixingLengthY(i, j, k)))
 
-                    if (UStandardDeviation > 0.0) then
-                        TlagrangeX = Me%ExternalVar%MixingLengthX(i, j, k) /      &
-                                     UStandardDeviation
+                    if (StandardDeviation > 0.0) then
+                        TlagrangeH = MixingLength / StandardDeviation
                     else
-                        TlagrangeX = 0.0     
+                        TlagrangeH = 0.0     
                     endif
+                    
+                    CurrentPartic%TpercursoH = CurrentPartic%TpercursoX
 
-                    if (CurrentPartic%TpercursoX >= TlagrangeX) then  
+                    if (CurrentPartic%TpercursoH >= TlagrangeH) then  
+                        
+                        ! First step - compute the modulus of turbulent vector
+                        
                         call random_number(RAND)
                         !SQRT(3.0)=1.732050808 
-                        !UD                       = (1.0 - 2.0 * RAND) * 1.732050808 *        &
-                        !                           UStandardDeviation 
+                        HD                       = 1.732050808 * StandardDeviation * RAND
 
-                        UD                       = 1.732050808 * UStandardDeviation * RAND
+                        ! Second step - Compute the modulus of each component of the turbulent vector
+                        call random_number(RAND)
+
+                        !   From 0 to Pi/2 cos and sin have positive values
+                        UD                       = HD * cos(Pi / 2. * RAND)
+                        VD                       = HD * sin(Pi / 2. * RAND)
+
+                        !Third step - Compute the direction of the the turbulent vector taking in consideration the layers thickness gradients
+                        ! Spagnol et al. (Mar. Ecol. Prog. Ser., 235, 299-302, 2002).                        
+                        call random_number(RAND)
+                       
+                        if (RAND > GradDWx)   UD = - UD              
 
                         call random_number(RAND)
-                        Aux                      = (1.0 - 2.0 * RAND)
-                        
-                        if (Aux >= GradDWx)   UD = - UD 
 
-                        CurrentPartic%TpercursoX = Me%DT_Partic
-                        CurrentPartic%UD_old     = UD                                  
-                                      
+                        if (RAND > GradDWy)   VD = - VD      
+                        
+                        CurrentPartic%TpercursoH = Me%DT_Partic
+                        CurrentPartic%UD_old     = UD
+                        CurrentPartic%VD_old     = VD
+                    
                     else
-                        UD                       = CurrentPartic%UD_old                               
-                        CurrentPartic%TpercursoX = CurrentPartic%TpercursoX + Me%DT_Partic
+                        UD                       = CurrentPartic%UD_old
+                        VD                       = CurrentPartic%VD_old
+                        CurrentPartic%TpercursoH = CurrentPartic%TpercursoH + Me%DT_Partic
                     end if
-
-
-                    if (VStandardDeviation > 0.0) then
-                        TlagrangeY = Me%ExternalVar%MixingLengthY(i, j, k) /      &
-                                     VStandardDeviation
-                    else
-                        TlagrangeY = 0.0
-                    endif
-
-                    if (CurrentPartic%TpercursoY >= TlagrangeY) then
-                        call random_number(RAND)
-                        !VD                       = (1.0 - 2.0 * RAND) * 1.732050808 *        &
-                        !                           VStandardDeviation  
-
-                        VD                       = 1.732050808 * VStandardDeviation  * RAND
-
-                        call random_number(RAND)
-                        Aux                      = (1.0 - 2.0 * RAND)
-                        
-                        if (Aux >= GradDWy)   VD = - VD 
-
-                        CurrentPartic%TpercursoY = Me%DT_Partic
-                        CurrentPartic%VD_old     = VD                                    
-                    else
-                        VD                       = CurrentPartic%VD_old                            
-                        CurrentPartic%TpercursoY = CurrentPartic%TpercursoY + Me%DT_Partic
-                    endif
+                    
+                    CurrentPartic%TpercursoX = CurrentPartic%TpercursoH
                        
                 else if (CurrentOrigin%Movement%MovType .EQ. NotRandom_    ) then MT
 
@@ -8766,8 +8759,8 @@ MT:             if (CurrentOrigin%Movement%MovType == SullivanAllen_) then
                     CurrentPartic%RelU = CurrentPartic%U - UINT
                     CurrentPartic%RelV = CurrentPartic%V - VINT
 
-                    CurrentPartic%SDU  = UStandardDeviation
-                    CurrentPartic%SDV  = VStandardDeviation
+                    CurrentPartic%SDU  = StandardDeviation
+                    CurrentPartic%SDV  = StandardDeviation
 
                 endif
 
@@ -8856,6 +8849,7 @@ MT:             if (CurrentOrigin%Movement%MovType == SullivanAllen_) then
 
                     CurrentPartic%TpercursoX = abs(null_real)
                     CurrentPartic%TpercursoY = abs(null_real)
+                    CurrentPartic%TpercursoH = abs(null_real)
 
                 !Moves it 
                 else
