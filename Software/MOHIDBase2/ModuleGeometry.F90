@@ -232,12 +232,13 @@ Module ModuleGeometry
         real                                    :: MaxThicknessGrad          = FillValueReal 
         real                                    :: MinEvolveLayerThickness   = FillValueReal
         real                                    :: MinEsp                    = FillValueReal
-!        real                                    :: MinLayerThickness         = FillValueReal
         real                                    :: BottomLayerThickness      = FillValueReal
         real                                    :: GridMovementDump          = FillValueReal
         real                                    :: DisplacementLimit         = FillValueReal 
         integer                                 :: InitializationMethod      = FillValueInt
         real                                    :: Equidistant               = FillValueReal        
+        logical                                 :: RomsDistortion            = .false.
+        real                                    :: theta_s, theta_b, Hc
         type (T_Domain), pointer                :: Next, Prev
     end type T_Domain
 
@@ -1173,15 +1174,7 @@ cd2 :                       if (BlockLayersFound) then
                     !Seraches for the minimum thickness of bottom layer
                     if (NewDomain%DomainType == CartesianTop) then
 
-!                        call GetData(NewDomain%MinLayerThickness,                       &
-!                                     ObjEnterData, iflag,                               &
-!                                     SearchType     = FromBlock,                        &
-!                                     keyword        = 'MIN_LAYER_THICKNESS',            &
-!                                     ClientModule   = 'ModuleGeometry',                 &
-!                                     Default        = 0.01,                             &
-!                                     STAT           = STATUS)
-!                        if (STATUS /= SUCCESS_) stop "GetDomainsFromFile - Geometry - ERR281"
-                        call GetData(NewDomain%BottomLayerThickness,                       &
+                        call GetData(NewDomain%BottomLayerThickness,                    &
                                      ObjEnterData, iflag,                               &
                                      SearchType     = FromBlock,                        &
                                      keyword        = 'MIN_BOTTOM_THICKNESS',           &
@@ -1192,6 +1185,52 @@ cd2 :                       if (BlockLayersFound) then
 
                     endif
 
+
+                    if (NewDomain%DomainType == Sigma) then
+
+                        call GetData(NewDomain%RomsDistortion,                          &
+                                     ObjEnterData, iflag,                               &
+                                     SearchType     = FromBlock,                        &
+                                     keyword        = 'ROMS_DISTORTION',                &
+                                     ClientModule   = 'ModuleGeometry',                 &
+                                     Default        = .false.,                          &
+                                     STAT           = STATUS)
+                        if (STATUS /= SUCCESS_) stop "GetDomainsFromFile - Geometry - ERR300"
+                        
+                        if (NewDomain%RomsDistortion) then
+
+                            !theta_s = terrain following coodinates bottom control parameter = 5
+                            call GetData(NewDomain%theta_s,                             &
+                                         ObjEnterData, iflag,                           &
+                                         SearchType     = FromBlock,                    &
+                                         keyword        = 'THETA_S',                    &
+                                         ClientModule   = 'ModuleGeometry',             &
+                                         Default        = 5.,                           &
+                                         STAT           = STATUS)
+                            if (STATUS /= SUCCESS_) stop "GetDomainsFromFile - Geometry - ERR310"
+
+                            !theta_b = terrain following coordinates surface control parameter = 0.4
+                            call GetData(NewDomain%theta_b,                             &
+                                         ObjEnterData, iflag,                           &
+                                         SearchType     = FromBlock,                    &
+                                         keyword        = 'THETA_B',                    &
+                                         ClientModule   = 'ModuleGeometry',             &
+                                         Default        = 0.4,                          &
+                                         STAT           = STATUS)
+                            if (STATUS /= SUCCESS_) stop "GetDomainsFromFile - Geometry - ERR320"
+
+                            !hc = s coordinate parameter critical depth = 25
+                            call GetData(NewDomain%Hc,                                  &
+                                         ObjEnterData, iflag,                           &
+                                         SearchType     = FromBlock,                    &
+                                         keyword        = 'HC',                         &
+                                         ClientModule   = 'ModuleGeometry',             &
+                                         Default        = 25.,                          &
+                                         STAT           = STATUS)
+                            if (STATUS /= SUCCESS_) stop "GetDomainsFromFile - Geometry - ERR330"                        
+                        
+                        endif
+                    endif
 
 
                     !Inserts new domain into the domain list
@@ -1205,7 +1244,7 @@ cd2 :                       if (BlockLayersFound) then
                     !Rewinds Buffer
                     call Block_Unlock(ObjEnterData, ClientNumber)
                     call RewindBuffer(ObjEnterData, STAT = STATUS)
-                    if (STATUS /= SUCCESS_) stop "GetDomainsFromFile - Geometry - ERR290"
+                    if (STATUS /= SUCCESS_) stop "GetDomainsFromFile - Geometry - ERR390"
 
                 endif CorretID
 
@@ -1218,7 +1257,7 @@ cd2 :                       if (BlockLayersFound) then
 
 
         call KillEnterData(ObjEnterData, STAT = STATUS)
-        if (STATUS /= SUCCESS_) stop "GetDomainsFromFile - Geometry - ERR300"
+        if (STATUS /= SUCCESS_) stop "GetDomainsFromFile - Geometry - ERR400"
 
     end subroutine GetDomainsFromFile
 
@@ -1463,7 +1502,7 @@ cd2 :                       if (BlockLayersFound) then
         real                                        :: TopDepth, DomainThickness
         real                                        :: LayerTopDepth, LayerMinBottomDepth
         real                                        :: LayerTop, LayerBottom
-        real                                        :: DistToBottom, DistToTop !, LayerThickness
+        real                                        :: DistToBottom, DistToTop
         real                                        :: MinimalThickness, AllmostZero_ 
         real                                        :: BottomDepth
         character(len=StringLength)                 :: BathymetryFile
@@ -1638,50 +1677,6 @@ doi:                do i = ILB, IUB
 
             elseif (CurrentDomain%DomainType == CartesianTop) then
 
-
-!                do j = JLB, JUB
-!                do i = ILB, IUB
-!
-!                    if (Bathymetry(i, j) > -55.) then
-!
-!                        TopDepth        = SurfaceElevation(i, j)
-!                        BottomDepth     = Bathymetry(i, j)
-!
-!                        iLayer          = CurrentDomain%UpperLayer        
-!                        LayerTop        = TopDepth
-!                        do while (iLayer >= CurrentDomain%LowerLayer)
-!
-!                            !Bottom of the layer, independent of BottomDepth
-!                            LayerBottom     = max(LayerTop - CurrentDomain%LayerThickness(iLayer), BottomDepth)
-!                            
-!                            LayerThickness  = LayerTop - LayerBottom
-!                            
-!                            AllmostZero_ = AllmostZeroFraction * CurrentDomain%LayerThickness(iLayer)
-!                            
-!                            if (LayerThickness + AllmostZero_ < CurrentDomain%MinLayerThickness) then
-!                                    NewBathymetry(i, j)         = LayerTop - CurrentDomain%MinLayerThickness
-!                                    WriteNewBathymetry          = .true.
-!                                    write(*,*)'i                = ', i
-!                                    write(*,*)'j                = ', j
-!                                    write(*,*)'Bathymetry       = ',Bathymetry(i, j)
-!                                    write(*,*)'New Bathymetry   = ',NewBathymetry(i, j)
-!                            endif
-!                            
-!                            if (LayerTop - CurrentDomain%LayerThickness(iLayer) <= BottomDepth) then
-!                                exit
-!                            else                           
-!                                iLayer   = iLayer - 1
-!                                LayerTop = LayerBottom
-!                            endif
-!
-!                        enddo
-!
-!                    endif
-!                enddo
-!                enddo
-                
-                AllmostZero_ = 5e-4
-                
                 do j = JLB, JUB
                 do i = ILB, IUB
 
@@ -1695,63 +1690,38 @@ doi:                do i = ILB, IUB
                         LayerBottom     = LayerTop - CurrentDomain%LayerThickness(iLayer)
                         do while (iLayer >= CurrentDomain%LowerLayer)
                         
-!                            AllmostZero_ = AllmostZeroFraction * CurrentDomain%LayerThickness(iLayer)
+                            AllmostZero_ = AllmostZeroFraction * CurrentDomain%LayerThickness(iLayer)
 
-!                            if (LayerBottom - AllmostZero_ <= BottomDepth  .and. LayerTop + AllmostZero_ >= BottomDepth) then
-                            DistToBottom = BottomDepth - LayerBottom
-                            DistToTop    = LayerTop - BottomDepth
+                            if (LayerBottom - AllmostZero_ <= BottomDepth  .and. LayerTop + AllmostZero_ >= BottomDepth) then
                             
-                            if ((BottomDepth > LayerBottom) .and. (BottomDepth < LayerTop) .and. &
-                                (abs(DistToTop) > AllmostZero_) .and. (abs(DistToBottom) > AllmostZero_)) then                           
-                                                                
-!                                if (DistToBottom < CurrentDomain%BottomLayerThickness .and. DistToBottom > AllmostZero_) then
-!                                    NewBathymetry(i, j)         = LayerBottom
-!                                    WriteNewBathymetry          = .true.
-!                                    write(*,*)'i                = ', i
-!                                    write(*,*)'j                = ', j
-!                                    write(*,*)'Bathymetry       = ',Bathymetry(i, j)
-!                                    write(*,*)'New Bathymetry   = ',NewBathymetry(i, j)
-!                                endif
-!                            
-!                                if (DistToTop < CurrentDomain%BottomLayerThickness .and. DistToTop > AllmostZero_) then
-!                                    NewBathymetry(i, j)         = LayerTop
-!                                    WriteNewBathymetry          = .true.
-!                                    write(*,*)'i                = ', i
-!                                    write(*,*)'j                = ', j
-!                                    write(*,*)'Bathymetry       = ',Bathymetry(i, j)
-!                                    write(*,*)'New Bathymetry   = ',NewBathymetry(i, j)
-!                                endif
+                                DistToBottom = BottomDepth - LayerBottom
+                                DistToTop    = LayerTop - BottomDepth
                                 
-                                if ((iLayer .eq. CurrentDomain%UpperLayer) .or. &
-                                    (DistToBottom .le. DistToTop)) then
+                                if (DistToBottom < CurrentDomain%BottomLayerThickness .and. DistToBottom > AllmostZero_) then
                                     NewBathymetry(i, j)         = LayerBottom
                                     WriteNewBathymetry          = .true.
                                     write(*,*)'i                = ', i
                                     write(*,*)'j                = ', j
                                     write(*,*)'Bathymetry       = ',Bathymetry(i, j)
                                     write(*,*)'New Bathymetry   = ',NewBathymetry(i, j)
+                                endif
                             
-                                else 
+                                if (DistToTop < CurrentDomain%BottomLayerThickness .and. DistToTop > AllmostZero_) then
                                     NewBathymetry(i, j)         = LayerTop
                                     WriteNewBathymetry          = .true.
                                     write(*,*)'i                = ', i
                                     write(*,*)'j                = ', j
                                     write(*,*)'Bathymetry       = ',Bathymetry(i, j)
                                     write(*,*)'New Bathymetry   = ',NewBathymetry(i, j)
-                                endif                                
+                                endif
                                 
                                 exit 
 
                             else
                             
                                 iLayer       = iLayer - 1
-                                
-                                if (iLayer > 0) then
-                                    LayerTop     = LayerBottom
-                                    LayerBottom  = LayerTop - CurrentDomain%LayerThickness(iLayer)
-                                else
-                                    exit
-                                endif
+                                LayerTop     = LayerBottom
+                                LayerBottom  = LayerTop - CurrentDomain%LayerThickness(iLayer)
                                 
                             endif
 
@@ -2352,7 +2322,7 @@ cd2 :       if (Me%ExternalVar%ContinuesCompute) then
                     Me%Distances%SZZ (:,:,:) = SZZ(:,:,:)
                 else
                    !Constructs SZZ with the initial surface elevation
-                    call ComputeSZZ         (SurfaceElevation, INITIALGEOMETRY, WaterPoints3D = WaterPoints3D)
+                    call ComputeSZZ         (SurfaceElevation, INITIALGEOMETRY)
                 endif
 
                 !Computes the Distances
@@ -2430,7 +2400,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
                 Me%Distances%SZZ (:,:,:) = SZZ(:,:,:)
             else
                !Computes SZZ
-                call ComputeSZZ(SurfaceElevation, TRANSIENTGEOMETRY, VerticalVelocity, DT_Waterlevel, WaterPoints3D)
+                call ComputeSZZ(SurfaceElevation, TRANSIENTGEOMETRY, VerticalVelocity, DT_Waterlevel)
             endif  
 
             if(present(KTop))then
@@ -2886,18 +2856,18 @@ cd1:    if (FacesOption == MinTickness) then
                 WaterPoints3D(i, j    , k) == WaterPoint) then
 
                 if (DUZ(i, j, k) > 0.) then
-                    DWZ_Xgrad(i, j, k) = (DWZ(i, j, k) - DWZ(i, j-1, k)) / DUZ(i, j, k)
+                    DWZ_Xgrad(i, j, k) = DWZ(i, j, k) / (DWZ(i, j-1, k) + DWZ(i, j, k))
                 else
-                    DWZ_Xgrad(i, j, k) = 0.
+                    DWZ_Xgrad(i, j, k) = 0.5
                 endif
 
             else if (WaterPoints3D(i, j - 1, k) == WaterPoint) then
  
-                DWZ_Xgrad(i, j, k) =  -1.
+                DWZ_Xgrad(i, j, k) =  0.
  
             else if (WaterPoints3D(i, j    , k) == WaterPoint) then
             
-                DWZ_Xgrad(i, j, k) =  1.
+                DWZ_Xgrad(i, j, k) =   1.
 
             endif
 
@@ -2918,18 +2888,18 @@ cd1:    if (FacesOption == MinTickness) then
                 WaterPoints3D(i    , j, k) == WaterPoint) then
                 
                 if (DVZ(i, j, k) > 0.) then
-                    DWZ_Ygrad(i, j, k) =  (DWZ(i, j, k) - DWZ(i-1, j, k)) / DVZ(i, j, k)
+                    DWZ_Ygrad(i, j, k) =  DWZ(i, j, k)/(DWZ(i, j, k) + DWZ(i-1, j, k))
                 else
-                    DWZ_Ygrad(i, j, k) = 0.
+                    DWZ_Ygrad(i, j, k) = 0.5
                 endif
                 
             else if (WaterPoints3D(i - 1, j, k) == WaterPoint) then
             
-                DWZ_Ygrad(i, j, k) = -1.
+                DWZ_Ygrad(i, j, k) =  0.
             
             else if (WaterPoints3D(i    , j, k) == WaterPoint) then
 
-                DWZ_Ygrad(i, j, k) =  1.
+                DWZ_Ygrad(i, j, k) =   1.
             
             endif
 
@@ -3227,14 +3197,13 @@ cd1:    if (FacesOption == MinTickness) then
 
     !--------------------------------------------------------------------------
     !For every domain calls the respective computation rotine
-    subroutine ComputeSZZ (SurfaceElevation, ComputionType, VerticalVelocity, DT_Waterlevel, WaterPoints3D)
+    subroutine ComputeSZZ (SurfaceElevation, ComputionType, VerticalVelocity, DT_Waterlevel)
 
         !Parameter-------------------------------------------------------------
-        real, dimension(:, :), pointer                 :: SurfaceElevation
-        integer                                        :: ComputionType
-        real, dimension(:, :, :), optional, pointer    :: VerticalVelocity
-        real, intent(in), optional                     :: DT_Waterlevel
-        integer, dimension(:, :, :), optional, pointer :: WaterPoints3D
+        real, dimension(:, :), pointer              :: SurfaceElevation
+        integer                                     :: ComputionType
+        real, dimension(:, :, :), optional, pointer :: VerticalVelocity
+        real, intent(in), optional                  :: DT_Waterlevel
 
         !Esternal--------------------------------------------------------------
 
@@ -3347,11 +3316,7 @@ cd1:    if (FacesOption == MinTickness) then
 
                 case (CartesianTop)
                     if (ComputionType == INITIALGEOMETRY) then
-                        if (present(WaterPoints3D)) then
-                            call ComputeCartesian(SurfaceElevation, CurrentDomain, ComputionType, WaterPoints3D)
-                        else
-                            call ComputeCartesian(SurfaceElevation, CurrentDomain, ComputionType)
-                        endif
+                        call ComputeCartesian(SurfaceElevation, CurrentDomain, ComputionType)
                     else
                         !Do Nothing
                     endif
@@ -3523,22 +3488,19 @@ cd1:    if (FacesOption == MinTickness) then
     !--------------------------------------------------------------------------
     !Computes SZZ for a Cartesian Domain
 
-    subroutine ComputeCartesian(SurfaceElevation, Domain, ComputionType, WaterPoints3D)
+    subroutine ComputeCartesian(SurfaceElevation, Domain, ComputionType)
 
         !Parameter-------------------------------------------------------------
         real, dimension(:, :), pointer          :: SurfaceElevation
         type (T_Domain), pointer                :: Domain
         integer                                 :: ComputionType
-        integer, dimension(:, :, :), optional, pointer :: WaterPoints3D
 
         !Local-----------------------------------------------------------------
         integer, dimension(:,:), pointer        :: WaterPoints2D
         integer                                 :: i, j, k, ILB, IUB, JLB, JUB
         integer                                 :: STAT_CALL, kbottom
         real                                    :: TopDepth
-        real                                    :: LayerThickness , AllmostZero_
-        
-        AllmostZero_ = 5e-4
+        real                                    :: LayerThickness 
 
         ILB = Me%WorkSize%ILB
         IUB = Me%WorkSize%IUB
@@ -3583,16 +3545,6 @@ cd1:    if (ComputionType == INITIALGEOMETRY) then
                         LayerThickness = Domain%LayerThickness(k+1)
                         Me%Distances%SZZ(i, j, k) = Me%Distances%SZZ(i, j, k+1) + LayerThickness
 
-                        if ((Domain%DomainType == CartesianTop) .and. (k == kbottom)) then
-                            if (abs(Me%Distances%SZZ(i, j, k) - Me%Distances%SZZ(i, j, k - 1)) <= AllmostZero_) then
-                                Me%Distances%SZZ(i, j, k - 1) = FillValueDouble
-                                Me%KFloor%Z(i, j) = Me%KFloor%Z(i, j) + 1
-                                
-                                if (present(WaterPoints3D)) then
-                                    WaterPoints3D(i, j, k) = 0
-                                endif
-                            endif
-                        endif
                    enddo
 
                 endif
@@ -3745,6 +3697,7 @@ cd1:    if (ComputionType == INITIALGEOMETRY) then
         real                                    :: TopDepth, BottomDepth, DomainThickness
         real                                    :: MinorThickness, LayerThickness
         real                                    :: MeanLayerThicknessBelow, TwoDomainThickness
+        real                                    :: A1, B1, B2, A, B, C
         integer                                 :: CHUNK
 
         ILB = Me%WorkSize%ILB
@@ -3776,7 +3729,7 @@ doi:    do i = ILB, IUB
             
 cd4:        if (WaterPoints2D(i, j) == WaterPoint .and. &
                 LowerLayer >= Me%KFloor%Z(i, j) ) then
-
+                
                 !Upper Limit (m)
                 if (Domain%ID < Me%LastDomain%ID) then
                     if (associated(Domain%Next)) then
@@ -3822,6 +3775,23 @@ cd4:        if (WaterPoints2D(i, j) == WaterPoint .and. &
                 MinorThickness = 1.e5
                 !Normal computation
                 do k = LowerLayer, UpperLayer
+
+                    if (Domain%RomsDistortion) then
+                        
+                        A1 = sinh(Domain%theta_s)
+                        B1 = tanh(Domain%theta_s * 0.5)
+                        B2 = 2. * tanh(Domain%theta_s * 0.5)
+
+                        A = sinh(Domain%theta_s * Domain%LayerThickness(k)) / A1
+                        B = (tanh(Domain%theta_s * (Domain%LayerThickness(k) + 0.5))-B1)/B2
+                        C = (1 - Domain%theta_b)*A + Domain%theta_b*B
+
+                        Me%Distances%SZZ(i, j, k) = -(Domain%Hc * Domain%LayerThickness(k) + &
+                                                     (DomainThickness - Domain%Hc) * C)                
+                    
+                        cycle
+                    endif                
+                
                     LayerThickness = DomainThickness * Domain%LayerThickness(k)
                     Me%Distances%SZZ(i, j, k) = Me%Distances%SZZ(i, j, k-1) - LayerThickness
                     if (LayerThickness < MinorThickness) MinorThickness = LayerThickness
