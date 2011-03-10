@@ -34,7 +34,7 @@ Module ModuleFunctions
     use ModuleTime
     use ModuleEnterData,        only : GetData
     use ModuleStopWatch,        only : StartWatch, StopWatch
-    use omp_lib !!!$
+    !$ use omp_lib !!
 
 #if _USE_MPI
     use mpi
@@ -377,13 +377,13 @@ Module ModuleFunctions
 
         !Local-----------------------------------------------------------------
         integer                                         :: i
-        integer                                         :: CHUNK !!$
+        !$ integer                                         :: CHUNK !
 
         !Begin-----------------------------------------------------------------
 
         if (MonitorPerformance) call StartWatch ("ModuleFunctions", "SetMatrixValues1D_R4_FromMatrix")
 
-        CHUNK = CHUNK_I(Size%ILB, Size%IUB) !!$
+        !$CHUNK = CHUNK_I(Size%ILB, Size%IUB) !
         
         if (present(MapMatrix)) then
             !!$OMP PARALLEL PRIVATE(I)
@@ -423,13 +423,13 @@ Module ModuleFunctions
 
         !Local-----------------------------------------------------------------
         integer                                         :: i
-        integer                                         :: CHUNK !!$
+        !$integer                                         :: CHUNK !
 
         !Begin-----------------------------------------------------------------
 
         if (MonitorPerformance) call StartWatch ("ModuleFunctions", "SetMatrixValues1D_R4_FromMatrix")
 
-        CHUNK = CHUNK_I(Size%ILB, Size%IUB) !!$
+        !$CHUNK = CHUNK_I(Size%ILB, Size%IUB) !
         
         if (present(MapMatrix)) then
             !!$OMP PARALLEL PRIVATE(I)
@@ -468,13 +468,13 @@ Module ModuleFunctions
 
         !Local-----------------------------------------------------------------
         integer                                         :: i
-        integer                                         :: CHUNK !!$
+        !$ integer                                         :: CHUNK !
 
         !Begin-----------------------------------------------------------------
 
         if (MonitorPerformance) call StartWatch ("ModuleFunctions", "SetMatrixValues1D_R8_FromMatrix")
 
-        CHUNK = CHUNK_I(Size%ILB, Size%IUB) !!$
+        !$CHUNK = CHUNK_I(Size%ILB, Size%IUB) !
         
         if (present(MapMatrix)) then
             !!$OMP PARALLEL PRIVATE(I)
@@ -512,13 +512,13 @@ Module ModuleFunctions
 
         !Local-----------------------------------------------------------------
         integer                                         :: i
-        integer                                         :: CHUNK !!$
+        !$integer                                         :: CHUNK !
 
         !Begin-----------------------------------------------------------------
 
         if (MonitorPerformance) call StartWatch ("ModuleFunctions", "SetMatrixValues1D_R8_FromMatrix")
 
-        CHUNK = CHUNK_I(Size%ILB, Size%IUB) !!$
+        !$CHUNK = CHUNK_I(Size%ILB, Size%IUB) !
         
         if (present(MapMatrix)) then
             !!$OMP PARALLEL PRIVATE(I)
@@ -557,13 +557,13 @@ Module ModuleFunctions
 
         !Local-----------------------------------------------------------------
         integer                                         :: i, j
-        integer                                         :: CHUNK !!$
+        !$integer                                         :: CHUNK !
 
         !Begin-----------------------------------------------------------------
 
         if (MonitorPerformance) call StartWatch ("ModuleFunctions", "SetMatrixValues2D_I4_Constant")
 
-        CHUNK = CHUNK_J(Size%JLB, Size%JUB) !!$
+        !$CHUNK = CHUNK_J(Size%JLB, Size%JUB) !
         
         if (present(MapMatrix)) then
             !!$OMP PARALLEL PRIVATE(I,J)
@@ -606,13 +606,13 @@ Module ModuleFunctions
 
         !Local-----------------------------------------------------------------
         integer                                         :: i, j
-        integer                                         :: CHUNK !!$
+        !$integer                                         :: CHUNK !
 
         !Begin-----------------------------------------------------------------
 
         if (MonitorPerformance) call StartWatch ("ModuleFunctions", "SetMatrixValues2D_R4_Constant")
 
-        CHUNK = CHUNK_J(Size%JLB, Size%JUB) !!$
+        !$CHUNK = CHUNK_J(Size%JLB, Size%JUB) !
         
 
         if (present(MapMatrix)) then
@@ -656,13 +656,13 @@ Module ModuleFunctions
 
         !Local-----------------------------------------------------------------
         integer                                         :: i, j
-        integer                                         :: CHUNK !!$
+        !$integer                                         :: CHUNK !
 
         !Begin-----------------------------------------------------------------
 
         if (MonitorPerformance) call StartWatch ("ModuleFunctions", "SetMatrixValues2D_R8_Constant")
 
-        CHUNK = CHUNK_J(Size%JLB, Size%JUB) !!$
+        !$CHUNK = CHUNK_J(Size%JLB, Size%JUB) !
 
         
         if (present(MapMatrix)) then
@@ -706,13 +706,13 @@ Module ModuleFunctions
 
         !Local-----------------------------------------------------------------
         integer                                         :: i, j
-        integer                                         :: CHUNK !!$
+        !$integer                                         :: CHUNK !
 
         !Begin-----------------------------------------------------------------
 
         if (MonitorPerformance) call StartWatch ("ModuleFunctions", "SetMatrixValues2D_R4_FromMatrix")
 
-        CHUNK = CHUNK_J(Size%JLB, Size%JUB) !!$
+        !$CHUNK = CHUNK_J(Size%JLB, Size%JUB) !
         
         if (present(MapMatrix)) then
             !!$OMP PARALLEL PRIVATE(I,J)
@@ -755,13 +755,13 @@ Module ModuleFunctions
 
         !Local-----------------------------------------------------------------
         integer                                         :: i, j
-        integer                                         :: CHUNK !!$
+        !$integer                                         :: CHUNK !
 
         !Begin-----------------------------------------------------------------
 
         if (MonitorPerformance) call StartWatch ("ModuleFunctions", "SetMatrixValues2D_I4_FromMatrix")
 
-        CHUNK = CHUNK_J(Size%JLB, Size%JUB) !!$
+        !$CHUNK = CHUNK_J(Size%JLB, Size%JUB) !
         
         if (present(MapMatrix)) then
             !!$OMP PARALLEL PRIVATE(I,J)
@@ -802,13 +802,13 @@ Module ModuleFunctions
 
         !Local-----------------------------------------------------------------
         integer                                         :: i, j
-        integer                                         :: CHUNK !!$
+        !$integer                                         :: CHUNK !
 
         !Begin-----------------------------------------------------------------
 
         if (MonitorPerformance) call StartWatch ("ModuleFunctions", "SetMatrixValues2D_R8_FromMatrix")
 
-        CHUNK = CHUNK_J(Size%JLB, Size%JUB) !!$
+        !$CHUNK = CHUNK_J(Size%JLB, Size%JUB) !
         
         if (present(MapMatrix)) then
             !!$OMP PARALLEL PRIVATE(I,J)
@@ -850,13 +850,13 @@ Module ModuleFunctions
 
         !Local-----------------------------------------------------------------
         integer                                         :: i, j, k
-        integer                                         :: CHUNK !!$
+        !$integer                                         :: CHUNK !
 
         !Begin-----------------------------------------------------------------
 
         if (MonitorPerformance) call StartWatch ("ModuleFunctions", "SetMatrixValues3D_I4_Constant")
         
-        CHUNK = CHUNK_J(Size%KLB, Size%KUB) !!$
+        !$CHUNK = CHUNK_J(Size%KLB, Size%KUB) !
         
         
         if (present(MapMatrix)) then
@@ -904,13 +904,13 @@ Module ModuleFunctions
 
         !Local-----------------------------------------------------------------
         integer                                         :: i, j, k
-        integer                                         :: CHUNK !!$
+        !$integer                                         :: CHUNK !
 
         !Begin-----------------------------------------------------------------
         
         if (MonitorPerformance) call StartWatch ("ModuleFunctions", "SetMatrixValues3D_R4_Constant")
         
-        CHUNK = CHUNK_J(Size%KLB, Size%KUB) !!$
+        !$CHUNK = CHUNK_J(Size%KLB, Size%KUB) !
         
         if (present(MapMatrix)) then
             !!$OMP PARALLEL PRIVATE(I,J,K)
@@ -956,13 +956,13 @@ Module ModuleFunctions
 
         !Local-----------------------------------------------------------------
         integer                                         :: i, j, k
-        integer                                      :: CHUNK !!$
+        !$integer                                      :: CHUNK !
 
         !Begin-----------------------------------------------------------------
 
         if (MonitorPerformance) call StartWatch ("ModuleFunctions", "SetMatrixValues3D_R8_Constant")
         
-        CHUNK = CHUNK_J(Size%KLB, Size%KUB) !!$
+        !$CHUNK = CHUNK_J(Size%KLB, Size%KUB) !
         
         
         if (present(MapMatrix)) then
@@ -1009,13 +1009,13 @@ Module ModuleFunctions
 
         !Local-----------------------------------------------------------------
         integer                                         :: i, j, k
-        integer                                         :: CHUNK !!$
+        !$integer                                         :: CHUNK !
         
         !Begin-----------------------------------------------------------------
 
         if (MonitorPerformance) call StartWatch ("ModuleFunctions", "SetMatrixValues3D_R4_FromMatrix")
 
-        CHUNK = CHUNK_J(Size%KLB, Size%KUB) !!$
+        !$CHUNK = CHUNK_J(Size%KLB, Size%KUB) !
 
         if (present(MapMatrix)) then
             !!$OMP PARALLEL PRIVATE(I,J, K)
@@ -1061,13 +1061,13 @@ Module ModuleFunctions
 
         !Local-----------------------------------------------------------------
         integer                                         :: i, j, k
-        integer                                         :: CHUNK !!$
+        !$integer                                         :: CHUNK !
         
         !Begin-----------------------------------------------------------------
 
         if (MonitorPerformance) call StartWatch ("ModuleFunctions", "SetMatrixValues3D_R8_FromMatrix")
 
-        CHUNK = CHUNK_J(Size%KLB, Size%KUB) !!$
+        !$CHUNK = CHUNK_J(Size%KLB, Size%KUB) !
 
         if (present(MapMatrix)) then
             !!$OMP PARALLEL PRIVATE(I,J,K)
@@ -1112,13 +1112,13 @@ Module ModuleFunctions
 
         !Local-----------------------------------------------------------------
         integer                                         :: i, j, k
-        integer                                         :: CHUNK !!$
+        !$integer                                         :: CHUNK !
         
         !Begin-----------------------------------------------------------------
 
         if (MonitorPerformance) call StartWatch ("ModuleFunctions", "SetMatrixValues3D_I4_FromMatrix")
 
-        CHUNK = CHUNK_J(Size%KLB, Size%KUB) !!$
+        !$CHUNK = CHUNK_J(Size%KLB, Size%KUB) !
 
         if (present(MapMatrix)) then
             !!$OMP PARALLEL PRIVATE(I,J,K)
@@ -1752,17 +1752,17 @@ do1 :       do II = JImin+1, JImax+1
         !griflet
         type(T_VECGW), pointer                      :: VEC
         integer                                     :: TID
-        integer                                  :: CHUNK !!$
+        !$integer                                  :: CHUNK !
 
         !Begin-----------------------------------------------------------------
 
         if (MonitorPerformance) call StartWatch ("ModuleFunctions", "THOMAS_2D")
         
-        CHUNK = CHUNK_J(IJmin,IJmax) !!$
+        !$CHUNK = CHUNK_J(IJmin,IJmax) !
 
         !$OMP PARALLEL PRIVATE(TID,VEC,IJ,I,J,JI,II,MM)
         TID = 1
-        TID = 1 + omp_get_thread_num() !!$
+        !$TID = 1 + omp_get_thread_num() !
         VEC => THOMAS%VEC(TID)
         !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
 do2 :   do IJ = IJmin, IJmax
@@ -2022,15 +2022,15 @@ do1 :       do II = JImin+1, JImax+1
         !griflet
         type(T_VECGW), pointer                      :: VEC
         integer                                     :: TID
-        integer                                  :: CHUNK !!$
+        !$integer                                  :: CHUNK !
 
         !Begin-----------------------------------------------------------------
 
-        CHUNK = CHUNK_K(Kmin,Kmax) !!$
+        !$CHUNK = CHUNK_K(Kmin,Kmax) !
 
         !$OMP PARALLEL PRIVATE(TID,VEC,K,IJ,JI,II)
         TID = 1
-        TID = 1 + omp_get_thread_num() !!$
+        !$TID = 1 + omp_get_thread_num() !
         VEC => Thomas%VEC(TID)
         !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
 do4:    do K  = Kmin, Kmax
@@ -2081,15 +2081,15 @@ do1 :       do II = JImin+1, JImax+1
         !griflet
         type(T_VECGW), pointer                      :: VEC
         integer                                     :: TID
-        integer                                  :: CHUNK !!$
+        !$integer                                  :: CHUNK !
 
         !Begin-----------------------------------------------------------------
 
-        CHUNK = CHUNK_K(Kmin,Kmax) !!$
+        !$CHUNK = CHUNK_K(Kmin,Kmax) !
 
         !$OMP PARALLEL PRIVATE(TID,VEC,K,IJ,JI,II)
         TID = 1
-        TID = 1 + omp_get_thread_num() !!$
+        !$TID = 1 + omp_get_thread_num() !
         VEC => Thomas%VEC(TID)
         !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
 do4:    do K  = Kmin, Kmax
@@ -2190,7 +2190,7 @@ do4 :       DO II = KLB+1, KUB+1
         !Local-------------------------------------------------------------------
         type(T_VECGW), pointer                      :: VEC
         integer                                     :: TID
-        integer                                  :: CHUNK !!$
+        !$integer                                  :: CHUNK !
         integer :: I, J, K
         integer :: II, MM
 
@@ -2198,11 +2198,11 @@ do4 :       DO II = KLB+1, KUB+1
 
         if (MonitorPerformance) call StartWatch ("ModuleFunctions", "THOMASZ")
 
-        CHUNK = CHUNK_J(JLB,JUB) !!$
+        !$CHUNK = CHUNK_J(JLB,JUB) !
 
         !$OMP PARALLEL PRIVATE(J,I,K,II,MM,TID,VEC)
         TID = 1
-        TID = 1 + omp_get_thread_num() !!$
+        !$TID = 1 + omp_get_thread_num() !
         VEC => Thomas%VEC(TID)
         !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
 do2 :   DO J = JLB, JUB
@@ -3769,11 +3769,11 @@ end function
         integer                                     :: dij, Count, i, j, NumberOfCells
         integer                                     :: jj, ii, dijmax, dimax, djmax
         real                                        :: SumValues
-        integer                                  :: CHUNK !!$
+        !$integer                                  :: CHUNK !
         
         !Begin-----------------------------------------------------------------
             
-        CHUNK = CHUNK_J(JLB,JUB) !!$
+        !$CHUNK = CHUNK_J(JLB,JUB) !
 
         NumberOfCells =  Sum(ComputePoints3D(ILB:IUB, JLB:JUB, KUB))
 
@@ -3850,11 +3850,11 @@ end function
         real                                        :: SumValues
         logical                                     :: NoMapping, OkMap
         
-        integer                                  :: CHUNK !!$
+        !$integer                                  :: CHUNK !
         
         !Begin-----------------------------------------------------------------
 
-        CHUNK = CHUNK_J(JLB,JUB) !!$
+        !$CHUNK = CHUNK_J(JLB,JUB) !
         
         !griflet
         !!!$OMP PARALLEL PRIVATE( k,NumberOfCells,NoMapping,j,i,OkMap,&
@@ -3999,11 +3999,11 @@ d1:     do k = KLB, KUB
         real                                        :: SumValues
         logical                                     :: NoMapping, OkMap
         
-        integer                                  :: CHUNK !!$
+        !$integer                                  :: CHUNK !
         
         !Begin-----------------------------------------------------------------
 
-        CHUNK = CHUNK_J(JLB,JUB) !!$
+        !$CHUNK = CHUNK_J(JLB,JUB) !
         
         !griflet
         !!!$OMP PARALLEL PRIVATE( k,NumberOfCells,NoMapping,j,i,OkMap,&
