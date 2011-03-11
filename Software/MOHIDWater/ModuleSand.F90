@@ -93,7 +93,7 @@ Module ModuleSand
     private ::          BijkerTransport
     private ::      ComputeEvolution
     private ::          ComputeDischarges   
-    private ::      ComputeSmoothSlop
+    private ::      ComputeSmoothSlope
     private ::      BoundaryCondition
     private ::      ComputeResidualEvolution
     private ::      OutPutSandHDF
@@ -237,11 +237,11 @@ Module ModuleSand
         character(Len = StringLength)           :: FinalSand
     end type  T_Files
 
-    private :: T_SmoothSlop    
-    type       T_SmoothSlop    
+    private :: T_SmoothSlope    
+    type       T_SmoothSlope    
         real        :: Critic, Factor
         logical     :: ON
-    end type  T_SmoothSlop    
+    end type  T_SmoothSlope    
         
 
     type       T_Discharges
@@ -266,7 +266,7 @@ Module ModuleSand
         type (T_Time)                              :: BeginTime, EndTime
         type (T_Evolution )                        :: Evolution
         type (T_Filter    )                        :: Filter
-        type (T_SmoothSlop)                        :: SmoothSlop
+        type (T_SmoothSlope)                       :: SmoothSlope
         type (T_Property)                          :: BedRock, DZ, BatimIncrement, DZ_Residual
         type (T_Aceleration)                       :: Aceleration
         real                                       :: SandMin
@@ -1712,33 +1712,33 @@ cd2 :               if (BlockFound) then
 
         endif
 
-        call GetData(Me%SmoothSlop%ON,                                                   &
+        call GetData(Me%SmoothSlope%ON,                                                  &
                      Me%ObjEnterData,iflag,                                              &
                      SearchType   = FromFile,                                            &
-                     keyword      = 'SMOOTH_SLOP',                                       &
+                     keyword      = 'SMOOTH_SLOPE',                                      &
                      ClientModule = 'ModuleSand',                                        &
                      Default      = .false.,                                             &
                      STAT         = STAT_CALL)              
         if (STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalParameters - ModuleSand - ERR37' 
 
 
-        if (Me%SmoothSlop%ON) then
+        if (Me%SmoothSlope%ON) then
 
-            !Slop be on each exist flux perpendicular to the slop
-            call GetData(Me%SmoothSlop%Critic,                                          &
+            !Slope be on each exist flux perpendicular to the Slope
+            call GetData(Me%SmoothSlope%Critic,                                         &
                          Me%ObjEnterData,iflag,                                         &
                          SearchType   = FromFile,                                       &
-                         keyword      = 'CRITICAL_SLOP',                                &
+                         keyword      = 'CRITICAL_SLOPE',                               &
                          ClientModule = 'ModuleSand',                                   &
                          Default      = 0.1,                                            &
                          STAT         = STAT_CALL)              
             if (STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalParameters - ModuleSand - ERR39' 
 
             !The flux perpendicular to the flux is a percentage of the paralel flux
-            call GetData(Me%SmoothSlop%Factor,                                          &
+            call GetData(Me%SmoothSlope%Factor,                                         &
                          Me%ObjEnterData,iflag,                                         &
                          SearchType   = FromFile,                                       &
-                         keyword      = 'FLUX_SLOP',                                    &
+                         keyword      = 'FLUX_SLOPE',                                   &
                          ClientModule = 'ModuleSand',                                   &
                          Default      = 0.1,                                            &
                          STAT         = STAT_CALL)              
@@ -2126,9 +2126,9 @@ cd0:    if (EXIST) then
 
                     call ComputeEvolution            
 
-                    if (Me%SmoothSlop%ON) then
+                    if (Me%SmoothSlope%ON) then
 
-                        call ComputeSmoothSlop
+                        call ComputeSmoothSlope
 
                     endif
 
@@ -2947,11 +2947,11 @@ cd0:    if (EXIST) then
                 Fw=exp(-6.+5.2*(Abw/ksw)**(-0.19))
                 if(Fw.GT.0.3) Fw=0.3 
      
-                !dynamic friction factor and bottom slop
+                !dynamic friction factor and bottom Slope
                 DynAng = 30.               ! degrees
                 DynAngr= DynAng*pi/180.    ! radians
                 TanDyn = Tan(DynAngr)      ! TanDyn=0.63, typically used value.
-                TanBet = 0.                ! slope
+                TanBet = 0.                ! Slope
 
                 !Compute total Transport
                 cte1=0.5*Me%ExternalVar%WaterDensity*Fw*BedEff/(Me%RhoSl*Gravity*TanDyn)
@@ -3513,7 +3513,7 @@ d1:         do dis = 1, DischargesNumber
 
 !--------------------------------------------------------------------------
 
-    subroutine ComputeSmoothSlop            
+    subroutine ComputeSmoothSlope            
 
         !Local-----------------------------------------------------------------
         real                               :: DT_Area1, DT_Area2, dhdx, dhdy, FluxX, FluxY, SandThickness
@@ -3529,12 +3529,12 @@ d1:         do dis = 1, DischargesNumber
 
             if    ( Me%ExternalVar%WaterPoints2D(i,  j  ) == WaterPoint  .and. &
                     Me%ExternalVar%WaterPoints2D(i,  j-1) == WaterPoint  .and. &
-                    abs(dhdx) > Me%SmoothSlop%Critic) then
+                    abs(dhdx) > Me%SmoothSlope%Critic) then
                 
                 DT_Area1 = Me%Evolution%SandDT / Me%ExternalVar%DUX(i, j-1) / Me%ExternalVar%DVY(i, j-1)
                 DT_Area2 = Me%Evolution%SandDT / Me%ExternalVar%DUX(i, j  ) / Me%ExternalVar%DVY(i, j)
 
-                FluxX = Me%SmoothSlop%Factor * max(abs(Me%FluxY(i, j)), abs(Me%FluxY(i, j-1)))
+                FluxX = Me%SmoothSlope%Factor * max(abs(Me%FluxY(i, j)), abs(Me%FluxY(i, j-1)))
 
                 if (dhdx <  0.) then
                     FluxX = - 1. * FluxX
@@ -3557,12 +3557,12 @@ d1:         do dis = 1, DischargesNumber
 
             if    ( Me%ExternalVar%WaterPoints2D(i,   j) == WaterPoint  .and. &
                     Me%ExternalVar%WaterPoints2D(i-1, j) == WaterPoint  .and. &
-                    abs(dhdy) > Me%SmoothSlop%Critic) then
+                    abs(dhdy) > Me%SmoothSlope%Critic) then
                 
                 DT_Area1 = Me%Evolution%SandDT / Me%ExternalVar%DUX(i-1, j) / Me%ExternalVar%DVY(i-1, j)
                 DT_Area2 = Me%Evolution%SandDT / Me%ExternalVar%DUX(i, j  ) / Me%ExternalVar%DVY(i, j)
 
-                FluxY = Me%SmoothSlop%Factor * max(abs(Me%FluxX(i, j)), abs(Me%FluxX(i-1, j)))
+                FluxY = Me%SmoothSlope%Factor * max(abs(Me%FluxX(i, j)), abs(Me%FluxX(i-1, j)))
 
                 if (dhdy <  0.) then
                     FluxY = - 1. * FluxY
@@ -3585,7 +3585,7 @@ d1:         do dis = 1, DischargesNumber
         enddo
         enddo
         
-    end subroutine ComputeSmoothSlop
+    end subroutine ComputeSmoothSlope
     
     !--------------------------------------------------------------------------
 
