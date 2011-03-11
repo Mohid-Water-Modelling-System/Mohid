@@ -1752,7 +1752,7 @@ do1 :       do II = JImin+1, JImax+1
         !griflet
         type(T_VECGW), pointer                      :: VEC
         integer                                     :: TID
-        !$integer                                  :: CHUNK !
+        !$ integer                                  :: CHUNK
 
         !Begin-----------------------------------------------------------------
 
@@ -2022,7 +2022,7 @@ do1 :       do II = JImin+1, JImax+1
         !griflet
         type(T_VECGW), pointer                      :: VEC
         integer                                     :: TID
-        !$integer                                  :: CHUNK !
+        !$ integer                                  :: CHUNK
 
         !Begin-----------------------------------------------------------------
 
@@ -2081,11 +2081,11 @@ do1 :       do II = JImin+1, JImax+1
         !griflet
         type(T_VECGW), pointer                      :: VEC
         integer                                     :: TID
-        !$integer                                  :: CHUNK !
+        !$ integer                                  :: CHUNK
 
         !Begin-----------------------------------------------------------------
 
-        !$CHUNK = CHUNK_K(Kmin,Kmax) !
+        !$ CHUNK = CHUNK_K(Kmin,Kmax) !
 
         !$OMP PARALLEL PRIVATE(TID,VEC,K,IJ,JI,II)
         TID = 1
@@ -2190,7 +2190,7 @@ do4 :       DO II = KLB+1, KUB+1
         !Local-------------------------------------------------------------------
         type(T_VECGW), pointer                      :: VEC
         integer                                     :: TID
-        !$integer                                  :: CHUNK !
+        !$ integer                                  :: CHUNK
         integer :: I, J, K
         integer :: II, MM
 
