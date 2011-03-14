@@ -944,7 +944,11 @@ Module ModuleLagrangian
         real,    pointer, dimension(:,:  )      :: WindY
         real,    pointer, dimension(:,:  )      :: SurfaceRadiation
         real,    pointer, dimension(:,:  )      :: AtmPressure
-        real,    pointer, dimension(:,:  )      :: WaveHeight, WavePeriod
+        
+        !ObjWaves
+        real,    pointer, dimension(:,:  )      :: WaveHeight
+        real,    pointer, dimension(:,:  )      :: WavePeriod
+        real,    pointer, dimension(:,:  )      :: WaveDirection
  
 
         !ObjInterfaceSedimentWater
@@ -8377,8 +8381,8 @@ CurrOr: do while (associated(CurrentOrigin))
         real                                        :: VStokesDrift
         real                                        :: WavePeriod
         real                                        :: WaveHeight  
+        real                                        :: WaveDirection  
         integer                                     :: STAT_CALL 
-        real                                        :: WindAngle
         real                                        :: UDrift, VDrift
         real                                        :: WaterDensity  
         
@@ -8405,6 +8409,7 @@ CurrOr: do while (associated(CurrentOrigin))
                     call GetWaves (WavesID    = Me%ObjWaves,                     &
                          WavePeriod = Me%ExternalVar%WavePeriod,                  &
                          WaveHeight = Me%ExternalVar%WaveHeight,                  &
+                         WaveDirection = Me%ExternalVar%WaveDirection,            &
                          STAT       = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'MoveParticHorizontal - ModuleLagrangian - ERR01'
 #endif
@@ -8769,7 +8774,7 @@ MT:             if (CurrentOrigin%Movement%MovType == SullivanAllen_) then
                 
                     WaveHeight          = Me%ExternalVar%WaveHeight (i, j)
                     WavePeriod          = Me%ExternalVar%WavePeriod (i, j)
-
+                    WaveDirection       = Me%ExternalVar%WaveDirection(i,j)
 
                     AngFrequency        = 2 * Pi / WavePeriod
                     WaveNumber          = AngFrequency * AngFrequency / gravity
@@ -8789,9 +8794,8 @@ MT:             if (CurrentOrigin%Movement%MovType == SullivanAllen_) then
 
                     endif
 
-                    WindAngle           = atan2(WindY, WindX)
-                    UStokesDrift        = cos(WindAngle) * VelStokesDrift
-                    VStokesDrift        = sin(WindAngle) * VelStokesDrift
+                    UStokesDrift        = cos(WaveDirection * (Pi / 180.)) * VelStokesDrift
+                    VStokesDrift        = sin(WaveDirection * (Pi / 180.)) * VelStokesDrift
                     UOIL = UOIL + UStokesDrift
                     VOIL = VOIL + VStokesDrift
                 end if

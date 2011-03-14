@@ -663,6 +663,7 @@ Module ModuleLagrangianGlobal
         !ObjWaves
         real,    pointer, dimension(:,:  )      :: WaveHeight2D
         real,    pointer, dimension(:,:  )      :: WavePeriod2D
+        real,    pointer, dimension(:,:  )      :: WaveDirection2D
 
 
         real   , dimension(:,:,:),    pointer   :: BeachingProbability
@@ -9275,7 +9276,7 @@ CurrOr: do while (associated(CurrentOrigin))
         real                                        :: GradDWx, GradDWy
         logical                                     :: NoIntU, NoIntV, ComputeTrajectory, HaveDomain, MovePartic
         logical                                     :: SlipConditionX, SlipConditionY
-        real                                        :: WavePeriod, WaveHeight, WindAngle,UStokesDrift, VStokesDrift
+        real                                        :: WavePeriod, WaveHeight, WaveDirection,UStokesDrift, VStokesDrift
         real                                        :: AngFrequency, WaveNumber, VelStokesDrift
 
         CurrentPartic => CurrentOrigin%FirstPartic
@@ -9617,6 +9618,7 @@ MT:             if (CurrentOrigin%Movement%MovType == SullivanAllen_) then
                 
                     WaveHeight          = Me%EulerModel(emp)%WaveHeight2D(i, j)
                     WavePeriod          = Me%EulerModel(emp)%WavePeriod2D(i, j)
+                    WaveDirection       = Me%EulerModel(emp)%WaveDirection2D(i, j)
 
 
                     AngFrequency        = 2 * Pi / WavePeriod
@@ -9637,9 +9639,8 @@ MT:             if (CurrentOrigin%Movement%MovType == SullivanAllen_) then
 
                     endif
 
-                    WindAngle           = atan2(WindY, WindX)
-                    UStokesDrift        = cos(WindAngle) * VelStokesDrift
-                    VStokesDrift        = sin(WindAngle) * VelStokesDrift
+                    UStokesDrift        = cos(WaveDirection * (Pi / 180.)) * VelStokesDrift
+                    VStokesDrift        = sin(WaveDirection * (Pi / 180.)) * VelStokesDrift
                     UOIL = UOIL + UStokesDrift
                     VOIL = VOIL + VStokesDrift
                 end if
@@ -17419,9 +17420,10 @@ em1:    do em =1, Me%EulerModelNumber
 #ifndef _WAVES_
                 if (Me%State%Oil .and. .not.Me%ConstructPhase) then
                 
-                    call GetWaves (WavesID    = EulerModel%ObjWaves,                    &
-                                   WavePeriod = EulerModel%WavePeriod2D,                &
-                                   WaveHeight = EulerModel%WaveHeight2D,                &
+                    call GetWaves (WavesID      = EulerModel%ObjWaves,                    &
+                                   WavePeriod   = EulerModel%WavePeriod2D,                &
+                                   WaveHeight   = EulerModel%WaveHeight2D,                &
+                                   WaveDirection= EulerModel%WaveDirection2D,             &
                                    STAT       = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - ModuleLagrangianGlobal - ERR160'
                 
