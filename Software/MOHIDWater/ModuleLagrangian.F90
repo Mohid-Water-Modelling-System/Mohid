@@ -9077,6 +9077,7 @@ end if
         real                                        :: r1, r2, correction
         integer                                     :: STAT_CALL 
         real                                        :: BottomDepth, SurfaceDepth
+        real                                        :: BreakingWaveHeight
         !------------------------------------------------------------------------
 
         i       = CurrentPartic%Position%I
@@ -9255,8 +9256,8 @@ MD:     if (CurrentOrigin%Position%MaintainDepth) then
                                 
                                 if (r1 .LT. correction) then
                                     call random_number(r2)
-
-                                    NewPosition%Z = min(r2 * 1.5 * Me%ExternalVar%WaveHeight (i, j) + SurfaceDepth, BottomDepth)
+                                    BreakingWaveHeight = 1.5 * Me%ExternalVar%WaveHeight (i, j)
+                                    NewPosition%Z = min(r2 * 1.5 * BreakingWaveHeight + SurfaceDepth, BottomDepth)
                                     CurrentPartic%Position%Z = NewPosition%Z
                                     NewPosition%Surface = .false.
                                     CurrentOrigin%Nbrsubmerged = CurrentOrigin%Nbrsubmerged + 1;                             
