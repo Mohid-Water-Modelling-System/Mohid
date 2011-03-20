@@ -555,8 +555,10 @@ Module ModuleWaterProperties
         real                                    :: Rate                 = FillValueReal
         real                                    :: EmpiricCoef          = FillValueReal
         real                                    :: SedimentRefConc      = FillValueReal
+        real                                    :: MaxConc              = FillValueReal
         logical                                 :: UseSedimentRefConc   = .false.
         logical                                 :: SalinityEffect       = .false.
+        logical                                 :: NonComplianceCriteria= .false.
     end type T_Partition
 
     type       T_LightExtinction
@@ -5936,6 +5938,61 @@ cd1:    if (NewProperty%Evolution%Partition%SalinityEffect) then
 
         endif cd1
 
+        !<BeginKeyword>
+            !Keyword          : NON_COMPLIANCE_CRITERIA
+            !<BeginDescription>       
+               ! Verifies if the user wants to define a non-compliance criterium 
+               ! for the concentration of the contaminant 
+               ! 
+               ! 
+            !<EndDescription>
+            !Type             : Boolean 
+            !Default          : .false.
+            !File keyword     : DISPQUAL
+            !Multiple Options : Do not have
+            !Search Type      : FromBlock
+            !Begin Block      : <beginproperty>
+            !End Block        : <endproperty>
+        !<EndKeyword>
+        call GetData(NewProperty%evolution%Partition%NonComplianceCriteria,                     &
+                     Me%ObjEnterData, iflag,                                             &
+                     keyword      = 'NON_COMPLIANCE_CRITERIA',                           & 
+                     default      = OFF,                                                 &
+                     SearchType   = FromBlock,                                           &
+                     ClientModule = 'ModuleWaterProperties',                             &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_)                                                     &
+            stop 'Read_Partition_Parameters - ModuleWaterProperties - ERR80'
+
+cd2:    if (NewProperty%Evolution%Partition%NonComplianceCriteria) then
+
+            !<BeginKeyword>
+                !Keyword          : CONC_LIM
+                !<BeginDescription>       
+                   ! 
+                   ! The maximum concentration allowed for the contaminant in the water
+                   ! above which the water quality is considered negatively affected by the contaminant
+                   ! 
+                !<EndDescription>
+                !Type             : Real 
+                !Default          : 0
+                !File keyword     : DISPQUAL
+                !Multiple Options : Do not have
+                !Search Type      : FromBlock
+                !Begin Block      : <beginproperty>
+                !End Block        : <endproperty>
+            !<EndKeyword> 
+            call GetData(NewProperty%Evolution%Partition%MaxConc,                    &
+                         Me%ObjEnterData, iflag,                                         &
+                         keyword      = 'CONC_LIM',                                  & 
+                         default      = 0.000 ,                                        &
+                         SearchType   = FromBlock,                                       &
+                         ClientModule = 'ModuleWaterProperties',                         &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_)                                                 &
+                stop 'Read_Partition_Parameters - ModuleWaterProperties - ERR90'
+
+        endif cd2
 
     end subroutine Read_Partition_Parameters 
     
@@ -11252,6 +11309,15 @@ do3:                        do k = kbottom, KUB
 
                                 PropertyX%Concentration(i, j, k) =                               &
                                                    PropertyX%Concentration(i, j, k) + MassTransfer
+                               
+                               if (PropertyX%Evolution%Partition%NonComplianceCriteria) then
+                                 if (PropertyX%Concentration(i, j, k) >= PropertyX%Evolution%Partition%MaxConc) then
+                                    write(*,*)'Non Compliance criteria has been reached'
+                                    write (*,*) 'In cell -',i,j,k
+                                    write(*,*)'Property ', trim(PropertyX%ID%Name)
+                                 end if
+                               end if
+
 
                             enddo do3
                         endif cd2
