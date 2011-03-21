@@ -1399,12 +1399,18 @@ Module ModuleHDF5
             NumType = H5T_NATIVE_DOUBLE 
 
             Rank    = 2
+
+#ifndef _STACK_LIMITS_
 !            Minimum = minval(Array2D(Me%Limits%ILB:Me%Limits%IUB,          &
 !                                     Me%Limits%JLB:Me%Limits%JUB))
 !            Maximum = maxval(Array2D(Me%Limits%ILB:Me%Limits%IUB,          &
 !                                     Me%Limits%JLB:Me%Limits%JUB))
             Minimum = minival(Array2D,Me%Limits2D)
             Maximum = maxival(Array2D,Me%Limits2D)
+#else
+            Minimum = FillValueReal
+            Maximum = FillValueReal
+#endif
 
             dims(1) = Me%Limits%IUB - Me%Limits%ILB + 1
             dims(2) = Me%Limits%JUB - Me%Limits%JLB + 1

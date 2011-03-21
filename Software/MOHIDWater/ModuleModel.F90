@@ -200,7 +200,6 @@ Module ModuleModel
     end type T_Overlap
 #endif OVERLAP
 
-
     !public :: T_Model
     type T_Model 
 
@@ -215,9 +214,9 @@ Module ModuleModel
         integer                                 :: NumberOfModels
         integer                                 :: ObjLagrangian
 !        integer                                 :: ObjLagrangianX
-        integer                                 :: ObjLagrangianGlobal        
-            
-        type (T_ExternalVar)                    :: ExternalVar   
+        integer                                 :: ObjLagrangianGlobal
+
+        type (T_ExternalVar)                    :: ExternalVar
 
         type (T_Time)                           :: CurrentTime
         type (T_Time)                           :: BeginTime
@@ -249,6 +248,8 @@ Module ModuleModel
         type (T_Time)                           :: SeqAssimilationTime
 #endif _USE_SEQASSIMILATION
 
+        !$ logical                              :: FatherModelFlag = .false.
+
         !Instance of other Modules
         integer                                 :: ObjTime                  = 0
         integer                                 :: ObjHorizontalGrid        = 0
@@ -274,8 +275,7 @@ Module ModuleModel
         !Linked list of Instances
         type(T_Model), pointer                  :: Next
 
-    End Type T_Model 
-
+    End Type T_Model
 
     !Global Module Variables
     type (T_Model), pointer                     :: FirstModel
@@ -506,7 +506,8 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
             !$         default      = 0,                                                             &
             !$         STAT         = STAT_CALL)
             !$ if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR94'            
-            !$ if ( ModelID .eq. 0) then
+            !$ if ( .not. FirstModel%FatherModelFlag ) then
+            !$    FirstModel%FatherModelFlag = .true.
             !$    write(*,*)
             !$    write(*,*)"OPENMP: Max number of threads available is ", omp_get_max_threads()
             !$    if ( openmp_num_threads .gt. 0 ) then

@@ -9749,6 +9749,9 @@ cd2:    if (PropertySon%SubModel%InterpolTime) then
         integer                                 :: CHUNK
         !----------------------------------------------------------------------
 
+        if (MonitorPerformance)                                         &
+              call StartWatch ("ModuleWaterProperties", "Advection_Diffusion_Processes")
+
         ILB = Me%Size%ILB 
         IUB = Me%Size%IUB 
         JLB = Me%Size%JLB 
@@ -10053,8 +10056,6 @@ cd6 :               if (Property%BoxTimeSerie) then
                         if (STAT_CALL .NE. SUCCESS_)                                    &
                             stop 'Advection_Diffusion_Processes - ModuleWaterProperties - ERR290'
 
-                        if (MonitorPerformance)                                         &
-                            call StartWatch ("ModuleWaterProperties", "Advection_Diffusion_Processes")
 
                         CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
                                                 
@@ -10082,9 +10083,6 @@ do7 :                       do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                             end do do5
                         endif
                         !$OMP END PARALLEL
-
-                        if (MonitorPerformance)                                         &
-                            call StopWatch ("ModuleWaterProperties", "Advection_Diffusion_Processes")
 
                         !Integration of fluxes
                         call BoxDif(Me%ObjBoxDif,                        &
@@ -10142,6 +10140,9 @@ do7 :                       do I = Me%WorkSize%ILB, Me%WorkSize%IUB
 
         call UnGetTurbulence(Me%ObjTurbulence, Me%ExternalVar%Diff_V, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Advection_Diffusion_Processes - ModuleWaterProperties - ERR380'
+
+        if (MonitorPerformance)                                         &
+            call StopWatch ("ModuleWaterProperties", "Advection_Diffusion_Processes")
 
         !----------------------------------------------------------------------
 

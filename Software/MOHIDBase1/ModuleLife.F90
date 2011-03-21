@@ -3017,7 +3017,7 @@ i1:         if(LocalProducer%Use_Silica)then
 
                                                                            ![units] >>  mmol si / mg C
                LocalProducer%Ratio%SiC_Actual = Me%ExternalVar%Mass (PHY_Si, Index)/ &  
-                                           Me%ExternalVar%Mass (PHY_C, Index)
+                                           (Me%ExternalVar%Mass (PHY_C, Index) + AlmostZero)
                
                LocalProducer%Limitation%Nutrients%Si_Status = Me%ExternalVar%Mass (Si, Index)/    &
                                                          (Me%ExternalVar%Mass (Si, Index)+   &
@@ -3029,13 +3029,13 @@ i1:         if(LocalProducer%Use_Silica)then
             !__________________actual element ratios__
 
             LocalProducer%Ratio%NC_Actual = Me%ExternalVar%Mass (PHY_N, Index)/      &
-                                       Me%ExternalVar%Mass (PHY_C, Index)              ![units] >>  mmol N / mg C
+                                       (Me%ExternalVar%Mass (PHY_C, Index) + AlmostZero)              ![units] >>  mmol N / mg C
 
             LocalProducer%Ratio%PC_Actual = Me%ExternalVar%Mass (PHY_P, Index)/      &
-                                       Me%ExternalVar%Mass (PHY_C, Index)              ![units] >>  mmol P / mg C
+                                       (Me%ExternalVar%Mass (PHY_C, Index) + AlmostZero)              ![units] >>  mmol P / mg C
     
             LocalProducer%Ratio%ChlC_Actual = Me%ExternalVar%Mass (PHY_Chl, Index)/      &
-                                         Me%ExternalVar%Mass (PHY_C, Index)            ![units] >>  mg Chl / mg C
+                                         (Me%ExternalVar%Mass (PHY_C, Index) + AlmostZero)            ![units] >>  mg Chl / mg C
 
 
             !_________________________________________
@@ -3425,8 +3425,8 @@ i4:         if (Me%BioChemPar%L_lim_method .eq. 1) then
                                                                           !already considering Chl mass , real units: d-1
                 LocalProducer%Limitation%Light%PhotoAclim = (((LocalProducer%Limitation%Light%Chl_Synthesis *                 &
                                                        ((LocalProducer%Uptake%Up_NH4 + LocalProducer%Uptake%Up_NO3) /         &
-                                                       Me%ExternalVar%Mass (PHY_C, Index))) /                       &
-                                                       LocalProducer%Ratio%ChlC_Actual) -                                &
+                                                       (Me%ExternalVar%Mass (PHY_C, Index)+ AlmostZero))) /                       &
+                                                       LocalProducer%Ratio%ChlC_Actual + AlmostZero) -                                &
                                                        LocalProducer%Limitation%Light%Chl_Degrad_r) *                    &
                                                        Me%ExternalVar%Mass (PHY_Chl, Index)
 
@@ -3491,16 +3491,16 @@ d3:             do while(associated(Prey))
 
                     !_________.prey actual element ratio                          [units] >>  mmol (N & P) / mg C
                     LocalPrey%Ratio%NC_Actual = Me%ExternalVar%Mass (PreyIndexN, Index) /      &
-                                           Me%ExternalVar%Mass (PreyIndexC, Index)          
+                                            ( Me%ExternalVar%Mass (PreyIndexC, Index) + AlmostZero )
 
                     LocalPrey%Ratio%PC_Actual = Me%ExternalVar%Mass (PreyIndexP, Index) /      &
-                                           Me%ExternalVar%Mass (PreyIndexC, Index) 
+                                           ( Me%ExternalVar%Mass (PreyIndexC, Index) + AlmostZero )
 
 
                     !_________.prey potential grazing
                     Avail = LocalPrey%Avail * Me%ExternalVar%Mass (PreyIndexC, Index)            ![units] >>  mg C m-3
 
-                    LocalPrey%Pot = LocalProducer%Grazing%Vmax * (Avail/(Avail+LocalProducer%Grazing%Ks)) *    &
+                    LocalPrey%Pot = LocalProducer%Grazing%Vmax * (Avail/(Avail+LocalProducer%Grazing%Ks + AlmostZero)) *    &
                                LocalProducer%Limitation%Temperature%Limit                             ![units] >>  d-1
 
 
@@ -3538,7 +3538,7 @@ d3:             do while(associated(Prey))
                     if(Me%BioChemPar%L_lim_method .eq. 1 .AND. LocalPrey%Use_Chl)then
                                                                                            ![units] >>  mg Chl / mg C
                         LocalPrey%Ratio%ChlC_Actual = Me%ExternalVar%Mass (PreyIndexChl, Index) /      &
-                                                 Me%ExternalVar%Mass (PreyIndexC, Index) 
+                                                 ( Me%ExternalVar%Mass (PreyIndexC, Index) + AlmostZero)
 
                                                                                            ![units] >>  mmol (N & P) m-3 d-1
                         LocalPrey%Frac%Chl = LocalPrey%Pot * Me%ExternalVar%Mass (PHY_C, Index) * LocalPrey%Ratio%ChlC_Actual
@@ -3554,7 +3554,7 @@ d3:             do while(associated(Prey))
                     if(LocalPrey%Use_Silica)then
 
                         LocalPrey%Ratio%SiC_Actual = Me%ExternalVar%Mass (PreyIndexSi, Index) /      &
-                                                Me%ExternalVar%Mass (PreyIndexC, Index) 
+                                               ( Me%ExternalVar%Mass (PreyIndexC, Index) + AlmostZero )
 
                                                                                       ![units] >>  mmol Si m-3 d-1
                         LocalPrey%Frac%Si = LocalPrey%Pot * Me%ExternalVar%Mass (PHY_C, Index) * LocalPrey%Ratio%SiC_Actual
@@ -3895,9 +3895,9 @@ i6:         if(LocalProducer%Use_Silica)then
             !_________________________________________
             !__________________updated element ratios__
 
-            aux_NC = Me%ExternalVar%Mass (PHY_N, Index) / Me%ExternalVar%Mass (PHY_C, Index)     ![units] >>  mmol N / mg C
+            aux_NC = Me%ExternalVar%Mass (PHY_N, Index) / (Me%ExternalVar%Mass (PHY_C, Index) + AlmostZero)     ![units] >>  mmol N / mg C
 
-            aux_PC = Me%ExternalVar%Mass (PHY_P, Index) / Me%ExternalVar%Mass (PHY_C, Index)     ![units] >>  mmol P / mg C
+            aux_PC = Me%ExternalVar%Mass (PHY_P, Index) / (Me%ExternalVar%Mass (PHY_C, Index) + AlmostZero)    ![units] >>  mmol P / mg C
     
 
             !_______.nitrogen                                                           [units] >>  mmol N m-3
@@ -3925,7 +3925,7 @@ i6:         if(LocalProducer%Use_Silica)then
             !_____.silica                                                             [units] >>  mmol Si m-3
 i7:         if(LocalProducer%Use_Silica)then
 
-                aux_SiC = Me%ExternalVar%Mass (PHY_Si, Index) / Me%ExternalVar%Mass (PHY_C, Index)
+                aux_SiC = Me%ExternalVar%Mass (PHY_Si, Index) / (Me%ExternalVar%Mass (PHY_C, Index) + AlmostZero)
                    
 
                 if (aux_SiC .gt. Me%BiochemPar%Redfield_SiC) then
