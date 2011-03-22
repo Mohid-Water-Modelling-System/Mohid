@@ -1258,7 +1258,7 @@ em0:        do em =1, Nmodels
             call ConstructGlobalVariables
 
             !Construct enter data 
-            call ConstructEnterData(Me%ObjEnterData, Me%Files%ConstructData, STAT = STAT_CALL) 
+            call ConstructEnterData(Me%ObjEnterData, Me%Files%ConstructData, ErrorMessage = "ConstructLagrangianGlobal - ModuleLagrangianGlobal", STAT = STAT_CALL) 
             if (STAT_CALL /= SUCCESS_) stop 'ConstructLagrangianGlobal - ModuleLagrangianGlobal - ERR13'
 
             allocate(IndexMatch(1:Nmodels))
@@ -4702,7 +4702,7 @@ d1:     do em = 1, Me%EulerModelNumber
 i1:     if (Me%ObjEnterDataClone == 0) then
 
             !Construct enter data "clone"
-            call ConstructEnterData(Me%ObjEnterDataClone, Me%Files%ConstructData, STAT = STAT_CALL) 
+            call ConstructEnterData(Me%ObjEnterDataClone, Me%Files%ConstructData, ErrorMessage = "CheckForOriginClones - ModuleLagrangianGlobal", STAT = STAT_CALL) 
             if (STAT_CALL /= SUCCESS_) stop 'CheckForOriginClones - ModuleLagrangianGlobal - ERR10'
 
             call ExtractBlockFromBuffer(Me%ObjEnterDataClone,                           &
@@ -4715,7 +4715,8 @@ i1:     if (Me%ObjEnterDataClone == 0) then
 i2:         if (BlockFound) then
     
                 !Construct enter data original again
-                call ConstructEnterData(Me%ObjEnterDataOriginal, Me%Files%ConstructData, STAT = STAT_CALL) 
+                call ConstructEnterData(Me%ObjEnterDataOriginal, Me%Files%ConstructData,&
+                                        ErrorMessage = "CheckForOriginClones - ModuleLagrangianGlobal", STAT = STAT_CALL) 
                 if (STAT_CALL /= SUCCESS_) stop 'CheckForOriginClones - ModuleLagrangianGlobal - ERR30'
 
                 PreviousStart  = FillValueInt
