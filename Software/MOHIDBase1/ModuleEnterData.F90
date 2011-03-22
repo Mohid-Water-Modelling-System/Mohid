@@ -186,11 +186,12 @@ Module ModuleEnterData
     ! This soubroutine extracts, the whole data from unit "Me%unit"          
     ! and stores them in sring "ObjEnterData" !
 
-    subroutine ConstructEnterData(EnterDataID, FileName, FORM, STAT)
+    subroutine ConstructEnterData(EnterDataID, FileName, ErrorMessage, FORM, STAT)
 
         !Arguments-------------------------------------------------------------
         integer                                     :: EnterDataID
         character(LEN = *), intent(IN )             :: FileName
+        character(LEN = *), optional, intent(IN )   :: ErrorMessage
         integer, optional,  intent(OUT)             :: STAT    
         integer, optional,  intent(IN )             :: FORM
 
@@ -198,7 +199,7 @@ Module ModuleEnterData
         integer                                     :: ready_     
         integer                                     :: STAT_CALL    
         logical                                     :: exists
-        character(LEN = line_length)                :: string
+        character(LEN = line_length)                :: string, ErrorMessage_
         character(LEN = 10000)                      :: auxstring
         character(LEN = 1)                          :: one_char
         integer                                     :: STAT_
@@ -222,8 +223,15 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
             !Verifies if file exits
             inquire(FILE = trim(adjustl(FileName)), EXIST = exists)
+            
+            if (present(ErrorMessage)) then
+                ErrorMessage_ = ErrorMessage
+            else
+                ErrorMessage_ = "No error message"
+            endif
 
             if (.NOT. exists) then
+                write (*,*) trim(ErrorMessage_)
                 write (*,*)'Data File does not exists : ', trim(adjustl(FileName))
                 STAT_ = FILE_NOT_FOUND_ERR_
             endif
