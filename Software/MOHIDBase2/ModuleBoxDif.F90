@@ -2478,10 +2478,19 @@ cd2 :           if (BlockFound) then
                        IN  = Me%Boxes3D(i,j+1,k)
 
                        Me%Fluxes3D(OUT,IN ) = Me%Fluxes3D(OUT,IN) + FluxX3D(i,j+1,k)
-                       Me%Fluxes3D(IN, OUT)= -Me%Fluxes3D(OUT,IN)
+                       Me%Fluxes3D(IN, OUT) = -Me%Fluxes3D(OUT,IN)
 
                     end if
+                end if
+            enddo
+            enddo
+            enddo
 
+            do k = WKLB,  WKUB
+            do j = WJLB , WJUB
+            do i = WILB,  WIUB
+
+                if(Me%ExternalVar%WaterPoints3D(i,j,k) .eq. WaterPoint)then
                     !YY axis
                     if (Me%BoundaryFace3DY(i,j,k))then
                     
@@ -2492,7 +2501,16 @@ cd2 :           if (BlockFound) then
                         Me%Fluxes3D(IN, OUT) = -Me%Fluxes3D(OUT,IN)
 
                     end if
+                end if
+            enddo
+            enddo
+            enddo
 
+            do k = WKLB,  WKUB
+            do j = WJLB , WJUB
+            do i = WILB,  WIUB
+
+                if(Me%ExternalVar%WaterPoints3D(i,j,k) .eq. WaterPoint)then
                     !ZZ axis
                     if (Me%BoundaryFace3DZ(i,j,k))then
                     
@@ -2507,7 +2525,7 @@ cd2 :           if (BlockFound) then
             enddo
             enddo
             enddo
-
+            
             call OutputFluxesTimeSerie3D
 
             STAT_ = SUCCESS_

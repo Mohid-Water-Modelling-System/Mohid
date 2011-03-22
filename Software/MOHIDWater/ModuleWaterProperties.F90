@@ -10056,7 +10056,6 @@ cd6 :               if (Property%BoxTimeSerie) then
                         if (STAT_CALL .NE. SUCCESS_)                                    &
                             stop 'Advection_Diffusion_Processes - ModuleWaterProperties - ERR290'
 
-
                         CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
                                                 
                         !$OMP PARALLEL PRIVATE(I,J,K)
@@ -10070,8 +10069,10 @@ do4 :                   do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                         end do do3
                         !$OMP END DO NOWAIT
                         end do do2
+                        !$OMP END PARALLEL
 
                         if (Me%WorkSize%KUB > Me%WorkSize%KLB) then
+                            !$OMP PARALLEL PRIVATE(I,J,K)
 do5 :                       do K = Me%WorkSize%KLB, Me%WorkSize%KUB
                             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
 do6 :                       do J = Me%WorkSize%JLB, Me%WorkSize%JUB
@@ -10081,9 +10082,9 @@ do7 :                       do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                             end do do6
                             !$OMP END DO NOWAIT
                             end do do5
+                            !$OMP END PARALLEL
                         endif
-                        !$OMP END PARALLEL
-
+    
                         !Integration of fluxes
                         call BoxDif(Me%ObjBoxDif,                        &
                                     Me%MassFluxesX,                      &
