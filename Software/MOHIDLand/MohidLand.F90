@@ -104,7 +104,7 @@ program MohidLand
         call ReadKeywords
 
         !Constructs Time 
-        call StartComputeTime (ObjComputeTime, BeginTime, EndTime, DT, VariableDT, MaxDT, STAT = STAT_CALL)
+        call StartComputeTime (ObjComputeTime, InitialSystemTime, BeginTime, EndTime, DT, VariableDT, MaxDT, STAT = STAT_CALL)
 
         !Update Current Time
         CurrentTime  = BeginTime

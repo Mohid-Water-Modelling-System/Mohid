@@ -8779,11 +8779,11 @@ cd5:                if (SurfaceElevation(i,j) < (- Bathymetry(i, j) + 0.999 * Mi
         call HDF5CreateGroup (ObjHDF5, "/Results/"//trim(GetPropertyName (WaterLevel_)),STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleHydrodynamic - ERR100'
 
-        call HDF5CreateGroup (ObjHDF5, "/Results/"//trim(GetPropertyName (WaterLevelMax_)),STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleHydrodynamic - ERR101'
+        !call HDF5CreateGroup (ObjHDF5, "/Results/"//trim(GetPropertyName (WaterLevelMax_)),STAT = STAT_CALL)
+        !if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleHydrodynamic - ERR101'
 
-        call HDF5CreateGroup (ObjHDF5, "/Results/"//trim(GetPropertyName (WaterLevelMin_)),STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleHydrodynamic - ERR102'
+        !call HDF5CreateGroup (ObjHDF5, "/Results/"//trim(GetPropertyName (WaterLevelMin_)),STAT = STAT_CALL)
+        !if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleHydrodynamic - ERR102'
 
         call HDF5CreateGroup (ObjHDF5, "/Results/"//trim(GetPropertyName (VelocityU_)),  STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleHydrodynamic - ERR110'
@@ -38941,21 +38941,21 @@ cd2:            if (WaterPoints3D(i  , j  ,k)== WaterPoint .and.                
         if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR100'
 
 
-        !Writes Waterlevel maximum
-        call HDF5WriteData  (ObjHDF5,                                                &
-                             "/Results/"//trim(GetPropertyName (WaterLevelMax_)),     &
-                             trim(GetPropertyName (WaterLevelMax_)),                  &
-                             "m/s", Array2D =  Me%OutPut%WaterLevelMax,                      &
-                             OutputNumber = Index, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR181'
+        !!Writes Waterlevel maximum
+        !call HDF5WriteData  (ObjHDF5,                                                &
+        !                     "/Results/"//trim(GetPropertyName (WaterLevelMax_)),     &
+        !                     trim(GetPropertyName (WaterLevelMax_)),                  &
+        !                     "m/s", Array2D =  Me%OutPut%WaterLevelMax,                      &
+        !                     OutputNumber = Index, STAT = STAT_CALL)
+        !if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR181'
 
-        !Writes Waterlevel minimum
-        call HDF5WriteData  (ObjHDF5,                                                &
-                             "/Results/"//trim(GetPropertyName (WaterLevelMin_)),     &
-                             trim(GetPropertyName (WaterLevelMin_)),                  &
-                             "m/s", Array2D =  Me%OutPut%WaterLevelMin,                      &
-                             OutputNumber = Index, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR182'
+        !!Writes Waterlevel minimum
+        !call HDF5WriteData  (ObjHDF5,                                                &
+        !                     "/Results/"//trim(GetPropertyName (WaterLevelMin_)),     &
+        !                     trim(GetPropertyName (WaterLevelMin_)),                  &
+        !                     "m/s", Array2D =  Me%OutPut%WaterLevelMin,                      &
+        !                     OutputNumber = Index, STAT = STAT_CALL)
+        !if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR182'
 
         !Writes Velocity
         call HDF5WriteData  (ObjHDF5,                                                &

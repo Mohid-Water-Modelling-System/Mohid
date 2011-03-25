@@ -656,7 +656,6 @@ Global
 		{DC8642E4-9D47-45E6-8617-BA40A15CF1EF}.Debug Double PhreeqC|x64.ActiveCfg = Debug Double Openmp|x64
 		{DC8642E4-9D47-45E6-8617-BA40A15CF1EF}.Debug Double PhreeqC|x64.Build.0 = Debug Double Openmp|x64
 		{DC8642E4-9D47-45E6-8617-BA40A15CF1EF}.Debug Double|Win32.ActiveCfg = Debug|Win32
-		{DC8642E4-9D47-45E6-8617-BA40A15CF1EF}.Debug Double|Win32.Build.0 = Debug|Win32
 		{DC8642E4-9D47-45E6-8617-BA40A15CF1EF}.Debug Double|x64.ActiveCfg = Debug Double Openmp|x64
 		{DC8642E4-9D47-45E6-8617-BA40A15CF1EF}.Debug Double|x64.Build.0 = Debug Double Openmp|x64
 		{DC8642E4-9D47-45E6-8617-BA40A15CF1EF}.Debug OpenMI|Win32.ActiveCfg = Debug|Win32
