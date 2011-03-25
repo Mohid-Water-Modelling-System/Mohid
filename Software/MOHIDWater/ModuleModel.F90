@@ -218,6 +218,7 @@ Module ModuleModel
 
         type (T_ExternalVar)                    :: ExternalVar
 
+        type (T_Time)                           :: InitialSystemTime 
         type (T_Time)                           :: CurrentTime
         type (T_Time)                           :: BeginTime
         type (T_Time)                           :: EndTime
@@ -290,28 +291,29 @@ Module ModuleModel
 
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-    
-    !In this subroutine is read the model structure (number of parallel models and their sub-models) 
+
+    !In this subroutine is read the model structure (number of parallel models and their sub-models)
     ! and the necessary memory is allocate and store in a structure of pointer lists
-    
-    subroutine ConstructModel (LagInstance, ModelNames, NumberOfModels, ObjLagrangianGlobal, ModelID, STAT)
+
+    subroutine ConstructModel (LagInstance, ModelNames, NumberOfModels, ObjLagrangianGlobal, ModelID, InitialSystemTime, STAT)
 
         !Arguments-------------------------------------------------------------
         integer         , dimension(:,:), pointer   :: LagInstance
-        character(len=*), dimension(:  ), pointer   :: ModelNames   
+        character(len=*), dimension(:  ), pointer   :: ModelNames
         integer                                     :: NumberOfModels, ObjLagrangianGlobal, ModelID
+        type (T_Time)                               :: InitialSystemTime
         integer, intent(OUT), optional              :: STAT
 
-        !Local----------------------------------------------------------------- 
+        !Local-----------------------------------------------------------------
         integer, allocatable, dimension(:)          :: AuxInt4
         integer                                     :: STAT_
         integer                                     :: STAT_CALL, ready_
         integer                                     :: FromFile, flag
         character(PathLength)                       :: BathymetryFile, DataFile
         character(PathLength), save                 :: LagNomfich
-        
+
         !character(StringLength), dimension(:), pointer :: AuxModelNames
-        
+
 #ifndef _SEDIMENT_
         character(PathLength)                       :: SedimentFile, SedGeometryFile
 #endif
@@ -348,11 +350,8 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
             !Me%ModelNames       => ModelNames
             !Me%LagInstance      => LagInstance
 
-            
             !Stores name
             Me%ModelName        = trim(ModelNames(Me%InstanceID))
-
-
 
 #ifndef _OPENMI_
             write(*, *)"-------------------------- MODEL -------------------------"
@@ -360,6 +359,8 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
             write(*, *)"Constructing      : ", trim(Me%ModelName)
             write(*, *)"ID                : ", Me%InstanceID
 #endif
+
+            Me%InitialSystemTime = InitialSystemTime
 
             !Gets the name of the data file
             call ReadFileName('IN_MODEL', DataFile, "Compute Time Data File", STAT = STAT_CALL)
@@ -442,7 +443,7 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
 
             !Start Module Time
             Me%CurrentTime = Me%BeginTime
-            call StartComputeTime(Me%ObjTime, Me%BeginTime, Me%EndTime, Me%DT,     &
+            call StartComputeTime(Me%ObjTime, Me%InitialSystemTime, Me%BeginTime, Me%EndTime, Me%DT,     &
                                   Me%VariableDT, Me%MaxDT, Me%GmtReference, STAT = STAT_CALL)   
             if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR60'
 

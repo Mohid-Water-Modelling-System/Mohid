@@ -113,6 +113,7 @@ Module ModuleTime
 
     type      T_ComputeTime
         integer                         :: InstanceID
+        type(T_Time   )                 :: InitialSystemTime
         type(T_Time   )                 :: Begin
         type(T_Time   )                 :: Finish
         type(T_Time   )                 :: Current
@@ -209,11 +210,12 @@ Module ModuleTime
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-    subroutine StartComputeTime(TimeID, BeginTime, EndTime,                              &
+    subroutine StartComputeTime(TimeID, InitialSystemTime, BeginTime, EndTime,                              &
                                 DT, VariableDT, MaxDT, GmtReference, STAT)
                       
         !Arguments-------------------------------------------------------------
         integer                                     :: TimeID
+        type(T_Time),  intent(IN)                   :: InitialSystemTime
         type(T_Time),  intent(IN)                   :: BeginTime, EndTime
         real,          intent(IN)                   :: DT
         logical,       intent(IN)                   :: VariableDT
@@ -239,8 +241,9 @@ Module ModuleTime
 
 cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
-            call AllocateInstance       ()         
+            call AllocateInstance       ()
 
+            Me%InitialSystemTime   = InitialSystemTime
             Me%Finish              = EndTime
             Me%Begin               = BeginTime
             Me%Current             = BeginTime
@@ -264,6 +267,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             Me%nIter               = 0
             Me%IterSinceLastPrint  = 0
 
+!            call GetSystemTime(Me%LastSystemTime)
             call cpu_time(Me%LastCpuTime)
 
             !Returns ID
@@ -1667,20 +1671,23 @@ cd1 :   if (TimeHours_ .GT. 23.99999999) then
         STAT_ = UNKNOWN_
 
         call Ready(TimeID, ready_) 
-
+        
 cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
             (ready_ .EQ. READ_LOCK_ERR_)) then
-
+            
             !Time in seconds of the simulation
             TimeSimulated       = Me%Current - Me%Begin
-            TotalSimulationTime = Me%Finish  - Me%Begin
-
-            !Gets the CPU time used until now
-            call CPU_Time(ExecutionTime)
-
+            TotalSimulationTime = Me%Finish  - Me%Begin                        
+            
             !Gets the current system time
             call DATE_AND_TIME(Values = F95Time)
             call SetDate(CurrentSystemTime, F95Time(1), F95Time(2), F95Time(3), F95Time(5), F95Time(6), F95Time(7))
+
+            !!Gets the CPU time used until now
+            !call CPU_Time(ExecutionTime)
+            !CPU execution time gets biased when multi-threading.
+            !It's safer to estimate based on the initialSystemTime
+            ExecutionTime = CurrentSystemTime - Me%InitialSystemTime
 
             if (TimeSimulated > 0.) then
 
@@ -1714,12 +1721,10 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
                 write(*,*)
             endif
 
-
-
             if (TimeSimulated > 0.) then
                 write(*, *)"-----CPU Time---------------------------------------------"
-                write(*,110) int(ExecutionTime)
-                write(*,120) int(StillToRun)
+                write(*,110) int(ExecutionTime )
+                write(*,120) int(StillToRun )
                 write(*,125) (ExecutionTime / (ExecutionTime + StillToRun))*100.0
                 write(*,130) Coeficient
                 if (Me%IterSinceLastPrint /= 0) then
@@ -1740,25 +1745,25 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
                             int(FinishSystemTime%Time_(5)), int(FinishSystemTime%Time_(6))
             endif
 #endif
-            
+
             100 format(1X, "Time Instant           : ",(i4,":"),4(i2, ":"), i2)
-            105 format(1X, "Time Step              :   ",f12.2,"s")
-            106 format(1X, "Min Time Step so far   :   ",f12.2,"s")
-            107 format(1X, "Max Time Step so far   :   ",f12.2,"s")
-            108 format(1X, "Average Time Step      :   ",f12.2,"s",/)
-            110 format(1X, "Elapsed                :   ",i12,"s")
-            120 format(1X, "Remaining (aprox.)     :   ",i12,"s")
+            105 format(1X, "Time Step              : ",f12.2,"s")
+            106 format(1X, "Min Time Step so far   : ",f12.2,"s")
+            107 format(1X, "Max Time Step so far   : ",f12.2,"s")
+            108 format(1X, "Average Time Step      : ",f12.2,"s",/)
+            110 format(1X, "Elapsed                : ",i12,"s")
+            120 format(1X, "Remaining (aprox.)     : ",i12,"s")
             125 format(1X, "Completed (%)          : ",f14.4)
             130 format(1x, "Coeficient CPU / Model : ",f14.4)
-            131 format(1X, "Seconds per Iteration  : ",f14.4,"s",/)
+            131 format(1X, "Seconds per Iteration  : ",f14.4,"s")
             140 format(1x, "System time            : ",(i4,":"),4(i2, ":"), i2)
             150 format(1x, "End of the run         : ",(i4,":"),4(i2, ":"), i2,6/)
-            
+            160 format(1x, "Number of threads      : ", i12,/)
+
             STAT_ = SUCCESS_
         else 
             STAT_ = ready_
         end if cd1
-
 
         if (present(STAT))                                                    &
             STAT = STAT_

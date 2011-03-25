@@ -280,7 +280,7 @@ program MohidWater
 
             call SetFilesName  (CurrentModel%ModelPath)
             call ConstructModel(LagInstance, ModelNames, NumberOfModels, ObjLagrangianGlobal, &
-                                CurrentModel%ModelID, STAT = STAT_CALL)
+                                CurrentModel%ModelID, InitialSystemTime, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWater - MohidWater - ERR20'
 
             !Get the Instance IDs of the Objects which are necessary for Model/SubModel
@@ -584,7 +584,7 @@ program MohidWater
                 end if
 
                 call ConstructModel(LagInstance, ModelNames,                            &
-                                    NumberOfModels, ObjLagrangianGlobal, CurrentModel%ModelID, STAT = STAT_CALL)
+                                    NumberOfModels, ObjLagrangianGlobal, CurrentModel%ModelID, InitialSystemTime, STAT = STAT_CALL)
                 
                 !Get the Instance IDs of the Objects which are necessary for Model/SubModel
                 !comunication
@@ -636,6 +636,7 @@ program MohidWater
                                    CurrentModel%SubMPIID(iSub), tag, MPI_COMM_WORLD,     &
                                    STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWaterMPI - MohidWater - ERR50'
+                    
                 enddo
 
 
@@ -692,7 +693,6 @@ program MohidWater
             endif
 
             CurrentModel => CurrentModel%Next
-
 
         enddo  
              
