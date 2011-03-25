@@ -34891,7 +34891,7 @@ dok:            do  k = kbottom, KUB
 
         logical                            :: NearBoundary
 
-        integer                            :: CHUNK
+        !$ integer                            :: CHUNK
 
         !Begin---------------------------------------------------------------------
 

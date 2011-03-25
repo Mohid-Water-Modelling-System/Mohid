@@ -289,9 +289,11 @@ Module ModuleInterface
                                     SinksSourcesModel,                     &
                                     DT,PropertiesList,                     &
                                     WaterPoints3D,                         &
+#ifdef _PHREEQC_                                    
                                     PhreeqCDatabase,                       &
                                     PhreeqCDatabaseAux,                    &
                                     PhreeqCModelID,                        &                                 
+#endif
                                     Size3D,                                &
                                     Vertical1D,                            &
                                     STAT)
@@ -304,9 +306,11 @@ Module ModuleInterface
         real, intent (OUT)                                      :: DT
         integer, dimension(:,:,:), pointer                      :: WaterPoints3D
         
+#ifdef _PHREEQC_
         character(LEN=*), optional                              :: PhreeqCDatabase
         character(LEN=*), optional                              :: PhreeqCDatabaseAux
         integer, intent(OUT), optional                          :: PhreeqCModelID
+#endif
 
         type(T_Size3D)                                          :: Size3D
         logical,intent (IN),  optional                          :: Vertical1D
@@ -354,7 +358,11 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             call ReadInterfaceFilesName
 
             
-            call StartSinksSourcesModel(DT, PhreeqCDatabase, PhreeqCDatabaseAux, PhreeqCModelID)
+            call StartSinksSourcesModel(DT &
+#ifdef _PHREEQC_
+                , PhreeqCDatabase, PhreeqCDatabaseAux, PhreeqCModelID &
+#endif                
+            )
 
 !            !Start sinks and sources model
 !            call StartSinksSourcesModel(DT)
@@ -1013,14 +1021,19 @@ cd1 :           if(STAT_CALL .EQ. KEYWORD_NOT_FOUND_ERR_) then
 
     !--------------------------------------------------------------------------
     
-    subroutine StartSinksSourcesModel (DT, PhreeqCDatabase, PhreeqCDatabaseAux, PhreeqCModelID)
+    subroutine StartSinksSourcesModel (DT &
+#ifdef _PHREEQC_
+                    , PhreeqCDatabase, PhreeqCDatabaseAux, PhreeqCModelID &
+#endif                    
+                    )
 
         !Arguments-------------------------------------------------------------
         real, intent(OUT)                       :: DT
+#ifdef _PHREEQC_
         character(LEN=*), optional              :: PhreeqCDatabase
         character(LEN=*), optional              :: PhreeqCDatabaseAux
         integer, intent(INOUT), optional        :: PhreeqCModelID
-
+#endif
         
         !External--------------------------------------------------------------
         integer                                 :: STAT_CALL
@@ -2423,7 +2436,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
         integer                                         :: PropLB, PropUB, ArrayLB, ArrayUB 
         real                                            :: DTProp_
         logical                                         :: Increment
-        !$ integer                                      :: CHUNK
+!        !$ integer                                      :: CHUNK
         
 !        !DEBUG purposes--------------------------------------------------------
 !        real :: old_value, new_value
@@ -2479,7 +2492,7 @@ cd5 :       if (.not. Increment) then
 
 cd4 :           if (ReadyToCompute) then
 
-                    call UnfoldMatrix(Me%ExternalVar%OpenPoints3D, Me%OpenPoints, Vertical1D = Me%ExternalVar%Vertical1D)
+                    call UnfoldMatrix(Me%ExternalVar%OpenPoints3D, Me%OpenPoints)
 
                     !Stores the concentration before changing them
                     Me%ConcentrationIncrement = Me%Mass
@@ -3056,7 +3069,7 @@ do6 :               do index = ArrayLB, ArrayUB
         real                                            :: DTProp_, DT
         logical                                         :: Increment
         
-        !$ integer                                      :: CHUNK
+!        !$ integer                                      :: CHUNK
 
         !----------------------------------------------------------------------
 
@@ -5711,12 +5724,11 @@ cd45 :                  if (.NOT. Me%AddedProperties(i)) then
 
     !--------------------------------------------------------------------------
 
-    subroutine UnfoldMatrix3D_I (Matrix3D, Vector, Vertical1D)
+    subroutine UnfoldMatrix3D_I (Matrix3D, Vector)
 
         !Arguments-------------------------------------------------------------
         integer, dimension(:,:,:), pointer      :: Matrix3D
         integer, dimension(:    ), pointer      :: Vector
-        logical, optional, intent(IN)           :: Vertical1D
 
         !Local-----------------------------------------------------------------
         integer                                 :: Index

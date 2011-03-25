@@ -2528,8 +2528,7 @@ cd1 :   if ((Property == POC_                   ) .OR.  (Property == PON_       
             (Property == PON3_                  ) .OR.  (Property == PON4_                  ) .OR.          &
             (Property == PON5_                  ) .OR.  (Property == POP1_                  ) .OR.          &
             (Property == POP2_                  ) .OR.  (Property == POP3_                  ) .OR.          &
-            (Property == POP4_                  ) .OR.  (Property == POP5_                  ) .OR.          &
-            
+            (Property == POP4_                  ) .OR.  (Property == POP5_                  ) .OR.          &            
             (Property == SolubilizingP_         ) .OR.  (Property == ParticulateMetal_      ) .OR.          &
             (Property == ParticulateCadmium_    ) .OR.  (Property == ParticulateCopper_     ) .OR.          &
             (Property == ParticulateLead_       ) .OR.  (Property == ParticulateZinc_       ) .OR.          &

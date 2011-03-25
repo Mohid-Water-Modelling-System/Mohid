@@ -1258,7 +1258,8 @@ em0:        do em =1, Nmodels
             call ConstructGlobalVariables
 
             !Construct enter data 
-            call ConstructEnterData(Me%ObjEnterData, Me%Files%ConstructData, ErrorMessage = "ConstructLagrangianGlobal - ModuleLagrangianGlobal", STAT = STAT_CALL) 
+            call ConstructEnterData(Me%ObjEnterData, Me%Files%ConstructData, &
+                    ErrorMessage = "ConstructLagrangianGlobal - ModuleLagrangianGlobal", STAT = STAT_CALL) 
             if (STAT_CALL /= SUCCESS_) stop 'ConstructLagrangianGlobal - ModuleLagrangianGlobal - ERR13'
 
             allocate(IndexMatch(1:Nmodels))

@@ -2587,13 +2587,14 @@ i2:     if (Me%Dim == Dim2D) then
     !--------------------------------------------------------------------------
 
 
-    subroutine ConstructHDFInput (ExtractType, HDF5File, PointsToFill2D, PointsToFill3D)
+    subroutine ConstructHDFInput (ExtractType, PointsToFill2D, PointsToFill3D)
+    !subroutine ConstructHDFInput (ExtractType, HDF5File, PointsToFill2D, PointsToFill3D)
 
         !Arguments-------------------------------------------------------------
         integer                                         :: ExtractType
         integer, dimension(:, :),    pointer, optional  :: PointsToFill2D
         integer, dimension(:, :, :), pointer, optional  :: PointsToFill3D
-        character (len = PathLength),         optional  :: HDF5File       
+        !character (len = PathLength),         optional  :: HDF5File       
 
         !External--------------------------------------------------------------
         integer                                         :: STAT_CALL

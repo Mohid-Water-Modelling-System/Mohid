@@ -233,18 +233,18 @@
     !Arguments
     type(T_Gotmparameters   ), pointer :: ObjGOTMparameters
 
-    !Local variables
-    logical craig_banner,length_lim
-    logical qesmooth,flux_bdy
-    integer turb_method,tke_method,len_scale_method,stab_method,MY_length
-    integer iw_model   
-    double precision  const_num,const_nuh,k_min,L_min,eps_min
-    double precision kappa,Prandtl0,cm0,cm_craig,cw,galp
-    double precision ce1,ce2,ce3minus,ce3plus,sig_k
-    double precision sl,e1,e2,e3
-    double precision a1,a2,b1,b2,c2,c3,qeghmax,qeghmin,qeghcrit   
-    double precision alpha,klimiw,rich_cr,numiw,nuhiw,numshear
-    double precision c1,cde,craig_m,sig_e0,sig_e1
+!    !Local variables
+!    logical craig_banner,length_lim
+!    logical qesmooth,flux_bdy
+!    integer turb_method,tke_method,len_scale_method,stab_method,MY_length
+!    integer iw_model   
+!    double precision  const_num,const_nuh,k_min,L_min,eps_min
+!    double precision kappa,Prandtl0,cm0,cm_craig,cw,galp
+!    double precision ce1,ce2,ce3minus,ce3plus,sig_k
+!    double precision sl,e1,e2,e3
+!    double precision a1,a2,b1,b2,c2,c3,qeghmax,qeghmin,qeghcrit   
+!    double precision alpha,klimiw,rich_cr,numiw,nuhiw,numshear
+!    double precision c1,cde,craig_m,sig_e0,sig_e1
    
     ObjGOTMParameters%turb_method           = null_int
     ObjGOTMParameters%tke_method            = null_int
@@ -405,7 +405,7 @@
    double precision sl,e1,e2,e3
    double precision a1,a2,b1,b2,c2,c3,qeghmax,qeghmin,qeghcrit   
    double precision alpha,klimiw,rich_cr,numiw,nuhiw,numshear
-   double precision c1,cde,craig_m,sig_e0,sig_e1
+   !double precision c1,cde,craig_m,sig_e0,sig_e1
    
    namelist /turbulence/ turb_method,tke_method,len_scale_method,stab_method, &
                          craig_banner,length_lim,const_num,const_nuh,k_min,   &

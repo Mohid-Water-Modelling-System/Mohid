@@ -3052,7 +3052,7 @@ s1:         Select case (Me%BioChemPar%T_lim_method)
             case (2)
          
                 LocalProducer%Limitation%Temperature%Limit = exp(-4000.0 * ((1.0 / (Me%ExternalVar%Temperature (index)            &
-                                                        + 273.15)) - (1.0 / (LocalProducer%Limitation%Temperature%Reftemp + 273.15))))
+                                          + 273.15)) - (1.0 / (LocalProducer%Limitation%Temperature%Reftemp + 273.15))))
 
             end select s1
 
@@ -3333,7 +3333,8 @@ s2:         Select case (Me%BioChemPar%L_lim_method)
             LocalProducer%Uptake%N_Ext = LocalProducer%Uptake%NH4_Ext + LocalProducer%Uptake%NO3_Ext
     
             !_______.phosphorus
-            LocalProducer%Uptake%P_Ext = LocalProducer%Uptake%Up_PO4_r * Me%ExternalVar%Mass (PO, Index) * Me%ExternalVar%Mass (PHY_C, Index)
+            LocalProducer%Uptake%P_Ext = LocalProducer%Uptake%Up_PO4_r * Me%ExternalVar%Mass (PO, Index) &
+                                    * Me%ExternalVar%Mass (PHY_C, Index)
 
             !_____.uptake 
 
@@ -3410,7 +3411,8 @@ i4:         if (Me%BioChemPar%L_lim_method .eq. 1) then
 
                 if (AverageRadiation .gt. 0.0) then
                                                                                               ![units] >>  mg Chl / mmol N
-                    LocalProducer%Limitation%Light%Chl_Synthesis = LocalProducer%Ratio%ChlN_Max * (LocalProducer%Uptake%Assimil /      &
+                    LocalProducer%Limitation%Light%Chl_Synthesis = LocalProducer%Ratio%ChlN_Max & 
+                                                              * (LocalProducer%Uptake%Assimil /      &
                                                               (LocalProducer%Limitation%Light%AlphaChl *                     &  
                                                               LocalProducer%Ratio%ChlC_Actual *                              &
                                                               AverageRadiation))
@@ -3423,11 +3425,11 @@ i4:         if (Me%BioChemPar%L_lim_method .eq. 1) then
 
                                                                                               ![units] >>  mg Chl m-3 d-1
                                                                           !already considering Chl mass , real units: d-1
-                LocalProducer%Limitation%Light%PhotoAclim = (((LocalProducer%Limitation%Light%Chl_Synthesis *                 &
-                                                       ((LocalProducer%Uptake%Up_NH4 + LocalProducer%Uptake%Up_NO3) /         &
-                                                       (Me%ExternalVar%Mass (PHY_C, Index)+ AlmostZero))) /                       &
-                                                       LocalProducer%Ratio%ChlC_Actual + AlmostZero) -                                &
-                                                       LocalProducer%Limitation%Light%Chl_Degrad_r) *                    &
+                LocalProducer%Limitation%Light%PhotoAclim = (((LocalProducer%Limitation%Light%Chl_Synthesis *         &
+                                                       ((LocalProducer%Uptake%Up_NH4 + LocalProducer%Uptake%Up_NO3) / &
+                                                       (Me%ExternalVar%Mass (PHY_C, Index)+ AlmostZero))) /           &
+                                                       LocalProducer%Ratio%ChlC_Actual + AlmostZero) -                &
+                                                       LocalProducer%Limitation%Light%Chl_Degrad_r) *                 &
                                                        Me%ExternalVar%Mass (PHY_Chl, Index)
 
             endif i4
@@ -3895,9 +3897,9 @@ i6:         if(LocalProducer%Use_Silica)then
             !_________________________________________
             !__________________updated element ratios__
 
-            aux_NC = Me%ExternalVar%Mass (PHY_N, Index) / (Me%ExternalVar%Mass (PHY_C, Index) + AlmostZero)     ![units] >>  mmol N / mg C
+            aux_NC = Me%ExternalVar%Mass (PHY_N, Index) / Me%ExternalVar%Mass (PHY_C, Index)     ![units] >>  mmol N / mg C
 
-            aux_PC = Me%ExternalVar%Mass (PHY_P, Index) / (Me%ExternalVar%Mass (PHY_C, Index) + AlmostZero)    ![units] >>  mmol P / mg C
+            aux_PC = Me%ExternalVar%Mass (PHY_P, Index) / Me%ExternalVar%Mass (PHY_C, Index)    ![units] >>  mmol P / mg C
     
 
             !_______.nitrogen                                                           [units] >>  mmol N m-3
@@ -4130,7 +4132,7 @@ s1:         Select case (Me%BioChemPar%T_lim_method)
             case (2) s1
          
                 LocalConsumer%Limitation%Temperature%Limit = exp(-4000.0 * ((1.0 / (Me%ExternalVar%Temperature (index)            &
-                                                        + 273.15)) - (1.0 / (LocalConsumer%Limitation%Temperature%Reftemp + 273.15))))
+                                          + 273.15)) - (1.0 / (LocalConsumer%Limitation%Temperature%Reftemp + 273.15))))
 
             end select s1
 
@@ -4607,7 +4609,7 @@ s1:         select case (Me%BioChemPar%T_lim_method)
 
             case (2) s1
      
-                LocalDecomposer%Limitation%Temperature%Limit = exp(-4000.0 * ((1.0 / (Me%ExternalVar%Temperature (index)            &
+                LocalDecomposer%Limitation%Temperature%Limit = exp(-4000.0 * ((1.0 / (Me%ExternalVar%Temperature (index)   &
                                          + 273.15)) - (1.0 / (LocalDecomposer%Limitation%Temperature%Reftemp + 273.15))))
 
             end select s1
@@ -4774,10 +4776,10 @@ s1:         select case (Me%BioChemPar%T_lim_method)
                                                  LocalDecomposer%Mortality%POM%N)) * Me%DT_day 
 
             Me%ExternalVar%Mass (BAC_P, Index) = Me%ExternalVar%Mass (BAC_P, Index)         &
-                                                 + (LocalDecomposer%Consume%DOM_Up_Frac%P        &   ! <- sources
-                                                 + LocalDecomposer%Consume%Up_PO4                &
-                                                 - (LocalDecomposer%Mortality%DOM_L%P +          &   ! <- sinks
-                                                 LocalDecomposer%Mortality%POM%P)) * Me%DT_day                                          
+                                       + (LocalDecomposer%Consume%DOM_Up_Frac%P   & ! <- sources
+                                       + LocalDecomposer%Consume%Up_PO4           &
+                                       - (LocalDecomposer%Mortality%DOM_L%P +     & ! <- sinks
+                                       LocalDecomposer%Mortality%POM%P)) * Me%DT_day                                          
 
 
 
