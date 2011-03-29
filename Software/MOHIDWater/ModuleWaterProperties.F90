@@ -191,7 +191,7 @@ Module ModuleWaterProperties
                                           GetGeometryDistances, GetLayer4Level
     use ModuleMap,                  only: GetWaterPoints3D, GetOpenPoints3D, GetComputeFaces3D, &
                                           GetLandPoints3D, UngetMap
-    use ModuleBoxDif,               only: StartBoxDif, GetBoxes, GetNumberOfBoxes, UngetBoxDif, &
+    use ModuleBoxDif,               only: StartBoxDif, GetBoxes, GetDTBoxes, GetNumberOfBoxes, UngetBoxDif, &
                                           BoxDif, KillBoxDif
     use ModuleStatistic,            only: ConstructStatistic, GetStatisticMethod,               &
                                           GetStatisticParameters, GetStatisticLayersNumber,     &
@@ -292,9 +292,9 @@ Module ModuleWaterProperties
     private ::          ConstructPartition
     private ::          ConstructAltimAssimilation
     private ::          ConstructHybridWeights
-    private ::      StartOutputBoxFluxes
-    private ::      Construct_Time_Serie
-    private ::      Construct_Output_Profile
+    private ::          StartOutputBoxFluxes
+    private ::          Construct_Time_Serie
+    private ::          Construct_Output_Profile
     private ::      CheckAditionalOutputs
     private ::      ConstructLog
 #ifdef _USE_SEQASSIMILATION
@@ -1339,6 +1339,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         if (STAT_CALL /= SUCCESS_) &
             stop 'StartOutputBoxFluxes - ModuleWaterProperties - ERR07'
 
+        call GetDTBoxes(Me%ObjBoxDif,Me%Coupled%BoxTimeSerie%DT_Compute, STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'Read_Reinitialize_Parameters - ModuleWaterProperties - ERR60'
+
         deallocate(FluxesOutputList, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) &
             stop 'StartOutputBoxFluxes - ModuleWaterProperties - ERR08'
@@ -2048,7 +2051,6 @@ do1 :   do while (associated(PropertyX))
                 Me%Coupled%InstantMixing%NumberOfProperties             = &
                 Me%Coupled%InstantMixing%NumberOfProperties             + 1
                 Me%Coupled%InstantMixing%Yes                            = ON
-
             endif
 
             if (PropertyX%Evolution%FreeVerticalMovement) then
@@ -2135,7 +2137,6 @@ do1 :   do while (associated(PropertyX))
                 Me%Coupled%OutputProfile%Yes                            = ON
             endif
 
-
             if (PropertyX%BoxTimeSerie) then
                 Me%Coupled%BoxTimeSerie%NumberOfProperties              = &
                 Me%Coupled%BoxTimeSerie%NumberOfProperties              + 1
@@ -2196,11 +2197,9 @@ do1 :   do while (associated(PropertyX))
             Me%Coupled%SurfaceFluxes%NextCompute = Me%ExternalVar%Now
         endif
 
-
         if(Me%Coupled%BottomFluxes%Yes) then
             Me%Coupled%BottomFluxes%NextCompute  = Me%ExternalVar%Now
         end if
-
 
         if(Me%Coupled%FirstOrderDecay%Yes) then
             Me%Coupled%FirstOrderDecay%NextCompute  = Me%ExternalVar%Now
@@ -2415,10 +2414,9 @@ do1 :   do while (associated(PropertyX))
             call Construct_Output_Profile
 
         end if
-
-        
         
         if(Me%Coupled%BoxTimeSerie%Yes)then
+            Me%Coupled%BoxTimeSerie%NextCompute = Me%ExternalVar%Now            
             call StartOutputBoxFluxes
         end if
 
@@ -6287,9 +6285,6 @@ cd2:    if (NewProperty%Evolution%Partition%NonComplianceCriteria) then
             stop 'Read_Reinitialize_Parameters - ModuleWaterProperties - ERR40'
         end if
 
-
-
-
         call StartBoxDif(BoxDifID           = ObjBoxDif,                                &
                          TimeID             = Me%ObjTime,                               &
                          HorizontalGridID   = Me%ObjHorizontalGrid,                     &
@@ -6299,6 +6294,9 @@ cd2:    if (NewProperty%Evolution%Partition%NonComplianceCriteria) then
         if (STAT_CALL .NE. SUCCESS_) stop 'Read_Reinitialize_Parameters - ModuleWaterProperties - ERR50'
 
         call GetBoxes(ObjBoxDif, Boxes2D = Boxes2D, STAT = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'Read_Reinitialize_Parameters - ModuleWaterProperties - ERR60'
+
+        call GetDTBoxes(ObjBoxDif, Me%Coupled%BoxTimeSerie%DT_Compute, STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_) stop 'Read_Reinitialize_Parameters - ModuleWaterProperties - ERR60'
 
         NewProperty%Evolution%Reinitialize%BoxCells(:,:) = Boxes2D(:,:)
@@ -8000,7 +7998,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             call ReadLockExternalVar
 
             call TimeStepActualization
-
+        
             if (Me%Coupled%SolutionFromFile%Yes)              &
                 call ModifyPropertiesFromFile
 
@@ -8094,7 +8092,6 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 !            if (Me%Coupled%LagSinksSources%Yes)               &
 !                call SinksSources_Processes
 
-
             if (Me%Coupled%Reinitialize%Yes)                  &
                 call Reinitialize_Solution
 
@@ -8128,12 +8125,17 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             if(Me%Coupled%OutputProfile%Yes)                  &
                 call OutPut_Profile
 
-            if(Me%Coupled%BoxTimeSerie%Yes)                   &
-                call OutPut_BoxTimeSeries
+            if(Me%Coupled%BoxTimeSerie%Yes) then
+                if (Me%ExternalVar%Now .GE. Me%Coupled%BoxTimeSerie%NextCompute) then
+                    call OutPut_BoxTimeSeries
+                    Me%Coupled%BoxTimeSerie%NextCompute = Me%Coupled%BoxTimeSerie%NextCompute   &
+                                                + Me%Coupled%BoxTimeSerie%DT_Compute
+                endif                    
+            endif
             
             if(Me%Coupled%Statistics%Yes)                     &
                 call OutPut_Statistics
-            
+
             if (present(NewDT)) call CalcNewDT (NewDT)
 
             call Actualize_Time_Evolution
@@ -9747,6 +9749,7 @@ cd2:    if (PropertySon%SubModel%InterpolTime) then
         integer                                 :: I, J, K
         integer, pointer, dimension(:,:,:)      :: OpenPoints3D
         integer                                 :: CHUNK
+        logical                                 :: ComputeBoxTimeSerie, PropertyComputeBoxTimeSerie
         !----------------------------------------------------------------------
 
         if (MonitorPerformance)                                         &
@@ -9763,6 +9766,12 @@ cd2:    if (PropertySon%SubModel%InterpolTime) then
 
         Actual = Me%ExternalVar%Now
 
+        if (Me%ExternalVar%Now .GE. Me%Coupled%BoxTimeSerie%NextCompute) then
+            ComputeBoxTimeSerie = .true.
+        else
+            ComputeBoxTimeSerie = .false.            
+        endif
+        
         call GetHorizontalViscosity(Me%ObjTurbulence, Me%ExternalVar%Visc_H, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) &
            stop 'Advection_Diffusion_Processes - ModuleWaterProperties - ERR10'
@@ -9887,17 +9896,15 @@ cd10:                       if (Property%evolution%Advec_Difus_Parameters%Implic
 
                     call SmallDepthsMixing_Processes(Property, Me%ExternalVar%VolumeZ, OpenPoints3D)
 
-
                     if (Property%WarnOnNegativeValues)then
 
                         call CheckIfConcentrationIsNegative(Property, 'before advection-diffusion')
 
                     endif
 
-
                     if (Property%Evolution%Discharges)then
 
-                        call SetDischarges (Me%ObjAdvectionDiffusion, Me%Discharge%Flow,&
+                    call SetDischarges (Me%ObjAdvectionDiffusion, Me%Discharge%Flow,    &
                                             Property%DischConc,   Me%Discharge%I,       &
                                             Me%Discharge%J,       Me%Discharge%K,       &
                                             Me%Discharge%Vert,    Me%Discharge%Number,  &
@@ -9905,7 +9912,12 @@ cd10:                       if (Property%evolution%Advec_Difus_Parameters%Implic
                                             STAT = STAT_CALL)
                     if (STAT_CALL .NE. SUCCESS_)                                            &
                         stop 'Advection_Diffusion_Processes - ModuleWaterProperties - ERR100'
-
+                    endif
+                    
+                    if (Property%BoxTimeSerie .and. ComputeBoxTimeSerie) then
+                            PropertyComputeBoxTimeSerie = .true.
+                    else
+                            PropertyComputeBoxTimeSerie = .false.
                     endif
 
                     call AdvectionDiffusion(Me%ObjAdvectionDiffusion,                       &
@@ -9937,7 +9949,7 @@ cd10:                       if (Property%evolution%Advec_Difus_Parameters%Implic
                             Me%ExternalVar%ComputeFacesW3D,                                 &
                             Me%ExternalVar%Visc_H,                                          &
                             Me%ExternalVar%Diff_V,                                          & 
-                            CellFluxes        = Property%BoxTimeSerie,                      &
+                            CellFluxes        = PropertyComputeBoxTimeSerie,               &
                             ReferenceProp     = Property%Assimilation%Field,                &
                             BoundaryCondition = Property%evolution%Advec_Difus_Parameters%BoundaryCondition, &
                             DecayTime         = Property%evolution%Advec_Difus_Parameters%DecayTime,         &
@@ -10041,91 +10053,88 @@ cd10:                       if (Property%evolution%Advec_Difus_Parameters%Implic
 
                     endif
 
-
-cd6 :               if (Property%BoxTimeSerie) then
-
-                        !Gets Advective Flux
-                        call GetAdvFlux(Me%ObjAdvectionDiffusion,                       &
+cd6 :               if (PropertyComputeBoxTimeSerie) then
+                        
+                            !Gets Advective Flux
+                            call GetAdvFlux(Me%ObjAdvectionDiffusion,                       &
                                         AdvFluxX, AdvFluxY, AdvFluxZ, STAT = STAT_CALL)
-                        if (STAT_CALL .NE. SUCCESS_)                                    &
-                            stop 'Advection_Diffusion_Processes - ModuleWaterProperties - ERR280'
+                            if (STAT_CALL .NE. SUCCESS_)                                    &
+                                stop 'Advection_Diffusion_Processes - ModuleWaterProperties - ERR280'
 
-                        !Gets Diffusive Flux
-                        call GetDifFlux (Me%ObjAdvectionDiffusion,                      &
+                            !Gets Diffusive Flux
+                            call GetDifFlux (Me%ObjAdvectionDiffusion,                      &
                                          DifFluxX,  DifFluxY,  DifFluxZ,  STAT = STAT_CALL)
-                        if (STAT_CALL .NE. SUCCESS_)                                    &
-                            stop 'Advection_Diffusion_Processes - ModuleWaterProperties - ERR290'
+                            if (STAT_CALL .NE. SUCCESS_)                                    &
+                                stop 'Advection_Diffusion_Processes - ModuleWaterProperties - ERR290'
 
-                        CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
-                                                
-                        !$OMP PARALLEL PRIVATE(I,J,K)
-do2 :                   do K = Me%WorkSize%KLB, Me%WorkSize%KUB
-                        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
-do3 :                   do J = Me%WorkSize%JLB, Me%WorkSize%JUB
-do4 :                   do I = Me%WorkSize%ILB, Me%WorkSize%IUB
-                            Me%MassFluxesX (I,J,K) = AdvFluxX(I,J,K) + DifFluxX (I,J,K)
-                            Me%MassFluxesY (I,J,K) = AdvFluxY(I,J,K) + DifFluxY (I,J,K)
-                        end do do4
-                        end do do3
-                        !$OMP END DO NOWAIT
-                        end do do2
-                        !$OMP END PARALLEL
-
-                        if (Me%WorkSize%KUB > Me%WorkSize%KLB) then
+                            CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+                                                    
                             !$OMP PARALLEL PRIVATE(I,J,K)
-do5 :                       do K = Me%WorkSize%KLB, Me%WorkSize%KUB
+do2 :                       do K = Me%WorkSize%KLB, Me%WorkSize%KUB
                             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
-do6 :                       do J = Me%WorkSize%JLB, Me%WorkSize%JUB
-do7 :                       do I = Me%WorkSize%ILB, Me%WorkSize%IUB
-                                Me%MassFluxesZ (I,J,K) = AdvFluxZ(I,J,K) + DifFluxZ (I,J,K)
-                            end do do7
-                            end do do6
+do3 :                       do J = Me%WorkSize%JLB, Me%WorkSize%JUB
+do4 :                       do I = Me%WorkSize%ILB, Me%WorkSize%IUB
+                                Me%MassFluxesX (I,J,K) = AdvFluxX(I,J,K) + DifFluxX (I,J,K)
+                                Me%MassFluxesY (I,J,K) = AdvFluxY(I,J,K) + DifFluxY (I,J,K)
+                            end do do4
+                            end do do3
                             !$OMP END DO NOWAIT
-                            end do do5
+                            end do do2
                             !$OMP END PARALLEL
-                        endif
+
+                            if (Me%WorkSize%KUB > Me%WorkSize%KLB) then
+                                !$OMP PARALLEL PRIVATE(I,J,K)
+    do5 :                       do K = Me%WorkSize%KLB, Me%WorkSize%KUB
+                                !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+do6 :                           do J = Me%WorkSize%JLB, Me%WorkSize%JUB
+do7 :                           do I = Me%WorkSize%ILB, Me%WorkSize%IUB
+                                    Me%MassFluxesZ (I,J,K) = AdvFluxZ(I,J,K) + DifFluxZ (I,J,K)
+                                end do do7
+                                end do do6
+                                !$OMP END DO NOWAIT
+                                end do do5
+                                !$OMP END PARALLEL
+                            endif
     
-                        !Integration of fluxes
-                        call BoxDif(Me%ObjBoxDif,                        &
-                                    Me%MassFluxesX,                      &
-                                    Me%MassFluxesY,                      &
-                                    Me%MassFluxesZ,                      &
-                                    trim(Property%ID%Name),              &
-                                    Me%ExternalVar%WaterPoints3D,        &
-                                    STAT = STAT_CALL)
-                        if (STAT_CALL .NE. SUCCESS_)                     &
+                            !Integration of fluxes
+                            call BoxDif(Me%ObjBoxDif,                        &
+                                        Me%MassFluxesX,                      &
+                                        Me%MassFluxesY,                      &
+                                        Me%MassFluxesZ,                      &
+                                        trim(Property%ID%Name),              &
+                                        Me%ExternalVar%WaterPoints3D,        &
+                                        STAT = STAT_CALL)
+                            if (STAT_CALL .NE. SUCCESS_)                     &
                             stop 'Advection_Diffusion_Processes - ModuleWaterProperties - ERR300'
 
+                            call UngetAdvectionDiffusion(Me%ObjAdvectionDiffusion, AdvFluxX, STAT = STAT_CALL)
+                            if (STAT_CALL .NE. SUCCESS_)                     &
+                                stop 'Advection_Diffusion_Processes - ModuleWaterProperties - ERR310'
 
-                        call UngetAdvectionDiffusion(Me%ObjAdvectionDiffusion, AdvFluxX, STAT = STAT_CALL)
-                        if (STAT_CALL .NE. SUCCESS_)                     &
-                            stop 'Advection_Diffusion_Processes - ModuleWaterProperties - ERR310'
+                            call UngetAdvectionDiffusion(Me%ObjAdvectionDiffusion, AdvFluxY, STAT = STAT_CALL)
+                            if (STAT_CALL .NE. SUCCESS_)                     &
+                                stop 'Advection_Diffusion_Processes - ModuleWaterProperties - ERR320'
 
+                            call UngetAdvectionDiffusion(Me%ObjAdvectionDiffusion, AdvFluxZ, STAT = STAT_CALL)
+                            if (STAT_CALL .NE. SUCCESS_)                     &
+                                stop 'Advection_Diffusion_Processes - ModuleWaterProperties - ERR330'
 
-                        call UngetAdvectionDiffusion(Me%ObjAdvectionDiffusion, AdvFluxY, STAT = STAT_CALL)
-                        if (STAT_CALL .NE. SUCCESS_)                     &
-                            stop 'Advection_Diffusion_Processes - ModuleWaterProperties - ERR320'
+                            call UngetAdvectionDiffusion(Me%ObjAdvectionDiffusion, DifFluxX, STAT = STAT_CALL)
+                            if (STAT_CALL .NE. SUCCESS_)                     &
+                                stop 'Advection_Diffusion_Processes - ModuleWaterProperties - ERR340'
 
+                            call UngetAdvectionDiffusion(Me%ObjAdvectionDiffusion, DifFluxY,  STAT = STAT_CALL)
+                            if (STAT_CALL .NE. SUCCESS_)                     &
+                                stop 'Advection_Diffusion_Processes - ModuleWaterProperties - ERR350'
 
-                        call UngetAdvectionDiffusion(Me%ObjAdvectionDiffusion, AdvFluxZ, STAT = STAT_CALL)
-                        if (STAT_CALL .NE. SUCCESS_)                     &
-                            stop 'Advection_Diffusion_Processes - ModuleWaterProperties - ERR330'
-
-                        call UngetAdvectionDiffusion(Me%ObjAdvectionDiffusion, DifFluxX, STAT = STAT_CALL)
-                        if (STAT_CALL .NE. SUCCESS_)                     &
-                            stop 'Advection_Diffusion_Processes - ModuleWaterProperties - ERR340'
-
-
-                        call UngetAdvectionDiffusion(Me%ObjAdvectionDiffusion, DifFluxY,  STAT = STAT_CALL)
-                        if (STAT_CALL .NE. SUCCESS_)                     &
-                            stop 'Advection_Diffusion_Processes - ModuleWaterProperties - ERR350'
-
-                        call UngetAdvectionDiffusion(Me%ObjAdvectionDiffusion, DifFluxZ,  STAT = STAT_CALL)
-                        if (STAT_CALL .NE. SUCCESS_)                     &
-                            stop 'Advection_Diffusion_Processes - ModuleWaterProperties - ERR360'
+                            call UngetAdvectionDiffusion(Me%ObjAdvectionDiffusion, DifFluxZ,  STAT = STAT_CALL)
+                            if (STAT_CALL .NE. SUCCESS_)                     &
+                                stop 'Advection_Diffusion_Processes - ModuleWaterProperties - ERR360'
 
                     end if cd6
+
                 end if cd2
+
             end if cd1
 
             Property => Property%Next
@@ -10368,16 +10377,15 @@ cd5:                if (TotalVolume > 0.) then
         type (T_WqRate),        pointer         :: WqRateX
         real, dimension(:,:,:), pointer         :: ShortWaveExtinctionField
         real, dimension(:,:,:), pointer         :: ShortWaveTop
-    
+
         !Begin----------------------------------------------------------------- 
 
         if (MonitorPerformance) call StartWatch ("ModuleWaterProperties", "WaterQuality_Processes")
 
         ShortWaveTop => Me%SolarRadiation%ShortWaveTop
-        
+
         call GetShortWaveExtinctionField(Me%ObjLightExtinction, ShortWaveExtinctionField, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'WaterQuality_Processes - ModuleWaterProperties - ERR01'
-
 
         PropertyX => Me%FirstProperty
 
@@ -10435,8 +10443,6 @@ cd5:                if (TotalVolume > 0.) then
         !Get rate fluxes, integrate them and write box time series
         WqRateX => Me%FirstWqRate
 
- 
-
         do while (associated(WqRateX))
 
             if(WqRateX%Model == WaterQualityModel)then
@@ -10465,14 +10471,12 @@ cd5:                if (TotalVolume > 0.) then
 
             WqRateX=>WqRateX%Next
 
-        enddo            
+        enddo   
 
         nullify(WqRateX)
 
         call UnGetLightExtinction(Me%ObjLightExtinction, ShortWaveExtinctionField, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'WaterQuality_Processes - ModuleWaterProperties - ERR06'
-        
-
 
         if (MonitorPerformance) call StopWatch ("ModuleWaterProperties", "WaterQuality_Processes")
 
@@ -10480,7 +10484,7 @@ cd5:                if (TotalVolume > 0.) then
     end subroutine WaterQuality_Processes
 
     !--------------------------------------------------------------------------
-    
+
     subroutine CEQUALW2_Processes
 
         !External--------------------------------------------------------------
@@ -10497,15 +10501,14 @@ cd5:                if (TotalVolume > 0.) then
         if (MonitorPerformance) call StartWatch ("ModuleWaterProperties", "CEQUALW2_Processes")
 
         ShortWaveTop => Me%SolarRadiation%ShortWaveTop
-        
+
         call GetShortWaveExtinctionField(Me%ObjLightExtinction, ShortWaveExtinctionField, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'CEQUALW2_Processes - ModuleWaterProperties - ERR01'
-
 
         PropertyX => Me%FirstProperty
 
         if (Me%ExternalVar%Now .GE. Me%Coupled%CEQUALW2%NextCompute) then
-            
+
             do while(associated(PropertyX))
 
                 call Modify_Interface(InterfaceID       = Me%ObjInterface,              &
@@ -15307,7 +15310,8 @@ i2:     if (Me%OutPut%Radiation) then
         !Local-----------------------------------------------------------------
         type (T_Property), pointer              :: PropertyX
         integer                                 :: ILB, IUB, JLB, JUB, KLB, KUB
-        integer                                 :: i, j, k, CHUNK
+        integer                                 :: i, j, k
+        !$ integer                              :: CHUNK
 
         !----------------------------------------------------------------------
 
@@ -15319,8 +15323,8 @@ i2:     if (Me%OutPut%Radiation) then
         KUB = Me%Size%KUB 
 
         if (MonitorPerformance) call StartWatch ("ModuleWaterProperties", "OutPut_BoxTimeSeries")
-        
-        CHUNK = CHUNK_J(JLB, JUB)
+                
+        !$ CHUNK = CHUNK_J(JLB, JUB)
 
         PropertyX  => Me%FirstProperty
 
@@ -15355,7 +15359,7 @@ i2:     if (Me%OutPut%Radiation) then
             PropertyX=>PropertyX%Next
             
         enddo
-
+        
         if (MonitorPerformance) call StopWatch ("ModuleWaterProperties", "OutPut_BoxTimeSeries")
 
     end subroutine OutPut_BoxTimeSeries

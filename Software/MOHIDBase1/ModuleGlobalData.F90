@@ -1164,6 +1164,7 @@ Module ModuleGlobalData
     character(StringLength), parameter          :: TempqsimModel            = 'Tempqsim'
     character(StringLength), parameter          :: MacroAlgaeModel          = 'MacroAlgae'
     character(StringLength), parameter          :: PhreeqCModel             = 'PhreeqCModel'
+    character(StringLength), parameter          :: BoxDifModel              = 'BoxDifModel'
 
     !Water air interface
     character(StringLength), private, parameter :: Char_LatentHeat               = 'latent heat'

@@ -82,6 +82,7 @@ Module ModuleBoxDif
 
     !Selector
     public  :: GetBoxes
+    public  :: GetDTBoxes
     public  :: GetNumberOfBoxes
     public  :: CheckIfInsideBox
     public  :: GetIfBoxInsideDomain
@@ -213,6 +214,7 @@ Module ModuleBoxDif
         type(T_Box),                  pointer               :: FirstBox
         integer                                             :: NumberOfBoxes2D      = 0
         integer                                             :: NumberOfBoxes3D      = 0
+        real                                                :: DT
         integer, dimension(:, :   ),  pointer               :: Boxes2D
         integer, dimension(:, :, :),  pointer               :: Boxes3D
         real,    dimension(:, :   ),  pointer               :: Fluxes2D
@@ -568,6 +570,15 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      STAT         = STAT_CALL)        
         if(STAT_CALL .ne. SUCCESS_)stop 'ReadGlobalOptions - ModuleBoxDif - ERR20'
 
+        call GetData(Me%DT,                                 &
+                     Me%ObjEnterData, iflag,                &
+                     SearchType   = FromFile,               &
+                     keyword      = 'DT',                   &
+                     Default      = 3600.,                  &
+                     ClientModule = 'ModuleBoxDif',        &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'ReadGlobalOptions - ModuleBoxDif - ERR40'
+
         if(Me%WriteBoxes)then
 
             call GetData(Me%BoxesOutputFile,                                    &
@@ -586,7 +597,6 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             endif
 
         end if
-
 
     end subroutine ReadGlobalOptions
     
@@ -2116,6 +2126,44 @@ cd2 :           if (BlockFound) then
 
     end subroutine GetBoxes3D
     
+    !--------------------------------------------------------------------------
+
+    
+    subroutine GetDTBoxes(Boxes_ID, DT, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                             :: Boxes_ID
+        real,  intent(OUT)                  :: DT
+        integer, optional, intent(OUT)      :: STAT
+
+        !External--------------------------------------------------------------
+        integer                             :: ready_              
+
+        !Local-----------------------------------------------------------------
+        integer                             :: STAT_
+
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(Boxes_ID, ready_)    
+        
+cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            DT = Me%DT
+
+            STAT_ = SUCCESS_
+        else 
+            STAT_ = ready_
+        end if cd1
+
+        if (present(STAT))STAT = STAT_
+
+        !----------------------------------------------------------------------
+
+    end subroutine GetDTBoxes
+
     !--------------------------------------------------------------------------
     
     subroutine GetNumberOfBoxes (BoxDifID, NumberOfBoxes2D, NumberOfBoxes3D, STAT)
