@@ -13,7 +13,7 @@
 !
 !------------------------------------------------------------------------------
 
-program CreateHDF5BoxesFluxes
+program DrawFluxesInHDF5
 
     use ModuleDrawFluxesInHDF5
 
@@ -23,4 +23,4 @@ program CreateHDF5BoxesFluxes
     call ModifyCreateHDF5BoxesFluxes
     call KillCreateHDF5BoxesFluxes
 
-end program CreateHDF5BoxesFluxes
+end program DrawFluxesInHDF5
