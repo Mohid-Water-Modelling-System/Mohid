@@ -38035,6 +38035,9 @@ do5:            do i = ILB, IUB
 
         end if
         
+        !!$OMP PARALLEL SECTIONS
+                
+        !!$OMP SECTION
         if (Me%OutPut%hdf5ON) then 
 
             NextOutPut = Me%OutPut%NextOutPut
@@ -38093,6 +38096,7 @@ do5:            do i = ILB, IUB
 
         endif
         
+        !!$OMP SECTION
         if (Me%OutW%OutPutWindowsON)  then
         
             do iW = 1, Me%OutW%WindowsNumber
@@ -38118,6 +38122,7 @@ do5:            do i = ILB, IUB
             
         endif        
         
+        !!$OMP SECTION
         if(Me%OutPut%HDF5_Surface_ON)then
 
             OutPutSurfaceFileOK = .false.
@@ -38139,16 +38144,17 @@ do5:            do i = ILB, IUB
 
             endif
 
-        end if
-        
-        
-
+        end if        
+                
+        !!$OMP SECTION
         if (Me%OutPut%TimeSerieON)  &
             call OutPut_TimeSeries
 
+        !!$OMP SECTION
         if (Me%OutPut%ProfileON)    &
             call Output_Profile
 
+        !!$OMP SECTION
         if(Me%OutPut%WriteRestartFile .and. .not. Me%OutPut%Run_End)then
 
             if(Me%CurrentTime >= Me%OutPut%RestartOutTime(Me%OutPut%NextRestartOutput))then
@@ -38173,9 +38179,9 @@ do5:            do i = ILB, IUB
 
             end if
 
-        end if 
-
-        
+        end if         
+        !!$OMP END PARALLEL SECTIONS
+                
         if (MonitorPerformance) call StopWatch ("ModuleHydrodynamic", "Hydrodynamic_OutPut")
 
 
@@ -38869,9 +38875,6 @@ cd2:            if (WaterPoints3D(i  , j  ,k)== WaterPoint .and.                
         SZZ                 => Me%External_Var%SZZ
         DWZ                 => Me%External_Var%DWZ
 
-
-
-
         !Writes current time
         call ExtractDate   (Me%CurrentTime, AuxTime(1), AuxTime(2), AuxTime(3),         &
                                             AuxTime(4), AuxTime(5), AuxTime(6))
@@ -39547,8 +39550,8 @@ cd3:        if (Me%ComputeOptions%Residual) then
         if (MonitorPerformance) then
             call StartWatch ("ModuleHydrodynamic", "ModifyMatrixesOutput")
         endif
-        
-        !$OMP PARALLEL PRIVATE(I,J,K,kbottom)
+
+        !$OMP PARALLEL PRIVATE(i,j,k,kbottom)
 
         do k = KLB, KUB
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
@@ -39600,7 +39603,7 @@ cd3:        if (Me%ComputeOptions%Residual) then
         !$OMP END PARALLEL
 
         if (MonitorPerformance) call StopWatch ("ModuleHydrodynamic", "ModifyMatrixesOutput")
-    
+
     end subroutine ModifyMatrixesOutput
 
     !--------------------------------------------------------------------------
@@ -39901,10 +39904,7 @@ cd3:        if (Me%ComputeOptions%Residual) then
                 endif
             endif
 
-
         enddo
-
-
 
         !West-East Velocity
         call WriteTimeSerie(Me%ObjTimeSerie,                                            &
