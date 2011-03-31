@@ -4383,7 +4383,6 @@ PropX:          do while (associated(PropertyX))
             call SetWavesWind(WavesID       = Me%ObjWaves,                                      &
                               WindX         = Me%LocalAtm%WindVelocityX%Field,                  &
                               WindY         = Me%LocalAtm%WindVelocityY%Field,                  &
-                              WindDirection = Me%LocalAtm%WindDirection%Field,                  &
                               STAT          = STAT_CALL)                                    
             if (STAT_CALL /= SUCCESS_)                                                          &
                 stop 'SetSubModulesModifier - ModuleInterfaceWaterAir - ERR110'

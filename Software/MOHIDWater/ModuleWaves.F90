@@ -124,7 +124,6 @@ Module ModuleWaves
     type       T_External                               
         real,    dimension(:,:), pointer                    :: WindVelocityX
         real,    dimension(:,:), pointer                    :: WindVelocityY
-        real,    dimension(:,:), pointer                    :: WindDirection
         integer, dimension(:,:), pointer                    :: WaterPoints2D
         integer, dimension(:,:), pointer                    :: OpenPoints2D
         real,    dimension(:,:), pointer                    :: WaterColumn
@@ -1789,11 +1788,11 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
     !--------------------------------------------------------------------------
 
-    subroutine SetWavesWind(WavesID, WindX, WindY, WindDirection, STAT)
+    subroutine SetWavesWind(WavesID, WindX, WindY, STAT)
 
         !Arguments---------------------------------------------------------------
         integer                                     :: WavesID
-        real, pointer, dimension(:,:)               :: WindX, WindY, WindDirection
+        real, pointer, dimension(:,:)               :: WindX, WindY
         integer,            optional, intent(OUT)   :: STAT
 
         !Local-------------------------------------------------------------------
@@ -1810,7 +1809,6 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
             if (associated(WindX))         Me%ExternalVar%WindVelocityX => WindX
             if (associated(WindY))         Me%ExternalVar%WindVelocityY => WindY
-            if (associated(WindDirection)) Me%ExternalVar%WindDirection => WindDirection
             
             STAT_ = SUCCESS_  
 
@@ -2203,9 +2201,9 @@ cd2:                if (Me%WaveHeight%Field(i,j) .lt. 0.1 .or. Me%ExternalVar%Wa
 
         !Local-----------------------------------------------------------------
         real                                    :: Wind, LeftDirection, RightDirection 
-        real                                    :: COEF1, COEF2, U2 
+        real                                    :: COEF1, COEF2, U2, WindX, WindY 
         integer                                 :: i, j, ILB, IUB, JLB, JUB, WindDirection
-        real                                    :: PositiveWindDirection !to insure always positive wind angles
+        real                                    :: WindAngle
         
         !Begin-----------------------------------------------------------------
         
@@ -2225,19 +2223,24 @@ cd2:                if (Me%WaveHeight%Field(i,j) .lt. 0.1 .or. Me%ExternalVar%Wa
 
             if (Me%ExternalVar%WaterPoints2D(i, j) == WaterPoint) then
         
-                !Not negative angles. Negative angles come from the rotation in ModuleAtmosphere
-                if (Me%ExternalVar%WindDirection(i,j).lt.0.) then
-                    PositiveWindDirection = Me%ExternalVar%WindDirection(i,j)+360.
-                else
-                    PositiveWindDirection = Me%ExternalVar%WindDirection(i,j)
-                endif 
-
+               
+                WindX = Me%ExternalVar%WindVelocityX(i,j)
+                WindY = Me%ExternalVar%WindVelocityY(i,j)
+                !Angle in degrees in triginometric referencial
+                WindAngle = atan2(WindY,WindX) * 180. / Pi
+                
+                !only positive angles for next operations
+                if (WindAngle .lt. 0.0) then
+                    WindAngle = WindAngle + 360.
+                endif
+                
                 !Wind directions are fused into 8 major directions (N,NE,E,SE,S,SW,W,NW)
                 !Numbers are used instead of Me%[direction] because fetch as only 8 positions
                 !no matter if 8 or 16 wind rose directions are used
-                if ((PositiveWindDirection .gt. 337.5) .and. (PositiveWindDirection .lt. 360.) .Or. &
-                    (PositiveWindDirection .ge. 0.   ) .and. (PositiveWindDirection .le. 22.5)) then
-                                        
+                if ((WindAngle .gt. 337.5) .and. (WindAngle .lt. 360.) .Or. &
+                    (WindAngle .ge. 0.   ) .and. (WindAngle .le. 22.5)) then
+                    
+                    !if trigonometric angle is near zero then wind comes from West
                     WindDirection = Me%W
 
                 else 
@@ -2248,8 +2251,8 @@ cd2:                if (Me%WaveHeight%Field(i,j) .lt. 0.1 .or. Me%ExternalVar%Wa
             
                     do while (WindDirection.le.8)
 
-                        if ((PositiveWindDirection .gt. LeftDirection).And.&
-                            (PositiveWindDirection .le. RightDirection)) then
+                        if ((WindAngle .gt. LeftDirection).And.&
+                            (WindAngle .le. RightDirection)) then
                             exit 
                         else
                             LeftDirection  = RightDirection
@@ -2265,8 +2268,7 @@ cd2:                if (Me%WaveHeight%Field(i,j) .lt. 0.1 .or. Me%ExternalVar%Wa
                 endif
         
                 !compute
-                Wind = sqrt(Me%ExternalVar%WindVelocityX(i,j)**2. +                 &
-                            Me%ExternalVar%WindVelocityY(i,j)**2.)  
+                Wind = sqrt(WindX**2. + WindY**2.)  
 
                 U2 = Wind * Wind         
 
@@ -2336,9 +2338,9 @@ cd2:                if (Me%WaveHeight%Field(i,j) .lt. 0.1 .or. Me%ExternalVar%Wa
 
         !Local-----------------------------------------------------------------
         real                                    :: Wind, LeftDirection, RightDirection 
-        real                                    :: COEF3, COEF4, U2 
+        real                                    :: COEF3, COEF4, U2, WindX, WindY
         integer                                 :: i, j, ILB, IUB, JLB, JUB, WindDirection
-        real                                    :: PositiveWindDirection !to insure always positive wind angles
+        real                                    :: WindAngle
 
        !Begin-----------------------------------------------------------------
         
@@ -2358,19 +2360,23 @@ cd2:                if (Me%WaveHeight%Field(i,j) .lt. 0.1 .or. Me%ExternalVar%Wa
             
             if (Me%ExternalVar%WaterPoints2D(i, j) == WaterPoint) then
         
-                !Not negative angles. Negative angles come from the rotation in ModuleAtmosphere
-                if (Me%ExternalVar%WindDirection(i,j).lt.0.) then
-                    PositiveWindDirection = Me%ExternalVar%WindDirection(i,j)+360.
-                else
-                    PositiveWindDirection = Me%ExternalVar%WindDirection(i,j)
-                endif 
+                WindX = Me%ExternalVar%WindVelocityX(i,j)
+                WindY = Me%ExternalVar%WindVelocityY(i,j)
+                !Angle in degrees in triginometric referencial
+                WindAngle = atan2(WindY,WindX) * 180. / Pi
+
+                !only positive angles for next operations
+                if (WindAngle .lt. 0.0) then
+                    WindAngle = WindAngle + 360.
+                endif
 
                 !Wind directions are fused into 8 major directions (N,NE,E,SE,S,SW,W,NW)
                 !Numbers are used instead of Me%[direction] because fetch as only 8 positions
                 !no matter if 8 or 16 wind rose directions are used
-                if ((PositiveWindDirection .gt. 337.5) .and. (PositiveWindDirection .lt. 360.) .Or. &
-                    (PositiveWindDirection .ge. 0.   ) .and. (PositiveWindDirection .le. 22.5)) then
-                                        
+                if ((WindAngle .gt. 337.5) .and. (WindAngle .lt. 360.) .Or. &
+                    (WindAngle .ge. 0.   ) .and. (WindAngle .le. 22.5)) then
+                    
+                    !if trigonometric angle is near zero then wind comes from West                    
                     WindDirection = Me%W
 
                 else 
@@ -2381,8 +2387,8 @@ cd2:                if (Me%WaveHeight%Field(i,j) .lt. 0.1 .or. Me%ExternalVar%Wa
             
                     do while (WindDirection.le.8)
 
-                        if ((PositiveWindDirection .gt. LeftDirection).And.&
-                            (PositiveWindDirection .le. RightDirection)) then
+                        if ((WindAngle .gt. LeftDirection).And.&
+                            (WindAngle .le. RightDirection)) then
                             exit 
                         else
                             LeftDirection  = RightDirection
@@ -2397,8 +2403,7 @@ cd2:                if (Me%WaveHeight%Field(i,j) .lt. 0.1 .or. Me%ExternalVar%Wa
                     stop 'ComputeWavePeriodFetch - ModuleWaves - ERR10'
                 endif
 
-                Wind = sqrt(Me%ExternalVar%WindVelocityX(i,j)**2. +                 &
-                            Me%ExternalVar%WindVelocityY(i,j)**2.)  
+                Wind = sqrt(WindX**2. +  WindY**2.)  
 
                 U2 = Wind * Wind              
 
