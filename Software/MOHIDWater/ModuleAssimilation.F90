@@ -460,8 +460,6 @@ Module ModuleAssimilation
                            Message = Message, STAT = STAT_CALL)
         if(STAT_CALL .ne. SUCCESS_)stop 'ReadAssimilationFilesName - ModuleAssimilation - ERR01'
 
-
-
         ! ---> File in HDF format where is written instant fields of Assimilation properties
         Message   ='Instant fields of Assimilation properties in HDF format.'
         Message   = trim(Message)

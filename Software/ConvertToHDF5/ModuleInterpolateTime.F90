@@ -413,7 +413,7 @@ Module ModuleInterpolateTime
                      STAT         = STAT_CALL)        
         if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleInterpolateTime - ERR60'
 
-        call StartComputeTime(Me%ObjTime, Me%BeginTime, Me%EndTime, 60., .false., STAT = STAT_CALL)
+        call StartComputeTime(Me%ObjTime, Me%BeginTime, Me%BeginTime, Me%EndTime, 60., .false., STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleInterpolateTime - ERR70'
 
         Me%NumberDataSources = ReadNumberOfDataSources(ClientNumber)

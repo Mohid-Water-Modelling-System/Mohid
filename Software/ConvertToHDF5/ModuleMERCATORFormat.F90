@@ -199,7 +199,7 @@ Module ModuleMERCATORFormat
             !The time in Mercator is compute in days from 1950/1/1 : 0h:0m:0s
             call SetDate (Me%RefDateTime, Year=1950, Month=1, Day=1, Hour=0, Minute=0, Second=0) 
 
-            call StartComputeTime(Me%ObjTime, Me%RefDateTime, Me%RefDateTime, DT = 0.0, &
+            call StartComputeTime(Me%ObjTime, Me%RefDateTime, Me%RefDateTime, Me%RefDateTime, DT = 0.0, &
                                      VariableDT = .false., STAT = STAT_CALL)   
             if (STAT_CALL /= SUCCESS_)                                                  &
                 stop 'ConvertMERCATORFormat - ModuleMERCATORFormat - ERR01'
@@ -216,7 +216,7 @@ Module ModuleMERCATORFormat
             !The time in Mercator is compute in days from 1950/1/1 : 0h:0m:0s
             call SetDate (Me%RefDateTime, Year=1950, Month=1, Day=1, Hour=0, Minute=0, Second=0) 
 
-            call StartComputeTime(Me%ObjTime, Me%RefDateTime, Me%RefDateTime, DT = 0.0, &
+            call StartComputeTime(Me%ObjTime, Me%RefDateTime, Me%RefDateTime, Me%RefDateTime, DT = 0.0, &
                                      VariableDT = .false., STAT = STAT_CALL)   
             if (STAT_CALL /= SUCCESS_)                                                  &
                 stop 'ConvertMERCATORFormat - ModuleMERCATORFormat - ERR02'
@@ -230,7 +230,7 @@ Module ModuleMERCATORFormat
             call SetDate (Me%RefDateTime, Year=2006, Month=10, Day=11, Hour=0, Minute=0, Second=0) 
             !call SetDate (Me%RefDateTime, Year=2006, Month=10, Day=10, Hour=0, Minute=0, Second=0) 
 
-            call StartComputeTime(Me%ObjTime, Me%RefDateTime, Me%RefDateTime, DT = 0.0, &
+            call StartComputeTime(Me%ObjTime, Me%RefDateTime, Me%RefDateTime, Me%RefDateTime, DT = 0.0, &
                                      VariableDT = .false., STAT = STAT_CALL)   
             if (STAT_CALL /= SUCCESS_)                                                  &
                 stop 'ConvertMERCATORFormat - ModuleMERCATORFormat - ERR03'
@@ -243,7 +243,7 @@ Module ModuleMERCATORFormat
             !The time in Mercator is compute in days from 1950/1/1 : 0h:0m:0s
             call SetDate (Me%RefDateTime, Year=1950, Month=1, Day=1, Hour=0, Minute=0, Second=0) 
 
-            call StartComputeTime(Me%ObjTime, Me%RefDateTime, Me%RefDateTime, DT = 0.0, &
+            call StartComputeTime(Me%ObjTime, Me%RefDateTime, Me%RefDateTime, Me%RefDateTime, DT = 0.0, &
                                   VariableDT = .false., STAT = STAT_CALL)   
             if (STAT_CALL /= SUCCESS_)                                                  &
                 stop 'ConvertMERCATORFormat - ModuleMERCATORFormat - ERR04'
@@ -255,7 +255,7 @@ Module ModuleMERCATORFormat
             !The time in Mercator is compute in seconds from 2006/10/11 : 0h:0m:0s
             call SetDate (Me%RefDateTime, Year=2006, Month=10, Day=11, Hour=0, Minute=0, Second=0) 
 
-            call StartComputeTime(Me%ObjTime, Me%RefDateTime, Me%RefDateTime, DT = 0.0, &
+            call StartComputeTime(Me%ObjTime, Me%RefDateTime, Me%RefDateTime, Me%RefDateTime, DT = 0.0, &
                                   VariableDT = .false., STAT = STAT_CALL)   
             if (STAT_CALL /= SUCCESS_)                                                  &
                 stop 'ConvertMERCATORFormat - ModuleMERCATORFormat - ERR05'

@@ -309,7 +309,7 @@ Module ModulePatchHDF5Files
 
         if (iflag==0 .and. iflag1==0) Me%TimeWindow = .FALSE.
 
-        call StartComputeTime(Me%ObjTime, Me%BeginTime, Me%EndTime,     & 
+        call StartComputeTime(Me%ObjTime, Me%BeginTime, Me%BeginTime, Me%EndTime,     & 
                               60., .false., STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModulePatchHDF5Files - ERR100'
 

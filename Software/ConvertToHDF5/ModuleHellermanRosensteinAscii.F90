@@ -660,7 +660,7 @@ cd2 :           if (BlockFound) then
         if (STAT_CALL /= SUCCESS_) stop 'ConstructGrid - ModuleHellermanRosensteinAscii - ERR01'
 
 
-        call StartComputeTime(Me%ObjTime, Me%OutPutDates(1), Me%OutPutDates(1), DT = 0.0,    &
+        call StartComputeTime(Me%ObjTime, Me%OutPutDates(1), Me%OutPutDates(1), Me%OutPutDates(1), DT = 0.0,    &
                                  VariableDT = .false., STAT = STAT_CALL)   
         if (STAT_CALL /= SUCCESS_) stop 'ConstructGrid - ModuleHellermanRosensteinAscii - ERR02a'
 

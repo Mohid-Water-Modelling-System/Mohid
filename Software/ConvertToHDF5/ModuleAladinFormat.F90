@@ -290,7 +290,7 @@ Module ModuleAladinFormat
         !The time in Aladin is compute in seconds from 1950/1/1 : 0h:0m:0s (???)
         call SetDate (Me%RefDateTime, Year=1950, Month=1, Day=1, Hour=0, Minute=0, Second=0) 
 
-        call StartComputeTime(Me%ObjTime, Me%RefDateTime, Me%RefDateTime, DT = 0.0,    &
+        call StartComputeTime(Me%ObjTime, Me%RefDateTime, Me%RefDateTime, Me%RefDateTime, DT = 0.0,    &
                                  VariableDT = .false., STAT = STAT_CALL)   
         if (STAT_CALL /= SUCCESS_) stop 'ConstructGrid - ModuleAladinFormat - ERR02a'
 

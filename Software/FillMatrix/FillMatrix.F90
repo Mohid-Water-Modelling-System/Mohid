@@ -456,6 +456,7 @@ if2 :           if (BlockFound) then
 
             call StartComputeTime(Me%ObjTime,                                       &
                                   Me%Time%BeginTime,                                &
+                                  Me%Time%BeginTime,                                &
                                   Me%Time%EndTime,                                  &
                                   DT,                                               &
                                   .false., STAT = STAT_CALL)   
