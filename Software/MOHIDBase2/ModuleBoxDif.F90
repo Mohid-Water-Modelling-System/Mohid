@@ -573,8 +573,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         call GetData(Me%DT,                                 &
                      Me%ObjEnterData, iflag,                &
                      SearchType   = FromFile,               &
-                     keyword      = 'DT',                   &
-                     Default      = 3600.,                  &
+                     keyword      = 'DT_BOXES',             &
+                     Default      = 300.,                  &
                      ClientModule = 'ModuleBoxDif',        &
                      STAT         = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_) stop 'ReadGlobalOptions - ModuleBoxDif - ERR40'
