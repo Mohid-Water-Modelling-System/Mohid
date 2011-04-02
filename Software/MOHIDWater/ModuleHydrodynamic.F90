@@ -1004,6 +1004,7 @@ Module ModuleHydrodynamic
         real, dimension(:,:,:), pointer :: Coef
     end type T_Drag
 
+
     type       T_HydroCoupling                  
          type(T_Time)                           :: NextCompute
          real                                   :: DT_Compute = FillValueReal
@@ -30471,9 +30472,11 @@ dk:             do k = kmin,kmax
                                   Matrix3D          = Me%Drag%Coef,                         &
                                   PointsToFill3D    = Me%External_Var%WaterPoints3D,        &
                                   STAT              = STAT_CALL)
-            if(STAT_CALL .ne. SUCCESS_) stop 'Modify_ObstacleForces - ModuleHydrodynamic - ERR01'
+            if(STAT_CALL .ne. SUCCESS_) stop 'Modify_ObstacleForces - ModuleHydrodynamic - ERR10'
 
         endif
+        
+     
 
         !$ CHUNK = CHUNK_J(JLB, JUB)
 
@@ -30516,10 +30519,10 @@ do3:            do k = kbottom, KUB
                                                          Me%External_Var%DUX_VY(I, J),      &
                                                          Me%External_Var%DUX_VY(iSouth, jWest))
 
-                    ![]              = []       [s/m] * [m/s]
+                    
+                    ![m/s2]              =    [1/m] * [m/s] * [m/s]
                     Me%Forces%ObstacleDrag_Aceleration(i, j, k) = -1. * FaceDragCoef * VelMod_UV * &
-                                                                  Me%Velocity%Horizontal%UV%New(I,J,K)
-
+                                                                      Me%Velocity%Horizontal%UV%New(I,J,K)
 
                 enddo do3
 
@@ -41828,11 +41831,12 @@ ic1:    if (Me%CyclicBoundary%ON) then
 
             if(Me%Drag%ID%SolutionFromFile)then
                 call KillFillMatrix(Me%Drag%ID%ObjFillMatrix, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'DeallocateVariables; ModuleHydrodynamic. ERR71.' 
+                if (STAT_CALL /= SUCCESS_) stop 'DeallocateVariables; ModuleHydrodynamic. ERR80.' 
             endif
 
+
             deallocate (Me%Forces%ObstacleDrag_Aceleration, STAT = STAT_CALL) 
-            if (STAT_CALL /= SUCCESS_) stop 'DeallocateVariables; ModuleHydrodynamic. ERR72.' 
+            if (STAT_CALL /= SUCCESS_) stop 'DeallocateVariables; ModuleHydrodynamic. ERR110.' 
 
 
         end if
