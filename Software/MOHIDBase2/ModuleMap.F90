@@ -339,6 +339,8 @@ do2:        do i = ILB, IUB
             !This subroutine identifiy faces that can water in both sides
             call ConstructWaterFaces3D()
 
+            !GRIFLET, FFOUNND!! : Make sure that the FirstIsolatedCell is .not. associated!
+            nullify(FirstIsolatedCell)
 
             if (present(GridDataID) .AND. present(HorizontalGridID)) then
 
