@@ -1234,6 +1234,7 @@ cd2 :           if (BlockFound) then
         integer                                         :: WJLB, WJUB
         integer                                         :: WKLB, WKUB
         integer                                         :: i, j, k, Layer
+        integer                                         :: bottomlayer, toplayer
 
         !Begin-----------------------------------------------------------------
         
@@ -1256,8 +1257,16 @@ cd2 :           if (BlockFound) then
                 if(Me%Boxes2D(i,j) .eq. CurrentBox%MainID)then
 
                     do Layer = 1, CurrentBox%NumberOfLayers
+                    
+                        if (CurrentBox%Layers(Layer,1) < CurrentBox%Layers(Layer,2) ) then
+                            bottomlayer = CurrentBox%Layers(Layer,1)
+                            toplayer = CurrentBox%Layers(Layer,2)
+                        else
+                            bottomlayer = CurrentBox%Layers(Layer,2)
+                            toplayer = CurrentBox%Layers(Layer,1)                                                    
+                        end if
 
-                        if(k >= CurrentBox%Layers(Layer,1) .and. k <= CurrentBox%Layers(Layer,2))then
+                        if(k >= bottomlayer .and. k <= toplayer)then
                             Me%Boxes3D(i,j,k) = CurrentBox%ID(Layer)%Number
                         end if
 
