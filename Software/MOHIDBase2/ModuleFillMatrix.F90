@@ -2603,7 +2603,7 @@ i2:     if (Me%Dim == Dim2D) then
         type(T_Time)                                    :: Now
 
         !Local-----------------------------------------------------------------
-        integer                                         :: ILB, IUB, JLB, JUB, KLB, KUB
+        integer                                         :: ILB, IUB, JLB, JUB, KLB, KUB, i, j, k
         type(T_Time)                                    :: EndTime
         logical                                         :: FoundSecondInstant, LastGroupEqualField
         real                                            :: Year, Month, Day, Hour, Minute, Second
@@ -2896,7 +2896,19 @@ i4:         if(Me%Dim == Dim2D)then
 
                 call ReadHDF5Values2D(Me%HDF%PreviousInstant, Me%HDF%PreviousField2D)
                 call ReadHDF5Values2D(Me%HDF%NextInstant,     Me%HDF%NextField2D    )
-
+                
+                !limit maximum values
+                do j=Me%WorkSize2D%JLB, Me%WorkSize2D%JUB
+                do i=Me%WorkSize2D%ILB, Me%WorkSize2D%IUB
+                
+                    if (abs(Me%HDF%PreviousField2D(i,j)) > abs(FillValueReal))          &
+                        Me%HDF%PreviousField2D(i,j) = FillValueReal
+                    
+                    if (abs(Me%HDF%NextField2D    (i,j)) > abs(FillValueReal))          &
+                        Me%HDF%NextField2D    (i,j) = FillValueReal
+                enddo
+                enddo   
+                                
                 if (Me%HDF%PreviousInstant /= Me%HDF%NextInstant) then
 
                     !Interpolates the two matrixes in time
@@ -2932,6 +2944,21 @@ i4:         if(Me%Dim == Dim2D)then
 
                 call ReadHDF5Values3D(Me%HDF%PreviousInstant, Me%HDF%PreviousField3D)
                 call ReadHDF5Values3D(Me%HDF%NextInstant,     Me%HDF%NextField3D    )
+
+                !limit maximum values
+                do k=Me%WorkSize3D%KLB, Me%WorkSize3D%KUB
+                do j=Me%WorkSize3D%JLB, Me%WorkSize3D%JUB
+                do i=Me%WorkSize3D%ILB, Me%WorkSize3D%IUB
+                
+                    if (abs(Me%HDF%PreviousField3D(i,j,k)) > abs(FillValueReal))        &
+                        Me%HDF%PreviousField3D(i,j,k) = FillValueReal
+                    
+                    if (abs(Me%HDF%NextField3D    (i,j,k)) > abs(FillValueReal))        &
+                        Me%HDF%NextField3D    (i,j,k) = FillValueReal
+                enddo
+                enddo
+                enddo                
+
 
                 if (Me%HDF%PreviousInstant /= Me%HDF%NextInstant) then
 
@@ -3674,7 +3701,7 @@ i4:         if(Me%Dim == Dim2D)then
         !Arguments------------------------------------------------------------
         integer, dimension(:, :, :), pointer            :: PointsToFill3D
         !Local----------------------------------------------------------------
-        integer                                         :: STAT_CALL, n
+        integer                                         :: STAT_CALL, n, i, j, k
         type (T_Time)                                   :: Now
 
         !Begin----------------------------------------------------------------
@@ -3720,10 +3747,35 @@ i4:         if(Me%Dim == Dim2D)then
                 call SetMatrixValue(Me%HDF%PreviousField3D, Me%WorkSize3D, Me%HDF%NextField3D)
             else
                 call ReadHDF5Values3D(Me%HDF%PreviousInstant, Me%HDF%PreviousField3D)
+                
+                !limit maximum values
+                do k=Me%WorkSize3D%KLB, Me%WorkSize3D%KUB
+                do j=Me%WorkSize3D%JLB, Me%WorkSize3D%JUB
+                do i=Me%WorkSize3D%ILB, Me%WorkSize3D%IUB
+
+                    if (abs(Me%HDF%PreviousField3D(i,j,k)) > abs(FillValueReal))        &
+                            Me%HDF%PreviousField3D(i,j,k) = FillValueReal
+
+                enddo
+                enddo
+                enddo                
+                
             endif
 
             call ReadHDF5Values3D(Me%HDF%NextInstant, Me%HDF%NextField3D)
+            
+            !limit maximum values
+            do k=Me%WorkSize3D%KLB, Me%WorkSize3D%KUB
+            do j=Me%WorkSize3D%JLB, Me%WorkSize3D%JUB
+            do i=Me%WorkSize3D%ILB, Me%WorkSize3D%IUB
+            
+                if (abs(Me%HDF%NextField3D    (i,j,k)) > abs(FillValueReal))            &
+                        Me%HDF%NextField3D    (i,j,k) = FillValueReal
 
+            enddo
+            enddo
+            enddo                
+            
         end if
 
         if (Me%HDF%PreviousInstant /= Me%HDF%NextInstant) then
@@ -3758,7 +3810,7 @@ i4:         if(Me%Dim == Dim2D)then
         real                                            :: Generic_4D_Value_
 
         !Local----------------------------------------------------------------
-        integer                                         :: PrevI, NextI
+        integer                                         :: PrevI, NextI, i, j, k
         !Begin----------------------------------------------------------------
         
 i1:     if (.not.(Me%HDF%Previous4DValue <= Generic_4D_Value_ .and.                     &
@@ -3800,6 +3852,21 @@ i1:     if (.not.(Me%HDF%Previous4DValue <= Generic_4D_Value_ .and.             
             call ReadHDF5Values3D(Me%HDF%PreviousInstant, Me%HDF%PreviousField3D)
 
             call ReadHDF5Values3D(Me%HDF%NextInstant,     Me%HDF%NextField3D)
+            
+            !limit maximum values
+            do k=Me%WorkSize3D%KLB, Me%WorkSize3D%KUB
+            do j=Me%WorkSize3D%JLB, Me%WorkSize3D%JUB
+            do i=Me%WorkSize3D%ILB, Me%WorkSize3D%IUB
+            
+                if (abs(Me%HDF%PreviousField3D(i,j,k)) > abs(FillValueReal))            &
+                        Me%HDF%PreviousField3D(i,j,k) = FillValueReal
+                
+                if (abs(Me%HDF%NextField3D    (i,j,k)) > abs(FillValueReal))            &
+                        Me%HDF%NextField3D    (i,j,k) = FillValueReal
+            enddo
+            enddo
+            enddo                
+            
                     
         endif i1
         
@@ -3861,7 +3928,7 @@ i1:     if (.not.(Me%HDF%Previous4DValue <= Generic_4D_Value_ .and.             
         !Arguments------------------------------------------------------------
         integer, dimension(:, :), pointer               :: PointsToFill2D
         !Local----------------------------------------------------------------
-        integer                                         :: STAT_CALL, n
+        integer                                         :: STAT_CALL, n, i, j
         type (T_Time)                                   :: Now
 
         !Begin----------------------------------------------------------------
@@ -3906,9 +3973,30 @@ i1:     if (.not.(Me%HDF%Previous4DValue <= Generic_4D_Value_ .and.             
                 call SetMatrixValue(Me%HDF%PreviousField2D, Me%WorkSize2D, Me%HDF%NextField2D, PointsToFill2D)
             else
                 call ReadHDF5Values2D(Me%HDF%PreviousInstant, Me%HDF%PreviousField2D)
+                
+                !limit maximum values
+                do j=Me%WorkSize2D%JLB, Me%WorkSize2D%JUB
+                do i=Me%WorkSize2D%ILB, Me%WorkSize2D%IUB
+                
+                    if (abs(Me%HDF%PreviousField2D(i,j)) > abs(FillValueReal))          &
+                        Me%HDF%PreviousField2D(i,j) = FillValueReal
+                    
+                enddo
+                enddo   
+                
             endif
 
             call ReadHDF5Values2D(Me%HDF%NextInstant, Me%HDF%NextField2D)
+            
+            !limit maximum values
+            do j=Me%WorkSize2D%JLB, Me%WorkSize2D%JUB
+            do i=Me%WorkSize2D%ILB, Me%WorkSize2D%IUB
+            
+                if (abs(Me%HDF%NextField2D(i,j)) > abs(FillValueReal))                  &
+                    Me%HDF%NextField2D    (i,j) = FillValueReal
+            enddo
+            enddo   
+            
 
         end if
 
@@ -3965,7 +4053,7 @@ i1:     if (.not.(Me%HDF%Previous4DValue <= Generic_4D_Value_ .and.             
         real                                            :: Generic_4D_Value_
 
         !Local----------------------------------------------------------------
-        integer                                         :: PrevI, NextI
+        integer                                         :: PrevI, NextI, i, j 
         !Begin----------------------------------------------------------------
         
 i1:     if (.not.(Me%HDF%Previous4DValue <= Generic_4D_Value_ .and.                     &
@@ -4006,6 +4094,19 @@ i1:     if (.not.(Me%HDF%Previous4DValue <= Generic_4D_Value_ .and.             
 
             call ReadHDF5Values2D(Me%HDF%PreviousInstant, Me%HDF%PreviousField2D)
             call ReadHDF5Values2D(Me%HDF%NextInstant,     Me%HDF%NextField2D)
+            
+            !limit maximum values
+            do j=Me%WorkSize2D%JLB, Me%WorkSize2D%JUB
+            do i=Me%WorkSize2D%ILB, Me%WorkSize2D%IUB
+            
+                if (abs(Me%HDF%PreviousField2D(i,j)) > abs(FillValueReal))              &
+                    Me%HDF%PreviousField2D(i,j) = FillValueReal
+                
+                if (abs(Me%HDF%NextField2D    (i,j)) > abs(FillValueReal))              &
+                    Me%HDF%NextField2D    (i,j) = FillValueReal
+            enddo
+            enddo   
+            
                     
         endif i1
         
