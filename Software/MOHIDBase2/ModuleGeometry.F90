@@ -3697,7 +3697,7 @@ cd1:    if (ComputionType == INITIALGEOMETRY) then
         real                                    :: TopDepth, BottomDepth, DomainThickness
         real                                    :: MinorThickness, LayerThickness
         real                                    :: MeanLayerThicknessBelow, TwoDomainThickness
-        real                                    :: A1, B1, B2, A, B, C
+        real                                    :: A, B, C, s
         integer                                 :: CHUNK
 
         ILB = Me%WorkSize%ILB
@@ -3773,30 +3773,36 @@ cd4:        if (WaterPoints2D(i, j) == WaterPoint .and. &
                 !if (DomainThickness < 0.) DomainThickness = 0.
 
                 MinorThickness = 1.e5
+                s = -1.
                 !Normal computation
                 do k = LowerLayer, UpperLayer
 
                     if (Domain%RomsDistortion) then
+                    !ROMS Stretching Function
+                        !Song, Y. and D. B. Haidvogel, 1994: A semi-implicit ocean circulation model 
+                        !using a generalized topography-following coordinate system, J. Comp. Phys., 115 (1), 228-244. (PDF)
+                        !https://www.myroms.org/wiki/index.php/Vertical_S-coordinate
+                        s = s + Domain%LayerThickness(k)
                         
-                        A1 = sinh(Domain%theta_s)
-                        B1 = tanh(Domain%theta_s * 0.5)
-                        B2 = 2. * tanh(Domain%theta_s * 0.5)
-
-                        A = sinh(Domain%theta_s * Domain%LayerThickness(k)) / A1
-                        B = (tanh(Domain%theta_s * (Domain%LayerThickness(k) + 0.5))-B1)/B2
-                        C = (1 - Domain%theta_b)*A + Domain%theta_b*B
-
-                        Me%Distances%SZZ(i, j, k) = -(Domain%Hc * Domain%LayerThickness(k) + &
-                                                     (DomainThickness - Domain%Hc) * C)                
+                        A = (1.-Domain%theta_b)*sinh(Domain%theta_s * s) / sinh(Domain%theta_s)
+                        
+                        B = tanh(Domain%theta_s*(s+0.5))/tanh(0.5*Domain%theta_s)
+                        
+                        C = A  + Domain%theta_b * 0.5*(B-1.)
+                        
+                        Me%Distances%SZZ(i, j, k) = - (Domain%Hc * s + (DomainThickness - Domain%Hc) * C) + Topdepth           
                     
                         cycle
                     endif                
+                    
                 
                     LayerThickness = DomainThickness * Domain%LayerThickness(k)
                     Me%Distances%SZZ(i, j, k) = Me%Distances%SZZ(i, j, k-1) - LayerThickness
                     if (LayerThickness < MinorThickness) MinorThickness = LayerThickness
                 enddo
-
+                
+                 Me%Distances%SZZ(i, j, UpperLayer) = TopDepth
+                
                 !Redefinition of the current domain and the lower domain in the case that the lower
                 !one is of the type FixSpacing and, at the same time (the DomainThickness is less 
                 !or equal to the WaterColumn%ZMin) or (the Minor layer thichness is less or equal to
