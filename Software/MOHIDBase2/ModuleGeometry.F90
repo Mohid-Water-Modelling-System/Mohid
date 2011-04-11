@@ -65,12 +65,7 @@ Module ModuleGeometry
                                       GetLatitudeLongitude, GetGridOrigin,              &
                                       GetGridLatitudeLongitude, GetCoordTypeList,       &
                                       GetCheckDistortion, UnGetHorizontalGrid
-#ifdef _USE_SEQASSIMILATION
     use ModuleFunctions,        only: SetMatrixValue, Chunk_J, Chunk_K
-#else
-    use ModuleFunctions,        only: Chunk_J, Chunk_K   
-#endif _USE_SEQASSIMILATION
-
     use ModuleHDF5
     use ModuleStopWatch,        only : StartWatch, StopWatch         
 
@@ -2319,7 +2314,7 @@ cd2 :       if (Me%ExternalVar%ContinuesCompute) then
             else cd2
 
                 if (present(SZZ)) then    
-                    Me%Distances%SZZ (:,:,:) = SZZ(:,:,:)
+                    call SetMatrixValue( Me%Distances%SZZ, Me%Size, SZZ )
                 else
                    !Constructs SZZ with the initial surface elevation
                     call ComputeSZZ         (SurfaceElevation, INITIALGEOMETRY)
@@ -2397,7 +2392,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
 
             if (present(SZZ)) then    
-                Me%Distances%SZZ (:,:,:) = SZZ(:,:,:)
+                call SetMatrixValue( Me%Distances%SZZ, Me%Size, SZZ )
             else
                !Computes SZZ
                 call ComputeSZZ(SurfaceElevation, TRANSIENTGEOMETRY, VerticalVelocity, DT_Waterlevel)
@@ -3333,7 +3328,7 @@ cd1:    if (FacesOption == MinTickness) then
 
         !Stores the initial SZZ
         if (ComputionType == INITIALGEOMETRY) then
-            Me%Distances%InitialSZZ(:, :, :) = Me%Distances%SZZ(:, :, :)
+            call SetMatrixValue(Me%Distances%InitialSZZ, Me%Size, Me%Distances%SZZ)
         endif
 
         !Disposes pointer to the Bathymetry
