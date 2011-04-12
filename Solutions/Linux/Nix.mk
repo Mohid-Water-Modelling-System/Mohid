@@ -12,8 +12,8 @@ export O = o
 export F = F90
 export MOD = mod
 export CC= ifort
-export CCFLAGS  = -c -r8 -fpp -warn all -nologo -convert big_endian -fpe0 -D_USE_NIX -traceback $(FPP_DEFINES) # Debug: -g; Profiling: -p; Openmp: -openmp; Endianness: -convert big_endian
-export LFLAGS   = -fpp -nologo -warn all -i-static -convert big_endian -traceback -D_USE_NIX# Profiling: -p; Openmp: -openmp -lpthread;endianness: -convert big_endian
+export CCFLAGS  = -c -r8 -inline-level=0 -fpp -warn all -nologo -convert big_endian -fpe0 -D_USE_NIX -traceback -mcmodel=large -heap-arrays 64 $(FPP_DEFINES) # Debug: -g; Profiling: -p; Openmp: -openmp; Endianness: -convert big_endian
+export LFLAGS   = -fpp -p -nologo -warn all -i-static -convert big_endian -traceback -D_USE_NIX -mcmodel=large # Profiling: -p; Openmp: -openmp -lpthread;endianness: -convert big_endian
 export LLFLAGS  =
 export MKFLAGS =
 export AR = ar rc

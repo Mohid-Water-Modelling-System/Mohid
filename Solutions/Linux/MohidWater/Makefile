@@ -49,6 +49,7 @@ FILES = \
        ModuleHydrodynamic.$(S) \
        ModuleWaterProperties.$(S) \
        ModuleLagrangian.$(S) \
+       ModuleLagrangianGlobal.$(S) \
        ModuleInterfaceWaterAir.$(S) \
        ModuleInterfaceSedimentWater.$(S) \
        ModuleModel.$(S) \
@@ -80,9 +81,17 @@ ModuleLagrangian.${O} : ModuleJet.${O} \
                      ModuleOil_0D.${O} \
                      ModuleWaves.${O} \
                      ModuleWaterProperties.${O}
-ModuleInterfaceWaterAir.${O} : ModuleLagrangian.${O}
+ModuleLagrangianGlobal.${O} : ModuleJet.${O} \
+                     ModuleOil.${O} \
+                     ModuleOil_0D.${O} \
+                     ModuleWaves.${O} \
+                     ModuleWaterProperties.${O}                    	
+ModuleInterfaceWaterAir.${O} : ModuleLagrangian.${O} \
+                               ModuleLagrangianGlobal.${O} \
+
 ModuleInterfaceSedimentWater.${O} : ModuleSand.${O} \
                                  ModuleLagrangian.${O} \
+                                 ModuleLagrangianGlobal.${O} \
                                  ModuleSedimentProperties.${O}
 ModuleModel.${O} : ModuleInterfaceWaterAir.${O} \
                 ModuleInterfaceSedimentWater.${O}
