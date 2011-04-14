@@ -355,6 +355,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
             ! By default a output file is always open in the construction phase
             if (Me%OutPut%True) call OpenHDF5OutPutFile
+            
+            call ModifyOutPut
 
             call null_time(Me%ActualTime)
 
