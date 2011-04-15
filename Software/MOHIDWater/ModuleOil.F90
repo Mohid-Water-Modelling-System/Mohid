@@ -554,6 +554,7 @@ Module ModuleOil
 
         type(T_Time)            :: NextInternalComputeTime
         type(T_Time)            :: NextActiveComputeTime
+        type(T_Time)            :: Now
 
         !Instance of ModuleTime
         integer                 :: ObjTime = 0
@@ -737,6 +738,7 @@ ifContCalc: if (.NOT. ContCalc ) then
                 if (Me%Var%OilEmulsification) Me%Var%MaxVWaterContent = F_MaxVWaterContent()
             
                 Me%Var%SolubilityOilInWater = SolubilityFreshOil
+                Me%Var%MDissolvedDT         = 0.0
 
                 Me%Var%ThicknessLimit       = F_ThicknessLimit ()
                     
@@ -2037,6 +2039,7 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
 
     !Zero dimensional processes
     subroutine OilInternalProcesses(OilID,                                               &
+                                    LagrangianTime,                                      &
                                     Wind,                                                &
                                     AtmosphericPressure,                                 &
                                     WaterTemperature,                                    &
@@ -2064,6 +2067,7 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
         
         !Arguments---------------------------------------------------------------
         integer                                     :: OilID
+        type (T_Time),     intent(IN)               :: LagrangianTime
         real,              intent(IN )              :: Wind
         real,              intent(IN )              :: AtmosphericPressure
         real,              intent(IN )              :: WaterTemperature
@@ -2109,9 +2113,10 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
                 call SetError(FATAL_, INTERNAL_,                                                      &
                              "Subroutine OilInternalProcesses; Module ModuleOil. ERR01") 
 
-cd2 :       if (Me%ExternalVar%Now .GE. Me%NextInternalComputeTime) then
-                
+cd2 :       if (LagrangianTime .GE. Me%NextInternalComputeTime) then
+                Me%Now                          = Me%NextInternalComputeTime
                 VolumeTotalOUT                  = null_real
+                MDissolvedDT                    = 0.0
                 Me%Var%VolumeOil                = VolumeTotalIN
                 
 
@@ -2200,6 +2205,9 @@ cd4 :           if (present(DataLineIN  )) then
                 end if cd3
 
 
+                Me%NextInternalComputeTime = Me%NextInternalComputeTime + Me%Var%DTOilInternalProcesses
+
+
                 VolumeTotalOUT                 = Me%Var%VolumeOil 
                 VWaterContent                  = Me%Var%VWaterContent
                 MWaterContent                  = Me%Var%MWaterContent
@@ -2214,11 +2222,24 @@ cd4 :           if (present(DataLineIN  )) then
                 FMEvaporated                    = Me%Var%FMEvaporated        
                 FMDispersed                     = Me%Var%FMDispersed    
                 MDissolvedDT                    = Me%Var%MDissolvedDT
+            else
+
+                VolumeTotalOUT                 = VolumeTotalIN 
+                VWaterContent                  = Me%Var%VWaterContent
+                MWaterContent                  = Me%Var%MWaterContent
+
+                !AreaTotalOUT, OilDensity e MDispersed necessaria para o calculo da concentracao no ModuleLagrangian
+                AreaTotalOUT                   = Me%ExternalVar%Area
+                OilDensity                     = Me%Var%Density
+                MDispersed                     = Me%Var%MDispersed
                 
-                Me%NextInternalComputeTime = Me%ExternalVar%Now + Me%Var%DTOilInternalProcesses
+                MassINI                         = Me%Var%MassINI
+                OilViscosity                    = Me%Var%Viscosity        
+                FMEvaporated                    = Me%Var%FMEvaporated        
+                FMDispersed                     = Me%Var%FMDispersed    
+                MDissolvedDT                    = Me%Var%MDissolvedDT
 
             end if cd2
-
 
 
             Me%State%FirstStepIP = OFF
@@ -2834,8 +2855,8 @@ cd2:        if (Me%Var%EmulsificationMethod .EQ. Rasmussen) then
         real    :: ChemDispersionTime
         !------------------------------------------------------------------------
   
-cd1:    if ((Me%ExternalVar%Now .GT. Me%Var%Start_ChemDispersion) .AND.                     &
-            (Me%ExternalVar%Now .LE. Me%Var%End_ChemDispersion))  then
+cd1:    if ((Me%Now .GT. Me%Var%Start_ChemDispersion) .AND.                     &
+            (Me%Now .LE. Me%Var%End_ChemDispersion))  then
             
 cd2:        if (Me%Var%MassOilStartChemDisp .LT. Me%Var%MassOil)    then
                 
@@ -2921,8 +2942,8 @@ cd4:        if (Me%Var%MassOil - (Me%Var%MChemDispersedDT)                      
         integer :: n
         !------------------------------------------------------------------------
   
-cd1:    if ((Me%ExternalVar%Now .GT. Me%Var%Start_Mec_Cleanup) .AND. &
-            (Me%ExternalVar%Now .LE. Me%Var%End_Mec_Cleanup))  then
+cd1:    if ((Me%Now .GT. Me%Var%Start_Mec_Cleanup) .AND. &
+            (Me%Now .LE. Me%Var%End_Mec_Cleanup))  then
             
             Me%Var%VOilRecoveredDT     = Me%Var%VEmulsionRecoveryRate           & 
                                              * (1 - Me%Var%VWaterContent)
@@ -3415,6 +3436,7 @@ do1 :       do Prop = (ColNbr+1), aux
 
     subroutine OilActiveProcesses(OilID,                          &
                                   GridThickness,                  &
+                                  LagrangianTime,                 &
                                   WaterTemperature,               &
                                   WaterDensity,                   &
                                   VolInic,                        &
@@ -3424,6 +3446,7 @@ do1 :       do Prop = (ColNbr+1), aux
 
 
         !Arguments---------------------------------------------------------------
+        type (T_Time),     intent(IN)   :: LagrangianTime
         integer                         :: OilID
         real, intent(in)                :: WaterTemperature
         real, intent(in)                :: WaterDensity
@@ -3484,9 +3507,9 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
             
 
-cd2 :       if (Me%ExternalVar%Now .GE. Me%NextActiveComputeTime) then
+cd2 :       if (LagrangianTime .GE. Me%NextActiveComputeTime) then
                 
-                
+                Me%Now                       = Me%NextActiveComputeTime
                 Me%ExternalVar%GridThickness => GridThickness
                 
                 if (.NOT. associated(Me%ExternalVar%GridThickness))             &
@@ -3724,7 +3747,7 @@ cd11:                        if (Me%State%FirstStepAP) then
 
 
 
-                Me%NextActiveComputeTime = Me%ExternalVar%Now + DT
+                Me%NextActiveComputeTime = Me%NextActiveComputeTime + DT
 
                 Me%State%FirstStepAP = OFF
                 
