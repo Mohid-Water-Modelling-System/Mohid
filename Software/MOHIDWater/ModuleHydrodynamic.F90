@@ -1493,7 +1493,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
             call Construct_Hydrodynamic (DischargesID,  AssimilationID)
 
-            if (Me%ComputeOptions%Evolution .NE. Read_File_)        &
+            if (Me%ComputeOptions%Evolution == Solve_Equations_)                        &
                 call CourantGH()
 
             call null_time   (Me%LastIteration)
