@@ -70,7 +70,7 @@ program RiverNetwork
         call ReadKeywords
 
         !Constructs Time 
-        call StartComputeTime (ObjTime, BeginTime, EndTime, DT, VariableDT, MaxDT, STAT = STAT_CALL)
+        call StartComputeTime (ObjTime, BeginTime, BeginTime, EndTime, DT, VariableDT, MaxDT, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'RiverNetwork - ConstructRiverNetwork - ERR01'
         CheckMass = .true. 
 
