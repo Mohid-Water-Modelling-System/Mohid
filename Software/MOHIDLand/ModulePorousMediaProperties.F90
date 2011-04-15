@@ -7,9 +7,9 @@
 ! MODULE        : PorousMediaProperties
 ! URL           : http://www.mohid.com
 ! AFFILIATION   : IST/MARETEC, Marine Modelling Group
-! DATE          : Fev 2010
+! DATE          : Fev 2010 David Brito
 ! REVISION      : 
-! DESCRIPTION   : Module to serve as PorousMediaProperties
+! DESCRIPTION   : Module to handle Properties in PorousMedia
 !
 !------------------------------------------------------------------------------
 !
@@ -333,12 +333,16 @@ Module ModulePorousMediaProperties
 
     type T_OutPut
         type (T_Time), pointer, dimension(:)    :: OutTime
+        type (T_Time), dimension(:), pointer    :: RestartOutTime       
         integer                                 :: NextOutPut
         integer                                 :: Number
         logical                                 :: Yes = .false.
         logical                                 :: TimeSerie_ON
         logical                                 :: HDF_ON
         logical                                 :: Profile_ON
+        logical                                 :: WriteRestartFile     = .false.       
+        logical                                 :: RestartOverwrite     = .false.
+        integer                                 :: NextRestartOutput    = 1        
     end type T_OutPut
 
     type T_AdvectionDiffusion   
@@ -609,7 +613,7 @@ Module ModulePorousMediaProperties
         
         logical                                      :: CheckGlobalMass       
         
-		real(8), pointer, dimension(:,:,:)           :: WaterVolume
+        real(8), pointer, dimension(:,:,:)           :: WaterVolume
         real(8), pointer, dimension(:,:,:)           :: FluxWCorr       
 
         !griflet, openmp
@@ -2935,7 +2939,7 @@ do1:    do while(associated(Property))
         !Constructs TimeSerie
         call StartTimeSerie(Me%ObjTimeSerie, Me%ObjTime,                                &
                             TimeSerieLocationFile,                                      &
-                            PropertyList, "spp",                                        &
+                            PropertyList, "srpp",                                        &
                             WaterPoints3D    = Me%ExtVar%WaterPoints3D,                 &
                             UseTabulatedData = .false.,                                 &
                             STAT             = STAT_CALL)
@@ -3059,6 +3063,17 @@ i1:         if (CoordON) then
                 write(*,*)'one property has HDF format outputs.'
                 stop 'ConstructHDF - ModulePorousMediaProperties - ERR02'
             endif 
+
+            !Output for restart
+            call GetOutPutTime(Me%ObjEnterData,                                             &
+                               CurrentTime  = Me%ExtVar%Now,                                &
+                               EndTime      = Me%ExtVar%EndTime,                            &
+                               keyword      = 'RESTART_FILE_OUTPUT_TIME',                   &
+                               SearchType   = FromFile,                                     &
+                               OutPutsTime  = Me%OutPut%RestartOutTime,                     &
+                               OutPutsOn    = Me%OutPut%WriteRestartFile,                   &
+                               STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR11a'
 
         endif
 
@@ -3222,8 +3237,8 @@ cd0:    if (Exist) then
             if (STAT_CALL /= SUCCESS_)                                                   &
                 stop 'ReadOldConcBoundariesHDF - ModulePorousMediaProperties - ERR02'
 
-            call HDF5ReadData   (ObjHDF5, "/Concentration/"//NewProperty%ID%Name,        &
-                                 NewProperty%ID%Name,                                    &
+            call HDF5ReadData   (ObjHDF5, "/Results/"//trim(adjustl(NewProperty%ID%Name)),        &
+                                 trim(adjustl(NewProperty%ID%Name)),                              &
                                  Array3D = NewProperty%Concentration,                    &
                                  STAT    = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                                   &
@@ -4142,7 +4157,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
             if (present(NitrogenFraction        )) Me%ExtVar%NitrogenFraction         => NitrogenFraction
             if (present(PhosphorusFraction      )) Me%ExtVar%PhosphorusFraction       => PhosphorusFraction
             
-			if (present(NutrientUptakeMethod    )) Me%ExtVar%NutrientUptakeMethod     =  NutrientUptakeMethod
+            if (present(NutrientUptakeMethod    )) Me%ExtVar%NutrientUptakeMethod     =  NutrientUptakeMethod
 
             if (present(PesticideIDNumber       )) then
                 call SearchProperty(PropertyX, PropertyXIDNumber = PesticideIDNumber, STAT = STAT_)
@@ -4703,6 +4718,14 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
 
     !       call ProfileOutput    em teste no construct e no kill
 
+            !Restart Output
+            if (Me%Output%WriteRestartFile .and. .not. (Me%ExtVar%Now == Me%ExtVar%EndTime)) then
+                if(Me%ExtVar%Now >= Me%OutPut%RestartOutTime(Me%OutPut%NextRestartOutput))then
+                    call WriteFinalFile
+                    Me%OutPut%NextRestartOutput = Me%OutPut%NextRestartOutput + 1
+                endif
+            endif
+
             call Actualize_Time_Evolution
 
             if (Me%CheckGlobalMass) then
@@ -5076,7 +5099,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
         real                                        :: FertilizationAmmonia, FertilizationNitrate
         real                                        :: FertilizationOrganicN, FertilizationOrganicP
         real                                        :: FertilizationMineralP
-!        real                                        :: NitrogenUptake, PhosphorusUptake
+        real                                        :: NitrogenUptake, PhosphorusUptake
         real                                        :: ModelDT, VegDT, CellWaterVolume, CellSoilMass
         type (T_Property), pointer                  :: Property
         integer                                     :: STAT_CALL
@@ -5102,8 +5125,8 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
             do J = Me%WorkSize%JLB, Me%WorkSize%JUB
             do I = Me%WorkSize%ILB, Me%WorkSize%IUB
             
-            if (Me%ExtVar%BasinPoints(i,j) == BasinPoint .and. Me%ExtVar%SoilFluxesActive(i,j)) then
-                
+            !if (Me%ExtVar%BasinPoints(i,j) == BasinPoint .and. Me%ExtVar%SoilFluxesActive(i,j)) then
+            if (Me%ExtVar%BasinPoints(i,j) == BasinPoint) then    
                 Area         = Me%ExtVar%Area(i,j)
                 RootDepth    = Me%ExtVar%RootDepth(i,j)
                 FoundEnd     = .false.
@@ -5157,23 +5180,23 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
                     
                                 if (Me%ExtVar%ModelNitrogen) then
                                 
-                                    !      ugN       = KgN/ha * 1E9ug/kg * (m2) * 1ha/10000m2                     
-                                    GrazingNitrogen  = Me%ExtVar%GrazingNitrogen(i,j) * 1e9 * Area / 10000.
+                                    !     mgN        = KgN/ha * 1E6mg/kg * (m2) * 1ha/10000m2                     
+                                    GrazingNitrogen  = Me%ExtVar%GrazingNitrogen(i,j) * 1e6 * Area / 10000.
                                 
                                     GrazingNotCarbon = GrazingNotCarbon + GrazingNitrogen
                     
                                 endif                    
                                 if (Me%ExtVar%ModelPhosphorus) then
 
-                                    !      ugP       = KgP/ha * 1E9ug/kg * (m2) * 1ha/10000m2                     
-                                    GrazingPhosphorus = Me%ExtVar%GrazingPhosphorus(i,j) * 1e9 * Area / 10000.
+                                    !      mgP       = KgP/ha * 1E6mg/kg * (m2) * 1ha/10000m2                     
+                                    GrazingPhosphorus = Me%ExtVar%GrazingPhosphorus(i,j) * 1e6 * Area / 10000.
 
                                     GrazingNotCarbon  = GrazingNotCarbon + GrazingPhosphorus
                     
                                 endif                          
                     
-                                !      ug       = Kg/ha * 1E9mg/kg * (m2) * 1ha/10000m2                     
-                                GrazingBiomass = Me%ExtVar%GrazingBiomass(i,j) * 1e9 * Area / 10000.
+                                !      mg       = Kg/ha * 1E6mg/kg * (m2) * 1ha/10000m2                     
+                                GrazingBiomass = Me%ExtVar%GrazingBiomass(i,j) * 1e6 * Area / 10000.
                     
                                 GrazingCarbon  = GrazingBiomass - GrazingNotCarbon
 
@@ -5187,23 +5210,23 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
                     
                                 if (Me%ExtVar%ModelNitrogen) then
 
-                                    !      ugN       = KgN/ha * 1E9ug/kg * (m2) * 1ha/10000m2                     
-                                    DormancyNitrogen  = Me%ExtVar%DormancyNitrogen(i,j) * 1e9 * Area / 10000.
+                                    !      mgN       = KgN/ha * 1E6mg/kg * (m2) * 1ha/10000m2                     
+                                    DormancyNitrogen  = Me%ExtVar%DormancyNitrogen(i,j) * 1e6 * Area / 10000.
 
                                     DormancyNotCarbon = DormancyNotCarbon + DormancyNitrogen
                     
                                 endif                    
                                 if (Me%ExtVar%ModelPhosphorus) then
 
-                                    !      ugP       = KgP/ha * 1E9ug/kg * (m2) * 1ha/10000m2                     
-                                    DormancyPhosphorus = Me%ExtVar%DormancyPhosphorus(i,j) * 1e9 * Area / 10000.
+                                    !      mgP       = KgP/ha * 1E6mg/kg * (m2) * 1ha/10000m2                     
+                                    DormancyPhosphorus = Me%ExtVar%DormancyPhosphorus(i,j) * 1e6 * Area / 10000.
 
                                     DormancyNotCarbon  = DormancyNotCarbon + DormancyPhosphorus
                     
                                 endif                          
                     
-                                !      ug       = Kg/ha * 1E9ug/kg * (m2) * 1ha/10000m2                     
-                                DormancyBiomass = Me%ExtVar%DormancyBiomass(i,j) * 1e9 * Area / 10000.
+                                !      mg       = Kg/ha * 1E6mg/kg * (m2) * 1ha/10000m2                     
+                                DormancyBiomass = Me%ExtVar%DormancyBiomass(i,j) * 1e6 * Area / 10000.
                     
                                 DormancyCarbon  = DormancyBiomass - DormancyNotCarbon
 
@@ -5218,24 +5241,24 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
                     
                                 if (Me%ExtVar%ModelNitrogen) then
 
-                                    !      ugN       = KgN/ha * 1E9ug/kg * (m2) * 1ha/10000m2                     
-                                    HarvestKillNitrogen  = Me%ExtVar%HarvestKillNitrogen(i,j) * 1e9 * Area / 10000.
+                                    !      mgN       = KgN/ha * 1E6ug/kg * (m2) * 1ha/10000m2                     
+                                    HarvestKillNitrogen  = Me%ExtVar%HarvestKillNitrogen(i,j) * 1e6 * Area / 10000.
 
                                     HarvestKillNotCarbon = HarvestKillNotCarbon + HarvestKillNitrogen
                     
                                 endif                    
                                 if (Me%ExtVar%ModelPhosphorus) then
 
-                                    !      ugP       = KgP/ha * 1E9ug/kg * (m2) * 1ha/10000m2                     
-                                    HarvestKillPhosphorus = Me%ExtVar%HarvestKillPhosphorus(i,j) * 1e9 * Area / 10000.
+                                    !      mgP       = KgP/ha * 1E6mg/kg * (m2) * 1ha/10000m2                     
+                                    HarvestKillPhosphorus = Me%ExtVar%HarvestKillPhosphorus(i,j) * 1e6 * Area / 10000.
 
                                     HarvestKillNotCarbon  = HarvestKillNotCarbon + HarvestKillPhosphorus
                     
                                 endif                          
                     
-                                HarvestKillAerialBiomass = Me%ExtVar%HarvestKillAerialBiomass(i,j) * 1e9 * Area / 10000.
+                                HarvestKillAerialBiomass = Me%ExtVar%HarvestKillAerialBiomass(i,j) * 1e6 * Area / 10000.
                     
-                                !      ug       = Kg/ha * 1E9ug/kg * (m2) * 1ha/10000m2                     
+                                !      mg       = Kg/ha * 1E6mg/kg * (m2) * 1ha/10000m2                     
                                 HarvestKillCarbon  = HarvestKillAerialBiomass - HarvestKillNotCarbon
 
                             endif
@@ -5251,16 +5274,18 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
 
                                 if (Me%ExtVar%ModelNitrogen) then
                         
-                                    !       gN       = KgN/ha * 1E3ug/kg * (m2) * 1ha/10000m2                     
+                                    !       gN       = KgN/ha * 1E3g/kg * (m2) * 1ha/10000m2                     
                                     FertilizationNitrate  = Me%ExtVar%FertilNitrateSurface(i,j) * 1e3 * Area / 10000.
                                     FertilizationAmmonia  = Me%ExtVar%FertilAmmoniaSurface(i,j) * 1e3 * Area / 10000.
-                                    FertilizationOrganicN = Me%ExtVar%FertilOrganicNSurface(i,j) * 1e9 * Area / 10000.
+                                    !      mgN
+                                    FertilizationOrganicN = Me%ExtVar%FertilOrganicNSurface(i,j) * 1e6 * Area / 10000.
                         
                                 endif                    
                                 if (Me%ExtVar%ModelPhosphorus) then
 
-                                    !      ugP       = KgP/ha * 1E9ug/kg * (m2) * 1ha/10000m2                     
-                                    FertilizationOrganicP = Me%ExtVar%FertilOrganicPSurface(i,j) * 1e9 * Area / 10000.
+                                    !      mgP       = KgP/ha * 1E6mg/kg * (m2) * 1ha/10000m2                     
+                                    FertilizationOrganicP = Me%ExtVar%FertilOrganicPSurface(i,j) * 1e6 * Area / 10000.
+                                    !      gP
                                     FertilizationMineralP = Me%ExtVar%FertilMineralPSurface(i,j) * 1e3 * Area / 10000.
                         
                                 endif                          
@@ -5285,14 +5310,15 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
                                     !      gN       = KgN/ha * 1E3g/kg * (m2) * 1ha/10000m2                     
                                     FertilizationNitrate  = Me%ExtVar%FertilNitrateSubSurface(i,j) * 1e3 * Area / 10000.
                                     FertilizationAmmonia  = Me%ExtVar%FertilAmmoniaSubSurface(i,j) * 1e3 * Area / 10000.
-                                    !      ugN       = KgN/ha * 1E9ug/kg * (m2) * 1ha/10000m2 
-                                    FertilizationOrganicN = Me%ExtVar%FertilOrganicNSubSurface(i,j) * 1e9 * Area / 10000.
+                                    !      mgN       = KgN/ha * 1E6mg/kg * (m2) * 1ha/10000m2 
+                                    FertilizationOrganicN = Me%ExtVar%FertilOrganicNSubSurface(i,j) * 1e6 * Area / 10000.
                         
                                 endif                    
                                 if (Me%ExtVar%ModelPhosphorus) then
 
-                                    !      ugP       = KgP/ha * 1E9ug/kg * (m2) * 1ha/10000m2                     
-                                    FertilizationOrganicP = Me%ExtVar%FertilOrganicPSubSurface(i,j) * 1e9 * Area / 10000.
+                                    !      mgP       = KgP/ha * 1E6mg/kg * (m2) * 1ha/10000m2                     
+                                    FertilizationOrganicP = Me%ExtVar%FertilOrganicPSubSurface(i,j) * 1e6 * Area / 10000.
+                                    !      gP
                                     FertilizationMineralP = Me%ExtVar%FertilMineralPSubSurface(i,j) * 1e3 * Area / 10000.
                         
                                 endif                          
@@ -5303,48 +5329,52 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
 
                         !Root death to soil (occurrs in all layers until root end )
                         if (RootDepth .gt. 0.0) then
-                                  !      ug       = Kg/ha * 1E9ug/kg * (m2) * 1ha/10000m2                     
-                            HarvestKillRootBiomass = Me%ExtVar%HarvestKillRootBiomass(i,j) * 1e9 * Area / 10000.
-                            !Root distribution (based on SWAT formulation)
-                            RootDistribution = (1.0 - exp(-10.0 * BottomDepth/RootDepth))/(1.0 - exp(-10.0))                   &
-                                               - (1.0 - exp(-10.0 * TopDepth/RootDepth))/(1.0 - exp(-10.0))
+                            
+                            if (Me%ExtVar%HarvestKill) then
+                                      !      mg       = Kg/ha * 1E6mg/kg * (m2) * 1ha/10000m2                     
+                                HarvestKillRootBiomass = Me%ExtVar%HarvestKillRootBiomass(i,j) * 1e6 * Area / 10000.
+                                !Root distribution (based on SWAT formulation)
+                                RootDistribution = (1.0 - exp(-10.0 * BottomDepth/RootDepth))/(1.0 - exp(-10.0))                   &
+                                                   - (1.0 - exp(-10.0 * TopDepth/RootDepth))/(1.0 - exp(-10.0))
 
-                            HarvestKillRootNotCarbon  = 0.0
-                            HarvestKillRootNitrogen   = 0.0
-                            HarvestKillRootPhosphorus = 0.0
-                            if (Me%ExtVar%ModelNitrogen) then
-                                NitrogenFraction        = Me%ExtVar%NitrogenFraction (i,j)
-                                HarvestKillRootNitrogen  = HarvestKillRootBiomass * NitrogenFraction * RootDistribution
-                                HarvestKillRootNotCarbon = HarvestKillRootNotCarbon + HarvestKillRootNitrogen
+                                HarvestKillRootNotCarbon  = 0.0
+                                HarvestKillRootNitrogen   = 0.0
+                                HarvestKillRootPhosphorus = 0.0
+                                if (Me%ExtVar%ModelNitrogen) then
+                                    NitrogenFraction        = Me%ExtVar%NitrogenFraction (i,j)
+                                    HarvestKillRootNitrogen  = HarvestKillRootBiomass * NitrogenFraction * RootDistribution
+                                    HarvestKillRootNotCarbon = HarvestKillRootNotCarbon + HarvestKillRootNitrogen
+                                endif
+
+                                if (Me%ExtVar%ModelPhosphorus) then
+                                    PhosphorusFraction        = Me%ExtVar%PhosphorusFraction (i,j)
+                                    HarvestKillRootPhosphorus  = HarvestKillRootBiomass * PhosphorusFraction * RootDistribution
+                                    HarvestKillRootNotCarbon   = HarvestKillRootNotCarbon + HarvestKillRootPhosphorus
+                                endif
+                        
+                                !     mg
+                                HarvestKillRootCarbon = HarvestKillRootBiomass - HarvestKillRootNotCarbon
                             endif
-
-                            if (Me%ExtVar%ModelPhosphorus) then
-                                PhosphorusFraction        = Me%ExtVar%PhosphorusFraction (i,j)
-                                HarvestKillRootPhosphorus  = HarvestKillRootBiomass * PhosphorusFraction * RootDistribution
-                                HarvestKillRootNotCarbon   = HarvestKillRootNotCarbon + HarvestKillRootPhosphorus
-                            endif
-                    
-                            !     ug
-                            HarvestKillRootCarbon = HarvestKillRootBiomass - HarvestKillRootNotCarbon
-
                         endif
                     endif
 
-
-    !                !Plant Uptake (occurrs in all layers until root end )
-    !                if (Me%ExtVar%ModelNitrogen) then
-    !                    
-    !                    !      gN       = KgN/ha * 1E3g/kg * (m2) * 1ha/10000m2                     
-    !                    NitrogenUptake = Me%ExtVar%NitrogenUptake(i,j,k) * 1e3 * Area / 10000.
-    !                    
-    !                endif
-    !
-    !                if (Me%ExtVar%ModelPhosphorus) then
-    !                    
-    !                    !      gP       = KgP/ha * 1E3g/kg * (m2) * 1ha/10000m2                     
-    !                    PhosphorusUptake = Me%ExtVar%PhosphorusUptake(i,j,k) * 1e3 * Area / 10000.
-    !
-    !                endif
+                    !Transpiration sink has to be done by mass balance here and not in advection diffusion
+                    !as flux dependent because this flux may be disconnected from Q*C
+                    !It will occur only for the specified species (nitrate and dissolved phosphorus)
+                    !Plant Uptake (occurrs in all layers until root end )
+                    if (Me%ExtVar%ModelNitrogen) then
+                        
+                        !      gN       = KgN/ha * 1E3g/kg * (m2) * 1ha/10000m2                     
+                        NitrogenUptake = Me%ExtVar%NitrogenUptake(i,j,k) * 1e3 * Area / 10000.
+                        
+                    endif
+    
+                    if (Me%ExtVar%ModelPhosphorus) then
+                        
+                        !      gP       = KgP/ha * 1E3g/kg * (m2) * 1ha/10000m2                     
+                        PhosphorusUptake = Me%ExtVar%PhosphorusUptake(i,j,k) * 1e3 * Area / 10000.
+    
+                    endif
 
                     
                     !!NOW UPDATE CONCENTRATIONS WITH THE MASS FLUXES COMPUTED. ConcentrationOld used because done 
@@ -5374,7 +5404,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
                             write(*,*) 'need property particulated refractory organic carbon in porous media properties'
                             stop 'InterfaceFluxes - ModulePorousMediaProperties - ERR100'
                         endif                
-                        !         ug/kgsoil            = ug/kgsoil + ug / kgsoil
+                        !         mg/kgsoil            = mg/kgsoil + mg / kgsoil
                         Property%ConcentrationOld (i,j,k) = Property%ConcentrationOld (i,j,k) + (((GrazingCarbon + DormancyCarbon  &
                                                             + HarvestKillCarbon + HarvestKillRootCarbon) * ModelDT / VegDT)        &
                                                             / CellSoilMass)
@@ -5397,7 +5427,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
                                 write(*,*) 'need property particulated refractory organic nitrogen in porous media properties'
                                 stop 'InterfaceFluxes - ModulePorousMediaProperties - ERR110'
                             endif                          
-                            !         ug/kgsoil 
+                            !         mg/kgsoil 
                             Property%ConcentrationOld (i,j,k) = Property%ConcentrationOld (i,j,k) + (((GrazingNitrogen           &
                                                                + DormancyNitrogen + HarvestKillNitrogen                          &
                                                                + HarvestKillRootNitrogen) * ModelDT / VegDT)                     &
@@ -5410,7 +5440,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
                                 write(*,*) 'need property particulate organic nitrogen in porous media properties'
                                 stop 'InterfaceFluxes - ModulePorousMediaProperties - ERR120'
                             endif                        
-                            !         ug/kgsoil 
+                            !         mg/kgsoil 
                             Property%ConcentrationOld (i,j,k) = Property%ConcentrationOld (i,j,k) + (((FertilizationOrganicN)   &
                                                                * ModelDT / VegDT) / CellSoilMass)
 
@@ -5422,16 +5452,38 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
                                 stop 'InterfaceFluxes - ModulePorousMediaProperties - ERR130'
                             endif    
                             !         g/m3                = g/m3 + g / m3H20
-                            Property%ConcentrationOld (i,j,k) = Property%ConcentrationOld (i,j,k) + (((FertilizationNitrate)    &
-    !                                                            - NitrogenUptake) * ModelDT / VegDT) / CellWaterVolume)
-                                                                 * ModelDT / VegDT) / CellWaterVolume)
+                            Property%ConcentrationOld (i,j,k) = Property%ConcentrationOld (i,j,k) + (((FertilizationNitrate     & 
+                                                                - NitrogenUptake) * ModelDT / VegDT) / CellWaterVolume)
+    !                                                             * ModelDT / VegDT) / CellWaterVolume)
+                            
+                            !avoid negative because vegetation check to mass available is done daily
+                            !meanwhile the mass may exit cell by transport or transformation
+                            if (Property%ConcentrationOld (i,j,k) .lt. 0.0) then
+                                !g = g + g/m3 * m3
+                                Property%Mass_created(i, j, k) = Property%Mass_Created(i, j, k)   +   &
+                                                               (- Property%ConcentrationOld(i, j, k)) &
+                                                               *  (Me%ExtVar%WaterContentOld(i,j,k)   &
+                                                               * Me%ExtVar%CellVolume (i, j, k))                                
+                                !uptake is waht exists
+                                !g  = g/m3 * m3
+                                NitrogenUptake = NitrogenUptake - (- Property%ConcentrationOld(i, j, k))  &
+                                                 *  (Me%ExtVar%WaterContentOld(i,j,k)                     &
+                                                 * Me%ExtVar%CellVolume (i, j, k))     
+                                
+                                Property%ConcentrationOld (i,j,k) = 0.0
 
+                                write(*,*) 'WARNING: '
+                                write(*,*) 'Soil nitrate concentration negative corrected '
+                                write(*,*) 'because vegetation uptake in cell', i, j, k
+  !                              stop 'InterfaceFluxes - ModulePorousMediaProperties - ERR135'
+                            endif
+                            
 
-    !                        if (Me%CheckGlobalMass) then
-    !                            !kg = [kg] + [g] * [1e-3kg/g] * [s model/s veg]
-    !                            Property%MB%TranspiredMass = Property%MB%TranspiredMass + (NitrogenUptake                     &
-    !                                                                 * 1E-3 * ModelDT / VegDT)
-    !                        endif
+                            if (Me%CheckGlobalMass) then
+                                !kg = [kg] + [g] * [1e-3kg/g] * [s model/s veg]
+                                Property%MB%TranspiredMass = Property%MB%TranspiredMass + (NitrogenUptake                     &
+                                                                     * 1E-3 * ModelDT / VegDT)
+                            endif
 
                             call SearchProperty (Property, Ammonia_        , .false., STAT = STAT_CALL)    
                             if (STAT_CALL /= SUCCESS_) then
@@ -5444,18 +5496,39 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
                                                                * ModelDT / VegDT) / CellWaterVolume)
                         else
 
-    !                        call SearchProperty (Property, Nitrate_        , .false., STAT = STAT_CALL)    
-    !                        if (STAT_CALL /= SUCCESS_) stop 'InterfaceFluxes - ModulePorousMediaProperties - ERR120'
-    !
-    !                        !         g/m3                = g/m3 + g / m3H20 
-    !                        Property%ConcentrationOld (i,j,k) = Property%ConcentrationOld (i,j,k) - (((NitrogenUptake)        &
-    !                                                           * ModelDT / VegDT) / CellWaterVolume)
+                            call SearchProperty (Property, Nitrate_        , .false., STAT = STAT_CALL)    
+                            if (STAT_CALL /= SUCCESS_) stop 'InterfaceFluxes - ModulePorousMediaProperties - ERR142'
+    
+                            !         g/m3                = g/m3 + g / m3H20 
+                            Property%ConcentrationOld (i,j,k) = Property%ConcentrationOld (i,j,k) - (((NitrogenUptake)        &
+                                                               * ModelDT / VegDT) / CellWaterVolume)
 
-    !                        if (Me%CheckGlobalMass) then
-    !                            !kg = [kg] + [g] * [1e-3kg/g] * [s model/s veg]
-    !                            Property%MB%TranspiredMass = Property%MB%TranspiredMass + (NitrogenUptake                      &
-    !                                                                *  1E-3 * ModelDT / VegDT)
-    !                        endif
+                            !avoid negative because vegetation check to mass available is done daily
+                            !meanwhile the mass may exit cell by transport or transformation
+                            if (Property%ConcentrationOld (i,j,k) .lt. 0.0) then
+                                !g = g + g/m3 * m3
+                                Property%Mass_created(i, j, k) = Property%Mass_Created(i, j, k)   +   &
+                                                               (- Property%ConcentrationOld(i, j, k)) &
+                                                               *  (Me%ExtVar%WaterContentOld(i,j,k)   &
+                                                               * Me%ExtVar%CellVolume (i, j, k))                                
+                                !g  = g/m3 * m3
+                                NitrogenUptake = NitrogenUptake - (- Property%ConcentrationOld(i, j, k))  &
+                                                 *  (Me%ExtVar%WaterContentOld(i,j,k)                     &
+                                                 * Me%ExtVar%CellVolume (i, j, k))        
+                                
+                                Property%ConcentrationOld (i,j,k) = 0.0
+
+                                write(*,*) 'WARNING: '
+                                write(*,*) 'Soil nitrate concentration negative corrected '
+                                write(*,*) 'because vegetation uptake in cell', i, j, k
+  !                              stop 'InterfaceFluxes - ModulePorousMediaProperties - ERR135'
+                            endif
+
+                            if (Me%CheckGlobalMass) then
+                                !kg = [kg] + [g] * [1e-3kg/g] * [s model/s veg]
+                                Property%MB%TranspiredMass = Property%MB%TranspiredMass + (NitrogenUptake                      &
+                                                                    *  1E-3 * ModelDT / VegDT)
+                            endif
                                                                
                         endif
 
@@ -5472,7 +5545,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
                                 write(*,*) 'need property particulated refractory organic phosphorus in porous media properties'
                                 stop 'InterfaceFluxes - ModulePorousMediaProperties - ERR150'
                             endif    
-                            !         ug/kgsoil  
+                            !         mg/kgsoil  
                             Property%ConcentrationOld (i,j,k) = Property%ConcentrationOld (i,j,k) + (((GrazingPhosphorus         &
                                                                + DormancyPhosphorus + HarvestKillPhosphorus                      &
                                                                + HarvestKillRootNitrogen) * ModelDT / VegDT)                     &
@@ -5485,7 +5558,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
                                 write(*,*) 'need property particulate organic phosphorus in porous media properties'
                                 stop 'InterfaceFluxes - ModulePorousMediaProperties - ERR160'
                             endif 
-                            !         ug/kgsoil  
+                            !         mg/kgsoil  
                             Property%ConcentrationOld (i,j,k) = Property%ConcentrationOld (i,j,k) + (((FertilizationOrganicP)    &
                                                                * ModelDT / VegDT) / CellSoilMass)
 
@@ -5497,15 +5570,36 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
                                 stop 'InterfaceFluxes - ModulePorousMediaProperties - ERR170'
                             endif 
                             !         g/m3                    = g/m3 + g / m3H20  
-                            Property%ConcentrationOld (i,j,k) = Property%ConcentrationOld (i,j,k) + (((FertilizationMineralP)   &
-    !                                                            - PhosphorusUptake) * ModelDT / VegDT) / CellWaterVolume)   
-                                                                 * ModelDT / VegDT) / CellWaterVolume)   
+                            Property%ConcentrationOld (i,j,k) = Property%ConcentrationOld (i,j,k) + (((FertilizationMineralP   &
+                                                                - PhosphorusUptake) * ModelDT / VegDT) / CellWaterVolume)   
+    !                                                             * ModelDT / VegDT) / CellWaterVolume)   
+                            
+                            !avoid negative because vegetation check to mass available is done daily
+                            !meanwhile the mass may exit cell by transport or transformation
+                            if (Property%ConcentrationOld (i,j,k) .lt. 0.0) then
+                                !g = g + g/m3 * m3
+                                Property%Mass_created(i, j, k) = Property%Mass_Created(i, j, k)   +   &
+                                                               (- Property%ConcentrationOld(i, j, k)) &
+                                                               *  (Me%ExtVar%WaterContentOld(i,j,k)   &
+                                                               * Me%ExtVar%CellVolume (i, j, k))                                
+                                !g  = g/m3 * m3
+                                PhosphorusUptake = PhosphorusUptake - (- Property%ConcentrationOld(i, j, k))  &
+                                                 *  (Me%ExtVar%WaterContentOld(i,j,k)                         &
+                                                 * Me%ExtVar%CellVolume (i, j, k))      
+                                
+                                Property%ConcentrationOld (i,j,k) = 0.0
 
-    !                        if (Me%CheckGlobalMass) then
-    !                            !kg = [kg] + [g] * [1e-3kg/g] * [s model/s veg]
-    !                            Property%MB%TranspiredMass = Property%MB%TranspiredMass + (PhosphorusUptake                    &
-    !                                                                *  1E-3 * ModelDT / VegDT)
-    !                        endif                                                            
+                                write(*,*) 'WARNING: '
+                                write(*,*) 'Soil dissolved phosphorus concentration negative corrected '
+                                write(*,*) 'because vegetation uptake in cell', i, j, k
+  !                              stop 'InterfaceFluxes - ModulePorousMediaProperties - ERR135'
+                            endif
+
+                            if (Me%CheckGlobalMass) then
+                                !kg = [kg] + [g] * [1e-3kg/g] * [s model/s veg]
+                                Property%MB%TranspiredMass = Property%MB%TranspiredMass + (PhosphorusUptake                    &
+                                                                    *  1E-3 * ModelDT / VegDT)
+                            endif                                                            
                                                                 
                         else
                             
@@ -5515,16 +5609,37 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
                                 write(*,*) 'need property inorganic phosphorus in porous media properties'
                                 stop 'InterfaceFluxes - ModulePorousMediaProperties - ERR180'
                             endif 
-    !                        !         g/m3                    = g/m3 + g / m3H20  
-    !                        Property%ConcentrationOld (i,j,k) = Property%ConcentrationOld (i,j,k) - (((PhosphorusUptake)      &
-    !                                                           * ModelDT / VegDT) / CellWaterVolume) 
+                            !         g/m3                    = g/m3 + g / m3H20  
+                            Property%ConcentrationOld (i,j,k) = Property%ConcentrationOld (i,j,k) - (((PhosphorusUptake)      &
+                                                               * ModelDT / VegDT) / CellWaterVolume) 
+
+
+                            !avoid negative because vegetation check to mass available is done daily
+                            !meanwhile the mass may exit cell by transport or transformation
+                            if (Property%ConcentrationOld (i,j,k) .lt. 0.0) then
+                                !g = g + g/m3 * m3
+                                Property%Mass_created(i, j, k) = Property%Mass_Created(i, j, k)   +   &
+                                                               (- Property%ConcentrationOld(i, j, k)) &
+                                                               *  (Me%ExtVar%WaterContentOld(i,j,k)   &
+                                                               * Me%ExtVar%CellVolume (i, j, k))                                
+                                !g  = g/m3 * m3
+                                PhosphorusUptake = PhosphorusUptake - (- Property%ConcentrationOld(i, j, k))  &
+                                                 *  (Me%ExtVar%WaterContentOld(i,j,k)                         &
+                                                 * Me%ExtVar%CellVolume (i, j, k))      
+                                
+                                Property%ConcentrationOld (i,j,k) = 0.0
+
+                                write(*,*) 'WARNING: '
+                                write(*,*) 'Soil dissolved phosphorus concentration negative corrected '
+                                write(*,*) 'because vegetation uptake in cell', i, j, k
+  !                              stop 'InterfaceFluxes - ModulePorousMediaProperties - ERR135'
+                            endif                                                             
                                                                
-                                                               
-    !                        if (Me%CheckGlobalMass) then
-    !                            !kg = [kg] + [g] * [1e-3kg/g] * [s model/s veg]
-    !                            Property%MB%TranspiredMass = Property%MB%TranspiredMass + (PhosphorusUptake                   &
-    !                                                                * 1E-3 * ModelDT / VegDT)
-    !                        endif                                                                                      
+                            if (Me%CheckGlobalMass) then
+                                !kg = [kg] + [g] * [1e-3kg/g] * [s model/s veg]
+                                Property%MB%TranspiredMass = Property%MB%TranspiredMass + (PhosphorusUptake                   &
+                                                                    * 1E-3 * ModelDT / VegDT)
+                            endif                                                                                      
                          
                         endif             
 
@@ -5547,7 +5662,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
                 
                 if (Property%Pesticide) then
                 
-                    if (Property%Evolution%AdvectionDiffusion) then
+                    !if (Property%Evolution%AdvectionDiffusion) then
 
                         do J = Me%WorkSize%JLB, Me%WorkSize%JUB
                         do I = Me%WorkSize%ILB, Me%WorkSize%IUB
@@ -5565,25 +5680,45 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
                             endif
                         enddo
                         enddo
-                    else
-                        do J = Me%WorkSize%JLB, Me%WorkSize%JUB
-                        do I = Me%WorkSize%ILB, Me%WorkSize%IUB
-                            
-                            if (Me%ExtVar%BasinPoints(i,j) == BasinPoint) then
-                            
-                                k = Me%WorkSize%KUB
-                                !m3             = m3H20/m3cell * m3cell
-                                CellWaterVolume = Me%ExtVar%WaterContentOld(i,j,k) * Me%ExtVar%CellVolume(i,j,k) 
-                                !g/m3                          = g/m3  + (kg/ha * dt/vegdt * 1E3g/kg * (m2) * 1ha/10000m2) / m3 
-                                Property%Concentration(i,j,k) = Property%ConcentrationOld(i,j,k) + (Property%PesticideFlux(i,j) &
-                                                                    * ModelDT / VegDT * 1e3 * Me%ExtVar%Area(i,j) / 10000.)     &
-                                                                     / CellWaterVolume
-                                                                
-                            endif
-                        enddo
-                        enddo                    
-                    endif         
+!                    else
+!                        do J = Me%WorkSize%JLB, Me%WorkSize%JUB
+!                        do I = Me%WorkSize%ILB, Me%WorkSize%IUB
+!                            
+!                            if (Me%ExtVar%BasinPoints(i,j) == BasinPoint) then
+!                            
+!                                k = Me%WorkSize%KUB
+!                                !m3             = m3H20/m3cell * m3cell
+!                                CellWaterVolume = Me%ExtVar%WaterContentOld(i,j,k) * Me%ExtVar%CellVolume(i,j,k) 
+!                                !g/m3                          = g/m3  + (kg/ha * dt/vegdt * 1E3g/kg * (m2) * 1ha/10000m2) / m3 
+!                                Property%Concentration(i,j,k) = Property%ConcentrationOld(i,j,k) + (Property%PesticideFlux(i,j) &
+!                                                                    * ModelDT / VegDT * 1e3 * Me%ExtVar%Area(i,j) / 10000.)     &
+!                                                                     / CellWaterVolume
+!                                                                
+!                            endif
+!                        enddo
+!                        enddo                    
+!                    endif         
                 endif
+            
+                Property => Property%Next
+                
+            enddo                    
+            
+        endif
+
+        !Properties that do not have advection difusion will not be updated (advection diffusion updates conc old
+        !to conc new). So this properties are here updated to conc new
+        if (Me%ExtVar%GrowthModel) then
+
+            Property => Me%FirstProperty
+
+            do while (associated(Property)) 
+                
+                if (.not. Property%Evolution%AdvectionDiffusion) then
+
+                    call SetMatrixValue (Property%Concentration, Me%Size, Property%ConcentrationOld)
+                    
+                endif         
             
                 Property => Property%Next
                 
@@ -6020,9 +6155,12 @@ do4 :       do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         !Evaporation fluxes do not take mass and do not need to be accounted
         
         !Transpiration fluxes - in cells along roots - take all dissolved properties
-        if (Me%ExtVar%CoupledVegetation .and. Me%ExtVar%ModelWater .and. (Me%ExtVar%NutrientUptakeMethod .NE. 3)) then
-            call ModifyVegetationCoefs(PropertyX)
-        endif
+        !Vegetation may remove mass not associated to Q*C and be selective for species
+        !so this option was abandoned and nitrate and dissolved phosphorus removed in
+        !routine VegetationInterfaceFluxes as mass sink
+        !if (Me%ExtVar%CoupledVegetation .and. Me%ExtVar%ModelWater ) then
+        !    call ModifyVegetationCoefs(PropertyX)
+        !endif
         
         !Infiltration - in surface cells
         call ModifyInfiltrationCoefs(PropertyX)
@@ -7325,104 +7463,98 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
     !---------------------------------------------------------------------------
 
-    subroutine ModifyVegetationCoefs (PropertyX)
-    
-        !Arguments-------------------------------------------------------------
-        type (T_Property), pointer                  :: PropertyX
-
-
-        !Local-----------------------------------------------------------------
-        !type (T_Property), pointer                  :: CurrProperty
-        real, pointer, dimension(:,:,:)             :: TranspirationLayer
-        integer                                     :: i, j, k, STAT_CALL, CHUNK
-!        real                                        :: NitrogenUptake, PhosphorusUptake
-!        real                                        :: CorrectedTranspirationFlux
-        real                                        :: aux
-
-        !Begin-----------------------------------------------------------------
-
-        if (MonitorPerformance) call StartWatch ("ModulePorousMediaProperties", "ModifyVegetationCoefs")
-
-        
-        !all dissolved properties with advection diffusion will be transported with the transpiration
-        !if in vegetation module is used swat uptake, then nitrate and phosphorus uptake has to be changed.
-        !see this in the future
-        
-        !CurrProperty => PropertyX
-        
-        call GetTranspiration(Me%ObjPorousMedia, TranspirationLayer, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop ' ModifyVegetationCoefs - ModulePorousMediaProperties - ERR01'
-
-        CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
-      
-        !$OMP PARALLEL PRIVATE(i,j,k,aux)
-        
-        do K = Me%WorkSize%KLB, Me%WorkSize%KUB
-        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)        
-        do J = Me%WorkSize%JLB, Me%WorkSize%JUB
-        do I = Me%WorkSize%ILB, Me%WorkSize%IUB
-            
-            if (Me%ExtVar%WaterPoints3D(I,J,K) == WaterPoint) then   
-                
-                if(K .ge. Me%ExtVar%TranspirationBottomLayer(i,j)) then
-                    
-                    if ((PropertyX%Evolution%UseMaxForUptakeConc) .AND. &
-                        (PropertyX%Concentration(I, J, K) > PropertyX%Evolution%MaxForUptakeConc)) then
-                        Me%COEFExpl%CoefInterfVeg(i,j,k) = 0.0
-                        PropertyX%UptakeActive(i,j,k)    = .false.
-                    else
-                        !Auxuliar value for transport - units of flow-1
-                        !s/m3
-                        aux             = (Me%ExtVar%DT/(Me%ExtVar%WaterContent(i,j,k) * Me%ExtVar%Cellvolume(i,j,k)))
-                        
-                        !Positive flow - looses mass
-                        Me%COEFExpl%CoefInterfVeg(i,j,k) = - aux * TranspirationLayer(i,j,k)
-                        PropertyX%UptakeActive(i,j,k)    = .true.
-                    end if
-                    
-!                    !Change nitrate and diss phosphorus flux because it may be disconnected from flow (if SWAT model original
-!                    ! formulation is used)
-!                    !in this case the transpiration flux * conc does not match the mass flux so here is changed
-!                    !Concentration old was the concentration used in module vegetation to the uptake so it is maintained
-!                    ! for consistency
-!                    if (Me%ExtVar%ModelNitrogen .and. CurrProperty%ID%IDNumber == Nitrate_) then
-!                        !      gN/s       = KgN/ha * 1E3g/kg * (m2) * 1ha/10000m2 / s                     
-!                        NitrogenUptake = Me%ExtVar%NitrogenUptake(i,j,k) * 1e3 * Me%ExtVar%Area(i,j) * 1e-4      &
-!                                         / Me%ExtVar%VegetationDT
-!                        
-!                        !AssociatedFlux - g/s / g/m3 = g/s * m3/g = m3/s
-!                        CorrectedTranspirationFlux        = NitrogenUptake * CurrProperty%ConcentrationOld(i,j,k)
-!                        Me%COEFExpl%CoefInterfVeg(i,j,k) = - aux * CorrectedTranspirationFlux
-! 
-!                    elseif (Me%ExtVar%ModelPhosphorus .and. CurrProperty%ID%IDNumber == Inorganic_Phosphorus_) then
-!                        !      gN/s       = KgN/ha * 1E3g/kg * (m2) * 1ha/10000m2 / s                     
-!                        PhosphorusUptake = Me%ExtVar%PhosphorusUptake(i,j,k) * 1e3 * Me%ExtVar%Area(i,j) * 1e-4    &
-!                                           / Me%ExtVar%VegetationDT
-!                        
-!                        !AssociatedFlux - g/s / g/m3 = g/s * m3/g = m3/s
-!                        CorrectedTranspirationFlux        = PhosphorusUptake * CurrProperty%ConcentrationOld(i,j,k)
-!                        Me%COEFExpl%CoefInterfVeg(i,j,k) = - aux * CorrectedTranspirationFlux
-!                            
-!                    endif
-
-                endif
-           endif
-        
-        enddo
-        enddo
-        !$OMP END DO
-        enddo
-        
-        !$OMP END PARALLEL        
-        
-        call UngetPorousMedia (Me%ObjPorousMedia, TranspirationLayer, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ModifyVegetationCoefs - ModulePorousMediaProperties - ERR050'
-                           
-   
-        if (MonitorPerformance) call StopWatch ("ModulePorousMediaProperties", "ModifyVegetationCoefs")
-
-   
-   end subroutine ModifyVegetationCoefs
+!    subroutine ModifyVegetationCoefs (PropertyX)
+!    
+!        !Arguments-------------------------------------------------------------
+!        type (T_Property), pointer                  :: PropertyX
+!
+!
+!        !Local-----------------------------------------------------------------
+!        type (T_Property), pointer                  :: CurrProperty
+!        real, pointer, dimension(:,:,:)             :: TranspirationLayer
+!        integer                                     :: i, j, k, STAT_CALL, CHUNK
+!!        real                                        :: NitrogenUptake, PhosphorusUptake
+!!        real                                        :: CorrectedTranspirationFlux
+!        real                                        :: aux
+!
+!        !Begin-----------------------------------------------------------------
+!
+!        if (MonitorPerformance) call StartWatch ("ModulePorousMediaProperties", "ModifyVegetationCoefs")
+!
+!        
+!        !all dissolved properties with advection diffusion will be transported with the transpiration
+!        !if in vegetation module is used swat uptake, then nitrate and phosphorus uptake has to be changed.
+!        !see this in the future
+!        
+!        CurrProperty => PropertyX
+!        
+!        call GetTranspiration(Me%ObjPorousMedia, TranspirationLayer, STAT = STAT_CALL)
+!        if (STAT_CALL /= SUCCESS_) stop ' ModifyVegetationCoefs - ModulePorousMediaProperties - ERR01'
+!
+!        CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+!      
+!        !$OMP PARALLEL PRIVATE(i,j,k,aux)
+!        
+!        do K = Me%WorkSize%KLB, Me%WorkSize%KUB
+!        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)        
+!        do J = Me%WorkSize%JLB, Me%WorkSize%JUB
+!        do I = Me%WorkSize%ILB, Me%WorkSize%IUB
+!            
+!            if (Me%ExtVar%WaterPoints3D(I,J,K) == WaterPoint) then   
+!                
+!                if(K .ge. Me%ExtVar%TranspirationBottomLayer(i,j)) then
+!                    
+!                    !Auxuliar value for transport - units of flow-1
+!                    !s/m3
+!                    aux             = (Me%ExtVar%DT/(Me%ExtVar%WaterContent(i,j,k) * Me%ExtVar%Cellvolume(i,j,k)))
+!                    
+!                    !Positive flow - looses mass
+!                    Me%COEFExpl%CoefInterfVeg(i,j,k) = - aux * TranspirationLayer(i,j,k)
+!                    
+!                    
+!!                    !Change nitrate and diss phosphorus flux because it may be disconnected from flow (if SWAT model original
+!!                    ! formulation is used)
+!!                    !in this case the transpiration flux * conc does not match the mass flux so here is changed
+!!                    !Concentration old was the concentration used in module vegetation to the uptake so it is maintained
+!!                    ! for consistency
+!!                    if (Me%ExtVar%ModelNitrogen .and. CurrProperty%ID%IDNumber == Nitrate_) then
+!!                        !      gN/s       = KgN/ha * 1E3g/kg * (m2) * 1ha/10000m2 / s                     
+!!                        NitrogenUptake = Me%ExtVar%NitrogenUptake(i,j,k) * 1e3 * Me%ExtVar%Area(i,j) * 1e-4      &
+!!                                         / Me%ExtVar%VegetationDT
+!!                        
+!!                        !AssociatedFlux - g/s / g/m3 = g/s * m3/g = m3/s
+!!                        CorrectedTranspirationFlux        = NitrogenUptake * CurrProperty%ConcentrationOld(i,j,k)
+!!                        Me%COEFExpl%CoefInterfVeg(i,j,k) = - aux * CorrectedTranspirationFlux
+!! 
+!!                    elseif (Me%ExtVar%ModelPhosphorus .and. CurrProperty%ID%IDNumber == Inorganic_Phosphorus_) then
+!!                        !      gN/s       = KgN/ha * 1E3g/kg * (m2) * 1ha/10000m2 / s                     
+!!                        PhosphorusUptake = Me%ExtVar%PhosphorusUptake(i,j,k) * 1e3 * Me%ExtVar%Area(i,j) * 1e-4    &
+!!                                           / Me%ExtVar%VegetationDT
+!!                        
+!!                        !AssociatedFlux - g/s / g/m3 = g/s * m3/g = m3/s
+!!                        CorrectedTranspirationFlux        = PhosphorusUptake * CurrProperty%ConcentrationOld(i,j,k)
+!!                        Me%COEFExpl%CoefInterfVeg(i,j,k) = - aux * CorrectedTranspirationFlux
+!!                            
+!!                    endif
+!
+!                endif
+!           endif
+!        
+!        enddo
+!        enddo
+!        !$OMP END DO
+!        enddo
+!        
+!        !$OMP END PARALLEL        
+!        
+!        call UngetPorousMedia (Me%ObjPorousMedia, TranspirationLayer, STAT = STAT_CALL)
+!        if (STAT_CALL /= SUCCESS_) stop 'ModifyVegetationCoefs - ModulePorousMediaProperties - ERR050'
+!                           
+!   
+!        if (MonitorPerformance) call StopWatch ("ModulePorousMediaProperties", "ModifyVegetationCoefs")
+!
+!   
+!   end subroutine ModifyVegetationCoefs
 
     !---------------------------------------------------------------------------
 
@@ -7568,7 +7700,7 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         integer                                     :: i, j, k, STAT_CALL !, CHUNK
         integer                                     :: GWFlowLink
         real(8), pointer, dimension(:,:,:)          :: FluxW
-        real, pointer, dimension(:,:,:)             :: TranspirationLayer
+!        real, pointer, dimension(:,:,:)             :: TranspirationLayer
         !Begin-----------------------------------------------------------------    
         
         CurrProperty => PropertyX
@@ -7692,40 +7824,41 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         enddo
         enddo
         
-        !!Vegetation mass balance
-        if (Me%ExtVar%CoupledVegetation .and. Me%ExtVar%ModelWater) then
-                                    
-            call GetTranspiration(Me%ObjPorousMedia, TranspirationLayer, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop ' ModifyInterfaceMassFluxes - ModulePorousMediaProperties - ERR01'
-        
-            do K = Me%WorkSize%KLB, Me%WorkSize%KUB
-            do J = Me%WorkSize%JLB, Me%WorkSize%JUB
-            do I = Me%WorkSize%ILB, Me%WorkSize%IUB
-                
-                if (Me%ExtVar%WaterPoints3D(I,J,K) == WaterPoint) then   
-                           
-                    if(K .ge. Me%ExtVar%TranspirationBottomLayer(i,j) ) then
-                        
-                        if (CurrProperty%UptakeActive(i, j, k)) then                        
-                            !kg = [kg] + [m3/s] * [g/m3] * [1e-3kg/g] * [s] 
-                            CurrProperty%MB%TranspiredMass = CurrProperty%MB%TranspiredMass +    &
-                                                             (TranspirationLayer(i,j,k) *        &
-                                                             CurrProperty%Concentration(i,j,k) * &
-                                                             1E-3 * Me%ExtVar%DT)
-                        endif
+!        !!Vegetation mass balance
+!        if (Me%ExtVar%CoupledVegetation .and. Me%ExtVar%ModelWater) then
+!    
+!            call GetTranspiration(Me%ObjPorousMedia, TranspirationLayer, STAT = STAT_CALL)
+!            if (STAT_CALL /= SUCCESS_) stop ' ModifyInterfaceMassFluxes - ModulePorousMediaProperties - ERR01'
+!    
+!    
+!            do K = Me%WorkSize%KLB, Me%WorkSize%KUB
+!            do J = Me%WorkSize%JLB, Me%WorkSize%JUB
+!            do I = Me%WorkSize%ILB, Me%WorkSize%IUB
+!                
+!                if (Me%ExtVar%WaterPoints3D(I,J,K) == WaterPoint) then   
+!                           
+!                    if(K .ge. Me%ExtVar%TranspirationBottomLayer(i,j) ) then
+!                        
+!                        !kg = [kg] + [m3/s] * [g/m3] * [1e-3kg/g] * [s] 
+!                        CurrProperty%MB%TranspiredMass = CurrProperty%MB%TranspiredMass +                                   &
+!                                                          (TranspirationLayer(i,j,k) * CurrProperty%Concentration(i,j,k)    &
+!                                                            *  1E-3 * Me%ExtVar%DT)
+!                        
+!    
+!                    endif
+!               endif
+!            
+!            enddo
+!            enddo
+!            enddo
+!
+!            call UngetPorousMedia (Me%ObjPorousMedia, TranspirationLayer, STAT = STAT_CALL)
+!            if (STAT_CALL /= SUCCESS_) stop 'ModifyInterfaceMassFluxes - ModulePorousMediaProperties - ERR050'
+!
+!        
+!        endif
+
     
-                    endif
-               endif
-            
-            enddo
-            enddo
-            enddo
-
-            call UngetPorousMedia (Me%ObjPorousMedia, TranspirationLayer, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ModifyInterfaceMassFluxes - ModulePorousMediaProperties - ERR050'
-
-        endif
-                
     end subroutine ModifyInterfaceMassFluxes
     
     !---------------------------------------------------------------------------
@@ -8053,9 +8186,10 @@ cd1:            if(Me%ExtVar%Now .GE. PropertyX%Evolution%NextCompute) then
     !                    if (STAT_CALL /= SUCCESS_)                                      &
     !                        stop 'Partition_Processes - ModuleRunoffProperties - ERR03'
     !                endif
-
-                
-                    DT = PropertyX%Evolution%DTInterval
+                    
+                    !Info about old mass and concentration is for last instant and not Dtinterval
+                    DT  = Me%ExtVar%DT
+                    !DT = PropertyX%Evolution%DTInterval
                     
     do3:            do k = KLB, KUB
     do1:            do j = JLB, JUB
@@ -8624,11 +8758,11 @@ cd2 :       if (Actual.GE.Property%Evolution%NextCompute) then
     subroutine OutPut_TimeSeries
 
         !External--------------------------------------------------------------
-        integer                                 :: STAT_CALL, i, j
+        integer                                 :: STAT_CALL
 
         !Local-----------------------------------------------------------------
         type (T_Property), pointer              :: PropertyX
-        real, dimension(:,:), pointer           :: SurfaceDiffusivity
+!        real, dimension(:,:), pointer           :: SurfaceDiffusivity
 
         !----------------------------------------------------------------------
 
@@ -8814,6 +8948,171 @@ First:          if (LastTime.LT.Actual) then
 
     !----------------------------------------------------------------------------
 
+    subroutine WriteFinalFile
+
+        !Local-----------------------------------------------------------------
+        type (T_Property), pointer                  :: PropertyX
+        integer                                     :: STAT_CALL
+        integer                                     :: OutPutNumber
+        integer                                     :: HDF5_CREATE
+        character(LEN = PathLength)                 :: FileName
+        integer                                     :: ObjHDF5
+        real, dimension(6), target                  :: AuxTime
+        real, dimension(:), pointer                 :: TimePtr
+        type (T_Time)                               :: Actual             
+        !Begin----------------------------------------------------------------
+
+        if (MonitorPerformance) call StartWatch ("ModulePorousMediaProperties", "WriteFinalFile")
+
+        !Gets a pointer to Topography
+        call GetGridData        (Me%ObjGeometry, Me%ExtVar%Topography, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModulePorousMediaProperties - ERR00'
+
+        call GetGeometryDistances (Me%ObjGeometry,                                      &
+                                  SZZ         = Me%ExtVar%SZZ,                          &
+                                  STAT        = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModulePorousMediaProperties - ERR01'
+
+        !OpenPoints3D
+        call GetOpenPoints3D    (Me%ObjMap, Me%ExtVar%OpenPoints3D, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModulePorousMediaProperties - ERR02'
+
+        !Gets File Access Code
+        call GetHDF5FileAccess  (HDF5_CREATE = HDF5_CREATE)
+
+        !Checks if it's at the end of the run 
+        !or !if it's supposed to overwrite the final HDF file
+        if ((Me%ExtVar%Now == Me%ExtVar%EndTime) .or. Me%Output%RestartOverwrite) then
+
+            filename = trim(Me%Files%FinalFile)
+
+        else
+
+            FileName = ChangeSuffix(Me%Files%FinalFile,                                 &
+                            "_"//trim(TimeToString(Me%ExtVar%Now))//".fin")
+
+        endif
+
+
+        ObjHDF5 = 0
+        !Opens HDF5 File
+        call ConstructHDF5 (ObjHDF5,                                                     &
+                            trim(filename)//"5",    &
+                            HDF5_CREATE, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)                                                       &
+            stop 'WriteFinalFile - ModulePorousMediaProperties - ERR10'
+
+
+        Actual   = Me%ExtVar%Now
+         
+        call ExtractDate   (Actual, AuxTime(1), AuxTime(2), AuxTime(3),          &
+                                    AuxTime(4), AuxTime(5), AuxTime(6))
+        !Writes Time
+        TimePtr => AuxTime
+        call HDF5SetLimits  (ObjHDF5, 1, 6, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModulePorousMediaProperties - ERR11'
+
+        call HDF5WriteData  (ObjHDF5, "/Time", "Time", "YYYY/MM/DD HH:MM:SS",      &
+                             Array1D = TimePtr, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModulePorousMediaProperties - ERR12'
+                    
+        !Limits 
+        call HDF5SetLimits   (ObjHDF5,        &
+                              Me%WorkSize%ILB,   &
+                              Me%WorkSize%IUB,   &
+                              Me%WorkSize%JLB,   &
+                              Me%WorkSize%JUB,   &
+                              Me%WorkSize%KLB-1, &
+                              Me%WorkSize%KUB,   &
+                              STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModulePorousMediaProperties - ERR030'
+
+        !Vertical 
+        call HDF5WriteData  ( ObjHDF5,  "/Grid/VerticalZ", & 
+                             "Vertical",   "m",               & 
+                              Array3D      = Me%ExtVar%SZZ,   &
+                              OutputNumber = OutPutNumber,    &
+                              STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModulePorousMediaProperties - ERR040'
+        
+        !Sets limits for next write operations
+        call HDF5SetLimits   (ObjHDF5,                                &
+                              Me%WorkSize%ILB,                           &
+                              Me%WorkSize%IUB,                           &
+                              Me%WorkSize%JLB,                           &
+                              Me%WorkSize%JUB,                           &
+                              Me%WorkSize%KLB,                           &
+                              Me%WorkSize%KUB,                           &
+                              STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModulePorousMediaproperties - ERR050'
+
+        !Write the Horizontal Grid
+        call WriteHorizontalGrid(Me%ObjHorizontalGrid, ObjHDF5, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModulePorousMediaProperties - ERR25'
+        
+        !Writes the Grid
+        call HDF5WriteData      (ObjHDF5, "/Grid", "Topography", "m",                    &
+                              Array2D = Me%ExtVar%Topography, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModulePorousMediaProperties - ERR035'
+
+
+        !Writes the Open Points
+        call HDF5WriteData   (ObjHDF5, "//Grid/OpenPoints",              &
+                              "OpenPoints", "-",                            &
+                              Array3D = Me%ExtVar%OpenPoints3D,             &
+                              OutputNumber = OutPutNumber,                  &
+                              STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModulePorousMediaproperties - ERR060'
+
+
+        PropertyX => Me%FirstProperty
+        do while (associated(PropertyX))
+
+            call HDF5SetLimits   (ObjHDF5,                                &
+                                  Me%WorkSize%ILB,                           &
+                                  Me%WorkSize%IUB,                           &
+                                  Me%WorkSize%JLB,                           &
+                                  Me%WorkSize%JUB,                           &
+                                  Me%WorkSize%KLB,                           &
+                                  Me%WorkSize%KUB,                           &
+                                  STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModulePorousMediaproperties - ERR065'
+
+            call HDF5WriteData   (ObjHDF5,                                    &
+                                  "/Results/"//trim(PropertyX%ID%Name),          &
+                                  trim(PropertyX%ID%Name),                       &
+                                  trim(PropertyX%ID%Units),                      &
+                                  Array3D = PropertyX%Concentration,             &
+                                  STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModulePorousMediaproperties - ERR070'
+
+
+            PropertyX => PropertyX%Next
+
+        enddo
+
+        !Writes everything to disk
+        call HDF5FlushMemory (ObjHDF5, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModulePorousMediaproperties - ERR080'
+            
+
+        call UnGetMap                   (Me%ObjMap, Me%ExtVar%OpenPoints3D, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModulePorousMediaProperties - ERR085'
+        
+        call UnGetGeometry              (Me%ObjGeometry, Me%ExtVar%SZZ,  STAT = STAT_CALL )        
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModulePorousMediaProperties - ERR100'
+
+        call UnGetGeometry              (Me%ObjGeometry, Me%ExtVar%Topography,  STAT = STAT_CALL )        
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModulePorousMediaProperties - ERR120'
+
+
+        if (MonitorPerformance) call StopWatch ("ModulePorousMediaProperties", "WriteFinalFile")
+
+
+    end subroutine WriteFinalFile
+
+    !----------------------------------------------------------------------------
+
     real function Tortuosity(WC, Porosity)
 
         !Arguments-------------------------------------------------------------
@@ -8956,7 +9255,8 @@ First:          if (LastTime.LT.Actual) then
 cd1 :   if (ready_ .NE. OFF_ERR_) then
 
             nUsers = DeassociateInstance(mPorousMediaProperties_,  Me%InstanceID)
-
+            
+            call WriteFinalFile
 
             PropertyX => Me%FirstProperty
             

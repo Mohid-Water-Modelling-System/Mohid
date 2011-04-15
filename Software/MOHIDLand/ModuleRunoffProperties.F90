@@ -7,9 +7,9 @@
 ! MODULE        : RunoffProperties
 ! URL           : http://www.mohid.com
 ! AFFILIATION   : IST/MARETEC, Marine Modelling Group
-! DATE          : Fev 2010
+! DATE          : Fev 2010 David Brito
 ! REVISION      : 
-! DESCRIPTION   : Module to serve as Runoff Properties 
+! DESCRIPTION   : Module to handle Properties in Runoff
 !
 !------------------------------------------------------------------------------
 !
@@ -78,7 +78,7 @@ Module ModuleRunoffProperties
     use ModuleRunoff,             only : GetOverLandFlow, UnGetRunoff, GetRunoffWaterColumn,  &
                                          GetFlowToChannels, GetRunoffCenterVelocity,          &
                                          GetRunoffWaterColumnOld, GetRunoffWaterColumn,       &
-                                         GetManning, GetRunoffCenterVelocity      
+                                         GetManning, GetManningDelta, GetRunoffCenterVelocity      
 !    use ModuleInterface,          only : ConstructInterface, Modify_Interface
     use ModuleAdvectionDiffusion, only : StartAdvectionDiffusion, AdvectionDiffusion,      &
                                          GetAdvFlux, GetDifFlux, GetBoundaryConditionList, &
@@ -116,6 +116,8 @@ Module ModuleRunoffProperties
     public  :: SetDNConcRP        !RP gets DN conc 
     public  :: SetBasinConcRP     !RP gets Basin WC conc (updated each time a module changes water column)
     public  :: SetBasinToRPSplash !RP gets through fall and canopy height to compute splash erosion
+    public  :: SetVegetationRP    !RP gets flux from vegetation to fluffy - fertilization organic particulate material
+
 !    public  :: SetWindVelocity
     public  :: UnGetRunoffProperties
     
@@ -233,16 +235,29 @@ Module ModuleRunoffProperties
         real(8),    dimension(:,:  ), pointer       :: ThroughFall
         real,       dimension(:,:  ), pointer       :: CanopyHeight
         real(8),    dimension(:,:  ), pointer       :: CanopyDrainage
+        
+        !from vegetation to fluff layer
+        !If vegetation organic particulated material in fertilization
+        logical                                     :: CoupledVegetation
+        logical                                     :: VegParticFertilization
+        real,       dimension(:,:  ), pointer       :: FertilOrganicNParticFluff
+        real,       dimension(:,:  ), pointer       :: FertilOrganicPParticFluff
+        integer                                     :: VegetationDT
+        
      end type T_ExtVar
 
     type T_OutPut
         type (T_Time), pointer, dimension(:)    :: OutTime
+        type (T_Time), dimension(:), pointer    :: RestartOutTime        
         integer                                 :: NextOutPut
         integer                                 :: Number
         logical                                 :: Yes = .false.
         logical                                 :: TimeSerie_ON
         logical                                 :: HDF_ON
         logical                                 :: Profile_ON
+        logical                                 :: WriteRestartFile     = .false.        
+        logical                                 :: RestartOverwrite     = .false.
+        integer                                 :: NextRestartOutput    = 1        
     end type T_OutPut
 
     type T_AdvectionDiffusion   
@@ -398,7 +413,7 @@ Module ModuleRunoffProperties
         logical                                     :: AdvDiff_Explicit      ! 0 - Implicit; 1 explicit
         logical                                     :: Splash_CriticalHeight
         integer                                     :: Splash_ErosiveRainMethod ! 1-constant, 2 - real rain
-    
+            
     end type T_ComputeOptions
 
     !Implicit coef for thomas matrix
@@ -523,6 +538,8 @@ Module ModuleRunoffProperties
                                               InitialWaterColumn,                         &
                                               CoupledDN,                                  &
                                               CheckGlobalMass,                            &
+                                              CoupledVegetation,                          &
+                                              VegParticFertilization,                     &
                                               STAT)
      
         !Arguments---------------------------------------------------------------
@@ -536,6 +553,8 @@ Module ModuleRunoffProperties
         real                                            :: InitialWaterColumn
         logical, optional                               :: CoupledDN 
         logical                                         :: CheckGlobalMass
+        logical                                         :: CoupledVegetation
+        logical                                         :: VegParticFertilization
         integer, optional, intent(OUT)                  :: STAT 
         !External----------------------------------------------------------------
         integer                                         :: ready_         
@@ -574,8 +593,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 Me%ExtVar%CoupledDN  = CoupledDN
             endif            
             
-            Me%ExtVar%InitialWaterColumn = InitialWaterColumn
-            
+            Me%ExtVar%InitialWaterColumn     = InitialWaterColumn
+            Me%ExtVar%CoupledVegetation      = CoupledVegetation
+            Me%ExtVar%VegParticFertilization = VegParticFertilization
 
             call ReadFileNames
 
@@ -911,7 +931,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         !Local-----------------------------------------------------------------        
         integer                                         :: ILB, IUB, JLB,  JUB, IJLB, IJUB 
         integer                                         :: STAT_CALL
-        type (T_Property), pointer                      :: NewProperty 
+        type (T_Property), pointer                      :: NewProperty, ParticulateProperty 
         
         !Bounds
         ILB = Me%Size%ILB
@@ -1039,6 +1059,38 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 Me%ExtVar%CanopyDrainage = FillValueReal
                
             endif
+            
+        endif
+        
+        if (Me%ExtVar%CoupledVegetation .and. Me%ExtVar%VegParticFertilization) then
+
+            !Check if Property PON exists
+            call Search_Property(ParticulateProperty, PropertyXID = PON_, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) then
+                write(*,*) 'Need property particulate organic nitrogen'
+                write(*,*) 'in module runoff properties because vegetation is fertilizing'
+                write(*,*) 'particulate organic fertilizer that goes to fluff layer'
+                stop 'AllocateVariables - ModuleRunoffProperties - ERR0180'
+            endif
+            
+            !Check if Property POP exists
+            call Search_Property(ParticulateProperty, PropertyXID = POP_, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) then
+                write(*,*) 'Need property particulate organic phosphorus'
+                write(*,*) 'in module runoff properties because vegetation is fertilizing'
+                write(*,*) 'particulate organic fertilizer that goes to fluff layer'
+                stop 'AllocateVariables - ModuleRunoffProperties - ERR0190'
+            endif
+            
+            !flux in kg/ha
+            allocate(Me%ExtVar%FertilOrganicNParticFluff(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB), STAT = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleRunoffProperties - ERR200'
+            Me%ExtVar%FertilOrganicNParticFluff = 0.
+
+            allocate(Me%ExtVar%FertilOrganicPParticFluff(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB), STAT = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleRunoffProperties - ERR210'
+            Me%ExtVar%FertilOrganicPParticFluff = 0.
+            
         endif
 
     end subroutine AllocateVariables
@@ -2738,7 +2790,7 @@ do1:    do while(associated(Property))
         !Constructs TimeSerie
         call StartTimeSerie(Me%ObjTimeSerie, Me%ObjTime,                                &
                             TimeSerieLocationFile,                                      &
-                            PropertyList, "srr",                                        &
+                            PropertyList, "srrp",                                       &
                             WaterPoints2D = Me%ExtVar%BasinPoints,                      &
                             STAT         = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_) stop 'ConstructTimeSerie - ModuleRunoffProperties - ERR030' 
@@ -2861,6 +2913,17 @@ i1:         if (CoordON) then
                 write(*,*)'one property has HDF format outputs.'
                 stop 'ConstructHDF - ModuleRunoffProperties - ERR02'
             endif 
+
+            !Output for restart
+            call GetOutPutTime(Me%ObjEnterData,                                             &
+                               CurrentTime  = Me%ExtVar%Now,                                &
+                               EndTime      = Me%ExtVar%EndTime,                                   &
+                               keyword      = 'RESTART_FILE_OUTPUT_TIME',                   &
+                               SearchType   = FromFile,                                     &
+                               OutPutsTime  = Me%OutPut%RestartOutTime,                     &
+                               OutPutsOn    = Me%OutPut%WriteRestartFile,                   &
+                               STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR11a'
 
         endif
 
@@ -3041,12 +3104,22 @@ cd0:    if (Exist) then
             if (STAT_CALL /= SUCCESS_)                                                   &
                 stop 'ReadOldConcBoundariesHDF - ModuleRunoffProperties - ERR02'
 
-            call HDF5ReadData   (ObjHDF5, "/Concentration/"//NewProperty%ID%Name,        &
+            call HDF5ReadData   (ObjHDF5, "/Results/"//NewProperty%ID%Name,        &
                                  NewProperty%ID%Name,                                    &
                                  Array2D = NewProperty%Concentration,                    &
                                  STAT    = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                                   &
                 stop 'ReadOldConcBoundariesHDF - ModuleRunoffProperties - ERR03'
+
+            
+            if (NewProperty%Particulate) then
+                call HDF5ReadData   (ObjHDF5, "/Results/"//NewProperty%ID%Name//" Bottom",   &
+                                     NewProperty%ID%Name//" Bottom",                         &
+                                     Array2D = NewProperty%Concentration,                    &
+                                     STAT    = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)                                                   &
+                    stop 'ReadOldConcBoundariesHDF - ModuleRunoffProperties - ERR03'
+            endif
 
 
 !            call HDF5ReadData   (ObjHDF5, "/Concentration/"//NewProperty%ID%Name,        &
@@ -3899,6 +3972,74 @@ cd0:    if (Exist) then
 
     !---------------------------------------------------------------------------
 
+    subroutine SetVegetationRP   (RunoffPropertiesID, FertilOrganicNParticFluff, &
+                                      FertilOrganicPParticFluff, VegetationDT, STAT)
+
+        !Arguments--------------------------------------------------------------
+        integer                                         :: RunoffPropertiesID
+        real,    dimension(:, :), pointer, optional     :: FertilOrganicNParticFluff
+        real,    dimension(:, :), pointer, optional     :: FertilOrganicPParticFluff
+        real,    optional                               :: VegetationDT
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local------------------------------------------------------------------
+        integer                                         :: STAT_, ready_, i, j
+
+        !-----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(RunoffPropertiesID, ready_)
+
+        if (ready_ .EQ. IDLE_ERR_)then
+            
+            if (present(FertilOrganicNParticFluff)) then
+                call GetBasinPoints   (Me%ObjBasinGeometry, Me%ExtVar%BasinPoints, STAT = STAT_)
+                if (STAT_ /= SUCCESS_) stop 'SetVegetationRP - ModuleRunoffProperties - ERR01'            
+
+                do j=Me%WorkSize%JLB, Me%WorkSize%JUB
+                do i=Me%WorkSize%ILB, Me%WorkSize%IUB                    
+                    if (Me%ExtVar%BasinPoints(i,j) == BasinPoint) then
+
+                        Me%ExtVar%FertilOrganicNParticFluff(i,j)   = FertilOrganicNParticFluff(i,j)
+                    endif
+                enddo
+                enddo
+
+                call UnGetBasin   (Me%ObjBasinGeometry, Me%ExtVar%BasinPoints, STAT = STAT_)
+                if (STAT_ /= SUCCESS_) stop 'SetVegetationRP - ModuleRunoffProperties - ERR010'
+            endif
+            
+            if (present(FertilOrganicPParticFluff)) then
+                call GetBasinPoints   (Me%ObjBasinGeometry, Me%ExtVar%BasinPoints, STAT = STAT_)
+                if (STAT_ /= SUCCESS_) stop 'SetVegetationRP - ModuleRunoffProperties - ERR01'            
+
+                do j=Me%WorkSize%JLB, Me%WorkSize%JUB
+                do i=Me%WorkSize%ILB, Me%WorkSize%IUB                    
+                    if (Me%ExtVar%BasinPoints(i,j) == BasinPoint) then
+
+                        Me%ExtVar%FertilOrganicPParticFluff(i,j)   = FertilOrganicPParticFluff(i,j)
+                    endif
+                enddo
+                enddo
+
+                call UnGetBasin   (Me%ObjBasinGeometry, Me%ExtVar%BasinPoints, STAT = STAT_)
+                if (STAT_ /= SUCCESS_) stop 'SetVegetationRP - ModuleRunoffProperties - ERR010'            
+            endif
+            
+            if (present(VegetationDT)) Me%ExtVar%VegetationDT = VegetationDT
+                
+            STAT_ = SUCCESS_
+        else
+            STAT_ = ready_
+        end if
+
+        STAT = STAT_
+
+    end subroutine SetVegetationRP 
+
+    !---------------------------------------------------------------------------
+
     subroutine GetRPMassBalance (RunoffPropertiesID,                        &
                                   PropertyID,                               &
                                   TotalStoredMass,                          &
@@ -4265,6 +4406,9 @@ cd0:    if (Exist) then
             !Eduardo Jauch
             !Actualize properties if evolution from file
             call ActualizePropertiesFromFile
+
+            !Nutrient sources from vegetation - fertilization particulate to fluff layer 
+            call InterfaceFluxes
             
             if (Me%Coupled%AdvectionDiffusion) then
                 call AdvectionDiffusionProcesses
@@ -4303,6 +4447,13 @@ cd0:    if (Exist) then
                 call OutPut_HDF
             endif
 
+            !Restart Output
+            if (Me%Output%WriteRestartFile .and. .not. (Me%ExtVar%Now == Me%ExtVar%EndTime)) then
+                if(Me%ExtVar%Now >= Me%OutPut%RestartOutTime(Me%OutPut%NextRestartOutput))then
+                    call WriteFinalFile
+                    Me%OutPut%NextRestartOutput = Me%OutPut%NextRestartOutput + 1
+                endif
+            endif
 
             call Actualize_Time_Evolution
 
@@ -4321,6 +4472,77 @@ cd0:    if (Exist) then
 
     end subroutine ModifyRunoffProperties
 
+    !-----------------------------------------------------------------------------
+
+    subroutine InterfaceFluxes !routine for mass sources - from vegetation (OM fertilization to fluff layer)
+        !Local--------------------------------------------------------------------
+        !Begin--------------------------------------------------------------------
+
+        if (Me%ExtVar%CoupledVegetation .and. Me%ExtVar%VegParticFertilization) then
+            call VegetationInterfaceFluxes
+        endif
+
+
+    end subroutine InterfaceFluxes
+ 
+    !-----------------------------------------------------------------------------
+
+    subroutine VegetationInterfaceFluxes !routine for mass sources - from vegetation (OM fertilization to fluff layer)
+        !Local--------------------------------------------------------------------
+        type (T_Property), pointer                :: Property
+        integer                                   :: STAT_CALL, i,j
+        real                                      :: ModelDT, VegDT
+        real                                      :: CellWaterVolume
+        !Begin--------------------------------------------------------------------
+
+        
+        call GetComputeTimeStep (Me%ObjTime, ModelDT, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'VegetationInterfaceFluxes - ModuleRunoffProperties - ERR010'
+        
+        VegDT = Me%ExtVar%VegetationDT
+        
+        call Search_Property(Property, PON_, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'VegetationInterfaceFluxes - ModuleRunoffProperties - ERR01'
+            
+        do J = Me%WorkSize%JLB, Me%WorkSize%JUB
+        do I = Me%WorkSize%ILB, Me%WorkSize%IUB
+            
+            if (Me%ExtVar%BasinPoints(i,j) == BasinPoint) then
+            
+                !m3             = m  * m2
+                CellWaterVolume = Me%ExtVar%WaterColumnOld(i,j) * Me%ExtVar%Area(i,j) 
+                !kgN/m2                          = kg/m2  + (kg/ha * dt/vegdt * 1ha/10000m2)  
+                Property%BottomConcentration(i,j) = Property%BottomConcentration(i,j)                          &
+                                                   + (Me%ExtVar%FertilOrganicNParticFluff(i,j)                     &
+                                                    * (ModelDT / VegDT)  / 10000.)   
+                                                
+            endif
+        enddo
+        enddo
+ 
+        call Search_Property(Property, POP_, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'VegetationInterfaceFluxes - ModuleRunoffProperties - ERR01'
+            
+        do J = Me%WorkSize%JLB, Me%WorkSize%JUB
+        do I = Me%WorkSize%ILB, Me%WorkSize%IUB
+            
+            if (Me%ExtVar%BasinPoints(i,j) == BasinPoint) then
+            
+                !m3             = m  * m2
+                CellWaterVolume = Me%ExtVar%WaterColumnOld(i,j) * Me%ExtVar%Area(i,j) 
+                !kgN/m2                          = kg/m2  + (kg/ha * dt/vegdt * 1ha/10000m2)  
+                Property%BottomConcentration(i,j) = Property%BottomConcentration(i,j)                          &
+                                                   + (Me%ExtVar%FertilOrganicPParticFluff(i,j)                     &
+                                                    * (ModelDT / VegDT)  / 10000.)   
+                                                
+            endif
+        enddo
+        enddo
+        
+
+
+    end subroutine VegetationInterfaceFluxes
+ 
     !-----------------------------------------------------------------------------
     
     subroutine ModifyDiffusivity_Old(PropertyX)
@@ -6327,7 +6549,7 @@ if2:                if (Me%ExtVar%BasinPoints(i,j) == BasinPoint) then
 
         !Local-----------------------------------------------------------------
         integer                                     :: STAT_CALL, i, j
-        real                                        :: Chezy, CenterVelocity
+        real                                        :: Chezy, CenterVelocity, FinalManning
 !        real                                        :: Area_U, Area_V
 !        real                                        :: WetPerimeter_U, WetPerimeter_V
 !        real                                        :: HydraulicRadius
@@ -6335,6 +6557,7 @@ if2:                if (Me%ExtVar%BasinPoints(i,j) == BasinPoint) then
         real, dimension(:,:), pointer               :: DUX, DVY
         real(8), dimension(:,:), pointer            :: WaterColumn
         real, dimension(:,:), pointer               :: Manning
+        real, dimension(:,:), pointer               :: ManningDelta
         !----------------------------------------------------------------------
         
 !        if (Me%ComputeOptions%ShearModel == Chezy_) then
@@ -6348,6 +6571,10 @@ if2:                if (Me%ExtVar%BasinPoints(i,j) == BasinPoint) then
             
             call GetManning (ObjRunOffID = Me%ObjRunoff, Manning = Manning, STAT = STAT_CALL)  
             if (STAT_CALL /= SUCCESS_)  stop 'ModifyShearStress - ModuleRunoffProperties - ERR01'        
+  
+  
+            call GetManningDelta (ObjRunOffID = Me%ObjRunoff, ManningDelta = ManningDelta, STAT = STAT_CALL)  
+            if (STAT_CALL /= SUCCESS_)  stop 'ModifyShearStress - ModuleRunoffProperties - ERR05' 
             
             call GetRunoffCenterVelocity (Me%ObjRunoff, CenterVelocityX, CenterVelocityY, STAT_CALL)  
             if (STAT_CALL /= SUCCESS_)  stop 'ModifyShearStress - ModuleRunoffProperties - ERR010'   
@@ -6359,31 +6586,20 @@ if2:                if (Me%ExtVar%BasinPoints(i,j) == BasinPoint) then
 
                 if ((Me%ExtVar%BasinPoints(I,J) == BasinPoint) .and. (WaterColumn(i,j) .gt. Me%HminChezy)) then  
                     
-!                    !two possible areas for hydraulic radius in center cell
-!                    !m2
-!                    Area_U      = WaterColumn(i,j) * DVY(i,j)
-!                    Area_V      = WaterColumn(i,j) * DUX(i,j)
-!                    !m
-!                    WetPerimeter_U   = 2 * ( WaterColumn(i,j) +  DVY(i,j))  
-!                    WetPerimeter_V   = 2 * ( WaterColumn(i,j) +  DUX(i,j))        
-!                    
-!                    !m
-!                    HydraulicRadius = 0.5 * ((Area_U / WetPerimeter_U) + (Area_U / WetPerimeter_U))             
+                   
+                    !To compute overland resistance in bottom for shear computation (erosion/deposition).
+                    !This process was created to remove from manning the resistance given by 
+                    !aerial vegetation parts that affect flow but do not affect bottom shear. Without that,
+                    !a manning increase (e.g. forestation) in one cell increases water depth (and reduces velocity)
+                    !but may increase shear stress (because water height increase is transformed in bottom resistance 
+                    !using manning - chezy)
+                    !Manning change if user loaded values in runoff else ManningDelta will be zero and no change                    
+                    FinalManning = Manning(i,j) - ManningDelta(i,j)
                     
-!                    if (HydraulicRadius > AllmostZero) then
-!                        !Need to Check manning units!!! in order to work manning^2 should be 
-                         ![m^(-4/3) * s2] but is said that manning is [m^-1/3 * s]
-!                        ![-]  = [m/s2] * [m^-4/3 * s2] / [m]^1/3 
-!                        Chezy = Gravity * Manning(i,j)**2.0 / (HydraulicRadius** (1./3.))
-!                    else 
-!                        Chezy = 0.0
-!                    end if
-
+                    !Hydraulic radius is water column in runoff
                     if (WaterColumn(i,j) > Me%HminChezy) then
-                        !Need to Check manning units!!! in order to work manning^2 should be [m^(-4/3) * s2] 
-                        !but is said that manning is [m^-1/3 * s]
-                        ![-]  = [m/s2] * [m^-4/3 * s2] / [m]^1/3 
-                        Chezy = Gravity * Manning(i,j)**2.0 / (WaterColumn(i,j)** (1./3.))
+                        ![-]  = [m.s-2] * [(s.m(-1/3))^2 == s2.m(-2/3)] / [m(-1/3)] 
+                        Chezy = Gravity * FinalManning**2.0 / (WaterColumn(i,j)** (1./3.))
                     else 
                         Chezy = 0.0
                     end if
@@ -6405,6 +6621,9 @@ if2:                if (Me%ExtVar%BasinPoints(i,j) == BasinPoint) then
 
             call UnGetRunoff (Me%ObjRunoff, Manning, STAT_CALL)  
             if (STAT_CALL /= SUCCESS_)  stop 'ModifyShearStress - ModuleRunoffProperties - ERR020'        
+ 
+            call UnGetRunoff (Me%ObjRunoff, ManningDelta, STAT_CALL)  
+            if (STAT_CALL /= SUCCESS_)  stop 'ModifyShearStress - ModuleRunoffProperties - ERR025'        
             
             call UnGetRunoff (Me%ObjRunoff, CenterVelocityX, STAT_CALL)  
             if (STAT_CALL /= SUCCESS_)  stop 'ModifyShearStress - ModuleRunoffProperties - ERR030'        
@@ -6808,9 +7027,10 @@ cd1:            if(Me%ExtVar%Now .GE. PropertyX%Evolution%NextCompute) then
     !                    if (STAT_CALL /= SUCCESS_)                                      &
     !                        stop 'Partition_Processes - ModuleRunoffProperties - ERR03'
     !                endif
-
-                
-                    DT = PropertyX%Evolution%DTInterval
+                    
+                    !Info about old mass and concentration is for last instant and not Dtinterval
+                    DT = Me%ExtVar%DT
+                    !DT = PropertyX%Evolution%DTInterval
 
     do1:            do j = JLB, JUB
     do2:            do i = ILB, IUB
@@ -7330,7 +7550,7 @@ First:          if (LastTime.LT.Actual) then
                     
                             call HDF5WriteData   (Me%ObjHDF5,                                      &
                                                   "/Results/"//trim(PropertyX%ID%Name)//" Bottom", &
-                                                  trim(PropertyX%ID%Name),                         &
+                                                  trim(PropertyX%ID%Name)//" Bottom",              &
                                                   "kg/m2",                                         &
                                                   Array2D = PropertyX%BottomConcentration,         &
                                                   OutputNumber = OutPutNumber,                     &
@@ -7339,7 +7559,7 @@ First:          if (LastTime.LT.Actual) then
 
                             call HDF5WriteData   (Me%ObjHDF5,                                      &
                                                   "/Results/"//trim(PropertyX%ID%Name)//" Total",  &
-                                                  trim(PropertyX%ID%Name),                         &
+                                                  trim(PropertyX%ID%Name)//" Total",               &
                                                   "kg/m2",                                         &
                                                   Array2D = PropertyX%TotalConcentration,          &
                                                   OutputNumber = OutPutNumber,                     &
@@ -7350,9 +7570,9 @@ First:          if (LastTime.LT.Actual) then
 
                                 call HDF5WriteData   (Me%ObjHDF5,                                      &
                                                       "/Results/"//trim(PropertyX%ID%Name)//" Erosion Rate", &
-                                                      trim(PropertyX%ID%Name),                         &
+                                                      trim(PropertyX%ID%Name)//" Erosion Rate",       &
                                                       "kg/m2.s",                                       &
-                                                      Array2D = PropertyX%ErosionRate,         &
+                                                      Array2D = PropertyX%ErosionRate,                 &
                                                       OutputNumber = OutPutNumber,                     &
                                                       STAT = STAT_CALL)
                                 if (STAT_CALL /= SUCCESS_) stop 'OutPutHDF - ModuleRunoffproperties - ERR07'
@@ -7362,7 +7582,7 @@ First:          if (LastTime.LT.Actual) then
 
                                 call HDF5WriteData   (Me%ObjHDF5,                                      &
                                                       "/Results/"//trim(PropertyX%ID%Name)//" Deposition Rate", &
-                                                      trim(PropertyX%ID%Name),                         &
+                                                      trim(PropertyX%ID%Name)//" Deposition Rate",     &
                                                       "kg/m2.s",                                       &
                                                       Array2D = PropertyX%DepositionRate,              &
                                                       OutputNumber = OutPutNumber,                     &
@@ -7370,8 +7590,8 @@ First:          if (LastTime.LT.Actual) then
                                 if (STAT_CALL /= SUCCESS_) stop 'OutPutHDF - ModuleRunoffproperties - ERR07.5'
 
                                 call HDF5WriteData   (Me%ObjHDF5,                                     &
-                                                      "/Results/"//trim(PropertyX%ID%Name)//"Fall Velocity",& 
-                                                      "Fall Velocity",                                &
+                                                      "/Results/"//trim(PropertyX%ID%Name)//" Fall Velocity",& 
+                                                      trim(PropertyX%ID%Name)//" Fall Velocity",      &
                                                       "m/s",                                          &
                                                       Array2D = PropertyX%Ws,                         &
                                                       OutputNumber = OutPutNumber,                    &
@@ -7384,7 +7604,7 @@ First:          if (LastTime.LT.Actual) then
                            
                                 call HDF5WriteData   (Me%ObjHDF5,                                      &
                                                       "/Results/"//trim(PropertyX%ID%Name)//" Splash Rate", &
-                                                      trim(PropertyX%ID%Name),                         &
+                                                      trim(PropertyX%ID%Name)//" Splash Rate",         &
                                                       "kg/m2.s",                                       &
                                                       Array2D = PropertyX%SplashRate,                  &
                                                       OutputNumber = OutPutNumber,                     &
@@ -7446,7 +7666,7 @@ First:          if (LastTime.LT.Actual) then
 
                     call HDF5WriteData   (Me%ObjHDF5,                                     &
                                           "/Results/"//"Critical Shear Stress Deposition",& 
-                                          "Critical Shear Stress Erosion",                &
+                                          "Critical Shear Stress Deposition",             &
                                           "N/m2",                                         &
                                           Array2D = Me%DepositionCriticalShear%Field,     &
                                           OutputNumber = OutPutNumber,                    &
@@ -7465,6 +7685,144 @@ First:          if (LastTime.LT.Actual) then
         endif  TNum
 
     end subroutine OutPut_HDF
+
+    !----------------------------------------------------------------------------
+
+    subroutine WriteFinalFile
+
+        !Local-----------------------------------------------------------------
+        type (T_Property), pointer                  :: PropertyX
+        integer                                     :: STAT_CALL
+        integer                                     :: OutPutNumber
+        integer                                     :: HDF5_CREATE
+        character(LEN = PathLength)                 :: FileName
+        integer                                     :: ObjHDF5
+        real, dimension(6), target                  :: AuxTime
+        real, dimension(:), pointer                 :: TimePtr
+        type (T_Time)                               :: Actual               
+        !Begin----------------------------------------------------------------
+
+        !Gets a pointer to Topography
+        call GetGridData        (Me%ObjGridData, Me%ExtVar%Topography, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModuleRunoffProperties - ERR00'
+
+        call GetBasinPoints   (Me%ObjBasinGeometry, Me%ExtVar%BasinPoints, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModuleRunoffProperties - ERR01'
+
+          !Gets File Access Code
+        call GetHDF5FileAccess  (HDF5_CREATE = HDF5_CREATE)
+
+        !Checks if it's at the end of the run 
+        !or !if it's supposed to overwrite the final HDF file
+        if ((Me%ExtVar%Now == Me%ExtVar%EndTime) .or. Me%Output%RestartOverwrite) then
+
+            filename = trim(Me%Files%FinalFile)
+
+        else
+
+            FileName = ChangeSuffix(Me%Files%FinalFile,                                 &
+                            "_"//trim(TimeToString(Me%ExtVar%Now))//".fin")
+
+        endif
+
+
+        ObjHDF5 = 0
+        !Opens HDF5 File
+        call ConstructHDF5 (ObjHDF5,                                                     &
+                            trim(filename)//"5",    &
+                            HDF5_CREATE, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)                                                       &
+            stop 'WriteFinalFile - ModuleRunoffProperties - ERR10'
+
+        Actual   = Me%ExtVar%Now
+         
+        call ExtractDate   (Actual, AuxTime(1), AuxTime(2), AuxTime(3),          &
+                                    AuxTime(4), AuxTime(5), AuxTime(6))
+        !Writes Time
+        TimePtr => AuxTime
+        call HDF5SetLimits  (ObjHDF5, 1, 6, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModuleRunoffProperties - ERR11'
+
+        call HDF5WriteData  (ObjHDF5, "/Time", "Time", "YYYY/MM/DD HH:MM:SS",      &
+                             Array1D = TimePtr, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModuleRunoffProperties - ERR12'
+
+
+        !Sets limits for next write operations
+        call HDF5SetLimits   (ObjHDF5,                                &
+                              Me%WorkSize%ILB,                           &
+                              Me%WorkSize%IUB,                           &
+                              Me%WorkSize%JLB,                           &
+                              Me%WorkSize%JUB,                           &
+                              STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModuleRunoffproperties - ERR02'
+
+        !Write the Horizontal Grid
+        call WriteHorizontalGrid(Me%ObjHorizontalGrid, ObjHDF5, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModuleRunoffProperties - ERR25'
+
+        !Writes the Grid
+        call HDF5WriteData   (ObjHDF5, "/Grid", "Bathymetry", "m",           &
+                              Array2D = Me%ExtVar%Topography, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModuleRunoffProperties - ERR05'
+
+        !WriteBasinPoints
+        call HDF5WriteData   (ObjHDF5, "/Grid", "BasinPoints", "-",          &
+                              Array2D = Me%ExtVar%BasinPoints, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModuleRunoffProperties - ERR07'
+
+
+        PropertyX => Me%FirstProperty
+        do while (associated(PropertyX))
+
+            call HDF5SetLimits   (ObjHDF5,                                &
+                                  Me%WorkSize%ILB,                           &
+                                  Me%WorkSize%IUB,                           &
+                                  Me%WorkSize%JLB,                           &
+                                  Me%WorkSize%JUB,                           &
+                                  STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModuleRunoffproperties - ERR10'
+
+            call HDF5WriteData   (ObjHDF5,                                    &
+                                  "/Results/"//trim(PropertyX%ID%Name),          &
+                                  trim(PropertyX%ID%Name),                       &
+                                  trim(PropertyX%ID%Units),                      &
+                                  Array2D = PropertyX%Concentration,             &
+                                  STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModuleRunoffproperties - ERR14'
+                
+            if(PropertyX%Particulate) then
+        
+                call HDF5WriteData   (ObjHDF5,                                      &
+                                      "/Results/"//trim(PropertyX%ID%Name)//" Bottom", &
+                                      trim(PropertyX%ID%Name)//" Bottom",              &
+                                      "kg/m2",                                         &
+                                      Array2D = PropertyX%BottomConcentration,         &
+                                      OutputNumber = OutPutNumber,                     &
+                                      STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModuleRunoffproperties - ERR15'
+
+                   
+            endif
+            
+            PropertyX => PropertyX%Next
+
+        enddo
+
+        !Writes everything to disk
+        call HDF5FlushMemory (ObjHDF5, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModuleRunoffproperties - ERR030'
+
+        !Unget
+        call UnGetBasin   (Me%ObjBasinGeometry, Me%ExtVar%BasinPoints, STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModuleRunoffProperties - ERR90'  
+
+        !UnGets Topography
+        call UnGetGridData      (Me%ObjGridData, Me%ExtVar%Topography, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModuleRunoffProperties - ERR100'
+            
+
+    end subroutine WriteFinalFile
 
     !----------------------------------------------------------------------------
     
@@ -7584,7 +7942,8 @@ First:          if (LastTime.LT.Actual) then
 cd1 :   if (ready_ .NE. OFF_ERR_) then
 
             nUsers = DeassociateInstance(mRunoffProperties_,  Me%InstanceID)
-
+            
+            call WriteFinalFile
 
             PropertyX => Me%FirstProperty
             

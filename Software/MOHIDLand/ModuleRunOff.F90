@@ -71,6 +71,7 @@ Module ModuleRunOff
     !Selector
     public  ::  GetOverLandFlow
     public  ::  GetManning
+    public  ::  GetManningDelta
     public  ::  GetFlowToChannels
     public  ::  GetFlowAtBoundary
     public  ::  GetFlowDischarge
@@ -181,6 +182,7 @@ Module ModuleRunOff
         real(8), dimension(:,:), pointer            :: lFlowX, lFlowY           => null() !Instantaneous OverLandFlow (LocalDT   )
         real(8), dimension(:,:), pointer            :: iFlowX, iFlowY           => null() !Integrated    OverLandFlow (AfterSumDT)
         real,    dimension(:,:), pointer            :: OverLandCoefficient      => null() !Manning or Chezy
+        real,    dimension(:,:), pointer            :: OverLandCoefficientDelta => null() !For erosion/deposition
         real,    dimension(:,:), pointer            :: OverLandCoefficientX     => null() !Manning or Chezy
         real,    dimension(:,:), pointer            :: OverLandCoefficientY     => null() !Manning or Chezy
         real, dimension(:,:), pointer               :: CenterFlowX, CenterFlowY
@@ -417,8 +419,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         !Local-----------------------------------------------------------------
         integer                                     :: ObjEnterData = 0
         integer                                     :: STAT_CALL
+        type(T_PropertyID)                          :: OverLandCoefficientDeltaID
         integer                                     :: iflag, ClientNumber
         logical                                     :: BlockFound
+        integer                                     :: i, j
 
         !Reads the name of the data file from nomfich
         call ReadFileName ('RUNOFF_DATA', Me%Files%DataFile, "RunOff Data File", STAT = STAT_CALL)
@@ -483,7 +487,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR04'
 
-        if (Me%Routing /= Manning_ .and. Me%Routing /= Chezy_) then
+        !if (Me%Routing /= Manning_ .and. Me%Routing /= Chezy_) then
+        if (Me%Routing /= Manning_) then
             write (*,*) 'Invalid Routing Method [ROUTING]'
             stop 'ReadDataFile - ModuleRunOff - ERR07'
         end if
@@ -685,10 +690,82 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             call KillFillMatrix(Me%OverLandCoefficientID%ObjFillMatrix, STAT = STAT_CALL)
             if (STAT_CALL  /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR07'
 
+
+            !Check that manning values entered are not zero or negative
+            do j = Me%Size%JLB, Me%Size%JUB
+            do i = Me%Size%ILB, Me%Size%IUB
+
+                if (Me%ExtVar%BasinPoints(i, j) == BasinPoint) then
+                    
+                    if (.not. Me%OverLandCoefficient(i,j) .gt. 0.0) then
+                        write(*,*) 'Found Manning Overland coefficient zero or negative in input'
+                        write(*,*) 'in cell', i, j
+                        stop 'ReadDataFile - Module Runoff - ERR08'
+                    endif
+                
+                
+                endif
+                
+            enddo
+            enddo
+
         else
             write(*,*)'Missing Block <BeginOverLandCoefficient> / <EndOverLandCoefficient>' 
             stop      'ReadDataFile - ModuleRunOff - ERR08'
         endif
+        
+
+        
+        !Gets Block for OverLand Coef Difference 
+        !To compute overland resistance in bottom for shear computation (erosion/deposition).
+        !This process was created to remove from manning the resistance given by 
+        !aerial vegetation parts that affect flow but do not affect bottom shear. Without that,
+        !a manning increase (e.g. forestation) in one cell increases water depth (and reduces velocity)
+        !but may increase shear stress (because water height increase is transformed in bottom resistance 
+        !using manning - chezy see module runoff properties)
+        call ExtractBlockFromBuffer(ObjEnterData, ClientNumber,                  &
+                                    '<BeginOverLandCoefficientDelta>',           &
+                                    '<EndOverLandCoefficientDelta>', BlockFound, &
+                                    STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR015'
+        if (BlockFound) then
+            call ConstructFillMatrix  ( PropertyID       = OverLandCoefficientDeltaID,   &
+                                        EnterDataID      = ObjEnterData,                 &
+                                        TimeID           = Me%ObjTime,                   &
+                                        HorizontalGridID = Me%ObjHorizontalGrid,         &
+                                        ExtractType      = FromBlock,                    &
+                                        PointsToFill2D   = Me%ExtVar%BasinPoints,        &
+                                        Matrix2D         = Me%OverLandCoefficientDelta,  &
+                                        TypeZUV          = TypeZ_,                       &
+                                        STAT             = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR020'
+
+            call KillFillMatrix(OverLandCoefficientDeltaID%ObjFillMatrix, STAT = STAT_CALL)
+            if (STAT_CALL  /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR030'
+
+            !Check that final manning values are not zero or negative
+            do j = Me%Size%JLB, Me%Size%JUB
+            do i = Me%Size%ILB, Me%Size%IUB
+
+                if (Me%ExtVar%BasinPoints(i, j) == BasinPoint) then
+                    
+                    if (.not. (Me%OverLandCoefficient(i,j) - Me%OverLandCoefficientDelta(i,j)) .gt. 0.0) then
+                        write(*,*) 'Manning Overland coefficient delta found zero or negative in input'
+                        write(*,*) 'in cell', i, j
+                        stop 'ReadDataFile - Module Runoff - ERR09'
+                    endif
+                
+                
+                endif
+                
+            enddo
+            enddo
+
+        else
+            !Do not remove aerial vegetation effect from manning 
+            Me%OverLandCoefficientDelta(:,:) = 0.0
+        endif
+        
 
          !Write Max Flow Modulus File 
         call GetData(Me%WriteMaxFlowModulus,                                    &
@@ -855,11 +932,13 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         Me%lFlowY               = 0.0
 
         allocate(Me%OverLandCoefficient  (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
+        allocate(Me%OverLandCoefficientDelta (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
         allocate(Me%OverLandCoefficientX (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
         allocate(Me%OverLandCoefficientY (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
-        Me%OverLandCoefficient  = null_real
-        Me%OverLandCoefficientX = null_real
-        Me%OverLandCoefficientY = null_real
+        Me%OverLandCoefficient       = null_real
+        Me%OverLandCoefficientDelta  = null_real
+        Me%OverLandCoefficientX      = null_real
+        Me%OverLandCoefficientY      = null_real
         
        
         allocate (Me%CenterFlowX    (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
@@ -1399,6 +1478,40 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
     end subroutine GetManning
 
     !--------------------------------------------------------------------------    
+
+
+    subroutine GetManningDelta (ObjRunOffID, ManningDelta, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                                         :: ObjRunOffID
+        real, dimension(:, :), pointer                  :: ManningDelta
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                         :: STAT_, ready_
+
+        !----------------------------------------------------------------------
+
+        call Ready(ObjRunOffID, ready_)    
+        
+cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+            
+            call Read_Lock(mRUNOFF_, Me%InstanceID)
+            ManningDelta => Me%OverlandCoefficientDelta
+
+           
+            STAT_ = SUCCESS_
+        else 
+            STAT_ = ready_
+        end if cd1
+
+        if (present(STAT)) STAT = STAT_
+
+    end subroutine GetManningDelta
+
+    !--------------------------------------------------------------------------   
+
     
     subroutine GetRunoffTotalStoredVolume (ObjRunoffID, TotalStoredVolume, STAT)
 
@@ -2847,10 +2960,13 @@ doIter:         do while (iter <= Niter)
                 else
                     Coef = OverLandCoefficient 
                 endif
-            
+                
+                !m3.s-1 = m * m(5/3) / (s.m(-1/3)) = m * m2 / s
                 FlowRouting = Width * (WaterColumn - Me%MinimumWaterColumn)**(5./3.) * sqrt(Slope) / Coef
-            else if (RoutingMethod == Chezy_) then
-                FlowRouting = Width * (WaterColumn - Me%MinimumWaterColumn) * sqrt(Slope) * OverLandCoefficient
+
+!            !Chezy units are wrong so it was removed
+!            else if (RoutingMethod == Chezy_) then
+!                FlowRouting = Width * (WaterColumn - Me%MinimumWaterColumn) * sqrt(Slope) * OverLandCoefficient
             end if
             
             if (Me%ImposeMaxVelocity) then

@@ -437,6 +437,13 @@ Module ModuleDrainageNetwork
     integer, parameter                              :: UnitMax              = 80
 
     !Types---------------------------------------------------------------------
+
+    type T_FlowFrequency
+        type (T_Time)                               :: StartDate
+        type (T_Time)                               :: StopDate
+        real                                        :: MinimumFlow
+    end type T_FlowFrequency
+
     type T_OutPut
         type (T_Time), dimension(:), pointer        :: OutTime
         type (T_Time), dimension(:), pointer        :: RestartOutTime
@@ -445,6 +452,8 @@ Module ModuleDrainageNetwork
         logical                                     :: WriteRestartFile     = .false.
         logical                                     :: RestartOverwrite     = .false.
         integer                                     :: NextRestartOutput    = 1
+        logical                                     :: ComputeFlowFrequency = .false.
+        type (T_FlowFrequency)                      :: FlowFrequency        
     end type T_OutPut
 
     type T_Files 
@@ -527,6 +536,7 @@ Module ModuleDrainageNetwork
         character(len=StringLength)                 :: StationName              = ''
         real                                        :: SingCoef                 = 1.0
         type(T_MaxValues)                           :: Max
+        real                                        :: EVTP                     = null_real !m/s evapotranspiration in pools
     end type  T_Node
 
     type T_Reach
@@ -553,6 +563,11 @@ Module ModuleDrainageNetwork
         real                                        :: HydroPressure            = 0.0
         real                                        :: HydroGravity             = 0.0
         real                                        :: HydroFriction            = 0.0
+        
+        !Flow accumulation analisys
+        real                                        :: InitialFlowAccTime       = 0.0
+        real                                        :: FlowAccTime              = 0.0
+        real                                        :: FlowAccPerc              = 0.0
 
     end type   T_Reach
 
@@ -614,6 +629,7 @@ Module ModuleDrainageNetwork
         logical                                     :: SumTotalConc             = .false.
         logical                                     :: ComputeLoad              = .false.
         logical                                     :: CalcFractionSediment     = .false.
+        logical                                     :: EVTPFromReach            = .false.
     end type T_ComputeOptions
 
     type       T_Coupling
@@ -831,6 +847,10 @@ Module ModuleDrainageNetwork
         logical                                     :: WriteMaxStationValues        = .false.
 
         logical                                     :: OutputHydro                  = .false.
+        
+        !Evapotranspirate in reach pools
+        real                                        :: EVTPMaximumDepth
+        real                                        :: EVTPCropCoefficient
 
         type (T_DrainageNetwork), pointer           :: Next                         => null()
     end type  T_DrainageNetwork
@@ -1490,6 +1510,89 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)  stop 'ReadDataFile - ModuleDrainageNetwork - ERR42'
 
+        call GetData(Me%Output%ComputeFlowFrequency,                                    &
+                     Me%ObjEnterData,                                                   &
+                     flag,                                                              &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'OUTPUT_FLOW_FREQUENCY',                            &
+                     Default      = .false.,                                            &
+                     ClientModule = 'ModuleBasin',                                      &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)  stop 'ReadDataFile - ModuleDrainageNetwork - ERR50'
+        
+        if (Me%Output%ComputeFlowFrequency) then
+            !Reads Begin Time for frequency analisys
+            call GetData(Me%Output%FlowFrequency%StartDate,                                 &
+                         Me%ObjEnterData,                                                   &
+                         flag,                                                              &
+                         SearchType   = FromFile,                                           &
+                         keyword      = 'FLOW_FREQUENCY_STARTDATE',                         &
+                         Default      = Me%BeginTime,                                       &
+                         ClientModule = 'ModuleBasin',                                      &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)  stop 'ReadDataFile - ModuleDrainageNetwork - ERR55'            
+
+
+            call GetData(Me%Output%FlowFrequency%StopDate,                                  &
+                         Me%ObjEnterData,                                                   &
+                         flag,                                                              &
+                         SearchType   = FromFile,                                           &
+                         keyword      = 'FLOW_FREQUENCY_ENDDATE',                           &
+                         Default      = Me%EndTime,                                         &
+                         ClientModule = 'ModuleBasin',                                      &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)  stop 'ReadDataFile - ModuleDrainageNetwork - ERR60'            
+            
+            call GetData(Me%Output%FlowFrequency%MinimumFlow,                               &
+                         Me%ObjEnterData,                                                   &
+                         flag,                                                              &
+                         SearchType   = FromFile,                                           &
+                         keyword      = 'FLOW_FREQUENCY_MINIMUMFLOW',                       &
+                         Default      = 0.0,                                                &
+                         ClientModule = 'ModuleBasin',                                      &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)  stop 'ReadDataFile - ModuleDrainageNetwork - ERR65'            
+
+        
+        endif
+        
+        !to evapotrnaspirate from reach - in drying pools where vegetation accumulates and removes water
+        call GetData(Me%ComputeOptions%EVTPFromReach,                                   &
+                     Me%ObjEnterData,                                                   &
+                     flag,                                                              &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'EVTP_FROM_REACH',                                  &
+                     Default      = .false.,                                            &
+                     ClientModule = 'ModuleBasin',                                      &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)  stop 'ReadDataFile - ModuleDrainageNetwork - ERR70'
+        
+        if (Me%ComputeOptions%EVTPFromReach) then
+            
+            !maximum depth to happen evtp (vegetation only installs in low flow conditions)
+            call GetData(Me%EVTPMaximumDepth,                                               &
+                         Me%ObjEnterData,                                                   &
+                         flag,                                                              &
+                         SearchType   = FromFile,                                           &
+                         keyword      = 'EVTP_MAXIMUM_DEPTH',                               &
+                         Default      = 0.1,                                                &
+                         ClientModule = 'ModuleBasin',                                      &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)  stop 'ReadDataFile - ModuleDrainageNetwork - ERR80'
+
+
+            !crop coefficient - multiply by potential evapotransp.
+            call GetData(Me%EVTPCropCoefficient,                                            &
+                         Me%ObjEnterData,                                                   &
+                         flag,                                                              &
+                         SearchType   = FromFile,                                           &
+                         keyword      = 'EVTP_CROP_COEF',                                   &
+                         Default      = 1.0,                                                &
+                         ClientModule = 'ModuleBasin',                                      &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)  stop 'ReadDataFile - ModuleDrainageNetwork - ERR90'
+            
+        endif
 
     end subroutine ReadDataFile
     
@@ -7115,6 +7218,11 @@ do2 :   do while (associated(PropertyX))
 
                 SumDT = SumDT + LocalDT
                 iter  = iter  + 1
+
+                if (Me%Output%ComputeFlowFrequency) then
+                    call ComputeFlowFrequency (LocalDT, SumDT)
+                endif                
+
                 
             endif
 
@@ -7135,6 +7243,9 @@ do2 :   do while (associated(PropertyX))
             
         !Exchages heat with surface
         if (Me%ComputeOptions%SurfaceFluxes     ) call ComputeSurfaceFluxes     ()      
+
+        !Transpiration by vegetation inside river - in drying pools
+        if (Me%ComputeOptions%EVTPFromReach     ) call ComputeEVTPFromReach     ()   
         
         !Exponential decay
         if (Me%ComputeOptions%Generic_Decay     ) call GenericDecay             ()
@@ -7296,6 +7407,61 @@ do2 :   do while (associated(PropertyX))
         nullify(CurrNode)
 
     end subroutine MaxStationValues
+
+    !---------------------------------------------------------------------------
+
+    subroutine ComputeFlowFrequency(LocalDT, SumDT)
+        
+        !Argument--------------------------------------------------------------
+        real                                    :: LocalDT, SumDT
+        !Local-----------------------------------------------------------------
+        integer                                 :: ReachID
+        type(T_Reach), pointer                  :: CurrReach
+        real                                    :: TimeWindow
+        !Begin-----------------------------------------------------------------
+        
+        if (Me%CurrentTime .gt. Me%Output%FlowFrequency%StartDate .and. Me%CurrentTime .lt. Me%Output%FlowFrequency%StopDate) then
+            
+            !Accumulate time with local DT because it converged and result was approved
+            do ReachID = 1, Me%TotalReaches
+
+                CurrReach => Me%Reaches(ReachID)
+
+                if (CurrReach%FlowNew > Me%Output%FlowFrequency%MinimumFlow) then
+                    
+                    !s
+                    CurrReach%FlowAccTime = CurrReach%FlowAccTime + LocalDT
+
+
+                endif
+
+                nullify(CurrReach)
+
+            enddo
+            
+            
+            !End of time step - update flow percentage
+            if (Abs(Me%ExtVar%DT - SumDT) .lt. AllmostZero) then
+
+                do ReachID = 1, Me%TotalReaches
+
+                    CurrReach => Me%Reaches(ReachID)
+
+                    !s
+                    TimeWindow            = Me%CurrentTime - Me%Output%FlowFrequency%StartDate
+                    CurrReach%FlowAccPerc = CurrReach%FlowAccTime / TimeWindow
+                
+                    nullify(CurrReach)
+                    
+                    
+                enddo
+                
+            endif
+            
+            
+        endif
+        
+    end subroutine ComputeFlowFrequency
 
     !---------------------------------------------------------------------------
 
@@ -9579,6 +9745,74 @@ if1:    if (Property%Diffusion_Scheme == CentralDif) then
 
     !---------------------------------------------------------------------------
 
+
+    subroutine ComputeEVTPFromReach ()
+        
+        !if this process connected it may be removing water from evapotranspiration and from
+        !evaporation by latent heat in routine surface fluxes - check this
+            
+        !Arguments--------------------------------------------------------------
+        
+        !Local------------------------------------------------------------------
+        type(T_Property), pointer                   :: Property
+        type (T_Node    ) , pointer                 :: CurrNode
+        integer                                     :: NodeID
+        real                                        :: EVTPFlux
+
+        if (MonitorPerformance) call StartWatch ("ModuleDrainageNetwork", "ComputeEVTPFromReach")
+
+
+        do NodeID = 1, Me%TotalNodes
+            
+            CurrNode => Me%Nodes (NodeID)
+            
+            !Evaporate in pools with water depth lower than maximum
+            if ((Me%OpenPointsProcess(NodeID) == OpenPoint)                                       &
+                 .and. (CurrNode%CrossSection%PoolDepth .gt. 0.0)                                 &
+                 .and. (CurrNode%WaterDepth .gt. 0.0)                                             &
+                 .and. (CurrNode%WaterDepth .le. Me%EVTPMaximumDepth)) then
+        
+                !m3/s = m/s * m2 * -
+                EVTPFlux = CurrNode%EVTP * CurrNode%Length * CurrNode%CrossSection%BottomWidth * Me%EVTPCropCoefficient
+                    
+                !Discharge Properties
+                nullify (Property)
+                Property => Me%FirstProperty
+                do while (associated (Property))
+                    CurrNode => Me%Nodes (NodeID)                            
+                    call DischargeProperty (EVTPFlux, Property%Concentration(NodeID),             &
+                                            CurrNode%VolumeNew,   Property%Concentration(NodeID), &
+                                            Property%IScoefficient, Me%ExtVar%DT, ON)
+                    Property => Property%Next
+                enddo
+                        
+                    
+                !Update volume
+                Me%Nodes(NodeID)%VolumeNew = Me%Nodes(NodeID)%VolumeNew + EVTPFlux * Me%ExtVar%DT
+
+                if (Me%CheckMass) then
+                    Me%TotalOutputVolume = Me%TotalOutputVolume - EVTPFlux * Me%ExtVar%DT
+                endif
+
+            endif
+
+        end do
+
+        !Updates Cross Sections    
+        call UpdateCrossSections
+
+        !Actualizes Mapping
+        call UpdateComputeFaces
+        call UpdateOpenPoints
+
+
+        if (MonitorPerformance) call StopWatch ("ModuleDrainageNetwork", "ComputeEVTPFromReach")
+
+
+    end subroutine ComputeEVTPFromReach
+
+    !---------------------------------------------------------------------------
+
     subroutine GenericDecay ()
         
         !Arguments--------------------------------------------------------------
@@ -10437,6 +10671,12 @@ if3:                    if (Me%ShearStress (ReachID) < Property%DepositionCritic
             Me%InitialTotalInputVolume  = Me%TotalInputVolume
         end if
 
+        if (Me%Output%ComputeFlowFrequency) then
+            do ReachID = 1, Me%TotalReaches
+                 Me%Reaches(ReachID)%InitialFlowAccTime = Me%Reaches(ReachID)%FlowAccTime
+            end do        
+        endif
+
     end subroutine StoreInitialValues
 
     !---------------------------------------------------------------------------
@@ -10478,6 +10718,11 @@ if3:                    if (Me%ShearStress (ReachID) < Property%DepositionCritic
             Me%TotalInputVolume  = Me%InitialTotalInputVolume
         end if
 
+        if (Me%Output%ComputeFlowFrequency) then
+            do ReachID = 1, Me%TotalReaches
+                 Me%Reaches(ReachID)%FlowAccTime = Me%Reaches(ReachID)%InitialFlowAccTime
+            end do        
+        endif
 
     end subroutine ResetToInitialValues
 
@@ -11386,6 +11631,25 @@ if2:                if (CurrNode%nDownstreamReaches .NE. 0) then
                                  OutputNumber = Me%OutPut%NextOutPut,                    &
                                  STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'HDF5Output - ModuleDrainageNetwork - ERR05'
+
+
+            !Writes Flow accumulation time in percentage
+            if (Me%Output%ComputeFlowFrequency) then
+                iReach = 1
+                do NodeID = 1, Me%TotalNodes
+                    CurrNode => Me%Nodes (NodeID)
+                    if (CurrNode%nDownstreamReaches .NE. 0) then      
+                        OutputMatrix (iReach) = Me%Reaches(CurrNode%DownstreamReaches(1))%FlowAccPerc
+                        iReach = iReach + 1
+                    end if
+                end do
+                call HDF5WriteData  (Me%ObjHDF5, "/Results/flow frequency", "flow frequency",    &
+                                     "-",                                                 &
+                                     Array1D      = OutputMatrix,                            &
+                                     OutputNumber = Me%OutPut%NextOutPut,                    &
+                                     STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'HDF5Output - ModuleDrainageNetwork - ERR05.1'
+            end if
 
             !Advection
             iReach = 1

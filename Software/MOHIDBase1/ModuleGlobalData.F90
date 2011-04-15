@@ -736,9 +736,16 @@ Module ModuleGlobalData
     integer, parameter :: SoilVolumetricDensity_           = 13000
     
     !Pesticides
-    integer, parameter :: GenericPesticide_1_              = 15001
-    integer, parameter :: GenericPesticide_2_              = 15002
-    integer, parameter :: GenericPesticide_3_              = 15003
+    integer, parameter :: GenericDissPesticide_1_           = 15001
+    integer, parameter :: GenericDissPesticide_2_           = 15002
+    integer, parameter :: GenericDissPesticide_3_           = 15003
+    integer, parameter :: GenericDissPesticide_4_           = 15004
+
+    integer, parameter :: GenericPartPesticide_1_           = 15005
+    integer, parameter :: GenericPartPesticide_2_           = 15006
+    integer, parameter :: GenericPartPesticide_3_           = 15007
+    integer, parameter :: GenericPartPesticide_4_           = 15008
+    
 
     !Spatial emission discharge
     integer, parameter :: DischPoint_                       = 1
@@ -1281,9 +1288,14 @@ Module ModuleGlobalData
     character(StringLength), private, parameter :: Char_SoilVolumetricDensity    = 'soil volumetric density'
     
     !Pesticides
-    character(StringLength), private, parameter :: Char_GenericPesticide_1       = 'generic pesticide 1'
-    character(StringLength), private, parameter :: Char_GenericPesticide_2       = 'generic pesticide 2'
-    character(StringLength), private, parameter :: Char_GenericPesticide_3       = 'generic pesticide 3'
+    character(StringLength), private, parameter :: Char_GenericDissPesticide_1       = 'generic dissolved pesticide 1'
+    character(StringLength), private, parameter :: Char_GenericDissPesticide_2       = 'generic dissolved pesticide 2'
+    character(StringLength), private, parameter :: Char_GenericDissPesticide_3       = 'generic dissolved pesticide 3'
+    character(StringLength), private, parameter :: Char_GenericDissPesticide_4       = 'generic dissolved pesticide 4'
+    character(StringLength), private, parameter :: Char_GenericPartPesticide_1       = 'generic particulate pesticide 1'
+    character(StringLength), private, parameter :: Char_GenericPartPesticide_2       = 'generic particulate pesticide 2'
+    character(StringLength), private, parameter :: Char_GenericPartPesticide_3       = 'generic particulate pesticide 3'
+    character(StringLength), private, parameter :: Char_GenericPartPesticide_4       = 'generic particulate pesticide 4'
 
     !Mapping
     integer, parameter :: Compute         = 1
@@ -2356,10 +2368,15 @@ Module ModuleGlobalData
             !END of PhreeqC temporary code for tests
             call AddPropList (SoilVolumetricDensity_,   Char_SoilVolumetricDensity,      ListNumber)  
             call AddPropList (SolEC_,                   Char_SolEC,                      ListNumber)
-            call AddPropList (GenericPesticide_1_,      Char_GenericPesticide_1,         ListNumber)
-            call AddPropList (GenericPesticide_2_,      Char_GenericPesticide_2,         ListNumber)
-            call AddPropList (GenericPesticide_3_,      Char_GenericPesticide_3,         ListNumber) 
-            
+            call AddPropList (GenericDissPesticide_1_,  Char_GenericDissPesticide_1,     ListNumber)
+            call AddPropList (GenericDissPesticide_2_,  Char_GenericDissPesticide_2,     ListNumber)
+            call AddPropList (GenericDissPesticide_3_,  Char_GenericDissPesticide_3,     ListNumber) 
+            call AddPropList (GenericDissPesticide_4_,  Char_GenericDissPesticide_4,     ListNumber) 
+            call AddPropList (GenericPartPesticide_1_,  Char_GenericPartPesticide_1,     ListNumber)
+            call AddPropList (GenericPartPesticide_2_,  Char_GenericPartPesticide_2,     ListNumber)
+            call AddPropList (GenericPartPesticide_3_,  Char_GenericPartPesticide_3,     ListNumber) 
+            call AddPropList (GenericPartPesticide_4_,  Char_GenericPartPesticide_4,     ListNumber) 
+                        
             !Place to add new properties to the names list
         
             !Ends building the property name list
@@ -2529,11 +2546,13 @@ cd1 :   if ((Property == POC_                   ) .OR.  (Property == PON_       
             (Property == PON3_                  ) .OR.  (Property == PON4_                  ) .OR.          &
             (Property == PON5_                  ) .OR.  (Property == POP1_                  ) .OR.          &
             (Property == POP2_                  ) .OR.  (Property == POP3_                  ) .OR.          &
-            (Property == POP4_                  ) .OR.  (Property == POP5_                  ) .OR.          &            
+            (Property == POP4_                  ) .OR.  (Property == POP5_                  ) .OR.          &
+            (Property == GenericPartPesticide_1_) .OR.  (Property == GenericPartPesticide_2_) .OR.          &            
+            (Property == GenericPartPesticide_3_) .OR.  (Property == GenericPartPesticide_4_) .OR.          &            
             (Property == SolubilizingP_         ) .OR.  (Property == ParticulateMetal_      ) .OR.          &
             (Property == ParticulateCadmium_    ) .OR.  (Property == ParticulateCopper_     ) .OR.          &
             (Property == ParticulateLead_       ) .OR.  (Property == ParticulateZinc_       ) .OR.          &
-            (Property == ParticulateMercury_    )    ) then
+            (Property == ParticulateMercury_    )) then
 
             Check_Particulate_Property = .TRUE.    
         

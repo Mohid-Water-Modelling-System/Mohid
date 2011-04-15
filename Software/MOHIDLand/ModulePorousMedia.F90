@@ -212,7 +212,11 @@ Module ModulePorousMedia
 
     !Waterlevel
     character(LEN = StringLength), parameter :: char_waterlevel   = trim(adjustl('waterlevel'       ))
-
+    
+    !Infiltration conductivity - for tests only - by default nothing changes
+    integer, parameter                       :: SatCond_   = 1
+    integer, parameter                       :: UnSatCond_ = 2
+    
     !Drainage Network link formulations - for tests
 !    integer, parameter :: GWFlowToChanByCell_            = 1
 !    integer, parameter :: GWFlowToChanByLayer_           = 2
@@ -308,6 +312,7 @@ Module ModulePorousMedia
         real    :: HeadLimit
         integer :: DNLink
         logical :: ComputeHydroPressure
+        integer :: InfiltrationConductivity
     end type T_SoilOptions
 
     type T_SoilType
@@ -340,6 +345,7 @@ Module ModulePorousMedia
         real         :: MinDT               = null_real
         real         :: LimitThetaLo
         real         :: LimitThetaHi
+        real         :: LimitThetaHiGWTable
         real         :: ThetaHydroCoef      = null_real
         real         :: VelHydroCoef        = null_real
 
@@ -1081,6 +1087,19 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                      STAT           = STAT_CALL)             
         if (STAT_CALL /= SUCCESS_)                                              &
             call SetError(FATAL_, KEYWORD_, "ConvergeOptions; ModulePorousMedia. ERR11") 
+        
+        !avoid instabilities in searching for saturated water table. using low values as 1e-15 
+        !usually causes variations in water table depth of order of meters from iteration to another
+        !because of small theta variations (speially problematic in river cells)
+        call GetData(Me%CV%LimitThetaHiGWTable,                                 &
+                     Me%ObjEnterData, iflag,                                    &
+                     SearchType     = FromFile,                                 &
+                     keyword        ='CUT_OFF_THETA_HIGH_GW_TABLE',             &
+                     Default        = Me%CV%LimitThetaHi,                       &
+                     ClientModule   ='ModulePorousMedia',                       &
+                     STAT           = STAT_CALL)             
+        if (STAT_CALL /= SUCCESS_)                                              &
+            call SetError(FATAL_, KEYWORD_, "ConvergeOptions; ModulePorousMedia. ERR11") 
             
         ! This value says from which thetaS hydrostatic pressure is to be consider
         ! Set Theta = ThetaS
@@ -1103,7 +1122,26 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                      STAT           = STAT_CALL)             
         if (STAT_CALL /= SUCCESS_)                                              &
             call SetError(FATAL_, KEYWORD_, "ConvergeOptions; ModulePorousMedia. ERR13") 
+
+        !Conductivity used for infiltration - for tests only - by default nothing changes
+        call GetData(Me%SoilOpt%InfiltrationConductivity,                       &
+                     Me%ObjEnterData, iflag,                                    &
+                     SearchType = FromFile,                                     &
+                     keyword    = 'INFIL_CONDUCTIVITY',                         &
+                     Default    = SatCond_,                                     &                                           
+                     ClientModule ='ModulePorousMedia',                         &
+                     STAT       = STAT_CALL)            
+        if (STAT_CALL /= SUCCESS_) stop 'GetSoilOptions - ModulePorousMedia - ERR50'
         
+        if ((Me%SoilOpt%InfiltrationConductivity .ne. SatCond_) .and.            &
+            (Me%SoilOpt%InfiltrationConductivity .ne. UnSatCond_)) then
+
+            write(*,*)
+            write(*,*)'Method not known for infiltration conductivity'
+            write(*,*)'Please check INFIL_CONDUCTIVITY keyword'
+            stop 'ReadDataFile - ModulePorousMedia - ERR060'
+        
+        endif
     
     end subroutine ReadDataFile
     
@@ -4054,6 +4092,7 @@ dConv:  do while (iteration <= Niteration)
         !Local-----------------------------------------------------------------
         integer                                     :: i, j, KUB
         real                                        :: hsup_aux, DeltaSup_aux, hinf_aux
+        real                                        :: Conductivity
         !Begin-----------------------------------------------------------------
         
         KUB = Me%WorkSize%KUB
@@ -4073,17 +4112,18 @@ dConv:  do while (iteration <= Niteration)
                 !estimate infiltration velocity because hydropressure is computed for stability reasons 
                 !even when cell is not saturated (satK * hydroCoef) - hydropressure and suction exist at 
                 !the same time increasing Final Head in top cell and decreasing infil. vel.
-                !If hydro pressure exists with cell almost but not saturated than the 
-                !correction returns the right infil. vel.
-                !If hydro pressure exists with saturated cell than hydro pressure is right. The computation
-                !of infil. vel. without hydro pressure will return in over estimation but the soil is in the 
-                !condition of getting full so the sub VerticalContinuity removes excess to water column
-                !and corrects infil. vel. to the right value
                 hinf_aux = Me%FinalHead(i, j, KUB) - Me%HydroPressure(i,j,KUB)
-
+                
+				!for tests only - by default nothing changes - saturation conduct
+                if (Me%SoilOpt%InfiltrationConductivity == UnSatCond_) then
+                    Conductivity = Me%UnSatK (i, j, KUB)
+                elseif (Me%SoilOpt%InfiltrationConductivity == SatCond_) then
+                    Conductivity = Me%SatK (i, j, KUB)
+                endif
                 
                 Me%UnsatVelW(i, j, KUB+1) = BuckinghamDarcyEquation                             &
-                                               (con      = Me%SatK (i, j, KUB),                 &
+!                                               (con      = Me%SatK (i, j, KUB),                 &
+                                                (con      = Conductivity,                       &
 !                                                hinf     = Me%FinalHead(i, j, KUB),            &
                                                 hinf     = hinf_aux,                            &
                                                 hsup     = hsup_aux,                            &
@@ -5377,7 +5417,10 @@ cd2 :   if (Mapping(i, j) == 1) then
 
                 !Find 1. non saturated cell            
 doK:            do K = Me%ExtVar%KFloor(i, j), Me%WorkSize%KUB
-                    if (Me%Theta(i,j,k) < Me%RC%ThetaS(i, j, k) - Me%CV%LimitThetaHi) then
+                    !Do not use LimitThetaHigh for stability reasons 
+                    !(usually too small producing GWLevels going up and down from iteration to iteration)
+                    !if (Me%Theta(i,j,k) < Me%RC%ThetaS(i, j, k) - Me%CV%LimitThetaHi) then
+                    if (Me%Theta(i,j,k) < Me%RC%ThetaS(i, j, k) - Me%CV%LimitThetaHiGWTable) then
                         exit doK
                     endif
                 enddo doK
@@ -5682,8 +5725,9 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                 dX    = max(ChannelsBottomWidth(i, j) / 2.0, 1.0)
                 
                 ![m3/s]                   = [m/m] * [m2] * [m/s] * [] 
-                Me%lFlowToChannels(i, j) = (dH / dX ) * TotalArea * Me%UnSatK(i, j, Me%UGCell(i,j)) * Me%SoilOpt%HCondFactor
-
+                !Me%lFlowToChannels(i, j) = (dH / dX ) * TotalArea * Me%UnSatK(i, j, Me%UGCell(i,j)) * Me%SoilOpt%HCondFactor
+                Me%lFlowToChannels(i, j) = (dH / dX ) * TotalArea * Me%SatK(i, j, Me%UGCell(i,j)) * Me%SoilOpt%HCondFactor
+                
                 !If the channel looses water (infiltration), then set max flux so that volume in channel does not get 
                 !negative                
                 if (dH < 0) then
