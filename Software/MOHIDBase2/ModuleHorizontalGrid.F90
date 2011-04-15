@@ -120,7 +120,10 @@ Module ModuleHorizontalGrid
     public  :: UnGetHorizontalGrid
     
     public  :: InterpolXYPoint
-
+#ifdef _USE_PROJ4
+    public  :: FromGeo2SpherMercator1D
+    public  :: FromGeo2SpherMercatorScalar
+#endif
 
     !Destructor
     public  :: KillHorizontalGrid
@@ -2062,16 +2065,15 @@ BF1:    if (Me%ReadCartCorners) then
     !is equal to one (Geographic coordinates) - Frank Abr 99.
 
     subroutine Mercator()
-
-#ifdef _USE_PROJ4
-        use proj4
-#endif
         !Arguments-------------------------------------------------------------
 
         !Local-----------------------------------------------------------------
+#ifdef _USE_PROJ4
+        real, dimension(:,:), pointer       :: XX_Pointer, YY_Pointer
+#endif        
+        real, dimension(:,:), allocatable, target :: XX_aux, YY_aux
         real, dimension(:,:), pointer       :: XX_IE, YY_IE
         real, dimension(:  ), pointer       :: XX, YY
-        real, dimension(:,:), allocatable   :: XX_aux, YY_aux
         integer                             :: AuxCoordTip
         real(8)                             :: DB_LAT, DB_LONG
         real                                :: X_PONTO, Y_PONTO
@@ -2085,10 +2087,7 @@ BF1:    if (Me%ReadCartCorners) then
         
         real                                :: MaxLon, MinLon, MaxLat, MinLat, MinX, MinY
 
-#ifdef _USE_PROJ4      
-        character(len=20), dimension(:), pointer     :: params
-        type(prj90_projection)                      :: proj
-#endif
+
         !Worksize
         ILB = Me%WorkSize%ILB
         IUB = Me%WorkSize%IUB
@@ -2425,54 +2424,12 @@ ifP:                if (Me%UseLambert) then
 #ifdef _USE_PROJ4
                     elseif (Me%ProjType == SPHERE_MERCATOR_) then  !ifP
                     
-                        !allocate(params(1))
-                        !params(1) = '+init=esri:53004'     
-                        !+proj=merc +lat_ts=0 +lon_0=0 +k=1.000000 +x_0=0 +y_0=0
-                        !+a=6371000 +b=6371000 +units=m +no_defs
+                        XX_Pointer => XX_aux
+                        YY_Pointer => YY_aux
+                    
+                        call FromGeographic2SphericMercator(XX_IE, YY_IE, Me%WorkSize, XX_Pointer, YY_Pointer)
                         
-                        allocate(params(8))
-                        params(1) = 'proj=merc'
-                        params(2) = 'lat_ts=0.0'
-                        params(3) = 'lon_0=0.0'
-                        params(4) = 'k=1.0'
-                        params(5) = 'x_0=0.0'
-                        params(6) = 'y_0=0.0'
-                        params(7) = 'a=6371000'
-                        params(8) = 'b=6371000'
-
-                        
-                        status=prj90_init(proj,params)
-                        if (status.ne.PRJ90_NOERR) then
-                            write(*,*) prj90_strerrno(status)
-                            stop 'GeographicToCartesian - ModuleFunctions - ERR01'
-                        endif
-                        
-                        do j = JLB, JUB + 1
-                        do i = ILB, IUB + 1 
-                            if (XX_IE(i,j) > FillValueReal/3.) then
-
-                                status = prj90_fwd(proj,dble(XX_IE(i,j)),dble(YY_IE(i,j)),DB_LONG, DB_LAT)
-                                if (status.ne.PRJ90_NOERR) then
-                                    write(*,*) prj90_strerrno(status)
-                                    stop 'GeographicToCartesian - ModuleFunctions - ERR02'
-                                end if
-
-                                                           
-                                YY_aux(i,j) = real(DB_LAT)
-                                XX_aux(i,j) = real(DB_LONG)
-
-                            endif
-                        enddo
-                        enddo
-
-                        status = prj90_free(proj)
-                        if (status.ne.PRJ90_NOERR) then
-                            write(*,*) prj90_strerrno(status)
-                            stop 'GeographicToCartesian - ModuleFunctions - ERR03'
-                        end if
-
-   
-                        deallocate(params) 
+                        nullify (XX_Pointer, YY_Pointer)
 #endif                    
                     endif ifP
                                        
@@ -2615,7 +2572,200 @@ cd23:   if (Me%CoordType == CIRCULAR_) then
     end subroutine Mercator
 
     !--------------------------------------------------------------------------
-    !This subroutine check the type of border of the grid
+    !This subroutine convert geographic coordinates in to sherical mercator projection
+
+
+
+#ifdef _USE_PROJ4  
+    
+    subroutine FromGeographic2SphericMercator(XX_IE, YY_IE, WorkSize, XX_aux, YY_aux)
+
+        use proj4
+
+        !Arguments-------------------------------------------------------------
+        real, dimension(:,:), pointer            :: XX_IE, YY_IE
+        real, dimension(:,:), pointer            :: XX_aux, YY_aux
+        type (T_Size2D)                          :: WorkSize
+
+        !Local-----------------------------------------------------------------
+        real(8)                                  :: DB_LAT, DB_LONG
+        integer                                  :: ILB, IUB, JLB, JUB
+        integer                                  :: status, i, j
+       
+        character(len=20), dimension(:), pointer :: params
+        type(prj90_projection)                   :: proj
+
+   
+        !Begin-----------------------------------------------------------------
+     
+        allocate(params(8))
+        params(1) = 'proj=merc'
+        params(2) = 'lat_ts=0.0'
+        params(3) = 'lon_0=0.0'
+        params(4) = 'k=1.0'
+        params(5) = 'x_0=0.0'
+        params(6) = 'y_0=0.0'
+        params(7) = 'a=6371000'
+        params(8) = 'b=6371000'
+        
+        ILB = WorkSize%ILB 
+        IUB = WorkSize%IUB 
+        JLB = WorkSize%JLB 
+        JUB = WorkSize%JUB 
+
+        
+        status=prj90_init(proj,params)
+        if (status.ne.PRJ90_NOERR) then
+            write(*,*) prj90_strerrno(status)
+            stop 'FromGeographic2SphericMercator - ModuleHorizontalGrid - ERR10'
+        endif
+        
+        do j = JLB, JUB + 1
+        do i = ILB, IUB + 1 
+            if (XX_IE(i,j) > FillValueReal/3.) then
+
+                status = prj90_fwd(proj,dble(XX_IE(i,j)),dble(YY_IE(i,j)),DB_LONG, DB_LAT)
+                if (status.ne.PRJ90_NOERR) then
+                    write(*,*) prj90_strerrno(status)
+                    stop 'FromGeographic2SphericMercator - ModuleHorizontalGrid - ERR20'
+                end if
+
+                                           
+                YY_aux(i,j) = real(DB_LAT)
+                XX_aux(i,j) = real(DB_LONG)
+
+            endif
+        enddo
+        enddo
+
+        status = prj90_free(proj)
+        if (status.ne.PRJ90_NOERR) then
+            write(*,*) prj90_strerrno(status)
+            stop 'FromGeographic2SphericMercator - ModuleHorizontalGrid - ERR30'
+        end if
+
+        deallocate(params)     
+
+
+    end subroutine FromGeographic2SphericMercator
+
+    subroutine FromGeo2SpherMercator1D(X1D_Geo, Y1D_Geo, ILB, IUB, X1D_Out, Y1D_Out)
+
+        use proj4
+
+        !Arguments-------------------------------------------------------------
+        real(8), dimension(:  ), pointer         :: X1D_Geo, Y1D_Geo
+        real(8), dimension(:  ), pointer         :: X1D_Out, Y1D_Out        
+        integer                                  :: ILB, IUB
+
+        !Local-----------------------------------------------------------------
+        real(8)                                  :: DB_LAT, DB_LONG
+        integer                                  :: status, i
+       
+        character(len=20), dimension(:), pointer :: params
+        type(prj90_projection)                   :: proj
+
+   
+        !Begin-----------------------------------------------------------------
+     
+        allocate(params(8))
+        params(1) = 'proj=merc'
+        params(2) = 'lat_ts=0.0'
+        params(3) = 'lon_0=0.0'
+        params(4) = 'k=1.0'
+        params(5) = 'x_0=0.0'
+        params(6) = 'y_0=0.0'
+        params(7) = 'a=6371000'
+        params(8) = 'b=6371000'
+        
+        
+        status=prj90_init(proj,params)
+        if (status.ne.PRJ90_NOERR) then
+            write(*,*) prj90_strerrno(status)
+            stop 'FromGeo2SpherMercator1D - ModuleHorizontalGrid - ERR10'
+        endif
+        
+        do i = ILB, IUB
+            status = prj90_fwd(proj,dble(X1D_Geo(i)),dble(Y1D_Geo(i)),DB_LONG, DB_LAT)
+            if (status.ne.PRJ90_NOERR) then
+                write(*,*) prj90_strerrno(status)
+                stop 'FromGeo2SpherMercator1D - ModuleHorizontalGrid - ERR20'
+            end if
+
+                                       
+            Y1D_Out(i) = real(DB_LAT)
+            X1D_Out(i) = real(DB_LONG)
+        enddo
+
+        status = prj90_free(proj)
+        if (status.ne.PRJ90_NOERR) then
+            write(*,*) prj90_strerrno(status)
+            stop 'FromGeo2SpherMercator1D - ModuleHorizontalGrid - ERR30'
+        end if
+
+        deallocate(params)     
+
+
+    end subroutine FromGeo2SpherMercator1D
+
+    subroutine FromGeo2SpherMercatorScalar(X_Geo, Y_Geo, X_Out, Y_Out)
+
+        use proj4
+
+        !Arguments-------------------------------------------------------------
+        real(8)                                  :: X_Geo, Y_Geo, X_Out, Y_Out        
+
+        !Local-----------------------------------------------------------------
+        real(8)                                  :: DB_LAT, DB_LONG
+        integer                                  :: status
+       
+        character(len=20), dimension(:), pointer :: params
+        type(prj90_projection)                   :: proj
+
+   
+        !Begin-----------------------------------------------------------------
+     
+        allocate(params(8))
+        params(1) = 'proj=merc'
+        params(2) = 'lat_ts=0.0'
+        params(3) = 'lon_0=0.0'
+        params(4) = 'k=1.0'
+        params(5) = 'x_0=0.0'
+        params(6) = 'y_0=0.0'
+        params(7) = 'a=6371000'
+        params(8) = 'b=6371000'
+        
+        
+        status=prj90_init(proj,params)
+        if (status.ne.PRJ90_NOERR) then
+            write(*,*) prj90_strerrno(status)
+            stop 'FromGeo2SpherMercatorScalar - ModuleHorizontalGrid - ERR10'
+        endif
+        
+        status = prj90_fwd(proj,dble(X_Geo),dble(Y_Geo),DB_LONG, DB_LAT)
+        if (status.ne.PRJ90_NOERR) then
+            write(*,*) prj90_strerrno(status)
+            stop 'FromGeo2SpherMercatorScalar - ModuleHorizontalGrid - ERR20'
+        end if
+
+                                   
+        Y_Out = real(DB_LAT)
+        X_Out = real(DB_LONG)
+
+
+        status = prj90_free(proj)
+        if (status.ne.PRJ90_NOERR) then
+            write(*,*) prj90_strerrno(status)
+            stop 'FromGeo2SpherMercatorScalar - ModuleHorizontalGrid - ERR30'
+        end if
+
+        deallocate(params)     
+
+
+    end subroutine FromGeo2SpherMercatorScalar
+
+    
+#endif
 
     subroutine CheckGridBorder()
 
@@ -4304,17 +4454,21 @@ i2:         if (GetGridBorderType == ComplexPolygon_) then
                                         I, J)
 
                 if (I < 0 .or. J < 0) then
-                    stop 'GetXYCellZ - ModuleHorizontalGrid - ERR10'
-                endif
+                    STAT_ = OUT_OF_BOUNDS_ERR_
+                    !stop 'GetXYCellZ - ModuleHorizontalGrid - ERR10'
 
-                if (present(PercI) .and. present(PercJ)) then
-                    ! 
-                    call RelativePosition4VertPolygon(Xa = XX2D(I+1, J  ), Ya = YY2D(I+1, J  ), &
-                                                      Xb = XX2D(I+1, J+1), Yb = YY2D(I+1, J+1), &
-                                                      Xc = XX2D(I  , J  ), Yc = YY2D(I  , J  ), &
-                                                      Xd = XX2D(I  , J+1), Yd = YY2D(I  , J+1), &
-                                                      Xe = XPoint,         Ye = YPoint,         &
-                                                      Xex= PercJ,          Yey= PercI)
+                else
+
+                    if (present(PercI) .and. present(PercJ)) then
+                        ! 
+                        call RelativePosition4VertPolygon(Xa = XX2D(I+1, J  ), Ya = YY2D(I+1, J  ), &
+                                                          Xb = XX2D(I+1, J+1), Yb = YY2D(I+1, J+1), &
+                                                          Xc = XX2D(I  , J  ), Yc = YY2D(I  , J  ), &
+                                                          Xd = XX2D(I  , J+1), Yd = YY2D(I  , J+1), &
+                                                          Xe = XPoint,         Ye = YPoint,         &
+                                                          Xex= PercJ,          Yey= PercI)
+                    endif
+
                 endif
 
             else i2
@@ -4351,16 +4505,18 @@ i2:         if (GetGridBorderType == ComplexPolygon_) then
 
                 if (present(PercI)) then
                     if (I < 0) then
-                        stop 'GetXYCellZ - ModuleHorizontalGrid - ERR20'
+                        STAT_ = OUT_OF_BOUNDS_ERR_
+                    else
+                        PercI  = (YPoint2 - Me%YY1D_Aux(I)) / (Me%YY1D_Aux(I+1) - Me%YY1D_Aux(I))
                     endif
-                    PercI  = (YPoint2 - Me%YY1D_Aux(I)) / (Me%YY1D_Aux(I+1) - Me%YY1D_Aux(I))
                 endif
-
+                
                 if (present(PercJ)) then
                     if (J < 0) then
-                        stop 'GetXYCellZ - ModuleHorizontalGrid - ERR30'
+                        STAT_ = OUT_OF_BOUNDS_ERR_
+                    else
+                        PercJ  = (XPoint2 - Me%XX1D_Aux(J)) / (Me%XX1D_Aux(J+1) - Me%XX1D_Aux(J))
                     endif
-                    PercJ  = (XPoint2 - Me%XX1D_Aux(J)) / (Me%XX1D_Aux(J+1) - Me%XX1D_Aux(J))
                 endif
 
             endif i2
@@ -4368,7 +4524,8 @@ i2:         if (GetGridBorderType == ComplexPolygon_) then
             nullify(XX2D)
             nullify(YY2D)
 
-            STAT_ = SUCCESS_
+            if (STAT_ == UNKNOWN_) STAT_ = SUCCESS_
+            
         else    i1
             STAT_ = ready_
         end if  i1
@@ -6420,6 +6577,8 @@ doi:        do i = ILBSon, IUBSon
         integer,        optional                    :: STAT
 
         !Local-----------------------------------------------------------------
+        real,        dimension(:,:), pointer        :: XX_aux, YY_aux
+        type(T_Size2D)                              :: WorkSize_
         integer                                     :: WorkILB, WorkIUB
         integer                                     :: WorkJLB, WorkJUB
         integer                                     :: STAT_, ready_, STAT_CALL
@@ -6438,12 +6597,16 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
 
                 WorkJLB = WorkSize%JLB
                 WorkJUB = WorkSize%JUB
+                
+                WorkSize_ = WorkSize
             else
                 WorkILB = Me%WorkSize%ILB
                 WorkIUB = Me%WorkSize%IUB
 
                 WorkJLB = Me%WorkSize%JLB
                 WorkJUB = Me%WorkSize%JUB
+                
+                WorkSize_ = Me%WorkSize
             endif
 
             !Sets limits for next write operations
@@ -6519,6 +6682,35 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
 
 
                 endif
+                
+#ifdef _USE_PROJ4
+
+                !Geographic coordinates
+                if (Me%CoordType == GEOG_               .or.  &
+                    Me%CoordType == SIMPLE_GEOG_) then
+                    
+                        allocate(XX_aux(WorkILB-1:WorkIUB+1, WorkJLB-1:WorkJUB+1))
+                        allocate(YY_Aux(WorkILB-1:WorkIUB+1, WorkJLB-1:WorkJUB+1))
+                        
+                        call FromGeographic2SphericMercator(Me%LongitudeConn, Me%LatitudeConn, WorkSize_, XX_aux, YY_aux)
+
+                        call HDF5WriteData   (ObjHDF5, "/Grid", "Spherical_Mercator_X", "-",&
+                                              Array2D = XX_aux,                         &
+                                              STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid - HorizontalGrid - ERR20'
+
+                        call HDF5WriteData   (ObjHDF5, "/Grid", "Spherical_Mercator_Y", "-",&
+                                              Array2D = YY_aux,                         &
+                                              STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid - HorizontalGrid - ERR30'
+
+
+                        deallocate(XX_aux,YY_Aux)
+                
+                endif
+
+#endif
+                
 
             endif
 
