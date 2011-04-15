@@ -872,7 +872,8 @@ Module ModuleLagrangian
         logical                                 :: Filtration     = OFF
         character(PathLength)                   :: OutputTracerInfoFileName  
         integer                                 :: troUnit  
-        real                                    :: Nbrsubmerged   = 0
+        integer                                 :: Nbrsubmerged   = 0
+        integer                                 :: NbrParticlesBeached = 0
         real                                    :: Fdisp          = 0
         type (T_FloatingObject)                 :: FloatingObject
     end type T_Origin
@@ -5763,6 +5764,26 @@ OP:         if ((Me%ExternalVar%OpenPoints3D(i, j, k) == OpenPoint) .and. &
 
         !Stores first particle / from the center of the cell
         NewParticle%Position                = CurrentOrigin%Position
+        
+        If (CurrentOrigin%State%Oil) then
+           !Particles on surface
+            KUB = Me%ExternalVar%WorkSize%KUB
+
+            if (NewParticle%Position%Z < Me%ExternalVar%SZZ(II, JJ,  KUB)) then
+                !Particle is above surface; and is sent to surface
+                NewParticle%Position%Z = Me%ExternalVar%SZZ(II, JJ,  KUB)
+                NewPosition%surface = .true.
+            elseif (( NewParticle%Position%Z -  Me%ExternalVar%SZZ(II, JJ,  KUB)) .LE. 0.1) then                
+                ! particle is near the surface; is considered to be in the surface
+                    NewParticle%Position%surface = .true.
+            else
+                ! particle is below the surface
+                NewParticle%Position%surface = .false.                                
+            end if                       
+       endif
+
+        
+        
         NewParticle%Geometry%Volume         = CurrentOrigin%PointVolume /                &
                                               float(CurrentOrigin%NbrParticlesIteration)
 
@@ -5838,12 +5859,19 @@ OP:         if ((Me%ExternalVar%OpenPoints3D(i, j, k) == OpenPoint) .and. &
 
 
                     If (CurrentOrigin%State%Oil) then
-                        !Particles on surface
-                        if (abs(Me%ExternalVar%SZZ(i, j, KUB) - NewParticle%Position%Z) .LT. 0.01) then                
+                        if (NewParticle%Position%Z < Me%ExternalVar%SZZ(i, j,  KUB)) then
+                            !Particle is above surface; and is sent to surface
+                            NewPosition%Z = Me%ExternalVar%SZZ(i, j,  KUB)
                             NewPosition%surface = .true.
+                        elseif (( NewParticle%Position%Z -  Me%ExternalVar%SZZ(i, j,  KUB)) .LE. 0.1) then                
+                            ! particle is near the surface; is considered to be in the surface
+                                NewPosition%surface = .true.
                         else
-                            NewPosition%surface = .false.                    
-                        end if 
+                            ! particle is below the surface
+                            NewPosition%surface = .false.                                
+                        end if                       
+                    
+                        NewParticle%Position = NewPosition
                     endif
 
                     NewParticle%Geometry%Volume = CurrentOrigin%PointVolume /            &
@@ -7615,7 +7643,6 @@ CurrOr: do while (associated(CurrentOrigin))
                     j = CurrentPartic%Position%J
                     k = CurrentPartic%Position%k
 
-                        
                     MassDissolvedSumParticCell(i, j, k) = MassDissolvedSumParticCell(i, j, k) +              & 
                                                        CurrentPartic%OilDissolvedMass
 
@@ -8208,6 +8235,7 @@ CurrOr: do while (associated(CurrentOrigin))
         integer                                     :: i, j, k
         integer                                     :: ThicknessGradient, Fay
         integer                                     :: SpreadingMethod
+        type (T_Time)                               :: LagrangianTime
 
 
         if (Me%State%Oil) then
@@ -8221,10 +8249,9 @@ CurrOr: do while (associated(CurrentOrigin))
                 write (*,*)'The Lagrangian Module needs the Water Temperature from the eulerian module'
                 stop 'MovePartic - ModuleLagrangian - ERR01'
             endif
-
         endif
 
-
+        LagrangianTime = Me%Now
 
         CurrentOrigin => Me%FirstOrigin
 CurrOr: do while (associated(CurrentOrigin))
@@ -8260,6 +8287,7 @@ CurrOr: do while (associated(CurrentOrigin))
                 !Calculates the Oil Active Processes    
                 call OilActiveProcesses(CurrentOrigin%ObjOil,                            &
                                         CurrentOrigin%GridThickness,                     &
+                                        LagrangianTime     = LagrangianTime,             & 
                                         WaterTemperature   = TemperatureX,               &
                                         WaterDensity       = DensityX,                   &
                                         VolInic            = VolInic,                    &
@@ -8403,7 +8431,8 @@ CurrOr: do while (associated(CurrentOrigin))
         KUB    = Me%ExternalVar%WorkSize%KUB
 
 
-        if (CurrentOrigin%State%Oil .and. CurrentOrigin%Movement%StokesDrift) then    
+        if (CurrentOrigin%State%Oil) then
+            if (CurrentOrigin%Movement%StokesDrift) then    
 
 #ifndef _WAVES_
                     call GetWaves (WavesID    = Me%ObjWaves,                     &
@@ -8413,8 +8442,20 @@ CurrOr: do while (associated(CurrentOrigin))
                          STAT       = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'MoveParticHorizontal - ModuleLagrangian - ERR01'
 #endif
-
             end if
+            CurrentOrigin%NbrSubmerged = 0
+
+            CurrentPartic => CurrentOrigin%FirstPartic
+            do while (associated (CurrentPartic))
+                            !Count number of current submerged particles
+                            if (.not. CurrentOrigin%Movement%Float) then
+                                    if (.not. CurrentPartic%Position%Surface) then
+                                      CurrentOrigin%NbrSubmerged = CurrentOrigin%NbrSubmerged + 1                   
+                                    endif
+                            end if
+                CurrentPartic => CurrentPartic%Next
+            enddo 
+        end if
 
 
         CurrentPartic => CurrentOrigin%FirstPartic
@@ -8872,17 +8913,25 @@ MT:             if (CurrentOrigin%Movement%MovType == SullivanAllen_) then
                     !If a particle moved the freazed state is OFF
                     CurrentPartic%Freazed   = OFF
 
-                    !Particles on surface                  
-                    if (CurrentOrigin%Movement%Float) then
-                        NewPosition%surface = .true.
-                    elseif (abs(Me%ExternalVar%SZZ(i, j, KUB) - NewPosition%Z) .LT. 0.01) then                
-                        if (.not. CurrentPartic%Position%Surface) then
-                          CurrentOrigin%NbrSubmerged = max(0.,CurrentOrigin%NbrSubmerged - 1)                   
-                        endif
-                        NewPosition%surface = .true.
-                    else
-                          NewPosition%surface = .false.                    
-                    end if 
+                    if (CurrentOrigin%State%Oil) then
+                        !Particles on surface                  
+                        if (CurrentOrigin%Movement%Float) then
+                            NewPosition%surface = .true.
+                        else
+                            if (NewPosition%Z < Me%ExternalVar%SZZ(i, j,  KUB)) then
+                                !Particle is above surface; and is sent to surface
+                                NewPosition%Z = Me%ExternalVar%SZZ(i, j,  KUB)
+                                NewPosition%surface = .true.
+                            elseif (( NewPosition%Z -  Me%ExternalVar%SZZ(i, j,  KUB)) .LE. 0.1) then                
+                                ! particle is near the surface; is considered to be in the surface
+                                    NewPosition%surface = .true.
+                            else
+                                ! particle is below the surface
+                                NewPosition%surface = .false.                                
+                            end if                       
+
+                        end if
+                    end if                         
 
 
                     !Stores New Position
@@ -8910,6 +8959,10 @@ MT:             if (CurrentOrigin%Movement%MovType == SullivanAllen_) then
 
         call UnGetWaves(Me%ObjWaves, Me%ExternalVar%WaveHeight, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'MoveParticHorizontal - ModuleLagrangian - ERR03'
+
+        call UnGetWaves(Me%ObjWaves, Me%ExternalVar%WaveDirection, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'MoveParticHorizontal - ModuleLagrangian - ERR03'
+
 #endif
         end if
 
@@ -9235,20 +9288,27 @@ MD:     if (CurrentOrigin%Position%MaintainDepth) then
                 end if
 
                 if (CurrentOrigin%State%Oil) then    
+               
                     !correction number of particle submerged
                     CurrentOrigin%Fdisp = CurrentOrigin%Nbrsubmerged / CurrentOrigin%NbrParticlesIteration;
                     correction = Me%ExternalVar%FMdispersed - CurrentOrigin%Fdisp;
                     
                         
     SU1:                 if (CurrentPartic%Position%Surface) then 
-                   
+!                                CurrentPartic%Position%Z = SurfaceDepth
+                                if (.not. CurrentOrigin%Movement%StokesDrift) then    
+
 #ifndef _WAVES_
-                                call GetWaves (WavesID    = Me%ObjWaves,                     &
-                                    WavePeriod = Me%ExternalVar%WavePeriod,                  &
-                                    WaveHeight = Me%ExternalVar%WaveHeight,                  &
-                                    STAT       = STAT_CALL)
-                                if (STAT_CALL /= SUCCESS_) stop 'InternalParticOil - ModuleLagrangian - ERR03'
+                                    call GetWaves (WavesID    = Me%ObjWaves,                     &
+                                        WavePeriod = Me%ExternalVar%WavePeriod,                  &
+                                        WaveHeight = Me%ExternalVar%WaveHeight,                  &
+                                        STAT       = STAT_CALL)
+                                    if (STAT_CALL /= SUCCESS_) stop 'InternalParticOil - ModuleLagrangian - ERR03'
 #endif
+                                end if
+                                
+                                !It is assumed that there is no vertical advection for surface oil particles
+                                W = 0.0
                         
                                 call random_number(r1)
                             
@@ -9258,41 +9318,38 @@ MD:     if (CurrentOrigin%Position%MaintainDepth) then
                                     call random_number(r2)
                                     BreakingWaveHeight = 1.5 * Me%ExternalVar%WaveHeight (i, j)
                                     NewPosition%Z = min(r2 * 1.5 * BreakingWaveHeight + SurfaceDepth, BottomDepth)
-                                    CurrentPartic%Position%Z = NewPosition%Z
-                                    NewPosition%Surface = .false.
-                                    CurrentOrigin%Nbrsubmerged = CurrentOrigin%Nbrsubmerged + 1;                             
                                     
                                     !ATENCAO FALTA CALCULAR O D50 EM VEZ DE USAR UM VALOR MÉDIO
                                     CurrentPartic%Geometry%OilDropletsD50 = 0.000050
+
+                                    VELFLOAT = gravity * CurrentPartic%Geometry%OilDropletsD50 & 
+                                               * CurrentPartic%Geometry%OilDropletsD50 & 
+                                               * (1. - (CurrentPartic%OilDensity/Me%ExternalVar%Density(i, j, k)) ) &
+                                               / (18. * WaterCinematicVisc)
                                     
                                 else
-                                    NewPosition%Surface = .true.
-                                end if
+                                    NewPosition%Z = CurrentPartic%Position%Z
+                                     VELFLOAT = 0
+                               end if
+                               CurrentPartic%Position%Z = NewPosition%Z
 
+                                if (.not. CurrentOrigin%Movement%StokesDrift) then    
 #ifndef _WAVES_
-                                call UnGetWaves(Me%ObjWaves, Me%ExternalVar%WavePeriod, STAT = STAT_CALL)
-                                if (STAT_CALL /= SUCCESS_) stop 'InternalParticOil - ModuleLagrangian - ERR08'
+                                    call UnGetWaves(Me%ObjWaves, Me%ExternalVar%WavePeriod, STAT = STAT_CALL)
+                                    if (STAT_CALL /= SUCCESS_) stop 'InternalParticOil - ModuleLagrangian - ERR08'
 
-                                call UnGetWaves(Me%ObjWaves, Me%ExternalVar%WaveHeight, STAT = STAT_CALL)
-                                if (STAT_CALL /= SUCCESS_) stop 'InternalParticOil - ModuleLagrangian - ERR09'
+                                    call UnGetWaves(Me%ObjWaves, Me%ExternalVar%WaveHeight, STAT = STAT_CALL)
+                                    if (STAT_CALL /= SUCCESS_) stop 'InternalParticOil - ModuleLagrangian - ERR09'
 #endif
-
+                                end if
                            
+                            CurrentPartic%W    = 0.
                         else SU1
-                            NewPosition%Surface = .false.
-                        endif SU1
-                        
-    SU2:                if (.not. NewPosition%Surface) then
                             CurrentPartic%W    = 0.                  
                             VELFLOAT = gravity * CurrentPartic%Geometry%OilDropletsD50 * CurrentPartic%Geometry%OilDropletsD50 &
                                        * (1. - (CurrentPartic%OilDensity/Me%ExternalVar%Density(i, j, k)) ) &
                                        / (18. * WaterCinematicVisc)
-                            !VELFLOAT = 0
-
-                        else SU2
-                            CurrentPartic%W    = 0.
-                            VELFLOAT = 0
-                        end if SU2                
+                        endif SU1                       
                                       
                 endif
 
@@ -9351,6 +9408,19 @@ MD:     if (CurrentOrigin%Position%MaintainDepth) then
                     CurrentPartic%W    = 0.
                     
                     NewPosition%Z = CurrentPartic%Position%Z - (W + WD + VELQZ + VELFLOAT) *  Me%DT_Partic         
+      
+                    ! This is to correct or update particle position due to VELFLOAT:
+                    if (CurrentOrigin%State%Oil .and. (.not. CurrentPartic%Position%Surface)) then    
+                        !This is to avoid submerged particles to go above the surface due to VELFLOAT, 
+                        !and rellocate them at surface:
+                        if (NewPosition%Z < Me%ExternalVar%SZZ(i, j,  KUB)) then
+                            NewPosition%Z = Me%ExternalVar%SZZ(i, j,  KUB)
+                            NewPosition%surface = .true.
+                        ! This is to refresh submerged particles position due to VELFLOAT
+                        elseif ((NewPosition%Z -  Me%ExternalVar%SZZ(i, j,  KUB)) .LE. 0.1) then                
+                                NewPosition%surface = .true.
+                        end if                       
+                    end if 
       
                 endif PL
 
@@ -10786,6 +10856,9 @@ CurrOr: do while (associated(CurrentOrigin))
         integer                                     :: STAT_CALL
         real                                        :: MassINI
         real                                        :: MDissolvedDT
+        integer                                     :: NbrParticlesNotBeached
+        type (T_Time)                               :: LagrangianTime
+
 
  
          
@@ -10809,6 +10882,8 @@ CurrOr: do while (associated(CurrentOrigin))
         if (STAT_CALL /= SUCCESS_) stop 'InternalParticOil - ModuleLagrangian - ERR03'
 #endif
 
+        LagrangianTime = Me%Now
+
         CurrentOrigin => Me%FirstOrigin
 CurrOr: do while (associated(CurrentOrigin))
 
@@ -10819,6 +10894,7 @@ CurrOr: do while (associated(CurrentOrigin))
                 j       = CurrentOrigin%Position%J
                 k       = CurrentOrigin%Position%K
         
+                
                 UWIND   = Me%ExternalVar%WindX (i, j)
                 VWIND   = Me%ExternalVar%WindY (i, j)
                 Wind    = abs(cmplx(UWIND, VWIND))
@@ -10832,13 +10908,14 @@ CurrOr: do while (associated(CurrentOrigin))
                 WaterTemperature    = Temperature3D             (i, j, k)
                 WaterDensity        = Me%ExternalVar%Density    (i, j, k)
                 SPM                 = SPM3D                     (i, j, k)
-
+                
                 if (CurrentOrigin%UseTheoricArea) then
                     CurrentOrigin%AreaTotal = -1.
                 endif
 
                 !Runs Oil Internal Processes
                 call OilInternalProcesses(CurrentOrigin%ObjOil,                                   &
+                                          LagrangianTime        = LagrangianTime,                 & 
                                           Wind                  = Wind,                           &
                                           AtmosphericPressure   = AtmPressure,                    &
                                           WaterTemperature      = WaterTemperature,               &
@@ -10888,19 +10965,33 @@ CurrOr: do while (associated(CurrentOrigin))
                             !também na subrotina EmissionBox
                               
                             CurrentPartic%OilMass          = Me%ExternalVar%MassINI / CurrentOrigin%NbrParticlesIteration
-                            CurrentPartic%OilDissolvedMass = 0
+                            CurrentPartic%OilDissolvedMass = 0.
                             CurrentPartic%OilDensity       = Me%ExternalVar%OilDensity
                             
                         CurrentPartic => CurrentPartic%Next
 
                     enddo
-
-                    
+                   
                 End If
+
+                ! Count Number of particles beached
+                CurrentOrigin%NbrParticlesBeached           = 0
+                CurrentPartic                               => CurrentOrigin%FirstPartic
+                do while (associated(CurrentPartic))
+                    If (CurrentPartic%Beached) then
+                        CurrentOrigin%NbrParticlesBeached   = CurrentOrigin%NbrParticlesBeached + 1                      
+                    End if
+                        CurrentPartic                       => CurrentPartic%Next
+                enddo
+                NbrParticlesNotBeached                      = CurrentOrigin%NbrParticlesIteration - &
+                                                              CurrentOrigin%NbrParticlesBeached
+
+
 
                 !Modifies OilVolume
                 Factor                                  =  VolumeTotalOUT / (max(AllmostZero,CurrentOrigin%VolumeOilTotal))
                 CurrentPartic                           => CurrentOrigin%FirstPartic
+                
                 do while (associated(CurrentPartic))
 
                     if (.NOT. CurrentPartic%Beached ) then
@@ -10924,14 +11015,16 @@ CurrOr: do while (associated(CurrentOrigin))
                             ! Atenção falta Corrects Density to include only evaporation (excludes water content, which is at water column)
                             CurrentPartic%OilDensity = Me%ExternalVar%OilDensity
                          else       
-                             CurrentPartic%OilDissolvedMass = CurrentPartic%OilDissolvedMass + &
-                                                              (Me%ExternalVar%MDissolvedDT / CurrentOrigin%NbrSubmerged)
  
                             ! Atenção falta Corrects Density to include only water content (wxcludes evaporation, which is at surface)
                             CurrentPartic%OilDensity = Me%ExternalVar%OilDensity
 
                          end if
 
+                         If (Me%ExternalVar%MDissolvedDT > 0. .and. NbrParticlesNotBeached > 0) then
+                             CurrentPartic%OilDissolvedMass = CurrentPartic%OilDissolvedMass + &
+                                                              (Me%ExternalVar%MDissolvedDT / NbrParticlesNotBeached)
+                         End If
 
                     else if (CurrentPartic%Beached) then
 
