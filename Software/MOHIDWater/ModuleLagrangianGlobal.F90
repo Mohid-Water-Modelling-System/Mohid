@@ -9129,9 +9129,11 @@ CurrOr: do while (associated(CurrentOrigin))
         integer                                     :: ILB, JLB, IUB, JUB, KUB
         integer                                     :: ThicknessGradient, Fay
         integer                                     :: SpreadingMethod
+        type (T_Time)                               :: LagrangianTime
 
         !Begin-----------------------------------------------------------------
 
+        LagrangianTime = Me%Now
 
 
         CurrentOrigin => Me%FirstOrigin
@@ -9197,6 +9199,7 @@ CurrOr: do while (associated(CurrentOrigin))
                 
                 !Calculates the Oil Active Processes    
                 call OilActiveProcesses(OilID              = CurrentOrigin%ObjOil,                            &
+                                        LagrangianTime     = LagrangianTime,             & 
                                         WaterTemperature   = TemperatureX,              &
                                         WaterDensity       = DensityX,                  &
                                         VolInic            = VolInic,                   &
@@ -11981,8 +11984,11 @@ CurrOr: do while (associated(CurrentOrigin))
         integer                                     :: STAT_CALL
         real                                        :: MassINI
         real                                        :: MDissolvedDT
+        type (T_Time)                               :: LagrangianTime
 
  
+        LagrangianTime = Me%Now
+
         CurrentOrigin => Me%FirstOrigin
 CurrOr: do while (associated(CurrentOrigin))
             
@@ -12028,6 +12034,7 @@ i1:         if (CurrentOrigin%State%Oil .and. CurrentOrigin%nParticle > 0) then
 
                 !Runs Oil Internal Processes
                 call OilInternalProcesses(CurrentOrigin%ObjOil,                                   &
+                                          LagrangianTime        = LagrangianTime,                 & 
                                           Wind                  = Wind,                           &
                                           AtmosphericPressure   = AtmPressure,                    &
                                           WaterTemperature      = WaterTemperature,               &
