@@ -505,6 +505,9 @@ Module ModuleHDF5
             if (STAT_CALL /= SUCCESS_) stop 'CreateMinMaxAttribute - ModuleHDF5 - ERR12'
 
             !Sets Size
+            if (len_trim(Units)==0) then
+                Units ="-"
+            endif
             call h5Tset_size_f (new_type_id, len_trim(Units), STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'CreateMinMaxAttribute - ModuleHDF5 - ERR13'
 
