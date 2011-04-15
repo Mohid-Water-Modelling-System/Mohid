@@ -2110,25 +2110,26 @@ cd4 :           if (present(DataLineIN  )) then
                 end if cd3
 
 
-                Me%NextInternalComputeTime = Me%ExternalVar%Now + Me%Var%DTOilInternalProcesses
+                Me%NextInternalComputeTime = Me%NextInternalComputeTime + Me%Var%DTOilInternalProcesses
 
-
-                VolumeTotalOUT                 = Me%Var%VolumeOil 
-                VWaterContent                  = Me%Var%VWaterContent
-                MWaterContent                  = Me%Var%MWaterContent
-
-                !AreaTotalOUT, OilDensity e MDispersed necessaria para o calculo da concentracao no ModuleLagrangian
-                AreaTotalOUT                   = Me%ExternalVar%Area
-                OilDensity                     = Me%Var%Density
-                MDispersed                     = Me%Var%MDispersed
-                
-                MassINI                         = Me%Var%MassINI
-                OilViscosity                    = Me%Var%Viscosity        
-                FMEvaporated                    = Me%Var%FMEvaporated        
-                FMDispersed                     = Me%Var%FMDispersed    
-                MDissolvedDT                    = Me%Var%MDissolvedDT
             end if cd2
+           
 
+
+            VolumeTotalOUT                 = Me%Var%VolumeOil 
+            VWaterContent                  = Me%Var%VWaterContent
+            MWaterContent                  = Me%Var%MWaterContent
+
+            !AreaTotalOUT, OilDensity e MDispersed necessaria para o calculo da concentracao no ModuleLagrangian
+            AreaTotalOUT                   = Me%ExternalVar%Area
+            OilDensity                     = Me%Var%Density
+            MDispersed                     = Me%Var%MDispersed
+            
+            MassINI                         = Me%Var%MassINI
+            OilViscosity                    = Me%Var%Viscosity        
+            FMEvaporated                    = Me%Var%FMEvaporated        
+            FMDispersed                     = Me%Var%FMDispersed    
+            MDissolvedDT                    = Me%Var%MDissolvedDT            
 
             Me%State%FirstStepIP = OFF
 
@@ -3467,7 +3468,7 @@ cd11:                        if (Me%State%FirstStepAP) then
 
 
 
-                Me%NextActiveComputeTime = Me%ExternalVar%Now + DT
+                Me%NextActiveComputeTime = Me%NextActiveComputeTime + DT
 
                 Me%State%FirstStepAP = OFF
                 

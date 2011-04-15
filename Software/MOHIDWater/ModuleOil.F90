@@ -2200,9 +2200,6 @@ cd4 :           if (present(DataLineIN  )) then
                 end if cd3
 
 
-                Me%NextInternalComputeTime = Me%ExternalVar%Now + Me%Var%DTOilInternalProcesses
-
-
                 VolumeTotalOUT                 = Me%Var%VolumeOil 
                 VWaterContent                  = Me%Var%VWaterContent
                 MWaterContent                  = Me%Var%MWaterContent
@@ -2217,7 +2214,11 @@ cd4 :           if (present(DataLineIN  )) then
                 FMEvaporated                    = Me%Var%FMEvaporated        
                 FMDispersed                     = Me%Var%FMDispersed    
                 MDissolvedDT                    = Me%Var%MDissolvedDT
+                
+                Me%NextInternalComputeTime = Me%ExternalVar%Now + Me%Var%DTOilInternalProcesses
+
             end if cd2
+
 
 
             Me%State%FirstStepIP = OFF
