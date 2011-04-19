@@ -10172,12 +10172,17 @@ do7 :                           do I = Me%WorkSize%ILB, Me%WorkSize%IUB
         !Local-----------------------------------------------------------------
         integer                             :: i, j, k
         character(len=5)                    :: char_i, char_j, char_k
+        !$ integer                          :: CHUNK
         
         !Begin-----------------------------------------------------------------
         
-        do K = Me%WorkSize%KLB, Me%WorkSize%KUB
-        do J = Me%WorkSize%JLB, Me%WorkSize%JUB
-        do I = Me%WorkSize%ILB, Me%WorkSize%IUB
+        !$ CHUNK = CHUNK_J(Me%Size%JLB,Me%Size%JUB)
+        
+        !$OMP PARALLEL PRIVATE(k,j,i,char_i,char_j,char_k)
+        do k = Me%WorkSize%KLB, Me%WorkSize%KUB
+        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+        do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             if(Me%ExternalVar%WaterPoints3D(i, j, k) == 1)then
 
 
@@ -10197,8 +10202,9 @@ do7 :                           do I = Me%WorkSize%ILB, Me%WorkSize%IUB
             end if
         end do
         end do
+        !$OMP END DO
         end do  
-
+        !$OMP END PARALLEL
     
     end subroutine CheckIfConcentrationIsNegative
 
