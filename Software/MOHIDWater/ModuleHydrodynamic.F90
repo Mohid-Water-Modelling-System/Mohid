@@ -1140,6 +1140,7 @@ Module ModuleHydrodynamic
          logical                                  :: RestartOverwrite
          logical                                  :: Faces
          real                                     :: WaterLevelUnits
+         logical                                  :: Simple = .false. 
     end type T_OutPut
 
     type      T_OutW
@@ -7456,7 +7457,33 @@ cd5 :           if (opened) then
 
         end if
    
-            
+      
+
+        !<BeginKeyword>
+            !Keyword          : SIMPLE_OUTPUT
+            !<BeginDescription>       
+               ! 
+               ! This option checks if the user wants to output only the essencial variables (water level & velocities)
+               ! 
+            !<EndDescription>
+            !Type             : logical 
+            !Default          : .false.
+            !Multiple Options : Do not have
+            !Search Type      : FromFile
+        !<EndKeyword>
+        
+        call GetData(Me%Output%Simple  ,                                                &
+                     Me%ObjEnterData,                                                   &
+                     iflag,                                                             &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'SIMPLE_OUTPUT',                                    &
+                     Default      = .false.,                                            &
+                     ClientModule = 'ModuleWaterProperties',                            &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)                                                      &
+            call SetError(FATAL_, KEYWORD_, "Construct_OutPutTime - Hydrodynamic - ERR40")
+
+    
 
     end subroutine Construct_OutPutTime
 
@@ -8747,12 +8774,13 @@ cd5:                if (SurfaceElevation(i,j) < (- Bathymetry(i, j) + 0.999 * Mi
         if (present(iW)) then
 
             Me%OutW%ObjHDF5(iW) = ObjHDF5
-           
+          
         else
           
             Me%ObjHDF5          = ObjHDF5
 
         endif
+
 
         
         !Creates Groups
@@ -8798,22 +8826,51 @@ cd5:                if (SurfaceElevation(i,j) < (- Bathymetry(i, j) + 0.999 * Mi
         call HDF5CreateGroup (ObjHDF5, "/Results/"//trim(GetPropertyName (VelocityModulus_)),STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleHydrodynamic - ERR140'
 
+sp:     if (.not. Me%Output%Simple) then
 
-        if (.not. Me%ComputeOptions%BaroclinicRadia == NoRadiation_) then
+            if (.not. Me%ComputeOptions%BaroclinicRadia == NoRadiation_) then
 
-            call HDF5CreateGroup (ObjHDF5, "/Results/Baroclinic",   STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleHydrodynamic - ERR150'
+                call HDF5CreateGroup (ObjHDF5, "/Results/Baroclinic",   STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleHydrodynamic - ERR150'
 
-            call HDF5CreateGroup (ObjHDF5, "/Results/Baroclinic/X", STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleHydrodynamic - ERR160'
+                call HDF5CreateGroup (ObjHDF5, "/Results/Baroclinic/X", STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleHydrodynamic - ERR160'
 
-            call HDF5CreateGroup (ObjHDF5, "/Results/Baroclinic/Y", STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleHydrodynamic - ERR170'
+                call HDF5CreateGroup (ObjHDF5, "/Results/Baroclinic/Y", STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleHydrodynamic - ERR170'
 
-            call HDF5CreateGroup (ObjHDF5, "/Results/Baroclinic/Z", STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleHydrodynamic - ERR190'
+                call HDF5CreateGroup (ObjHDF5, "/Results/Baroclinic/Z", STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleHydrodynamic - ERR190'
 
-        endif
+            endif
+
+            call HDF5CreateGroup (ObjHDF5, "/Results/Error", STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleHydrodynamic - ERR360'
+
+            call HDF5CreateGroup (ObjHDF5, "/Results/VolumeCreated", STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleHydrodynamic - ERR370'
+
+            if (Me%TidePotential%Compute) then
+
+                call HDF5CreateGroup (ObjHDF5, "/Results/TidePotential", STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleHydrodynamic - ERR380'
+
+            endif
+
+            if (Me%ComputeOptions%Baroclinic) then
+
+                call HDF5CreateGroup (ObjHDF5, "/Results/"//trim(GetPropertyName(BaroclinicForceX_)), STAT = STAT_CALL)
+
+                if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleHydrodynamic - ERR390'
+
+                call HDF5CreateGroup (ObjHDF5, "/Results/"//trim(GetPropertyName(BaroclinicForceY_)), STAT = STAT_CALL)
+
+                if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleHydrodynamic - ERR400'
+
+            endif            
+            
+        endif sp
+            
 
         if (Me%ComputeOptions%Residual) then
 
@@ -8863,33 +8920,9 @@ cd5:                if (SurfaceElevation(i,j) < (- Bathymetry(i, j) + 0.999 * Mi
             if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleHydrodynamic - ERR350'
 
         endif
+        
 
-        call HDF5CreateGroup (ObjHDF5, "/Results/Error", STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleHydrodynamic - ERR360'
-
-        call HDF5CreateGroup (ObjHDF5, "/Results/VolumeCreated", STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleHydrodynamic - ERR370'
-
-        if (Me%TidePotential%Compute) then
-
-            call HDF5CreateGroup (ObjHDF5, "/Results/TidePotential", STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleHydrodynamic - ERR380'
-
-        endif
-
-        if (Me%ComputeOptions%Baroclinic) then
-
-            call HDF5CreateGroup (ObjHDF5, "/Results/"//trim(GetPropertyName(BaroclinicForceX_)), STAT = STAT_CALL)
-
-            if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleHydrodynamic - ERR390'
-
-            call HDF5CreateGroup (ObjHDF5, "/Results/"//trim(GetPropertyName(BaroclinicForceY_)), STAT = STAT_CALL)
-
-            if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleHydrodynamic - ERR400'
-
-        endif
-
-
+        
         !Write the Horizontal Grid
         call WriteHorizontalGrid(Me%ObjHorizontalGrid, ObjHDF5,                         &
                                  WorkSize = WorkSize2D, STAT = STAT_CALL)
@@ -38849,8 +38882,9 @@ cd2:            if (WaterPoints3D(i  , j  ,k)== WaterPoint .and.                
             ObjHDF5 = Me%OutW%ObjHDF5(iW)
             
             !Current output index
-            Index   = Me%OutW%OutPutWindows(iW)%NextOutPut            
+            Index   = Me%OutW%OutPutWindows(iW)%NextOutPut     
             
+           
         else
 
             WorkILB = Me%WorkSize%ILB 
@@ -38866,8 +38900,10 @@ cd2:            if (WaterPoints3D(i  , j  ,k)== WaterPoint .and.                
             
             !Current output index
             Index   = Me%OutPut%NextOutPut            
-
+            
         endif
+        
+        
 
 
         WaterPoints3D       => Me%External_Var%WaterPoints3D
@@ -39039,192 +39075,198 @@ cd2:            if (WaterPoints3D(i  , j  ,k)== WaterPoint .and.                
         if (MonitorPerformance) then
             call StartWatch ("ModuleHydrodynamic", "Write_HDF5_Format")
         endif
-
-        if (.not. Me%ComputeOptions%BaroclinicRadia == NoRadiation_) then
-            
-            call SetMatrixValue(Me%OutPut%CenterWaux, Me%Size, FillValueReal)
-
-            !$OMP PARALLEL PRIVATE(i,j,k,kbottom)
-            !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
-            do j = WorkJLB, WorkJUB
-            do i = WorkILB, WorkIUB
-
-                if (WaterPoints3D (i  ,j  ,WorkKUB) == WaterPoint) then
-
-                    kbottom = KFloorZ(i, j)
-
-                    !By default the vertical velocity in the faces that are not compute is zero
-                    Me%VelBaroclinic%W_New(i, j, kbottom : WorkKUB + 1) = &
-                    Me%VelBaroclinic%W_New(i, j, kbottom : WorkKUB + 1) * &
-                    ComputeFaces3D_W                   (i, j, kbottom : WorkKUB + 1)
-
         
-                    do k = kbottom, WorkKUB
+sp:     if (.not. Me%Output%Simple) then
 
-                        Me%OutPut%CenterWaux(i, j, k) = (Me%VelBaroclinic%W_New(i, j, k+1) +  &
-                                                         Me%VelBaroclinic%W_New(i, j, k)) / 2.
-                    enddo
+            if (.not. Me%ComputeOptions%BaroclinicRadia == NoRadiation_) then
+                
+                call SetMatrixValue(Me%OutPut%CenterWaux, Me%Size, FillValueReal)
 
-                endif
+                !$OMP PARALLEL PRIVATE(i,j,k,kbottom)
+                !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+                do j = WorkJLB, WorkJUB
+                do i = WorkILB, WorkIUB
 
-            enddo
-            enddo
-            !$OMP END DO
-            !$OMP END PARALLEL
+                    if (WaterPoints3D (i  ,j  ,WorkKUB) == WaterPoint) then
 
-            !Baroclinic Vertical Velocity
-            call HDF5WriteData  (ObjHDF5, "/Results/Baroclinic/Z",                   &
-                                 "B_Vel_Z", "m/s", Array3D = Me%OutPut%CenterWaux,      &
-                                 OutputNumber = Index, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR230'
+                        kbottom = KFloorZ(i, j)
+
+                        !By default the vertical velocity in the faces that are not compute is zero
+                        Me%VelBaroclinic%W_New(i, j, kbottom : WorkKUB + 1) = &
+                        Me%VelBaroclinic%W_New(i, j, kbottom : WorkKUB + 1) * &
+                        ComputeFaces3D_W                   (i, j, kbottom : WorkKUB + 1)
 
             
-            !Baroclinic Horizontal Velocity
-            call CenterVelocity(Me%OutPut%CenterUaux, Me%OutPut%CenterVaux, VectorType = BaroclinicVelocity)
-                                
+                        do k = kbottom, WorkKUB
 
-            call HDF5WriteData  (ObjHDF5, "/Results/Baroclinic/X",                   &
-                                 "B_Vel_X", "m/s", Array3D = Me%OutPut%CenterUaux,      &
-                                 OutputNumber = Index, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR240'
-
-
-            call HDF5WriteData  (ObjHDF5, "/Results/Baroclinic/Y",                   &
-                                 "B_Vel_Y", "m/s", Array3D = Me%OutPut%CenterVaux,      &
-                                 OutputNumber = Index, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR250'
-        endif
-
-        !$OMP PARALLEL PRIVATE(i,j)
-        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
-        do j = WorkJLB, WorkJUB
-        do i = WorkILB, WorkIUB
-            Me%OutPut%Aux2D(i, j) = Me%Velocity%Vertical%Across(i, j, WorkKUB + 1)
-        enddo
-        enddo
-        !$OMP END DO
-        !$OMP END PARALLEL
-
-        call HDF5WriteData  (ObjHDF5, "/Results/Error",                              &
-                             "Error", "m/s", Array2D = Me%OutPut%Aux2D,                 &
-                             OutputNumber = Index, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR300'
-
-
-        if (Me%TidePotential%Compute) then
-            
-            call HDF5WriteData  (ObjHDF5, "/Results/TidePotential",                  &
-                                 "TidePotential", "m",                                  &
-                                 Array2D = Me%Forces%TidePotentialLevel,                &
-                                 OutputNumber = Index, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR320'
-
-        endif
-
-        if (Me%NonHydroStatic%ON) then
-
-            call HDF5WriteData  (ObjHDF5, "/Results/NonHydroStaticCorrection",       &
-                                 "NonHydroStaticCorrection", "m^2/s^2",                 &
-                                 Array3D = Me%NonHydroStatic%PressureCorrect,           &
-                                 OutputNumber = Index, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR330'
-
-        endif
-
-
-        if (Me%ComputeOptions%Baroclinic) then
-        
-            call HDF5SetLimits(ObjHDF5, WorkILB, WorkIUB,                            &
-                                           WorkJLB, WorkJUB,                            &
-                                           WorkKLB, WorkKUB,                            &
-                                           STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR340'
-
-            call CenterVelocity(Me%OutPut%CenterUaux, Me%OutPut%CenterVaux, VectorType = BaroclinicForce)
-
-            call HDF5WriteData  (ObjHDF5,                                            &
-                                 "/Results/"//trim(GetPropertyName(BaroclinicForceX_)), &
-                                 trim(GetPropertyName(BaroclinicForceX_)), "kg/m3",     &
-                                 Array3D = Me%OutPut%CenterUaux,                        &
-                                 OutputNumber = Index, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR370'
-
-            call HDF5WriteData  (ObjHDF5,                                            &
-                                 "/Results/"//trim(GetPropertyName(BaroclinicForceY_)), &
-                                 trim(GetPropertyName(BaroclinicForceY_)), "kg/m3",     &
-                                 Array3D = Me%OutPut%CenterVaux,                        &
-                                 OutputNumber = Index, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR380'
-
-        endif
-
-        ! When using altimetry assimilation
-        if (Me%ComputeOptions%AltimetryAssimilation%Yes) then
-
-            call CenterVelocity(Me%OutPut%CenterUaux, Me%OutPut%CenterVaux, VectorType = AltimGeostrophicVelocity)
-
-            call HDF5WriteData  (ObjHDF5, "/Results/AltimGeostrophicVelocityU",      &
-                                 "AltimGeostrophicVelocityU", "m/s",                    &
-                                 Array3D = Me%OutPut%CenterUaux,                        &
-                                 OutputNumber = Index, STAT = STAT_CALL)
-
-            if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR430'
-
-            call HDF5WriteData  (ObjHDF5, "/Results/AltimGeostrophicVelocityV",      &
-                                 "AltimGeostrophicVelocityV", "m/s",                    &
-                                 Array3D = Me%OutPut%CenterVaux,                        &
-                                 OutputNumber = Index, STAT = STAT_CALL)
-
-            if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR440'
-
-        endif
-        
-        if (Me%ComputeOptions%Level_Bottom_Anomaly) then
-
-            !$OMP PARALLEL PRIVATE(i,j,k,kbottom)
-            !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
-            !Writes the bottom pressure anomaly converted to level (pressure/(density*gravity))
-            do j = WorkJLB, WorkJUB
-            do i = WorkILB, WorkIUB
-                if (WaterPoints3D (i  ,j  ,WorkKUB) == WaterPoint) then
-                    kbottom = Me%External_Var%KFloor_Z(i, j)
-                    
-                    if (Me%FirstIteration) then
-                        Me%OutPut%Aux2D(i, j) = 0.
-                    else
-                        Me%OutPut%Aux2D(i, j) = 0.
-                        do k = WorkKUB, kbottom, -1
-                            Me%OutPut%Aux2D(i, j)= Me%OutPut%Aux2D(i, j) +              &
-                                                   Me%External_Var%Density(i, j, k) *   &
-                                                   Me%External_Var%DWZ(i, j, k)
+                            Me%OutPut%CenterWaux(i, j, k) = (Me%VelBaroclinic%W_New(i, j, k+1) +  &
+                                                             Me%VelBaroclinic%W_New(i, j, k)) / 2.
                         enddo
-                        Me%OutPut%Aux2D(i, j) = Me%OutPut%Aux2D(i, j) / SigmaDensityReference
+
                     endif
-                else
-                    Me%OutPut%Aux2D(i, j) = FillValueReal
-                endif
+
+                enddo
+                enddo
+                !$OMP END DO
+                !$OMP END PARALLEL
+
+                !Baroclinic Vertical Velocity
+                call HDF5WriteData  (ObjHDF5, "/Results/Baroclinic/Z",                   &
+                                     "B_Vel_Z", "m/s", Array3D = Me%OutPut%CenterWaux,      &
+                                     OutputNumber = Index, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR230'
+
+                
+                !Baroclinic Horizontal Velocity
+                call CenterVelocity(Me%OutPut%CenterUaux, Me%OutPut%CenterVaux, VectorType = BaroclinicVelocity)
+                                    
+
+                call HDF5WriteData  (ObjHDF5, "/Results/Baroclinic/X",                   &
+                                     "B_Vel_X", "m/s", Array3D = Me%OutPut%CenterUaux,      &
+                                     OutputNumber = Index, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR240'
+
+
+                call HDF5WriteData  (ObjHDF5, "/Results/Baroclinic/Y",                   &
+                                     "B_Vel_Y", "m/s", Array3D = Me%OutPut%CenterVaux,      &
+                                     OutputNumber = Index, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR250'
+            endif
+
+            !$OMP PARALLEL PRIVATE(i,j)
+            !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+            do j = WorkJLB, WorkJUB
+            do i = WorkILB, WorkIUB
+                Me%OutPut%Aux2D(i, j) = Me%Velocity%Vertical%Across(i, j, WorkKUB + 1)
             enddo
             enddo
             !$OMP END DO
             !$OMP END PARALLEL
-            
-            call HDF5WriteData  (ObjHDF5, "/Results/bottom pressure",                &
-                                 "bottom pressure", "m", Array2D = Me%OutPut%Aux2D,     &
+
+            call HDF5WriteData  (ObjHDF5, "/Results/Error",                              &
+                                 "Error", "m/s", Array2D = Me%OutPut%Aux2D,                 &
                                  OutputNumber = Index, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                  &
-                    stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR480'
-        endif
+            if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR300'
 
 
+            if (Me%TidePotential%Compute) then
+                
+                call HDF5WriteData  (ObjHDF5, "/Results/TidePotential",                  &
+                                     "TidePotential", "m",                                  &
+                                     Array2D = Me%Forces%TidePotentialLevel,                &
+                                     OutputNumber = Index, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR320'
 
-          
+            endif
+
+            if (Me%NonHydroStatic%ON) then
+
+                call HDF5WriteData  (ObjHDF5, "/Results/NonHydroStaticCorrection",       &
+                                     "NonHydroStaticCorrection", "m^2/s^2",                 &
+                                     Array3D = Me%NonHydroStatic%PressureCorrect,           &
+                                     OutputNumber = Index, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR330'
+
+            endif
+
+
+            if (Me%ComputeOptions%Baroclinic) then
+            
+                call HDF5SetLimits(ObjHDF5, WorkILB, WorkIUB,                            &
+                                               WorkJLB, WorkJUB,                            &
+                                               WorkKLB, WorkKUB,                            &
+                                               STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR340'
+
+                call CenterVelocity(Me%OutPut%CenterUaux, Me%OutPut%CenterVaux, VectorType = BaroclinicForce)
+
+                call HDF5WriteData  (ObjHDF5,                                            &
+                                     "/Results/"//trim(GetPropertyName(BaroclinicForceX_)), &
+                                     trim(GetPropertyName(BaroclinicForceX_)), "kg/m3",     &
+                                     Array3D = Me%OutPut%CenterUaux,                        &
+                                     OutputNumber = Index, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR370'
+
+                call HDF5WriteData  (ObjHDF5,                                            &
+                                     "/Results/"//trim(GetPropertyName(BaroclinicForceY_)), &
+                                     trim(GetPropertyName(BaroclinicForceY_)), "kg/m3",     &
+                                     Array3D = Me%OutPut%CenterVaux,                        &
+                                     OutputNumber = Index, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR380'
+
+            endif
+
+            ! When using altimetry assimilation
+            if (Me%ComputeOptions%AltimetryAssimilation%Yes) then
+
+                call CenterVelocity(Me%OutPut%CenterUaux, Me%OutPut%CenterVaux, VectorType = AltimGeostrophicVelocity)
+
+                call HDF5WriteData  (ObjHDF5, "/Results/AltimGeostrophicVelocityU",      &
+                                     "AltimGeostrophicVelocityU", "m/s",                    &
+                                     Array3D = Me%OutPut%CenterUaux,                        &
+                                     OutputNumber = Index, STAT = STAT_CALL)
+
+                if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR430'
+
+                call HDF5WriteData  (ObjHDF5, "/Results/AltimGeostrophicVelocityV",      &
+                                     "AltimGeostrophicVelocityV", "m/s",                    &
+                                     Array3D = Me%OutPut%CenterVaux,                        &
+                                     OutputNumber = Index, STAT = STAT_CALL)
+
+                if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR440'
+
+            endif
+            
+            if (Me%ComputeOptions%Level_Bottom_Anomaly) then
+
+                !$OMP PARALLEL PRIVATE(i,j,k,kbottom)
+                !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+                !Writes the bottom pressure anomaly converted to level (pressure/(density*gravity))
+                do j = WorkJLB, WorkJUB
+                do i = WorkILB, WorkIUB
+                    if (WaterPoints3D (i  ,j  ,WorkKUB) == WaterPoint) then
+                        kbottom = Me%External_Var%KFloor_Z(i, j)
+                        
+                        if (Me%FirstIteration) then
+                            Me%OutPut%Aux2D(i, j) = 0.
+                        else
+                            Me%OutPut%Aux2D(i, j) = 0.
+                            do k = WorkKUB, kbottom, -1
+                                Me%OutPut%Aux2D(i, j)= Me%OutPut%Aux2D(i, j) +              &
+                                                       Me%External_Var%Density(i, j, k) *   &
+                                                       Me%External_Var%DWZ(i, j, k)
+                            enddo
+                            Me%OutPut%Aux2D(i, j) = Me%OutPut%Aux2D(i, j) / SigmaDensityReference
+                        endif
+                    else
+                        Me%OutPut%Aux2D(i, j) = FillValueReal
+                    endif
+                enddo
+                enddo
+                !$OMP END DO
+                !$OMP END PARALLEL
+                
+                call HDF5WriteData  (ObjHDF5, "/Results/bottom pressure",               &
+                                     "bottom pressure", "m", Array2D = Me%OutPut%Aux2D, &
+                                     OutputNumber = Index, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)                                              &
+                        stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR480'
+            endif
+
+        endif sp            
+
+              
 cd2:    if (Me%OutPut%Run_End) then
 
-            call HDF5WriteData  (ObjHDF5, "/Results/VolumeCreated",                  &
-                                 "Volume Created", "m3",                                &
-                                 Array2D = Me%WaterLevel%VolumeCreated,                 &
-                                 STAT    = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ER36'
+            if (.not. Me%Output%Simple) then
+
+                call HDF5WriteData  (ObjHDF5, "/Results/VolumeCreated",                 &
+                                     "Volume Created", "m3",                            &
+                                     Array2D = Me%WaterLevel%VolumeCreated,             &
+                                     STAT    = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ER36'
+
+            endif
 
             !Residual Velocity
 cd3:        if (Me%ComputeOptions%Residual) then
@@ -39385,7 +39427,6 @@ cd3:        if (Me%ComputeOptions%Residual) then
             endif cd3
 
             call KillHydroStatistics
-
 
             call KillHDF5 (ObjHDF5, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR680'
