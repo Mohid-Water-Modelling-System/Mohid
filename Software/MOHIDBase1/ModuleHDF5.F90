@@ -3417,15 +3417,23 @@ Module ModuleHDF5
         if (ready_ .EQ. IDLE_ERR_) then
 
             call h5gopen_f      (Me%FileID, trim(adjustl(GroupName)), gr_id, STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'GetHDF5GroupNumberOfItems - ModuleHDF5 - ERR01'
-
+            if (STAT_CALL /= SUCCESS_) then
+                write(*,*) 'GroupName= ', GroupName
+                stop 'GetHDF5GroupNumberOfItems - ModuleHDF5 - ERR10'
+            endif                
+            
             call h5gn_members_f (gr_id, trim(adjustl(GroupName)), nItems, STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'GetHDF5GroupNumberOfItems - ModuleHDF5 - ERR03'
+            if (STAT_CALL /= SUCCESS_) then
+                write(*,*) 'GroupName= ', GroupName
+                stop 'GetHDF5GroupNumberOfItems - ModuleHDF5 - ERR20'
+            endif
 
             call h5gclose_f     (gr_id, STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'GetHDF5GroupNumberOfItems - ModuleHDF5 - ERR04'
-           
-           STAT_ = SUCCESS_
+            if (STAT_CALL /= SUCCESS_) then
+                write(*,*) 'GroupName= ', GroupName
+                stop 'GetHDF5GroupNumberOfItems - ModuleHDF5 - ERR30'
+            endif
+            STAT_ = SUCCESS_
 
         else
 
