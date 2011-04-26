@@ -2237,7 +2237,7 @@ cd2:                if (Me%WaveHeight%Field(i,j) .lt. 0.1 .or. Me%ExternalVar%Wa
                 !Wind directions are fused into 8 major directions (N,NE,E,SE,S,SW,W,NW)
                 !Numbers are used instead of Me%[direction] because fetch as only 8 positions
                 !no matter if 8 or 16 wind rose directions are used
-                if ((WindAngle .gt. 337.5) .and. (WindAngle .lt. 360.) .Or. &
+                if ((WindAngle .gt. 337.5) .and. (WindAngle .le. 360.) .Or. &
                     (WindAngle .ge. 0.   ) .and. (WindAngle .le. 22.5)) then
                     
                     !if trigonometric angle is near zero then wind comes from West
@@ -2373,7 +2373,7 @@ cd2:                if (Me%WaveHeight%Field(i,j) .lt. 0.1 .or. Me%ExternalVar%Wa
                 !Wind directions are fused into 8 major directions (N,NE,E,SE,S,SW,W,NW)
                 !Numbers are used instead of Me%[direction] because fetch as only 8 positions
                 !no matter if 8 or 16 wind rose directions are used
-                if ((WindAngle .gt. 337.5) .and. (WindAngle .lt. 360.) .Or. &
+                if ((WindAngle .gt. 337.5) .and. (WindAngle .le. 360.) .Or. &
                     (WindAngle .ge. 0.   ) .and. (WindAngle .le. 22.5)) then
                     
                     !if trigonometric angle is near zero then wind comes from West                    
