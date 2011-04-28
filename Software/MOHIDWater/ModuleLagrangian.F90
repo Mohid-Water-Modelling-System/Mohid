@@ -8821,7 +8821,7 @@ MT:             if (CurrentOrigin%Movement%MovType == SullivanAllen_) then
                     WaveNumber          = AngFrequency * AngFrequency / gravity
                     VelStokesDrift      = 0.5 * (WaveHeight /  2 )**2 * WaveNumber * AngFrequency * & 
                                           exp(2* WaveNumber *                                       &
-                                          abs(Me%ExternalVar%SZZ(i, j, k) - CurrentOrigin%Position%Z) )
+                                          abs(Me%ExternalVar%SZZ(i, j, KUB) - CurrentPartic%Position%Z) )
                                           
                     if (CurrentOrigin%Movement%WindOriginON) then
 
