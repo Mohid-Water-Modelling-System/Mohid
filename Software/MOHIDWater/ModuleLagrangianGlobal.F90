@@ -5950,7 +5950,11 @@ FLOAT:  if (CurrentOrigin%Movement%Float .or. CurrentOrigin%Deposition%BottomEmi
 
             if (CurrentOrigin%Movement%Float) then
 
-                BoxThickness = CurrentOrigin%Movement%ThicknessMeters
+                if (CurrentOrigin%AreaTotal > 0.) then
+                    BoxThickness = CurrentOrigin%PointVolume / CurrentOrigin%AreaTotal
+                else
+                    BoxThickness = 0.
+                endif
 
             else if (CurrentOrigin%Deposition%BottomEmission) then
 
