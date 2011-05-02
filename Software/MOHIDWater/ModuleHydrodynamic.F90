@@ -1140,7 +1140,6 @@ Module ModuleHydrodynamic
          logical                                  :: RestartOverwrite
          logical                                  :: Faces
          real                                     :: WaterLevelUnits
-         logical                                  :: Simple = .false. 
     end type T_OutPut
 
     type      T_OutW
@@ -1148,6 +1147,7 @@ Module ModuleHydrodynamic
         logical                                   :: OutPutWindowsON            
         integer                                   :: WindowsNumber        
         integer,            dimension(:), pointer :: ObjHDF5
+        logical                                   :: Simple = .false.
     end type  T_OutW
     
     type T_Energy
@@ -7458,27 +7458,26 @@ cd5 :           if (opened) then
         end if
    
       
-
         !<BeginKeyword>
-            !Keyword          : SIMPLE_OUTPUT
+            !Keyword          : SIMPLE_WINDOW_OUTPUT
             !<BeginDescription>       
                ! 
-               ! This option checks if the user wants to output only the essencial variables (water level & velocities)
+               ! This option checks wether the end user wants to output only the basic properties in the window output
                ! 
             !<EndDescription>
             !Type             : logical 
-            !Default          : .false.
+            !Default          : .true.
             !Multiple Options : Do not have
             !Search Type      : FromFile
         !<EndKeyword>
         
-        call GetData(Me%Output%Simple  ,                                                &
+        call GetData(Me%OutW%Simple,                                                    &
                      Me%ObjEnterData,                                                   &
                      iflag,                                                             &
                      SearchType   = FromFile,                                           &
-                     keyword      = 'SIMPLE_OUTPUT',                                    &
-                     Default      = .false.,                                            &
-                     ClientModule = 'ModuleWaterProperties',                            &
+                     keyword      = 'SIMPLE_WINDOW_OUTPUT',                             &
+                     Default      = .true.,                                             &
+                     ClientModule = 'ModuleHydrodynamic',                               &
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                      &
             call SetError(FATAL_, KEYWORD_, "Construct_OutPutTime - Hydrodynamic - ERR40")
@@ -8701,11 +8700,14 @@ cd5:                if (SurfaceElevation(i,j) < (- Bathymetry(i, j) + 0.999 * Mi
         integer                                     :: WorkJLB, WorkJUB
         integer                                     :: WorkKLB, WorkKUB
         integer                                     :: HDF5_CREATE, ObjHDF5, i, n, j
+        logical                                     :: SimpleOutPut 
 
         !----------------------------------------------------------------------
         !Bounds
 
         FileName = trim(Me%Files%OutPutFields)//"5"
+
+        SimpleOutPut = .false. 
 
         if (present(iW)) then
 
@@ -8734,6 +8736,8 @@ cd5:                if (SurfaceElevation(i,j) < (- Bathymetry(i, j) + 0.999 * Mi
                 endif
             enddo
             FileName(i:i+n-1) = trim(Auxchar)
+
+            if (Me%OutW%Simple) SimpleOutPut = .true.             
             
         else
 
@@ -8747,6 +8751,7 @@ cd5:                if (SurfaceElevation(i,j) < (- Bathymetry(i, j) + 0.999 * Mi
             WorkKUB = Me%WorkSize%KUB 
             
             WorkSize2D = Me%WorkSize2D 
+            
 
         endif
 
@@ -8826,7 +8831,7 @@ cd5:                if (SurfaceElevation(i,j) < (- Bathymetry(i, j) + 0.999 * Mi
         call HDF5CreateGroup (ObjHDF5, "/Results/"//trim(GetPropertyName (VelocityModulus_)),STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleHydrodynamic - ERR140'
 
-sp:     if (.not. Me%Output%Simple) then
+sp:     if (.not. SimpleOutPut) then
 
             if (.not. Me%ComputeOptions%BaroclinicRadia == NoRadiation_) then
 
@@ -8872,7 +8877,7 @@ sp:     if (.not. Me%Output%Simple) then
         endif sp
             
 
-        if (Me%ComputeOptions%Residual) then
+        if (Me%ComputeOptions%Residual .and. .not. SimpleOutPut) then
 
             call HDF5CreateGroup (ObjHDF5, "/Residual",   STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleHydrodynamic - ERR200'
@@ -38862,10 +38867,13 @@ cd2:            if (WaterPoints3D(i  , j  ,k)== WaterPoint .and.                
         integer, dimension(:,:),   pointer  :: KFloorZ
         character(len = StringLength)       :: AuxChar
         integer                             :: CHUNK
+        logical                             :: SimpleOutPut
 
         !----------------------------------------------------------------------
 
         !A if (MonitorPerformance) call StartWatch ("ModuleHydrodynamic", "Write_HDF5_Format")
+        
+        SimpleOutPut = .false.
 
         !Bounds
         if (present(iW)) then
@@ -38884,6 +38892,7 @@ cd2:            if (WaterPoints3D(i  , j  ,k)== WaterPoint .and.                
             !Current output index
             Index   = Me%OutW%OutPutWindows(iW)%NextOutPut     
             
+            if (Me%OutW%Simple) SimpleOutPut = .true.
            
         else
 
@@ -39076,7 +39085,7 @@ cd2:            if (WaterPoints3D(i  , j  ,k)== WaterPoint .and.                
             call StartWatch ("ModuleHydrodynamic", "Write_HDF5_Format")
         endif
         
-sp:     if (.not. Me%Output%Simple) then
+sp:     if (.not. SimpleOutPut) then
 
             if (.not. Me%ComputeOptions%BaroclinicRadia == NoRadiation_) then
                 
@@ -39258,7 +39267,7 @@ sp:     if (.not. Me%Output%Simple) then
               
 cd2:    if (Me%OutPut%Run_End) then
 
-            if (.not. Me%Output%Simple) then
+            if (.not. SimpleOutPut) then
 
                 call HDF5WriteData  (ObjHDF5, "/Results/VolumeCreated",                 &
                                      "Volume Created", "m3",                            &
@@ -39269,7 +39278,7 @@ cd2:    if (Me%OutPut%Run_End) then
             endif
 
             !Residual Velocity
-cd3:        if (Me%ComputeOptions%Residual) then
+cd3:        if (Me%ComputeOptions%Residual .and. .not.  SimpleOutPut) then
 
                 call CenterVelocity(Me%OutPut%CenterUaux, Me%OutPut%CenterVaux, VectorType = ResidualVelocity)
                 
