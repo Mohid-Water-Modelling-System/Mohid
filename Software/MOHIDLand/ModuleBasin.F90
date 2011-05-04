@@ -87,7 +87,6 @@ Module ModuleBasin
                                      UngetRunoffProperties, SetBasinConcRP,              &
                                      SetBasinToRPSplash, GetRPMassBalance,               &
                                      CheckRPProperty, GetRPConcentrationOld,             &
-                                     GetRPDecayRate
                                      GetRPDecayRate, SetVegetationRP
                                      
     use ModuleDrainageNetwork,only : ConstructDrainageNetwork, FillOutPutMatrix,         &
