@@ -1733,6 +1733,7 @@ cd2 :           if (BlockFound) then
         integer                                     :: iflag
         integer                                     :: ILB,IUB
         integer                                     :: JLB,JUB
+        integer                                     :: i, j
         
         !Boundaries
         ILB = Me%Size%ILB
@@ -1809,6 +1810,18 @@ cd2 :           if (BlockFound) then
 !            endif
 
         end if
+        
+        !This code exists to avoid Leaf Area Index (LAI) negative
+        !The best is to preprocess data to avoid negative values (maybe interpolating to fill missing values)
+        if (NewProperty%ID%IDNumber .EQ. LeafAreaIndex_) then
+do1:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+do2:        do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+                if (NewProperty%Field(i, j) < 0.0) then
+                    NewProperty%Field(i, j) = 0.0
+                endif
+            enddo do2
+            enddo do1
+        endif         
 
 
     end subroutine ConstructPropertyValues
@@ -3376,7 +3389,7 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
 !            AddProperties = AddProperties + 1
             allocate(PropertyList(1:nProperties + AddProperties), STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) &
-                stop 'ConstructTimeSerie - ModuleVegetation - ERR01'
+                stop 'ConstructTimeSerie - ModuleVegetation - ERR010'
 
             !Fills up PropertyList
             PropertyX   => Me%FirstProperty
@@ -3433,7 +3446,7 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
                          Default      = Me%Files%ConstructData,                 &
                          STAT         = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                        &
-                stop 'Construct_Time_Serie - ModuleVegetation - ERR02' 
+                stop 'ConstructTimeSerie - ModuleVegetation - ERR020' 
 
 
             !Constructs TimeSerie
@@ -3444,12 +3457,12 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
                                 WaterPoints2D = Me%ExternalVar%MappingPoints2D, &
                                 STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) &
-                stop 'Construct_Time_Serie - ModuleVegetation - ERR03'
+                stop 'ConstructTimeSerie - ModuleVegetation - ERR030'
 
             !Deallocates PropertyList
             deallocate(PropertyList, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) &
-                stop 'Construct_Time_Serie - ModuleVegetation - ERR04'
+                stop 'ConstructTimeSerie - ModuleVegetation - ERR040'
 
 
 
@@ -3465,7 +3478,7 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
                              Default      = .false.,                                &
                              STAT         = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)                                        &
-                    stop 'Construct_Time_Serie - ModuleVegetation - ERR05' 
+                    stop 'ConstructTimeSerie - ModuleVegetation - ERR050' 
             
 
                 if(Me%ComputeOptions%AtmospherePropertiesOutput) then
@@ -3492,7 +3505,7 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
                                         PropertyList, "srvgs",                                      &
                                         WaterPoints2D = Me%ExternalVar%MappingPoints2D,             &
                                         STAT           = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'Construct_Time_Serie - ModuleVegetation - ERR06'
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleVegetation - ERR060'
 
                     deallocate(PropertyList)
                 endif
@@ -3508,7 +3521,7 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
                              Default      = .false.,                                &
                              STAT         = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)                                        &
-                    stop 'Construct_Time_Serie - ModuleVegetation - ERR07' 
+                    stop 'ConstructTimeSerie - ModuleVegetation - ERR070' 
             
                 if (Me%ComputeOptions%FluxestoSoilOutput) then
             
@@ -3557,7 +3570,7 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
 
                     allocate(PropertyList(1:nPropertiesToSoil), STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) &
-                        stop 'ConstructTimeSerie - ModuleVegetation - ERR08'
+                        stop 'ConstructTimeSerie - ModuleVegetation - ERR080'
 
                     i = 0
                     !Properties header
@@ -3647,7 +3660,7 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
                                         PropertyList, "srvgf",                                        &
                                         WaterPoints2D = Me%ExternalVar%MappingPoints2D,             &
                                         STAT           = STAT_CALL) 
-                    if (STAT_CALL /= SUCCESS_) stop 'Construct_Time_Serie - ModuleVegetation - ERR06'
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleVegetation - ERR090'
 
                     deallocate(PropertyList)
                 
@@ -3732,7 +3745,7 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
        
         !Corrects if necessary the cell of the time serie based in the time serie coordinates
         call GetNumberOfTimeSeries(Me%ObjTimeSerie, TimeSerieNumber, STAT  = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - PorousMedia - ERR03'
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleVegetation - ERR100'
 
         do dn = 1, TimeSerieNumber
 
@@ -3741,42 +3754,42 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
                                       CoordY   = CoordY,                                & 
                                       CoordON  = CoordON,                               &
                                       STAT     = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - PorousMedia - ERR04'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleVegetation - ERR110'
             
             call GetTimeSerieName(Me%ObjTimeSerie, dn, TimeSerieName, STAT  = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - PorousMedia - ERR04'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleVegetation - ERR120'
             
 i1:         if (CoordON) then
                 call GetXYCellZ(Me%ObjHorizontalGrid, CoordX, CoordY, Id, Jd, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - PorousMedia - ERR05'
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleVegetation - ERR130'
 
                 if (Id < 0 .or. Jd < 0) then
                 
                     call TryIgnoreTimeSerie(Me%ObjTimeSerie, dn, IgnoreOK, STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - PorousMedia - ERR06'
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleVegetation - ERR140'
 
                     if (IgnoreOK) then
                         write(*,*) 'Time Serie outside the domain - ',trim(TimeSerieName)
                         cycle
                     else
-                        stop 'ConstructTimeSerie - PorousMedia - ERR07'
+                        stop 'ConstructTimeSerie - ModuleVegetation - ERR150'
                     endif
 
                 endif
 
 
                 call CorrectsCellsTimeSerie(Me%ObjTimeSerie, dn, Id, Jd, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - PorousMedia - ERR08'
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleVegetation - ERR160'
                 
                 if (Me%ComputeOptions%Evolution%GrowthModelNeeded) then   
                     if(Me%ComputeOptions%AtmospherePropertiesOutput) then
                         call CorrectsCellsTimeSerie(Me%ObjTimeSerieAtm, dn, Id, Jd, STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - PorousMedia - ERR10'                        
+                        if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleVegetation - ERR170'                        
                     endif
                     
                     if(Me%ComputeOptions%FluxesToSoilOutput) then             
                         call CorrectsCellsTimeSerie(Me%ObjTimeSerieToSoil, dn, Id, Jd, STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - PorousMedia - ERR20'                    
+                        if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleVegetation - ERR180'                    
                     endif
                     
                 endif
@@ -3787,7 +3800,7 @@ i1:         if (CoordON) then
                                       LocalizationI   = Id,                             &
                                       LocalizationJ   = Jd,                             & 
                                       STAT     = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - PorousMedia - ERR30'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleVegetation - ERR190'
 
             if (Me%ExternalVar%MappingPoints2D(Id, Jd) /= WaterPoint) then
                  write(*,*) 'Time Serie in a outside boundaries cell - ',trim(TimeSerieName)
@@ -7109,6 +7122,43 @@ cd0:    if (Exist) then
 
     !--------------------------------------------------------------------------
 
+    subroutine SetSoilConcVegetation   (ObjVegetationID,                        & 
+                                        Nitrate,                                &
+                                        InorganicPhosphorus,                    &
+                                        STAT)
+
+        !Arguments--------------------------------------------------------------
+        integer                                         :: ObjVegetationID
+        real, dimension(:,:,:), pointer, optional       :: Nitrate
+        real, dimension(:,:,:), pointer, optional       :: InorganicPhosphorus
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local------------------------------------------------------------------
+        integer                                         :: STAT_, ready_
+
+        !-----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(ObjVegetationID, ready_)
+
+        if (ready_ .EQ. IDLE_ERR_)then
+
+            if (present(Nitrate)) Me%ExternalVar%SoilNitrate  => Nitrate
+
+            if (present(InorganicPhosphorus)) Me%ExternalVar%SoilPhosphorus  => InorganicPhosphorus
+
+
+            STAT_ = SUCCESS_
+        else
+            STAT_ = ready_
+        end if
+
+        if (present(STAT))STAT = STAT_
+
+    end subroutine SetSoilConcVegetation 
+
+    !---------------------------------------------------------------------------
     subroutine SetECw (ObjVegetationID, ECw, STAT)
 
         !Arguments--------------------------------------------------------------
@@ -8157,18 +8207,19 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
                                        STAT           = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ReadSolution - ModuleAtmosphere - ERR01'
             
-            endif
             
-            !This code exists to avoid Leaf Area Index (LAI) negative
-            !The best is to preprocess data to avoid negative values (maybe interpolate to fill missing values)
-            if (PropertyX%ID%IDNumber .EQ. LeafAreaIndex_) then
-do1:            do j = Me%WorkSize%JLB, Me%WorkSize%JUB
-do2:            do i = Me%WorkSize%ILB, Me%WorkSize%IUB
-                    if (PropertyX%Field(i, j) < 0.0) then
-                        PropertyX%Field(i, j) = 0.0
-                    endif
-                enddo do2
-                enddo do1
+                !This code exists to avoid Leaf Area Index (LAI) negative
+                !The best is to preprocess data to avoid negative values (maybe interpolate to fill missing values)
+                if (PropertyX%ID%IDNumber .EQ. LeafAreaIndex_) then
+do1:                do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+do2:                do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+                        if (PropertyX%Field(i, j) < 0.0) then
+                            PropertyX%Field(i, j) = 0.0
+                        endif
+                    enddo do2
+                    enddo do1
+                endif
+
             endif
             
             PropertyX => PropertyX%Next
