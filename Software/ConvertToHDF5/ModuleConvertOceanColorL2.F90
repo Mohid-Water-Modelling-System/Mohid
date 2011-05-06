@@ -224,18 +224,18 @@ Module ModuleConvertOceanColorL2
                                northlat, southlat, westlon,eastlon,&
                                columns,lines,nProd,geointerp)
 
-        REAL*4  ullat     [REFERENCE]
-        REAL*4  ullon     [REFERENCE]
-        REAL*4  lllat     [REFERENCE]
-        REAL*4  southlat  [REFERENCE]
-        REAL*4  urlat     [REFERENCE]
-        REAL*4  urlon     [REFERENCE]
-        REAL*4  lllon     [REFERENCE]
-        REAL*4  lrlat     [REFERENCE]
-        REAL*4  lrlon     [REFERENCE]
-        REAL*4  northlat  [REFERENCE]
-        REAL*4  westlon   [REFERENCE]
-        REAL*4  eastlon   [REFERENCE]
+        REAL(4)  ullat     [REFERENCE]
+        REAL(4)  ullon     [REFERENCE]
+        REAL(4)  lllat     [REFERENCE]
+        REAL(4)  southlat  [REFERENCE]
+        REAL(4)  urlat     [REFERENCE]
+        REAL(4)  urlon     [REFERENCE]
+        REAL(4)  lllon     [REFERENCE]
+        REAL(4)  lrlat     [REFERENCE]
+        REAL(4)  lrlon     [REFERENCE]
+        REAL(4)  northlat  [REFERENCE]
+        REAL(4)  westlon   [REFERENCE]
+        REAL(4)  eastlon   [REFERENCE]
         INTEGER lines     [REFERENCE]
         INTEGER columns   [REFERENCE]
         INTEGER nProd     [REFERENCE]
@@ -245,8 +245,8 @@ Module ModuleConvertOceanColorL2
 
       INTERFACE TO SUBROUTINE GetLatLon [C,ALIAS:'_GetLatLon'] &
                               (i,j,lat,lon)
-        REAL*4    lat     [REFERENCE]
-        REAL*4    lon     [REFERENCE]
+        REAL(4)    lat     [REFERENCE]
+        REAL(4)    lon     [REFERENCE]
         INTEGER i [VALUE]
         INTEGER j [VALUE]
       END
@@ -254,7 +254,7 @@ Module ModuleConvertOceanColorL2
       INTERFACE TO SUBROUTINE GetDataL2 [C,ALIAS:'_GetData'] & 
          (i,j,idProd, sdata,flag)
 
-        REAL*4  sdata [REFERENCE]
+        REAL(4) sdata [REFERENCE]
         INTEGER flag  [REFERENCE]
         INTEGER i [VALUE]
         INTEGER j [VALUE]
@@ -265,12 +265,12 @@ Module ModuleConvertOceanColorL2
       
      INTERFACE TO SUBROUTINE OpenL2Seadas [ALIAS:'_OpenL2Seadas@8'] & 
          (filename)
-       CHARACTER*(*) filename
+       CHARACTER(*) filename
      END
 
      INTERFACE TO SUBROUTINE GetProdName [ALIAS:'_GetProdName@1'] &
         (ProductName) 
-       CHARACTER*(*) ProductName
+       CHARACTER(*) ProductName
      END 
     !--------------------------------------------------------------------------
     contains
@@ -294,8 +294,8 @@ Module ModuleConvertOceanColorL2
         
         
         !Local-------------------------------------------------------------------
-        integer                                         :: nUsers, i
-        integer                                         :: STAT_CALL
+        integer                                         :: nUsers !, i
+!        integer                                         :: STAT_CALL
     
         !------------------------------------------------------------------------
 
@@ -915,39 +915,39 @@ cd2 :           if (BlockFound) then
     real, dimension(:, :), pointer                :: XX_IE,YY_IE, LatitudeConn, LongitudeConn
     integer, dimension(:, :), pointer             :: DefineCellsMap
     character(len=256)                            :: L2FileName
-    character(len=40)                             :: auxprod
+!    character(len=40)                             :: auxprod
     character(len=40), dimension(16)              :: FlagNames
-    real, dimension(6)              :: AuxTime
-    character(len=256)              :: CharTime, auxchar, ctime, cdate
-    REAL*4  lat    
-    REAL*4  lon  
-    REAL*4, dimension(:,:), pointer :: LatArray
-    REAL*4, dimension(:,:), pointer :: LonArray
-    REAL*4, dimension(:,:), pointer :: GridData
-    REAL*4  sdata 
-    REAL*4  aux
+    integer, dimension(6)              :: AuxTime
+    character(len=256)              :: ctime, cdate !, CharTime, auxchar,
+!    REAL(4)  lat    
+!    REAL(4)  lon  
+    REAL(4), dimension(:,:), pointer :: LatArray
+    REAL(4), dimension(:,:), pointer :: LonArray
+    REAL(4), dimension(:,:), pointer :: GridData
+!    REAL(4)  sdata 
+    REAL(4)  aux
     INTEGER flag  
     INTEGER i 
     INTEGER j 
-    REAL*4  ullat, ullon, urlat, urlon
-    REAL*4  lllat, lllon, lrlat, lrlon
-    REAL*4  northlat,    southlat, westlon,eastlon
+    REAL(4)  ullat, ullon, urlat, urlon
+    REAL(4)  lllat, lllon, lrlat, lrlon
+    REAL(4)  northlat,    southlat, westlon,eastlon
     INTEGER lines,columns
     LOGICAL outpoint(4), pointin
-    integer npoint, line, column, maxj,minj,maxi,mini,limite,nProd,prodID
+    integer npoint, line, column, maxj,minj,maxi,mini,nProd,prodID !,limite
     real, dimension(:,:), pointer           :: GridLat
     real, dimension(:,:), pointer           :: GridLong
-    integer*4 status,vg_ref,vgid, file_info_status, sds_id, FileID,Hclose
-    integer*4 vfdtch, Sfend, vfend
-    integer*4 hopen, sfstart, n_datasets, n_file_attributes, sffinfo,Vstart
-    integer*4 vfind,vfatch, Vntagrefs, tag, ref, Vgettagref, SDreftoindex
-    integer*4 sfselect,rank, dtype, nattrs,sfginfo,sfendacc,vfstart,vntrc,vfgttr
-    integer*4 sfref2index, test,sd_id
+    integer(4) status,vg_ref,vgid, file_info_status, sds_id, FileID,Hclose
+    integer(4) vfdtch, Sfend, vfend
+    integer(4) hopen, sfstart, n_datasets, n_file_attributes, sffinfo !,Vstart
+    integer(4) vfind,vfatch, tag, ref !, Vntagrefs, Vgettagref, SDreftoindex
+    integer(4) sfselect,rank, dtype, nattrs,sfginfo,sfendacc,vfstart,vfgttr !,vntrc
+    integer(4) sfref2index, test,sd_id
     character(40) buffer
     integer, dimension(3)                   :: dims
-    character*1 access 
+    !character access 
     integer STAT_CALL
-    integer geointerp, geoCorrection
+    integer geointerp !, geoCorrection
     integer iub,ilb,jub,jlb,prodFound,contaId
     ! ----------------------------------------------------------------------
 
@@ -1147,7 +1147,7 @@ do npoint=1, 4
    
    pointin = IsPointInsidePolygon(Auxpoint, OriginalArea)
    
-   if (pointin.eq..false.) then    
+   if (.not. pointin) then    
        outpoint(npoint)=.true.
    endif
 
@@ -1544,21 +1544,21 @@ nullify(LonArray)
  subroutine ReadDate (NewField, Filename, AuxTime, cdate, ctime)
 
     !Arguments-----------------------------------------------------------
-    type(T_Attribute), dimension(:), pointer     :: Attributes
-    type(T_Time)                                 :: Date
+!    type(T_Attribute), dimension(:), pointer     :: Attributes
+!    type(T_Time)                                 :: Date
     type(T_OceanColorL2),  pointer               :: NewField
     
     character(len=256), intent (IN):: Filename
-    real, dimension(6),intent (OUT):: AuxTime
+    integer, dimension(6),intent (OUT):: AuxTime
     character(len=256),intent (OUT):: cdate, ctime
-    character(len=256)             :: chartime, charday, charyear, buf,aux
-    character(len=4)               :: char_i , cmonth, cday                   
-    integer(4)                     :: FileID,  n_file_attributes, file_attr_index, file_attr_status
-    integer(4)                     :: read_attr_status, dayj, AuxDayj, count,sd_id,sfstart
-    logical                        :: FileFound
-    integer(4)                     :: sffattr, sfgainfo, attr_index, dtype, day, month, i
-    integer(4)                     :: status,sfrcatt,Sfend,hclose,vfend,file_info_status
-    integer(4)                     :: n_datasets,hopen,sffinfo
+    character(len=256)             :: chartime, buf,aux !, charday, charyear
+    character(len=4)               :: cmonth, cday !, char_i
+    integer(4)                     :: FileID !, file_attr_index, file_attr_status !,  n_file_attributes
+    integer(4)                     :: dayj, count,sd_id,sfstart !,read_attr_status, AuxDayj
+!    logical                        :: FileFound
+    integer(4)                     :: sfgainfo, dtype, i !,sffattr, attr_index, day, month
+    integer(4)                     :: status,sfrcatt,Sfend,hclose !,vfend,file_info_status
+    integer(4)                     :: hopen !,sffinfo !,n_datasets
     !---------------------------------------------------------------------
  
 
@@ -1605,15 +1605,16 @@ nullify(LonArray)
       read(CharTime(5:7), '(i4)') i
       dayj = i
       
-      call GetDateFromJDay (AuxTime(1),AuxTime,1, real(dayj))
+      call JulianDayToMonthDay(AuxTime(1), dayj, NewField%Date)
+      !call GetDateFromJDay (AuxTime(1),AuxTime,1, real(dayj))
          
     ctime = CharTime(8:9)//'-'//CharTime(10:11)//'-'//CharTime(12:13)
     write(cmonth, '(i4)')int(AuxTime(2))
     write(cday, '(i4)')  int(AuxTime(3))
     cdate = CharTime(1:4)//'-'//trim(adjustl(cmonth))//'-'//trim(adjustl(cday))
 
-    call SetDate(NewField%Date, Year = AuxTime(1), Month  = AuxTime(2), Day    = AuxTime(3), &
-                  Hour = AuxTime(4), Minute = AuxTime(5), Second = AuxTime(6))
+    !call SetDate(NewField%Date, Year = AuxTime(1), Month  = AuxTime(2), Day    = AuxTime(3), &
+    !              Hour = AuxTime(4), Minute = AuxTime(5), Second = AuxTime(6))
 
     status = Sfend(sd_id);
     status = Hclose(FileID);
@@ -1627,9 +1628,9 @@ nullify(LonArray)
     real, dimension(6), intent (OUT)  ::  AuxTime
     real              , intent (IN)   ::  JulianDay
 
-    integer                         ::  iMonth,iDay, JulianDayInt,Month
-    integer                         ::  Day,Hour,Minute,Second
-    real                            ::  Rest
+    integer                         ::  iDay, JulianDayInt,Month !,iMonth
+    integer                         ::  Day !,Hour,Minute,Second
+    !real                            ::  Rest
     integer, Dimension(12)          ::  NDay
 
     Data NDay/31,28,31,30,31,30,31,31,30,31,30,31/
@@ -1902,7 +1903,7 @@ nullify(LonArray)
     subroutine KillOceanColorL2
         
         !Local-----------------------------------------------------------------
-        integer                             :: STAT_CALL
+!        integer                             :: STAT_CALL
         type (T_OceanColorL2), pointer      :: NewField
         
         !Begin-----------------------------------------------------------------

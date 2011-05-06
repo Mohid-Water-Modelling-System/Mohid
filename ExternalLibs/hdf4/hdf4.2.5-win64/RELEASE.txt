@@ -1,0 +1,550 @@
+HDF version 4.2.5 released on Wed Feb 24 13:00:16 CST 2010
+===================================================
+
+INTRODUCTION
+
+This document describes the differences between HDF 4.2.4 and HDF 4.2.5
+It is written for people who are familiar with previous releases of HDF 
+and wish to migrate to HDF 4.2.5
+
+The HDF 4.2.5 documentation can be found on the The HDF Group's FTP server:
+
+     ftp://ftp.hdfgroup.org/HDF/Documentation/
+
+First-time HDF users are encouraged to read the HDF FAQ, which can be
+reached from the HDF product home page:
+  
+     http://hdfgroup.org/products/hdf4/
+
+If you have any questions or comments, please see the HDF Support page:
+
+     http://hdfgroup.org/services/support.html
+
+CONTENTS
+
+- New features and changes
+  -- Source distribution
+  -- Configuration
+  -- Library
+  -- Utilities
+- Support for new platforms and compilers
+- Bugs fixed since HDF4.2.4
+  -- Utilities
+  -- Library
+  -- Configuration
+- Documentation
+- Platforms tested
+- Known problems
+- Appendix: List of the removed files
+
+
+New features and changes
+========================
+    Source distribution
+    ===================
+    - For the complete list of the removed obsolete files see Appendix.
+    - Removed obsolete mfhdf/port and mfhdf/c++ directories and related 
+      code
+        (EIP - 2010/1/18)
+    - Removed obsolete hdf/fmpool directory and related code
+    - Removed obsolete constants PCIO, WINIO, PAGEBIFIO, and WINNTIO from
+      hdfi.h and hfile.h 
+        (EIP - 2009/12/31)
+    - INSTALL* files were moved to the release_notes directory
+        (EIP - 2009/12/29)
+    - SD tests were moved from mfhdf/libsrc to mfhdf/test.
+	  (BMR - 2009/09/10)
+
+    Configuration
+    ============= 
+    - Added a configure check that will fail when jpeg version 7 is
+      used, as this is not yet supported in HDF4. (MAM - 2010/01/28)
+    - Configure suite now built with the following versions of the autotools:
+        Automake 1.11.1, Autoconf 2.65, and Libtool 2.2.6b  
+        (MAM - 2009/12/14)
+
+    Library
+    ========= 
+    - SDgetchunkinfo now contains compression type and compression
+      information.  If failure occurs while getting compression information,
+      the associate compression parameters will be set to -1 to indicate
+      that no compression information is retrieved, instead of SDgetchunkinfo
+      simply fails.  This is to support backward compatibily.
+      (BMR - 2010/02/04)
+    - Vgroup name and class name can now be more than the previous limit
+      of 64 characters.  Two public functions are provided for applications
+      to be able to allocate sufficient space for these items.
+        int32 Vgetnamelen (int32 vkey, uint16 *name_len);
+        int32 Vgetclassnamelen (int32 vkey, uint16 *classname_len);
+      Please refer to the Reference Manual and User's Guide for details.
+      (BMR - 2010/01/27)
+    - SDreset_maxopenfiles allows users to reset the number of the files that 
+      can be open at the same time to the system limit minus 3. On AIX 6.1
+      system limit is 2GB-1 causing HDF4 to choke. Source code was modified 
+      to put a cap on the system limit to not exceed 
+      H4_MAX_AVAIL_OPENFILES (currently 20000).  (EIP - 2010/02/01) 
+    - "make installcheck" builds and tests examples using h4cc and h4fc
+      scripts (MAM, BMR and MSB - 2009/12)
+    - HDF Fortran examples were added to hdf/fortran/examples. 
+      (MAM - 2009/12/14)
+    - SD examples were added to mfhdf/examples.  (BMR - 2009/08/28)
+    - HDF C examples were added to hdf/examples.  (BMR - 2009/11/07)
+
+    Test
+    ====
+    - Added tests for GRfindattr, GRattrinfo, and GRgetattr (BMR - 2009/11/15)
+    - Moved SD tests out of mfhdf/libsrc into the new directory mfhdf/test
+      (BMR - 2009/09/10)
+
+    Utilities
+    ========= 
+    - Added flag -k to hdp dumpsds to keep the order of the outputted
+      SDSs the same as the order they were specified on the command
+      line.  The default (without -k) is SDSs are printed in the order
+      in which they were added to the file (ie., indices.) (BMR - 2010/02/03)
+    - Added -V flag to hdiff, hrepack, hdfimport, ncdump and ncgen; 
+      when specified, tool prints library version string and exits.
+          (EIP - 2010/01/28) 
+    - Hrepack: set default value for JPEG's quality factor to 75 to
+      prevent image distortion when the factor is not provided by user
+      (BMR - 2010/01/14)
+ 
+    Daily Test and Release
+    ======================
+    Added h4vers and release scripts and Snapshot Release capability.
+
+Support for new platforms and compilers
+=======================================
+   Added support for 64-bit Mac Intel with gcc, gfortran and Intel C
+   and Fortran compilers.
+   Added support for AIX 6.1 using IBM XL C and Fortran compilers.
+   (EIP - 2010/1/29)
+
+Bugs fixed since HDF4.2.4
+=========================
+    Utilities
+    ========= 
+        - None 
+
+    Library
+    ========= 
+    - The problem where incorrect result occurred when attempting
+      to retrieve the dimension scale's number type from a netCDF file
+      was fixed (bugzilla #1644.) (BMR - 2009/09/25)
+    - The problem where pieces of an image get written multiple times
+      at different locations in the 2-D array had been fixed.  The
+      cause was the pointer to user's buffer was not advanced properly.
+      This was part of bugzilla 1547.  (BMR - 2009/06/10)
+    - The problem which SDgetdimstrs failed if there are no attributes
+      attached to the dimension had been fixed.  SDgetdimstrs now returns
+      the attribute strings containing '\0' for the first character, as
+      specified in the documentation. (BMR - 2009/08/28)
+
+
+    Configuration
+    =============
+    - The mfhdf/ncgen/Makefile.in now has $(EXEEXT) appended to the ncgen
+      program whenever it is referenced in a build rule dependency. This 
+      fixes some compile problems on Cygwin, where the .exe is necessary.
+      (MAM - 2009/12/17). 
+    - Configure will now fail if the yacc or flex utilities are not available
+      (as opposed to failing sometime during make when they are used).
+      (MAM - 2009/12/17).
+    - Configure will now properly check for the rpc library when on
+      Cygwin, and fail gracefully if it is not found. (MAM - 2009/12/17)
+    - Configure will no longer try to use a Fortran compiler to set up
+      aspects of the build environment when Fortran has been disabled, as
+      configure now deliberately sets the F77 environment variable to 'no'
+      when Fortran is disabled. This should no longer cause build problems 
+      on Cygwin when no Fortran compiler is available. (MAM - 2009/12/14)
+    - './configure --help' will now correctly indicate that shared libraries
+      are disabled by default. (MAM - 2009/12/14)
+    
+        
+
+Documentation
+==============
+The updated HDF Reference Manual is now available in HTML format.
+
+Platforms tested
+================
+
+HDF 4.2.5 has been tested in the following platforms:
+
+    FreeBSD 6.3-STABLE i386       gcc 3.4.6 [FreeBSD] 20060305
+    (duty)                        f77 (gcc) 3.4.6
+                                  gcc (GCC) 4.4.4 20100126 (prerelease)
+                                  GNU Fortran (GCC) 4.4.4 20100126
+                                  (prerelease) 
+
+    FreeBSD 6.3-STABLE amd64      gcc 3.4.6 [FreeBSD] 20060305
+    (liberty)                     f77 (gcc) 3.4.6
+                                  gcc (GCC) 4.4.4 20100126 (prerelease)
+                                  GNU Fortran (GCC) 4.4.4 20100126
+                                  (prerelease)
+
+
+    Linux jam 2.6.18-164.el5 #1   gcc (GCC) 4.1.2 20080704 (Red Hat 4.1.2-46)
+         SMP i686 i386            G95 (GCC 4.0.3 (g95 0.92!) Jun 24 2009)
+    (jam)                         g77 (GCC) 3.4.6 20060404
+                                  pgcc and pgf90 8.0-5 32-bit target 
+                                  on x86 Linux -tp penryn
+                                  Intel(R) C Compiler, Version 11.0
+                                  Intel(R) Fortran Compiler, Version 11.0
+
+
+    Linux 2.6.18-164.11.1.el5 #1  gcc (GCC) 4.1.2 20080704 (Red Hat 4.1.2-46)
+        SMP x86_64 GNU/Linux      G95 (GCC 4.0.3 (g95 0.92!) Jun 24 2009)
+    (amani)                       icc (ICC) 11.1 20090827
+                                  ifort (IFORT) 11.1 20090827
+                                  pgcc and pgf90 9.0-4 64-bit target 
+                                  on x86-64 Linux -tp k8-64e
+                                  GNU Fortran (GCC) 4.1.2 20080704 
+                                  (Red Hat 4.1.2-46)
+
+    SunOS 5.10 32- and 64-bit     Sun C 5.9 SunOS_sparc Patch 124867-12 
+    (linew)                       Sun Fortran 95 8.3 SunOS_sparc 
+                                  Patch 127000-12 
+
+    Linux 2.6.16.54-0.2.5 #1      Intel(R) C Compiler Version 10.1.017
+        Altix SMP ia64            Intel(R) Fortran Itanium(R) Version 10.1.017
+    (cobalt)                      SGI MPI 1.16
+
+    Xeon Linux 2.6.18-92.1.10.el5_lustre.1.6.6smp-perfctr
+         #2 SMP x86_64            Intel(R) C Compiler Version 10.0.026
+    (abe)                         Intel(R) Fortran Compiler Version 10.0.026
+
+    IA-64 Linux 2.4.21.SuSE_292.til1
+        ia64
+    (NCSA tg-login)               Intel(R) C Compiler Version 8.1.037
+                                  Intel(R) Fortran Compiler Version 8.1.033
+
+    AIX 5.3 (32/64 bit)           IBM XL C/C++ for AIX, V9.0
+    (LLNL Up)                     IBM XL Fortran for AIX, V11.1
+
+    AIX 6.1 (32/64 bit)           IBM XL C/C++ for AIX, V10.1
+    (NCSA bp-login)               IBM XL Fortran for AIX, V12.1
+
+    Windows XP                    Visual Studio 2005 (with Intel Fortran 9.1/10.1)
+                                  Visual Studio 2008 (with Intel Fortran 10.1)
+                                  cygwin (gcc 4.3.4)
+
+    Windows XP(64 bit)            Visual Studio 2005 (with Intel Fortran 9.1/10.1)
+                                  Visual Studio 2008 (with Intel Fortran 10.1)
+                                  
+    Windows Vista                 Visual Studio 2008 (with Intel Fortran 10.1)
+                                  
+    Windows Vista(64 bit)         Visual Studio 2008 (with Intel Fortran 10.1)
+                                  
+    MAC OS X Intel 10.6.2         Darwin 10.2.0
+                                  Intel C icc (ICC) 11.1 20091130
+                                  Intel Fortran ifort (IFORT) 11.1 20091130 
+                                  i686-apple-darwin10-gcc-4.2.1 (GCC) 4.2.1
+                                  GNU Fortran (GCC) 4.5.0 20090910
+                              
+
+    Linux 2.6.31.12-174.2.3.fc12.x86_64 #1 SMP 
+        x86_64 GNU/Linux          gcc (GCC) 4.4.2
+     (Fedora 12)                  gfortran GNU Fortran (GCC) 4.4.2 20091222 
+                                                       (Red Hat 4.4.2-20)
+    Linux 2.6.31-17-generic #54-Ubuntu SMP 
+        x86_64 GNU/Linux          gcc (GCC) 4.4.1
+     (Ubuntu 9.10)                gfortran GNU Fortran (GCC) 4.4.1 
+                                                       
+    Linux 2.6.31.8-0.1-desktop #1 SMP 
+        x86_64 GNU/Linux          gcc (GCC) 4.4.1
+     (OpenSuse 11.2)              gfortran GNU Fortran (GCC) 4.4.1 
+
+
+Known problems
+==============
+
+o  Wnen buidling in AIX systems, if CC is xlc with -qlanglvl=ansi, configure
+   fails when checking for the jpeglib.h header due to the duplicated
+   macro definition of HAVE_STDLIB_H.  This is because some newer builds
+   of jpeg library has HAVE_STDLIB_H defined in its jconfig.h header file.
+   Without the -qlanglvl=ansi, some older xlc (e.g., V7.0) still fails but
+   newer xlc (e.g., V9.0) passes. (AKC - 2010/02/17)
+
+o  When building on Linux/UNIX platforms, the szip shared library files must
+   be in the system library path. This can be done by adding a link to
+   the libsz.* files into the /usr/lib folder or by adding the library
+   location to the LD_LIBRARY_PATH environment variable.
+      Ex. export LD_LIBRARY_PATH=path_to_szip_lib:$LD_LIBRARY_PATH
+   Optionally, one can use the static szip library files by adding '-static'
+   to the CFLAGS environment variable.
+   
+o  Existing data written by an HDF4 Library prior to HDF 4.2r2:
+   When a one-dimensional SDS and a dimension scale were created with
+   the same name, subsequent accesses to the dimension scale or to the
+   SDS might corrupt the data.
+
+   HDF4 Library Releases 4.2r2 and later do not allow this conflict to
+   occur.  On the other hand, recent libraries are also unable to detect
+   such conflicts that already exist in a file.  It is therefore STRONGLY
+   recommended to check for such name duplication before working with data 
+   created with a pre-4.2r2 library. 
+
+   The functions SDgetnumvars_byname and SDnametoindices are provided
+   to help detect such name conflicts and select the correct object to
+   access, respectively; see the HDF Reference Manual entries for 
+   further details.
+
+o  This release does not support VMS systems.
+
+o  N-Bit compression is not supported with Fortran APIs.
+
+o  Using both fill-value and compression on SD datasets does not work.
+
+o  When using PGI compilers, make sure that the JPEG library is also compiled 
+   with a PGI C compiler; linking with a JPEG library built with gcc causes 
+   JPEG library tests to fail.  To bypass the problem:
+
+       x Set LIBS flag to $PGI_JPEG_INSTALL_DIR/lib/libjpeg.a
+         where $PGI_JPEG_INSTALL_DIR points to the installation directory
+         for the PGI-compiled JPEG library:
+
+         setenv LIBS $PGI_JPEG_INSTALL_DIR/lib/libjpeg.a
+
+       x Use the --with-jpeg=$PGI_JPEG_INSTALL_DIR configure flag to 
+         configure with the PGI-compiled JPEG library:
+
+         ./configure --with-jpeg=$PGI_JPEG_INSTALL_DIR --with-zlib....
+
+o  In order for the API SDgetdatasize to get the correct compressed size
+   of the data, the dataset needs to be closed (SDendaccess) or read
+   (SDreaddata), after being written and before SDgetdatasize is called.
+
+  
+Appendix: List of the removed files 
+===================================
+
+	mfhdf/CHANGES
+	mfhdf/CUSTOMIZE
+	mfhdf/INSTALL
+	mfhdf/MANIFEST
+	mfhdf/ORIGIN
+	mfhdf/README
+	mfhdf/README.HDF
+	mfhdf/README.HDF.33
+	mfhdf/VERSION
+	mfhdf/macros.mk
+	mfhdf/mfhdf.mak
+	mfhdf/msoft.mk 
+ 
+
+        mfhdf/c++/README
+        mfhdf/c++/example.c
+        mfhdf/c++/example.cc
+        mfhdf/c++/example.cdl
+        mfhdf/c++/expected
+        mfhdf/c++/nc.info
+        mfhdf/c++/nc.txn
+        mfhdf/c++/nctst.cc
+        mfhdf/c++/ncvalues.cc
+        mfhdf/c++/ncvalues.hh
+        mfhdf/c++/netcdf.cc
+        mfhdf/c++/netcdf.hh
+
+	mfhdf/fortran/fortc
+	mfhdf/fortran/fortc1.sed
+	mfhdf/fortran/fortc2.sed
+	mfhdf/fortran/ftest.lnk
+	mfhdf/fortran/msoft/
+
+	mfhdf/fortran/Linux.m4
+	mfhdf/fortran/README
+	mfhdf/fortran/aix.m4
+	mfhdf/fortran/common.m4
+	mfhdf/fortran/convex.m4
+	mfhdf/fortran/craympp.m4
+	mfhdf/fortran/descrip.mms
+	mfhdf/fortran/freebsd.m4
+	mfhdf/fortran/fujivp.m4
+	mfhdf/fortran/hpux.m4
+	mfhdf/fortran/irix.m4
+	mfhdf/fortran/msoft.m4
+	mfhdf/fortran/msoft.mk
+	mfhdf/fortran/osf.m4
+	mfhdf/fortran/solaris.m4
+	mfhdf/fortran/sunos.m4
+	mfhdf/fortran/ultrix.m4
+	mfhdf/fortran/unicos.m4
+	mfhdf/fortran/vax-ultrix.m4
+	mfhdf/fortran/vms.m4
+	mfhdf/libsrc/README
+
+	mfhdf/libsrc/cdftest.c
+	mfhdf/libsrc/cdftest.mak
+	mfhdf/libsrc/cdftest.project.hqx
+	mfhdf/libsrc/descrip.mms
+	mfhdf/libsrc/gen_sds_szipped.c
+	mfhdf/libsrc/hdftest.c
+	mfhdf/libsrc/hdftest.h
+	mfhdf/libsrc/hdftest.mak
+	mfhdf/libsrc/hdftest.project.hqx
+	mfhdf/libsrc/htons.mar
+	mfhdf/libsrc/mfhdflib.project.hqx
+	mfhdf/libsrc/msoft.mk
+	mfhdf/libsrc/ntohs.mar
+	mfhdf/libsrc/sds_szipped.dat
+	mfhdf/libsrc/tchunk.c
+	mfhdf/libsrc/tcomp.c
+	mfhdf/libsrc/tcoordvar.c
+	mfhdf/libsrc/tdatasizes.c
+	mfhdf/libsrc/tdim.c
+	mfhdf/libsrc/temptySDSs.c
+	mfhdf/libsrc/tfile.c
+	mfhdf/libsrc/tidtypes.c
+	mfhdf/libsrc/tncunlim.c
+	mfhdf/libsrc/tnetcdf.c
+	mfhdf/libsrc/trank0.c
+	mfhdf/libsrc/tsd.c
+	mfhdf/libsrc/tsdsprops.c
+	mfhdf/libsrc/tszip.c
+	mfhdf/libsrc/tunlim.c
+	mfhdf/libsrc/win32cdf.h
+	mfhdf/libsrc/win32cdf.mak
+
+        mfhdf/ncdump/ncdump.mak
+        mfhdf/ncdump/msoft.mk
+        mfhdf/ncdump/msofttab.c
+        mfhdf/ncdump/ctest0.mak
+        mfhdf/ncdump/ncdump.lnk
+
+        mfhdf/ncgen/test0.lnk
+        mfhdf/ncgen/ncgen.opt
+        mfhdf/ncgen/msoft.mk
+        mfhdf/ncgen/ncgen.mak
+        mfhdf/ncgen/ctest0.mak
+        mfhdf/ncgen/descrip.mms
+
+
+        mfhdf/port/COPYRIGHT
+        mfhdf/port/CUSTOMIZE
+        mfhdf/port/HISTORY
+        mfhdf/port/Makefile.am
+        mfhdf/port/Makefile.in
+        mfhdf/port/VERSION
+        mfhdf/port/aclocal.m4
+        mfhdf/port/configure
+        mfhdf/port/configure.in
+        mfhdf/port/depend
+        mfhdf/port/mast_mk.in
+        mfhdf/port/master.mk.in
+        mfhdf/port/uddummy.c
+        mfhdf/port/udposix.h.in
+        mfhdf/port/udposixh.in
+        mfhdf/port/which
+
+	hdf/COPYING
+	hdf/COPYRIGHT
+	hdf/README
+	hdf/README.33r4
+
+        hdf/fmpool/Makefile.in
+	hdf/fmpool/README
+	hdf/fmpool/cdefs.h
+	hdf/fmpool/compat.h
+	hdf/fmpool/config.guess
+	hdf/fmpool/config.sub
+	hdf/fmpool/configure
+	hdf/fmpool/configure.in
+	hdf/fmpool/fmpio.3
+	hdf/fmpool/fmpio.c
+	hdf/fmpool/fmpio.h
+	hdf/fmpool/fmpool.3
+	hdf/fmpool/fmpool.c
+	hdf/fmpool/fmpool.h
+	hdf/fmpool/fmptypes.h
+	hdf/fmpool/move-if-change
+	hdf/fmpool/queue.h
+	hdf/fmpool/test_fmpio.c
+	hdf/fmpool/tfmpio_read.c
+	hdf/fmpool/tfmpio_write.c
+
+	hdf/fmpool/config/fmpaix.h
+	hdf/fmpool/config/fmpalpha.h
+	hdf/fmpool/config/fmpconvex.h
+	hdf/fmpool/config/fmpdec.h
+	hdf/fmpool/config/fmpfbsd.h
+	hdf/fmpool/config/fmpfujivp.h
+	hdf/fmpool/config/fmphpux.h
+	hdf/fmpool/config/fmpia64.h
+	hdf/fmpool/config/fmpirix32.h
+	hdf/fmpool/config/fmpirix4.h
+	hdf/fmpool/config/fmpirix5.h
+	hdf/fmpool/config/fmpirix6.h
+	hdf/fmpool/config/fmplinux.h
+	hdf/fmpool/config/fmpmac.h
+	hdf/fmpool/config/fmpsolaris.h
+	hdf/fmpool/config/fmpsun.h
+	hdf/fmpool/config/fmpt3e.h
+	hdf/fmpool/config/fmpunicos.h
+	hdf/fmpool/config/mh-aix
+	hdf/fmpool/config/mh-alpha
+	hdf/fmpool/config/mh-convex
+	hdf/fmpool/config/mh-decstation
+	hdf/fmpool/config/mh-fbsd
+	hdf/fmpool/config/mh-fujivp
+	hdf/fmpool/config/mh-hpux
+	hdf/fmpool/config/mh-ia64
+	hdf/fmpool/config/mh-irix32
+	hdf/fmpool/config/mh-irix4
+	hdf/fmpool/config/mh-irix5
+	hdf/fmpool/config/mh-irix6
+	hdf/fmpool/config/mh-linux
+	hdf/fmpool/config/mh-mac
+	hdf/fmpool/config/mh-solaris
+	hdf/fmpool/config/mh-sun
+	hdf/fmpool/config/mh-t3e
+	hdf/fmpool/config/mh-unicos
+
+	hdf/src/hdf.bld
+	hdf/src/hdflib.project.hqx
+	hdf/src/hdfnof.bld
+	hdf/src/hdfnofw3.lbc
+	hdf/src/hdfnofwc.lbc
+	hdf/src/hdfw386.lbc
+	hdf/src/hdfwcc.lbc
+	hdf/src/makepc.386
+        hdf/src/makepc.msc
+	hdf/src/makepc.wcc
+	hdf/src/makewin.msc
+	hdf/src/win32hdf.mak
+
+        hdf/util/fp2hdf.mak
+	hdf/util/hdf24to8.mak
+	hdf/util/hdf2jpeg.mak
+	hdf/util/hdf8to24.mak
+	hdf/util/hdfcomp.mak
+	hdf/util/hdfed.mak
+	hdf/util/hdfls.mak
+	hdf/util/hdfpack.mak
+	hdf/util/hdftopal.mak
+	hdf/util/hdftor8.mak
+	hdf/util/hdfunpac.mak
+	hdf/util/jpeg2hdf.mak
+	hdf/util/makepc.386
+	hdf/util/makepc.msc
+	hdf/util/paltohdf.mak
+	hdf/util/r8tohdf.mak
+	hdf/util/ristosds.mak
+	hdf/util/vcompat.mak
+	hdf/util/vmake.mak
+	hdf/util/vshow.mak
+
+	hdf/test/MAKECOM.OLD
+	hdf/test/makepc.386
+	hdf/test/makepc.msc
+	hdf/test/makewin.msc
+	hdf/test/makewin.new
+	hdf/test/testhdf.386
+	hdf/test/testhdf.def
+	hdf/test/testhdf.lnk
+	hdf/test/testhdf.pc
+	hdf/test/testhdf.project.hqx
+	hdf/test/win32tst.mak
+
+
+ 

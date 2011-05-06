@@ -24,7 +24,6 @@ Module ModuleConvertModisL2
     use ModuleGridData
     use ModuleDrawing
 
-
     implicit none
 
     private 
@@ -64,11 +63,6 @@ Module ModuleConvertModisL2
         type(T_ModisL2),      pointer      :: Prev
         type(T_Attribute), dimension(:), pointer :: Attributes
     end type  T_ModisL2
-    
-    
-
-   
-
 
     private :: T_ModisL2Format
     type       T_ModisL2Format
@@ -131,8 +125,8 @@ Module ModuleConvertModisL2
         
         
         !Local-------------------------------------------------------------------
-        integer                                         :: nUsers, i
-        integer                                         :: STAT_CALL
+        integer                                         :: nUsers !, i
+!        integer                                         :: STAT_CALL
     
         !------------------------------------------------------------------------
 
@@ -430,17 +424,17 @@ cd2 :           if (BlockFound) then
 
         
     !----------------------------------------------------------------------
-    integer(4)                              :: hopen, sfstart, istat, index, sfselect, sfgainfo
-    integer(4)                              :: read_attr_status, file_attr_index, sfrcatt, sfrnatt
-    integer(4)                              ::  sffinfo, n_file_attributes
-    character(256), dimension(:), pointer   :: file_attributes, file_attr_names
-    integer(4)                              :: FileID, Access, sds_id, sfginfo, sfrdata
+    integer(4)                              :: istat, sfselect !, hopen, sfstart, index, sfgainfo
+    !integer(4)                              :: read_attr_status, file_attr_index, sfrcatt, sfrnatt
+    integer(4)                              :: n_file_attributes ! sffinfo,
+    !character(256), dimension(:), pointer   :: file_attr_names !, file_attributes, 
+    integer(4)                              :: FileID, sds_id, sfginfo, sfrdata !, Access
     
-    integer, dimension(3)                   :: dimsizes, limits
+    integer, dimension(3)                   :: dimsizes !, limits
     integer(4), parameter                   :: LABLEN=64
     integer(4)                              :: rank, data_type, num_attrs
     integer(4), dimension(2)                :: start, stride
-    character*1, dimension(:,:), allocatable:: Array2DChar
+    character, dimension(:,:), pointer      :: Array2DChar
     
     
     real, dimension(:,:), pointer           :: auxArray2DReal
@@ -454,23 +448,23 @@ cd2 :           if (BlockFound) then
     real, dimension(:,:), pointer           :: GridLat
     real, dimension(:,:), pointer           :: GridLong
 
-    character(len=256)                      :: L2FileName, GeoFileName, ParameterName
-     character(len=256)                     :: CharTime, auxchar, ctime, cdate
+    character(len=256)                      :: L2FileName, GeoFileName !, ParameterName
+    character(len=256)                      :: ctime, cdate !, CharTime, auxchar,
     character(len=LABLEN)                   :: sds_name
-    integer                                 :: STAT_CALL, sfrcdata
-    integer                                 :: file_attr_status, file_attr_type, file_attr_length
-    real                                    ::  aux
-    integer                                 :: nlines, ncolumns, AuxIMax, AuxJMax, AuxIMin, AuxJMin
-    integer                                 :: i, j , dayj, AuxDayj, HDF5_CREATE
-    real                                    :: base, slope, intercept
-    real                                    :: month, day ,Year, maxOrigLat, minOrigLat
+    integer                                 :: STAT_CALL !, sfrcdata
+    !integer                                 :: file_attr_status, file_attr_type, file_attr_length
+    !real                                    ::  aux
+    !integer                                 :: nlines, ncolumns, AuxIMax, AuxJMax, AuxIMin, AuxJMin
+    integer                                 :: i, j !, dayj, AuxDayj, HDF5_CREATE
+    !real                                    :: base, slope, intercept
+    !real                                    :: month, day ,Year, maxOrigLat, minOrigLat
     real, dimension(6)                      :: AuxTime
-    integer, dimension(255)                 :: array
-    integer                                 :: num, paramIndex, sfn2index, npoint, npoint2
+    !integer, dimension(255)                 :: array
+    integer                                 :: paramIndex, sfn2index, npoint !, num, , npoint2
     logical                                 :: FileFound
     integer                                 :: line,column, lines, columns
     integer                                 :: maxI, maxJ, minI, minJ
-    character(len=4)                        :: char_i, char_h
+!    character(len=4)                        :: char_h !, char_i
     !----------------------------------------------------------------------
 
     L2FileName    = NewField%L2FileName; L2FileName   = trim(adjustl(L2FileName))
@@ -492,7 +486,7 @@ cd2 :           if (BlockFound) then
  ! Geo File Get Georeference   ---------------------------------------------
     FileFound=LookforFile (GeoFilename, FileID, n_file_attributes)
     
-    if(FileFound.eq..false.) then 
+    if(.not. FileFound) then 
                 write(*,*)  
                 write(*,*) 'Error! File Not Found: ', GeoFilename
                 stop 'ReadHDF4 - ModuleConvertModisL2 - ERR01'
@@ -728,7 +722,7 @@ deallocate (AuxArray2Dreal)
 
      FileFound=LookforFile (L2Filename, FileID, n_file_attributes)
     
-    if(FileFound.eq..false.) then 
+    if(.not. FileFound) then 
                 write(*,*)  
                 write(*,*) 'Error! File Not Found: ', GeoFilename
                 stop 'ReadHDF4 - ModuleConvertModisL2 - ERR01'
@@ -799,7 +793,8 @@ deallocate (AuxArray2Dreal)
 
 
     call WriteGridData  (FileName       = 'chla_'//trim(adjustl(cdate))//'_'//trim(adjustl(ctime))//'.dat',                  &
-                         COMENT1        = 'ModisL2 file'//trim(adjustl(L2Filename))//' Modis Geo File: '//trim(adjustl(GeoFileName)), &
+                         COMENT1        = 'ModisL2 file'//trim(adjustl(L2Filename))//' Modis Geo File: ' &
+                         //trim(adjustl(GeoFileName)), &
                          COMENT2        = trim(adjustl(cdate))//' '//trim(adjustl(ctime))//' '//'Chl a mg/m^3',     &
                          ConnectionX    = GridLong,                                                                 &
                          ConnectionY    = GridLat,                                                                  &
@@ -817,23 +812,23 @@ deallocate (AuxArray2Dreal)
                          STAT           = STAT_CALL) 
      if(STAT_CALL .ne. SUCCESS_)stop 'ConstructGrid - ModuleConvertModisL2 - ERR066'
 
-     call WriteGridData  (FileName       = 'sst_'//trim(adjustl(cdate))//'_'//trim(adjustl(ctime))//'.dat',                                                          &
-                         COMENT1        = 'ModisL2 file'//trim(L2Filename)//' Modis Geo File: '//trim(GeoFileName), &
-                         COMENT2        = trim(adjustl(cdate))//' '//trim(adjustl(ctime))//' '//'Chl a mg/m^3',                                                                       &
-                         ConnectionX    = GridLong,                                                                 &
-                         ConnectionY    = GridLat,                                                                  &
-                         WorkSize       = WorkSize,                                                                 &
-                         CoordType      = 4,                                                                        &
-                         Xorig          = gridlong(1,size%jub),                                  &
-                         Yorig          = gridlat(1,1),                                   &
-                         Zone           = 29,                                                                       &
-                         GRID_ANGLE     = 0.,                                                                       &
-                         Latitude       = gridlat(1,1),                                  &
-                         Longitude      = gridlong(1,size%jub),                                  &
-                         FillValue      = -99.,                                                                     &
-                         Overwrite      = .true.,                                                                   &
-                         GridData2D_Real= sst,                                                                     &
-                         STAT           = STAT_CALL) 
+     call WriteGridData  (FileName   = 'sst_'//trim(adjustl(cdate))//'_'//trim(adjustl(ctime))//'.dat',          &
+                         COMENT1     = 'ModisL2 file'//trim(L2Filename)//' Modis Geo File: '//trim(GeoFileName), &
+                         COMENT2     = trim(adjustl(cdate))//' '//trim(adjustl(ctime))//' '//'Chl a mg/m^3',     &
+                         ConnectionX = GridLong,                                                                 &
+                         ConnectionY = GridLat,                                                                  &
+                         WorkSize    = WorkSize,                                                                 &
+                         CoordType   = 4,                                                                        &
+                         Xorig       = gridlong(1,size%jub),                                  &
+                         Yorig       = gridlat(1,1),                                   &
+                         Zone        = 29,                                                                       &
+                         GRID_ANGLE  = 0.,                                                                       &
+                         Latitude    = gridlat(1,1),                                  &
+                         Longitude   = gridlong(1,size%jub),                                  &
+                         FillValue   = -99.,                                                                     &
+                         Overwrite   = .true.,                                                                   &
+                         GridData2D_Real = sst,                                                                     &
+                         STAT        = STAT_CALL) 
      if(STAT_CALL .ne. SUCCESS_)stop 'ConstructGrid - ModuleConvertModisL2 - ERR066'
  
     deallocate(Chla)
@@ -856,11 +851,11 @@ deallocate (AuxArray2Dreal)
     real, dimension(6),intent (OUT):: AuxTime
     character(len=256),intent (OUT):: cdate, ctime
     character(len=256)             :: chartime 
-    character(len=4)               :: char_i , cmonth, cday                   
+    character(len=4)               :: cmonth, cday !,char_i ,
     integer(4)                     :: FileID,  n_file_attributes, file_attr_index, file_attr_status
     integer(4)                     :: read_attr_status, dayj, AuxDayj
     logical                        :: FileFound
-    integer(4)                     :: sfrnatt, sfrcatt, sfgainfo, sffinfo, day, month, i
+    integer(4)                     :: sfrcatt, sfgainfo, day, month, i !,sffinfo, sfrnatt, 
     
     !---------------------------------------------------------------------
  
@@ -869,7 +864,7 @@ deallocate (AuxArray2Dreal)
     
       
      
-     if(FileFound.eq..false.) then 
+     if(.not. FileFound) then 
                 write(*,*)  
                 write(*,*) 'Error! File Not Found: ', Filename
                 stop 'ReadDate - ModuleConvertModisL2 - ERR01a'
@@ -986,7 +981,7 @@ deallocate (AuxArray2Dreal)
     subroutine KillModisL2
         
         !Local-----------------------------------------------------------------
-        integer                     :: STAT_CALL
+!        integer                     :: STAT_CALL
         
         !Begin-----------------------------------------------------------------
 

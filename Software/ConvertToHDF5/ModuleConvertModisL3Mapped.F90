@@ -146,7 +146,6 @@ Module ModuleConvertModisL3Mapped
         
         !Local-------------------------------------------------------------------
         integer                                         :: nUsers
-        integer                                         :: STAT_CALL
     
         !------------------------------------------------------------------------
 
@@ -188,8 +187,6 @@ Module ModuleConvertModisL3Mapped
 
         integer,           intent(IN )              :: ClientNumber
         !Local-----------------------------------------------------------------
-        integer                                     :: STAT_CALL
-        integer                                     :: iflag
 
         !Begin-----------------------------------------------------------------
        
@@ -463,32 +460,28 @@ cd2 :           if (BlockFound) then
     integer(4)                              :: hopen, sfstart, istat, index, sfselect, sfgainfo
     integer(4)                              :: read_attr_status, file_attr_index, sfrcatt, sfrnatt
     integer(4)                              :: file_info_status, sffinfo, n_datasets, n_file_attributes
-    character(256), dimension(:), pointer   :: file_attributes, file_attr_names
-    integer(4)                              :: FileID, Access, sds_id, sfginfo, sfrdata
+    integer(4)                              :: FileID, sds_id, sfginfo
     integer(4), parameter                   :: DFACC_READ_=1, DFACC_WRITE_=2, DFACC_CREATE_=4  !File Access
     integer, dimension(3)                   :: dimsizes
     integer(4), parameter                   :: LABLEN=64
     integer(4)                              :: rank, data_type, num_attrs
     integer(4), dimension(2)                :: start, stride
-    character*1, dimension(:,:), allocatable:: Array2DChar
+    character, dimension(:,:), pointer      :: Array2DChar
     integer, dimension(:,:), pointer        :: Array2DInt
 
-    character*1, dimension(:,:), allocatable:: Array2DChar33
-    integer, dimension(:,:), pointer        :: Array2DInt33
     
 
-    character(len=256)                      :: FileName, ParameterName,aux1
+    character(len=256)                      :: FileName
     character(len=LABLEN)                   :: sds_name
-    integer                                 :: STAT_CALL, sfrcdata
-    integer                                 :: file_attr_status, file_attr_type, file_attr_length
+    integer                                 :: sfrcdata
+    integer                                 :: file_attr_status
 
-    integer                                 :: i, j , dayj, AuxDayj, HDF5_CREATE
+    integer                                 :: i, j , dayj
     real                                    :: base, slope, intercept
-    real                                    :: month, day ,Year, minOrigLat
+    real                                    :: month, day ,Year
     real, dimension(6)                      :: AuxTime
-    integer, dimension(255)                 :: array
-    integer                                 :: num
     logical                                 :: Calc_sst    
+    type(T_Time)                            :: AuxDate
     !----------------------------------------------------------------------
 
     
@@ -594,9 +587,9 @@ cd2 :           if (BlockFound) then
    if (me%firstFile) then
      
      if(Me%InputType==Grid_) then
-       Call DefineGrid (NewField)
+       Call DefineGrid
      else 
-       Call DefineArea (NewField)
+       Call DefineArea
      endif
      
      me%firstFile=.false.
@@ -688,109 +681,87 @@ cd2 :           if (BlockFound) then
      !   endif
      !enddo
     !enddo
-   
 
+    call JulianDayToMonthDay(1980, DayJ, AuxDate)
+    call ExtractDate(AuxDate, Month = Month, Day = Day)
 
-    AuxTime(1)= Year
-    AuxTime(4)= 0.0
-    AuxTime(5)= 0.0
-    AuxTime(6)= 0.0
-    
-    do day =1, 31
-     do month =1, 12
-     
-     AuxTime(2) =  Month
-     AuxTime(3) =  Day
+    AuxTime(1) = Year
+    AuxTime(2) = Month
+    AuxTime(3) = Day
+    AuxTime(4) = 0.0
+    AuxTime(5) = 0.0
+    AuxTime(6) = 0.0
 
-      call SetDate(NewField%Date, Year = AuxTime(1), Month  = AuxTime(2), Day    = AuxTime(3), &
+    call SetDate(NewField%Date, Year = AuxTime(1), Month  = AuxTime(2), Day    = AuxTime(3), &
                                    Hour = AuxTime(4), Minute = AuxTime(5), Second = AuxTime(6)) 
-      call JulianDay(NewField%Date, AuxDayj)
-      if (AuxDayj.eq.DayJ) then 
-         exit
-      endif
-   
-     enddo
-     
-     if (AuxDayj.eq.DayJ) exit
-    
-    enddo
 
-     
-       deallocate(Array2Dchar)
-       deallocate(Array2Dint)
+    deallocate(Array2Dchar)
+    deallocate(Array2Dint)
 
     end subroutine ReadHDF4
 
     !-------------------------------------------------------------------------
 
-    Subroutine DefineGrid (NewField)
+    Subroutine DefineGrid 
 
     ! Arguments -------------------------------------------------------------
 
-    type(T_ModisL3Mapped), pointer                   :: NewField
     integer                                          :: STAT_CALL
     real                                             :: aux1,aux2 
 
     !------------------------------------------------------------------------
-    
-    
+
      call ConstructHorizontalGrid(Me%ObjHorizontalGrid, Me%InputGrid, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'DefineGrid - ModuleConvertModisL3Mapped - ERR01'
 
-     call ConstructGridData          (GridDataID       = Me%ObjBathymetry,        &
+     call ConstructGridData          (GridDataID       = Me%ObjBathymetry,       &
                                      HorizontalGridID = Me%ObjHorizontalGrid,    &
                                      FileName         = Me%InputGrid,            &
                                      STAT             = STAT_CALL)
         if(STAT_CALL .ne. SUCCESS_) stop 'DefineGrid - ModuleConvertModisL3Mapped - ERR05'
-     
+
      call GetHorizontalGridSize(Me%ObjHorizontalGrid, Me%Size, Me%WorkSize, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'DefineGrid - ModuleConvertModisL3Mapped - ERR02'
-      
+
      call GetGridOrigin(Me%ObjHorizontalGrid, Me%MinLong, Me%MinLat, STAT = STAT_CALL)
-    
+
      call GetGridData(Me%ObjBathymetry, Me%Bathymetry, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)stop 'DefineGrid - ModuleConvertModisL3Mapped - ERR03'
-     
+
      call GetHorizontalGrid(Me%ObjHorizontalGrid, XX = Me%XX, YY = Me%YY, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'DefineGrid - ModuleConvertModisL3Mapped - ERR04'
-
        
      aux1=Abs((Me%XX(2) - Me%XX(1))/me%LongStep-1)
      aux2=Abs((Me%YY(2) - Me%YY(1))/me%LatStep-1)
-     
+
      ! tests grid consistency
         if ((aux1.gt.0.00001).or.(aux2.gt.0.00001)) then
                write(*,*)  
                write(*,*) 'Grid inconsistency ' 
                stop 'ReadHDF4 - ModuleConvertModisL3Mapped - ERR01'
-         
+
         endif   
      ! 
-       
+
        Me%MaxLat  = Me%MinLat + Me%YY(me%Size%IUB)
        Me%MaxLong = Me%MinLong + Me%XX(me%Size%JUB)
-       
 
        !i=1 no topo superior esquerdo
-    
+
        Me%AuxSize%ILB  = (Me%maxOrigLat - Me%MaxLat) / Me%LatStep
        Me%AuxSize%IUB  = (Me%maxOrigLat - Me%MinLat) / Me%LatStep
-     
+
        Me%AuxSize%JUB   = int(Abs(Me%MaxLong - me%OrigLong) / me%LongStep)
        Me%AuxSize%JLB   = int(Abs(Me%MinLong - me%OrigLong) / me%LongStep)
 
-     
-
-    
     end subroutine DefineGrid
 
 !  -------------------------------------------------------------------------
   
-  Subroutine DefineArea (NewField)
+  Subroutine DefineArea 
 
     ! Arguments -------------------------------------------------------------
 
-    type(T_ModisL3Mapped), pointer     :: NewField
     !Local-------------------------------------------------------------------
 
    

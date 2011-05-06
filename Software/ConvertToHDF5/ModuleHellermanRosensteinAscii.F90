@@ -22,7 +22,6 @@ Module ModuleHellermanRosensteinAscii
     use ModuleFunctions
     use ModuleHDF5
     use ModuleEnterData
-    use ModuleTime
     use ModuleGridData
     use ModuleHorizontalGrid
 
