@@ -411,11 +411,6 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         Me%P                    = null_real
         Me%B                    = null_real
 
-        nullify(Me%ExternalVar%u_taus)
-        allocate(Me%ExternalVar%u_taus (ILB:IUB, JLB:JUB), STAT = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_) stop 'AllocateVariables - ModuleTurbGOTM - ERR02'
-        Me%ExternalVar%u_taus = 0.
-
     end subroutine AllocateVariables
 
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -553,7 +548,11 @@ ifwp :          if (Me%ExternalVar%OpenPoints3D(i,j,KUB) .EQ. Openpoint) then
                                         
                     Kbottom = Me%ExternalVar%KFloorZ        (i,j)
                     Depth   = Me%ExternalVar%HT             (i,j)
-                    u_taus  = Me%ExternalVar%u_taus         (i,j)
+                    if (associated(Me%ExternalVar%u_taus)) then
+                        u_taus  = Me%ExternalVar%u_taus         (i,j)
+                    else
+                        u_taus  = 0.
+                    endif
                     u_taub  = Me%ExternalVar%u_taub         (i,j)
                     z0b     = Me%ExternalVar%BottomRugosity (i,j)
                     z0s     = Me%ExternalVar%SurfaceRugosity(i,j)
@@ -1529,7 +1528,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                 call Write_Final_Turbulence_File
                 call KillGotmMemory
 
-                deallocate(Me%ExternalVar%u_taus)
+                if (associated(Me%ExternalVar%u_taus)) nullify(Me%ExternalVar%u_taus)
 
                 !Deallocates Instance
                 call DeallocateInstance

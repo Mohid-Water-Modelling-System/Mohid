@@ -350,6 +350,7 @@ Module ModuleInterfaceWaterAir
         real                                        :: CDWIND                   = FillValueReal
         logical                                     :: DefineCDWIND             = .false.
         real(8), pointer, dimension(:,:)            :: Scalar2D
+        real   , pointer, dimension(:,:)            :: WindShearVelocity
         integer                                     :: AerationEquation         = FillValueInt
         integer                                     :: CO2AerationEquation      = FillValueInt
         real                                        :: Altitude                 = FillValueReal
@@ -544,7 +545,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             call Construct_Sub_Modules
 
             call ConstructGlobalOutput
-
+            
             if (Me%OutPut%Yes) call Open_HDF5_OutPut_File
 
             call KillEnterData(Me%ObjEnterData, STAT = STAT_CALL)
@@ -1679,9 +1680,6 @@ do1 :   do while (associated(PropertyX))
         call Search_Property(PropertyX, SpecificCarbonDioxideFlux_,  STAT = STAT_CALL)
         if (STAT_CALL == SUCCESS_) Me%IntOptions%SpecificCarbonDioxideFlux  = ON
         
-        call Search_Property(PropertyX, WindShearVelocity_,      STAT = STAT_CALL)
-        if (STAT_CALL == SUCCESS_) Me%IntOptions%WindShearVelocity      = ON
-
         call Search_Property(PropertyX, TurbulentKineticEnergy_, STAT = STAT_CALL)
         if (STAT_CALL == SUCCESS_) Me%IntOptions%TurbulentKineticEnergy = ON
 
@@ -1914,6 +1912,18 @@ do1 :   do while (associated(PropertyX))
             endif
 
         endif
+        
+        if (Me%ExtOptions%GOTMWindShearVelocityYes .and. Me%IntOptions%WindStress) then
+            
+            Me%IntOptions%WindShearVelocity = .true.
+            
+            allocate(Me%WindShearVelocity(Me%Size2D%ILB:Me%Size2D%IUB,Me%Size2D%JLB:Me%Size2D%JUB))
+            
+        else
+        
+            Me%IntOptions%WindShearVelocity = .false.
+            
+        endif
 
 
     end subroutine CheckOptionsWater
@@ -2135,6 +2145,8 @@ do1 :   do while (associated(PropertyX))
                 stop 'CheckOptionsAir - ModuleInterfaceWaterAir - ERR130'
             endif
         endif
+        
+        
 
     end subroutine CheckOptionsAir
 
@@ -2539,8 +2551,7 @@ do1 :   do while (associated(PropertyX))
         endif
 
         if(Me%IntOptions%WindShearVelocity)then
-            call Search_Property(PropertyX, WindShearVelocity_,      STAT = STAT_CALL)
-            if (STAT_CALL == SUCCESS_) call ModifyWindShearVelocity     (PropertyX)
+            call ModifyWindShearVelocity     
         endif
 
         if(Me%IntOptions%TurbulentKineticEnergy)then
@@ -3823,11 +3834,10 @@ do4:    do i=ILB, IUB
     
     !--------------------------------------------------------------------------  
 
-    subroutine ModifyWindShearVelocity (PropWindShearVelocity)
+    subroutine ModifyWindShearVelocity
 
         !Arguments--------------------------------------------------------------
 
-        type(T_Property), pointer           :: PropWindShearVelocity
 
         !External--------------------------------------------------------------
         integer                             :: ILB, IUB, JLB, JUB, i, j
@@ -3865,7 +3875,7 @@ do2:    do i=ILB, IUB
                 WindStressModule                  = sqrt(WindStressX%Field(i, j)**2. + &
                                                          WindStressY%Field(i, j)**2.)
 
-                PropWindShearVelocity%Field(i, j) = sqrt(WindStressModule / SigmaDensityReference)
+               Me%WindShearVelocity(i, j) = sqrt(WindStressModule / SigmaDensityReference)
                                                                 
             endif
 
@@ -4362,18 +4372,13 @@ PropX:          do while (associated(PropertyX))
         
         endif
         
-        if(Me%ExtOptions%GOTMWindShearVelocityYes)then
-
-            call Search_Property(PropertyX, WindShearVelocity_, STAT = STAT_CALL) 
-            if (STAT_CALL == SUCCESS_)then
-
-                call SetTurbGOTMWindShearVelocity(TurbGOTMID        = Me%ObjTurbGOTM,           &
-                                                  WindShearVelocity = PropertyX%Field,          &
-                                                  STAT              = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)                                                      &
-                    stop 'SetSubModulesModifier - ModuleInterfaceWaterAir - ERR100'
+        if (Me%IntOptions%WindShearVelocity)then
             
-            endif
+            call SetTurbGOTMWindShearVelocity(TurbGOTMID        = Me%ObjTurbGOTM,           &
+                                              WindShearVelocity = Me%WindShearVelocity,     &
+                                              STAT              = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                      &
+                stop 'SetSubModulesModifier - ModuleInterfaceWaterAir - ERR100'
             
         endif
 
@@ -4650,6 +4655,11 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
 
                     deallocate(Me%Scalar2D)
                     nullify   (Me%Scalar2D)
+                endif
+                
+                if (associated(Me%WindShearVelocity))then
+                    deallocate(Me%WindShearVelocity)
+                    nullify   (Me%WindShearVelocity)
                 endif
 
                 
