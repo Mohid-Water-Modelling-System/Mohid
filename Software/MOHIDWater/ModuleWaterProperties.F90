@@ -675,6 +675,7 @@ Module ModuleWaterProperties
         logical                                 :: OutPutWindowsON            
         integer                                 :: WindowsNumber        
         integer,           dimension(:),pointer :: ObjHDF5
+        logical                                 :: Simple
     end type  T_OutW
 
     type       T_SubModel
@@ -7698,6 +7699,18 @@ cd2 :       if (BlockFound) then
 
         end if
            
+           
+        call GetData(Me%OutW%Simple,                                                    &
+                     Me%ObjEnterData,                                                   &
+                     iflag,                                                             &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'SIMPLE_WINDOW_OUTPUT',                             &
+                     Default      = .true.,                                             &
+                     ClientModule = 'ModuleWaterProperties',                            &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)                                                      &
+            call SetError(FATAL_, KEYWORD_, "ConstructGlobalOutput - WaterProperties - ERR70")
+           
 
 
     end subroutine ConstructGlobalOutput
@@ -14506,10 +14519,14 @@ do9:                do k=kbottom, KUB
         real,    dimension(:    ), pointer :: TimePtr
         integer                            :: WorkILB, WorkIUB, WorkJLB, WorkJUB
         integer                            :: WorkKLB, WorkKUB
+        logical                            :: SimpleOutPut
+        character(len=StringLength)        :: AuxGroup
 
         !----------------------------------------------------------------------
 
         if (MonitorPerformance) call StartWatch ("ModuleWaterProperties", "OutPut_Results_HDF")
+        
+        SimpleOutPut = .false.        
 
         !Saida das diferentes propriedades
         Actual = Me%ExternalVar%Now
@@ -14535,6 +14552,8 @@ do9:                do k=kbottom, KUB
             !Current output
             OutPutNumber = Me%OutW%OutPutWindows(iW)%NextOutPut
             OutTime      = Me%OutW%OutPutWindows(iW)%OutTime(OutPutNumber)          
+            
+            if (Me%OutW%Simple) SimpleOutPut = .true.               
             
         else
 
@@ -14584,96 +14603,83 @@ First:              if (FirstTime) then
                                             AuxTime(4), AuxTime(5), AuxTime(6))
                         TimePtr => AuxTime
                         call HDF5SetLimits  (ObjHDF5, 1, 6, STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'OutPut_Results_HDF - ModuleWaterProperties - ERR02'
+                        if (STAT_CALL /= SUCCESS_) stop 'OutPut_Results_HDF - ModuleWaterProperties - ERR10'
 
                         call HDF5WriteData  (ObjHDF5, "/Time", "Time", "YYYY/MM/DD HH:MM:SS", &
                                              Array1D = TimePtr, OutputNumber = OutPutNumber, STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'OutPut_Results_HDF - ModuleWaterProperties - ERR03'
+                        if (STAT_CALL /= SUCCESS_) stop 'OutPut_Results_HDF - ModuleWaterProperties - ERR20'
 
                         !Writes SZZ
                         call HDF5SetLimits  (ObjHDF5, WorkILB, WorkIUB, WorkJLB,        &
                                              WorkJUB, WorkKLB-1, WorkKUB, STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'OutPut_Results_HDF - ModuleWaterProperties - ERR04'
+                        if (STAT_CALL /= SUCCESS_) stop 'OutPut_Results_HDF - ModuleWaterProperties - ERR30'
 
                         call HDF5WriteData  (ObjHDF5, "/Grid/VerticalZ", "Vertical",    &
                                              "m", Array3D = Me%ExternalVar%SZZ,            &
                                              OutputNumber = OutPutNumber, STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'OutPut_Results_HDF - ModuleWaterProperties - ERR05'
+                        if (STAT_CALL /= SUCCESS_) stop 'OutPut_Results_HDF - ModuleWaterProperties - ERR40'
 
                         !Writes OpenPoints
                         call HDF5SetLimits  (ObjHDF5, WorkILB, WorkIUB,                 &
-                                             WorkJLB, WorkJUB, WorkKLB, WorkKUB,           &
+                                             WorkJLB, WorkJUB, WorkKLB, WorkKUB,        &
                                              STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'OutPut_Results_HDF - ModuleWaterProperties - ERR06'
+                        if (STAT_CALL /= SUCCESS_) stop 'OutPut_Results_HDF - ModuleWaterProperties - ERR50'
 
                         call HDF5WriteData  (ObjHDF5, "/Grid/OpenPoints", "OpenPoints", &
-                                             "-", Array3D = Me%ExternalVar%OpenPoints3D,   &
+                                             "-", Array3D = Me%ExternalVar%OpenPoints3D,&
                                              OutputNumber = OutPutNumber, STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'OutPut_Results_HDF - ModuleWaterProperties - ERR07'
+                        if (STAT_CALL /= SUCCESS_) stop 'OutPut_Results_HDF - ModuleWaterProperties - ERR60'
+                        
+sp:                     if (.not. SimpleOutPut) then                        
 
-                        call HDF5WriteData  (ObjHDF5, "/Results/density", "density",    &
-                                             "Kg/m3", Array3D = Me%Density%Field,          &
-                                             OutputNumber = OutPutNumber, STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'OutPut_Results_HDF - ModuleWaterProperties - ERR08'
+                            call HDF5WriteData  (ObjHDF5, "/Results/density", "density",&
+                                                 "Kg/m3", Array3D = Me%Density%Field,   &
+                                                 OutputNumber = OutPutNumber, STAT = STAT_CALL)
+                            if (STAT_CALL /= SUCCESS_) stop 'OutPut_Results_HDF - ModuleWaterProperties - ERR70'
                     
+                    
+                        endif sp
                     endif First
                     
-
-
+                    AuxGroup = "/Results/"                                     
+                    
                     if (PropertyX%ID%IDNumber .EQ. Oxygen_ .AND. Me%OutPut%DO_PercentSat) then
                     
-                        call HDF5WriteData(ObjHDF5,                                          &
-                                           "/Results/Oxygen/"//PropertyX%ID%Name,            &
-                                           PropertyX%ID%Name,                                &
-                                           PropertyX%ID%Units,                               &
-                                           Array3D      = PropertyX%Concentration,           &
-                                           OutputNumber = OutPutNumber, STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'OutPut_Results_HDF - ModuleWaterProperties - ERR09a'
+                        AuxGroup =  "/Results/Oxygen/"
                         
-                    else
-                    
-                        if (PropertyX%ID%IDNumber .EQ. CarbonDioxide_ .AND. Me%OutPut%CO2_PartialPressure) then
+                    else if (PropertyX%ID%IDNumber .EQ. CarbonDioxide_ .AND. Me%OutPut%CO2_PartialPressure) then
                         
-                            call HDF5WriteData(ObjHDF5,                                          &
-                                               "/Results/Carbon Dioxide/"//PropertyX%ID%Name,    &
-                                               PropertyX%ID%Name,                                &
-                                               PropertyX%ID%Units,                               &
-                                               Array3D      = PropertyX%Concentration,           &
-                                               OutputNumber = OutPutNumber, STAT = STAT_CALL)
-                            if (STAT_CALL /= SUCCESS_) stop 'OutPut_Results_HDF - ModuleWaterProperties - ERR09a'
-                        
-                        else
+                        AuxGroup = "/Results/Carbon Dioxide/"          
                                           
-                            call HDF5WriteData  (ObjHDF5, "/Results/"//PropertyX%ID%Name, PropertyX%ID%Name,    &
-                                                 PropertyX%ID%Units, Array3D =  PropertyX%Concentration,        &
-                                                 OutputNumber = OutPutNumber, STAT = STAT_CALL)
-                            if (STAT_CALL /= SUCCESS_) stop 'OutPut_Results_HDF - ModuleWaterProperties - ERR09c'
-                        
-                        endif
-                        
                     endif
-                    
+
+                    call HDF5SetLimits  (ObjHDF5, WorkILB, WorkIUB,                     &
+                                         WorkJLB, WorkJUB, WorkKLB, WorkKUB,            &
+                                         STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'OutPut_Results_HDF - ModuleWaterProperties - ERR80'                    
+
+                    call HDF5WriteData(ObjHDF5,                                         &
+                                       trim(AuxGroup)//PropertyX%ID%Name,               &
+                                       PropertyX%ID%Name,                               &
+                                       PropertyX%ID%Units,                              &
+                                       Array3D      = PropertyX%Concentration,          &
+                                       OutputNumber = OutPutNumber, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'OutPut_Results_HDF - ModuleWaterProperties - ERR100'
 
 
+                    if (PropertyX%Evolution%Filtration%On .and. .not. SimpleOutPut) then
 
-                    if (PropertyX%Evolution%Filtration%On) then
-
-                        call HDF5WriteData(ObjHDF5,                                         &
-                                           "/Results/Filtration/"//PropertyX%ID%Name,       &
-                                           PropertyX%ID%Name,                               &
-                                           PropertyX%ID%Units,                              &
-                                           Array3D      = PropertyX%Filtration, &
+                        call HDF5WriteData(ObjHDF5,                                     &
+                                           "/Results/Filtration/"//PropertyX%ID%Name,   &
+                                           PropertyX%ID%Name,                           &
+                                           PropertyX%ID%Units,                          &
+                                           Array3D      = PropertyX%Filtration,         &
                                            OutputNumber = OutPutNumber, STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'OutPut_Results_HDF - ModuleWaterProperties - ERR09'
+                        if (STAT_CALL /= SUCCESS_) stop 'OutPut_Results_HDF - ModuleWaterProperties - ERR120'
                     
                     endif
-                    
                   
                     if (FirstTime) FirstTime = .false.
-
-                    !Writes everything to disk
-                    call HDF5FlushMemory (ObjHDF5, STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'OutPut_Results_HDF - ModuleWaterProperties - ERR10'
 
                  end if
 
@@ -14683,29 +14689,27 @@ First:              if (FirstTime) then
 
             if (Me%OutPut%AditionalFields) then
                 if (present(iW)) then
-                    call OutPutHDF_AditionalFields (OutPutNumber, iW)
+sp3:                if (.not. SimpleOutPut) then                        
+                        call OutPutHDF_AditionalFields (OutPutNumber, iW)
+                    endif sp3
                 else
                     call OutPutHDF_AditionalFields (OutPutNumber)
                 endif
             endif
 
-            if (Me%Coupled%MacroAlgae%Yes)then
+            if (Me%Coupled%MacroAlgae%Yes .and. .not. SimpleOutPut)then
 
                 call HDF5SetLimits  (ObjHDF5, WorkILB, WorkIUB,                         &
                                      WorkJLB, WorkJUB, WorkKLB, WorkKUB,                &
                                      STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'OutPut_Results_HDF - ModuleWaterProperties - ERR11'
+                if (STAT_CALL /= SUCCESS_) stop 'OutPut_Results_HDF - ModuleWaterProperties - ERR130'
 
                 call HDF5WriteData  (ObjHDF5, "/Results/"//"macroalgae distribution",   &
                                      "macroalgae distribution", "gC/m2",                &
                                      Array2D = Me%MacroAlgae%Distribution,              &
                                      OutputNumber = OutPutNumber, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'OutPut_Results_HDF - ModuleWaterProperties - ERR12'
+                if (STAT_CALL /= SUCCESS_) stop 'OutPut_Results_HDF - ModuleWaterProperties - ERR140'
                 
-                !Writes everything to disk
-                call HDF5FlushMemory (ObjHDF5, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'OutPut_Results_HDF - ModuleWaterProperties - ERR13'
-
             end if
 
 
@@ -14715,6 +14719,10 @@ First:              if (FirstTime) then
             else
                 Me%OutPut%NextOutPut                 = Me%OutPut%NextOutPut                 + 1
             endif
+            
+            !Writes everything to disk
+            call HDF5FlushMemory (ObjHDF5, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'OutPut_Results_HDF - ModuleWaterProperties - ERR150'            
 
         endif  TOut    
 
@@ -14739,10 +14747,6 @@ First:              if (FirstTime) then
             end if
 
         end if
-
-        call HDF5FlushMemory (ObjHDF5, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'OutPut_Results_HDF - ModuleWaterProperties - ERR19'
-
 
         if (MonitorPerformance) call StopWatch ("ModuleWaterProperties", "OutPut_Results_HDF")
 
@@ -14801,7 +14805,7 @@ First:              if (FirstTime) then
         !surface outputs
         SurfaceOutPutNumber = Me%OutPut%NextSurfaceOutPut
 
-        if (Actual >= Me%OutPut%SurfaceOutTime(SurfaceOutPutNumber)) then
+AO:     if (Actual >= Me%OutPut%SurfaceOutTime(SurfaceOutPutNumber)) then
 
             FirstTimeSurface = .true.        
 
@@ -14883,7 +14887,7 @@ First:              if (FirstTime) then
             call HDF5FlushMemory (Me%ObjSurfaceHDF5, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'OutPut_Results_HDF - ModuleWaterProperties - ERR19'
 
-        endif 
+        endif AO
 
         if (MonitorPerformance) call StopWatch ("ModuleWaterProperties", "OutPut_SurfaceResults_HDF")
 
@@ -15176,11 +15180,6 @@ i2:     if (Me%OutPut%Radiation) then
         endif
         
 
-        !Writes everything to disk
-        call HDF5FlushMemory (ObjHDF5, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'OutPutHDF_AditionalFields - ModuleWaterProperties - ERR130'
-                  
-          
 
     end subroutine OutPutHDF_AditionalFields
 
