@@ -8824,7 +8824,7 @@ cd2 :       if (Actual.GE.Property%Evolution%NextCompute) then
                 stop 'OutPut_TimeSeries - ModulePorousMediaProperties - ERR050'        
         endif
 
-		if (MonitorPerformance) call StopWatch ("ModulePorousMediaProperties", "OutPut_TimeSeries")
+        if (MonitorPerformance) call StopWatch ("ModulePorousMediaProperties", "OutPut_TimeSeries")
 
     end subroutine OutPut_TimeSeries
 

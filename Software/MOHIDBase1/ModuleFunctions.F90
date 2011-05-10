@@ -427,7 +427,7 @@ Module ModuleFunctions
 
         !Begin-----------------------------------------------------------------
 
-        if (MonitorPerformance) call StartWatch ("ModuleFunctions", "SetMatrixValues1D_R4_FromMatrix")
+        if (MonitorPerformance) call StartWatch ("ModuleFunctions", "SetMatrixValues1D_I4_FromMatrix")
 
         !$ CHUNK = CHUNK_I(Size%ILB, Size%IUB) !
         

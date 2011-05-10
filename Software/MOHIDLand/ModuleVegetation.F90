@@ -250,7 +250,8 @@ Module ModuleVegetation
     use ModuleTime
     use ModuleEnterData
     use ModuleHDF5,           only : ConstructHDF5, GetHDF5FileAccess, HDF5SetLimits,             &
-                                     HDF5WriteData, HDF5FlushMemory, HDF5ReadData, KillHDF5
+                                     HDF5WriteData, HDF5FlushMemory, HDF5ReadData, KillHDF5,      &
+                                     GetHDF5GroupNumberOfItems
     use ModuleAtmosphere,     only : GetAtmosphereProperty, AtmospherePropertyExists,             &
                                      UnGetAtmosphere
     use ModuleBasinGeometry,  only : GetBasinPoints, UngetBasin
@@ -266,7 +267,8 @@ Module ModuleVegetation
     use ModuleTimeSerie,      only : StartTimeSerie, WriteTimeSerie, KillTimeSerie,               &
                                      StartTimeSerieInput, GetTimeSerieValue,                      &
                                      GetNumberOfTimeSeries, GetTimeSerieLocation,                 &
-                                     GetTimeSerieName, TryIgnoreTimeSerie, CorrectsCellsTimeSerie
+                                     GetTimeSerieName, TryIgnoreTimeSerie, CorrectsCellsTimeSerie, &
+                                     GetTimeSerieDataMatrix, GetTimeSerieDataValues
     use ModuleGridData,       only : ConstructGridData, GetGridData, UngetGridData,               &
                                      KillGridData
     use ModuleGeometry,       only : GetGeometryDistances, GetGeometrySize, GetGeometryKFloor,    &
@@ -470,7 +472,7 @@ Module ModuleVegetation
         character(len=Pathlength)                       :: Results
         character(len=Pathlength)                       :: InitialFile
         character(len=Pathlength)                       :: FinalFile
-        character(PathLength)                           :: VegetationIDFile
+!        character(PathLength)                           :: VegetationIDFile
 
     end type T_Files
 
@@ -720,6 +722,7 @@ Module ModuleVegetation
         real, dimension(:,:), pointer                   :: PAR
         real, dimension(:,:), pointer                   :: RUE
         real, dimension(:,:), pointer                   :: PotentialGrowth
+        real, dimension(:,:), pointer                   :: PotentialBiomass
         real, dimension(:,:), pointer                   :: BiomassGrowthOld
         integer, dimension(:,:), pointer                :: TreeCurrentYear
         real, dimension(:,:), pointer                   :: TreeFractionToMaturity
@@ -885,7 +888,10 @@ Module ModuleVegetation
         integer                                         :: VegetationsNumber     = 0
 
         !DataMatrixes
-        integer, dimension(:,:), pointer                :: VegetationID
+        integer, dimension(:,:), pointer                :: AgricPractID            !ID's from user - SWAT ID'S
+        type (T_PropertyID)                             :: AgricPract
+        integer, dimension(:,:), pointer                :: VegetationID            !ordered ID's to save space (max value = number
+                                                                                   ! of different ID's)
         integer                                         :: ObjEnterData         = 0
         integer                                         :: ObjTime              = 0
         integer                                         :: ObjGridData          = 0
@@ -1077,7 +1083,11 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             call ConstructVegetationGrids
 
             call CheckRootDepth
-
+            
+            if (Me%ComputeOptions%Dormancy) then
+                call CheckLatitude
+            endif
+            
             if (Me%ComputeOptions%TranspirationMethod == TranspirationMOHID) then
                 call ConstructFeddes
             endif
@@ -1222,13 +1232,13 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation  - ERR030'
         
 
-        call GetData(Me%Files%VegetationIDFile,                                         &
-                     Me%ObjEnterData, iflag,                                            &
-                     Keyword        = 'VEGETATION_ID_FILE',                             &
-                     SearchType     = FromFile,                                         &
-                     ClientModule   = 'ModuleVegetation',                               &
-                     STAT           = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR040'
+!        call GetData(Me%Files%VegetationIDFile,                                         &
+!                     Me%ObjEnterData, iflag,                                            &
+!                     Keyword        = 'VEGETATION_ID_FILE',                             &
+!                     SearchType     = FromFile,                                         &
+!                     ClientModule   = 'ModuleVegetation',                               &
+!                     STAT           = STAT_CALL)
+!        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR040'
 
         call GetData(Me%ComputeOptions%ModelTemperatureStress,                          &
                      Me%ObjEnterData, iflag,                                            &
@@ -1733,7 +1743,6 @@ cd2 :           if (BlockFound) then
         integer                                     :: iflag
         integer                                     :: ILB,IUB
         integer                                     :: JLB,JUB
-        integer                                     :: i, j
         
         !Boundaries
         ILB = Me%Size%ILB
@@ -1810,18 +1819,6 @@ cd2 :           if (BlockFound) then
 !            endif
 
         end if
-        
-        !This code exists to avoid Leaf Area Index (LAI) negative
-        !The best is to preprocess data to avoid negative values (maybe interpolating to fill missing values)
-        if (NewProperty%ID%IDNumber .EQ. LeafAreaIndex_) then
-do1:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
-do2:        do i = Me%WorkSize%ILB, Me%WorkSize%IUB
-                if (NewProperty%Field(i, j) < 0.0) then
-                    NewProperty%Field(i, j) = 0.0
-                endif
-            enddo do2
-            enddo do1
-        endif         
 
 
     end subroutine ConstructPropertyValues
@@ -2296,36 +2293,242 @@ cd0:    if (Exist) then
     subroutine ConstructVegetationList
 
         !Local----------------------------------------------------------------
-        integer                                 :: STAT_CALL
-        integer                                 :: ObjGD, i, j
-        real, dimension(:,:), pointer           :: AuxID
-        type (T_VegetationType), pointer        :: VegetationX, VegetationInList
-        logical                                 :: FoundVegetation
+        integer                                 :: STAT_CALL !, ObjGD
+        integer                                 :: ClientNumber !, i, j
+        real, dimension(:,:), pointer           :: AgricPractIDMatrix, DataMatrix
+        logical                                 :: BlockFound
+        integer                                 :: ObjHDF5, NumberOfInstants, iflag, ObjTimeSerie
+        integer                                 :: AgricPractIDScalar, HDFInstant, TimeSerieInstant
+        character(len=StringLength)             :: FileInTime, FileName
+        !type (T_PropertyID)                     :: AgricPractID
+        integer                                 :: HDF5_READ, DataValues
+!        type (T_PropertyID)                     :: AgricPract
         !Begin----------------------------------------------------------------
     
-        !Gets Vegetation IDs
-        ObjGD = 0
-        call ConstructGridData  (ObjGD, Me%ObjHorizontalGrid, FileName = Me%Files%VegetationIDFile, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructVegetationList - ModuleVegetation - ERR03'
-        
-        !allocate (AuxID(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
-        call GetGridData (ObjGD, AuxID, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructVegetationList - ModuleVegetation - ERR04'
+!        !Gets Vegetation IDs
+!        ObjGD = 0
+!        call ConstructGridData  (ObjGD, Me%ObjHorizontalGrid, FileName = Me%Files%VegetationIDFile, STAT = STAT_CALL)
+!        if (STAT_CALL /= SUCCESS_) stop 'ConstructVegetationList - ModuleVegetation - ERR03'
+!        
+!        !allocate (AuxID(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+!        call GetGridData (ObjGD, AgricPractIDMatrix, STAT = STAT_CALL)
+!        if (STAT_CALL /= SUCCESS_) stop 'ConstructVegetationList - ModuleVegetation - ERR04'
 
-        !A vegetation type is an agricultural practice. For now land use from grid has only one agricultural practice object
-        !In the future one land use can have several (rotation)
+        call RewindBuffer(Me%ObjEnterData, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructVegetationList - ModuleVegetation - ERR00'
+        
+        call ExtractBlockFromBuffer(Me%ObjEnterData,                                        &
+                                    ClientNumber    = ClientNumber,                         &
+                                    block_begin     = '<begin_AgriculturalPractices>',      &
+                                    block_end       = '<end_AgriculturalPractices>',        &
+                                    BlockFound      = BlockFound,                           &   
+                                    STAT            = STAT_CALL)
+        if (STAT_CALL == SUCCESS_) then
+            if (.not. BlockFound) then
+                write(*,*)'Missing Block <begin_AgriculturalPractices> / <end_AgriculturalPractices>'
+                write(*,*)'This block removes old VEGETATION_ID_FILE and now input is done using'
+                write(*,*)'FillMatrix standards: constant, timeserie, ASCII grid or HDF input'
+                stop 'ConstructVegetationList - ModuleVegetation - ERR10'
+            endif        
+            
+            allocate (AgricPractIDMatrix(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+            AgricPractIDMatrix = FillValueReal
+            
+!            !Gets Basin Points
+!            call GetBasinPoints (Me%ObjBasinGeometry, Me%ExternalVar%BasinPoints, STAT_CALL)
+!            if (STAT_CALL /= SUCCESS_) stop 'ConstructVegetationList - ModuleVegetation - ERR015'  
+            
+            !fill the first grid (in case of solution from file) or the unique grid
+            call ConstructFillMatrix  (PropertyID           = Me%AgricPract,                       &
+                                       EnterDataID          = Me%ObjEnterData,                  &
+                                       TimeID               = Me%ObjTime,                       &
+                                       HorizontalGridID     = Me%ObjHorizontalGrid,             &
+                                       ExtractType          = FromBlock,                        &
+                                       PointsToFill2D       = Me%ExternalVar%MappingPoints2D,   &
+                                       Matrix2D             = AgricPractIDMatrix,               &
+                                       TypeZUV              = TypeZ_,                           &
+                                       STAT                 = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                          &
+                stop 'ConstructVegetationList - ModuleVegetation - ERR20'
+            
+!            !Unget Basin Points
+!            call UnGetBasin (Me%ObjBasinGeometry, Me%ExternalVar%BasinPoints, STAT = STAT_CALL)
+!            if (STAT_CALL /= SUCCESS_) stop 'ConstructVegetationList - ModuleVegetation - ERR025'
+
+            if(.not. Me%AgricPract%SolutionFromFile)then
+
+                ! only one grid
+                call KillFillMatrix(Me%AgricPract%ObjFillMatrix, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)&
+                    stop 'ConstructVegetationList - ModuleVegetation - ERR30'
+                
+                !Check in the only grid the unique vegetations
+                call CheckVegetationListMatrix(AgricPractIDMatrix)
+            
+            else
+                
+                !several grids - check all values for different agricultural practices
+                !Check if HDF or time serie
+                call GetData(FileInTime,                                            &
+                             Me%ObjEnterData, iflag,                                &
+                             SearchType   = FromFile,                               &
+                             keyword      = 'FILE_IN_TIME',                         &
+                             ClientModule = 'ModuleVegetation',                     &
+                             STAT         = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_)                                        &
+                    stop 'ConstructVegetationList - ModuleVegetation - ERR40'
+
+                call GetData(FileName,                                              &
+                             Me%ObjEnterData,iflag,                                 &
+                             SearchType   = FromFile,                               &
+                             keyword      = 'FILENAME',                             &
+                             ClientModule = 'ModuleVegetation',                     &
+                             STAT         = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_)                                        &
+                    stop 'ConstructVegetationList - ModuleVegetation - ERR50'                    
+
+                select case (trim(adjustl(FileInTime)))
+                    case ("Hdf",        "HDF",          "hdf")
+                        
+                        
+                        call GetHDF5FileAccess  (HDF5_READ = HDF5_READ)
+                        
+                        !Open HDF
+                        ObjHDF5 = 0   
+                        call ConstructHDF5      (ObjHDF5, trim(FileName), HDF5_READ, STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'ConstructVegetationList - ModuleVegetation - ERR60'                        
+                        
+                        call GetHDF5GroupNumberOfItems (ObjHDF5, "/Time",     &
+                                                        NumberOfInstants,     &
+                                                        STAT = STAT_CALL)
+                        if (STAT_CALL .NE. SUCCESS_)                                            & 
+                            stop 'ConstructVegetationList - ModuleVegetation - ERR70'
+
+                        ! Sets Limits for the next operations
+                        call HDF5SetLimits  (ObjHDF5, Me%WorkSize%ILB, Me%WorkSize%IUB,              &
+                                             Me%WorkSize%JLB, Me%WorkSize%JUB,                       &
+                                             STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_)                                                   &
+                            stop 'ConstructVegetationList - ModuleVegetation - ERR75'
+                        
+                        !Take every grid from hdf and analyse
+                        do HDFInstant = 1, NumberOfInstants 
+                            
+                            !Read every instant and save grid
+                            call HDF5ReadData   (ObjHDF5, "/Results/"//"AgricPractID",                   &
+                                                 "AgricPractID",                                         &
+                                                 Array2D = AgricPractIDMatrix,                           &
+                                                 OutputNumber = HDFInstant,                              &
+                                                 STAT    = STAT_CALL)
+                            if (STAT_CALL /= SUCCESS_)                                                   &
+                                stop 'ConstructVegetationList - ModuleVegetation - ERR80'
+                            
+                            !and check for any new agricultural practices in the grid 
+                            call CheckVegetationListMatrix(AgricPractIDMatrix)
+                            
+                        enddo
+                        
+                    case ("Timeserie",  "TIMESERIE",    "timeserie",    "TimeSerie")
+
+                        ObjTimeSerie = 0
+                        !Constructs TimeSerie
+                        call StartTimeSerieInput(ObjTimeSerie,                              &
+                                                 FileName,                                  &
+                                                 STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) &
+                            stop 'ConstructVegetationList - ModuleVegetation - ERR90'                        
+                        
+                        !Get all timeserie
+                        call GetTimeSerieDataMatrix(ObjTimeSerie,                           &
+                                                    DataMatrix,                             &
+                                                    STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) &
+                            stop 'ConstructVegetationList - ModuleVegetation - ERR100' 
+                                                       
+                        !Get number of timeserie instants (lines)
+                        call GetTimeSerieDataValues(ObjTimeSerie,                          &
+                                                    DataValues,                            & 
+                                                    STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) &
+                            stop 'ConstructVegetationList - ModuleVegetation - ERR110' 
+                        
+                        !Analyse every instant to check for agricultural practices
+                        do TimeSerieInstant = 1, DataValues
+                            !Get ID that will be the same for every domain
+                            AgricPractIDScalar  = NINT(DataMatrix (TimeSerieInstant, 2))
+                            
+                            !and check if that agricultural practice is already present   
+                            call CheckVegetationList(AgricPractIDScalar)
+                            
+                        enddo
+                                                        
+                    case default
+                        write(*,*) 'Option not found in agricultural practices defined in file'
+                        write(*,*) 'Check FILE_IN_TIME keyword in block Agricultural Practices'
+                        write(*,*) 'Options allowed are TIMESERIE and HDF'
+                        stop 'ConstructVegetationList - ModuleVegetation - ERR120' 
+                end select
+
+                
+                call KillFillMatrix(Me%AgricPract%ObjFillMatrix, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)&
+                    stop 'ConstructVegetationList - ModuleVegetation - ERR30'
+            
+            endif
+
+            call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_) stop 'ConstructVegetationList - ModuleVegetation - ERR70'  
+            
+            deallocate (AgricPractIDMatrix)
+        
+        else
+            stop 'ConstructVegetationList - ModuleVegetation - ERR130'
+        endif            
+
+   
+
+        !deallocate (AuxID)
+        
+!        call UnGetGridData (ObjGD, AgricPractIDMatrix, STAT = STAT_CALL)        
+!        if (STAT_CALL /= SUCCESS_) stop 'ConstructVegetationGrid - ModuleVegetation - ERR08'
+!       
+!        
+!        call KillGridData (ObjGD, STAT = STAT_CALL)   
+!        if (STAT_CALL /= SUCCESS_) stop 'ConstructVegetationGrid - ModuleVegetation - ERR09'
+        
+    end subroutine ConstructVegetationList
+
+   !--------------------------------------------------------------------------
+   
+    subroutine CheckVegetationListMatrix (AgricPractID)
+        
+        !Arguments-----------------------------------------------------------
+        real, dimension(:,:), pointer        :: AgricPractID
+        !Local----------------------------------------------------------------
+        type (T_VegetationType), pointer        :: VegetationX, VegetationInList
+        logical                                 :: FoundVegetation 
+        integer                                 :: i, j    
+        !Begin----------------------------------------------------------------
         
         do j = Me%Size%JLB, Me%Size%JUB
         do i = Me%Size%ILB, Me%Size%IUB
             
             if (Me%ExternalVar%MappingPoints2D(i, j) == 1) then
-
-                FoundVegetation = .false.
                 
+                !Found boundary or negative values inside the domain
+                if (AgricPractID(i,j).lt.0.) then
+                    write(*,*)'Vegetation ID negative inside the domain.'
+                    write(*,*)'Check in vegetation grid provided the ID:', NINT(AgricPractID(i,j))
+                    stop 'CheckVegetationListMatrix - ModuleVegetation - ERR10'                
+                endif
+                
+                !Search for the agricultural practices ID in the vegetation list
+                !if already exists continue, else add to the list.
+                FoundVegetation = .false.
                 VegetationInList => Me%FirstVegetation
 doV:            do while (associated(VegetationInList))
 
-                    if (VegetationInList%ID == AuxID(i,j)) then
+                    if (VegetationInList%ID == NINT(AgricPractID(i,j))) then
                         FoundVegetation = .true.
                         exit doV
                     endif
@@ -2335,32 +2538,71 @@ doV:            do while (associated(VegetationInList))
                 enddo doV                
                 
                 if (.not. FoundVegetation) then
+                    
                     allocate (VegetationX)
                     nullify  (VegetationX%Prev,VegetationX%Next)
-                    VegetationX%ID           = AuxID(i,j)     !vegetation type ID
+                    
+                    VegetationX%ID           = NINT(AgricPractID(i,j))     !vegetation type ID
 !                    VegetationX%VegetationID = AuxID(i,j)     !crop ID growing - for now is the same
                    
                     call AddVegetation(VegetationX)
+
                 endif
                 
             endif
         enddo
         enddo
-        
 
-        !deallocate (AuxID)
-        
-        call UnGetGridData (ObjGD, AuxID, STAT = STAT_CALL)        
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructVegetationGrid - ModuleVegetation - ERR08'
-       
-        
-        call KillGridData (ObjGD, STAT = STAT_CALL)   
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructVegetationGrid - ModuleVegetation - ERR09'
-        
-    end subroutine ConstructVegetationList
+    end subroutine CheckVegetationListMatrix
 
-   !--------------------------------------------------------------------------
+   !--------------------------------------------------------------------------    
 
+
+    subroutine CheckVegetationList (AgricPractID)
+        
+        !Arguments-----------------------------------------------------------
+        integer                                 :: AgricPractID
+        !Local----------------------------------------------------------------
+        type (T_VegetationType), pointer        :: VegetationX, VegetationInList
+        logical                                 :: FoundVegetation     
+        !Begin----------------------------------------------------------------
+
+        !Found boundary or negative values inside the domain
+        if (AgricPractID.lt.0.) then
+            write(*,*)'Vegetation ID negative inside the domain.'
+            write(*,*)'Check in vegetation grid provided the ID:', AgricPractID
+            stop 'CheckVegetationList - ModuleVegetation - ERR10'                
+        endif    
+
+        FoundVegetation = .false.
+
+        VegetationInList => Me%FirstVegetation
+doV:    do while (associated(VegetationInList))
+
+            if (VegetationInList%ID == AgricPractID) then
+                FoundVegetation = .true.
+                exit doV
+            endif
+            
+            VegetationInList => VegetationInList%Next
+
+        enddo doV                
+
+        if (.not. FoundVegetation) then
+            allocate (VegetationX)
+            nullify  (VegetationX%Prev,VegetationX%Next)
+            VegetationX%ID           = AgricPractID     !vegetation type ID
+!           VegetationX%VegetationID = AuxID(i,j)     !crop ID growing - for now is the same
+           
+            call AddVegetation(VegetationX)
+        
+        endif
+                
+
+    end subroutine CheckVegetationList
+
+   !--------------------------------------------------------------------------  
+    
     subroutine CheckOptionsConsistence
 
         !Local----------------------------------------------------------------
@@ -2969,6 +3211,9 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
         allocate(Me%VegetationID                                          (ILB:IUB,JLB:JUB))
         Me%VegetationID (:,:) = FillValueInt
 
+        allocate(Me%AgricPractID(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+        Me%AgricPractID (:,:) = FillValueInt
+        
         allocate(Me%RootDepthOld                                      (ILB:IUB,JLB:JUB))
         call SetMatrixValue(Me%RootDepthOld, Me%Size2D,  Me%StateVariables%RootDepth  )
 
@@ -3299,7 +3544,7 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
                 allocate(Me%Growth%PAR                                        (ILB:IUB,JLB:JUB))  
                 allocate(Me%Growth%RUE                                        (ILB:IUB,JLB:JUB))  
                 allocate(Me%Growth%PotentialGrowth                            (ILB:IUB,JLB:JUB))  
-            
+                allocate(Me%Growth%PotentialBiomass                           (ILB:IUB,JLB:JUB))  
 !                Me%Fluxes%BiomassGrowth (:,:) = 0.0 
                 Me%Growth%BiomassGrowthOld(:,:) = 0.0 
             endif
@@ -3389,7 +3634,7 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
 !            AddProperties = AddProperties + 1
             allocate(PropertyList(1:nProperties + AddProperties), STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) &
-                stop 'ConstructTimeSerie - ModuleVegetation - ERR010'
+                stop 'ConstructTimeSerie - ModuleVegetation - ERR01'
 
             !Fills up PropertyList
             PropertyX   => Me%FirstProperty
@@ -3446,7 +3691,7 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
                          Default      = Me%Files%ConstructData,                 &
                          STAT         = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                        &
-                stop 'ConstructTimeSerie - ModuleVegetation - ERR020' 
+                stop 'Construct_Time_Serie - ModuleVegetation - ERR02' 
 
 
             !Constructs TimeSerie
@@ -3457,12 +3702,12 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
                                 WaterPoints2D = Me%ExternalVar%MappingPoints2D, &
                                 STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) &
-                stop 'ConstructTimeSerie - ModuleVegetation - ERR030'
+                stop 'Construct_Time_Serie - ModuleVegetation - ERR03'
 
             !Deallocates PropertyList
             deallocate(PropertyList, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) &
-                stop 'ConstructTimeSerie - ModuleVegetation - ERR040'
+                stop 'Construct_Time_Serie - ModuleVegetation - ERR04'
 
 
 
@@ -3478,13 +3723,13 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
                              Default      = .false.,                                &
                              STAT         = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)                                        &
-                    stop 'ConstructTimeSerie - ModuleVegetation - ERR050' 
+                    stop 'Construct_Time_Serie - ModuleVegetation - ERR05' 
             
 
                 if(Me%ComputeOptions%AtmospherePropertiesOutput) then
                     
                     if (Me%ComputeOptions%ModelPlantBiomass) then
-                        allocate (PropertyList(6))
+                        allocate (PropertyList(7))
                     else
                         allocate (PropertyList(3))
                     endif
@@ -3497,6 +3742,7 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
                         PropertyList(4) = "PAR_(MJ/m2)"
                         PropertyList(5) = "RUE_(kg/ha)/(MJ/m2)"
                         PropertyList(6) = "Potential Growth_(Kg/ha)"
+                        PropertyList(7) = "Potential Biomass_(Kg/ha)"
                     endif
             
                     call StartTimeSerie(Me%ObjTimeSerieAtm,                                         &
@@ -3505,7 +3751,7 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
                                         PropertyList, "srvgs",                                      &
                                         WaterPoints2D = Me%ExternalVar%MappingPoints2D,             &
                                         STAT           = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleVegetation - ERR060'
+                    if (STAT_CALL /= SUCCESS_) stop 'Construct_Time_Serie - ModuleVegetation - ERR06'
 
                     deallocate(PropertyList)
                 endif
@@ -3521,7 +3767,7 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
                              Default      = .false.,                                &
                              STAT         = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)                                        &
-                    stop 'ConstructTimeSerie - ModuleVegetation - ERR070' 
+                    stop 'Construct_Time_Serie - ModuleVegetation - ERR07' 
             
                 if (Me%ComputeOptions%FluxestoSoilOutput) then
             
@@ -3570,7 +3816,7 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
 
                     allocate(PropertyList(1:nPropertiesToSoil), STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) &
-                        stop 'ConstructTimeSerie - ModuleVegetation - ERR080'
+                        stop 'ConstructTimeSerie - ModuleVegetation - ERR08'
 
                     i = 0
                     !Properties header
@@ -3660,7 +3906,7 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
                                         PropertyList, "srvgf",                                        &
                                         WaterPoints2D = Me%ExternalVar%MappingPoints2D,             &
                                         STAT           = STAT_CALL) 
-                    if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleVegetation - ERR090'
+                    if (STAT_CALL /= SUCCESS_) stop 'Construct_Time_Serie - ModuleVegetation - ERR06'
 
                     deallocate(PropertyList)
                 
@@ -3745,7 +3991,7 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
        
         !Corrects if necessary the cell of the time serie based in the time serie coordinates
         call GetNumberOfTimeSeries(Me%ObjTimeSerie, TimeSerieNumber, STAT  = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleVegetation - ERR100'
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - PorousMedia - ERR03'
 
         do dn = 1, TimeSerieNumber
 
@@ -3754,42 +4000,42 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
                                       CoordY   = CoordY,                                & 
                                       CoordON  = CoordON,                               &
                                       STAT     = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleVegetation - ERR110'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - PorousMedia - ERR04'
             
             call GetTimeSerieName(Me%ObjTimeSerie, dn, TimeSerieName, STAT  = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleVegetation - ERR120'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - PorousMedia - ERR04'
             
 i1:         if (CoordON) then
                 call GetXYCellZ(Me%ObjHorizontalGrid, CoordX, CoordY, Id, Jd, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleVegetation - ERR130'
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - PorousMedia - ERR05'
 
                 if (Id < 0 .or. Jd < 0) then
                 
                     call TryIgnoreTimeSerie(Me%ObjTimeSerie, dn, IgnoreOK, STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleVegetation - ERR140'
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - PorousMedia - ERR06'
 
                     if (IgnoreOK) then
                         write(*,*) 'Time Serie outside the domain - ',trim(TimeSerieName)
                         cycle
                     else
-                        stop 'ConstructTimeSerie - ModuleVegetation - ERR150'
+                        stop 'ConstructTimeSerie - PorousMedia - ERR07'
                     endif
 
                 endif
 
 
                 call CorrectsCellsTimeSerie(Me%ObjTimeSerie, dn, Id, Jd, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleVegetation - ERR160'
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - PorousMedia - ERR08'
                 
                 if (Me%ComputeOptions%Evolution%GrowthModelNeeded) then   
                     if(Me%ComputeOptions%AtmospherePropertiesOutput) then
                         call CorrectsCellsTimeSerie(Me%ObjTimeSerieAtm, dn, Id, Jd, STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleVegetation - ERR170'                        
+                        if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - PorousMedia - ERR10'                        
                     endif
                     
                     if(Me%ComputeOptions%FluxesToSoilOutput) then             
                         call CorrectsCellsTimeSerie(Me%ObjTimeSerieToSoil, dn, Id, Jd, STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleVegetation - ERR180'                    
+                        if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - PorousMedia - ERR20'                    
                     endif
                     
                 endif
@@ -3800,7 +4046,7 @@ i1:         if (CoordON) then
                                       LocalizationI   = Id,                             &
                                       LocalizationJ   = Jd,                             & 
                                       STAT     = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleVegetation - ERR190'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - PorousMedia - ERR30'
 
             if (Me%ExternalVar%MappingPoints2D(Id, Jd) /= WaterPoint) then
                  write(*,*) 'Time Serie in a outside boundaries cell - ',trim(TimeSerieName)
@@ -3939,13 +4185,13 @@ i1:         if (CoordON) then
     subroutine ConstructVegetationGrids
 
         !External--------------------------------------------------------------
-        integer                                 :: STAT_CALL
-        integer                                 :: ObjGD, i, j, ivt, ClientNumber
+        integer                                 :: STAT_CALL !, ObjGD
+        integer                                 :: i, j, ivt, ClientNumber
         logical                                 :: BlockFound
-        real, dimension(:,:), pointer           :: AuxID
-        type (T_PropertyID)                     :: PotentialHUID
+        type (T_PropertyID)                     :: PotentialHUID !, AgricPract
         real                                    :: NitrogenFractionInYeld, BiomassEnergyRatio
         real                                    :: OptimalHarvestIndex
+        real, dimension(:,:), pointer           :: AgricPractIDMatrix
         !Begin------------------------------------------------------------------
         
         if (Me%ComputeOptions%Evolution%GrowthModelNeeded) then
@@ -3969,7 +4215,7 @@ i1:         if (CoordON) then
 
                 !Gets a pointer to OpenPoints2D
                 call GetBasinPoints  (Me%ObjHorizontalMap, Me%ExternalVar%BasinPoints, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'Write_FinalVegetation_HDF - ModuleVegetation - ERR02'
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructVegetationGrids - ModuleVegetation - ERR025'
                 
                 call ConstructFillMatrix  ( PropertyID           = PotentialHUID,                       &
                                             EnterDataID          = Me%ObjEnterData,                     &
@@ -3986,38 +4232,120 @@ i1:         if (CoordON) then
                 if (STAT_CALL /= SUCCESS_) stop 'ConstructVegetationGrids - ModuleVegetation - ERR40'
 
                 call UngetBasin (Me%ObjHorizontalMap, Me%ExternalVar%BasinPoints, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'Write_FinalVegetation_HDF - ModuleVegetation - ERR200'
-
+                if (STAT_CALL /= SUCCESS_) stop 'Write_FinalVegetation_HDF - ModuleVegetation - ERR50'
+                
+                call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_) stop 'ConstructVegetationGrids - ModuleVegetation - ERR70'      
+            
             else
-                stop 'ConstructVegetationGrids - ModuleVegetation - ERR50'
+                stop 'ConstructVegetationGrids - ModuleVegetation - ERR60'
             endif                
-        
-        endif
-        
-        
-        !Gets Vegetation IDs
-        ObjGD = 0
-        call ConstructGridData  (ObjGD, Me%ObjHorizontalGrid, FileName = Me%Files%VegetationIDFile, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructVegetationGrid - ModuleVegetation - ERR03'
-        
-        !allocate (AuxID(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
-        call GetGridData (ObjGD, AuxID, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructVegetationGrid - ModuleVegetation - ERR04'
+            
+      
 
+          
+                
+        endif
+
+
+!        ObjGD = 0
+!        call ConstructGridData  (ObjGD, Me%ObjHorizontalGrid, FileName = Me%Files%VegetationIDFile, STAT = STAT_CALL)
+!        if (STAT_CALL /= SUCCESS_) stop 'ConstructVegetationGrid - ModuleVegetation - ERR80'
+!        
+!        !allocate (AuxID(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+!        call GetGridData (ObjGD, AgricPractIDMatrix, STAT = STAT_CALL)
+!        if (STAT_CALL /= SUCCESS_) stop 'ConstructVegetationGrid - ModuleVegetation - ERR90'
+
+
+        !Get Agricultural Practices ID
+        call RewindBuffer(Me%ObjEnterData, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructVegetationGrids - ModuleVegetation - ERR70'
+        
+        call ExtractBlockFromBuffer(Me%ObjEnterData,                                        &
+                                    ClientNumber    = ClientNumber,                         &
+                                    block_begin     = '<begin_AgriculturalPractices>',      &
+                                    block_end       = '<end_AgriculturalPractices>',        &
+                                    BlockFound      = BlockFound,                           &   
+                                    STAT            = STAT_CALL)
+        if (STAT_CALL == SUCCESS_) then
+            if (.not. BlockFound) then
+                write(*,*)'Missing Block <begin_AgriculturalPractices> / <end_AgriculturalPractices>'
+                write(*,*)'This block removes old VEGETATION_ID_FILE and now input is done using'
+                write(*,*)'FillMatrix standards: constant, timeserie, ASCII grid or HDF input'
+                stop 'ConstructVegetationGrids - ModuleVegetation - ERR80'
+            endif        
+            
+            allocate (AgricPractIDMatrix(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+            AgricPractIDMatrix = FillValueReal
+            
+            !Gets Basin Points
+            call GetBasinPoints (Me%ObjBasinGeometry, Me%ExternalVar%BasinPoints, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructVegetationGrids - ModuleVegetation - ERR090'  
+            
+            !fill the first grid  (only real values allowed in fillmatrix)
+            call ConstructFillMatrix  (PropertyID           = Me%AgricPract,                    &
+                                       EnterDataID          = Me%ObjEnterData,                  &
+                                       TimeID               = Me%ObjTime,                       &
+                                       HorizontalGridID     = Me%ObjHorizontalGrid,             &
+                                       ExtractType          = FromBlock,                        &
+                                       PointsToFill2D       = Me%ExternalVar%BasinPoints,       &
+                                       Matrix2D             = AgricPractIDMatrix,               &
+                                       TypeZUV              = TypeZ_,                           &
+                                       STAT                 = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                          &
+                stop 'ConstructVegetationGrids - ModuleVegetation - ERR100'
+
+
+            if(.not. Me%AgricPract%SolutionFromFile)then
+
+                ! only one grid
+                call KillFillMatrix(Me%AgricPract%ObjFillMatrix, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)&
+                    stop 'ConstructVegetationGrids - ModuleVegetation - ERR110'
+            
+            endif
+            
+            !Save First ID grid in integer form (FillMatrix only allows reals)
+            do j = Me%Size%JLB, Me%Size%JUB
+            do i = Me%Size%ILB, Me%Size%IUB
+                
+                if (Me%ExternalVar%MappingPoints2D(i, j) == 1) then
+                    
+                    Me%AgricPractID(i,j) = NINT(AgricPractIDMatrix(i,j))
+                    
+                endif
+            enddo
+            enddo            
+            
+            !Unget Basin Points
+            call UnGetBasin (Me%ObjBasinGeometry, Me%ExternalVar%BasinPoints, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructVegetationGrids - ModuleVegetation - ERR0120'        
+
+
+            call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_) stop 'ConstructVegetationGrids - ModuleVegetation - ERR130'      
+        
+        else
+            stop 'ConstructVegetationGrids - ModuleVegetation - ERR140'
+        endif  
+        
+        !Gets first Vegetation IDs for next actions
+        
 
         do j = Me%Size%JLB, Me%Size%JUB
         do i = Me%Size%ILB, Me%Size%IUB
             if (Me%ExternalVar%MappingPoints2D(i, j) == 1) then
                 do ivt = 1, Me%VegetationsNumber
-                    if (Me%VegetationTypes(ivt)%ID == NINT(AuxID(i, j))) then
+                    !if (Me%VegetationTypes(ivt)%ID == NINT(AgricPractIDMatrix(i, j))) then
+                    if (Me%VegetationTypes(ivt)%ID == Me%AgricPractID(i, j)) then
                         !Me%VegetationID(i, j) = NINT(AuxID(i, j))
                         Me%VegetationID(i, j) = ivt
                     endif
-                    if (ivt .eq. Me%VegetationsNumber .and. Me%VegetationID(i,j) < FillValueInt / 2) then
-                        write(*,*)'Vegetation ID not found in vegetation type definition.'
-                        write(*,*)'Check in vegetation grid or in vegetation types in data file, the ID:', NINT(AuxID(i,j))
-                        stop 'ConstructVegetationGrid - ModuleVegetation - ERR06'
-                    endif
+!                    if (ivt .eq. Me%VegetationsNumber .and. Me%VegetationID(i,j) < FillValueInt / 2) then
+!                        write(*,*)'Vegetation ID not found in vegetation type definition.'
+!                  write(*,*)'Check in vegetation grid or in vegetation types in data file, the ID:', NINT(Me%AgricPractID(i,j))
+!                        stop 'ConstructVegetationGrid - ModuleVegetation - ERR100'
+!                    endif
                 enddo
 
             endif
@@ -4027,12 +4355,11 @@ i1:         if (CoordON) then
 
         !deallocate (AuxID)
         
-        call UnGetGridData (ObjGD, AuxID, STAT = STAT_CALL)        
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructVegetationGrid - ModuleVegetation - ERR08'
-       
-        
-        call KillGridData (ObjGD, STAT = STAT_CALL)   
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructVegetationGrid - ModuleVegetation - ERR09'
+!        call UnGetGridData (ObjGD, AgricPractIDMatrix, STAT = STAT_CALL)        
+!        if (STAT_CALL /= SUCCESS_) stop 'ConstructVegetationGrid - ModuleVegetation - ERR110'
+!        
+!        call KillGridData (ObjGD, STAT = STAT_CALL)   
+!        if (STAT_CALL /= SUCCESS_) stop 'ConstructVegetationGrid - ModuleVegetation - ERR120'
 
         
         if (Me%ComputeOptions%AutoFertilization) then
@@ -4114,6 +4441,45 @@ i1:         if (CoordON) then
         if (STAT_CALL /= SUCCESS_) stop 'CheckRootDepth - ModuleVegetation - ERR04'
 
     end subroutine CheckRootDepth
+
+   !--------------------------------------------------------------------------
+
+    subroutine CheckLatitude
+
+        !External--------------------------------------------------------------
+        integer                                 :: STAT_CALL
+        integer                                 :: i, j
+        
+        !Begin------------------------------------------------------------------
+
+        call GetGridLatitudeLongitude(Me%ObjHorizontalGrid,                     &
+                                      GridLatitude  = Me%ExternalVar%Latitude,  &
+                                      STAT          = STAT_CALL) 
+        if (STAT_CALL /= SUCCESS_) stop 'CheckLatitude - ModuleVegetation - ERR01'
+
+
+        do j = Me%Size%JLB, Me%Size%JUB
+        do i = Me%Size%ILB, Me%Size%IUB
+            
+            if (Me%ExternalVar%MappingPoints2D(i, j) == 1) then
+                
+                if (Me%ExternalVar%Latitude(i,j) .gt. 90.) then
+                    write(*,*) ' Computing vegetation dormancy and Latitude is greater than 90.'
+                    write(*,*) ' Please check DTM coordinates and if using grid coordinates (type 5)'
+                    write(*,*) ' please check LATITUDE keyword in DTM file'
+                    stop 'CheckLatitude - ModuleVegetation ERR20'
+                endif
+            
+            endif
+        
+        enddo
+        enddo
+
+        !Latitude
+        call UngetHorizontalGrid(Me%ObjHorizontalGrid, Me%ExternalVar%Latitude, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'CheckLatitude - ModuleVegetation - ERR30'
+
+    end subroutine CheckLatitude
 
    !--------------------------------------------------------------------------
 
@@ -4365,7 +4731,7 @@ HF1:            if (STAT_CALL == SUCCESS_ .and. DatabaseFound) then
              
             if (.not. VegetationFound) then
                 write(*,*)
-                write(*,*) 'Vegetation ID read in Vegetation Grid', trim(Me%Files%VegetationIDFile)
+                write(*,*) 'Vegetation ID read in Vegetation Grid'
                 write(*,*) 'not found in parameter file.'
                 write(*,*) 'Check that ID' , VegetationType%ID
                 write(*,*) 'was defined in parameter file', trim(ParameterFile)
@@ -7159,6 +7525,7 @@ cd0:    if (Exist) then
     end subroutine SetSoilConcVegetation 
 
     !---------------------------------------------------------------------------
+
     subroutine SetECw (ObjVegetationID, ECw, STAT)
 
         !Arguments--------------------------------------------------------------
@@ -7913,6 +8280,7 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
             Me%Growth%PAR           (:,:) = 0.0
             Me%Growth%RUE           (:,:) = 0.0
             Me%Growth%PotentialGrowth (:,:) = 0.0
+            Me%Growth%PotentialBiomass (:,:) = 0.0
         endif
 
        
@@ -7939,9 +8307,10 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
                 call ComputeDayLength
             endif
         endif
-
+        
+        
         MappingPoints => Me%ExternalVar%MappingPoints2D
-
+        
         do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                 
@@ -7965,23 +8334,7 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
                         Me%HarvestOnlyOccurred(i,j) = .false.
                     endif                
                 endif
-                
-                !Logical to porous media properties interface
-                if (Me%ComputeOptions%ModelNitrogen .or. Me%ComputeOptions%ModelPhosphorus) then
-                    Me%SoilFluxesActive(i,j) = .false.
-                    if (Me%IsPlantGrowing(i,j)) then
-                        Me%SoilFluxesActive(i,j) = .true.
-                    else
-                        if (Me%ComputeOptions%Fertilization) then
-                            do FertApp = 1, Me%VegetationTypes(Me%VegetationID(i,j))%FertilizerDatabase%NumberFertilizerApps
-                                if (&
-                    Me%VegetationTypes(Me%VegetationID(i,j))%FertilizerDatabase%FertilizerApps(FertApp)%FertilizerAppOccurred) then
-                                    Me%SoilFluxesActive(i,j) = .true.
-                                endif
-                            enddo
-                       endif
-                    endif
-                endif
+
                 
                 if (Me%ComputeOptions%Fertilization) then
                     do FertApp = 1, Me%VegetationTypes(Me%VegetationID(i,j))%FertilizerDatabase%NumberFertilizerApps
@@ -8013,6 +8366,24 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
 !                        endif
 !                    enddo
                 endif
+                
+            endif
+        enddo
+        enddo
+        
+        !If agricultural practices defined in timeserie or HDF than update vegetationID grid
+        !Need to be after kill variable reset and before any other plant state checks
+        if (Me%AgricPract%SolutionFromFile) then
+
+            call CheckVegetationIDChanges
+        
+        endif        
+
+        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+        do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+                
+            if (MappingPoints (i, j) == 1) then
+                
 
                 !SWAT Base Heat Units counter (for planting schedule)
                 if (Me%ComputeOptions%Evolution%ModelSWAT) then
@@ -8041,6 +8412,25 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
                     call CheckPlantFertilization(i,j)
                 
                 endif                
+
+
+                !Logical to porous media properties interface
+                if (Me%ComputeOptions%ModelNitrogen .or. Me%ComputeOptions%ModelPhosphorus) then
+                    Me%SoilFluxesActive(i,j) = .false.
+                    if (Me%IsPlantGrowing(i,j)) then
+                        Me%SoilFluxesActive(i,j) = .true.
+                    else
+                        if (Me%ComputeOptions%Fertilization) then
+                            do FertApp = 1, Me%VegetationTypes(Me%VegetationID(i,j))%FertilizerDatabase%NumberFertilizerApps
+                                if (&
+                    Me%VegetationTypes(Me%VegetationID(i,j))%FertilizerDatabase%FertilizerApps(FertApp)%FertilizerAppOccurred) then
+                                    Me%SoilFluxesActive(i,j) = .true.
+                                endif
+                            enddo
+                       endif
+                    endif
+                endif
+
     
                 if (Me%IsPlantGrowing(i,j)) then
                     
@@ -8112,6 +8502,55 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
     end subroutine CheckPlantState
 
     !--------------------------------------------------------------------------
+
+    subroutine CheckVegetationIDChanges
+        
+        !Local-----------------------------------------------------------------
+        integer                                      :: i, j, ivt, VegetationOld
+        integer                                      :: STAT_CALL
+        real, dimension(:,:), pointer                :: AgricPractID
+        !Begin-----------------------------------------------------------------
+        
+        allocate (AgricPractID(Me%Worksize%ILB:Me%Worksize%IUB, Me%Worksize%JLB:Me%Worksize%JUB))
+        
+        !Update agricultural practices MatrixID - from user
+        call ModifyFillMatrix (FillMatrixID   = Me%AgricPract%ObjFillMatrix,         &
+                               Matrix2D       = AgricPractID,                        &
+                               PointsToFill2D = Me%ExternalVar%MappingPoints2D,      &
+                               STAT           = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'CheckVegetationIDChanges - ModuleVegetation - ERR01'
+        
+        !Update VegetationID matrix - ordered ID's
+        do j = Me%Size%JLB, Me%Size%JUB
+        do i = Me%Size%ILB, Me%Size%IUB
+            if (Me%ExternalVar%MappingPoints2D(i, j) == 1) then
+                
+                Me%AgricPractID(i,j) = NINT(AgricPractID(i, j))
+                
+                !Serach for the right vegetation ID - ordered ID to save space
+                do ivt = 1, Me%VegetationsNumber
+                    
+                    if (Me%VegetationTypes(ivt)%ID == NINT(AgricPractID(i, j))) then
+                        
+                        VegetationOld = Me%VegetationID(i, j)
+                        Me%VegetationID(i, j) = ivt
+                        
+                        !changed agricultural practice - kill plant if growing
+                        if (Me%IsPlantGrowing(i,j) .and. (VegetationOld .ne. Me%VegetationID(i, j))) then
+                            Me%KillOccurred(i,j) = .true.
+                        endif
+                                                
+                    endif
+                enddo
+
+            endif
+        enddo
+        enddo
+
+    
+    end subroutine CheckVegetationIDChanges
+    
+    !--------------------------------------------------------------------------    
 
     subroutine ModifyFluxes
  
@@ -8207,19 +8646,18 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
                                        STAT           = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ReadSolution - ModuleAtmosphere - ERR01'
             
+            endif
             
-                !This code exists to avoid Leaf Area Index (LAI) negative
-                !The best is to preprocess data to avoid negative values (maybe interpolate to fill missing values)
-                if (PropertyX%ID%IDNumber .EQ. LeafAreaIndex_) then
-do1:                do j = Me%WorkSize%JLB, Me%WorkSize%JUB
-do2:                do i = Me%WorkSize%ILB, Me%WorkSize%IUB
-                        if (PropertyX%Field(i, j) < 0.0) then
-                            PropertyX%Field(i, j) = 0.0
-                        endif
-                    enddo do2
-                    enddo do1
-                endif
-
+            !This code exists to avoid Leaf Area Index (LAI) negative
+            !The best is to preprocess data to avoid negative values (maybe interpolate to fill missing values)
+            if (PropertyX%ID%IDNumber .EQ. LeafAreaIndex_) then
+do1:            do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+do2:            do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+                    if (PropertyX%Field(i, j) < 0.0) then
+                        PropertyX%Field(i, j) = 0.0
+                    endif
+                enddo do2
+                enddo do1
             endif
             
             PropertyX => PropertyX%Next
@@ -10312,10 +10750,13 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
                     if (Me%ComputeOptions%AdjustRUEForVPD) then
                         !! adjust radiation-use efficiency for vapor pressure deficit. 
-                        !Compute VPD (KPa). Equations in ModuleBasin adapted to average atmosphere values
-                        SaturatedVapourPressure  = 0.6108 * exp (17.27 * Me%ExternalVar%Integration%AverageAirTempDuringDT(i,j)  &
+!                        !Compute VPD (KPa). Equations in ModuleBasin adapted to average atmosphere values
+!                        SaturatedVapourPressure  = 0.6108 * exp (17.27 * Me%ExternalVar%Integration%AverageAirTempDuringDT(i,j)  &
+!                                                    / (Me%ExternalVar%Integration%AverageAirTempDuringDT(i,j) + 237.3))
+                        !Compute VPD (Kpa) from SWAT equation
+                        SaturatedVapourPressure = exp((16.78 * Me%ExternalVar%Integration%AverageAirTempDuringDT(i,j) - 116.9)    &
                                                     / (Me%ExternalVar%Integration%AverageAirTempDuringDT(i,j) + 237.3))
-        
+                        
                         ActualVapourPressure  = SaturatedVapourPressure  &
                                                * Me%ExternalVar%Integration%AverageAirHumidityDuringDT(i, j)  
         
@@ -10323,7 +10764,6 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         
                         !!assumes vapor pressure threshold of 1.0 kPa
                         if (VapourPressureDeficit > 1.0) then
-                            RUE = 0.
                             Decline = VapourPressureDeficit - 1.0
                             RUE = RUE - RUEDeclineRate * Decline
                             RUE = Max(RUE, 0.27 * BiomassEnergyRatio)
@@ -10339,6 +10779,7 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                         Me%Growth%PAR(i,j)             = PAR
                         Me%Growth%RUE(i,j)             = RUE
                         Me%Growth%PotentialGrowth(i,j) =  PotentialBiomassGrowth
+                        Me%Growth%PotentialBiomass(i,j) = Me%StateVariables%TotalPlantBiomass(i,j) + PotentialBiomassGrowth
                     endif
 
 
@@ -13156,7 +13597,6 @@ do4:        do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         real                                        :: FertilizerFracApplyedInSurface, OrganicFracParticulate
         real                                        :: AmmoniaFracInMineralN, OrganicNFracInFertilizer
         real                                        :: MineralPFracInFertilizer, OrganicPFracInFertilizer
-        real                                        :: MineralPFrac
         !Begin-----------------------------------------------------------------
 
         !Compute fertilizer applyance
@@ -13210,9 +13650,9 @@ do4:        do i = Me%WorkSize%ILB, Me%WorkSize%IUB
            
             !KgP/ha
             Me%Fluxes%FertilMineralPInSurface(i,j)    =  FertilizerFracApplyedInSurface * FertilizerAmount          &
-                                                         * MineralPFrac 
+                                                         * MineralPFracInFertilizer 
             Me%Fluxes%FertilMineralPInSubSurface(i,j) =  (1. - FertilizerFracApplyedInSurface) * FertilizerAmount   &
-                                                         * MineralPFrac 
+                                                         * MineralPFracInFertilizer 
         endif
         
     end subroutine ScheduledFertilization
@@ -13492,6 +13932,10 @@ if4:                            if (Me%VegetationTypes(Me%VegetationID(i,j))%Pes
 
                     call WriteTimeSerie (Me%ObjTimeSerieAtm, Data2D = Me%Growth%PotentialGrowth, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModuleVegetation - ERR025'   
+                    
+                    call WriteTimeSerie (Me%ObjTimeSerieAtm, Data2D = Me%Growth%PotentialBiomass, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModuleVegetation - ERR026' 
+                    
                 endif  
         
             endif
@@ -14147,12 +14591,19 @@ do1 :   do while(associated(PropertyX))
 
         end do do1
 
+        if (Me%AgricPract%ObjFillMatrix /= 0) then
+            call KillFillMatrix(Me%AgricPract%ObjFillMatrix, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'DeAllocateVariables - ModuleVegetation - ERR03'
+        endif
+        
         !Sets the number of properties equal to the FillValueInt
         Me%PropertiesNumber = FillValueInt
 
         Nullify   (Me%FirstProperty,Me%LastProperty)
         
         deallocate(Me%VegetationID                                         )
+        
+        deallocate (Me%AgricPractID                                        )
         
         deallocate(Me%RootDepthOld                                         )
         
@@ -14339,6 +14790,7 @@ do1 :   do while(associated(PropertyX))
                 deallocate(Me%Growth%PAR                                        )  
                 deallocate(Me%Growth%RUE                                        )  
                 deallocate(Me%Growth%PotentialGrowth                            )  
+                deallocate(Me%Growth%PotentialBiomass                           )
             endif
 
             if (Me%ComputeOptions%ModelCanopyHeight) then
