@@ -56,6 +56,7 @@ Module ModuleFunctions
     public  :: T_THOMAS2D
     public  :: T_THOMAS
     public  :: T_D_E_F
+    public  :: T_D_E_F2D
     public  :: T_VECGW
 
     !Functions-----------------------------------------------------------------
@@ -237,32 +238,32 @@ Module ModuleFunctions
     !types -------------------------------------------------------------------
 
     !griflet
-    type       T_D_E_F2D
+    type T_D_E_F2D
         real   , pointer, dimension(: , :)  :: D
         real(8), pointer, dimension(: , :)  :: E
         real   , pointer, dimension(: , :)  :: F
     end type T_D_E_F2D
 
-    type       T_D_E_F
+    type  T_D_E_F
         real   , pointer, dimension(: , : , :)  :: D
         real(8), pointer, dimension(: , : , :)  :: E
         real   , pointer, dimension(: , : , :)  :: F
     end type T_D_E_F
 
     !griflet
-    type       T_VECGW
+    type  T_VECGW
         real(8), pointer, dimension(:)          :: G                     !Auxiliar thomas arrays 
         real(8), pointer, dimension(:)          :: W                     !Auxiliar thomas arrays 
     end type   T_VECGW        
 
     !griflet
-    type       T_THOMAS2D
+    type   T_THOMAS2D
         type(T_D_E_F2D), pointer                :: COEF2
         real, pointer, dimension(: , : )        :: TI
         type(T_VECGW), pointer, dimension(:)    :: VEC
     end type   T_THOMAS2D
 
-    type       T_THOMAS
+    type ::   T_THOMAS
         type(T_D_E_F), pointer                  :: COEF3
         real, pointer, dimension(: , : , :)     :: TI
         type(T_VECGW), pointer, dimension(:)    :: VEC

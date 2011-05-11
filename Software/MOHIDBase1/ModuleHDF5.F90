@@ -508,7 +508,7 @@ Module ModuleHDF5
             if (len_trim(Units)==0) then
                 Units ="-"
             endif
-            call h5Tset_size_f (new_type_id, len_trim(Units), STAT_CALL)
+            call h5Tset_size_f (new_type_id, int8(len_trim(Units)), STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'CreateMinMaxAttribute - ModuleHDF5 - ERR13'
 
             !Creates attribute
@@ -679,7 +679,7 @@ Module ModuleHDF5
             if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteGlobalAttribute_Char - ModuleHDF5 - ERR02'
 
             !Sets Size
-            call h5Tset_size_f (new_type_id, len_trim(Att_Char), STAT_CALL)
+            call h5Tset_size_f (new_type_id, int8(len_trim(Att_Char)), STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteGlobalAttribute_Char - ModuleHDF5 - ERR03'
 
             !Creates attribute
@@ -3598,7 +3598,7 @@ Module ModuleHDF5
                 !Reads Units
                 call h5aopen_name_f     (dset_id, "Units", attr_id, STAT_CALL)
                 call h5Tcopy_f          (H5T_NATIVE_CHARACTER, type_id, STAT_CALL)
-                call h5Tset_size_f      (type_id, StringLength, STAT_CALL)
+                call h5Tset_size_f      (type_id, Int8(StringLength), STAT_CALL)
                 call h5aread_f          (attr_id, type_id, Units_, dims, STAT_CALL)
                 call h5aclose_f         (attr_id, STAT_CALL) 
                 call h5Tclose_f         (type_id, STAT_CALL)
@@ -4353,7 +4353,7 @@ cd1:    if (HDF5ID > 0) then
             !Reads Units
             call h5aopen_name_f     (dset_id, "Units", attr_id, STAT)
             call h5Tcopy_f          (H5T_NATIVE_CHARACTER, type_id, STAT)
-            call h5Tset_size_f      (type_id, StringLength, STAT)
+            call h5Tset_size_f      (type_id, Int8(StringLength), STAT)
             call h5aread_f          (attr_id, type_id, Units, dims, STAT)
             call h5aclose_f         (attr_id, STAT) 
             call h5Tclose_f         (type_id, STAT)

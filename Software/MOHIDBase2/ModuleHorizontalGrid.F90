@@ -2071,7 +2071,7 @@ BF1:    if (Me%ReadCartCorners) then
 #ifdef _USE_PROJ4
         real, dimension(:,:), pointer       :: XX_Pointer, YY_Pointer
 #endif        
-        real, dimension(:,:), allocatable, target :: XX_aux, YY_aux
+        real, dimension(:,:), pointer       :: XX_aux, YY_aux
         real, dimension(:,:), pointer       :: XX_IE, YY_IE
         real, dimension(:  ), pointer       :: XX, YY
         integer                             :: AuxCoordTip
