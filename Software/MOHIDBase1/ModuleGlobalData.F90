@@ -84,7 +84,6 @@ Module ModuleGlobalData
     integer, parameter  :: StringLength         = 128
     integer, parameter  :: PathLength           = 256
 
-
     !Search in Block, file, etc...
     integer, parameter :: FromFile_                = 1
     integer, parameter :: FromBlock_               = 2

@@ -119,7 +119,7 @@ Module ModuleTimeSerie
         integer                                     :: TotalOutPutsNumber = null_int
         integer                                     :: BufferSize         = null_int      !Number of instantes which can kept
         integer                                     :: BufferCount        = null_int      !Current number of instantes
-        integer                                     :: UnitNumber   
+        integer                                     :: UnitNumber
         integer                                     :: LocalizationI = null_int
         integer                                     :: LocalizationJ = null_int
         integer                                     :: LocalizationK = null_int
@@ -137,7 +137,7 @@ Module ModuleTimeSerie
         type (T_Time), dimension(:), pointer        :: TimeBuffer
         real, dimension(:), pointer                 :: ResidualValues
         real                                        :: ResidualTime
-        type (T_Time)                               :: LastResidual             
+        type (T_Time)                               :: LastResidual
         character(len=PathLength)                   :: FromBlockFileName    = null_str
         character(len=PathLength)                   :: FileName
         logical                                     :: IgnoreON
@@ -146,7 +146,7 @@ Module ModuleTimeSerie
     type      T_TimeSerieInOutPut
 
         !Instance ID
-        integer                                     :: InstanceID            
+        integer                                     :: InstanceID
         character(PathLength)                       :: ModelName
         logical                                     :: ModelNameON          = .false.
         logical                                     :: ReplacePathON        = .false.
@@ -171,7 +171,6 @@ Module ModuleTimeSerie
         logical                                     :: ComputeResidual      = .true.
         logical                                     :: IgnoreON             = .false.
 
-
         !TimeSerieInput
         logical                                     :: TimeCycle
         character(len=StringLength)                 :: CharTimeUnits
@@ -181,7 +180,7 @@ Module ModuleTimeSerie
 
         !TimeSerieOutput
         type(T_TimeSerie), dimension(:), pointer    :: TimeSerie
-               
+
         !Instance of Module_EnterData
         integer                                     :: ObjEnterData     = 0
 
@@ -189,18 +188,17 @@ Module ModuleTimeSerie
         integer                                     :: ObjTime          = 0
 
         type (T_TimeSerieInOutPut), pointer         :: Next
-        
+
         logical                                     :: UseTabulatedData = .true.
 
     end type T_TimeSerieInOutPut
 
-
     !Global Variables
     type (T_TimeSerieInOutPut), pointer             :: FirstTimeSerie
     type (T_TimeSerieInOutPut), pointer             :: Me
-    
+
     !--------------------------------------------------------------------------
-    
+
     contains
 
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -225,17 +223,17 @@ Module ModuleTimeSerie
         integer, dimension(:,:,:), optional, pointer:: WaterPoints3D
         integer, dimension(:,:  ), optional, pointer:: WaterPoints2D
         integer, dimension(:    ), optional, pointer:: WaterPoints1D
-        character(len=*), optional, intent(IN )     :: ResultFileName   
-        character(len=*), optional, intent(IN )     :: Instance   
+        character(len=*), optional, intent(IN )     :: ResultFileName
+        character(len=*), optional, intent(IN )     :: Instance  
         character(len=*), optional, intent(IN )     :: ModelName
         real, optional                              :: CoordX
-        real, optional                              :: CoordY        
+        real, optional                              :: CoordY
         logical, optional, intent(IN )              :: UseTabulatedData
-        integer, optional, intent(OUT)              :: STAT        
-                                    
+        integer, optional, intent(OUT)              :: STAT
+
         !Local-----------------------------------------------------------------
         integer                                     :: STAT_CALL
-        integer                                     :: ready_ , STAT_        
+        integer                                     :: ready_ , STAT_
         integer                                     :: FromFile
         integer                                     :: flag, ret
         integer                                     :: iTimeSerie, j
@@ -254,8 +252,8 @@ Module ModuleTimeSerie
 if0 :   if (ready_ .EQ. OFF_ERR_) then
 
             !Allocates Instance
-            call AllocateInstance 
-            
+            call AllocateInstance
+
             nullify (Me%DataMatrix)
             nullify (Me%ColumnsRead)
             nullify (Me%FileColumns)
@@ -268,11 +266,11 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
                 Me%ModelName    = ModelName
                 Me%ModelNameON  = .true.
             endif
-            
+
             if (present(UseTabulatedData)) then
                 Me%UseTabulatedData = UseTabulatedData
             endif
-            
+
             !Constructs EnterData
             call ConstructEnterData(Me%ObjEnterData, TimeSerieDataFile, STAT = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_) stop 'StartTimeSerie - ModuleTimeSerie - ERR10'
@@ -293,7 +291,6 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
             if (STAT_CALL .NE. SUCCESS_)                                        &
                 call SetError(FATAL_, KEYWORD_, "Subroutine StartTimeSerie; Module ModuleTimeSerie. ERR20") 
 
-
             call GetData(Me%ComputeResidual,                                    &
                          Me%ObjEnterData,                                       &
                          flag,                                                  &
@@ -304,8 +301,6 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
                          STAT         = STAT_CALL)        
             if (STAT_CALL .NE. SUCCESS_)                                        &
                 call SetError(FATAL_, KEYWORD_, "Subroutine StartTimeSerie; Module ModuleTimeSerie. ERR30") 
-
-            
 
             call GetData(Me%ReplacePath,                                        &
                          Me%ObjEnterData,                                       &
@@ -320,7 +315,6 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
 
             if (flag > 0) Me%ReplacePathON = .true. 
 
-
             call GetData(Me%IgnoreON,                                           &
                          Me%ObjEnterData,                                       &
                          flag,                                                  &
@@ -331,7 +325,6 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
                          STAT         = STAT_CALL)        
             if (STAT_CALL .NE. SUCCESS_)                                        &
                 call SetError(FATAL_, KEYWORD_, "Subroutine StartTimeSerie; Module ModuleTimeSerie. ERR50") 
-
 
             !Stores the number of properties
             Me%NumberOfProperties = size(PropertyList)

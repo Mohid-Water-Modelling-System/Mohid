@@ -63,6 +63,7 @@ Module ModuleTime
     public  :: DateToGregorianDay   !Inverts Gregorian Day
     public  :: NumberOfDaysInMonth  !Return number of days in Month, including for Leap Years
     public  :: JulianDay            !Julday = 1 -> 1st of January
+    public  :: JulianDayToMonthDay  !Convert JulianDay into Month and Day of month
     private :: Calendario
     public  :: ExtractDate
     public  :: SetDate
@@ -1407,6 +1408,41 @@ do1:    do i=1, 12
     end subroutine JulianDay
 
     !--------------------------------------------------------------------------
+
+    !--------------------------------------------------------------------------
+
+    subroutine JulianDayToMonthDay(year, JulDay, TimeMonthDay)
+
+        !Arguments-------------------------------------------------------------
+
+        type(T_Time), intent(OUT) :: TimeMonthDay
+
+        integer, intent(IN)       :: JulDay
+        integer, intent(IN)       :: year
+
+        !External--------------------------------------------------------------
+
+        integer            :: GregDay
+
+        !Local-----------------------------------------------------------------
+
+        !Get a reference GregorianDay 
+        !for the first day of the first month
+        call SetDate    (TimeMonthDay, year, 1, 1, 0, 0, 0)
+        call DateToGregorianDay(TimeMonthDay, GregDay)
+
+        !Convert the JulDay to a valid GregDay
+        GregDay = GregDay + JulDay - 1
+
+        !Get the corresponding Month and Day of the Julian Day
+        call GregorianDayToDate(GregDay, TimeMonthDay)
+
+        !----------------------------------------------------------------------
+
+    end subroutine JulianDayToMonthDay
+
+    !--------------------------------------------------------------------------
+
     !Esta subroutina actualiza a data apos um incremento.   
 
     subroutine Calendario(Time1)
