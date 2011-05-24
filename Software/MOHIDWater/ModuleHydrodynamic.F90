@@ -9142,7 +9142,7 @@ sp:     if (.not. SimpleOutPut) then
 
         !Corrects if necessary the cell of the time serie based in the time serie coordinates
         call GetNumberOfTimeSeries(Me%ObjTimeSerie, TimeSerieNumber, STAT  = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR60'  
+        if (STAT_CALL /= SUCCESS_) stop 'Construct_Time_Serie - ModuleHydrodynamic - ERR60'  
 
         do dn = 1, TimeSerieNumber
 
@@ -9152,32 +9152,32 @@ sp:     if (.not. SimpleOutPut) then
                                       CoordON  = CoordON,                               &
                                       STAT     = STAT_CALL)
 
-            if (STAT_CALL /= SUCCESS_) stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR70'
+            if (STAT_CALL /= SUCCESS_) stop 'Construct_Time_Serie - ModuleHydrodynamic - ERR70'
             
             call GetTimeSerieName(Me%ObjTimeSerie, dn, TimeSerieName, STAT  = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR65'  
+            if (STAT_CALL /= SUCCESS_) stop 'Construct_Time_Serie - ModuleHydrodynamic - ERR80'  
             
 i1:         if (CoordON) then
                 call GetXYCellZ(Me%ObjHorizontalGrid, CoordX, CoordY, Id, Jd, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR80'
+                if (STAT_CALL /= SUCCESS_) stop 'Construct_Time_Serie - ModuleHydrodynamic - ERR90'
 
                 if (Id < 0 .or. Jd < 0) then
                 
                     call TryIgnoreTimeSerie(Me%ObjTimeSerie, dn, IgnoreOK, STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR90'
+                    if (STAT_CALL /= SUCCESS_) stop 'Construct_Time_Serie - ModuleHydrodynamic - ERR100'
 
                     if (IgnoreOK) then
                         write(*,*) 'Time Serie outside the domain - ',trim(TimeSerieName),' - ',trim(Me%ModelName)
                         cycle
                     else
-                        stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR100'
+                        stop 'Construct_Time_Serie - ModuleHydrodynamic - ERR110'
                     endif
 
                 endif
 
 
                 call CorrectsCellsTimeSerie(Me%ObjTimeSerie, dn, Id, Jd, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR110'
+                if (STAT_CALL /= SUCCESS_) stop 'Construct_Time_Serie - ModuleHydrodynamic - ERR120'
 
             endif i1
 
@@ -9186,7 +9186,7 @@ i1:         if (CoordON) then
                                       LocalizationJ   = Jd,                             & 
                                       STAT     = STAT_CALL)
 
-            if (STAT_CALL /= SUCCESS_) stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR120'
+            if (STAT_CALL /= SUCCESS_) stop 'Construct_Time_Serie - ModuleHydrodynamic - ERR130'
 
             if (Me%External_Var%WaterPoints3D(Id, Jd, Me%WorkSize%KUB) /= WaterPoint) then
                 
@@ -9204,7 +9204,7 @@ i1:         if (CoordON) then
                       STAT = STAT_CALL)
         
         if (STAT_CALL /= SUCCESS_)                                                      &
-            call SetError (FATAL_, OUT_OF_MEM_, "Construct_Time_Serie - Hydrodynamic - ERR110")
+            call SetError (FATAL_, OUT_OF_MEM_, "Construct_Time_Serie - Hydrodynamic - ERR140")
     
         
     end subroutine Construct_Time_Serie
