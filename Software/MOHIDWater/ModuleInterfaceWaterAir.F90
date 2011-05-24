@@ -558,6 +558,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
             call SetSubModulesConstructor
 
+            call SetSubModulesModifier
 
             !Returns ID
             ObjInterfaceWaterAirID = Me%InstanceID
