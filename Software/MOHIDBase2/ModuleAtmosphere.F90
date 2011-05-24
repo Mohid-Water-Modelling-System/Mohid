@@ -1708,6 +1708,8 @@ cd0:    if (ready_ .EQ. IDLE_ERR_) then
             call SearchProperty(PropertyX, O2AtmosphericPressure_, STAT = STAT_CALL) 
             if (STAT_CALL == SUCCESS_) call ModifyO2AtmosphericPressure (PropertyX)
 
+            call SearchProperty(PropertyX, MeanSeaLevelPressure_, STAT = STAT_CALL) 
+            if (STAT_CALL == SUCCESS_) call ModifyMeanSeaLevelPressure (PropertyX)
 
             call ModifyRandom
             
@@ -1948,6 +1950,35 @@ do2 :   do while (associated(PropertyX))
 
     
     !--------------------------------------------------------------------------
+
+    !--------------------------------------------------------------------------
+    
+    subroutine ModifyMeanSeaLevelPressure(PropMeanSeaLevelPressure)
+
+        !Arguments-------------------------------------------------------------
+        type(T_Property), pointer                   :: PropMeanSeaLevelPressure
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: STAT_CALL
+        
+        !Local-----------------------------------------------------------------
+
+        if (PropMeanSeaLevelPressure%ID%SolutionFromFile .and. .not. &
+            PropMeanSeaLevelPressure%Constant) then
+
+            call ModifyFillMatrix (FillMatrixID   = PropMeanSeaLevelPressure%ID%ObjFillMatrix,&
+                                   Matrix2D       = PropMeanSeaLevelPressure%Field,           &
+                                   PointsToFill2D = Me%ExternalVar%MappingPoints2D,           &
+                                   STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ModifyMeanSeaLevelPressure - ModuleAtmosphere - ERR10'
+
+        endif
+
+    end subroutine ModifyMeanSeaLevelPressure
+
+    
+    !--------------------------------------------------------------------------
+
 
 
     subroutine ModifyCO2AtmosphericPressure(PropCO2AtmosphericPressure)
