@@ -1687,36 +1687,44 @@ doi:                do i = ILB, IUB
                         
                             AllmostZero_ = AllmostZeroFraction * CurrentDomain%LayerThickness(iLayer)
 
-                            if (LayerBottom - AllmostZero_ <= BottomDepth  .and. LayerTop + AllmostZero_ >= BottomDepth) then
-                            
-                                DistToBottom = BottomDepth - LayerBottom
-                                DistToTop    = LayerTop - BottomDepth
-                                
-                                if (DistToBottom < CurrentDomain%BottomLayerThickness .and. DistToBottom > AllmostZero_) then
+!                            if (LayerBottom - AllmostZero_ <= BottomDepth  .and. LayerTop + AllmostZero_ >= BottomDepth) then
+                            DistToBottom = BottomDepth - LayerBottom
+                            DistToTop    = LayerTop - BottomDepth
+
+                            if ((BottomDepth > LayerBottom) .and. (BottomDepth < LayerTop) .and. &
+                                (abs(DistToTop) > AllmostZero_) .and. (abs(DistToBottom) > AllmostZero_)) then                           
+
+                                if ((iLayer .eq. CurrentDomain%UpperLayer) .or. &
+                                    (DistToBottom .le. DistToTop)) then
+
                                     NewBathymetry(i, j)         = LayerBottom
                                     WriteNewBathymetry          = .true.
                                     write(*,*)'i                = ', i
                                     write(*,*)'j                = ', j
                                     write(*,*)'Bathymetry       = ',Bathymetry(i, j)
                                     write(*,*)'New Bathymetry   = ',NewBathymetry(i, j)
-                                endif
                             
-                                if (DistToTop < CurrentDomain%BottomLayerThickness .and. DistToTop > AllmostZero_) then
+                                else 
                                     NewBathymetry(i, j)         = LayerTop
                                     WriteNewBathymetry          = .true.
                                     write(*,*)'i                = ', i
                                     write(*,*)'j                = ', j
                                     write(*,*)'Bathymetry       = ',Bathymetry(i, j)
                                     write(*,*)'New Bathymetry   = ',NewBathymetry(i, j)
-                                endif
+                                endif                                
                                 
                                 exit 
 
                             else
                             
                                 iLayer       = iLayer - 1
-                                LayerTop     = LayerBottom
-                                LayerBottom  = LayerTop - CurrentDomain%LayerThickness(iLayer)
+                                
+                                if (iLayer > 0) then
+                                    LayerTop     = LayerBottom
+                                    LayerBottom  = LayerTop - CurrentDomain%LayerThickness(iLayer)
+                                else
+                                    exit
+                                endif
                                 
                             endif
 
@@ -2317,7 +2325,7 @@ cd2 :       if (Me%ExternalVar%ContinuesCompute) then
                     call SetMatrixValue( Me%Distances%SZZ, Me%Size, SZZ )
                 else
                    !Constructs SZZ with the initial surface elevation
-                    call ComputeSZZ         (SurfaceElevation, INITIALGEOMETRY)
+                    call ComputeSZZ         (SurfaceElevation, INITIALGEOMETRY, WaterPoints3D = WaterPoints3D)
                 endif
 
                 !Computes the Distances
@@ -2395,7 +2403,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
                 call SetMatrixValue( Me%Distances%SZZ, Me%Size, SZZ )
             else
                !Computes SZZ
-                call ComputeSZZ(SurfaceElevation, TRANSIENTGEOMETRY, VerticalVelocity, DT_Waterlevel)
+                call ComputeSZZ(SurfaceElevation, TRANSIENTGEOMETRY, VerticalVelocity, DT_Waterlevel, WaterPoints3D)
             endif  
 
             if(present(KTop))then
@@ -3192,13 +3200,14 @@ cd1:    if (FacesOption == MinTickness) then
 
     !--------------------------------------------------------------------------
     !For every domain calls the respective computation rotine
-    subroutine ComputeSZZ (SurfaceElevation, ComputionType, VerticalVelocity, DT_Waterlevel)
+    subroutine ComputeSZZ (SurfaceElevation, ComputionType, VerticalVelocity, DT_Waterlevel, WaterPoints3D)
 
         !Parameter-------------------------------------------------------------
-        real, dimension(:, :), pointer              :: SurfaceElevation
-        integer                                     :: ComputionType
-        real, dimension(:, :, :), optional, pointer :: VerticalVelocity
-        real, intent(in), optional                  :: DT_Waterlevel
+        real, dimension(:, :), pointer                 :: SurfaceElevation
+        integer                                        :: ComputionType
+        real, dimension(:, :, :), optional, pointer    :: VerticalVelocity
+        real, intent(in), optional                     :: DT_Waterlevel
+        integer, dimension(:, :, :), optional, pointer :: WaterPoints3D
 
         !Esternal--------------------------------------------------------------
 
@@ -3311,7 +3320,11 @@ cd1:    if (FacesOption == MinTickness) then
 
                 case (CartesianTop)
                     if (ComputionType == INITIALGEOMETRY) then
-                        call ComputeCartesian(SurfaceElevation, CurrentDomain, ComputionType)
+                        if (present(WaterPoints3D)) then
+                            call ComputeCartesian(SurfaceElevation, CurrentDomain, ComputionType, WaterPoints3D)
+                        else
+                            call ComputeCartesian(SurfaceElevation, CurrentDomain, ComputionType)
+                        endif
                     else
                         !Do Nothing
                     endif
@@ -3483,20 +3496,23 @@ cd1:    if (FacesOption == MinTickness) then
     !--------------------------------------------------------------------------
     !Computes SZZ for a Cartesian Domain
 
-    subroutine ComputeCartesian(SurfaceElevation, Domain, ComputionType)
+    subroutine ComputeCartesian(SurfaceElevation, Domain, ComputionType, WaterPoints3D)
 
         !Parameter-------------------------------------------------------------
-        real, dimension(:, :), pointer          :: SurfaceElevation
-        type (T_Domain), pointer                :: Domain
-        integer                                 :: ComputionType
+        real, dimension(:, :), pointer                 :: SurfaceElevation
+        type (T_Domain), pointer                       :: Domain
+        integer                                        :: ComputionType
+        integer, dimension(:, :, :), optional, pointer :: WaterPoints3D
 
         !Local-----------------------------------------------------------------
         integer, dimension(:,:), pointer        :: WaterPoints2D
         integer                                 :: i, j, k, ILB, IUB, JLB, JUB
         integer                                 :: STAT_CALL, kbottom
         real                                    :: TopDepth
-        real                                    :: LayerThickness 
+        real                                    :: LayerThickness, AllmostZero_ 
 
+        AllmostZero_ = 5e-4
+        
         ILB = Me%WorkSize%ILB
         IUB = Me%WorkSize%IUB
 
@@ -3539,6 +3555,17 @@ cd1:    if (ComputionType == INITIALGEOMETRY) then
                         !Frank - Jan 2001
                         LayerThickness = Domain%LayerThickness(k+1)
                         Me%Distances%SZZ(i, j, k) = Me%Distances%SZZ(i, j, k+1) + LayerThickness
+
+                        if ((Domain%DomainType == CartesianTop) .and. (k == kbottom)) then
+                            if (abs(Me%Distances%SZZ(i, j, k) - Me%Distances%SZZ(i, j, k - 1)) <= AllmostZero_) then
+                                Me%Distances%SZZ(i, j, k - 1) = FillValueDouble
+                                Me%KFloor%Z(i, j) = Me%KFloor%Z(i, j) + 1
+                                
+                                if (present(WaterPoints3D)) then
+                                    WaterPoints3D(i, j, k) = 0
+                                endif
+                            endif
+                        endif
 
                    enddo
 
