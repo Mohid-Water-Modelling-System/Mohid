@@ -424,26 +424,24 @@ Module ModuleInterpolateTime
         allocate(Me%DataSource(Me%NumberDataSources))
 
         call ReadDataSourcesID(ClientNumber)
+        
+        Me%NeedGeometry = .true.
 
 !------------------------------------------------------------------------------------------------------
-        if(Me%NeedGeometry) then
-
-            call GetData(Me%GeometryFileName,                                           &
-                         Me%ObjEnterData, iflag,                                        &
-                         SearchType   = FromBlock,                                      &
-                         keyword      = 'GEOMETRY_FILE',                                &
-                         ClientModule = 'ModuleInterpolateTime',                        &
-                         STAT         = STAT_CALL)        
-            if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleInterpolateTime - ERR90'
-
-
-        endif
+        call GetData(Me%GeometryFileName,                                           &
+                     Me%ObjEnterData, iflag,                                        &
+                     SearchType   = FromBlock,                                      &
+                     keyword      = 'GEOMETRY_FILE',                                &
+                     ClientModule = 'ModuleInterpolateTime',                        &
+                     STAT         = STAT_CALL)        
+        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleInterpolateTime - ERR90'
         
+        if (iflag == 0) Me%NeedGeometry = .false.
+            
+        allocate(Me%IDDataSource(Me%NumberDataSources))
 
         if (Me%NumberDataSources > 1) then
-        
-            allocate(Me%IDDataSource(Me%NumberDataSources))
-            
+
             allocate(AuxInt(Me%NumberDataSources), AuxInt2(Me%NumberDataSources), AuxInt3(Me%NumberDataSources)) 
             
             Me%IDDataSource  (:) = 0
@@ -477,8 +475,7 @@ Module ModuleInterpolateTime
             
         else
             Me%NumberProperties = Me%NumberDataSources
-            
-        
+            Me%IDDataSource(1) = Me%DataSource(1)%ID%IDNumber
         endif
         
         allocate(Me%Property(Me%NumberProperties))
@@ -501,11 +498,16 @@ Module ModuleInterpolateTime
         id = 1
         do iP= 1, Me%NumberProperties 
             allocate(Me%Property(iP)%IDdataSource(Me%Property(iP)%NdataSources))
-            do iPD = 1, Me%Property(iP)%NdataSources
-                Me%Property(iP)%IDdataSource(iPD) = AuxInt(id)
-                id = id + 1
-            enddo
+            if (Me%NumberDataSources > 1) then
+                do iPD = 1, Me%Property(iP)%NdataSources
+                    Me%Property(iP)%IDdataSource(iPD) = AuxInt(id)
+                    id = id + 1
+                enddo
+            else
+                Me%Property(1)%IDdataSource(1) = 1
+            endif
         enddo               
+        
 
     end subroutine ReadOptions
     
@@ -518,13 +520,12 @@ Module ModuleInterpolateTime
         !Local-----------------------------------------------------------------
         integer                             :: STAT_CALL, NumberOfDataSources
         logical                             :: BlockFound
-        integer                             :: iflag
         
 
         !Sees how many  exists
         NumberOfDataSources = 0
         BlockFound = .true.
-        Me%NeedGeometry = .false.
+
 do1:    do while (BlockFound)
             call ExtractBlockFromBlock(Me%ObjEnterData, ClientNumber,                  &
                                        prop_block_begin, prop_block_end, BlockFound,   &
@@ -534,18 +535,6 @@ do1:    do while (BlockFound)
                 exit
             endif
             if (BlockFound) then
-            
-                if (.not. Me%NeedGeometry) then
-            
-                    call GetData(Me%NeedGeometry, Me%ObjEnterData,  iflag,                      &
-                                 SearchType     = FromBlockInBlock,                             &
-                                 keyword        = 'DIM3D',                                      &
-                                 default        = .true.,                                       &
-                                 ClientModule   = 'ModuleInterpolateTime',                      &
-                                 STAT           = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'ReadNumberOfDataSources - ModuleInterpolateTime - ERR10'
-                    
-                endif
             
                 NumberOfDataSources = NumberOfDataSources + 1
             else
