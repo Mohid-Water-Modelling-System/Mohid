@@ -70,6 +70,7 @@ Module ModuleMERCATORFormat
     integer, parameter                          :: Version3     = 3
     integer, parameter                          :: Version4     = 4
     integer, parameter                          :: PSY2V4       = 5
+    integer, parameter                          :: Version6     = 6
     
     
     integer, parameter                          :: MercatorLayers = 43
@@ -187,7 +188,7 @@ Module ModuleMERCATORFormat
 !        !The time in Mercator is compute in days from 1950/1/1 : 0h:0m:0s
 !        call SetDate (Me%RefDateTime, Year=1950, Month=1, Day=1, Hour=0, Minute=0, Second=0) 
 
-!        call StartComputeTime(Me%ObjTime, Me%RefDateTime, Me%RefDateTime, DT = 0.0,    &
+!        call StartComputeTime(Me%ObjTime, Me%RefDateTime, Me%RefDateTime, Me%RefDateTime, DT = 0.0,    &
 !                                 VariableDT = .false., STAT = STAT_CALL)   
 !        if (STAT_CALL /= SUCCESS_) stop 'ConstructGrid - ModuleMERCATORFormat - ERR02a'
 
@@ -250,6 +251,19 @@ Module ModuleMERCATORFormat
 
             call OpenAndReadMERCATORFileV4
             
+!MJ ************************************************************************
+        else if (Me%ReadOptionType == Version6) then
+
+            !The time in Mercator is compute in days from 1950/1/1 : 0h:0m:0s
+            call SetDate (Me%RefDateTime, Year=1950, Month=1, Day=1, Hour=0, Minute=0, Second=0) 
+
+            call StartComputeTime(Me%ObjTime, Me%RefDateTime, Me%RefDateTime, Me%RefDateTime, DT = 0.0, &
+                                  VariableDT = .false., STAT = STAT_CALL)   
+            if (STAT_CALL /= SUCCESS_)                                                  &
+                stop 'ConvertMERCATORFormat - ModuleMERCATORFormat - ERR04'
+
+            call OpenAndReadMERCATORFileV6
+
         else if (Me%ReadOptionType == PSY2V4) then
 
             !The time in Mercator is compute in seconds from 2006/10/11 : 0h:0m:0s
@@ -426,9 +440,8 @@ Module ModuleMERCATORFormat
                          STAT         = STAT_CALL)        
             if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleMERCATORFormat - ERR70'
 
-!---
 
-            if (Me%ReadOptionType /= Version4) then
+            if (Me%ReadOptionType /= Version4 .and. Me%ReadOptionType /= Version6 ) then            
 
                 !Version 2 and Version 3
                 call GetData(Me%InputGridFile,                                              &
@@ -944,7 +957,29 @@ do0:    do n=1,nVars
     end subroutine OpenAndReadMERCATORFileV4
     
     !------------------------------------------------------------------------
+!Mj***********************************************************************************
+
+    subroutine OpenAndReadMERCATORFileV6
+
+        !Local-----------------------------------------------------------------
+
+        !Begin----------------------------------------------------------------
+
+        call OpenAndReadBathymMERCATORV6
+
+        call ConstructGridV2
+
+        call WriteMERCATORGeometry
+
+        call Open_HDF5_OutPut_File
+
+        call OpenAndReadMERCATORFieldsV6
+
+    end subroutine OpenAndReadMERCATORFileV6
     
+
+
+!***************************************************************************************
     subroutine OpenAndReadMERCATORFileV5
         
         !PSY2V4(version5) and PSYV3(version3) have the same format for grid/bathymetry 
@@ -1978,6 +2013,317 @@ i2:                     if (CheckName(nameAux, MohidName)) then
     end subroutine OpenAndReadBathymMERCATORV4
     
     !--------------------------------------------------------------------------
+
+    subroutine OpenAndReadBathymMERCATORV6
+
+        !Arguments-------------------------------------------------------------
+        
+        !Local-----------------------------------------------------------------
+        integer, dimension(:,:,:,:), allocatable     :: Aux4D
+        real, dimension(:,:  ), allocatable     :: Aux2D
+        real, dimension(:    ), allocatable     :: AuxLong, AuxLat 
+        real, dimension(:    ), allocatable     :: Depth, LayersInterface
+        logical                                 :: exist
+        integer                                 :: ILB, IUB, JLB, JUB, KLB, KUB
+        integer                                 :: WILB, WIUB, WJLB, WJUB, WKLB, WKUB
+        integer                                 :: i, j, k, n
+        integer                                 :: ncid, status, dimid
+        character(len=PathLength)               :: InputGridFile
+        logical                                 :: BlockFound
+        integer                                 :: iflag, FirstLine, STAT_CALL
+
+        integer                                 :: nDims, nVars, nAtrr, xtype
+        integer                                 :: nDimensions
+        character (len=80)                      :: nameAux
+        character(Len=StringLength)             :: MohidName
+        integer                                 :: ninst, MERCATORFillVInteger
+        real, parameter                         :: MERCATORFillVReal    = 1.0e35
+
+        !Begin----------------------------------------------------------------
+
+        call ExtractBlockFromBlock(Me%ObjEnterData, Me%ClientNumber,                    &
+                                   input_files_begin, input_files_end,                  &
+                                   BlockInBlockFound = BlockFound,                      &
+                                   FirstLine = FirstLine, STAT = STAT_CALL)
+
+
+IS:     if(STAT_CALL .EQ. SUCCESS_) then
+
+            
+BF:         if (BlockFound) then
+
+                call GetData(InputGridFile, EnterDataID = Me%ObjEnterData, flag = iflag, &
+                             Buffer_Line = FirstLine + 1, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)                                              &
+                    stop 'OpenAndReadBathymMERCATORV6 - ModuleMERCATORFormat - ERR10'
+
+                inquire(file = InputGridFile, exist = exist)
+
+i1:             if (exist) then
+
+                    status=NF90_OPEN(trim(InputGridFile),NF90_NOWRITE,ncid)
+                    if (status /= nf90_noerr)                                           &
+                    stop 'OpenAndReadBathymMERCATORV6- ModuleMERCATORFormat - ERR20'
+
+                    status=NF90_INQ_DIMID(ncid,"time",dimid)
+                    if (status /= nf90_noerr)                                           &
+                        stop 'OpenAndReadBathymMERCATORV6 - ModuleMERCATORFormat - ERR30'
+
+                    status=NF90_INQUIRE_DIMENSION(ncid,dimid,len = Ninst)
+                    if (status /= nf90_noerr)                                           &
+                        stop 'OpenAndReadBathymMERCATORV6 - ModuleMERCATORFormat - ERR40'
+                        
+                    status=NF90_INQ_DIMID(ncid,"latitude",dimid)
+                    if (status /= nf90_noerr)                                           &
+                        stop 'OpenAndReadBathymMERCATORV6 - ModuleMERCATORFormat - ERR30'
+
+                    status=NF90_INQUIRE_DIMENSION(ncid,dimid,len = Me%imax)
+                    if (status /= nf90_noerr)                                           &
+                        stop 'OpenAndReadBathymMERCATORV6 - ModuleMERCATORFormat - ERR40'
+
+                    status=NF90_INQ_DIMID(ncid,"longitude",dimid)
+                    if (status /= nf90_noerr)                                           &
+                        stop 'OpenAndReadBathymMERCATORV6- ModuleMERCATORFormat - ERR50'
+
+                    status=NF90_INQUIRE_DIMENSION(ncid, dimid, len = Me%jmax)
+                    if (status /= nf90_noerr)                                           &
+                        stop 'OpenAndReadBathymMERCATORV6 - ModuleMERCATORFormat - ERR60'
+
+                    status=NF90_INQ_DIMID(ncid,"depth",dimid)
+                    if (status /= nf90_noerr)                                           &
+                        stop 'OpenAndReadBathymMERCATORV6 - ModuleMERCATORFormat - ERR70'
+
+                    status=NF90_INQUIRE_DIMENSION(ncid, dimid, len = Me%kmax)
+                    if (status /= nf90_noerr)                                           &
+                        stop 'OpenAndReadBathymMERCATORV6 - ModuleMERCATORFormat - ERR80'
+
+                    allocate(Depth(1:Me%kmax))
+
+                    status = nf90_inq_varid(ncid, 'depth', n)
+                    if (status /= nf90_noerr)                                           &
+                        stop 'OpenAndReadBathymMERCATORV6 - ModuleMERCATORFormat - ERR90'
+
+                    status = NF90_GET_VAR(ncid,n,Depth)
+                    if (status /= nf90_noerr)                                           &
+                        stop 'OpenAndReadBathymMERCATORV6 - ModuleMERCATORFormat - ERR100'
+           
+                    !The border cells are not considered because with the avialable data
+                    !is not possible to compute the horizontal position of the cells corners
+                    Me%WorkSize%ILB = 1
+                    Me%WorkSize%IUB = Me%imax - 2
+
+                    Me%WorkSize%JLB = 1
+                    Me%WorkSize%JUB = Me%jmax - 2
+
+                    Me%WorkSize%KLB = 1
+                    Me%WorkSize%KUB = Me%kmax
+
+
+                    Me%Size%ILB     = Me%WorkSize%ILB - 1
+                    Me%Size%IUB     = Me%WorkSize%IUB + 1
+                    Me%Size%JLB     = Me%WorkSize%JLB - 1
+                    Me%Size%JUB     = Me%WorkSize%JUB + 1
+                    Me%Size%KLB     = Me%WorkSize%KLB - 1
+                    Me%Size%KUB     = Me%WorkSize%KUB + 1
+
+                    WILB            = Me%WorkSize%ILB 
+                    WIUB            = Me%WorkSize%IUB 
+                    WJLB            = Me%WorkSize%JLB 
+                    WJUB            = Me%WorkSize%JUB 
+                    WKLB            = Me%WorkSize%KLB 
+                    WKUB            = Me%WorkSize%KUB 
+
+
+                    ILB             = Me%Size%ILB
+                    IUB             = Me%Size%IUB
+                    JLB             = Me%Size%JLB
+                    JUB             = Me%Size%JUB
+                    KLB             = Me%Size%KLB
+                    KUB             = Me%Size%KUB
+
+                    allocate(Me%Bathymetry     (ILB:IUB, JLB:JUB))
+                    allocate(Me%BathymetryMax  (ILB:IUB, JLB:JUB))
+                    allocate(Me%WaterPoints3D  (ILB:IUB, JLB:JUB, KLB:KUB))
+
+                    allocate(Me%SZZ            (ILB:IUB, JLB:JUB, KLB:KUB))
+                    allocate(Me%XX_IE          (ILB:IUB, JLB:JUB))
+                    allocate(Me%YY_IE          (ILB:IUB, JLB:JUB))
+                    allocate(LayersInterface   (KLB:KUB))
+                    allocate(Me%LayersThickness(KLB:KUB))
+
+
+                    allocate(Aux4D(Me%jmax, Me%imax, Me%kmax,ninst))
+                    allocate(Aux2D(Me%jmax, Me%imax      ))
+                    allocate(AuxLong(Me%jmax))
+                    allocate(AuxLat(Me%imax))
+                       
+                    status=NF90_INQUIRE(ncid, nDims, nVars, nAtrr)
+                    if (status /= nf90_noerr)                                           &
+                        stop 'OpenAndReadBathymMERCATORV6 - ModuleMERCATORFormat - ERR110'
+
+d0:                 do n=1,nVars
+
+                        status=NF90_INQUIRE_VARIABLE(ncid, n, nameAux, xtype, nDimensions)
+                        if (status /= nf90_noerr)                                       &
+                            stop 'OpenAndReadBathymMERCATORV6 - ModuleMERCATORFormat - ERR120'
+
+
+i2:                     if (CheckName(nameAux, MohidName)) then
+                
+                            if      (nDimensions == 4) then
+                            
+                                if (MohidName == GetPropertyName(Temperature_)) then 
+
+                                    status = NF90_GET_VAR(ncid,n,Aux4D)
+                                    if (status /= nf90_noerr)                           &
+                                        stop 'OpenAndReadBathymMERCATORV6 - ModuleMERCATORFormat - ERR130'
+
+                                    status=NF90_GET_ATT(ncid,n,"_FillValue",MERCATORFillVInteger)
+                                    if (status /= nf90_noerr)                                                   &
+                                        stop 'ReadMercatorFileV6 - ModuleMERCATORFormat - ERR81'
+                                        
+                                    Me%WaterPoints3D(:,:,:)= 0
+
+                                    do k=WKLB,WKUB
+                                    do i=WILB,WIUB
+                                    do j=WJLB,WJUB
+                                        
+                                        if (Aux4D(j+1,i+1,k,1)/= MERCATORFillVInteger) then
+                                            Me%WaterPoints3D(i,j,WKUB+1-k) = 1
+                                        end if
+                                    enddo
+                                    enddo
+                                    enddo
+
+                                    exit d0
+
+                                endif
+
+                            endif
+
+                        endif i2 
+
+                    enddo d0
+
+                    Me%SZZ(:,:,:) = FillValueReal
+
+   !MJ ***********************************************
+                    do k=WKUB,WKLB,-1
+                        LayersInterface(k)=Depth(WKUB - WKLB - k + 2)
+                    enddo
+                    
+                    LayersInterface(WKLB-1) = LayersInterface(WKLB) + LayersInterface(WKLB) - LayersInterface(WKLB+1)
+
+                    Me%BathymetryMax(:,:) = LayersInterface(WKLB-1)                        
+
+
+                    do i=WILB,WIUB
+                    do j=WJLB,WJUB
+                    
+                        Me%Bathymetry(i,j)=-99.
+                            
+                        if(Me%WaterPoints3D(i,j,WKUB) == 1) then
+                            Me%Bathymetry(i,j) = LayersInterface(WKLB-1)
+                            do k=WKUB-1,WKLB,-1
+                                if (Me%WaterPoints3D(i,j,k)==0) then
+                                    Me%Bathymetry(i,j) = LayersInterface(k)
+                                    exit
+                                endif
+                            enddo
+                        endif
+                    enddo
+                    enddo
+
+
+                    Me%SZZ(:,:,:) = FillValueReal
+
+
+                    do i=WILB,WIUB
+                    do j=WJLB,WJUB
+                        if (Me%WaterPoints3D(i,j,WKUB) == WaterPoint) then
+                            Me%SZZ(i, j, WKUB) = LayersInterface(WKUB)
+                            do k=WKUB, WKLB, -1
+                                if (Me%WaterPoints3D(i,j,k) == WaterPoint)              &                           
+                                    Me%SZZ(i, j, k-1) = LayersInterface(k-1)
+                            enddo
+                        endif
+                    enddo
+                    enddo
+
+                    Me%LayerNumber = Me%kmax
+
+                    do k=WKUB, WKLB, -1
+                        Me%LayersThickness(k) = LayersInterface(k-1) - LayersInterface(k)
+                    enddo
+
+                    status = nf90_inq_varid(ncid, 'longitude', n)
+                    if (status /= nf90_noerr)                                           &
+                        stop 'OpenAndReadBathymMERCATORV6 - ModuleMERCATORFormat - ERR140'
+
+                    status = NF90_GET_VAR(ncid,n,AuxLong)
+                    if (status /= nf90_noerr)                                           &
+                        stop 'OpenAndReadBathymMERCATORV6 - ModuleMERCATORFormat - ERR150'
+
+                    do i=WILB,WIUB+1
+                    do j=WJLB,WJUB+1
+                       Me%XX_IE(i,j) = (AuxLong(j + 1) + AuxLong(j)) / 2.
+                    enddo
+                    enddo
+  
+                    status = nf90_inq_varid(ncid, 'latitude', n)
+                    if (status /= nf90_noerr)                                           &
+                        stop 'OpenAndReadBathymMERCATORV6 - ModuleMERCATORFormat - ERR160'
+
+                    status = NF90_GET_VAR(ncid,n,AuxLat)
+                    if (status /= nf90_noerr)                                           &
+                        stop 'OpenAndReadBathymMERCATORV6 - ModuleMERCATORFormat - ERR170'
+
+                    do i=WILB,WIUB+1
+                    do j=WJLB,WJUB+1
+                       Me%YY_IE(i,j) = (AuxLat(i) + AuxLat(i + 1)) / 2.
+                    enddo
+                    enddo
+
+                    status=NF90_CLOSE(ncid)
+                    if (status /= nf90_noerr)                                           &
+                        stop 'OpenAndReadBathymMERCATORV6 - ModuleMERCATORFormat - ERR180'
+
+                    deallocate(Depth)
+                    deallocate(LayersInterface)
+ 
+                else i1
+
+                    write (*,*) "The input grid file do not exist : ",                  &
+                                trim(Me%InputGridFile)
+                    stop 'OpenAndReadBathymMERCATORV6 - ModuleMERCATORFormat - ERR190'
+
+                endif i1
+
+            else BF
+
+                stop 'OpenAndReadBathymMERCATORV6 - ModuleMERCATORFormat - ERR200'
+
+            end if BF
+
+            call RewindBlock(Me%ObjEnterData, Me%ClientNumber, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                  &
+                stop 'OpenAndReadBathymMERCATORV6 - ModuleMERCATORFormat - ERR210'
+
+        else   IS
+
+            stop 'OpenAndReadBathymMERCATORV6 - ModuleMERCATORFormat - ERR220'
+
+        end if IS
+
+        deallocate(Aux4D)
+        deallocate(Aux2D)
+
+        deallocate(AuxLong)
+        deallocate(AuxLat)
+
+    end subroutine OpenAndReadBathymMERCATORV6
+    
+    !--------------------------------------------------------------------------    
     
     subroutine OpenAndReadMERCATORFields
 
@@ -2156,6 +2502,68 @@ i1:             if (exist) then
     end subroutine OpenAndReadMERCATORFieldsV4
 
     !------------------------------------------------------------------------
+
+!MJ***********************
+    subroutine OpenAndReadMERCATORFieldsV6
+
+        !Arguments-------------------------------------------------------------
+        
+        !Local-----------------------------------------------------------------
+        character(len=PathLength)               :: InPutFile
+        logical                                 :: exist, BlockFound
+        integer                                 :: iflag, line, FirstLine, LastLine,    &
+                                                   STAT_CALL
+
+
+        !Begin----------------------------------------------------------------
+
+
+        call ExtractBlockFromBlock(Me%ObjEnterData, Me%ClientNumber,                    &
+                                   input_files_begin, input_files_end,                  &
+                                   BlockInBlockFound = BlockFound,                      &
+                                   FirstLine = FirstLine, LastLine = LastLine,          &
+                                   STAT = STAT_CALL)
+
+IS:     if(STAT_CALL .EQ. SUCCESS_) then
+
+            !The block is found to exist before when reading depth
+
+            do line = FirstLine + 1, LastLine - 1
+
+                call GetData(InputFile, EnterDataID = Me%ObjEnterData, flag = iflag,    &
+                             Buffer_Line = line, STAT = STAT_CALL)
+
+                if (STAT_CALL /= SUCCESS_)                                              &
+                    stop 'OpenAndReadMERCATORFieldsV6 - ModuleMERCATORFormat - ERR10'
+
+                inquire(file = InputFile, exist = exist)
+   
+i1:             if (exist) then
+                                                
+                    call ReadMercatorFileV6 (InputFile) 
+
+                endif i1
+            enddo
+
+            call Block_Unlock(Me%ObjEnterData, Me%ClientNumber, STAT = STAT_CALL) 
+
+            if (STAT_CALL /= SUCCESS_)                                                  &
+                stop 'OpenAndReadMERCATORFieldsV6 - ModuleMERCATORFormat - ERR20'
+
+        else   IS
+
+            stop 'OpenAndReadMERCATORFieldsV6 - ModuleMERCATORFormat - ERR30'
+
+        end if IS
+
+
+    end subroutine OpenAndReadMERCATORFieldsV6
+
+    !------------------------------------------------------------------------
+
+
+
+
     
     subroutine OpenAndReadMERCATORFieldsV5
 
@@ -3097,7 +3505,434 @@ i1:         if (CheckName(nameAux, MohidName)) then
 
     end subroutine ReadMercatorFileV4
     
-    !--------------------------------------------------------------------------
+
+    subroutine ReadMercatorFileV6(InputFile)
+
+        !Arguments-------------------------------------------------------------
+        character (Len=*)                       :: InputFile
+        
+        !Local-----------------------------------------------------------------
+        
+        
+        integer, dimension(:,:,:,:  ), pointer  :: Aux4D,Aux4D_V
+        integer, dimension(:,:,:    ), pointer  :: Aux3D
+        
+        real, dimension(:,:,:  ), pointer       :: Field3D,AuxU3D, AuxV3D
+        real, dimension(:,:    ), pointer       :: Aux2D, Field2D
+        real, dimension(:,:    ), pointer       :: AuxBaroU2D, AuxBaroV2D
+        real, dimension(:,:    ), pointer       :: SumLayerTickness
+        real(8), dimension(:   ), allocatable   :: auxdays
+        real(8)                                 :: AddOffSet,ScaleFactor
+        real(8)                                 :: Addoffset_U, ScaleFactor_U
+        real(8)                                 :: Addoffset_V, ScaleFactor_V
+        real(8)                                 :: Addoffset_ssh, ScaleFactor_ssh
+        integer                                 :: n, iOut, i, j, k,ni
+        integer                                 :: ncid, status
+        integer                                 :: nDimensions,ninst,dimid
+        integer                                 :: nDims, nVars, nAtrr, xtype
+        integer                                 :: VelU_ID = 0
+        integer                                 :: VelV_ID = 0 
+        integer                                 :: WL_ID = 0
+        character (len=80)                      :: nameAux, Unity
+        character(Len=StringLength)             :: MohidName
+        type (T_Time)                           :: FieldTime
+        real, parameter                         :: MERCATORFillVReal    = 1.0e35
+        integer                                 :: MERCATORFillVInteger, MERCATORFillVInteger_ssh
+        integer                                 :: MERCATORFillVInteger_U, MERCATORFillVInteger_V
+        
+       
+        !Begin----------------------------------------------------------------
+
+        !Verifies if file exists
+        status=NF90_OPEN(trim(InputFile),NF90_NOWRITE,ncid)
+        if (status /= nf90_noerr) stop 'ReadMercatorFileV6 - ModuleMERCATORFormat - ERR10'
+
+        status=NF90_INQ_DIMID(ncid,"time",dimid)
+        if (status /= nf90_noerr) stop 'ReadMercatorFile - ModuleMERCATORFormat - ERR20'
+
+        status=NF90_INQUIRE_DIMENSION(ncid, dimid, len = nInst)
+        if (status /= nf90_noerr) stop 'ReadMercatorFile - ModuleMERCATORFormat - ERR30'
+
+        allocate(AuxDays(1:nInst))
+
+        status = nf90_inq_varid(ncid, 'time', n)
+        if (status /= nf90_noerr) stop 'ReadMercatorFile - ModuleMERCATORFormat - ERR40'
+
+        status = NF90_GET_VAR(ncid,n,AuxDays)
+        if (status /= nf90_noerr) stop 'ReadMercatorFile - ModuleMERCATORFormat - ERR50'
+        
+        status=NF90_INQUIRE(ncid, nDims, nVars, nAtrr)
+        if (status /= nf90_noerr)                                                       &
+            stop 'ReadMercatorFileV6 - ModuleMERCATORFormat - ERR30'
+
+d0:     do n=1,nVars
+
+            status=NF90_INQUIRE_VARIABLE(ncid, n, nameAux, xtype, nDimensions)
+            if (status /= nf90_noerr)                                                   &
+                stop 'ReadMercatorFileV6 - ModuleMERCATORFormat - ERR40'
+
+            if (nDimensions == 4) then
+                !Temperature, Salinity, Meridional vel., Zonal vel.
+                allocate(Aux4D(Me%jmax, Me%imax, Me%kmax,Ninst))
+                allocate(Field3D(Me%Size%ILB:Me%Size%IUB,                               &
+                         Me%Size%JLB:Me%Size%JUB, Me%Size%KLB:Me%Size%KUB))
+                Field3D(:,:,:) = FillValueReal
+
+            elseif (nDimensions == 3) then
+                !Sea surface height
+                allocate(Aux3D(Me%jmax, Me%imax,Ninst))
+                allocate(Field2D(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+                Field2D(:,:) = FillValueReal
+ 
+            elseif (nDimensions == 2) then
+                !Grid properties already written
+                cycle
+
+            elseif (nDimensions == 1) then
+                !Grid properties already written
+                cycle
+            endif
+
+
+i1:         if (CheckName(nameAux, MohidName)) then
+
+
+                status=NF90_GET_ATT(ncid,n,"_FillValue",MERCATORFillVInteger)
+                if (status /= nf90_noerr)                                                   &
+                    stop 'ReadMercatorFileV6 - ModuleMERCATORFormat - ERR81'
+
+                
+                status=NF90_GET_ATT(ncid,n,"add_offset",AddOffSet)
+                if (status /= nf90_noerr)                                                   &
+                    stop 'ReadMercatorFileV6 - ModuleMERCATORFormat - ERR81'
+                
+                status=NF90_GET_ATT(ncid,n,"scale_factor",ScaleFactor)
+                if (status /= nf90_noerr)                                                   &
+                    stop 'ReadMercatorFileV6 - ModuleMERCATORFormat - ERR82'
+
+                unity=' '
+               
+                status=NF90_GET_ATT(ncid,n,"unit_long",unity)
+                if (status /= nf90_noerr) status=NF90_GET_ATT(ncid,n,"units_long",unity)
+                    if (status /= nf90_noerr)                                                   &
+                    stop 'ReadMercatorFileV6 - ModuleMERCATORFormat - ERR82a'
+ 
+                if( trim(unity) .eq. 'Kelvin' .and. trim(nameAux) .eq. 'temperature')  AddOffSet = AddOffSet - 273.15 
+
+                do ni = 1, nInst                
+                
+                    iOut = OutputInstants(MohidName)
+
+                    !FieldTime = Me%RefDateTime + (AuxDays * 86400. + 43200.)
+                    FieldTime = Me%RefDateTime + (AuxDays(ni)/24. * 86400. + 43200.) !time is in hours
+
+                    if      (nDimensions == 4) then
+                        
+                        if (MohidName == GetPropertyName(VelocityU_) .or.                   &
+                            MohidName == GetPropertyName(VelocityV_) .or.                   &
+                            MohidName == GetPropertyName(Temperature_) .or.                 &
+                            MohidName == GetPropertyName(Salinity_)) then
+
+                            status = NF90_GET_VAR(ncid,n,Aux4D)
+                            if (status /= nf90_noerr)                                       &
+                                stop 'ReadMercatorFileV6 - ModuleMERCATORFormat - ERR50'
+
+                            !The boundary cells are not read
+                            do k = Me%WorkSize%KLB, Me%WorkSize%KUB
+                            do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+                            do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+
+                                if (Me%WaterPoints3D(i, j, k) == WaterPoint) then
+
+                                    if (Aux4D(j+1,i+1,Me%WorkSize%KUB+1-k,ni) == MERCATORFillVInteger) then
+                                        
+                                        !Field3D(i, j, k) = MERCATORFillVReal
+                                        Field3D(i, j, k) = FillValueReal
+                                    else
+                                    
+                                        Field3D(i, j, k) = float(Aux4D(j+1,i+1,Me%WorkSize%KUB+1-k,ni))  * ScaleFactor + AddOffSet
+                                    
+                                    endif
+                                    
+                                    
+!                                    if (Field3D(i, j, k) >= MERCATORFillVReal/2.) then
+!                                    
+!
+!                                        !Field3D(i, j, k) = 0.
+!                                        Field3D(i, j, k) = FillValueReal
+!                                        
+!                                    endif
+
+                                endif
+
+                            enddo
+                            enddo
+                            enddo
+                        
+                            call WriteHDF5Field(FieldTime, MohidName, iOut, Aux3D = Field3D)
+
+                            if (MohidName == GetPropertyName(VelocityU_)) then 
+                                VelU_ID = n
+                                Addoffset_U = Addoffset
+                                ScaleFactor_U = ScaleFactor
+                                MERCATORFillVInteger_U = MERCATORFillVInteger
+                            endif
+
+                            if (MohidName == GetPropertyName(VelocityV_)) then 
+                                VelV_ID = n
+                                Addoffset_V = Addoffset
+                                ScaleFactor_V = ScaleFactor
+                                MERCATORFillVInteger_V = MERCATORFillVInteger
+                            endif
+
+                        endif
+
+                    else if (nDimensions == 3) then
+
+                        if (MohidName == GetPropertyName(WaterLevel_ ) .or.                 &
+                            MohidName == GetPropertyName(BarotropicVelocityU_) .or.         &
+                            MohidName == GetPropertyName(BarotropicVelocityV_)) then
+
+                                status = NF90_GET_VAR(ncid,n,Aux3D)
+
+                            if (status /= nf90_noerr)                                       &
+                                stop 'ReadMercatorFileV6 - ModuleMERCATORFormat - ERR60'
+
+                                !The boundary cells are not read
+                            do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+                            do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+
+                                if (Me%WaterPoints3D(i, j, Me%WorkSize%KUB) == WaterPoint) then
+
+                                    if (Aux3D(j+1,i+1,ni) == MERCATORFillVInteger) then
+                                        
+                                        !Field2D(i, j) = MERCATORFillVReal
+                                        Field2D(i, j) = FillValueReal
+                                    else
+                                    
+                                        Field2D(i, j) = float(Aux3D(j+1,i+1,ni)) * ScaleFactor + AddOffSet
+                                    
+                                    endif
+                                    
+                                    !if (Field2D(i, j) >= MERCATORFillVReal/2.) then
+                                    if (Field2D(i, j) <= FillValueReal/2.) then
+
+                                        Field2D(i, j) = 0.
+                                        
+                                    endif
+
+                                endif
+
+                            enddo
+                            enddo
+
+                            call WriteHDF5Field(FieldTime, MohidName, iOut, Aux2D = Field2D)
+
+                            if (MohidName == GetPropertyName(WaterLevel_))then
+                            
+                                WL_ID = n
+                                Addoffset_ssh = Addoffset
+                                ScaleFactor_ssh = ScaleFactor
+                                MERCATORFillVInteger_ssh = MERCATORFillVInteger
+                            
+                            endif
+
+                        endif
+
+                    endif
+                
+                enddo
+
+            endif i1
+
+            if     (nDimensions == 4) then
+                deallocate(Aux4D       )
+                deallocate(Field3D     )
+
+            else if (nDimensions == 3) then
+                deallocate(Aux3D       )
+                deallocate(Field2D     )
+            endif
+
+        enddo d0
+
+        deallocate(auxdays)
+
+
+        !calculate barotropic velocities
+        if (Me%ComputeBarotropicVel) then
+
+            if ((WL_ID > 0) .and. (VelU_ID > 0) .and. (VelV_ID > 0)) then
+
+
+                allocate(AuxU3D(Me%jmax, Me%imax, Me%kmax))
+                allocate(AuxV3D(Me%jmax, Me%imax, Me%kmax))
+                allocate(Aux4D  (Me%jmax, Me%imax, Me%kmax,Ninst))
+                allocate(Aux4D_V(Me%jmax, Me%imax, Me%kmax,Ninst))
+                allocate(Aux3D(Me%jmax, Me%imax,ninst))
+                allocate(Aux2D(Me%jmax, Me%imax)) 
+               
+                allocate(AuxBaroU2D(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+                allocate(AuxBaroV2D(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+                allocate(SumLayerTickness(Me%Size%ILB:Me%Size%IUB,                      &
+                         Me%Size%JLB:Me%Size%JUB))
+
+                AuxBaroU2D(:,:) = FillValueReal
+                AuxBaroV2D(:,:) = FillValueReal
+
+                status = NF90_GET_VAR(ncid,VelU_ID,Aux4D) !u
+                if (status /= nf90_noerr)                                               &
+                    stop 'ReadMercatorFileV6 - ModuleMERCATORFormat - ERR80'
+
+                status = NF90_GET_VAR(ncid,VelV_ID,Aux4D_V) !v  
+                if (status /= nf90_noerr)                                               &
+                    stop 'ReadMercatorFileV6 - ModuleMERCATORFormat - ERR90'
+
+                status = NF90_GET_VAR(ncid,WL_ID,Aux3D)  !ssh
+                if (status /= nf90_noerr)                                               &
+                    stop 'ReadMercatorFileV6 - ModuleMERCATORFormat - ERR70'
+
+                SumLayerTickness(:,:) = 0.
+            
+                do ni=1, ninst
+                
+                    iOut = ni
+                    
+                    do j=Me%WorkSize%JLB, Me%WorkSize%JUB
+                    do i=Me%WorkSize%ILB, Me%WorkSize%IUB
+
+                        if (Aux3D(j+1,i+1,ni) == MERCATORFillVInteger_ssh) then
+                                            
+                                Aux2D(j+1,i+1) = 0.
+                                    
+                            else
+                                    
+                                Aux2D(j+1,i+1) = float(Aux3D(j+1,i+1,ni))  * ScaleFactor_ssh + AddOffSet_ssh     
+                                        
+                        endif
+                        
+                    enddo
+                    enddo
+
+                  
+                    do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+                    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+                    do k = Me%WorkSize%KLB, Me%WorkSize%KUB
+
+                        if (k == Me%WorkSize%KLB) then
+
+                            SumLayerTickness(i, j) = 0.
+                            AuxBaroU2D(i,j) = 0.
+                            AuxBaroV2D(i,j) = 0.
+
+                        endif
+
+    !                    if (Me%WaterPoints3D(i,j,k) == WaterPoint) then
+    !
+    !                        if (AuxU4D(j+1,i+1,Me%WorkSize%KUB+1-k) >= MERCATORFillVReal/2.)    &
+    !                            then
+    !
+    !                            AuxU4D(j+1,i+1, Me%WorkSize%KUB+1-k) = 0.
+    !
+    !                        endif
+    !
+    !                        if (AuxV4D(j+1,i+1,Me%WorkSize%KUB+1-k) >= MERCATORFillVReal/2.)    &
+    !                            then
+    !
+    !                            AuxV4D(j+1,i+1, Me%WorkSize%KUB+1-k) = 0.
+    !
+    !                        endif
+
+                        if (Me%WaterPoints3D(i, j, k) == WaterPoint) then
+                                
+                            if (Aux4D(j+1,i+1,Me%WorkSize%KUB+1-k,ni) == MERCATORFillVInteger_U) then
+                                            
+                                AuxU3D(j+1,i+1, Me%WorkSize%KUB+1-k) = 0.
+                                    
+                            else
+                                    
+                                AuxU3D(j+1,i+1, Me%WorkSize%KUB+1-k)=float(Aux4D(j+1,i+1, Me%WorkSize%KUB+1-k,ni))  *  &
+                                                ScaleFactor_U + AddOffSet_U     
+                                        
+                            endif
+                                        
+                            if (Aux4D_V(j+1,i+1,Me%WorkSize%KUB+1-k,ni) == MERCATORFillVInteger_V) then
+                                            
+                                AuxV3D(j+1,i+1, Me%WorkSize%KUB+1-k) = 0.
+                                    
+                            else
+                                    
+                                AuxV3D(j+1,i+1, Me%WorkSize%KUB+1-k)=float(Aux4D_V(j+1,i+1, Me%WorkSize%KUB+1-k,ni))  * &
+                                                ScaleFactor_V + AddOffSet_V     
+                                        
+                            endif
+                                        
+                            if (k /= Me%WorkSize%KUB) then
+
+                                AuxBaroU2D(i,j) = AuxBaroU2D(i,j) +                         &
+                                                  AuxU3D(j+1,i+1,Me%WorkSize%KUB+1-k)       &
+                                                  *Me%LayersThickness(k)
+                                AuxBaroV2D(i,j) = AuxBaroV2D(i,j) +                         &
+                                                  AuxV3D(j+1,i+1,Me%WorkSize%KUB+1-k)       &
+                                                  *Me%LayersThickness(k)
+
+                                SumLayerTickness(i, j) = SumLayerTickness(i, j) +           &
+                                    Me%LayersThickness(k)
+
+                            else
+
+                                AuxBaroU2D(i,j) = AuxBaroU2D(i,j) +                         &
+                                                  AuxU3D(j+1,i+1,Me%WorkSize%KUB+1-k)       &
+                                                  *(Me%LayersThickness(k) + Aux2D(j+1,i+1)) 
+                                AuxBaroV2D(i,j) = AuxBaroV2D(i,j) +                         &
+                                                  AuxV3D(j+1,i+1,Me%WorkSize%KUB+1-k)       &
+                                                  *(Me%LayersThickness(k) + Aux2D(j+1,i+1)) 
+
+                                SumLayerTickness(i, j) = SumLayerTickness(i, j) +           &
+                                                  (Me%LayersThickness(k) + Aux2D(j+1, i+1))
+
+                                AuxBaroU2D(i,j) = AuxBaroU2D(i,j)/SumLayerTickness(i,j)
+                                AuxBaroV2D(i,j) = AuxBaroV2D(i,j)/SumLayerTickness(i,j)
+
+                            endif
+
+                        endif
+
+                    enddo
+                    enddo
+                    enddo
+
+                    call WriteHDF5Field(FieldTime,                                          &
+                                        GetPropertyName(BarotropicVelocityU_),              &
+                                        iOut, Aux2D = AuxBaroU2D)
+
+                    call WriteHDF5Field(FieldTime,                                          &
+                                        GetPropertyName(BarotropicVelocityV_),              &
+                                        iOut, Aux2D = AuxBaroV2D)
+
+                enddo                
+
+                deallocate(Aux2D)
+                deallocate(AuxU3D)
+                deallocate(AuxV3D)
+                deallocate(AuxBaroU2D)
+                deallocate(AuxBaroV2D)
+                deallocate(SumLayerTickness)
+                deallocate(Aux4D)
+                deallocate(Aux4D_V)
+                deallocate(Aux3D)
+
+           else
+
+                write(*,*)'Unable to calculate batropic velocity.'
+                write(*,*)'Check if velocity components and water level are available.'
+                stop 'ReadMercatorFileV6 - ModuleMERCATORFormat - ERR100'
+            
+            endif
+
+        endif
+        
+    end subroutine ReadMercatorFileV6
 
     subroutine ReadMercatorFileV5(InputFile)
 
@@ -4641,5 +5476,5 @@ if0:                if(Field%nDimensions == 2) then
     end subroutine KillMERCATORFormat
 
     !--------------------------------------------------------------------------
- 
+
 end module ModuleMERCATORFormat
