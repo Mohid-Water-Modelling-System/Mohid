@@ -1317,6 +1317,16 @@ cd2 :           if (BlockFound) then
 
                         NewItem%Name = obj_name
 
+                    !Guillaume: this is only to correct a darn bug
+                    !which is present in the WaterProperties module.
+                    elseif (Me%LastSubGroup .eq. "VerticalZ") then
+                    
+                        !Add to list of time dependent itens
+                        nullify(NewItem)
+                        call AddItem(Me%FirstDependentItem, NewItem)
+
+                        NewItem%Name = "Vertical"
+
                     else                           
 
                         !Add to list of time dependent itens
