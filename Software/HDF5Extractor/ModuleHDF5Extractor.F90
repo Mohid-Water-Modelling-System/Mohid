@@ -1317,7 +1317,7 @@ cd2 :           if (BlockFound) then
 
                         NewItem%Name = obj_name
 
-                    !Guillaume: this is only to correct a darn bug
+                    !Guillaume: this is only a paliative to manage a bug
                     !which is present in the WaterProperties module.
                     elseif (Me%LastSubGroup .eq. "VerticalZ") then
                     

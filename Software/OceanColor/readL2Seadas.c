@@ -207,7 +207,7 @@ int geointerp;
 
    	geointerp = l2_str->geointerp;
 	
-	if (geointerp==1) {   // modis
+	if (geointerp==1 || geointerp==0) {   // modis
 		*lon    = Lon2D[(i-1)*l2_str[0].nsamp+j-1];
         *lat    = Lat2D[(i-1)*l2_str[0].nsamp+j-1];
     } else if (geointerp==2)  { // seawifs

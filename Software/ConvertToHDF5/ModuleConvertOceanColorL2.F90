@@ -1398,15 +1398,15 @@ Allocate(DefineCellsMap          (NewField%Size%ILB : NewField%Size%IUB, NewFiel
 
 Allocate(GridData                (NewField%Size%ILB : NewField%Size%IUB, NewField%Size%JLB : NewField%Size%JUB))
         
-        GridLat  = null_real 
-        GridLong = null_real
-        NewField%Scalar   = null_real
-        NewField%XX_IE    = null_real
-        NewField%YY_IE    = null_real
-        Me%Bathymetry     = null_real
+        GridLat(:,:)  = null_real 
+        GridLong(:,:) = null_real
+        NewField%Scalar(:,:,:)   = null_real
+        NewField%XX_IE(:,:)    = null_real
+        NewField%YY_IE(:,:)    = null_real
+        Me%Bathymetry(:,:)     = null_real
 
-        NewField%LatitudeConn  = null_real
-        NewField%LongitudeConn = null_real
+        NewField%LatitudeConn(:,:)  = null_real
+        NewField%LongitudeConn(:,:) = null_real
         
         NewField%DefineCellsMap(:,:)  = 1
 
