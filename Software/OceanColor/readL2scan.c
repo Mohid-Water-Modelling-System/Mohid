@@ -118,6 +118,8 @@ int32 openL2(char *fname, char *plist, l2_prod *l2_str)
     fileindex = l2_str->fileindex;
   }
 
+  /* griflet */
+  fileindex = 0;
 
   if (first) {
     for (i=0; i<MAXNFILES; i++) prodlist[i]=NULL;
