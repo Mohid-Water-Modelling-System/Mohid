@@ -1559,6 +1559,7 @@ nullify(LonArray)
     integer(4)                     :: sfgainfo, dtype, i !,sffattr, attr_index, day, month
     integer(4)                     :: status,sfrcatt,Sfend,hclose !,vfend,file_info_status
     integer(4)                     :: hopen !,sffinfo !,n_datasets
+    real                     :: month, day
     !---------------------------------------------------------------------
  
 
@@ -1590,31 +1591,41 @@ nullify(LonArray)
     enddo 
   
       
-      read(CharTime(1:4), '(i4)') i
-      AuxTime(1) = i
+    read(CharTime(1:4), '(i4)') i
+    AuxTime(1) = i
 
-      read(CharTime(8:9), '(i4)') i
-      AuxTime(4) = i
+    read(CharTime(8:9), '(i4)') i
+    AuxTime(4) = i
 
-      read(CharTime(10:11), '(i4)') i
-      AuxTime(5) = i
+    read(CharTime(10:11), '(i4)') i
+    AuxTime(5) = i
 
-      read(CharTime(12:13), '(i4)') i
-      AuxTime(6) = i
+    read(CharTime(12:13), '(i4)') i
+    AuxTime(6) = i
     
-      read(CharTime(5:7), '(i4)') i
-      dayj = i
+    read(CharTime(5:7), '(i4)') i
+    dayj = i
       
-      call JulianDayToMonthDay(AuxTime(1), dayj, NewField%Date)
-      !call GetDateFromJDay (AuxTime(1),AuxTime,1, real(dayj))
+    call JulianDayToMonthDay(AuxTime(1), dayj, NewField%Date)
+    !call GetDateFromJDay (AuxTime(1),AuxTime,1, real(dayj))
+      
+    call ExtractDate(NewField%Date, Month = month, Day = day)
+     
+    AuxTime(2) = month
+    AuxTime(3) = day
          
+    call SetDate(NewField%Date, &
+                    Year = AuxTime(1), &
+                    Month = AuxTime(2), &
+                    Day = AuxTime(3), &
+                    Hour = AuxTime(4), &
+                    Minute = AuxTime(5), &
+                    Second = AuxTime(6))
+
     ctime = CharTime(8:9)//'-'//CharTime(10:11)//'-'//CharTime(12:13)
     write(cmonth, '(i4)')int(AuxTime(2))
     write(cday, '(i4)')  int(AuxTime(3))
     cdate = CharTime(1:4)//'-'//trim(adjustl(cmonth))//'-'//trim(adjustl(cday))
-
-    !call SetDate(NewField%Date, Year = AuxTime(1), Month  = AuxTime(2), Day    = AuxTime(3), &
-    !              Hour = AuxTime(4), Minute = AuxTime(5), Second = AuxTime(6))
 
     status = Sfend(sd_id);
     status = Hclose(FileID);
