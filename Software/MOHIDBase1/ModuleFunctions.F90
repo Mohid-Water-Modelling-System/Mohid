@@ -8695,9 +8695,9 @@ D2:     do I=imax-1,2,-1
         integer                         :: i
         real(4)                           :: minival1D_R4
         
-        minival1D_R4 = 1e7
+        minival1D_R4 = 1e15
         do i = size1D%ILB,size1D%IUB
-            if ( minival1D_R4 > array(i) ) then
+            if ( array(i) .ne. FillValueReal .and. minival1D_R4 > array(i) ) then
                 minival1D_R4 = array(i)
             end if
         end do
@@ -8711,10 +8711,10 @@ D2:     do I=imax-1,2,-1
         integer                         :: i,j
         real(4)                            :: minival2D_R4
         
-        minival2D_R4 = 1e7
+        minival2D_R4 = 1e15
         do j = size2D%JLB,size2D%JUB
         do i = size2D%ILB,size2D%IUB
-            if ( minival2D_R4 > array(i,j) ) then
+            if ( array(i,j) .ne. FillValueReal .and. minival2D_R4 > array(i,j) ) then
                 minival2D_R4 = array(i,j)
             end if
         end do
@@ -8729,11 +8729,11 @@ D2:     do I=imax-1,2,-1
         integer                         :: i,j,k
         real(4)                            :: minival3D_R4
         
-        minival3D_R4 = 1e7
+        minival3D_R4 = 1e15
         do k = size3D%KLB,size3D%KUB
         do j = size3D%JLB,size3D%JUB
         do i = size3D%ILB,size3D%IUB
-            if ( minival3D_R4 > array(i,j,k) ) then
+            if ( array(i,j,k) .ne. FillValueReal .and. minival3D_R4 > array(i,j,k) ) then
                 minival3D_R4 = array(i,j,k)
             end if
         end do
@@ -8749,9 +8749,9 @@ D2:     do I=imax-1,2,-1
         integer                         :: i
         real(4)                            :: maxival1D_R4
         
-        maxival1D_R4 = -1e7
+        maxival1D_R4 = -1e15
         do i = size1D%ILB,size1D%IUB
-            if ( maxival1D_R4 < array(i) ) then
+            if ( array(i) .ne. FillValueReal .and. maxival1D_R4 < array(i) ) then
                 maxival1D_R4 = array(i)
             end if
         end do
@@ -8765,10 +8765,10 @@ D2:     do I=imax-1,2,-1
         integer                         :: i,j
         real(4)                            :: maxival2D_R4
         
-        maxival2D_R4 = -1e7
+        maxival2D_R4 = -1e15
         do j = size2D%JLB,size2D%JUB
         do i = size2D%ILB,size2D%IUB
-            if ( maxival2D_R4 < array(i,j) ) then
+            if ( array(i,j) .ne. FillValueReal .and. maxival2D_R4 < array(i,j) ) then
                 maxival2D_R4 = array(i,j)
             end if
         end do
@@ -8783,11 +8783,11 @@ D2:     do I=imax-1,2,-1
         integer                         :: i,j,k
         real(4)                            :: maxival3D_R4
         
-        maxival3D_R4 = -1e7
+        maxival3D_R4 = -1e15
         do k = size3D%KLB,size3D%KUB
         do j = size3D%JLB,size3D%JUB
         do i = size3D%ILB,size3D%IUB
-            if ( maxival3D_R4 < array(i,j,k) ) then
+            if ( array(i,j,k) .ne. FillValueReal .and. maxival3D_R4 < array(i,j,k) ) then
                 maxival3D_R4 = array(i,j,k)
             end if
         end do
@@ -8803,9 +8803,9 @@ D2:     do I=imax-1,2,-1
         integer                         :: i
         real(8)                            :: minival1D_R8
         
-        minival1D_R8 = 1e7
+        minival1D_R8 = 1e15
         do i = size1D%ILB,size1D%IUB
-            if ( minival1D_R8 > array(i) ) then
+            if ( array(i) .ne. FillValueReal .and. minival1D_R8 > array(i) ) then
                 minival1D_R8 = array(i)
             end if
         end do
@@ -8819,10 +8819,10 @@ D2:     do I=imax-1,2,-1
         integer                         :: i,j
         real(8)                         :: minival2D_R8
         
-        minival2D_R8 = 1e7
+        minival2D_R8 = 1e15
         do j = size2D%JLB,size2D%JUB
         do i = size2D%ILB,size2D%IUB
-            if ( minival2D_R8 > array(i,j) ) then
+            if ( array(i,j) .ne. FillValueReal .and. minival2D_R8 > array(i,j) ) then
                 minival2D_R8 = array(i,j)
             end if
         end do
@@ -8837,11 +8837,11 @@ D2:     do I=imax-1,2,-1
         integer                         :: i,j,k
         real(8)                         :: minival3D_R8
         
-        minival3D_R8 = 1e7
+        minival3D_R8 = 1e15
         do k = size3D%KLB,size3D%KUB
         do j = size3D%JLB,size3D%JUB
         do i = size3D%ILB,size3D%IUB
-            if ( minival3D_R8 > array(i,j,k) ) then
+            if ( array(i,j,k) .ne. FillValueReal .and. minival3D_R8 > array(i,j,k) ) then
                 minival3D_R8 = array(i,j,k)
             end if
         end do
@@ -8857,9 +8857,9 @@ D2:     do I=imax-1,2,-1
         integer                         :: i
         real(8)                         :: maxival1D_R8
         
-        maxival1D_R8 = -1e7
+        maxival1D_R8 = -1e15
         do i = size1D%ILB,size1D%IUB
-            if ( maxival1D_R8 < array(i) ) then
+            if ( array(i) .ne. FillValueReal .and. maxival1D_R8 < array(i) ) then
                 maxival1D_R8 = array(i)
             end if
         end do
@@ -8873,10 +8873,10 @@ D2:     do I=imax-1,2,-1
         integer                         :: i,j
         real(8)                         :: maxival2D_R8
         
-        maxival2D_R8 = -1e7
+        maxival2D_R8 = -1e15
         do j = size2D%JLB,size2D%JUB
         do i = size2D%ILB,size2D%IUB
-            if ( maxival2D_R8 < array(i,j) ) then
+            if ( array(i,j) .ne. FillValueReal .and. maxival2D_R8 < array(i,j) ) then
                 maxival2D_R8 = array(i,j)
             end if
         end do
@@ -8891,11 +8891,11 @@ D2:     do I=imax-1,2,-1
         integer                         :: i,j,k
         real(8)                         :: maxival3D_R8
         
-        maxival3D_R8 = -1e7
+        maxival3D_R8 = -1e15
         do k = size3D%KLB,size3D%KUB
         do j = size3D%JLB,size3D%JUB
         do i = size3D%ILB,size3D%IUB
-            if ( maxival3D_R8 < array(i,j,k) ) then
+            if ( array(i,j,k) .ne. FillValueReal .and. maxival3D_R8 < array(i,j,k) ) then
                 maxival3D_R8 = array(i,j,k)
             end if
         end do
@@ -8911,9 +8911,9 @@ D2:     do I=imax-1,2,-1
         integer                         :: i
         integer                            :: minival1D_I4
         
-        minival1D_I4 = 1e7
+        minival1D_I4 = 1e15
         do i = size1D%ILB,size1D%IUB
-            if ( minival1D_I4 > array(i) ) then
+            if ( array(i) .ne. FillValueInt .and. minival1D_I4 > array(i) ) then
                 minival1D_I4 = array(i)
             end if
         end do
@@ -8927,10 +8927,10 @@ D2:     do I=imax-1,2,-1
         integer                         :: i,j
         integer                            :: minival2D_I4
         
-        minival2D_I4 = 1e7
+        minival2D_I4 = 1e15
         do j = size2D%JLB,size2D%JUB
         do i = size2D%ILB,size2D%IUB
-            if ( minival2D_I4 > array(i,j) ) then
+            if ( array(i,j) .ne. FillValueInt .and. minival2D_I4 > array(i,j) ) then
                 minival2D_I4 = array(i,j)
             end if
         end do
@@ -8945,11 +8945,11 @@ D2:     do I=imax-1,2,-1
         integer                         :: i,j,k
         integer                            :: minival3D_I4
 
-        minival3D_I4 = 1e7
+        minival3D_I4 = 1e15
         do k = size3D%KLB,size3D%KUB
         do j = size3D%JLB,size3D%JUB
         do i = size3D%ILB,size3D%IUB
-            if ( minival3D_I4 > array(i,j,k) ) then
+            if ( array(i,j,k) .ne. FillValueInt .and. minival3D_I4 > array(i,j,k) ) then
                 minival3D_I4 = array(i,j,k)
             end if
         end do
@@ -8965,9 +8965,9 @@ D2:     do I=imax-1,2,-1
         integer                         :: i
         integer                         :: maxival1D_I4
         
-        maxival1D_I4 = -1e7
+        maxival1D_I4 = -1e15
         do i = size1D%ILB,size1D%IUB
-            if ( maxival1D_I4 < array(i) ) then
+            if ( array(i) .ne. FillValueInt .and. maxival1D_I4 < array(i) ) then
                 maxival1D_I4 = array(i)
             end if
         end do
@@ -8981,10 +8981,10 @@ D2:     do I=imax-1,2,-1
         integer                         :: i,j
         integer                            :: maxival2D_I4
         
-        maxival2D_I4 = -1e7
+        maxival2D_I4 = -1e15
         do j = size2D%JLB,size2D%JUB
         do i = size2D%ILB,size2D%IUB
-            if ( maxival2D_I4 < array(i,j) ) then
+            if ( array(i,j) .ne. FillValueInt .and. maxival2D_I4 < array(i,j) ) then
                 maxival2D_I4 = array(i,j)
             end if
         end do
@@ -8999,11 +8999,11 @@ D2:     do I=imax-1,2,-1
         integer                         :: i,j,k
         integer                         :: maxival3D_I4
         
-        maxival3D_I4 = -1e7
+        maxival3D_I4 = -1e15
         do k = size3D%KLB,size3D%KUB
         do j = size3D%JLB,size3D%JUB
         do i = size3D%ILB,size3D%IUB
-            if ( maxival3D_I4 < array(i,j,k) ) then
+            if ( array(i,j,k) .ne. FillValueInt .and. maxival3D_I4 < array(i,j,k) ) then
                 maxival3D_I4 = array(i,j,k)
             end if
         end do
@@ -9019,9 +9019,9 @@ D2:     do I=imax-1,2,-1
         integer                         :: i
         integer(8)                            :: minival1D_I8
         
-        minival1D_I8 = 1e7
+        minival1D_I8 = 1e15
         do i = size1D%ILB,size1D%IUB
-            if ( minival1D_I8 > array(i) ) then
+            if ( array(i) .ne. FillValueInt .and. minival1D_I8 > array(i) ) then
                 minival1D_I8 = array(i)
             end if
         end do
@@ -9035,10 +9035,10 @@ D2:     do I=imax-1,2,-1
         integer                         :: i,j
         integer(8)                         :: minival2D_I8
         
-        minival2D_I8 = 1e7
+        minival2D_I8 = 1e15
         do j = size2D%JLB,size2D%JUB
         do i = size2D%ILB,size2D%IUB
-            if ( minival2D_I8 > array(i,j) ) then
+            if ( array(i,j) .ne. FillValueInt .and. minival2D_I8 > array(i,j) ) then
                 minival2D_I8 = array(i,j)
             end if
         end do
@@ -9053,11 +9053,11 @@ D2:     do I=imax-1,2,-1
         integer                         :: i,j,k
         integer(8)                         :: minival3D_I8
         
-        minival3D_I8 = 1e7
+        minival3D_I8 = 1e15
         do k = size3D%KLB,size3D%KUB
         do j = size3D%JLB,size3D%JUB
         do i = size3D%ILB,size3D%IUB
-            if ( minival3D_I8 > array(i,j,k) ) then
+            if ( array(i,j,k) .ne. FillValueInt .and. minival3D_I8 > array(i,j,k) ) then
                 minival3D_I8 = array(i,j,k)
             end if
         end do
@@ -9073,9 +9073,9 @@ D2:     do I=imax-1,2,-1
         integer                         :: i
         integer(8)                         :: maxival1D_I8
         
-        maxival1D_I8 = -1e7
+        maxival1D_I8 = -1e15
         do i = size1D%ILB,size1D%IUB
-            if ( maxival1D_I8 < array(i) ) then
+            if ( array(i) .ne. FillValueInt .and. maxival1D_I8 < array(i) ) then
                 maxival1D_I8 = array(i)
             end if
         end do
@@ -9089,10 +9089,10 @@ D2:     do I=imax-1,2,-1
         integer                         :: i,j
         integer(8)                         :: maxival2D_I8
         
-        maxival2D_I8 = -1e7
+        maxival2D_I8 = -1e15
         do j = size2D%JLB,size2D%JUB
         do i = size2D%ILB,size2D%IUB
-            if ( maxival2D_I8 < array(i,j) ) then
+            if ( array(i,j) .ne. FillValueInt .and. maxival2D_I8 < array(i,j) ) then
                 maxival2D_I8 = array(i,j)
             end if
         end do
@@ -9107,11 +9107,11 @@ D2:     do I=imax-1,2,-1
         integer                         :: i,j,k
         integer(8)                         :: maxival3D_I8
         
-        maxival3D_I8 = -1e7
+        maxival3D_I8 = -1e15
         do k = size3D%KLB,size3D%KUB
         do j = size3D%JLB,size3D%JUB
         do i = size3D%ILB,size3D%IUB
-            if ( maxival3D_I8 < array(i,j,k) ) then
+            if ( array(i,j,k) .ne. FillValueInt .and. maxival3D_I8 < array(i,j,k) ) then
                 maxival3D_I8 = array(i,j,k)
             end if
         end do
