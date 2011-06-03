@@ -141,6 +141,7 @@ Module ModulePorousMedia
     public  ::  GetHead
     public  ::  GetThetaR
     public  ::  GetThetaS
+    public  ::  GetThetaF
     public  ::  GetOldWaterContent
     public  ::  GetThetaField
     public  ::  GetComputeSoilField
@@ -3092,6 +3093,37 @@ i1:         if (CoordON) then
 
 
     end subroutine GetThetaS
+
+    !--------------------------------------------------------------------------
+
+    subroutine GetThetaF (ObjPorousMediaID, ThetaF, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                                         :: ObjPorousMediaID
+        real,    pointer, dimension(:,:,:)              :: ThetaF
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                         :: STAT_, ready_
+        
+        call Ready(ObjPorousMediaID, ready_)    
+        
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            call Read_Lock(mPorousMedia_, Me%InstanceID)
+            
+            ThetaF => Me%RC%ThetaF
+
+            STAT_ = SUCCESS_
+        else 
+            STAT_ = ready_
+        end if
+
+        if (present(STAT)) STAT = STAT_
+
+
+    end subroutine GetThetaF
 
     !--------------------------------------------------------------------------
 

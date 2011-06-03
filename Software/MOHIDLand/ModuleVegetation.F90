@@ -3986,73 +3986,73 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
 !                endif
 !
 !            endif
+            
+            !Corrects if necessary the cell of the time serie based in the time serie coordinates
+            call GetNumberOfTimeSeries(Me%ObjTimeSerie, TimeSerieNumber, STAT  = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - PorousMedia - ERR03'
 
+            do dn = 1, TimeSerieNumber
+
+                call GetTimeSerieLocation(Me%ObjTimeSerie, dn,                              &  
+                                          CoordX   = CoordX,                                &
+                                          CoordY   = CoordY,                                & 
+                                          CoordON  = CoordON,                               &
+                                          STAT     = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - PorousMedia - ERR04'
+                
+                call GetTimeSerieName(Me%ObjTimeSerie, dn, TimeSerieName, STAT  = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - PorousMedia - ERR04'
+                
+    i1:         if (CoordON) then
+                    call GetXYCellZ(Me%ObjHorizontalGrid, CoordX, CoordY, Id, Jd, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - PorousMedia - ERR05'
+
+                    if (Id < 0 .or. Jd < 0) then
+                    
+                        call TryIgnoreTimeSerie(Me%ObjTimeSerie, dn, IgnoreOK, STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - PorousMedia - ERR06'
+
+                        if (IgnoreOK) then
+                            write(*,*) 'Time Serie outside the domain - ',trim(TimeSerieName)
+                            cycle
+                        else
+                            stop 'ConstructTimeSerie - PorousMedia - ERR07'
+                        endif
+
+                    endif
+
+
+                    call CorrectsCellsTimeSerie(Me%ObjTimeSerie, dn, Id, Jd, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - PorousMedia - ERR08'
+                    
+                    if (Me%ComputeOptions%Evolution%GrowthModelNeeded) then   
+                        if(Me%ComputeOptions%AtmospherePropertiesOutput) then
+                            call CorrectsCellsTimeSerie(Me%ObjTimeSerieAtm, dn, Id, Jd, STAT = STAT_CALL)
+                            if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - PorousMedia - ERR10'                        
+                        endif
+                        
+                        if(Me%ComputeOptions%FluxesToSoilOutput) then             
+                            call CorrectsCellsTimeSerie(Me%ObjTimeSerieToSoil, dn, Id, Jd, STAT = STAT_CALL)
+                            if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - PorousMedia - ERR20'                    
+                        endif
+                        
+                    endif
+
+                endif i1
+
+                call GetTimeSerieLocation(Me%ObjTimeSerie, dn,                              &  
+                                          LocalizationI   = Id,                             &
+                                          LocalizationJ   = Jd,                             & 
+                                          STAT     = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - PorousMedia - ERR30'
+
+                if (Me%ExternalVar%MappingPoints2D(Id, Jd) /= WaterPoint) then
+                     write(*,*) 'Time Serie in a outside boundaries cell - ',trim(TimeSerieName)
+                endif
+
+            enddo  
         endif
        
-        !Corrects if necessary the cell of the time serie based in the time serie coordinates
-        call GetNumberOfTimeSeries(Me%ObjTimeSerie, TimeSerieNumber, STAT  = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - PorousMedia - ERR03'
-
-        do dn = 1, TimeSerieNumber
-
-            call GetTimeSerieLocation(Me%ObjTimeSerie, dn,                              &  
-                                      CoordX   = CoordX,                                &
-                                      CoordY   = CoordY,                                & 
-                                      CoordON  = CoordON,                               &
-                                      STAT     = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - PorousMedia - ERR04'
-            
-            call GetTimeSerieName(Me%ObjTimeSerie, dn, TimeSerieName, STAT  = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - PorousMedia - ERR04'
-            
-i1:         if (CoordON) then
-                call GetXYCellZ(Me%ObjHorizontalGrid, CoordX, CoordY, Id, Jd, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - PorousMedia - ERR05'
-
-                if (Id < 0 .or. Jd < 0) then
-                
-                    call TryIgnoreTimeSerie(Me%ObjTimeSerie, dn, IgnoreOK, STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - PorousMedia - ERR06'
-
-                    if (IgnoreOK) then
-                        write(*,*) 'Time Serie outside the domain - ',trim(TimeSerieName)
-                        cycle
-                    else
-                        stop 'ConstructTimeSerie - PorousMedia - ERR07'
-                    endif
-
-                endif
-
-
-                call CorrectsCellsTimeSerie(Me%ObjTimeSerie, dn, Id, Jd, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - PorousMedia - ERR08'
-                
-                if (Me%ComputeOptions%Evolution%GrowthModelNeeded) then   
-                    if(Me%ComputeOptions%AtmospherePropertiesOutput) then
-                        call CorrectsCellsTimeSerie(Me%ObjTimeSerieAtm, dn, Id, Jd, STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - PorousMedia - ERR10'                        
-                    endif
-                    
-                    if(Me%ComputeOptions%FluxesToSoilOutput) then             
-                        call CorrectsCellsTimeSerie(Me%ObjTimeSerieToSoil, dn, Id, Jd, STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - PorousMedia - ERR20'                    
-                    endif
-                    
-                endif
-
-            endif i1
-
-            call GetTimeSerieLocation(Me%ObjTimeSerie, dn,                              &  
-                                      LocalizationI   = Id,                             &
-                                      LocalizationJ   = Jd,                             & 
-                                      STAT     = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - PorousMedia - ERR30'
-
-            if (Me%ExternalVar%MappingPoints2D(Id, Jd) /= WaterPoint) then
-                 write(*,*) 'Time Serie in a outside boundaries cell - ',trim(TimeSerieName)
-            endif
-
-        enddo       
        
     end subroutine ConstructTimeSerie
 

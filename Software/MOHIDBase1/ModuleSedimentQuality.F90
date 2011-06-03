@@ -27,6 +27,29 @@
 !Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 !
 !------------------------------------------------------------------------------
+!Properties Units:
+!dissolved                 - as from called - in MOHID Land mg/L
+!adsorbed/particulated     - as from called - in MOHID Land mg/kgsoil
+!gases:
+!CO2 and CH4               - same as adsorbed/particulated properties
+!N2                        - same as dissolved properties
+!exceptions:
+!oxygen                    - mol/L
+!hydrogen                  - mol/L
+!microorganisms population - #org/kgsoil
+!wind                      - km/day
+!
+!OXYGEN   	                :  [0/1]       0      !Connect/Disconnect Oxygen computation 
+!SOL_BACTERIA 	            :  [0/1]       0	  !Connect/Disconnect Solubilizing bacteria computation 
+!
+!DTSECONDS                  :  [s]       86400.   !dt to evaluate
+!NO3_LIMIT                  :  [mg/L]      0.     !Minimum value for denitrification or maximum value for 
+!                                                   !methane production in organic matter decay
+!NEW_RATES                  : [0/1]        0      !Connect/Disconnect new rates formulation using maximum * factors
+!IMOBILIZATION              : [0/1]        1      !Connect/Disconnect immobilization
+!
+!EXPLICIT                   : [0/1]        1      !Explicit computation for time dicretization
+
 
 Module ModuleSedimentQuality
     use ModuleFunctions            
@@ -79,26 +102,28 @@ Module ModuleSedimentQuality
     private ::      LogicalLimitation
     private ::      StartSedimentQualityIteration
     private ::      SedimentQualityCoefCalculation    
-    private ::          Oxygen
-    private ::          Carbon
-    private ::              LabilOrganicCarbon
-    private ::              RefractOrganicCarbon   
-    private ::              HeterotrophicC          
-    private ::              AutotrophicC        
-    private ::              AnaerobicC
-    private ::          Nitrogen
-    private ::              Ammonia
-    private ::              Nitrate
-    private ::              LabilOrganicNitrogen   
-    private ::              RefractOrganicNitrogen 
-    private ::              HeterotrophicN          
-    private ::              AutotrophicN        
-    private ::              AnaerobicN             
-    private ::              Ngas
+    private ::          SQOxygen
+    private ::          SQCarbon
+    private ::              SQLabilOrganicCarbon
+    private ::              SQRefractOrganicCarbon   
+    private ::              SQHeterotrophicC          
+    private ::              SQAutotrophicC        
+    private ::              SQAnaerobicC
+    private ::          SQNitrogen
+    private ::              SQAmmonia
+    private ::              SQNitrate
+    private ::              SQLabilOrganicNitrogen   
+    private ::              SQRefractOrganicNitrogen 
+    private ::              SQHeterotrophicN          
+    private ::              SQAutotrophicN        
+    private ::              SQAnaerobicN             
+    private ::              SQNgas
     private ::      SystemResolution
    
     private ::      SedimentQualityRatesCalculation
 
+    private ::     CalcOxygenTerm
+    private ::     CalcpHTerm
 
 
     !Destructor
@@ -127,9 +152,12 @@ Module ModuleSedimentQuality
         integer :: Nitrate                          = null_int
         integer :: Ngas                             = null_int
         integer :: Oxygen                           = null_int
-        integer :: HeterotrophicP                   = null_int  !!!Lúcia
+        integer :: HeterotrophicP                   = null_int
+        integer :: HeterotrophicPop                 = null_int  !#org/kgsoil
         integer :: AutotrophicP                     = null_int
+        integer :: AutotrophicPop                   = null_int  !#org/kgsoil     
         integer :: AnaerobicP                       = null_int
+        integer :: AnaerobicPop                     = null_int  !#org/kgsoil
         integer :: Labil_OM_P                       = null_int
         integer :: RefractOM_P                      = null_int
         integer :: Inorganic_P_soluble              = null_int
@@ -137,6 +165,7 @@ Module ModuleSedimentQuality
         integer :: SolC                             = null_int 
         integer :: SolN                             = null_int
         integer :: SolP                             = null_int
+        integer :: SolPop                           = null_int
         integer :: CO2                              = null_int
         integer :: Urea                             = null_int
         integer :: AmmoniaGas                       = null_int
@@ -196,17 +225,27 @@ Module ModuleSedimentQuality
         real, pointer, dimension(:  )       :: Ionic
         real , pointer, dimension(:  )      :: Pai
         real , pointer, dimension(:  )      :: Wind
+        real , pointer, dimension(:  )      :: Oxygen
     end type T_External
 
 
 
     type        T_Coeficients
-        real                                :: ActivationE          = null_real     !Activation energy
-        real                                :: Acoef                = null_real     !Specific coeficient
-        real                                :: Kp                   = null_real
+        real                                :: ActivationE          = null_real     ![kcal/mol]Initial Activation energy
+        real                                :: Acoef                = null_real     ![s.day-1.pop-1] Specific coeficient
+        real                                :: Kp                   = null_real     ![L/mol] Salinity Coefficient
         real                                :: OptimumTemperature   = null_real     !Optimum temperature
         real                                :: Value                = null_real     !specific rate value     
         integer                             :: RateIndex            = null_int      !Rate Index number
+        
+        !New computation
+        real                                :: ConcMinCarbon        = null_real     ![mg/kgsoil]Minimum conc. below, rate is max
+        real                                :: ConcMinNitrate       = null_real
+        real                                :: ConcMinAmmonia       = null_real
+        real                                :: ConcMinPF            = null_real
+        real                                :: OptimumpH            = null_real     ! optimum pH
+        real                                :: ConcOptO2            = null_real     ! [mg/L] Optimum conc. above, rate is maximum
+        real                                :: ConcOptCarbon        = null_real     ! [mg/L] Optimum conc. above, rate is maximum
     end type    T_Coeficients
 
 
@@ -293,6 +332,10 @@ Module ModuleSedimentQuality
         real                                                :: Hydrogen             = null_real
         real                                                :: Khn
         real                                                :: NO3limit
+        logical                                             :: ChangeRates
+        logical                                             :: ComputeImobilization
+        logical                                             :: NewRates
+        logical                                             :: OxygenForcing
         real                                                :: ADJ
         !Instance of Module_EnterData
         integer                                             :: ObjEnterData = 0
@@ -313,9 +356,9 @@ Module ModuleSedimentQuality
 
     !--------------------------------------------------------------------------
     !Constants
-    real,    parameter :: Boltzman                 = 1.383E-23      ![J ºK-1.]
-    real,    parameter :: Planck                   = 6.63E-34       ![J s]
-    real,    parameter :: UnivGC                   = 1.99E-3        ![Kca mole-1. ºK-1.]
+    real,    parameter :: Boltzman                 = 1.383E-23      ![J.ºK-1]
+    real,    parameter :: Planck                   = 6.63E-34       ![J.s]
+    real,    parameter :: UnivGC                   = 1.99E-3        ![Kcal.mole-1.ºK-1]
 
 
     contains
@@ -437,7 +480,7 @@ do1:     do
             end if
         enddo do1
 
-        write (Me%Files%AsciiUnit, FMT=*) 'Situation      Aerobiose       Anaerobiose '
+        write (Me%Files%AsciiUnit, FMT=*) ' Situation Aerobiose Anaerobiose '
     
     end subroutine ConstructAsciiOutPut
     
@@ -547,6 +590,21 @@ cd0 :   if (ready_ .EQ. IDLE_ERR_) then
             !Oxygen is always computed 
             Logicalequa(PIndex%Oxygen) =.true.
             countequa = countequa + 1.
+
+            !Microorganisms are always computed
+            Logicalequa(PIndex%HeterotrophicPop) =.true.
+            countequa = countequa + 1.
+
+            Logicalequa(PIndex%AutotrophicPop) =.true.
+            countequa = countequa + 1.
+            
+            Logicalequa(PIndex%AnaerobicPop) =.true.
+            countequa = countequa + 1.            
+
+            if (Me%PropCalc%Sol_Bacteria) then
+                Logicalequa(PIndex%SolPop) =.true.
+                countequa = countequa + 1.    
+            endif
       
             if (Me%PropCalc%Nitrogen) then
 
@@ -850,7 +908,7 @@ do1:         do while (associated(EquaRateFluxX))
                      STAT         = STAT_CALL)
 
         if (STAT_CALL .NE. SUCCESS_)                                    &
-            stop 'Subroutine SedimentQualityOptions; Module ModuleSedimentQuality. ERR02.'
+            stop 'Subroutine SedimentQualityOptions; Module ModuleSedimentQuality. ERR03.'
 
 !!!!Opção válida para as bacterias solubilizadoras tb!!!
         call GetData(Me%PropCalc%Sol_Bacteria               ,           &    !!!Lúcia
@@ -862,8 +920,53 @@ do1:         do while (associated(EquaRateFluxX))
                      STAT         = STAT_CALL)
 
         if (STAT_CALL .NE. SUCCESS_)                                    &
-            stop 'Subroutine SedimentQualityOptions; Module ModuleSedimentQuality. ERR02.'
+            stop 'Subroutine SedimentQualityOptions; Module ModuleSedimentQuality. ERR04.'
 
+
+        call GetData(Me%NO3limit                            ,           &    
+                     Me%ObjEnterData, flag                  ,           &    
+                     SearchType   = FromFile                ,           &    
+                     keyword      = 'NO3_LIMIT'             ,           &    
+                     default      = 0.                      ,           &    
+                     ClientModule = 'ModuleSedimentQuality' ,           &    
+                     STAT         = STAT_CALL)
+
+        if (STAT_CALL .NE. SUCCESS_)                                    &
+            stop 'Subroutine SedimentQualityOptions; Module ModuleSedimentQuality. ERR05.'
+
+
+        call GetData(Me%ChangeRates                         ,           &    
+                     Me%ObjEnterData, flag                  ,           &    
+                     SearchType   = FromFile                ,           &    
+                     keyword      = 'CHANGE_RATES'          ,           &    
+                     default      = .false.                 ,           &    
+                     ClientModule = 'ModuleSedimentQuality' ,           &    
+                     STAT         = STAT_CALL)
+
+        if (STAT_CALL .NE. SUCCESS_)                                    &
+            stop 'Subroutine SedimentQualityOptions; Module ModuleSedimentQuality. ERR06.'
+
+        call GetData(Me%NewRates                            ,           &    
+                     Me%ObjEnterData, flag                  ,           &    
+                     SearchType   = FromFile                ,           &    
+                     keyword      = 'NEW_RATES'             ,           &    
+                     default      = .false.                 ,           &    
+                     ClientModule = 'ModuleSedimentQuality' ,           &    
+                     STAT         = STAT_CALL)
+
+        if (STAT_CALL .NE. SUCCESS_)                                    &
+            stop 'Subroutine SedimentQualityOptions; Module ModuleSedimentQuality. ERR07.'
+
+        call GetData(Me%ComputeImobilization                ,           &    
+                     Me%ObjEnterData, flag                  ,           &    
+                     SearchType   = FromFile                ,           &    
+                     keyword      = 'IMOBILIZATION'         ,           &    
+                     default      = .true.                  ,           &    
+                     ClientModule = 'ModuleSedimentQuality' ,           &    
+                     STAT         = STAT_CALL)
+
+        if (STAT_CALL .NE. SUCCESS_)                                    &
+            stop 'Subroutine SedimentQualityOptions; Module ModuleSedimentQuality. ERR08.'
 
         !----------------------------------------------------------------------
 
@@ -961,7 +1064,21 @@ do1:         do while (associated(EquaRateFluxX))
         !Oxygen index number -> The oxygen is always calculated 
         Me%Prop%IUB         = Me%Prop%IUB + 1
         Me%PropIndex%Oxygen = Me%Prop%IUB
+        
+        !Micro Populations are always computed
+        Me%Prop%IUB                   = Me%Prop%IUB + 1
+        Me%PropIndex%HeterotrophicPop = Me%Prop%IUB
+        
+        Me%Prop%IUB                   = Me%Prop%IUB + 1
+        Me%PropIndex%AutotrophicPop   = Me%Prop%IUB
+       
+        Me%Prop%IUB                   = Me%Prop%IUB + 1
+        Me%PropIndex%AnaerobicPop     = Me%Prop%IUB
 
+        if (Me%PropCalc%Sol_Bacteria) then
+            Me%Prop%IUB               = Me%Prop%IUB + 1
+            Me%PropIndex%SolPop       = Me%Prop%IUB
+       endif
 
         ! o mesmo para o fósforo
 
@@ -1072,7 +1189,16 @@ do1:         do while (associated(EquaRateFluxX))
                      STAT         = STAT_CALL)  
         if (STAT_CALL .NE. SUCCESS_)                                    &
             stop 'Subroutine SQReadCalcOptions; Module ModuleSedimentQuality. ERR02.' 
-
+        
+        !It has to be inspected why implicit and semi implicit methods are giving
+        !different results from explicit. Check the hipotesis that Matrix in Water quality has the 
+        !signals different and that has to be accounted when calling ModuleLUD
+        if (Me%CalcMethod%SemiImpMethod) then
+            write (*,*) 'For now only explicit computation is possible'
+            write (*,*) 'Use EXPLICIT : 1'
+            stop 'Subroutine SQReadCalcOptions; Module ModuleSedimentQuality. ERR020.' 
+        endif
+        
         !Verifica se se pretende calcular usando um metodo IMPLICITO
         call GetData(Me%CalcMethod%ImplicitMethod                   ,   &
                      Me%ObjEnterData, flag                          ,   &
@@ -1082,6 +1208,15 @@ do1:         do while (associated(EquaRateFluxX))
                      STAT         = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)                                    &
             stop 'Subroutine SQReadCalcOptions; Module ModuleSedimentQuality. ERR03.' 
+
+        !It has to be inspected why implicit and semi implicit methods are giving
+        !different results from explicit. Check the hipotesis that Matrix in Water quality has the 
+        !signals different and that has to be accounted when calling ModuleLUD
+        if (Me%CalcMethod%ImplicitMethod) then
+            write (*,*) 'For now only explicit computation is possible'
+            write (*,*) 'Use EXPLICIT : 1'
+            stop 'Subroutine SQReadCalcOptions; Module ModuleSedimentQuality. ERR030.' 
+        endif
 
         !----------------------------------------------------------------------
 
@@ -1180,6 +1315,11 @@ do1 :   do
             Call SelectRateBlock(RateinProgress, block_begin, block_end, blockpointer)
 
             if (blockpointer .EQ. null_int) exit
+            
+            !be able to start from beggining of file so that rate order is not important
+            call RewindBuffer (Me%ObjEnterData, STAT = status)
+            if (status /= SUCCESS_) &
+            call SetError(FATAL_, INTERNAL_, 'SQReadFileConstants - ModuleSedimentQuality - ERR010')
                 
             call ExtractBlockFromBuffer(Me%ObjEnterData, ClientNumber,      &
                                         block_begin, block_end, BlockFound,                 &
@@ -1195,7 +1335,7 @@ cd3 :           if (BlockFound) then
             else if (status .EQ. BLOCK_END_ERR_) then cd2
                 write(*,*)  
                 write(*,*) 'Error calling ExtractBlockFromBuffer. '
-                call SetError(FATAL_, INTERNAL_, 'SQReadFileConstants - ModuleSedimentQuality - ERR01') 
+                call SetError(FATAL_, INTERNAL_, 'SQReadFileConstants - ModuleSedimentQuality - ERR020') 
             end if cd2
         end do do1
 
@@ -1223,13 +1363,13 @@ cd5 :           if (BlockFound) then
             else if (status .EQ. BLOCK_END_ERR_) then cd4
                 write(*,*)  
                 write(*,*) 'Error calling ExtractBlockFromBuffer. '
-                call SetError(FATAL_, INTERNAL_, 'SQReadFileConstants - ModuleSedimentQuality - ERR01') 
+                call SetError(FATAL_, INTERNAL_, 'SQReadFileConstants - ModuleSedimentQuality - ERR030') 
             end if cd4
         end do do2
 
         call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = status) 
         if (status /= SUCCESS_) &
-            call SetError(FATAL_, INTERNAL_, 'ConstructPropertyList - ModuleSurface - ERR01')
+            call SetError(FATAL_, INTERNAL_, 'SQReadFileConstants - ModuleSedimentQuality - ERR040')
 
     end subroutine SQReadFileConstants
     !--------------------------------------------------------------------------
@@ -1507,6 +1647,100 @@ cd5 :           if (BlockFound) then
         
         RateinProgress%OptimumTemperature = value
 
+
+        call GetData(   value                                    ,   & 
+                        Me%ObjEnterData, iflag                   ,   &
+                        SearchType      = FromBlock              ,   &
+                        keyword         ='OptimumpH'             ,   &
+                        ClientModule    = 'ModuleSedimentQuality',   &
+                        default         = 7.                     ,   &
+                        STAT            = status)
+       
+        if (status /= SUCCESS_)                                      &
+           call SetError(FATAL_, INTERNAL_, 'ConstructRate - ModuleSedimentQuality - ERR04') 
+        
+        RateinProgress%OptimumpH = value
+        
+        !For death rates
+        call GetData(   value                                    ,   & 
+                        Me%ObjEnterData, iflag                   ,   &
+                        SearchType      = FromBlock              ,   &
+                        keyword         ='ConcMinCarbon'         ,   &
+                        ClientModule    = 'ModuleSedimentQuality',   &
+                        default         = 0.                     ,   &
+                        STAT            = status)
+       
+        if (status /= SUCCESS_)                                      &
+           call SetError(FATAL_, INTERNAL_, 'ConstructRate - ModuleSedimentQuality - ERR05') 
+        
+        RateinProgress%ConcMinCarbon = value
+
+        call GetData(   value                                    ,   & 
+                        Me%ObjEnterData, iflag                   ,   &
+                        SearchType      = FromBlock              ,   &
+                        keyword         ='ConcMinNitrate'       ,   &
+                        ClientModule    = 'ModuleSedimentQuality',   &
+                        default         = 0.                     ,   &
+                        STAT            = status)
+       
+        if (status /= SUCCESS_)                                      &
+           call SetError(FATAL_, INTERNAL_, 'ConstructRate - ModuleSedimentQuality - ERR06') 
+        
+        RateinProgress%ConcMinNitrate = value
+
+        call GetData(   value                                    ,   & 
+                        Me%ObjEnterData, iflag                   ,   &
+                        SearchType      = FromBlock              ,   &
+                        keyword         ='ConcMinAmmonia'        ,   &
+                        ClientModule    = 'ModuleSedimentQuality',   &
+                        default         = 0.                     ,   &
+                        STAT            = status)
+       
+        if (status /= SUCCESS_)                                      &
+           call SetError(FATAL_, INTERNAL_, 'ConstructRate - ModuleSedimentQuality - ERR07') 
+        
+        RateinProgress%ConcMinAmmonia = value
+
+        call GetData(   value                                    ,   & 
+                        Me%ObjEnterData, iflag                   ,   &
+                        SearchType      = FromBlock              ,   &
+                        keyword         ='ConcMinPF'             ,   &
+                        ClientModule    = 'ModuleSedimentQuality',   &
+                        default         = 0.                     ,   &
+                        STAT            = status)
+       
+        if (status /= SUCCESS_)                                      &
+           call SetError(FATAL_, INTERNAL_, 'ConstructRate - ModuleSedimentQuality - ERR08') 
+        
+        RateinProgress%ConcMinPF = value
+
+        !For denitrification
+        call GetData(   value                                    ,   & 
+                        Me%ObjEnterData, iflag                   ,   &
+                        SearchType      = FromBlock              ,   &
+                        keyword         ='ConcOptCarbon'         ,   &
+                        ClientModule    = 'ModuleSedimentQuality',   &
+                        default         = 0.                     ,   &
+                        STAT            = status)
+       
+        if (status /= SUCCESS_)                                      &
+           call SetError(FATAL_, INTERNAL_, 'ConstructRate - ModuleSedimentQuality - ERR09') 
+        
+        RateinProgress%ConcOptCarbon = value
+
+        call GetData(   value                                    ,   & 
+                        Me%ObjEnterData, iflag                   ,   &
+                        SearchType      = FromBlock              ,   &
+                        keyword         ='ConcOptO2'             ,   &
+                        ClientModule    = 'ModuleSedimentQuality',   &
+                        default         = 0.                     ,   &
+                        STAT            = status)
+       
+        if (status /= SUCCESS_)                                      &
+           call SetError(FATAL_, INTERNAL_, 'ConstructRate - ModuleSedimentQuality - ERR010') 
+        
+        RateinProgress%ConcOptO2 = value
+
         !------------------------------------------------------------------------
 
     end subroutine ConstructRate   
@@ -1773,6 +2007,10 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.     &
                                                 Urea,                       &
 !                                                Ammoniagas,                 &
 !                                                Methane,                    &
+                                                HeterotrophicPop,           &
+                                                AutotrophicPop,             &
+                                                AnaerobicPop,               &
+                                                SolPop,                     &
                                                 STAT)
 
 
@@ -1782,18 +2020,19 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.     &
         integer, optional, intent(OUT)      :: HeterotrophicN
         integer, optional, intent(OUT)      :: HeterotrophicC
         integer, optional, intent(OUT)      :: HeterotrophicP    !!!Lúcia
-    
+        integer, optional, intent(OUT)      :: HeterotrophicPop
 
         integer, optional, intent(OUT)      :: AutotrophicN
         integer, optional, intent(OUT)      :: AutotrophicC
         integer, optional, intent(OUT)      :: AutotrophicP !!!Lúcia
+        integer, optional, intent(OUT)      :: AutotrophicPop
 
     
         integer, optional, intent(OUT)      :: AnaerobicN
         integer, optional, intent(OUT)      :: AnaerobicC
         integer, optional, intent(OUT)      :: AnaerobicP   !!!Lúcia
-        
-
+        integer, optional, intent(OUT)      :: AnaerobicPop
+        integer, optional, intent(OUT)      :: SolPop
         
         integer, optional, intent(OUT)      :: Labil_OM_C
         integer, optional, intent(OUT)      :: Labil_OM_N
@@ -1822,7 +2061,6 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.     &
         integer, optional, intent(OUT)      :: SolP      !!!Lúcia
         
 
-
         integer, optional, intent(OUT) :: Oxygen
         
         integer, optional, intent(OUT) :: STAT
@@ -1844,17 +2082,17 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                     &
             if (present(HeterotrophicN       )) HeterotrophicN        = Me%PropIndex%HeterotrophicN
             if (present(HeterotrophicC       )) HeterotrophicC        = Me%PropIndex%HeterotrophicC
             if (present(HeterotrophicP       )) HeterotrophicP        = Me%PropIndex%HeterotrophicP    !!!Lúcia
-                
+            if (present(HeterotrophicPop     )) HeterotrophicPop      = Me%PropIndex%HeterotrophicPop    
 
             if (present(AutotrophicN        )) AutotrophicN         = Me%PropIndex%AutotrophicN
             if (present(AutotrophicC        )) AutotrophicC         = Me%PropIndex%AutotrophicC
             if (present(AutotrophicP        )) AutotrophicP         = Me%PropIndex%AutotrophicP !!!Lúcia
-        
+            if (present(AutotrophicPop      )) AutotrophicPop       = Me%PropIndex%AutotrophicPop
 
             if (present(AnaerobicN          )) AnaerobicN           = Me%PropIndex%AnaerobicN
             if (present(AnaerobicC          )) AnaerobicC           = Me%PropIndex%AnaerobicC
             if (present(AnaerobicP          )) AnaerobicP           = Me%PropIndex%AnaerobicP   !!!Lúcia
-            
+            if (present(AnaerobicPop        )) AnaerobicPop         = Me%PropIndex%AnaerobicPop
             
             if (present(Labil_OM_C          )) Labil_OM_C           = Me%PropIndex%Labil_OM_C
             if (present(Labil_OM_N          )) Labil_OM_N           = Me%PropIndex%Labil_OM_N
@@ -1880,7 +2118,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                     &
             if (present(SolC                )) SolC                 = Me%PropIndex%SolC !!!Lúcia
             if (present(SolN                )) SolN                 = Me%PropIndex%SolN !!!Lúcia
             if (present(SolP                )) SolP                 = Me%PropIndex%SolP !!!Lúcia
-            
+            if (present(SolPop              )) SolPop               = Me%PropIndex%SolPop
 
             if (present(Oxygen              )) Oxygen               = Me%PropIndex%Oxygen    
 
@@ -2045,6 +2283,9 @@ do1 :           do while(associated(EquaRateFluxX))
         call Ready(SedimentQualityID, ready_)
 
 cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
+            
+            call Read_UnLock(mSEDIMENTQUALITY_, Me%InstanceID, "UngetPropRateFlux")
+            
             nullify(Array)
 
             STAT_ = SUCCESS_
@@ -2085,6 +2326,7 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
                                     Ionic                   ,                   &
                                     Pai                     ,                   &
                                     Wind                    ,                   &
+                                    Oxygen                  ,                   &
                                     OpenPoints              ,                   &
                                     STAT)  
 
@@ -2103,12 +2345,13 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
         real,               pointer, dimension(:  ) :: pH
         real,               pointer, dimension(:  ) :: Ionic
         real,   pointer, dimension(:  ), optional   :: Pai
-        real,   pointer, dimension(:  ), optional   :: Wind               
+        real,   pointer, dimension(:  ), optional   :: Wind
+        real,   pointer, dimension(:  ), optional   :: Oxygen               
         integer, optional,  intent(OUT)             :: STAT
         !External----------------------------------------------------------------
         integer                                     :: index
         integer                                     :: ready_   
-        integer                                     :: conta      
+!        integer                                     :: conta      
         !Local-------------------------------------------------------------------
         integer                                     :: STAT_          
         logical                                     :: CalcPoint
@@ -2137,12 +2380,12 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             Me%ExternalVar%DissolvedToParticulate => DissolvedToParticulate 
             if (.NOT. associated(Me%ExternalVar%DissolvedToParticulate) )       &
                 stop 'Subroutine SedimentQuality; Module ModuleSedimentQuality. ERR04.'
-
+            
+            if (present(SoilDryDensity)) Me%ExternalVar%SoilDryDensity => SoilDryDensity
+            if (.NOT. associated(Me%ExternalVar%SoilDryDensity) )                       &
+                stop 'Subroutine SedimentQuality; Module ModuleSedimentQuality. ERR05.'
             
             if (Me%PropCalc%Phosphorus) then
-                if (present(SoilDryDensity)) Me%ExternalVar%SoilDryDensity => SoilDryDensity
-                if (.NOT. associated(Me%ExternalVar%SoilDryDensity) )                       &
-                    stop 'Subroutine SedimentQuality; Module ModuleSedimentQuality. ERR05.'
 
                 if (present(Pai))            Me%ExternalVar%Pai            => Pai
                 if (.NOT. associated(Me%ExternalVar%SoilDryDensity) )                       &
@@ -2169,7 +2412,11 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             if (.NOT. associated(Me%ExternalVar%SoilDryDensity) )                       &
                 stop 'Subroutine SedimentQuality; Module ModuleSedimentQuality. ERR010.'
 
-
+            
+            if (present(Oxygen)) then
+                Me%OxygenForcing = .true.
+                Me%ExternalVar%Oxygen     => Oxygen
+            endif
 
 
             call StartSedimentQualityIteration !zeros the matrix and independent term
@@ -2202,32 +2449,38 @@ do1 :       do index = ArrayLB, ArrayUB
                     call AnaerobioseCalculation         (ThetaF, index   )
                 
                     call HydrogenCalculation            (index           )        
-                
-                    call PotentialRatesCalc             (index           )
-               
+                    
+                    if (.not. Me%NewRates) then
+                        call PotentialRatesCalc         (index           )
+                    else
+                        call PotentialRatesCalc_New     (index           )
+                    endif
+                    
                     call SelectSituation                (index           )   !!!Lúcia
 
-!                    write(*,*) 'Situaçao', Me%select
-
                     call SedimentQualityCoefCalculation (index           )
-                
-                    call SystemResolution               (index           )
-                
-                    call CorrectOM                      (index           )
+                    
                     !The rates can just be calculated if the rate flux is associated
                     !In the case that this module is used by the lagrangian module
                     !the rate fluxes are not calculated
-                
-                    call ExternalOutput                 (                )           
+                    !Rates must be computed before call to WQSystemResolution to use 
+                    !old concentrations 
                     
-                    call LogSituation
-
                     if (associated(Me%FirstEquaRateFlux)) then
                         call SedimentQualityRatesCalculation   (index)
-                    endif
+                    endif                
+                    
+                    call SystemResolution               (index           )
+                
+                    call CorrectOM                      (index           )
+
+                   
+                    call LogSituation
+                    
+
                 endif  
               
-                conta                   = conta +1
+!                conta                   = conta +1
                 Me%Matrix    (:, :)     = 0.
                 Me%Imobilization        = OFF
                 Me%Imobilization_P      = OFF !!!Lúcia
@@ -2267,7 +2520,9 @@ do1 :       do index = ArrayLB, ArrayUB
 
         !Arguments-------------------------------------------------------------
         !Local-----------------------------------------------------------------
-
+        !Begin-----------------------------------------------------------------
+                
+       
         write (Me%Files%AsciiUnit, fmt=1000) Me%Select, Me%Aerobiose, Me%Anaerobiose
 
         1000 format(i3, f12.5, f12.5)
@@ -2291,7 +2546,7 @@ do1 :       do index = ArrayLB, ArrayUB
         real                                                :: PWFPC
 !        real                                                :: ParticleDensity
 !        real                                                :: SoilDensity
-        real                                                :: conversion
+        !real                                                :: conversion
       !------------------------------------------------------------------------
         
 !        ParticleDensity = Me%ExternalVar%ParticleDensity
@@ -2319,16 +2574,16 @@ do1 :       do index = ArrayLB, ArrayUB
 
         if (PWFPC<=20) then
 
-            Me%aerobiose = 0.75
+            Me%Aerobiose = 0.75
 
         else if (PWFPC>20 .AND. PWFPC<59) then
 
-            Me%aerobiose = -0.253+0.0203*PWFPC
+            Me%Aerobiose = -0.253+0.0203*PWFPC
 
 
         else
 
-            Me%aerobiose = 41.1*EXP(-0.0625*PWFPC)
+            Me%Aerobiose = 41.1*EXP(-0.0625*PWFPC)
 
 
         end If
@@ -2338,9 +2593,9 @@ do1 :       do index = ArrayLB, ArrayUB
 
 ! vou por aqui o NO3 limit, so para não fazer confusao
     
-        Conversion = Me%ExternalVar%DissolvedToParticulate (index)
-
-        Me%NO3limit = 0.00000000000000005*1000/conversion
+!        Conversion = Me%ExternalVar%DissolvedToParticulate (index)
+!
+!        Me%NO3limit = 0.00000000000000005*1000/conversion
        
 
 
@@ -2354,7 +2609,8 @@ do1 :       do index = ArrayLB, ArrayUB
     !----------------------------------------------------------------------------
 
 
-    !Computes oxygen concentration (mol/L) depending of the temperature and salinity 
+    !Reads or Computes oxygen concentration (mol/L) depending of the temperature and salinity 
+    !Metcalf and Eddy (1978).
     !----------------------------------------------------------------------------
     subroutine OxygenCalculation (index)
 
@@ -2370,14 +2626,19 @@ do1 :       do index = ArrayLB, ArrayUB
 
         !------------------------------------------------------------------------
        
- 
-        Temp                        = Me%ExternalVar%Temperature(index)
-        IOXI                        = Me%PropIndex%OXYGEN   
-        sal                         = Me%ExternalVar%Salinity(index)               
+       ! values in Mol/L
+       
+        !If forcing then read the passed values, else, compute from temperature and salinity
+        if (Me%OxygenForcing) then
+        
+            oxy = Me%ExternalVar%Oxygen(index)
+        else
+         
+            Temp                        = Me%ExternalVar%Temperature(index)
+            IOXI                        = Me%PropIndex%OXYGEN   
+            sal                         = Me%ExternalVar%Salinity(index)               
 
-!       Me%OxygenTab(1,1) = 0.5
-
-! values in Mol/L
+            ! values in Mol/L
 
             if (sal == 0) Then
 
@@ -2398,18 +2659,17 @@ do1 :       do index = ArrayLB, ArrayUB
                 oxy = -1E-09*temp**3 + 1E-07*temp**2 - 8E-06*temp + 0.0003
 
             end if
+        endif
+        
+        Me%Oxygen= oxy
+        Me%ExternalVar%Mass(Me%PropIndex%Oxygen,index) = oxy
 
-            Me%Oxygen= oxy
-
-
-!!! teste para RZWQM!!!
-!            Me%Oxygen = 2.679E-4
-    
+   
     end subroutine OxygenCalculation 
     !----------------------------------------------------------------------------
 
 
-    ! Calculation of the Hydrogen activity for specific rates calculations
+    ! Calculation of the Hydrogen activity (mol/L) for specific rates calculations
     !----------------------------------------------------------------------------
     subroutine HydrogenCalculation(index)
 
@@ -2540,7 +2800,7 @@ do1 :       do index = ArrayLB, ArrayUB
     ! Check If heterotrophs have to immobilize P
     !----------------------------------------------------------------------------
         
-        subroutine LogicalImobilization_P(index)
+    subroutine LogicalImobilization_P(index)
 
         !Arguments---------------------------------------------------------------
         integer                 , intent(IN)    :: index  
@@ -2605,14 +2865,13 @@ do1 :       do index = ArrayLB, ArrayUB
         
         !!! não sei se é importante ou não, mas vou por de novo a equaçao do partition      
 
-        Me%AnaerobicPartition = (Pot_ROM_C_Decay)/(Pot_LOM_C_Decay )
+!        Me%AnaerobicPartition = (Pot_ROM_C_Decay)/(Pot_LOM_C_Decay )
 
 
-        !------------------------------------------------------------------------
 
-        end subroutine LogicalImobilization_P
+    end subroutine LogicalImobilization_P
 
-        !------------------------------------------------------------------------
+    !------------------------------------------------------------------------
 
 
     ! Check if the Heterotrphs are limited by C or N
@@ -2686,11 +2945,11 @@ do1 :       do index = ArrayLB, ArrayUB
         Conversion      = Me%ExternalVar%DissolvedToParticulate (index) 
 
        
-        !Rate that the Heterotrophs can uptake mineral N in ug kg-1 soil   
+        !Rate that the Heterotrophs can uptake mineral N in mg kg-1 soil   
         ImobilizationS  = ( PotNIImobil + PotAMImobil ) * Conversion 
 
 
-        !Rate that the Heterotrophs need extra Nitrogen (not in the OM) assuming the potential rates ug kg-1 soil
+        !Rate that the Heterotrophs need extra Nitrogen (not in the OM) assuming the potential rates mg kg-1 soil
         CarbonS         = (Pot_LOM_C_Decay + Pot_ROM_C_Decay) / MCN -       & 
                            Pot_LOM_C_Decay / LCN - Pot_ROM_C_Decay / RCN    
 
@@ -2703,7 +2962,6 @@ do1 :       do index = ArrayLB, ArrayUB
         
         end if
            
-        !------------------------------------------------------------------------
 
     end subroutine LogicalLimitation
     !----------------------------------------------------------------------------
@@ -2858,21 +3116,25 @@ do1 :       do index = ArrayLB, ArrayUB
 
          !------------------------------------------------------------------------
 
-        call LogicalImobilization (index)
 
-        call LogicalImobilization_P (index)
+        if (Me%ComputeImobilization) then
+        
+            call LogicalImobilization (index)
 
-        if (Me%Imobilization) then 
-            
-            call LogicalLimitation (index)
-        end if
+            call LogicalImobilization_P (index)
 
-        if (Me%Imobilization_P) then
+            if (Me%Imobilization) then 
+                
+                call LogicalLimitation (index)
+            end if
 
-            call LogicalLimitation_P (index)
-        end if
+            if (Me%Imobilization_P) then
 
-
+                call LogicalLimitation_P (index)
+            end if
+        
+        endif
+        
         !!! começamos aqui a selecionar os casos
 
 
@@ -2931,7 +3193,7 @@ do1 :       do index = ArrayLB, ArrayUB
     !----------------------------------------------------------------------------
 
     
-    ! Calculates the Specific rates
+    ! Calculates the Specific rates - day-1
     !----------------------------------------------------------------------------
     subroutine PotentialRatesCalc (index )
 
@@ -2942,19 +3204,19 @@ do1 :       do index = ArrayLB, ArrayUB
         integer                             :: CLI
         integer                             :: CRI
         integer                             :: AMI,PFI,NI
-        real(8)                             :: Tterm
-        real                                :: Aerobiose
-        real                                :: Anaerobiose
-        real                                :: Oxygen
-        real                                :: Hydrogen
-        real                                :: Temp
-        real                                :: Ionic
+        real(8)                             :: Tterm            ![day-1.pop-1] Temperature Rate
+        real                                :: Aerobiose        ![0-1] Factor for considering aerobiose conditions
+        real                                :: Anaerobiose      ![0-1] Factor for considering anaerobiose conditions
+        real                                :: Oxygen           ![mol/L] Oxygen Concentration
+        real                                :: Hydrogen         ![mol/L] Hydrogen Concentration
+        real                                :: Temp             ![ºC] Temperature
+        real                                :: Ionic            ![mol/L] Inonic Strenght
         real                                :: PF
         real                                :: CSUBST
 
-        real                                :: Ammonia, nitrate,Limitstuff
-        real                                :: Khn
-        real                                :: Adj 
+        real                                :: Ammonia, Nitrate, Limit
+        real                                :: Khn              !Exponent for Hydrogen ion dependent on pH (to balance units?)
+        real                                :: Adj              !Coefficient dependent on pH (to balance units?)
 
         type(T_Coeficients)     , pointer   :: Rate
         type(T_Microorganisms)  , pointer   :: Micro
@@ -2968,25 +3230,28 @@ do1 :       do index = ArrayLB, ArrayUB
         
         Temp        = Me%ExternalVar%Temperature(index)
         Ionic       = Me%ExternalVar%Ionic(index)
-
+        Khn         = Me%Khn
+        Adj         = Me%Adj
+        Micro       => Me%Microorganisms        
+        
         CLI         = Me%PropIndex%Labil_OM_C
         CRI         = Me%PropIndex%RefractOM_C
         CSUBST      = Me%ExternalVar%Mass(CLI, index) +         &
                       Me%ExternalVar%Mass(CRI, index) 
+        
         PFI         = Me%PropIndex%Inorganic_P_fix
    
         PF          = Me%ExternalVar%Mass(PFI, index) 
+        
         AMI         = Me%PropIndex%Ammonia
-        NI          = Me%PropIndex%nitrate
+        NI          = Me%PropIndex%Nitrate
         Ammonia     = Me%ExternalVar%Mass(AMI, index)
         Nitrate     = Me%ExternalVar%Mass(NI, index) 
-        Khn         = Me%Khn
-        Adj         = Me%Adj
-        Rate        => Me%SpecificRates%Labil_OM_C
-        Micro       => Me%Microorganisms
+        
 
-        ! Limit for specific rate : ammonia and Csubs
-        Limitstuff = 0 !1400000.000000                      
+
+        ! Limit for specific rate : ammonia, nitrate and Csubs 
+        Limit = 1. !1400000.000000                      
 
 
         call CalcPopulation (index)
@@ -2994,53 +3259,102 @@ do1 :       do index = ArrayLB, ArrayUB
         if (Me%PropCalc%Carbon) then
              
         !Calculates the OM C specific decay Rate                 
-
+            
+            Rate        => Me%SpecificRates%Labil_OM_C
+           
+            ![day-1.pop-1] where [pop] = [#org . kgsoil-1]
             Tterm       =   CalcTterm (Rate, Temp,Ionic)                                                 
+            
+            !units are only consistent if Khn and Adj balance O2 and H units terms
+            ![day-1] = [-] * [day-1.pop-1] * [molO2/L] / [molH/L]^[-] * [pop] * [-]
             Rate%Value  =   Aerobiose * Tterm * Oxygen / Hydrogen**Khn       & 
-                            * Micro%Heterotrophs%Population*Adj
+                            * Micro%Heterotrophs%Population * Adj
             
         !Calculates the Refractary OM C specific decay Rate
             Rate        =>  Me%SpecificRates%RefractOM_C
             Tterm       =   CalcTterm (Rate, Temp,Ionic)                   
             Rate%Value  =   Aerobiose * Tterm * Oxygen / Hydrogen**Khn       &
-                            * Micro%Heterotrophs%Population*Adj
+                            * Micro%Heterotrophs%Population * Adj
         
         !Calculates the Heterotrophs C specific decay (death) Rate
-            Rate        =>  Me%SpecificRates%Heterotrophs
-            Tterm       =   CalcTtermDeath (Rate, Temp,Ionic)
-            Rate%Value  =   1./ Aerobiose * Tterm * Hydrogen**Khn /                   & 
-                            ( Oxygen * Max(CSUBST,Limitstuff))*Micro%Heterotrophs%Population/Adj 
+        !ATTENTION! the added of CSUBST changes rate units!!
+            if (.not. Me%ChangeRates) then
+                Rate        =>  Me%SpecificRates%Heterotrophs
+                Tterm       =   CalcTtermDeath (Rate, Temp,Ionic)
+                Rate%Value  =   1./ Aerobiose * Tterm * Hydrogen**Khn /                   & 
+                                ( Oxygen * Max(CSUBST,Limit)) * Micro%Heterotrophs%Population / Adj 
+            else
+                !in order to maintain units consistency CSUBST was removed
+                Rate        =>  Me%SpecificRates%Heterotrophs
+                Tterm       =   CalcTtermDeath (Rate, Temp,Ionic)
+                Rate%Value  =   1./ Aerobiose * Tterm * Hydrogen**Khn /                   & 
+                                 Oxygen * Micro%Heterotrophs%Population / Adj 
+            endif
                         
         !Calculates the Autotrophs C specific decay (death) Rate
-            Rate        =>  Me%SpecificRates%Autotrophs
-            Tterm       =   CalcTtermDeath (Rate, Temp,Ionic)
-            Rate%Value  =   1./ Aerobiose * Tterm * Hydrogen**Khn /                   & 
-                            ( Oxygen *Max(Ammonia,Limitstuff))*Micro%Autotrophs%Population/Adj 
-                        
+        !ATTENTION! the added of Ammonia changes rate units!!
+            if (.not. Me%ChangeRates) then
+                Rate        =>  Me%SpecificRates%Autotrophs
+                Tterm       =   CalcTtermDeath (Rate, Temp,Ionic)
+                Rate%Value  =   1./ Aerobiose * Tterm * Hydrogen**Khn /                   & 
+                                ( Oxygen * Max(Ammonia,Limit)) * Micro%Autotrophs%Population / Adj 
+            else
+                !in order to maintain units consistency Ammonia was removed    
+                Rate        =>  Me%SpecificRates%Autotrophs
+                Tterm       =   CalcTtermDeath (Rate, Temp,Ionic)
+                Rate%Value  =   1./ Aerobiose * Tterm * Hydrogen**Khn /                   & 
+                                Oxygen * Micro%Autotrophs%Population / Adj 
+            endif        
+        
         !Calculates the Anaerobic C specific decay (death) Rate
-            Rate        =>  Me%SpecificRates%Anaerobic
-            Tterm       =   CalcTtermDeath (Rate, Temp,Ionic)
-            Rate%Value  =   (1./ Anaerobiose * Tterm * Hydrogen**Khn /                 & 
-                            ( Max(Nitrate,Limitstuff)* Max(CSUBST,LimitStuff) ))*Micro%anaerobic%Population/Adj   
-                            
+        !ATTENTION! the added of CSUBST and nitrate changes rate units!!
+            if (.not. Me%ChangeRates) then
+                Rate        =>  Me%SpecificRates%Anaerobic
+                Tterm       =   CalcTtermDeath (Rate, Temp,Ionic)
+                Rate%Value  =   (1./ Anaerobiose * Tterm * Hydrogen**Khn /                 & 
+                                ( Max(Nitrate,Limit)* Max(CSUBST,Limit) )) * Micro%anaerobic%Population / Adj  
+            else
+                !in order to maintain units consistency CSUBST and nitrate was removed
+                !ATTENTION! without oxygen the units also are unbalanced so it was also removed hidrogen and Adj
+                Rate        =>  Me%SpecificRates%Anaerobic
+                Tterm       =   CalcTtermDeath (Rate, Temp,Ionic)
+                Rate%Value  =   (1./ Anaerobiose * Tterm )                 & 
+                                 * Micro%Anaerobic%Population   
+            endif
+            
         !Calculates the production of methane rate
-            Rate        =>  Me%SpecificRates%MethaneProduction
-            Tterm       =   CalcTterm (Rate, Temp,Ionic)
-            Rate%Value  =   (Anaerobiose * Tterm *Micro%Anaerobic%Population   &
-                            /Hydrogen**Khn)*Adj
-                                         
-                            
+            !ATTENTION! without oxygen the units also are unbalanced 
+            if (.not. Me%ChangeRates) then
+                Rate        =>  Me%SpecificRates%MethaneProduction
+                Tterm       =   CalcTterm (Rate, Temp,Ionic)
+                Rate%Value  =   (Anaerobiose * Tterm * Micro%Anaerobic%Population   &
+                                /Hydrogen**Khn) * Adj
+            else
+                !in order to maintain units consistency Hidrogen and Adj were removed
+                Rate        =>  Me%SpecificRates%MethaneProduction
+                Tterm       =   CalcTterm (Rate, Temp,Ionic)
+                Rate%Value  =   Anaerobiose * Tterm * Micro%Anaerobic%Population 
+                                                                        
+            endif
+              
         end if      
                                                 
         
         if (Me%PropCalc%Sol_Bacteria) then
 
         !Calculates the Solubilizing bacteria C specific decay (death) Rate
-
-            Rate        =>  Me%SpecificRates%Sol
-            Tterm       =   CalcTtermDeath (Rate, Temp,Ionic)
-            Rate%Value  =   1./ Aerobiose * Tterm * Hydrogen /                   & 
-                            ( Oxygen * (0.5+PF) ) /Adj 
+         !ATTENTION! the added of PF and lack of khn and sols population changes rate units!!
+            if (.not. Me%ChangeRates) then
+                Rate        =>  Me%SpecificRates%Sol
+                Tterm       =   CalcTtermDeath (Rate, Temp,Ionic)
+                Rate%Value  =   1./ Aerobiose * Tterm * Hydrogen /                   & 
+                                ( Oxygen * (0.5+PF) ) /Adj 
+            else
+                Rate        =>  Me%SpecificRates%Sol
+                Tterm       =   CalcTtermDeath (Rate, Temp,Ionic)
+                Rate%Value  =   1./ Aerobiose * Tterm * Hydrogen**Khn /                   & 
+                                ( Oxygen * Micro%Sols%Population ) /Adj 
+            endif
     
         end if
 
@@ -3050,28 +3364,38 @@ do1 :       do index = ArrayLB, ArrayUB
         !Calculates the AmmoniaToNitrate (nitrification) specific Rate  
             Rate        =>  Me%SpecificRates%AmmoniaToNitrate                   
             Tterm       =   CalcTterm (Rate, Temp,Ionic)
-            Rate%Value  =   Aerobiose * Tterm * Oxygen ** 0.5 / Hydrogen**Khn        &
-                            * Micro%Autotrophs%Population*Adj
+            Rate%Value  =   Aerobiose * Tterm * Oxygen**0.5 / Hydrogen**Khn        &
+                            * Micro%Autotrophs%Population * Adj
                                                 
         !Calculates the AmmoniaImobilization specific Rate
             Rate        =>  Me%SpecificRates%AmmoniaImobilization 
             Rate%Value  =   0.45
                                                         
         !Calculates the NitrateToNgas specific Rate
-            Rate        =>  Me%SpecificRates%NitrateToNgas       
-            Tterm       =   CalcTterm (Rate, Temp,Ionic)
-            Rate%Value  =   Anaerobiose * Tterm * CSUBST / Hydrogen **Khn             &
-                            * Micro%Anaerobic%Population*Adj
-
+            !ATTENTION! the added of CSUBST changes rate units!!
+            if (.not. Me%ChangeRates) then
+                Rate        =>  Me%SpecificRates%NitrateToNgas       
+                Tterm       =   CalcTterm (Rate, Temp,Ionic)
+                Rate%Value  =   Anaerobiose * Tterm * CSUBST / Hydrogen **Khn             &
+                                * Micro%Anaerobic%Population * Adj
+           else 
+                !in order to maintain units consistency CSUBST and nitrate was removed
+                !ATTENTION! without oxygen the units also are unbalanced so it was also removed hidrogen and Adj
+                Rate        =>  Me%SpecificRates%NitrateToNgas       
+                Tterm       =   CalcTterm (Rate, Temp,Ionic)
+                Rate%Value  =   Anaerobiose * Tterm * Micro%Anaerobic%Population
+            endif
+            
         !Calculates the NitrateImobilization specific Rate
             Rate        =>  Me%SpecificRates%NitrateImobilization 
             Rate%Value  =   0.45
 
         !Calculates the Urea hydrolysis rate
+            !ATTENTION! day-1.pop-1. rate? Need population however this is done by an enzyme not 
+            !a microorganism simulated?
             Rate        =>  Me%SpecificRates%UreaHydrolysis 
             Tterm       =   CalcTterm (Rate, Temp,Ionic)
             Rate%Value  =   Aerobiose * Tterm
-
 
                                                         
         end if  
@@ -3084,15 +3408,14 @@ do1 :       do index = ArrayLB, ArrayUB
             Rate        =>  Me%SpecificRates%PhosphorusImobilization    !!!Lúcia
             Tterm       =   CalcTterm (Rate, Temp,Ionic)
             Rate%Value  =   Aerobiose * Tterm * Oxygen / Hydrogen ** Khn               &
-                            * Micro%Heterotrophs%Population*Adj
+                            * Micro%Heterotrophs%Population * Adj
 
             if (Me%PropCalc%Sol_Bacteria) then
                     
-                Rate        =>  Me%SpecificRates%solubilizing                  
+                Rate        =>  Me%SpecificRates%Solubilizing                  
                 Tterm       =   CalcTterm (Rate, Temp,Ionic)
-                Rate%Value  =   Aerobiose * Tterm * Oxygen ** 0.5 / Hydrogen**Khn         &
-                                * Micro%Sols%Population*Adj
-
+                Rate%Value  =   Aerobiose * Tterm * Oxygen**0.5 / Hydrogen**Khn         &
+                                * Micro%Sols%Population * Adj
 
              end if
 
@@ -3105,7 +3428,244 @@ do1 :       do index = ArrayLB, ArrayUB
     !----------------------------------------------------------------------------
 
 
-    ! Calculates the temperature term of the Specific rates
+    ! Calculates the Specific rates - day-1
+    !----------------------------------------------------------------------------
+    subroutine PotentialRatesCalc_New (index )
+
+        !Arguments---------------------------------------------------------------
+        integer, intent(IN)                 :: index
+
+        !Local-------------------------------------------------------------------
+        integer                             :: CLI
+        integer                             :: CRI
+        integer                             :: AMI,PFI,NI
+        real(8)                             :: MaximumRate      ![day-1] with Tterm [day-1.pop-1] Temperature Rate
+        real                                :: AerobioseTerm    ![0-1] Factor for considering aerobiose conditions
+        real                                :: AnaerobioseTerm  ![0-1] Factor for considering anaerobiose conditions
+        real                                :: Oxygen           ![mol/L] Oxygen Concentration
+        real                                :: Hydrogen         ![mol/L] Hydrogen Concentration
+        real                                :: Temp             ![ºC] Temperature
+        real                                :: Ionic            ![mol/L] Inonic Strenght
+        real                                :: PF
+        real                                :: CSUBST
+        real                                :: Tterm, OxygenTerm, pHterm ![-]
+
+        real                                :: Ammonia, Nitrate, pH
+        real                                :: SubstrateTerm, SubstrateTerm1, SubstrateTerm2
+
+        type(T_Coeficients)     , pointer   :: Rate
+        type(T_Microorganisms)  , pointer   :: Micro
+        !------------------------------------------------------------------------
+        
+        AerobioseTerm   = Me%Aerobiose
+        AnaerobioseTerm = Me%Anaerobiose
+
+        Oxygen      = Me%Oxygen 
+        Hydrogen    = Me%Hydrogen
+        pH          = Me%ExternalVar%pH(index)
+        
+        Temp        = Me%ExternalVar%Temperature(index)
+        Ionic       = Me%ExternalVar%Ionic(index)
+        Micro       => Me%Microorganisms        
+        
+        CLI         = Me%PropIndex%Labil_OM_C
+        CRI         = Me%PropIndex%RefractOM_C
+        CSUBST      = Me%ExternalVar%Mass(CLI, index) +         &
+                      Me%ExternalVar%Mass(CRI, index) 
+        
+        PFI         = Me%PropIndex%Inorganic_P_fix
+   
+        PF          = Me%ExternalVar%Mass(PFI, index) 
+        
+        AMI         = Me%PropIndex%Ammonia
+        NI          = Me%PropIndex%Nitrate
+        Ammonia     = Me%ExternalVar%Mass(AMI, index)
+        Nitrate     = Me%ExternalVar%Mass(NI, index) 
+        
+
+        call CalcPopulation (index)
+
+
+        if (Me%PropCalc%Carbon) then
+             
+        !Calculates the OM C specific decay Rate                 
+            
+            Rate        => Me%SpecificRates%Labil_OM_C
+           
+            !maximum rate [day-1] = [day-1.pop-1] . [pop],  where [pop] = [#org . kgsoil-1]
+            Tterm       =   CalcTterm (Rate, Temp,Ionic)
+            MaximumRate =   Tterm * Micro%Heterotrophs%Population 
+            
+            ![-] factors between 0 and 1 affecting maximum rate
+            OxygenTerm  =   CalcOxygenTerm (Rate, Oxygen)
+            pHTerm      =   CalcpHTerm (Rate, pH)
+            
+            ![day-1] = [day-1] * [-] * [-] * [-]
+            Rate%Value  =   MaximumRate * AerobioseTerm * OxygenTerm * pHTerm 
+            
+        !Calculates the Refractary OM C specific decay Rate
+            Rate        =>  Me%SpecificRates%RefractOM_C
+            Tterm       =   CalcTterm (Rate, Temp,Ionic)
+            MaximumRate =   Tterm * Micro%Heterotrophs%Population               
+            OxygenTerm  =   CalcOxygenTerm (Rate, Oxygen)
+            pHTerm      =   CalcpHTerm (Rate, pH)          
+            Rate%Value  =   MaximumRate * AerobioseTerm * OxygenTerm * pHTerm       
+        
+        !CSUBST
+        !Calculates the Heterotrophs C specific decay (death) Rate
+            Rate        =>  Me%SpecificRates%Heterotrophs
+            Tterm       =   CalcTtermDeath (Rate, Temp,Ionic)
+            MaximumRate =   Tterm * Micro%Heterotrophs%Population
+            OxygenTerm  =   CalcOxygenTerm (Rate, Oxygen)
+            pHTerm      =   CalcpHTerm (Rate, pH)
+            if (CSUBST .gt. 0.) then
+                SubstrateTerm = min(Rate%ConcMinCarbon/CSUBST, 1.) 
+            else !maximum death rate
+                SubstrateTerm = 1.
+            endif
+            Rate%Value  =   MaximumRate * (1./ AerobioseTerm) * (1. - pHTerm) * (1. -  OxygenTerm) * SubstrateTerm
+        
+        !Ammonia                
+        !Calculates the Autotrophs C specific decay (death) Rate
+            Rate        =>  Me%SpecificRates%Autotrophs
+            Tterm       =   CalcTtermDeath (Rate, Temp,Ionic)
+            MaximumRate =   Tterm * Micro%Autotrophs%Population
+            OxygenTerm  =   CalcOxygenTerm (Rate, Oxygen)
+            pHTerm      =   CalcpHTerm (Rate, pH)
+            if (Ammonia .gt. 0.) then
+                SubstrateTerm = min(Rate%ConcMinAmmonia/Ammonia, 1.)
+            else
+                SubstrateTerm = 1.
+            endif
+            Rate%Value  =   MaximumRate * (1./ AerobioseTerm) * (1. - pHTerm) * (1. -  OxygenTerm) * SubstrateTerm 
+                            
+        !Nitrate CSUBST
+        !Calculates the Anaerobic C specific decay (death) Rate
+            Rate        =>  Me%SpecificRates%Anaerobic
+            Tterm       =   CalcTtermDeath (Rate, Temp,Ionic)
+            MaximumRate =   Tterm * Micro%Anaerobic%Population
+            pHTerm      =   CalcpHTerm (Rate, pH)            
+            if (CSUBST .gt. 0.) then
+                SubstrateTerm1 = min(Rate%ConcMinCarbon/CSUBST, 1.)
+            else
+                SubstrateTerm1 = 1.
+            endif
+            if (Nitrate .gt. 0.) then
+                SubstrateTerm2 = min(Rate%ConcMinNitrate/Nitrate, 1.)
+            else
+                SubstrateTerm2 = 1.
+            endif
+            Rate%Value  =   MaximumRate * (1./ AnaerobioseTerm)  * (1. - pHTerm) * SubstrateTerm1 * SubstrateTerm2
+                            
+            
+        !Calculates the production of methane rate
+            Rate        =>  Me%SpecificRates%MethaneProduction
+            Tterm       =   CalcTterm (Rate, Temp,Ionic)
+            MaximumRate =   Tterm * Micro%Anaerobic%Population 
+            pHTerm      =   CalcpHTerm (Rate, pH)                  
+            Rate%Value  =   MaximumRate * AnaerobioseTerm  * pHTerm
+
+              
+        end if      
+                                                
+        
+        if (Me%PropCalc%Sol_Bacteria) then
+
+        !Calculates the Solubilizing bacteria C specific decay (death) Rate
+            Rate        =>  Me%SpecificRates%Sol
+            Tterm       =   CalcTtermDeath (Rate, Temp,Ionic)
+            MaximumRate =   Tterm * Micro%Sols%Population
+            OxygenTerm  =   CalcOxygenTerm (Rate, Oxygen)
+            pHTerm      =   CalcpHTerm (Rate, pH)
+            if (PF .gt. 0.) then
+                SubstrateTerm = min(Rate%ConcMinPF/PF, 1.)
+            else
+                SubstrateTerm = 1.
+            endif            
+            Rate%Value  =   MaximumRate * (1./ AerobioseTerm) * (1. - pHTerm) * (1. -  OxygenTerm) * SubstrateTerm    
+    
+        end if
+
+
+        if (Me%PropCalc%Nitrogen) then
+        
+        !Calculates the AmmoniaToNitrate (nitrification) specific Rate  
+            Rate        =>  Me%SpecificRates%AmmoniaToNitrate   
+            Tterm       =   CalcTterm (Rate, Temp,Ionic)                
+            MaximumRate =   Tterm * Micro%Autotrophs%Population 
+            OxygenTerm  =   CalcOxygenTerm (Rate, Oxygen)
+            pHTerm      =   CalcpHTerm (Rate, pH)                              
+            Rate%Value  =   MaximumRate * AerobioseTerm  * OxygenTerm * pHTerm  
+                            
+                                                
+        !Calculates the AmmoniaImobilization specific Rate
+            Rate        =>  Me%SpecificRates%AmmoniaImobilization 
+            Rate%Value  =   0.45
+        
+        !Substrate CSUBST                                                        
+        !Calculates the NitrateToNgas specific Rate
+            Rate        =>  Me%SpecificRates%NitrateToNgas      
+            pHTerm      =   CalcpHTerm (Rate, pH)            
+            Tterm       =   CalcTterm (Rate, Temp,Ionic)                               
+            MaximumRate =   Tterm * Micro%Anaerobic%Population
+            !with increasing substrate, substrate term is closer to 1.
+            if (CSUBST .gt. 0.) then
+                SubstrateTerm = min(CSUBST/Rate%ConcOptCarbon, 1.)
+            else
+                SubstrateTerm = 0.
+            endif            
+            Rate%Value  =   MaximumRate * AnaerobioseTerm * pHTerm * SubstrateTerm
+                            
+        !Calculates the NitrateImobilization specific Rate
+            Rate        =>  Me%SpecificRates%NitrateImobilization 
+            Rate%Value  =   0.45
+
+        !Calculates the Urea hydrolysis rate
+            !ATTENTION! day-1.pop-1. rate? Need population however this is done by an enzyme not 
+            !a microorganism simulated?
+            Rate        =>  Me%SpecificRates%UreaHydrolysis 
+            Tterm       =   CalcTterm (Rate, Temp,Ionic)
+            MaximumRate =   Tterm
+            Rate%Value  =   AerobioseTerm * MaximumRate
+
+                                                        
+        end if  
+
+
+        if (Me%PropCalc%Phosphorus) then                              
+
+        !Calculates the Phosphorus Immobilizationspecific Rate  
+                                                                        
+            Rate        =>  Me%SpecificRates%PhosphorusImobilization
+            Tterm       =   CalcTterm (Rate, Temp,Ionic)    
+            MaximumRate =   Tterm * Micro%Heterotrophs%Population
+            OxygenTerm  =   CalcOxygenTerm (Rate, Oxygen)
+            pHTerm      =   CalcpHTerm (Rate, pH)                                                       
+            Rate%Value  =   MaximumRate * AerobioseTerm * OxygenTerm * pHTerm
+                            
+
+            if (Me%PropCalc%Sol_Bacteria) then
+                    
+                Rate        =>  Me%SpecificRates%Solubilizing  
+                Tterm       =   CalcTterm (Rate, Temp,Ionic)                
+                MaximumRate =   Tterm * Micro%Sols%Population
+                OxygenTerm  =   CalcOxygenTerm (Rate, Oxygen)
+                pHTerm      =   CalcpHTerm (Rate, pH)                                                       
+                Rate%Value  =   MaximumRate * AerobioseTerm * OxygenTerm * pHTerm 
+                                
+
+             end if
+
+          end if  
+
+
+        !------------------------------------------------------------------------
+
+    end subroutine PotentialRatesCalc_New
+    !----------------------------------------------------------------------------
+
+
+    ! Calculates the temperature term of the Specific rates - [day-1 . pop-1] where [pop] = [#org . kgsoil-1]
     !----------------------------------------------------------------------------
     function   CalcTterm (Coeficient, Temperature,Ionic)
     real(8)     :: CalcTterm
@@ -3115,36 +3675,36 @@ do1 :       do index = ArrayLB, ArrayUB
         real                                                :: Temperature
         real                                                :: Ionic        
         !Local-------------------------------------------------------------------
-        real    :: optimumt
-        real    :: tcalc
-        real    :: AE
-        real    :: A
-        real    :: kp
-        real    :: I
-        real    :: Eactivation
+        real    :: OptimumTemp                               ! [ºC] Optimum Temperature 
+        real    :: tcalc                                     ! [ºK] Rate Temperature
+        real    :: AE                                        ! [kcal.mole-1] Initial Activation Energy -> constant
+        real    :: A                                         ! [s.day-1.pop-1] Rate Coefficient
+        real    :: kp                                        ! [L/mol] Salinity Coefficient
+        real    :: I                                         ! [mol/L] Ionic Strenght
+        real    :: Eactivation                               ! [kcal.mole-1] Activation Energy
         !------------------------------------------------------------------------
         
-            optimumt        = Coeficient%optimumTemperature  !rate optimum temperature
-            tcalc           = Temperature
-            if (tcalc > optimumt) tcalc = 2 * optimumt - tcalc
+            OptimumTemp     = Coeficient%OptimumTemperature  !rate optimum temperature
+            tcalc           = Temperature                    !first equal to soil temperature
+            if (tcalc > OptimumTemp) tcalc = 2 * OptimumTemp - tcalc !now updated
 
-            AE          = Coeficient%ActivationE        ! enegia activação inicial-> constante
-            kp          = Coeficient%kp
-            A           = Coeficient%Acoef
-            tcalc       = tcalc + 273.15
+            AE          = Coeficient%ActivationE        
+            kp          = Coeficient%kp                 
+            A           = Coeficient%Acoef              
+            tcalc       = tcalc + 273.15                
             I           = Ionic
 
-            Eactivation = AE+kp*I           ! calculo da verdadeira energia activção com base na força ionica
+            Eactivation = AE + kp * I           ! True activation energy based on Ionic strenght
  
-
-            CalcTterm = (1.38E-23 * tcalc / 6.63E-34) * A * &
-                        exp (- Eactivation / (1.99E-03 * tcalc) ) 
+            
+            CalcTterm = (Boltzman * tcalc / Planck) * A * &
+                        exp (- Eactivation / (UnivGC * tcalc) ) 
         !------------------------------------------------------------------------
 
     end function CalcTterm
     !----------------------------------------------------------------------------
 
-    ! Calculates the temperature term of the Specific rates
+    ! Calculates the temperature term of the Specific rates - [day-1 . pop-1] where [pop] = [#org . kgsoil-1]
     !----------------------------------------------------------------------------
     function   CalcTtermDeath (Coeficient, Temperature,Ionic)
     real(8)     :: CalcTtermDeath
@@ -3155,7 +3715,7 @@ do1 :       do index = ArrayLB, ArrayUB
         real                                                :: Ionic
         
         !Local-------------------------------------------------------------------
-        real    :: optimumt
+        real    :: OptimumTemp
         real    :: tcalc
         real    :: AE
         real    :: A
@@ -3164,9 +3724,9 @@ do1 :       do index = ArrayLB, ArrayUB
         real    :: Eactivation
         !------------------------------------------------------------------------
         
-            optimumt        = Coeficient%optimumTemperature  !rate optimum temperature
-            tcalc           = Temperature
-            if (tcalc > optimumt) tcalc = 2 * optimumt - tcalc
+            OptimumTemp        = Coeficient%OptimumTemperature 
+            tcalc              = Temperature
+            if (tcalc > OptimumTemp) tcalc = 2 * OptimumTemp - tcalc
 
             AE          = Coeficient%ActivationE
             kp          = Coeficient%kp
@@ -3174,17 +3734,63 @@ do1 :       do index = ArrayLB, ArrayUB
             tcalc       = tcalc + 273.15
             I           = Ionic
 
-            Eactivation = AE+kp*I
+            Eactivation = AE + kp * I
  
  
-            CalcTtermDeath = (1.383E-23 * tcalc / 6.63E-34) * A / &
-                        exp (- Eactivation / (1.99E-03 * tcalc) ) 
+            CalcTtermDeath = (Boltzman * tcalc / Planck) * A / &
+                        exp (- Eactivation / (UnivGC * tcalc) ) 
         !------------------------------------------------------------------------
 
     end function CalcTtermDeath
     !----------------------------------------------------------------------------
 
 
+    ! Calculates the oxygen term of the Specific rates - [-]
+    !if conc O2 lower than optimum than value lower than 1. if higher, value is 1
+    !----------------------------------------------------------------------------
+    function   CalcOxygenTerm (Coeficient, Oxygen)
+    real(8)     :: CalcOxygenTerm
+
+        !Arguments---------------------------------------------------------------
+        type(T_Coeficients) , pointer                       :: Coeficient
+        real                                                :: Oxygen, ConcOpt
+        !------------------------------------------------------------------------
+        
+        !mol/L = mg/L * 1E-3 g/mg / 32g/mol
+        ConcOpt = Coeficient%ConcOptO2 * 1E-3 / 32.
+        
+        CalcOxygenTerm = min (Oxygen / ConcOpt, 1.)
+        !------------------------------------------------------------------------
+
+    end function CalcOxygenTerm
+    !----------------------------------------------------------------------------
+
+    ! Calculates the pH term of the Specific rates - [-]
+    !if pH lower or higher than optimum than value lower than 1
+    !----------------------------------------------------------------------------
+    function   CalcpHTerm (Coeficient, pH)
+    real(8)     :: CalcpHTerm
+
+        !Arguments---------------------------------------------------------------
+        type(T_Coeficients) , pointer                       :: Coeficient
+        real                                                :: pH, optimumpH
+        !------------------------------------------------------------------------
+        real                                                :: pHread
+        
+        pHread = pH
+        OptimumpH = Coeficient%OptimumpH
+        
+        if (pHread > OptimumpH) pHread = 2*OptimumpH - pHread  !adaptation from temperature to make triangle with optimum
+        
+        !from here all the pH were transformed in pH lower than optimum (mirror around optimum)
+        !optimum gives 1 and lower give lower accordingly
+        CalcpHTerm = pHread / (2 * OptimumpH - pHread)
+       
+       
+        !------------------------------------------------------------------------
+
+    end function CalcpHTerm
+    !----------------------------------------------------------------------------
 
     ! Calculates the temperature term of the Specific rates
     !----------------------------------------------------------------------------
@@ -3218,7 +3824,7 @@ do1 :       do index = ArrayLB, ArrayUB
 
 
 
-    ! Calculates the microorganisms population
+    ! Calculates the microorganisms population - #org.kgsoil-1
     !----------------------------------------------------------------------------
     subroutine CalcPopulation (index)
 
@@ -3228,7 +3834,8 @@ do1 :       do index = ArrayLB, ArrayUB
         !Local-------------------------------------------------------------------
         real                           :: Carbon
         real                           :: CpopRatio
-        integer                        :: propindex 
+        integer                        :: propindex
+        integer                        :: poppropindex  
         
         type(T_Constants)  , pointer   :: Microorganisms 
         !------------------------------------------------------------------------
@@ -3240,6 +3847,12 @@ do1 :       do index = ArrayLB, ArrayUB
             CpopRatio   = Microorganisms%CPopRatio
 
             Microorganisms%Population = Carbon * CpopRatio
+            
+            !To go to external module
+            poppropindex                             = Me%PropIndex%HeterotrophicPop
+            Me%ExternalVar%Mass(poppropindex, index) = Microorganisms%Population
+            Me%IndTerm(poppropindex)                 = Me%ExternalVar%Mass(poppropindex, index)
+            Me%Matrix(poppropindex, poppropindex)    = 1.0
             
             if (Microorganisms%Population .LE.  Microorganisms%MinimumPop   ) then
                 Microorganisms%LogicalMinumumPOP = ON
@@ -3255,6 +3868,12 @@ do1 :       do index = ArrayLB, ArrayUB
             CpopRatio   = Microorganisms%CPopRatio
 
             Microorganisms%Population = Carbon * CpopRatio
+
+            !To go to external module
+            poppropindex                             = Me%PropIndex%AutotrophicPop
+            Me%ExternalVar%Mass(poppropindex, index) = Microorganisms%Population
+            Me%IndTerm(poppropindex)                 = Me%ExternalVar%Mass(poppropindex, index)
+            Me%Matrix(poppropindex, poppropindex)    = 1.0
             
             if (Microorganisms%Population .LE.  Microorganisms%MinimumPop   ) then
                 Microorganisms%LogicalMinumumPOP = ON 
@@ -3271,6 +3890,12 @@ do1 :       do index = ArrayLB, ArrayUB
 
             Microorganisms%Population = Carbon * CpopRatio
 
+            !To go to external module
+            poppropindex                             = Me%PropIndex%AnaerobicPop
+            Me%ExternalVar%Mass(poppropindex, index) = Microorganisms%Population
+            Me%IndTerm(poppropindex)                 = Me%ExternalVar%Mass(poppropindex, index)
+            Me%Matrix(poppropindex, poppropindex)    = 1.0
+            
             if (Microorganisms%Population .LE.  Microorganisms%MinimumPop   ) then
                 Microorganisms%LogicalMinumumPOP = ON
             else
@@ -3290,6 +3915,12 @@ do1 :       do index = ArrayLB, ArrayUB
 
                 Microorganisms%Population = Carbon * CpopRatio
 
+                !To go to external module
+                poppropindex                             = Me%PropIndex%SolPop
+                Me%ExternalVar%Mass(poppropindex, index) = Microorganisms%Population
+                Me%IndTerm(poppropindex)                 = Me%ExternalVar%Mass(poppropindex, index)
+                Me%Matrix(poppropindex, poppropindex)    = 1.0
+                
                 if (Microorganisms%Population .LE.  Microorganisms%MinimumPop   ) then
                     Microorganisms%LogicalMinumumPOP = ON
                 else
@@ -3340,11 +3971,11 @@ do2 :       do j = PropLB, PropUB
         integer, intent(IN)         :: index
         !----------------------------------------------------------------------
 
-                                      call Oxygen       (index)
-        if (Me%PropCalc%Carbon    )   call Carbon       (index)
-        if (Me%PropCalc%Nitrogen  )   call Nitrogen     (index)
-        if (Me%PropCalc%Phosphorus)   call Phosphorus   (index)         !!!Lúcia
-        if (Me%PropCalc%Sol_Bacteria) call Sol_Bacteria (index)         !!!Lúcia
+                                      call SQOxygen       (index)
+        if (Me%PropCalc%Carbon    )   call SQCarbon       (index)
+        if (Me%PropCalc%Nitrogen  )   call SQNitrogen     (index)
+        if (Me%PropCalc%Phosphorus)   call SQPhosphorus   (index)         !!!Lúcia
+        if (Me%PropCalc%Sol_Bacteria) call SQSol_Bacteria (index)         !!!Lúcia
         !----------------------------------------------------------------------
 
     end subroutine 
@@ -3405,7 +4036,7 @@ do4 :       do equa = PropLB, PropUB           !Percorre as equacoes
 
             !Resolution using an implicit method
             nullify   (x)
-
+            
             call LUD(Me%ObjLUD, Me%Matrix, Me%IndTerm, x, STAT = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                            &
                 stop 'Subroutine SystemResolution; module ModuleSedimentQuality. ERR03.'
@@ -3425,13 +4056,13 @@ cd32 :           if (Me%Matrix(equa, prop) .GT. 0.)  then
 
 cd33 :               if (equa .EQ. prop) then
                         Me%IndTerm(equa) = Me%IndTerm (equa)                        &
-                                         - ((Me%Matrix (equa, prop) - 1.0)          &
+                                         + ((Me%Matrix (equa, prop) - 1.0)          &
                                          * Me%ExternalVar%Mass(prop, index))
                                  
                         Me%Matrix(equa, prop) = 1.0
                     else cd33
                         Me%IndTerm(equa) = Me%IndTerm (equa)                        &
-                                         - Me%Matrix (equa, prop)                   &
+                                         + Me%Matrix (equa, prop)                   &
                                          * Me%ExternalVar%Mass(prop, index)
 
                         Me%Matrix(equa, prop) = 0.0
@@ -3500,8 +4131,9 @@ do1 :   do while(associated(EquaRateFluxX))
                     PropRateFluxX%Field(index)  = Me%Matrix(equa, prop)         & 
                                                 * Me%ExternalVar%Mass(prop,index)
                 else
-                
-                    PropRateFluxX%Field(index)  = -(1.-Me%Matrix(equa, prop))   & 
+                    !this can not be as in waterquality - to matrix has to be removed 1.
+                    !just as system resolution
+                    PropRateFluxX%Field(index)  = (Me%Matrix(equa, prop) - 1.)   & 
                                                 * Me%ExternalVar%Mass(prop,index)                       
                 endif
 
@@ -3528,12 +4160,12 @@ do1 :   do while(associated(EquaRateFluxX))
     end subroutine SedimentQualityRatesCalculation
     !----------------------------------------------------------------------------
 
-    !OXYGEN
-    !
+    !OXYGEN - for now it is constant and sources and sinks are not accounted
+    ! mol/L
     !SOURCES: - 
     !SINKS:   - 
     !----------------------------------------------------------------------------
-    subroutine Oxygen (index)
+    subroutine SQOxygen (index)
 
         !Arguments---------------------------------------------------------------
         integer, intent(IN)         :: index
@@ -3550,50 +4182,44 @@ do1 :   do while(associated(EquaRateFluxX))
 
         !Independent term
         Me%IndTerm(O) = Me%ExternalVar%Mass(O, index)
-        ! vou correr com 0xigénio constante
-        !------------------------------------------------------------------------
 
 
-
-    end subroutine Oxygen
+    end subroutine SQOxygen
     !----------------------------------------------------------------------------
     
 
     !----------------------------------------------------------------------------
-    subroutine Carbon(index)
+    subroutine SQCarbon(index)
 
         !Arguments---------------------------------------------------------------
         integer, intent(IN) :: index
         !------------------------------------------------------------------------
                                                         
-        call LabilOrganicCarbon     (index)
+        call SQLabilOrganicCarbon     (index)
 
-        call RefractOrganicCarbon   (index)
+        call SQRefractOrganicCarbon   (index)
 
-        call HeterotrophicC         (index)
+        call SQHeterotrophicC       (index)
 
-        call AutotrophicC           (index)
+        call SQAutotrophicC         (index)
 
-        call AnaerobicC             (index)
+        call SQAnaerobicC           (index)
         
-        call CO2                    (index)     
+        call SQCO2                  (index)     
 
-!       call Methane                (index)       
+!       call SQMethane              (index)       
     !------------------------------------------------------------------------
 
-    end subroutine Carbon
+    end subroutine SQCarbon
     !---------------------------------------------------------------------------
 
 
-
-
-    !Alterações---Lucia
     !Labil Organic Carbon
     !
     !SOURCES: - Microorganisms death 
     !SINKS:   - Heterotrophs Aerobic and Anaerobic uptake
     !----------------------------------------------------------------------------    
-    subroutine LabilOrganicCarbon (index)
+    subroutine SQLabilOrganicCarbon (index)
 
         !Arguments---------------------------------------------------------------
         integer, intent(IN)         :: index
@@ -3763,26 +4389,46 @@ do1 :   do while(associated(EquaRateFluxX))
                 
         
         !Sinks    : Anaerobic uptake, vai depender se respiram NO3 ou CO2 
+        if (Me%ComputeImobilization) then
 
-        if (NO3>NO3limit) then    ! respiram NO3
+            if (NO3>NO3limit) then    ! respiram NO3
 
+                Me%Matrix(LOM_CI, NII)     = Me%Matrix(LOM_CI, NII) - DTDay          & 
+                                         * DenitrificationRate * Conversion        &
+                                         * ( 0.1/( AnaPartition +1.) )
+      
+            else                   ! respiram CO2
+                 
+                Me%Matrix(LOM_CI, LOM_CI)     = Me%Matrix(LOM_CI, LOM_CI) - DTDay    & 
+                                         *  methaneproduction         &
+                                         * ( 0.1/( AnaPartition +1.) )
 
-            Me%Matrix(LOM_CI, NII)     = Me%Matrix(LOM_CI, NII) - DTDay          & 
-                                     * DenitrificationRate * Conversion        &
-                                     * ( 0.1/( AnaPartition +1.) )
-  
-        else                   ! respiram CO2
-             
-            Me%Matrix(LOM_CI, LOM_CI)     = Me%Matrix(LOM_CI, LOM_CI) - DTDay    & 
-                                     *  methaneproduction         &
-                                     * ( 0.1/( AnaPartition +1.) )
+                Me%Matrix(LOM_CI, ROM_CI)     = Me%Matrix(LOM_CI, ROM_CI) - DTDay    & 
+                                         *  methaneproduction                     &
+                                         * ( 0.1/( AnaPartition +1.) )
+                 
+            end if              
+        else
+            
+            if (NO3>NO3limit) then    ! respiram NO3
 
-            Me%Matrix(LOM_CI, ROM_CI)     = Me%Matrix(LOM_CI, ROM_CI) - DTDay    & 
-                                     *  methaneproduction                     &
-                                     * ( 0.1/( AnaPartition +1.) )
-             
-        end if              
-  
+                Me%Matrix(LOM_CI, NII)     = Me%Matrix(LOM_CI, NII) - DTDay          & 
+                                         * DenitrificationRate * Conversion        &
+                                         * ( 0.1 )
+      
+            else                   ! respiram CO2
+                 
+                Me%Matrix(LOM_CI, LOM_CI)     = Me%Matrix(LOM_CI, LOM_CI) - DTDay    & 
+                                         *  methaneproduction         &
+                                         * ( 0.1 )
+
+                Me%Matrix(LOM_CI, ROM_CI)     = Me%Matrix(LOM_CI, ROM_CI) - DTDay    & 
+                                         *  methaneproduction                     &
+                                         * ( 0.1 )
+                 
+            end if                      
+        
+        endif
         
         !Sources  : Anaerobic death
 
@@ -3814,20 +4460,15 @@ do1 :   do while(associated(EquaRateFluxX))
         Me%IndTerm(LOM_CI) = Me%ExternalVar%Mass(LOM_CI, index)                                    
     !------------------------------------------------------------------------
 
-    end subroutine LabilOrganicCarbon 
+    end subroutine SQLabilOrganicCarbon 
     !----------------------------------------------------------------------------
 
-
-
-
-
-    !Alterações---Lucia
     !Refractary Organic Carbon
     !
     !SOURCES: - Nitrification eficiency 
     !SINKS:   - Death
     !----------------------------------------------------------------------------    
-    subroutine RefractOrganicCarbon (index)
+    subroutine SQRefractOrganicCarbon (index)
 
         !Arguments---------------------------------------------------------------
         integer, intent(IN)         :: index
@@ -3986,26 +4627,47 @@ do1 :   do while(associated(EquaRateFluxX))
 
 
         !Sinks    : Anaerobic uptake, vai depender se respiram NO3 ou CO2 
+        if (Me%ComputeImobilization) then
+            if (NO3>NO3limit) then    ! respiram NO3
 
-        if (NO3>NO3limit) then    ! respiram NO3
+
+                Me%Matrix(ROM_CI, NII) = Me%Matrix(ROM_CI, NII) - DTDay                     &
+                                   * DenitrificationRate * Conversion                   &
+                                   * (0.1/( (1./AnaPartition) +1.) )     
+
+            else                   ! respiram CO2
+
+                Me%Matrix(ROM_CI, LOM_CI)     = Me%Matrix(ROM_CI, LOM_CI) - DTDay    & 
+                                         *  methaneproduction                       &
+                                         * ( 0.1/( (1/AnaPartition) +1.) )
+
+                Me%Matrix(ROM_CI, ROM_CI)     = Me%Matrix(ROM_CI, ROM_CI) - DTDay    & 
+                                         *  methaneproduction                        &
+                                         * ( 0.1/( (1/AnaPartition) +1.) )
+                 
+            end if              
+        else
+        
+            if (NO3>NO3limit) then    ! respiram NO3
 
 
-            Me%Matrix(ROM_CI, NII) = Me%Matrix(ROM_CI, NII) - DTDay                     &
-                               * DenitrificationRate * Conversion                   &
-                               * (0.1/( (1./AnaPartition) +1.) )     
+                Me%Matrix(ROM_CI, NII) = Me%Matrix(ROM_CI, NII) - DTDay                     &
+                                   * DenitrificationRate * Conversion                   &
+                                   * (0.1 )     
 
-        else                   ! respiram CO2
+            else                   ! respiram CO2
 
-            Me%Matrix(ROM_CI, LOM_CI)     = Me%Matrix(ROM_CI, LOM_CI) - DTDay    & 
-                                     *  methaneproduction                       &
-                                     * ( 0.1/( (1/AnaPartition) +1.) )
+                Me%Matrix(ROM_CI, LOM_CI)     = Me%Matrix(ROM_CI, LOM_CI) - DTDay    & 
+                                         *  methaneproduction                       &
+                                         * ( 0.1 )
 
-            Me%Matrix(ROM_CI, ROM_CI)     = Me%Matrix(ROM_CI, ROM_CI) - DTDay    & 
-                                     *  methaneproduction                        &
-                                     * ( 0.1/( (1/AnaPartition) +1.) )
-             
-        end if              
-
+                Me%Matrix(ROM_CI, ROM_CI)     = Me%Matrix(ROM_CI, ROM_CI) - DTDay    & 
+                                         *  methaneproduction                        &
+                                         * ( 0.1 )
+                 
+            end if                      
+        
+        endif
 
                                              
         !Independent term
@@ -4022,20 +4684,16 @@ do1 :   do while(associated(EquaRateFluxX))
     !----------------------------------------------------------------------------
 
 
-    end subroutine RefractOrganicCarbon 
+    end subroutine SQRefractOrganicCarbon 
     !----------------------------------------------------------------------------
 
 
-
-
-
-    !Alterações Lúcia
     !Heterotrophic Carbon
     !
-    !SOURCES: - Nitrification eficiency 
-    !SINKS:   - Death
+    !SOURCES: - Aerobic labile and refractory decay,  
+    !SINKS:   - Death, Respiration
     !----------------------------------------------------------------------------    
-    subroutine HeterotrophicC (index)
+    subroutine SQHeterotrophicC (index)
 
         !Arguments---------------------------------------------------------------
         integer, intent(IN)         :: index
@@ -4325,10 +4983,8 @@ do1 :   do while(associated(EquaRateFluxX))
         Me%IndTerm(HetCI)       = Me%ExternalVar%Mass(HetCI, index) 
     !------------------------------------------------------------------------
 
-    end subroutine HeterotrophicC 
+    end subroutine SQHeterotrophicC 
     !----------------------------------------------------------------------------
-
-
 
 
     !Autotrophic Carbon
@@ -4336,7 +4992,7 @@ do1 :   do while(associated(EquaRateFluxX))
     !SOURCES: - Nitrification eficiency 
     !SINKS:   - Death
     !----------------------------------------------------------------------------    
-    subroutine AutotrophicC (index)
+    subroutine SQAutotrophicC (index)
 
         !Arguments---------------------------------------------------------------
         integer, intent(IN)         :: index
@@ -4379,18 +5035,16 @@ do1 :   do while(associated(EquaRateFluxX))
         Me%IndTerm(AutoCI)     = Me%ExternalVar%Mass(AutoCI, index) 
     !------------------------------------------------------------------------
 
-    end subroutine AutotrophicC 
+    end subroutine SQAutotrophicC 
     !----------------------------------------------------------------------------
-
-
 
 
     !Anaerobic Carbon
     !
-    !SOURCES: - Nitrification eficiency 
+    !SOURCES: - Mineralization, CO2 assimilation
     !SINKS:   - Death, respiration
     !----------------------------------------------------------------------------    
-    subroutine AnaerobicC (index)
+    subroutine SQAnaerobicC (index)
 
         !Arguments---------------------------------------------------------------
         integer, intent(IN)         :: index
@@ -4498,7 +5152,7 @@ do1 :   do while(associated(EquaRateFluxX))
 
     !------------------------------------------------------------------------
 
-    end subroutine AnaerobicC 
+    end subroutine SQAnaerobicC 
     !----------------------------------------------------------------------------
 
     !CO2
@@ -4506,7 +5160,7 @@ do1 :   do while(associated(EquaRateFluxX))
     !SOURCES: - Aerobic and anaerobic Excretation
     !
     !----------------------------------------------------------------------------    
-    subroutine CO2 (index)
+    subroutine SQCO2 (index)
 
         !Arguments---------------------------------------------------------------
         integer, intent(IN)         :: index
@@ -4588,10 +5242,10 @@ do1 :   do while(associated(EquaRateFluxX))
         if (seletion==5.OR.seletion==6 .OR. seletion==8 .OR. seletion==9 )  then 
         
         
-            Me%Matrix(ICO2, LOM_CI)  = Me%Matrix(ICO2, LOM_CI) +DTDay *              &
+            Me%Matrix(ICO2, LOM_CI)  = Me%Matrix(ICO2, LOM_CI) + DTDay *            &
                                          LOM_C_Srate*(HetEF)
 
-            Me%Matrix(ICO2, ROM_CI)  = Me%Matrix(ICO2, ROM_CI) +DTDay *              &
+            Me%Matrix(ICO2, ROM_CI)  = Me%Matrix(ICO2, ROM_CI) + DTDay *            &
                                          ROM_C_Srate*(HetEF)
                
                   
@@ -4737,12 +5391,11 @@ do1 :   do while(associated(EquaRateFluxX))
         Me%IndTerm(ICO2)     = Me%ExternalVar%Mass(ICO2, index) 
 
 
-     end subroutine CO2
+    end subroutine SQCO2
     !----------------------------------------------------------------------------
 
-    !----------------------------------------------------------------------------
 
-    subroutine Methane(index)
+    subroutine SQMethane(index)
 
         !Arguments---------------------------------------------------------------
         integer, intent(IN) :: index
@@ -4790,41 +5443,40 @@ do1 :   do while(associated(EquaRateFluxX))
         !Independent term
         Me%IndTerm(ICH4)        = Me%ExternalVar%Mass(ICH4, index) 
 
-    end subroutine methane
+    end subroutine SQMethane
 
     !----------------------------------------------------------------------------
  
  
-    subroutine Nitrogen(index)
+    subroutine SQNitrogen(index)
 
         !Arguments---------------------------------------------------------------
         integer, intent(IN) :: index
         !------------------------------------------------------------------------
 
-        call Ammonia                (index)
+        call SQAmmonia                (index)
 
-        call Nitrate                (index)
+        call SQNitrate                (index)
                                                         
-        call LabilOrganicNitrogen   (index)
+        call SQLabilOrganicNitrogen   (index)
 
-        call RefractOrganicNitrogen (index)
+        call SQRefractOrganicNitrogen (index)
 
-        call HeterotrophicN         (index)
+        call SQHeterotrophicN         (index)
 
-        call AutotrophicN           (index)
+        call SQAutotrophicN           (index)
 
-        call AnaerobicN             (index)
+        call SQAnaerobicN             (index)
         
-        call Ngas                   (index)
+        call SQNgas                   (index)
 
-        call Urea                   (index)
+        call SQUrea                   (index)
 
-!       call AmmoniaGas              (index)
+!       call SQAmmoniaGas              (index)
     !------------------------------------------------------------------------
 
-    end subroutine Nitrogen
+    end subroutine SQNitrogen
     !---------------------------------------------------------------------------
-
 
 
     !AMMONIA 
@@ -4832,7 +5484,7 @@ do1 :   do while(associated(EquaRateFluxX))
     !SOURCES    : Heterophs
     !SINKS      : Heterophs, NO3 (Autotrophs), N gas (Anaerobic), Plants (to_do)                        
     !----------------------------------------------------------------------------       
-    subroutine Ammonia(index)
+    subroutine SQAmmonia(index)
     
         !Arguments---------------------------------------------------------------
         integer, intent(IN)         :: index            
@@ -4847,7 +5499,7 @@ do1 :   do while(associated(EquaRateFluxX))
         real    :: ROM_C_Srate, RCN,RCP, CurrentRefractC
         
         real    :: solCN,SolCEf
-        real    :: HetCN, HetEF, AnaCN, AnaNEF, AnaCEf
+        real    :: HetCN, HetEF, AnaCN, AnaNEF, AnaCEf, AutoEf
         real    :: HetCP, AnaCP    !!!Lúcia
         
         real    :: NitrificationRate, DenitrificationRate
@@ -4879,6 +5531,7 @@ do1 :   do while(associated(EquaRateFluxX))
         SolCN                 = Me%Microorganisms%Sols%CNRatio
 
         AnaNEF                = Me%Microorganisms%Anaerobic%EficiencyN       
+        AutoEf               = Me%Microorganisms%Autotrophs%EficiencyN
         
         LOM_CI                = Me%PropIndex%Labil_OM_C
         LOM_C_Srate           = Me%SpecificRates%Labil_OM_C%Value
@@ -4932,8 +5585,9 @@ do1 :   do while(associated(EquaRateFluxX))
 
         ! Sink : Nitrification
 
-        Me%Matrix(AMI, AMI) = Me%Matrix(AMI, AMI) - DTDay * NitrificationRate 
-    
+        !Me%Matrix(AMI, AMI) = Me%Matrix(AMI, AMI) - DTDay * NitrificationRate 
+        !The above is not consistent with nitrate routine
+        Me%Matrix(AMI, AMI) = Me%Matrix(AMI, AMI) - DTDay * NitrificationRate* (1. - AutoEf)
     
        ! Sources : Anaerobic excretion
        ! Agora vamos ter dois casos: se existe nitrato para ser respirado ou se respiram CO2
@@ -5141,39 +5795,42 @@ do1 :   do while(associated(EquaRateFluxX))
 
         wind    =   Me%ExternalVar%Wind(index)
         if (wind .gt. 0.0) then
+            
             Temp    =   Me%ExternalVar%Temperature(index)
-            AMI     =   Me%Propindex%ammonia
-            AM      =   Me%ExternalVar%Mass(AMI,index)
-            H       =   Me%Hydrogen
-    
+            AMI     =   Me%Propindex%Ammonia
+            AM      =   Me%ExternalVar%Mass(AMI,index)        !User units here assumed mg/L
+            H       =   Me%Hydrogen                           !Mol/L
+            
+            !Convert assumed ammonia mg/L in mol/L
+            !Molecular weight NH4 - 18.0385 g/mol
+            ![mol/L] = [mg/L] * 1g/1000mg / [g/mol]
+            AM      = AM / (1000. * 18.0385)
+            
             TK      =  29447
             PANH3   =  2.45E-8
             EK      =  8.79E-12
             XK1     =  1000
             XK      =  -0.25
-            TF      = TK*EXP(-6/(1.99E-3*(temp+273.15)))
+            TF      = TK * EXP(-6/(1.99E-3 * (temp + 273.15)))
 
-            PNH3    = EK*AM*7.14286E-11/H       !!! nao esquecer as unidades de NH4
+            PNH3    = EK * AM * 7.14286E-11 / H       
         
-            XKG     = XK1*log(Wind)*exp(XK)
+            XKG     = XK1 * log(Wind) * exp(XK)
 
-            Kvol    = XKG*TF*(PNH3-PANH3)
+            Kvol    = XKG * TF * (PNH3 - PANH3)
 
 
 
-    !        Me%Matrix(AMI,AMI)= Me%Matrix(AMI,AMI)+ DTDay*Kvol
+    !        Me%Matrix(AMI,AMI)= Me%Matrix(AMI,AMI) + DTDay * Kvol
         
         endif
 
-                                    
 
         !Independent term
         Me%IndTerm(AMI) = Me%ExternalVar%Mass(AMI, index)
                           
 
-    !------------------------------------------------------------------------
-
-    end subroutine Ammonia
+    end subroutine SQAmmonia
     !----------------------------------------------------------------------------
 
 
@@ -5182,7 +5839,7 @@ do1 :   do while(associated(EquaRateFluxX))
     !SOURCES: - Nitrification 
     !SINKS:   - Immobilization, denitrification
     !----------------------------------------------------------------------------
-    subroutine Nitrate(index)
+    subroutine SQNitrate(index)
 
         !Arguments---------------------------------------------------------------
         integer                 , intent(IN) :: index
@@ -5198,7 +5855,7 @@ do1 :   do while(associated(EquaRateFluxX))
         real    :: ROM_C_Srate, RCN
         integer :: ROM_CI
 
-        real    :: HetCN, AutoEf
+        real    :: HetCN, AutoEf, AnaNEf
 
         real    :: Partition, Conversion, DTDay, seletion    !!!Lúcia
         real    :: NO3,NO3limit
@@ -5230,7 +5887,8 @@ do1 :   do while(associated(EquaRateFluxX))
         
         NO3                 = Me%ExternalVar%Mass(NII,index)
         NO3limit            = Me%NO3limit
-
+        
+        AnaNEf              = Me%Microorganisms%Anaerobic%EficiencyN
 
 
         Me%Matrix(NII, NII) = 1.
@@ -5243,9 +5901,12 @@ do1 :   do while(associated(EquaRateFluxX))
         
         if (NO3> NO3limit) then  
             !Sinks:Denitrification
-
-            Me%Matrix(NII, NII) = Me%Matrix(NII, NII) - DTDay * DenitrificationRate 
-        
+            
+            !This equation is inconsistent with the one in SQNGas
+            !Me%Matrix(NII, NII) = Me%Matrix(NII, NII) - DTDay * DenitrificationRate 
+            !so it was changed to match (Anaerobic organisms work)
+            Me%Matrix(NII, NII) = Me%Matrix(NII, NII) - DTDay * DenitrificationRate * (1. - AnaNEf)
+            
         end If
 
         !Sink:Immobilization NO3
@@ -5274,20 +5935,18 @@ do1 :   do while(associated(EquaRateFluxX))
         !Independent term
         Me%IndTerm(NII) = Me%ExternalVar%Mass(NII, index) 
 
-    !----------------------------------------------------------------------------
 
-    end subroutine Nitrate
+    end subroutine SQNitrate
     !----------------------------------------------------------------------------
 
   
   
-    !ALterações Lúcia  
     !Labil Organic Nitrogen 
     !
     !SOURCES: - Microorganisms death
     !SINKS:   - Heterotrphs uptake, including anaerobic uptake 
     !----------------------------------------------------------------------------
-    subroutine LabilOrganicNitrogen (index)
+    subroutine SQLabilOrganicNitrogen (index)
 
         !Arguments---------------------------------------------------------------
         integer                , intent(IN)         :: index
@@ -5447,26 +6106,47 @@ do1 :   do while(associated(EquaRateFluxX))
 
 
         !Sinks    : Anaerobic uptake, vai depender se respiram NO3 ou CO2 
+        if (Me%ComputeImobilization) then
 
-        if (NO3>NO3limit) then    ! respiram NO3
+            if (NO3>NO3limit) then    ! respiram NO3
 
 
-            Me%Matrix(LOM_NI, NII) = Me%Matrix(LOM_NI, NII) - DTDay                      & 
-                           * DenitrificationRate * Conversion * (1./ LCN )       &
-                           * ( 0.1/( AnaPartition +1.))  
-                           
-        else                   ! respiram CO2
-                           
-            Me%Matrix(LOM_NI, LOM_CI)     = Me%Matrix(LOM_NI, LOM_CI) - DTDay     & 
-                                 *  methaneproduction *(1/LCN)  &
-                                 * ( 0.1/( AnaPartition +1.) )
-
-            Me%Matrix(LOM_NI, ROM_CI)     = Me%Matrix(LOM_NI, ROM_CI) - DTDay     & 
-                                 *  methaneproduction *(1/LCN)   &
-                                 * ( 0.1/( AnaPartition +1.) )
-         
-        end if              
+                Me%Matrix(LOM_NI, NII) = Me%Matrix(LOM_NI, NII) - DTDay                      & 
+                               * DenitrificationRate * Conversion * (1./ LCN )       &
+                               * ( 0.1/( AnaPartition +1.))  
                                
+            else                   ! respiram CO2
+                               
+                Me%Matrix(LOM_NI, LOM_CI)     = Me%Matrix(LOM_NI, LOM_CI) - DTDay     & 
+                                     *  methaneproduction *(1/LCN)  &
+                                     * ( 0.1/( AnaPartition +1.) )
+
+                Me%Matrix(LOM_NI, ROM_CI)     = Me%Matrix(LOM_NI, ROM_CI) - DTDay     & 
+                                     *  methaneproduction *(1/LCN)   &
+                                     * ( 0.1/( AnaPartition +1.) )
+             
+            end if              
+        else
+        
+            if (NO3>NO3limit) then    ! respiram NO3
+
+
+                Me%Matrix(LOM_NI, NII) = Me%Matrix(LOM_NI, NII) - DTDay                      & 
+                               * DenitrificationRate * Conversion * (1./ LCN )       &
+                               * ( 0.1)  
+                               
+            else                   ! respiram CO2
+                               
+                Me%Matrix(LOM_NI, LOM_CI)     = Me%Matrix(LOM_NI, LOM_CI) - DTDay     & 
+                                     *  methaneproduction *(1/LCN)  &
+                                     * ( 0.1 )
+
+                Me%Matrix(LOM_NI, ROM_CI)     = Me%Matrix(LOM_NI, ROM_CI) - DTDay     & 
+                                     *  methaneproduction *(1/LCN)   &
+                                     * ( 0.1 )
+             
+            end if                      
+        endif                       
                                                                                                                       
         !Sources: Anaerobic death 
         if (.NOT. Me%Microorganisms%Anaerobic%LogicalMinumumPOP)                     &        
@@ -5497,20 +6177,17 @@ do1 :   do while(associated(EquaRateFluxX))
         Me%IndTerm(LOM_NI) = Me%ExternalVar%Mass(LOM_NI, index)  
         
                                
+    end subroutine SQLabilOrganicNitrogen 
     !----------------------------------------------------------------------------
 
-    end subroutine LabilOrganicNitrogen 
-    !----------------------------------------------------------------------------
 
 
-
-    !Alterações Lúcia
     !Refractary Organic Nitrogen
     !
     !SOURCES: - INTERPOOL TRANSFORMATION
     !SINKS:   - Heterotrphs uptake, including anaerobic uptake 
     !----------------------------------------------------------------------------
-    subroutine RefractOrganicNitrogen (index)
+    subroutine SQRefractOrganicNitrogen (index)
 
         !Arguments---------------------------------------------------------------
         integer                , intent(IN) :: index
@@ -5668,25 +6345,43 @@ do1 :   do while(associated(EquaRateFluxX))
 
 
         !Sinks    : Anaerobic uptake, vai depender se respiram NO3 ou CO2 
+        if (Me%ComputeImobilization) then
+            if (NO3>NO3limit) then    ! respiram NO3
 
-        if (NO3>NO3limit) then    ! respiram NO3
+                Me%Matrix(ROM_NI, NII) = Me%Matrix(ROM_NI, NII) - DTDay                       &
+                                   * DenitrificationRate * Conversion * (1./RCN)          &
+                                   * (0.1/( (1./AnaPartition) +1.) )
+                                   
+            else                   ! respiram CO2
 
-            Me%Matrix(ROM_NI, NII) = Me%Matrix(ROM_NI, NII) - DTDay                       &
-                               * DenitrificationRate * Conversion * (1./RCN)          &
-                               * (0.1/( (1./AnaPartition) +1.) )
-                               
-        else                   ! respiram CO2
+                Me%Matrix(ROM_NI, LOM_CI)     = Me%Matrix(ROM_NI, LOM_CI) - DTDay    & 
+                                         *  methaneproduction *(1./RCN)          &
+                                         * ( 0.1/( (1/AnaPartition) +1.) )
 
-            Me%Matrix(ROM_NI, LOM_CI)     = Me%Matrix(ROM_NI, LOM_CI) - DTDay    & 
-                                     *  methaneproduction *(1./RCN)          &
-                                     * ( 0.1/( (1/AnaPartition) +1.) )
+                Me%Matrix(ROM_NI, ROM_CI)     = Me%Matrix(ROM_NI, ROM_CI) - DTDay    & 
+                                         *  methaneproduction *(1./RCN)          &
+                                         * ( 0.1/( (1/AnaPartition) +1.) )
+                 
+            end if              
+        else
+            if (NO3>NO3limit) then    ! respiram NO3
 
-            Me%Matrix(ROM_NI, ROM_CI)     = Me%Matrix(ROM_NI, ROM_CI) - DTDay    & 
-                                     *  methaneproduction *(1./RCN)          &
-                                     * ( 0.1/( (1/AnaPartition) +1.) )
-             
-        end if              
+                Me%Matrix(ROM_NI, NII) = Me%Matrix(ROM_NI, NII) - DTDay                       &
+                                   * DenitrificationRate * Conversion * (1./RCN)          &
+                                   * (0.1 )
+                                   
+            else                   ! respiram CO2
 
+                Me%Matrix(ROM_NI, LOM_CI)     = Me%Matrix(ROM_NI, LOM_CI) - DTDay    & 
+                                         *  methaneproduction *(1./RCN)          &
+                                         * ( 0.1 )
+
+                Me%Matrix(ROM_NI, ROM_CI)     = Me%Matrix(ROM_NI, ROM_CI) - DTDay    & 
+                                         *  methaneproduction *(1./RCN)          &
+                                         * ( 0.1 )
+                 
+            end if                      
+        endif
                                     
         if (Me%PropCalc%Sol_Bacteria) then
     
@@ -5699,9 +6394,9 @@ do1 :   do while(associated(EquaRateFluxX))
                                                  
         !Independent term
         Me%IndTerm(ROM_NI)     = Me%ExternalVar%Mass(ROM_NI, index)                                     
-    !----------------------------------------------------------------------------
 
-    end subroutine RefractOrganicNitrogen 
+
+    end subroutine SQRefractOrganicNitrogen 
     !----------------------------------------------------------------------------
 
     
@@ -5710,7 +6405,7 @@ do1 :   do while(associated(EquaRateFluxX))
     !SOURCES: - Organic matter N decay
     !SINKS:   - Heterotrophic Death, excretion
     !----------------------------------------------------------------------------
-    subroutine HeterotrophicN (index)
+    subroutine SQHeterotrophicN (index)
 
         !Arguments---------------------------------------------------------------
         integer                 , intent(IN) :: index
@@ -6061,9 +6756,8 @@ do1 :   do while(associated(EquaRateFluxX))
         !Independent term
         Me%IndTerm(HetNI) = Me%ExternalVar%Mass(HetNI,index) 
            
-    !----------------------------------------------------------------------------
 
-    end subroutine HeterotrophicN 
+    end subroutine SQHeterotrophicN 
     !----------------------------------------------------------------------------
 
     
@@ -6072,7 +6766,7 @@ do1 :   do while(associated(EquaRateFluxX))
     !SOURCES: - Denitrification eficiency
     !SINKS:   - Death
     !----------------------------------------------------------------------------    
-    subroutine AnaerobicN (index)
+    subroutine SQAnaerobicN (index)
 
         !Arguments---------------------------------------------------------------
         integer                , intent(IN) :: index
@@ -6122,22 +6816,33 @@ do1 :   do while(associated(EquaRateFluxX))
         if ( .not. Me%Microorganisms%Anaerobic%LogicalMinumumPOP )                  &        
             Me%Matrix(AnaNI, AnaCI) = Me%Matrix(AnaNI, AnaCI) - DTDay               &
                                      * AnaDeathRate / AnaCN  
-
+        
 
         if (NO3>NO3limit) then
        
             !Sources: DeNitrification (direct assimilation)
             Me%Matrix(AnaNI, NII) = Me%Matrix(AnaNI, NII) + DTDay                       &
                                   * DenitrificationRate * Conversion * AnaNEf
-            !Sources: Labil N
-            Me%Matrix(AnaNI, NII) = Me%Matrix(AnaNI, NII) + DTDay                       &
-                                  * DenitrificationRate * Conversion *(1/LCN)           &
-                                  * (0.1 /( (AnaPartition + 1. ))) 
-            !Sources: Refract N
-            Me%Matrix(AnaNI, NII) = Me%Matrix(AnaNI, NII) + DTDay                       &
-                                  * DenitrificationRate * Conversion *(1/RCN)           &
-                                  * (0.1 /( (1./AnaPartition + 1. ) ))
-                                                           
+            if (Me%ComputeImobilization) then
+                !Sources: Labil N
+                Me%Matrix(AnaNI, NII) = Me%Matrix(AnaNI, NII) + DTDay                       &
+                                      * DenitrificationRate * Conversion *(1/LCN)           &
+                                      * (0.1 /( (AnaPartition + 1. ))) 
+                !Sources: Refract N
+                Me%Matrix(AnaNI, NII) = Me%Matrix(AnaNI, NII) + DTDay                       &
+                                      * DenitrificationRate * Conversion *(1/RCN)           &
+                                      * (0.1 /( (1./AnaPartition + 1. ) ))
+            else
+            
+                !Sources: Labil N
+                Me%Matrix(AnaNI, NII) = Me%Matrix(AnaNI, NII) + DTDay                       &
+                                      * DenitrificationRate * Conversion *(1/LCN)           &
+                                      * (0.1 ) 
+                !Sources: Refract N
+                Me%Matrix(AnaNI, NII) = Me%Matrix(AnaNI, NII) + DTDay                       &
+                                      * DenitrificationRate * Conversion *(1/RCN)           &
+                                      * (0.1 )            
+            endif                                                   
             !Sink: Excretion
             Me%Matrix(AnaNI, NII) = Me%Matrix(AnaNI, NII) - DTDay                       &
                                   * DenitrificationRate * Conversion                    &
@@ -6148,25 +6853,45 @@ do1 :   do while(associated(EquaRateFluxX))
             !Source :  degradação de matéria orgânica e respiração de CO2
         
                 !( vem da labile)    
-            Me%Matrix(AnaNI, LOM_CI)     = Me%Matrix(AnaNI, LOM_CI) + DTDay    & 
-                                     *  methaneproduction *(1/LCN)         &
-                                     * ( 0.1/( AnaPartition +1.) )
+            if (Me%ComputeImobilization) then                
+                Me%Matrix(AnaNI, LOM_CI)     = Me%Matrix(AnaNI, LOM_CI) + DTDay    & 
+                                         *  methaneproduction *(1/LCN)         &
+                                         * ( 0.1/( AnaPartition +1.) )
 
-            Me%Matrix(AnaNI, ROM_CI)     = Me%Matrix(AnaNI, ROM_CI) + DTDay    & 
-                                     *  methaneproduction *(1/LCN)         &
-                                     * ( 0.1/( AnaPartition +1.) )
+                Me%Matrix(AnaNI, ROM_CI)     = Me%Matrix(AnaNI, ROM_CI) + DTDay    & 
+                                         *  methaneproduction *(1/LCN)         &
+                                         * ( 0.1/( AnaPartition +1.) )
 
-                ! (vem da refractory)
+                    ! (vem da refractory)
 
-            Me%Matrix(AnaNI, LOM_CI)     = Me%Matrix(AnaNI, LOM_CI) + DTDay    & 
-                                     *  methaneproduction *(1/RCN)         &
-                                     * ( 0.1/( (1/AnaPartition) +1.) )
+                Me%Matrix(AnaNI, LOM_CI)     = Me%Matrix(AnaNI, LOM_CI) + DTDay    & 
+                                         *  methaneproduction *(1/RCN)         &
+                                         * ( 0.1/( (1/AnaPartition) +1.) )
 
-            Me%Matrix(AnaNI, ROM_CI)     = Me%Matrix(AnaNI, ROM_CI) + DTDay    & 
-                                     *  methaneproduction *(1/RCN)         &
-                                     * ( 0.1/( (1/AnaPartition) +1.) )
+                Me%Matrix(AnaNI, ROM_CI)     = Me%Matrix(AnaNI, ROM_CI) + DTDay    & 
+                                         *  methaneproduction *(1/RCN)         &
+                                         * ( 0.1/( (1/AnaPartition) +1.) )
+            else
 
+                Me%Matrix(AnaNI, LOM_CI)     = Me%Matrix(AnaNI, LOM_CI) + DTDay    & 
+                                         *  methaneproduction *(1/LCN)         &
+                                         * ( 0.1 )
 
+                Me%Matrix(AnaNI, ROM_CI)     = Me%Matrix(AnaNI, ROM_CI) + DTDay    & 
+                                         *  methaneproduction *(1/LCN)         &
+                                         * ( 0.1 )
+
+                    ! (vem da refractory)
+
+                Me%Matrix(AnaNI, LOM_CI)     = Me%Matrix(AnaNI, LOM_CI) + DTDay    & 
+                                         *  methaneproduction *(1/RCN)         &
+                                         * ( 0.1 )
+
+                Me%Matrix(AnaNI, ROM_CI)     = Me%Matrix(AnaNI, ROM_CI) + DTDay    & 
+                                         *  methaneproduction *(1/RCN)         &
+                                         * ( 0.1 )
+            
+            endif
             ! sink: excreção de NH4+
 
             Me%Matrix(AnaNI, LOM_CI)     = Me%Matrix(AnaNI, LOM_CI) - DTDay    & 
@@ -6184,11 +6909,10 @@ do1 :   do while(associated(EquaRateFluxX))
        
         !Independent term
         Me%IndTerm(AnaNI)    = Me%ExternalVar%Mass(AnaNI, index) 
-    !----------------------------------------------------------------------------
 
-    end subroutine AnaerobicN 
-    !----------------------------------------------------------------------------
 
+    end subroutine SQAnaerobicN 
+    !----------------------------------------------------------------------------
 
     
     !Autotrophic N
@@ -6196,7 +6920,7 @@ do1 :   do while(associated(EquaRateFluxX))
     !SOURCES: - Nitrification eficiency 
     !SINKS:   - Death
     !----------------------------------------------------------------------------    
-    subroutine AutotrophicN (index)
+    subroutine SQAutotrophicN (index)
 
         !Arguments---------------------------------------------------------------
         integer                 , intent(IN)    :: index
@@ -6239,20 +6963,19 @@ do1 :   do while(associated(EquaRateFluxX))
         
         !Independent term
         Me%IndTerm(AutoNI) = Me%ExternalVar%Mass(AutoNI, index) 
-    !----------------------------------------------------------------------------
 
-    end subroutine AutotrophicN 
-    !----------------------------------------------------------------------------
 
+    end subroutine SQAutotrophicN 
+    !----------------------------------------------------------------------------
 
 
       
-    !N gas (N20 N2)
+    !N gas (N20 N2) - same units as dissolved properties
     !
     !SOURCES: - Denitrification
     !SINKS:   - none for the moment
     !----------------------------------------------------------------------------
-    subroutine Ngas (index)
+    subroutine SQNgas (index)
 
         !Arguments---------------------------------------------------------------
         integer                , intent(IN) :: index
@@ -6294,14 +7017,14 @@ do1 :   do while(associated(EquaRateFluxX))
         
         !Independent term
         Me%IndTerm(NGI)     = Me%ExternalVar%Mass(NGI, index) 
-    !----------------------------------------------------------------------------
 
-    end subroutine Ngas 
 
-    !----------------------------------------------------------------------------
+    end subroutine SQNgas 
 
     !----------------------------------------------------------------------------
-    subroutine Urea (index)
+
+    !----------------------------------------------------------------------------
+    subroutine SQUrea (index)
 
         !Arguments---------------------------------------------------------------
         integer                , intent(IN) :: index
@@ -6331,10 +7054,10 @@ do1 :   do while(associated(EquaRateFluxX))
         Me%IndTerm(Iurea)     = Me%ExternalVar%Mass(Iurea, index) 
 
 
-        end subroutine Urea
+        end subroutine SQUrea
     !----------------------------------------------------------------------------
 
-    subroutine AmmoniaGas (index)
+    subroutine SQAmmoniaGas (index)
 
         !Arguments---------------------------------------------------------------
         integer                , intent(IN) :: index
@@ -6350,63 +7073,70 @@ do1 :   do while(associated(EquaRateFluxX))
         IAmmoniaGas           = Me%Propindex%AmmoniaGas
 
         wind    =   Me%ExternalVar%Wind(index)
-        Temp    =   Me%ExternalVar%Temperature(index)
-        AMI     =   Me%Propindex%ammonia
-        AM      =   Me%ExternalVar%Mass(AMI,index)
-        H       =   Me%Hydrogen
     
-        TK      =  29447 
-        PANH3   =  2.45E-8
-        EK      =  8.79E-12
-        XK1     =  1000
-        XK      =  -0.25
-        TF      = TK*EXP(-6/(1.99E-3*(temp+273.15)))
+        if (wind .gt. 0.0) then
+            
+            Temp    =   Me%ExternalVar%Temperature(index)
+            AMI     =   Me%Propindex%Ammonia
+            AM      =   Me%ExternalVar%Mass(AMI,index)        !User units here assumed mg/L
+            H       =   Me%Hydrogen                           !Mol/L
+            
+            !Convert assumed ammonia mg/L in mol/L
+            !Molecular weight NH4 - 18.0385 g/mol
+            ![mol/L] = [mg/L] * 1g/1000mg / [g/mol]
+            AM      = AM / (1000. * 18.0385)
+            
+            TK      =  29447
+            PANH3   =  2.45E-8
+            EK      =  8.79E-12
+            XK1     =  1000
+            XK      =  -0.25
+            TF      = TK * EXP(-6/(1.99E-3 * (temp + 273.15)))
 
-        PNH3    = EK*AM*7.14286E-11/H       !!! nao esquecer as unidades de NH4
+            PNH3    = EK * AM * 7.14286E-11 / H       
         
-        XKG     = XK1*log(Wind)*exp(XK)
+            XKG     = XK1 * log(Wind) * exp(XK)
 
-        Kvol    = XKG*TF*(PNH3-PANH3)
+            Kvol    = XKG * TF * (PNH3 - PANH3)
 
-
-
+            ! source: volatilization
+            Me%Matrix(IAmmoniaGas,AMI)= Me%Matrix(IAmmoniaGas,AMI)    &
+                                            + DTDay * Kvol
+        
+        endif
+        
         Me%Matrix(IAmmoniaGas,IAmmoniaGas)= 1
 
-        
-        ! source: volatilization
-        Me%Matrix(IAmmoniaGas,AMI)= Me%Matrix(IAmmoniaGas,AMI)    &
-                                        + DTDay*Kvol
 
         !Independent term
         Me%IndTerm(IAmmoniaGas)    = Me%ExternalVar%Mass(IAmmoniaGas, index) 
-    !----------------------------------------------------------------------------
-        end subroutine AmmoniaGas
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!LÚCIA!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
+    end subroutine SQAmmoniaGas
+
 
     !----------------------------------------------------------------------------
-    subroutine Phosphorus(index)
+    subroutine SQPhosphorus(index)
 
         !Arguments---------------------------------------------------------------
         integer, intent(IN) :: index
         !------------------------------------------------------------------------
 
-        call LabilOrganicPhosphorus     (index)
+        call SQLabilOrganicPhosphorus     (index)
   
-        call RefractOrganicPhosphorus   (index)
+        call SQRefractOrganicPhosphorus   (index)
 
-        call HeterotrophicP              (index)
+        call SQHeterotrophicP              (index)
 
-        call AutotrophicP               (index)
+        call SQAutotrophicP               (index)
 
-        call AnaerobicP                 (index)
+        call SQAnaerobicP                 (index)
         
-        call InorganicPhosphorusSoluble (index)
+        call SQInorganicPhosphorusSoluble (index)
 
-        call InorganicPhosphorusFix     (index)        
+        call SQInorganicPhosphorusFix     (index)        
     !------------------------------------------------------------------------
 
-    end subroutine Phosphorus
+    end subroutine SQPhosphorus
     !---------------------------------------------------------------------------
 
 
@@ -6417,7 +7147,7 @@ do1 :   do while(associated(EquaRateFluxX))
     !SOURCES: - Microorganisms death
     !SINKS:   - Heterotrphs uptake, including anaerobic uptake 
     !----------------------------------------------------------------------------
-    subroutine LabilOrganicPhosphorus (index)
+    subroutine SQLabilOrganicPhosphorus (index)
 
         !Arguments---------------------------------------------------------------
         integer                , intent(IN)         :: index
@@ -6585,28 +7315,50 @@ do1 :   do while(associated(EquaRateFluxX))
 
 
         !Sinks    : Anaerobic uptake, vai depender se respiram NO3 ou CO2 
-
-        if (NO3>NO3limit) then    ! respiram NO3
-
-
-            Me%Matrix(LOM_PI, NII) = Me%Matrix(LOM_PI, NII) - DTDay                     & 
-                                   * DenitrificationRate * Conversion * (1./ LCP)         &
-                                   * ( 0.1/( AnaPartition +1.))
-
-        else                   ! respiram CO2
-
-                               
-            Me%Matrix(LOM_PI, LOM_CI)     = Me%Matrix(LOM_PI, LOM_CI) - DTDay     & 
-                                     *  methaneproduction *(1/LCP)  &
-                                     * ( 0.1/( AnaPartition +1.) )
-
-            Me%Matrix(LOM_PI, ROM_CI)     = Me%Matrix(LOM_PI, ROM_CI) - DTDay     & 
-                                     *  methaneproduction *(1/LCP)   &
-                                     * ( 0.1/( AnaPartition +1.) )
-             
-        end if              
+        if (Me%ComputeImobilization) then
+        
+            if (NO3>NO3limit) then    ! respiram NO3
 
 
+                Me%Matrix(LOM_PI, NII) = Me%Matrix(LOM_PI, NII) - DTDay                     & 
+                                       * DenitrificationRate * Conversion * (1./ LCP)         &
+                                       * ( 0.1/( AnaPartition +1.))
+
+            else                   ! respiram CO2
+
+                                   
+                Me%Matrix(LOM_PI, LOM_CI)     = Me%Matrix(LOM_PI, LOM_CI) - DTDay     & 
+                                         *  methaneproduction *(1/LCP)  &
+                                         * ( 0.1/( AnaPartition +1.) )
+
+                Me%Matrix(LOM_PI, ROM_CI)     = Me%Matrix(LOM_PI, ROM_CI) - DTDay     & 
+                                         *  methaneproduction *(1/LCP)   &
+                                         * ( 0.1/( AnaPartition +1.) )
+                 
+            end if              
+        else
+
+            if (NO3>NO3limit) then    ! respiram NO3
+
+
+                Me%Matrix(LOM_PI, NII) = Me%Matrix(LOM_PI, NII) - DTDay                     & 
+                                       * DenitrificationRate * Conversion * (1./ LCP)         &
+                                       * ( 0.1)
+
+            else                   ! respiram CO2
+
+                                   
+                Me%Matrix(LOM_PI, LOM_CI)     = Me%Matrix(LOM_PI, LOM_CI) - DTDay     & 
+                                         *  methaneproduction *(1/LCP)  &
+                                         * ( 0.1 )
+
+                Me%Matrix(LOM_PI, ROM_CI)     = Me%Matrix(LOM_PI, ROM_CI) - DTDay     & 
+                                         *  methaneproduction *(1/LCP)   &
+                                         * ( 0.1 )
+                 
+            end if              
+        
+        endif
                                     
         !Sources: Anaerobic death
         if (.NOT. Me%Microorganisms%Anaerobic%LogicalMinumumPOP)                    &        
@@ -6638,7 +7390,7 @@ do1 :   do while(associated(EquaRateFluxX))
         Me%IndTerm(LOM_PI) = Me%ExternalVar%Mass(LOM_PI, index)                     
     !----------------------------------------------------------------------------
 
-    end subroutine LabilOrganicPhosphorus 
+    end subroutine SQLabilOrganicPhosphorus 
     !----------------------------------------------------------------------------
 
 
@@ -6647,7 +7399,7 @@ do1 :   do while(associated(EquaRateFluxX))
     !SOURCES: - INTERPOOL TRANSFORMATION
     !SINKS:   - Heterotrphs uptake, including anaerobic uptake 
     !----------------------------------------------------------------------------
-    subroutine RefractOrganicPhosphorus (index)
+    subroutine SQRefractOrganicPhosphorus (index)
 
         !Arguments---------------------------------------------------------------
         integer                , intent(IN) :: index
@@ -6811,26 +7563,47 @@ do1 :   do while(associated(EquaRateFluxX))
 
 
         !Sinks    : Anaerobic uptake, vai depender se respiram NO3 ou CO2 
+        if (Me%ComputeImobilization) then
+            if (NO3>NO3limit) then    ! respiram NO3
 
-        if (NO3>NO3limit) then    ! respiram NO3
-
-            Me%Matrix(ROM_PI, NII) = Me%Matrix(ROM_PI, NII) - DTDay                     &
-                               * DenitrificationRate * Conversion * (1./RCP)          &
-                               * (0.1/( 1./AnaPartition +1.) )     
+                Me%Matrix(ROM_PI, NII) = Me%Matrix(ROM_PI, NII) - DTDay                     &
+                                   * DenitrificationRate * Conversion * (1./RCP)          &
+                                   * (0.1/( 1./AnaPartition +1.) )     
 
 
-         else                   ! respiram CO2
+             else                   ! respiram CO2
 
-            Me%Matrix(ROM_PI, LOM_CI)     = Me%Matrix(ROM_PI, LOM_CI) - DTDay    & 
-                                     *  methaneproduction *(1./RCP)          &
-                                     * ( 0.1/( (1/AnaPartition) +1.) )
+                Me%Matrix(ROM_PI, LOM_CI)     = Me%Matrix(ROM_PI, LOM_CI) - DTDay    & 
+                                         *  methaneproduction *(1./RCP)          &
+                                         * ( 0.1/( (1/AnaPartition) +1.) )
 
-            Me%Matrix(ROM_PI, ROM_CI)     = Me%Matrix(ROM_PI, ROM_CI) - DTDay    & 
-                                     *  methaneproduction *(1./RCP)          &
-                                     * ( 0.1/( (1/AnaPartition) +1.) )
-             
-        end if              
+                Me%Matrix(ROM_PI, ROM_CI)     = Me%Matrix(ROM_PI, ROM_CI) - DTDay    & 
+                                         *  methaneproduction *(1./RCP)          &
+                                         * ( 0.1/( (1/AnaPartition) +1.) )
+                 
+            end if              
+        else
 
+            if (NO3>NO3limit) then    ! respiram NO3
+
+                Me%Matrix(ROM_PI, NII) = Me%Matrix(ROM_PI, NII) - DTDay                     &
+                                   * DenitrificationRate * Conversion * (1./RCP)          &
+                                   * (0.1 )     
+
+
+             else                   ! respiram CO2
+
+                Me%Matrix(ROM_PI, LOM_CI)     = Me%Matrix(ROM_PI, LOM_CI) - DTDay    & 
+                                         *  methaneproduction *(1./RCP)          &
+                                         * ( 0.1 )
+
+                Me%Matrix(ROM_PI, ROM_CI)     = Me%Matrix(ROM_PI, ROM_CI) - DTDay    & 
+                                         *  methaneproduction *(1./RCP)          &
+                                         * ( 0.1 )
+                 
+            end if              
+        
+        endif
 
 
         if (Me%PropCalc%Sol_Bacteria) then
@@ -6848,7 +7621,7 @@ do1 :   do while(associated(EquaRateFluxX))
         Me%IndTerm(ROM_PI)     = Me%ExternalVar%Mass(ROM_PI, index)                                     
     !----------------------------------------------------------------------------
 
-    end subroutine RefractOrganicPhosphorus 
+    end subroutine SQRefractOrganicPhosphorus 
     !----------------------------------------------------------------------------
 
 
@@ -6860,7 +7633,7 @@ do1 :   do while(associated(EquaRateFluxX))
     !SINKS:   - Heterotrophic Death, excretion
     !----------------------------------------------------------------------------
 
-    subroutine HeterotrophicP (index)
+    subroutine SQHeterotrophicP (index)
 
         !Arguments---------------------------------------------------------------
         integer                 , intent(IN) :: index
@@ -7215,7 +7988,7 @@ do1 :   do while(associated(EquaRateFluxX))
 
     !----------------------------------------------------------------------------
 
-    end subroutine HeterotrophicP 
+    end subroutine SQHeterotrophicP 
     !----------------------------------------------------------------------------
 
 
@@ -7224,7 +7997,7 @@ do1 :   do while(associated(EquaRateFluxX))
     !SOURCES: - Denitrification eficiency - soluble phosphorus
     !SINKS:   - Death
     !----------------------------------------------------------------------------    
-    subroutine AnaerobicP (index)
+    subroutine SQAnaerobicP (index)
 
         !Arguments---------------------------------------------------------------
         integer                , intent(IN) :: index
@@ -7281,20 +8054,34 @@ do1 :   do while(associated(EquaRateFluxX))
             Me%Matrix(AnaPI, AnaCI) = Me%Matrix(AnaPI, AnaCI) - DTDay * AnaDeathRate / AnaCP  
 
 
-
         if (NO3>NO3limit) then
 
+            if (Me%ComputeImobilization) then
 
-            !Sources: Labil P
-            Me%Matrix(AnaPI, NII) = Me%Matrix(AnaPI, NII) + DTDay                         &
-                                  * DenitrificationRate * Conversion *(1/LCP)             &
-                                  * (0.1 /( (AnaPartition + 1. ))) 
+                !Sources: Labil P
+                Me%Matrix(AnaPI, NII) = Me%Matrix(AnaPI, NII) + DTDay                         &
+                                      * DenitrificationRate * Conversion *(1/LCP)             &
+                                      * (0.1 /( (AnaPartition + 1. ))) 
 
-           !Sources: Refract P
-            Me%Matrix(AnaPI, NII) = Me%Matrix(AnaPI, NII) + DTDay                         &
-                                  * DenitrificationRate * Conversion *(1/RCP)             &
-                                  * (0.1 /( (1./AnaPartition + 1. ))) 
+               !Sources: Refract P
+                Me%Matrix(AnaPI, NII) = Me%Matrix(AnaPI, NII) + DTDay                         &
+                                      * DenitrificationRate * Conversion *(1/RCP)             &
+                                      * (0.1 /( (1./AnaPartition + 1. ))) 
+            
+            else
 
+                !Sources: Labil P
+                Me%Matrix(AnaPI, NII) = Me%Matrix(AnaPI, NII) + DTDay                         &
+                                      * DenitrificationRate * Conversion *(1/LCP)             &
+                                      * (0.1 ) 
+
+               !Sources: Refract P
+                Me%Matrix(AnaPI, NII) = Me%Matrix(AnaPI, NII) + DTDay                         &
+                                      * DenitrificationRate * Conversion *(1/RCP)             &
+                                      * (0.1 ) 
+            
+            endif
+            
             !Sink: Excretion
             Me%Matrix(AnaPI, NII) = Me%Matrix(AnaPI, NII) - DTDay                         &
                                   * DenitrificationRate * Conversion                      &
@@ -7305,24 +8092,45 @@ do1 :   do while(associated(EquaRateFluxX))
             !Source :  degradação de matéria orgânica e respiração de CO2
         
                 !( vem da labile)    
-            Me%Matrix(AnaPI, LOM_CI)     = Me%Matrix(AnaPI, LOM_CI) + DTDay    & 
-                                     *  methaneproduction *(1/LCP)         &
-                                     * ( 0.1/( AnaPartition +1.) )
+            if (Me%ComputeImobilization) then    
+                Me%Matrix(AnaPI, LOM_CI)     = Me%Matrix(AnaPI, LOM_CI) + DTDay    & 
+                                         *  methaneproduction *(1/LCP)         &
+                                         * ( 0.1/( AnaPartition +1.) )
 
-            Me%Matrix(AnaPI, ROM_CI)     = Me%Matrix(AnaPI, ROM_CI) + DTDay    & 
-                                     *  methaneproduction *(1/LCP)         &
-                                     * ( 0.1/( AnaPartition +1.) )
-    
-                ! (vem da refractory)
+                Me%Matrix(AnaPI, ROM_CI)     = Me%Matrix(AnaPI, ROM_CI) + DTDay    & 
+                                         *  methaneproduction *(1/LCP)         &
+                                         * ( 0.1/( AnaPartition +1.) )
+        
+                    ! (vem da refractory)
 
-            Me%Matrix(AnaPI, LOM_CI)     = Me%Matrix(AnaPI, LOM_CI) + DTDay    & 
-                                     *  methaneproduction *(1/RCP)         &
-                                     * ( 0.1/( (1/AnaPartition) +1.) )
+                Me%Matrix(AnaPI, LOM_CI)     = Me%Matrix(AnaPI, LOM_CI) + DTDay    & 
+                                         *  methaneproduction *(1/RCP)         &
+                                         * ( 0.1/( (1/AnaPartition) +1.) )
 
-            Me%Matrix(AnaPI, ROM_CI)     = Me%Matrix(AnaPI, ROM_CI) + DTDay    & 
-                                     *  methaneproduction *(1/RCP)         &
-                                     * ( 0.1/( (1/AnaPartition) +1.) )
-    
+                Me%Matrix(AnaPI, ROM_CI)     = Me%Matrix(AnaPI, ROM_CI) + DTDay    & 
+                                         *  methaneproduction *(1/RCP)         &
+                                         * ( 0.1/( (1/AnaPartition) +1.) )
+            else
+
+                Me%Matrix(AnaPI, LOM_CI)     = Me%Matrix(AnaPI, LOM_CI) + DTDay    & 
+                                         *  methaneproduction *(1/LCP)         &
+                                         * ( 0.1 )
+
+                Me%Matrix(AnaPI, ROM_CI)     = Me%Matrix(AnaPI, ROM_CI) + DTDay    & 
+                                         *  methaneproduction *(1/LCP)         &
+                                         * ( 0.1 )
+        
+                    ! (vem da refractory)
+
+                Me%Matrix(AnaPI, LOM_CI)     = Me%Matrix(AnaPI, LOM_CI) + DTDay    & 
+                                         *  methaneproduction *(1/RCP)         &
+                                         * ( 0.1 )
+
+                Me%Matrix(AnaPI, ROM_CI)     = Me%Matrix(AnaPI, ROM_CI) + DTDay    & 
+                                         *  methaneproduction *(1/RCP)         &
+                                         * ( 0.1 )
+            
+            endif
     
             ! sink: excreção de fósforo soluvel
 
@@ -7342,7 +8150,7 @@ do1 :   do while(associated(EquaRateFluxX))
         Me%IndTerm(AnaPI)    = Me%ExternalVar%Mass(AnaPI, index) 
     !----------------------------------------------------------------------------
 
-    end subroutine AnaerobicP 
+    end subroutine SQAnaerobicP 
     !----------------------------------------------------------------------------
 
 
@@ -7351,7 +8159,7 @@ do1 :   do while(associated(EquaRateFluxX))
     !SOURCES: - uptake phosphorus
     !SINKS:   - Death
     !----------------------------------------------------------------------------    
-    subroutine AutotrophicP (index)
+    subroutine SQAutotrophicP (index)
 
         !Arguments---------------------------------------------------------------
         integer                 , intent(IN)    :: index
@@ -7406,11 +8214,11 @@ do1 :   do while(associated(EquaRateFluxX))
     !----------------------------------------------------------------------------
 
 
-    end subroutine AutotrophicP 
+    end subroutine SQAutotrophicP 
 
 
 
-    subroutine InorganicPhosphorusSoluble (index)
+    subroutine SQInorganicPhosphorusSoluble (index)
 
 
        !Arguments---------------------------------------------------------------
@@ -7726,12 +8534,12 @@ do1 :   do while(associated(EquaRateFluxX))
        
 
 
-    end subroutine InorganicPhosphorusSoluble  
+    end subroutine SQInorganicPhosphorusSoluble  
 
   !----------------------------------------------------------------------------
 
 
-       subroutine InorganicPhosphorusFix (index)
+       subroutine SQInorganicPhosphorusFix (index)
 
        !Arguments---------------------------------------------------------------
         integer                   :: index
@@ -7805,32 +8613,32 @@ do1 :   do while(associated(EquaRateFluxX))
        
 
 
-    end subroutine InorganicPhosphorusFix 
+    end subroutine SQInorganicPhosphorusFix 
 
    !----------------------------------------------------------------------------
 
 
-    subroutine Sol_Bacteria(index)
+    subroutine SQSol_Bacteria(index)
 
         !Arguments---------------------------------------------------------------
         integer, intent(IN) :: index
         !------------------------------------------------------------------------
             
-            call sol_carbon      (index)
+            call SQsol_Carbon      (index)
 
-            call sol_nitrogen   (index)
+            call SQsol_Nitrogen   (index)
 
-            call sol_phosphorus  (index)
+            call SQsol_Phosphorus  (index)
 
 
         !------------------------------------------------------------------------
 
-    end subroutine Sol_Bacteria
+    end subroutine SQSol_Bacteria
     !---------------------------------------------------------------------------
 
 
 
-    subroutine sol_carbon (index)
+    subroutine SQsol_Carbon (index)
 
         !Arguments---------------------------------------------------------------
         integer, intent(IN) :: index
@@ -7886,12 +8694,12 @@ do1 :   do while(associated(EquaRateFluxX))
                                
         !------------------------------------------------------------------------
 
-     end subroutine sol_carbon
+     end subroutine SQsol_Carbon
 
         !------------------------------------------------------------------------
 
 
-        subroutine sol_nitrogen (index)
+        subroutine SQsol_Nitrogen (index)
         
         !Arguments---------------------------------------------------------------
         integer, intent(IN) :: index
@@ -7955,13 +8763,13 @@ do1 :   do while(associated(EquaRateFluxX))
 
         !------------------------------------------------------------------------
 
-      end subroutine sol_nitrogen
+      end subroutine SQsol_Nitrogen
 
         !------------------------------------------------------------------------
 
 
 
-        subroutine sol_phosphorus (index)
+        subroutine SQsol_Phosphorus (index)
         
         !Arguments---------------------------------------------------------------
         integer, intent(IN) :: index
@@ -8016,13 +8824,13 @@ do1 :   do while(associated(EquaRateFluxX))
 
        !----------------------------------------------------------------------------
 
-       end subroutine sol_phosphorus
+       end subroutine SQsol_Phosphorus
 
        !----------------------------------------------------------------------------
 
 
 
-    subroutine correctOM (index)
+    subroutine CorrectOM (index)
 
        !Local-------------------------------------------------------------------
 
@@ -8197,7 +9005,7 @@ do1 :   do while(associated(EquaRateFluxX))
             endif
         endif
 
-        if (Me%PropCalc%Nitrogen) then
+        if (Me%PropCalc%Phosphorus) then
 
             Me%ExternalVar%Mass(AnaPI, index) = AnaP 
             Me%ExternalVar%Mass(HetPI, index) = HetP 
@@ -8214,36 +9022,13 @@ do1 :   do while(associated(EquaRateFluxX))
 
 
 
-    end subroutine correctOM
+    end subroutine CorrectOM
 
     !----------------------------------------------------------------------------
 
 
-    subroutine ExternalOutput()        
-    
-    
-       !Local-------------------------------------------------------------------
-!        integer     ::              index
-        real        ::              HetOrg
-        real        ::              AnaOrg
-        real        ::              AutoOrg
-
-       !----------------------------------------------------------------------------
-
-        HetOrg  = Me%Microorganisms%Heterotrophs%Population
-        
-        AutoOrg = Me%Microorganisms%Autotrophs%Population
-    
-        AnaOrg  = Me%Microorganisms%Anaerobic%Population
-
-    
-    end subroutine externaloutput               
-
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!LÙCIA!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-   !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
     !DESTRUCTOR DESTRUCTOR DESTRUCTOR DESTRUCTOR DESTRUCTOR DESTRUCTOR DESTRUCTOR
 

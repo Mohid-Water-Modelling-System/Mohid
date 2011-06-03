@@ -725,32 +725,37 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 Me%DissolvedToParticulate = FillValueReal
          
                 allocate (Me%SoilDryDensity(ArrayLB:ArrayUB), STAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR14'
+                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR131'
                 
                 Me%SoilDryDensity = FillValueReal
 
                 allocate (Me%Salinity(ArrayLB:ArrayUB), STAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR15'
+                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR132'
                 
                 Me%Salinity = FillValueReal
 
                 allocate (Me%pH(ArrayLB:ArrayUB), STAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR15'
+                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR133'
                 
                 Me%pH = FillValueReal
 
                 allocate (Me%IonicStrength(ArrayLB:ArrayUB), STAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR15'
+                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR134'
                 
                 Me%IonicStrength = FillValueReal
 
                 allocate (Me%PhosphorusAdsortionIndex(ArrayLB:ArrayUB), STAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR15'
+                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR135'
                 
                 Me%PhosphorusAdsortionIndex = FillValueReal
 
                 allocate (Me%WindVelocity(ArrayLB:ArrayUB), STAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR15'
+                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR136'
+                
+                Me%WindVelocity = FillValueReal
+
+                allocate (Me%Oxygen(ArrayLB:ArrayUB), STAT = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR137'
                 
                 Me%WindVelocity = FillValueReal
 
@@ -1748,7 +1753,20 @@ cd14 :          if (Phosphorus) then
                 if (.not.FindProperty(PropertiesList, Oxygen_))                     &
                     stop 'SQM needs property oxygen - Check_Options'         
             
-             
+                if (.not.FindProperty(PropertiesList, AutotrophicPop_))                     &
+                    stop 'SQM needs property "autotrophic microorganism population" - Check_Options'         
+
+                if (.not.FindProperty(PropertiesList, HeterotrophicPop_))                     &
+                    stop 'SQM needs property "heterotrophic microorganism population" - Check_Options'    
+
+                if (.not.FindProperty(PropertiesList, AnaerobicPop_))                     &
+                    stop 'SQM needs property "anaerobic microorganism population" - Check_Options'    
+                
+                if (Sol_Bacteria) then
+                    if (.not.FindProperty(PropertiesList, SolPop_))                     &
+                        stop 'SQM needs property "anaerobic microorganism population" - Check_Options'    
+                endif
+                
             case(CEQUALW2Model, BenthicCEQUALW2Model)
                 
 !                !Get CEQUALW2 model time step
@@ -2388,7 +2406,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
                                   WaterVolume, WaterMass, SolidMass, pE, Temperature,   &
                                   PhreeqCID,                                             &
 #endif
-                                  WindVelocity,  DTProp, STAT)
+                                  WindVelocity,  Oxygen, DTProp, STAT)
                                  
         !Arguments-------------------------------------------------------------
         integer                                         :: InterfaceID
@@ -2413,6 +2431,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
         real,    optional, dimension(:,:,:), pointer    :: IonicStrength
         real,    optional, dimension(:,:,:), pointer    :: PhosphorusAdsortionIndex
         real,    optional, dimension(:,:,:), pointer    :: WindVelocity
+        real,    optional, dimension(:,:,:), pointer    :: Oxygen
         integer,           dimension(:,:,:), pointer    :: WaterPoints3D
         integer, optional, dimension(:,:,:), pointer    :: OpenPoints3D
         real,    optional, dimension(:,:,:), pointer    :: DWZ, ShearStress, SPMFlux
@@ -2531,24 +2550,48 @@ cd4 :           if (ReadyToCompute) then
                             call UnfoldMatrix(IonicStrength, Me%IonicStrength)
                             call UnfoldMatrix(PhosphorusAdsortionIndex, Me%PhosphorusAdsortionIndex)
                             call UnfoldMatrix(WindVelocity, Me%WindVelocity)
-
-
-                            call SedimentQuality(Me%ObjSedimentQuality,            &
-                                                 Me%Temperature,                   &
-                                                 Me%Mass,                          &
-                                                 Me%WaterPercentage,               &
-                                                 Me%DissolvedToParticulate,        &
-                                                 Me%Array%ILB,                     &
-                                                 Me%Array%IUB,                     &
-                                                 Me%SoilDryDensity,                &
-                                                 Me%Salinity,                      &
-                                                 Me%pH,                            &
-                                                 Me%IonicStrength,                 &
-                                                 Me%PhosphorusAdsortionIndex,      &
-                                                 Me%WindVelocity,                  &
-                                                 STAT = STAT_CALL)
-                            if (STAT_CALL /= SUCCESS_) stop 'Modify_Interface3D - ModuleInterface - ERR06'
-
+                            
+                            !if forcing with oxygen send it to sediment quality
+                            if (present(Oxygen)) then
+                                call UnfoldMatrix(Oxygen, Me%Oxygen)
+                                
+                                call SedimentQuality(Me%ObjSedimentQuality,            &
+                                                     Me%Temperature,                   &
+                                                     Me%Mass,                          &
+                                                     Me%WaterPercentage,               &
+                                                     Me%DissolvedToParticulate,        &
+                                                     Me%Array%ILB,                     &
+                                                     Me%Array%IUB,                     &
+                                                     Me%SoilDryDensity,                &
+                                                     Me%Salinity,                      &
+                                                     Me%pH,                            &
+                                                     Me%IonicStrength,                 &
+                                                     Me%PhosphorusAdsortionIndex,      &
+                                                     Me%WindVelocity,                  &
+                                                     Me%Oxygen,                        &
+                                                     STAT = STAT_CALL)
+                                if (STAT_CALL /= SUCCESS_) stop 'Modify_Interface3D - ModuleInterface - ERR055'
+                                
+                            else
+                            
+                                call SedimentQuality(Me%ObjSedimentQuality,            &
+                                                     Me%Temperature,                   &
+                                                     Me%Mass,                          &
+                                                     Me%WaterPercentage,               &
+                                                     Me%DissolvedToParticulate,        &
+                                                     Me%Array%ILB,                     &
+                                                     Me%Array%IUB,                     &
+                                                     Me%SoilDryDensity,                &
+                                                     Me%Salinity,                      &
+                                                     Me%pH,                            &
+                                                     Me%IonicStrength,                 &
+                                                     Me%PhosphorusAdsortionIndex,      &
+                                                     Me%WindVelocity,                  &
+                                                     STAT = STAT_CALL)
+                                if (STAT_CALL /= SUCCESS_) stop 'Modify_Interface3D - ModuleInterface - ERR06'
+                            
+                            endif
+                            
                         case(LifeModel)
 
                             call UnfoldMatrix(ShortWaveAverage,  Me%ShortWaveAverage)
@@ -3387,22 +3430,46 @@ cd4 :           if (ReadyToCompute) then
                             call UnfoldMatrix(PhosphorusAdsortionIndex, Me%PhosphorusAdsortionIndex)
                             call UnfoldMatrix(WindVelocity, Me%WindVelocity)
 
-                            call SedimentQuality(Me%ObjSedimentQuality,             &
-                                                 Me%Temperature,                    &
-                                                 Me%Mass,                           &
-                                                 Me%WaterPercentage,                &
-                                                 Me%DissolvedToParticulate,         &
-                                                 Me%Array%ILB,                      &
-                                                 Me%Array%IUB,                      &
-                                                 Me%SoilDryDensity,                 &
-                                                 Me%Salinity,                       &
-                                                 Me%pH,                             &
-                                                 Me%IonicStrength,                  &
-                                                 Me%PhosphorusAdsortionIndex,       &
-                                                 Me%WindVelocity,                   &
-                                                 STAT = STAT_CALL)
-                            if (STAT_CALL /= SUCCESS_) stop 'Modify_Interface1D - ModuleInterface - ERR06'
+                            if (present(Oxygen1D)) then
+                                call UnfoldMatrix(Oxygen1D, Me%Oxygen)
 
+                                call SedimentQuality(Me%ObjSedimentQuality,             &
+                                                     Me%Temperature,                    &
+                                                     Me%Mass,                           &
+                                                     Me%WaterPercentage,                &
+                                                     Me%DissolvedToParticulate,         &
+                                                     Me%Array%ILB,                      &
+                                                     Me%Array%IUB,                      &
+                                                     Me%SoilDryDensity,                 &
+                                                     Me%Salinity,                       &
+                                                     Me%pH,                             &
+                                                     Me%IonicStrength,                  &
+                                                     Me%PhosphorusAdsortionIndex,       &
+                                                     Me%WindVelocity,                   &
+                                                     Me%Oxygen,                         &
+                                                     STAT = STAT_CALL)
+                                if (STAT_CALL /= SUCCESS_) stop 'Modify_Interface1D - ModuleInterface - ERR055'
+                            
+                            else
+                            
+                                call SedimentQuality(Me%ObjSedimentQuality,             &
+                                                     Me%Temperature,                    &
+                                                     Me%Mass,                           &
+                                                     Me%WaterPercentage,                &
+                                                     Me%DissolvedToParticulate,         &
+                                                     Me%Array%ILB,                      &
+                                                     Me%Array%IUB,                      &
+                                                     Me%SoilDryDensity,                 &
+                                                     Me%Salinity,                       &
+                                                     Me%pH,                             &
+                                                     Me%IonicStrength,                  &
+                                                     Me%PhosphorusAdsortionIndex,       &
+                                                     Me%WindVelocity,                   &
+                                                     STAT = STAT_CALL)
+                                if (STAT_CALL /= SUCCESS_) stop 'Modify_Interface1D - ModuleInterface - ERR06'
+                            
+                            endif
+                            
                         case(LifeModel)
 
                             call UnfoldMatrix(ShortWaveAverage,     Me%ShortWaveAverage)
@@ -3787,6 +3854,8 @@ do6 :               do index = ArrayLB, ArrayUB
         integer                                 :: numNgas, numInorganicP_soluble, numInorganicP_fix
         integer                                 :: numSol_C, numSol_N, numSol_P, numCO2, numUrea
 !        integer                                 :: numAmmoniaGas, numMethane
+        integer                                 :: numAutotrophicPop, numHeterotrophicPop, numAnaerobicPop
+        integer                                 :: numSolPop
         integer                                 :: STAT_CALL
         logical                                 :: lZoo, lPhyto, lDiatoms 
         logical                                 :: lNitrogen, lPhosphorus, lSilica
@@ -4137,6 +4206,10 @@ cd1 :               if (.NOT. Me%AddedProperties(i)) then
                                 Urea                            = numUrea,                  &
 !                                AmmoniaGas                      = numAmmoniaGas,            &
 !                                Methane                         = numMethane,               &
+                                AutotrophicPop                  = numAutotrophicPop,        &
+                                HeterotrophicPop                = numHeterotrophicPop,      &
+                                AnaerobicPop                    = numAnaerobicPop,          &
+                                SolPop                          = numSolPop,                & 
                                 STAT                            = STAT_CALL )          
              if (STAT_CALL .NE. SUCCESS_)stop 'FillMassTempSalinity3D - ModuleInterface - ERR03' 
 
@@ -4322,7 +4395,28 @@ cd42 :          if (PropertyID== Oxygen_)then
                     Me%AddedProperties(numOxygen)                 = .TRUE.
                 end if cd42
 
+cd4210 :        if (PropertyID== AutotrophicPop_)then
+                    call InputData(Concentration,numAutotrophicPop)
+                    Me%AddedProperties(numAutotrophicPop)         = .TRUE.
+                end if cd4210
 
+cd422 :          if (PropertyID== HeterotrophicPop_)then
+                    call InputData(Concentration,numHeterotrophicPop)
+                    Me%AddedProperties(numHeterotrophicPop)       = .TRUE.
+                end if cd422
+
+cd423 :          if (PropertyID== AnaerobicPop_)then
+                    call InputData(Concentration,numAnaerobicPop)
+                    Me%AddedProperties(numAnaerobicPop)           = .TRUE.
+                end if cd423
+                
+                if (lSol_Bacteria) then
+    cd424 :          if (PropertyID== SolPop_)then
+                        call InputData(Concentration,numSolPop)
+                        Me%AddedProperties(numSolPop)           = .TRUE.
+                    end if cd424
+                endif
+                
 cd43 :          if (PropertyID== Temperature_)then
                     call UnfoldMatrix(Concentration, Me%Temperature)
                     TemperatureAdded =.TRUE.
@@ -4654,6 +4748,8 @@ cd45 :                  if (.NOT. Me%AddedProperties(i)) then
         integer                                 :: numNgas, numInorganicP_soluble, numInorganicP_fix
         integer                                 :: numSol_C, numSol_N, numSol_P, numCO2, numUrea
 !        integer                                 :: numAmmoniaGas, numMethane 
+        integer                                 :: numAutotrophicPop, numHeterotrophicPop, numAnaerobicPop
+        integer                                 :: numSolPop
         integer                                 :: STAT_CALL
         logical                                 :: lZoo, lPhyto, lDiatoms 
         logical                                 :: lNitrogen, lPhosphorus, lSilica
@@ -4999,6 +5095,10 @@ cd1 :               if (.NOT. Me%AddedProperties(i)) then
                                 Urea                            = numUrea,                  &
 !                                AmmoniaGas                      = numAmmoniaGas,             &
 !                                Methane                         = numMethane,               &
+                                AutotrophicPop                  = numAutotrophicPop,        &
+                                HeterotrophicPop                = numHeterotrophicPop,      &
+                                AnaerobicPop                    = numAnaerobicPop,          & 
+                                SolPop                          = numSolPop,                &
                                 STAT                            = STAT_CALL )          
              if (STAT_CALL .NE. SUCCESS_)stop 'FillMassTempSalinity1D - ModuleInterface - ERR03' 
 
@@ -5184,6 +5284,28 @@ cd42 :          if (PropertyID== Oxygen_)then
                 end if cd42
 
 
+cd4210 :        if (PropertyID== AutotrophicPop_)then
+                    call InputData(Concentration,numAutotrophicPop)
+                    Me%AddedProperties(numAutotrophicPop)         = .TRUE.
+                end if cd4210
+
+cd422 :          if (PropertyID== HeterotrophicPop_)then
+                    call InputData(Concentration,numHeterotrophicPop)
+                    Me%AddedProperties(numHeterotrophicPop)       = .TRUE.
+                end if cd422
+
+cd423 :          if (PropertyID== AnaerobicPop_)then
+                    call InputData(Concentration,numAnaerobicPop)
+                    Me%AddedProperties(numAnaerobicPop)           = .TRUE.
+                end if cd423
+                
+                if (lSol_Bacteria) then
+    cd424 :          if (PropertyID== SolPop_)then
+                        call InputData(Concentration,numSolPop)
+                        Me%AddedProperties(numSolPop)            = .TRUE.
+                    end if cd424
+                endif
+                
 cd43 :          if (PropertyID== Temperature_)then
                     call UnfoldMatrix(Concentration, Me%Temperature)
                     TemperatureAdded =.TRUE.
@@ -6054,6 +6176,9 @@ cd45 :                  if (.NOT. Me%AddedProperties(i)) then
         integer                         :: numNgas, numInorganicP_soluble, numInorganicP_fix
         integer                         :: numSol_C, numSol_N, numSol_P, numCO2, numUrea
 !        integer                         :: numAmmoniaGas, numMethane 
+        integer                         :: numAutotrophicPop, numHeterotrophicPop, numAnaerobicPop
+        integer                         :: numSolPop
+
         
         !Local-----------------------------------------------------------------
         integer                         :: nProperty
@@ -6287,6 +6412,10 @@ cd1 :           if      (PropertyID== Phytoplankton_       ) then
                                     Urea                            = numUrea,              &
 !                                    AmmoniaGas                      = numAmmoniaGas,        &
 !                                    Methane                         = numMethane,           &
+                                    AutotrophicPop                  = numAutotrophicPop,    &
+                                    HeterotrophicPop                = numHeterotrophicPop,  &
+                                    AnaerobicPop                    = numAnaerobicPop,      &
+                                    SolPop                          = numSolPop,            &
                                     STAT                            = STAT_CALL )          
                 if (STAT_CALL .NE. SUCCESS_) stop 'PropertyIndexNumber - ModuleInterface - ERR17'
 
@@ -6374,6 +6503,18 @@ cd1 :           if      (PropertyID== Phytoplankton_       ) then
 
                 else if (PropertyID== Oxygen_              ) then
                     nProperty = numOxygen
+
+                else if (PropertyID== HeterotrophicPop_    ) then
+                    nProperty = numHeterotrophicPop
+
+                else if (PropertyID== AutotrophicPop_      ) then
+                    nProperty = numAutotrophicPop
+
+                else if (PropertyID== AnaerobicPop_        ) then
+                    nProperty = numAnaerobicPop
+
+                else if (PropertyID== SolPop_              ) then
+                    nProperty = numSolPop
 
                 else
                     write(*,*) 

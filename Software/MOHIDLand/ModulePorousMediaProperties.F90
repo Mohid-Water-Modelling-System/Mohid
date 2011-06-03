@@ -15,22 +15,27 @@
 !
 !
 !Units in porous media properties
-!   Transported properties (soluble)  : g/m3 (or mg/l)                     (needs to convert concentrations to SedimentQuality and 
+!   Transported properties (soluble)  : g/m3 (or mg/L)                     (needs to convert concentrations to SedimentQuality and 
 !                                                                           PREEQC at entrance and exit)
 !   Adsorbed properties (non soluble) : mg/kgsoil                          (needs to convert concentrations to PREEQC )
 !   Solid Phases (non soluble)        : mg/kgsoil                          (used in PhreeqC to make equilibrium with soil solution)
 !   Gas Phases (non soluble)          : mol (mass); atm (partial pressure) (used in PhreeqC to make equilibrium with soil solution)
+!   Gas Phases (assumed soluble)      : mg/L                               (used in SedimentQuality - N2, CH4 and CO2)
+!
 !   Soil Dry Density                  : kg/m3                              
+!   H+ and Ionic Strenght             : mol/L                              (used in SedimentQuality)
+!   Microorganisms Population         : #org/kgsoil                        (used in SedimentQuality)
 !
 ! ADVDIFF_EXPLICIT              : 0/1                [1]        !REMARK: Horizontal diffusion is always explicit
 !                                                               !(1 - adv and diff are explicit in all directions; 0 - adv and diff 
 !                                                               !are implicit in vertical, horizontal adv may be explicit or impl) 
 !   ADVDIFF_ADVECTION_H_IMP_EXP : 0/1                [1]        !(read if ADVDIFF_EXPLICIT : 0; 0 - horiz adv implicit; 
 !                                                                1 - horiz adv explicit)
-! ADVDIFF_METHOD_H              : integer      [UpwindOrder1]   !Spatial methods for horizontal advection
+! NEW_FORMULATION               : 0/1                [0]        !if 1 then spatial methods will be the same for all properties
+!     ADVDIFF_METHOD_H          : integer      [UpwindOrder1]   !Spatial methods for horizontal advection
 !                                                               !UpwindOrder1 = 1, UpwindOrder2 = 2, UpwindOrder3 = 3, P2_TVD = 4,
 !                                                                CentralDif = 5, LeapFrog = 6    
-! ADVDIFF_METHOD_V              : integer      [UpwindOrder1]   !Spatial methods for vertical advection
+!     ADVDIFF_METHOD_V          : integer      [UpwindOrder1]   !Spatial methods for vertical advection
 !                                                               !UpwindOrder1 = 1, UpwindOrder2 = 2, UpwindOrder3 = 3, P2_TVD = 4,
 !                                                                CentralDif = 5, LeapFrog = 6!
 ! <beginproperty>
@@ -81,10 +86,12 @@ Module ModulePorousMediaProperties
                                          KillFillMatrix, ModifyFillMatrix
     use ModuleGeometry
     use ModuleMap
+    use ModuleBoxDif,               only: StartBoxDif, GetBoxes, GetNumberOfBoxes, UngetBoxDif,     &
+                                          BoxDif, KillBoxDif        
     use ModulePorousMedia,        only : GetOldWaterContent, GetWaterContent, GetFluxU,    &
                                          GetFluxV, GetFluxW, GetUnsatW, GetUnsatV,         &
                                          GetUnsatU, UnGetPorousMedia, GetUnsatWFinal,      &
-                                         GetThetaS, GetGWFlowToChannels,                   &
+                                         GetThetaS, GetGWFlowToChannels, GetThetaF,        &
                                          GetGWLayerOld, GetPotentialInfiltration,          &
                                          GetGWFlowToChannelsByLayer, GetGWToChannelsLayers,&
                                          GetGWFlowOption, GetTranspiration
@@ -95,9 +102,10 @@ Module ModulePorousMediaProperties
                                          InitCRSoilPhase
                                          
 #ifdef _PHREEQC_                                          
-    use ModuleInterface,          only : ConstructInterface, Modify_Interface, GetPhreeqCID 
+    use ModuleInterface,          only : ConstructInterface, Modify_Interface, GetPhreeqCID, &
+                                         GetRateFlux 
 #else
-    use ModuleInterface,          only : ConstructInterface, Modify_Interface     
+    use ModuleInterface,          only : ConstructInterface, Modify_Interface, GetRateFlux     
 #endif
                                          
     use ModuleAdvectionDiffusion, only : StartAdvectionDiffusion, AdvectionDiffusion,      &
@@ -265,7 +273,8 @@ Module ModulePorousMediaProperties
         real(8), dimension(:,:,:), pointer          :: FluxU
         real(8), dimension(:,:,:), pointer          :: FluxV
         real(8), dimension(:,:,:), pointer          :: FluxW
-        real,    pointer, dimension(:,:,:)          :: ThetaS        
+        real,    pointer, dimension(:,:,:)          :: ThetaS
+        real,    pointer, dimension(:,:,:)          :: ThetaF        
         real   , pointer, dimension(:,:  )          :: Area
         real   , pointer, dimension(:,:,:)          :: AreaU
         real   , pointer, dimension(:,:,:)          :: AreaV
@@ -339,6 +348,8 @@ Module ModulePorousMediaProperties
         logical                                 :: Yes = .false.
         logical                                 :: TimeSerie_ON
         logical                                 :: HDF_ON
+        logical                                 :: Boxes_ON             = .false.
+        logical                                 :: RateFluxes           = .false.
         logical                                 :: Profile_ON
         logical                                 :: WriteRestartFile     = .false.       
         logical                                 :: RestartOverwrite     = .false.
@@ -428,7 +439,8 @@ Module ModulePorousMediaProperties
         character(PathLength)                   :: TransientHDF
         character(PathLength)                   :: DataSedimentQualityFile
         character(PathLength)                   :: ChainReactionsDataFile
-        integer                                 :: AsciiUnit        
+        character(len=StringLength)             :: BoxesFile    
+        integer                                 :: AsciiUnit    
     end type T_Files    
 
     type T_Property
@@ -463,6 +475,15 @@ Module ModulePorousMediaProperties
         real                                    :: ECwFactor                = 0.0
     end type T_Property
 
+    type       T_SedimentRate
+        type (T_ID)                             :: ID
+        type (T_ID)                             :: FirstProp
+        type (T_ID)                             :: SecondProp
+        real, pointer, dimension(:,:,:)         :: Field 
+        type(T_SedimentRate), pointer           :: Next, Prev
+    end type T_SedimentRate
+
+
     type T_Coupled
         logical                                 :: SoilQuality          = .false. !Sediment source/sink model (Sediment Quality)
         real                                    :: SoilQuality_DT
@@ -480,6 +501,7 @@ Module ModulePorousMediaProperties
         logical                                 :: Partition            = .false.
         logical                                 :: MinConcentration     = .false.
         logical                                 :: Decay                = .false.
+        logical                                 :: SedQualityOxygenForcing = .false.
     end type T_Coupled
     
     !Implicit coef for thomas matrix
@@ -551,6 +573,7 @@ Module ModulePorousMediaProperties
         integer                                      :: ObjProfile            = 0
         integer                                      :: ObjInterface          = 0
         integer                                      :: ObjChainReactions     = 0 !ChainReactionsID
+        integer                                      :: ObjBoxDif             = 0
 
         real,    pointer, dimension(:,:,:)           :: CellWaterVolume            !Used by SoilChemistry & ChainReactions modules        
         integer, pointer, dimension(:)               :: PropertiesList             !List with ID of all properties used 
@@ -560,6 +583,8 @@ Module ModulePorousMediaProperties
         type (T_OutPut)                              :: OutPut
         type (T_Property), pointer                   :: FirstProperty    => null() 
         type (T_Property), pointer                   :: LastProperty     => null()   
+        type(T_SedimentRate), pointer                :: FirstSedimentRate
+        type(T_SedimentRate), pointer                :: LastSedimentRate
         type (T_PorousMediaProperties), pointer      :: Next             => null()
         type (T_Coupled)                             :: Coupled
         type (T_Time)                                :: LastOutputHDF5
@@ -575,6 +600,8 @@ Module ModulePorousMediaProperties
         logical                                      :: PorousMediaProperties
         real,    pointer, dimension(:,:,:)           :: Volume   
         integer                                      :: PropertiesNumber    = 0
+        integer                                      :: SedimentRatesNumber  = 0
+        integer                                      :: NumberPropForBoxes   = 0
         real   , pointer, dimension(:,:,:)           :: DissolvedToParticulate3D
         real                                         :: ResidualTime
         
@@ -605,6 +632,7 @@ Module ModulePorousMediaProperties
 
         logical                                      :: CalculateECw =  .false.
         real, dimension(:,:,:), pointer              :: ECw          => null()
+        real, dimension(:,:,:), pointer              :: CellMass     => null()
 
         !--For PorousMediaProperties Advection-Diffusion Method
         real,    pointer, dimension(:,:,:)           :: DifusionNumber
@@ -711,6 +739,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             call ReadGlobalOptions
 
             call Construct_PropertyList
+            
+            !Rates output for sediment quality model
+            call Construct_SedimentRateList
 
 #ifdef _PHREEQC_ 
             if (Me%Coupled%SoilChemistry) then           
@@ -728,7 +759,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
     
             call ConstructTimeSerie
             
-
+            if (Me%Output%RateFluxes .or. Me%Output%Boxes_ON) then
+                call StartOutputBoxFluxes
+            endif
             
             call KillEnterData      (Me%ObjEnterData, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructPorousMediaProperties - ModulePorousMediaProperties - ERR010'
@@ -1362,8 +1395,6 @@ doi3:   do J = JLB, JUB
                 allocate(Me%COEF3%E                 (ILB:IUB, JLB:JUB, KLB:KUB))
                 allocate(Me%COEF3%F                 (ILB:IUB, JLB:JUB, KLB:KUB))
                 
-                IJKLB = min (ILB, JLB, KLB)
-                IJKUB = max (IUB, JUB, KUB)
                 allocate(Me%VECG                    (IJKLB:IJKUB))
                 allocate(Me%VECW                    (IJKLB:IJKUB))
 
@@ -1377,6 +1408,8 @@ doi3:   do J = JLB, JUB
             endif
             
             !griflet: BEGIN this is the alternate version that allows parallel openmp
+            IJKLB = min (ILB, JLB, KLB)
+            IJKUB = max (IUB, JUB, KUB)
 
             Me%MaxThreads = 1
             !$ Me%MaxThreads = omp_get_max_threads()
@@ -1956,6 +1989,235 @@ cd2 :           if (BlockFound) then
 
     end subroutine Construct_PropertyEvolution     
 
+    !--------------------------------------------------------------------------
+
+    subroutine Construct_SedimentRateList
+
+        !External----------------------------------------------------------------
+        integer                                :: ClientNumber
+        integer                                :: STAT_CALL
+        logical                                :: BlockFound
+
+        !Local-------------------------------------------------------------------
+        type (T_SedimentRate),    pointer      :: NewSedimentRate
+
+        !------------------------------------------------------------------------
+        
+        Me%Output%RateFluxes = .false.
+        
+do1 :   do
+            call ExtractBlockFromBuffer(Me%ObjEnterData,                    &
+                                        ClientNumber    = ClientNumber,     &
+                                        block_begin     = '<beginSQrate>',  &
+                                        block_end       = '<endSQrate>',    &
+                                        BlockFound      = BlockFound,       &
+                                        STAT            = STAT_CALL)
+            if(STAT_CALL .EQ. SUCCESS_)then    
+                if (BlockFound) then                                                  
+                    
+                    Me%Output%RateFluxes = .true.
+                    
+                    !Construct a New Sediment Rate
+                    Call Construct_SedimentRate(NewSedimentRate)
+
+                    !Add new Rate to the Sediment Rates List 
+                    Call Add_SedimentRate(NewSedimentRate)
+
+                else
+                    call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL) 
+
+                    if (STAT_CALL .NE. SUCCESS_)                                            &
+                        stop 'Construct_SedimentRateList - ModulePorousMediaProperties - ERR01'
+
+                    exit do1    !No more blocks
+                end if
+
+
+            else if (STAT_CALL .EQ. BLOCK_END_ERR_) then
+                write(*,*)  
+                write(*,*) 'Error calling ExtractBlockFromBuffer. '
+                stop       'Construct_SedimentRateList - ModulePorousMediaProperties - ERR02'
+            else
+                stop       'Construct_SedimentRateList - ModulePorousMediaProperties - ERR03'
+            end if
+        end do do1
+         
+    end subroutine Construct_SedimentRateList
+
+    !----------------------------------------------------------------------------
+
+    subroutine Construct_SedimentRate(NewSedimentRate)
+
+        !Arguments-------------------------------------------------------------
+        type(T_SedimentRate), pointer       :: NewSedimentRate
+
+        !External--------------------------------------------------------------
+        integer                             :: STAT_CALL
+
+        !----------------------------------------------------------------------
+             
+        allocate (NewSedimentRate, STAT = STAT_CALL)            
+        if (STAT_CALL .NE. SUCCESS_)                                          &
+            stop 'Construct_SedimentRate - ModulePorousMediaProperties - ERR01' 
+
+        nullify(NewSedimentRate%Field, NewSedimentRate%Prev, NewSedimentRate%Next)
+
+        call Construct_SedimentRateID       (NewSedimentRate)
+
+        call Construct_SedimentRateValues   (NewSedimentRate)
+
+
+    end subroutine Construct_SedimentRate
+
+     !--------------------------------------------------------------------------
+    
+    !This subroutine reads all the information needed to construct the property ID          
+    subroutine Construct_SedimentRateID(NewSedimentRate)
+
+        !Arguments-------------------------------------------------------------
+        type(T_SedimentRate), pointer       :: NewSedimentRate
+
+        !External--------------------------------------------------------------
+        integer                             :: STAT_CALL
+
+        !Local-----------------------------------------------------------------
+        integer                             :: iflag, PropNumber
+        logical                             :: CheckName
+        type (T_Property), pointer          :: PropertyX
+      
+        !----------------------------------------------------------------------
+        
+        !First Property defined in a rate relation
+        call GetData(NewSedimentRate%FirstProp%name,                                    &
+                     Me%ObjEnterData, iflag,                                            &
+                     keyword      = 'FIRSTPROP',                                        &
+                     ClientModule = 'ModulePorousMediaProperties',                      &
+                     SearchType   = FromBlock,                                          &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_)                                                    &
+            stop 'Construct_SedimentRateID - ModulePorousMediaProperties - ERR01' 
+        if (iflag==0)                                                                   &
+            stop 'Construct_SedimentRateID - ModulePorousMediaProperties - ERR02' 
+
+        !Check if the property name is valid
+        CheckName = CheckPropertyName(NewSedimentRate%FirstProp%Name, Number = PropNumber)
+        if (CheckName) then
+            NewSedimentRate%FirstProp%IDnumber = PropNumber
+        else
+            write(*,*)
+            write(*,*) 'The first property name is not recognised by the model.'
+            stop 'Construct_SedimentRateID - ModulePorousMediaProperties - ERR03' 
+        end if 
+
+        call Search_Property(PropertyX, PropertyXID = PropNumber, STAT = STAT_CALL)                                  
+        if (STAT_CALL /= SUCCESS_)                                                     &
+            stop 'Construct_SedimentRateID - ModulePorousMediaProperties - ERR04' 
+        
+        !second Property defined in a rate relation
+        call GetData(NewSedimentRate%SecondProp%name,                                    &
+                     Me%ObjEnterData, iflag,                                             &
+                     keyword      = 'SECONDPROP',                                        &
+                     ClientModule = 'ModulePorousMediaProperties',                       &
+                     SearchType   = FromBlock,                                           &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)                                                       &
+            stop 'Construct_SedimentRateID - ModulePorousMediaProperties - ERR05' 
+        if (iflag==0)                                                                    &
+            stop 'Construct_SedimentRateID - ModulePorousMediaProperties - ERR06' 
+      
+        ! Check if the property name is valid OR not
+        CheckName = CheckPropertyName(NewSedimentRate%SecondProp%name, Number = PropNumber)
+        if (CheckName) then
+            NewSedimentRate%SecondProp%IDnumber = PropNumber
+        else
+            write(*,*)
+            write(*,*) 'The Second property name is not recognised by the model.'
+            stop 'Construct_SedimentRateID - ModulePorousMediaProperties - ERR07' 
+        end if
+        
+        call Search_Property(PropertyX,PropertyXID = PropNumber, STAT = STAT_CALL)                                  
+        if (STAT_CALL /= SUCCESS_)                                                       &
+            stop 'Construct_SedimentRateID - ModulePorousMediaProperties - ERR08' 
+  
+  
+        !Rate description ex: zooplankton grazing over phytoplankton
+        call GetData(NewSedimentRate%ID%Description,                                     &
+                     Me%ObjEnterData, iflag,                                             &
+                     keyword      = 'DESCRIPTION',                                       &
+                     Default      = 'No description was given.',                         &
+                     ClientModule = 'ModulePorousMediaProperties',                          &
+                     SearchType   = FromBlock,                                           &
+                     STAT         = STAT_CALL)  
+        if (STAT_CALL /= SUCCESS_)                                                       &
+            stop 'Construct_SedimentRateID - ModulePorousMediaProperties - ERR09' 
+
+        call GetData(NewSedimentRate%ID%Name,                                              &
+                     Me%ObjEnterData, iflag,                                               &
+                     keyword      = 'NAME',                                                &
+                     ClientModule = 'ModulePorousMediaProperties',                            &
+                     SearchType   = FromBlock,                                             &
+                     Default      = 'No name was given to sediment rate.',                 &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)                                                         &
+            stop 'Construct_SedimentRateID - ModulePorousMediaProperties - ERR10' 
+        if (iflag==0)                                                                      &
+            stop 'Construct_SedimentRateID - ModulePorousMediaProperties - ERR11' 
+
+    end subroutine Construct_SedimentRateID
+
+    !--------------------------------------------------------------------------
+
+    subroutine Construct_SedimentRateValues(NewSedimentRate)
+
+        !Arguments-------------------------------------------------------------
+        type(T_Sedimentrate), pointer       :: NewSedimentRate
+
+        !External--------------------------------------------------------------
+        integer                             :: STAT_CALL
+
+        !Local-----------------------------------------------------------------
+        integer                             :: ILB, IUB, JLB, JUB, KLB, KUB
+
+        !Begin-----------------------------------------------------------------
+
+        ILB = Me%Size%ILB
+        IUB = Me%Size%IUB
+        JLB = Me%Size%JLB
+        JUB = Me%Size%JUB
+        KLB = Me%Size%KLB
+        KUB = Me%Size%KUB
+
+        allocate(NewSedimentRate%Field(ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) &
+            stop 'Construct_SedimentRateValues - ModulePorousMediaProperties - ERR01' 
+        NewSedimentRate%Field(:,:,:) = FillValueReal
+
+    end subroutine Construct_SedimentRateValues
+    
+    !--------------------------------------------------------------------------
+
+    subroutine Add_SedimentRate(NewSedimentRate)
+
+        !Arguments-------------------------------------------------------------
+        type(T_SedimentRate), pointer       :: NewSedimentRate
+
+        !----------------------------------------------------------------------
+
+        ! Add to the WaterProperty List a new property
+        if (.not.associated(Me%FirstSedimentRate)) then
+            Me%SedimentRatesNumber      = 1
+            Me%FirstSedimentRate        => NewSedimentRate
+            Me%LastSedimentRate         => NewSedimentRate
+        else
+            NewSedimentRate%Prev        => Me%LastSedimentRate
+            Me%LastSedimentRate%Next    => NewSedimentRate
+            Me%LastSedimentRate         => NewSedimentRate
+            Me%SedimentRatesNumber      = Me%SedimentRatesNumber + 1
+        end if 
+
+    end subroutine Add_SedimentRate 
+
+    
     !--------------------------------------------------------------------------
 
     subroutine Read_Partition_Parameters(NewProperty)
@@ -2822,7 +3084,11 @@ do1:    do while(associated(Property))
                      STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) &
             stop 'Construct_PropertyOutPut - ModulePorousMediaProperties - ERR02'
-
+        
+        if (NewProperty%BoxTimeSerie) then
+            Me%Output%Boxes_ON = .true.
+            Me%NumberPropForBoxes = Me%NumberPropForBoxes + 1
+        endif
 
         call GetData(NewProperty%BoxTimeSerie2D,                                           &
                      Me%ObjEnterData, iflag,                                               &
@@ -3079,6 +3345,122 @@ i1:         if (CoordON) then
 
     end subroutine ConstructHDF
 
+    !--------------------------------------------------------------------------
+
+    subroutine StartOutputBoxFluxes
+
+        !External--------------------------------------------------------------
+        integer                                             :: iflag, STAT_CALL
+        integer                                             :: ILB, IUB, JLB, JUB, KLB, KUB
+        logical                                             :: Exist, Opened
+ 
+        !Local-----------------------------------------------------------------
+        type(T_Property    ),                       pointer :: PropertyX
+        type(T_SedimentRate),                       pointer :: SedimentRateX
+        character(len=StringLength), dimension(:),  pointer :: ScalarOutputList
+        !character(len=StringLength), dimension(:),  pointer :: FluxesOutputList
+        integer                                             :: nScalars, n !, nFluxes
+
+        !Begin-----------------------------------------------------------------
+
+        ILB = Me%Size%ILB
+        IUB = Me%Size%IUB
+        JLB = Me%Size%JLB
+        JUB = Me%Size%JUB
+        KLB = Me%Size%KLB
+        KUB = Me%Size%KUB
+
+        ! This keyword have two functions if exist fluxes between boxes are compute 
+        ! and the value read is the name file where the boxes are defined
+        call GetData(Me%Files%BoxesFile,                                            &
+                     Me%ObjEnterData, iflag,                                        &
+                     keyword      = 'BOXFLUXES',                                    &
+                     ClientModule = 'ModulePorousMediaProperties',                     &
+                     STAT         = STAT_CALL)                                      
+        if (STAT_CALL .NE. SUCCESS_)                                                &
+            stop 'StartOutputBoxFluxes - ModulePorousMediaProperties - ERR01'
+        if (iflag .EQ. 0)                                                           &
+            stop 'StartOutputBoxFluxes - ModulePorousMediaProperties - ERR02'    
+        
+        inquire(File = Me%Files%BoxesFile, Exist = exist)
+        if (exist) then
+            inquire(File = Me%Files%BoxesFile, Opened  = Opened)
+            if (opened) then
+                write(*,*    ) 
+                write(*,'(A)') 'BoxesFile = ',trim(adjustl(Me%Files%BoxesFile))
+                write(*,*    ) 'Already opened.'
+                stop           'StartOutputBoxFluxes - ModulePorousMediaProperties - ERR03'    
+            end if
+        else
+            write(*,*) 
+            write(*,*)     'Could not find the boxes file.'
+            write(*,'(A)') 'BoxFileName = ', Me%Files%BoxesFile
+            stop           'StartOutputBoxFluxes - ModulePorousMediaProperties - ERR04'    
+        end if
+        
+        !Output Rates and Properties inside box (.bxm)
+        nScalars = Me%SedimentRatesNumber
+        nScalars = nScalars + Me%NumberPropForBoxes
+            
+        allocate(ScalarOutputList(nScalars), STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) &
+            stop 'StartOutputBoxFluxes - ModulePorousMediaProperties - ERR05'
+
+        n = 0
+        if (Me%Output%RateFluxes) then
+            SedimentRateX => Me%FirstSedimentRate
+            do while(associated(SedimentRateX))
+                n = n + 1
+                ScalarOutputList(n) ="Sed_"//trim(SedimentRateX%ID%Name)
+                SedimentRateX => SedimentRateX%Next
+            end do
+        endif
+        if (Me%Output%Boxes_ON) then
+            PropertyX => Me%FirstProperty
+            do while(associated(PropertyX))
+                if (PropertyX%BoxTimeSerie) then
+                    n = n + 1
+                    ScalarOutputList(n) = "Sed_"//trim(PropertyX%ID%Name)
+                endif
+                PropertyX => PropertyX%Next
+            end do        
+        endif
+        
+        call GetWaterPoints3D (Me%ObjMap, Me%ExtVar%WaterPoints3D, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'StartOutputBoxFluxes - ModulePorousMediaProperties - ERR090'
+
+
+        call StartBoxDif(BoxDifID           = Me%ObjBoxDif,                 &
+                         TimeID             = Me%ObjTime,                   &
+                         HorizontalGridID   = Me%ObjHorizontalGrid,         &
+                         BoxesFilePath      = Me%Files%BoxesFile,           &
+ !                        FluxesOutputList   = FluxesOutputList,             &
+                         ScalarOutputList   = ScalarOutputList,             &
+                         WaterPoints3D      = Me%ExtVar%WaterPoints3D,      &
+                         Size3D             = Me%Size,                      &
+                         WorkSize3D         = Me%WorkSize,                  &
+                         STAT               = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) &
+            stop 'StartOutputBoxFluxes - ModulePorousMediaProperties - ERR07'
+
+        deallocate(ScalarOutputList, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) &
+            stop 'StartOutputBoxFluxes - ModulePorousMediaProperties - ERR09'
+
+        call UnGetMap                   (Me%ObjMap, Me%ExtVar%WaterPoints3D, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'StartOutputBoxFluxes - ModulePorousMediaProperties - ERR0140'
+    
+        if (Me%Output%Boxes_ON) then
+
+            allocate(Me%CellMass(ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) &
+                stop 'StartOutputBoxFluxes - ModulePorousMediaProperties - ERR170'
+            Me%CellMass(:,:,:) = 0.            
+        
+        endif
+        
+        
+    end subroutine StartOutputBoxFluxes
 
     !--------------------------------------------------------------------------
 
@@ -3417,7 +3799,7 @@ cd0:    if (Exist) then
     subroutine CoupleSoilQuality        
 
         !Local-----------------------------------------------------------------
-        type(T_Property), pointer                           :: PropertyX
+        type(T_Property), pointer                           :: PropertyX, Oxygen
         integer, pointer, dimension(:)                      :: SoilQualityPropertyList
         integer                                             :: STAT_CALL
         real                                                :: SoilQualityDT
@@ -3474,12 +3856,19 @@ cd0:    if (Exist) then
         Me%Coupled%SoilQuality_NextCompute = Me%ExtVar%Now    
 
         nullify (Me%DissolvedToParticulate3D)
-        allocate(Me%DissolvedToParticulate3D(Me%WorkSize%ILB:Me%WorkSize%IUB, Me%WorkSize%JLB:Me%WorkSize%JUB, &
-                 Me%WorkSize%KLB:Me%WorkSize%KUB))
+        allocate(Me%DissolvedToParticulate3D(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB, &
+                 Me%Size%KLB:Me%Size%KUB))
         Me%DissolvedToParticulate3D(:,:,:) = null_real
 
         Me%ResidualTime = 0.
-    
+        
+        call SearchProperty(Oxygen, Oxygen_ , .false., STAT = STAT_CALL)        
+        if (STAT_CALL /= SUCCESS_) stop 'SoilQualityProcesses - ModulePorousMediaProperties - ERR45'                    
+        if (Oxygen%ID%SolutionFromFile)   then
+            Me%Coupled%SedQualityOxygenForcing = .true.
+        endif     
+        
+        
     end subroutine CoupleSoilQuality
 
     !--------------------------------------------------------------------------
@@ -4714,6 +5103,10 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
 
             if (Me%Output%HDF_ON) then
                 call OutPut_HDF
+            endif
+            
+            if (Me%Output%Boxes_ON) then
+                call Output_Boxes
             endif
 
     !       call ProfileOutput    em teste no construct e no kill
@@ -7979,7 +8372,9 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         type (T_Property),          pointer     :: PropertyX
         type (T_Property),          pointer     :: SoilDryDensity, Salinity, pH
         type (T_Property),          pointer     :: IonicStrength, PhosphorusAdsortionIndex
-
+        type (T_Property),          pointer     :: Oxygen
+        character (Len = StringLength)          :: WarningString
+        type(T_SedimentRate),       pointer     :: SedimentRateX
 !        type (T_SoilRate),      pointer     :: SoilRateX
 !        integer                                 :: WILB, WIUB, WJLB, WJUB, WKLB, WKUB 
 !        integer                                 :: i, j, k
@@ -8024,12 +8419,20 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
         call SearchProperty(PhosphorusAdsortionIndex, PhosphorusAdsortionIndex_        , .false., STAT = STAT_CALL)        
         if (STAT_CALL /= SUCCESS_) then
-            write(*,*) 'property phosphorus sdsortion index not found in porous media properties'
+            write(*,*) 'property phosphorus adsortion index not found in porous media properties'
             stop 'SoilQualityProcesses - ModulePorousMediaProperties - ERR40'
         endif
 
+        call SearchProperty(Oxygen, Oxygen_  , .false., STAT = STAT_CALL)        
+        if (STAT_CALL /= SUCCESS_) then
+            write(*,*) 'property oxygen not found in porous media properties'
+            stop 'SoilQualityProcesses - ModulePorousMediaProperties - ERR45'
+        endif
+
+
         call ComputeWindVelocity
  
+
         
         if (Me%ExtVar%Now .GE. Me%Coupled%SoilQuality_NextCompute) then
             
@@ -8038,23 +8441,56 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             do while(associated(PropertyX))
                 
 
-                call Modify_Interface(InterfaceID               = Me%ObjInterface,                         &
-                                      PropertyID                = PropertyX%ID%IDNumber,                   &
-                                      Concentration             = PropertyX%Concentration,                 &
-                                      WaterPoints3D             = Me%ExtVar%WaterPoints3D,                 &
-                                      OpenPoints3D              = Me%ExtVar%OpenPoints3D,                  &
-                                      WaterPercentage           = Me%ExtVar%WaterContent,                  &
-                                      DissolvedToParticulate3D  = Me%DissolvedToParticulate3D,             &
-                                      SoilDryDensity            = SoilDryDensity%Concentration,            &
-                                      Salinity                  = Salinity%Concentration,                  &
-                                      pH                        = pH%Concentration,                        &
-                                      IonicStrength             = IonicStrength%Concentration,             &
-                                      PhosphorusAdsortionIndex  = PhosphorusAdsortionIndex%Concentration,  &
-                                      WindVelocity              = Me%ExtVar%WindVelocity3D,                &
-                                      STAT                      = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)                                                               &
-                    stop 'SoilQualityProcesses - ModulePorousMediaProperties - ERR050'
+                !Change property units for Module Sediment Quality
+                !Gases O2, CO2, CH4
+                if ((PropertyX%ID%IDNumber == Oxygen_)        .OR.   &
+                    (PropertyX%ID%IDNumber == CarbonDioxide_) .OR.   &
+                    (PropertyX%ID%IDNumber == Methane_)            ) then
+                    
+                    WarningString = "Entering"
+                    call ChangePropertyUnits (PropertyX, WarningString)
+                endif
                 
+                !if forcing with oxygen send it to sediment quality
+                if (.not. Me%Coupled%SedQualityOxygenForcing) then
+
+                    call Modify_Interface(InterfaceID               = Me%ObjInterface,                         &
+                                          PropertyID                = PropertyX%ID%IDNumber,                   &
+                                          Concentration             = PropertyX%Concentration,                 &
+                                          WaterPoints3D             = Me%ExtVar%WaterPoints3D,                 &
+                                          OpenPoints3D              = Me%ExtVar%OpenPoints3D,                  &
+                                          WaterPercentage           = Me%ExtVar%ThetaF,                        &
+                                          DissolvedToParticulate3D  = Me%DissolvedToParticulate3D,             &
+                                          SoilDryDensity            = SoilDryDensity%Concentration,            &
+                                          Salinity                  = Salinity%Concentration,                  &
+                                          pH                        = pH%Concentration,                        &
+                                          IonicStrength             = IonicStrength%Concentration,             &
+                                          PhosphorusAdsortionIndex  = PhosphorusAdsortionIndex%Concentration,  &
+                                          WindVelocity              = Me%ExtVar%WindVelocity3D,                &
+                                          STAT                      = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_)                                                               &
+                        stop 'SoilQualityProcesses - ModulePorousMediaProperties - ERR050'
+                
+                else
+                    call Modify_Interface(InterfaceID               = Me%ObjInterface,                         &
+                                          PropertyID                = PropertyX%ID%IDNumber,                   &
+                                          Concentration             = PropertyX%Concentration,                 &
+                                          WaterPoints3D             = Me%ExtVar%WaterPoints3D,                 &
+                                          OpenPoints3D              = Me%ExtVar%OpenPoints3D,                  &
+                                          WaterPercentage           = Me%ExtVar%ThetaF,                        &
+                                          DissolvedToParticulate3D  = Me%DissolvedToParticulate3D,             &
+                                          SoilDryDensity            = SoilDryDensity%Concentration,            &
+                                          Salinity                  = Salinity%Concentration,                  &
+                                          pH                        = pH%Concentration,                        &
+                                          IonicStrength             = IonicStrength%Concentration,             &
+                                          PhosphorusAdsortionIndex  = PhosphorusAdsortionIndex%Concentration,  &
+                                          WindVelocity              = Me%ExtVar%WindVelocity3D,                &
+                                          Oxygen                    = Oxygen%Concentration,                    &
+                                          STAT                      = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_)                                                               &
+                        stop 'SoilQualityProcesses - ModulePorousMediaProperties - ERR055'                
+                
+                endif
 
                 PropertyX => PropertyX%Next
                 
@@ -8083,7 +8519,17 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                                           STAT          = STAT_CALL)
                     if (STAT_CALL .NE. SUCCESS_)                                            &
                         stop 'SoilQuality_Processes - ModulePorousMediaProperties - ERR060'
-
+                    
+                    !Change property units from Module Sediment Quality
+                    !Gases O2, CO2, CH4
+                    if ((PropertyX%ID%IDNumber == Oxygen_)        .OR.   &
+                        (PropertyX%ID%IDNumber == CarbonDioxide_) .OR.   &
+                        (PropertyX%ID%IDNumber == Methane_)            ) then
+                        
+                        WarningString = "Exiting"
+                        call ChangePropertyUnits (PropertyX, WarningString)
+                    endif
+                    
                 end if
 
             end if
@@ -8092,11 +8538,168 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             
         end do
 
+        SedimentRateX => Me%FirstSedimentRate
+
+        do while (associated(SedimentRateX))
+
+            call GetRateFlux(InterfaceID    = Me%ObjInterface,                          &
+                             FirstProp      = SedimentRateX%FirstProp%IDNumber,         &
+                             SecondProp     = SedimentRateX%SecondProp%IDNumber,        &
+                             RateFlux3D     = SedimentRateX%Field,                      &
+                             WaterPoints3D  = Me%ExtVar%WaterPoints3D,                  &
+                             STAT           = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_)                                                &
+                stop 'SedimentQuality_Processes - ModulePorousMediaProperties - ERR03'
+            
+            !mg/L to g/s - from SedimentQuality
+            !rate units are always mg/L for dissolved or particulate ->  * [1g/1000mg] * [1000L/m3] * [m3] / [s]
+            where (Me%ExtVar%WaterPoints3D == WaterPoint)                                                &
+            SedimentRateX%Field = SedimentRateX%Field * Me%ExtVar%WaterContent * Me%ExtVar%Cellvolume    &
+            / Me%Coupled%SoilQuality_DT            
+           
+            call BoxDif(Me%ObjBoxDif,                                       &
+                        SedimentRateX%Field,                                &
+                        "Sed_"//trim(adjustl(SedimentRateX%ID%Name)),       &
+                        Me%ExtVar%WaterPoints3D,                            &
+                        STAT = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_)                                    &
+                stop 'SedimentQuality_Processes - ModulePorousMediaProperties - ERR05'
+
+            SedimentRateX => SedimentRateX%Next
+        enddo
+
         if (MonitorPerformance) call StopWatch ("ModulePorousMediaProperties", "SoilQualityProcesses")
 
     end subroutine SoilQualityProcesses
     
     !-----------------------------------------------------------------------------    
+
+    subroutine ChangePropertyUnits (Property, Condition)
+
+        !Arguments-------------------------------------------------------------
+        type (T_Property),          pointer     :: Property
+        character (Len = StringLength)          :: Condition
+        !External--------------------------------------------------------------
+        integer                                      :: i, j, k, CHUNK
+        
+        !Begin-----------------------------------------------------------------
+        
+        !Convert Sediment Quality units for O2
+        if (Property%ID%IDNumber == Oxygen_) then
+            
+            !from mg/L in PMP to mol/L in SedimentQuality
+            if (Condition == "Entering") then
+                
+                CHUNK = CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)
+                !$OMP PARALLEL PRIVATE(I,J,K)
+                
+                !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+                do k=Me%WorkSize%KLB, Me%WorkSize%KUB
+                do j=Me%WorkSize%JLB, Me%WorkSize%JUB
+                do i=Me%WorkSize%ILB, Me%WorkSize%IUB
+
+                    if (Me%ExtVar%WaterPoints3D(i, j, k) == 1) then
+                        
+                        ! [mol/L] = [mg/L] * 1g/1000mg / [g/mol] 
+                        !O2 molecular weight is 31.9989 g/mol  
+                        Property%Concentration(i,j,k) = Property%Concentration(i,j,k) /(1000. * 31.9989)
+                    endif
+                
+                enddo
+                enddo
+                enddo
+                !$OMP END DO
+                !$OMP END PARALLEL
+                
+                
+            !from mol/L in SedimentQuality to mg/L in PMP
+            elseif (Condition == "Exiting") then
+
+                CHUNK = CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)
+                !$OMP PARALLEL PRIVATE(I,J,K)
+                
+                !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+                do k=Me%WorkSize%KLB, Me%WorkSize%KUB
+                do j=Me%WorkSize%JLB, Me%WorkSize%JUB
+                do i=Me%WorkSize%ILB, Me%WorkSize%IUB
+
+                    if (Me%ExtVar%WaterPoints3D(i, j, k) == 1) then
+                        
+                        ! [mg/L] = [mol/L] * [g/mol] * 1000mg/g
+                        !O2 molecular weight is 31.9989 g/mol  
+                        Property%Concentration(i,j,k) = Property%Concentration(i,j,k) * 1000. * 31.9989
+                    endif
+                
+                enddo
+                enddo
+                enddo
+
+                !$OMP END DO
+                !$OMP END PARALLEL
+            
+            endif
+        
+        elseif ((Property%ID%IDNumber == CarbonDioxide_) .or. (Property%ID%IDNumber == Methane_)) then
+            
+            !Sediment Quality concentrations are the same as solid phases (mg/kgsoil)
+            !assuming conversion to dissolved using dissolved to particulate 
+
+            !from mg/L in PMP to mg/kgsoil in SedimentQuality
+            if (Condition == "Entering") then
+
+                CHUNK = CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)
+                !$OMP PARALLEL PRIVATE(I,J,K)
+                
+                !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+                do k=Me%WorkSize%KLB, Me%WorkSize%KUB
+                do j=Me%WorkSize%JLB, Me%WorkSize%JUB
+                do i=Me%WorkSize%ILB, Me%WorkSize%IUB
+
+                    if (Me%ExtVar%WaterPoints3D(i, j, k) == 1) then
+                        
+                        ! [mg/kgsoil] = [mg/L] * [L/kgsoil] 
+                        Property%Concentration(i,j,k) = Property%Concentration(i,j,k) * Me%DissolvedToParticulate3D(i,j,k)
+                    endif
+                
+                enddo
+                enddo
+                enddo
+
+                !$OMP END DO
+                !$OMP END PARALLEL
+            
+            !from mg/kgsoil in SedimentQuality to mg/L in PMP
+            elseif (Condition == "Exiting") then
+
+                CHUNK = CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)
+                !$OMP PARALLEL PRIVATE(I,J,K)
+                
+                !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+                do k=Me%WorkSize%KLB, Me%WorkSize%KUB
+                do j=Me%WorkSize%JLB, Me%WorkSize%JUB
+                do i=Me%WorkSize%ILB, Me%WorkSize%IUB
+
+                    if (Me%ExtVar%WaterPoints3D(i, j, k) == 1) then
+                        
+                        ! [mg/L] = [mg/kgsoil] / [L/kgsoil] 
+                        Property%Concentration(i,j,k) = Property%Concentration(i,j,k) / Me%DissolvedToParticulate3D(i,j,k)
+
+                    endif
+                
+                enddo
+                enddo
+                enddo
+
+                !$OMP END DO
+                !$OMP END PARALLEL
+            
+            endif
+        
+        endif
+            
+    end subroutine ChangePropertyUnits
+
+    !-----------------------------------------------------------------------------  
 
     subroutine ComputeWindVelocity
 
@@ -8371,7 +8974,7 @@ cd1 :       if (Property%Evolution%MinConcentration) then
         integer                                 :: STAT_CALL        
          
         !Local----------------------------------------------------------------- 
-        integer                                 :: i, j, k
+        integer                                 :: i, j, k, CHUNK
         real                                    :: DT, InstantValue, ResidualValue
         type(T_Property), pointer               :: SoilDryDensity!, DrySedimentVolume
         !Begin-----------------------------------------------------------------
@@ -8386,28 +8989,36 @@ cd1 :       if (Property%Evolution%MinConcentration) then
         call SearchProperty(SoilDryDensity, SoilDryDensity_        , .false., STAT = STAT_CALL)        
         if (STAT_CALL /= SUCCESS_) stop 'ComputeDissolvedToParticulate3D - ModulePorousMediaProperties - ERR02'
 
+        !Conversion factor to pass from dissolved concentrations (mg/LH20) to particulate (mg/kgsed) - LH20/kgsed
 
+        CHUNK = CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)
+        !$OMP PARALLEL PRIVATE(I,J,K, InstantValue,ResidualValue)
+        
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
         do k = Me%WorkSize%KLB, Me%WorkSize%KUB
         do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             if(Me%ExtVar%WaterPoints3D(i,j,k) .eq. WaterPoint)then
 
-                ! [m3water/kgsed] = [m3water/m3cell]*[m3cell] / ([kgsed/m3cell] * [m3cell]) 
-                InstantValue                       = Me%ExtVar%WaterContent(i,j,k) *  Me%ExtVar%CellVolume(i,j,k) / &
+                ! [Lwater/kgsed] = [m3water/m3cell]*[m3cell]*[1000L/m3] / ([kgsed/m3cell] * [m3cell]) 
+                InstantValue                       = Me%ExtVar%WaterContent(i,j,k) *  Me%ExtVar%CellVolume(i,j,k) * 1000. / &
                                                     (SoilDryDensity%Concentration(i,j,k) * Me%ExtVar%CellVolume(i,j,k))
 
                 ResidualValue                      = Me%DissolvedToParticulate3D(i,j,k)
 
-                Me%DissolvedToParticulate3D(i,j,k) = (ResidualValue * Me%ResidualTime +     &
+                Me%DissolvedToParticulate3D(i,j,k) = (ResidualValue * Me%ResidualTime +                                     &
                                                       InstantValue * DT) / (Me%ResidualTime + DT)
                                                        
             end if
         end do
         end do
         end do
-
+        !$OMP END DO
+        !$OMP END PARALLEL 
+        
         Me%ResidualTime = Me%ResidualTime + DT
         
+        nullify (SoilDryDensity)
         
         if (MonitorPerformance) call StopWatch ("ModulePorousMediaProperties", "ComputeDissolvedToParticulate3D")
 
@@ -8948,6 +9559,130 @@ First:          if (LastTime.LT.Actual) then
 
     !----------------------------------------------------------------------------
 
+    subroutine Output_Boxes
+
+        !Arguments-------------------------------------------------------------
+        !Local-----------------------------------------------------------------
+        integer                                     :: i, j, k, STAT_CALL, CHUNK
+        type (T_Property), pointer                  :: CurrProperty, SoilDryDensity
+        real                                        :: ConversionFactor
+        !Begin-----------------------------------------------------------------
+
+        if (MonitorPerformance) call StartWatch ("ModulePorousMediaProperties", "Output_Boxes")
+
+        
+        
+        
+        call GetWaterPoints3D   (Me%ObjMap, Me%ExtVar%WaterPoints3D, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Output_Boxes - ModulePorousMediaProperties - ERR10'        
+        
+        call GetWaterContent    (Me%ObjPorousMedia, Me%ExtVar%WaterContent, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Output_Boxes - ModulePorousMediaProperties - ERR020'
+
+        call GetGeometryVolumes(Me%ObjGeometry,                                         &
+                                VolumeZ    = Me%ExtVar%CellVolume,                      &
+                                STAT       = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Output_Boxes - ModulePorousMediaProperties - ERR030'
+        
+        call SearchProperty(SoilDryDensity, SoilDryDensity_        , .false., STAT = STAT_CALL)        
+        if (STAT_CALL /= SUCCESS_) stop 'ComputeDissolvedToParticulate3D - ModulePorousMediaProperties - ERR02'
+
+        CurrProperty => Me%FirstProperty
+        do while (associated(CurrProperty)) 
+            
+            if (CurrProperty%BoxTimeSerie) then
+               
+                Me%CellMass(:,:,:) = 0.
+                
+                if (Check_Particulate_Property(CurrProperty%ID%IDNumber)) then
+
+                    CHUNK = CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)
+                    !$OMP PARALLEL PRIVATE(I,J,K, ConversionFactor)
+                    
+                    !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+                    do k = Me%WorkSize%KLB, Me%WorkSize%KUB
+                    do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+                    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+                                
+                        if (Me%ExtVar%WaterPoints3D(i, j, k) == 1) then
+                        
+                            ! [Lwater/kgsed] = [m3water/m3cell]*[m3cell]*[1000L/m3] / ([kgsed/m3cell] * [m3cell]) 
+                            ConversionFactor  = Me%ExtVar%WaterContent(i,j,k) *  Me%ExtVar%CellVolume(i,j,k) * 1000. / &
+                                            (SoilDryDensity%Concentration(i,j,k) * Me%ExtVar%CellVolume(i,j,k))
+                                                                            
+                            !g =  mg/kgsoil / L/kgsoil * m3H20/m3cell * m3cell * 1E3L/m3 * 1E-3 mg/g
+                            Me%CellMass(i,j,k) = CurrProperty%Concentration(i,j,k) / ConversionFactor *  &
+                                                  Me%ExtVar%WaterContent(i,j,k) * Me%ExtVar%Cellvolume(i,j,k)    
+
+                        endif
+
+                    enddo
+                    enddo
+                    enddo
+                    !$OMP END DO
+                    !$OMP END PARALLEL                    
+                
+                else
+
+                    CHUNK = CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)
+                    !$OMP PARALLEL PRIVATE(I,J,K, ConversionFactor)
+                    
+                    !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+                    do k = Me%WorkSize%KLB, Me%WorkSize%KUB
+                    do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+                    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+                                
+                        if (Me%ExtVar%WaterPoints3D(i, j, k) == 1) then
+                        
+                            !g =  mg/L  * m3H20/m3cell * m3cell * 1E3L/m3 * 1E-3 mg/g
+                            Me%CellMass(i,j,k) = CurrProperty%Concentration(i,j,k)  *  &
+                                                  Me%ExtVar%WaterContent(i,j,k) * Me%ExtVar%Cellvolume(i,j,k)    
+
+                        endif
+
+                    enddo
+                    enddo
+                    enddo
+                    !$OMP END DO
+                    !$OMP END PARALLEL                  
+                
+                endif
+                
+                call BoxDif(Me%ObjBoxDif, Me%CellMass,                      &
+                            "Sed_"//trim(adjustl(CurrProperty%ID%Name)),    &
+                            Me%ExtVar%WaterPoints3D,                        &
+                            STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)  &
+                    stop 'Output_Boxes - ModulePorousMediaProperties - ERR01'        
+                
+                Me%CellMass(:,:,:) = null_real                                    
+            
+            endif
+            
+            CurrProperty => CurrProperty%Next
+        
+        end do 
+        
+
+        
+        nullify (CurrProperty)
+        nullify (SoilDryDensity)
+        
+        call UnGetMap                   (Me%ObjMap, Me%ExtVar%WaterPoints3D, STAT = STAT_CALL) 
+        if (STAT_CALL /= SUCCESS_) stop 'Output_Boxes - ModulePorousMediaProperties - ERR040'
+
+        call UnGetPorousMedia           (Me%ObjPorousMedia, Me%ExtVar%WaterContent, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Output_Boxes - ModulePorousMediaProperties - ERR050'
+
+        call UnGetGeometry              (Me%ObjGeometry, Me%ExtVar%CellVolume,  STAT = STAT_CALL )        
+        if (STAT_CALL /= SUCCESS_) stop 'Output_Boxes - ModulePorousMediaProperties - ERR060'
+
+        if (MonitorPerformance) call StopWatch ("ModulePorousMediaProperties", "Output_Boxes")    
+    
+    end subroutine Output_Boxes
+
+    !----------------------------------------------------------------------------
+
     subroutine WriteFinalFile
 
         !Local-----------------------------------------------------------------
@@ -9165,7 +9900,8 @@ First:          if (LastTime.LT.Actual) then
         !Arguments-------------------------------------------------------------
         !Local-----------------------------------------------------------------
         integer                                     :: i, j, k, STAT_CALL
-        type (T_Property), pointer                  :: CurrProperty
+        type (T_Property), pointer                  :: CurrProperty, SoilDryDensity
+        real                                        :: ConversionFactor
         !Begin-----------------------------------------------------------------
 
         if (MonitorPerformance) call StartWatch ("ModulePorousMediaProperties", "CalculateTotalStoredMass")
@@ -9183,24 +9919,55 @@ First:          if (LastTime.LT.Actual) then
                                 VolumeZ    = Me%ExtVar%CellVolume,                      &
                                 STAT       = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'CalculateTotalStoredMass - ModulePorousMediaProperties - ERR030'
+
+        call SearchProperty(SoilDryDensity, SoilDryDensity_        , .false., STAT = STAT_CALL)        
+        if (STAT_CALL /= SUCCESS_) stop 'ComputeDissolvedToParticulate3D - ModulePorousMediaProperties - ERR02'
+
         
         do while (associated(CurrProperty)) 
+            
+            if (Check_Particulate_Property(CurrProperty%ID%IDNumber)) then
+               
+                do k = Me%WorkSize%KLB, Me%WorkSize%KUB
+                do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+                do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+                            
+                    if (Me%ExtVar%WaterPoints3D(i, j, k) == 1) then
+                    
+                        ! [Lwater/kgsed] = [m3water/m3cell]*[m3cell]*[1000L/m3] / ([kgsed/m3cell] * [m3cell]) 
+                        ConversionFactor  = Me%ExtVar%WaterContent(i,j,k) *  Me%ExtVar%CellVolume(i,j,k) * 1000. / &
+                                        (SoilDryDensity%Concentration(i,j,k) * Me%ExtVar%CellVolume(i,j,k))
+                                                                
+                        !kg = kg + m3H20/m3cell * m3cell * mg/kgsed / L/kgsed * 1E3 L/m3 * 1E-3 g/mg * 1E-3 kg/g
+                        CurrProperty%MB%TotalStoredMass = CurrProperty%MB%TotalStoredMass                                  &
+                                                          + ( Me%ExtVar%WaterContent(i,j,k)* Me%ExtVar%CellVolume(i,j,k)   &
+                                                           * CurrProperty%Concentration(i,j,k) / ConversionFactor * 1E-3    )
+                            
+                    endif
 
-            do k = Me%WorkSize%KLB, Me%WorkSize%KUB
-            do j = Me%WorkSize%JLB, Me%WorkSize%JUB
-            do i = Me%WorkSize%ILB, Me%WorkSize%IUB
-                        
-                if (Me%ExtVar%WaterPoints3D(i, j, k) == 1) then
-                    !kg = kg + (m3H20/m3cell * m3cell * g/m3 * 1E-3 kg/g
-                    CurrProperty%MB%TotalStoredMass = CurrProperty%MB%TotalStoredMass                                  &
-                                                      + ( Me%ExtVar%WaterContent(i,j,k)* Me%ExtVar%CellVolume(i,j,k)   &
-                                                       * CurrProperty%Concentration(i,j,k) * 1E-3    )
-                        
-                endif
+                enddo
+                enddo
+                enddo               
+               
+            else
+            
+                do k = Me%WorkSize%KLB, Me%WorkSize%KUB
+                do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+                do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+                            
+                    if (Me%ExtVar%WaterPoints3D(i, j, k) == 1) then
+                        !kg = kg + (m3H20/m3cell * m3cell * g/m3 * 1E-3 kg/g
+                        CurrProperty%MB%TotalStoredMass = CurrProperty%MB%TotalStoredMass                                  &
+                                                          + ( Me%ExtVar%WaterContent(i,j,k)* Me%ExtVar%CellVolume(i,j,k)   &
+                                                           * CurrProperty%Concentration(i,j,k) * 1E-3    )
+                            
+                    endif
 
-            enddo
-            enddo
-            enddo
+                enddo
+                enddo
+                enddo
+            
+            endif
                         
             CurrProperty => CurrProperty%Next
         end do 
@@ -9290,40 +10057,47 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                 !Kills the TimeSerie
                 if (Me%ObjTimeSerie /= 0) then
                     call KillTimeSerie(Me%ObjTimeSerie, STAT = STAT_CALL)
-                    if (STAT_CALL .NE. SUCCESS_) stop 'KillPorousMedia - PorousmediaProperties - ERR05'
+                    if (STAT_CALL .NE. SUCCESS_) stop 'KillPorousMedia - ModulePorousMediaProperties - ERR05'
                 endif
 
                
                 if (Me%OutPut%HDF_ON) then                    
                     call KillHDF5 (Me%ObjHDF5, STAT = STAT_)
-                    if (STAT_ /= SUCCESS_) stop 'KillVegetation - PorousmediaProperties  - ERR08'
+                    if (STAT_ /= SUCCESS_) stop 'KillVegetation - ModulePorousMediaProperties  - ERR08'
                 endif
                 
                 nUsers = DeassociateInstance (mTIME_, Me%ObjTime)
-                if (nUsers == 0) stop 'KillPorousMedia - Porousmedia - ERR07'
+                if (nUsers == 0) stop 'KillPorousMedia - ModulePorousMediaProperties - ERR07'
 
                 nUsers = DeassociateInstance (mBASINGEOMETRY_, Me%ObjBasinGeometry)
-                if (nUsers == 0) stop 'KillPorousMedia - PorousmediaProperties - ERR08'
+                if (nUsers == 0) stop 'KillPorousMedia - ModulePorousMediaProperties - ERR08'
 
                 nUsers = DeassociateInstance (mHORIZONTALGRID_, Me%ObjHorizontalGrid)
-                if (nUsers == 0) stop 'KillPorousMedia - PorousmediaProperties - ERR10'
+                if (nUsers == 0) stop 'KillPorousMedia - ModulePorousMediaProperties - ERR10'
 
                 nUsers = DeassociateInstance (mHORIZONTALMAP_,  Me%ObjHorizontalMap)
-                if (nUsers == 0) stop 'KillPorousMedia - PorousmediaProperties - ERR11'
+                if (nUsers == 0) stop 'KillPorousMedia - ModulePorousMediaProperties - ERR11'
                 
                 nUsers = DeassociateInstance (mPOROUSMEDIA_,  Me%ObjPorousMedia)
-                if (nUsers == 0) stop 'KillPorousMedia - PorousmediaProperties - ERR12'
+                if (nUsers == 0) stop 'KillPorousMedia - ModulePorousMediaProperties - ERR12'
 
                 nUsers = DeassociateInstance (mGEOMETRY_,  Me%ObjGeometry)
-                if (nUsers == 0) stop 'KillPorousMedia - PorousmediaProperties - ERR13'
+                if (nUsers == 0) stop 'KillPorousMedia - ModulePorousMediaProperties - ERR13'
 
                 nUsers = DeassociateInstance (mMAP_,  Me%ObjMap)
-                if (nUsers == 0) stop 'KillPorousMedia - PorousmediaProperties - ERR14'
+                if (nUsers == 0) stop 'KillPorousMedia - ModulePorousMediaProperties - ERR14'
 
                 if (Me%Coupled%ChainReactions) then
                     call KillChainReactions (Me%ObjChainReactions, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) &
-                        stop 'KillPorousMedia - PorousmediaProperties - ERR140'
+                        stop 'KillPorousMedia - ModulePorousMediaProperties - ERR140'
+                endif
+
+
+                if (Me%Output%RateFluxes .or. Me%Output%Boxes_ON) then
+                    call KillBoxDif(Me%ObjBoxDif, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_)                               &
+                        stop 'KillPorousMediaProperties - ModulePorousMediaProperties - ERR09'
                 endif
                 
                 call DeallocateVariables
@@ -9594,7 +10368,10 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
         
         call GetThetaS          (Me%ObjPorousMedia, Me%ExtVar%ThetaS, STAT = STAT_CALL) 
         if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - ModulePorousMediaProperties - ERR65'
-
+        
+        call GetThetaF          (Me%ObjPorousMedia, Me%ExtVar%ThetaF, STAT = STAT_CALL) 
+        if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - ModulePorousMediaProperties - ERR66'
+        
         call GetPotentialInfiltration (Me%ObjPorousMedia, Me%ExtVar%InfiltrationColumn, STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - Module ModulePorousMediaProperties. ERR10.'
 
@@ -9719,6 +10496,9 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
 
         call UnGetPorousMedia           (Me%ObjPorousMedia,Me%ExtVar%ThetaS, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadUnlockExternalVar - ModulePorousMediaProperties - ERR061'
+
+        call UnGetPorousMedia           (Me%ObjPorousMedia,Me%ExtVar%ThetaF, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadUnlockExternalVar - ModulePorousMediaProperties - ERR062'        
        
         call UnGetHorizontalGrid        (Me%ObjHorizontalGrid,Me%ExtVar%Area,STAT = STAT_CALL)   
         if (STAT_CALL /= SUCCESS_) stop 'ReadUnlockExternalVar - ModulePorousMediaProperties - ERR070'

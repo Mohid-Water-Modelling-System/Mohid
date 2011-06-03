@@ -5406,11 +5406,11 @@ cd2 :           if (BlockFound) then
 
         endif
 
-        if (CoupledSedimentQuality) then
-            !Wind Velocity
-            call UnGetAtmosphere  (Me%ObjAtmosphere, WindVelocity, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'PorousMediaPropertiesProcesses - ModuleBasin - ERR0162'
-        endif
+!        if (CoupledSedimentQuality) then
+!            !Wind Velocity
+!            call UnGetAtmosphere  (Me%ObjAtmosphere, WindVelocity, STAT = STAT_CALL)
+!            if (STAT_CALL /= SUCCESS_) stop 'PorousMediaPropertiesProcesses - ModuleBasin - ERR0162'
+!        endif
 
         if (MonitorPerformance) call StopWatch ("ModuleBasin", "PorousMediaPropertiesProcesses")
 

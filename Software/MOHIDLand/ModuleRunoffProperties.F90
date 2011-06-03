@@ -21,7 +21,8 @@
 !
 ! ADVDIFF_EXPLICIT              : 0/1               [1]        !REMARK: Horizontal diffusion is always explicit
 !                                                               (1 - horiz adv is explicit; 0 - horiz adv is implicit 
-! ADVDIFF_METHOD_H              : integer      [UpwindOrder1]   !Spatial methods for horizontal advection
+! NEW_FORMULATION               : 0/1                [0]        !if 1 then spatial methods will be the same for all properties
+!      ADVDIFF_METHOD_H         : integer      [UpwindOrder1]   !Spatial methods for horizontal advection
 !                                                               !UpwindOrder1 = 1, UpwindOrder2 = 2, UpwindOrder3 = 3, P2_TVD = 4,
 !                                                                CentralDif = 5, LeapFrog = 6    !
 ! <beginproperty>
