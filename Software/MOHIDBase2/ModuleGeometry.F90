@@ -2545,9 +2545,9 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
         if (MonitorPerformance) call StartWatch ("ModuleGeometry", "ComputeWaterColumn")
 
         CHUNK = Chunk_J(JLB,JUB)
-        !$OMP PARALLEL PRIVATE(i,j,k,kbottom)
 
         !Computes WaterColumn
+        !$OMP PARALLEL PRIVATE(i,j,k,kbottom)
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
         do j = JLB, JUB
         do i = ILB, IUB
@@ -2556,8 +2556,10 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
         enddo
         enddo
         !$OMP END DO NOWAIT
+        !$OMP END PARALLEL
 
         !Computes WaterColumnU
+        !$OMP PARALLEL PRIVATE(i,j,k,kbottom)
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
         do j = JLB+1, JUB
         do i = ILB  , IUB
@@ -2580,8 +2582,10 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
         enddo
         enddo
         !$OMP END DO NOWAIT
+        !$OMP END PARALLEL
 
         !Computes WaterColumnV
+        !$OMP PARALLEL PRIVATE(i,j,k,kbottom)
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
         do j = JLB  , JUB
         do i = ILB+1, IUB
@@ -2603,7 +2607,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
         enddo
         enddo
-        !$OMP END DO
+        !$OMP END DO NOWAIT
         !$OMP END PARALLEL
 
         if (MonitorPerformance) call StopWatch ("ModuleGeometry", "ComputeWaterColumn")
@@ -2674,9 +2678,9 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
         if (MonitorPerformance) call StartWatch ("ModuleGeometry", "ComputeDistances")
 
         CHUNK = Chunk_J(JLB,JUB)
-        !$OMP PARALLEL PRIVATE(i,j,k)
 
         !Computes DWZ
+        !$OMP PARALLEL PRIVATE(i,j,k)
         do k = KLB, KUB
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
         do j = JLB, JUB
@@ -2689,12 +2693,14 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             endif
         enddo
         enddo
-        !$OMP END DO
+        !$OMP END DO NOWAIT
         enddo
+        !$OMP END PARALLEL
 
 cd1:    if (FacesOption == MinTickness) then
 
             !Computes DUZ
+            !$OMP PARALLEL PRIVATE(i,j,k)
             do k = KLB  , KUB
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
             do j = JLB+1, JUB
@@ -2707,10 +2713,12 @@ cd1:    if (FacesOption == MinTickness) then
 
             enddo
             enddo
-            !$OMP END DO
+            !$OMP END DO NOWAIT
             enddo
+            !$OMP END PARALLEL
 
             !Computes DVZ
+            !$OMP PARALLEL PRIVATE(i,j,k)
             do k = KLB  , KUB
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
             do j = JLB  , JUB
@@ -2725,23 +2733,25 @@ cd1:    if (FacesOption == MinTickness) then
 
             enddo
             enddo
-            !$OMP END DO
+            !$OMP END DO NOWAIT
             enddo
+            !$OMP END PARALLEL
 
         else if (FacesOption == AverageTickness) then cd1
 
-            !$OMP MASTER
+            !!$OMP MASTER
             !Gets DZX, DZY
             call GetHorizontalGrid(Me%ObjHorizontalGrid, DUX = DUX, DVY = DVY, & 
                                    STAT = STAT_CALL)
 
             if (STAT_CALL /= SUCCESS_)                                                  &
                 stop 'ComputeAreas - Geometry - ERR01'
-            !$OMP END MASTER
+            !!$OMP END MASTER
 
-            !$OMP BARRIER
+            !!$OMP BARRIER
 
             !Computes DUZ
+            !$OMP PARALLEL PRIVATE(i,j,k)
             do k = KLB  , KUB
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
             do j = JLB+1, JUB
@@ -2760,9 +2770,11 @@ cd1:    if (FacesOption == MinTickness) then
             enddo
             !$OMP END DO NOWAIT
             enddo
+            !$OMP END PARALLEL
 
 
             !Computes DVZ
+            !$OMP PARALLEL PRIVATE(i,j,k)
             do k = KLB  , KUB
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
             do j = JLB  , JUB
@@ -2779,10 +2791,11 @@ cd1:    if (FacesOption == MinTickness) then
 
             enddo
             enddo
-            !$OMP END DO
+            !$OMP END DO NOWAIT
             enddo
+            !$OMP END PARALLEL
 
-            !$OMP MASTER
+            !!$OMP MASTER
             !Nullifies auxilary pointers
             call UnGetHorizontalGrid(Me%ObjHorizontalGrid, DUX, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                                   &
@@ -2792,13 +2805,14 @@ cd1:    if (FacesOption == MinTickness) then
             call UnGetHorizontalGrid(Me%ObjHorizontalGrid, DVY, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                                   &
                 stop 'ComputeDistances - Geometry - ERR03'
-            !$OMP END MASTER
+            !!$OMP END MASTER
 
-            !$OMP BARRIER
+            !!$OMP BARRIER
 
         endif cd1
 
         !Computes DZZ
+        !$OMP PARALLEL PRIVATE(i,j,k)
         do k = KLB, KUB
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
         do j = JLB, JUB
@@ -2812,8 +2826,10 @@ cd1:    if (FacesOption == MinTickness) then
         enddo
         !$OMP END DO NOWAIT
         enddo
+        !$OMP END PARALLEL
 
         !Computes DZE
+        !$OMP PARALLEL PRIVATE(i,j,k)
         do k = KLB  , KUB
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
         do j = JLB+1, JUB
@@ -2830,8 +2846,10 @@ cd1:    if (FacesOption == MinTickness) then
         enddo
         !$OMP END DO NOWAIT
         enddo
+        !$OMP END PARALLEL
 
         !Computes DZI
+        !$OMP PARALLEL PRIVATE(i,j,k)
         do k = KLB  , KUB
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
         do j = JLB  , JUB
@@ -2848,8 +2866,10 @@ cd1:    if (FacesOption == MinTickness) then
         enddo
         !$OMP END DO NOWAIT
         enddo
+        !$OMP END PARALLEL
 
 !Computes DWZ_Xgrad
+        !$OMP PARALLEL PRIVATE(i,j,k)
         do k = KLB  , KUB
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
         do j = JLB  , JUB
@@ -2878,10 +2898,10 @@ cd1:    if (FacesOption == MinTickness) then
         enddo
         !$OMP END DO NOWAIT
         enddo
-
-
+        !$OMP END PARALLEL
 
 !Computes DWZ_Ygrad
+        !$OMP PARALLEL PRIVATE(i,j,k)
         do k = KLB  , KUB
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
         do j = JLB  , JUB
@@ -2908,13 +2928,11 @@ cd1:    if (FacesOption == MinTickness) then
 
         enddo
         enddo
-        !$OMP END DO
+        !$OMP END DO NOWAIT
         enddo
-
         !$OMP END PARALLEL
 
         if (MonitorPerformance) call StopWatch ("ModuleGeometry", "ComputeDistances")
-
 
         nullify(DWZ, DZZ, DUZ, DVZ, DZI, DZE, SZZ, DWZ_Xgrad, DWZ_Ygrad)
 
@@ -3511,6 +3529,8 @@ cd1:    if (FacesOption == MinTickness) then
         real                                    :: TopDepth
         real                                    :: LayerThickness, AllmostZero_ 
 
+        nullify(WaterPoints2D)
+        
         AllmostZero_ = 5e-4
         
         ILB = Me%WorkSize%ILB
@@ -3526,6 +3546,7 @@ cd1:    if (FacesOption == MinTickness) then
 
 cd1:    if (ComputionType == INITIALGEOMETRY) then
 
+            kbottom = Domain%LowerLayer
      
             do j = JLB, JUB
             do i = ILB, IUB
@@ -3548,6 +3569,8 @@ cd1:    if (ComputionType == INITIALGEOMETRY) then
                     Me%Distances%SZZ(i, j, Domain%UpperLayer) = TopDepth
 
                     kbottom = max(Domain%LowerLayer, Me%KFloor%Z(i, j))
+                    !griflet: wrong signal!!! it should be kbottom > Me%KFloor%Z(i,j)
+                    !if ( kbottom < Me%KFloor%Z(i, j) ) kbottom = Me%KFloor%Z(i, j)
 
                     do k = Domain%UpperLayer - 1, kbottom, -1
 
