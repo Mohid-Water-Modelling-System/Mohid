@@ -3527,7 +3527,8 @@ cd1:    if (FacesOption == MinTickness) then
         integer                                 :: i, j, k, ILB, IUB, JLB, JUB
         integer                                 :: STAT_CALL, kbottom
         real                                    :: TopDepth
-        real                                    :: LayerThickness, AllmostZero_ 
+        real                                    :: LayerThickness, AllmostZero_
+        integer                                 :: ktop, KFloorZ
 
         nullify(WaterPoints2D)
         
@@ -3567,12 +3568,17 @@ cd1:    if (ComputionType == INITIALGEOMETRY) then
 
                     !Inits SZZ
                     Me%Distances%SZZ(i, j, Domain%UpperLayer) = TopDepth
-
-                    kbottom = max(Domain%LowerLayer, Me%KFloor%Z(i, j))
-                    !griflet: wrong signal!!! it should be kbottom > Me%KFloor%Z(i,j)
-                    !if ( kbottom < Me%KFloor%Z(i, j) ) kbottom = Me%KFloor%Z(i, j)
-
-                    do k = Domain%UpperLayer - 1, kbottom, -1
+                   
+                    
+                    !griflet: I must pass the structured data variables into scalar variables
+                    !otherwise the model returns an access violation in openmp mode
+                    !for no apparent reason...
+                    ktop = Domain%UpperLayer
+                    kbottom = Domain%LowerLayer
+                    KFloorZ = Me%KFloor%Z(i,j)
+                    if ( kbottom < KFloorZ ) kbottom = KFloorZ
+                    
+                    do k = ktop - 1, kbottom, -1
 
                         !The Layerthickness is now given in meters
                         !Frank - Jan 2001
