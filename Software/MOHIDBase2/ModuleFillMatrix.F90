@@ -812,13 +812,13 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 write(*,*) 
             
                 if (AuxBoolean) then                    
-                    Me%InterpolateValues = .true.
-                    Me%AccumulateValues  = .false.
-                    Me%UseOriginalValues = .false.                  
-                else                
                     Me%InterpolateValues = .false.
                     Me%AccumulateValues  = .true.
-                    Me%UseOriginalValues = .false.                  
+                    Me%UseOriginalValues = .false.                   
+                else       
+                    Me%InterpolateValues = .true.
+                    Me%AccumulateValues  = .false.
+                    Me%UseOriginalValues = .false.                           
                 endif            
             endif
         endif  

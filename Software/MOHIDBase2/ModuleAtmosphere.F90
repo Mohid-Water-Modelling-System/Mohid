@@ -189,6 +189,7 @@ Module ModuleAtmosphere
         logical                                     :: OutputHDF            = .false.
         logical                                     :: Constant             = .false.
         logical                                     :: NoInterpolateValueInTime = .false.
+        logical                                     :: AccumulateValueInTime = .false.
         type (T_Statistics)                         :: Statistics
         type (T_Property), pointer                  :: Next                 => null()
         type (T_Property), pointer                  :: Prev                 => null()
@@ -296,6 +297,7 @@ Module ModuleAtmosphere
     
         !Local-----------------------------------------------------------------
         integer                                     :: STAT_
+        character(len = StringLength)               :: WarningString
  
         !Begin-----------------------------------------------------------------
 
@@ -356,7 +358,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             ! By default a output file is always open in the construction phase
             if (Me%OutPut%True) call OpenHDF5OutPutFile
             
-            call ModifyOutPut
+            WarningString = 'Construct'
+            call ModifyOutPut(WarningString)
 
             call null_time(Me%ActualTime)
 
@@ -964,6 +967,32 @@ cd2 :           if (BlockFound) then
                      ClientModule = 'ModuleAtmosphere',                                 &
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)stop 'Construct_PropertyValues - ModuleAtmosphere - ERR00'
+        if (iflag .NE. 0) then
+            write(*,*) 
+            write(*,*) 'ModuleAtmosphere WARNING:'
+            write(*,*) 'NO_INTERPOLATION keyword is deprecated.'
+            write(*,*) 'To use accumulated values use instead :'
+            write(*,*) '   "ACCUMULATE_VALUES : 1" '
+            write(*,*) 
+        
+            if (NewProperty%NoInterpolateValueInTime) then                    
+                NewProperty%AccumulateValueInTime  = .true.
+            else       
+                NewProperty%AccumulateValueInTime  = .false.
+            endif  
+        
+        else
+       
+            call GetData(NewProperty%AccumulateValueInTime,                                 &
+                         Me%ObjEnterData, iflag,                                            &
+                         Default      = .false.,                                            &
+                         SearchType   = FromBlock,                                          &
+                         keyword      ='ACCUMULATE_VALUES',                                 &
+                         ClientModule = 'ModuleAtmosphere',                                 &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)stop 'Construct_PropertyValues - ModuleAtmosphere - ERR01'
+        
+        endif          
 
         call ConstructFillMatrix(PropertyID         = NewProperty%ID,                   &
                                  EnterDataID        = Me%ObjEnterData,                  &
@@ -974,7 +1003,7 @@ cd2 :           if (BlockFound) then
                                  Matrix2D           = NewProperty%Field,                &
                                  TypeZUV            = TypeZ_,                           &
                                  STAT               = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Construct_PropertyValues - ModuleAtmosphere - ERR01'
+        if (STAT_CALL /= SUCCESS_) stop 'Construct_PropertyValues - ModuleAtmosphere - ERR02'
 
         call GetIfMatrixRemainsConstant(FillMatrixID    = NewProperty%ID%ObjFillMatrix,     &
                                         RemainsConstant = NewProperty%Constant,             &
@@ -1649,7 +1678,7 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
 
         !External--------------------------------------------------------------
         integer                                     :: STAT_CALL
-
+        character(len = StringLength)               :: WarningString
         !Begin------------------------------------------------------------------------
 
 
@@ -1720,8 +1749,9 @@ cd0:    if (ready_ .EQ. IDLE_ERR_) then
             if (Me%PropsAddedByRain) then
                 call ModifyPropByRain
             endif
-
-            call ModifyOutPut
+            
+            WarningString = 'Modify'
+            call ModifyOutPut (WarningString)
 
             call RotateAtmosphereVectorFields(Constructing = .false.)
 
@@ -1814,11 +1844,13 @@ do1 :   do while (associated(PropertyX))
     !----------------------------------------------------------------------
 
 
-    subroutine ModifyOutPut
+    subroutine ModifyOutPut(WarningString)
 
         !Arguments-------------------------------------------------------------
         type(T_Property), pointer                   :: PropertyX
 
+        !Local-----------------------------------------------------------------
+        character(len = StringLength)               :: WarningString
         !Begin------------------------------------------------------------------------
 
         !Output HDF
@@ -1842,8 +1874,8 @@ do2 :   do while (associated(PropertyX))
                 call OutPut_Statistics(PropertyX%Field, PropertyX%Statistics%ID)
 
             endif
-
-            PropertyX%FirstActualization = .false.
+            
+            if (WarningString == "Modify")  PropertyX%FirstActualization = .false.
 
             PropertyX => PropertyX%Next
 
@@ -2135,7 +2167,7 @@ do2 :   do while (associated(PropertyX))
 
         if (PropPrecipitation%FirstActualization .or. .not. PropPrecipitation%Constant) then
 
-            if(PropPrecipitation%NoInterpolateValueInTime) then
+            if(PropPrecipitation%AccumulateValueInTime) then
                 if (PropPrecipitation%ID%Units /= 'mm') then
                     write(*,*)'Invalid Precipitation Units for accumulated rain'
                     write(*,*)'Use mm'
@@ -2658,7 +2690,7 @@ do1 :   do while (associated(PropertyX))
 
             case ('mm')
 
-                if(.not.PropIrrigation%NoInterpolateValueInTime) then
+                if(.not.PropIrrigation%AccumulateValueInTime) then
                     write(*,*)'Invalid Irrigation Units'
                     write(*,*)'Use m3/s, mm/day or mm/month'
                     stop 'ModifyIrrigation - ModuleAtmosphere - ERR01b'
