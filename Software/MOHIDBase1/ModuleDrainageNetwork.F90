@@ -7312,10 +7312,11 @@ do2 :   do while (associated(PropertyX))
         if (Niter <= 5) then
             Me%NextDT = Me%ExtVar%DT * 1.50
         else if (Niter <= 10) then
-            Me%NextDT = Me%ExtVar%DT
+            Me%NextDT = Me%ExtVar%DT * 1.0
         else
             Me%NextDT = Me%ExtVar%DT / 2.0
         endif
+        
         
         !call ComputeNextDT
 
@@ -8142,19 +8143,29 @@ do2 :   do while (associated(PropertyX))
         !Local------------------------------------------------------------------
         integer                                     :: NodeID, ReachID
         type (T_Reach), pointer                     :: CurrReach
+        !$ integer                                  :: CHUNK
 
+        !$OMP PARALLEL PRIVATE(NodeID,ReachID)
+
+        !$ CHUNK = 10
 
         if (MonitorPerformance) call StartWatch ("ModuleDrainageNetwork", "ModifyHydrodynamics")
 
         !Actualize Volumes
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
         do NodeID = 1, Me%TotalNodes
             Me%Nodes(NodeID)%VolumeOld = Me%Nodes(NodeID)%VolumeNew
         end do
+        !$OMP END DO
 
         !Actualize Reaches
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
         do ReachID = 1, Me%TotalReaches
             Me%Reaches(ReachID)%FlowOld = Me%Reaches(ReachID)%FlowNew
         end do
+        !$OMP END DO
+
+        !$OMP END PARALLEL
 
         if (Me%NumericalScheme == ExplicitScheme) then
 
@@ -8734,7 +8745,7 @@ if2:        if (CurrNode%VolumeNew > PoolVolume) then
         CurrNode => Me%Nodes (NodeID)
 
         if (Me%Stabilize .and. Niter < Me%MaxIterations) then
-            if (CurrNode%nDownstreamReaches /= 0 .and. CurrNode%VolumeOld > CurrNode%VolumeMin) then
+            if (CurrNode%nDownstreamReaches /= 0 .and. CurrNode%VolumeOld > CurrNode%VolumeMin) then   ! .and. .not. CurrNode%Discharges
                 if (abs(CurrNode%VolumeNew - CurrNode%VolumeOld) / CurrNode%VolumeOld > Me%StabilizeFactor) then
                     Restart = .true.
                     return
