@@ -707,6 +707,8 @@ Module ModuleWaterProperties
         real                                    :: Scalar               = FillValueReal
         logical                                 :: Old                  = .false.
         logical                                 :: WarnOnNegativeValues = .false.
+        logical                                 :: AddOffSet            = .false.
+        real                                    :: OffSet               = FillValueReal
         logical                                 :: TimeSerie            = .false.
         logical                                 :: OutputHDF            = .false.
         logical                                 :: OutputSurfaceHDF     = .false.
@@ -3955,7 +3957,68 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
                      STAT           = STAT_CALL)              
         if (STAT_CALL .NE. SUCCESS_)                                                     &
             stop 'Construct_PropertyValues - ModuleWaterProperties - ERR90' 
+        
+        !<BeginKeyword>
+            !Keyword          : ADD_OFFSET
+            !<BeginDescription>       
+               ! Allows a property concentration to be negative provided that 
+               ! an offset is given so that in advection-diffusion the values are positive
+               ! and the offset it taken 
+            !<EndDescription>
+            !Type             : Real 
+            !Default          : .false.
+            !File keyword     : DISPQUAL
+            !Search Type      : FromBlock
+            !Begin Block      : <beginproperty>
+            !End Block        : <endproperty>
+        !<EndKeyword>
 
+
+        call GetData(NewProperty%AddOffSet,                                              &
+                     Me%ObjEnterData, iflag,                                             &
+                     SearchType     = FromBlock,                                         &
+                     keyword        = 'ADD_OFFSET',                                      &
+                     Default        = .false.,                                           &
+                     ClientModule   = 'ModuleWaterProperties',                           &
+                     STAT           = STAT_CALL)              
+        if (STAT_CALL .NE. SUCCESS_)                                                     &
+            stop 'Construct_PropertyValues - ModuleWaterProperties - ERR91' 
+            
+            
+        if(NewProperty%AddOffSet)then
+            !<BeginKeyword>
+                !Keyword          : OFFSET
+                !<BeginDescription>       
+                   ! An offset if provided when the values of the property can be negative
+                   ! the offset value is added before advection-diffusion and added again
+                   ! after the advection-diffusion call so that the values are positive 
+                   ! when computing advection-diffusion 
+                !<EndDescription>
+                !Type             : Real 
+                !Default          : 0.
+                !File keyword     : DISPQUAL
+                !Search Type      : FromBlock
+                !Begin Block      : <beginproperty>
+                !End Block        : <endproperty>
+            !<EndKeyword>
+
+
+            call GetData(NewProperty%OffSet,                                                 &
+                         Me%ObjEnterData, iflag,                                             &
+                         SearchType     = FromBlock,                                         &
+                         keyword        = 'OFFSET',                                          &
+                         ClientModule   = 'ModuleWaterProperties',                           &
+                         STAT           = STAT_CALL)              
+            if (STAT_CALL .NE. SUCCESS_)                                                     &
+                stop 'Construct_PropertyValues - ModuleWaterProperties - ERR92' 
+            
+            if(iflag .eq. 0)then 
+                write(*,*) 'Property : ', trim(adjustl(NewProperty%ID%Name))
+                write(*,*) 'Must have an offset defined as ALLOW_NEGATIVE_VALUES is ON'
+                stop 'Construct_PropertyValues - ModuleWaterProperties - ERR93'            
+            endif
+        
+        end if   
         !<BeginKeyword>
             !Keyword          : DEFAULTBOUNDARY
             !<BeginDescription>      
@@ -4143,10 +4206,25 @@ do6 :                       do K = WKLB, WKUB
         JUB = Me%WorkSize%JUB
         KLB = Me%WorkSize%KLB
         KUB = Me%WorkSize%KUB
-
-
+        
+        if (NewProperty%AddOffSet)then
+                    
+            do K = Me%WorkSize%KLB, Me%WorkSize%KUB
+            do J = Me%WorkSize%JLB, Me%WorkSize%JUB
+            do I = Me%WorkSize%ILB, Me%WorkSize%IUB
             
-            !Verification if the values read are lower than zero in water points
+                if(Me%ExternalVar%WaterPoints3D(i,j,k) == WaterPoint)then
+                    NewProperty%Concentration(i,j,k)   = NewProperty%Concentration(i,j,k)      + &
+                                                         NewProperty%OffSet
+                endif
+            
+            enddo
+            enddo
+            enddo
+            
+        endif
+            
+        !Verification if the values read are lower than zero in water points
 do9 :   do I = ILB, IUB
 do8 :   do J = JLB, JUB
 do7 :   do K = KLB, KUB
@@ -4179,6 +4257,24 @@ cd52:           if (NewProperty%Concentration(i, j, k) < 0.) then
         enddo do7
         enddo do8
         enddo do9
+        
+        
+        if (NewProperty%AddOffSet)then
+                    
+            do K = Me%WorkSize%KLB, Me%WorkSize%KUB
+            do J = Me%WorkSize%JLB, Me%WorkSize%JUB
+            do I = Me%WorkSize%ILB, Me%WorkSize%IUB
+            
+                if(Me%ExternalVar%WaterPoints3D(i,j,k) == WaterPoint)then
+                    NewProperty%Concentration(i,j,k)   = NewProperty%Concentration(i,j,k)      - &
+                                                         NewProperty%OffSet
+                endif
+            
+            enddo
+            enddo
+            enddo
+            
+        endif
 
     end subroutine CheckFieldConsistence
 
@@ -9914,6 +10010,27 @@ cd10:                       if (Property%evolution%Advec_Difus_Parameters%Implic
                         call CheckIfConcentrationIsNegative(Property, 'before advection-diffusion')
 
                     endif
+                    
+                    if (Property%AddOffSet)then
+                    
+                        Property%DischConc(:) = Property%DischConc(:) + Property%OffSet
+                        
+                        do K = Me%WorkSize%KLB, Me%WorkSize%KUB
+                        do J = Me%WorkSize%JLB, Me%WorkSize%JUB
+                        do I = Me%WorkSize%ILB, Me%WorkSize%IUB
+                        
+                            if(Me%ExternalVar%WaterPoints3D(i,j,k) == WaterPoint)then
+                                Property%Concentration(i,j,k)      = Property%Concentration(i,j,k)      + &
+                                                                     Property%OffSet
+                                Property%Assimilation%Field(i,j,k) = Property%Assimilation%Field(i,j,k) + &
+                                                                     Property%OffSet
+                            endif
+                        
+                        enddo
+                        enddo
+                        enddo
+                        
+                    endif
 
                     if (Property%Evolution%Discharges)then
 
@@ -9981,6 +10098,28 @@ cd10:                       if (Property%evolution%Advec_Difus_Parameters%Implic
                             stop 'Advection_Diffusion_Processes - ModuleWaterProperties - ERR120'
 
                     endif
+                    
+                    if (Property%AddOffSet)then
+                    
+                        Property%DischConc(:) = Property%DischConc(:) - Property%OffSet
+                        
+                        do K = Me%WorkSize%KLB, Me%WorkSize%KUB
+                        do J = Me%WorkSize%JLB, Me%WorkSize%JUB
+                        do I = Me%WorkSize%ILB, Me%WorkSize%IUB
+                        
+                            if(Me%ExternalVar%WaterPoints3D(i,j,k) == WaterPoint)then
+                                Property%Concentration(i,j,k)      = Property%Concentration(i,j,k)      - &
+                                                                     Property%OffSet
+                                Property%Assimilation%Field(i,j,k) = Property%Assimilation%Field(i,j,k) - &
+                                                                     Property%OffSet
+                            endif
+                        
+                        enddo
+                        enddo
+                        enddo
+                        
+                    endif
+
 
                     if (Property%WarnOnNegativeValues)then
 
@@ -12803,8 +12942,14 @@ do3:            do k = kbottom, KUB
                                 SpecifHeat                         /                    &
                                 Me%ExternalVar%DWZ(i, j, k)
 
-                    !The water temperature can not be below 0ºC
-                    if (AuxT < - Temperature%Concentration(i, j, k)) AuxT = 0
+                    !The water temperature can not be below 0ºC  
+                    !unless the ADDOFFSET option is activated
+                    !so that the water temperature can take negative values
+                    if (AuxT < - Temperature%Concentration(i, j, k))then
+                        if(.not. Temperature%AddOffSet)then
+                            AuxT = 0.0
+                        end if
+                    endif
                     
                     ![Celsius]  =  [Celsius]  + [Celsius]                        
                     Temperature%Concentration(i, j, k) =                                &
