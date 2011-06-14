@@ -29,6 +29,7 @@ program ConvertToHDF5
     use ModuleMercatorFormat
     use ModuleARPSToWW3
     use ModuleHYCOMFormat
+    use ModuleNetCDFCF_2_HDF5MOHID
 #endif
     use ModuleLevitusFormat
     use ModuleHellermanRosensteinAscii
@@ -76,6 +77,7 @@ program ConvertToHDF5
     character(len = StringLength), parameter:: ConvertToCFPolcomFormat      = 'CONVERT CF POLCOM FORMAT'
     character(len = StringLength), parameter:: ConvertERA40FormatToHDF5     = 'CONVERT ERA40 FORMAT'
     character(len = StringLength), parameter:: ConvertToMercatorFormat      = 'CONVERT MERCATOR FORMAT'    
+    character(len = StringLength), parameter:: ConvertToNetCDFCF            = 'CONVERT NETCDF CF TO HDF5 MOHID'        
     character(len = StringLength), parameter:: ConvertToHYCOMFormat         = 'CONVERT HYCOM FORMAT'
     character(len = StringLength), parameter:: ConvertToLevitusFormat       = 'CONVERT LEVITUS FORMAT'
     character(len = StringLength), parameter:: ConvertToHellermanRosenstein = 'CONVERT HELLERMAN ROSENSTEIN ASCII'
@@ -218,6 +220,12 @@ if2 :           if (BlockFound) then
                             
                             call ConvertMercatorFormat(ObjEnterData, ClientNumber, STAT = STAT_CALL)
                             if(STAT_CALL .ne. SUCCESS_) stop 'ReadOptions - ConvertToHDF5 - ERR100'
+                            
+                        case(ConvertToNetCDFCF)
+                            
+                            call ConvertNetCDFCF_2_HDF5MOHID(ObjEnterData, ClientNumber, STAT = STAT_CALL)
+                            if(STAT_CALL .ne. SUCCESS_) stop 'ReadOptions - ConvertToHDF5 - ERR105'
+                            
 #endif
 #ifndef _NO_NETCDF
                         case(ConvertToHYCOMFormat)
