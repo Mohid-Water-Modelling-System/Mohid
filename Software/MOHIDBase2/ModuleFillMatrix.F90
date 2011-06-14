@@ -4036,7 +4036,7 @@ i1:     if (.not.(Me%HDF%Previous4DValue <= Generic_4D_Value_ .and.             
 
             else
             
-                !do nothing. Values will not be used 
+                call SetMatrixValue(Me%Matrix2D, Me%WorkSize2D, Me%HDF%NextField2D, PointsToFill2D)
                 
             endif
 
