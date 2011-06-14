@@ -1097,7 +1097,7 @@ BF:         if (BlockFound) then
 
 
             call HDF5WriteData  (Me%ObjHDF5, "/Grid",                                   &
-                                 "Waterpoints3D", "-",                                  &
+                                 "WaterPoints3D", "-",                                  &
                                  Array3D = Me%Mapping%Value3DOut,                       &
                                  STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)stop 'WriteGrid3DHDF5 - ModuleNetCDFCF_2_HDF5MOHID - ERR40'
@@ -1106,7 +1106,7 @@ BF:         if (BlockFound) then
         else
 
             call HDF5WriteData  (Me%ObjHDF5, "/Grid",                                   &
-                                 "Waterpoints2D", "-",                                  &
+                                 "WaterPoints2D", "-",                                  &
                                  Array2D = Me%Mapping%Value2DOut,                       &
                                  STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)stop 'WriteGrid3DHDF5 - ModuleNetCDFCF_2_HDF5MOHID - ERR50'
