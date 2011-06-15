@@ -49,6 +49,12 @@
 !   AGE_USING_WATERPOINTS       : 0/1               0           !Compute age using Waterpoints. Default uses OpenPoints
 !   MACROALGAE_MASS             : real         [0.001 gC/m2]    !Initial distribution of macroalgae
 !   MACROALGAE_HEIGHT           : real            [0.25 m]      !Macroalgae height
+!   VARIABLE_MACR_HEIGHT        : 0/1               0           ! switch to compute (1) not compute(0) variable
+!                                                                 macroalgae height
+!   MACR_HEIGHT_BIOMASS_RATIO   : real            [0.002]       ! ratio Height/biomass (m/gC/m2)
+!                                                               ! this ratio is calculated knowing that biomass of 
+!                                                                500gdw/m2 average height =0.25 (Astill & Lavery, 2001)
+!                                                                gC= 0.3*gdw (Duarte, 1990)--> 0.25m/[500gdw/m2*0.3gC/gdw] = 0.002 m/gC/m2
 
 !   <begin_shading>
 !   See module FillMatrix       : -                [m]          !Imposed shading factor
@@ -592,12 +598,13 @@ Module ModuleWaterProperties
     end type   T_Reinitialize
 
     type       T_MacroAlgae
+        logical                                 :: VariableHeight = .false.
         real,    pointer, dimension(:,:  )      :: Distribution     !kgC/m2
-        real                                    :: Height, DefaultValue
+        real                                    :: DefaultValue, HBRatio, HeightConstant
         real,    pointer, dimension(:,:,:)      :: ShearStress3D
         real,    pointer, dimension(:,:,:)      :: SPMDepFlux3D
         real,    pointer, dimension(:,:,:)      :: Occupation
-        real,    pointer, dimension(:,:  )      :: MaxShearStress
+        real,    pointer, dimension(:,:  )      :: MaxShearStress, Height
         real,    pointer, dimension(:,:  )      :: MaxSPMDepFlux
     end type   T_MacroAlgae
 
@@ -2912,17 +2919,50 @@ do1 :   do while (associated(PropertyX))
         if (STAT_CALL /= SUCCESS_) stop 'CoupleMacroAlgae - ModuleWaterProperties - ERR02'
         if (iflag == 0)            stop 'CoupleMacroAlgae - ModuleWaterProperties - ERR03'
         
+        call GetData(Me%MacroAlgae%VariableHeight,                                              &
+                     Me%ObjEnterData, iflag,                                            &
+                     Keyword        = 'VARIABLE_MACR_HEIGHT',                              &
+                     Default        = .false.,                                             &
+                     SearchType     = FromFile,                                         &
+                     ClientModule   = 'ModuleWaterProperties',                          &
+                     STAT           = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'CoupleMacroAlgae - ModuleWaterProperties - ERR04'
+        
+        if ((iflag == 0) .or. (.not.Me%MacroAlgae%VariableHeight))  then
         !m
-        call GetData(Me%MacroAlgae%Height,                                              &
+        call GetData(Me%MacroAlgae%HeightConstant,                                      &
                      Me%ObjEnterData, iflag,                                            &
                      Keyword        = 'MACROALGAE_HEIGHT',                              &
                      Default        = 0.25,                                             &
                      SearchType     = FromFile,                                         &
                      ClientModule   = 'ModuleWaterProperties',                          &
                      STAT           = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'CoupleMacroAlgae - ModuleWaterProperties - ERR04'
-        if (iflag == 0)            stop 'CoupleMacroAlgae - ModuleWaterProperties - ERR05'
-
+        if (STAT_CALL /= SUCCESS_) stop 'CoupleMacroAlgae - ModuleWaterProperties - ERR05'
+        if (iflag == 0)            stop 'CoupleMacroAlgae - ModuleWaterProperties - ERR06'
+        endif
+        
+        if (Me%MacroAlgae%VariableHeight) then 
+        
+               
+        call GetData(Me%MacroAlgae%HBRatio,                           &
+                     Me%ObjEnterData, iflag,                                            &
+                     Keyword        = 'MACR_HEIGHT_BIOMASS_RATIO',                           &
+                     Default        = 0.002,                                            &
+                     SearchType     = FromFile,                                         &
+                     ClientModule   = 'ModuleWaterProperties',                          &
+                     STAT           = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'CoupleMacroAlgae - ModuleWaterProperties - ERR08'
+        if (iflag == 0)            stop 'CoupleMacroAlgae - ModuleWaterProperties - ERR09'
+        
+    
+        Me%MacroAlgae%Height   (:,:) = Me%MacroAlgae%DefaultValue * &
+                                                        Me%MacroAlgae%HBRatio
+        else
+        
+        Me%MacroAlgae%Height   (:,:) = Me%MacroAlgae%HeightConstant
+        
+        endif
+        
         allocate(Me%MacroAlgae%Distribution  (ILB:IUB, JLB:JUB)) !gC/m2
         Me%MacroAlgae%Distribution   (:,:) = Me%MacroAlgae%DefaultValue
 
@@ -11031,7 +11071,7 @@ cd5:                if (TotalVolume > 0.) then
         integer                                 :: i, j, k, kbottom
         integer                                 :: ILB, IUB, JLB, JUB, KUB
         integer                                 :: STAT_CALL
-        real                                    :: Z, dZ, dZma
+        real                                    :: Remaining_Length
         
         !Begin----------------------------------------------------------------- 
 
@@ -11052,42 +11092,35 @@ cd5:                if (TotalVolume > 0.) then
 
             do j = JLB, JUB
             do i = ILB, IUB
+            
+            kbottom = Me%ExternalVar%KFloor_Z(i, j)
 
                 if (Me%ExternalVar%OpenPoints3D(i, j, KUB) == OpenPoint) then
-
-                    kbottom = Me%ExternalVar%KFloor_Z(i, j)
-
-                    if(Me%MacroAlgae%Height .ge. WaterColumnZ(i,j))then
+              
+                    
+                    if(Me%MacroAlgae%Height(i,j) .ge. WaterColumnZ(i,j))then
 
                         Me%MacroAlgae%Occupation(i,j,kbottom:KUB) = 1
 
                     else
 
-                        Z = Me%ExternalVar%DWZ(i,j,kbottom)
+                        k = kbottom    ! index for the top sediment layer
 
-                        k = kbottom
-
-                        dZma = Me%MacroAlgae%Height
+                        Remaining_Length = Me%MacroAlgae%Height(i,j)
 
                         do while(k .LE. KUB)
 
-                            dZ   = Me%MacroAlgae%Height - Z
                             
-                            if    (dZ > 0.)then
-                                dZma                            = dZ
-                                Z                               = Z + Me%ExternalVar%DWZ(i,j,k)
-                                Me%MacroAlgae%Occupation(i,j,k) = 1
-                                k                               = k + 1
-                            elseif(dZ == 0.)then
+                            if  (Remaining_Length >= Me%ExternalVar%DWZ(i,j,k))then
 
-                                Me%MacroAlgae%Occupation(i,j,k) = 1
-                                exit
-
+                                Me%MacroAlgae%Occupation(i,j,k)   = 1.
+                                Remaining_Length                  = Remaining_Length - Me%ExternalVar%DWZ(i,j,k)
                             else
-                                Me%MacroAlgae%Occupation(i,j,k) = dZma / Me%ExternalVar%DWZ(i,j,k)
-                                exit 
+                                Me%MacroAlgae%Occupation(i,j,k)   = Remaining_Length / Me%ExternalVar%DWZ(i,j,k)
                             end if
-
+                            
+                             k = k + 1
+                             
                         end do
 
                     end if
@@ -11106,13 +11139,13 @@ cd5:                if (TotalVolume > 0.) then
 
                     kbottom                 = Me%ExternalVar%KFloor_Z(i, j)
 
-                    if(Me%MacroAlgae%Height .ge. WaterColumnZ(i,j))then
+                    if(Me%MacroAlgae%Height(i,j) .ge. WaterColumnZ(i,j))then
 
                         Me%MacroAlgae%Occupation(i,j,kbottom:KUB) = 1
 
                     else
 
-                        Me%MacroAlgae%Occupation(i,j,kbottom:KUB) = Me%MacroAlgae%Height / &
+                        Me%MacroAlgae%Occupation(i,j,kbottom:KUB) = Me%MacroAlgae%Height(i,j) / &
                                                                     WaterColumnZ(i,j)
                     end if
 
@@ -11172,7 +11205,7 @@ cd5:                if (TotalVolume > 0.) then
                                                           Me%ExternalVar%GridCellArea(i,j)/ &
                                                           Me%ExternalVar%VolumeZ(i,j,k)   * &
                                                          (Me%ExternalVar%DWZ(i,j,k)       / &
-                                                          Me%MacroAlgae%Height)
+                                                          Me%MacroAlgae%Height(i,j))
 
                     enddo
 
