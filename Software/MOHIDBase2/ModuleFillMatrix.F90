@@ -4030,13 +4030,13 @@ i1:     if (.not.(Me%HDF%Previous4DValue <= Generic_4D_Value_ .and.             
         else
 
             !Prev and next are equal (last instant?)
-            if (Me%UseOriginalValues) then
+            if (Me%UseOriginalValues .or. Me%InterpolateValues) then
 
                 call SetMatrixValue(Me%Matrix2D, Me%WorkSize2D, Me%HDF%PreviousField2D, PointsToFill2D)
 
             else
             
-                call SetMatrixValue(Me%Matrix2D, Me%WorkSize2D, Me%HDF%NextField2D, PointsToFill2D)
+                !do nothing
                 
             endif
 
