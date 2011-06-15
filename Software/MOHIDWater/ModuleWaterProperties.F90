@@ -7841,7 +7841,7 @@ cd2 :       if (BlockFound) then
                      iflag,                                                             &
                      SearchType   = FromFile,                                           &
                      keyword      = 'SIMPLE_WINDOW_OUTPUT',                             &
-                     Default      = .true.,                                             &
+                     Default      = .false.,                                             &
                      ClientModule = 'ModuleWaterProperties',                            &
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                      &
