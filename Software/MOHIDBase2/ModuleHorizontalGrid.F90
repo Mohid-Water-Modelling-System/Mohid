@@ -157,6 +157,11 @@ Module ModuleHorizontalGrid
     private :: bessel2wgs84_
 
     !Interfaces----------------------------------------------------------------
+    
+    interface  ConstructHorizontalGrid
+        module procedure ConstructHorizontalGridV1
+        module procedure ConstructHorizontalGridV2
+    end interface  ConstructHorizontalGrid
 
     private :: UnGetHorizontalGrid1d
     private :: UnGetHorizontalGrid2d
@@ -345,7 +350,7 @@ Module ModuleHorizontalGrid
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-    subroutine ConstructHorizontalGrid(HorizontalGridID, DataFile, STAT)
+    subroutine ConstructHorizontalGridV1(HorizontalGridID, DataFile, STAT)
 
         !Arguments-------------------------------------------------------------
         integer                             :: HorizontalGridID
@@ -378,7 +383,7 @@ cd2 :   if (ready_ .EQ. OFF_ERR_) then
             !Reads data file
             if (.not. present(DataFile)) then
                 call ReadFileName('IN_BATIM', Me%FileName, Message = "Grid File", STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructHorizontalGrid - HorizontalGrid - ERR01'
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructHorizontalGridV1 - HorizontalGrid - ERR01'
             else
                 Me%FileName = DataFile
             endif
@@ -426,16 +431,103 @@ cd2 :   if (ready_ .EQ. OFF_ERR_) then
             STAT_ = SUCCESS_
         else 
             
-            stop 'HorizontalGrid - ConstructHorizontalGrid - ERR99' 
+            stop 'HorizontalGrid - ConstructHorizontalGridV1 - ERR99' 
 
         end if cd2
 
 
         if (present(STAT)) STAT = STAT_
 
-    end subroutine ConstructHorizontalGrid
+    end subroutine ConstructHorizontalGridV1
  
     !--------------------------------------------------------------------------
+    subroutine ConstructHorizontalGridV2(HorizontalGridID, LatitudeConn, LongitudeConn, &
+                                         XX, YY, Latitude, Longitude, ILB, IUB, JLB, JUB, STAT)
+
+
+        !Arguments-------------------------------------------------------------
+        integer                                 :: HorizontalGridID
+        real, dimension(:, :), pointer          :: LatitudeConn, LongitudeConn
+        real, dimension(:   ), pointer          :: XX, YY
+        real                                    :: Latitude, Longitude
+        integer                                 :: ILB, IUB, JLB, JUB
+        integer, optional,  intent(OUT)         :: STAT    
+
+        !Local-----------------------------------------------------------------
+        integer                             :: STAT_, ready_
+
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        !Assures nullification of the global variable
+        if (.not. ModuleIsRegistered(mHorizontalGrid_)) then
+            nullify (FirstHorizontalGrid)
+            call RegisterModule (mHorizontalGrid_) 
+        endif
+
+        call Ready(HorizontalGridID, ready_)    
+
+cd2 :   if (ready_ .EQ. OFF_ERR_) then
+
+            call AllocateInstance 
+            
+            nullify (Me%FirstFatherGrid)
+            nullify (Me%LastFatherGrid )
+
+            call ConstructGlobalVariablesV1(LatitudeConn, LongitudeConn, XX, YY,          &
+                                          Latitude, Longitude, ILB, IUB, JLB, JUB)
+
+           !Constructs XX_IE, YY_IE, LatitudeZ and LongitudeZ
+            call Mercator
+
+            if (.not. Me%CornersXYInput) then
+
+                !Constructs XX_Z, YY_Z, XX_U, YY_U, XX_V, YY_V, XX_Cross, YY_Cross
+                call GridPointsLocation1D
+
+            endif
+
+            !Constructs XX2D_Z, YY2D_Z, XX2D_U, YY2D_U, XX2D_V, YY2D_V, XX2D_Cross, YY2D_Cross
+            call GridPointsLocation2D
+
+
+            !Check grid border type
+            call CheckGridBorder
+
+            !Computes DXX, DYY, DZX, DZY, DUX, DUY, DVX, DVY, XX_AlongGrid, YY_AlongGrid
+            call ComputeDistances
+
+            !Computes RotationX, RotationY
+            call ComputeRotation
+
+            !Computes Area
+            call ComputeGridCellArea
+
+            !Computes Coriolis
+            call ComputeCoriolis
+
+            !Defines the grid border polygon
+            call DefineBorderPolygons
+
+
+            !Returns ID
+            HorizontalGridID    = Me%InstanceID
+
+            STAT_ = SUCCESS_
+        else 
+            
+            stop 'HorizontalGrid - ConstructHorizontalGridV2 - ERR99' 
+
+        end if cd2
+
+
+        if (present(STAT)) STAT = STAT_
+
+    end subroutine ConstructHorizontalGridV2
+ 
+    !--------------------------------------------------------------------------
+
 
     subroutine AllocateInstance 
 
@@ -1884,6 +1976,141 @@ BF1:    if (Me%ReadCartCorners) then
     end subroutine ConstructGlobalVariables
 
     !--------------------------------------------------------------------------
+    
+
+    subroutine ConstructGlobalVariablesV1(LatitudeConn, LongitudeConn, XX, YY,          &
+                                          Latitude, Longitude, ILB, IUB, JLB, JUB)
+
+        !Arguments-------------------------------------------------------------
+        real, dimension(:, :), pointer          :: LatitudeConn, LongitudeConn
+        real, dimension(:   ), pointer          :: XX, YY
+        real                                    :: Latitude, Longitude
+        integer                                 :: ILB, IUB, JLB, JUB
+
+
+        !Local-----------------------------------------------------------------
+
+        !----------------------------------------------------------------------
+
+        !Nullify T_Distances
+        nullify (Me%XX )
+        nullify (Me%YY )
+        nullify (Me%DXX)
+        nullify (Me%DYY)
+        nullify (Me%DZX)
+        nullify (Me%DZY)
+        nullify (Me%DUX)
+        nullify (Me%DUY)
+        nullify (Me%DVX)
+        nullify (Me%DVY)
+        nullify (Me%XX_IE)
+        nullify (Me%YY_IE)
+        nullify (Me%Compute%XX_Z )
+        nullify (Me%Compute%YY_Z )
+        nullify (Me%Compute%XX_U )
+        nullify (Me%Compute%YY_U )
+        nullify (Me%Compute%XX_V )
+        nullify (Me%Compute%YY_V )
+        nullify (Me%Compute%XX_Cross)
+        nullify (Me%Compute%YY_Cross)
+        nullify (Me%XX_AlongGrid)
+        nullify (Me%YY_AlongGrid)
+
+        !Nullify Other
+        nullify (Me%LatitudeZ    )
+        nullify (Me%LongitudeZ   )
+        nullify (Me%F            )
+        nullify (Me%GridCellArea )
+        nullify (Me%LatitudeConn )
+        nullify (Me%LongitudeConn)
+
+
+        Me%Size%ILB     = ILB-1 
+        Me%Size%IUB     = IUB+1 
+
+        Me%WorkSize%ILB = ILB
+        Me%WorkSize%IUB = IUB
+
+        Me%Size%JLB     = JLB-1 
+        Me%Size%JUB     = JUB+1 
+
+        Me%WorkSize%JLB = JLB
+        Me%WorkSize%JUB = JUB
+
+
+        !Reads COORD_TIP
+        Me%CoordType = SIMPLE_GEOG_
+
+        
+        Me%Latitude   = Latitude
+        Me%Longitude  = Longitude
+        
+        Me%Datum = WGS_84_DATUM
+        
+        
+        Me%ProjType = PAULO_PROJECTION_
+        
+        Me%Xorig = 0
+        Me%Yorig = 0
+
+        Me%Grid_Angle = 0
+        
+        Me%Distortion      = .false. 
+        Me%RegularRotation = .false. 
+        Me%CornersXYInput  = .false. 
+        
+        if (associated(LongitudeConn))                                                  &
+            Me%CornersXYInput = .true.
+                
+        
+        
+        !Allocates XX and YY
+        allocate(Me%XX(Me%Size%JLB+1 : Me%Size%JUB+1))
+        allocate(Me%YY(Me%Size%ILB+1 : Me%Size%IUB+1))
+
+        allocate(Me%XX_IE(Me%Size%ILB : Me%Size%IUB, Me%Size%JLB : Me%Size%JUB))
+        allocate(Me%YY_IE(Me%Size%ILB : Me%Size%IUB, Me%Size%JLB : Me%Size%JUB))
+        
+        allocate(Me%LatitudeConn(Me%Size%ILB : Me%Size%IUB, Me%Size%JLB : Me%Size%JUB))
+        allocate(Me%LongitudeConn(Me%Size%ILB : Me%Size%IUB, Me%Size%JLB : Me%Size%JUB))
+
+        allocate(Me%DefineCellsMap(Me%Size%ILB : Me%Size%IUB, Me%Size%JLB : Me%Size%JUB))
+
+        allocate(Me%XX_AlongGrid(Me%Size%ILB : Me%Size%IUB, Me%Size%JLB : Me%Size%JUB))
+        allocate(Me%YY_AlongGrid(Me%Size%ILB : Me%Size%IUB, Me%Size%JLB : Me%Size%JUB))
+
+
+        Me%XX    = null_real
+        Me%YY    = null_real
+        Me%XX_IE = null_real
+        Me%YY_IE = null_real
+
+        Me%LatitudeConn  = null_real
+        Me%LongitudeConn = null_real
+        
+
+        Me%DefineCellsMap(:,:)  = 1
+
+        if (Me%CornersXYInput) then
+
+            Me%YY_IE(:,:) = LatitudeConn (:,:)
+            Me%XX_IE(:,:) = LongitudeConn(:,:)            
+
+            Me%Distortion      = .true. 
+            
+        else
+            Me%XX(:) = XX(:)
+            Me%YY(:) = YY(:)
+            
+        endif            
+
+     
+        !Allocates variables common to the module
+        call AllocateVariables
+
+    end subroutine ConstructGlobalVariablesV1
+
+    !--------------------------------------------------------------------------    
 
     subroutine AllocateVariables()
 
@@ -2071,7 +2298,7 @@ BF1:    if (Me%ReadCartCorners) then
 #ifdef _USE_PROJ4
         real, dimension(:,:), pointer       :: XX_Pointer, YY_Pointer
 #endif        
-        real, dimension(:,:), pointer       :: XX_aux, YY_aux
+        real, dimension(:,:), allocatable, target :: XX_aux, YY_aux
         real, dimension(:,:), pointer       :: XX_IE, YY_IE
         real, dimension(:  ), pointer       :: XX, YY
         integer                             :: AuxCoordTip
@@ -2597,8 +2824,8 @@ cd23:   if (Me%CoordType == CIRCULAR_) then
 
    
         !Begin-----------------------------------------------------------------
-     
-        allocate(params(8))
+        
+        allocate(params(11))
         params(1) = 'proj=merc'
         params(2) = 'lat_ts=0.0'
         params(3) = 'lon_0=0.0'
@@ -2607,6 +2834,9 @@ cd23:   if (Me%CoordType == CIRCULAR_) then
         params(6) = 'y_0=0.0'
         params(7) = 'a=6371000'
         params(8) = 'b=6371000'
+        params(9) = 'datum=WGS84'
+        params(10)= 'units=m'
+        params(11)= 'nadgrids=@nul'
         
         ILB = WorkSize%ILB 
         IUB = WorkSize%IUB 
@@ -6693,6 +6923,10 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
                         allocate(YY_Aux(WorkILB-1:WorkIUB+1, WorkJLB-1:WorkJUB+1))
                         
                         call FromGeographic2SphericMercator(Me%LongitudeConn, Me%LatitudeConn, WorkSize_, XX_aux, YY_aux)
+                        
+                        !Sets limits for next write operations
+                        call HDF5SetLimits   (ObjHDF5, WorkILB, WorkIUB+1, WorkJLB, WorkJUB+1,      &
+                                              STAT = STAT_CALL)                        
 
                         call HDF5WriteData   (ObjHDF5, "/Grid", "Spherical_Mercator_X", "-",&
                                               Array2D = XX_aux,                         &
@@ -9534,9 +9768,7 @@ cd1:    if      (SumON > 0) then
 
 
     end subroutine InterpolPoint
-
-
-
+    
    !------------------------------------------------------------------------    
     
     subroutine LocateCellPolygons(XX2D_Z, YY2D_Z, XPoint, YPoint,                       &
