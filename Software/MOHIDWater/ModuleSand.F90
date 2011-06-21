@@ -1828,7 +1828,7 @@ cd2 :               if (BlockFound) then
         WorkJUB = Me%WorkSize%JUB 
 
 
-        inquire (FILE=trim(Me%Files%InitialSand), EXIST = EXIST)
+        inquire (FILE=trim(Me%Files%InitialSand)//"5", EXIST = EXIST)
 
 cd0:    if (EXIST) then
 
@@ -1840,7 +1840,7 @@ cd0:    if (EXIST) then
 
             !Opens HDF5 File
             call ConstructHDF5 (ObjHDF5,                                                 &
-                                trim(Me%Files%InitialSand), HDF5_READ, STAT = STAT_CALL)
+                                trim(Me%Files%InitialSand)//"5", HDF5_READ, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                                   &
                 stop 'ReadInitialField; ModuleSand - ERR03.'
 
@@ -2235,10 +2235,11 @@ cd0:    if (EXIST) then
                 do iw = i - Me%Filter%Radius, i + Me%Filter%Radius
 
                     if (jw >= Me%WorkSize%JLB .and. jw <= Me%WorkSize%JUB .and.         &
-                        iw >= Me%WorkSize%ILB .and. iw <= Me%WorkSize%IUB .and.         &
-                        Me%ExternalVar%WaterPoints2D(iw, jw) == WaterPoint) then
-                        Counter = Counter + 1
-                        AuxSum  = AuxSum + Me%BatimIncrement%Field2D(iw, jw)
+                        iw >= Me%WorkSize%ILB .and. iw <= Me%WorkSize%IUB) then
+                        if(Me%ExternalVar%WaterPoints2D(iw, jw) == WaterPoint) then
+                            Counter = Counter + 1
+                            AuxSum  = AuxSum + Me%BatimIncrement%Field2D(iw, jw)
+                        end if
                     endif
 
                 enddo
