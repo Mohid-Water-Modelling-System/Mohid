@@ -954,11 +954,13 @@ cd2 :           if (BlockFound) then
                 Me%WorkSize%IUB = Me%SpatialWindow%IUB 
                 Me%WorkSize%JUB = Me%SpatialWindow%JUB 
 
-                if( trim(ObjItem%Name) == trim("Latitude") .or.                 &
-                    trim(ObjItem%Name) == trim("Longitude") .or.                &
-                    trim(ObjItem%Name) == trim("ConnectionX") .or.              &
-                    trim(ObjItem%Name) == trim("ConnectionY") ) then
-                                        
+                if( trim(ObjItem%Name) == trim("Latitude"            ) .or.             &
+                    trim(ObjItem%Name) == trim("Longitude"           ) .or.             &
+                    trim(ObjItem%Name) == trim("ConnectionX"         ) .or.             &
+                    trim(ObjItem%Name) == trim("ConnectionY"         ) .or.             &
+                    trim(ObjItem%Name) == trim("Spherical_Mercator_X") .or.             &
+                    trim(ObjItem%Name) == trim("Spherical_Mercator_Y")) then
+                                                        
                     Me%WorkSize%IUB = Me%WorkSize%IUB + 1
                     Me%WorkSize%JUB = Me%WorkSize%JUB + 1
                     MANDATORY_ITEMS = MANDATORY_ITEMS + 1
@@ -1316,16 +1318,6 @@ cd2 :           if (BlockFound) then
                         TimeIndependent = .true.
 
                         NewItem%Name = obj_name
-
-                    !Guillaume: this is only a paliative to manage a bug
-                    !which is present in the WaterProperties module.
-                    elseif (Me%LastSubGroup .eq. "VerticalZ") then
-                    
-                        !Add to list of time dependent itens
-                        nullify(NewItem)
-                        call AddItem(Me%FirstDependentItem, NewItem)
-
-                        NewItem%Name = "Vertical"
 
                     else                           
 
@@ -1929,10 +1921,12 @@ cd2 :           if (BlockFound) then
             Me%WorkSize%IUB = Me%SpatialWindow%IUB 
             Me%WorkSize%JUB = Me%SpatialWindow%JUB 
 
-            if( trim(ObjItem%Name) == trim("Latitude") .or.                 &
-                trim(ObjItem%Name) == trim("Longitude") .or.                &
-                trim(ObjItem%Name) == trim("ConnectionX") .or.              &
-                trim(ObjItem%Name) == trim("ConnectionY") ) then
+            if( trim(ObjItem%Name) == trim("Latitude"            ) .or.                 &
+                trim(ObjItem%Name) == trim("Longitude"           ) .or.                 &
+                trim(ObjItem%Name) == trim("ConnectionX"         ) .or.                 &
+                trim(ObjItem%Name) == trim("ConnectionY"         ) .or.                 &
+                trim(ObjItem%Name) == trim("Spherical_Mercator_X") .or.                 &
+                trim(ObjItem%Name) == trim("Spherical_Mercator_Y")) then
                                         
                 Me%WorkSize%IUB = Me%WorkSize%IUB + 1
                 Me%WorkSize%JUB = Me%WorkSize%JUB + 1
