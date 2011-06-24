@@ -84,7 +84,6 @@ Module ModuleGlobalData
     integer, parameter  :: StringLength         = 128
     integer, parameter  :: PathLength           = 256
 
-
     !Search in Block, file, etc...
     integer, parameter :: FromFile_                = 1
     integer, parameter :: FromBlock_               = 2
@@ -276,6 +275,10 @@ Module ModuleGlobalData
     integer, parameter :: SoilDryDensity_                   = 7012
     integer, parameter :: IonicStrength_                    = 7013
     integer, parameter :: PhosphorusAdsortionIndex_         = 7014
+    integer, parameter :: AutotrophicPop_                   = 7015
+    integer, parameter :: HeterotrophicPop_                 = 7016
+    integer, parameter :: AnaerobicPop_                     = 7017
+    integer, parameter :: SolPop_                           = 7018
     
     ! Generic metal
     integer, parameter :: ParticulateMetal_                 = 8000
@@ -984,6 +987,11 @@ Module ModuleGlobalData
     character(StringLength), private, parameter :: Char_SoilDryDensity       = 'soil dry density'
     character(StringLength), private, parameter :: Char_IonicStrength        = 'ionic strength'
     character(StringLength), private, parameter :: Char_PhosphorusAdsortionIndex = 'phosphorus adsortion index'
+
+    character(StringLength), private, parameter :: Char_AutotrophicPop         = 'autotrophic microorganism population'
+    character(StringLength), private, parameter :: Char_HeterotrophicPop       = 'heterotrophic microorganism population'
+    character(StringLength), private, parameter :: Char_AnaerobicPop           = 'anaerobic microorganism population'
+    character(StringLength), private, parameter :: Char_SolPop                 = 'solubilizing microorganism population'
 
     character(StringLength), private, parameter :: Char_WaterLevel_          = 'water level'
     !character(StringLength), private, parameter :: Char_WaterLevelMax_       = 'water level maximum'   
@@ -2048,7 +2056,11 @@ Module ModuleGlobalData
             call AddPropList (SoilDryDensity_,          Char_SoilDryDensity,            ListNumber)
             call AddPropList (IonicStrength_,           Char_IonicStrength,             ListNumber)
             call AddPropList (PhosphorusAdsortionIndex_,Char_PhosphorusAdsortionIndex,  ListNumber)
-            
+            call AddPropList (AutotrophicPop_,          Char_AutotrophicPop,            ListNumber)
+            call AddPropList (HeterotrophicPop_,        Char_HeterotrophicPop,          ListNumber)
+            call AddPropList (AnaerobicPop_,            Char_AnaerobicPop,              ListNumber)
+            call AddPropList (SolPop_,                  Char_SolPop,                    ListNumber)
+           
             call AddPropList (GenericProperty_,         Char_GenericProperty,           ListNumber)
             call AddPropList (GrossProd_,               Char_GrossProd,                 ListNumber)
             call AddPropList (NetProd_,                 Char_NetProd,                   ListNumber)
@@ -2453,8 +2465,10 @@ Module ModuleGlobalData
                 PropNameList  (1 : ListNumber) = AuxChar(1 : ListNumber)
                 PropNumberList(1 : ListNumber) = AuxInt (1 : ListNumber)
  
-                deallocate   (AuxInt, AuxChar)
-                allocate     (AuxChar(ListNumber + 1), AuxInt(ListNumber + 1))       
+                deallocate   (AuxInt)
+                deallocate   (AuxChar)
+                allocate     (AuxChar(ListNumber + 1))
+                allocate     (AuxInt(ListNumber + 1))
 
                 ListNumber = ListNumber + 1
 
@@ -2468,7 +2482,8 @@ Module ModuleGlobalData
 
         else       
 
-            deallocate (AuxChar, AuxInt)
+            deallocate (AuxChar)
+            deallocate (AuxInt)
 
         endif      
 
@@ -2552,7 +2567,9 @@ cd1 :   if ((Property == POC_                   ) .OR.  (Property == PON_       
             (Property == SolubilizingP_         ) .OR.  (Property == ParticulateMetal_      ) .OR.          &
             (Property == ParticulateCadmium_    ) .OR.  (Property == ParticulateCopper_     ) .OR.          &
             (Property == ParticulateLead_       ) .OR.  (Property == ParticulateZinc_       ) .OR.          &
-            (Property == ParticulateMercury_    )) then
+            (Property == ParticulateMercury_    ) .OR.  (Property == AnaerobicPop_          ) .OR.          &
+            (Property == AutotrophicPop_        ) .OR.  (Property == HeterotrophicPop_      ) .OR.          &
+            (Property == SolPop_                )         ) then
 
             Check_Particulate_Property = .TRUE.    
         
