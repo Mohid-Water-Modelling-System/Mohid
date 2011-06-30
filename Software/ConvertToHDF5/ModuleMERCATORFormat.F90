@@ -266,8 +266,9 @@ Module ModuleMERCATORFormat
 
         else if (Me%ReadOptionType == PSY2V4) then
 
-            !The time in Mercator is compute in seconds from 2006/10/11 : 0h:0m:0s
-            call SetDate (Me%RefDateTime, Year=2006, Month=10, Day=11, Hour=0, Minute=0, Second=0) 
+            !The time in Mercator PSY2V4R1 is computed in seconds from 2006/10/11 : 0h:0m:0s
+            !The time in Mercator PSY2V4R2 is computed in seconds from 2010/10/07 : 0h:0m:0s
+            call SetDate (Me%RefDateTime, Year=2009, Month=10, Day=7, Hour=0, Minute=0, Second=0) 
 
             call StartComputeTime(Me%ObjTime, Me%RefDateTime, Me%RefDateTime, Me%RefDateTime, DT = 0.0, &
                                   VariableDT = .false., STAT = STAT_CALL)   
