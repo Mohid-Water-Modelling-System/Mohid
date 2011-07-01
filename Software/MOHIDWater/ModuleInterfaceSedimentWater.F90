@@ -6826,6 +6826,17 @@ PropX:      do while (associated(PropertyX))
                             stop 'OutPut_Results_HDF - ModuleInterfaceSedimentWater - ERR08'
 
                     end if
+                    
+                    if(PropertyX%Evolution%Deposition)then
+                       
+                        call HDF5WriteData  (Me%ObjHDF5, "/Results/Deposition/"//PropertyX%ID%Name,     &
+                                             PropertyX%ID%Name, 'kg/m2s',                               &
+                                             Array2D = PropertyX%DepositionFlux,                        &
+                                             OutputNumber = OutPutNumber, STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) &
+                            stop 'OutPut_Results_HDF - ModuleInterfaceSedimentWater - ERR09'
+
+                    end if
 
                 end if
 
@@ -6836,7 +6847,7 @@ PropX:      do while (associated(PropertyX))
             !Writes everything to disk
             call HDF5FlushMemory (Me%ObjHDF5, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) &
-                stop 'OutPut_Results_HDF - ModuleInterfaceSedimentWater - ERR09'
+                stop 'OutPut_Results_HDF - ModuleInterfaceSedimentWater - ERR10'
 
             Me%OutPut%NextOutPut = OutPutNumber + 1
 
