@@ -3771,7 +3771,9 @@ cd1:    if (ComputionType == INITIALGEOMETRY) then
         CHUNK = Chunk_J(JLB,JUB)
         !$OMP PARALLEL PRIVATE(i,j, TopDepth, BottomDepth, DomainThickness) &            
         !$OMP PRIVATE(LayerThickness, MeanLayerThicknessBelow, MinorThickness) &
-        !$OMP PRIVATE(LowerLayerTwoDomain, UpperLayerTwoDomain, TwoDomainThickness) 
+        !$OMP PRIVATE(LowerLayerTwoDomain, UpperLayerTwoDomain, TwoDomainThickness) &
+        !$OMP PRIVATE(s, A, B, C) 
+
 
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
 doj:    do j = JLB, JUB
