@@ -10961,14 +10961,8 @@ i0:             if(Me%EulerModel(em)%Light(ig)%Compute)then
     i2:                     if ((NeedsPhyto.and.FoundPhyto).or.(NeedsSPM.and.FoundSed).and.ValidProp) then
 
                                 UnitsCoef = 1e-3
-                        
-                                do k = KLB, KUB
-                                do j = JLB, JUB
-                                do i = ILB, IUB 
-                                    Concentration(i,j,k) = Me%EulerModel(em)%Lag2Euler%GridConc(i,j,k,iProp,ig)
-                                enddo
-                                enddo
-                                enddo
+                         
+                                Concentration(:,:,:) = Me%EulerModel(em)%Lag2Euler%GridConc(:,:,:,iProp,ig)
 
     i3:                         if(NeedsParameters)then
 
@@ -12574,13 +12568,7 @@ d5:     do em =1, Me%EulerModelNumber
             CurrentProperty => Me%OriginDefault%FirstProperty
             do while (associated(CurrentProperty))
 
-                do k = KLB, KUB
-                do j = JLB, JUB
-                do i = ILB, IUB
-                    AuxGrid3D(i,j,k) = Me%EulerModel(em)%Lag2Euler%GridConc(i, j, k,iProp, 1)
-                enddo
-                enddo
-                enddo
+                AuxGrid3D(:,:,:) = Me%EulerModel(em)%Lag2Euler%GridConc(:, :, :,iProp, 1)
 
                 do K = KLB, KUB
                 do J = JLB, JUB
@@ -12627,7 +12615,6 @@ d5:     do em =1, Me%EulerModelNumber
         real, dimension(:, :, :), pointer           :: AuxGrid3D 
         integer                                     :: ILB, IUB, JLB, JUB, KLB, KUB
         integer                                     :: iProp, STAT_CALL, em, p, ig
-        integer                                     :: i, j, k
 
         !Begin--------------------------------------------------------------------------
 
@@ -12663,14 +12650,7 @@ d2:     do ig = 1, Me%NGroups
 
                     enddo
 
-                    do k = KLB, KUB
-                    do j = JLB, JUB
-                    do i = ILB, IUB
-                        AuxGrid3D(i,j,k) = Me%EulerModel(em)%Lag2Euler%GridConc(i, j, k, iProp, ig)
-                    enddo
-                    enddo
-                    enddo
-
+                    AuxGrid3D(:,:,:) = Me%EulerModel(em)%Lag2Euler%GridConc(:, :, :, iProp, ig)
                     call ModifyStatistic    (Me%EulerModel(em)%PropStatistic(p)%Statistic1_ID(ig), &
                                              Value3D       = AuxGrid3D,                         &
                                              WaterPoints3D = Me%EulerModel(em)%Waterpoints3D,   &
@@ -12680,13 +12660,7 @@ d2:     do ig = 1, Me%NGroups
 
                     if (Me%OutPut%ConcMaxTracer) then
 
-                        do k = KLB, KUB
-                        do j = JLB, JUB
-                        do i = ILB, IUB
-                            AuxGrid3D(i,j,k) = Me%EulerModel(em)%Lag2Euler%GridMaxTracer(i, j, k, iProp, ig)
-                        enddo
-                        enddo
-                        enddo
+                        AuxGrid3D(:,:,:) = Me%EulerModel(em)%Lag2Euler%GridMaxTracer(:, :, :, iProp, ig)
 
                         call ModifyStatistic (Me%EulerModel(em)%PropStatistic(p)%Statistic2_ID(ig),                 &
                                               Value3D       = AuxGrid3D,                     &
@@ -15897,7 +15871,6 @@ g3:             do ig = 1, Me%NGroups
         integer                                     :: WS_ILB, WS_IUB, WS_JLB, WS_JUB
         integer                                     :: WS_KLB, WS_KUB
         character(StringLength)                     :: AuxChar, AuxChar2, AuxChar3
-        integer                                     :: i, j, k
 
         !Shorten
 
@@ -15951,13 +15924,7 @@ dp:         do p = 1, Me%OriginDefault%NProperties
 
 ih:             if (CurrentProperty%WritesPropHDF) then
 
-                    do k = KLB, KUB
-                    do j = JLB, JUB
-                    do i = ILB, IUB
-                        GridConc3D(i,j,k) = Me%EulerModel(em)%Lag2Euler%GridConc(i, j, k, p, ig)
-                    enddo
-                    enddo
-                    enddo
+                    GridConc3D(:,:,:) = Me%EulerModel(em)%Lag2Euler%GridConc(:, :, :, p, ig)
 
                     AuxChar3 = trim(AuxChar2)//trim(CurrentProperty%Name)
 
@@ -15989,13 +15956,7 @@ ih:             if (CurrentProperty%WritesPropHDF) then
 
                     if (Me%OutPut%ConcMaxTracer) then
 
-                        do k = KLB, KUB
-                        do j = JLB, JUB
-                        do i = ILB, IUB    
-                            GridConc3D(i,j,k) = Me%EulerModel(em)%Lag2Euler%GridMaxTracer(i, j, k, p, ig)
-                        enddo
-                        enddo
-                        enddo
+                        GridConc3D(:,:,:) = Me%EulerModel(em)%Lag2Euler%GridMaxTracer(:, :, :, p, ig)
 
                         AuxChar3 = "/Results/Group_"//trim(adjustl(AuxChar))//&
                                    "/Data_3D_MaxTracer/"//trim(CurrentProperty%Name)
@@ -16012,11 +15973,7 @@ ih:             if (CurrentProperty%WritesPropHDF) then
 
                     if (Me%State%Deposition) then
 
-                        do j = JLB, JUB
-                        do i = ILB, IUB
-                            GridConc2D(i,j) = Me%EulerModel(em)%Lag2Euler%GridBottomConc(i, j, p, ig)
-                        enddo
-                        enddo
+                        GridConc2D(:,:) = Me%EulerModel(em)%Lag2Euler%GridBottomConc(:, :, p, ig)
 
                         AuxChar3 = "/Results/Group_"//trim(adjustl(AuxChar))//&
                                    "/Bottom/"//trim(CurrentProperty%Name)
@@ -16042,13 +15999,8 @@ ih:             if (CurrentProperty%WritesPropHDF) then
 
             AuxChar3 = trim(AuxChar2)//"Number"
 
-            do k = KLB, KUB
-            do j = JLB, JUB
-            do i = ILB, IUB
-                GridConc3D(i,j,k) = Me%EulerModel(em)%Lag2Euler%GridTracerNumber(i, j, k, ig)
-            enddo
-            enddo
-            enddo
+
+            GridConc3D(:,:,:) = Me%EulerModel(em)%Lag2Euler%GridTracerNumber(:, :, :, ig)
 
             !HDF 5
             call HDF5WriteData        (Me%ObjHDF5(em),                                      &
@@ -16079,7 +16031,7 @@ ih:             if (CurrentProperty%WritesPropHDF) then
         integer                                     :: WS_ILB, WS_IUB, WS_JLB, WS_JUB
         integer                                     :: WS_KLB, WS_KUB, iClass, STAT_CALL
         character(StringLength)                     :: AuxChar1, AuxChar2, AuxChar
-        integer                                     :: i, j, k
+
 
         !Shorten
         ILB    = Me%EulerModel(em)%Size%ILB
@@ -16126,13 +16078,8 @@ i1:     if (Me%Statistic%OptionsStat(p)%Lag) then
                 AuxChar = trim(adjustl(AuxChar1))//"_"//trim(adjustl(AuxChar2))
 
         
-                do k = KLB, KUB
-                do j = JLB, JUB
-                do i = ILB, IUB
-                    GridConc3D(i,j,k) = 100. * Me%EulerModel(em)%PropStatistic(p)%FrequencyLag(i,j,k,iClass, ig)
-                enddo
-                enddo
-                enddo
+                GridConc3D(:,:,:) = 100. * Me%EulerModel(em)%PropStatistic(p)%FrequencyLag(:,:,:,iClass, ig)
+
                         
 
                 call HDF5WriteData   (Me%ObjHDF5(em), "/Statistics/Lagrangian/"         &

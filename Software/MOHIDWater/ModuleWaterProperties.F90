@@ -901,8 +901,6 @@ Module ModuleWaterProperties
         character(PathLength)                   :: ModelName
         type(T_Size3D   )                       :: Size
         type(T_Size3D   )                       :: WorkSize
-        type(T_Size2D   )                       :: Size2D
-        type(T_Size2D   )                       :: WorkSize2D
         type(T_Files    )                       :: Files
         type(T_Coupled  )                       :: Coupled
         type(T_Time     )                       :: BeginTime
@@ -914,7 +912,7 @@ Module ModuleWaterProperties
         type(T_External )                       :: ExternalVar
         type(T_ExtSurface )                     :: ExtSurface
         type(T_OutPut   )                       :: OutPut
-        type(T_OutW     )                       :: OutW 
+        type(T_OutW     )                       :: OutW                
         type(T_SmallDepths)                     :: SmallDepths
         logical                                 :: FreeConvection
         type(T_Property), pointer               :: FirstProperty
@@ -939,7 +937,7 @@ Module ModuleWaterProperties
         
         logical                                 :: OxygenSaturation = .false.
         logical                                 :: CO2_PP_Output    = .false.
-        logical                                 :: O2_Sat_Output    = .false. 
+        logical                                 :: O2_Sat_Output    = .false.      
         
 #ifdef _USE_SEQASSIMILATION
         integer, pointer, dimension(:)          :: PropertiesID
@@ -1394,10 +1392,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         !----------------------------------------------------------------------
 
-        !Initialize the water properties number 
+        !Initialize the water properties number   
         Me%PropertiesNumber = 0
 
-        !Initialize the water properties list  
+        !Initialize the water properties list   
         nullify (Me%FirstProperty)
         nullify (Me%LastProperty )
 
@@ -1407,17 +1405,11 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         nullify(Me%SolarRadiation%ShortWaveAverage)
         nullify(Me%SolarRadiation%LongWaveTop     )
 
-        call GetHorizontalGridSize(Me%ObjHorizontalGrid,    &
-                             size    = Me%Size2D,           &
-                             WorkSize = Me%WorkSize2D,      &
-                             STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                          &
-            stop 'Construct_GlobalVariables - ModulesWaterProperties - ERR01A'
         
         call GetGeometrySize(Me%ObjGeometry,                &
                              Size     = Me%Size,            &
                              WorkSize = Me%WorkSize,        &
-                             STAT = STAT_CALL) 
+                             STAT = STAT_CALL)              
         if (STAT_CALL /= SUCCESS_)                          &
             stop 'Construct_GlobalVariables - ModuleWaterProperties - ERR01'
 
@@ -1433,9 +1425,11 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         if (STAT_CALL /= SUCCESS_)                          &
             stop 'Construct_GlobalVariables - ModuleWaterProperties - ERR03'
 
+
         ! read the name of the files need to construct and modify
         ! the water properties 
         call Read_WaterProperties_Files_Name
+
 
         call GetVertical1D (Me%ObjHydrodynamic, Vertical1D = Me%ExternalVar%Vertical1D, STAT= STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                          &
@@ -1444,6 +1438,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         call GetXZFlow (Me%ObjHydrodynamic, XZFlow = Me%ExternalVar%XZFlow, STAT= STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                          &
             stop 'Construct_GlobalVariables - ModuleWaterProperties - ERR05'
+
 
     end subroutine Construct_GlobalVariables
 
@@ -6441,7 +6436,7 @@ cd2:    if (NewProperty%Evolution%Partition%NonComplianceCriteria) then
         call GetDTBoxes(ObjBoxDif, Me%Coupled%BoxTimeSerie%DT_Compute, STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_) stop 'Read_Reinitialize_Parameters - ModuleWaterProperties - ERR60'
 
-        call SetMatrixValue(NewProperty%Evolution%Reinitialize%BoxCells, Me%Size2D, Boxes2D)
+        NewProperty%Evolution%Reinitialize%BoxCells(:,:) = Boxes2D(:,:)
 
         call GetNumberOfBoxes(ObjBoxDif, NumberOfBoxes2D = BoxesNumber, STAT = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_) stop 'Read_Reinitialize_Parameters - ModuleWaterProperties - ERR70'
@@ -12620,7 +12615,7 @@ do1 :   do while (associated(PropertyX))
                                                                 Me%Size%JLB:Me%Size%JUB,&
                                                                 Me%Size%KLB:Me%Size%KUB))
                             
-                            call SetMatrixValue(PropertyX%ConcentrationOld, Me%Size, PropertyX%Concentration)
+                            PropertyX%ConcentrationOld(:,:,:) = PropertyX%Concentration(:,:,:)
                             
                         
                         endif

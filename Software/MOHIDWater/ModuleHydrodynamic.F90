@@ -30686,7 +30686,7 @@ do3:            do k = kbottom, KUB
 
         !------------Main cicle--------
 
-        !!$ CHUNK = CHUNK_J(JLB, JUB)
+        !$ CHUNK = CHUNK_J(JLB, JUB)
 
         if (MonitorPerformance) then
             call StartWatch ("ModuleHydrodynamic", "Modify_InertiaForces")

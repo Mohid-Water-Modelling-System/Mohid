@@ -517,10 +517,10 @@ Module ModuleBasin
         !!call OMP_SET_DYNAMIC(.false.)
         !!call OMP_SET_NUM_THREADS(2)
 
-        !!!!!$OMP PARALLEL SHARED(Me) PRIVATE(TID)
+        !!!!$OMP PARALLEL SHARED(Me) PRIVATE(TID)
         !!!!TID = OMP_GET_THREAD_NUM()
         !!!!PRINT *, 'Hello World from thread = ', TID
-        !!!!!$OMP END PARALLEL         
+        !!!!$OMP END PARALLEL         
 
 
         STAT_ = UNKNOWN_
@@ -4311,7 +4311,7 @@ cd2 :           if (BlockFound) then
         CHUNK = Me%WorkSize%JUB / 10
         
          
-!!$OMP PARALLEL PRIVATE(I,J)
+!$OMP PARALLEL PRIVATE(I,J)
         
 !        TID = OMP_GET_THREAD_NUM()
 !        IF (TID .EQ. 0) THEN
@@ -4322,7 +4322,7 @@ cd2 :           if (BlockFound) then
         
         !Updates Water column
         
-!!$OMP DO SCHEDULE(DYNAMIC)
+!$OMP DO SCHEDULE(DYNAMIC)
         do J = Me%WorkSize%JLB, Me%WorkSize%JUB
         do I = Me%WorkSize%ILB, Me%WorkSize%IUB
 
@@ -4367,10 +4367,10 @@ cd2 :           if (BlockFound) then
             
         enddo
        enddo
- !!$OMP END DO NOWAIT
+ !$OMP END DO NOWAIT
       !PRINT *, 'Thread',TID,' done.'
 
-!!$OMP END PARALLEL
+!$OMP END PARALLEL
 
         if (MonitorPerformance) call StopWatch ("ModuleBasin", "SimpleInfiltration")
 
@@ -5434,7 +5434,7 @@ cd2 :           if (BlockFound) then
 !
 !        !----------------------------------------------------------------------       
 !        
-!        !!!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+!        !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
 !        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
 !        do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 !            if (Me%ExtVar%BasinPoints(i,j) == BasinPoint) then             
@@ -5467,9 +5467,9 @@ cd2 :           if (BlockFound) then
 !            endif
 !        enddo
 !        enddo
-!        !!!$OMP END DO 
+!        !!$OMP END DO 
 !        
-!        !!!$OMP END PARALLEL
+!        !!$OMP END PARALLEL
 !    
 !    
 !    end subroutine ComputePropertyInfilColumn
@@ -5699,9 +5699,9 @@ cd2 :           if (BlockFound) then
 
         if (MonitorPerformance) call StartWatch ("ModuleBasin", "ActualizeWaterColumn")
 
-        !!$OMP PARALLEL PRIVATE(I,J, WarningString)
+        !$OMP PARALLEL PRIVATE(I,J, WarningString)
 
-        !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
         do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
@@ -5726,10 +5726,10 @@ cd2 :           if (BlockFound) then
 
         enddo
         enddo
-        !!$OMP END DO
+        !$OMP END DO
 
 
-        !!$OMP END PARALLEL
+        !$OMP END PARALLEL
         
         !Send water column to runoff - the beholder of the water column
         call SetBasinColumnToRunoff (ObjRunOffID             = Me%ObjRunoff,                 &

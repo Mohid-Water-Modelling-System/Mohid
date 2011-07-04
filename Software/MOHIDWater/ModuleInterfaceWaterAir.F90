@@ -3251,7 +3251,6 @@ do1 :   do while (associated(PropertyX))
         !Local-----------------------------------------------------------------
         type(T_Property), pointer                   :: PropUpLongWaveRadiation
         type(T_Property), pointer                   :: PropDownLongWaveRadiation
-        integer                                     :: i, j
         integer                                     :: STAT_CALL
 
         !Begin-----------------------------------------------------------------
@@ -3289,7 +3288,7 @@ i3:         if (PropDownLongWaveRadiation%ID%SolutionFromFile) then
 
                 call ModifyFillMatrix(FillMatrixID      = PropDownLongWaveRadiation%ID%ObjFillMatrix,&
                                       Matrix2D          = PropDownLongWaveRadiation%Field,           &
-                                      PointsToFill2D    = Me%ExtWater%WaterPoints2D,                 &
+                                      PointsToFill2D    = Me%ExtWater%WaterPoints2D,                     &
                                       STAT              = STAT_CALL)
                 if(STAT_CALL .ne. SUCCESS_) stop 'ModifyNetLongWaveRadiation - ModuleInterfaceWaterAir - ERR30'
 
@@ -3299,13 +3298,8 @@ i3:         if (PropDownLongWaveRadiation%ID%SolutionFromFile) then
 
             endif i3
 
-            do j = Me%Size2D%JLB, Me%Size2D%JUB
-            do i = Me%Size2D%ILB, Me%Size2D%IUB
-                PropNetLongWaveRadiation%Field(i,j) = PropUpLongWaveRadiation%Field(i,j) + &
-                                                  PropDownLongWaveRadiation%Field(i,j)
-            enddo
-            enddo
-
+            PropNetLongWaveRadiation%Field(:,:) = PropUpLongWaveRadiation%Field(:,:) + &
+                                                  PropDownLongWaveRadiation%Field(:,:)
         endif i1
 
     end subroutine ModifyNetLongWaveRadiation

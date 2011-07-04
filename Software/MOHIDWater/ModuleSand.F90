@@ -3380,12 +3380,8 @@ cd0:    if (EXIST) then
 
         if (Me%Aceleration%Yes) then
 
-            do j = Me%Size%JLB, Me%Size%JUB
-            do i = Me%Size%ILB, Me%Size%IUB
-                Me%FluxX(i,j) = Me%Aceleration%Coef * Me%FluxX(i,j)
-                Me%FluxY(i,j) = Me%Aceleration%Coef * Me%FluxY(i,j)
-            enddo
-            enddo
+            Me%FluxX(:,:) = Me%Aceleration%Coef * Me%FluxX(:,:)
+            Me%FluxY(:,:) = Me%Aceleration%Coef * Me%FluxY(:,:)
 
         endif
         

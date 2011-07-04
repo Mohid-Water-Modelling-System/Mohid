@@ -267,7 +267,7 @@ Module ModuleLagrangian
     use ModuleHorizontalGrid,   only : GetHorizontalGrid, WriteHorizontalGrid,              &
                                        UnGetHorizontalGrid, GetGridOrigin, GetGridCoordType,&
                                        GetCoordTypeList, GetGridAngle, GetCheckDistortion,  &
-                                       LocateCell, GetDefineCellsMap, GetHorizontalGridSize,&
+                                       LocateCell, GetDefineCellsMap,                       &
                                        GetGridLatitudeLongitude, GetXYCellZ
     use ModuleAssimilation,     only : StartAssimilation, GetAssimilationField,             &
                                        UnGetAssimilation, KillAssimilation
@@ -11552,14 +11552,7 @@ MMass:  If (Me%State%MonitorPropMass) then
         CurrentProperty => Me%FirstOrigin%FirstProperty
         do while (associated(CurrentProperty))
             
-            
-            do K = KLB, KUB
-            do J = JLB, JUB
-            do I = ILB, IUB
-                AuxGrid3D(I,J,K) = GridConc(I, J, K, iProp)
-            enddo
-            enddo
-            enddo
+            AuxGrid3D(:,:,:) = GridConc(:, :, :, iProp)
 
             do K = KLB, KUB
             do J = JLB, JUB
@@ -11607,7 +11600,6 @@ MMass:  If (Me%State%MonitorPropMass) then
         real, dimension(:, :, :), pointer           :: AuxGrid3D 
         integer                                     :: ILB, IUB, JLB, JUB, KLB, KUB
         integer                                     :: iProp, STAT_CALL
-        integer                                     :: I, J, K
 
         !Shorten
         ILB    = Me%ExternalVar%Size%ILB
@@ -11629,14 +11621,7 @@ MMass:  If (Me%State%MonitorPropMass) then
 
             if (CurrentProperty%Statistics) then
 
-                do K = KLB, KUB
-                do J = JLB, JUB
-                do I = ILB, IUB
-                    AuxGrid3D(I,J,K) = GridConc(I, J, K, iProp)
-                enddo
-                enddo
-                enddo
-
+                AuxGrid3D(:,:,:) = GridConc(:, :, :, iProp)
                 call ModifyStatistic    (CurrentProperty%Statistic1_ID,                  &
                                          Value3D       = AuxGrid3D,                      &
                                          WaterPoints3D = Me%ExternalVar%WaterPoints3D,   &
@@ -11646,13 +11631,7 @@ MMass:  If (Me%State%MonitorPropMass) then
 
                 if (Me%OutPut%ConcMaxTracer) then
 
-                    do K = KLB, KUB
-                    do J = JLB, JUB
-                    do I = ILB, IUB
-                        AuxGrid3D(I,J,K) = GridMaxTracer(I, J, K, iProp)
-                    enddo
-                    enddo
-                    enddo
+                    AuxGrid3D(:,:,:) = GridMaxTracer(:, :, :, iProp)
 
                     call ModifyStatistic (CurrentProperty%Statistic2_ID,                 &
                                           Value3D       = AuxGrid3D,                     &
@@ -14147,11 +14126,7 @@ dw1:    do while (associated(CurrentOrigin))
 dw2:            do while (associated(CurrentProperty))
                     if (CurrentProperty%ID == Oil_) then
                         !To be able to do statistics analysis of the oil thickness 
-                        do j = WS_JLB, WS_JUB
-                        do i = WS_ILB, WS_IUB
-                            GridConc(I, J, WS_KUB, iAP) = CurrentOrigin%GridThickness(I,J)
-                        enddo
-                        enddo
+                        GridConc(:, :, WS_KUB, iAP) = CurrentOrigin%GridThickness(:,:)
                         exit dw2                    
                     endif
                     iAP = iAP + 1
@@ -14258,7 +14233,6 @@ cd3:    if (Deposition .and. present(GridBottomConc)) then ! fills up the bottom
         integer                                     :: WS_KLB, WS_KUB
         character(StringLength)                     :: AuxChar
         logical                                     :: Deposition
-        integer                                     :: i, j, k
 
         !Shorten
         ILB    = Me%ExternalVar%Size%ILB
@@ -14303,13 +14277,8 @@ Catch:  do while (associated(CurrentOrigin))
         CurrentProperty => FirstProperty
         do while (associated(CurrentProperty))
         
-            do k = KLB, KUB
-            do j = JLB, JUB
-            do i = ILB, IUB
-                GridConc3D(i,j,k) = GridConc(i, j, k, iAP)
-            enddo
-            enddo
-            enddo
+            GridConc3D(:,:,:) = GridConc(:, :, :, iAP)
+
 
             !HDF 5
             call HDF5WriteData        (Me%ObjHDF5,                       &
@@ -14322,13 +14291,7 @@ Catch:  do while (associated(CurrentOrigin))
 
             if (Me%OutPut%ConcMaxTracer) then
 
-                do k = KLB, KUB
-                do j = JLB, JUB
-                do i = ILB, IUB
-                    GridConc3D(i,j,k) = GridMaxTracer(i, j, k, iAP)
-                enddo
-                enddo
-                enddo
+                GridConc3D(:,:,:) = GridMaxTracer(:, :, :, iAP)
 
 
                 !HDF 5
@@ -14346,11 +14309,7 @@ Catch:  do while (associated(CurrentOrigin))
 
             if (Deposition) then
 
-                do j = JLB, JUB
-                do i = ILB, IUB
-                    GridConc2D(i,j) = GridBottomConc(i, j, iAP)
-                enddo
-                enddo
+                GridConc2D(:,:) = GridBottomConc(:, :, iAP)
 
                 !HDF 5
                 call HDF5WriteData        (Me%ObjHDF5,                       &
@@ -14405,7 +14364,6 @@ Catch:  do while (associated(CurrentOrigin))
         integer                                     :: WS_ILB, WS_IUB, WS_JLB, WS_JUB
         integer                                     :: WS_KLB, WS_KUB, iClass, STAT_CALL
         character(StringLength)                     :: AuxChar1, AuxChar2, AuxChar
-        integer                                     :: i, j, k
 
 
         !Shorten
@@ -14443,14 +14401,11 @@ Catch:  do while (associated(CurrentOrigin))
             write(AuxChar2, fmt='(E9.2)')CurrentProperty%ClassesLag(iClass, 2)
 
             AuxChar = trim(adjustl(AuxChar1))//"_"//trim(adjustl(AuxChar2))
-  
-            do k = KLB, KUB
-            do j = JLB, JUB
-            do i = ILB, IUB 
-                GridConc3D(i,j,k) = 100. * CurrentProperty%FrequencyLag(i,j,k,iClass)
-            enddo
-            enddo
-            enddo                       
+
+        
+            GridConc3D(:,:,:) = 100. * CurrentProperty%FrequencyLag(:,:,:,iClass)
+
+                        
 
             call HDF5WriteData   (Me%ObjHDF5, "/Statistics/Lagrangian/"//trim(CurrentProperty%Name)//"/Classes", &
                                   trim(adjustl(AuxChar)),                                &

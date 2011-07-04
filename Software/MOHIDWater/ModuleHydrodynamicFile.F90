@@ -62,9 +62,8 @@
 Module ModuleHydrodynamicFile
 
     use ModuleGlobalData
-    use ModuleTime 
+    use ModuleTime               
     use ModuleEnterData
-    use ModuleFunctions,        only : SetMatrixValue
     use ModuleGridData,         only : GetGridData, WriteGridData, UnGetGridData
     use ModuleHorizontalMap
     use ModuleHorizontalGrid     
@@ -239,7 +238,7 @@ Module ModuleHydrodynamicFile
         type (T_BlockInMemory), dimension(:), pointer :: BlockInMemory
     end type T_Input
 
-
+       
     !Output information from 3D type
     type       T_STIntegration
         real,    pointer, dimension(:,:  ) :: WaterLevel
@@ -268,12 +267,11 @@ Module ModuleHydrodynamicFile
         real,    pointer, dimension(:,:) :: BatMin
     end type T_SpaceIntegration
 
+
     type      T_HydrodynamicFile
-        integer                                     :: InstanceID 
-        type(T_Size3D  )                            :: Size 
-        type(T_Size3D  )                            :: WorkSize 
-        type(T_Size2D  )                            :: Size2D
-        type(T_Size2D  )                            :: WorkSize2D
+        integer                                     :: InstanceID   
+        type(T_Size3D  )                            :: Size   
+        type(T_Size3D  )                            :: WorkSize   
         type(T_State   )                            :: State
         type(T_Files   )                            :: Files
         type(T_External)                            :: ExternalVar
@@ -381,13 +379,6 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             call GetComputeTimeStep     (Me%ObjTime, Me%ExternalVar%DT, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'StartHydrodynamicFile - ModuleHydrodynamicFile - ERR02'
 
-
-            call GetHorizontalGridSize(Me%ObjHorizontalGrid,            &
-                                        Size = Me%Size2D,               &
-                                        WorkSize = Me%WorkSize2D,       &
-                                        STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'StartHydrodynamicFile - ModuleHydrodynamicFile - ERR03A'
-
             call GetGeometrySize(Me%ObjGeometry,                        &
                                  Size     = Me%Size,                    &
                                  WorkSize = Me%WorkSize,                &
@@ -421,10 +412,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
                 call StartHydrodynamicFileInput
 
-                call SetMatrixValue(InitialWaterLevel, Me%Size2D, Me%Input%InitialWaterLevel)    
-                call SetMatrixValue(InitialWaterFluxX, Me%Size, Me%Input%InitialWaterFluxX)
-                call SetMatrixValue(InitialWaterFluxY, Me%Size, Me%Input%InitialWaterFluxY)
-                call SetMatrixValue(InitialDischarges, Me%Size, Me%Input%InitialDischarges)
+                InitialWaterLevel     (:,:  ) =  Me%Input%InitialWaterLevel     (:,:  )    
+                InitialWaterFluxX     (:,:,:) =  Me%Input%InitialWaterFluxX     (:,:,:)
+                InitialWaterFluxY     (:,:,:) =  Me%Input%InitialWaterFluxY     (:,:,:)
+                InitialDischarges     (:,:,:) =  Me%Input%InitialDischarges     (:,:,:)
                 !This module can not change the mapping information
                 InitialComputeFacesU3D        => Me%Input%InitialComputeFacesU3D 
                 InitialComputeFacesV3D        => Me%Input%InitialComputeFacesV3D 
@@ -996,12 +987,12 @@ TT:                 if (Me%Input%TransientTime == BeginTimeModel) then
 SF:             if (StartInputFound) then
 
                     !InitialWater Level is the last one readed
-                    call SetMatrixValue(Me%Input%InitialWaterLevel, Me%Size2D, Me%Input%WaterLevel_New)
-                    call SetMatrixValue(Me%Input%InitialWaterFluxX, Me%Size, Me%Input%WaterFluxX)
-                    call SetMatrixValue(Me%Input%InitialWaterFluxY, Me%Size, Me%Input%WaterFluxY)
-                    call SetMatrixValue(Me%Input%InitialDischarges, Me%Size, Me%Input%Discharges)
-                    call SetMatrixValue(Me%Input%InitialComputeFacesU3D, Me%Size, Me%Input%ComputeFacesU3D)
-                    call SetMatrixValue(Me%Input%InitialComputeFacesV3D, Me%Size, Me%Input%ComputeFacesV3D)
+                    Me%Input%InitialWaterLevel(:,:)         = Me%Input%WaterLevel_New(:,:)
+                    Me%Input%InitialWaterFluxX(:,:,:)       = Me%Input%WaterFluxX(:,:,:)
+                    Me%Input%InitialWaterFluxY(:,:,:)       = Me%Input%WaterFluxY(:,:,:)
+                    Me%Input%InitialDischarges(:,:,:)       = Me%Input%Discharges(:,:,:)
+                    Me%Input%InitialComputeFacesU3D(:,:,:)  = Me%Input%ComputeFacesU3D(:,:,:)
+                    Me%Input%InitialComputeFacesV3D(:,:,:)  = Me%Input%ComputeFacesV3D(:,:,:)
 
                 endif  SF
 
@@ -1034,12 +1025,12 @@ SF:             if (StartInputFound) then
                 enddo
 
                 !InitialWater Level is the last one readed
-                call SetMatrixValue(Me%Input%InitialWaterLevel, Me%Size2D, Me%Input%WaterLevel_New)
-                call SetMatrixValue(Me%Input%InitialWaterFluxX, Me%Size, Me%Input%WaterFluxX)
-                call SetMatrixValue(Me%Input%InitialWaterFluxY, Me%Size, Me%Input%WaterFluxY)
-                call SetMatrixValue(Me%Input%InitialDischarges, Me%Size, Me%Input%Discharges)
-                call SetMatrixValue(Me%Input%InitialComputeFacesU3D, Me%Size, Me%Input%ComputeFacesU3D)
-                call SetMatrixValue(Me%Input%InitialComputeFacesV3D, Me%Size, Me%Input%ComputeFacesV3D)
+                Me%Input%InitialWaterLevel(:,:)         = Me%Input%WaterLevel_New(:,:)
+                Me%Input%InitialWaterFluxX(:,:,:)       = Me%Input%WaterFluxX(:,:,:)
+                Me%Input%InitialWaterFluxY(:,:,:)       = Me%Input%WaterFluxY(:,:,:)
+                Me%Input%InitialDischarges(:,:,:)       = Me%Input%Discharges(:,:,:)
+                Me%Input%InitialComputeFacesU3D(:,:,:)  = Me%Input%ComputeFacesU3D(:,:,:)
+                Me%Input%InitialComputeFacesV3D(:,:,:)  = Me%Input%ComputeFacesV3D(:,:,:)
 
             endif
 
