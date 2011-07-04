@@ -4561,10 +4561,10 @@ cd0:    if (Exist) then
         
         CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
         
-        !$OMP PARALLEL PRIVATE(I,J)
+        !!$OMP PARALLEL PRIVATE(I,J)
 
                
-        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+        !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
         do j=Me%WorkSize%JLB, Me%WorkSize%JUB
         do i=Me%WorkSize%ILB, Me%WorkSize%IUB
 
@@ -4589,8 +4589,8 @@ cd0:    if (Exist) then
         enddo
         enddo
 
-        !$OMP END DO
-        !$OMP END PARALLEL
+        !!$OMP END DO
+        !!$OMP END PARALLEL
 
 
     end subroutine ModifyDiffusivity_Old
@@ -4611,8 +4611,8 @@ cd0:    if (Exist) then
 
         CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
         
-        !$OMP PARALLEL PRIVATE(I,J, VelU, VelV)
-        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+        !!$OMP PARALLEL PRIVATE(I,J, VelU, VelV)
+        !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
         do j=Me%WorkSize%JLB, Me%WorkSize%JUB
         do i=Me%WorkSize%ILB, Me%WorkSize%IUB
 
@@ -4637,8 +4637,8 @@ cd0:    if (Exist) then
 
         enddo
         enddo
-        !$OMP END DO
-        !$OMP END PARALLEL
+        !!$OMP END DO
+        !!$OMP END PARALLEL
         
 
     end subroutine ModifyTurbulence
@@ -4809,10 +4809,10 @@ cd0:    if (Exist) then
         !----------------------------------------------------------------------
         
         CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
-        !$OMP PARALLEL PRIVATE(I,J)
+        !!$OMP PARALLEL PRIVATE(I,J)
         
        
-        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+        !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
         do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             if (Me%ExtVar%BasinPoints(i,j) == BasinPoint) then             
@@ -4828,8 +4828,8 @@ cd0:    if (Exist) then
             endif
         enddo
         enddo
-        !$OMP END DO
-        !$OMP END PARALLEL 
+        !!$OMP END DO
+        !!$OMP END PARALLEL 
         
     end subroutine ComputeVolumes
 
@@ -4936,9 +4936,9 @@ cd0:    if (Exist) then
 
             
             CHUNK = Chunk_J(Me%WorkSize%JLB,Me%WorkSize%JUB)
-            !$OMP PARALLEL PRIVATE(i,j) 
+            !!$OMP PARALLEL PRIVATE(i,j) 
      
-            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
 do2 :       do j = Me%WorkSize%JLB, Me%WorkSize%JUB
 do1 :       do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
@@ -4966,9 +4966,9 @@ do1 :       do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
             end do do1
             end do do2
-            !$OMP END DO
+            !!$OMP END DO
                 
-            !$OMP END PARALLEL
+            !!$OMP END PARALLEL
             
         
         else
@@ -5017,9 +5017,9 @@ do1 :       do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             DVY => Me%ExtVar%DVY
             
             CHUNK = Chunk_J(Me%WorkSize%JLB,Me%WorkSize%JUB)
-            !$OMP PARALLEL PRIVATE(i,j, Aux1, Aux2) 
+            !!$OMP PARALLEL PRIVATE(i,j, Aux1, Aux2) 
      
-            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
 do2 :       do j = Me%WorkSize%JLB, Me%WorkSize%JUB
 do1 :       do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
@@ -5046,9 +5046,9 @@ do1 :       do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
             end do do1
             end do do2
-            !$OMP END DO
+            !!$OMP END DO
                 
-            !$OMP END PARALLEL
+            !!$OMP END PARALLEL
         
         else
             stop 'AdvectionCentralDifferences - Runoff Properties - ERR010'
@@ -5222,10 +5222,10 @@ do1 :       do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         DTPropDouble = dble(Me%ExtVar%DT) 
 
         CHUNK = Chunk_I(Me%WorkSize%ILB,Me%WorkSize%IUB)
-        !$OMP PARALLEL PRIVATE(i,j,AuxJ,AreaU) 
+        !!$OMP PARALLEL PRIVATE(i,j,AuxJ,AreaU) 
  
 do2 :   do j = Me%WorkSize%JLB, Me%WorkSize%JUB
-        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+        !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
 do1 :   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             
             !Only if there will be water at the end of the time step it can have diffusion
@@ -5250,10 +5250,10 @@ do1 :   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             endif
 
         end do do1
-        !$OMP END DO
+        !!$OMP END DO
         end do do2
             
-        !$OMP END PARALLEL
+        !!$OMP END PARALLEL
 
 
         if (MonitorPerformance) call StopWatch ("ModuleRunoffProperties", "HorizontalDiffusionXX")
@@ -5280,9 +5280,9 @@ do1 :   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         DTPropDouble = dble(Me%ExtVar%DT) 
 
         CHUNK = Chunk_J(Me%WorkSize%JLB,Me%WorkSize%JUB)
-        !$OMP PARALLEL PRIVATE(i,j,AuxI,AreaV) 
+        !!$OMP PARALLEL PRIVATE(i,j,AuxI,AreaV) 
 
-        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+        !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
 do2 :   do j = Me%WorkSize%JLB, Me%WorkSize%JUB
 do1 :   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             
@@ -5306,9 +5306,9 @@ do1 :   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             endif
         end do do1
         end do do2
-        !$OMP END DO
+        !!$OMP END DO
 
-        !$OMP END PARALLEL
+        !!$OMP END PARALLEL
 
 
         if (MonitorPerformance) call StopWatch ("ModuleRunoffProperties", "HorizontalDiffusionYY")
@@ -5386,11 +5386,11 @@ do1 :   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         JUB = Me%WorkSize%JUB
 
         !CHUNK = CHUNK_I(ILB, IUB)
-        !!$OMP PARALLEL PRIVATE(i,j,AdvFluxX,DT2,DT1)
+        !!!$OMP PARALLEL PRIVATE(i,j,AdvFluxX,DT2,DT1)
 
         if (.not. Me%NewFormulation) then
 
-            !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            !!!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
 i1:         do i = ILB, IUB
 
 
@@ -5410,19 +5410,19 @@ i1:         do i = ILB, IUB
                                         CurrProp%Evolution%AdvDiff%Upwind2H)
 
             end do i1
-            !!$OMP END DO
+            !!!$OMP END DO
             
-            !!$OMP END PARALLEL
+            !!!$OMP END PARALLEL
 
         endif
 
 cd6:    if (ImpExp_AdvXX == ExplicitScheme)  then !ExplicitScheme = 0
 
             CHUNK = CHUNK_I(ILB, IUB)
-            !$OMP PARALLEL PRIVATE(i,j,AdvFluxX)
+            !!$OMP PARALLEL PRIVATE(i,j,AdvFluxX)
 
 doj3 :      do j = JLB, JUB
-            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
 doi3 :      do i = ILB, IUB
             
             !computation needs volumes
@@ -5443,17 +5443,17 @@ doi3 :      do i = ILB, IUB
             endif
 
             end do doi3
-            !$OMP END DO
+            !!$OMP END DO
             end do doj3
-            !$OMP END PARALLEL
+            !!$OMP END PARALLEL
 
         else if (ImpExp_AdvXX == ImplicitScheme) then cd6 !ImplicitScheme = 1
 
             CHUNK = CHUNK_I(ILB, IUB)
-            !$OMP PARALLEL PRIVATE(i,j, DT2, DT1)
+            !!$OMP PARALLEL PRIVATE(i,j, DT2, DT1)
 
 doj4 :      do j = JLB, JUB
-            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
 doi4 :      do i = ILB, IUB
 
             !computation needs volumes
@@ -5473,9 +5473,9 @@ doi4 :      do i = ILB, IUB
 
 
             end do doi4
-            !$OMP END DO
+            !!$OMP END DO
             end do doj4
-            !$OMP END PARALLEL
+            !!$OMP END PARALLEL
 
         else cd6
 
@@ -5518,8 +5518,8 @@ doi4 :      do i = ILB, IUB
 
             !CHUNK = CHUNK_J(JLB, JUB)
           
-            !!$OMP PARALLEL PRIVATE(i,j,AdvFluxY,DT2,DT1)       
-             !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            !!!$OMP PARALLEL PRIVATE(i,j,AdvFluxY,DT2,DT1)       
+             !!!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
 j1:         do j = JLB, JUB
 
 
@@ -5539,19 +5539,19 @@ j1:         do j = JLB, JUB
                                         CurrProp%Evolution%AdvDiff%Upwind2H)
 
             end do j1
-            !!$OMP END DO
+            !!!$OMP END DO
             
-            !!$OMP END DO NOWAIT
-            !!$OMP END PARALLEL
+            !!!$OMP END DO NOWAIT
+            !!!$OMP END PARALLEL
         endif
 
 cd6:    if (ImpExp_AdvYY == ExplicitScheme)  then !ExplicitScheme = 0
             
             CHUNK = CHUNK_J(JLB, JUB)
           
-            !$OMP PARALLEL PRIVATE(i,j,AdvFluxY)
+            !!$OMP PARALLEL PRIVATE(i,j,AdvFluxY)
 
-            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
 doj3 :      do j = JLB, JUB
 doi3 :      do i = ILB, IUB
 
@@ -5574,16 +5574,16 @@ doi3 :      do i = ILB, IUB
 
             end do doi3
             end do doj3
-            !$OMP END DO
-            !$OMP END PARALLEL
+            !!$OMP END DO
+            !!$OMP END PARALLEL
 
         else if (ImpExp_AdvYY == ImplicitScheme) then cd6 !ImplicitScheme = 1
 
             CHUNK = CHUNK_J(JLB, JUB)
           
-            !$OMP PARALLEL PRIVATE(i,j,DT2,DT1)
+            !!$OMP PARALLEL PRIVATE(i,j,DT2,DT1)
 
-            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
 doj4 :      do j = JLB, JUB
 doi4 :      do i = ILB, IUB
 
@@ -5605,8 +5605,8 @@ doi4 :      do i = ILB, IUB
 
             end do doi4
             end do doj4
-            !$OMP END DO
-            !$OMP END PARALLEL
+            !!$OMP END DO
+            !!$OMP END PARALLEL
             
         else cd6
 
@@ -5642,9 +5642,9 @@ doi4 :      do i = ILB, IUB
        
         CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
       
-        !$OMP PARALLEL PRIVATE(i,j,aux)
+        !!$OMP PARALLEL PRIVATE(i,j,aux)
         
-        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+        !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
         do J = Me%WorkSize%JLB, Me%WorkSize%JUB
         do I = Me%WorkSize%ILB, Me%WorkSize%IUB
             
@@ -5677,9 +5677,9 @@ doi4 :      do i = ILB, IUB
         
         enddo
         enddo
-        !$OMP END DO
+        !!$OMP END DO
         
-        !$OMP END PARALLEL
+        !!$OMP END PARALLEL
                            
         if (MonitorPerformance) call StopWatch ("ModuleRunoffProperties", "ModifyDrainageNetworkCoefs")
 
@@ -5709,9 +5709,9 @@ doi4 :      do i = ILB, IUB
 
             CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
           
-            !$OMP PARALLEL PRIVATE(i,j,CoefInterfDN, coefB)
+            !!$OMP PARALLEL PRIVATE(i,j,CoefInterfDN, coefB)
                
-            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)              
+            !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)              
             do J = Me%WorkSize%JLB, Me%WorkSize%JUB
             do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                 if (Me%ExtVar%BasinPoints(I,J) == BasinPoint) then   
@@ -5741,16 +5741,16 @@ doi4 :      do i = ILB, IUB
                 endif
            enddo
            enddo
-           !$OMP END DO
-           !$OMP END PARALLEL  
+           !!$OMP END DO
+           !!$OMP END PARALLEL  
            
         else !implicit
             
             CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
           
-            !$OMP PARALLEL PRIVATE(i,j,CoefInterfDN, coefB)
+            !!$OMP PARALLEL PRIVATE(i,j,CoefInterfDN, coefB)
                
-            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)                          
+            !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)                          
             do J = Me%WorkSize%JLB, Me%WorkSize%JUB
             do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                 if (Me%ExtVar%BasinPoints(I,J) == BasinPoint) then           
@@ -5780,8 +5780,8 @@ doi4 :      do i = ILB, IUB
             enddo
             enddo
 
-           !$OMP END DO
-           !$OMP END PARALLEL  
+           !!$OMP END DO
+           !!$OMP END PARALLEL  
             
             dj = Me%dj
             di = Me%di
@@ -5808,9 +5808,9 @@ doi4 :      do i = ILB, IUB
             
                 CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
               
-                !$OMP PARALLEL PRIVATE(i,j)
+                !!$OMP PARALLEL PRIVATE(i,j)
                    
-                !$OMP DO SCHEDULE(DYNAMIC, CHUNK)                          
+                !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)                          
                 do J = Me%WorkSize%JLB, Me%WorkSize%JUB
                 do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                     if (Me%ExtVar%BasinPoints(I,J) == BasinPoint) then           
@@ -5822,8 +5822,8 @@ doi4 :      do i = ILB, IUB
                     endif 
                 enddo
                 enddo 
-               !$OMP END DO
-               !$OMP END PARALLEL  
+               !!$OMP END DO
+               !!$OMP END PARALLEL  
                 
             endif               
         endif
@@ -5850,8 +5850,8 @@ doi4 :      do i = ILB, IUB
         !!Drainage network interface mass balance 
         if (Me%ExtVar%CoupledDN) then
            
-            !!!$OMP PARALLEL PRIVATE(I,J,K)
-            !!!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            !!!!$OMP PARALLEL PRIVATE(I,J,K)
+            !!!!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
             do J = Me%WorkSize%JLB, Me%WorkSize%JUB
             do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                 
@@ -5939,8 +5939,8 @@ doi4 :      do i = ILB, IUB
 !        WaterColumn    => Me%ExtVar%WaterColumn
 !        WaterColumnOld => Me%ExtVar%WaterColumnOld
 !
-!        !!!$OMP PARALLEL PRIVATE(I,J,K)
-!        !!!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+!        !!!!$OMP PARALLEL PRIVATE(I,J,K)
+!        !!!!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
 !        do J = Me%WorkSize%JLB, Me%WorkSize%JUB
 !        do I = Me%WorkSize%ILB, Me%WorkSize%IUB
 !            if (Me%ExtVar%BasinPoints(I,J) == BasinPoint) then
@@ -6125,8 +6125,8 @@ doi4 :      do i = ILB, IUB
 !            endif
 !        enddo
 !        enddo
-!        !!!$OMP END DO
-!        !!!$OMP END PARALLEL
+!        !!!!$OMP END DO
+!        !!!!$OMP END PARALLEL
 !
 !
 !    end subroutine ModifyAdvectionDiffusion_Explicit
@@ -6146,11 +6146,11 @@ doi4 :      do i = ILB, IUB
         
         CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
         
-        !$OMP PARALLEL PRIVATE(I,J,DiffCoef,VelU,VelV)
+        !!$OMP PARALLEL PRIVATE(I,J,DiffCoef,VelU,VelV)
 
         DiffCoef  = CurrProperty%Evolution%AdvDiff%Molecular_Diff_Coef
         
-        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+        !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
         do J = Me%WorkSize%JLB, Me%WorkSize%JUB
         do I = Me%WorkSize%ILB, Me%WorkSize%IUB
             if (Me%ExtVar%BasinPoints(I,J) == BasinPoint) then
@@ -6174,8 +6174,8 @@ doi4 :      do i = ILB, IUB
             endif                                                                        
         enddo
         enddo
-        !$OMP END DO
-        !$OMP END PARALLEL
+        !!$OMP END DO
+        !!$OMP END PARALLEL
 
         if (MonitorPerformance) call StopWatch ("ModuleRunoffProperties", "ModifyDiffusivity_New")
 

@@ -30686,7 +30686,7 @@ do3:            do k = kbottom, KUB
 
         !------------Main cicle--------
 
-        !$ CHUNK = CHUNK_J(JLB, JUB)
+        !!$ CHUNK = CHUNK_J(JLB, JUB)
 
         if (MonitorPerformance) then
             call StartWatch ("ModuleHydrodynamic", "Modify_InertiaForces")
@@ -30695,7 +30695,7 @@ do3:            do k = kbottom, KUB
         !$OMP PARALLEL PRIVATE( I,J,K,I1,J1,I2,J2,I3,J3,kbottom,VUvar1,NoLand1, &
         !$OMP                   VUvar2,NoLand2,VUAverage,F_UV,Coriolis_Aceleration, &
         !$OMP                   Radius,Centrifugal_Aceleration,Area,dydx,dx1,dx2,dxdy, &
-        !$OMP                   f_Curvature)
+        !$OMP                   f_Curvature, Iaux)
 
         !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
 do1:    do  J = JLB, JUB

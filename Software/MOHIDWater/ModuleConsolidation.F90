@@ -65,6 +65,7 @@ Module ModuleConsolidation
 
     use ModuleGlobalData
     use ModuleTime
+    use ModuleFunctions,        only: SetMatrixValue
     use ModuleEnterData,        only: ConstructEnterData, KillEnterData, GetData, GetOutPutTime,&
                                       RewindBlock, RewindBuffer, ExtractBlockFromBlock,         &
                                       ExtractBlockFromBuffer, ReadFileName, Block_Unlock
@@ -246,7 +247,9 @@ Module ModuleConsolidation
         private
         integer                                 :: InstanceID
         type(T_Size3D        )                  :: Size   
-        type(T_Size3D        )                  :: WorkSize   
+        type(T_Size3D        )                  :: WorkSize
+        type(T_Size2D        )                  :: Size2D
+        type(T_Size2D        )                  :: WorkSize2D
         type(T_Files         )                  :: Files
         type(T_WaterFluxes   )                  :: WaterFluxes  
         type(T_External      )                  :: ExternalVar
@@ -634,6 +637,16 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
 
         call GetGeometrySize(Me%ObjGeometry, Size = Me%Size, WorkSize = Me%WorkSize, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)stop 'Construct_GlobalVariables - ModuleConsolidation - ERR03'
+
+        Me%Size2D%ILB = Me%Size%ILB
+        Me%Size2D%IUB = Me%Size%IUB
+        Me%Size2D%JLB = Me%Size%JLB
+        Me%Size2D%JUB = Me%Size%JUB 
+
+        Me%WorkSize2D%ILB = Me%WorkSize%ILB
+        Me%WorkSize2D%IUB = Me%WorkSize%IUB
+        Me%WorkSize2D%JLB = Me%WorkSize%JLB
+        Me%WorkSize2D%JUB = Me%WorkSize%JUB
 
         call AllocateVariables
 
@@ -1182,8 +1195,8 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
 
         call ReadLockExternalModules
 
-        Me%VerticalCoordinate(:,:,:) = Me%ExternalVar%SZZ(:,:,:)
-        Me%KTop(:,:)                 = Me%ExternalVar%KTop(:,:)
+        call SetMatrixValue(Me%VerticalCoordinate, Me%Size, Me%ExternalVar%SZZ)
+        call SetMatrixValue(Me%KTop, Me%Size2D, Me%ExternalVar%KTop)
 
         call ComputeTortuosity
 

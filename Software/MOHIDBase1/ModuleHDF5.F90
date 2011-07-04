@@ -32,7 +32,7 @@ Module ModuleHDF5
 
     use ModuleGlobalData
     use ModuleFunctions     , only :  minival, maxival, SetMatrixValue
-    use HDF5 
+    use hdf5
 
 #ifdef _GUI_    
     use dfwin
@@ -3598,7 +3598,7 @@ Module ModuleHDF5
                 !Reads Units
                 call h5aopen_name_f     (dset_id, "Units", attr_id, STAT_CALL)
                 call h5Tcopy_f          (H5T_NATIVE_CHARACTER, type_id, STAT_CALL)
-                call h5Tset_size_f      (type_id, Int8(StringLength), STAT_CALL)
+                call h5Tset_size_f      (type_id, int8(StringLength), STAT_CALL)
                 call h5aread_f          (attr_id, type_id, Units_, dims, STAT_CALL)
                 call h5aclose_f         (attr_id, STAT_CALL) 
                 call h5Tclose_f         (type_id, STAT_CALL)

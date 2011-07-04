@@ -5176,12 +5176,12 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
         !----------------------------------------------------------------------
         
         CHUNK = CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)
-        !$OMP PARALLEL PRIVATE(I,J,K)
+        !!$OMP PARALLEL PRIVATE(I,J,K)
         
         !Compute volumes and correct top flux taking FluxW(KUB+1) because it would be interpreted by module advection diffusion
         !as an additional water flux with the conc of C(i,j,k)
         
-        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+        !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
         do k = Me%WorkSize%KLB, Me%WorkSize%KUB
         do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         do i = Me%WorkSize%ILB, Me%WorkSize%IUB
@@ -5193,8 +5193,8 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
         enddo
         enddo
         enddo
-        !$OMP END DO
-        !$OMP END PARALLEL 
+        !!$OMP END DO
+        !!$OMP END PARALLEL 
                
         !Correct fluxw - take FluxW(KUB+1) because it would be interpreted by module advection diffusion
         !as an additional water flux with the conc of C(i,j,k)
@@ -5203,9 +5203,9 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
         call SetMatrixValue (Me%FluxWCorr, Me%Size, Me%ExtVar%FluxW)
          
          CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
-        !$OMP PARALLEL PRIVATE(I,J,K)
+        !!$OMP PARALLEL PRIVATE(I,J,K)
 
-        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+        !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
         do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             if (Me%ExtVar%OpenPoints3D(i,j,k) == OpenPoint) then  
@@ -5213,8 +5213,8 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
             endif
         enddo
         enddo        
-        !$OMP END DO
-        !$OMP END PARALLEL 
+        !!$OMP END DO
+        !!$OMP END PARALLEL 
 
    
     end subroutine ComputeVolumes
@@ -5248,12 +5248,12 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
         
         CHUNK = CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)
         
-        !$OMP PARALLEL PRIVATE(I,J,K)
+        !!$OMP PARALLEL PRIVATE(I,J,K)
 
         ThetaOld  => Me%ExtVar%WaterContentOld
         Theta     => Me%ExtVar%WaterContent
 
-        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+        !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
         
         do K = Me%WorkSize%KLB, Me%WorkSize%KUB
         do J = Me%WorkSize%JLB, Me%WorkSize%JUB
@@ -5309,8 +5309,8 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
         enddo
         enddo
         enddo
-        !$OMP END DO
-        !$OMP END PARALLEL
+        !!$OMP END DO
+        !!$OMP END PARALLEL
 
         do J = Me%WorkSize%JLB, Me%WorkSize%JUB
         do I = Me%WorkSize%ILB, Me%WorkSize%IUB
@@ -5340,12 +5340,12 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
         
         CHUNK = CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)
         
-        !$OMP PARALLEL PRIVATE(I,J,K)
+        !!$OMP PARALLEL PRIVATE(I,J,K)
 
         ThetaOld  => Me%ExtVar%WaterContentOld
         Theta     => Me%ExtVar%WaterContent
 
-        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+        !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
         
         do K = Me%WorkSize%KLB, Me%WorkSize%KUB
         do J = Me%WorkSize%JLB, Me%WorkSize%JUB
@@ -5393,8 +5393,8 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
         enddo
         enddo
         enddo
-        !$OMP END DO
-        !$OMP END PARALLEL
+        !!$OMP END DO
+        !!$OMP END PARALLEL
 
         do J = Me%WorkSize%JLB, Me%WorkSize%JUB
         do I = Me%WorkSize%ILB, Me%WorkSize%IUB
@@ -5512,8 +5512,8 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
 
         if (Me%ExtVar%ComputeVegInterfaceFluxes) then
 
-            !!!$OMP PARALLEL PRIVATE(I,J,K)
-            !!!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            !!!!$OMP PARALLEL PRIVATE(I,J,K)
+            !!!!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
     !        do K = Me%WorkSize%KLB, Me%WorkSize%KUB
             do J = Me%WorkSize%JLB, Me%WorkSize%JUB
             do I = Me%WorkSize%ILB, Me%WorkSize%IUB
@@ -6324,9 +6324,9 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
             
             
             CHUNK = Chunk_K(Me%WorkSize%KLB,Me%WorkSize%KUB)
-            !$OMP PARALLEL PRIVATE(i,j,k) 
+            !!$OMP PARALLEL PRIVATE(i,j,k) 
      
-            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
 do3 :       do k = Me%WorkSize%KLB, Me%WorkSize%KUB
 do2 :       do j = Me%WorkSize%JLB, Me%WorkSize%JUB
 do1 :       do i = Me%WorkSize%ILB, Me%WorkSize%IUB
@@ -6356,9 +6356,9 @@ do1 :       do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             end do do1
             end do do2
             end do do3
-            !$OMP END DO
+            !!$OMP END DO
                 
-            !$OMP END PARALLEL
+            !!$OMP END PARALLEL
             
         elseif (Direction == 'Vertical') then ! z direction
 
@@ -6369,9 +6369,9 @@ do1 :       do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             
             
             CHUNK = Chunk_K(Me%WorkSize%KLB,Me%WorkSize%KUB)
-            !$OMP PARALLEL PRIVATE(i,j,k) 
+            !!$OMP PARALLEL PRIVATE(i,j,k) 
      
-            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
 do6 :       do k = Me%WorkSize%KLB, Me%WorkSize%KUB
 do5 :       do j = Me%WorkSize%JLB, Me%WorkSize%JUB
 do4 :       do i = Me%WorkSize%ILB, Me%WorkSize%IUB
@@ -6392,9 +6392,9 @@ do4 :       do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             end do do4
             end do do5
             end do do6
-            !$OMP END DO
+            !!$OMP END DO
                 
-            !$OMP END PARALLEL
+            !!$OMP END PARALLEL
         
         else
             stop 'AdvectionUpwindOrder1 - Porous Media Properties - ERR010'
@@ -6444,9 +6444,9 @@ do4 :       do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             DVY => Me%ExtVar%DVY
             
             CHUNK = Chunk_K(Me%WorkSize%KLB,Me%WorkSize%KUB)
-            !$OMP PARALLEL PRIVATE(i,j,k, Aux1, Aux2) 
+            !!$OMP PARALLEL PRIVATE(i,j,k, Aux1, Aux2) 
      
-            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
 do3 :       do k = Me%WorkSize%KLB, Me%WorkSize%KUB
 do2 :       do j = Me%WorkSize%JLB, Me%WorkSize%JUB
 do1 :       do i = Me%WorkSize%ILB, Me%WorkSize%IUB
@@ -6475,9 +6475,9 @@ do1 :       do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             end do do1
             end do do2
             end do do3
-            !$OMP END DO
+            !!$OMP END DO
                 
-            !$OMP END PARALLEL
+            !!$OMP END PARALLEL
         
         elseif (Direction == 'Vertical') then 
 
@@ -6490,10 +6490,10 @@ do1 :       do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             DWZ => Me%ExtVar%DWZ
 
             CHUNK = Chunk_J(Me%WorkSize%JLB,Me%WorkSize%JUB)
-            !$OMP PARALLEL PRIVATE(i,j,k,Aux1,Aux2) 
+            !!$OMP PARALLEL PRIVATE(i,j,k,Aux1,Aux2) 
      
 do6 :       do k = Me%WorkSize%KLB, Me%WorkSize%KUB
-            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
 do5 :       do j = Me%WorkSize%JLB, Me%WorkSize%JUB
 do4 :       do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
@@ -6511,10 +6511,10 @@ do4 :       do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
             end do do4
             end do do5
-            !$OMP END DO
+            !!$OMP END DO
             end do do6
                 
-            !$OMP END PARALLEL
+            !!$OMP END PARALLEL
         else
             stop 'AdvectionCentralDifferences - Porous Media Properties - ERR010'        
         endif
@@ -6718,9 +6718,9 @@ do4 :       do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         DTPropDouble = dble(Me%ExtVar%DT) 
 
         CHUNK = Chunk_K(Me%WorkSize%KLB,Me%WorkSize%KUB)
-        !$OMP PARALLEL PRIVATE(i,j,k,AuxJ) 
+        !!$OMP PARALLEL PRIVATE(i,j,k,AuxJ) 
  
-        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+        !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
 do3 :   do k = Me%WorkSize%KLB, Me%WorkSize%KUB
 do2 :   do j = Me%WorkSize%JLB, Me%WorkSize%JUB
 do1 :   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
@@ -6747,9 +6747,9 @@ do1 :   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         end do do1
         end do do2
         end do do3
-        !$OMP END DO
+        !!$OMP END DO
             
-        !$OMP END PARALLEL
+        !!$OMP END PARALLEL
 
 
         if (MonitorPerformance) call StopWatch ("ModulePorousMediaProperties", "HorizontalDiffusionXX")
@@ -6776,10 +6776,10 @@ do1 :   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         DTPropDouble = dble(Me%ExtVar%DT) 
 
         CHUNK = Chunk_J(Me%WorkSize%JLB,Me%WorkSize%JUB)
-        !$OMP PARALLEL PRIVATE(i,j,k,AuxI) 
+        !!$OMP PARALLEL PRIVATE(i,j,k,AuxI) 
 
 do3 :   do k = Me%WorkSize%KLB, Me%WorkSize%KUB
-        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+        !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
 do2 :   do j = Me%WorkSize%JLB, Me%WorkSize%JUB
 do1 :   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
@@ -6802,10 +6802,10 @@ do1 :   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             endif
         end do do1
         end do do2
-        !$OMP END DO
+        !!$OMP END DO
         end do do3
 
-        !$OMP END PARALLEL
+        !!$OMP END PARALLEL
 
 
         if (MonitorPerformance) call StopWatch ("ModulePorousMediaProperties", "HorizontalDiffusionYY")
@@ -6948,14 +6948,14 @@ cd2:            if (ImpExp_AdvXX == ImplicitScheme) then
         KLB = Me%WorkSize%KLB
         KUB = Me%WorkSize%KUB
         
-        !$OMP PARALLEL PRIVATE(i,j,k,AdvFluxX,DT2,DT1)
+        !!$OMP PARALLEL PRIVATE(i,j,k,AdvFluxX,DT2,DT1)
         
         if (.not. Me%NewFormulation) then
         
             CHUNK = CHUNK_I(ILB, IUB)
                 
 k1:         do k = KLB, KUB
-            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
 i1:         do i = ILB, IUB
 
 
@@ -6975,10 +6975,10 @@ i1:         do i = ILB, IUB
                                         CurrProp%Evolution%AdvDiff%Upwind2H)
 
             end do i1
-            !$OMP END DO
+            !!$OMP END DO
             end do k1
             
-            !!$OMP END PARALLEL
+            !!!$OMP END PARALLEL
         
         endif
 
@@ -6986,7 +6986,7 @@ i1:         do i = ILB, IUB
 
 cd6:    if (ImpExp_AdvXX == ExplicitScheme)  then !ExplicitScheme = 0
 
-            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
 dok3 :      do k = KLB, KUB
 doj3 :      do j = JLB, JUB
 doi3 :      do i = ILB, IUB
@@ -7010,11 +7010,11 @@ doi3 :      do i = ILB, IUB
             end do doi3
             end do doj3
             end do dok3
-            !$OMP END DO NOWAIT 
+            !!$OMP END DO NOWAIT 
 
         else if (ImpExp_AdvXX == ImplicitScheme) then cd6 !ImplicitScheme = 1
 
-            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
 dok4 :      do k = KLB, KUB
 doj4 :      do j = JLB, JUB
 doi4 :      do i = ILB, IUB
@@ -7038,7 +7038,7 @@ doi4 :      do i = ILB, IUB
             end do doi4
             end do doj4
             end do dok4
-            !$OMP END DO NOWAIT 
+            !!$OMP END DO NOWAIT 
 
         else cd6
 
@@ -7046,7 +7046,7 @@ doi4 :      do i = ILB, IUB
         
         endif cd6
 
-        !$OMP END PARALLEL
+        !!$OMP END PARALLEL
 
         if (MonitorPerformance) call StopWatch ("ModulePorousMediaProperties", "HorizontalAdvectionXX")
 
@@ -7080,14 +7080,14 @@ doi4 :      do i = ILB, IUB
         KLB = Me%WorkSize%KLB
         KUB = Me%WorkSize%KUB
         
-        !$OMP PARALLEL PRIVATE(i,j,k,AdvFluxY,DT2,DT1)
+        !!$OMP PARALLEL PRIVATE(i,j,k,AdvFluxY,DT2,DT1)
         
         if (.not. Me%NewFormulation) then
         
             CHUNK = CHUNK_J(JLB, JUB)
 
 k1:         do k = KLB, KUB
-            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
 j1:         do j = JLB, JUB
 
 
@@ -7107,11 +7107,11 @@ j1:         do j = JLB, JUB
                                         CurrProp%Evolution%AdvDiff%Upwind2H)
 
             end do j1
-            !$OMP END DO
+            !!$OMP END DO
             end do k1
             
-            !!$OMP END DO NOWAIT
-            !!$OMP END PARALLEL
+            !!!$OMP END DO NOWAIT
+            !!!$OMP END PARALLEL
         
         endif
         
@@ -7119,7 +7119,7 @@ j1:         do j = JLB, JUB
         
 cd6:    if (ImpExp_AdvYY == ExplicitScheme)  then !ExplicitScheme = 0
            
-            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
 dok3 :      do k = KLB, KUB
 doj3 :      do j = JLB, JUB
 doi3 :      do i = ILB, IUB
@@ -7143,11 +7143,11 @@ doi3 :      do i = ILB, IUB
             end do doi3
             end do doj3
             end do dok3
-            !$OMP END DO NOWAIT
+            !!$OMP END DO NOWAIT
 
         else if (ImpExp_AdvYY == ImplicitScheme) then cd6 !ImplicitScheme = 1
 
-            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
 dok4 :      do k = KLB, KUB
 doj4 :      do j = JLB, JUB
 doi4 :      do i = ILB, IUB
@@ -7170,7 +7170,7 @@ doi4 :      do i = ILB, IUB
             end do doi4
             end do doj4
             end do dok4
-            !$OMP END DO NOWAIT
+            !!$OMP END DO NOWAIT
 
         else cd6
 
@@ -7178,7 +7178,7 @@ doi4 :      do i = ILB, IUB
         
         endif cd6
 
-        !$OMP END PARALLEL
+        !!$OMP END PARALLEL
 
         if (MonitorPerformance) call StopWatch ("ModulePorousMediaProperties", "HorizontalAdvectionYY")
 
@@ -7208,10 +7208,10 @@ doi4 :      do i = ILB, IUB
         
             CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
           
-            !$OMP PARALLEL PRIVATE(i,j,k,AuxK,Aux1,Aux2)
+            !!$OMP PARALLEL PRIVATE(i,j,k,AuxK,Aux1,Aux2)
 
 do2 :       do k = Me%WorkSize%KLB, Me%WorkSize%KUB
-            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
 do3 :       do j = Me%WorkSize%JLB, Me%WorkSize%JUB
 do1 :       do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
@@ -7238,20 +7238,20 @@ do1 :       do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
             end do do1
             end do do3
-            !$OMP END DO
+            !!$OMP END DO
             end do do2
 
-            !$OMP END PARALLEL
+            !!$OMP END PARALLEL
             
             
         elseif (DiffusionV_Imp_Exp == ImplicitScheme) then
 
             CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
           
-            !$OMP PARALLEL PRIVATE(i,j,k,AuxK,Aux1,Aux2)
+            !!$OMP PARALLEL PRIVATE(i,j,k,AuxK,Aux1,Aux2)
 
 do5 :       do k = Me%WorkSize%KLB, Me%WorkSize%KUB
-            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
 do6 :       do j = Me%WorkSize%JLB, Me%WorkSize%JUB
 do4 :       do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
@@ -7282,10 +7282,10 @@ do4 :       do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
             end do do4
             end do do6
-            !$OMP END DO
+            !!$OMP END DO
             end do do5
 
-            !$OMP END PARALLEL
+            !!$OMP END PARALLEL
 
         endif
         
@@ -7313,15 +7313,15 @@ do4 :       do i = Me%WorkSize%ILB, Me%WorkSize%IUB
        
         CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
 
-        !$OMP PARALLEL PRIVATE(i,j,k,AdvFluxZ,DT1,DT2)
+        !!$OMP PARALLEL PRIVATE(i,j,k,AdvFluxZ,DT1,DT2)
 
         !CHUNK = CHUNK_J(Me%Size%JLB, Me%Size%JUB)
     
-        !!$OMP PARALLEL SHARED(CHUNK) PRIVATE(I,J)
+        !!!$OMP PARALLEL SHARED(CHUNK) PRIVATE(I,J)
 
         if (.not. Me%NewFormulation) then 
 
-            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
 j1:         do j = Me%WorkSize%JLB, Me%WorkSize%JUB
 i1:         do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
@@ -7347,15 +7347,15 @@ i1:         do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             end do i1
             end do j1
             
-            !$OMP END DO
-            !!$OMP END PARALLEL
+            !!$OMP END DO
+            !!!$OMP END PARALLEL
         
         endif
 
 cd6:    if (AdvectionV_Imp_Exp == ExplicitScheme)  then !ExplicitScheme = 0
 
 dok3 :      do k = Me%WorkSize%KLB, Me%WorkSize%KUB
-            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
 doj3 :      do j = Me%WorkSize%JLB, Me%WorkSize%JUB
 doi3 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
@@ -7380,13 +7380,13 @@ doi3 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
             end do doi3
             end do doj3
-            !$OMP END DO
+            !!$OMP END DO
             end do dok3
 
         else if (AdvectionV_Imp_Exp == ImplicitScheme) then cd6 !ImplicitScheme = 1
 
 dok4 :      do k = Me%WorkSize%KLB, Me%WorkSize%KUB
-            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
 doj4 :      do j = Me%WorkSize%JLB, Me%WorkSize%JUB
 doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
@@ -7405,7 +7405,7 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
             end do doi4
             end do doj4
-            !$OMP END DO           
+            !!$OMP END DO           
             end do dok4
 
         else cd6
@@ -7414,7 +7414,7 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         
         endif cd6
 
-        !$OMP END PARALLEL
+        !!$OMP END PARALLEL
 
 
         if (MonitorPerformance) call StopWatch ("ModulePorousMediaProperties", "VerticalAdvection")
@@ -7468,8 +7468,8 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 !        Theta     => Me%ExtVar%WaterContent
 !        ThetaOld  => Me%ExtVar%WaterContentOld
 !        
-!        !!!$OMP PARALLEL PRIVATE(I,J,K)
-!        !!!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+!        !!!!$OMP PARALLEL PRIVATE(I,J,K)
+!        !!!!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
 !        do K = Me%WorkSize%KLB, Me%WorkSize%KUB
 !        do J = Me%WorkSize%JLB, Me%WorkSize%JUB
 !        do I = Me%WorkSize%ILB, Me%WorkSize%IUB
@@ -7663,8 +7663,8 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 !        enddo
 !        enddo
 !        enddo
-!        !!!$OMP END DO
-!        !!!$OMP END PARALLEL
+!        !!!!$OMP END DO
+!        !!!!$OMP END PARALLEL
 !
 !
 !    end subroutine ModifyExplicitCoefs
@@ -7698,10 +7698,10 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
             CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
           
-            !$OMP PARALLEL PRIVATE(i,j,k,aux)
+            !!$OMP PARALLEL PRIVATE(i,j,k,aux)
             
             do K = Me%WorkSize%KLB, Me%WorkSize%KUB
-            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
             do J = Me%WorkSize%JLB, Me%WorkSize%JUB
             do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                 
@@ -7735,10 +7735,10 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             
             enddo
             enddo
-            !$OMP END DO
+            !!$OMP END DO
             enddo
             
-            !$OMP END PARALLEL
+            !!$OMP END PARALLEL
                            
         else
             
@@ -7747,10 +7747,10 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             
             CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
           
-            !$OMP PARALLEL PRIVATE(i,j,k,aux)
+            !!$OMP PARALLEL PRIVATE(i,j,k,aux)
             
             do K = Me%WorkSize%KLB, Me%WorkSize%KUB
-            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
             do J = Me%WorkSize%JLB, Me%WorkSize%JUB
             do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                 
@@ -7781,9 +7781,9 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                 endif
             enddo
             enddo
-            !$OMP END DO
+            !!$OMP END DO
             enddo  
-            !$OMP END PARALLEL
+            !!$OMP END PARALLEL
        
         endif
    
@@ -7818,9 +7818,9 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
        
         CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
       
-        !$OMP PARALLEL PRIVATE(i,j,k,aux,TopDiffusion)
+        !!$OMP PARALLEL PRIVATE(i,j,k,aux,TopDiffusion)
         
-        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+        !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
         do J = Me%WorkSize%JLB, Me%WorkSize%JUB
         do I = Me%WorkSize%ILB, Me%WorkSize%IUB
             K = Me%WorkSize%KUB
@@ -7846,8 +7846,8 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         
         enddo
         enddo
-        !$OMP END DO
-        !$OMP END PARALLEL
+        !!$OMP END DO
+        !!$OMP END PARALLEL
 
         if (MonitorPerformance) call StopWatch ("ModulePorousMediaProperties", "ModifyInfiltrationCoefs")
 
@@ -7886,10 +7886,10 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 !
 !        CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
 !      
-!        !$OMP PARALLEL PRIVATE(i,j,k,aux)
+!        !!$OMP PARALLEL PRIVATE(i,j,k,aux)
 !        
 !        do K = Me%WorkSize%KLB, Me%WorkSize%KUB
-!        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)        
+!        !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)        
 !        do J = Me%WorkSize%JLB, Me%WorkSize%JUB
 !        do I = Me%WorkSize%ILB, Me%WorkSize%IUB
 !            
@@ -7935,10 +7935,10 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 !        
 !        enddo
 !        enddo
-!        !$OMP END DO
+!        !!$OMP END DO
 !        enddo
 !        
-!        !$OMP END PARALLEL        
+!        !!$OMP END PARALLEL        
 !        
 !        call UngetPorousMedia (Me%ObjPorousMedia, TranspirationLayer, STAT = STAT_CALL)
 !        if (STAT_CALL /= SUCCESS_) stop 'ModifyVegetationCoefs - ModulePorousMediaProperties - ERR050'
@@ -7972,9 +7972,9 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
             CHUNK = CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)
           
-            !$OMP PARALLEL PRIVATE(i,j,k,CoefInterfRunoff,CoefInterfDN,CoefInterfVeg, coefB)
+            !!$OMP PARALLEL PRIVATE(i,j,k,CoefInterfRunoff,CoefInterfDN,CoefInterfVeg, coefB)
                
-            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)              
+            !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)              
             do K = Me%WorkSize%KLB, Me%WorkSize%KUB
             do J = Me%WorkSize%JLB, Me%WorkSize%JUB
             do I = Me%WorkSize%ILB, Me%WorkSize%IUB
@@ -7997,8 +7997,8 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
            enddo
            enddo
            enddo
-           !$OMP END DO
-           !$OMP END PARALLEL  
+           !!$OMP END DO
+           !!$OMP END PARALLEL  
            
         else !implicit
             
@@ -8006,9 +8006,9 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
             CHUNK = CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)
           
-            !$OMP PARALLEL PRIVATE(i,j,k,CoefInterfRunoff,CoefInterfDN,CoefInterfVeg, coefB)
+            !!$OMP PARALLEL PRIVATE(i,j,k,CoefInterfRunoff,CoefInterfDN,CoefInterfVeg, coefB)
                
-            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)                          
+            !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)                          
             do K = Me%WorkSize%KLB, Me%WorkSize%KUB
             do J = Me%WorkSize%JLB, Me%WorkSize%JUB
             do I = Me%WorkSize%ILB, Me%WorkSize%IUB
@@ -8051,8 +8051,8 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             enddo
             enddo
 
-           !$OMP END DO
-           !$OMP END PARALLEL  
+           !!$OMP END DO
+           !!$OMP END PARALLEL  
            
            !3D model or 1D vertical
            !griflet: old call
@@ -8109,8 +8109,8 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
            
             if (GWFlowLink == Layer_) then
 
-                !!!$OMP PARALLEL PRIVATE(I,J,K)
-                !!!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+                !!!!$OMP PARALLEL PRIVATE(I,J,K)
+                !!!!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
                 do K = Me%WorkSize%KLB, Me%WorkSize%KUB
                 do J = Me%WorkSize%JLB, Me%WorkSize%JUB
                 do I = Me%WorkSize%ILB, Me%WorkSize%IUB
@@ -8152,8 +8152,8 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                 !Flux between river and runoff one value for each soil column
                 !water removed or added in top cell of saturated zone
                 
-                !!!$OMP PARALLEL PRIVATE(I,J,K)
-                !!!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+                !!!!$OMP PARALLEL PRIVATE(I,J,K)
+                !!!!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
                 do K = Me%WorkSize%KLB, Me%WorkSize%KUB
                 do J = Me%WorkSize%JLB, Me%WorkSize%JUB
                 do I = Me%WorkSize%ILB, Me%WorkSize%IUB
@@ -8273,7 +8273,7 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         
         CHUNK = CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)
         
-        !$OMP PARALLEL PRIVATE(I,J,K,DiffCoef,WaterContent_Face,Porosity_Face)
+        !!$OMP PARALLEL PRIVATE(I,J,K,DiffCoef,WaterContent_Face,Porosity_Face)
 
         Porosity  => Me%ExtVar%ThetaS
         
@@ -8285,7 +8285,7 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         UnsatU    => Me%ExtVar%UnsatU
         UnsatV    => Me%ExtVar%UnsatV
         
-        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+        !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
         do K = Me%WorkSize%KLB, Me%WorkSize%KUB
         do J = Me%WorkSize%JLB, Me%WorkSize%JUB
         do I = Me%WorkSize%ILB, Me%WorkSize%IUB
@@ -8331,8 +8331,8 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         enddo
         enddo
         enddo
-        !$OMP END DO
-        !$OMP END PARALLEL
+        !!$OMP END DO
+        !!$OMP END PARALLEL
 
         do J = Me%WorkSize%JLB, Me%WorkSize%JUB
         do I = Me%WorkSize%ILB, Me%WorkSize%IUB
@@ -8591,9 +8591,9 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             if (Condition == "Entering") then
                 
                 CHUNK = CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)
-                !$OMP PARALLEL PRIVATE(I,J,K)
+                !!$OMP PARALLEL PRIVATE(I,J,K)
                 
-                !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+                !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
                 do k=Me%WorkSize%KLB, Me%WorkSize%KUB
                 do j=Me%WorkSize%JLB, Me%WorkSize%JUB
                 do i=Me%WorkSize%ILB, Me%WorkSize%IUB
@@ -8608,17 +8608,17 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                 enddo
                 enddo
                 enddo
-                !$OMP END DO
-                !$OMP END PARALLEL
+                !!$OMP END DO
+                !!$OMP END PARALLEL
                 
                 
             !from mol/L in SedimentQuality to mg/L in PMP
             elseif (Condition == "Exiting") then
 
                 CHUNK = CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)
-                !$OMP PARALLEL PRIVATE(I,J,K)
+                !!$OMP PARALLEL PRIVATE(I,J,K)
                 
-                !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+                !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
                 do k=Me%WorkSize%KLB, Me%WorkSize%KUB
                 do j=Me%WorkSize%JLB, Me%WorkSize%JUB
                 do i=Me%WorkSize%ILB, Me%WorkSize%IUB
@@ -8634,8 +8634,8 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                 enddo
                 enddo
 
-                !$OMP END DO
-                !$OMP END PARALLEL
+                !!$OMP END DO
+                !!$OMP END PARALLEL
             
             endif
         
@@ -8648,9 +8648,9 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             if (Condition == "Entering") then
 
                 CHUNK = CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)
-                !$OMP PARALLEL PRIVATE(I,J,K)
+                !!$OMP PARALLEL PRIVATE(I,J,K)
                 
-                !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+                !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
                 do k=Me%WorkSize%KLB, Me%WorkSize%KUB
                 do j=Me%WorkSize%JLB, Me%WorkSize%JUB
                 do i=Me%WorkSize%ILB, Me%WorkSize%IUB
@@ -8665,16 +8665,16 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                 enddo
                 enddo
 
-                !$OMP END DO
-                !$OMP END PARALLEL
+                !!$OMP END DO
+                !!$OMP END PARALLEL
             
             !from mg/kgsoil in SedimentQuality to mg/L in PMP
             elseif (Condition == "Exiting") then
 
                 CHUNK = CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)
-                !$OMP PARALLEL PRIVATE(I,J,K)
+                !!$OMP PARALLEL PRIVATE(I,J,K)
                 
-                !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+                !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
                 do k=Me%WorkSize%KLB, Me%WorkSize%KUB
                 do j=Me%WorkSize%JLB, Me%WorkSize%JUB
                 do i=Me%WorkSize%ILB, Me%WorkSize%IUB
@@ -8690,8 +8690,8 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                 enddo
                 enddo
 
-                !$OMP END DO
-                !$OMP END PARALLEL
+                !!$OMP END DO
+                !!$OMP END PARALLEL
             
             endif
         
@@ -8923,8 +8923,8 @@ cd1 :       if (Property%Evolution%MinConcentration) then
                 
 !                CHUNK = CHUNK_K(Me%Size%KLB, Me%Size%KUB)
                 
-!                !$OMP PARALLEL SHARED(CHUNK, Property) PRIVATE(I,J,K)
-!                !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+!                !!$OMP PARALLEL SHARED(CHUNK, Property) PRIVATE(I,J,K)
+!                !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
 
                 do k=Me%WorkSize%KLB, Me%WorkSize%KUB
                 do j=Me%WorkSize%JLB, Me%WorkSize%JUB
@@ -8950,8 +8950,8 @@ cd1 :       if (Property%Evolution%MinConcentration) then
                 enddo
                 enddo
                 
-!                !$OMP END DO NOWAIT
-!                !$OMP END PARALLEL
+!                !!$OMP END DO NOWAIT
+!                !!$OMP END PARALLEL
                 
             endif cd1
                 
@@ -8992,9 +8992,9 @@ cd1 :       if (Property%Evolution%MinConcentration) then
         !Conversion factor to pass from dissolved concentrations (mg/LH20) to particulate (mg/kgsed) - LH20/kgsed
 
         CHUNK = CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)
-        !$OMP PARALLEL PRIVATE(I,J,K, InstantValue,ResidualValue)
+        !!$OMP PARALLEL PRIVATE(I,J,K, InstantValue,ResidualValue)
         
-        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+        !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
         do k = Me%WorkSize%KLB, Me%WorkSize%KUB
         do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         do i = Me%WorkSize%ILB, Me%WorkSize%IUB
@@ -9013,8 +9013,8 @@ cd1 :       if (Property%Evolution%MinConcentration) then
         end do
         end do
         end do
-        !$OMP END DO
-        !$OMP END PARALLEL 
+        !!$OMP END DO
+        !!$OMP END PARALLEL 
         
         Me%ResidualTime = Me%ResidualTime + DT
         
@@ -9597,9 +9597,9 @@ First:          if (LastTime.LT.Actual) then
                 if (Check_Particulate_Property(CurrProperty%ID%IDNumber)) then
 
                     CHUNK = CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)
-                    !$OMP PARALLEL PRIVATE(I,J,K, ConversionFactor)
+                    !!$OMP PARALLEL PRIVATE(I,J,K, ConversionFactor)
                     
-                    !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+                    !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
                     do k = Me%WorkSize%KLB, Me%WorkSize%KUB
                     do j = Me%WorkSize%JLB, Me%WorkSize%JUB
                     do i = Me%WorkSize%ILB, Me%WorkSize%IUB
@@ -9619,15 +9619,15 @@ First:          if (LastTime.LT.Actual) then
                     enddo
                     enddo
                     enddo
-                    !$OMP END DO
-                    !$OMP END PARALLEL                    
+                    !!$OMP END DO
+                    !!$OMP END PARALLEL                    
                 
                 else
 
                     CHUNK = CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)
-                    !$OMP PARALLEL PRIVATE(I,J,K, ConversionFactor)
+                    !!$OMP PARALLEL PRIVATE(I,J,K, ConversionFactor)
                     
-                    !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+                    !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
                     do k = Me%WorkSize%KLB, Me%WorkSize%KUB
                     do j = Me%WorkSize%JLB, Me%WorkSize%JUB
                     do i = Me%WorkSize%ILB, Me%WorkSize%IUB
@@ -9643,8 +9643,8 @@ First:          if (LastTime.LT.Actual) then
                     enddo
                     enddo
                     enddo
-                    !$OMP END DO
-                    !$OMP END PARALLEL                  
+                    !!$OMP END DO
+                    !!$OMP END PARALLEL                  
                 
                 endif
                 

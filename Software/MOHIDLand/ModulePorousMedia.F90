@@ -3964,11 +3964,11 @@ dConv:  do while (iteration <= Niteration)
 
 !        call FinalHead
 
-        !$OMP PARALLEL PRIVATE(I,J,K)
+        !!$OMP PARALLEL PRIVATE(I,J,K)
 
         !Horizontal Velocities
         if (Me%SoilOpt%CalcHorizontal) then
-            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
             do K = Me%WorkSize%KLB, Me%WorkSize%KUB
             do J = Me%WorkSize%JLB, Me%WorkSize%JUB
             do I = Me%WorkSize%ILB, Me%WorkSize%IUB            
@@ -3993,10 +3993,10 @@ dConv:  do while (iteration <= Niteration)
             end do
             end do
             end do
-            !$OMP END DO NOWAIT
+            !!$OMP END DO NOWAIT
         endif
         
-        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+        !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
         do K = Me%WorkSize%KLB, Me%WorkSize%KUB
         do J = Me%WorkSize%JLB, Me%WorkSize%JUB
         do I = Me%WorkSize%ILB, Me%WorkSize%IUB            
@@ -4017,9 +4017,9 @@ dConv:  do while (iteration <= Niteration)
         end do
         end do
         end do
-        !$OMP END DO NOWAIT
+        !!$OMP END DO NOWAIT
 
-        !$OMP END PARALLEL
+        !!$OMP END PARALLEL
 
         call InfiltrationVelocity
 
@@ -4046,8 +4046,8 @@ dConv:  do while (iteration <= Niteration)
         
         KUB   = Me%WorkSize%KUB
 
-        !$OMP PARALLEL PRIVATE(I,J,K,AccumPressure,Coef,ThetaInterpol,CenterVelocityW)
-        !$OMP DO SCHEDULE    (DYNAMIC, CHUNK)
+        !!$OMP PARALLEL PRIVATE(I,J,K,AccumPressure,Coef,ThetaInterpol,CenterVelocityW)
+        !!$OMP DO SCHEDULE    (DYNAMIC, CHUNK)
         do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
@@ -4109,8 +4109,8 @@ dConv:  do while (iteration <= Niteration)
             
         enddo
         enddo
-        !$OMP END DO NOWAIT
-        !$OMP END PARALLEL
+        !!$OMP END DO NOWAIT
+        !!$OMP END PARALLEL
 
     end subroutine ComputeFinalHead
 
@@ -4198,11 +4198,11 @@ dConv:  do while (iteration <= Niteration)
         
         if (MonitorPerformance) call StartWatch ("ModulePorousMedia", "SoilWaterFlux")
 
-        !$OMP PARALLEL PRIVATE(I,J,K)
+        !!$OMP PARALLEL PRIVATE(I,J,K)
 
         !Horizontal Velocities
         if (Me%SoilOpt%CalcHorizontal) then
-            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
             do K = Me%WorkSize%KLB, Me%WorkSize%KUB
             do J = Me%WorkSize%JLB, Me%WorkSize%JUB
             do I = Me%WorkSize%ILB, Me%WorkSize%IUB            
@@ -4218,10 +4218,10 @@ dConv:  do while (iteration <= Niteration)
             end do
             end do
             end do
-            !$OMP END DO NOWAIT
+            !!$OMP END DO NOWAIT
         endif
         
-        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+        !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
         do K = Me%WorkSize%KLB, Me%WorkSize%KUB
         do J = Me%WorkSize%JLB, Me%WorkSize%JUB
         do I = Me%WorkSize%ILB, Me%WorkSize%IUB
@@ -4234,9 +4234,9 @@ dConv:  do while (iteration <= Niteration)
         end do
         end do
         end do
-        !$OMP END DO NOWAIT
+        !!$OMP END DO NOWAIT
 
-        !$OMP END PARALLEL
+        !!$OMP END PARALLEL
 
         if (MonitorPerformance) call StopWatch ("ModulePorousMedia", "SoilWaterFlux")
 
@@ -4287,9 +4287,9 @@ dConv:  do while (iteration <= Niteration)
 
         CHUNK = CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)
         
-        !$OMP PARALLEL PRIVATE(I,J,K)
+        !!$OMP PARALLEL PRIVATE(I,J,K)
 
-        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+        !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
         do k = Me%WorkSize%KLB, Me%WorkSize%KUB
         do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         do i = Me%WorkSize%ILB, Me%WorkSize%IUB
@@ -4306,10 +4306,10 @@ dConv:  do while (iteration <= Niteration)
         enddo
         enddo
         enddo
-        !$OMP END DO NOWAIT
+        !!$OMP END DO NOWAIT
 
         !Y
-        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+        !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
         do k = Me%WorkSize%KLB, Me%WorkSize%KUB
         do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         do i = Me%WorkSize%ILB, Me%WorkSize%IUB
@@ -4326,10 +4326,10 @@ dConv:  do while (iteration <= Niteration)
         enddo
         enddo
         enddo
-        !$OMP END DO NOWAIT
+        !!$OMP END DO NOWAIT
 
         !Z
-        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+        !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
         do k = Me%WorkSize%KLB, Me%WorkSize%KUB
         do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         do i = Me%WorkSize%ILB, Me%WorkSize%IUB
@@ -4345,9 +4345,9 @@ dConv:  do while (iteration <= Niteration)
         enddo
         enddo
         enddo
-        !$OMP END DO NOWAIT
+        !!$OMP END DO NOWAIT
 
-        !$OMP END PARALLEL
+        !!$OMP END PARALLEL
 
     end subroutine CondutivityAverage
 
@@ -4362,9 +4362,9 @@ dConv:  do while (iteration <= Niteration)
         CHUNK = CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)
         
         !X
-        !$OMP PARALLEL PRIVATE(I,J,K)
+        !!$OMP PARALLEL PRIVATE(I,J,K)
 
-        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+        !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
         do k = Me%WorkSize%KLB, Me%WorkSize%KUB
         do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         do i = Me%WorkSize%ILB, Me%WorkSize%IUB
@@ -4379,10 +4379,10 @@ dConv:  do while (iteration <= Niteration)
         enddo
         enddo
         enddo
-        !$OMP END DO NOWAIT
+        !!$OMP END DO NOWAIT
         
         !Y
-        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+        !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
         do k = Me%WorkSize%KLB, Me%WorkSize%KUB
         do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         do i = Me%WorkSize%ILB, Me%WorkSize%IUB
@@ -4397,10 +4397,10 @@ dConv:  do while (iteration <= Niteration)
         enddo
         enddo
         enddo
-        !$OMP END DO NOWAIT
+        !!$OMP END DO NOWAIT
 
         !Z
-        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+        !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
         do k = Me%WorkSize%KLB, Me%WorkSize%KUB
         do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         do i = Me%WorkSize%ILB, Me%WorkSize%IUB
@@ -4415,9 +4415,9 @@ dConv:  do while (iteration <= Niteration)
         enddo
         enddo
         enddo
-        !$OMP END DO NOWAIT
+        !!$OMP END DO NOWAIT
 
-        !$OMP END PARALLEL
+        !!$OMP END PARALLEL
 
     end subroutine CondutivityMaximum
 
@@ -4432,9 +4432,9 @@ dConv:  do while (iteration <= Niteration)
         CHUNK = CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)
         
         !X
-        !$OMP PARALLEL PRIVATE(I,J,K)
+        !!$OMP PARALLEL PRIVATE(I,J,K)
 
-        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+        !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
         do k = Me%WorkSize%KLB, Me%WorkSize%KUB
         do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         do i = Me%WorkSize%ILB, Me%WorkSize%IUB
@@ -4449,10 +4449,10 @@ dConv:  do while (iteration <= Niteration)
         enddo
         enddo
         enddo
-        !$OMP END DO NOWAIT
+        !!$OMP END DO NOWAIT
 
         !Y
-        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+        !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
         do k = Me%WorkSize%KLB, Me%WorkSize%KUB
         do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         do i = Me%WorkSize%ILB, Me%WorkSize%IUB
@@ -4467,10 +4467,10 @@ dConv:  do while (iteration <= Niteration)
         enddo
         enddo
         enddo
-        !$OMP END DO NOWAIT
+        !!$OMP END DO NOWAIT
 
         !Z
-        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+        !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
         do k = Me%WorkSize%KLB, Me%WorkSize%KUB
         do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         do i = Me%WorkSize%ILB, Me%WorkSize%IUB
@@ -4482,9 +4482,9 @@ dConv:  do while (iteration <= Niteration)
         enddo
         enddo
         enddo
-        !$OMP END DO NOWAIT
+        !!$OMP END DO NOWAIT
 
-        !$OMP END PARALLEL
+        !!$OMP END PARALLEL
 
     end subroutine CondutivityMinimum
 
@@ -4500,9 +4500,9 @@ dConv:  do while (iteration <= Niteration)
         
 
         !X
-        !$OMP PARALLEL PRIVATE(I,J,K)
+        !!$OMP PARALLEL PRIVATE(I,J,K)
 
-        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+        !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
         do k = Me%WorkSize%KLB, Me%WorkSize%KUB
         do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         do i = Me%WorkSize%ILB, Me%WorkSize%IUB
@@ -4519,10 +4519,10 @@ dConv:  do while (iteration <= Niteration)
         enddo
         enddo
         enddo
-        !$OMP END DO NOWAIT
+        !!$OMP END DO NOWAIT
 
         !Y
-        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+        !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
         do k = Me%WorkSize%KLB, Me%WorkSize%KUB
         do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         do i = Me%WorkSize%ILB, Me%WorkSize%IUB
@@ -4539,10 +4539,10 @@ dConv:  do while (iteration <= Niteration)
         enddo
         enddo
         enddo
-        !$OMP END DO NOWAIT
+        !!$OMP END DO NOWAIT
 
         !Z
-        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+        !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
         do k = Me%WorkSize%KLB, Me%WorkSize%KUB
         do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         do i = Me%WorkSize%ILB, Me%WorkSize%IUB
@@ -4558,9 +4558,9 @@ dConv:  do while (iteration <= Niteration)
         enddo
         enddo
         enddo
-        !$OMP END DO NOWAIT
+        !!$OMP END DO NOWAIT
 
-        !$OMP END PARALLEL
+        !!$OMP END PARALLEL
 
     end subroutine CondutivityGeometricAverage
 
@@ -4663,12 +4663,12 @@ dConv:  do while (iteration <= Niteration)
         
         if (MonitorPerformance) call StartWatch ("ModulePorousMedia", "CalculateNewTheta")
 
-        !$OMP PARALLEL PRIVATE(I,J,K)
+        !!$OMP PARALLEL PRIVATE(I,J,K)
 
         !Horizontal Fluxes
         if (Me%SoilOpt%CalcHorizontal) then
 
-            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
             do K = Me%WorkSize%KLB, Me%WorkSize%KUB
             do J = Me%WorkSize%JLB, Me%WorkSize%JUB
             do I = Me%WorkSize%ILB, Me%WorkSize%IUB
@@ -4681,9 +4681,9 @@ dConv:  do while (iteration <= Niteration)
             enddo
             enddo
             enddo
-            !$OMP END DO
+            !!$OMP END DO
             
-            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
             do K = Me%WorkSize%KLB, Me%WorkSize%KUB
             do J = Me%WorkSize%JLB, Me%WorkSize%JUB
             do I = Me%WorkSize%ILB, Me%WorkSize%IUB
@@ -4696,13 +4696,13 @@ dConv:  do while (iteration <= Niteration)
             enddo
             enddo
             enddo
-            !$OMP END DO
+            !!$OMP END DO
 
         endif
         
         !Vertical Flux
         
-!        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+!        !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
 !        do K = Me%WorkSize%KLB, Me%WorkSize%KUB
 !        do J = Me%WorkSize%JLB, Me%WorkSize%JUB
 !        do I = Me%WorkSize%ILB, Me%WorkSize%IUB
@@ -4715,10 +4715,10 @@ dConv:  do while (iteration <= Niteration)
 !        enddo
 !        enddo
 !        enddo
-!        !$OMP END DO
+!        !!$OMP END DO
         
         !Flux W may be corrected in river points on the saturated zone to compensate exchange with river
-        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+        !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
         do K = Me%WorkSize%KLB, Me%WorkSize%KUB
         do J = Me%WorkSize%JLB, Me%WorkSize%JUB
         do I = Me%WorkSize%ILB, Me%WorkSize%IUB
@@ -4731,14 +4731,14 @@ dConv:  do while (iteration <= Niteration)
         enddo
         enddo
         enddo
-        !$OMP END DO
+        !!$OMP END DO
 
         
         !Evapotranspiration
         
         if (Me%TranspirationExists) then
             !Transpiration
-            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
             do K = Me%WorkSize%KLB, Me%WorkSize%KUB
             do J = Me%WorkSize%JLB, Me%WorkSize%JUB
             do I = Me%WorkSize%ILB, Me%WorkSize%IUB
@@ -4750,12 +4750,12 @@ dConv:  do while (iteration <= Niteration)
             enddo
             enddo
             enddo
-            !$OMP END DO
+            !!$OMP END DO
         endif
 
         if (Me%EvaporationExists) then
             !Evaporation
-            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
             do J = Me%WorkSize%JLB, Me%WorkSize%JUB
             do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                 if (Me%ExtVar%BasinPoints(I,J) == WaterPoint) then
@@ -4766,11 +4766,11 @@ dConv:  do while (iteration <= Niteration)
                 endif
             enddo
             enddo
-            !$OMP END DO
+            !!$OMP END DO
         endif
         
         !Infiltration
-        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+        !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
         do J = Me%WorkSize%JLB, Me%WorkSize%JUB
         do I = Me%WorkSize%ILB, Me%WorkSize%IUB
             if (Me%ExtVar%BasinPoints(i,j) == WaterPoint) then
@@ -4787,12 +4787,12 @@ dConv:  do while (iteration <= Niteration)
             endif
         enddo
         enddo
-        !$OMP END DO
+        !!$OMP END DO
         
         if (Me%ObjDrainageNetwork /= 0) then
             if (Me%SoilOpt%DNLink == GWFlowToChanByCell_) then
                 !Exchange with River
-                !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+                !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
                 do J = Me%WorkSize%JLB, Me%WorkSize%JUB
                 do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                     if (Me%ExtVar%RiverPoints(i,j) == WaterPoint) then
@@ -4803,12 +4803,12 @@ dConv:  do while (iteration <= Niteration)
                     endif
                 enddo
                 enddo
-                !$OMP END DO
+                !!$OMP END DO
             
             elseif (Me%SoilOpt%DNLink == GWFlowToChanByLayer_) then
 
                 !Exchange with River
-                !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+                !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
                 do J = Me%WorkSize%JLB, Me%WorkSize%JUB
                 do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                     if (Me%ExtVar%RiverPoints(i,j) == WaterPoint) then
@@ -4820,11 +4820,11 @@ dConv:  do while (iteration <= Niteration)
                     endif
                 enddo
                 enddo
-                !$OMP END DO
+                !!$OMP END DO
             endif
         endif
         
-        !$OMP END PARALLEL
+        !!$OMP END PARALLEL
         
 !        !Check over saturation for routine that corrects final head
 !        do K = Me%WorkSize%KLB, Me%WorkSize%KUB
@@ -4883,10 +4883,10 @@ dConv:  do while (iteration <= Niteration)
         
         CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
 
-        !$OMP PARALLEL PRIVATE(I,J, dh)
+        !!$OMP PARALLEL PRIVATE(I,J, dh)
 
         !Update Water Column
-        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+        !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
         do J = Me%WorkSize%JLB,     Me%WorkSize%JUB
         do I = Me%WorkSize%ILB,     Me%WorkSize%IUB
                                     
@@ -4917,8 +4917,8 @@ dConv:  do while (iteration <= Niteration)
             
         enddo
         enddo            
-        !$OMP END DO
-        !$OMP END PARALLEL
+        !!$OMP END DO
+        !!$OMP END PARALLEL
 
 
     end subroutine UpdateWaterColumnInfiltration
@@ -4938,8 +4938,8 @@ dConv:  do while (iteration <= Niteration)
         !CHUNK = CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)
 
         if (Me%TranspirationExists) then
-            !!$OMP PARALLEL SHARED(CHUNK) PRIVATE(I,J,K)
-            !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            !!!$OMP PARALLEL SHARED(CHUNK) PRIVATE(I,J,K)
+            !!!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
             do K = Me%WorkSize%KLB,     Me%WorkSize%KUB
             do J = Me%WorkSize%JLB,     Me%WorkSize%JUB
             do I = Me%WorkSize%ILB,     Me%WorkSize%IUB
@@ -4954,14 +4954,14 @@ dConv:  do while (iteration <= Niteration)
             enddo            
             enddo  
               
-            !!$OMP END DO
-            !!$OMP END PARALLEL     
+            !!!$OMP END DO
+            !!!$OMP END PARALLEL     
         
         endif
         
         if (Me%EvaporationExists) then
-            !!!$OMP PARALLEL SHARED(CHUNK) PRIVATE(I,J,K)
-            !!!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            !!!!$OMP PARALLEL SHARED(CHUNK) PRIVATE(I,J,K)
+            !!!!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
             do J = Me%WorkSize%JLB,     Me%WorkSize%JUB
             do I = Me%WorkSize%ILB,     Me%WorkSize%IUB
                                 
@@ -4976,8 +4976,8 @@ dConv:  do while (iteration <= Niteration)
             enddo
             enddo            
               
-            !!!$OMP END DO
-            !!!$OMP END PARALLEL     
+            !!!!$OMP END DO
+            !!!!$OMP END PARALLEL     
         
         endif
         
@@ -5065,9 +5065,9 @@ dConv:  do while (iteration <= Niteration)
 
         if (MonitorPerformance) call StartWatch ("ModulePorousMedia", "SoilParameters")
                 
-        !$OMP PARALLEL PRIVATE(I,J,K)
+        !!$OMP PARALLEL PRIVATE(I,J,K)
 
-        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+        !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
         do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
@@ -5108,10 +5108,10 @@ cd1 :   if (Mapping(i, j) == 1) then
         
         end do
         end do
-        !$OMP END DO
+        !!$OMP END DO
 
 
-        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+        !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
         do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
@@ -5153,8 +5153,8 @@ cd2 :   if (Mapping(i, j) == 1) then
         
         end do
         end do
-        !$OMP END DO NOWAIT
-        !$OMP END PARALLEL
+        !!$OMP END DO NOWAIT
+        !!$OMP END PARALLEL
             
 
         if (MonitorPerformance) call StopWatch ("ModulePorousMedia", "SoilParameters")
@@ -5285,8 +5285,8 @@ cd2 :   if (Mapping(i, j) == 1) then
         
         CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
 
-        !$OMP PARALLEL PRIVATE(I,J,K, ExcessVolume)
-        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+        !!$OMP PARALLEL PRIVATE(I,J,K, ExcessVolume)
+        !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
         do J = Me%WorkSize%JLB, Me%WorkSize%JUB
         do I = Me%WorkSize%ILB, Me%WorkSize%IUB
             if (Me%ExtVar%BasinPoints(I,J) == 1) then
@@ -5347,8 +5347,8 @@ cd2 :   if (Mapping(i, j) == 1) then
             endif
         enddo
         enddo
-        !$OMP END DO NOWAIT
-        !$OMP END PARALLEL
+        !!$OMP END DO NOWAIT
+        !!$OMP END PARALLEL
 
     end subroutine VerticalContinuity
 
@@ -5367,8 +5367,8 @@ cd2 :   if (Mapping(i, j) == 1) then
         
 !        CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
 
-!        !$OMP PARALLEL PRIVATE(I,J,K, ExcessVolume, dh)
-!        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+!        !!$OMP PARALLEL PRIVATE(I,J,K, ExcessVolume, dh)
+!        !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
         do J = Me%WorkSize%JLB, Me%WorkSize%JUB
         do I = Me%WorkSize%ILB, Me%WorkSize%IUB
             if (Me%ExtVar%BasinPoints(I,J) == 1) then
@@ -5403,8 +5403,8 @@ cd2 :   if (Mapping(i, j) == 1) then
             endif
         enddo
         enddo
-!        !$OMP END DO NOWAIT
-!        !$OMP END PARALLEL
+!        !!$OMP END DO NOWAIT
+!        !!$OMP END PARALLEL
 
     end subroutine CorrectFinalHead
 
@@ -5441,8 +5441,8 @@ cd2 :   if (Mapping(i, j) == 1) then
 
         CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
 
-        !$OMP PARALLEL PRIVATE(I,J,K, CellBottomLevel, DZInCell, FieldHead, FieldTheta)
-        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+        !!$OMP PARALLEL PRIVATE(I,J,K, CellBottomLevel, DZInCell, FieldHead, FieldTheta)
+        !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
         do J = Me%WorkSize%JLB, Me%WorkSize%JUB
         do I = Me%WorkSize%ILB, Me%WorkSize%IUB
             if (Me%ExtVar%BasinPoints(I,J) == 1) then
@@ -5480,8 +5480,8 @@ doK:            do K = Me%ExtVar%KFloor(i, j), Me%WorkSize%KUB
             
         enddo
         enddo
-        !$OMP END DO NOWAIT
-        !$OMP END PARALLEL
+        !!$OMP END DO NOWAIT
+        !!$OMP END PARALLEL
                 
     end subroutine CalculateUGWaterLevel
 

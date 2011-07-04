@@ -4834,8 +4834,13 @@ do2 :   do I = ILB, IUB
         end do
         end do
 
-
-        Me%OutPut%Aux3D(:,:,:) = log10(abs(Me%OutPut%Aux3D(:,:,:))+1.e-14)
+        do k = KLB, KUB
+        do j = JLB, JUB
+        do i = ILB, IUB
+            Me%OutPut%Aux3D(i,j,k) = log10(abs(Me%OutPut%Aux3D(i,j,k))+1.e-14)
+        enddo
+        enddo
+        enddo
 
         call HDF5WriteData  (Me%ObjHDF5, "/Results/ViscosityZ",                 &
                              "ViscosityZ", "log10(m2/s)",                       &
@@ -4867,7 +4872,13 @@ do2 :   do I = ILB, IUB
         end do
         end do
 
-        Me%OutPut%Aux3D(:,:,:) = log10(abs(Me%OutPut%Aux3D(:,:,:))+1.e-14)
+        do k = KLB, KUB
+        do j = JLB, JUB
+        do i = ILB, IUB
+            Me%OutPut%Aux3D(i,j,k) = log10(abs(Me%OutPut%Aux3D(i,j,k))+1.e-14)
+        enddo
+        enddo
+        enddo
 
         call HDF5WriteData  (Me%ObjHDF5, "/Results/Diffusivity",                        &
                              "Diffusivity", "log10(m2/s)", Array3D = Me%OutPut%Aux3D,   &
@@ -4954,7 +4965,14 @@ ifTKE:  if (Me%TurbOptions%MODTURB .EQ. TurbulenceEquation_ ) then
             end do
             end do
 
-            Me%OutPut%Aux3D(:,:,:) = log10(abs(Me%OutPut%Aux3D(:,:,:))+1.e-14)
+            do k = KLB, KUB
+            do j = JLB, JUB
+            do i = ILB, IUB
+                Me%OutPut%Aux3D(i,j,k) = log10(abs(Me%OutPut%Aux3D(i,j,k))+1.e-14)
+            enddo
+            enddo
+            enddo
+
             call HDF5WriteData  (Me%ObjHDF5, "/Results/TKE",                        &
                                  "TKE", "log10(m2/s2)", Array3D = Me%OutPut%Aux3D,  &
                                  OutputNumber = Index, STAT = STAT_CALL)
@@ -5010,7 +5028,14 @@ ifTKE:  if (Me%TurbOptions%MODTURB .EQ. TurbulenceEquation_ ) then
             end do
             end do
 
-            Me%OutPut%Aux3D(:,:,:) = log10(abs(Me%OutPut%Aux3D(:,:,:))+1.e-14)
+            do k = KLB, KUB
+            do j = JLB, JUB
+            do i = ILB, IUB
+                Me%OutPut%Aux3D(i,j,k) = log10(abs(Me%OutPut%Aux3D(i,j,k))+1.e-14)
+            enddo
+            enddo
+            enddo
+
             call HDF5WriteData  (Me%ObjHDF5, "/Results/L",                          &
                                  "L", "log10(m)", Array3D = Me%OutPut%Aux3D,        &
                                  OutputNumber = Index, STAT = STAT_CALL)
