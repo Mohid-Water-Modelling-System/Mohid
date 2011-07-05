@@ -8911,7 +8911,7 @@ D2:     do I=imax-1,2,-1
         integer                         :: i
         integer                            :: minival1D_I4
         
-        minival1D_I4 = 1e15
+        minival1D_I4 = 1e9
         do i = size1D%ILB,size1D%IUB
             if ( array(i) .ne. FillValueInt .and. minival1D_I4 > array(i) ) then
                 minival1D_I4 = array(i)
@@ -8927,7 +8927,7 @@ D2:     do I=imax-1,2,-1
         integer                         :: i,j
         integer                            :: minival2D_I4
         
-        minival2D_I4 = 1e15
+        minival2D_I4 = 1e9
         do j = size2D%JLB,size2D%JUB
         do i = size2D%ILB,size2D%IUB
             if ( array(i,j) .ne. FillValueInt .and. minival2D_I4 > array(i,j) ) then
@@ -8945,7 +8945,7 @@ D2:     do I=imax-1,2,-1
         integer                         :: i,j,k
         integer                            :: minival3D_I4
 
-        minival3D_I4 = 1e15
+        minival3D_I4 = 1e9
         do k = size3D%KLB,size3D%KUB
         do j = size3D%JLB,size3D%JUB
         do i = size3D%ILB,size3D%IUB
@@ -8965,7 +8965,7 @@ D2:     do I=imax-1,2,-1
         integer                         :: i
         integer                         :: maxival1D_I4
         
-        maxival1D_I4 = -1e15
+        maxival1D_I4 = -1e9
         do i = size1D%ILB,size1D%IUB
             if ( array(i) .ne. FillValueInt .and. maxival1D_I4 < array(i) ) then
                 maxival1D_I4 = array(i)
@@ -8981,7 +8981,7 @@ D2:     do I=imax-1,2,-1
         integer                         :: i,j
         integer                            :: maxival2D_I4
         
-        maxival2D_I4 = -1e15
+        maxival2D_I4 = -1e9
         do j = size2D%JLB,size2D%JUB
         do i = size2D%ILB,size2D%IUB
             if ( array(i,j) .ne. FillValueInt .and. maxival2D_I4 < array(i,j) ) then
@@ -8999,7 +8999,7 @@ D2:     do I=imax-1,2,-1
         integer                         :: i,j,k
         integer                         :: maxival3D_I4
         
-        maxival3D_I4 = -1e15
+        maxival3D_I4 = -1e9
         do k = size3D%KLB,size3D%KUB
         do j = size3D%JLB,size3D%JUB
         do i = size3D%ILB,size3D%IUB
