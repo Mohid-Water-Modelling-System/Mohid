@@ -70,6 +70,7 @@ Module ModuleNetCDFCF_2_HDF5MOHID
     type       T_ValueIn    
         integer                                       :: DataType = Real8_                
         integer                                       :: Dim
+        integer,    dimension(:),       allocatable   :: CountDim
         integer                                       :: x = -99, y = -99, z = -99, t = -99
         real(4),    dimension(:),       allocatable   :: R41D
         real(4),    dimension(:,:  ),   allocatable   :: R42D        
@@ -91,10 +92,11 @@ Module ModuleNetCDFCF_2_HDF5MOHID
         type (T_ValueIn)                        :: ValueIn        
         type(T_Time), dimension(:), pointer     :: Value1DOut
         integer                                 :: NumberInst
-        type(T_Time)                            :: RefDateTime            
+        type(T_Time)                            :: RefDateTimeIn, RefDateTimeOut            
         real                                    :: UnitsFactor
         logical                                 :: RefAttribute
         character(len=StringLength)             :: RefAttributeName
+        integer                                 :: NetCDFvar, NetCDFdim
     end type  T_Date
 
     private :: T_LongLat
@@ -161,11 +163,13 @@ Module ModuleNetCDFCF_2_HDF5MOHID
         integer                                 :: ObjGeometry          = 0
         integer                                 :: ObjMap               = 0
         integer                                 :: ObjTime              = 0
+        integer                                 :: ObjNetCDF            = 0
         integer                                 :: Unit, ClientNumber
         character(len=PathLength)               :: FileName
         character(len=PathLength)               :: GridFileName
         character(len=PathLength)               :: OutputFileName
         character(len=PathLength)               :: GeometryFileName
+        character(len=PathLength)               :: OutputNetCDFFile
         type(T_Size3D)                          :: Size, WorkSize
         type(T_Size2D)                          :: Size2D, WorkSize2D
         type(T_Field),  dimension(:), allocatable :: Field 
@@ -175,6 +179,7 @@ Module ModuleNetCDFCF_2_HDF5MOHID
         type(T_Depth)                           :: Depth
         type(T_Mapping)                         :: Mapping
         type(T_Bathym)                          :: Bathym
+        logical                                 :: OutHDF5, OutNetcdf
     end type  T_NetCDFCF_2_HDF5MOHID
 
     type(T_NetCDFCF_2_HDF5MOHID), pointer             :: Me
@@ -357,6 +362,36 @@ Module ModuleNetCDFCF_2_HDF5MOHID
                      STAT         = STAT_CALL)        
         if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR80'
         if (iflag == 0)            stop 'ReadOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR90'
+        
+        call GetData(Me%OutHDF5,                                                        &
+                     Me%ObjEnterData, iflag,                                            &
+                     SearchType   = FromBlock,                                          &
+                     keyword      = 'HDF5_OUT',                                         &
+                     default      = .true.,                                             &
+                     ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',                       &
+                     STAT         = STAT_CALL)        
+        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR100'
+        
+        call GetData(Me%OutNetCDF,                                                      &
+                     Me%ObjEnterData, iflag,                                            &
+                     SearchType   = FromBlock,                                          &
+                     keyword      = 'NETCDF_OUT',                                       &
+                     default      = .false.,                                            &
+                     ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',                       &
+                     STAT         = STAT_CALL)        
+        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR110'
+        
+        if (Me%OutNetCDF) then
+        
+            call GetData(Me%OutputNetCDFFile,                                           &
+                         Me%ObjEnterData, iflag,                                        &
+                         SearchType   = FromBlock,                                      &
+                         keyword      = 'OUTPUT_NETCDF_FILE',                           &
+                         ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',                   &
+                         STAT         = STAT_CALL)        
+            if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR120'
+        
+        endif
 
         allocate(Me%Field(1:Me%PropNumber))
 
@@ -407,22 +442,47 @@ BF:         if (BlockFound) then
                 call GetData(AuxTime,                                                   &
                              Me%ObjEnterData, iflag,                                    &
                              SearchType   = FromBlock,                                  &
-                             keyword      = 'REFERENCE_DATE',                           &
+                             keyword      = 'REFERENCE_DATE_IN',                        &
                              ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',               &
                              STAT         = STAT_CALL)        
                 if (STAT_CALL /= SUCCESS_) stop 'ReadTimeOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR20'    
     
 
-                call SetDate (Me%Date%RefDateTime, Year    = AuxTime(1),                &
-                                                   Month   = AuxTime(2),                &
-                                                   Day     = AuxTime(3),                &
-                                                   Hour    = AuxTime(4),                &
-                                                   Minute  = AuxTime(5),                &
-                                                   Second  = AuxTime(6))
+                call SetDate (Me%Date%RefDateTimeIn, Year    = AuxTime(1),              &
+                                                     Month   = AuxTime(2),              &
+                                                     Day     = AuxTime(3),              &
+                                                     Hour    = AuxTime(4),              &
+                                                     Minute  = AuxTime(5),              &
+                                                     Second  = AuxTime(6))
 
-                call StartComputeTime(Me%ObjTime, Me%Date%RefDateTime, Me%Date%RefDateTime, &
-                                      Me%Date%RefDateTime, DT = 0.0,                        &      
+                call StartComputeTime(Me%ObjTime, Me%Date%RefDateTimeIn, Me%Date%RefDateTimeIn, &
+                                      Me%Date%RefDateTimeIn, DT = 0.0,                        &      
                                       VariableDT = .false., STAT = STAT_CALL)   
+                if (STAT_CALL /= SUCCESS_) stop 'ReadTimeOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR30'
+                
+                                     
+                call GetData(AuxTime,                                                   &
+                             Me%ObjEnterData, iflag,                                    &
+                             SearchType   = FromBlock,                                  &
+                             keyword      = 'REFERENCE_DATE_OUT',                       &
+                             ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',               &
+                             STAT         = STAT_CALL)        
+                if (STAT_CALL /= SUCCESS_) stop 'ReadTimeOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR40'  
+                
+                if (iflag==0) then
+                   !The time in netcdf is assumed in days from 1950/1/1 : 0h:0m:0s (Mercator Ocean convention)
+                    AuxTime(:) = 0.
+                    AuxTime(1) = 1950
+                    AuxTime(2) = 1
+                    AuxTime(3) = 1                
+                endif  
+
+                call SetDate (Me%Date%RefDateTimeOut, Year    = AuxTime(1),             &
+                                                      Month   = AuxTime(2),             &
+                                                      Day     = AuxTime(3),             &
+                                                      Hour    = AuxTime(4),             &
+                                                      Minute  = AuxTime(5),             &
+                                                      Second  = AuxTime(6))                                      
 
                 call GetData(Me%Date%ValueIn%DataType,                                  &
                              Me%ObjEnterData, iflag,                                    &
@@ -431,7 +491,7 @@ BF:         if (BlockFound) then
                              default      = Real8_,                                     &
                              ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',               &
                              STAT         = STAT_CALL)        
-                if (STAT_CALL /= SUCCESS_) stop 'ReadTimeOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR30'    
+                if (STAT_CALL /= SUCCESS_) stop 'ReadTimeOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR50'    
                 
                 Me%Date%ValueIn%Dim = 1
 
@@ -451,7 +511,7 @@ BF:         if (BlockFound) then
                              default      = .true.,                                     &
                              ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',               &
                              STAT         = STAT_CALL)        
-                if (STAT_CALL /= SUCCESS_) stop 'ReadTimeOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR40'    
+                if (STAT_CALL /= SUCCESS_) stop 'ReadTimeOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR70'    
                 
                 if (Me%Date%RefAttribute) then
         
@@ -463,7 +523,7 @@ BF:         if (BlockFound) then
                                  default      = "units",                                    &
                                  ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',               &
                                  STAT         = STAT_CALL)        
-                    if (STAT_CALL /= SUCCESS_) stop 'ReadTimeOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR50'    
+                    if (STAT_CALL /= SUCCESS_) stop 'ReadTimeOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR80'    
                     
                 endif
                 
@@ -743,10 +803,19 @@ BF:         if (BlockFound) then
         !Gets File Access Code
         call GetHDF5FileAccess  (HDF5_CREATE = HDF5_CREATE)
         
-        !Opens HDF5 File
-        call ConstructHDF5(Me%ObjHDF5, Me%OutputFileName, HDF5_CREATE, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)stop 'ReadNetCDFCF_WriteHDF5MOHID - ModuleNetCDFCF_2_HDF5MOHID - ERR10'
+        if (Me%OutHDF5) then
+            !Opens HDF5 File
+            call ConstructHDF5(Me%ObjHDF5, Me%OutputFileName, HDF5_CREATE, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)stop 'ReadNetCDFCF_WriteHDF5MOHID - ModuleNetCDFCF_2_HDF5MOHID - ERR10'
+        endif
+        
+        if (Me%OutNetCDF) then
+            !Opens Netcdf File
+            STAT_CALL = nf90_create(path = trim(Me%OutputNetCDFFile), cmode = nf90_clobber, ncid = Me%ObjNetCDF)
+            if (STAT_CALL /= SUCCESS_)stop 'ReadNetCDFCF_WriteHDF5MOHID - ModuleNetCDFCF_2_HDF5MOHID - ERR20'
+        endif
 
+        
         call ExtractBlockFromBlock(Me%ObjEnterData, Me%ClientNumber,                    &
                                    input_files_begin, input_files_end,                  &
                                    BlockInBlockFound = BlockFound,                      &
@@ -868,9 +937,11 @@ BF:         if (BlockFound) then
         
         call ReadTimeNetCDF(ncid)
         
-        call WriteTimeHDF5(iOut)
+        if (Me%OutHDF5  ) call WriteTimeHDF5  (iOut)
         
+        if (Me%OutNetCDF) call WriteTimeNetCDF(iOut)
         
+        call DeAllocateValueIn(Me%Date%ValueIn)            
 
     end subroutine ReadWriteTime
 
@@ -889,23 +960,25 @@ BF:         if (BlockFound) then
         
         call ReadGrid2DNetCDF(ncid)
         
-        call ConstructHorizontalGrid(Me%ObjHorizontalGrid, Me%LongLat%LatOut, Me%LongLat%LongOut, &
-                                     XX  = Dummy, YY = Dummy, Latitude = 45., Longitude = -8.,    &
-                                     ILB = Me%WorkSize%ILB, IUB = Me%WorkSize%IUB,                &
-                                     JLB = Me%WorkSize%JLB, JUB = Me%WorkSize%JUB,                &
-                                     STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)stop 'ReadWriteGrid2D - ModuleNetCDFCF_2_HDF5MOHID - ERR10'
+        if (Me%OutHDF5) then
         
-        Me%WorkSize2D%ILB = Me%WorkSize%ILB
-        Me%WorkSize2D%IUB = Me%WorkSize%IUB        
-        Me%WorkSize2D%JLB = Me%WorkSize%JLB
-        Me%WorkSize2D%JUB = Me%WorkSize%JUB        
-                                     
+            call ConstructHorizontalGrid(Me%ObjHorizontalGrid, Me%LongLat%LatOut, Me%LongLat%LongOut, &
+                                         XX  = Dummy, YY = Dummy, Latitude = 45., Longitude = -8.,    &
+                                         ILB = Me%WorkSize%ILB, IUB = Me%WorkSize%IUB,                &
+                                         JLB = Me%WorkSize%JLB, JUB = Me%WorkSize%JUB,                &
+                                         STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)stop 'ReadWriteGrid2D - ModuleNetCDFCF_2_HDF5MOHID - ERR10'
+            
+            Me%WorkSize2D%ILB = Me%WorkSize%ILB
+            Me%WorkSize2D%IUB = Me%WorkSize%IUB        
+            Me%WorkSize2D%JLB = Me%WorkSize%JLB
+            Me%WorkSize2D%JUB = Me%WorkSize%JUB        
+                                         
 
-        call WriteHorizontalGrid(Me%ObjHorizontalGrid, Me%ObjHDF5,                         &
-                                 WorkSize = Me%WorkSize2D, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)stop 'WriteTimeHDF5 - ModuleNetCDFCF_2_HDF5MOHID - ERR20'
-        
+            call WriteHorizontalGrid(Me%ObjHorizontalGrid, Me%ObjHDF5,                         &
+                                     WorkSize = Me%WorkSize2D, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)stop 'ReadWriteGrid2D - ModuleNetCDFCF_2_HDF5MOHID - ERR20'
+        endif
         
 
     end subroutine ReadWriteGrid2D
@@ -922,7 +995,7 @@ BF:         if (BlockFound) then
         
         call ReadGrid3DNetCDF(ncid)
         
-        call WriteGrid3DHDF5
+        if (Me%OutHDF5) call WriteGrid3DHDF5
 
     end subroutine ReadWriteGrid3D
 
@@ -940,66 +1013,73 @@ BF:         if (BlockFound) then
         do iP = 1, Me%PropNumber
         
             call ReadFieldNetCDF(ncid, iP)
-        
-        
-            do iT = 1, Me%Date%NumberInst
             
-                if      (Me%Field(iP)%Dim==3 .and. .not. associated(Me%Field(iP)%Value3DOut)) then 
-                    allocate(Me%Field(iP)%Value3DOut(Me%Size%ILB:Me%Size%IUB,           &
-                                                     Me%Size%JLB:Me%Size%JUB,           &
-                                                     Me%Size%KLB:Me%Size%KUB))
-                else if (Me%Field(iP)%Dim==2 .and. .not. associated(Me%Field(iP)%Value2DOut)) then 
-                    allocate(Me%Field(iP)%Value2DOut(Me%Size%ILB:Me%Size%IUB,           &
-                                                     Me%Size%JLB:Me%Size%JUB))
-                endif                            
-                
-                
-                if       (Me%Field(iP)%Dim==3) then
-                
-                    do k= Me%WorkSize%KLB, Me%WorkSize%KUB                    
-                    do j= Me%WorkSize%JLB, Me%WorkSize%JUB
-                    do i= Me%WorkSize%ILB, Me%WorkSize%IUB
-                    
-                        if (Me%Mapping%Value3DOut(i,j,k) == 1) then
-                    
-                            Me%Field(iP)%Value3DOut(i, j, k) = GetNetCDFValue(Me%Field(iP)%ValueIn,  Dim1 = j+1, Dim2 = i+1, Dim3 = k, Dim4 = iT)
-                            Me%Field(iP)%Value3DOut(i, j, k) = Me%Field(iP)%Value3DOut(i, j, k) * Me%Field(iP)%Multiply + Me%Field(iP)%Add
+            if (Me%OutHDF5) then
 
-                        else 
-                            Me%Field(iP)%Value3DOut(i, j, k) = FillValueReal
-                        endif                
-                    enddo
-                    enddo
-                    enddo
-                    
-                else if  (Me%Field(iP)%Dim==2) then
+                do iT = 1, Me%Date%NumberInst
                 
-                    do j= Me%WorkSize%JLB, Me%WorkSize%JUB
-                    do i= Me%WorkSize%ILB, Me%WorkSize%IUB
+                    if      (Me%Field(iP)%Dim==3 .and. .not. associated(Me%Field(iP)%Value3DOut)) then 
+                        allocate(Me%Field(iP)%Value3DOut(Me%Size%ILB:Me%Size%IUB,           &
+                                                         Me%Size%JLB:Me%Size%JUB,           &
+                                                         Me%Size%KLB:Me%Size%KUB))
+                    else if (Me%Field(iP)%Dim==2 .and. .not. associated(Me%Field(iP)%Value2DOut)) then 
+                        allocate(Me%Field(iP)%Value2DOut(Me%Size%ILB:Me%Size%IUB,           &
+                                                         Me%Size%JLB:Me%Size%JUB))
+                    endif                            
                     
-                        if (Me%Depth%Dim3D) then
-                            mask = Me%Mapping%Value3DOut(i,j,Me%WorkSize%KUB)
-                        else
-                            mask = Me%Mapping%Value2DOut(i,j)
-                        endif
-                        
-                        if (mask == 1) then
-                            Me%Field(iP)%Value2DOut(i, j) = GetNetCDFValue(Me%Field(iP)%ValueIn,  Dim1 = j+1, Dim2 = i+1, Dim3 = iT)
-                            Me%Field(iP)%Value2DOut(i, j) = Me%Field(iP)%Value2DOut(i, j) * Me%Field(iP)%Multiply + Me%Field(iP)%Add                            
-                        else 
-                            Me%Field(iP)%Value2DOut(i, j) = FillValueReal
-                        endif                
-                        
-                    enddo
-                    enddo
                     
-                endif
+                    if       (Me%Field(iP)%Dim==3) then
+                    
+                        do k= Me%WorkSize%KLB, Me%WorkSize%KUB                    
+                        do j= Me%WorkSize%JLB, Me%WorkSize%JUB
+                        do i= Me%WorkSize%ILB, Me%WorkSize%IUB
+                        
+                            if (Me%Mapping%Value3DOut(i,j,k) == 1) then
+                        
+                                Me%Field(iP)%Value3DOut(i, j, k) = GetNetCDFValue(Me%Field(iP)%ValueIn,  Dim1 = j+1, &
+                                                                                  Dim2 = i+1, Dim3 = k, Dim4 = iT)
+                                Me%Field(iP)%Value3DOut(i, j, k) = Me%Field(iP)%Value3DOut(i, j, k) * &
+                                                                   Me%Field(iP)%Multiply + Me%Field(iP)%Add
 
-                iFinal = iT + iOut
+                            else 
+                                Me%Field(iP)%Value3DOut(i, j, k) = FillValueReal
+                            endif                
+                        enddo
+                        enddo
+                        enddo
+                        
+                    else if  (Me%Field(iP)%Dim==2) then
+                    
+                        do j= Me%WorkSize%JLB, Me%WorkSize%JUB
+                        do i= Me%WorkSize%ILB, Me%WorkSize%IUB
+                        
+                            if (Me%Depth%Dim3D) then
+                                mask = Me%Mapping%Value3DOut(i,j,Me%WorkSize%KUB)
+                            else
+                                mask = Me%Mapping%Value2DOut(i,j)
+                            endif
+                            
+                            if (mask == 1) then
+                                Me%Field(iP)%Value2DOut(i, j) = GetNetCDFValue(Me%Field(iP)%ValueIn,  &
+                                                                    Dim1 = j+1, Dim2 = i+1, Dim3 = iT)
+                                Me%Field(iP)%Value2DOut(i, j) = Me%Field(iP)%Value2DOut(i, j) * &
+                                                                Me%Field(iP)%Multiply + Me%Field(iP)%Add                            
+                            else 
+                                Me%Field(iP)%Value2DOut(i, j) = FillValueReal
+                            endif                
+                            
+                        enddo
+                        enddo
+                        
+                    endif
+
+                    iFinal = iT + iOut
+                    
+                    call WriteFieldHDF5(iP, iFinal)    
+        
+                enddo
                 
-                call WriteFieldHDF5(iP, iFinal)    
-    
-            enddo
+            endif
         
             call DeAllocateValueIn(Me%Field(iP)%ValueIn)
 
@@ -1033,7 +1113,7 @@ BF:         if (BlockFound) then
             
             Aux = Aux * dble(Me%Date%UnitsFactor)
             
-            CurrentTime = Me%Date%RefDateTime + Aux
+            CurrentTime = Me%Date%RefDateTimeIn + Aux
        
 
 !           Dados para escriver uma soa vez cada date:
@@ -1056,10 +1136,93 @@ BF:         if (BlockFound) then
            
         enddo
         
-        call DeAllocateValueIn(Me%Date%ValueIn)            
-        
+       
 
     end subroutine WriteTimeHDF5
+
+
+   !---------------------------------------------------------------------------
+   !------------------------------------------------------------------------
+    subroutine WriteTimeNetCDF(iOut)
+        !Arguments-------------------------------------------------------------
+        integer                                         :: iOut
+        
+        !Local-----------------------------------------------------------------
+        real,    dimension(6), target                   :: AuxTime
+        real(8)                                         :: Aux, SetValue        
+        type(T_Time)                                    :: CurrentTime
+        integer                                         :: STAT_CALL, i, iaux
+        character(len=Stringlength)                     :: AuxChar
+
+        !Begin-----------------------------------------------------------------
+        
+        write(*,*)
+        write(*,*)'Writing Time NetCDF file...'
+
+        !allocate(Me%Date%Value1DOut(1:Me%Date%NumberInst))
+
+        if (iOut==0) then
+            
+            STAT_CALL = nf90_def_dim(ncid=Me%ObjNetCDF, name="time", len= nf90_unlimited, dimid= Me%Date%NetCDFdim)
+            STAT_CALL = nf90_def_var(ncid=Me%ObjNetCDF, name="time", xtype=nf90_double, dimids= Me%Date%NetCDFdim, varid=Me%Date%NetCDFvar)
+            if (STAT_CALL /= SUCCESS_)then
+                write(*,*) trim(nf90_strerror(STAT_CALL))
+                stop 'WriteTimeNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR10'
+            endif
+
+            call ExtractDate (Me%Date%RefDateTimeOut, Year    = AuxTime(1),             &
+                                                      Month   = AuxTime(2),             &
+                                                      Day     = AuxTime(3),             &
+                                                      Hour    = AuxTime(4),             &
+                                                      Minute  = AuxTime(5),             &
+                                                      Second  = AuxTime(6))              
+            
+            AuxChar(1:13)="second since "
+            write(AuxChar(14:17),'(I4)') int(AuxTime(1))
+            write(AuxChar(18:18),'(A1)') "-"
+            write(AuxChar(21:21),'(A1)') "-"            
+            write(AuxChar(24:24),'(A1)') " "                        
+            write(AuxChar(27:27),'(A1)') ":"                                    
+            write(AuxChar(31:31),'(A1)') ":"   
+            do i=2,6                    
+                iaux = (i-2)*3                         
+                if (AuxTime(i)>=10) then
+                    write(AuxChar(19+iaux:20+iaux),'(I2)') int(AuxTime(i))                    
+                else
+                    write(AuxChar(19+iaux:19+iaux),'(A1)') "0"
+                    write(AuxChar(20+iaux:20+iaux),'(I1)') int(AuxTime(i))                    
+                endif
+            enddo
+
+            STAT_CALL = nf90_put_att(Me%ObjNetCDF, Me%Date%NetCDFvar, "units",trim(AuxChar))
+            if (STAT_CALL /= SUCCESS_)stop 'WriteTimeNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR30'
+            
+            STAT_CALL = nf90_enddef(ncid=Me%ObjNetCDF)
+            if (STAT_CALL /= SUCCESS_)then
+                write(*,*) trim(nf90_strerror(STAT_CALL))
+                stop 'WriteTimeNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR20'
+            endif
+                    
+        endif        
+
+        do i=1, Me%Date%NumberInst
+
+            Aux = GetNetCDFValue(Me%Date%ValueIn, Dim1 = i)
+            
+            Aux = Aux * dble(Me%Date%UnitsFactor)
+            
+            CurrentTime = Me%Date%RefDateTimeIn + Aux
+            
+            SetValue = CurrentTime - Me%Date%RefDateTimeOut
+            
+            call SetNetCDFValue(Me%Date%ValueIn, SetValue, Dim1 = i)
+       
+        enddo
+        
+ 
+        call PutNetCDFMatrix(Me%ObjNetCDF, Me%Date%NetCDFvar, Me%Date%ValueIn, StartTime = iOut+1)        
+        
+    end subroutine WriteTimeNetCDF
 
 
    !---------------------------------------------------------------------------
@@ -1137,22 +1300,22 @@ BF:         if (BlockFound) then
 
 
         status=NF90_INQ_DIMID(ncid,trim(Me%Date%NetCDFName),dimid)
-        if (status /= nf90_noerr) stop 'ReadNetCDFCF_HDF5MOHIDFile - ModuleNetCDFCF_2_HDF5MOHID - ERR20'
+        if (status /= nf90_noerr) stop 'ReadTimeNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR10'
 
         status=NF90_INQUIRE_DIMENSION(ncid, dimid, len = Me%Date%NumberInst)
-        if (status /= nf90_noerr) stop 'ReadNetCDFCF_HDF5MOHIDFile - ModuleNetCDFCF_2_HDF5MOHID - ERR30'
+        if (status /= nf90_noerr) stop 'ReadTimeNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR20'
 
         call AllocateValueIn(Me%Date%ValueIn, Dim1 = Me%Date%NumberInst)
 
         status = nf90_inq_varid(ncid, trim(Me%Date%NetCDFName), n)
-        if (status /= nf90_noerr) stop 'ReadNetCDFCF_HDF5MOHIDFile - ModuleNetCDFCF_2_HDF5MOHID - ERR40'
+        if (status /= nf90_noerr) stop 'ReadTimeNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR30'
 
         call GetNetCDFMatrix(ncid, n, Me%Date%ValueIn) 
         
         if (Me%Date%RefAttribute) then
         
             status=NF90_GET_ATT(ncid,n,trim(Me%Date%RefAttributeName), ref_date)
-            if (status /= nf90_noerr) stop 'ReadNetCDFCF_HDF5MOHIDFile - ModuleNetCDFCF_2_HDF5MOHID - ERR40'
+            if (status /= nf90_noerr) stop 'ReadTimeNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR40'
             
             
             
@@ -1201,7 +1364,7 @@ BF:         if (BlockFound) then
             endif
 
                         
-            call SetDate (Me%Date%RefDateTime, Year    = AuxTime(1),                &
+            call SetDate (Me%Date%RefDateTimeIn, Year    = AuxTime(1),                &
                                                Month   = AuxTime(2),                &
                                                Day     = AuxTime(3),                &
                                                Hour    = AuxTime(4),                &
@@ -1583,6 +1746,28 @@ BF:         if (BlockFound) then
             if (.not.(present(Dim2).and.present(Dim3).and.present(Dim4))) &
                 stop 'AllocateValueIn - ModuleNetCDFCF_2_HDF5MOHID - ERR40'
         endif
+        
+        if      (Dim==1) then
+            allocate(ValueIn%CountDim(1))
+            ValueIn%CountDim(1) = Dim1
+        else if (Dim==2) then
+            allocate(ValueIn%CountDim(2))
+            ValueIn%CountDim(1) = Dim1
+            ValueIn%CountDim(2) = Dim2
+        else if (Dim==3) then
+            allocate(ValueIn%CountDim(3))
+            ValueIn%CountDim(1) = Dim1
+            ValueIn%CountDim(2) = Dim2
+            ValueIn%CountDim(3) = Dim3
+        else if (Dim==4) then
+            allocate(ValueIn%CountDim(4))
+            ValueIn%CountDim(1) = Dim1
+            ValueIn%CountDim(2) = Dim2
+            ValueIn%CountDim(3) = Dim3        
+            ValueIn%CountDim(4) = Dim4
+        else
+            stop 'AllocateValueIn - ModuleNetCDFCF_2_HDF5MOHID - ERR50'
+        endif
 
         if      (Dim==1) then
         
@@ -1649,7 +1834,7 @@ BF:         if (BlockFound) then
             endif    
 
         else
-            stop 'AllocateValueIn - ModuleNetCDFCF_2_HDF5MOHID - ERR50'
+            stop 'AllocateValueIn - ModuleNetCDFCF_2_HDF5MOHID - ERR60'
         endif
         
     end subroutine AllocateValueIn
@@ -1667,6 +1852,8 @@ BF:         if (BlockFound) then
         
         Dim         = ValueIn%Dim
         DataTypeIn  = ValueIn%DataType
+        
+        deallocate(ValueIn%CountDim)
 
         if      (Dim==1) then
         
@@ -1843,6 +2030,126 @@ BF:         if (BlockFound) then
     end subroutine GetNetCDFMatrix
 
     !------------------------------------------------------------------------
+    !------------------------------------------------------------------------
+    
+    subroutine PutNetCDFMatrix(ncid, n, ValueIn, StartTime)
+        !Arguments-------------------------------------------------------------        
+        integer             :: ncid, n
+        type(T_ValueIn)     :: ValueIn
+        integer, optional   :: StartTime
+        !Local-----------------------------------------------------------------                
+        integer, dimension(:), allocatable :: Start
+        integer             :: Dim, DataTypeIn, status
+        character(len=StringLength) :: Error
+        !Begin-----------------------------------------------------------------        
+        
+        Dim         = ValueIn%Dim
+        DataTypeIn  = ValueIn%DataType
+        
+        if (DataTypeIn /= Real8_ .and. DataTypeIn /= Real4_ .and. DataTypeIn /= Integer4_) then
+            stop 'PutNetCDFMatrix - ModuleNetCDFCF_2_HDF5MOHID - ERR10'
+        endif
+
+
+        allocate(Start(1:Dim))
+        Start(:)= 1
+        if (present(StartTime)) Start(1) = StartTime
+        
+
+        if      (Dim==1) then
+        
+            if      (DataTypeIn == Real8_   ) then
+
+                status = NF90_PUT_VAR(ncid,n,ValueIn%R81D, start=Start, count=ValueIn%CountDim)
+                if (status /= nf90_noerr) then
+                    write(*,*) trim(nf90_strerror(status))
+                    stop 'PutNetCDFMatrix - ModuleNetCDFCF_2_HDF5MOHID - ERR20'
+                endif                    
+                
+            else if (DataTypeIn == Real4_   ) then
+            
+                status = NF90_PUT_VAR(ncid,n,ValueIn%R41D, start=Start, count=ValueIn%CountDim)
+                if (status /= nf90_noerr) stop 'PutNetCDFMatrix - ModuleNetCDFCF_2_HDF5MOHID - ERR30'
+            
+            else if (DataTypeIn == Integer4_) then
+            
+                status = NF90_PUT_VAR(ncid,n,ValueIn%I41D, start=Start, count=ValueIn%CountDim)
+                if (status /= nf90_noerr) stop 'PutNetCDFMatrix - ModuleNetCDFCF_2_HDF5MOHID - ERR40'
+            
+            endif
+        
+        else if (Dim==2) then
+    
+            if      (DataTypeIn == Real8_   ) then
+
+                status = NF90_PUT_VAR(ncid,n,ValueIn%R82D, start=Start, count=ValueIn%CountDim)
+                if (status /= nf90_noerr) stop 'PutNetCDFMatrix - ModuleNetCDFCF_2_HDF5MOHID - ERR50'
+                
+            else if (DataTypeIn == Real4_   ) then
+            
+                status = NF90_PUT_VAR(ncid,n,ValueIn%R42D, start=Start, count=ValueIn%CountDim)
+                if (status /= nf90_noerr) stop 'PutNetCDFMatrix - ModuleNetCDFCF_2_HDF5MOHID - ERR60'
+            
+            else if (DataTypeIn == Integer4_) then
+            
+                status = NF90_PUT_VAR(ncid,n,ValueIn%I42D, start=Start, count=ValueIn%CountDim)
+                if (status /= nf90_noerr) stop 'PutNetCDFMatrix - ModuleNetCDFCF_2_HDF5MOHID - ERR70'
+            
+            endif    
+    
+        else if (Dim==3) then
+
+            if      (DataTypeIn == Real8_   ) then
+
+                status = NF90_PUT_VAR(ncid,n,ValueIn%R83D, start=Start, count=ValueIn%CountDim)
+                if (status /= nf90_noerr) stop 'PutNetCDFMatrix - ModuleNetCDFCF_2_HDF5MOHID - ERR80'
+                
+            else if (DataTypeIn == Real4_   ) then
+            
+                status = NF90_PUT_VAR(ncid,n,ValueIn%R43D, start=Start, count=ValueIn%CountDim)
+                if (status /= nf90_noerr) stop 'PutNetCDFMatrix - ModuleNetCDFCF_2_HDF5MOHID - ERR90'
+            
+            else if (DataTypeIn == Integer4_) then
+            
+                status = NF90_PUT_VAR(ncid,n,ValueIn%I43D, start=Start, count=ValueIn%CountDim)
+                if (status /= nf90_noerr) stop 'PutNetCDFMatrix - ModuleNetCDFCF_2_HDF5MOHID - ERR100'
+            
+            endif
+
+        else if (Dim==4) then        
+
+            if      (DataTypeIn == Real8_   ) then
+
+                status = NF90_PUT_VAR(ncid,n,ValueIn%R84D, start=Start, count=ValueIn%CountDim)
+                Error = nf90_strerror(status)
+                write(*,*) Error
+                if (status /= nf90_noerr) stop 'PutNetCDFMatrix - ModuleNetCDFCF_2_HDF5MOHID - ERR110'
+                
+                
+            else if (DataTypeIn == Real4_   ) then
+            
+                status = NF90_PUT_VAR(ncid,n,ValueIn%R44D, start=Start, count=ValueIn%CountDim)
+                if (status /= nf90_noerr) stop 'PutNetCDFMatrix - ModuleNetCDFCF_2_HDF5MOHID - ERR120'
+            
+            else if (DataTypeIn == Integer4_) then
+            
+                status = NF90_PUT_VAR(ncid,n,ValueIn%I44D, start=Start, count=ValueIn%CountDim)
+                if (status /= nf90_noerr) stop 'PutNetCDFMatrix - ModuleNetCDFCF_2_HDF5MOHID - ERR130'
+            
+            endif
+
+        else
+            stop 'PutNetCDFMatrix - ModuleNetCDFCF_2_HDF5MOHID - ERR140'
+        endif
+        
+        deallocate(Start)
+
+
+        
+    end subroutine PutNetCDFMatrix
+
+    !------------------------------------------------------------------------
+
 
     function GetNetCDFValue(ValueIn, Dim1, Dim2, Dim3, Dim4)
         !Arguments-------------------------------------------------------------  
