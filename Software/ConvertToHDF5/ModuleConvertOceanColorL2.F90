@@ -58,7 +58,7 @@ Module ModuleConvertOceanColorL2
         integer, dimension(:,:,:),  pointer      :: OpenPoints3D
         integer,dimension(:),pointer             :: ProdFound 
         type(T_Time)                             :: Date
-        real, dimension(:,:,:),    pointer       :: Scalar
+        real(4), dimension(:,:,:),    pointer    :: Scalar
         type(T_OceanColorL2),      pointer       :: Next
         type(T_OceanColorL2),      pointer       :: Prev
         type(T_Attribute), dimension(:), pointer :: Attributes
