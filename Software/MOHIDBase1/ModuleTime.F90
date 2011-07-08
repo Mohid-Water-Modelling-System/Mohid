@@ -1145,6 +1145,7 @@ do1 :   do i = 1, 6
         type(T_Time), intent(IN)                    :: Time1, Time2
 
         !Local-----------------------------------------------------------------
+        real(8)                                     :: Aux
         integer                                     :: GregDay1, GregDay2
         
         !----------------------------------------------------------------------
@@ -1152,10 +1153,12 @@ do1 :   do i = 1, 6
         call DateToGregorianDay(Time1,GregDay1)
         call DateToGregorianDay(Time2,GregDay2)
 
-        TimeLess = (real(GregDay1)-real(GregDay2))*86400.                     &
-                  +(Time1%Time_(4)-Time2%Time_(4))*3600                       &
-                  +(Time1%Time_(5)-Time2%Time_(5))*60                         &
-                  +(Time1%Time_(6)-Time2%Time_(6))
+        Aux =       (dble(GregDay1      )-dble(GregDay2      ))*86400.
+        Aux = Aux + (dble(Time1%Time_(4))-dble(Time2%Time_(4)))*3600.
+        Aux = Aux + (dble(Time1%Time_(5))-dble(Time2%Time_(5)))*60.
+        Aux = Aux + (dble(Time1%Time_(6))-dble(Time2%Time_(6)))
+        
+        TimeLess = Aux
        
         !----------------------------------------------------------------------
 
