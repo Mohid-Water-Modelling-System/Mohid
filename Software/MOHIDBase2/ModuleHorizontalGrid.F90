@@ -123,7 +123,9 @@ Module ModuleHorizontalGrid
 #ifdef _USE_PROJ4
     public  :: FromGeo2SpherMercator1D
     public  :: FromGeo2SpherMercatorScalar
+    public  :: FromGeographic2SphericMercator    
 #endif
+    public  :: WGS84toGoogleMaps
 
     !Destructor
     public  :: KillHorizontalGrid
@@ -2296,9 +2298,9 @@ BF1:    if (Me%ReadCartCorners) then
 
         !Local-----------------------------------------------------------------
 #ifdef _USE_PROJ4
-        real, dimension(:,:), pointer       :: XX_Pointer, YY_Pointer
+        real(8), dimension(:,:), pointer    :: XX_Pointer, YY_Pointer
 #endif        
-        real, dimension(:,:), allocatable, target :: XX_aux, YY_aux
+        real(8), dimension(:,:), allocatable, target :: XX_aux, YY_aux
         real, dimension(:,:), pointer       :: XX_IE, YY_IE
         real, dimension(:  ), pointer       :: XX, YY
         integer                             :: AuxCoordTip
@@ -2810,8 +2812,8 @@ cd23:   if (Me%CoordType == CIRCULAR_) then
         use proj4
 
         !Arguments-------------------------------------------------------------
-        real, dimension(:,:), pointer            :: XX_IE, YY_IE
-        real, dimension(:,:), pointer            :: XX_aux, YY_aux
+        real,    dimension(:,:), pointer         :: XX_IE, YY_IE
+        real(8), dimension(:,:), pointer         :: XX_aux, YY_aux
         type (T_Size2D)                          :: WorkSize
 
         !Local-----------------------------------------------------------------
@@ -2825,7 +2827,7 @@ cd23:   if (Me%CoordType == CIRCULAR_) then
    
         !Begin-----------------------------------------------------------------
         
-        allocate(params(11))
+        allocate(params(10))
         params(1) = 'proj=merc'
         params(2) = 'lat_ts=0.0'
         params(3) = 'lon_0=0.0'
@@ -2836,7 +2838,6 @@ cd23:   if (Me%CoordType == CIRCULAR_) then
         params(8) = 'b=6371000'
         params(9) = 'datum=WGS84'
         params(10)= 'units=m'
-        params(11)= 'nadgrids=@nul'
         
         ILB = WorkSize%ILB 
         IUB = WorkSize%IUB 
@@ -2997,6 +2998,37 @@ cd23:   if (Me%CoordType == CIRCULAR_) then
     
 #endif
 
+!------------------------------------------------------------------------------
+
+    subroutine WGS84toGoogleMaps(lon, lat, WorkSize, x, y) 
+
+        !Arguments-------------------------------------------------------------
+         real,    dimension(:,:), pointer :: lon, lat
+         type (T_Size2D)                  :: WorkSize
+         real(8), dimension(:,:), pointer :: x, y
+        !Local-----------------------------------------------------------------
+        integer                           :: i, j
+        !Begin-----------------------------------------------------------------
+        
+        do j=WorkSize%JLB, WorkSize%JUB+1
+        do i=WorkSize%ILB, WorkSize%IUB+1        
+        
+            x(i,j) = lon(i,j) * 20037508.34 / 180;
+            if (abs(lat(i,j))<90) then
+                y(i,j) = log(tan((90 + lat(i,j)) * Pi / 360)) / (Pi / 180)
+                y(i,j) = y(i,j) * 20037508.34 / 180
+            else
+                write(*,*) 'Out of range - Lat >= 90 or Lat <=-90'
+                stop 'WGS84toGoogleMap - ModuleHorizontalGrid - ERR10'
+            endif
+            
+        enddo
+        enddo
+        
+    end subroutine WGS84toGoogleMaps
+  
+!------------------------------------------------------------------------------
+  
     subroutine CheckGridBorder()
 
         !Arguments-------------------------------------------------------------
@@ -6807,7 +6839,7 @@ doi:        do i = ILBSon, IUBSon
         integer,        optional                    :: STAT
 
         !Local-----------------------------------------------------------------
-        real,        dimension(:,:), pointer        :: XX_aux, YY_aux
+        real(8),     dimension(:,:), pointer        :: XX_aux, YY_aux
         type(T_Size2D)                              :: WorkSize_
         integer                                     :: WorkILB, WorkIUB
         integer                                     :: WorkJLB, WorkJUB
@@ -6913,7 +6945,6 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
 
                 endif
                 
-#ifdef _USE_PROJ4
 
                 !Geographic coordinates
                 if (Me%CoordType == GEOG_               .or.  &
@@ -6922,18 +6953,18 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
                         allocate(XX_aux(WorkILB-1:WorkIUB+1, WorkJLB-1:WorkJUB+1))
                         allocate(YY_Aux(WorkILB-1:WorkIUB+1, WorkJLB-1:WorkJUB+1))
                         
-                        call FromGeographic2SphericMercator(Me%LongitudeConn, Me%LatitudeConn, WorkSize_, XX_aux, YY_aux)
+                        call WGS84toGoogleMaps(Me%LongitudeConn, Me%LatitudeConn, Me%WorkSize, XX_aux, YY_aux)
                         
                         !Sets limits for next write operations
                         call HDF5SetLimits   (ObjHDF5, WorkILB, WorkIUB+1, WorkJLB, WorkJUB+1,      &
                                               STAT = STAT_CALL)                        
 
-                        call HDF5WriteData   (ObjHDF5, "/Grid", "Spherical_Mercator_X", "-",&
+                        call HDF5WriteData   (ObjHDF5, "/Grid", "googlemaps_x", "-",    &
                                               Array2D = XX_aux,                         &
                                               STAT = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid - HorizontalGrid - ERR20'
 
-                        call HDF5WriteData   (ObjHDF5, "/Grid", "Spherical_Mercator_Y", "-",&
+                        call HDF5WriteData   (ObjHDF5, "/Grid", "googlemaps_y", "-",&
                                               Array2D = YY_aux,                         &
                                               STAT = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid - HorizontalGrid - ERR30'
@@ -6942,8 +6973,6 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
                         deallocate(XX_aux,YY_Aux)
                 
                 endif
-
-#endif
                 
 
             endif
