@@ -1692,7 +1692,7 @@ doi:                do i = ILB, IUB
                             DistToTop    = LayerTop - BottomDepth
 
                             if ((BottomDepth > LayerBottom) .and. (BottomDepth < LayerTop) .and. &
-                                (abs(DistToTop) > AllmostZero_) .and. (abs(DistToBottom) > AllmostZero_)) then                           
+                                (abs(DistToTop) > AllmostZero_) .and. (abs(DistToBottom) > AllmostZero_)) then
 
                                 if ((iLayer .eq. CurrentDomain%UpperLayer) .or. &
                                     (DistToBottom .le. DistToTop)) then
