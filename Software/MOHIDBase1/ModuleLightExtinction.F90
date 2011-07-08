@@ -1210,7 +1210,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
                         Me%ShortWave%ExtinctionCoefField3D(i,j,k) =                                    &
                                         0.04 + 0.0088 * (Concentration3D(i, j, k) * Me%UnitsCoef) +    &
-                                        0.54 * ((Concentration3D(i, j, k) * Me%UnitsCoef) ** (2.0 / 3.0))
+                                        0.054 * ((Concentration3D(i, j, k) * Me%UnitsCoef) ** (2.0 / 3.0))
 
                     end if
 
@@ -1232,7 +1232,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
                         Me%ShortWave%ExtinctionCoefField1D(i) =                                        &
                                         0.04 + 0.0088 * (Concentration1D(i) * Me%UnitsCoef) +          &
-                                        0.54 * ((Concentration1D(i) * Me%UnitsCoef) ** (2.0 / 3.0))
+                                        0.054 * ((Concentration1D(i) * Me%UnitsCoef) ** (2.0 / 3.0))
 
                     end if
 
@@ -1318,7 +1318,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
                         Me%ShortWave%ExtinctionCoefField3D(i,j,k) =                                         &
                                         0.04 + 0.0088 * (PhytoConcentration3D(i, j, k) * Phyto_UnitsCoef) + &
-                                        0.54 * (PhytoConcentration3D(i, j, k) * Phyto_UnitsCoef) ** (2.0 / 3.0) 
+                                        0.054 * (PhytoConcentration3D(i, j, k) * Phyto_UnitsCoef) ** (2.0 / 3.0) 
                                     
                         Me%ShortWave%ExtinctionCoefField3D(i,j,k) =                                         &
                                         Me%ShortWave%ExtinctionCoefField3D(i,j,k) * 0.7 +                   &
@@ -1346,7 +1346,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
                         Me%ShortWave%ExtinctionCoefField1D(i) =                                             &
                                         0.04 + 0.0088 * (PhytoConcentration1D(i) * Phyto_UnitsCoef) +       &
-                                        0.54 * (PhytoConcentration1D(i) * Phyto_UnitsCoef) ** (2.0 / 3.0) 
+                                        0.054 * (PhytoConcentration1D(i) * Phyto_UnitsCoef) ** (2.0 / 3.0) 
                                     
                         Me%ShortWave%ExtinctionCoefField1D(i) =                                             &
                                         Me%ShortWave%ExtinctionCoefField1D(i) * 0.7 +                       &
