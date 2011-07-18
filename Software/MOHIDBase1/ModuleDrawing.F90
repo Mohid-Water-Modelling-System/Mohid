@@ -58,6 +58,7 @@ Module ModuleDrawing
     
     public  ::    ArrayPolygonWindow
     public  ::    CellInterSectCell
+    public  ::    SegIntersectSeg
    
     private ::    NewPolygon
     private ::    NewXYZPoint
@@ -2460,11 +2461,24 @@ subroutine CreateDomainPolygon(XX, YY, ILB, IUB, JLB, JUB, PolygonDomain)
     d = (x1-x2)*(y3-y4) - (y1-y2)*(x3-x4);
     if (d == 0) SegIntersectSeg = .false.
     
-    xi = ((x3-x4)*(x1*y2-y1*x2)-(x1-x2)*(x3*y4-y3*x4))/d
-    yi = ((y3-y4)*(x1*y2-y1*x2)-(y1-y2)*(x3*y4-y3*x4))/d
+    if (SegIntersectSeg) then
+    
+        xi = ((x3-x4)*(x1*y2-y1*x2)-(x1-x2)*(x3*y4-y3*x4))/d
+        yi = y2 + (y1-y2)/(x1-x2) * (xi-x2)
+        
+        if (abs(x1-x2) > abs(y1-y2)) then
+            if (xi < min(x1,x2) .or. xi > max(x1,x2)) SegIntersectSeg = .false.
+        else
+            if (yi < min(y1,y2) .or. yi > max(y1,y2)) SegIntersectSeg = .false.
+        endif 
 
-    if (xi < min(x1,x2) .or. xi > max(x1,x2)) SegIntersectSeg = .false.
-    if (xi < min(x3,x4) .or. xi > max(x3,x4)) SegIntersectSeg = .false.
+        if (abs(x3-x4) > abs(y3-y4)) then
+            if (xi < min(x3,x4) .or. xi > max(x3,x4)) SegIntersectSeg = .false.        
+        else
+            if (yi < min(y3,y4) .or. yi > max(y3,y4)) SegIntersectSeg = .false.
+        endif
+
+    endif
     
     end function SegIntersectSeg    
 
