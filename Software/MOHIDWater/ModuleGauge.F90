@@ -37,7 +37,7 @@ Module ModuleGauge
                                        GetXYCellZ, UnGetHorizontalGrid
     use ModuleTimeSerie,        only : StartTimeSerieInput, GetTimeSerieValue, KillTimeSerie
     use ModuleFunctions,        only : RodaXY
-    use ModuleTask2000,         only : Task2000Level          
+    use ModuleTask2000,         only : Task2000Level, NTask2000          
 
     implicit none
 
@@ -84,7 +84,8 @@ Module ModuleGauge
 
     !Parameter
     integer, parameter :: WaveNameLength = 5
-    integer, parameter :: NComponents   = 146
+    integer, parameter :: NComponents    = 146
+    integer, parameter :: NAdmit         = 19
 
     !Evolution Options
     character(LEN = StringLength), parameter :: Char_Harmonics   = 'Harmonics',          &
@@ -94,7 +95,7 @@ Module ModuleGauge
     integer, parameter                       :: Constant = 0, Harmonics = 1,             &
                                                 TimeSerie = 2, NoEvolution = 3
 
-    !prevision method 
+    !PREDICTION method 
     integer, parameter                       :: Task2000_ = 1, Toga_ = 2
     
     !Type
@@ -167,7 +168,9 @@ Module ModuleGauge
         
         logical                             :: Triangulation
         
-        integer                             :: TidePrevision
+        integer                             :: TidePREDICTION
+        
+        logical                             :: ComputeAdmittance
        
         !Link list
         type (T_TideGauge ), pointer        :: FirstGauge 
@@ -255,29 +258,59 @@ Module ModuleGauge
             call ConstructEnterData(Me%ObjEnterData, Me%FileName, STAT = STAT_CALL)           
             if (STAT_CALL /= SUCCESS_) stop 'ConstructGauges - ModuleGauges - ERR20' 
             
-            call GetData(Me%Triangulation,                                                  &
-                         Me%ObjEnterData, iflag,                                            &
-                         SearchType = FromFile,                                             &
-                         keyword    = 'TRIANGULATION',                                      &
-                         Default    = .true.,                                               &
-                         ClientModule ='ModuleGauge',                                       &
+            call GetData(Me%Triangulation,                                              &
+                         Me%ObjEnterData, iflag,                                        &
+                         SearchType = FromFile,                                         &
+                         keyword    = 'TRIANGULATION',                                  &
+                         Default    = .true.,                                           &
+                         ClientModule ='ModuleGauge',                                   &
                          STAT       = STAT_CALL)            
             if (STAT_CALL /= SUCCESS_) stop 'ConstructGauges - ModuleGauges - ERR30' 
                 
-            call GetData(Me%TidePrevision,                                                  &
-                         Me%ObjEnterData, iflag,                                            &
-                         SearchType = FromFile,                                             &
-                         keyword    = 'PREVISION',                                          &
-                         Default    = Task2000_,                                            &
-                         ClientModule ='ModuleGauge',                                       &
+            call GetData(Me%TidePREDICTION,                                             &
+                         Me%ObjEnterData, iflag,                                        &
+                         SearchType = FromFile,                                         &
+                         keyword    = 'PREVISION',                                      &
+                         Default    = Task2000_,                                        &
+                         ClientModule ='ModuleGauge',                                   &
                          STAT       = STAT_CALL)            
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructGauges - ModuleGauges - ERR35' 
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructGauges - ModuleGauges - ERR40' 
+
+            if (iflag == 0) then
+                call GetData(Me%TidePREDICTION,                                         &
+                             Me%ObjEnterData, iflag,                                    &
+                             SearchType = FromFile,                                     &
+                             keyword    = 'PREDICTION',                                 &
+                             Default    = Task2000_,                                    &
+                             ClientModule ='ModuleGauge',                               &
+                             STAT       = STAT_CALL)            
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructGauges - ModuleGauges - ERR50'             
+            endif
             
-            if (Me%TidePrevision /= Task2000_ .and. Me%TidePrevision /= Toga_) then
-                write(*,*) 'The tide prevision method is not known'
+            if (Me%TidePREDICTION /= Task2000_ .and. Me%TidePREDICTION /= Toga_) then
+                write(*,*) 'The tide PREDICTION method is not known'
                 stop       'ConstructGauges - ModuleGauges - ERR38'
             endif
 
+
+            call GetData(Me%TidePREDICTION,                                             &
+                         Me%ObjEnterData, iflag,                                        &
+                         SearchType = FromFile,                                         &
+                         keyword    = 'PREVISION',                                      &
+                         Default    = Task2000_,                                        &
+                         ClientModule ='ModuleGauge',                                   &
+                         STAT       = STAT_CALL)            
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructGauges - ModuleGauges - ERR40' 
+            
+
+            call GetData(Me%ComputeAdmittance,                                          &
+                         Me%ObjEnterData, iflag,                                        &
+                         SearchType = FromFile,                                         &
+                         keyword    = 'ADMITTANCE',                                     &
+                         Default    = .false.,                                          &
+                         ClientModule ='ModuleGauge',                                   &
+                         STAT       = STAT_CALL)            
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructGauges - ModuleGauges - ERR50' 
 
             !New Gauger file format
 do2:        do 
@@ -306,17 +339,17 @@ if2 :                   if (.NOT. associated(Me%FirstGauge)) then         !If li
                         exit do2    !No more blocks
                     end if if5
                 else if (STAT_CALL .EQ. BLOCK_END_ERR_) then 
-                    stop 'ConstructGauges - ModuleGauges - ERR40' 
+                    stop 'ConstructGauges - ModuleGauges - ERR60' 
                 end if if4
             end do do2
 
 
             call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL) 
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructGauges - ModuleGauges - ERR50' 
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructGauges - ModuleGauges - ERR70' 
 
 
             call KillEnterData(Me%ObjEnterData, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructGauges - ModuleGauges - ERR60' 
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructGauges - ModuleGauges - ERR80' 
 
             !If no Gaugers were found in the new file format tryes to read former file format.
 if3 :       if (.NOT. associated(Me%FirstGauge)) then
@@ -332,7 +365,7 @@ if7 :                   if      (.NOT. associated(Me%FirstGauge)) then    !If li
                             nullify(Me%LastGauge%Next )
 
                         else if (      associated(Me%FirstGauge)) then
-                            stop 'ConstructGauges - ModuleGauges - ERR70' 
+                            stop 'ConstructGauges - ModuleGauges - ERR90' 
                         end if if7
                     else
                         exit do3    !No more blocks
@@ -343,14 +376,14 @@ if7 :                   if      (.NOT. associated(Me%FirstGauge)) then    !If li
 
 
 if8 :       if (.NOT. associated(Me%FirstGauge)) then
-                stop 'ConstructGauges - ModuleGauges - ERR80' 
+                stop 'ConstructGauges - ModuleGauges - ERR100' 
             else
                 PresentGauge => Me%FirstGauge
 do4 :           do while (associated(PresentGauge))
                     call GetNumberWaves(PresentGauge, NWaves)
 
                     allocate(WaveName(NWaves), STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'ConstructGauges - ModuleGauge - ERR90.'
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructGauges - ModuleGauge - ERR110.'
 
 
                     I = 0
@@ -364,7 +397,7 @@ do5 :               do while (associated(PresentWave))
                     end do do5
 
                     call ConstructToga(PresentGauge%ObjToga, NWaves, WaveName, STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'ConstructGauges - ModuleGauge - ERR100'
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructGauges - ModuleGauge - ERR120'
 
                     deallocate(WaveName)
                     nullify   (WaveName)
@@ -386,7 +419,7 @@ do5 :               do while (associated(PresentWave))
 
         else 
             
-            stop 'ModuleGauge - ConstructGauges - ERR110' 
+            stop 'ModuleGauge - ConstructGauges - ERR130' 
 
         end if 
 
@@ -1468,6 +1501,36 @@ do2 :   do while (associated(PresentWave))
     end subroutine GetNumberWaves
 
     !--------------------------------------------------------------------------
+    !--------------------------------------------------------------------------
+
+    subroutine GetWave(PresentGauge, WaveName, WaveExists, WaveOut)
+
+        !Arguments-------------------------------------------------------------
+        type(T_TideGauge), pointer                  :: PresentGauge 
+        character(len=*),            intent (IN )   :: WaveName
+        logical,                     intent (OUT)   :: WaveExists        
+        type(T_TidalWave), pointer                  :: WaveOut
+
+        !Local-----------------------------------------------------------------
+
+        !----------------------------------------------------------------------
+
+        WaveOut => PresentGauge%FirstWave
+        WaveExists = .false.
+
+do2 :   do while (associated(WaveOut)) 
+            if (trim(WaveOut%Name)==trim(WaveName)) then
+                WaveExists = .true.
+                exit
+            endif
+            WaveOut => WaveOut%Next
+        end do do2
+
+        !----------------------------------------------------------------------
+
+    end subroutine GetWave
+
+    !--------------------------------------------------------------------------
 
     subroutine GetNGauges(GaugeID, NGauges, STAT)
 
@@ -2168,56 +2231,51 @@ if5:            if (PresentGauge%VelEvolution == TimeSerie)  then
     subroutine HarmonicsWaterLevel(PresentGauge, WaterLevel, TimeIn)
 
         !Arguments-------------------------------------------------------------
-        type(T_TideGauge), pointer          :: PresentGauge
-        type(T_Time), intent(IN)            :: TimeIn
-        real                                :: WaterLevel
+        type(T_TideGauge), pointer                              :: PresentGauge
+        type(T_Time), intent(IN)                                :: TimeIn
+        real                                                    :: WaterLevel
 
         !Local-----------------------------------------------------------------
+        real,   pointer, dimension(:)                           :: WaveAmplitude
+        real,   pointer, dimension(:)                           :: WavePhase
+        integer                                                 :: status, NWaves, J, AdmitNWaves, Nmax
+        type(T_TidalWave), pointer                              :: PresentWave
+        real                                                    :: WaterLevelRef
+        character(LEN=WaveNameLength), pointer, dimension(:)    :: WaveName
+        integer                                                 :: nn
 
-        integer :: status
-        integer :: NWaves
-
-        real, pointer, dimension(:) :: WaveAmplitude
-        real, pointer, dimension(:) :: WavePhase
-        
-
-        integer :: J
-
-        type(T_TidalWave), pointer :: PresentWave
-
-        real                       :: WaterLevelRef
-        
-        real, dimension(1:115)     :: WaveAmplitude_, WavePhase_
-        character(LEN = WaveNameLength), dimension(1:115) :: WaveName_
-
-        
-        !----------------------------------------------------------------------                         
-
-
-        !----------------------------------------------------------------------
+        !Begin------------------------------------------------------------------                         
 
         call GetNumberWaves(PresentGauge, NWaves)
+        
+        if (Me%ComputeAdmittance) then
+            Nmax = NWaves + NAdmit
+        endif
+        
+        if (Me%TidePREDICTION == Task2000_) then
+            Nmax = max(Nmax, NTask2000)
+        endif
 
-        allocate(WaveAmplitude(NWaves), STAT = status)
-        if (status /= SUCCESS_)                                                          &
+        allocate(WaveAmplitude(Nmax), STAT = status)
+        if (status /= SUCCESS_)                                                         &
             call SetError(FATAL_, INTERNAL_, "HarmonicsWaterLevel - ModuleGauge - ERR10")
 
-        allocate(WavePhase    (NWaves), STAT = status)
-
-        if (status /= SUCCESS_)                                                          &
+        allocate(WavePhase    (Nmax), STAT = status)
+        if (status /= SUCCESS_)                                                         &
             call SetError(FATAL_, INTERNAL_, "HarmonicsWaterLevel - ModuleGauge - ERR20")
+
+        allocate(WaveName     (Nmax), STAT = status)
+        if (status /= SUCCESS_)                                                         &
+            call SetError(FATAL_, INTERNAL_, "HarmonicsWaterLevel - ModuleGauge - ERR30")
 
         J = 0
         PresentWave => PresentGauge%FirstWave
 do5 :   do while (associated(PresentWave))
             J = J + 1
 
-            WaveAmplitude_(J) = PresentWave%Amplitude
-            WavePhase_    (J) = PresentWave%Phase
-            WaveName_     (J) = PresentWave%Name
-
             WaveAmplitude (J) = PresentWave%Amplitude
             WavePhase     (J) = PresentWave%Phase
+            WaveName      (J) = PresentWave%Name
 
             PresentWave => PresentWave%Next
         end do do5
@@ -2227,7 +2285,16 @@ do5 :   do while (associated(PresentWave))
         ! the hydrographic zero
         WaterLevelRef = 0.
         
-        if (Me%TidePrevision == Toga_) then
+        if (Me%ComputeAdmittance) then
+        
+            call NewComponentsByAdmittance(PresentGauge, NWaves, WaveAmplitude,         &
+                                           WavePhase, WaveName, AdmitNWaves)
+
+            NWaves = NWaves + AdmitNWaves
+        
+        endif
+        
+        if (Me%TidePREDICTION == Toga_) then
 
             call TogaLevel(PresentGauge%ObjToga,                                        &  
                            PresentGauge%WaterLevel,                                     &
@@ -2235,23 +2302,23 @@ do5 :   do while (associated(PresentWave))
                            PresentGauge%TimeReference,                                  &
                            WaterLevelRef,                                               &
                            NWaves, WaveAmplitude, WavePhase,                            &
-                           TimeIn,                                                      &
+                           TimeIn,                                                    &
                            STAT = status)
 
-            if (status /= SUCCESS_)                                                         &
+            if (status /= SUCCESS_)                                                     &
                 call SetError(FATAL_, INTERNAL_, "HarmonicsWaterLevel - ModuleGauge - ERR30")
                            
         
-        else if (Me%TidePrevision == Task2000_) then
+        else if (Me%TidePREDICTION == Task2000_) then
         
             call Task2000Level(PresentGauge%WaterLevel,                                 &
                                PresentGauge%TimeReference,                              &
-                               NWaves, WaveAmplitude_,                                  &
-                               WavePhase_, WaveName_, TimeIn, STAT = status)
+                               NWaves, WaveAmplitude,                                   &
+                               WavePhase, WaveName, TimeIn, STAT = status)
 
             if (status /= SUCCESS_)                                                         &
                 call SetError(FATAL_, INTERNAL_, "HarmonicsWaterLevel - ModuleGauge - ERR40")
-
+                
         endif
         
         WaterLevel = PresentGauge%WaterLevel
@@ -2265,9 +2332,12 @@ do5 :   do while (associated(PresentWave))
 
         if (status /= SUCCESS_)                                                         &
             call SetError(FATAL_, INTERNAL_, "HarmonicsWaterLevel - ModuleGauge - ERR60")
+            
+        deallocate(WaveName)
 
         nullify   (WaveAmplitude)
         nullify   (WavePhase    )
+        nullify   (WaveName     )
 
     end subroutine HarmonicsWaterLevel
 
@@ -2307,6 +2377,1358 @@ do5 :   do while (associated(PresentWave))
 
     end subroutine TimeSerieValue
 
+    
+    !Convert amplitude and phase (degrees / 360º) in complex number (Sreal+ i * Simag)
+   
+    subroutine AmpPhase_To_Complex (Amplitude, Phase, Sreal, Simag)
+
+        !Arguments-------------------------------------------------------------
+        real :: Amplitude, Phase, Sreal, Simag
+        !Begin-----------------------------------------------------------------
+
+        Sreal = Amplitude*cos(Phase * 2 * Pi)
+        Simag = Amplitude*sin(Phase * 2 * Pi)
+
+    end Subroutine AmpPhase_To_Complex
+    
+    
+    !Convert complex number (Sreal+ i * Simag) in amplitude and phase (degrees / 360º)
+    subroutine Complex_to_AmpPhase (Sreal,Simag,Amplitude,Phase)
+
+        !Arguments-------------------------------------------------------------    
+        real :: Amplitude, Phase, Sreal, Simag
+
+        !Begin-----------------------------------------------------------------    
+        Amplitude = sqrt(Sreal**2.+Simag**2.)
+        Phase = Atan (Simag/Sreal)
+
+        if(Sreal < 0 .And. Simag < 0)Then
+           Phase = Phase + Pi
+        end If
+
+        if(Sreal < 0 .And. Simag > 0)Then
+          Phase = Phase - Pi
+        end If
+        
+        Phase = Phase / (2 * Pi)
+
+    end subroutine Complex_to_AmpPhase
+
+!______________________________________________________
+!  2Q1
+!  computes the real part of 2Q1 from Q1 and O1
+!------------------------------------------------------
+
+    real function Real2Q1_Comp (realQ1,realO1)
+
+        !Arguments-------------------------------------------------------------    
+        real:: realQ1,realO1 
+        !Begin-----------------------------------------------------------------    
+        
+        Real2Q1_Comp = 0.263*realQ1-0.0252*realO1
+
+    end function Real2Q1_Comp
+
+!______________________________________________________
+!  2Q1
+!  computes the imaginary part of 2Q1 from Q1 and O1
+!------------------------------------------------------
+
+    real function Imag2Q1_Comp (ImagQ1,ImagO1)
+
+        !Arguments-------------------------------------------------------------    
+        real:: ImagQ1,ImagO1 
+        !Begin-----------------------------------------------------------------            
+
+        Imag2Q1_Comp = 0.263*ImagQ1-0.0252*ImagO1
+
+    end function Imag2Q1_Comp
+
+!______________________________________________________
+!  Sigma1
+!  computes the real part of Sigma1 from Q1 and O1
+!------------------------------------------------------
+
+    real function realSigma1_Comp (realQ1,realO1)
+
+       !Arguments-------------------------------------------------------------    
+        real:: realQ1,realO1 
+        !Begin-----------------------------------------------------------------            
+
+        realSigma1_Comp = 0.297*realQ1-0.0264*realO1
+
+    end function
+
+!______________________________________________________
+!  Sigma1
+!computes the imaginary part of Sigma1 from Q1 and O1
+!------------------------------------------------------
+
+    real function ImagSigma1_Comp (ImagQ1,ImagO1)
+
+        !Arguments-------------------------------------------------------------    
+        real:: ImagQ1,ImagO1 
+        !Begin-----------------------------------------------------------------            
+
+        ImagSigma1_Comp = 0.297*ImagQ1-0.0264*ImagO1
+
+    end function ImagSigma1_Comp
+
+!______________________________________________________
+!  rho1
+!computes the real part of rho1 from Q1 and O1
+!------------------------------------------------------
+
+    real function realrho1_Comp (realQ1,realO1)
+
+       !Arguments-------------------------------------------------------------    
+        real:: realQ1,realO1 
+       !Begin-----------------------------------------------------------------            
+
+        realrho1_Comp = 0.164*realQ1+0.0048*realO1
+
+    end function realrho1_Comp
+
+!______________________________________________________
+!  rho1
+!computes the imaginary part of rho1 from Q1 and O1
+!------------------------------------------------------
+
+    real function Imagrho1_Comp (ImagQ1,ImagO1)
+
+       !Arguments-------------------------------------------------------------    
+        real:: ImagQ1,ImagO1 
+       !Begin-----------------------------------------------------------------            
+
+        Imagrho1_Comp = 0.164*ImagQ1+0.0048*ImagO1
+
+    end  function Imagrho1_Comp
+
+!______________________________________________________
+!  m11
+!computes the real part of M11 from O1 and K1
+!------------------------------------------------------
+
+    real function realm11_Comp (realO1,realK1)
+
+       !Arguments-------------------------------------------------------------    
+        real:: realO1,realK1
+       !Begin-----------------------------------------------------------------            
+
+        realm11_Comp = 0.014*realO1+0.0101*realK1
+
+    end  function realm11_Comp
+
+!______________________________________________________
+!  m11
+!computes the imaginary part of M11 from O1 and K1
+!------------------------------------------------------
+
+    real function Imagm11_Comp (ImagO1,ImagK1)
+
+       !Arguments-------------------------------------------------------------    
+        Real:: ImagO1,ImagK1 
+       !Begin-----------------------------------------------------------------            
+
+
+        Imagm11_Comp = 0.014*ImagO1+0.0101*ImagK1
+
+    end function Imagm11_Comp
+
+!______________________________________________________
+!  m12
+!computes the real part of M12 from O1 and K1
+!------------------------------------------------------
+
+    real function realm12_Comp (realO1,realK1)
+
+       !Arguments-------------------------------------------------------------    
+        real:: realO1,realK1 
+       !Begin-----------------------------------------------------------------            
+       
+        realm12_Comp = 0.0389*realO1+0.0282*realK1
+
+    end function realm12_Comp
+
+!______________________________________________________
+!  m12
+!computes the imaginary part of M12 from O1 and K1
+!------------------------------------------------------
+
+
+    real function Imagm12_Comp (ImagO1,ImagK1)
+
+       !Arguments-------------------------------------------------------------    
+        real:: ImagO1,ImagK1
+       !Begin-----------------------------------------------------------------            
+       
+        Imagm12_Comp = 0.0389*ImagO1+0.0282*ImagK1
+
+    end function Imagm12_Comp
+
+!______________________________________________________
+!  chi1
+!computes the real part of chi1 from O1 and K1
+!------------------------------------------------------
+
+    real function realchi1_Comp (realO1,realK1)
+
+       !Arguments-------------------------------------------------------------    
+        real:: realO1,realK1
+       !Begin-----------------------------------------------------------------            
+
+        realchi1_Comp = 0.0064*realO1+0.0060*realK1
+
+    end function realchi1_Comp
+!______________________________________________________
+!  chi1
+!computes the real part of chi1 from O1 and K1
+!------------------------------------------------------
+
+    real function Imagchi1_Comp (ImagO1,ImagK1)
+
+       !Arguments-------------------------------------------------------------    
+        real:: ImagK1,ImagO1 
+       !Begin-----------------------------------------------------------------            
+
+        Imagchi1_Comp = 0.0064*ImagO1+0.0060*ImagK1
+
+    end  function Imagchi1_Comp
+
+!______________________________________________________
+!  pi1
+!computes the real part of pi1 from O1 and K1
+!------------------------------------------------------
+
+    real function realpi1_Comp (realO1,realK1)
+
+       !Arguments-------------------------------------------------------------    
+        real:: realO1,realK1 
+       !Begin-----------------------------------------------------------------            
+       
+        realpi1_Comp = 0.0030*realO1+0.0171*realK1
+
+    end function realpi1_Comp
+
+!______________________________________________________
+!  pi1
+!computes the imaginary part of pi1 from O1 and K1
+!------------------------------------------------------
+
+    real function Imagpi1_Comp (ImagO1,ImagK1)
+
+       !Arguments-------------------------------------------------------------    
+        real:: ImagK1,ImagO1 
+       !Begin-----------------------------------------------------------------            
+
+        Imagpi1_Comp = 0.0030*ImagO1+0.0171*ImagK1
+
+    end function Imagpi1_Comp
+
+!______________________________________________________
+!  phi1
+!computes the real part of phi1 from O1 and K1
+!------------------------------------------------------
+
+    real function realphi1_Comp (realO1,realK1)
+
+       !Arguments-------------------------------------------------------------    
+        real:: realO1,realK1 
+       !Begin-----------------------------------------------------------------            
+
+        realphi1_Comp = -0.0015*realO1+0.0152*realK1
+
+    end function realphi1_Comp 
+
+!______________________________________________________
+!  phi1
+!computes the imaginary part of phi1 from O1 and K1
+!------------------------------------------------------
+
+    real function Imagphi1_Comp (ImagO1,ImagK1)
+
+       !Arguments-------------------------------------------------------------    
+        real:: ImagK1,ImagO1 
+       !Begin-----------------------------------------------------------------            
+
+        Imagphi1_Comp = -0.0015*ImagO1+0.0152*ImagK1
+
+    end Function Imagphi1_Comp
+
+!______________________________________________________
+!  theta1
+!computes the real part of theta1 from O1 and K1
+!------------------------------------------------------
+
+    real function realtheta1_Comp (realO1,realK1)
+       
+       !Arguments-------------------------------------------------------------    
+        real::  realO1,realK1 
+       !Begin-----------------------------------------------------------------            
+       
+        realtheta1_Comp = -0.0065*realO1+0.0155*realK1
+
+    end function realtheta1_Comp
+
+!______________________________________________________
+!  theta1
+!computes the imaginary part of theta1 from O1 and K1
+!------------------------------------------------------
+
+    real function Imagtheta1_Comp (ImagO1,ImagK1)
+
+       !Arguments-------------------------------------------------------------    
+        real::  ImagK1,ImagO1 
+       !Begin-----------------------------------------------------------------            
+
+        Imagtheta1_Comp = -0.0065*ImagO1+0.0155*ImagK1
+
+    end function Imagtheta1_Comp
+
+!______________________________________________________
+!  J1
+!computes the real part of J1 from O1 and K1
+!------------------------------------------------------
+
+    real function realJ1_Comp (realO1,realK1)
+
+       !Arguments-------------------------------------------------------------    
+        real::  realO1,realK1 
+       !Begin-----------------------------------------------------------------            
+       
+        realJ1_Comp = -0.0389*realO1+0.0836*realK1
+
+
+    end function realJ1_Comp
+    
+!______________________________________________________
+!  J1
+!computes the imaginary part of J1 from O1 and K1
+!------------------------------------------------------    
+
+    real function ImagJ1_Comp (ImagO1,ImagK1)
+
+       !Arguments-------------------------------------------------------------    
+        real::   ImagK1,ImagO1 
+       !Begin-----------------------------------------------------------------            
+
+        ImagJ1_Comp = -0.0389*ImagO1+0.0836*ImagK1
+
+    end function ImagJ1_Comp
+
+
+!______________________________________________________
+!  001
+!computes the real part of OO1 from O1 and K1
+!------------------------------------------------------
+
+    real function realOO1_Comp (realO1,realK1)
+
+       !Arguments-------------------------------------------------------------    
+        real::   realO1,realK1 
+       !Begin-----------------------------------------------------------------            
+
+        realOO1_Comp = -0.0431*realO1+0.0613*realK1
+
+    end  function realOO1_Comp
+
+!______________________________________________________
+!  001
+!computes the imaginary part of OO1 from O1 and K1
+!------------------------------------------------------
+
+    real function ImagOO1_Comp (ImagO1,ImagK1)
+
+       !Arguments-------------------------------------------------------------    
+        real:: ImagK1,ImagO1 
+       !Begin-----------------------------------------------------------------            
+       
+        ImagOO1_Comp = -0.0431*ImagO1+0.0613*ImagK1
+
+    end function ImagOO1_Comp
+
+!______________________________________________________
+!  Eps2
+!computes the real part of Eps2 from 2N2 and N2
+!------------------------------------------------------
+
+    real function realEpsilon2_Comp (real2N2,realN2)
+
+       !Arguments-------------------------------------------------------------    
+        real:: real2N2,realN2 
+       !Begin-----------------------------------------------------------------            
+       
+        realEpsilon2_Comp = 0.53285*real2N2-0.03304*realN2
+
+    end function realEpsilon2_Comp
+
+!______________________________________________________
+!  Eps2
+!computes the imaginary part of Eps2 from 2N2 and N2
+!------------------------------------------------------
+
+    real function ImagEpsilon2_Comp (Imag2N2,ImagN2)
+
+       !Arguments-------------------------------------------------------------    
+        real:: Imag2N2,ImagN2 
+       !Begin-----------------------------------------------------------------            
+       
+        ImagEpsilon2_Comp = 0.53285*Imag2N2-0.03304*ImagN2
+
+    end function ImagEpsilon2_Comp 
+
+!______________________________________________________
+!  Eta2
+!computes the real part of Eta2 from M2 and K2
+!------------------------------------------------------
+
+   real function realEta2_Comp (realM2,realK2)
+
+       !Arguments-------------------------------------------------------------    
+        real    :: realM2,realK2
+       !Begin-----------------------------------------------------------------            
+
+        realEta2_Comp = -0.0034925*realM2+0.0831707*realK2
+
+
+    end function realEta2_Comp 
+
+!______________________________________________________
+!  Eta2
+!computes the imaginary part of Eta2 from M2 and K2
+!------------------------------------------------------
+
+   real function ImagEta2_Comp (ImagM2,ImagK2)
+
+       !Arguments-------------------------------------------------------------    
+        real    :: ImagM2,ImagK2 
+       !Begin-----------------------------------------------------------------            
+
+        ImagEta2_Comp =  -0.0034925*ImagM2+0.0831707*ImagK2
+
+    end function ImagEta2_Comp
+
+!______________________________________________________
+!  P1
+!computes the real part of P1 from Q1, O1 and K1
+!------------------------------------------------------
+
+    real function realP1_Comp (realQ1,realO1,realK1)
+
+       !Arguments-------------------------------------------------------------    
+        real    :: realQ1,realO1,realK1
+       !Local-----------------------------------------------------------------            
+        real    :: freqQ1,freqO1,freqK1,freqP1,alp1,alq1,frbar1,deno1,aap1
+        real    :: alo1,alk1,bbp1,ccp1
+
+       !Begin-----------------------------------------------------------------            
+
+        freqQ1 = 13.39866087990d0
+        freqO1 = 13.94303558000d0
+        freqK1 = 15.04106864000d0
+        freqP1 = 14.95893136000d0
+
+        alq1  = 0.073017
+        alo1  = 0.3771366
+        alk1  = 0.5300728
+        alp1  = 0.1750754
+
+        frbar1=1/3.*(freqQ1 + freqO1 + freqK1)
+        deno1=frbar1**2 - 1/3.*(freqQ1**2 + freqO1**2 + freqK1**2)
+
+        aap1 = alp1/3./alq1*(1.-(freqP1-frbar1)*(freqQ1-frbar1)/deno1)
+        bbp1 = alp1/3./alo1*(1.- (freqP1-frbar1)*(freqO1-frbar1)/deno1)
+        ccp1 = alp1/3./alk1*(1.- (freqP1-frbar1)*(freqK1-frbar1)/deno1)
+
+        realP1_Comp = aap1*realQ1 + bbp1*realO1+ ccp1*realK1
+ 
+    end function realP1_Comp 
+    
+!______________________________________________________
+!  P1
+!computes the imaginary part of P1 from Q1, O1 and K1
+!------------------------------------------------------
+
+    real function ImagP1_Comp (ImagQ1,ImagO1,ImagK1)
+
+
+        !Arguments-------------------------------------------------------------    
+        real        :: ImagQ1,ImagO1,ImagK1
+        !Local-----------------------------------------------------------------            
+        real        :: freqQ1,freqO1,freqK1,freqP1,alp1,alq1,frbar1,deno1,aap1
+        real        :: alo1,alk1,bbp1,ccp1
+
+        !Begin-----------------------------------------------------------------            
+
+        freqQ1 = 13.39866087990d0
+        freqO1 = 13.94303558000d0
+        freqK1 = 15.04106864000d0
+        freqP1 = 14.95893136000d0
+
+        alq1  = 0.073017
+        alo1  = 0.3771366
+        alk1  = 0.5300728
+        alp1  = 0.1750754
+
+        frbar1=1/3.*(freqQ1 + freqO1 + freqK1)
+        deno1=frbar1**2 - 1/3.*(freqQ1**2 + freqO1**2 + freqK1**2)
+
+        aap1 = alp1/3./alq1*(1.-(freqP1-frbar1)*(freqQ1-frbar1)/deno1)
+        bbp1 = alp1/3./alo1*(1.- (freqP1-frbar1)*(freqO1-frbar1)/deno1)
+        ccp1 = alp1/3./alk1*(1.- (freqP1-frbar1)*(freqK1-frbar1)/deno1)
+
+        ImagP1_Comp = aap1*ImagQ1 + bbp1*ImagO1+ ccp1*ImagK1
+
+    end function ImagP1_Comp
+
+!______________________________________________________
+!  Mu2
+!computes the real part of Mu2 from K2, N2 and M2
+!------------------------------------------------------
+
+    real function realMu2_Comp (realK2,realN2,realM2)
+
+        !Arguments-------------------------------------------------------------    
+        real        :: realM2,realK2,realN2
+        !Local-----------------------------------------------------------------            
+        real        :: freqM2,freqN2,freqk2,freqmu2,almu2,ck,sk,deno,cn,sn
+        real        :: alm2,alk2,aln2,bbmu2,ccmu2,aamu2,cmu2,smu2
+
+        !Begin-----------------------------------------------------------------            
+
+        freqM2 = 28.98410422000d0
+        freqN2 = 28.43972952010d0
+        freqK2 = 30.08213728000d0
+        freqMu2 = 27.96820844000d0
+
+        almu2 = 0.02777
+        alk2   = 0.1149327
+        aln2   = 0.1758941
+        alm2   = 0.9085024
+
+        ck=cos(2*pi*2.*(freqk2-freqm2)/15.) ! CPD
+        sk=sin(2*pi*2.*(freqk2-freqm2)/15.) ! CPD
+
+        cn=cos(2*pi*2.*(freqn2-freqm2)/15.) ! CPD
+        sn=sin(2*pi*2.*(freqn2-freqm2)/15.) ! CPD
+        deno=sk*(cn-1)-sn*(ck-1)
+
+        cmu2=cos(2*pi*2.*(freqmu2-freqm2)/15.)
+        smu2=sin(2*pi*2.*(freqmu2-freqm2)/15.)
+
+
+        aamu2= (-sn*cmu2 +(cn-1)*smu2 +sn)/deno/alk2*almu2
+        bbmu2=(sk*cmu2-(ck-1)*smu2-sk)/deno/aln2*almu2
+        ccmu2=(-(sk-sn)*cmu2+(ck-cn)*smu2+sk*cn-sn*ck)/deno/alm2*almu2
+
+        realMu2_Comp = aamu2*realK2 + bbmu2*realN2+ ccmu2*realM2
+
+    end function realMu2_Comp
+
+
+!______________________________________________________
+!  Mu2
+!computes the imaginary part of Mu2 from K2, N2 and M2
+!------------------------------------------------------
+
+    real function ImagMu2_Comp (ImagK2,ImagN2,ImagM2)
+
+        !Arguments-------------------------------------------------------------    
+        real        :: ImagM2,ImagK2,ImagN2
+        !Local-----------------------------------------------------------------            
+        real        :: freqM2,freqN2,freqK2,freqmu2,almu2,ck,sk,deno,cn,sn
+        real        ::  alm2,alk2,aln2,bbmu2,ccmu2,aamu2,cmu2,smu2
+
+        !Begin-----------------------------------------------------------------            
+
+        freqM2 = 28.98410422000d0
+        freqN2 = 28.43972952010d0
+        freqK2 = 30.08213728000d0
+        freqMu2 = 27.96820844000d0
+
+        almu2 = 0.02777
+        alk2   = 0.1149327
+        aln2   = 0.1758941
+        alm2   = 0.9085024
+
+        ck=cos(2*pi*2.*(freqk2-freqm2)/15.) ! CPD
+        sk=sin(2*pi*2.*(freqk2-freqm2)/15.) ! CPD
+
+        cn=cos(2*pi*2.*(freqn2-freqm2)/15.) ! CPD
+        sn=sin(2*pi*2.*(freqn2-freqm2)/15.) ! CPD
+        deno=sk*(cn-1)-sn*(ck-1)
+
+        cmu2=cos(2*pi*2.*(freqmu2-freqm2)/15.)
+        smu2=sin(2*pi*2.*(freqmu2-freqm2)/15.)
+
+        aamu2= (-sn*cmu2 +(cn-1)*smu2 +sn)/deno/alk2*almu2
+        bbmu2=(sk*cmu2-(ck-1)*smu2-sk)/deno/aln2*almu2
+        ccmu2=(-(sk-sn)*cmu2+(ck-cn)*smu2+sk*cn-sn*ck)/deno/alm2*almu2
+
+        ImagMu2_Comp = aamu2*ImagK2 + bbmu2*ImagN2+ ccmu2*ImagM2
+
+    end function ImagMu2_Comp
+
+!______________________________________________________
+!  Nu2
+!computes the real part of Nu2 from K2, N2 and M2
+!------------------------------------------------------
+
+    real function realNu2_Comp (realK2,realN2,realM2)
+
+        !Arguments-------------------------------------------------------------    
+        real        :: realM2,realK2,realN2
+        !Local-----------------------------------------------------------------            
+        real        :: freqM2,freqN2,freqK2,freqnu2,alnu2,ck,sk,deno,cn,sn
+        real        :: alm2,alk2,aln2,bbnu2,ccnu2,aanu2,cnu2,snu2
+
+        !Begin-----------------------------------------------------------------            
+
+        freqM2 = 28.98410422000d0
+        freqN2 = 28.43972952010d0
+        freqK2 = 30.08213728000d0
+        freqNu2 = 28.51258314000d0
+
+        alnu2 = 0.03303
+        alk2   = 0.1149327
+        aln2   = 0.1758941
+        alm2   = 0.9085024
+
+        ck=cos(2*pi*2.*(freqk2-freqm2)/15.) ! CPD
+        sk=sin(2*pi*2.*(freqk2-freqm2)/15.) ! CPD
+
+        cn=cos(2*pi*2.*(freqn2-freqm2)/15.) ! CPD
+        sn=sin(2*pi*2.*(freqn2-freqm2)/15.) ! CPD
+        deno=sk*(cn-1)-sn*(ck-1)
+
+        cnu2=cos(2*pi*2.*(freqnu2-freqm2)/15.)
+        snu2=sin(2*pi*2.*(freqnu2-freqm2)/15.)
+
+        aanu2= (-sn*cnu2 +(cn-1)*snu2 +sn)/deno/alk2*alnu2
+        bbnu2=(sk*cnu2-(ck-1)*snu2-sk)/deno/aln2*alnu2
+        ccnu2=(-(sk-sn)*cnu2+(ck-cn)*snu2+sk*cn-sn*ck)/deno/alm2*alnu2
+
+        realNu2_Comp = aanu2*realK2 + bbnu2*realN2+ ccnu2*realM2
+
+
+    end function realNu2_Comp 
+
+!______________________________________________________
+!  Nu2
+!computes the imaginary part of Nu2 from K2, N2 and M2
+!------------------------------------------------------
+
+    real function ImagNu2_Comp (ImagK2,ImagN2,ImagM2)
+
+        !Arguments-------------------------------------------------------------    
+        real        :: ImagM2,ImagK2,ImagN2
+        !Local-----------------------------------------------------------------            
+        real        :: freqM2,freqN2,freqK2,freqnu2,alnu2,ck,sk,deno,cn,sn
+        real        :: alm2,alk2,aln2,bbnu2,ccnu2,aanu2,cnu2,snu2
+
+        !Begin-----------------------------------------------------------------            
+
+        freqM2 = 28.98410422000d0
+        freqN2 = 28.43972952010d0
+        freqK2 = 30.08213728000d0
+        freqNu2 = 28.51258314000d0
+
+        alnu2 = 0.03303
+        alk2   = 0.1149327
+        aln2   = 0.1758941
+        alm2   = 0.9085024
+
+        ck=cos(2*pi*2.*(freqk2-freqm2)/15.) ! CPD
+        sk=sin(2*pi*2.*(freqk2-freqm2)/15.) ! CPD
+
+        cn=cos(2*pi*2.*(freqn2-freqm2)/15.) ! CPD
+        sn=sin(2*pi*2.*(freqn2-freqm2)/15.) ! CPD
+        deno=sk*(cn-1)-sn*(ck-1)
+
+        cnu2=cos(2*pi*2.*(freqnu2-freqm2)/15.)
+        snu2=sin(2*pi*2.*(freqnu2-freqm2)/15.)
+
+        aanu2= (-sn*cnu2 +(cn-1)*snu2 +sn)/deno/alk2*alnu2
+        bbnu2=(sk*cnu2-(ck-1)*snu2-sk)/deno/aln2*alnu2
+        ccnu2=(-(sk-sn)*cnu2+(ck-cn)*snu2+sk*cn-sn*ck)/deno/alm2*alnu2
+
+        ImagNu2_Comp = aanu2*ImagK2 + bbnu2*ImagN2+ ccnu2*ImagM2
+
+
+    end function ImagNu2_Comp 
+
+!______________________________________________________
+!  Lda2
+!computes the real part of Lda2 from K2, N2 and M2
+!------------------------------------------------------
+
+
+    real function realLda2_Comp (realK2,realN2,realM2)
+
+        !Arguments-------------------------------------------------------------    
+        real        :: realM2,realK2,realN2
+        !Local-----------------------------------------------------------------            
+        real        :: freqM2,freqN2,freqK2,freqlda2,allda2,ck,sk,deno,cn,sn
+        real        :: alm2,alk2,aln2,aalda2,bblda2,cclda2,clda2,slda2
+
+        !Begin-----------------------------------------------------------------            
+
+        freqM2 = 28.98410422000d0
+        freqN2 = 28.43972952010d0
+        freqK2 = 30.08213728000d0
+        freqlda2 = 29.4556253d0
+
+        allda2= 0.0066
+        alk2   = 0.1149327
+        aln2   = 0.1758941
+        alm2   = 0.9085024
+
+        ck=cos(2*pi*2.*(freqk2-freqm2)/15.) ! CPD
+        sk=sin(2*pi*2.*(freqk2-freqm2)/15.) ! CPD
+
+        cn=cos(2*pi*2.*(freqn2-freqm2)/15.) ! CPD
+        sn=sin(2*pi*2.*(freqn2-freqm2)/15.) ! CPD
+        deno=sk*(cn-1)-sn*(ck-1)
+
+        clda2=cos(2*pi*2.*(freqlda2-freqm2)/15.)
+        slda2=sin(2*pi*2.*(freqlda2-freqm2)/15.)
+
+        aalda2=(-sn*clda2+(cn-1)*slda2+sn)/deno/alk2*allda2
+        bblda2=(sk*clda2-(ck-1)*slda2-sk)/deno/aln2*allda2
+        cclda2=(-(sk-sn)*clda2+(ck-cn)*slda2+sk*cn-sn*ck)/deno/alm2*allda2
+
+        realLda2_Comp = aalda2*realK2 + bblda2*realN2+ cclda2*realM2
+
+
+    end function realLda2_Comp
+
+!______________________________________________________
+!  Lda2
+!computes the imaginary part of Lda2 from K2, N2 and M2
+!------------------------------------------------------
+
+    real function ImagLda2_Comp (ImagK2,ImagN2,ImagM2)
+
+        !Arguments-------------------------------------------------------------    
+        real        :: ImagM2,ImagK2,ImagN2
+        !Local-----------------------------------------------------------------            
+        real        :: freqM2,freqN2,freqK2,freqlda2,allda2,ck,sk,deno,cn,sn
+        real        :: alm2,alk2,aln2,aalda2,bblda2,cclda2,clda2,slda2
+
+        !Begin-----------------------------------------------------------------  
+        
+        freqM2 = 28.98410422000d0
+        freqN2 = 28.43972952010d0
+        freqK2 = 30.08213728000d0
+        freqlda2 = 29.4556253d0
+
+        allda2= 0.0066
+        alk2   = 0.1149327
+        aln2   = 0.1758941
+        alm2   = 0.9085024
+
+        ck=cos(2*pi*2.*(freqk2-freqm2)/15.) ! CPD
+        sk=sin(2*pi*2.*(freqk2-freqm2)/15.) ! CPD
+
+        cn=cos(2*pi*2.*(freqn2-freqm2)/15.) ! CPD
+        sn=sin(2*pi*2.*(freqn2-freqm2)/15.) ! CPD
+        deno=sk*(cn-1)-sn*(ck-1)
+
+        clda2=cos(2*pi*2.*(freqlda2-freqm2)/15.)
+        slda2=sin(2*pi*2.*(freqlda2-freqm2)/15.)
+
+        aalda2=(-sn*clda2+(cn-1)*slda2+sn)/deno/alk2*allda2
+        bblda2=(sk*clda2-(ck-1)*slda2-sk)/deno/aln2*allda2
+        cclda2=(-(sk-sn)*clda2+(ck-cn)*slda2+sk*cn-sn*ck)/deno/alm2*allda2
+
+
+        ImagLda2_Comp = aalda2*ImagK2 + bblda2*ImagN2+ cclda2*ImagM2
+
+    end function ImagLda2_Comp
+
+!______________________________________________________
+!  L2
+!computes the real part of L2 from K2, N2 and M2
+!------------------------------------------------------
+
+    real Function realL2_Comp (realK2,realN2,realM2)
+        !Arguments-------------------------------------------------------------    
+        real        :: realM2,realK2,realN2
+        !Local-----------------------------------------------------------------            
+        real        :: freqM2,freqN2,freqK2,freqL2,all2,ck,sk,deno,cn,sn
+        real        :: alm2,alk2,aln2,aal2,bbl2,ccl2,cl2,sl2
+
+        !Begin-----------------------------------------------------------------  
+
+        freqM2 = 28.98410422000d0
+        freqN2 = 28.43972952010d0
+        freqK2 = 30.08213728000d0
+        freqL2 = 29.52847892000d0
+                 
+
+        all2  = 0.0251
+        alk2   = 0.1149327
+        aln2   = 0.1758941
+        alm2   = 0.9085024
+
+        ck=cos(2*pi*2.*(freqk2-freqm2)/15.) ! CPD
+        sk=sin(2*pi*2.*(freqk2-freqm2)/15.) ! CPD
+
+        cn=cos(2*pi*2.*(freqn2-freqm2)/15.) ! CPD
+        sn=sin(2*pi*2.*(freqn2-freqm2)/15.) ! CPD
+        deno=sk*(cn-1)-sn*(ck-1)
+
+        cl2=cos(2*pi*2.*(freqL2-freqm2)/15.)
+        sl2=sin(2*pi*2.*(freqL2-freqm2)/15.)
+
+        aal2=  (-sn*cl2  +(cn-1)*sl2  +sn)/deno/alk2*all2
+        bbl2=(sk*cl2-(ck-1)*sl2-sk)/deno/aln2*all2
+        ccl2=(-(sk-sn)*cl2+(ck-cn)*sl2+sk*cn-sn*ck)/deno/alm2*all2
+
+        realL2_Comp = aal2*realK2 + bbl2*realN2+ ccl2*realM2
+
+    end function realL2_Comp 
+
+!______________________________________________________
+!  L2
+!computes the imaginary part of L2 from K2, N2 and M2
+!------------------------------------------------------
+
+    real function ImagL2_Comp (ImagK2,ImagN2,ImagM2)
+
+        !Arguments-------------------------------------------------------------    
+        real        :: ImagM2,ImagK2,ImagN2
+        !Local-----------------------------------------------------------------            
+        real        :: freqM2,freqN2,freqK2,freqL2,all2,ck,sk,deno,cn,sn
+        real        :: alm2,alk2,aln2,aal2,bbl2,ccl2,cl2,sl2
+
+        !Begin-----------------------------------------------------------------  
+        
+        freqM2 = 28.98410422000d0
+        freqN2 = 28.43972952010d0
+        freqK2 = 30.08213728000d0
+        freqL2 = 29.52847892000d0
+
+        all2  = 0.0251 
+        alk2   = 0.1149327
+        aln2   = 0.1758941
+        alm2   = 0.9085024
+
+        ck=cos(2*pi*2.*(freqk2-freqm2)/15.) ! CPD
+        sk=sin(2*pi*2.*(freqk2-freqm2)/15.) ! CPD
+
+        cn=cos(2*pi*2.*(freqn2-freqm2)/15.) ! CPD
+        sn=sin(2*pi*2.*(freqn2-freqm2)/15.) ! CPD
+        deno=sk*(cn-1)-sn*(ck-1)
+
+        cl2=cos(2*pi*2.*(freqL2-freqm2)/15.)
+        sl2=sin(2*pi*2.*(freqL2-freqm2)/15.)
+
+        aal2=  (-sn*cl2  +(cn-1)*sl2  +sn)/deno/alk2*all2
+        bbl2=(sk*cl2-(ck-1)*sl2-sk)/deno/aln2*all2
+        ccl2=(-(sk-sn)*cl2+(ck-cn)*sl2+sk*cn-sn*ck)/deno/alm2*all2
+
+        ImagL2_Comp = aal2*ImagK2 + bbl2*ImagN2+ ccl2*ImagM2
+
+    end function ImagL2_Comp
+
+!______________________________________________________
+!  T2
+!computes the real part of T2 from K2, N2 and M2
+!------------------------------------------------------
+    real function realT2_Comp (realK2,realN2,realM2)
+
+        !Arguments-------------------------------------------------------------    
+        real        :: realK2,realN2,realM2
+        !Local-----------------------------------------------------------------            
+        real        :: freqM2,freqN2,freqK2,freqT2,alT2,ck,sk,deno,cn,sn
+        real        :: alm2,alk2,aln2,aaT2,bbT2,ccT2,cT2,sT2
+
+        !Begin-----------------------------------------------------------------  
+
+        freqM2 = 28.98410422000d0
+        freqN2 = 28.43972952010d0
+        freqK2 = 30.08213728000d0
+        freqT2 = 29.95893332010d0
+                 
+        alt2  = 0.0247766
+        alk2   = 0.1149327
+        aln2   = 0.1758941
+        alm2   = 0.9085024
+
+
+        ck=cos(2*pi*2.*(freqk2-freqm2)/15.) ! CPD
+        sk=sin(2*pi*2.*(freqk2-freqm2)/15.) ! CPD
+
+        cn=cos(2*pi*2.*(freqn2-freqm2)/15.) ! CPD
+        sn=sin(2*pi*2.*(freqn2-freqm2)/15.) ! CPD
+        deno=sk*(cn-1)-sn*(ck-1)
+
+        cT2=cos(2*pi*2.*(freqT2-freqm2)/15.)
+        sT2=sin(2*pi*2.*(freqT2-freqm2)/15.)
+
+        aat2=  (-sn*ct2  +(cn-1)*st2  +sn)/deno/alk2*alt2
+        bbt2=(sk*ct2-(ck-1)*st2-sk)/deno/aln2*alt2
+        cct2=(-(sk-sn)*ct2+(ck-cn)*st2+sk*cn-sn*ck)/deno/alm2*alt2
+
+        realT2_Comp = aaT2*realK2 + bbT2*realN2+ ccT2*realM2
+
+    end function realT2_Comp
+
+!______________________________________________________
+!  T2
+!computes the imaginary part of T2 from K2, N2 and M2
+!------------------------------------------------------
+    
+    real function ImagT2_Comp (ImagK2,ImagN2,ImagM2)
+
+        !Arguments-------------------------------------------------------------    
+        real        :: ImagM2,ImagK2,ImagN2
+        !Local-----------------------------------------------------------------            
+        real        :: freqM2,freqN2,freqK2,freqT2,alT2,ck,sk,deno,cn,sn
+        real        :: alm2,alk2,aln2,aaT2,bbT2,ccT2,cT2,sT2
+
+        !Begin-----------------------------------------------------------------  
+
+        freqM2 = 28.98410422000d0
+        freqN2 = 28.43972952010d0
+        freqK2 = 30.08213728000d0
+        freqT2 = 29.95893332010d0
+
+        alt2  = 0.0247766
+        alk2   = 0.1149327
+        aln2   = 0.1758941
+        alm2   = 0.9085024
+
+        ck=cos(2*pi*2.*(freqk2-freqm2)/15.) ! CPD
+        sk=sin(2*pi*2.*(freqk2-freqm2)/15.) ! CPD
+
+        cn=cos(2*pi*2.*(freqn2-freqm2)/15.) ! CPD
+        sn=sin(2*pi*2.*(freqn2-freqm2)/15.) ! CPD
+        deno=sk*(cn-1)-sn*(ck-1)
+
+        cT2=cos(2*pi*2.*(freqT2-freqm2)/15.)
+        sT2=sin(2*pi*2.*(freqT2-freqm2)/15.)
+
+        aat2=  (-sn*ct2  +(cn-1)*st2  +sn)/deno/alk2*alt2
+        bbt2=(sk*ct2-(ck-1)*st2-sk)/deno/aln2*alt2
+        cct2=(-(sk-sn)*ct2+(ck-cn)*st2+sk*cn-sn*ck)/deno/alm2*alt2
+
+        ImagT2_Comp = aaT2*ImagK2 + bbT2*ImagN2+ ccT2*ImagM2
+
+    end function
+
+!______________________________________________________
+!  End of admittance functions
+!------------------------------------------------------
+
+
+    integer function SearchName(WaveName, n, Name)
+    
+        !Arguments-------------------------------------------------------------    
+        character(StringLength), dimension(:)      :: WaveName 
+        integer                                    :: n
+        character(*)                               :: Name 
+        !Local-----------------------------------------------------------------            
+        integer                                    :: i, nl, nl1
+
+        !Begin-----------------------------------------------------------------  
+    
+        nl = len_Trim(Name)
+
+        do i=1,n
+            nl1=len_trim(WaveName(i))
+
+            if (WaveName(i)(1:nl)==Name(1:nl) .and. nl==nl1) exit
+        enddo
+
+        SearchName = i
+
+    end function SearchName
+
+
+    !Add new components to the tidal gauge by atmittance
+    subroutine NewComponentsByAdmittance(PresentGauge, NWaves, WaveAmplitude,           &
+                                         WavePhase, WaveName, AdmitNWaves)
+
+        !Arguments------------------------------------------------
+        type(T_TideGauge), pointer                      :: PresentGauge
+        integer,            intent(IN)                  :: NWaves
+        real,   pointer, dimension(:)                   :: WaveAmplitude
+        real,   pointer, dimension(:)                   :: WavePhase
+        character(LEN=*), pointer, dimension(:)         :: WaveName
+        integer,            intent(OUT)                 :: AdmitNWaves
+       
+        !Local----------------------------------------------------        
+        real                                            :: RealNew, ImagNew
+        integer                                         :: n
+        real                                            :: realQ1, realO1, realK1, real2N2, realN2, realM2, realK2
+        real                                            :: ImagQ1, ImagO1, ImagK1, Imag2N2, ImagN2, ImagM2, ImagK2
+        logical                                         :: Q1, O1, K1, var_2N2, N2, M2, K2, ExistComp
+        type(T_TidalWave), pointer                      :: WaveOut
+ 
+        !Begin----------------------------------------------------        
+
+        call GetWave(PresentGauge, 'Q1', Q1, WaveOut)
+        if (Q1) then
+            call AmpPhase_To_Complex (WaveOut%Amplitude, WaveOut%Phase, realQ1, ImagQ1)
+        else
+            realQ1 = FillValueReal
+            ImagQ1 = FillValueReal
+        endif
+
+        call GetWave(PresentGauge, 'O1', O1, WaveOut)
+        if (O1) then
+            call AmpPhase_To_Complex (WaveOut%Amplitude, WaveOut%Phase, realO1, ImagO1)
+        else
+            realO1 = FillValueReal
+            ImagO1 = FillValueReal
+        endif
+
+        call GetWave(PresentGauge, 'K1', K1, WaveOut)
+        if (K1) then
+            call AmpPhase_To_Complex (WaveOut%Amplitude, WaveOut%Phase, realK1, ImagK1)
+        else
+            realK1 = FillValueReal
+            ImagK1 = FillValueReal
+        endif
+
+        call GetWave(PresentGauge, '2N2', var_2N2, WaveOut)
+        if (var_2N2) then
+            call AmpPhase_To_Complex (WaveOut%Amplitude, WaveOut%Phase, real2N2, Imag2N2)
+        else
+            real2N2 = FillValueReal
+            Imag2N2 = FillValueReal
+        endif
+
+        call GetWave(PresentGauge, 'N2', N2, WaveOut)
+        if (N2) then
+            call AmpPhase_To_Complex (WaveOut%Amplitude, WaveOut%Phase, realN2, ImagN2)
+        else
+            realN2 = FillValueReal
+            ImagN2 = FillValueReal
+        endif
+
+        call GetWave(PresentGauge, 'K2', K2, WaveOut)
+        if (K2) then
+            call AmpPhase_To_Complex (WaveOut%Amplitude, WaveOut%Phase, realK2, ImagK2)
+        else
+            realK2 = FillValueReal
+            ImagK2 = FillValueReal
+        endif
+
+        call GetWave(PresentGauge, 'M2', M2, WaveOut)
+        if (M2) then
+            call AmpPhase_To_Complex (WaveOut%Amplitude, WaveOut%Phase, realM2, ImagM2)
+        else
+            realM2 = FillValueReal
+            ImagM2 = FillValueReal
+        endif
+        
+       
+        AdmitNWaves = 0
+        
+Q1O1:   if (Q1 .and. O1) then
+            call GetWave(PresentGauge, '2Q1', ExistComp, WaveOut)
+            if (.not. ExistComp) then
+            !Add component 2Q1 -----------------------------------
+                AdmitNWaves = AdmitNWaves + 1
+                
+                RealNew = Real2Q1_Comp (realQ1,realO1)
+                ImagNew = Imag2Q1_Comp (ImagQ1,ImagO1)
+                
+                n       = NWaves + AdmitNWaves
+
+                WaveName(n) = '2Q1'
+                
+                call Complex_To_AmpPhase(RealNew, ImagNew, WaveAmplitude(n), WavePhase(n))
+            endif
+
+            call GetWave(PresentGauge, 'SIG1', ExistComp, WaveOut)
+            if (.not. ExistComp) then
+            !Add component SIG1 -----------------------------------
+                AdmitNWaves = AdmitNWaves + 1
+                
+                RealNew = realSigma1_Comp (realQ1,realO1)
+                ImagNew = ImagSigma1_Comp (ImagQ1,ImagO1)
+                
+                n       = NWaves + AdmitNWaves
+
+                WaveName(n) = 'SIG1'
+                
+                call Complex_To_AmpPhase(RealNew, ImagNew, WaveAmplitude(n), WavePhase(n))
+            endif
+            
+            call GetWave(PresentGauge, 'RHO1', ExistComp, WaveOut)
+            if (.not. ExistComp) then
+            !Add component RHO1 -----------------------------------
+                AdmitNWaves = AdmitNWaves + 1
+                
+                RealNew = realrho1_Comp (realQ1,realO1)
+                ImagNew = Imagrho1_Comp (ImagQ1,ImagO1)
+                
+                n       = NWaves + AdmitNWaves
+
+                WaveName(n) = 'RHO1'
+                
+                call Complex_To_AmpPhase(RealNew, ImagNew, WaveAmplitude(n), WavePhase(n))
+            endif
+            
+        endif Q1O1
+        
+O1K1:   if (O1 .and. K1) then
+
+            call GetWave(PresentGauge, 'CHI1', ExistComp, WaveOut)
+            if (.not. ExistComp) then
+            !Add component CHI1 -----------------------------------
+                AdmitNWaves = AdmitNWaves + 1
+                
+                RealNew = realchi1_Comp (realO1,realK1)
+                ImagNew = Imagchi1_Comp (ImagO1,ImagK1)
+                
+                n       = NWaves + AdmitNWaves
+
+                WaveName(n) = 'CHI1'
+                
+                call Complex_To_AmpPhase(RealNew, ImagNew, WaveAmplitude(n), WavePhase(n))
+            endif
+
+            call GetWave(PresentGauge, 'PI1', ExistComp, WaveOut)
+            if (.not. ExistComp) then
+            !Add component PI1 -----------------------------------
+                AdmitNWaves = AdmitNWaves + 1
+                
+                RealNew = realpi1_Comp (realO1,realK1)
+                ImagNew = Imagpi1_Comp (ImagO1,ImagK1)
+                
+                n       = NWaves + AdmitNWaves
+
+                WaveName(n) = 'PI1'
+                
+                call Complex_To_AmpPhase(RealNew, ImagNew, WaveAmplitude(n), WavePhase(n))
+            endif
+            
+            call GetWave(PresentGauge, 'PHI1', ExistComp, WaveOut)
+            if (.not. ExistComp) then
+            !Add component PHI1 -----------------------------------
+                AdmitNWaves = AdmitNWaves + 1
+                
+                RealNew = realphi1_Comp (realO1,realK1)
+                ImagNew = Imagphi1_Comp (ImagO1,ImagK1)
+                
+                n       = NWaves + AdmitNWaves
+
+                WaveName(n) = 'PHI1'
+                
+                call Complex_To_AmpPhase(RealNew, ImagNew, WaveAmplitude(n), WavePhase(n))
+            endif            
+            
+            call GetWave(PresentGauge, 'THE1', ExistComp, WaveOut)
+            if (.not. ExistComp) then
+            !Add component THE1 -----------------------------------
+                AdmitNWaves = AdmitNWaves + 1
+                
+                RealNew = realtheta1_Comp (realO1,realK1)
+                ImagNew = Imagtheta1_Comp (ImagO1,ImagK1)
+                
+                n       = NWaves + AdmitNWaves
+
+                WaveName(n) = 'THE1'
+                
+                call Complex_To_AmpPhase(RealNew, ImagNew, WaveAmplitude(n), WavePhase(n))
+            endif            
+
+            call GetWave(PresentGauge, 'J1', ExistComp, WaveOut)
+            if (.not. ExistComp) then
+            !Add component J1 -----------------------------------
+                AdmitNWaves = AdmitNWaves + 1
+                
+                RealNew = realJ1_Comp (realO1,realK1)
+                ImagNew = ImagJ1_Comp (ImagO1,ImagK1)
+                
+                n       = NWaves + AdmitNWaves
+
+                WaveName(n) = 'J1'
+                
+                call Complex_To_AmpPhase(RealNew, ImagNew, WaveAmplitude(n), WavePhase(n))
+            endif           
+
+            call GetWave(PresentGauge, 'OO1', ExistComp, WaveOut)
+            if (.not. ExistComp) then
+            !Add component OO1 -----------------------------------
+                AdmitNWaves = AdmitNWaves + 1
+                
+                RealNew = realOO1_Comp (realO1,realK1)
+                ImagNew = ImagOO1_Comp (ImagO1,ImagK1)
+                
+                n       = NWaves + AdmitNWaves
+
+                WaveName(n) = 'OO1'
+                
+                call Complex_To_AmpPhase(RealNew, ImagNew, WaveAmplitude(n), WavePhase(n))
+            endif    
+
+            if (Me%TidePREDICTION == Toga_) then
+                !M12 component not recognized by task2000
+                call GetWave(PresentGauge, 'M12', ExistComp, WaveOut)
+                if (.not. ExistComp) then
+                !Add component M12 -----------------------------------
+                    AdmitNWaves = AdmitNWaves + 1
+                    
+                    RealNew = realm12_Comp (realO1,realK1)
+                    ImagNew = Imagm12_Comp (ImagO1,ImagK1)
+                    
+                    n       = NWaves + AdmitNWaves
+
+                    WaveName(n) = 'M12'
+                    
+                    call Complex_To_AmpPhase(RealNew, ImagNew, WaveAmplitude(n), WavePhase(n))
+                endif                
+            endif
+                                    
+        endif O1K1
+
+N22N2:  if (Var_2N2 .and. N2) then
+
+            call GetWave(PresentGauge, 'EPS2', ExistComp, WaveOut)
+            if (.not. ExistComp) then
+            !Add component EPS2 -----------------------------------
+                AdmitNWaves = AdmitNWaves + 1
+                
+                RealNew = realEpsilon2_Comp (real2N2,realN2)
+                ImagNew = ImagEpsilon2_Comp (Imag2N2,ImagN2)
+                
+                n       = NWaves + AdmitNWaves
+
+                WaveName(n) = 'EPS2'
+                
+                call Complex_To_AmpPhase(RealNew, ImagNew, WaveAmplitude(n), WavePhase(n))
+            endif   
+
+        endif N22N2
+
+
+M2K2:   if (M2 .and. K2) then
+
+            call GetWave(PresentGauge, 'ETA2', ExistComp, WaveOut)
+            if (.not. ExistComp) then
+            !Add component ETA2 -----------------------------------
+                AdmitNWaves = AdmitNWaves + 1
+                
+                RealNew = realEta2_Comp (realM2,realK2)
+                ImagNew = ImagEta2_Comp (ImagM2,ImagK2)
+                
+                n       = NWaves + AdmitNWaves
+
+                WaveName(n) = 'ETA2'
+                
+                call Complex_To_AmpPhase(RealNew, ImagNew, WaveAmplitude(n), WavePhase(n))
+            endif   
+
+        endif M2K2
+
+
+Q1O1K1: if (Q1 .and. O1 .and. K1) then
+
+            call GetWave(PresentGauge, 'P1', ExistComp, WaveOut)
+            if (.not. ExistComp) then
+            !Add component P1 -----------------------------------
+                AdmitNWaves = AdmitNWaves + 1
+                
+                RealNew = realP1_Comp (realQ1,realO1,realK1)
+                ImagNew = ImagP1_Comp (ImagQ1,ImagO1,ImagK1)
+                
+                n       = NWaves + AdmitNWaves
+
+                WaveName(n) = 'P1'
+                
+                call Complex_To_AmpPhase(RealNew, ImagNew, WaveAmplitude(n), WavePhase(n))
+            endif   
+
+        endif Q1O1K1
+
+
+K2N2M2: if (K2 .and. N2 .and. M2) then
+
+            call GetWave(PresentGauge, 'MU2', ExistComp, WaveOut)
+            if (.not. ExistComp) then
+            !Add component MU2 -----------------------------------
+                AdmitNWaves = AdmitNWaves + 1
+                
+                RealNew = realMu2_Comp (realK2,realN2,realM2)
+                ImagNew = ImagMu2_Comp (ImagK2,ImagN2,ImagM2)
+                
+                n       = NWaves + AdmitNWaves
+
+                WaveName(n) = 'MU2'
+                
+                call Complex_To_AmpPhase(RealNew, ImagNew, WaveAmplitude(n), WavePhase(n))
+            endif   
+
+            call GetWave(PresentGauge, 'NU2', ExistComp, WaveOut)
+            if (.not. ExistComp) then
+            !Add component NU2 -----------------------------------
+                AdmitNWaves = AdmitNWaves + 1
+                
+                RealNew = realNu2_Comp (realK2,realN2,realM2)
+                ImagNew = ImagNu2_Comp (ImagK2,ImagN2,ImagM2)
+                
+                n       = NWaves + AdmitNWaves
+
+                WaveName(n) = 'NU2'
+                
+                call Complex_To_AmpPhase(RealNew, ImagNew, WaveAmplitude(n), WavePhase(n))
+            endif   
+
+            call GetWave(PresentGauge, 'LDA2', ExistComp, WaveOut)
+            if (.not. ExistComp) then
+            !Add component LDA2 -----------------------------------
+                AdmitNWaves = AdmitNWaves + 1
+                
+                RealNew = realLda2_Comp (realK2,realN2,realM2)
+                ImagNew = ImagLda2_Comp (ImagK2,ImagN2,ImagM2)
+                
+                n       = NWaves + AdmitNWaves
+
+                WaveName(n) = 'LDA2'
+                
+                call Complex_To_AmpPhase(RealNew, ImagNew, WaveAmplitude(n), WavePhase(n))
+            endif               
+
+            call GetWave(PresentGauge, 'L2', ExistComp, WaveOut)
+            if (.not. ExistComp) then
+            !Add component L2 -----------------------------------
+                AdmitNWaves = AdmitNWaves + 1
+                
+                RealNew = realL2_Comp (realK2,realN2,realM2)
+                ImagNew = ImagL2_Comp (ImagK2,ImagN2,ImagM2)
+                
+                n       = NWaves + AdmitNWaves
+
+                WaveName(n) = 'L2'
+                
+                call Complex_To_AmpPhase(RealNew, ImagNew, WaveAmplitude(n), WavePhase(n))
+            endif 
+
+            call GetWave(PresentGauge, 'T2', ExistComp, WaveOut)
+            if (.not. ExistComp) then
+            !Add component T2 -----------------------------------
+                AdmitNWaves = AdmitNWaves + 1
+                
+                RealNew = realT2_Comp (realK2,realN2,realM2)
+                ImagNew = ImagT2_Comp (ImagK2,ImagN2,ImagM2)
+                
+                n       = NWaves + AdmitNWaves
+
+                WaveName(n) = 'T2'
+                
+                call Complex_To_AmpPhase(RealNew, ImagNew, WaveAmplitude(n), WavePhase(n))
+            endif 
+            
+        endif K2N2M2
+
+
+end subroutine NewComponentsByAdmittance
 
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++

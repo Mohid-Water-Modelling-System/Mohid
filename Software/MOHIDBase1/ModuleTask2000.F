@@ -13,28 +13,32 @@
         private ::      SHPN
         private ::      Prinrd
         public  ::      Name2Frequency
+        public  ::  NTask2000
         
-        integer, parameter :: Ncompt = 115
+        integer, parameter :: NTask2000 = 115
+        
+        
         
         contains
 
        subroutine Task2000Level(WaterLevel, TimeReference,
-     & NWaves, WaveAmplitude, WavePhase, WaveName, time_, STAT)
+     &                          NWaves, WaveAmplitude, WavePhase, 
+     &                          WaveName, time_, STAT)
      
 
         !Arguments-----------------------------------------------------
-        
-        integer     TogaID
-        real        WaterLevel
-        real        TimeReference
-        integer     NWaves
-        real, dimension(Ncompt)         :: WaveAmplitude
-        real, dimension(Ncompt)         :: WavePhase
-        character(*), dimension(Ncompt) :: WaveName
-        type(T_Time) time_
-        integer STAT
-        real  Year, Hour, Minute, Second
-        character (len=132)  :: AuxChar
+                                            
+        real                                :: WaterLevel
+        real                                :: TimeReference
+        integer                             :: NWaves
+        real,         pointer, dimension(:) :: WaveAmplitude
+        real,         pointer, dimension(:) :: WavePhase
+        character(*), pointer, dimension(:) :: WaveName
+        type(T_Time)                        :: time_
+        integer                             :: STAT
+        real                                :: Year, Hour
+        real                                :: Minute, Second
+        character (len=132)                 :: AuxChar
 C
 C AN EXTENDED VERSION OF IAN VASSIE'S MARI PROGRAM TO READ CONSTANTS
 C IN THE SAME FORMAT AS TIRA PRINTS THEM. THIS VERSION IS WRITTEN FOR
@@ -1004,16 +1008,14 @@ C
 
       DOUBLE PRECISION function Name2Frequency(Name)
 
-      integer, parameter :: Ncompt = 115
-      
       !Arguments---------------------------------------------
       character(*) :: Name
       
       !Local-------------------------------------------------
       integer      :: N, l
-      character(LEN = 7), dimension(NCompt):: TideNames
+      character(LEN = 7), dimension(NTask2000):: TideNames
       character(LEN = 7) :: AuxChar
-      DOUBLE PRECISION, dimension(NCompt ) :: TideFreq      
+      DOUBLE PRECISION, dimension(NTask2000 ) :: TideFreq      
 
         data TideNames/ 
      &  'SA      ',
@@ -1253,7 +1255,7 @@ C
      &  174.920521    ,
      &  175.9364168    /
      
-      do N=1, Ncompt
+      do N=1, NTask2000
 
          l       = len_trim(Name)
          AuxChar = TideNames(N)
@@ -1263,7 +1265,7 @@ C
             exit
          endif
          
-         if (N==Ncompt) then
+         if (N==NTask2000) then
             write (*,*) 'Module Task2000 do not recognize'
             write(*,*)  'tidal constituint =',trim(Name) 
             stop 'Name2Frequency - Task2000 - ERR10'
@@ -1277,16 +1279,16 @@ C
      %                                WaveName,nWaves)
     
         !Arguments---------------------------------------------------
-        real, dimension(Ncompt)         :: WaveAmplitude
-        real, dimension(Ncompt)         :: WavePhase
-        character(*), dimension(Ncompt) :: WaveName
-        integer                         :: nWaves
+        real, dimension(:), pointer         :: WaveAmplitude
+        real, dimension(:), pointer         :: WavePhase
+        character(*), dimension(:), pointer :: WaveName
+        integer                             :: nWaves
         
         !local-------------------------------------------------------
-        real, dimension(Ncompt)         :: AuxAmp
-        real, dimension(Ncompt)         :: AuxPhase
-        character(256), dimension(Ncompt) :: AuxName
-        logical, dimension(Ncompt)      :: Used
+        real, dimension(NTask2000)         :: AuxAmp
+        real, dimension(NTask2000)         :: AuxPhase
+        character(256), dimension(NTask2000) :: AuxName
+        logical, dimension(NTask2000)      :: Used
         integer                         :: i, j, imin
         real(8)                         :: MinFreq, AuxFreq
         
