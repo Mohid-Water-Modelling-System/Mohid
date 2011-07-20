@@ -6839,7 +6839,9 @@ doi:        do i = ILBSon, IUBSon
         integer,        optional                    :: STAT
 
         !Local-----------------------------------------------------------------
+#if _GOOGLEMAPS   
         real(8),     dimension(:,:), pointer        :: XX_aux, YY_aux
+#endif        
         type(T_Size2D)                              :: WorkSize_
         integer                                     :: WorkILB, WorkIUB
         integer                                     :: WorkJLB, WorkJUB
@@ -6944,7 +6946,9 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
 
 
                 endif
-                
+
+
+#if _GOOGLEMAPS                 
 
                 !Geographic coordinates
                 if (Me%CoordType == GEOG_               .or.  &
@@ -6973,7 +6977,7 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
                         deallocate(XX_aux,YY_Aux)
                 
                 endif
-                
+#endif
 
             endif
 
