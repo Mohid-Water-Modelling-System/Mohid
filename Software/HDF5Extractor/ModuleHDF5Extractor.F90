@@ -958,8 +958,8 @@ cd2 :           if (BlockFound) then
                     trim(ObjItem%Name) == trim("Longitude"           ) .or.             &
                     trim(ObjItem%Name) == trim("ConnectionX"         ) .or.             &
                     trim(ObjItem%Name) == trim("ConnectionY"         ) .or.             &
-                    trim(ObjItem%Name) == trim("Spherical_Mercator_X") .or.             &
-                    trim(ObjItem%Name) == trim("Spherical_Mercator_Y")) then
+                    trim(ObjItem%Name) == trim("googlemaps_x"        ) .or.             &
+                    trim(ObjItem%Name) == trim("googlemaps_y"       )) then
                                                         
                     Me%WorkSize%IUB = Me%WorkSize%IUB + 1
                     Me%WorkSize%JUB = Me%WorkSize%JUB + 1
