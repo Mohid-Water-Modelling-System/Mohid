@@ -85,6 +85,11 @@ Project("{6989167D-11E4-40FE-8C1A-2192A86A7E90}") = "DrawFluxesInHDF5", "DrawFlu
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "OceanColor", "OceanColor\OceanColor.vcproj", "{C5CF769A-D6B5-4DC8-B39C-734B4D9D685C}"
 EndProject
+Project("{6989167D-11E4-40FE-8C1A-2192A86A7E90}") = "JoinTimeSeries", "JoinTimeSeries\JoinTimeSeries.vfproj", "{13636891-3890-4E73-894C-6315A1C71989}"
+	ProjectSection(ProjectDependencies) = postProject
+		{0056F7D7-347A-40DE-98B8-843CF05B5488} = {0056F7D7-347A-40DE-98B8-843CF05B5488}
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug Double Openmp|Win32 = Debug Double Openmp|Win32
@@ -390,6 +395,7 @@ Global
 		{4D8FB248-4615-441A-AF9E-0C7FA58C4F6B}.Release Double|Win32.ActiveCfg = Release Double|Win32
 		{4D8FB248-4615-441A-AF9E-0C7FA58C4F6B}.Release Double|Win32.Build.0 = Release Double|Win32
 		{4D8FB248-4615-441A-AF9E-0C7FA58C4F6B}.Release Double|x64.ActiveCfg = Release Double|x64
+		{4D8FB248-4615-441A-AF9E-0C7FA58C4F6B}.Release Double|x64.Build.0 = Release Double|x64
 		{4D8FB248-4615-441A-AF9E-0C7FA58C4F6B}.Release OpenMP|Win32.ActiveCfg = Release Double|Win32
 		{4D8FB248-4615-441A-AF9E-0C7FA58C4F6B}.Release OpenMP|x64.ActiveCfg = Release Double|x64
 		{4D8FB248-4615-441A-AF9E-0C7FA58C4F6B}.Release|Win32.ActiveCfg = Release|Win32
@@ -636,6 +642,38 @@ Global
 		{C5CF769A-D6B5-4DC8-B39C-734B4D9D685C}.Release|Win32.ActiveCfg = Release|Win32
 		{C5CF769A-D6B5-4DC8-B39C-734B4D9D685C}.Release|Win32.Build.0 = Release|Win32
 		{C5CF769A-D6B5-4DC8-B39C-734B4D9D685C}.Release|x64.ActiveCfg = Release|Win32
+		{13636891-3890-4E73-894C-6315A1C71989}.Debug Double Openmp|Win32.ActiveCfg = Debug|Win32
+		{13636891-3890-4E73-894C-6315A1C71989}.Debug Double Openmp|Win32.Build.0 = Debug|Win32
+		{13636891-3890-4E73-894C-6315A1C71989}.Debug Double Openmp|x64.ActiveCfg = Debug|Win32
+		{13636891-3890-4E73-894C-6315A1C71989}.Debug Double PhreeqC|Win32.ActiveCfg = Debug|Win32
+		{13636891-3890-4E73-894C-6315A1C71989}.Debug Double PhreeqC|Win32.Build.0 = Debug|Win32
+		{13636891-3890-4E73-894C-6315A1C71989}.Debug Double PhreeqC|x64.ActiveCfg = Debug|Win32
+		{13636891-3890-4E73-894C-6315A1C71989}.Debug Double|Win32.ActiveCfg = Debug|Win32
+		{13636891-3890-4E73-894C-6315A1C71989}.Debug Double|Win32.Build.0 = Debug|Win32
+		{13636891-3890-4E73-894C-6315A1C71989}.Debug Double|x64.ActiveCfg = Debug|Win32
+		{13636891-3890-4E73-894C-6315A1C71989}.Debug OpenMI|Win32.ActiveCfg = Debug|Win32
+		{13636891-3890-4E73-894C-6315A1C71989}.Debug OpenMI|Win32.Build.0 = Debug|Win32
+		{13636891-3890-4E73-894C-6315A1C71989}.Debug OpenMI|x64.ActiveCfg = Debug|Win32
+		{13636891-3890-4E73-894C-6315A1C71989}.Debug OpenMP|Win32.ActiveCfg = Debug|Win32
+		{13636891-3890-4E73-894C-6315A1C71989}.Debug OpenMP|Win32.Build.0 = Debug|Win32
+		{13636891-3890-4E73-894C-6315A1C71989}.Debug OpenMP|x64.ActiveCfg = Debug|Win32
+		{13636891-3890-4E73-894C-6315A1C71989}.Debug|Win32.ActiveCfg = Debug|Win32
+		{13636891-3890-4E73-894C-6315A1C71989}.Debug|Win32.Build.0 = Debug|Win32
+		{13636891-3890-4E73-894C-6315A1C71989}.Debug|x64.ActiveCfg = Debug|Win32
+		{13636891-3890-4E73-894C-6315A1C71989}.Release Double OpenMP PhreeqC|Win32.ActiveCfg = Release|Win32
+		{13636891-3890-4E73-894C-6315A1C71989}.Release Double OpenMP PhreeqC|Win32.Build.0 = Release|Win32
+		{13636891-3890-4E73-894C-6315A1C71989}.Release Double OpenMP PhreeqC|x64.ActiveCfg = Release|Win32
+		{13636891-3890-4E73-894C-6315A1C71989}.Release Double OpenMP|Win32.ActiveCfg = Release|Win32
+		{13636891-3890-4E73-894C-6315A1C71989}.Release Double OpenMP|Win32.Build.0 = Release|Win32
+		{13636891-3890-4E73-894C-6315A1C71989}.Release Double OpenMP|x64.ActiveCfg = Release|Win32
+		{13636891-3890-4E73-894C-6315A1C71989}.Release Double|Win32.ActiveCfg = Release|Win32
+		{13636891-3890-4E73-894C-6315A1C71989}.Release Double|x64.ActiveCfg = Release|Win32
+		{13636891-3890-4E73-894C-6315A1C71989}.Release OpenMP|Win32.ActiveCfg = Release|Win32
+		{13636891-3890-4E73-894C-6315A1C71989}.Release OpenMP|Win32.Build.0 = Release|Win32
+		{13636891-3890-4E73-894C-6315A1C71989}.Release OpenMP|x64.ActiveCfg = Release|Win32
+		{13636891-3890-4E73-894C-6315A1C71989}.Release|Win32.ActiveCfg = Release|Win32
+		{13636891-3890-4E73-894C-6315A1C71989}.Release|Win32.Build.0 = Release|Win32
+		{13636891-3890-4E73-894C-6315A1C71989}.Release|x64.ActiveCfg = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -657,5 +695,6 @@ Global
 		{4831291D-0227-4FEB-9A09-0BD2A1E5B8EA} = {0C2D3D02-FB0B-4A4D-8DA2-A01B104B528B}
 		{DC8642E4-9D47-45E6-8617-BA40A15CF1EF} = {0C2D3D02-FB0B-4A4D-8DA2-A01B104B528B}
 		{9DC85AC0-1EAF-42B5-A6D0-28AC10A96D15} = {0C2D3D02-FB0B-4A4D-8DA2-A01B104B528B}
+		{13636891-3890-4E73-894C-6315A1C71989} = {0C2D3D02-FB0B-4A4D-8DA2-A01B104B528B}
 	EndGlobalSection
 EndGlobal
