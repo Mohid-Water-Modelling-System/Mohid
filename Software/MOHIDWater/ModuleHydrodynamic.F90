@@ -1311,6 +1311,9 @@ Module ModuleHydrodynamic
         real(8), pointer, dimension(:) :: VECW_3D
         real(8), pointer, dimension(:) :: VECG_2D  
         real(8), pointer, dimension(:) :: VECW_2D
+        
+        !Auxiliar flux properties
+        real(8), pointer, dimension(:,:,:) :: Aux3DFlux         
 
         !Instance of ModuleGridData
         integer :: ObjGridData              = 0
@@ -6485,8 +6488,7 @@ cd2:    if (Me%ComputeOptions%BarotropicRadia == FlatherWindWave_ .or.      &
         Me%Coef%D3%E = FillValueReal 
         Me%Coef%D3%F = FillValueReal     
         Me%Coef%D3%Ti = FillValueReal
-
-
+        
         !Bottom boundary: these variables in the future must migrate to the module ModuleBottom
         allocate (Me%External_Var%ChezyZ    (ILB:IUB, JLB:JUB)) 
         allocate (Me%External_Var%ChezyVelUV(ILB:IUB, JLB:JUB)) 
@@ -6686,7 +6688,11 @@ ic1:    if (Me%CyclicBoundary%ON) then
         
         
         endif
-
+        
+        allocate(Me%Aux3DFlux(ILB:IUB, JLB:JUB, KLB:KUB))
+        
+        call SetMatrixValue( Me%Aux3DFlux, Me%Size, FillValueReal)
+        
       !----------------------------------------------------------------------
 
     end subroutine AllocateVariables   
@@ -27307,7 +27313,7 @@ do6 :           do  i = ILB, IUB
 
 !        real                               :: Coef1_Up, Coef2_Up, Coef3_Up, Coef_Centered
 
-        real(8)                            :: FaceFlux_WestSouth, MomentumFlux
+        real(8)                            :: FaceFlux_WestSouth !, MomentumFlux
 
 !        real                               :: Coef1_WestSouth, Coef2_WestSouth, Coef3_WestSouth, Coef4_WestSouth
  
@@ -27366,6 +27372,8 @@ do6 :           do  i = ILB, IUB
         if (MonitorPerformance) then
             call StartWatch ("ModuleHydrodynamic", "Modify_Advection_UX_VY")
         endif
+        
+        call SetMatrixValue( Me%Aux3DFlux, Me%Size, 0.)
 
         !$ CHUNK = CHUNK_J(JLB,JUB)
 
@@ -27377,6 +27385,7 @@ do6 :           do  i = ILB, IUB
         !!!!$OMP                   NearBoundary,Vel4,du4, &
         !!!!$OMP                   V4,MomentumFlux,CFace)
         !!!!$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+       
     doi: do j=JLB, JUB
     doj: do i=ILB, IUB
 
@@ -27499,24 +27508,36 @@ cd0:        if (ComputeFlux) then
                                               NearBoundary,                             &
                                               Me%ComputeOptions%Upwind2H, CFace)
 
-                    MomentumFlux = dble(Vel4(1) * CFace(1)  + Vel4(2) * CFace(2)  +     &
+                    Me%Aux3DFlux(i, j, k) = dble(Vel4(1) * CFace(1)  + Vel4(2) * CFace(2)  +     &
                                         Vel4(3) * CFace(3)  + Vel4(4) * CFace(4)) *     &
                                         FaceFlux_WestSouth ![m/s*m^3/s]
 
-                    Horizontal_Transport(i, j, k)            = Horizontal_Transport(i, j, k) + &
-                                                               MomentumFlux                       
 
-                    Horizontal_Transport(iSouth, jWest, k) = Horizontal_Transport(iSouth, jWest, k)  - &
-                                                               MomentumFlux
+                    Horizontal_Transport(i, j, k) = Horizontal_Transport(i, j, k) +  Me%Aux3DFlux(i, j, k) 
            
                 enddo dok1
-
+                
             endif cd0
 
         enddo doj
         enddo doi
         !!!!$OMP END DO NOWAIT
         !!!!$OMP END PARALLEL
+         
+        do k=KLB, KUB
+        do j=JLB, JUB
+        do i=ILB, IUB        
+                
+            iSouth  = i -   di
+            jWest   = j -   dj   
+
+            Horizontal_Transport(iSouth, jWest, k) = Horizontal_Transport(iSouth, jWest, k) - Me%Aux3DFlux(i, j, k) 
+
+        enddo
+        enddo
+        enddo
+
+                 
 
         if (MonitorPerformance) then
             call StopWatch ("ModuleHydrodynamic", "Modify_Advection_UX_VY")
@@ -27586,7 +27607,7 @@ cd0:        if (ComputeFlux) then
 !        real                               :: Coef1_Up, Coef2_Up, Coef3_Up, Coef2_Centered_SW, &
 !                                              Coef3_Centered_SW
 
-        real(8)                            :: FaceFlux_SouthWest, MomentumFlux
+        real(8)                            :: FaceFlux_SouthWest !,MomentumFlux
 
 !        real                               :: Coef1_SouthWest, Coef2_SouthWest, Coef3_SouthWest, Coef4_SouthWest
 
@@ -27645,6 +27666,8 @@ cd0:        if (ComputeFlux) then
         if (MonitorPerformance) then
             call StartWatch ("ModuleHydrodynamic", "Modify_Advection_UY_VX")
         endif
+        
+        call SetMatrixValue( Me%Aux3DFlux, Me%Size, 0.)        
         
         !$ CHUNK = CHUNK_J(JLB,JUB)
 
@@ -27820,16 +27843,14 @@ dok1:           do k = Kbottom, KUB
                                               NearBoundary,                             &
                                               Me%ComputeOptions%Upwind2H, CFace)
 
-                    MomentumFlux = dble(Vel4(1) * CFace(1)  + Vel4(2) * CFace(2)  +     &
+                    Me%Aux3DFlux(i, j, k) = dble(Vel4(1) * CFace(1)  + Vel4(2) * CFace(2)  +     &
                                         Vel4(3) * CFace(3)  + Vel4(4) * CFace(4)) *     &
                                         FaceFlux_SouthWest ![m/s*m^3/s]
                     
                            
                     Horizontal_Transport(i, j, k)           = Horizontal_Transport(i, j, k) + &
-                                                              MomentumFlux
+                                                              Me%Aux3DFlux(i, j, k)
 
-                    Horizontal_Transport(i_West, j_South, k)= Horizontal_Transport(i_West, j_South, k) - &
-                                                              MomentumFlux
 
                 enddo dok1
             endif cd4
@@ -27838,6 +27859,21 @@ dok1:           do k = Kbottom, KUB
         enddo doj
         !!!!$OMP END DO NOWAIT
         !!!!$OMP END PARALLEL
+        
+        
+        do k=KLB, KUB
+        do j=JLB, JUB
+        do i=ILB, IUB        
+                
+            i_West   = i -   dj
+            j_South  = j -   di 
+
+            Horizontal_Transport(i_West, j_South, k)= Horizontal_Transport(i_West, j_South, k) - &
+                                                      Me%Aux3DFlux(i, j, k) 
+
+        enddo
+        enddo
+        enddo        
 
         if (MonitorPerformance) then
             call StopWatch ("ModuleHydrodynamic", "Modify_Advection_UY_VX")
@@ -28823,6 +28859,9 @@ cd0:        if (ComputeFaces3D_UV(i, j, KUB) == Covered .and.                   
         if (MonitorPerformance) then
             call StartWatch ("ModuleHydrodynamic", "Modify_Diffusion_UX_VY")
         endif
+        
+        
+        call SetMatrixValue( Me%Aux3DFlux, Me%Size, 0.)        
 
         !$ CHUNK = CHUNK_J(JLB,JUB)
 
@@ -28923,7 +28962,8 @@ cd1:                if (ConservativeHorDif) then
                     Horizontal_Transport(i, j, k)            = Horizontal_Transport(i, j, k) &
                                                               - FaceFlux_WestSouth1  
 
-                    Horizontal_Transport(iSouth, jWest, k) = Horizontal_Transport(iSouth, jWest, k) & 
+
+                    Me%Aux3DFlux        (i, j, k)           =  Horizontal_Transport(iSouth, jWest, k) & 
                                                               + FaceFlux_WestSouth2                   
 
                  enddo dok1
@@ -28934,6 +28974,17 @@ cd1:                if (ConservativeHorDif) then
         enddo doi
         !!!!$OMP END DO NOWAIT
         !!!!$OMP END PARALLEL
+        
+
+        do k=KLB, KUB
+        do j=JLB, JUB
+        do i=ILB, IUB
+            iSouth  = i -   di
+            jWest   = j -   dj                
+            Horizontal_Transport(iSouth, jWest, k) = Me%Aux3DFlux(i, j, k)         
+        enddo
+        enddo
+        enddo
 
         !Nullify auxiliar pointers
         nullify (Horizontal_Transport)
@@ -29198,8 +29249,8 @@ cd2:                    if (ConservativeHorDif) then
                                                                FaceFlux_SouthWest1           * &
                                                                ComputeFaces3D_UV   (i, j, k)
 
-                    Horizontal_Transport(i_West, j_South, k) = Horizontal_Transport(i_West, j_South, k) + &
-                                                               FaceFlux_SouthWest2                      * &
+                    Me%Aux3DFlux(i, j, k) = Horizontal_Transport(i_West, j_South, k) + &
+                                                               FaceFlux_SouthWest2   * &
                                                                ComputeFaces3D_UV   (i_West, j_South, k)
 
 
@@ -29211,6 +29262,16 @@ cd2:                    if (ConservativeHorDif) then
         enddo doi
         !!!!$OMP END DO NOWAIT
         !!!!$OMP END PARALLEL
+        
+        do k=KLB, KUB
+        do j=JLB, JUB
+        do i=ILB, IUB
+            i_West   = i - dj
+            j_South  = j - di            
+            Horizontal_Transport(i_West, j_South, k)= Me%Aux3DFlux(i, j, k)         
+        enddo
+        enddo
+        enddo        
 
         if (MonitorPerformance) then
             call StopWatch ("ModuleHydrodynamic", "Modify_Diffusion_UY_VX")
@@ -41898,6 +41959,8 @@ ic1:    if (Me%CyclicBoundary%ON) then
         if (Me%ComputeOptions%InvertBaromSomeBound)                                     &
             deallocate(Me%ComputeOptions%InvertBarometerCells)            
 
+
+        deallocate(Me%Aux3DFlux)
        !----------------------------------------------------------------------
 
     end subroutine DeallocateVariables   
