@@ -6947,18 +6947,17 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
 
                 endif
 
-
-#if _GOOGLEMAPS                 
+#if _GOOGLEMAPS
 
                 !Geographic coordinates
                 if (Me%CoordType == GEOG_               .or.  &
                     Me%CoordType == SIMPLE_GEOG_) then
-                    
+
                         allocate(XX_aux(WorkILB-1:WorkIUB+1, WorkJLB-1:WorkJUB+1))
                         allocate(YY_Aux(WorkILB-1:WorkIUB+1, WorkJLB-1:WorkJUB+1))
-                        
-                        call WGS84toGoogleMaps(Me%LongitudeConn, Me%LatitudeConn, Me%WorkSize, XX_aux, YY_aux)
-                        
+
+                        call WGS84toGoogleMaps(Me%LongitudeConn, Me%LatitudeConn, WorkSize_, XX_aux, YY_aux)
+
                         !Sets limits for next write operations
                         call HDF5SetLimits   (ObjHDF5, WorkILB, WorkIUB+1, WorkJLB, WorkJUB+1,      &
                                               STAT = STAT_CALL)                        
@@ -6973,17 +6972,17 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
                                               STAT = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid - HorizontalGrid - ERR30'
 
-
                         deallocate(XX_aux,YY_Aux)
-                
+           
                 endif
+
 #endif
 
             endif
 
             STAT_ = SUCCESS_
 
-        else               
+        else
 
             STAT_ = ready_
 
