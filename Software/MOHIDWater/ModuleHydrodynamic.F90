@@ -22674,10 +22674,10 @@ ibx:        if   (BoundaryPoints(i, JLB) == Boundary .and. BoundaryPoints(i, JUB
         
             ![ ]                   = [ ]         + [m^2/s] * [s/m^2]
             if (present(ECoef_2D))                                                       &
-                ECoef_2D (I,J)        = ECoef_2D(I,J)  + AuxImplicit * DT_AreaCell2
+                ECoef_2D_Aux (I,J)        = AuxImplicit * DT_AreaCell2
 
             ![m]                   = [m]         + [m^3/s] * [s/m^2] 
-            TiCoef_2D(I,J)            = TiCoef_2D(I,J) + AuxExplicit * DT_AreaCell2
+            TiCoef_2D_Aux(I,J)            = AuxExplicit * DT_AreaCell2
 
             !Compute the coeficients of linear system equations for the iSouth, jWest Z cell
 
@@ -22687,10 +22687,10 @@ ibx:        if   (BoundaryPoints(i, JLB) == Boundary .and. BoundaryPoints(i, JUB
 
             ![ ]                   = [ ]                     + [m^2/s] * [s/m^2] 
             if (present(ECoef_2D_Aux))                                                       &   
-                ECoef_2D_Aux(I_Down, J_Down) = ECoef_2D_Aux(I_Down, J_Down)  + AuxImplicit * DT_AreaCell1
+                ECoef_2D(I_Down, J_Down) = ECoef_2D(I_Down, J_Down)  + AuxImplicit * DT_AreaCell1
 
             ![m]                   = [m]                     + [m^3/s] * [s/m^2] 
-            TiCoef_2D_Aux(I_Down, J_Down)    = TiCoef_2D_Aux(I_Down, J_Down) - AuxExplicit * DT_AreaCell1
+            TiCoef_2D(I_Down, J_Down)    = TiCoef_2D(I_Down, J_Down) - AuxExplicit * DT_AreaCell1
 
         endif    
 
@@ -29107,6 +29107,8 @@ cd1:                if (ConservativeHorDif) then
         if (MonitorPerformance) then
             call StartWatch ("ModuleHydrodynamic", "Modify_Diffusion_UY_VX")
         endif
+
+        call SetMatrixValue( Me%Aux3DFlux, Me%Size, 0.)
 
         !$ CHUNK = CHUNK_J(JLB,JUB)
 
@@ -36456,20 +36458,20 @@ ic1:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
                     DCoef_2D(I, J)            = DCoef_2D(I, J)             - AuxImplicit * DT_AreaCell2 
                 
                     ![ ]                      = [ ]                        +  [m^2/s]    * [s/m^2]
-                    ECoef_2D(I, J)            = ECoef_2D(I, J)             + AuxImplicit * DT_AreaCell2 
+                    ECoef_2D_Aux(I, J)            = AuxImplicit * DT_AreaCell2 
 
                     ![ ]                      = [ ]                        +  [m^2/s]    * [s/m^2]
                     FCoef_2D(iSouth, jWest) = FCoef_2D(iSouth, jWest)  - AuxImplicit * DT_AreaCell1 
 
                     ![ ]                      = [ ]                        +  [m^2/s]    * [s/m^2]
-                    ECoef_2D_Aux(iSouth, jWest) = ECoef_2D_Aux(iSouth, jWest)+ AuxImplicit * DT_AreaCell1 
+                    ECoef_2D(iSouth, jWest) = ECoef_2D(iSouth, jWest)+ AuxImplicit * DT_AreaCell1 
            
            
                     ![m]                      = [m]                        + [m^3/s] * [s/m^2]
-                    TiCoef_2D (I, J)          = TiCoef_2D(I, J)            + AuxExplicit * DT_AreaCell2 
+                    TiCoef_2D_Aux (I, J)          = AuxExplicit * DT_AreaCell2 
 
                     ![m]                      = [m]                        + [m^3/s] * [s/m^2]
-                    TiCoef_2D_Aux(iSouth, jWest)       = TiCoef_2D_Aux(iSouth, jWest) - AuxExplicit * DT_AreaCell1 
+                    TiCoef_2D(iSouth, jWest)       = TiCoef_2D(iSouth, jWest) - AuxExplicit * DT_AreaCell1 
 
                 endif ic1
 
@@ -36895,10 +36897,10 @@ ic1:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
                     DCoef_2D(I,J)             = DCoef_2D(I,J)  - AuxImplicit * DT_AreaCell2
                 
                     ![ ]                   = [ ]         + [m^2/s] * [s/m^2]
-                    ECoef_2D (I,J)            = ECoef_2D(I,J)  + AuxImplicit * DT_AreaCell2
+                    ECoef_2D_Aux (I,J)            = AuxImplicit * DT_AreaCell2
 
                     ![m]                   = [m]         + [m^3/s] * [s/m^2] 
-                    TiCoef_2D(I,J)            = TiCoef_2D(I,J) + AuxExplicit * DT_AreaCell2
+                    TiCoef_2D_Aux(I,J)            = AuxExplicit * DT_AreaCell2
 
                     !Compute the coeficients of linear system equations for the iSouth, jWest Z cell
 
@@ -36906,10 +36908,10 @@ ic1:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
                     FCoef_2D(iSouth, jWest) = FCoef_2D(iSouth, jWest)  - AuxImplicit * DT_AreaCell1
 
                     ![ ]                   = [ ]                     + [m^2/s] * [s/m^2] 
-                    ECoef_2D_Aux(iSouth, jWest) = ECoef_2D(iSouth, jWest)  + AuxImplicit * DT_AreaCell1
+                    ECoef_2D(iSouth, jWest) = ECoef_2D(iSouth, jWest)  + AuxImplicit * DT_AreaCell1
 
                     ![m]                   = [m]                     + [m^3/s] * [s/m^2] 
-                    TiCoef_2D_Aux(iSouth, jWest)= TiCoef_2D(iSouth, jWest) - AuxExplicit * DT_AreaCell1
+                    TiCoef_2D(iSouth, jWest)= TiCoef_2D(iSouth, jWest) - AuxExplicit * DT_AreaCell1
 
                 endif ic1
 
@@ -37369,12 +37371,12 @@ ic1:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
 
 
                     ![m]                   = [m]         + [m^3/s]     * [s/m^2]
-                    TiCoef_2D(I,J)            = TiCoef_2D(I,J) + AuxExplicit * DT_AreaCell2
+                    TiCoef_2D_Aux(I,J)            = AuxExplicit * DT_AreaCell2
 
                     !Compute the coeficients of linear system equations for the iSouth, jWest Z cell
 
                     ![m]                   = [m]                     + [m^3/s]     * [s/m^2]
-                    TiCoef_2D_Aux(iSouth, jWest)= TiCoef_2D_Aux(iSouth, jWest) - AuxExplicit * DT_AreaCell1
+                    TiCoef_2D(iSouth, jWest)= TiCoef_2D(iSouth, jWest) - AuxExplicit * DT_AreaCell1
 
                 endif ic1
 
@@ -37604,12 +37606,12 @@ ic1:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
 
 
                     ![m]                   = [m]         + [m^3/s]     * [s/m^2]
-                    TiCoef_2D(I, J)           = TiCoef_2D(I      , J     ) + AuxExplicit * DT_AreaCell2
+                    TiCoef_2D_Aux(I, J)           = AuxExplicit * DT_AreaCell2
 
                     !Compute the coeficients of linear system equations for the iSouth, jWest Z cell
 
                     ![m]                   = [m]                     + [m^3/s]     * [s/m^2]
-                    TiCoef_2D_Aux(iSouth, jWest)= TiCoef_2D_Aux(iSouth, jWest) - AuxExplicit * DT_AreaCell1
+                    TiCoef_2D(iSouth, jWest)= TiCoef_2D(iSouth, jWest) - AuxExplicit * DT_AreaCell1
 
                 endif ic1
 
@@ -37694,12 +37696,12 @@ ic2:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
 
 
                     ![m]                   = [m]         + [m^3/s]     * [s/m^2]
-                    TiCoef_2D(I,J)         = TiCoef_2D(I,       J     ) + AuxExplicit * DT_AreaCell2
+                    TiCoef_2D_Aux(I,J)         = AuxExplicit * DT_AreaCell2
 
                     !Compute the coeficients of linear system equations for the iSouth, jWest Z cell
 
                     ![m]                   = [m]                     + [m^3/s]     * [s/m^2]
-                    TiCoef_2D_Aux(iSouth, jWest)= TiCoef_2D_Aux(iSouth, jWest) - AuxExplicit * DT_AreaCell1
+                    TiCoef_2D(iSouth, jWest)= TiCoef_2D(iSouth, jWest) - AuxExplicit * DT_AreaCell1
                 endif ic2
                                 
             endif cd2
