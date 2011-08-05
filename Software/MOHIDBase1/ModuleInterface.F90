@@ -33,7 +33,7 @@ Module ModuleInterface
     use ModuleGlobalData
     use ModuleTime
     !griflet
-    !$ use ModuleFunctions, only: CHUNK_J
+    use ModuleFunctions, only: CHUNK_J, SetMatrixValue
     use ModuleStopWatch, only: StartWatch, StopWatch
     use ModuleWaterQuality
     use ModuleSedimentQuality
@@ -2455,6 +2455,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
         integer                                         :: PropLB, PropUB, ArrayLB, ArrayUB 
         real                                            :: DTProp_
         logical                                         :: Increment
+        type(T_Size2D)                                  :: PropArraySize
 !        !$ integer                                      :: CHUNK
         
 !        !DEBUG purposes--------------------------------------------------------
@@ -2484,6 +2485,11 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
             ArrayLB = Me%Array%ILB
             ArrayUB = Me%Array%IUB
+            
+            PropArraySize%ILB = PropLB
+            PropArraySize%IUB = PropUB
+            PropArraySize%JLB = ArrayLB
+            PropArraySize%JUB = ArrayUB
 
             if(present(OpenPoints3D ))Me%ExternalVar%OpenPoints3D     => OpenPoints3D
             if(present(DWZ          ))Me%ExternalVar%DWZ              => DWZ
@@ -2514,7 +2520,7 @@ cd4 :           if (ReadyToCompute) then
                     call UnfoldMatrix(Me%ExternalVar%OpenPoints3D, Me%OpenPoints)
 
                     !Stores the concentration before changing them
-                    Me%ConcentrationIncrement = Me%Mass
+                    call SetMatrixValue(Me%ConcentrationIncrement, PropArraySize, Me%Mass)
 
                     select case (Me%SinksSourcesModel)
 

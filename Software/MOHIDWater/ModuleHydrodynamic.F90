@@ -22570,18 +22570,18 @@ cd3:            if   (BoundaryPoints(i, JLB) == Boundary .and. BoundaryPoints(i,
     End Subroutine WaterLevel_CyclicBoundary
 
 
-    subroutine CyclicCoef2D (TiCoef_2D, TiCoef_2D_Aux, AuxExplicit, DT_AreaCell1,        &
+    subroutine CyclicCoef2D ( TiCoef_2D, AuxExplicit, DT_AreaCell1,                      &
                              DT_AreaCell2, I, J, iSouth, jWest,                          &
-                             Dcoef_2D, ECoef_2D, FCoef_2D, ECoef_2D_Aux, AuxImplicit, Direction)
+                             Dcoef_2D, ECoef_2D, FCoef_2D, AuxImplicit, Direction)
 
         !Arguments------------------------------------------------------------
-        real,    dimension(:,:),             pointer  :: TiCoef_2D, TiCoef_2D_Aux
+        real,    dimension(:,:),             pointer  :: TiCoef_2D
         real   , intent (IN)                          :: AuxExplicit,                    &
                                                          DT_AreaCell1, DT_AreaCell2
         integer, intent (IN)                          :: I, J, iSouth, jWest
 
 
-        real(8), dimension(:,:),   optional, pointer  :: ECoef_2D, ECoef_2D_Aux
+        real(8), dimension(:,:),   optional, pointer  :: ECoef_2D
         real,    dimension(:,:),   optional, pointer  :: DCoef_2D, FCoef_2D 
         real   , intent (IN),      optional           :: AuxImplicit
         integer, intent (IN),      optional           :: Direction
@@ -22674,10 +22674,10 @@ ibx:        if   (BoundaryPoints(i, JLB) == Boundary .and. BoundaryPoints(i, JUB
         
             ![ ]                   = [ ]         + [m^2/s] * [s/m^2]
             if (present(ECoef_2D))                                                       &
-                ECoef_2D_Aux (I,J)        = AuxImplicit * DT_AreaCell2
+                ECoef_2D (I,J)        = ECoef_2D(I,J)  + AuxImplicit * DT_AreaCell2
 
             ![m]                   = [m]         + [m^3/s] * [s/m^2] 
-            TiCoef_2D_Aux(I,J)            = AuxExplicit * DT_AreaCell2
+            TiCoef_2D(I,J)            = TiCoef_2D(I,J) + AuxExplicit * DT_AreaCell2
 
             !Compute the coeficients of linear system equations for the iSouth, jWest Z cell
 
@@ -22686,7 +22686,7 @@ ibx:        if   (BoundaryPoints(i, JLB) == Boundary .and. BoundaryPoints(i, JUB
                 FCoef_2D(I_Down, J_Down) = FCoef_2D(I_Down, J_Down)  - AuxImplicit * DT_AreaCell1
 
             ![ ]                   = [ ]                     + [m^2/s] * [s/m^2] 
-            if (present(ECoef_2D_Aux))                                                       &   
+            if (present(ECoef_2D))                                                       &   
                 ECoef_2D(I_Down, J_Down) = ECoef_2D(I_Down, J_Down)  + AuxImplicit * DT_AreaCell1
 
             ![m]                   = [m]                     + [m^3/s] * [s/m^2] 
@@ -27289,7 +27289,7 @@ do6 :           do  i = ILB, IUB
     !                                                                                      !
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     Subroutine Modify_Advection_UX_VY  
-      
+
 
         !Variables Categories----------------------------------------------------------------
         ! Flow     : WaterFlux_XY (Horizontal water fluxes), Velocity_UV_Old (U or V velocity)
@@ -27304,7 +27304,7 @@ do6 :           do  i = ILB, IUB
 
 
         !Arguments------------------------------------------------------------
-         
+
 
 
         !Local---------------------------------------------------------------------
@@ -27338,7 +27338,7 @@ do6 :           do  i = ILB, IUB
         integer                            :: IUB, ILB, JUB, JLB, KUB, KLB
 
         logical                            :: ComputeFlux, NearBoundary
-        
+
         !$ integer                            :: CHUNK
 
         !Begin----------------------------------------------------------------
@@ -27381,20 +27381,20 @@ do6 :           do  i = ILB, IUB
         if (MonitorPerformance) then
             call StartWatch ("ModuleHydrodynamic", "Modify_Advection_UX_VY")
         endif
-        
+
         call SetMatrixValue( Me%Aux3DFlux, Me%Size, 0.)
 
         !$ CHUNK = CHUNK_J(JLB,JUB)
 
         !griflet: Avoid inner parallel zones, avoid all barriers and critical sections...
         !and you'll be fine.
-        !!!!$OMP PARALLEL PRIVATE( i,j,k, Kbottom, &
-        !!!!$OMP                   iSouth,jWest,j_East,i_North,jWest2,iSouth2,jWest3,iSouth3, &
-        !!!!$OMP                   ComputeFlux, FaceFlux_WestSouth, &
-        !!!!$OMP                   NearBoundary,Vel4,du4, &
-        !!!!$OMP                   V4,MomentumFlux,CFace)
-        !!!!$OMP DO SCHEDULE(DYNAMIC,CHUNK)
-       
+        !$OMP PARALLEL PRIVATE( i,j,k, Kbottom, &
+        !$OMP                   iSouth,jWest,j_East,i_North,jWest2,iSouth2,jWest3,iSouth3, &
+        !$OMP                   ComputeFlux, FaceFlux_WestSouth, &
+        !$OMP                   NearBoundary,Vel4,du4, &
+        !$OMP                   V4,CFace)
+
+        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)               
     doi: do j=JLB, JUB
     doj: do i=ILB, IUB
 
@@ -27430,50 +27430,6 @@ cd0:        if (ComputeFlux) then
                 Kbottom = max(KFloor_UV(i, j), KFloor_UV(iSouth, jWest))
 
         dok1:   do k = Kbottom, KUB
-                
-
-                    !UpStream Coefficients :
-                    !if (FaceFlux_WestSouth>0) then
-                    !   !When the velocity compute point j - 2 or i - 2 is not covered then 
-                       !(Aux = 0) the advection term is always compute using a upwind scheme
-                   !    Aux             = ComputeFaces3D_UV(iSouth2, jWest2, k)
-                   !    Coef1_WestSouth = Coef1_Up * Aux
-                   !    Coef2_WestSouth = Coef2_Up * Aux + (1. - Aux)
-                   !    Coef3_WestSouth = Coef3_Up * Aux
-                   !    Coef4_WestSouth = 0.
-                   ! else 
-                   !    Coef1_WestSouth = 0.
-                   !    Coef2_WestSouth = Coef3_Up
-                   !    Coef3_WestSouth = Coef2_Up
-                   !    Coef4_WestSouth = Coef1_Up 
-                   ! endif 
-
-                    !Total Coefficient (Upstream + Centered difference)
-                   ! Cell1_FaceWestSouth = Coef1_WestSouth * UpStream_CenterDif
-
-                    !Cell2_FaceWestSouth = Coef2_WestSouth * UpStream_CenterDif + &
-                    !                      Coef_Centered   * (1. - UpStream_CenterDif)
-
-                    !Cell3_FaceWestSouth = Coef3_WestSouth * UpStream_CenterDif + &
-                    !                      Coef_Centered   * (1. - UpStream_CenterDif)
-
-                    !Cell4_FaceWestSouth = Coef4_WestSouth * UpStream_CenterDif
-
-                    ![m^3/s*m/s]  = [m/s*m^3/s]
-
-                    ! j-2 or i-2
-                    !Cell_1 = Velocity_UV_Old(iSouth2, jWest2, k) * Cell1_FaceWestSouth
-
-                    ! j-1 or i-1
-                    !Cell_2 = Velocity_UV_Old(iSouth,  jWest,  k) * Cell2_FaceWestSouth 
-                                                                      
-                    ! j or i
-                    !Cell_3 = Velocity_UV_Old(i,        j,       k) * Cell3_FaceWestSouth 
-
-                    ! j+1 or i+1
-                    !Cell_4 = Velocity_UV_Old(i_North,  j_East,  k) * Cell4_FaceWestSouth 
-
-
 
                     FaceFlux_WestSouth = (WaterFlux_XY(iSouth, jWest, k) + &
                                          WaterFlux_XY(i, j, k))/2.            ![m^3/s]
@@ -27530,10 +27486,10 @@ cd0:        if (ComputeFlux) then
 
         enddo doj
         enddo doi
-        !!!!$OMP END DO NOWAIT
-        !!!!$OMP END PARALLEL
+        !$OMP END DO
          
         do k=KLB, KUB
+        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
         do j=JLB, JUB
         do i=ILB, IUB        
                 
@@ -27544,9 +27500,10 @@ cd0:        if (ComputeFlux) then
 
         enddo
         enddo
+        !$OMP END DO NOWAIT
         enddo
 
-                 
+        !$OMP END PARALLEL                
 
         if (MonitorPerformance) then
             call StopWatch ("ModuleHydrodynamic", "Modify_Advection_UX_VY")
@@ -27689,12 +27646,13 @@ cd0:        if (ComputeFlux) then
         !ACanas(2010): expected that performance could improve in other
         !Acanas(2010): applications than the one used for test.
 
-        !!!!$OMP PARALLEL PRIVATE( i,j,k, Kbottom, &
-        !!!!$OMP                   iSouth,jWest,i_West,j_South,i_East,j_North,i_West2,j_South2, &
-        !!!!$OMP                   NotBoundary, FaceRightOK, FaceLeftOK, FaceFlux_SouthWest, &
-        !!!!$OMP                   NearBoundary,Vel4,du4, &
-        !!!!$OMP                   V4,MomentumFlux,CFace)        
-        !!!!$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+        !$OMP PARALLEL PRIVATE( i,j,k, Kbottom, &
+        !$OMP                   iSouth,jWest,i_West,j_South,i_East,j_North,i_West2,j_South2, &
+        !$OMP                   NotBoundary, FaceRightOK, FaceLeftOK, FaceFlux_SouthWest, &
+        !$OMP                   NearBoundary,Vel4,du4, &
+        !$OMP                   V4,CFace)        
+
+        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
 doj:    do j=JLB, JUB
 doi:    do i=ILB, IUB
 
@@ -27753,68 +27711,6 @@ cd4:       if (NotBoundary .and. FaceRightOK .and. FaceLeftOK) then
 
 dok1:           do k = Kbottom, KUB
 
-
-                   !The water flux Y in the South face of a U cell
-                   !is equal (WaterFlux_Y(i, j, k) + WaterFlux_Y(i, j-1, k))/2
-                   !It's not needed to do a complex interpolation because 
-                   !the Area of this face is equal to (Area_V(i,j,k)+AreaV(i,j-1,k))/2.
-
-                   !South or West Face
-!                   FaceFlux_SouthWest = (WaterFlux_YX(iSouth  , jWest, k) + &
-!                                         WaterFlux_YX(i, j, k))/2.            
-
-                   !Centered difference coefficient 
-                   !Coef2_Centered_SW = DYY_XX(i, j) / (DYY_XX(i_West, j_South) + DYY_XX(i, j))
-                   !Coef3_Centered_SW = DYY_XX(i_West, j_South) / (DYY_XX(i_West, j_South) + DYY_XX(i, j))
-
-                   !UpStream Coefficients :
-!cd5:               if (FaceFlux_SouthWest>0) then
-
-                       !When the velocity compute point i - 2 or j - 2 is not covered then 
-                       !(Aux = 0) the advection term is always compute using a upwind scheme
-!                      Aux             = ComputeFaces3D_UV(i_West2, j_South2, k)
-!                      Coef1_SouthWest = Coef1_Up * Aux
-!                      Coef2_SouthWest = Coef2_Up * Aux + (1. - Aux)
-!                      Coef3_SouthWest = Coef3_Up * Aux
-!                      Coef4_SouthWest = 0.
-
-!                  else  cd5
-
-                       !When the velocity compute point i + 1 or j + 1 is not covered then 
-                       !(Aux = 0) the advection term is always compute using a upwind scheme
-!                      Aux             = ComputeFaces3D_UV(i_East, j_North, k)
-!                      Coef1_SouthWest = 0.
-!                      Coef2_SouthWest = Coef3_Up * Aux
-!                      Coef3_SouthWest = Coef2_Up * Aux + (1. - Aux)
-!                      Coef4_SouthWest = Coef1_Up * Aux
-
-!                  endif cd5
-
-                   !Total Coefficient (Upstream + Centered difference)
-!                  Cell1_FaceSouthWest = Coef1_SouthWest   * UpStream_CenterDif
-
-!                  Cell2_FaceSouthWest = Coef2_SouthWest   * UpStream_CenterDif + &
-!                                        Coef2_Centered_SW * (1. - UpStream_CenterDif)
-
-!                  Cell3_FaceSouthWest = Coef3_SouthWest   * UpStream_CenterDif + &
-!                                        Coef3_Centered_SW * (1. - UpStream_CenterDif)
-
-!                  Cell4_FaceSouthWest = Coef4_SouthWest   * UpStream_CenterDif
-
-                   ! i-2 or j-2
-!                  Cell_1 = Velocity_UV_Old(i_West2, j_South2, k) * Cell1_FaceSouthWest
-                   ! i-1 or j-1
-!                  Cell_2 = Velocity_UV_Old(i_West, j_South,   k) * Cell2_FaceSouthWest 
-                   ! i or j
-!                  Cell_3 = Velocity_UV_Old(i,            j,   k) * Cell3_FaceSouthWest
-                   ! i+1 or j+1
-!                  Cell_4 = Velocity_UV_Old(i_East, j_North,   k) * Cell4_FaceSouthWest
-
-                   !The water flux Y in the South face of a U cell
-                   !is equal (WaterFlux_Y(i, j, k) + WaterFlux_Y(i, j-1, k))/2
-                   !It's not needed to do a complex interpolation because 
-                   !the Area of this face is equal to (Area_V(i,j,k)+AreaV(i,j-1,k))/2.
-
                     !South or West Face
                     FaceFlux_SouthWest = (WaterFlux_YX(iSouth  , jWest, k) + &
                                           WaterFlux_YX(i, j, k))/2.  
@@ -27866,11 +27762,10 @@ dok1:           do k = Kbottom, KUB
 
         enddo doi
         enddo doj
-        !!!!$OMP END DO NOWAIT
-        !!!!$OMP END PARALLEL
-        
-        
+        !$OMP END DO
+
         do k=KLB, KUB
+        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
         do j=JLB, JUB
         do i=ILB, IUB        
                 
@@ -27882,7 +27777,10 @@ dok1:           do k = Kbottom, KUB
 
         enddo
         enddo
+        !$OMP END DO NOWAIT
         enddo        
+
+        !$OMP END PARALLEL
 
         if (MonitorPerformance) then
             call StopWatch ("ModuleHydrodynamic", "Modify_Advection_UY_VX")
@@ -28874,12 +28772,13 @@ cd0:        if (ComputeFaces3D_UV(i, j, KUB) == Covered .and.                   
 
         !$ CHUNK = CHUNK_J(JLB,JUB)
 
-        !!!!$OMP PARALLEL PRIVATE( i,j,k, Kbottom, &
-        !!!!$OMP                   iSouth, jWest, i_North, j_East, &
-        !!!!$OMP                   ComputeFlux, &
-        !!!!$OMP                   ViscAux,FaceFlux_WestSouth1,FaceFlux_WestSouth2, &
-        !!!!$OMP                   Aux)        
-        !!!!$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+        !$OMP PARALLEL PRIVATE( i,j,k, Kbottom, &
+        !$OMP                   iSouth, jWest, i_North, j_East, &
+        !$OMP                   ComputeFlux, &
+        !$OMP                   ViscAux,FaceFlux_WestSouth1,FaceFlux_WestSouth2, &
+        !$OMP                   Aux)        
+
+        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
     doi: do j=JLB, JUB
     doj: do i=ILB, IUB
 
@@ -28971,8 +28870,7 @@ cd1:                if (ConservativeHorDif) then
                     Horizontal_Transport(i, j, k)            = Horizontal_Transport(i, j, k) &
                                                               - FaceFlux_WestSouth1  
 
-
-                    Me%Aux3DFlux        (i, j, k)           =  FaceFlux_WestSouth2                   
+                    Me%Aux3DFlux        (iSouth, jWest, k)           =  FaceFlux_WestSouth2                   
 
                  enddo dok1
 
@@ -28980,19 +28878,19 @@ cd1:                if (ConservativeHorDif) then
 
         enddo doj
         enddo doi
-        !!!!$OMP END DO NOWAIT
-        !!!!$OMP END PARALLEL
-        
+        !$OMP END DO
 
         do k=KLB, KUB
+        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
         do j=JLB, JUB
         do i=ILB, IUB
-            iSouth  = i -   di
-            jWest   = j -   dj                
-            Horizontal_Transport(iSouth, jWest, k) = Horizontal_Transport(iSouth, jWest, k) + Me%Aux3DFlux(i, j, k)         
+            Horizontal_Transport(i, j, k) = Horizontal_Transport(i, j, k) + Me%Aux3DFlux(i, j, k)         
         enddo
         enddo
+        !$OMP END DO NOWAIT        
         enddo
+
+        !$OMP END PARALLEL
 
         !Nullify auxiliar pointers
         nullify (Horizontal_Transport)
@@ -29112,12 +29010,13 @@ cd1:                if (ConservativeHorDif) then
 
         !$ CHUNK = CHUNK_J(JLB,JUB)
 
-        !!!!$OMP PARALLEL PRIVATE( i,j,k, Kbottom, &
-        !!!!$OMP                   iSouth, jWest, i_West, j_South, &
-        !!!!$OMP                   ComputeFlux, ComputeFlux1, ComputeFlux2, &
-        !!!!$OMP                   ViscAux,FaceFlux_SouthWest1,FaceFlux_SouthWest2, &
-        !!!!$OMP                   NoSlipFace, Aux)
-        !!!!$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+        !$OMP PARALLEL PRIVATE( i,j,k, Kbottom, &
+        !$OMP                   iSouth, jWest, i_West, j_South, &
+        !$OMP                   ComputeFlux, ComputeFlux1, ComputeFlux2, &
+        !$OMP                   ViscAux,FaceFlux_SouthWest1,FaceFlux_SouthWest2, &
+        !$OMP                   NoSlipFace, Aux)
+        
+        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
     doi: do j=JLB, JUB
     doj: do i=ILB, IUB
 
@@ -29259,7 +29158,7 @@ cd2:                    if (ConservativeHorDif) then
                                                                FaceFlux_SouthWest1           * &
                                                                ComputeFaces3D_UV   (i, j, k)
 
-                    Me%Aux3DFlux(i, j, k)                    = FaceFlux_SouthWest2   * &
+                    Me%Aux3DFlux(i_West, j_South, k)         = FaceFlux_SouthWest2   * &
                                                                ComputeFaces3D_UV   (i_West, j_South, k)
 
 
@@ -29269,19 +29168,20 @@ cd2:                    if (ConservativeHorDif) then
 
         enddo doj
         enddo doi
-        !!!!$OMP END DO NOWAIT
-        !!!!$OMP END PARALLEL
+        !$OMP END DO
         
         do k=KLB, KUB
+        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
         do j=JLB, JUB
         do i=ILB, IUB
-            i_West   = i - dj
-            j_South  = j - di            
-            Horizontal_Transport(i_West, j_South, k)= Horizontal_Transport(i_West, j_South, k) + Me%Aux3DFlux(i, j, k)         
+            Horizontal_Transport(i, j, k)= Horizontal_Transport(i, j, k) + Me%Aux3DFlux(i, j, k)
         enddo
         enddo
+        !$OMP END DO NOWAIT
         enddo        
 
+        !$OMP END PARALLEL
+        
         if (MonitorPerformance) then
             call StopWatch ("ModuleHydrodynamic", "Modify_Diffusion_UY_VX")
         endif
@@ -29295,9 +29195,7 @@ cd2:                    if (ConservativeHorDif) then
         nullify (KFloor_UV)
         nullify (Volume_UV)
 
-
     End Subroutine Modify_Diffusion_UY_VX
-
 
     Subroutine DiffusionAlongNotCoveredFaces(Velocity_UV_Old, ComputeFlux1, ComputeFlux2,&
                                              DYY_XX, Volume_UV,                          &
@@ -36263,12 +36161,12 @@ cd1:        if (ComputeFaces3D_UV(i, j, KUB)==Covered) then
         !Local---------------------------------------------------------------------
         real,    dimension(:,:,:), pointer :: Density, Area_UV, SZZ
 
-        real(8), dimension(:,:),   pointer :: ECoef_2D, ECoef_2D_Aux
+        real(8), dimension(:,:),   pointer :: ECoef_2D
 
         real,    dimension(:,:),   pointer :: DCoef_2D, FCoef_2D, TiCoef_2D, &
                                               WaterColumnUV, AtmPressure,    &
                                               RadCoef_2D, TiRadCoef_2D,      &
-                                              TidePotentialLevel, TiCoef_2D_Aux
+                                              TidePotentialLevel
 
         real,    dimension(:,:  ), pointer :: DUX_VY, DVY_UX, DYY_XX, DZX_ZY
 
@@ -36314,9 +36212,6 @@ cd1:        if (ComputeFaces3D_UV(i, j, KUB)==Covered) then
         ECoef_2D             => Me%Coef%D2%E
         FCoef_2D             => Me%Coef%D2%F
         TiCoef_2D            => Me%Coef%D2%Ti
-        
-        ECoef_2D_Aux         => Me%Coef%D2%Eaux
-        TiCoef_2D_Aux        => Me%Coef%D2%TiAux
 
         RadCoef_2D           => Me%Coef%D2%Rad
         TiRadCoef_2D         => Me%Coef%D2%TiRad
@@ -36446,11 +36341,10 @@ ic1:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
                                                 Me%CyclicBoundary%Direction == DirectionXY_))  then
 
 
-                    call CyclicCoef2D ( TiCoef_2D, TiCoef_2D_Aux,                        &
+                    call CyclicCoef2D ( TiCoef_2D,                                       &
                                        AuxExplicit, DT_AreaCell1,                        &
                                        DT_AreaCell2, I, J, iSouth, jWest,                &
-                                       Dcoef_2D, ECoef_2D, FCoef_2D, ECoef_2D_Aux,       &
-                                       AuxImplicit)
+                                       Dcoef_2D, ECoef_2D, FCoef_2D, AuxImplicit)
 
                 else ic1
 
@@ -36458,20 +36352,20 @@ ic1:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
                     DCoef_2D(I, J)            = DCoef_2D(I, J)             - AuxImplicit * DT_AreaCell2 
                 
                     ![ ]                      = [ ]                        +  [m^2/s]    * [s/m^2]
-                    ECoef_2D_Aux(I, J)            = AuxImplicit * DT_AreaCell2 
+                    ECoef_2D(I, J)            = ECoef_2D(I, J)             + AuxImplicit * DT_AreaCell2 
 
                     ![ ]                      = [ ]                        +  [m^2/s]    * [s/m^2]
                     FCoef_2D(iSouth, jWest) = FCoef_2D(iSouth, jWest)  - AuxImplicit * DT_AreaCell1 
 
                     ![ ]                      = [ ]                        +  [m^2/s]    * [s/m^2]
-                    ECoef_2D(iSouth, jWest) = ECoef_2D(iSouth, jWest)+ AuxImplicit * DT_AreaCell1 
+                    ECoef_2D(iSouth, jWest) = ECoef_2D(iSouth, jWest)  + AuxImplicit * DT_AreaCell1 
            
            
                     ![m]                      = [m]                        + [m^3/s] * [s/m^2]
-                    TiCoef_2D_Aux (I, J)          = AuxExplicit * DT_AreaCell2 
+                    TiCoef_2D (I, J)          = TiCoef_2D(I, J)            + AuxExplicit * DT_AreaCell2 
 
                     ![m]                      = [m]                        + [m^3/s] * [s/m^2]
-                    TiCoef_2D(iSouth, jWest)       = TiCoef_2D(iSouth, jWest) - AuxExplicit * DT_AreaCell1 
+                    TiCoef_2D(iSouth, jWest)= TiCoef_2D(iSouth, jWest) - AuxExplicit * DT_AreaCell1 
 
                 endif ic1
 
@@ -36490,23 +36384,12 @@ ic1:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
 
         enddo doi
         enddo doj
-        
-        do j = JLB, JUB
-        do i = ILB, IUB
 
-            ECoef_2D  (I, J)  = ECoef_2D  (I, J) +  ECoef_2D_Aux (I, J)
-            TiCoef_2D (I, J)  = TiCoef_2D (I, J) +  TiCoef_2D_Aux(I, J)
-
-        enddo
-        enddo
         !Nullify auxiliar pointers 
         nullify(DCoef_2D)
         nullify(ECoef_2D)   
         nullify(FCoef_2D)   
         nullify(TiCoef_2D)  
-
-        nullify(ECoef_2D_Aux)   
-        nullify(TiCoef_2D_Aux)
         
         nullify(RadCoef_2D)   
         nullify(TiRadCoef_2D)  
@@ -36569,14 +36452,14 @@ ic1:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
 
         !Local---------------------------------------------------------------------
         real(8), dimension(:,:,:), pointer :: Volume_UV, Horizontal_Transport
-        real(8), dimension(:,:  ), pointer :: ECoef_2D, ECoef_2D_Aux
+        real(8), dimension(:,:  ), pointer :: ECoef_2D
 
         real,    dimension(:,:,:), pointer :: Area_UV, Velocity_UV_Old, Velocity_VU_New, &
                                               Density, Inertial_Aceleration, Rox3XY,     &
                                               Vertical_Viscosity, DUZ_VZ,                &
                                               Relax_Aceleration, PressureCorrect
 
-        real,    dimension(:,:  ), pointer :: DCoef_2D, FCoef_2D, TiCoef_2D, TiCoef_2D_Aux,&
+        real,    dimension(:,:  ), pointer :: DCoef_2D, FCoef_2D, TiCoef_2D,             &
                                               DUX_VY, DVY_UX, DYY_XX, DZX_ZY, DXX_YY,    & 
                                               ChezyVelUV, AtmPressure, RadCoef_2D,       &
                                               TiRadCoef_2D, TidePotentialLevel,          &
@@ -36631,9 +36514,6 @@ ic1:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
         ECoef_2D             => Me%Coef%D2%E
         FCoef_2D             => Me%Coef%D2%F
         TiCoef_2D            => Me%Coef%D2%Ti
-        
-        ECoef_2D_Aux         => Me%Coef%D2%EAux
-        TiCoef_2D_Aux        => Me%Coef%D2%TiAux        
 
         RadCoef_2D           => Me%Coef%D2%Rad
         TiRadCoef_2D         => Me%Coef%D2%TiRad
@@ -36884,11 +36764,10 @@ ic1:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
 ic1:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == Me%Direction%XY .or. &
                                                 Me%CyclicBoundary%Direction == DirectionXY_)) then
 
-                    call CyclicCoef2D ( TiCoef_2D, TiCoef_2D_Aux,                       &
-                                       AuxExplicit, DT_AreaCell1,                       &
-                                       DT_AreaCell2, I, J, iSouth, jWest,               &
-                                       Dcoef_2D, ECoef_2D, FCoef_2D, ECoef_2D_Aux,      &
-                                       AuxImplicit)
+                    call CyclicCoef2D ( TiCoef_2D,                                       &
+                                       AuxExplicit, DT_AreaCell1,                        &
+                                       DT_AreaCell2, I, J, iSouth, jWest,                &
+                                       Dcoef_2D, ECoef_2D, FCoef_2D, AuxImplicit)
 
                 else ic1
 
@@ -36897,10 +36776,10 @@ ic1:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
                     DCoef_2D(I,J)             = DCoef_2D(I,J)  - AuxImplicit * DT_AreaCell2
                 
                     ![ ]                   = [ ]         + [m^2/s] * [s/m^2]
-                    ECoef_2D_Aux (I,J)            = AuxImplicit * DT_AreaCell2
+                    ECoef_2D (I,J)            = ECoef_2D(I,J)  + AuxImplicit * DT_AreaCell2
 
                     ![m]                   = [m]         + [m^3/s] * [s/m^2] 
-                    TiCoef_2D_Aux(I,J)            = AuxExplicit * DT_AreaCell2
+                    TiCoef_2D(I,J)            = TiCoef_2D(I,J) + AuxExplicit * DT_AreaCell2
 
                     !Compute the coeficients of linear system equations for the iSouth, jWest Z cell
 
@@ -36935,25 +36814,12 @@ ic1:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
 
         enddo doi
         enddo doj
-        
-       
-        do j = JLB, JUB
-        do i = ILB, IUB
-
-            ECoef_2D  (I, J)  = ECoef_2D  (I, J) +  ECoef_2D_Aux (I, J)
-            TiCoef_2D (I, J)  = TiCoef_2D (I, J) +  TiCoef_2D_Aux(I, J)
-
-        enddo
-        enddo    
 
         !Nullify auxiliar pointers 
         nullify(DCoef_2D)
         nullify(ECoef_2D)   
         nullify(FCoef_2D)   
         nullify(TiCoef_2D)  
-        
-        nullify(ECoef_2D_Aux)
-        nullify(TiCoef_2D_Aux)
 
         nullify(RadCoef_2D)   
         nullify(TiRadCoef_2D)  
@@ -37118,7 +36984,7 @@ ic1:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
 
         real,    dimension(:,:  ), pointer :: TiCoef_2D, TiRadCoef_2D, DUX_VY, DVY_UX,   &
                                               DYY_XX, DZX_ZY, TauWind_UV, TauWaves_UV,   &
-                                              WaterColumnUV, TiCoef_2D_Aux
+                                              WaterColumnUV
 
         integer, dimension(:,:,:), pointer :: ComputeFaces3D_UV
         integer, dimension(:,:),   pointer :: KFloor_UV, BoundaryFacesUV
@@ -37160,8 +37026,6 @@ ic1:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
 
 
         TiCoef_2D            => Me%Coef%D2%Ti
-        
-        TiCoef_2D_Aux        => Me%Coef%D2%TiAux
 
         TiRadCoef_2D         => Me%Coef%D2%TiRad
 
@@ -37364,14 +37228,14 @@ ic1:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
                                                 Me%CyclicBoundary%Direction == DirectionXY_)) then
 
 
-                    call CyclicCoef2D ( TiCoef_2D, TiCoef_2D_Aux,                        &
+                    call CyclicCoef2D ( TiCoef_2D,                                       &
                                        AuxExplicit, DT_AreaCell1,                        &
                                        DT_AreaCell2, I, J, iSouth, jWest)
                 else ic1
 
 
                     ![m]                   = [m]         + [m^3/s]     * [s/m^2]
-                    TiCoef_2D_Aux(I,J)            = AuxExplicit * DT_AreaCell2
+                    TiCoef_2D(I,J)            = TiCoef_2D(I,J) + AuxExplicit * DT_AreaCell2
 
                     !Compute the coeficients of linear system equations for the iSouth, jWest Z cell
 
@@ -37394,15 +37258,6 @@ ic1:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
         enddo doi
         enddo doj
         
-        do j = JLB, JUB
-        do i = ILB, IUB
-
-            TiCoef_2D (I, J)  = TiCoef_2D (I, J) +  TiCoef_2D_Aux(I, J)
-
-        enddo
-        enddo           
-        
-        
         if (MonitorPerformance) then
             call StopWatch ("ModuleHydrodynamic", "WaterLevel_ExplicitForces")
         endif
@@ -37412,7 +37267,6 @@ ic1:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
 
         nullify(TiRadCoef_2D)  
 
-        nullify(TiCoef_2D_Aux)  
 
         nullify(Density) 
 
@@ -37480,7 +37334,7 @@ ic1:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
         real,    dimension(:,:,:), pointer :: Velocity_UV_Old, Velocity_UV_New, Area_UV, &
                                               Velocity_VU_Old, Velocity_VU_New, Area_VU
 
-        real,    dimension(:,:  ), pointer :: TiCoef_2D, TiRadCoef_2D, DUX_VY, DVY_UX, TiCoef_2D_Aux
+        real,    dimension(:,:  ), pointer :: TiCoef_2D, TiRadCoef_2D, DUX_VY, DVY_UX
 
         integer, dimension(:,:,:), pointer :: ComputeFaces3D_UV, ComputeFaces3D_VU
         integer, dimension(:,:),   pointer :: KFloor_UV, KFloor_VU, BoundaryFacesUV
@@ -37519,7 +37373,6 @@ ic1:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
         BarotropicRadia      =  Me%ComputeOptions%BarotropicRadia
 
         TiCoef_2D            => Me%Coef%D2%Ti
-        TiCoef_2D_Aux        => Me%Coef%D2%TiAux
 
         TiRadCoef_2D         => Me%Coef%D2%TiRad
 
@@ -37599,14 +37452,14 @@ ic1:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
                                                 Me%CyclicBoundary%Direction == DirectionXY_)) then
 
 
-                    call CyclicCoef2D (TiCoef_2D, TiCoef_2D_Aux,                         &
+                    call CyclicCoef2D (TiCoef_2D,                                        &
                                        AuxExplicit, DT_AreaCell1,                        &
                                        DT_AreaCell2, I, J, iSouth, jWest)
                 else ic1
 
 
                     ![m]                   = [m]         + [m^3/s]     * [s/m^2]
-                    TiCoef_2D_Aux(I, J)           = AuxExplicit * DT_AreaCell2
+                    TiCoef_2D(I, J)           = TiCoef_2D(I      , J     ) + AuxExplicit * DT_AreaCell2
 
                     !Compute the coeficients of linear system equations for the iSouth, jWest Z cell
 
@@ -37628,14 +37481,6 @@ ic1:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
             endif cd1
         enddo do2
         enddo do1
-        
-        do j = JLB, JUB
-        do i = ILB, IUB
-
-            TiCoef_2D (I, J)  = TiCoef_2D (I, J) +  TiCoef_2D_Aux(I, J)
-
-        enddo
-        enddo       
 
         if (MonitorPerformance) then
             call StopWatch ("ModuleHydrodynamic", "WaterLevel_WaterFluxes")
@@ -37689,14 +37534,14 @@ ic2:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
                                                 Me%CyclicBoundary%Direction == DirectionXY_)) then
 
 
-                    call CyclicCoef2D (TiCoef_2D, TiCoef_2D_Aux,                         &
+                    call CyclicCoef2D (TiCoef_2D,                                        &
                                        AuxExplicit, DT_AreaCell1,                        &
                                        DT_AreaCell2, I, J, iSouth, jWest, Direction = Me%Direction%YX)
                 else ic2
 
 
                     ![m]                   = [m]         + [m^3/s]     * [s/m^2]
-                    TiCoef_2D_Aux(I,J)         = AuxExplicit * DT_AreaCell2
+                    TiCoef_2D(I,J)         = TiCoef_2D(I,       J     ) + AuxExplicit * DT_AreaCell2
 
                     !Compute the coeficients of linear system equations for the iSouth, jWest Z cell
 
@@ -37708,19 +37553,10 @@ ic2:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
 
         enddo do5
         enddo do4
-        
-        do j = JLB, JUB
-        do i = ILB, IUB
-
-            TiCoef_2D (I, J)  = TiCoef_2D (I, J) +  TiCoef_2D_Aux(I, J)
-
-        enddo
-        enddo  
 
         !Nullify auxiliar pointers 
         nullify(TiCoef_2D)  
-        nullify(TiCoef_2D_Aux)  
-        
+
         nullify(TiRadCoef_2D)  
 
         nullify(DUX_VY)
