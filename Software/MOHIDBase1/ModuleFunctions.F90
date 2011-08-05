@@ -382,8 +382,6 @@ Module ModuleFunctions
 
         !Begin-----------------------------------------------------------------
 
-        if (MonitorPerformance) call StartWatch ("ModuleFunctions", "SetMatrixValues1D_R4_FromMatrix")
-
         !$ CHUNK = CHUNK_I(Size%ILB, Size%IUB) !
         
         if (present(MapMatrix)) then
@@ -406,8 +404,6 @@ Module ModuleFunctions
             !$OMP END PARALLEL
         endif    
 
-
-        if (MonitorPerformance) call StopWatch ("ModuleFunctions", "SetMatrixValues1D_R4_FromMatrix")
 
     end subroutine SetMatrixValues1D_R4_FromMatrix
 
@@ -428,8 +424,6 @@ Module ModuleFunctions
 
         !Begin-----------------------------------------------------------------
 
-        if (MonitorPerformance) call StartWatch ("ModuleFunctions", "SetMatrixValues1D_I4_FromMatrix")
-
         !$ CHUNK = CHUNK_I(Size%ILB, Size%IUB) !
         
         if (present(MapMatrix)) then
@@ -451,9 +445,6 @@ Module ModuleFunctions
             !$OMP END DO NOWAIT
             !$OMP END PARALLEL
         endif    
-
-
-        if (MonitorPerformance) call StopWatch ("ModuleFunctions", "SetMatrixValues1D_I4_FromMatrix")
 
     end subroutine SetMatrixValues1D_I4_FromMatrix
 
@@ -473,8 +464,6 @@ Module ModuleFunctions
 
         !Begin-----------------------------------------------------------------
 
-        if (MonitorPerformance) call StartWatch ("ModuleFunctions", "SetMatrixValues1D_R8_FromMatrix")
-
         !$ CHUNK = CHUNK_I(Size%ILB, Size%IUB) !
         
         if (present(MapMatrix)) then
@@ -496,8 +485,6 @@ Module ModuleFunctions
             !$OMP END DO NOWAIT
             !$OMP END PARALLEL
         endif    
-
-        if (MonitorPerformance) call StopWatch ("ModuleFunctions", "SetMatrixValues1D_R8_FromMatrix")
 
     end subroutine SetMatrixValues1D_R8_FromMatrix
 
@@ -517,8 +504,6 @@ Module ModuleFunctions
 
         !Begin-----------------------------------------------------------------
 
-        if (MonitorPerformance) call StartWatch ("ModuleFunctions", "SetMatrixValues1D_R8_FromMatrix")
-
         !$ CHUNK = CHUNK_I(Size%ILB, Size%IUB) !
         
         if (present(MapMatrix)) then
@@ -540,8 +525,6 @@ Module ModuleFunctions
             !$OMP END DO NOWAIT
             !$OMP END PARALLEL
         endif    
-
-        if (MonitorPerformance) call StopWatch ("ModuleFunctions", "SetMatrixValues1D_R8_FromMatrix")
 
     end subroutine SetMatrixValues1D_I8_FromMatrix
 
@@ -562,8 +545,6 @@ Module ModuleFunctions
 
         !Begin-----------------------------------------------------------------
 
-        if (MonitorPerformance) call StartWatch ("ModuleFunctions", "SetMatrixValues2D_I4_Constant")
-
         !$ CHUNK = CHUNK_J(Size%JLB, Size%JUB) !
         
         if (present(MapMatrix)) then
@@ -589,9 +570,6 @@ Module ModuleFunctions
             !$OMP END DO NOWAIT
             !$OMP END PARALLEL
         endif    
-
-
-        if (MonitorPerformance) call StopWatch ("ModuleFunctions", "SetMatrixValues2D_I4_Constant")
 
     end subroutine SetMatrixValues2D_I4_Constant
     
@@ -611,11 +589,8 @@ Module ModuleFunctions
 
         !Begin-----------------------------------------------------------------
 
-        if (MonitorPerformance) call StartWatch ("ModuleFunctions", "SetMatrixValues2D_R4_Constant")
-
         !$ CHUNK = CHUNK_J(Size%JLB, Size%JUB) !
         
-
         if (present(MapMatrix)) then
             !$OMP PARALLEL PRIVATE(I,J)
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
@@ -639,9 +614,6 @@ Module ModuleFunctions
             !$OMP END DO NOWAIT
             !$OMP END PARALLEL
         endif    
-
-
-        if (MonitorPerformance) call StopWatch ("ModuleFunctions", "SetMatrixValues2D_R4_Constant")
 
     end subroutine SetMatrixValues2D_R4_Constant
 
@@ -661,10 +633,7 @@ Module ModuleFunctions
 
         !Begin-----------------------------------------------------------------
 
-        if (MonitorPerformance) call StartWatch ("ModuleFunctions", "SetMatrixValues2D_R8_Constant")
-
         !$ CHUNK = CHUNK_J(Size%JLB, Size%JUB) !
-
         
         if (present(MapMatrix)) then
             !$OMP PARALLEL PRIVATE(I,J)
@@ -690,9 +659,6 @@ Module ModuleFunctions
             !$OMP END PARALLEL
         endif    
 
-
-        if (MonitorPerformance) call StopWatch ("ModuleFunctions", "SetMatrixValues2D_R8_Constant")
-
     end subroutine SetMatrixValues2D_R8_Constant
 
     !--------------------------------------------------------------------------
@@ -710,8 +676,6 @@ Module ModuleFunctions
         !$ integer                                         :: CHUNK !
 
         !Begin-----------------------------------------------------------------
-
-        if (MonitorPerformance) call StartWatch ("ModuleFunctions", "SetMatrixValues2D_R4_FromMatrix")
 
         !$ CHUNK = CHUNK_J(Size%JLB, Size%JUB) !
         
@@ -738,9 +702,6 @@ Module ModuleFunctions
             !$OMP END DO NOWAIT
             !$OMP END PARALLEL
         endif    
-
-
-        if (MonitorPerformance) call StopWatch ("ModuleFunctions", "SetMatrixValues2D_R4_FromMatrix")
 
     end subroutine SetMatrixValues2D_R4_FromMatrix
 
@@ -760,8 +721,6 @@ Module ModuleFunctions
 
         !Begin-----------------------------------------------------------------
 
-        if (MonitorPerformance) call StartWatch ("ModuleFunctions", "SetMatrixValues2D_I4_FromMatrix")
-
         !$ CHUNK = CHUNK_J(Size%JLB, Size%JUB) !
         
         if (present(MapMatrix)) then
@@ -787,8 +746,6 @@ Module ModuleFunctions
             !$OMP END DO NOWAIT
             !$OMP END PARALLEL
         endif    
-
-        if (MonitorPerformance) call StopWatch ("ModuleFunctions", "SetMatrixValues2D_I4_FromMatrix")
 
     end subroutine SetMatrixValues2D_I4_FromMatrix
     !--------------------------------------------------------------------------
@@ -807,8 +764,6 @@ Module ModuleFunctions
 
         !Begin-----------------------------------------------------------------
 
-        if (MonitorPerformance) call StartWatch ("ModuleFunctions", "SetMatrixValues2D_R8_FromMatrix")
-
         !$ CHUNK = CHUNK_J(Size%JLB, Size%JUB) !
         
         if (present(MapMatrix)) then
@@ -834,8 +789,6 @@ Module ModuleFunctions
             !$OMP END DO NOWAIT
             !$OMP END PARALLEL
         endif    
-
-        if (MonitorPerformance) call StopWatch ("ModuleFunctions", "SetMatrixValues2D_R8_FromMatrix")
 
     end subroutine SetMatrixValues2D_R8_FromMatrix
     
@@ -855,10 +808,7 @@ Module ModuleFunctions
 
         !Begin-----------------------------------------------------------------
 
-        if (MonitorPerformance) call StartWatch ("ModuleFunctions", "SetMatrixValues3D_I4_Constant")
-        
         !$ CHUNK = CHUNK_J(Size%KLB, Size%KUB) !
-        
         
         if (present(MapMatrix)) then
             !$OMP PARALLEL PRIVATE(I,J,K)
@@ -888,9 +838,6 @@ Module ModuleFunctions
             !$OMP END PARALLEL
         endif    
 
-
-        if (MonitorPerformance) call StopWatch ("ModuleFunctions", "SetMatrixValues3D_I4_Constant")
-
     end subroutine SetMatrixValues3D_I4_Constant
     
     !--------------------------------------------------------------------------
@@ -908,8 +855,6 @@ Module ModuleFunctions
         !$ integer                                         :: CHUNK !
 
         !Begin-----------------------------------------------------------------
-        
-        if (MonitorPerformance) call StartWatch ("ModuleFunctions", "SetMatrixValues3D_R4_Constant")
         
         !$ CHUNK = CHUNK_J(Size%KLB, Size%KUB) !
         
@@ -941,8 +886,6 @@ Module ModuleFunctions
             !$OMP END PARALLEL
         endif
 
-        if (MonitorPerformance) call StopWatch ("ModuleFunctions", "SetMatrixValues3D_R4_Constant")
-
     end subroutine SetMatrixValues3D_R4_Constant
     
     !--------------------------------------------------------------------------
@@ -961,10 +904,7 @@ Module ModuleFunctions
 
         !Begin-----------------------------------------------------------------
 
-        if (MonitorPerformance) call StartWatch ("ModuleFunctions", "SetMatrixValues3D_R8_Constant")
-        
-        !$ CHUNK = CHUNK_J(Size%KLB, Size%KUB) !
-        
+        !$ CHUNK = CHUNK_J(Size%KLB, Size%KUB)   
         
         if (present(MapMatrix)) then
             !$OMP PARALLEL PRIVATE(I,J,K)
@@ -994,8 +934,6 @@ Module ModuleFunctions
             !$OMP END PARALLEL
         endif    
 
-        if (MonitorPerformance) call StopWatch ("ModuleFunctions", "SetMatrixValues3D_R8_Constant")
-
     end subroutine SetMatrixValues3D_R8_Constant
 
     !--------------------------------------------------------------------------
@@ -1014,9 +952,7 @@ Module ModuleFunctions
         
         !Begin-----------------------------------------------------------------
 
-        if (MonitorPerformance) call StartWatch ("ModuleFunctions", "SetMatrixValues3D_R4_FromMatrix")
-
-        !$ CHUNK = CHUNK_J(Size%KLB, Size%KUB) !
+        !$ CHUNK = CHUNK_J(Size%KLB, Size%KUB)
 
         if (present(MapMatrix)) then
             !$OMP PARALLEL PRIVATE(I,J, K)
@@ -1045,8 +981,6 @@ Module ModuleFunctions
             enddo
             !$OMP END PARALLEL
         endif    
-
-        if (MonitorPerformance) call StopWatch ("ModuleFunctions", "SetMatrixValues3D_R4_FromMatrix")
 
     end subroutine SetMatrixValues3D_R4_FromMatrix
 
@@ -1066,8 +1000,6 @@ Module ModuleFunctions
         
         !Begin-----------------------------------------------------------------
 
-        if (MonitorPerformance) call StartWatch ("ModuleFunctions", "SetMatrixValues3D_R8_FromMatrix")
-
         !$ CHUNK = CHUNK_J(Size%KLB, Size%KUB) !
 
         if (present(MapMatrix)) then
@@ -1098,8 +1030,6 @@ Module ModuleFunctions
             !$OMP END PARALLEL
         endif    
 
-        if (MonitorPerformance) call StopWatch ("ModuleFunctions", "SetMatrixValues3D_R8_FromMatrix")
-
     end subroutine SetMatrixValues3D_R8_FromMatrix
 
     !--------------------------------------------------------------------------
@@ -1116,8 +1046,6 @@ Module ModuleFunctions
         !$ integer                                         :: CHUNK !
         
         !Begin-----------------------------------------------------------------
-
-        if (MonitorPerformance) call StartWatch ("ModuleFunctions", "SetMatrixValues3D_I4_FromMatrix")
 
         !$ CHUNK = CHUNK_J(Size%KLB, Size%KUB) !
 
@@ -1148,8 +1076,6 @@ Module ModuleFunctions
             enddo
             !$OMP END PARALLEL
         endif
-
-        if (MonitorPerformance) call StopWatch ("ModuleFunctions", "SetMatrixValues3D_I4_FromMatrix")
 
     end subroutine SetMatrixValues3D_I4_FromMatrix
 
