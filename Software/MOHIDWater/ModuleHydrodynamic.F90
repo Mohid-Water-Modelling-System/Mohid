@@ -6697,7 +6697,7 @@ ic1:    if (Me%CyclicBoundary%ON) then
         
         allocate(Me%Aux3DFlux(ILB:IUB, JLB:JUB, KLB:KUB))
         
-        call SetMatrixValue( Me%Aux3DFlux, Me%Size, FillValueReal)
+        call SetMatrixValue( Me%Aux3DFlux, Me%Size, dble(FillValueReal))
         
       !----------------------------------------------------------------------
 
@@ -27355,7 +27355,7 @@ do6 :           do  i = ILB, IUB
             call StartWatch ("ModuleHydrodynamic", "Modify_Advection_UX_VY")
         endif
 
-        call SetMatrixValue( Me%Aux3DFlux, Me%Size, 0.)
+        call SetMatrixValue( Me%Aux3DFlux, Me%Size, dble(0.))
 
         !$ CHUNK = CHUNK_J(JLB,JUB)
 
@@ -27606,7 +27606,7 @@ cd0:        if (ComputeFlux) then
             call StartWatch ("ModuleHydrodynamic", "Modify_Advection_UY_VX")
         endif
         
-        call SetMatrixValue( Me%Aux3DFlux, Me%Size, 0.)        
+        call SetMatrixValue( Me%Aux3DFlux, Me%Size, dble(0.))        
         
         !$ CHUNK = CHUNK_J(JLB,JUB)
 
@@ -28741,7 +28741,7 @@ cd0:        if (ComputeFaces3D_UV(i, j, KUB) == Covered .and.                   
         endif
         
         
-        call SetMatrixValue( Me%Aux3DFlux, Me%Size, 0.)        
+        call SetMatrixValue( Me%Aux3DFlux, Me%Size, dble(0.))      
 
         !$ CHUNK = CHUNK_J(JLB,JUB)
 
@@ -28979,7 +28979,7 @@ cd1:                if (ConservativeHorDif) then
             call StartWatch ("ModuleHydrodynamic", "Modify_Diffusion_UY_VX")
         endif
 
-        call SetMatrixValue( Me%Aux3DFlux, Me%Size, 0.)
+        call SetMatrixValue( Me%Aux3DFlux, Me%Size, dble(0.))
 
         !$ CHUNK = CHUNK_J(JLB,JUB)
 
