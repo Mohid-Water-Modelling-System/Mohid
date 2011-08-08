@@ -21733,10 +21733,12 @@ dok1:           do  k = Kbottom, KUB
             call WaterLevel_ExplicitForces
             call WaterLevel_WaterFluxes
 
+#ifndef _NOOMP
             !$ CHUNK = CHUNK_J(JLB, JUB)
 
             !$OMP PARALLEL PRIVATE(i, j)
             !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+#endif            
             do j = JLB, JUB
             do i = ILB, IUB
 
@@ -21745,8 +21747,10 @@ dok1:           do  k = Kbottom, KUB
 
             enddo
             enddo
+#ifndef _NOOMP
             !$OMP END DO NOWAIT
             !$OMP END PARALLEL
+#endif            
 
             call WaterLevel_OpenBoundary
 
@@ -26539,7 +26543,7 @@ cd6:            if (NewInstant >= NextInstant) then
         integer                            :: IUB, ILB, JUB, JLB, KUB
         integer                            :: I, J, kbottom
 
-        integer                            :: CHUNK
+        !$ integer                            :: CHUNK
 
         !Begin--------------------------------------------------------------------------
 
@@ -26572,7 +26576,7 @@ cd6:            if (NewInstant >= NextInstant) then
 
         endif
 
-        CHUNK = CHUNK_J(JLB, JUB)
+        !$ CHUNK = CHUNK_J(JLB, JUB)
         
         if (MonitorPerformance) then
             call StartWatch ("ModuleHydrodynamic", "Modify_ChezyZ")
@@ -26688,6 +26692,8 @@ cd3:                    if (Manning) then
         integer                            :: iSouth, jWest, di, dj, i_North, j_East
         integer                            :: IUB, ILB, JUB, JLB, KUB
         integer                            :: I, J, kbottom
+    
+        !$ integer                            :: CHUNK
 
         !Begin--------------------------------------------------------------------------
 
@@ -26712,8 +26718,6 @@ cd3:                    if (Manning) then
 
         RugosityMatrix    => Me%External_Var%RugosityMatrix
 
-        ChezyVelUV        => Me%External_Var%ChezyVelUV
-
         KFloor_UV         => Me%External_Var%KFloor_UV
         Volume_UV         => Me%External_Var%Volume_UV
 
@@ -26736,7 +26740,17 @@ cd3:                    if (Manning) then
 
         endif
 
-            
+        !$ CHUNK = CHUNK_J(JLB,JUB)
+
+        !$OMP PARALLEL PRIVATE( AuxZ, EP, WallDistance,         &
+        !$OMP                   Rugosity, Chezy, DT_Z,          &
+        !$OMP                   VelMod_UV, ChezyWave,          &
+        !$OMP                   iSouth, jWest, i_North, j_East,    &
+        !$OMP                   I, J, kbottom, ChezyVelUV)
+
+        ChezyVelUV        => Me%External_Var%ChezyVelUV
+
+        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)    
 doj:    do  j = JLB, JUB
 doi:    do  i = ILB, IUB
                     
@@ -26859,6 +26873,9 @@ cd3:                   if (Manning) then
 
         enddo doi
         enddo doj
+        !$OMP END DO NOWAIT
+        
+        !$OMP END PARALLEL
 
         !Nullify auxiliar variables
         nullify (KFloor_UV         )
@@ -34393,11 +34410,11 @@ dok:            do k = kbottom + 1, KUB
         !Local---------------------------------------------------------------------
         integer                            :: I, J, K
 
-        integer                            :: CHUNK 
+        !$ integer                            :: CHUNK 
 
         !Begin--------------------------------------------------------------------------
 
-        CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+        !$ CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
 
         if (MonitorPerformance) then
             call StartWatch ("ModuleHydrodynamic", "Compute_VerticalVelocity")
@@ -34856,22 +34873,22 @@ dok:            do  k = kbottom, KUB
         integer, dimension(:,:,:), pointer :: ComputeFaces3D_UV
         integer, dimension(:,:),   pointer :: KFloor_UV, BoundaryFacesUV
 
+        real                               :: UpStream_CenterDif, ImplicitVertAdvection, WaterColumn2D
+
+        integer                            :: IUB, ILB, JUB, JLB, KUB, KLB, di, dj
+
         real(8), dimension(4)              :: V4
         real,    dimension(4)              :: CFace, Vel4, du4
         
+        real(8)                            :: Correction, Face_Flux, MomentumFlux
+    
+        integer                            :: i, j, k, Kbottom, iSouth, jWest
+
+        logical                            :: NearBoundary
+
         !griflet: needed to initialize outside of the parallel zone of the code
         real                               :: DT
         integer                            :: STAT_CALL
-
-        real                               :: UpStream_CenterDif, ImplicitVertAdvection, WaterColumn2D
-
-        real(8)                            :: CorrectionOld, CorrectionNew, Face_Flux, MomentumFlux
-    
-        integer                            :: di, dj, i, j, k, Kbottom, iSouth, jWest
-
-        integer                            :: IUB, ILB, JUB, JLB, KUB, KLB
-
-        logical                            :: NearBoundary
 
         !$ integer                            :: CHUNK
 
@@ -34896,11 +34913,6 @@ dok:            do  k = kbottom, KUB
         WaterColumn2D        =  Me%ComputeOptions%WaterColumn2D
 
         ImplicitVertAdvection   =  Me%ComputeOptions%ImplicitVertAdvection
-
-        DCoef_3D             => Me%Coef%D3%D
-        ECoef_3D             => Me%Coef%D3%E
-        FCoef_3D             => Me%Coef%D3%F
-        TiCoef_3D            => Me%Coef%D3%Ti
         
         WaterFlux_Z          => Me%WaterFluxes%Z
 
@@ -34935,12 +34947,19 @@ dok:            do  k = kbottom, KUB
         
         !griflet: Ok, it is assumed that *statically* allocated arrays may be safely replicated
         !with the private directive.
-        !!!!$OMP PARALLEL PRIVATE( i,j,k,iSouth,jWest,Kbottom,CorrectionOld, &
-        !!!!$OMP                   Face_Flux,CorrectionNew,NearBoundary,Vel4, &
-        !!!!$OMP                   du4,V4,MomentumFlux,CFace)
-        !!!!$OMP DO SCHEDULE(DYNAMIC,CHUNK)
-doj:     do j=JLB, JUB
-doi:     do i=ILB, IUB
+        !!$OMP PARALLEL PRIVATE( i,j,k,iSouth,jWest,Kbottom,Correction,   &
+        !!$OMP                   Face_Flux,NearBoundary,Vel4,  &
+        !!$OMP                   du4,V4,MomentumFlux,CFace,                  &
+        !!$OMP                   DCoef_3D, ECoef_3D, FCoef_3D, TiCoef_3D)
+
+        DCoef_3D             => Me%Coef%D3%D
+        ECoef_3D             => Me%Coef%D3%E
+        FCoef_3D             => Me%Coef%D3%F
+        TiCoef_3D            => Me%Coef%D3%Ti
+        
+        !!$OMP DO SCHEDULE(DYNAMIC,CHUNK) REDUCTION(+:correction)
+doj:    do j=JLB, JUB
+doi:    do i=ILB, IUB
 
             !This if impose in the open boundary gradient null for the vertical advection 
 cd1:        if (ComputeFaces3D_UV(i, j, KUB) == Covered  .and.                           &
@@ -34961,21 +34980,18 @@ cd1:        if (ComputeFaces3D_UV(i, j, KUB) == Covered  .and.                  
 
 !                TopFace_Flux  = 0.
 
-                CorrectionOld = 0.
+                Correction = 0.
 
 dok1:           do  k = Kbottom + 1, KUB                              
 
                     Face_Flux    = (WaterFlux_Z(iSouth, jWest, k) + WaterFlux_Z(i, j, k))/2.
 
                     if (Me%SubModel%ON .and. BoundaryFacesUV  (i, j) == Boundary ) then
-                    
-                        !!!!$OMP CRITICAL (VVA_SUB01)
-                        CorrectionNew = VertAdvectionSubModel ( CorrectionOld, DT, i, j, k)
-                        !!!!$OMP END CRITICAL (VVA_SUB01)
 
-                        Face_Flux   = Face_Flux + CorrectionNew / 2.
+                        !GRiflet, openmp: no reduce danger.
+                        Correction = VertAdvectionSubModel ( Correction, DT, i, j, k)
 
-                        CorrectionOld  = CorrectionNew
+                        Face_Flux   = Face_Flux + Correction / 2.
 
                     endif
 
@@ -35048,9 +35064,9 @@ dok1:           do  k = Kbottom + 1, KUB
 
         enddo doi
         enddo doj
-        !!!!$OMP END DO NOWAIT
+        !!$OMP END DO
 
-        !!!!$OMP END PARALLEL
+        !!$OMP END PARALLEL
 
         if (MonitorPerformance) then
             call StopWatch ("ModuleHydrodynamic", "Velocity_VerticalAdvection")
@@ -36073,6 +36089,7 @@ cd1:        if (ComputeFaces3D_UV(i, j, KUB)==Covered) then
 
         endif
 
+#ifndef _NOOMP
         !$ CHUNK = CHUNK_J(JLB,JUB)
 
         !GRiflet: pointers are made private as well. They must be initialized
@@ -36087,7 +36104,7 @@ cd1:        if (ComputeFaces3D_UV(i, j, KUB)==Covered) then
         !$OMP                   ECoef_2D, ECoef_2D_Aux,                 &
         !$OMP                   DCoef_2D, FCoef_2D, TiCoef_2D, TiCoef_2D_Aux, &
         !$OMP                   RadCoef_2D, TiRadCoef_2D)
-
+#endif
         DCoef_2D             => Me%Coef%D2%D
         ECoef_2D             => Me%Coef%D2%E
         FCoef_2D             => Me%Coef%D2%F
@@ -36099,7 +36116,9 @@ cd1:        if (ComputeFaces3D_UV(i, j, KUB)==Covered) then
         RadCoef_2D           => Me%Coef%D2%Rad
         TiRadCoef_2D         => Me%Coef%D2%TiRad
 
+#ifndef _NOOMP
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+#endif
     doj: do j = JLB, JUB
     doi: do i = ILB, IUB
 
@@ -36234,8 +36253,10 @@ ic1:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
 
         enddo doi
         enddo doj
+#ifndef _NOOMP
         !$OMP END DO NOWAIT
         !$OMP END PARALLEL
+#endif
 
         !Nullify auxiliar pointers 
         nullify(DCoef_2D)
@@ -36418,6 +36439,7 @@ ic1:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
 
         endif
         
+#ifndef _NOOMP
         !$ CHUNK = CHUNK_J(JLB, JUB)
 
         !GRiflet: just to make it even safer, I'm going to privatize the pointers
@@ -36429,7 +36451,7 @@ ic1:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
         !$OMP                   DT_AreaCell1, DT_AreaCell2,                             &
         !$OMP                   DCoef_2D, ECoef_2D, FCoef_2D, TiCoef_2D,                &
         !$OMP                   ECoef_2D_Aux, TiCoef_2D_Aux, RadCoef_2D, TiRadCoef_2D)
-
+#endif
         DCoef_2D             => Me%Coef%D2%D
         ECoef_2D             => Me%Coef%D2%E
         FCoef_2D             => Me%Coef%D2%F
@@ -36441,7 +36463,9 @@ ic1:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
         RadCoef_2D           => Me%Coef%D2%Rad
         TiRadCoef_2D         => Me%Coef%D2%TiRad
 
+#ifndef _NOOMP
         !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+#endif        
     doj: do j = JLB, JUB
     doi: do i = ILB, IUB
 
@@ -36668,8 +36692,10 @@ ic1:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
 
         enddo doi
         enddo doj
+#ifndef _NOOMP        
         !$OMP END DO NOWAIT
         !$OMP END PARALLEL
+#endif
 
         !Nullify auxiliar pointers 
         nullify(DCoef_2D)
@@ -36917,6 +36943,7 @@ ic1:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
             call StartWatch ("ModuleHydrodynamic", "WaterLevel_ExplicitForces")
         endif
 
+#ifndef _NOOMP
         !$ CHUNK = CHUNK_J(JLB, JUB)
 
         !$OMP PARALLEL PRIVATE( I, J, K, kbottom, iSouth, jWest,                &
@@ -36926,6 +36953,7 @@ ic1:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
         !$OMP                   Transport_Aceleration, SmoothCoef, RunPeriod,   &
         !$OMP                   Aux_2D,TiCoef_2D, TiRadCoef_2D, TiCoef_2D_Aux   &
         !$OMP                   )    
+#endif
         
         TiCoef_2D            => Me%Coef%D2%Ti
         
@@ -36933,7 +36961,9 @@ ic1:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
 
         TiRadCoef_2D         => Me%Coef%D2%TiRad
 
+#ifndef _NOOMP
         !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+#endif        
     doj: do j = JLB, JUB
     doi: do i = ILB, IUB
 
@@ -37129,8 +37159,10 @@ ic1:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
             endif Cov1
         enddo doi
         enddo doj
+#ifndef _NOOMP
         !$OMP END DO NOWAIT
         !$OMP END PARALLEL
+#endif        
         
         if (MonitorPerformance) then
             call StopWatch ("ModuleHydrodynamic", "WaterLevel_ExplicitForces")
@@ -37272,20 +37304,23 @@ ic1:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
             call StartWatch ("ModuleHydrodynamic", "WaterLevel_WaterFluxes")
         endif
         
+#ifndef _NOOMP
         !$ CHUNK = CHUNK_J(JLB, JUB)
         
         !$OMP PARALLEL PRIVATE( I, J, K, kbottom, iSouth, jWest,            &
         !$OMP                   AuxExplicit, DT_AUX, DT_AreaCell1,          &
         !$OMP                   DT_AreaCell2, AreaCell1, AreaCell2, Aux,    &
         !$OMP                   TiCoef_2D, TiRadCoef_2D, TiCoef_2D_Aux)
-        
+#endif        
         TiCoef_2D            => Me%Coef%D2%Ti
         
         TiCoef_2D_Aux        => Me%Coef%D2%Tiaux
 
         TiRadCoef_2D         => Me%Coef%D2%TiRad
 
+#ifndef _NOOMP
         !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+#endif        
     do1: do j = JLB, JUB
     do2: do i = ILB, IUB
 
@@ -37354,9 +37389,11 @@ ic1:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
             endif cd1
         enddo do2
         enddo do1
+#ifndef _NOOMP
         !$OMP END DO
         
         !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+#endif        
         ! Explicit direction 
     do4: do j = JLB, JUB
     do5: do i = ILB, IUB
@@ -37425,9 +37462,11 @@ ic2:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
 
         enddo do5
         enddo do4
+#ifndef _NOOMP
         !$OMP END DO NOWAIT
 
         !$OMP END PARALLEL
+#endif
         
         if (MonitorPerformance) then
             call StopWatch ("ModuleHydrodynamic", "WaterLevel_WaterFluxes")
