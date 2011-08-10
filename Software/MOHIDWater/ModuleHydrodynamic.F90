@@ -35048,7 +35048,7 @@ dok1:           do  k = Kbottom + 1, KUB
                     TiCoef_3D(i, j, k  )  = TiCoef_3D(i, j, k  ) + (1. - ImplicitVertAdvection) * &
                                             MomentumFlux * Me%Velocity%DT / V4(3)
 
-                    TiCoef_3D(i, j, k-1)  = TiCoef_3D(i, j, k-1) + (1. - ImplicitVertAdvection) * &
+                    TiCoef_3D(i, j, k-1)  = TiCoef_3D(i, j, k-1) - (1. - ImplicitVertAdvection) * &
                                             MomentumFlux * Me%Velocity%DT / V4(2)
 
                     DCoef_3D (i, j, k  )  = DCoef_3D (i, j, k  ) - ImplicitVertAdvection *  &
