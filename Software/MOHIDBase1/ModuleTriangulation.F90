@@ -4997,7 +4997,7 @@ end function nearnd
 
 cd1:    if (TriangulationID > 0) then
 
-            if (Me%InstanceID /= TriangulationID) then    
+            if ( .not. associated(Me) .or. TriangulationID /= Me%InstanceID) then    
             
                 nullify (Me)
                 

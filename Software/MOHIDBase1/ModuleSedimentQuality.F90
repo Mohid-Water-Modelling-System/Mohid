@@ -79,7 +79,7 @@ Module ModuleSedimentQuality
 
     public  ::      Construct_SQRateFlux
 
-     !Selector
+    !Selector
     public  :: GetDTSedimentQuality
     public  :: GetSQOptions
     public  :: GetSedimentQualitySize   

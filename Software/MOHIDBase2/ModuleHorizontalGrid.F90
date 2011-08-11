@@ -7965,7 +7965,7 @@ do1 :   do while(associated(FatherGrid))
 
 cd1:    if (ObjHorizontalGrid_ID > 0) then
 
-            if (Me%InstanceID /= ObjHorizontalGrid_ID) then    
+            if ( .not. associated(Me) .or. ObjHorizontalGrid_ID /= Me%InstanceID ) then    
             
                 nullify (Me)
                 

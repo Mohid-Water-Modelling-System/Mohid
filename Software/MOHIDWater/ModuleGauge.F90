@@ -3914,7 +3914,7 @@ if1 :   if (associated(FirstGauge)) then
 
 cd1:    if (ObjGauge_ID > 0) then
 
-            if (Me%InstanceID /= ObjGauge_ID) then    
+            if ( .not. associated(Me) .or. ObjGauge_ID /= Me%InstanceID) then    
             
                 nullify (Me)
                 
