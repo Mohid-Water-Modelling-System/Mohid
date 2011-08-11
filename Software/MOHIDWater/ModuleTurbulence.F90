@@ -2991,7 +2991,7 @@ cd1 :   if (ready_ == IDLE_ERR_)then
         integer                                         :: JLB, JUB
         integer                                         :: KLB, KUB
         integer                                         :: I, J, K, kbottom
-        integer                                         :: CHUNK
+        !$ integer                                         :: CHUNK
 
         !----------------------------------------------------------------------                         
 
@@ -3141,7 +3141,7 @@ cd3 :       if      (Me%TurbOptions%MODTURB .EQ. Constant_   .or.       &
 cd2 :       if (Me%TurbOptions%MODTURB .ne. Constant_ .and. &
                 Me%TurbOptions%MODTURB .ne. File2D_) then
 
-                CHUNK = CHUNK_J(JLB, JUB)
+                !$ CHUNK = CHUNK_J(JLB, JUB)
                 !$OMP PARALLEL SHARED(CHUNK) PRIVATE(I,J,K, kbottom)
 
                 !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
@@ -3470,7 +3470,7 @@ cd4 :       if     (Me%TurbOptions%MODVISH .EQ. Constant_   ) then
         integer :: KLB, KUB
 
         integer :: I, J, K, kbottom
-        integer                                         :: CHUNK
+        !$ integer                                         :: CHUNK
 
         !----------------------------------------------------------------------
 
@@ -3488,7 +3488,7 @@ cd4 :       if     (Me%TurbOptions%MODVISH .EQ. Constant_   ) then
 !        call Richardson
 
         if (MonitorPerformance) call StartWatch ("ModuleTurbulence", "LeendertseeModel")
-        CHUNK = CHUNK_J(JLB,JUB)
+        !$ CHUNK = CHUNK_J(JLB,JUB)
         !$OMP PARALLEL PRIVATE(I,J,Aux,Z_H,CMIST,VISC_V,K,kbottom)
 
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
@@ -3564,7 +3564,7 @@ do1 :           do K = kbottom, KUB+1
         integer :: KLB, KUB
 
         integer :: I, J, K, kbottom
-        integer                                         :: CHUNK
+        !$ integer                                         :: CHUNK
 
         !----------------------------------------------------------------------
 
@@ -3591,7 +3591,7 @@ do1 :           do K = kbottom, KUB+1
         !   but what's written must be taken into account!
 
         if (MonitorPerformance) call StartWatch ("ModuleTurbulence", "BackhausModel")
-        CHUNK = CHUNK_J(JLB,JUB)
+        !$ CHUNK = CHUNK_J(JLB,JUB)
         !$OMP PARALLEL PRIVATE(I,J,rich, K, kbottom)
         
 
@@ -3660,7 +3660,7 @@ do1 :           do K = kbottom, KUB+1
         integer :: KLB, KUB
 
         integer :: I, J, K, KBottom
-        integer                                         :: CHUNK
+        !$ integer :: CHUNK
         !----------------------------------------------------------------------
 
 
@@ -3674,7 +3674,7 @@ do1 :           do K = kbottom, KUB+1
         KUB = Me%WorkSize%KUB
 
         if (MonitorPerformance) call StartWatch ("ModuleTurbulence", "PacanowskiModel")
-        CHUNK = CHUNK_J(JLB,JUB)
+        !$ CHUNK = CHUNK_J(JLB,JUB)
         !$OMP PARALLEL PRIVATE(I,J,K,kbottom,RICH)
         
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
@@ -3735,7 +3735,7 @@ do1 :           do K = kbottom, KUB+1
         integer :: KLB, KUB
 
         integer :: I, J, K, kbottom
-        integer :: CHUNK
+        !$ integer :: CHUNK
 
         !----------------------------------------------------------------------
 
@@ -3752,7 +3752,7 @@ do1 :           do K = kbottom, KUB+1
         if (MonitorPerformance) &
             call StartWatch ("ModuleTurbulence", "NihoulModel")
 
-        CHUNK = CHUNK_J(JLB,JUB)
+        !$ CHUNK = CHUNK_J(JLB,JUB)
         !$OMP PARALLEL PRIVATE(I,J,Aux,Z_H,CMIST,VISC_V,K,kbottom)
 
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)

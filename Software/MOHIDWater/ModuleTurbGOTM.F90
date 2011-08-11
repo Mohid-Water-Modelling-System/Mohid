@@ -278,7 +278,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
             !Initializes the value of the parameters in the turbulence module GOTM
             call UnitsManager (GOTM_UNIT, OPEN_FILE)
-            !allocate(Me%ObjGotmParameters)
+            
             call init_turbulence_parameters(Me%ObjGotmParameters,                        &
                                             GOTM_UNIT, Me%Files%ConstructData,           &
                                             STAT=STAT_CALL)
@@ -356,8 +356,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         integer :: JLB, JUB
         integer :: KLB, KUB
         integer :: p
-        type(T_GOTM), pointer :: ptrObjGotm
-        type(T_GOTMParameters), pointer   :: ptrObjGotmParameters
+        type(T_GOTM), pointer :: ptrObjGotm => null()
         !----------------------------------------------------------------------
 
         ILB = Me%Size%ILB
@@ -374,23 +373,21 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         !$ Me%MaxThreads = omp_get_max_threads()
                 
         allocate(Me%ObjGotm(1:Me%MaxThreads))        
-        do p=1,Me%MaxThreads
 
-            !Create a memory duplicate of Me%ObjGOTMparameters for each thread
-            allocate(ptrObjGotmParameters)
-            call clear_turbulence_parameters(ptrObjGotmParameters) !griflet: optional, testing to see if it is relevant...
-            call copy_turbulence_parameters(ptrObjGotmParameters, Me%ObjGOTMparameters)
+        do p=1,Me%MaxThreads
 
             ! Allocates matrices for GOTM 1D column. 
             ! The local matrices in GOTM are allocated with the maximum numbers of layers, 
             ! although the computation limits are 0:nlev and nlev is different for every point.
             !Here 1D arrays of turbulent magnitudes(tke,eps,num,nuh,L) are allocated
             ptrObjGotm => Me%ObjGotm(p)
-            call init_turbulence(ptrObjGotm, ptrObjGotmParameters, KLB, KUB, STAT=STAT_CALL)
+            
+            call init_turbulence(ptrObjGotm, Me%ObjGOTMparameters, KLB, KUB, STAT=STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)  stop 'AllocateVariables - ModuleTurbGOTM - ERR01'
             
-            ptrObjGotm%Parameters => ptrObjGotmParameters
-            nullify(ptrObjGotmParameters)
+            ptrObjGotm%Parameters => Me%ObjGOTMparameters
+            
+            nullify(ptrObjGotm)
 
         enddo
         !griflet end
@@ -454,8 +451,6 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             call StartWatch ("ModuleTurbGOTM", "TurbGOTM")
 
 cd1 :   if (ready_ .EQ. IDLE_ERR_) then
-
-            !$ CHUNK = CHUNK_J(JLB,JUB)
 
             !Time Properties - Actualises CurrentTime
             call GetComputeCurrentTime(Me%ObjTime, Me%ExternalVar%Now, STAT = STAT_CALL)
@@ -528,14 +523,16 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
             !write(*,*) 'One iteration... griflet'
 
-            !$ CHUNK = CHUNK_J(JLB,JUB)
             ! We don't compute turbulence coefficients at the limits of the domain. 
-            !!$OMP PARALLEL &
-            !!$OMP PRIVATE(i,j,k,Kbottom,Depth, &
-            !!$OMP           u_taus,u_taub,z0b,z0s,nlev,dt, &
-            !!$OMP           LocalObjGOTM, &
-            !!$OMP           TID)
-            !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            !$OMP PARALLEL &
+            !$OMP PRIVATE(i,j,k,Kbottom,Depth, &
+            !$OMP           u_taus,u_taub,z0b,z0s,nlev, &
+            !$OMP           LocalObjGOTM, &
+            !$OMP           TID, CHUNK)
+
+            !$ CHUNK = CHUNK_J(JLB,JUB)            
+            
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
 doj :       do j = JLB+1, JUB-1
 doi :       do i = ILB+1, IUB-1
 
@@ -609,13 +606,11 @@ dok4 :              do k=Kbottom,KUB+1
 
             end do doi
             end do doj
-            !!$OMP END DO NOWAIT
-            !!$OMP END PARALLEL
+            !$OMP END DO
 
             !Values at open boundary points at the limits of the domain 
             ! are set to the values of the nearest interior point. Null_gradient
             i=IUB
-            !$OMP PARALLEL PRIVATE(j,k,Kbottom)
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
             do j=JLB,JUB
                 if(BoundaryPoints2D(i,j) == 1) then
@@ -626,11 +621,9 @@ dok4 :              do k=Kbottom,KUB+1
                     end do
                 end if
             end do
-            !$OMP END DO NOWAIT
-            !$OMP END PARALLEL
+            !$OMP END DO
 
             i=ILB
-            !$OMP PARALLEL PRIVATE(j,k,Kbottom)
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
             do j=JLB,JUB
                 if(BoundaryPoints2D(i,j) == 1) then
@@ -641,12 +634,10 @@ dok4 :              do k=Kbottom,KUB+1
                     end do 
                 end if 
             end do
-            !$OMP END DO NOWAIT
-            !$OMP END PARALLEL          
+            !$OMP END DO
 
             j=JUB
             !$ CHUNK = CHUNK_I(ILB,IUB)
-            !$OMP PARALLEL PRIVATE(i,k,Kbottom)            
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
             do i=ILB,IUB
                 if(BoundaryPoints2D(i,j) == 1) then
@@ -657,11 +648,9 @@ dok4 :              do k=Kbottom,KUB+1
                     end do 
                 end if 
             end do
-            !$OMP END DO NOWAIT
-            !$OMP END PARALLEL          
+            !$OMP END DO
 
             j=JLB
-            !$OMP PARALLEL PRIVATE(i,k,Kbottom)            
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
             do i=ILB,IUB
                 if(BoundaryPoints2D(i,j) == 1) then
@@ -672,7 +661,8 @@ dok4 :              do k=Kbottom,KUB+1
                     end do 
                 end if 
             end do
-            !$OMP END DO NOWAIT
+            !$OMP END DO
+
             !$OMP END PARALLEL          
 
             !WaterPoints3D
@@ -1591,11 +1581,11 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
         !Arguments-------------------------------------------------------------
         integer             :: p
         type(T_GOTM), pointer :: ptrObjGotm
-        
+
         !Begin-----------------------------------------------------------------
-     
+
         deallocate(Me%TKE       )
-        deallocate(Me%L         )    
+        deallocate(Me%L         )
         deallocate(Me%EPS       )
         deallocate(Me%NUM       )
         deallocate(Me%NUH       )
@@ -1606,14 +1596,14 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
         do p=1,Me%MaxThreads
             ptrObjGotm => Me%ObjGotm(p)
             call kill_turbulence(ptrObjGotm)
-            deallocate(ptrObjGotm%Parameters)
+            !deallocate(ptrObjGotm%Parameters)
             !deallocate(ptrObjGotm)
         enddo
+
         deallocate(Me%ObjGotm)
         deallocate(Me%ObjGotmParameters)
 
     end subroutine KillGotmMemory
-
 
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
