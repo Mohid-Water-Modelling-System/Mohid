@@ -4991,18 +4991,28 @@ end function nearnd
         !Arguments-------------------------------------------------------------
         integer                                     :: TriangulationID
         integer                                     :: ready_
-
         !----------------------------------------------------------------------
 
-        nullify (Me)
+        !Griflet: openmp safer
 
 cd1:    if (TriangulationID > 0) then
-            call LocateObjTriangulation (TriangulationID)
-            ready_ = VerifyReadLock (mTRIANGULATION_, Me%InstanceID)
-        else
-            ready_ = OFF_ERR_
-        end if cd1
 
+            if (Me%InstanceID /= TriangulationID) then    
+            
+                nullify (Me)
+                
+                call LocateObjTriangulation(TriangulationID)
+                           
+            endif
+                
+            ready_ = VerifyReadLock (mTRIANGULATION_, Me%InstanceID)
+                
+        else
+            
+            ready_ = OFF_ERR_
+                
+        end if cd1
+        
         !----------------------------------------------------------------------
 
     end subroutine Ready
@@ -5015,7 +5025,7 @@ cd1:    if (TriangulationID > 0) then
         integer                                     :: TriangulationID
 
         !Local-----------------------------------------------------------------
-
+           
         Me => FirstTriangulation
         do while (associated (Me))
             if (Me%InstanceID == TriangulationID) exit
@@ -5023,7 +5033,7 @@ cd1:    if (TriangulationID > 0) then
         enddo
 
         if (.not. associated(Me)) stop 'ModuleTriangulation - LocateObjTriangulation - ERR01'
-
+        
     end subroutine LocateObjTriangulation
 
     !--------------------------------------------------------------------------

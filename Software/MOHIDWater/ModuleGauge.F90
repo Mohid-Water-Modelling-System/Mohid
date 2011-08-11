@@ -1818,8 +1818,6 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
 if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
             (ready_ .EQ. READ_LOCK_ERR_)) then
 
-
-
             PresentGauge => Me%FirstGauge
 
             Found = .false.
@@ -3911,16 +3909,27 @@ if1 :   if (associated(FirstGauge)) then
         integer                                     :: ready_
 
         !----------------------------------------------------------------------
-
-        nullify (Me)
+        
+        !Griflet: openmp safer
 
 cd1:    if (ObjGauge_ID > 0) then
-            call LocateObjGauge(ObjGauge_ID)
-            ready_ = VerifyReadLock (mGAUGE_,  Me%InstanceID)
-        else
-            ready_ = OFF_ERR_
-        end if cd1
 
+            if (Me%InstanceID /= ObjGauge_ID) then    
+            
+                nullify (Me)
+                
+                call LocateObjGauge(ObjGauge_ID)
+                
+            endif
+                
+            ready_ = VerifyReadLock (mGAUGE_, Me%InstanceID)
+                
+        else
+            
+            ready_ = OFF_ERR_
+                
+        end if cd1
+        
         !----------------------------------------------------------------------
 
     end subroutine Ready
@@ -3941,7 +3950,7 @@ cd1:    if (ObjGauge_ID > 0) then
         enddo
 
         if (.not. associated(Me)) stop 'ModuleGauge - LocateObjGauge - ERR01'
-
+        
     end subroutine LocateObjGauge
 
     !--------------------------------------------------------------------------

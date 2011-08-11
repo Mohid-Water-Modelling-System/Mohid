@@ -851,7 +851,7 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
                                                AuxMetricX  , AuxMetricY,                 &
                                                AuxVelocityU, AuxVelocityV 
         logical                             :: FoundBound 
-        integer                             :: CHUNK  
+        !$ integer                             :: CHUNK  
 
         !----------------------------------------------------------------------                         
 
@@ -861,6 +861,8 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
 
 cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
+            !$ CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+                    
             Me%OldImposedElevation = Me%ImposedElevation
             
             Me%ImposedElevation(:,:) = 0.
@@ -909,8 +911,6 @@ cd2:        if (Me%Compute_Tide) then
 
                 !If there are less then three gauges, only the first is considered
 cd3:            if (NGauges < 3) then
-
-                    CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
                     
                     !$OMP PARALLEL PRIVATE(i,j)
                     !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
@@ -990,7 +990,6 @@ cd5:                if (NOpen < NGauges .and. Me%TriangGaugesON) then
                         call KillTriangulation(Me%ObjTriangulation, STAT = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_) stop 'Modify_OpenBoundary - ModuleOpenBoundary - ERR08'
 
-
                         call ConstructTriangulation(Me%ObjTriangulation,                 &
                                                     NOpen,                               &
                                                     AuxMetricX, AuxMetricY,              &
@@ -1000,9 +999,20 @@ cd5:                if (NOpen < NGauges .and. Me%TriangGaugesON) then
                         endif
 
                     endif cd5
-
+                    
+                    if (Me%TriangGaugesON) then
+                    
+                        call SetHeightValues (Me%ObjTriangulation,  &
+                                              AuxElevation,                      &
+                                              STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'Modify_OpenBoundary - ModuleOpenBoundary - ERR11'
+                                    
+                    endif
                   
                     !Interpolates Elevation at the boundary points
+
+                    !$OMP PARALLEL PRIVATE( i,j,FoundBound,PX,PY,WaterLevel,STAT_CALL)
+                    !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
                     do j = Me%WorkSize%JLB, Me%WorkSize%JUB
                     do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
@@ -1024,24 +1034,27 @@ cd6:                    if (FoundBound) then
                             PX = CoordX(i,j)
                             PY = CoordY(i,j)
 
+                            STAT_CALL = UNKNOWN_
+                            
                             call GetIJWaterLevel(Me%ObjGauge, Me%ObjHorizontalGrid, i, j, WaterLevel, STAT = STAT_CALL)
-                            if (STAT_CALL /= SUCCESS_ .and. STAT_CALL /= NOT_FOUND_ERR_) &
+                            if (STAT_CALL /= SUCCESS_ .and. STAT_CALL /= NOT_FOUND_ERR_) then
+                                write(*,*) ' STAT_CALL is ', STAT_CALL
                                 stop 'Modify_OpenBoundary - ModuleOpenBoundary - ERR10'
+                            endif
 
-cd23:                       if (STAT_CALL == NOT_FOUND_ERR_) then  
+cd23:                       if (STAT_CALL == NOT_FOUND_ERR_) then
 
                                 if (Me%TriangGaugesON) then
 
-                                    call SetHeightValues (Me%ObjTriangulation,  &
-                                                          AuxElevation,                      &
-                                                          STAT = STAT_CALL)
-                                    if (STAT_CALL /= SUCCESS_) stop 'Modify_OpenBoundary - ModuleOpenBoundary - ERR11'
-
+                                    STAT_CALL = UNKNOWN_
 
                                     WaterLevel = InterPolation(Me%ObjTriangulation,  &
                                                                PX, PY, FillOutsidePoints=.true., &
                                                                STAT = STAT_CALL)
-                                    if (STAT_CALL /= SUCCESS_) stop 'Modify_OpenBoundary - ModuleOpenBoundary - ERR12'
+                                    if (STAT_CALL /= SUCCESS_) then
+                                        write(*,*) ' STAT_CALL is ', STAT_CALL
+                                        stop 'Modify_OpenBoundary - ModuleOpenBoundary - ERR12'
+                                    endif
 
                                 else
                                     write(*,*) 'Triangulation is OFF'
@@ -1051,22 +1064,68 @@ cd23:                       if (STAT_CALL == NOT_FOUND_ERR_) then
 
                             endif cd23
 
-                            call GetIJReferenceLevel(Me%ObjGauge, Me%ObjHorizontalGrid, i, j, RefLevel, STAT = STAT_CALL)
-                            if (STAT_CALL /= SUCCESS_ .and. STAT_CALL /= NOT_FOUND_ERR_) &
-                                stop 'Modify_OpenBoundary - ModuleOpenBoundary - ERR13'
+                            !Interpolation
+                            Me%ImposedElevation(i, j) = WaterLevel * Coef
 
-cd24:                       if (STAT_CALL == NOT_FOUND_ERR_) then                               
+                        endif cd6
+
+                    enddo
+                    enddo
+                    !$OMP END DO NOWAIT
+                    !$OMP END PARALLEL
+
+                    if (Me%TriangGaugesON) then
+
+                        call SetHeightValues (  Me%ObjTriangulation,        &
+                                                AuxRefLevel,                &
+                                                STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'Modify_OpenBoundary - ModuleOpenBoundary - ERR14'
+
+                    endif
+
+                    !$OMP PARALLEL PRIVATE(i,j,FoundBound,PX,PY,RefLevel,STAT_CALL)
+                    !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+                    do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+                    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+
+                        FoundBound = .false.
+
+                        if (Me%TriangGaugesON) then
+                            if (BoundaryFacesU2D(i  , j  ) == Boundary .or.             &
+                                BoundaryFacesU2D(i  , j+1) == Boundary .or.             &
+                                BoundaryFacesV2D(i  , j  ) == Boundary .or.             &
+                                BoundaryFacesV2D(i+1, j  ) == Boundary) FoundBound = .true.
+
+                        else
+                            if (BoundaryPoints2D(i, j) == Boundary) FoundBound = .true.
+                        endif
+                        
+                        if (FoundBound) then
+
+                            !Points where to interpolate
+                            PX = CoordX(i,j)
+                            PY = CoordY(i,j)
+
+                            STAT_CALL = UNKNOWN_
+                            
+                            call GetIJReferenceLevel(Me%ObjGauge, Me%ObjHorizontalGrid, i, j, RefLevel, STAT = STAT_CALL)
+                            if (STAT_CALL /= SUCCESS_ .and. STAT_CALL /= NOT_FOUND_ERR_) then                                
+                                 write(*,*) 'STAT_CALL is ', STAT_CALL
+                                stop 'Modify_OpenBoundary - ModuleOpenBoundary - ERR13'
+                            endif
+
+                          if (STAT_CALL == NOT_FOUND_ERR_) then                               
 
                                 if (Me%TriangGaugesON) then
 
-                                    call SetHeightValues (Me%ObjTriangulation,  &
-                                                          AuxRefLevel,                      &
-                                                          STAT = STAT_CALL)
-                                    if (STAT_CALL /= SUCCESS_) stop 'Modify_OpenBoundary - ModuleOpenBoundary - ERR14'
+                                    STAT_CALL = UNKNOWN_
 
                                     RefLevel = InterPolation(Me%ObjTriangulation, &
                                                              PX, PY, FillOutsidePoints=.true., STAT = STAT_CALL)
-                                    if (STAT_CALL /= SUCCESS_) stop 'Modify_OpenBoundary - ModuleOpenBoundary - ERR15'
+                                    if (STAT_CALL /= SUCCESS_) then
+                                        write(*,*) 'STAT_CALL is ', STAT_CALL
+                                        stop 'Modify_OpenBoundary - ModuleOpenBoundary - ERR15'
+                                    endif
                                     
                                 else
                                     write(*,*) 'Triangulation is OFF'
@@ -1074,20 +1133,21 @@ cd24:                       if (STAT_CALL == NOT_FOUND_ERR_) then
                                     stop 'Modify_OpenBoundary - ModuleOpenBoundary - ERR80'
                                 endif                                
 
-                            endif cd24
+                            endif
 
                             !Interpolation
-                            Me%ImposedElevation(i, j) = WaterLevel * Coef + &
-                                                                     RefLevel   
-                               
+                            Me%ImposedElevation(i, j) = Me%ImposedElevation(i, j) + RefLevel
 
-                        else cd6
+                        else
 
                             Me%ImposedElevation(i, j) = 0.
 
-                        endif cd6
+                        endif
+                        
                     enddo
                     enddo
+                    !$OMP END DO NOWAIT                    
+                    !$OMP END PARALLEL
 
                     deallocate (AuxElevation) 
                     deallocate (AuxRefLevel ) 
@@ -1096,23 +1156,19 @@ cd24:                       if (STAT_CALL == NOT_FOUND_ERR_) then
                     deallocate (AuxVelocityU) 
                     deallocate (AuxVelocityV) 
 
-
                     !Ungets CoordX and CoordY
                     call UnGetHorizontalGrid(Me%ObjHorizontalGrid, CoordX, stat = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'Modify_OpenBoundary - ModuleOpenBoundary - ERR16'
 
                     call UnGetHorizontalGrid(Me%ObjHorizontalGrid, CoordY, stat = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'Modify_OpenBoundary - ModuleOpenBoundary - ERR17'
-                     
+
                 endif cd3
             
             endif cd2
 
-
             Counter = 0.
             SumX    = 0.
-
-            CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB) 
 
             !$OMP PARALLEL PRIVATE(i,j,FoundBound)
             !$OMP DO SCHEDULE(DYNAMIC,CHUNK) REDUCTION(+:Counter)
@@ -1201,6 +1257,8 @@ cd24:                       if (STAT_CALL == NOT_FOUND_ERR_) then
         integer,   dimension(:,:), pointer      :: BoundaryFacesU2D, BoundaryFacesV2D
         
         integer                                 :: i, j, STAT_CALL
+        
+        !$ integer                              :: CHUNK
 
         !----------------------------------------------------------------------                         
 
@@ -1208,8 +1266,11 @@ cd24:                       if (STAT_CALL == NOT_FOUND_ERR_) then
                                                    BoundaryFacesV = BoundaryFacesV2D, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ImposeInvertBarometer - ModuleOpenBoundary - ERR10'
 
+        !$ CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
 
-        
+        !$OMP PARALLEL PRIVATE(i,j)
+
+        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
         do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
@@ -1230,7 +1291,9 @@ cd24:                       if (STAT_CALL == NOT_FOUND_ERR_) then
 
         enddo
         enddo
-            
+        !$OMP END DO
+
+        !$OMP END PARALLEL
 
         call UnGetHorizontalMap(Me%ObjHorizontalMap, BoundaryFacesU2D, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ImposeInvertBarometer - ModuleOpenBoundary - ERR20'

@@ -4640,6 +4640,7 @@ cd3 :       if (present(SurfaceMM5)) then
         !Local-------------------------------------------------------------------
         real,   dimension(:,:), pointer             :: XX2D, YY2D
         real,   dimension(:  ), pointer             :: XX1D, YY1D
+        real,   dimension(:  ), pointer             :: XX1D_Aux, YY1D_Aux
         integer                                     :: STAT_             
         integer                                     :: ready_              
         real                                        :: XPoint2, YPoint2, Xorig2, Yorig2
@@ -4676,6 +4677,9 @@ i1:     if ((ready_ == IDLE_ERR_     ) .OR.                                     
 
             XX1D        => Me%Compute%XX_Cross 
             YY1D        => Me%Compute%YY_Cross 
+            
+            allocate(XX1D_Aux(JLB:JUB))
+            allocate(YY1D_Aux(ILB:IUB))
 
             if (Referential_ == Cartesian_) then  
 
@@ -4740,8 +4744,8 @@ i2:         if (GetGridBorderType == ComplexPolygon_) then
 
                 if (GetGridBorderType == Rectang_ .or. Referential_ == AlongGrid_) then
 
-                    Me%XX1D_Aux(JLB:JUB) = XX2D(ILB+1  ,JLB:JUB)
-                    Me%YY1D_Aux(ILB:IUB) = YY2D(ILB:IUB,JLB+1  )
+                    XX1D_Aux(JLB:JUB) = XX2D(ILB+1  ,JLB:JUB)
+                    YY1D_Aux(ILB:IUB) = YY2D(ILB:IUB,JLB+1  )
 
                 else
 
@@ -4753,13 +4757,13 @@ i2:         if (GetGridBorderType == ComplexPolygon_) then
 
                     call RODAXY(0., 0., -Me%Grid_Angle, XPoint2, YPoint2) 
 
-                    Me%XX1D_Aux(JLB+1:JUB) = Me%XX(JLB+1:JUB)
-                    Me%YY1D_Aux(ILB+1:IUB) = Me%YY(ILB+1:IUB)
+                    XX1D_Aux(JLB+1:JUB) = Me%XX(JLB+1:JUB)
+                    YY1D_Aux(ILB+1:IUB) = Me%YY(ILB+1:IUB)
 
                 endif
                 
-                call LocateCell (Me%XX1D_Aux,                                           &
-                                 Me%YY1D_Aux,                                           &
+                call LocateCell (XX1D_Aux,                                           &
+                                 YY1D_Aux,                                           &
                                  XPoint2, YPoint2,                                      &
                                  Me%WorkSize%ILB, Me%WorkSize%IUB + 1,                  &
                                  Me%WorkSize%JLB, Me%WorkSize%JUB + 1,                  &
@@ -4769,7 +4773,7 @@ i2:         if (GetGridBorderType == ComplexPolygon_) then
                     if (I < 0) then
                         STAT_ = OUT_OF_BOUNDS_ERR_
                     else
-                        PercI  = (YPoint2 - Me%YY1D_Aux(I)) / (Me%YY1D_Aux(I+1) - Me%YY1D_Aux(I))
+                        PercI  = (YPoint2 - YY1D_Aux(I)) / (YY1D_Aux(I+1) - YY1D_Aux(I))
                     endif
                 endif
                 
@@ -4777,11 +4781,17 @@ i2:         if (GetGridBorderType == ComplexPolygon_) then
                     if (J < 0) then
                         STAT_ = OUT_OF_BOUNDS_ERR_
                     else
-                        PercJ  = (XPoint2 - Me%XX1D_Aux(J)) / (Me%XX1D_Aux(J+1) - Me%XX1D_Aux(J))
+                        PercJ  = (XPoint2 - XX1D_Aux(J)) / (XX1D_Aux(J+1) - XX1D_Aux(J))
                     endif
                 endif
 
             endif i2
+            
+            deallocate(XX1D_Aux)
+            deallocate(YY1D_Aux)
+           
+            nullify(XX1D_Aux)
+            nullify(YY1D_Aux)
            
             nullify(XX2D)
             nullify(YY2D)
@@ -4789,7 +4799,9 @@ i2:         if (GetGridBorderType == ComplexPolygon_) then
             if (STAT_ == UNKNOWN_) STAT_ = SUCCESS_
             
         else    i1
+        
             STAT_ = ready_
+            
         end if  i1
 
         if (present(STAT)) STAT = STAT_
@@ -7949,16 +7961,26 @@ do1 :   do while(associated(FatherGrid))
 
         !----------------------------------------------------------------------
 
-        nullify (Me)
+        !Griflet: openmp safer
 
 cd1:    if (ObjHorizontalGrid_ID > 0) then
-            call LocateObjHorizontalGrid(ObjHorizontalGrid_ID)
+
+            if (Me%InstanceID /= ObjHorizontalGrid_ID) then    
+            
+                nullify (Me)
+                
+                call LocateObjHorizontalGrid(ObjHorizontalGrid_ID)
+                
+            endif
+                
             ready_ = VerifyReadLock (mHORIZONTALGRID_, Me%InstanceID)
+                
         else
+            
             ready_ = OFF_ERR_
+                
         end if cd1
-    
-     
+        
         !----------------------------------------------------------------------
 
     end subroutine Ready
@@ -7979,7 +8001,7 @@ cd1:    if (ObjHorizontalGrid_ID > 0) then
         enddo
 
         if (.not. associated(Me)) stop 'HorizontalGrid - LocateObjHorizontalGrid - ERR01'
-
+        
     end subroutine LocateObjHorizontalGrid
 
     !--------------------------------------------------------------------------
