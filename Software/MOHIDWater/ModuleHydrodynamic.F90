@@ -22546,18 +22546,18 @@ cd3:            if   (BoundaryPoints(i, JLB) == Boundary .and. BoundaryPoints(i,
     End Subroutine WaterLevel_CyclicBoundary
 
 
-    subroutine CyclicCoef2D ( TiCoef_2D, AuxExplicit, DT_AreaCell1,                      &
+    subroutine CyclicCoef2D ( TiCoef_2D, TiCoef_2D_Aux, AuxExplicit, DT_AreaCell1,                      &
                              DT_AreaCell2, I, J, iSouth, jWest,                          &
-                             Dcoef_2D, ECoef_2D, FCoef_2D, AuxImplicit, Direction)
+                             Dcoef_2D, ECoef_2D, ECoef_2D_Aux, FCoef_2D, AuxImplicit, Direction)
 
         !Arguments------------------------------------------------------------
-        real,    dimension(:,:),             pointer  :: TiCoef_2D
+        real,    dimension(:,:),             pointer  :: TiCoef_2D, TiCoef_2D_Aux
         real   , intent (IN)                          :: AuxExplicit,                    &
                                                          DT_AreaCell1, DT_AreaCell2
         integer, intent (IN)                          :: I, J, iSouth, jWest
 
 
-        real(8), dimension(:,:),   optional, pointer  :: ECoef_2D
+        real(8), dimension(:,:),   optional, pointer  :: ECoef_2D, ECoef_2D_Aux
         real,    dimension(:,:),   optional, pointer  :: DCoef_2D, FCoef_2D 
         real   , intent (IN),      optional           :: AuxImplicit
         integer, intent (IN),      optional           :: Direction
@@ -22650,10 +22650,10 @@ ibx:        if   (BoundaryPoints(i, JLB) == Boundary .and. BoundaryPoints(i, JUB
         
             ![ ]                   = [ ]         + [m^2/s] * [s/m^2]
             if (present(ECoef_2D))                                                       &
-                ECoef_2D (I,J)        = ECoef_2D(I,J)  + AuxImplicit * DT_AreaCell2
+                ECoef_2D_Aux (I,J)        = AuxImplicit * DT_AreaCell2
 
             ![m]                   = [m]         + [m^3/s] * [s/m^2] 
-            TiCoef_2D(I,J)            = TiCoef_2D(I,J) + AuxExplicit * DT_AreaCell2
+            TiCoef_2D_Aux(I,J)        = AuxExplicit * DT_AreaCell2
 
             !Compute the coeficients of linear system equations for the iSouth, jWest Z cell
 
@@ -36213,16 +36213,16 @@ ic1:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
                                                 Me%CyclicBoundary%Direction == DirectionXY_))  then
 
 
-                    call CyclicCoef2D ( TiCoef_2D,                                       &
+                    call CyclicCoef2D ( TiCoef_2D, TiCoef_2D_Aux,                        &
                                        AuxExplicit, DT_AreaCell1,                        &
                                        DT_AreaCell2, I, J, iSouth, jWest,                &
-                                       Dcoef_2D, ECoef_2D, FCoef_2D, AuxImplicit)
+                                       Dcoef_2D, ECoef_2D, ECoef_2D_Aux, FCoef_2D, AuxImplicit)
 
                 else ic1
 
                     ![ ]                      = [ ]                    +  [m^2/s]    * [s/m^2]
                     DCoef_2D(I, J)            = DCoef_2D(I, J)         - AuxImplicit * DT_AreaCell2 
-                
+
                     ![ ]                      = [ ]                    +  [m^2/s]    * [s/m^2]
                     ECoef_2D_Aux(I, J)        = ECoef_2D_Aux(I, J)     + AuxImplicit * DT_AreaCell2 
 
@@ -36231,7 +36231,7 @@ ic1:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
 
                     ![ ]                      = [ ]                    +  [m^2/s]    * [s/m^2]
                     ECoef_2D(iSouth, jWest) = ECoef_2D(iSouth, jWest)  + AuxImplicit * DT_AreaCell1 
-           
+
                     ![m]                      = [m]                    + [m^3/s] * [s/m^2]
                     TiCoef_2D_Aux(I, J)       = TiCoef_2D_Aux(I, J)    + AuxExplicit * DT_AreaCell2 
 
@@ -36643,10 +36643,10 @@ ic1:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
 ic1:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == Me%Direction%XY .or. &
                                                 Me%CyclicBoundary%Direction == DirectionXY_)) then
 
-                    call CyclicCoef2D ( TiCoef_2D,                                       &
+                    call CyclicCoef2D ( TiCoef_2D, TiCoef_2D_Aux,                        &
                                        AuxExplicit, DT_AreaCell1,                        &
                                        DT_AreaCell2, I, J, iSouth, jWest,                &
-                                       Dcoef_2D, ECoef_2D, FCoef_2D, AuxImplicit)
+                                       Dcoef_2D, ECoef_2D, ECoef_2D_Aux, FCoef_2D, AuxImplicit)
 
                 else ic1
 
@@ -37124,7 +37124,7 @@ ic1:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
                                                 Me%CyclicBoundary%Direction == DirectionXY_)) then
 
 
-                    call CyclicCoef2D ( TiCoef_2D,                                       &
+                    call CyclicCoef2D ( TiCoef_2D, TiCoef_2D_Aux,                        &
                                        AuxExplicit, DT_AreaCell1,                        &
                                        DT_AreaCell2, I, J, iSouth, jWest)
                 else ic1
@@ -37353,7 +37353,7 @@ ic1:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
                                                 Me%CyclicBoundary%Direction == DirectionXY_)) then
 
 
-                    call CyclicCoef2D (TiCoef_2D,                                        &
+                    call CyclicCoef2D (TiCoef_2D,  TiCoef_2D_Aux,                        &
                                        AuxExplicit, DT_AreaCell1,                        &
                                        DT_AreaCell2, I, J, iSouth, jWest)
                 else ic1
@@ -37431,7 +37431,7 @@ ic2:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
                                                 Me%CyclicBoundary%Direction == DirectionXY_)) then
 
 
-                    call CyclicCoef2D (TiCoef_2D,                                        &
+                    call CyclicCoef2D (TiCoef_2D, TiCoef_2D_Aux,                         &
                                        AuxExplicit, DT_AreaCell1,                        &
                                        DT_AreaCell2, I, J, iSouth, jWest, Direction = Me%Direction%YX)
                 else ic2
