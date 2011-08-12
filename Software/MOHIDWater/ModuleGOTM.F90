@@ -426,7 +426,7 @@
      if (STAT_CALL .NE. SUCCESS_)                                       &
                 stop 'Subroutine init_turbulence_parameters; Module ModuleGOTM. Allocation of OBJGOTMParameters.'
      
-     write(0,*) '   ', '<'
+     write(0,*) '   ', 'init_turbulence'
 
      open(namlst,file=fn,status='old',action='read',err=80)
      write(0,*) '       ', 'reading turbulence namelists..'
