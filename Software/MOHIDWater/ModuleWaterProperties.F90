@@ -13237,6 +13237,22 @@ dn:         do n=1, nCells
                                 endif
 
                                 PropertyX%DischConc(AuxCell) = DischargeConc
+                                                              
+                                if (Me%Coupled%DischargesTracking%Yes) then
+
+                                    nProperties = nProperties + 1
+                                    
+                                    if (nCells > 1) then
+                                    
+                                        Databuffer(nProperties) = DischargeConc * DistributionCoef(n)
+                                        
+                                    else
+                                    
+                                        Databuffer(nProperties) = DischargeConc
+                                        
+                                    endif 
+                                    
+                                endif
 
                             endif i2
 
