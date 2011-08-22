@@ -2,11 +2,13 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using Oatc.OpenMI.Sdk.Spatial;
 using Oatc.OpenMI.Sdk.Wrapper;
 using Oatc.OpenMI.Sdk.Backbone;
 using Oatc.OpenMI.Sdk.DevelopmentSupport;
 using OpenMI.Standard;
 using System.Collections;
+using ValueType = OpenMI.Standard.ValueType;
 
 namespace MOHID.OpenMI.MohidWater.Wrapper
 {
@@ -16,8 +18,8 @@ namespace MOHID.OpenMI.MohidWater.Wrapper
         #region Fields
 
         private MohidWaterEngineDotNetAccess MohidWaterEngine;
-        private ArrayList inputExchangeItems;
-        private ArrayList outputExchangeItems;
+        private IList<InputExchangeItem> inputExchangeItems;
+        private IList<OutputExchangeItem> outputExchangeItems;
 
         //TODO: Check how we can the correct instance IDs from the MOHID models. Implement a selector in the main, which receives the model ID?
         private int dischargeInstanceID = 1;
@@ -25,6 +27,15 @@ namespace MOHID.OpenMI.MohidWater.Wrapper
         private int horizontalMapInstanceID = 1;
         private int hydrodynamicInstanceID = 1;
         private int waterPropertiesInstanceID = 1;
+
+        private Quantity qtdDischargeFlow;      //Flow at select discharge points   -> input
+        private Quantity qtdWaterLevel;         //Waterlevel at grid points         -> output
+
+        private IList<Quantity> qtdProperties = new List<Quantity>();
+
+        private int numberOfWaterPoints;
+
+        private double[] modelGridValues1D;
 
 
         #endregion
@@ -34,104 +45,132 @@ namespace MOHID.OpenMI.MohidWater.Wrapper
         public void Initialize(System.Collections.Hashtable properties)
         {
             //List of exchange Items
-            inputExchangeItems = new ArrayList();
-            outputExchangeItems = new ArrayList();
+            inputExchangeItems = new List<InputExchangeItem>();
+            outputExchangeItems = new List<OutputExchangeItem>();
 
             //Initializes Engine
             MohidWaterEngine = new MohidWaterEngineDotNetAccess();
             MohidWaterEngine.Initialize(properties["FilePath"].ToString());
 
+            //
+            //Dimensions
+            //
+            Dimension dimFlow = new Dimension();
+            dimFlow.SetPower(DimensionBase.Length, 3);
+            dimFlow.SetPower(DimensionBase.Time, -1);
 
-            // -- Build exchange items ---
-            Dimension flowDimension = new Dimension();
-            Unit flowUnit = new Unit("m3/sec", 1, 0, "m3/sec");
-            Quantity flowQuantity = new Quantity(flowUnit, "description", "Flow", global::OpenMI.Standard.ValueType.Scalar, flowDimension);
+            Dimension dimWaterlevel = new Dimension();
+            dimWaterlevel.SetPower(DimensionBase.Length, 1);
 
-            Dimension waterlevelDimension = new Dimension();
-            Unit waterlevelUnit = new Unit("m", 1, 0, "m");
-            Quantity waterLevelQuantity = new Quantity(waterlevelUnit, "description", "Water Level", global::OpenMI.Standard.ValueType.Scalar, waterlevelDimension);
+            Dimension dimConcentration = new Dimension();
+            dimConcentration.SetPower(DimensionBase.Mass, 1);
+            dimConcentration.SetPower(DimensionBase.Length, -3);
 
-            SpatialReference spatialRef = new SpatialReference("ref");
+            //
+            //Units
+            //
+            Unit unitFlow = new Unit("m3/sec", 1, 0, "cubic meter per second");
+            Unit unitWaterLevel = new Unit("m", 1, 0, "sea water level");
+            Unit unitConcentration = new Unit("mg/l", 1, 0, "miligram per liter");
 
+            //
+            //Quantities
+            //
+            qtdDischargeFlow = new Quantity(unitFlow, "Input Discharge Flow", "Discharge Flow",
+                                            global::OpenMI.Standard.ValueType.Scalar, dimFlow);
+            qtdWaterLevel = new Quantity(unitWaterLevel, "Waterlevel of the water surface", "Waterlevel",
+                                         global::OpenMI.Standard.ValueType.Scalar, dimWaterlevel);
 
-            //////Output exchange items - water level in each grid cell
-            //for (int i = 1; i <= MohidWaterEngine.GetIUB(horizontalGridInstanceID); i++)
-            //{
-            //    for (int j = 1; j <= MohidWaterEngine.GetJUB(horizontalGridInstanceID); j++)
-            //    {
-            //        if (MohidWaterEngine.IsWaterPoint(horizontalGridInstanceID, i, j))
-            //        {
+            //
+            //Spatial Reference
+            //
+            SpatialReference spatialReference = new SpatialReference("spatial reference");
 
-            //            //String name = "i=" + i.ToString() + "/j=" + j.ToString();
+            //
+            //Element Sets
+            //
 
-            //            //ElementSet waterLevelPoint = new ElementSet("Grid Cell of MOHID Water", name, ElementType.IDBased, spatialRef);
-            //            //Element element = new Element(name);
-            //            //element.AddVertex(new Vertex(MohidWaterEngine.GetCenterXCoordinate(horizontalGridInstanceID, i, j), MohidWaterEngine.GetCenterYCoordinate(horizontalGridInstanceID, i, j), 0));
-            //            //waterLevelPoint.AddElement(element);
-
-            //            //OutputExchangeItem waterLevel = new OutputExchangeItem();
-            //            //waterLevel.Quantity = waterLevelQuantity;
-            //            //waterLevel.ElementSet = waterLevelPoint;
-
-            //            //outputExchangeItems.Add(waterLevel);
-
-            //        }
-            //    }
-            //}
+            //Model Grid
+            ElementSet modelGrid = new ElementSet("Model Grid Points of all Compute Points", "Model Grid",
+                                                  ElementType.XYPolygon, spatialReference);
 
             //Output exchange items - properties in each grid cell (surface only)
+            numberOfWaterPoints = 0;
             for (int i = 1; i <= MohidWaterEngine.GetIUB(horizontalGridInstanceID); i++)
             {
                 for (int j = 1; j <= MohidWaterEngine.GetJUB(horizontalGridInstanceID); j++)
                 {
                     if (MohidWaterEngine.IsWaterPoint(horizontalMapInstanceID, i, j))
                     {
-
                         String name = "i=" + i.ToString() + "/j=" + j.ToString();
 
-                        ElementSet waterLevelPoint = new ElementSet("Grid Cell of MOHID Water", name, ElementType.IDBased, spatialRef);
+                        double[] xCoords = new double[5];
+                        double[] yCoords = new double[5];
+                        MohidWaterEngine.GetGridCellCoordinates(horizontalGridInstanceID, i, j, ref xCoords, ref yCoords);
+
                         Element element = new Element(name);
-                        element.AddVertex(new Vertex(MohidWaterEngine.GetCenterXCoordinate(horizontalGridInstanceID, i, j), MohidWaterEngine.GetCenterYCoordinate(horizontalGridInstanceID, i, j), 0));
-                        waterLevelPoint.AddElement(element);
+                        element.AddVertex(new Vertex(xCoords[0], yCoords[0], 0));
+                        element.AddVertex(new Vertex(xCoords[1], yCoords[1], 0));
+                        element.AddVertex(new Vertex(xCoords[2], yCoords[2], 0));
+                        element.AddVertex(new Vertex(xCoords[3], yCoords[3], 0));
 
-                        OutputExchangeItem waterLevel = new OutputExchangeItem();
-                        waterLevel.Quantity = waterLevelQuantity;
-                        waterLevel.ElementSet = waterLevelPoint;
+                        modelGrid.AddElement(element);
 
-                        outputExchangeItems.Add(waterLevel);
-
-                        for (int idx = 1; idx <= MohidWaterEngine.GetNumberOfProperties(waterPropertiesInstanceID); idx++)
-                        {
-
-                            int propertyID = MohidWaterEngine.GetPropertyIDNumber(waterPropertiesInstanceID, idx);
-                            string propertyName = MohidWaterEngine.GetPropertyNameByIDNumber(propertyID);
-
-                            Dimension concentrationDimension = new Dimension();
-                            Unit concentrationUnit = new Unit("mg/l", 1, 0, "mg/l");
-                            Quantity concentrationQuantity = new Quantity(concentrationUnit, propertyName, propertyID.ToString(), global::OpenMI.Standard.ValueType.Scalar, concentrationDimension);
-
-                            OutputExchangeItem concExchangeItem = new OutputExchangeItem();
-                            concExchangeItem.Quantity = concentrationQuantity;
-                            concExchangeItem.ElementSet = waterLevelPoint;
-
-                            outputExchangeItems.Add(concExchangeItem);
-
-                        }
-
-
-                        //DataOperation op = new DataOperation();
-                        //op.AddArgument(new Argument("VerticalShift", "2.00", true, "Define numerical value (negative is towards earth centre)"));
-                        //waterLevel.AddDataOperation(op);
-
-
-
+                        numberOfWaterPoints++;
 
                     }
                 }
             }
 
+            //allocates waterlevels1D
+            modelGridValues1D = new double[numberOfWaterPoints];
+
+            //Discharge Points
+            ElementSet dischargePoints = new ElementSet("Discharge Points", "Discharge Points", ElementType.XYPoint,
+                                                        spatialReference);
+
+            //Flow input exchange to discharges configured as OpenMI Discharges
+            for (int i = 1; i <= MohidWaterEngine.GetNumberOfDischarges(dischargeInstanceID); i++)
+            {
+                if (MohidWaterEngine.GetDischargeType(dischargeInstanceID, i) == 4)
+                {
+                    Element dischargeElement = new Element(MohidWaterEngine.GetDischargeName(dischargeInstanceID, i));
+                    dischargeElement.AddVertex(
+                        new Vertex(MohidWaterEngine.GetDischargeXCoordinate(dischargeInstanceID, i),
+                                   MohidWaterEngine.GetDischargeYCoordinate(dischargeInstanceID, i), 0));
+                    dischargePoints.AddElement(dischargeElement);
+                }
+            }
+
+            //
+            //Output Exchange Items
+            //
+
+            //Water Level of the Hydrodynamic model
+            OutputExchangeItem waterlevel = new OutputExchangeItem();
+            waterlevel.Quantity = qtdWaterLevel;
+            waterlevel.ElementSet = modelGrid;
+            outputExchangeItems.Add(waterlevel);
 
 
+            //Properties of the Water properties model
+            for (int idx = 1; idx <= MohidWaterEngine.GetNumberOfProperties(waterPropertiesInstanceID); idx++)
+            {
+
+                int propertyID = MohidWaterEngine.GetPropertyIDNumber(waterPropertiesInstanceID, idx);
+                string propertyName = MohidWaterEngine.GetPropertyNameByIDNumber(propertyID);
+
+                Quantity concentrationQuantity = new Quantity(unitConcentration, "Concentration of " + propertyName, propertyID.ToString(),
+                                                              ValueType.Scalar, dimConcentration);
+
+                qtdProperties.Add(concentrationQuantity);
+
+                OutputExchangeItem concExchangeItem = new OutputExchangeItem();
+                concExchangeItem.Quantity = concentrationQuantity;
+                concExchangeItem.ElementSet = modelGrid;
+
+                outputExchangeItems.Add(concExchangeItem);
+            }
 
 
             //Flow input exchange to discharges configured as OpenMI Discharges
@@ -142,10 +181,10 @@ namespace MOHID.OpenMI.MohidWater.Wrapper
 
                     String pointName = MohidWaterEngine.GetDischargeName(dischargeInstanceID, i);
 
-                    ElementSet dischargePoint = new ElementSet("Discharge Point of MOHID Water", i.ToString(), ElementType.XYPoint, new SpatialReference("ref"));
+                    ElementSet dischargePoint = new ElementSet("Discharge Point of MOHID Water", i.ToString(), ElementType.XYPoint, spatialReference);
 
                     InputExchangeItem inputDischarge = new InputExchangeItem();
-                    inputDischarge.Quantity = flowQuantity;
+                    inputDischarge.Quantity = qtdDischargeFlow;
 
                     Element element = new Element("Point: " + pointName);
                     element.AddVertex(new Vertex(MohidWaterEngine.GetDischargeXCoordinate(dischargeInstanceID, i), MohidWaterEngine.GetDischargeYCoordinate(dischargeInstanceID, i), 0));
@@ -162,9 +201,7 @@ namespace MOHID.OpenMI.MohidWater.Wrapper
 
                         string propertyName = MohidWaterEngine.GetPropertyNameByIDNumber(propertyID);
 
-                        Dimension concentrationDimension = new Dimension();
-                        Unit concentrationUnit = new Unit("mg/l", 1, 0, "mg/l");
-                        Quantity concentrationQuantity = new Quantity(concentrationUnit, propertyName, propertyID.ToString(), global::OpenMI.Standard.ValueType.Scalar, concentrationDimension);
+                        Quantity concentrationQuantity = new Quantity(unitConcentration, propertyName, propertyID.ToString(), global::OpenMI.Standard.ValueType.Scalar, dimConcentration);
 
                         InputExchangeItem inputExchangeItem = new InputExchangeItem();
                         inputExchangeItem.ElementSet = dischargePoint;
@@ -271,53 +308,43 @@ namespace MOHID.OpenMI.MohidWater.Wrapper
             return -99;
         }
 
-        public global::OpenMI.Standard.IValueSet GetValues(string QuantityID, string ElementSetID)
+
+        /// <summary>
+        /// Get values for:
+        ///     water level
+        ///     properties
+        /// </summary>
+        public IValueSet GetValues(string QuantityID, string ElementSetID)
         {
 
             double[] returnValues;
-            Char[] separator = new char[] { '/', '=' };
 
-            if (QuantityID == "Water Level")
+            if (QuantityID == qtdWaterLevel.ID)
             {
+                MohidWaterEngine.GetWaterLevel1D(hydrodynamicInstanceID, numberOfWaterPoints,  ref modelGridValues1D);
 
-                //Gets the water level at the specified point
-                String[] substrings = ElementSetID.Split(separator);
-
-                int i = Convert.ToInt32(substrings[1]);
-                int j = Convert.ToInt32(substrings[3]);
-
-                returnValues = new double[1];
-                //returnValues[0] = MohidWaterEngine.GetWaterLevelAtPoint(hydrodynamicInstanceID, i, j);
-                //TODO: Implement this vertical shift through data operation
-                returnValues[0] = MohidWaterEngine.GetWaterLevelAtPoint(hydrodynamicInstanceID, i, j) - 2.00;
+                return new ScalarSet(modelGridValues1D);
             }
             else //Gets concentration from Waterproperties
             {
 
-                //Gets the water level at the specified point
-                String[] substrings = ElementSetID.Split(separator);
-
-                int i = Convert.ToInt32(substrings[1]);
-                int j = Convert.ToInt32(substrings[3]);
-
                 int propertyID = Convert.ToInt32(QuantityID);
 
-                returnValues = new double[1];
-                returnValues[0] = MohidWaterEngine.GetConcentrationAtPoint(waterPropertiesInstanceID, propertyID, i, j);
+                MohidWaterEngine.GetConcentration1D(waterPropertiesInstanceID, propertyID, numberOfWaterPoints, ref modelGridValues1D);
+
+                return new ScalarSet(modelGridValues1D);
 
             }
 
-            ScalarSet values = new ScalarSet(returnValues);
-            return values;
         }
 
-        public void SetValues(string QuantityID, string ElementSetID, global::OpenMI.Standard.IValueSet values)
+
+        public void SetValues(string QuantityID, string ElementSetID, IValueSet values)
         {
-            if (QuantityID == "Flow")
+            if (QuantityID == qtdDischargeFlow.ID)
             {
                 double flow = ((ScalarSet)values).data[0];
                 MohidWaterEngine.SetDischargeFlow(dischargeInstanceID, Convert.ToInt32(ElementSetID), flow);
-                //MohidWaterEngine.SetDownstreamWaterLevel(waterLevel);
             }
             else //Set discharge concentrations
             {

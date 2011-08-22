@@ -8,9 +8,9 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyTitle("MOHID.OpenMI.MohidLand.Wrapper")]
 [assembly: AssemblyDescription("")]
 [assembly: AssemblyConfiguration("")]
-[assembly: AssemblyCompany("TOSHIBA")]
+[assembly: AssemblyCompany("Action Modulers")]
 [assembly: AssemblyProduct("MOHID.OpenMI.MohidLand.Wrapper")]
-[assembly: AssemblyCopyright("Copyright © TOSHIBA 2010")]
+[assembly: AssemblyCopyright("Copyright © Action Modulers 2010")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 

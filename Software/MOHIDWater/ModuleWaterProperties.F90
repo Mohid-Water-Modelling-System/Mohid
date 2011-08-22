@@ -18941,6 +18941,66 @@ cd1:    if (WaterPropertiesID > 0) then
 
     end function GetConcentrationAtPoint
 
+    !------------------------------------------------------------------------------------
+
+    !DEC$ IFDEFINED (VF66)
+    !dec$ attributes dllexport::GetConcentration1D
+    !DEC$ ELSE
+    !dec$ attributes dllexport,alias:"_GETCONCENTRATION1D"::GetConcentration1D
+    !DEC$ ENDIF
+    logical function GetConcentration1D(WaterPropertiesID, PropertyIDNumber, nComputePoints, concentration1D)
+    
+        !Arguments-------------------------------------------------------------
+        integer                                     :: WaterPropertiesID
+        integer                                     :: PropertyIDNumber
+        integer                                     :: nComputePoints
+        real(8), dimension(nComputePoints)          :: concentration1D
+        
+        !Local-----------------------------------------------------------------
+        integer                                     :: STAT_CALL
+        integer                                     :: ready_         
+        integer                                     :: i, j, idx
+        type(T_Property), pointer                   :: PropertyX
+
+        call Ready(WaterPropertiesID, ready_)    
+        
+        if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
+        
+            !Gets WaterPoints2D
+            call GetWaterPoints2D(Me%ObjHorizontalMap, Me%ExternalVar%WaterPoints2D,    &
+                                  STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'GetConcentration1D - ModuleWaterProperties - ERR01'
+
+            !Finds Concentration
+            call Search_Property(PropertyX, PropertyXID = PropertyIDNumber, STAT = STAT_CALL)
+
+
+            idx = 1
+            do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+            do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+                if (Me%ExternalVar%WaterPoints2D(i, j) == WaterPoint) then
+                    concentration1D(idx) = PropertyX%Concentration(i, j, Me%WorkSize%KUB)
+                    idx = idx + 1 
+                endif
+            enddo
+            enddo
+
+            !UnGets WaterPoints2D
+            call UnGetHorizontalMap(Me%ObjHorizontalMap, Me%ExternalVar%WaterPoints2D, &
+                                    STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'GetConcentration1D - ModuleWaterProperties - ERR02'
+
+       
+            GetConcentration1D = .true.
+        else 
+            GetConcentration1D = .false.
+        end if
+           
+        return
+    
+    
+    end function GetConcentration1D
+
 #endif    
 
 end Module ModuleWaterProperties

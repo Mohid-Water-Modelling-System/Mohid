@@ -91,13 +91,12 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="MohidWaterEngineDotNetAccessTest.cs" />
-    <Compile Include="MohidLandEngineDLLAccessTest.cs" />
-    <Compile Include="MohidLandEngineDotNetAccessTest.cs" />
-    <Compile Include="MohidLandEngineWrapperTest.cs" />
-    <Compile Include="MohidLandLinkableComponentTest.cs" />
+    <Compile Include="LinkFactory.cs" />
+    <Compile Include="MohidWaterEngineTests.cs" />
+    <Compile Include="MohidLandEngineTests.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Trigger.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\MOHID.OpenMI.MohidLand.Wrapper\MOHID.OpenMI.MohidLand.Wrapper.csproj">

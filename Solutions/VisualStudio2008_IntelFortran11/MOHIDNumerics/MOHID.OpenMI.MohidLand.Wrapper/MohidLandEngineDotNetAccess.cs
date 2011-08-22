@@ -186,8 +186,10 @@ namespace MOHID.OpenMI.MohidLand.Wrapper
 
             return new DateTime(year, month, day, hour, minute, second, millisecond);
 
-            
+
         }
+
+        #region DrainageNetwork
 
         /// <summary>
         /// Gets the flow at a specific network node
@@ -243,6 +245,94 @@ namespace MOHID.OpenMI.MohidLand.Wrapper
             MohidLandEngineDLLAccess.SetDownStreamConcentration(ref drainageNetworkInstanceID, ref propertyID, ref concentration);
         }
 
+        public int GetNumberOfStormWaterOutFlowNodes(int drainageNetworkInstanceID)
+        {
+            return MohidLandEngineDLLAccess.GetNumberOfOutFlowNodes(ref drainageNetworkInstanceID);
+        }
 
+        public void GetStormWaterOutflow(int drainageNetworkInstanceID, int numberOfOutflowNodes, ref double[] outflow)
+        {
+            if (!MohidLandEngineDLLAccess.GetStormWaterOutFlow(ref drainageNetworkInstanceID, ref numberOfOutflowNodes,
+                                                          outflow))
+                CreateAndThrowException();
+        }
+
+        public void GetStormWaterOutflowIDs(int drainageNetworkInstanceID, int numberOfOutflowNodes, ref int[] outflowIDs)
+        {
+            if (!MohidLandEngineDLLAccess.GetStormWaterOutFlowIDs(ref drainageNetworkInstanceID, ref numberOfOutflowNodes,
+                                                          outflowIDs))
+                CreateAndThrowException();
+        }
+
+        public int GetNumberOfStormWaterInFlowNodes(int drainageNetworkInstanceID)
+        {
+            return MohidLandEngineDLLAccess.GetNumberOfOutFlowNodes(ref drainageNetworkInstanceID);
+        }
+
+        public void SetStormWaterInflow(int drainageNetworkInstanceID, int numberOfInflowNodes, ref double[] inflow)
+        {
+            if (!MohidLandEngineDLLAccess.SetStormWaterInFlow(ref drainageNetworkInstanceID, ref numberOfInflowNodes,
+                                                          inflow))
+                CreateAndThrowException();
+        }
+
+        public void GetStormWaterInflowIDs(int drainageNetworkInstanceID, int numberOfInflowNodes, ref int[] inflowIDs)
+        {
+            if (!MohidLandEngineDLLAccess.GetStormWaterInFlowIDs(ref drainageNetworkInstanceID, ref numberOfInflowNodes,
+                                                          inflowIDs))
+                CreateAndThrowException();
+        }
+
+        #endregion
+
+        #region Module HorinzontalGrid
+
+        public int GetIUB(int horizontalGridInstanceID)
+        {
+            return MohidLandEngineDLLAccess.GetIUB(ref horizontalGridInstanceID);
+        }
+
+        public int GetJUB(int horizontalGridInstanceID)
+        {
+            return MohidLandEngineDLLAccess.GetJUB(ref horizontalGridInstanceID);
+        }
+
+        public bool IsWaterPoint(int horizontalGridInstanceID, int i, int j)
+        {
+            return MohidLandEngineDLLAccess.IsWaterPoint(ref horizontalGridInstanceID, ref i, ref j);
+        }
+
+        public double GetCenterXCoordinate(int horizontalGridInstanceID, int i, int j)
+        {
+            return MohidLandEngineDLLAccess.GetCenterXCoordinate(ref horizontalGridInstanceID, ref i, ref j);
+        }
+
+        public double GetCenterYCoordinate(int horizontalGridInstanceID, int i, int j)
+        {
+            return MohidLandEngineDLLAccess.GetCenterYCoordinate(ref horizontalGridInstanceID, ref i, ref j);
+        }
+
+        public void GetGridCellCoordinates(int horizontalGridInstanceID, int i, int j, ref double[] xCoords, ref double[] yCoords)
+        {
+            MohidLandEngineDLLAccess.GetGridCellCoordinates(ref horizontalGridInstanceID, ref i, ref j, xCoords, yCoords);
+        }
+
+        #endregion
+
+        #region Module RunOff
+
+        public void GetPondedWaterColumn(int runoffID, int numberOfComputePoints, ref double[] waterColumn)
+        {
+            MohidLandEngineDLLAccess.GetPondedWaterColumn(ref runoffID, ref numberOfComputePoints, waterColumn);
+        }
+
+        public void SetStormWaterModelFlow(int runoffID, int numberOfComputerPoints, ref double[] overlandToSewerFlow)
+        {
+            MohidLandEngineDLLAccess.SetStormWaterModelFlow(ref runoffID, ref numberOfComputerPoints, overlandToSewerFlow);
+
+
+        }
+
+        #endregion
     }
 }

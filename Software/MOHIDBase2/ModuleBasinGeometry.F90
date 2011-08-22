@@ -62,16 +62,18 @@ Module ModuleBasinGeometry
     private ::      DelineateBasin
     private ::      UpStreamAreas
     private ::      NodeDefinition
-    private ::          TargetPoint
     private ::      WriteBasinASCII
     private ::      WriteBasinHDF
 
     !Selector
     public  :: GetBasinPoints
     public  :: GetMicroChannels
-    public  :: GetRiverPoints    
+    public  :: GetRiverPoints
+    public  :: GetDrainageDirection    
     public  :: GetCellSlope
     public  :: UnGetBasin
+
+    public  :: TargetPoint
 
     !Destructor
     public  ::  KillBasinGeometry
@@ -2042,6 +2044,7 @@ do1:            do
                         write (unit, *)"ID              : ", myID
                         write (unit, *)"UPSTREAM_NODE   : ", Me%NodeIDs(iCen,    jCen   )
                         write (unit, *)"DOWNSTREAM_NODE : ", Me%NodeIDs(iTarget, jTarget)
+                        write (unit, *)"ACTIVE          : ", 1
                         write (unit, *)"<EndReach>"
                     endif
 
@@ -2253,7 +2256,43 @@ do1:            do
 
     end subroutine GetRiverPoints
 
+   
     !--------------------------------------------------------------------------
+
+    subroutine GetDrainageDirection (BasinGeometryID, DrainageDirection, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                                         :: BasinGeometryID
+        integer, dimension(:, :),  pointer              :: DrainageDirection
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                         :: STAT_, ready_
+
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(BasinGeometryID, ready_)
+
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                            &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            call Read_Lock(mBASINGEOMETRY_, Me%InstanceID)
+
+            DrainageDirection => Me%DrainageDirection
+
+            STAT_ = SUCCESS_
+
+        else 
+            STAT_ = ready_
+        end if
+
+        if (present(STAT)) STAT = STAT_
+
+    end subroutine GetDrainageDirection
+
+    !--------------------------------------------------------------------------    
 
     subroutine GetCellSlope (BasinGeometryID, CellSlope, STAT)
 

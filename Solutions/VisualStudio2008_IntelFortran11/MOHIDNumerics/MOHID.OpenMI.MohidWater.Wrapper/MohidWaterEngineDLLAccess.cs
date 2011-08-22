@@ -9,7 +9,8 @@ namespace MOHID.OpenMI.MohidWater.Wrapper
     public class MohidWaterEngineDLLAccess
     {
         //TODO: Check how to set this path during runtime ou by compiler reference...
-        private const string dllPath = @"D:\Software\Mohid\MOHID.Numerics\Solutions\VisualStudio2008_IntelFortran11\MOHIDNumerics\MohidWaterEngine\Release OpenMI\MohidWaterEngine.dll";
+        //private const string dllPath = @"D:\Software\Mohid\MOHID.Numerics\Solutions\VisualStudio2008_IntelFortran11\MOHIDNumerics\MohidWaterEngine\Release OpenMI\MohidWaterEngine.dll";
+        private const string dllPath = @"D:\Software\Mohid\MOHID.Numerics\Solutions\VisualStudio2008_IntelFortran11\MOHIDNumerics\MohidWaterEngine\Debug OpenMI\MohidWaterEngine.dll";
 
         [DllImport(dllPath, EntryPoint = "INITIALIZE", SetLastError = true, ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
         public static extern bool Initialize(string filePath, uint length);
@@ -88,13 +89,20 @@ namespace MOHID.OpenMI.MohidWater.Wrapper
 
         [DllImport(dllPath, EntryPoint = "GETCENTERYCOORDINATE", SetLastError = true, ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
         public static extern double GetCenterYCoordinate(ref int horizontalGridInstanceID, ref int i, ref int j);
-        
+
+        [DllImport(dllPath, EntryPoint = "GETGRIDCELLCOORDINATES", SetLastError = true, ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+        public static extern bool GetGridCellCoordinates(ref int horizontalGridInstanceID, ref int i, ref int j, double[] xCoords, double[] yCoords);
+
         #endregion
 
         #region
 
         [DllImport(dllPath, EntryPoint = "GETWATERLEVELATPOINT", SetLastError = true, ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
         public static extern double GetWaterLevelAtPoint(ref int hydrodynamicInstanceID, ref int i, ref int j);
+
+        [DllImport(dllPath, EntryPoint = "GETWATERLEVEL1D", SetLastError = true, ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+        public static extern double GetWaterLevel1D(ref int hydrodynamicInstanceID, ref int numberOfWaterPoints, double[] waterlevels1D);
+        
 
         [DllImport(dllPath, EntryPoint = "GETNUMBEROFPROPERTIES", SetLastError = true, ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
         public static extern int GetNumberOfProperties(ref int waterPropertiesID);
@@ -105,6 +113,10 @@ namespace MOHID.OpenMI.MohidWater.Wrapper
         [DllImport(dllPath, EntryPoint = "GETCONCENTRATIONATPOINT", SetLastError = true, ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
         public static extern double GetConcentrationAtPoint(ref int waterPropertiesID, ref int propertyID, ref int i, ref int j);
 
+        [DllImport(dllPath, EntryPoint = "GETCONCENTRATION1D", SetLastError = true, ExactSpelling = true,
+            CallingConvention = CallingConvention.Cdecl)]
+        public static extern double GetConcentration1D(ref int waterPropertiesID, ref int propertyID,
+                                                       ref int numberOfWaterPoints, double[] concentration1D);
 
         #endregion
 

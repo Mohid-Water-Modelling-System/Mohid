@@ -43600,6 +43600,60 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
     end function GetWaterLevelAtPoint
 
+    !------------------------------------------------------------------------------------
+
+    !DEC$ IFDEFINED (VF66)
+    !dec$ attributes dllexport::GetWaterLevel1D
+    !DEC$ ELSE
+    !dec$ attributes dllexport,alias:"_GETWATERLEVEL1D"::GetWaterLevel1D
+    !DEC$ ENDIF
+    logical function GetWaterLevel1D(HydrodynamicID, nComputePoints, waterlevels1D)
+    
+        !Arguments-------------------------------------------------------------
+        integer                                     :: HydrodynamicID
+        integer                                     :: nComputePoints
+        real(8), dimension(nComputePoints)          :: waterlevels1D
+        
+        !Local-----------------------------------------------------------------
+        integer                                     :: STAT_CALL
+        integer                                     :: ready_         
+        integer                                     :: i, j, idx
+
+        call Ready(HydrodynamicID, ready_)    
+        
+        if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
+        
+            !Gets WaterPoints2D
+            call GetWaterPoints2D(Me%ObjHorizontalMap, Me%External_Var%WaterPoints2D,    &
+                                  STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'GetWaterLevel1D - ModuleHydrodynamic - ERR01'
+
+            idx = 1
+            do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+            do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+                if (Me%External_Var%WaterPoints2D(i, j) == WaterPoint) then
+                    waterlevels1D(idx) = Me%WaterLevel%New(i, j)
+                    idx = idx + 1 
+                endif
+            enddo
+            enddo
+
+            !UnGets WaterPoints2D
+            call UnGetHorizontalMap(Me%ObjHorizontalMap, Me%External_Var%WaterPoints2D, &
+                                    STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'GetWaterLevel1D - ModuleHydrodynamic - ERR02'
+
+       
+            GetWaterLevel1D = .true.
+        else 
+            GetWaterLevel1D = .false.
+        end if
+           
+        return
+    
+    
+    end function GetWaterLevel1D
+
 #endif
 
 End Module ModuleHydrodynamic    

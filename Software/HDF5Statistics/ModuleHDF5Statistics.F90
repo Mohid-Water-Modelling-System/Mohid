@@ -213,7 +213,12 @@ Module ModuleHDF5Statistics
     !Global Module Variables
     type (T_HDF5Statistics), pointer                        :: Me                       => null()
 
-    integer                                         :: mHDF5Statistics_ = 0 !just to compile
+    integer                                                 :: mHDF5Statistics_ = 0 !just to compile
+
+    !Other Stuff
+    type (T_Time)                                           :: InitialSystemTime, FinalSystemTime
+    integer, dimension(8)                                   :: F95Time
+
 
     !--------------------------------------------------------------------------
     
@@ -269,6 +274,15 @@ Module ModuleHDF5Statistics
 
         !Begin-----------------------------------------------------------------
 
+        call StartupMohid ("HDF5 Statistics")
+
+        !Gets the actual time
+        call date_and_time(Values = F95Time)
+        call SetDate      (InitialSystemTime, float(F95Time(1)), float(F95Time(2)),      &
+                                              float(F95Time(3)), float(F95Time(5)),      &
+                                              float(F95Time(6)), float(F95Time(7))+      &
+                                              F95Time(8)/1000.)
+
         ! Read keyword file
         call ReadKeywords
 
@@ -288,7 +302,7 @@ Module ModuleHDF5Statistics
 
             RunStatBeginTime = Me%FirstStatHDF5File%InstantsArray(1) + DT
             
-            call StartComputeTime(Me%ObjTime, RunStatBeginTime,                         &
+            call StartComputeTime(Me%ObjTime, InitialSystemTime, RunStatBeginTime,      &
                                   Me%LastStatHDF5File%InstantsArray                     &
                                   (Me%LastStatHDF5File%NumberOfInstants),               &
                                   Me%RegularDT, Me%VariableDT, STAT = STAT_CALL)
@@ -2390,7 +2404,8 @@ do2 :       do while(associated(ObjParameter))
         !Local-------------------------------------------------------------------
         type(T_HDF5File), pointer               :: HDF5FileX, HDF5FileToKill
         type(T_Parameter), pointer              :: ParameterX, ParameterToKill
-        integer                                  :: STAT_CALL
+        integer                                 :: STAT_CALL
+        real                                    :: ElapsedSeconds, TotalCPUTime
 
         !------------------------------------------------------------------------
 
@@ -2446,6 +2461,17 @@ do2 :       do while(associated(ObjParameter))
 
         deallocate(Me)
         nullify(Me)
+
+        call date_and_time(Values = F95Time)
+        call SetDate      (FinalSystemTime,   float(F95Time(1)), float(F95Time(2)),      &
+                                              float(F95Time(3)), float(F95Time(5)),      &
+                                              float(F95Time(6)), float(F95Time(7))+      &
+                                              F95Time(8)/1000.)
+        call cpu_time(TotalCPUTime)
+        ElapsedSeconds = FinalSystemTime - InitialSystemTime
+
+        call ShutdownMohid ("HDF5 Statistics", ElapsedSeconds, TotalCPUTime)
+
 
         !------------------------------------------------------------------------
 

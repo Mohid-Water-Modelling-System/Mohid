@@ -231,6 +231,11 @@ namespace MOHID.OpenMI.MohidWater.Wrapper
             return MohidWaterEngineDLLAccess.GetCenterYCoordinate(ref horizontalGridInstanceID, ref i, ref j);
         }
 
+        public void GetGridCellCoordinates(int horizontalGridInstanceID, int i, int j, ref double[] xCoords, ref double[] yCoords)
+        {
+            MohidWaterEngineDLLAccess.GetGridCellCoordinates(ref horizontalGridInstanceID, ref i, ref j, xCoords, yCoords);
+        }
+
         #endregion
 
         #region Module Hydrodynamic
@@ -240,6 +245,10 @@ namespace MOHID.OpenMI.MohidWater.Wrapper
             return MohidWaterEngineDLLAccess.GetWaterLevelAtPoint(ref hydrodynamicInstanceID, ref i, ref j);
         }
 
+        public void GetWaterLevel1D(int hydrodynamicInstanceID, int numberOfComputePoints, ref double[] waterLevels1D)
+        {
+            MohidWaterEngineDLLAccess.GetWaterLevel1D(ref hydrodynamicInstanceID, ref numberOfComputePoints, waterLevels1D);
+        }
 
         #endregion
 
@@ -268,6 +277,12 @@ namespace MOHID.OpenMI.MohidWater.Wrapper
             return MohidWaterEngineDLLAccess.GetConcentrationAtPoint(ref waterPropertiesInstanceID, ref propertyID, ref i, ref j);
         }
 
+        public void GetConcentration1D(int waterPropertiesInstanceID, int propertyID, int numberOfcomputePoints, ref double[] concentration1D)
+        {
+            MohidWaterEngineDLLAccess.GetConcentration1D(ref waterPropertiesInstanceID, ref propertyID,
+                                                                ref numberOfcomputePoints, concentration1D);
+        }
+
         #endregion
 
         private DateTime MohidTimeStringToDotNetTime(String mohidTimeString)
@@ -292,6 +307,7 @@ namespace MOHID.OpenMI.MohidWater.Wrapper
 
             
         }
+
 
 
     }

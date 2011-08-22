@@ -203,6 +203,7 @@ Module ModuleFunctions
     public  ::  LatLonToUTM
     public  ::  UTMToLatLon
     public  ::  LatLonToLambertSP2
+    public  ::  DistanceBetweenTwoGPSPoints
 
 #ifdef _USE_PROJ4  
     public  ::  GeographicToCartesian
@@ -7949,6 +7950,31 @@ d2:         do i=1,n-m ! we loop over the current c’s and d’s and update them.
     end subroutine LatLonToLambertSP2
 
     !--------------------------------------------------------------------------
+    
+    !--------------------------------------------------------------------------
+    
+    !Calculates the distance in m between two GPS coordinates using the Haversine formulation (aprox)
+    !Equations from http://mathforum.org/library/drmath/view/51879.html
+    real function DistanceBetweenTwoGPSPoints(lon1, lat1, lon2, lat2)
+        
+        !Arguments-------------------------------------------------------------
+        real, intent(in)                            :: lon1, lat1, lon2, lat2
+        
+        !Local-----------------------------------------------------------------
+        real                                        :: degreesToRadians = Pi / 180.0
+        real                                        :: dlon, dlat, a, c
+
+        dlon = lon2 * degreesToRadians - lon1 * degreesToRadians
+        dlat = lat2 * degreesToRadians - lat1 * degreesToRadians
+            
+        a = Sin(dlat / 2.0)**2.0 + Cos(lat1 * degreesToRadians) * Cos(lat2 * degreesToRadians) * Sin(dlon / 2.0) ** 2.0
+        c = 2 * Atan2(Sqrt(a), Sqrt(1 - a))
+        
+        DistanceBetweenTwoGPSPoints = MeanRadius_ * c;
+
+       
+
+    end function        
 
 #ifdef _USE_PROJ4
 
@@ -8849,8 +8875,8 @@ D2:     do I=imax-1,2,-1
     function minival2D_I4(array, size2D)
             
         integer, dimension(:,:), pointer   :: array
-        type(T_size2D)                  :: size2D
-        integer                         :: i,j
+        type(T_size2D)                     :: size2D
+        integer                            :: i,j
         integer                            :: minival2D_I4
         
         minival2D_I4 = 1e9

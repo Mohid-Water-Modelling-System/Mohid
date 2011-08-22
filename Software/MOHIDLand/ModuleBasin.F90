@@ -2180,7 +2180,6 @@ i1:         if (CoordON) then
         !Local-----------------------------------------------------------------
         integer                                     :: STAT_CALL
         logical                                     :: VariableDT
-!        integer                                     :: GeometryID 
         integer                                     :: MapID
         logical                                     :: IgnoreWaterColumnOnEvap
         logical                                     :: IsConstant

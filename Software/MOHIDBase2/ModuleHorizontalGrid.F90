@@ -10121,7 +10121,6 @@ cd1:    if      (SumON > 0) then
         call Ready(HorizontalGridID, ready_)    
         
         if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
-        
             GetCenterXCoordinate = Me%Compute%XX2D_Z(i, j)
         else 
             GetCenterXCoordinate = - 99.0
@@ -10159,6 +10158,53 @@ cd1:    if      (SumON > 0) then
 
     end function GetCenterYCoordinate
 
+
+    !DEC$ IFDEFINED (VF66)
+    !dec$ attributes dllexport::GetGridCellCoordinates
+    !DEC$ ELSE
+    !dec$ attributes dllexport,alias:"_GETGRIDCELLCOORDINATES"::GetGridCellCoordinates
+    !DEC$ ENDIF
+    logical function GetGridCellCoordinates(HorizontalGridID, i, j, xCoords, yCoords)
+    
+        !Arguments-------------------------------------------------------------
+        integer                                     :: HorizontalGridID
+        integer                                     :: i, j
+        real(8), dimension(5)                       :: xCoords
+        real(8), dimension(5)                       :: yCoords
+        
+        !Local-----------------------------------------------------------------
+        integer                                     :: STAT_CALL
+        integer                                     :: ready_         
+
+        call Ready(HorizontalGridID, ready_)    
+        
+        if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
+        
+            !Anticlockwise, closed
+            xCoords(1) = Me%XX_IE(i, j)
+            xCoords(2) = Me%XX_IE(i, j+1)
+            xCoords(3) = Me%XX_IE(i+1, j+1)
+            xCoords(4) = Me%XX_IE(i+1, j)
+            xCoords(5) = Me%XX_IE(i, j)
+            
+            !Anticlockwise, closed  
+            yCoords(1) = Me%YY_IE(i, j)
+            yCoords(2) = Me%YY_IE(i, j+1)
+            yCoords(3) = Me%YY_IE(i+1, j+1)
+            yCoords(4) = Me%YY_IE(i+1, j)
+            yCoords(5) = Me%YY_IE(i, j)
+
+            GetGridCellCoordinates = .true.
+        else 
+            call PlaceErrorMessageOnStack("Horizontal Grid not ready")
+            GetGridCellCoordinates = .false.
+        end if
+           
+
+
+
+
+    end function GetGridCellCoordinates
 
 #endif
 
