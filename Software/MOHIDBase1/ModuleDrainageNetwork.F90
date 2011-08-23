@@ -1368,6 +1368,18 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             stop 'ModuleDrainageNetwork - ReadDataFile - ERR28a'              
         endif
 
+        
+        !Internal Time Step Split
+        call GetData(Me%InternalTimeStepSplit,                              &
+                     Me%ObjEnterData, flag,                                 &  
+                     keyword      = 'TIME_STEP_SPLIT',                      &
+                     ClientModule = 'DrainageNetwork',                      &
+                     SearchType   = FromFile,                               &
+                     Default      = 5,                                      &
+                     STAT         = STAT_CALL)                                  
+        if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR25a'        
+
+
         !Max DT if channel water level exceeds full bank 
         call GetData(Me%MaxDTFlood,                                         &
                      Me%ObjEnterData, flag,                                 &  
@@ -7343,7 +7355,6 @@ do2 :   do while (associated(PropertyX))
         SumDT       = 0.0
         Restart     = .false.
         Niter       = Me%InternalTimeStepSplit
-        !Niter       = max(Me%LastGoodNiter, 1)
         LocalDT     = Me%ExtVar%DT / Niter
         iter        = 1
         do while (iter <= Niter)
@@ -7496,29 +7507,10 @@ do2 :   do while (associated(PropertyX))
                 CurrReach%HydroTimeGradient = (CurrReach%FlowNew - CurrReach%FlowOld) / Me%ExtVar%DT
                 CurrReach%HydroAdvection    = HydroAdvection(CurrReach, Me%ExtVar%DT)
             enddo
-        endif
-
-        if (Niter == Me%InternalTimeStepSplit) then
-            Me%NextDT = Me%ExtVar%DT * Me%DTFactor
-        else
-            Me%NextDT = Me%ExtVar%DT / Niter
-        endif
+        endif                
         
-!        if (Niter == 1) then
-!            Me%NextDT = Me%ExtVar%DT * Me%DTFactor
-!        else
-!            Me%NextDT = Me%ExtVar%DT / Me%LastGoodNiter
-!            Me%LastGoodNiter = max(Me%LastGoodNiter -1, 1)
-!        endif
-
-!        else if (Niter <= 10) then
-!            Me%NextDT = Me%ExtVar%DT * 1.0
-!        else
-!            Me%NextDT = Me%ExtVar%DT / 2.0
-!        endif
-        
-        
-        !call ComputeNextDT
+        !Computes next DT
+        call ComputeNextDT
 
         Property => Me%FirstProperty
         do while (associated (Property))
@@ -7820,18 +7812,17 @@ do2 :   do while (associated(PropertyX))
 
     end subroutine CalculateVSS
 
+    !--------------------------------------------------------------------------
+
     subroutine ComputeNextDT
 
         !Arguments--------------------------------------------------------------
 
         !Local------------------------------------------------------------------
-        integer                                     :: NodeID, i
-        real                                        :: MinTime, TimeToEmpty
-        real                                        :: OutFlow, InFlow
+        integer                                     :: NodeID
+        real                                        :: rdVol, MaxrdVol
         type (T_Node), pointer                      :: CurrNode
-        type (T_Reach), pointer                     :: DownReach, UpReach
         integer                                     :: STAT_CALL
-        character(len=StringLength)                 :: AuxString
         logical                                     :: VariableDT
 
 
@@ -7840,77 +7831,32 @@ do2 :   do while (associated(PropertyX))
         
         if (VariableDT) then
 
-            call GetMaxComputeTimeStep(Me%ObjTime, MinTime, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ComputeNextDT - ModuleDrainageNetwork -  ERR01'
-
-            if (MinTime == 0.0) MinTime = Me%ExtVar%DT
+            MaxrdVol = null_real
 
             do NodeID = 1, Me%TotalNodes
 
-                if (Me%OpenpointsFlow(NodeID) == OpenPoint) then
+                CurrNode => Me%Nodes (NodeID)
 
-                    OutFlow   = 0.0
-                    InFlow    = 0.0
+                rdVol = abs(CurrNode%InitialVolumeNew - CurrNode%VolumeNew) / CurrNode%VolumeMax
+            
+                MaxrdVol = max(rdVol, MaxrdVol)
+                
+            enddo
 
-                    CurrNode  => Me%Nodes (NodeID)
+            if (MaxrdVol > 0.0) then
+                
+                
+                if (Me%LastGoodNiter == Me%InternalTimeStepSplit .and. MaxrdVol < Me%StabilizeFactor) then
+                    Me%NextDT = Me%ExtVar%DT * Me%DTFactor
+                else if (Me%LastGoodNiter ==  Me%InternalTimeStepSplit) then
+                    Me%NextDT = Me%ExtVar%DT
+                else
+                    Me%NextDT = Me%ExtVar%DT / Me%DTFactor
+                endif                
 
-                    if (.not. CurrNode%Discharges) then
-
-                        !Adds Outflow due to channel flow
-                        do i = 1, CurrNode%nDownstreamReaches
-                            DownReach => Me%Reaches (CurrNode%DownstreamReaches (i))
-                            OutFlow = OutFlow + dble(DownReach%FlowNew)
-                        enddo
-
-                        !Adds Inflow due to channel flow
-                        do i = 1, CurrNode%nUpstreamReaches
-                            UpReach => Me%Reaches (CurrNode%UpstreamReaches (i))
-                            InFlow  = InFlow + dble(UpReach%FlowNew)
-                        enddo
-
-
-                        !Adds Outflow due to exchange with land
-                        if (Me%RunOffVector (NodeID) < 0.0) then
-                            OutFlow = Outflow - Me%RunOffVector (NodeID)
-                        else
-                            InFlow  = InFlow  + Me%RunOffVector (NodeID)
-                        endif
-
-                        !Adds Outflow due to GW exchange
-                        if (Me%GroundVector(NodeID) < 0.0) then
-                            OutFlow = Outflow - Me%GroundVector (NodeID)
-                        else
-                            InFlow  = Inflow  + Me%GroundVector (NodeID)
-                        endif
-
-                        if (Inflow < OutFlow) then
-
-                            
-                            if (Me%HasGrid) then
-                                TimeToEmpty = CurrNode%VolumeNew / (OutFlow - Inflow) * Me%DTFactor * max(Me%LastGoodNiter - 1, 1)
-                            else
-                                !For simple river net application it does not make sense to get a big difference between the 
-                                !internal DT of Drainage Network & the main program...
-                                TimeToEmpty = CurrNode%VolumeNew / (OutFlow - Inflow) * Me%DTFactor
-                            endif
-
-                            MinTime = Min(MinTime, TimeToEmpty)
-                        endif
-
-                        !Checks for flooding
-                        if (CurrNode%WaterDepth > CurrNode%CrossSection%Height) then
-                            write(AuxString, fmt=*)CurrNode%ID
-                            call SetError(WARNING_, INTERNAL_, 'Flood at '//trim(AuxString), OFF)
-                            MinTime = Min(MinTime, Me%MaxDTFlood)
-                        endif
-                        
-                    endif
-
-                endif
-
-            end do
-
-            Me%NextDT = MinTime
+            else
+                Me%NextDT = Me%ExtVar%DT * Me%DTFactor
+            endif
             
         else
         
@@ -8994,7 +8940,7 @@ if2:        if (CurrNode%VolumeNew > PoolVolume) then
         CurrNode => Me%Nodes (NodeID)
 
         if (Me%Stabilize .and. Niter < Me%MaxIterations) then
-            if (CurrNode%nDownstreamReaches /= 0 .and. CurrNode%VolumeOld > Me%StabilizeCoefficient * CurrNode%VolumeMax) then ! CurrNode%VolumeMin) then   
+            if (CurrNode%nDownstreamReaches /= 0 .and. CurrNode%VolumeOld > Me%StabilizeCoefficient * CurrNode%VolumeMax) then
                 if (abs(CurrNode%VolumeNew - CurrNode%VolumeOld) > Me%StabilizeFactor * CurrNode%VolumeMax) then
                     Restart = .true.
                     return
