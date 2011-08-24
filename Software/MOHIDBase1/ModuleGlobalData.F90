@@ -3042,6 +3042,62 @@ do2:    do
 
     end subroutine ShutdownMohid
 
+    !--------------------------------------------------------------------------
+
+    subroutine SaveRunInfo (ModelName, ElapsedSeconds, TotalCPUTime, OutputFile, &
+                            WorkCycleElapsed, WorkCycleCPUTime)
+                                         
+        !Arguments-------------------------------------------------------------
+        character(len=*)                :: ModelName
+        character(len=*)                :: OutputFile
+        real                            :: ElapsedSeconds, TotalCPUTime
+        real, optional                  :: WorkCycleElapsed, WorkCycleCPUTime
+        integer                         :: ElapsedHours, ElapsedMinutes, ElapsedSecremain
+        integer                         :: UnitOutput
+        integer                         :: STAT_CALL
+        !----------------------------------------------------------------------
+
+        ElapsedHours = INT(Elapsedseconds/3600)
+        ElapsedMinutes = INT((ElapsedSeconds-ElapsedHours*3600)/60)
+        ElapsedSecremain = INT((ElapsedSeconds-ElapsedMinutes*60-ElapsedHours*3600))
+
+        call UnitsManager (UnitOutput, OPEN_FILE)      
+        open(UNIT = UnitOutput, FILE = OutputFile, STATUS  = "UNKNOWN", IOSTAT  = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'SaveRunInfo - GlobalData - ERR010'
+
+        write(UnitOutput, *)"-------------------------- MOHID -------------------------"
+        write(UnitOutput, *)
+        write(UnitOutput, *)"Program "//ModelName//" successfully terminated"
+        write(UnitOutput, *)                    
+        write(UnitOutput, *)
+        write(UnitOutput, 110)ElapsedSeconds, ElapsedHours, ElapsedMinutes,ElapsedSecremain
+        write(UnitOutput, 120)TotalCPUTime
+        write(UnitOutput, 130)100.*TotalCPUTime/ElapsedSeconds
+        if (present(WorkCycleElapsed) .and. present(WorkCycleCPUTime)) then
+            write(UnitOutput, 140)WorkCycleElapsed
+            write(UnitOutput, 150)WorkCycleCPUTime
+            if(WorkCycleElapsed/=.0) then
+                write(UnitOutput, 160)100.*WorkCycleCPUTime/WorkCycleElapsed
+            endif
+        endif
+        write(*, *)
+        write(*, *)"----------------------------------------------------------"
+                
+        call UnitsManager (UnitOutput, CLOSE_FILE)
+
+    110 format(1x, "Total Elapsed Time     : ",f14.2," ",i3,"h ",i2,"min ",i2,"s",/)
+    120 format(1x, "Total CPU time         : ",f14.2,/)
+    130 format(1x, "CPU usage (%)          : ",f14.2,/)
+    140 format(1x, "Workcycle Elapsed Time : ",f14.2,/)
+    150 format(1x, "Workcycle CPU time     : ",f14.2,/)
+    160 format(1x, "Workcycle CPU usage (%): ",f14.2,/)
+
+        !----------------------------------------------------------------------
+            
+    end subroutine SaveRunInfo
+
+    !--------------------------------------------------------------------------
+
     integer function GetUsersNumber (iModule, iInstance)
 
         !Arguments-------------------------------------------------------------

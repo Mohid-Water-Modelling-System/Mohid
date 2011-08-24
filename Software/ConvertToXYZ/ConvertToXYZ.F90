@@ -207,6 +207,7 @@ if2 :           if (BlockFound) then
         call KillEnterData(Me%ObjEnterData, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'StartConverting - ConvertToXYZ - ERR130'
 
+        write(*,*) 'Conversion terminated successfully.'
 
     end subroutine StartConverting
 

@@ -244,6 +244,7 @@ Module ModulePorousMedia
         character(PathLength)                   :: FinalFile
         character(PathLength)                   :: TransientHDF
         character(PathLength)                   :: BottomFile
+        character(PathLength)                   :: ASCFile
         integer                                 :: AsciiUnit
     end type T_Files    
 
@@ -752,19 +753,24 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
 
         !Reads the name of the data file from nomfich
         call ReadFileName ('POROUS_DATA', Me%Files%DataFile, "PorousMedia Data File", STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModulePorousMedia - ERR01'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModulePorousMedia - ERR010'
 
         !Reads the name of the transient HDF file from nomfich
         call ReadFileName ('POROUS_HDF', Me%Files%TransientHDF, "PorousMedia HDF File", STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModulePorousMedia - ERR01b'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModulePorousMedia - ERR020'
                 
         !Reads the name of the file where to store final data
         call ReadFileName ('POROUS_FIN', Me%Files%FinalFile, "PorousMedia Final File", STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModulePorousMedia - ERR01c'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModulePorousMedia - ERR030'
+        
+        !Reads the name of the file where to store ASCII data
+        call ReadFileName ('POROUS_ASC', Me%Files%ASCFile, "PorousMedia ITER SOL File", STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModulePorousMedia - ERR040'
+        
 
         !Constructs the DataFile
         call ConstructEnterData (Me%ObjEnterData, Me%Files%DataFile, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModulePorousMedia - ERR02'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModulePorousMedia - ERR050'
 
         !Botom file
         call GetData(Me%Files%BottomFile,                                               &
@@ -773,7 +779,7 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                      keyword      = 'BOTTOM_FILE',                                      &
                      ClientModule = 'ModulePorousMedia',                                &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModulePorousMedia - ERR02a'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModulePorousMedia - ERR060'
 
         !General Options        
         call GetData(Me%SoilOpt%StartWithFieldCapacity,                                 &
@@ -783,7 +789,7 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                      Default    = .true.,                                               &                                           
                      ClientModule ='ModulePorousMedia',                                 &
                      STAT       = STAT_CALL)            
-        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModulePorousMedia - ERR03'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModulePorousMedia - ERR070'
 
         call GetData(Me%SoilOpt%ComputeSoilField,                                       &
                      Me%ObjEnterData, iflag,                                            &
@@ -792,7 +798,7 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                      Default    = .false.,                                              &                                           
                      ClientModule ='ModulePorousMedia',                                 &
                      STAT       = STAT_CALL)            
-        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModulePorousMedia - ERR04'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModulePorousMedia - ERR080'
 
         !This keyword is not used anywhere
         call GetData(Me%SoilOpt%RemoveWater,                                            &   
@@ -802,7 +808,7 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                      Default    = .true.,                                               &                                           
                      ClientModule ='ModulePorousMedia',                                 &
                      STAT       = STAT_CALL)            
-        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModulePorousMedia - ERR05'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModulePorousMedia - ERR90'
    
         call GetData(Me%SoilOpt%LimitEVAPHead,                                          &     
                      Me%ObjEnterData, iflag,                                            &
@@ -811,7 +817,7 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                      Default        = .false.,                                          &
                      ClientModule   ='ModulePorousMedia',                               &
                      STAT           = STAT_CALL)             
-        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModulePorousMedia - ERR06'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModulePorousMedia - ERR100'
 
         if (Me%SoilOpt%LimitEVAPHead) then
                 
@@ -822,7 +828,7 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                          Default        = -100.0,                                      &
                          ClientModule   ='ModulePorousMedia',                          &
                          STAT           = STAT_CALL)             
-            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModulePorousMedia - ERR6a'
+            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModulePorousMedia - ERR110'
         
         endif
 
@@ -833,12 +839,12 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                      Default    = .false.,                                              &                                           
                      ClientModule ='ModulePorousMedia',                                 &
                      STAT       = STAT_CALL)            
-        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModulePorousMedia - ERR07'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModulePorousMedia - ERR120'
         
         if (Me%SoilOpt%Continuous) then
             !Reads the name of the file where to read initial data
             call ReadFileName ('POROUS_INI', Me%Files%InitialFile, "PorousMedia Initial File", STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModulePorousMedia - ERR008'
+            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModulePorousMedia - ERR130'
 
             call GetData(Me%SoilOpt%StopOnWrongDate,                                    &
                          Me%ObjEnterData, iflag,                                        &
@@ -847,7 +853,7 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                          Default    = .true.,                                           &                                           
                          ClientModule ='ModulePorousMedia',                             &
                          STAT       = STAT_CALL)            
-            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModulePorousMedia - ERR09'
+            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModulePorousMedia - ERR140'
 
         endif
 
@@ -858,7 +864,7 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                      Default        = .true.,                                           &
                      ClientModule   ='ModulePorousMedia',                               &
                      STAT           = STAT_CALL)             
-        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModulePorousMedia - ERR09A'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModulePorousMedia - ERR150'
 
         !Output Options--------------------------------------------------------
 
@@ -872,7 +878,7 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                            OutPutsOn   = Me%OutPut%Yes,                                 &
                            STAT        = STAT_CALL)
         Me%OutPut%NextOutPut = 1
-        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModulePorousMedia - ERR010'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModulePorousMedia - ERR160'
 
         !Output for restart
         call GetOutPutTime(Me%ObjEnterData,                                             &
@@ -883,7 +889,7 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                            OutPutsTime  = Me%OutPut%RestartOutTime,                     &
                            OutPutsOn    = Me%OutPut%WriteRestartFile,                   &
                            STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR11a'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR170'
 
         call GetData(Me%OutPut%RestartOverwrite,                                        &
                      Me%ObjEnterData,                                                   &
@@ -893,7 +899,7 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                      Default      = .true.,                                             &
                      ClientModule = 'ModulePorousMedia',                                &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)  stop 'ReadDataFile - ModuleBasin - ERR11c'
+        if (STAT_CALL /= SUCCESS_)  stop 'ReadDataFile - ModuleBasin - ERR180'
 
         !Output for surface output
         call GetOutPutTime(Me%ObjEnterData,                                             &
@@ -904,13 +910,13 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                            OutPutsTime  = Me%OutPut%SurfaceOutTime,                     &
                            OutPutsOn    = Me%OutPut%SurfaceOutput,                      &
                            STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR11b'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR190'
 
         !Checks consistency
         if (Me%OutPut%Yes .and. Me%OutPut%SurfaceOutput) then
             write(*,*)'Only normal output or 2D output can be active'
             write(*,*)'OUTPUT_TIME or SURFACE_OUTPUT_TIME'
-            stop 'ReadDataFile - ModuleBasin - ERR11d'
+            stop 'ReadDataFile - ModuleBasin - ERR200'
         endif
 
         !Directional Options---------------------------------------------------        
@@ -922,7 +928,7 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                      Default        =.TRUE.,                                    &
                      ClientModule   ='ModulePorousMedia',                       &
                      STAT           = STAT_CALL)             
-        if (STAT_CALL /= SUCCESS_) stop 'GetUnSaturatedOptions - ModulePorousMedia - ERR02'
+        if (STAT_CALL /= SUCCESS_) stop 'GetUnSaturatedOptions - ModulePorousMedia - ERR210'
 
        
         ! 1 - AVERAGE of the conductivity in the cells
@@ -938,7 +944,7 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                      Default        = 1    ,                                    &
                      ClientModule   ='ModulePorousMedia',                       &
                      STAT           = STAT_CALL)             
-        if (STAT_CALL /= SUCCESS_) stop 'GetUnSaturatedOptions - ModulePorousMedia - ERR13'
+        if (STAT_CALL /= SUCCESS_) stop 'GetUnSaturatedOptions - ModulePorousMedia - ERR220'
 
 
         call GetData(Me%SoilOpt%HCondFactor,                                    &
@@ -948,7 +954,7 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                      Default        = 1.0,                                      &
                      ClientModule   ='ModulePorousMedia',                       &
                      STAT           = STAT_CALL)             
-        if (STAT_CALL /= SUCCESS_) stop 'GetUnSaturatedOptions - ModulePorousMedia - ERR16'
+        if (STAT_CALL /= SUCCESS_) stop 'GetUnSaturatedOptions - ModulePorousMedia - ERR230'
 
         call GetData(Me%SoilOpt%LimitEVAPWaterVelocity,                         &
                      Me%ObjEnterData, iflag,                                    &
@@ -957,7 +963,7 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                      Default    = .false.,                                      &                                           
                      ClientModule ='ModulePorousMedia',                         &
                      STAT       = STAT_CALL)            
-        if (STAT_CALL /= SUCCESS_) stop 'GetUnSaturatedOptions - ModulePorousMedia - ERR17'
+        if (STAT_CALL /= SUCCESS_) stop 'GetUnSaturatedOptions - ModulePorousMedia - ERR240'
 
         call GetData(Me%SoilOpt%DNLink,                                         &
                      Me%ObjEnterData, iflag,                                    &
@@ -966,12 +972,12 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                      Default    = GWFlowToChanByCell_,                          &                                           
                      ClientModule ='ModulePorousMedia',                         &
                      STAT       = STAT_CALL)            
-        if (STAT_CALL /= SUCCESS_) stop 'GetSoilOptions - ModulePorousMedia - ERR20'
+        if (STAT_CALL /= SUCCESS_) stop 'GetSoilOptions - ModulePorousMedia - ERR250'
         
         if ((Me%SoilOpt%DNLink /= GWFlowToChanByLayer_) .and. (Me%SoilOpt%DNLink /= GWFlowToChanByCell_)) then
             write(*,*)' DN_LINK uncorrectly defined - 2 for GW flow to drainage network by layers '
             write(*,*)' and 1 for GW flow for each cell'
-            stop 'GetUnSaturatedOptions - ModulePorousMedia - ERR21'
+            stop 'GetUnSaturatedOptions - ModulePorousMedia - ERR260'
         endif
         
         call GetData(Me%SoilOpt%ComputeHydroPressure,                           &
@@ -981,7 +987,7 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                      Default    = .true.,                                       &                                           
                      ClientModule ='ModulePorousMedia',                         &
                      STAT       = STAT_CALL)            
-        if (STAT_CALL /= SUCCESS_) stop 'GetUnSaturatedOptions - ModulePorousMedia - ERR22'
+        if (STAT_CALL /= SUCCESS_) stop 'GetUnSaturatedOptions - ModulePorousMedia - ERR270'
 
         !Number of iterations below which the DT is reduce (lower optimal iteration range)
         call GetData(Me%CV%MinIter,                                             &
@@ -992,7 +998,7 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                      ClientModule   ='ModulePorousMedia',                       &
                      STAT           = STAT_CALL)             
         if (STAT_CALL /= SUCCESS_)                                              &
-            call SetError(FATAL_, KEYWORD_, "ConvergeOptions; ModulePorousMedia. ERR02") 
+            call SetError(FATAL_, KEYWORD_, "ConvergeOptions; ModulePorousMedia. ERR280") 
 
         !Number of iterations above which the DT is increased (upper optimal iteration
         !range)
@@ -1004,7 +1010,7 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                      ClientModule   ='ModulePorousMedia',                       &
                      STAT           = STAT_CALL)             
         if (STAT_CALL /= SUCCESS_)                                              &
-            call SetError(FATAL_, KEYWORD_, "ConvergeOptions; ModulePorousMedia. ERR03") 
+            call SetError(FATAL_, KEYWORD_, "ConvergeOptions; ModulePorousMedia. ERR290") 
 
         !Limit number of iteractions (when it is reached current dt is devided 
         !by 3 and the iteration starts from the begining
@@ -1016,7 +1022,7 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                      ClientModule   ='ModulePorousMedia',                       &
                      STAT           = STAT_CALL)             
         if (STAT_CALL /= SUCCESS_)                                              &
-            call SetError(FATAL_, KEYWORD_, "ConvergeOptions; ModulePorousMedia. ERR04") 
+            call SetError(FATAL_, KEYWORD_, "ConvergeOptions; ModulePorousMedia. ERR300") 
 
         call GetData(Me%CV%LimitIter,                                           &
                      Me%ObjEnterData, iflag,                                    &
@@ -1026,7 +1032,7 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                      ClientModule   ='ModulePorousMedia',                       &
                      STAT           = STAT_CALL)             
         if (STAT_CALL /= SUCCESS_)                                              &
-            call SetError(FATAL_, KEYWORD_, "ConvergeOptions; ModulePorousMedia. ERR05") 
+            call SetError(FATAL_, KEYWORD_, "ConvergeOptions; ModulePorousMedia. ERR310") 
 
 
 
@@ -1039,7 +1045,7 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                      ClientModule   ='ModulePorousMedia',                       &
                      STAT           = STAT_CALL)             
         if (STAT_CALL /= SUCCESS_)                                              &
-            call SetError(FATAL_, KEYWORD_, "ConvergeOptions; ModulePorousMedia. ERR06") 
+            call SetError(FATAL_, KEYWORD_, "ConvergeOptions; ModulePorousMedia. ERR320") 
 
         !Increase factor of currentDT when the number of iterations is smaller
         !then MinIter (lower time step multiplication factor)
@@ -1051,7 +1057,7 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                      ClientModule   ='ModulePorousMedia',                       &
                      STAT           = STAT_CALL)             
         if (STAT_CALL /= SUCCESS_)                                              &
-            call SetError(FATAL_, KEYWORD_, "ConvergeOptions; ModulePorousMedia. ERR08") 
+            call SetError(FATAL_, KEYWORD_, "ConvergeOptions; ModulePorousMedia. ERR330") 
 
         !Increase factor of currentDT when the number of iterations is smaller
         !then MinIter (upper time step multiplication factor)
@@ -1063,7 +1069,7 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                      ClientModule   ='ModulePorousMedia',                       &
                      STAT           = STAT_CALL)             
         if (STAT_CALL /= SUCCESS_)                                              &
-            call SetError(FATAL_, KEYWORD_, "ConvergeOptions; ModulePorousMedia. ERR09") 
+            call SetError(FATAL_, KEYWORD_, "ConvergeOptions; ModulePorousMedia. ERR340") 
 
         ! This value says how near the ThetaR the calculation is disconected. 
         ! Disables calculation when Theta is near ThetaR
@@ -1075,7 +1081,7 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                      ClientModule   ='ModulePorousMedia',                       &
                      STAT           = STAT_CALL)             
         if (STAT_CALL /= SUCCESS_)                                              &
-            call SetError(FATAL_, KEYWORD_, "ConvergeOptions; ModulePorousMedia. ERR10") 
+            call SetError(FATAL_, KEYWORD_, "ConvergeOptions; ModulePorousMedia. ERR350") 
       
         ! This value says when Theta is converted to ThetaS
         ! Set Theta = ThetaS
@@ -1087,7 +1093,7 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                      ClientModule   ='ModulePorousMedia',                       &
                      STAT           = STAT_CALL)             
         if (STAT_CALL /= SUCCESS_)                                              &
-            call SetError(FATAL_, KEYWORD_, "ConvergeOptions; ModulePorousMedia. ERR11") 
+            call SetError(FATAL_, KEYWORD_, "ConvergeOptions; ModulePorousMedia. ERR360") 
         
         !avoid instabilities in searching for saturated water table. using low values as 1e-15 
         !usually causes variations in water table depth of order of meters from iteration to another
@@ -1100,7 +1106,7 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                      ClientModule   ='ModulePorousMedia',                       &
                      STAT           = STAT_CALL)             
         if (STAT_CALL /= SUCCESS_)                                              &
-            call SetError(FATAL_, KEYWORD_, "ConvergeOptions; ModulePorousMedia. ERR11") 
+            call SetError(FATAL_, KEYWORD_, "ConvergeOptions; ModulePorousMedia. ERR370") 
             
         ! This value says from which thetaS hydrostatic pressure is to be consider
         ! Set Theta = ThetaS
@@ -1112,7 +1118,7 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                      ClientModule   ='ModulePorousMedia',                       &
                      STAT           = STAT_CALL)             
         if (STAT_CALL /= SUCCESS_)                                              &
-            call SetError(FATAL_, KEYWORD_, "ConvergeOptions; ModulePorousMedia. ERR12") 
+            call SetError(FATAL_, KEYWORD_, "ConvergeOptions; ModulePorousMedia. ERR380") 
 
         call GetData(Me%CV%VelHydroCoef,                                      &
                      Me%ObjEnterData, iflag,                                    &
@@ -1122,7 +1128,7 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                      ClientModule   ='ModulePorousMedia',                       &
                      STAT           = STAT_CALL)             
         if (STAT_CALL /= SUCCESS_)                                              &
-            call SetError(FATAL_, KEYWORD_, "ConvergeOptions; ModulePorousMedia. ERR13") 
+            call SetError(FATAL_, KEYWORD_, "ConvergeOptions; ModulePorousMedia. ERR390") 
 
         !Conductivity used for infiltration - for tests only - by default nothing changes
         call GetData(Me%SoilOpt%InfiltrationConductivity,                       &
@@ -1132,7 +1138,7 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                      Default    = SatCond_,                                     &                                           
                      ClientModule ='ModulePorousMedia',                         &
                      STAT       = STAT_CALL)            
-        if (STAT_CALL /= SUCCESS_) stop 'GetSoilOptions - ModulePorousMedia - ERR50'
+        if (STAT_CALL /= SUCCESS_) stop 'GetSoilOptions - ModulePorousMedia - ERR400'
         
         if ((Me%SoilOpt%InfiltrationConductivity .ne. SatCond_) .and.            &
             (Me%SoilOpt%InfiltrationConductivity .ne. UnSatCond_)) then
@@ -1140,7 +1146,7 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
             write(*,*)
             write(*,*)'Method not known for infiltration conductivity'
             write(*,*)'Please check INFIL_CONDUCTIVITY keyword'
-            stop 'ReadDataFile - ModulePorousMedia - ERR060'
+            stop 'ReadDataFile - ModulePorousMedia - ERR410'
         
         endif
     
@@ -1306,7 +1312,8 @@ do1:     do
             Number = '    '
             write(Number, fmt='(i4)')Counter
             open(UNIT   = Me%Files%AsciiUnit,                                      &
-                 FILE   = '..\res\iter.soi_'//trim(adjustl(Number))//'.log', &
+!                 FILE   = '..\res\iter.soi_'//trim(adjustl(Number))//'.log', &
+                 FILE   = Me%Files%ASCFile, &
                  STATUS = "REPLACE",                                      &
                  IOSTAT = STAT_CALL)
             if (STAT_CALL == SUCCESS_) then

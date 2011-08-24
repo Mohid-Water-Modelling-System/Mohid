@@ -59,6 +59,8 @@ program MohidLand
 
     !Model Name
     character(len=StringLength)         :: ModelName
+    character(PathLength)               :: OutputFile
+    logical                             :: SaveOutput = .false.
 
     !Other Stuff
     type (T_Time)                       :: InitialSystemTime, FinalSystemTime
@@ -136,6 +138,14 @@ program MohidLand
             MonitorPerformance  = .true.
         else
             MonitorPerformance  = .false.
+        endif
+
+        !Monitor Performance of the model execution?
+        call ReadFileName('OUTPUT_RESULT', OutputFile, Message = 'Start Result File', STAT = STAT_CALL)
+        if (STAT_CALL == SUCCESS_) then
+            SaveOutput  = .true.
+        else
+            SaveOutput  = .false.
         endif
 
         call ReadFileName('DT_LOG', DTLogFile, Message = 'Start DTLog File', STAT = STAT_CALL)
@@ -324,7 +334,9 @@ program MohidLand
         call cpu_time(TotalCPUTime)
         ElapsedSeconds = FinalSystemTime - InitialSystemTime
 
-        call ShutdownMohid ("Mohid Land", ElapsedSeconds, TotalCPUTime)
+        if (SaveOutput) call SaveRunInfo ("Mohid Land", ElapsedSeconds, TotalCPUTime, OutputFile)
+        
+        call ShutdownMohid ("Mohid Land", ElapsedSeconds, TotalCPUTime)        
         
         ModelConstructed = .false.
 

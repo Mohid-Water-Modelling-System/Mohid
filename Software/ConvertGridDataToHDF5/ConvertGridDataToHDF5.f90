@@ -44,6 +44,7 @@ program ConvertGridDataToHDF5
     real, dimension(:), pointer          :: TimePointer
     type (T_Time)                        :: Time
     character(1024)                      :: InputFile, OutputFile
+    character(1024)                      :: Property
     real                                 :: ElapsedSeconds, TotalCPUTime
 
     !----------------------------------------------------------------------------------------------------------
@@ -109,9 +110,18 @@ program ConvertGridDataToHDF5
                      ClientModule = 'ConvertGridDataToHDF5', &
                      STAT         = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_) stop 'ReadDataFile - ConvertGridDataToHDF5 - ERR040'
+
+        call GetData(Property,                               &
+                     ObjEnterData, iflag,                    &
+                     SearchType   = FromFile,                &
+                     keyword      = 'PROPERTY_NAME',         &
+                     ClientModule = 'ConvertGridDataToHDF5', &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'ReadDataFile - ConvertGridDataToHDF5 - ERR050'
+        if (iflag /= 1) stop 'ReadDataFile - ConvertGridDataToHDF5 - ERR060'
     
         call KillEnterData (ObjEnterData, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructBasin - ConvertGridDataToHDF5 - ERR050'
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructBasin - ConvertGridDataToHDF5 - ERR060'
         !End-------------------------------------------------------------------
     
     end subroutine ReadDataFile
@@ -187,18 +197,18 @@ program ConvertGridDataToHDF5
                            STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConvertGridDataToHDF5 - ERR090'
 
-        call HDF5WriteData(ObjHDF5,                     &
-                           "//Results/leaf area index", &
-                           "leaf area index",           &
-                           "m",                         &                           
-                           Array2D = Grid,              &
-                           OutputNumber = 1,            &
+        call HDF5WriteData(ObjHDF5,                      &
+                           "//Results/"//trim(Property), &
+                           trim(Property),               &
+                           "m",                          &                           
+                           Array2D = Grid,               &
+                           OutputNumber = 1,             &
                            STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConvertGridDataToHDF5 - ERR100'
 
         allocate(MapingPoints(Size%ILB:Size%IUB, Size%JLB:Size%JUB))
         MapingPoints = 1
-        call HDF5WriteData   (ObjHDF5, "/Grid", "MapingPoints", "-",      &
+        call HDF5WriteData   (ObjHDF5, "/Grid", "MappingPoints", "-",      &
                               Array2D = MapingPoints, STAT = STAT_CALL)                              
         if (STAT_CALL /= SUCCESS_) stop 'ConvertGridDataToHDF5 - ERR110'
 
