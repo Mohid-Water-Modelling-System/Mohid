@@ -251,7 +251,6 @@ Module ModulePorousMedia
 
     type T_ExtVar
         integer, dimension(:,:), pointer        :: BasinPoints
-!        real   , dimension(:,:), pointer        :: PermeableFraction
         
         !ObjGeometry
         real   , pointer, dimension(:,:  )      :: DUX, DVY
@@ -278,14 +277,7 @@ Module ModulePorousMedia
         integer, pointer, dimension(:,:,:)      :: ComputeFacesU3D
         integer, pointer, dimension(:,:,:)      :: ComputeFacesV3D
         integer, pointer, dimension(:,:,:)      :: ComputeFacesW3D      
-        
-        !Vegetation Stuff
-        real, dimension(:,:), pointer           :: RootDepth
-        real, dimension(:,:), pointer           :: RootFeddesH1
-        real, dimension(:,:), pointer           :: RootFeddesH2
-        real, dimension(:,:), pointer           :: RootFeddesH3
-        real, dimension(:,:), pointer           :: RootFeddesH4
-        
+       
         real(8), dimension(:,:  ), pointer      :: InfiltrationColumn
         real, dimension(:,:,:), pointer         :: TranspirationFlux        
         real, dimension(:,:  ), pointer         :: PotentialEvaporationFlux         
@@ -306,7 +298,6 @@ Module ModulePorousMedia
         logical :: CheckGlobalMass
         logical :: StartWithFieldCapacity
         logical :: ComputeSoilField
-        logical :: RemoveWater              !Lúcia - Not used.
         real    :: HCondFactor
         logical :: LimitEVAPWaterVelocity
         logical :: LimitEVAPHead
@@ -329,9 +320,9 @@ Module ModulePorousMedia
     end type T_SoilType
 
     type T_Retention !Main parameters in the Mualem-van Genuchten retention and conductivity cuves
-        real, dimension(:,:,:), pointer     :: ThetaR           => null()     !Minimum water content
-        real, dimension(:,:,:), pointer     :: ThetaS           => null()     !Saturated water content
-        real, dimension(:,:,:), pointer     :: ThetaF           => null()     !(Theta-ThetaR)/(ThetaS-ThetaR)
+        real, dimension(:,:,:), allocatable:: ThetaR     !      => null()     !Minimum water content
+        real, dimension(:,:,:), allocatable:: ThetaS     !      => null()     !Saturated water content
+        real, dimension(:,:,:), allocatable:: ThetaF     !      => null()     !(Theta-ThetaR)/(ThetaS-ThetaR)
     end type T_Retention
 
     type T_Converge
@@ -351,21 +342,11 @@ Module ModulePorousMedia
         real         :: ThetaHydroCoef      = null_real
         real         :: VelHydroCoef        = null_real
 
-        real,    pointer, dimension(:,:,:) :: ThetaOld
-        real,    pointer, dimension(:,:,:) :: ThetaIni
-!        real,    pointer, dimension(:,:,:) :: HeadOld
-        real,    pointer, dimension(:,:,:) :: HeadIni
+        real,    allocatable, dimension(:,:,:) :: ThetaOld
+        real,    allocatable, dimension(:,:,:) :: ThetaIni
+        real,    allocatable, dimension(:,:,:) :: HeadIni
     end type T_Converge
     
-    type T_Property
-        type (T_PropertyID)                     :: ID
-        real, dimension(:,:,:), pointer         :: Concentration            => null()
-        real, dimension(:,:,:), pointer         :: ConcentrationIni         => null()
-        real, dimension(:,:,:), pointer         :: ConcentrationOld         => null()
-        real, dimension(:,:  ), pointer         :: UpperConcentration       => null()
-        type (T_Property), pointer              :: Next                     => null()
-    end type T_Property
-
     type       T_PorousMedia        
         !Instaces of other Objects
         integer                                 :: InstanceID
@@ -383,7 +364,7 @@ Module ModulePorousMedia
         integer                                 :: ObjBottomTopography      = 0
         integer                                 :: ObjEnterData             = 0
         integer                                 :: ObjProfile               = 0
-        real,    pointer, dimension(:,:,:)      :: ThetaField                => null() !!FieldCapacity [m3/m3]                
+        real,    allocatable, dimension(:,:,:)  :: ThetaField               ! => null() !!FieldCapacity [m3/m3]                
 
         type (T_OutPut)                         :: OutPut
         type (T_ExtVar)                         :: ExtVar
@@ -402,45 +383,45 @@ Module ModulePorousMedia
         integer, dimension(:,:), pointer        :: UGCell_Old               => null()
         
         !Exchange with channels
-        real,    dimension(:,:), pointer        :: lFlowToChannels          => null()
-        real,    dimension(:,:,:), pointer      :: lFlowToChannelsLayer     => null()
-        real,    dimension(:,:), pointer        :: iFlowToChannels          => null()
-        real,    dimension(:,:,:), pointer      :: iFlowToChannelsLayer     => null()
-        integer, dimension(:,:), pointer        :: FlowToChannelsTopLayer   => null()
-        integer, dimension(:,:), pointer        :: FlowToChannelsBottomLayer => null()
+        real,    dimension(:,:),   allocatable  :: lFlowToChannels          !=> null()
+        real,    dimension(:,:,:), allocatable  :: lFlowToChannelsLayer     !=> null()
+        real,    dimension(:,:),   allocatable  :: iFlowToChannels       !   => null()
+        real,    dimension(:,:,:), allocatable  :: iFlowToChannelsLayer   !  => null()
+        integer, dimension(:,:),   allocatable  :: FlowToChannelsTopLayer  ! => null()
+        integer, dimension(:,:),   allocatable  :: FlowToChannelsBottomLayer ! => null()
 
         !Velocities
-        real,    dimension(:,:,:), pointer      :: UnsatVelU                => null()
-        real,    dimension(:,:,:), pointer      :: UnsatVelV                => null()
-        real,    dimension(:,:,:), pointer      :: UnsatVelW                => null()
-        real,    dimension(:,:,:), pointer      :: UnsatVelWFinal           => null()
+        real,    dimension(:,:,:), allocatable  :: UnsatVelU              !  => null()
+        real,    dimension(:,:,:), allocatable  :: UnsatVelV               ! => null()
+        real,    dimension(:,:,:), allocatable  :: UnsatVelW               ! => null()
+        real,    dimension(:,:,:), allocatable  :: UnsatVelWFinal          ! => null()
 
         !infiltration 
         real,   pointer, dimension(:,:)         :: InfiltrationVelocity     => null()
         real,   pointer, dimension(:,:)         :: ImpermeableFraction
 
         !Fluxes
-        real(8), dimension(:,:,:), pointer      :: FluxU                    => null()
-        real(8), dimension(:,:,:), pointer      :: FluxV                    => null()
-        real(8), dimension(:,:,:), pointer      :: FluxW                    => null()
-        real(8), dimension(:,:,:), pointer      :: FluxWFinal               => null()  !Flux Corrected with Vertical continuity
+        real(8), dimension(:,:,:), allocatable  :: FluxU                   ! => null()
+        real(8), dimension(:,:,:), allocatable  :: FluxV                   ! => null()
+        real(8), dimension(:,:,:), allocatable  :: FluxW                   ! => null()
+        real(8), dimension(:,:,:), allocatable  :: FluxWFinal              ! => null()  !Flux Corrected with Vertical continuity
         real,    dimension(:,:  ), pointer      :: EvaporationFlux          => null()
         !Flow Properties
-        real,    pointer, dimension(:,:,:)      :: Theta                    => null() !water content on each cell [m3/m3]
-        real,    pointer, dimension(:,:,:)      :: Head                     => null() !Suction Head on each cell 
-        real,    pointer, dimension(:,:,:)      :: HydroPressure            => null() !Hydrostatic pressure
-        real,    pointer, dimension(:,:,:)      :: FinalHead                => null() !Sum of Suction, Hydrostatic and Topography
+        real,    allocatable, dimension(:,:,:)      :: Theta               !     => null() !water content on each cell [m3/m3]
+        real,    allocatable, dimension(:,:,:)      :: Head                !     => null() !Suction Head on each cell 
+        real,    allocatable, dimension(:,:,:)      :: HydroPressure       !     => null() !Hydrostatic pressure
+        real,    allocatable, dimension(:,:,:)      :: FinalHead           !     !Sum of Suction, Hydrostatic and Topography
 
         !Common Properties
-        real,    pointer, dimension(:,:,:)      :: SatK                     => null()
-        integer, pointer, dimension(:,:,:)      :: SoilID                   => null()
-        real,    pointer, dimension(:,:,:)      :: UnSatK                   => null()
-        real,    pointer, dimension(:,:,:)      :: UnSatK_X                 => null()
-        real,    pointer, dimension(:,:,:)      :: UnSatK_Y                 => null()
-        real,    pointer, dimension(:,:,:)      :: UnSatK_Z                 => null()
+        real,    allocatable, dimension(:,:,:)      :: SatK                !     => null()
+        integer, allocatable, dimension(:,:,:)      :: SoilID              !     => null()
+        real,    allocatable, dimension(:,:,:)      :: UnSatK              !     => null()
+        real,    allocatable, dimension(:,:,:)      :: UnSatK_X            !     => null()
+        real,    allocatable, dimension(:,:,:)      :: UnSatK_Y            !     => null()
+        real,    allocatable, dimension(:,:,:)      :: UnSatK_Z            !     => null()
 
         !Auxiliar SpeedUp Matrixes          
-        logical, pointer, dimension(:,:,:)      :: CalculateHead            => null()
+        logical, allocatable, dimension(:,:,:)      :: CalculateHead        !    => null()
     
         logical                                 :: TranspirationExists            = .false.
         logical                                 :: EvaporationExists              = .false.
@@ -464,7 +445,7 @@ Module ModulePorousMedia
         type (T_SoilType), dimension(:), pointer :: SoilTypes       => null()
         
         !Properties
-        type (T_Property), pointer              :: FirstProperty    => null()
+        !type (T_Property), pointer              :: FirstProperty    => null()
                 
         type(T_PorousMedia), pointer            :: Next             => null()
         
@@ -624,7 +605,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             Me%CV%PredictedDT = Me%ExtVar%DT
 
             !Calculate initial heads
-            call SoilParameters (Me%ExtVar%BasinPoints)
+            call SoilParameters
             
             !Calculates Initial GW Cell
             call CalculateUGWaterLevel
@@ -764,9 +745,10 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
         if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModulePorousMedia - ERR030'
         
         !Reads the name of the file where to store ASCII data
-        call ReadFileName ('POROUS_ASC', Me%Files%ASCFile, "PorousMedia ITER SOL File", STAT = STAT_CALL)
+        call ReadFileName ('POROUS_ASC', Me%Files%ASCFile, "PorousMedia ITER SOL File", Me%EndTime,  &
+                           Extension = 'hyt', STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModulePorousMedia - ERR040'
-        
+       
 
         !Constructs the DataFile
         call ConstructEnterData (Me%ObjEnterData, Me%Files%DataFile, STAT = STAT_CALL)
@@ -800,16 +782,6 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                      STAT       = STAT_CALL)            
         if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModulePorousMedia - ERR080'
 
-        !This keyword is not used anywhere
-        call GetData(Me%SoilOpt%RemoveWater,                                            &   
-                     Me%ObjEnterData, iflag,                                            &
-                     SearchType = FromFile,                                             &
-                     keyword    = 'REMOVE_WATER',                                       &
-                     Default    = .true.,                                               &                                           
-                     ClientModule ='ModulePorousMedia',                                 &
-                     STAT       = STAT_CALL)            
-        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModulePorousMedia - ERR90'
-   
         call GetData(Me%SoilOpt%LimitEVAPHead,                                          &     
                      Me%ObjEnterData, iflag,                                            &
                      SearchType     = FromFile,                                         &
@@ -1746,7 +1718,7 @@ doSP:           do
                                                      GeometryID           = Me%ObjGeometry,                   &
                                                      ExtractType          = FromBlockInBlock,                 &
                                                      PointsToFill3D       = AuxPointsToFill,                  &
-                                                     Matrix3D             = Me%Theta,                         &
+                                                     Matrix3D             = GetPointer(Me%Theta),             &
                                                      TypeZUV              = TypeZ_,                           &
                                                      STAT                 = STAT_CALL)
                             if (STAT_CALL /= SUCCESS_) stop 'InitialFields - ModulePorousMedia - ERR97'
@@ -3778,7 +3750,7 @@ dConv:  do while (iteration <= Niteration)
                 call VerticalContinuity
 
                 !Calulates Heads / Conductivities from new Theta values
-                call SoilParameters    (Me%ExtVar%BasinPoints)
+                call SoilParameters
 
                 !Removes water due to infiltration
                 call IntegrateValuesInTime(SumDT)
@@ -4761,12 +4733,14 @@ dConv:  do while (iteration <= Niteration)
         endif
 
         if (Me%EvaporationExists) then
+
+            k = Me%WorkSize%KUB
+
             !Evaporation
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
             do J = Me%WorkSize%JLB, Me%WorkSize%JUB
             do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                 if (Me%ExtVar%BasinPoints(I,J) == WaterPoint) then
-                    k = Me%WorkSize%KUB
                     Me%Theta(i, j, k) = (Me%Theta(i, j, k) * Me%ExtVar%CellVolume(i, j, k) -       & 
                                          Me%EvaporationFlux(i, j) * Me%CV%CurrentDT)  /            &
                                          Me%ExtVar%CellVolume(i,j,k)
@@ -4777,15 +4751,11 @@ dConv:  do while (iteration <= Niteration)
         endif
         
         !Infiltration
+        k = Me%WorkSize%KUB
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
         do J = Me%WorkSize%JLB, Me%WorkSize%JUB
         do I = Me%WorkSize%ILB, Me%WorkSize%IUB
             if (Me%ExtVar%BasinPoints(i,j) == WaterPoint) then
-                k = Me%WorkSize%KUB
-!                Me%Theta(i, j, k) = (Me%Theta(i, j, k) * Me%ExtVar%CellVolume(i, j, k) +                &
-!                                     Me%UnsatVelW(i, j, k+1) * Me%ExtVar%Area(i, j) *                   &
-!                                     (1.0 - Me%ImpermeableFraction(i, j)) * Me%CV%CurrentDT) /             &
-!                                     Me%ExtVar%CellVolume(i, j, k)
                 Me%Theta(i, j, k) = (Me%Theta(i, j, k) * Me%ExtVar%CellVolume(i, j, k) -                &
                                      Me%UnsatVelWFinal(i, j, k+1) * Me%ExtVar%Area(i, j) *              &
                                      (1.0 - Me%ImpermeableFraction(i, j)) * Me%CV%CurrentDT) /          &
@@ -4938,15 +4908,15 @@ dConv:  do while (iteration <= Niteration)
 
         !Local-----------------------------------------------------------------
         integer                                     :: i, j, k
-        !integer                                     :: chunk
+        integer                                     :: chunk
      
         !Begin-----------------------------------------------------------------
         
-        !CHUNK = CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)
+        chunk = CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)
 
         if (Me%TranspirationExists) then
-            !!$OMP PARALLEL SHARED(CHUNK) PRIVATE(I,J,K)
-            !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            !$OMP PARALLEL PRIVATE(I,J,K)
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
             do K = Me%WorkSize%KLB,     Me%WorkSize%KUB
             do J = Me%WorkSize%JLB,     Me%WorkSize%JUB
             do I = Me%WorkSize%ILB,     Me%WorkSize%IUB
@@ -4960,15 +4930,14 @@ dConv:  do while (iteration <= Niteration)
             enddo
             enddo            
             enddo  
-              
-            !!$OMP END DO
-            !!$OMP END PARALLEL     
+            !$OMP END DO
+            !$OMP END PARALLEL     
         
         endif
         
         if (Me%EvaporationExists) then
-            !!!$OMP PARALLEL SHARED(CHUNK) PRIVATE(I,J,K)
-            !!!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            !$OMP PARALLEL PRIVATE(I,J,K)
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
             do J = Me%WorkSize%JLB,     Me%WorkSize%JUB
             do I = Me%WorkSize%ILB,     Me%WorkSize%IUB
                                 
@@ -4983,40 +4952,13 @@ dConv:  do while (iteration <= Niteration)
             enddo
             enddo            
               
-            !!!$OMP END DO
-            !!!$OMP END PARALLEL     
+            !$OMP END DO
+            !$OMP END PARALLEL     
         
         endif
         
 
     end subroutine UpdateEfectiveEVTP
-
-    !--------------------------------------------------------------------------
-
-    subroutine IntegrateFlow_Old(SumDT)
-    
-        !Arguments-------------------------------------------------------------
-        real                                        :: SumDT
-
-        !Local-----------------------------------------------------------------
-        integer                                     :: i, j
-        integer                                     :: chunk
-     
-        CHUNK = CHUNK_J(Me%WorkSize%KLB, Me%WorkSize%JUB)
-
-        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
-        do i = Me%WorkSize%ILB, Me%WorkSize%IUB
-
-            if (Me%ExtVar%RiverPoints (i,j) == 1) then
-                Me%iFlowToChannels(i, j) = (Me%iFlowToChannels(i, j) * SumDT +                  &
-                                            Me%lFlowToChannels(i, j) * Me%CV%CurrentDT) /       &
-                                           (SumDT + Me%CV%CurrentDT)
-            endif
-            
-        enddo
-        enddo
-
-    end subroutine IntegrateFlow_Old
 
     !--------------------------------------------------------------------------
     
@@ -5031,6 +4973,9 @@ dConv:  do while (iteration <= Niteration)
      
         CHUNK = CHUNK_J(Me%WorkSize%KLB, Me%WorkSize%JUB)
 
+        !$OMP PARALLEL PRIVATE(I,J,K)
+
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
         do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
@@ -5054,15 +4999,16 @@ dConv:  do while (iteration <= Niteration)
             
         enddo
         enddo
+        !$OMP END DO
+        !$OMP END PARALLEL
 
     end subroutine IntegrateFlow
 
     !--------------------------------------------------------------------------
 
-    subroutine SoilParameters (Mapping)
+    subroutine SoilParameters
 
         !Arguments-------------------------------------------------------------        
-        integer, dimension(:,:), pointer            :: Mapping
 
         !Local-----------------------------------------------------------------
         integer                                     :: i, j, k
@@ -5078,7 +5024,7 @@ dConv:  do while (iteration <= Niteration)
         do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
-cd1 :   if (Mapping(i, j) == 1) then
+cd1 :   if (Me%ExtVar%BasinPoints(i, j) == 1) then
 
             do k = Me%ExtVar%KFloor(i, j), Me%WorkSize%KUB
 
@@ -5122,7 +5068,7 @@ cd1 :   if (Mapping(i, j) == 1) then
         do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
-cd2 :   if (Mapping(i, j) == 1) then
+cd2 :   if (Me%ExtVar%BasinPoints(i, j) == 1) then
 
             do k = Me%ExtVar%KFloor(i, j), Me%WorkSize%KUB
 
@@ -5131,8 +5077,6 @@ cd2 :   if (Mapping(i, j) == 1) then
                 !Over saturation
                 if (Me%RC%ThetaF(i, j, k) > 1.0) then
 
-!                    Me%Head   (i, j, k) = Me%SoilTypes(Me%SoilID(I,J,K))%OverSatSlope * (Me%Theta (i, j, k)   &
-!                                          - Me%RC%ThetaS (i, j, k))
                     Me%Head   (i, j, k) = 0.0
                     Me%UnSatK (i, j, k) = Me%SatK(i, j, k)
 
@@ -6306,38 +6250,37 @@ do5:                do K = Me%ExtVar%KFloor(i,j), Me%WorkSize%KUB
                 !----------------------------------------------------------------------------
                 !Unsaturated Output----------------------------------------------------------
                 !----------------------------------------------------------------------------
-
                 call HDF5WriteData ( Me%ObjHDF5,    "/Results/water content",       &
                                     "water content", "m3water/m3soil"            ,  &
-                                     Array3D      =  Me%Theta             ,         &
+                                     Array3D      =  GetPointer(Me%Theta) ,         &
                                      OutputNumber =  Me%OutPut%NextOutPut    ,      &
                                      STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModulePorousMedia - ERR01'
                 
-                call HDF5WriteData ( Me%ObjHDF5,    "/Results/relative water content",     &
-                                    "relative water content", "m3water/m3water"        ,   &
-                                     Array3D      =  Me%RC%ThetaF         ,         &
-                                     OutputNumber =  Me%OutPut%NextOutPut    ,      &
-                                     STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModulePorousMedia - ERR01'
+!                call HDF5WriteData ( Me%ObjHDF5,    "/Results/relative water content",     &
+!                                    "relative water content", "m3water/m3water"        ,   &
+!                                     Array3D      =  Me%RC%ThetaF         ,         &
+!                                     OutputNumber =  Me%OutPut%NextOutPut    ,      &
+!                                     STAT = STAT_CALL)
+!                if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModulePorousMedia - ERR01'
 
                 call HDF5WriteData ( Me%ObjHDF5, "/Results/Head"            ,       &
                                     "Head"     , 'm'                            ,   &
-                                     Array3D      = Me%Head               ,         &
+                                     Array3D      = GetPointer(Me%Head)   ,         &
                                      OutputNumber = Me%OutPut%NextOutPut        ,   & 
                                      STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModulePorousMedia - ERR01'
 
                 call HDF5WriteData ( Me%ObjHDF5, "/Results/FinalHead"    ,          &
                                     "FinalHead"     , 'm'                       ,   &
-                                     Array3D      = Me%FinalHead,                   &
+                                     Array3D      = GetPointer(Me%FinalHead),       &
                                      OutputNumber = Me%OutPut%NextOutPut,           & 
                                      STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModulePorousMedia - ERR01'
 
                 call HDF5WriteData ( Me%ObjHDF5, "/Results/HydroPressure"    ,   &
                                     "HydroPressure"     , 'm'                            ,   &
-                                     Array3D      = Me%HydroPressure,   &
+                                     Array3D      = GetPointer(Me%HydroPressure),   &
                                      OutputNumber = Me%OutPut%NextOutPut        ,   & 
                                      STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModulePorousMedia - ERR01'
@@ -6523,24 +6466,24 @@ do5:                do K = Me%ExtVar%KFloor(i,j), Me%WorkSize%KUB
 
         !Theta
         call WriteTimeSerie(Me%ObjTimeSerie,                                            &
-                            Data3D = Me%Theta,                                    &
+                            Data3D = GetPointer(Me%Theta),                              &
                             STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModulePorousMedia - ERR01'
 
         !ThetaF
-        call WriteTimeSerie(Me%ObjTimeSerie,                                            &
-                            Data3D = Me%RC%ThetaF,                                &
-                            STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModulePorousMedia - ERR010'
+!        call WriteTimeSerie(Me%ObjTimeSerie,                                            &
+!                            Data3D = Me%RC%ThetaF,                                &
+!                            STAT = STAT_CALL)
+!        if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModulePorousMedia - ERR010'
 
         !velocity for now......
         call WriteTimeSerie(Me%ObjTimeSerie,                                            &
-                            Data3D = Me%UnsatVelW ,                                     &
+                            Data3D = GetPointer(Me%UnsatVelW),                          &
                             STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModulePorousMedia - ERR020'
 
         call WriteTimeSerie(Me%ObjTimeSerie,                                            &
-                            Data3D = Me%UnsatVelWFinal ,                                &
+                            Data3D = GetPointer(Me%UnsatVelWFinal),                     &
                             STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModulePorousMedia - ERR020'
 
@@ -6553,13 +6496,13 @@ do5:                do K = Me%ExtVar%KFloor(i,j), Me%WorkSize%KUB
 
         !Head
         call WriteTimeSerie(Me%ObjTimeSerie,                                            &
-                            Data3D = Me%Head,                                     &
+                            Data3D = GetPointer(Me%Head),                               &
                             STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModulePorousMedia - ERR040'
 
         !Conductivity
         call WriteTimeSerie(Me%ObjTimeSerie,                                            &
-                            Data3D = Me%UnSatK,                                   &
+                            Data3D = GetPointer(Me%UnSatK),                             &
                             STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModulePorousMedia - ERR050'
 
@@ -6577,13 +6520,13 @@ do5:                do K = Me%ExtVar%KFloor(i,j), Me%WorkSize%KUB
 
         !Hydro Pressure
         call WriteTimeSerie(Me%ObjTimeSerie,                                            &
-                            Data3D = Me%HydroPressure,                                  &
+                            Data3D = GetPointer(Me%HydroPressure),                      &
                             STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModulePorousMedia - ERR080'
 
         !Final Head
         call WriteTimeSerie(Me%ObjTimeSerie,                                            &
-                            Data3D = Me%FinalHead,                                      &
+                            Data3D = GetPointer(Me%FinalHead),                          &
                             STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModulePorousMedia - ERR090'
 
@@ -6597,14 +6540,14 @@ do5:                do K = Me%ExtVar%KFloor(i,j), Me%WorkSize%KUB
         
             !Flow to channels total
             call WriteTimeSerie(Me%ObjTimeSerie,                                            &
-                                Data2D = Me%iFlowToChannels,                                &
+                                Data2D = GetPointer(Me%iFlowToChannels),                    &
                                 STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModulePorousMedia - ERR092' 
                            
             if (Me%SoilOpt%DNLink == GWFlowToChanByLayer_) then
                 !Flow to channels by layer
                 call WriteTimeSerie(Me%ObjTimeSerie,                                            &
-                                    Data3D = Me%iFlowToChannelsLayer,                           &
+                                    Data3D = GetPointer(Me%iFlowToChannelsLayer),               &
                                     STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModulePorousMedia - ERR091'
    
@@ -6641,21 +6584,21 @@ do5:                do K = Me%ExtVar%KFloor(i,j), Me%WorkSize%KUB
 
         !Theta
         call WriteProfile(Me%ObjProfile,                                        &
-                          Data3D = Me%Theta,                              &
+                          Data3D = GetPointer(Me%Theta),                        &
                           SZZ    = Me%ExtVar%SZZ,                               &
                           STAT   = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ProfileOutput - ModulePorousMedia - ERR01'
 
         !ThetaF
-        call WriteProfile(Me%ObjProfile,                                        &
-                          Data3D = Me%RC%ThetaF,                          &
-                          SZZ    = Me%ExtVar%SZZ,                               &
-                          STAT   = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ProfileOutput - ModulePorousMedia - ERR02'
+!        call WriteProfile(Me%ObjProfile,                                        &
+!                          Data3D = Me%RC%ThetaF,                          &
+!                          SZZ    = Me%ExtVar%SZZ,                               &
+!                          STAT   = STAT_CALL)
+!        if (STAT_CALL /= SUCCESS_) stop 'ProfileOutput - ModulePorousMedia - ERR02'
 
         !Head
         call WriteProfile(Me%ObjProfile,                                        &
-                          Data3D = Me%Head,                               &
+                          Data3D = GetPointer(Me%Head),                         &
                           SZZ    = Me%ExtVar%SZZ,                               &
                           STAT   = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ProfileOutput - ModulePorousMedia - ERR02'

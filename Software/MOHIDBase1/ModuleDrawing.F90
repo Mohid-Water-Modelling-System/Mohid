@@ -1896,7 +1896,7 @@ logical,                 intent(OUT)    :: WindowWithData
 
 !Local----------------------------------------
 type(T_Polygon),          pointer    :: PolygonDomain
-type(T_PointF),           pointer    :: Point, PointA, PointB
+type(T_PointF),           pointer    :: Point
 integer, dimension(:), allocatable   :: Xj, Yi
 integer, dimension(2,8)     :: WindowInIndex
 integer                     :: i, imin, imax, jmin, jmax, count, p, ncells, j

@@ -50,7 +50,7 @@ Module ModuleRunOff
     use ModuleDrainageNetwork   ,only : GetChannelsWaterLevel, GetChannelsSurfaceWidth,  &
                                         GetChannelsBankSlope, GetChannelsNodeLength,     &
                                         GetChannelsBottomLevel, UnGetDrainageNetwork,    &
-                                        GetChannelsID, GetChannelsStationName
+                                        GetChannelsID
     use ModuleDischarges        ,only : Construct_Discharges, GetDischargesNumber,       &
                                         GetDischargesGridLocalization,                   &
                                         GetDischargeWaterFlow, Kill_Discharges

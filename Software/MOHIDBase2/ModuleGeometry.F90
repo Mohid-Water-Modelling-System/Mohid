@@ -65,7 +65,7 @@ Module ModuleGeometry
                                       GetLatitudeLongitude, GetGridOrigin,              &
                                       GetGridLatitudeLongitude, GetCoordTypeList,       &
                                       GetCheckDistortion, UnGetHorizontalGrid
-    use ModuleFunctions,        only: SetMatrixValue, Chunk_J, Chunk_K
+    use ModuleFunctions,        only: SetMatrixValue, Chunk_J, Chunk_K, GetPointer
     use ModuleHDF5
     use ModuleStopWatch,        only : StartWatch, StopWatch         
 
@@ -238,31 +238,31 @@ Module ModuleGeometry
     end type T_Domain
 
     type T_Distances
-        real, dimension(:, :, :), pointer       :: SZZ 
-        real, dimension(:, :, :), pointer       :: DZZ 
-        real, dimension(:, :, :), pointer       :: DWZ, DUZ, DVZ, DZI, DZE, DWZ_Xgrad, DWZ_Ygrad 
-        real, dimension(:, :, :), pointer       :: InitialSZZ 
-        real, dimension(:, :, :), pointer       :: ZCellCenter  !Distance from the refernce level, 
+        real, dimension(:, :, :), allocatable       :: SZZ 
+        real, dimension(:, :, :), allocatable       :: DZZ 
+        real, dimension(:, :, :), allocatable       :: DWZ, DUZ, DVZ, DZI, DZE, DWZ_Xgrad, DWZ_Ygrad 
+        real, dimension(:, :, :), allocatable       :: InitialSZZ 
+        real, dimension(:, :, :), allocatable       :: ZCellCenter  !Distance from the refernce level, 
                                                                 ! center of cells, positive upwards
     end type T_Distances
 
     type T_Areas
-        real, dimension(:, :, :), pointer       :: AreaU, AreaV
+        real, dimension(:, :, :), allocatable       :: AreaU, AreaV
         logical                                 :: Impermeability = .false.
-        real, dimension(      :), pointer       :: Coef_U, CoefX_U, Coef_V, CoefX_V  
+        real, dimension(      :), allocatable       :: Coef_U, CoefX_U, Coef_V, CoefX_V  
     end type T_Areas
 
     type T_Volumes
-        real(8), dimension(:, :, :), pointer    :: VolumeZ, VolumeU, VolumeV, VolumeW, VolumeZOld
+        real(8), dimension(:, :, :), allocatable    :: VolumeZ, VolumeU, VolumeV, VolumeW, VolumeZOld
         logical                                 :: FirstVolW = .true.
     end type T_Volumes
 
     type T_KFloor
-        integer, dimension(:, :), pointer       :: Z, U, V, Domain
+        integer, dimension(:, :), allocatable       :: Z, U, V, Domain
     end type T_KFloor
 
     type T_KTop
-        integer, dimension(:, :), pointer       :: Z
+        integer, dimension(:, :), allocatable       :: Z
     end type T_KTop
 
 
@@ -487,35 +487,35 @@ Module ModuleGeometry
         nullify (Me%FirstDomain)
 
         !Nullify T_Volumes
-        nullify (Me%Volumes%VolumeZ)
-        nullify (Me%Volumes%VolumeU)
-        nullify (Me%Volumes%VolumeV)
-        nullify (Me%Volumes%VolumeW)
-        nullify (Me%Volumes%VolumeZOld)
+!        nullify (Me%Volumes%VolumeZ)
+!        nullify (Me%Volumes%VolumeU)
+!        nullify (Me%Volumes%VolumeV)
+!        nullify (Me%Volumes%VolumeW)
+!        nullify (Me%Volumes%VolumeZOld)
 
         !Nullify T_Areas
-        nullify (Me%Areas%AreaU)
-        nullify (Me%Areas%AreaV)
+!        nullify (Me%Areas%AreaU)
+!        nullify (Me%Areas%AreaV)
 
         !Nullify T_Distances
-        nullify (Me%Distances%SZZ        )
-        nullify (Me%Distances%DZZ        )
-        nullify (Me%Distances%DWZ        )
-        nullify (Me%Distances%DUZ        )
-        nullify (Me%Distances%DZI        )
-        nullify (Me%Distances%DZE        )
-        nullify (Me%Distances%DVZ        )
-        nullify (Me%Distances%InitialSZZ )
-        nullify (Me%Distances%ZCellCenter)
-        nullify (Me%Distances%DWZ_Xgrad  )
-        nullify (Me%Distances%DWZ_Ygrad  )
+!        nullify (Me%Distances%SZZ        )
+!        nullify (Me%Distances%DZZ        )
+!        nullify (Me%Distances%DWZ        )
+!        nullify (Me%Distances%DUZ        )
+!        nullify (Me%Distances%DZI        )
+!        nullify (Me%Distances%DZE        )
+!        nullify (Me%Distances%DVZ        )
+!        nullify (Me%Distances%InitialSZZ )
+!        nullify (Me%Distances%ZCellCenter)
+!        nullify (Me%Distances%DWZ_Xgrad  )
+!        nullify (Me%Distances%DWZ_Ygrad  )
 
 
         !Nullify T_KFloor
-        nullify (Me%KFloor%Z)
-        nullify (Me%KFloor%U)
-        nullify (Me%KFloor%V)
-        nullify (Me%KFloor%Domain)
+!        nullify (Me%KFloor%Z)
+!        nullify (Me%KFloor%U)
+!        nullify (Me%KFloor%V)
+!        nullify (Me%KFloor%Domain)
        
         !Gets horizontal size from the Bathymetry
         call GetHorizontalGridSize(Me%ObjHorizontalGrid,                                 &
@@ -2322,7 +2322,7 @@ cd2 :       if (Me%ExternalVar%ContinuesCompute) then
             else cd2
 
                 if (present(SZZ)) then    
-                    call SetMatrixValue( Me%Distances%SZZ, Me%Size, SZZ )
+                    call SetMatrixValue( GetPointer(Me%Distances%SZZ), Me%Size, SZZ )
                 else
                    !Constructs SZZ with the initial surface elevation
                     call ComputeSZZ         (SurfaceElevation, INITIALGEOMETRY, WaterPoints3D = WaterPoints3D)
@@ -2400,7 +2400,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
 
             if (present(SZZ)) then    
-                call SetMatrixValue( Me%Distances%SZZ, Me%Size, SZZ )
+                call SetMatrixValue( GetPointer(Me%Distances%SZZ), Me%Size, SZZ )
             else
                !Computes SZZ
                 call ComputeSZZ(SurfaceElevation, TRANSIENTGEOMETRY, VerticalVelocity, DT_Waterlevel, WaterPoints3D)
@@ -4296,12 +4296,12 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
                 if (STAT_CALL /= SUCCESS_) stop 'WriteGeometryHDF - Geometry - ERR01'
 
                 call HDF5WriteData(ObjHDF5,"/Geometry", "VerticalZ", "m",               &
-                                   Array3D = Me%Distances%SZZ,                          &
+                                   Array3D = GetPointer(Me%Distances%SZZ),              &
                                    STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'WriteGeometryHDF - Geometry - ERR02'
 
                 call HDF5WriteData(ObjHDF5,"/Geometry", "InitialSZZ", "m",              &
-                                   Array3D = Me%Distances%InitialSZZ,                   &
+                                   Array3D = GetPointer(Me%Distances%InitialSZZ),       &
                                    STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'WriteGeometryHDF - Geometry - ERR03'
 
@@ -4311,17 +4311,17 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
 
                 call HDF5WriteData(ObjHDF5,"/Geometry", "DWZ", "m",                     &
-                                   Array3D = Me%Distances%DWZ,                          &
+                                   Array3D = GetPointer(Me%Distances%DWZ),              &
                                    STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'WriteGeometryHDF - Geometry - ERR04'
 
                 call HDF5WriteData(ObjHDF5,"/Geometry", "VolumeZ", "m3",                &
-                                   Array3D = Me%Volumes%VolumeZOld,                     &
+                                   Array3D = GetPointer(Me%Volumes%VolumeZOld),         &
                                    STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'WriteGeometryHDF - Geometry - ERR05'
                 
                 call HDF5WriteData(ObjHDF5,"/Geometry", "KTop", "-",                    &
-                                   Array2D = Me%KTop%Z,                                 &
+                                   Array2D = GetPointer(Me%KTop%Z),                     &
                                    STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'WriteGeometryHDF - Geometry - ERR06'
 
@@ -4395,12 +4395,12 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             if (STAT_CALL /= SUCCESS_) stop 'ReadGeometryHDF - Geometry - ERR02'
 
             call HDF5ReadData(ObjHDF5,"/Geometry", "VerticalZ",                         &
-                               Array3D = Me%Distances%SZZ,                              &
+                               Array3D = GetPointer(Me%Distances%SZZ),                  &
                                STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ReadGeometryHDF - Geometry - ERR03'
 
             call HDF5ReadData(ObjHDF5,"/Geometry", "InitialSZZ",                        &
-                               Array3D = Me%Distances%InitialSZZ,                       &
+                               Array3D = GetPointer(Me%Distances%InitialSZZ),           &
                                STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ReadGeometryHDF - Geometry - ERR04'
 
@@ -4409,18 +4409,18 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             if (STAT_CALL /= SUCCESS_) stop 'ReadGeometryHDF - Geometry - ERR05'
 
             call HDF5ReadData(ObjHDF5,"/Geometry", "DWZ",                               &
-                               Array3D = Me%Distances%DWZ,                              &
+                               Array3D = GetPointer(Me%Distances%DWZ),                  &
                                STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ReadGeometryHDF - Geometry - ERR06'
 
             call HDF5ReadData(ObjHDF5,"/Geometry", "VolumeZ",                           &
-                               Array3D = Me%Volumes%VolumeZOld,                         &
+                               Array3D = GetPointer(Me%Volumes%VolumeZOld),             &
                                STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ReadGeometryHDF - Geometry - ERR07'
 
 
             call HDF5ReadData(ObjHDF5,"/Geometry", "KTop",                              &
-                               Array2D = Me%KTop%Z,                                     &
+                               Array2D = GetPointer(Me%KTop%Z),                         &
                                STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ReadGeometryHDF - Geometry - ERR08'
 
@@ -5730,126 +5730,126 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
         integer                         :: STATUS
 
         !Deallocates T_Volumes
-        if (associated(Me%Volumes%VolumeZ)) then
+        if (allocated(Me%Volumes%VolumeZ)) then
             deallocate (Me%Volumes%VolumeZ, stat = STATUS)
             if (STATUS /= SUCCESS_) stop 'DeallocateVariables - Geometry - ERR10'
         endif
 
-        if (associated(Me%Volumes%VolumeU)) then
+        if (allocated(Me%Volumes%VolumeU)) then
             deallocate (Me%Volumes%VolumeU, stat = STATUS)
             if (STATUS /= SUCCESS_) stop 'DeallocateVariables - Geometry - ERR20'
         endif
 
 
-        if (associated(Me%Volumes%VolumeV)) then
+        if (allocated(Me%Volumes%VolumeV)) then
             deallocate (Me%Volumes%VolumeV, stat = STATUS)
             if (STATUS /= SUCCESS_) stop 'DeallocateVariables - Geometry - ERR30'
         endif
 
-        if (associated(Me%Volumes%VolumeW)) then
+        if (allocated(Me%Volumes%VolumeW)) then
             deallocate (Me%Volumes%VolumeW, stat = STATUS)
             if (STATUS /= SUCCESS_) stop 'DeallocateVariables - Geometry - ERR40'
         endif
 
 
-        if (associated(Me%Volumes%VolumeZOld)) then
+        if (allocated(Me%Volumes%VolumeZOld)) then
             deallocate (Me%Volumes%VolumeZOld, stat = STATUS)
             if (STATUS /= SUCCESS_) stop 'DeallocateVariables - Geometry - ERR50'
         endif
 
         !Allocate T_Areas
-        if (associated(Me%Areas%AreaU)) then
+        if (allocated(Me%Areas%AreaU)) then
             deallocate (Me%Areas%AreaU, stat = STATUS)
             if (STATUS /= SUCCESS_) stop 'DeallocateVariables - Geometry - ERR60'
         endif
 
-        if (associated(Me%Areas%AreaV)) then
+        if (allocated(Me%Areas%AreaV)) then
             deallocate (Me%Areas%AreaV, stat = STATUS)
             if (STATUS /= SUCCESS_) stop 'DeallocateVariables - Geometry - ERR70'
         endif
 
         !Allocate T_Distances
-        if (associated(Me%Distances%SZZ)) then
+        if (allocated(Me%Distances%SZZ)) then
             deallocate (Me%Distances%SZZ, stat = STATUS)
             if (STATUS /= SUCCESS_) stop 'DeallocateVariables - Geometry - ERR80'
         endif
 
-        if (associated(Me%Distances%DZZ)) then
+        if (allocated(Me%Distances%DZZ)) then
             deallocate (Me%Distances%DZZ, stat = STATUS)
             if (STATUS /= SUCCESS_) stop 'DeallocateVariables - Geometry - ERR90'
         endif
 
-        if (associated(Me%Distances%DWZ)) then
+        if (allocated(Me%Distances%DWZ)) then
             deallocate (Me%Distances%DWZ, stat = STATUS)
             if (STATUS /= SUCCESS_) stop 'DeallocateVariables - Geometry - ERR100'
         endif
 
-        if (associated(Me%Distances%DUZ)) then
+        if (allocated(Me%Distances%DUZ)) then
             deallocate (Me%Distances%DUZ, stat = STATUS)
             if (STATUS /= SUCCESS_) stop 'DeallocateVariables - Geometry - ERR110'
         endif
 
-        if (associated(Me%Distances%DVZ)) then
+        if (allocated(Me%Distances%DVZ)) then
             deallocate (Me%Distances%DVZ, stat = STATUS)
             if (STATUS /= SUCCESS_) stop 'DeallocateVariables - Geometry - ERR120'
         endif
 
-        if (associated(Me%Distances%DZI)) then
+        if (allocated(Me%Distances%DZI)) then
             deallocate (Me%Distances%DZI, stat = STATUS)
             if (STATUS /= SUCCESS_) stop 'DeallocateVariables - Geometry - ERR130'
         endif
 
-        if (associated(Me%Distances%DZE)) then
+        if (allocated(Me%Distances%DZE)) then
             deallocate (Me%Distances%DZE, stat = STATUS)
             if (STATUS /= SUCCESS_) stop 'DeallocateVariables - Geometry - ERR140'
         endif
 
 
-        if (associated(Me%Distances%InitialSZZ)) then
+        if (allocated(Me%Distances%InitialSZZ)) then
             deallocate (Me%Distances%InitialSZZ, stat = STATUS)
             if (STATUS /= SUCCESS_) stop 'DeallocateVariables - Geometry - ERR150'
         endif
 
 
-        if (associated(Me%Distances%ZCellCenter)) then
+        if (allocated(Me%Distances%ZCellCenter)) then
             deallocate (Me%Distances%ZCellCenter, stat = STATUS)
             if (STATUS /= SUCCESS_) stop 'DeallocateVariables - Geometry - ERR160'
         endif
 
 
-        if (associated(Me%Distances%DWZ_Xgrad)) then
+        if (allocated(Me%Distances%DWZ_Xgrad)) then
             deallocate (Me%Distances%DWZ_Xgrad, stat = STATUS)
             if (STATUS /= SUCCESS_) stop 'DeallocateVariables - Geometry - ERR170'
         endif
 
-        if (associated(Me%Distances%DWZ_Ygrad)) then
+        if (allocated(Me%Distances%DWZ_Ygrad)) then
             deallocate (Me%Distances%DWZ_Ygrad, stat = STATUS)
             if (STATUS /= SUCCESS_) stop 'DeallocateVariables - Geometry - ERR180'
         endif
 
         !deallocate T_KFloor
-        if (associated(Me%KFloor%Z)) then
+        if (allocated(Me%KFloor%Z)) then
             deallocate (Me%KFloor%Z, stat = STATUS)
             if (STATUS /= SUCCESS_) stop 'DeallocateVariables - Geometry - ERR190'
         endif
 
-        if (associated(Me%KFloor%U)) then
+        if (allocated(Me%KFloor%U)) then
             deallocate (Me%KFloor%U, stat = STATUS)
             if (STATUS /= SUCCESS_) stop 'DeallocateVariables - Geometry - ERR200'
         endif
 
-        if (associated(Me%KFloor%V)) then
+        if (allocated(Me%KFloor%V)) then
             deallocate (Me%KFloor%V, stat = STATUS)
             if (STATUS /= SUCCESS_) stop 'DeallocateVariables - Geometry - ERR210'
         endif
 
-        if (associated(Me%KFloor%Domain)) then
+        if (allocated(Me%KFloor%Domain)) then
             deallocate (Me%KFloor%Domain, stat = STATUS)
             if (STATUS /= SUCCESS_) stop 'DeallocateVariables - Geometry - ERR220'
         endif
 
         !deallocate T_KTop
-        if (associated(Me%KTop%Z)) then
+        if (allocated(Me%KTop%Z)) then
             deallocate (Me%KTop%Z, stat = STATUS)
             if (STATUS /= SUCCESS_) stop 'DeallocateVariables - Geometry - ERR230'
         endif

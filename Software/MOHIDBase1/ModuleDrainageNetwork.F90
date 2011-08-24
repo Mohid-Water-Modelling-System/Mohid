@@ -232,7 +232,6 @@ Module ModuleDrainageNetwork
     !Selector
     public  :: GetDrainageSize    
     public  :: GetChannelsID
-    public  :: GetChannelsStationName
     public  :: GetChannelsWaterLevel
     public  :: GetChannelsBottomLevel
     public  :: GetChannelsSurfaceWidth
@@ -806,9 +805,7 @@ Module ModuleDrainageNetwork
         integer, dimension(:)  , pointer            :: DischargesLink       => null()
         real,    dimension(:)  , pointer            :: DischargesFlow       => null()
         real,    dimension(:,:), pointer            :: DischargesConc       => null()
-
-        integer                    , dimension(:,:), pointer :: ChannelsID          => null()   
-        character(len=StringLength), dimension(:,:), pointer :: ChannelsStationName => null()   
+        integer, dimension(:,:), pointer            :: ChannelsID          => null()   
 
         logical                                     :: Discharges           = OFF   
 
@@ -4311,7 +4308,6 @@ if1:    if (Me%HasGrid) then
             allocate(Me%ChannelsNodeLength    (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
             allocate(Me%ChannelsOpenProcess   (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
             allocate(Me%ChannelsID            (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
-            allocate(Me%ChannelsStationName   (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
             Me%ChannelsBottomLevel  = null_real
             Me%ChannelsBottomWidth  = null_real
             Me%ChannelsSurfaceWidth = null_real
@@ -4319,14 +4315,12 @@ if1:    if (Me%HasGrid) then
             Me%ChannelsNodeLength   = null_real
             Me%ChannelsOpenProcess  = null_int
             Me%ChannelsID           = null_int
-            Me%ChannelsStationName  = ''
 
             do NodeID = 1, Me%TotalNodes
 
                 CurrNode => Me%Nodes (NodeID)         
 
                 Me%ChannelsID          (CurrNode%GridI, CurrNode%GridJ) = CurrNode%ID
-                Me%ChannelsStationName (CurrNode%GridI, CurrNode%GridJ) = CurrNode%StationName
                        
                 Me%ChannelsBottomLevel  (CurrNode%GridI, CurrNode%GridJ) = CurrNode%CrossSection%BottomLevel
                 Me%ChannelsNodeLength   (CurrNode%GridI, CurrNode%GridJ) = CurrNode%Length
@@ -5972,41 +5966,6 @@ if0:    if (Me%HasProperties) then
         if (present(STAT)) STAT = STAT_CALL
 
     end subroutine GetChannelsID
-
-    !---------------------------------------------------------------------------        
-
-    subroutine GetChannelsStationName (DrainageNetworkID, ChannelsStationName, STAT)
-
-        !Arguments--------------------------------------------------------------
-        integer                                                 :: DrainageNetworkID
-        character(len=StringLength), dimension (:,:), pointer   :: ChannelsStationName
-        integer, intent(OUT), optional                          :: STAT
-
-        !Local------------------------------------------------------------------
-        integer                                         :: STAT_CALL, ready_
-        !-----------------------------------------------------------------------
-
-
-        STAT_CALL = UNKNOWN_
-
-        call Ready(DrainageNetworkID, ready_)
-
-        if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   &
-            (ready_ .EQ. READ_LOCK_ERR_)) then
-
-           
-            call Read_Lock(mDRAINAGENETWORK_, Me%InstanceID)
-            ChannelsStationName => Me%ChannelsStationName                             
-
-            STAT_CALL = SUCCESS_
-
-        else 
-            STAT_CALL = ready_
-        end if
-
-        if (present(STAT)) STAT = STAT_CALL
-
-    end subroutine GetChannelsStationName
 
     !---------------------------------------------------------------------------
 
@@ -8330,13 +8289,14 @@ do2 :   do while (associated(PropertyX))
         !Local------------------------------------------------------------------
         integer                                     :: NodeID, ReachID
         type (T_Reach), pointer                     :: CurrReach
-        !$ integer                                  :: CHUNK
+        integer                                     :: CHUNK
 
-        !$OMP PARALLEL PRIVATE(NodeID,ReachID)
 
-        !$ CHUNK = 10
+        CHUNK = Me%TotalNodes / 8 !8 Cores ?
 
         if (MonitorPerformance) call StartWatch ("ModuleDrainageNetwork", "ModifyHydrodynamics")
+
+        !$OMP PARALLEL PRIVATE(NodeID,ReachID)
 
         !Actualize Volumes
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
@@ -8363,7 +8323,7 @@ do2 :   do while (associated(PropertyX))
             do NodeID = 1, Me%TotalNodes
                 call ModifyNode          (NodeID, LocalDT)
                 call VerifyMinimumVolume (NodeID, Restart, Niter)
-                if (Restart) exit
+                exit
             end do
                   
             if (Me%CheckMass .and. .not. Restart) then               
@@ -8392,8 +8352,8 @@ do2 :   do while (associated(PropertyX))
     subroutine ModifyReach (ReachID, DT)
 
         !Arguments-------------------------------------------------------------
-        integer                                         :: ReachID
-        real                                            :: DT
+        integer, intent(in)                             :: ReachID
+        real, intent(in)                                :: DT
 
         !Local-----------------------------------------------------------------          
         type(T_Reach), pointer                          :: CurrReach !, UpReach
