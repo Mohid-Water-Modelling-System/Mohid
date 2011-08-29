@@ -216,8 +216,16 @@ Module ModuleAtmosphere
         type(T_Time     )                           :: NextCompute
         type(T_Time     )                           :: LastOutPutHDF5
 
-        real                                        :: PredictedDT              = -null_real
-        real                                        :: DTForNextEvent           = -null_real
+!        real                                        :: PredictedDT              = -null_real
+!        real                                        :: DTForNextEvent           = -null_real
+
+        real                                        :: IrriPredictedDT              = -null_real
+        real                                        :: IrriDTForNextEvent           = -null_real
+        real                                        :: PrecPredictedDT              = -null_real
+        real                                        :: PrecDTForNextEvent           = -null_real
+        logical                                     :: UsePrecipitationForDTPred    = .false.
+        logical                                     :: UseIrrigationForDTPred       = .false.
+
         
         integer                                     :: RadiationMethod          = 1
         integer                                     :: CloudCoverMethod
@@ -916,7 +924,15 @@ cd2 :           if (BlockFound) then
 
         !Constructs Statistics
         call ConstructSurfStatistics    (NewProperty) 
-
+        
+        if (NewProperty%ID%SolutionFromFile) then
+            if (NewProperty%ID%IDNumber == Irrigation_) then
+                Me%UseIrrigationForDTPred = .true.
+            elseif (NewProperty%ID%IDNumber == Precipitation_) then
+                Me%UsePrecipitationForDTPred = .true.
+            endif        
+        endif
+        
         !----------------------------------------------------------------------
 
     end subroutine ConstructProperty
@@ -1481,8 +1497,16 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                               &
         if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                            &
             (ready_ .EQ. READ_LOCK_ERR_)) then
 
-            PredictedDT     = Me%PredictedDT
-            DTForNextEvent  = Me%DTForNextEvent
+            if (Me%UsePrecipitationForDTPred .and. Me%UseIrrigationForDTPred) then
+                PredictedDT     = min(Me%IrriPredictedDT, Me%PrecPredictedDT)
+                DTForNextEvent  = min(Me%IrriDTForNextEvent, Me%PrecDTForNextEvent)
+            elseif (Me%UseIrrigationForDTPred) then
+                PredictedDT     = Me%IrriPredictedDT
+                DTForNextEvent  = Me%IrriDTForNextEvent
+            else
+                PredictedDT     = Me%PrecPredictedDT
+                DTForNextEvent  = Me%PrecDTForNextEvent
+            endif
 
             STAT_ = SUCCESS_
 
@@ -2174,8 +2198,10 @@ do2 :   do while (associated(PropertyX))
                                    STAT           = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ModifyPrecipitation - ModuleAtmosphere - ERR01'
 
-            call GetFillMatrixDTPrediction (PropPrecipitation%ID%ObjFillMatrix, Me%PredictedDT,    &
-                                            Me%DTForNextEvent, STAT = STAT_CALL)
+!            call GetFillMatrixDTPrediction (PropPrecipitation%ID%ObjFillMatrix, Me%PredictedDT,    &
+!                                            Me%DTForNextEvent, STAT = STAT_CALL)
+            call GetFillMatrixDTPrediction (PropPrecipitation%ID%ObjFillMatrix, Me%PrecPredictedDT,    &
+                                            Me%PrecDTForNextEvent, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ModifyPrecipitation - ModuleAtmosphere - ERR02'
 
         endif
@@ -2687,6 +2713,9 @@ do1 :   do while (associated(PropertyX))
                                    STAT           = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ModifyIrrigation - ModuleAtmosphere - ERR01'
 
+            call GetFillMatrixDTPrediction (PropIrrigation%ID%ObjFillMatrix, Me%IrriPredictedDT,    &
+                                            Me%IrriDTForNextEvent, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ModifyIrrigation - ModuleAtmosphere - ERR02'
         endif
 
 
