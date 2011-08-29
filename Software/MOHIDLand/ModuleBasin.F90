@@ -2945,21 +2945,33 @@ cd2 :           if (BlockFound) then
         !Local-----------------------------------------------------------------
         integer                                     :: STAT_CALL
         real, dimension(:, :), pointer              :: PrecipitationFlux
+        real, dimension(:, :), pointer              :: IrrigationFlux
         character (Len = StringLength)              :: LockToWhichModules
         character (Len = StringLength)              :: UnLockToWhichModules
         character (Len = StringLength)              :: WarningString
+        logical                                     :: IrrigationExists = .false.
         !Begin-----------------------------------------------------------------
 
         if (MonitorPerformance) call StartWatch ("ModuleBasin", "AtmosphereProcesses")
 
         !Updates Rainfall
         call ModifyAtmosphere       (Me%ObjAtmosphere, Me%ExtVar%BasinPoints, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'AtmosphereProcesses - ModuleBasin - ERR01'
+        if (STAT_CALL /= SUCCESS_) stop 'AtmosphereProcesses - ModuleBasin - ERR010'
 
         !Gets Rainfall [m3/s]
         call GetAtmosphereProperty  (Me%ObjAtmosphere, PrecipitationFlux, ID = Precipitation_, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'AtmosphereProcesses - ModuleBasin - ERR02'
+        if (STAT_CALL /= SUCCESS_) stop 'AtmosphereProcesses - ModuleBasin - ERR020'
 
+        !Gets Irrigation [m3/s]
+        call GetAtmosphereProperty  (Me%ObjAtmosphere, IrrigationFlux, ID = Irrigation_, STAT = STAT_CALL, ShowWarning = .false.)
+        if (STAT_CALL == SUCCESS_) then
+            IrrigationExists = .true.
+        elseif (STAT_CALL == NOT_FOUND_ERR_) then
+            IrrigationExists = .false.
+        else 
+            stop 'AtmosphereProcesses - ModuleBasin - ERR030'
+        endif
+        
         if (Me%Coupled%Vegetation) then 
             
             !Read Vegetation Properties
@@ -2969,7 +2981,11 @@ cd2 :           if (BlockFound) then
         endif
 
         !Divides Precipitation into Snow, Rain, Throughfall and Canopy storage
-        call DividePrecipitation(PrecipitationFlux)
+        if (IrrigationExists) then
+            call DividePrecipitation(PrecipitationFlux, IrrigationFlux)
+        else
+            call DividePrecipitation(PrecipitationFlux)
+        endif
         
         !Mass Balance in rain (covered and uncovered) and drained from veg (if active)
         if (Me%Coupled%RunoffProperties) then
@@ -3006,18 +3022,26 @@ cd2 :           if (BlockFound) then
         endif
 
         call UnGetAtmosphere    (Me%ObjAtmosphere, PrecipitationFlux, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'AtmosphereProcesses - ModuleBasin - ERR03'
+        if (STAT_CALL /= SUCCESS_) stop 'AtmosphereProcesses - ModuleBasin - ERR040'
 
+
+        if (IrrigationExists) then
+            call UnGetAtmosphere    (Me%ObjAtmosphere, IrrigationFlux, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'AtmosphereProcesses - ModuleBasin - ERR050'
+        endif
+        
         if (MonitorPerformance) call StopWatch ("ModuleBasin", "AtmosphereProcesses")
     
     end subroutine AtmosphereProcesses
 
     !--------------------------------------------------------------------------
 
-    subroutine DividePrecipitation (PrecipitationFlux)
+    subroutine DividePrecipitation (PrecipitationFlux, IrrigationFlux)
+!    subroutine DividePrecipitation (PrecipitationFlux)
     
         !Arguments-------------------------------------------------------------
-        real, dimension(:, :), pointer              :: PrecipitationFlux
+        real, dimension(:, :), pointer                       :: PrecipitationFlux
+        real, dimension(:, :), pointer, optional, intent(IN) :: IrrigationFlux
 
         !Local-----------------------------------------------------------------     
         integer                                     :: i, j, STAT_CALL
@@ -3031,7 +3055,17 @@ cd2 :           if (BlockFound) then
         logical                                     :: ChangeRain
         real(8)                                     :: NewVolumeOnLeafs, OldVolumeOnLeafs
         real                                        :: AreaFraction
+        real, dimension(:, :), pointer              :: Irri
+        logical                                     :: IsPresent
         !Begin-----------------------------------------------------------------
+        
+        if (present(IrrigationFlux)) then
+            Irri => IrrigationFlux
+            IsPresent = .true.
+        else
+            Irri => null()
+            IsPresent = .false.    
+        endif
         
         if (Me%Coupled%Snow) then
             !Gets Air Temperature [ºC]
@@ -3047,8 +3081,7 @@ cd2 :           if (BlockFound) then
         else
             ChangeRain = .false.
         endif
-
-
+      
         if (ChangeRain) then
 
             !Gets time
@@ -3092,9 +3125,8 @@ cd2 :           if (BlockFound) then
         do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             if(Me%ExtVar%BasinPoints (i,j) == BasinPoint) then
 
-
-                if (ChangeRain) then
                 
+                if (ChangeRain) then                
                     !At the beginning there is no rain
                     if (SecondsPassed < Me%RainStartTime(i, j)) then
                     
@@ -3125,6 +3157,11 @@ cd2 :           if (BlockFound) then
                     CurrentFlux = PrecipitationFlux(i, j)
                 
                 endif
+                                    
+                if (IsPresent) then
+                    CurrentFlux = CurrentFlux + Irri(i, j)
+                endif                        
+                
                 
                 !Gross Rain 
                 !m                 = m3/s                    * s            /  m2
@@ -3318,28 +3355,7 @@ cd2 :           if (BlockFound) then
 !        real                                        :: Year, Month, Day, hour, minute, second
 !        integer                                     :: days
         !Begin-----------------------------------------------------------------
-
-       
-        !Gets Horizontal Sun Radiation [W/m2]
-        call GetAtmosphereProperty  (Me%ObjAtmosphere, SolarRadiation, ID = SolarRadiation_, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'CalcPotEvapoTranspiration - ModuleBasin - ERR01'
-
-        !Gets ATMTransmitivity
-        call GetAtmosphereProperty  (Me%ObjAtmosphere, ATMTransmitivity, ID = AtmTransmitivity_, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'CalcPotEvapoTranspiration - ModuleBasin - ERR02'
-
-        !Gets Wind Modulus [m/s]
-        call GetAtmosphereProperty  (Me%ObjAtmosphere, WindModulus, ID = WindModulus_, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'CalcPotEvapoTranspiration - ModuleBasin - ERR03'
-
-        !Gets Air Temperature [ºC]
-        call GetAtmosphereProperty  (Me%ObjAtmosphere, AirTemperature, ID = AirTemperature_, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'CalcPotEvapoTranspiration - ModuleBasin - ERR04'
-
-        !Gets Air Temperature [ºC]
-        call GetAtmosphereProperty  (Me%ObjAtmosphere, RelativeHumidity, ID = RelativeHumidity_, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'CalcPotEvapoTranspiration - ModuleBasin - ERR05'
-
+      
         call SearchProperty(RefEvapotrans, RefEvapotrans_, .true., STAT = STAT_CALL)        
 
         if (RefEvapotrans%ID%SolutionFromFile) then
@@ -3360,6 +3376,28 @@ cd2 :           if (BlockFound) then
         Me%MB%EvapFromGround     = 0.0
                 
         CalcET0             = .NOT. (RefEvapotrans%ID%SolutionFromFile .OR. RefEvapotrans%Constant)
+                
+        if ((CalcET0) .OR. (Me%EvapMethod .EQ. LatentHeatMethod)) then
+            !Gets Horizontal Sun Radiation [W/m2]
+            call GetAtmosphereProperty  (Me%ObjAtmosphere, SolarRadiation, ID = SolarRadiation_, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'CalcPotEvapoTranspiration - ModuleBasin - ERR01'
+
+            !Gets ATMTransmitivity
+            call GetAtmosphereProperty  (Me%ObjAtmosphere, ATMTransmitivity, ID = AtmTransmitivity_, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'CalcPotEvapoTranspiration - ModuleBasin - ERR02'
+
+            !Gets Wind Modulus [m/s]
+            call GetAtmosphereProperty  (Me%ObjAtmosphere, WindModulus, ID = WindModulus_, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'CalcPotEvapoTranspiration - ModuleBasin - ERR03'
+
+            !Gets Air Temperature [ºC]
+            call GetAtmosphereProperty  (Me%ObjAtmosphere, AirTemperature, ID = AirTemperature_, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'CalcPotEvapoTranspiration - ModuleBasin - ERR04'
+
+            !Gets Air Temperature [ºC]
+            call GetAtmosphereProperty  (Me%ObjAtmosphere, RelativeHumidity, ID = RelativeHumidity_, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'CalcPotEvapoTranspiration - ModuleBasin - ERR05'
+        endif
                 
         do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         do i = Me%WorkSize%ILB, Me%WorkSize%IUB
@@ -3616,25 +3654,27 @@ cd2 :           if (BlockFound) then
         
         endif
                 
-         !Gets Horizontal Sun Radiation [W/m2]
-        call UnGetAtmosphere  (Me%ObjAtmosphere, SolarRadiation,    STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'CalcPotEvapoTranspiration - ModuleBasin - ERR06'
+        if ((CalcET0) .OR. (Me%EvapMethod .EQ. LatentHeatMethod)) then                                
+             !Gets Horizontal Sun Radiation [W/m2]
+            call UnGetAtmosphere  (Me%ObjAtmosphere, SolarRadiation,    STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'CalcPotEvapoTranspiration - ModuleBasin - ERR06'
 
-        !Gets Horizontal Sun Radiation [W/m2]
-        call UnGetAtmosphere  (Me%ObjAtmosphere, ATMTransmitivity,  STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'CalcPotEvapoTranspiration - ModuleBasin - ERR07'
+            !Gets Horizontal Sun Radiation [W/m2]
+            call UnGetAtmosphere  (Me%ObjAtmosphere, ATMTransmitivity,  STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'CalcPotEvapoTranspiration - ModuleBasin - ERR07'
 
-        !Gets Wind Modulus [m/s]
-        call UnGetAtmosphere  (Me%ObjAtmosphere, WindModulus,       STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'CalcPotEvapoTranspiration - ModuleBasin - ERR08'
+            !Gets Wind Modulus [m/s]
+            call UnGetAtmosphere  (Me%ObjAtmosphere, WindModulus,       STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'CalcPotEvapoTranspiration - ModuleBasin - ERR08'
 
-        !Gets Air Temperature [ºC]
-        call UnGetAtmosphere  (Me%ObjAtmosphere, AirTemperature,    STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'CalcPotEvapoTranspiration - ModuleBasin - ERR09'
+            !Gets Air Temperature [ºC]
+            call UnGetAtmosphere  (Me%ObjAtmosphere, AirTemperature,    STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'CalcPotEvapoTranspiration - ModuleBasin - ERR09'
 
-        !Gets Air Temperature [ºC]
-        call UnGetAtmosphere  (Me%ObjAtmosphere, RelativeHumidity,  STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'CalcPotEvapoTranspiration - ModuleBasin - ERR10'
+            !Gets Air Temperature [ºC]
+            call UnGetAtmosphere  (Me%ObjAtmosphere, RelativeHumidity,  STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'CalcPotEvapoTranspiration - ModuleBasin - ERR10'
+        endif
 
     end subroutine CalcPotEvapoTranspiration
 

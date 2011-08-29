@@ -6468,67 +6468,67 @@ do5:                do K = Me%ExtVar%KFloor(i,j), Me%WorkSize%KUB
         call WriteTimeSerie(Me%ObjTimeSerie,                                            &
                             Data3D = GetPointer(Me%Theta),                              &
                             STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModulePorousMedia - ERR01'
+        if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModulePorousMedia - ERR010'
 
         !ThetaF
-!        call WriteTimeSerie(Me%ObjTimeSerie,                                            &
-!                            Data3D = Me%RC%ThetaF,                                &
-!                            STAT = STAT_CALL)
-!        if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModulePorousMedia - ERR010'
+        call WriteTimeSerie(Me%ObjTimeSerie,                                            &
+                            Data3D = GetPointer(Me%RC%ThetaF),                                      &
+                            STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModulePorousMedia - ERR020'
 
         !velocity for now......
         call WriteTimeSerie(Me%ObjTimeSerie,                                            &
                             Data3D = GetPointer(Me%UnsatVelW),                          &
                             STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModulePorousMedia - ERR020'
+        if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModulePorousMedia - ERR030'
 
         call WriteTimeSerie(Me%ObjTimeSerie,                                            &
                             Data3D = GetPointer(Me%UnsatVelWFinal),                     &
                             STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModulePorousMedia - ERR020'
+        if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModulePorousMedia - ERR040'
 
         !infiltration velocity for now
         call WriteTimeSerie(Me%ObjTimeSerie,                                            &
                             Data2D = Me%InfiltrationVelocity,                           &
                             STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModulePorousMedia - ERR030'
+        if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModulePorousMedia - ERR050'
         
 
         !Head
         call WriteTimeSerie(Me%ObjTimeSerie,                                            &
                             Data3D = GetPointer(Me%Head),                               &
                             STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModulePorousMedia - ERR040'
+        if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModulePorousMedia - ERR060'
 
         !Conductivity
         call WriteTimeSerie(Me%ObjTimeSerie,                                            &
                             Data3D = GetPointer(Me%UnSatK),                             &
                             STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModulePorousMedia - ERR050'
+        if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModulePorousMedia - ERR070'
 
         !Level Water Table
         call WriteTimeSerie(Me%ObjTimeSerie,                                            &
                             Data2D = Me%UGWaterLevel2D,                                 &
                             STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModulePorousMedia - ERR060'
+        if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModulePorousMedia - ERR080'
 
         !Depth Water Table
         call WriteTimeSerie(Me%ObjTimeSerie,                                            &
                             Data2D = Me%UGWaterDepth2D,                                 &
                             STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModulePorousMedia - ERR070'
+        if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModulePorousMedia - ERR090'
 
         !Hydro Pressure
         call WriteTimeSerie(Me%ObjTimeSerie,                                            &
                             Data3D = GetPointer(Me%HydroPressure),                      &
                             STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModulePorousMedia - ERR080'
+        if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModulePorousMedia - ERR100'
 
         !Final Head
         call WriteTimeSerie(Me%ObjTimeSerie,                                            &
                             Data3D = GetPointer(Me%FinalHead),                          &
                             STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModulePorousMedia - ERR090'
+        if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModulePorousMedia - ERR110'
 
         !Porous Media Water column - to compare to Basin water column
 !        call WriteTimeSerie(Me%ObjTimeSerie,                                            &
@@ -6542,14 +6542,14 @@ do5:                do K = Me%ExtVar%KFloor(i,j), Me%WorkSize%KUB
             call WriteTimeSerie(Me%ObjTimeSerie,                                            &
                                 Data2D = GetPointer(Me%iFlowToChannels),                    &
                                 STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModulePorousMedia - ERR092' 
+            if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModulePorousMedia - ERR120' 
                            
             if (Me%SoilOpt%DNLink == GWFlowToChanByLayer_) then
                 !Flow to channels by layer
                 call WriteTimeSerie(Me%ObjTimeSerie,                                            &
                                     Data3D = GetPointer(Me%iFlowToChannelsLayer),               &
                                     STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModulePorousMedia - ERR091'
+                if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModulePorousMedia - ERR130'
    
             endif
         endif
@@ -6559,7 +6559,7 @@ do5:                do K = Me%ExtVar%KFloor(i,j), Me%WorkSize%KUB
             call WriteTimeSerie(Me%ObjTimeSerie,                                        &
                                 Data2D = Me%EvaporationFlux,                            &
                                 STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModulePorousMedia - ERR0100'
+            if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModulePorousMedia - ERR140'
         endif
 
         if (Me%ExtVar%ConstructTranspiration) then
@@ -6567,7 +6567,7 @@ do5:                do K = Me%ExtVar%KFloor(i,j), Me%WorkSize%KUB
             call WriteTimeSerie(Me%ObjTimeSerie,                                        &
                                 Data3D = Me%ExtVar%TranspirationFlux,                   &
                                 STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModulePorousMedia - ERR110'        
+            if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModulePorousMedia - ERR150'        
         endif
 
 
@@ -6587,21 +6587,21 @@ do5:                do K = Me%ExtVar%KFloor(i,j), Me%WorkSize%KUB
                           Data3D = GetPointer(Me%Theta),                        &
                           SZZ    = Me%ExtVar%SZZ,                               &
                           STAT   = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ProfileOutput - ModulePorousMedia - ERR01'
+        if (STAT_CALL /= SUCCESS_) stop 'ProfileOutput - ModulePorousMedia - ERR010'
 
         !ThetaF
-!        call WriteProfile(Me%ObjProfile,                                        &
-!                          Data3D = Me%RC%ThetaF,                          &
-!                          SZZ    = Me%ExtVar%SZZ,                               &
-!                          STAT   = STAT_CALL)
-!        if (STAT_CALL /= SUCCESS_) stop 'ProfileOutput - ModulePorousMedia - ERR02'
+        call WriteProfile(Me%ObjProfile,                                        &
+                          Data3D = GetPointer(Me%RC%ThetaF),                                &
+                          SZZ    = Me%ExtVar%SZZ,                               &
+                          STAT   = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ProfileOutput - ModulePorousMedia - ERR020'
 
         !Head
         call WriteProfile(Me%ObjProfile,                                        &
                           Data3D = GetPointer(Me%Head),                         &
                           SZZ    = Me%ExtVar%SZZ,                               &
                           STAT   = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ProfileOutput - ModulePorousMedia - ERR02'
+        if (STAT_CALL /= SUCCESS_) stop 'ProfileOutput - ModulePorousMedia - ERR030'
 
     end subroutine ProfileOutput
 

@@ -1288,13 +1288,14 @@ cd2:    if (NewProperty%Statistics%ON) then
 
     !--------------------------------------------------------------------------
 
-    subroutine GetAtmosphereProperty(AtmosphereID, Scalar, ID, STAT)
+    subroutine GetAtmosphereProperty(AtmosphereID, Scalar, ID, STAT, ShowWarning)
                                   
         !Arguments--------------------------------------------------------------
         integer                                     :: AtmosphereID
         real, dimension(:,:), pointer               :: Scalar
         integer                                     :: ID
         integer, optional, intent(OUT)              :: STAT
+        logical, optional, intent(IN)               :: ShowWarning
 
         !External--------------------------------------------------------------
         integer                                     :: ready_        
@@ -1303,6 +1304,7 @@ cd2:    if (NewProperty%Statistics%ON) then
 
         !Local-----------------------------------------------------------------
         integer                                     :: STAT_
+        logical                                     :: warning
         
         !----------------------------------------------------------------------
 
@@ -1315,9 +1317,22 @@ cd2:    if (NewProperty%Statistics%ON) then
         if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
             (ready_ .EQ. READ_LOCK_ERR_)) then
 
+            if (present(ShowWarning)) then
+                warning = ShowWarning
+            else
+                warning = .true.
+            endif
+
             nullify(PropertyX)
-            call SearchProperty(PropertyX, ID , .true., STAT = STAT_CALL)            
-            if (STAT_CALL /= SUCCESS_) stop 'GetAtmosphereProperty - ModuleAtmosphere - ERR01'     
+            call SearchProperty(PropertyX, ID , warning, STAT = STAT_CALL)            
+            if (STAT_CALL /= SUCCESS_) then
+                if (present(STAT)) then
+                    STAT = NOT_FOUND_ERR_
+                    return
+                else
+                    stop 'GetAtmosphereProperty - ModuleAtmosphere - ERR01'     
+                endif
+            endif
 
             call Read_Lock(mATMOSPHERE_, Me%InstanceID)
 
