@@ -50,7 +50,8 @@ Module ModuleRunOff
     use ModuleDrainageNetwork   ,only : GetChannelsWaterLevel, GetChannelsSurfaceWidth,  &
                                         GetChannelsBankSlope, GetChannelsNodeLength,     &
                                         GetChannelsBottomLevel, UnGetDrainageNetwork,    &
-                                        GetChannelsID
+                                        GetChannelsID,GetChannelsVolume,                 &
+                                        GetChannelsMaxVolume
     use ModuleDischarges        ,only : Construct_Discharges, GetDischargesNumber,       &
                                         GetDischargesGridLocalization,                   &
                                         GetDischargeWaterFlow, Kill_Discharges
@@ -224,6 +225,7 @@ Module ModuleRunOff
         real                                        :: BoundaryValue
         real(8)                                     :: FlowAtBoundary       = 0.0
         integer                                     :: MaxIterations        = 10
+        logical                                     :: SimpleChannelInteraction = .false.
 
         logical                                     :: WriteMaxFlowModulus  = .false.
         character(Pathlength)                       :: MaxFlowModulusFile
@@ -648,6 +650,16 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         call GetData(Me%Discharges,                                         &
                      ObjEnterData, iflag,                                   &  
                      keyword      = 'DISCHARGES',                           &
+                     ClientModule = 'ModuleRunOff',                         &
+                     SearchType   = FromFile,                               &
+                     Default      = .false.,                                &
+                     STAT         = STAT_CALL)                                  
+        if (STAT_CALL /= SUCCESS_) stop 'ModuleRunOff - ReadDataFile - ERR32a'        
+
+        !Discharges
+        call GetData(Me%SimpleChannelInteraction,                           &
+                     ObjEnterData, iflag,                                   &  
+                     keyword      = 'SIMPLE_CHANNEL_FLOW',                  &
                      ClientModule = 'ModuleRunOff',                         &
                      SearchType   = FromFile,                               &
                      Default      = .false.,                                &
@@ -1955,7 +1967,7 @@ doIter:         do while (iter <= Niter)
                     endif
                     
                     !Interaction with channels
-                    if (Me%ObjDrainageNetwork /= 0) then
+                    if (Me%ObjDrainageNetwork /= 0 .and. .not. Me%SimpleChannelInteraction) then
                         call FlowIntoChannels       (LocalDT)
                     endif
 
@@ -2001,10 +2013,13 @@ doIter:         do while (iter <= Niter)
 
 
             !Calculates flow from channels to land
-            if (Me%ObjDrainageNetwork /= 0) then
+            if (Me%ObjDrainageNetwork /= 0 .and. .not. Me%SimpleChannelInteraction) then
                 call FlowFromChannels 
             endif
 
+            if (Me%ObjDrainageNetwork /=0) then
+                call OverLandChannelInteraction
+            endif
 
             !Calculates center flow and velocities (for output and next DT)
             call ComputeCenterValues
@@ -2499,7 +2514,7 @@ doIter:         do while (iter <= Niter)
         if (Me%ObjDrainageNetwork /= 0) then 
 
             call GetChannelsWaterLevel  (Me%ObjDrainageNetwork, ChannelsWaterLevel, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'FlowIntoChannels - ModuleRunOff - ERR01'     
+            if (STAT_CALL /= SUCCESS_) stop 'StormWaterDrainage - ModuleRunOff - ERR01'     
 
             do j = JLB, JUB
             do i = ILB, IUB
@@ -2519,7 +2534,7 @@ doIter:         do while (iter <= Niter)
             enddo
             
             call UnGetDrainageNetwork (Me%ObjDrainageNetwork, ChannelsWaterLevel, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'FlowIntoChannels - ModuleRunOff - ERR05'
+            if (STAT_CALL /= SUCCESS_) stop 'StormWaterDrainage - ModuleRunOff - ERR05'
             
         endif
 
@@ -2819,6 +2834,89 @@ doIter:         do while (iter <= Niter)
     end subroutine FlowFromChannels
     
     !--------------------------------------------------------------------------
+    
+    subroutine OverLandChannelInteraction
+    
+        !Arguments-------------------------------------------------------------
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: i, j
+        integer                                     :: ILB, IUB, JLB, JUB, STAT_CALL
+        real                                        :: dVol
+        real   , dimension(:, :), pointer           :: ChannelsVolume
+        real   , dimension(:, :), pointer           :: ChannelsMaxVolume
+        real                                        :: ChannelFreeVolume
+
+
+        call GetChannelsVolume      (Me%ObjDrainageNetwork, ChannelsVolume, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'OverLandChannelInteraction - ModuleRunOff - ERR01'     
+
+        call GetChannelsMaxVolume   (Me%ObjDrainageNetwork, ChannelsMaxVolume, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'OverLandChannelInteraction - ModuleRunOff - ERR02'
+
+
+        ILB = Me%WorkSize%ILB
+        IUB = Me%WorkSize%IUB
+        JLB = Me%WorkSize%JLB
+        JUB = Me%WorkSize%JUB
+        
+        do j = JLB, JUB
+        do i = ILB, IUB
+        
+            if (Me%ExtVar%RiverPoints(i, j) == BasinPoint) then
+
+                
+                if (ChannelsVolume (i, j) < ChannelsMaxVolume(i, j)) then
+                
+                    !Volume which can enter the channel
+                    ChannelFreeVolume = ChannelsMaxVolume(i, j) - ChannelsVolume (i, j)
+                
+                    !Volume to channel: minimum between free volume and current volume in cell
+                    dVol = min(ChannelFreeVolume, Me%myWaterVolume (i, j))
+                    
+                    !Flow to channel - positive if enters
+                    Me%iFlowToChannels(i, j) = dVol / Me%ExtVar%DT
+                    
+                    !Update local water column
+                    Me%myWaterVolume (i, j)     = Me%myWaterVolume (i, j) - dVol 
+                    
+                    Me%myWaterColumn  (i, j)    = Me%myWaterVolume (i, j) / Me%ExtVar%GridCellArea(i, j)
+
+                    Me%myWaterLevel (i, j)      = Me%myWaterColumn (i, j) + Me%ExtVar%Topography(i, j)
+                    
+                else
+                
+                    !Excess Volume in channel
+                    dVol = ChannelsVolume (i, j) - ChannelsMaxVolume(i, j)
+                    
+                    !Flow to channel - negative if leaves
+                    Me%iFlowToChannels(i, j) = - dVol / Me%ExtVar%DT
+                    
+                    !Update local water column
+                    Me%myWaterVolume (i, j)     = Me%myWaterVolume (i, j) + dVol 
+                    
+                    Me%myWaterColumn  (i, j)    = Me%myWaterVolume (i, j) / Me%ExtVar%GridCellArea(i, j)
+
+                    Me%myWaterLevel (i, j)      = Me%myWaterColumn (i, j) + Me%ExtVar%Topography(i, j)
+                    
+                
+                endif
+                    
+            endif
+
+        enddo
+        enddo        
+        
+        call UnGetDrainageNetwork (Me%ObjDrainageNetwork, ChannelsVolume, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'OverLandChannelInteraction - ModuleRunOff - ERR06'
+
+        call UnGetDrainageNetwork (Me%ObjDrainageNetwork, ChannelsMaxVolume, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'OverLandChannelInteraction - ModuleRunOff - ERR07'        
+
+    
+    end subroutine OverLandChannelInteraction
+    
+    !--------------------------------------------------------------------------
 
     subroutine CheckStability (Restart, Niter)
 
@@ -2847,7 +2945,7 @@ doIter:         do while (iter <= Niter)
         
         
         !Verifies stabilize criteria
-        if (Me%Stabilize .and. Niter < Me%MaxIterations) then
+        if (Me%Stabilize .and. Niter < Me%MaxIterations .and. .not. Me%SimpleChannelInteraction) then
             do j = Me%WorkSize%JLB, Me%WorkSize%JUB
             do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                 if (Me%myWaterVolumeOld(i, j) / Me%ExtVar%GridCellArea(i, j) > 0.01) then

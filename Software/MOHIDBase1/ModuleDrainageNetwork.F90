@@ -238,6 +238,8 @@ Module ModuleDrainageNetwork
     public  :: GetChannelsBottomWidth
     public  :: GetChannelsBankSlope
     public  :: GetChannelsNodeLength
+    public  :: GetChannelsVolume
+    public  :: GetChannelsMaxVolume
     public  :: GetChannelsOpenProcess
     public  :: GetHasProperties
     public  :: GetDNnProperties
@@ -544,7 +546,6 @@ Module ModuleDrainageNetwork
         private
         integer                                     :: ID                       = null_int
         logical                                     :: Active                   = .true.
-        character(LEN = StringLength)               :: Name                     
         integer                                     :: UpstreamNode             = null_int
         integer                                     :: DownstreamNode           = null_int
         real                                        :: Length                   = null_real    
@@ -791,6 +792,8 @@ Module ModuleDrainageNetwork
         real,    dimension(:,:), pointer            :: ChannelsSurfaceWidth => null()
         real,    dimension(:,:), pointer            :: ChannelsBankSlope    => null()
         real,    dimension(:,:), pointer            :: ChannelsNodeLength   => null()
+        real,    dimension(:,:), pointer            :: ChannelsVolume       => null()
+        real,    dimension(:,:), pointer            :: ChannelsMaxVolume    => null()
         integer, dimension(:,:), pointer            :: ChannelsOpenProcess  => null()               
         real,    dimension(:)  , pointer            :: ShortWaveExtinction  => null()
         real,    dimension(:)  , pointer            :: ShortWaveField       => null()
@@ -2861,7 +2864,6 @@ if2:              if (BlockFound) then
         integer                                     :: DownNodeID, UpNodeID
         type (T_Reach), pointer                     :: NewReach
         integer                                     :: flag, STAT_CALL
-        character(LEN = StringLength)               :: str_UpNode, str_DownNode
         logical                                     :: Found
 
         !------------------------------------------------------------------------
@@ -2938,18 +2940,38 @@ if2:              if (BlockFound) then
             stop 'ModuleDrainageNetwork - ConstructReach - ERR05'
         end if
         
-        str_UpNode   =''
-        str_DownNode =''
-        write(str_UpNode  , '(i10)') UpNodeID
-        write(str_DownNode, '(i10)') DownNodeID
-
-        NewReach%Name ='Reach_'//trim(adjustl(adjustr(str_UpNode)))//           &
-                       '_'//trim(adjustl(adjustr(str_DownNode)))
+!        str_UpNode   =''
+!        str_DownNode =''
+!        write(str_UpNode  , '(i10)') UpNodeID
+!        write(str_DownNode, '(i10)') DownNodeID
+!
+!        NewReach%Name ='Reach_'//trim(adjustl(adjustr(str_UpNode)))//           &
+!                       '_'//trim(adjustl(adjustr(str_DownNode)))
 
     end subroutine ConstructReach
     
-
     !---------------------------------------------------------------------------
+
+    function ReachName(CurrReach) result (Name)
+    
+        !Arguments-------------------------------------------------------------
+        type (T_Reach), intent(in)                  :: CurrReach
+        character(len=StringLength)                 :: Name
+        
+        
+        !Local-----------------------------------------------------------------
+        character(LEN = StringLength)               :: str_UpNode, str_DownNode
+
+        str_UpNode   =''
+        str_DownNode =''
+        write(str_UpNode  , '(i10)') CurrReach%UpstreamNode
+        write(str_DownNode, '(i10)') CurrReach%DownstreamNode
+
+        Name = 'Reach_'//trim(adjustl(adjustr(str_UpNode)))//           &
+                    '_'//trim(adjustl(adjustr(str_DownNode)))        
+
+    end function ReachName
+
     !---------------------------------------------------------------------------
 
     subroutine CheckReachesConsistency      
@@ -4297,7 +4319,9 @@ ifB:    if (NewProperty%ComputeOptions%BottomFluxes) then
 if1:    if (Me%HasGrid) then
 
             !Channels WaterLevel
-            allocate(Me%ChannelsWaterLevel(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+            allocate(Me%ChannelsWaterLevel    (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+            allocate(Me%ChannelsVolume        (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+            allocate(Me%ChannelsMaxVolume     (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
             Me%ChannelsWaterLevel   = 0.0
             call UpdateChannelsDynamicMatrix
 
@@ -4308,6 +4332,7 @@ if1:    if (Me%HasGrid) then
             allocate(Me%ChannelsNodeLength    (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
             allocate(Me%ChannelsOpenProcess   (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
             allocate(Me%ChannelsID            (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+            
             Me%ChannelsBottomLevel  = null_real
             Me%ChannelsBottomWidth  = null_real
             Me%ChannelsSurfaceWidth = null_real
@@ -4315,6 +4340,8 @@ if1:    if (Me%HasGrid) then
             Me%ChannelsNodeLength   = null_real
             Me%ChannelsOpenProcess  = null_int
             Me%ChannelsID           = null_int
+            Me%ChannelsVolume       = null_int
+            Me%ChannelsMaxVolume    = null_int
 
             do NodeID = 1, Me%TotalNodes
 
@@ -5441,7 +5468,6 @@ if0:    if (Me%TimeSerie%ByNodes) then
         character(LEN = StringLength), dimension(:), pointer :: ReachHeaderList 
         character(LEN = StringLength), dimension(:), pointer :: PropHeaderList 
        
-       
         
 if1:    if (Me%TimeSerie%nNodes > 0) then
 
@@ -5493,7 +5519,7 @@ if2:        if (Me%TimeSerie%ByNodes) then
                 do ReachPos = 1, Me%TotalReaches
                 
                     if (Me%Reaches(ReachPos)%TimeSerie) then
-                        ReachHeaderList(nReaches) = Me%Reaches(ReachPos)%Name
+                        ReachHeaderList(nReaches) = ReachName(Me%Reaches(ReachPos))
                         nReaches = nReaches + 1 
                     endif                
 
@@ -6184,6 +6210,76 @@ if0:    if (Me%HasProperties) then
 
     end subroutine GetChannelsNodeLength
 
+    !---------------------------------------------------------------------------
+
+    subroutine GetChannelsVolume (DrainageNetworkID, ChannelsVolume, STAT)
+
+        !Arguments--------------------------------------------------------------
+        integer                                         :: DrainageNetworkID
+        real, dimension (:,:), pointer                  :: ChannelsVolume
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local------------------------------------------------------------------
+        integer                                         :: STAT_CALL, ready_
+        !-----------------------------------------------------------------------
+
+
+        STAT_CALL = UNKNOWN_
+
+        call Ready(DrainageNetworkID, ready_)
+
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+           
+            call Read_Lock(mDRAINAGENETWORK_, Me%InstanceID)
+            ChannelsVolume => Me%ChannelsVolume
+                    
+            STAT_CALL = SUCCESS_
+
+        else 
+            STAT_CALL = ready_
+        end if
+
+        if (present(STAT)) STAT = STAT_CALL
+
+    end subroutine GetChannelsVolume
+    
+    !---------------------------------------------------------------------------
+
+    subroutine GetChannelsMaxVolume (DrainageNetworkID, ChannelsMaxVolume, STAT)
+
+        !Arguments--------------------------------------------------------------
+        integer                                         :: DrainageNetworkID
+        real, dimension (:,:), pointer                  :: ChannelsMaxVolume
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local------------------------------------------------------------------
+        integer                                         :: STAT_CALL, ready_
+        !-----------------------------------------------------------------------
+
+
+        STAT_CALL = UNKNOWN_
+
+        call Ready(DrainageNetworkID, ready_)
+
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+           
+            call Read_Lock(mDRAINAGENETWORK_, Me%InstanceID)
+            ChannelsMaxVolume => Me%ChannelsMaxVolume
+                    
+            STAT_CALL = SUCCESS_
+
+        else 
+            STAT_CALL = ready_
+        end if
+
+        if (present(STAT)) STAT = STAT_CALL
+
+    end subroutine GetChannelsMaxVolume
+        
     !---------------------------------------------------------------------------
 
     subroutine GetChannelsOpenProcess (DrainageNetworkID, ChannelsOpenProcess, STAT)
@@ -7329,7 +7425,7 @@ do2 :   do while (associated(PropertyX))
             endif
             
             !Inputs Water from StormWaterModel
-            if (Me%ComputeOptions%Discharges) then
+            if (Me%ComputeOptions%StormWaterModelLink) then
                 call FlowFromStormWater     (LocalDT)
             endif
             
@@ -8323,7 +8419,7 @@ do2 :   do while (associated(PropertyX))
             do NodeID = 1, Me%TotalNodes
                 call ModifyNode          (NodeID, LocalDT)
                 call VerifyMinimumVolume (NodeID, Restart, Niter)
-                exit
+                if (Restart) exit
             end do
                   
             if (Me%CheckMass .and. .not. Restart) then               
@@ -8642,7 +8738,8 @@ if2:        if (CurrNode%VolumeNew > PoolVolume) then
         !Local------------------------------------------------------------------
         type (T_Reach), pointer                 :: CurrReach
         type (T_Node ), pointer                 :: UpNode, DownNode    
-        real                                    :: PoolDepth, PoolVolume   
+        real                                    :: PoolDepth, PoolVolume
+        real                                    :: WeightedWetPerimiter   
 
         UpNode    => Me%Nodes(CurrReach%UpstreamNode)
         DownNode  => Me%Nodes(CurrReach%DownstreamNode)
@@ -8655,16 +8752,31 @@ if2:        if (CurrNode%VolumeNew > PoolVolume) then
             PoolDepth = UpNode%VolumeNew / (UpNode%Length * UpNode%CrossSection%BottomWidth)
         endif
 
-        if (Me%AllowBackwardWater .and. UpNode%WaterLevel < DownNode%WaterLevel .and. DownNode%ID /= Me%OutletNodePos) then
-            CurrReach%VerticalArea    = (UpNode%VerticalArea + DownNode%VerticalArea) / 2.0
-            CurrReach%HydraulicRadius = CurrReach%VerticalArea / ((UpNode%WetPerimeter + DownNode%WetPerimeter) / 2.0)
+
+!        if (Me%AllowBackwardWater .and. UpNode%WaterLevel < DownNode%WaterLevel .and. DownNode%ID /= Me%OutletNodePos) then
+!            CurrReach%VerticalArea    = (UpNode%VerticalArea + DownNode%VerticalArea) / 2.0
+!            CurrReach%HydraulicRadius = CurrReach%VerticalArea / ((UpNode%WetPerimeter + DownNode%WetPerimeter) / 2.0)
+!        else
+!            CurrReach%VerticalArea    = UpNode%VerticalArea
+!            if (UpNode%WetPerimeter > 0.0) then
+!                CurrReach%HydraulicRadius = UpNode%VerticalArea / UpNode%WetPerimeter
+!            else            
+!                CurrReach%HydraulicRadius = 0.0
+!            end if
+!        endif
+
+        !New approach for calculating channel geometries. The above appraoch does not working for backwater effects. 
+        !When water was flowing into an empty channel (backwards), the upstream area is zero. This makes later
+        !the Manning equation crash.
+        !Another approach, not implemented, would be to recalculate the area based on the waterlevel. This needs
+        !some code refactoring for the routines which calculated the channel geometry.
+        !Frank - 29-08-2011
+        CurrReach%VerticalArea    = 0.9 * UpNode%VerticalArea + 0.1 * DownNode%VerticalArea
+        weightedWetPerimiter = ( 0.9 * UpNode%WetPerimeter + 0.1* DownNode%WetPerimeter)
+        if (WeightedWetPerimiter > AllmostZero) then
+            CurrReach%HydraulicRadius = CurrReach%VerticalArea / WeightedWetPerimiter
         else
-            CurrReach%VerticalArea    = UpNode%VerticalArea
-            if (UpNode%WetPerimeter > 0.0) then
-                CurrReach%HydraulicRadius = UpNode%VerticalArea / UpNode%WetPerimeter
-            else            
-                CurrReach%HydraulicRadius = 0.0
-            end if
+            CurrReach%HydraulicRadius = 0.0
         endif
         
         
@@ -8730,37 +8842,25 @@ if2:        if (CurrNode%VolumeNew > PoolVolume) then
         !m/m              =   m                                       / m      
         LevelSlope        = (UpNode%WaterLevel - DownNode%WaterLevel) / CurrReach%Length 
 
-        if (abs(LevelSlope) > AllmostZero) then              
-            !m3/s             = s  * m/s2    * m2                     * m/m
-            Pressure          = DT * Gravity * CurrReach%VerticalArea * LevelSlope
-        else
-            Pressure          = 0.0
-        endif
+        !m3/s             = s  * m/s2    * m2                     * m/m
+        Pressure          = DT * Gravity * CurrReach%VerticalArea * LevelSlope
 
         !FRICTION - semi-implicit -----------------------------------------------
-!        if (UpNode%WaterDepth > Me%MinimumWaterDepth) then
-            !        =  s * m/s2    * m3/s * s/m(1/3) / (m * m.... units are correct, I check on the paper.. FB
-            Friction = DT * Gravity * abs(CurrReach%FlowOld) * CurrReach%Manning ** 2. &
-                     / ( CurrReach%VerticalArea * CurrReach%HydraulicRadius ** (4./3.) ) 
-!        else
-!            Friction = 0.0
-!        endif
+        !        =  s * m/s2    * m3/s * s/m(1/3) / (m * m.... units are correct, I check on the paper.. FB
+        Friction = DT * Gravity * abs(CurrReach%FlowOld) * CurrReach%Manning ** 2. &
+                 / ( CurrReach%VerticalArea * CurrReach%HydraulicRadius ** (4./3.) ) 
         
 
         !ADVECTION - upwind (in - out)-------------------------------------------
         !positive direction is downstream
         Advection = HydroAdvection(CurrReach, DT)
 
-        !EQUACAO ---------------------------------------------------------------
-
+        !FLOW---------------------------------------------------------------
         CurrReach%FlowNew = ( CurrReach%FlowOld + Advection + Pressure )    &
                           / ( 1. + Friction )
        
-!        CurrReach%FlowNew = 0.0;
-!        if (abs(CurrReach%FlowNew) > 0.0) then
-!            CurrReach%FlowNew = 0.0;
-!        endif
-       
+        
+        !Velocity
         CurrReach%Velocity = CurrReach%FlowNew / (CurrReach%VerticalArea + CurrReach%PoolVerticalArea)
 
     
@@ -9057,7 +9157,7 @@ do2:            do while (Iterate)
         if (MonitorPerformance) call StartWatch ("ModuleDrainageNetwork", "UpdateComputeFaces")
        
         !Based on ModuleHorizontalMap
-        Me%ComputeFaces = 0
+        !Me%ComputeFaces = 0
 
         do ReachID = 1, Me%TotalReaches
 
@@ -9095,6 +9195,8 @@ do2:            do while (Iterate)
 
                 if (ComputeFaceUpDown + ComputeFaceDownUp > 0) then
                     Me%ComputeFaces (ReachID) = 1
+                else
+                    Me%ComputeFaces (ReachID) = 0
                 endif
                 
             else
@@ -9188,6 +9290,8 @@ do2:            do while (Iterate)
             CurrNode => Me%Nodes (NodeID)                
             
             Me%ChannelsWaterLevel       (CurrNode%GridI, CurrNode%GridJ) = CurrNode%WaterLevel
+            Me%ChannelsVolume           (CurrNode%GridI, CurrNode%GridJ) = CurrNode%VolumeNew
+            Me%ChannelsMaxVolume        (CurrNode%GridI, CurrNode%GridJ) = CurrNode%VolumeMax
                     
         enddo
 
