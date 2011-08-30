@@ -9117,15 +9117,15 @@ D2:     do I=imax-1,2,-1
 
     function minival2D_R4(array, size2D)
             
-        real(4), dimension(:,:), pointer   :: array
-        type(T_size2D)                  :: size2D
-        integer                         :: i,j
-        real(4)                            :: minival2D_R4
+        real(4), dimension(:,:), pointer    :: array
+        type(T_size2D)                      :: size2D
+        integer                             :: i,j
+        real(4)                             :: minival2D_R4
         
         minival2D_R4 = 1e15
         do j = size2D%JLB,size2D%JUB
         do i = size2D%ILB,size2D%IUB
-            if ( array(i,j) .ne. FillValueReal .and. minival2D_R4 > array(i,j) ) then
+            if (array(i,j) .ne. FillValueReal .and. minival2D_R4 > array(i,j)) then
                 minival2D_R4 = array(i,j)
             end if
         end do
