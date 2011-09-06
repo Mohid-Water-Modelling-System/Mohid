@@ -1481,10 +1481,11 @@ cd2 :           if (Zoo) then
                         stop 'WQM needs property zooplankton - Check_Options'
                 end if cd2
 
-cd3 :           if (Larvae) then
-                    if (.not.FindProperty(PropertiesList, Larvae_))                 &
-                        stop 'WQM needs property Larvae - Check_Options'
-                end if cd3
+!                Larvae is not a waterproperty but lagrangian
+!cd3 :           if (Larvae) then
+!                    if (.not.FindProperty(PropertiesList, Larvae_))                 &
+!                        stop 'WQM needs property Larvae - Check_Options'
+!                end if cd3
 
 cd5 :           if (Phosphorus) then
 
