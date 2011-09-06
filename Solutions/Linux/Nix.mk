@@ -12,14 +12,8 @@ export O = o
 export F = F90
 export MOD = mod
 export CC= ifort
-export CCFLAGS  = -g -p -c -r8 -inline-level=0 -fpp -warn all -nologo
--convert big_endian -fpe0 -D_USE_NIX -traceback -mcmodel=large
--heap-arrays 64 -openmp $(FPP_DEFINES) # Debug: -g; Profiling: -p;
-Openmp: -openmp; Endianness: -convert big_endian
-export LFLAGS   = -g -openmp -lpthread -fpp -p -nologo -warn all
--i-static -convert big_endian -traceback -D_USE_NIX -mcmodel=large #
-Profiling: -p; Openmp: -openmp -lpthread;endianness: -convert
-big_endian
+export CCFLAGS  = -g -p -c -r8 -inline-level=0 -fpp -warn all -nologo -convert big_endian -fpe0 -D_USE_NIX -traceback -mcmodel=large -heap-arrays 64 -openmp $(FPP_DEFINES) # Debug: -g; Profiling: -p; Openmp: -openmp; Endianness: -convert big_endian
+export LFLAGS   = -g -openmp -lpthread -fpp -p -nologo -warn all -i-static -convert big_endian -traceback -D_USE_NIX -mcmodel=large # Profiling: -p; Openmp: -openmp -lpthread;endianness: -convert big_endian
 export LLFLAGS  =
 export MKFLAGS =
 export AR = ar rc
@@ -61,36 +55,36 @@ export LPROJ4F = libfproj4.a
 
 # All libs folders
 export BASELIBS := \
-      $(BASE2INC)/$(BASE2) \
-      $(BASE1INC)/$(BASE1)
+       $(BASE2INC)/$(BASE2) \
+       $(BASE1INC)/$(BASE1)
 
 export HDFLIBS := \
-      $(HDF5LIB)/$(LHDF5FORTRAN) \
-      $(HDF5LIB)/$(LHDF5) \
-      $(HDF5LIB)/$(LHDF5HL) \
-      $(ZLIBINC)/$(ZLIB)
+       $(HDF5LIB)/$(LHDF5FORTRAN) \
+       $(HDF5LIB)/$(LHDF5) \
+       $(HDF5LIB)/$(LHDF5HL) \
+       $(ZLIBINC)/$(ZLIB)
 
 # All libs folders (including netcdf)
 # Order of libraries *is relevant* at link-time
 export NETCDFLIBS := \
-       $(NETCDFLIB)/$(LNETCDFF) \
-       $(NETCDFLIB)/$(LNETCDF) \
-       $(CURLLIB)/$(LCURL)
+	$(NETCDFLIB)/$(LNETCDFF) \
+	$(NETCDFLIB)/$(LNETCDF) \
+	$(CURLLIB)/$(LCURL)
 
 export PROJ4FLIBS := \
-   $(PROJ4FLIB)/$(LPROJ4F)
+    $(PROJ4FLIB)/$(LPROJ4F)
 
 export MODULENETCDFOBJ := \
-       $(CONVERT2NETCDFINC)/ModuleNETCDF.$(O)
+	$(CONVERT2NETCDFINC)/ModuleNETCDF.$(O)
 
 #------Files and modules lists------
 
 METAFILES = \
-       README \
-       Editme_template.smk \
-       Nix.smk
+        README \
+        Editme_template.smk \
+        Nix.smk
 
-MODULES :=
+MODULES := 
 MODULES := $(MODULES) Makefiles
 MODULES := $(MODULES) MohidWater
 MODULES := $(MODULES) Mohid_Base_2
@@ -119,7 +113,7 @@ MohidLand.all : Mohid_Base_2.all
 MohidWater.all : Mohid_Base_2.all
 ifeq ($(IS_NETCDF),true)
 ConvertToHDF5.all : Mohid_Base_2.all \
-                   SmallTools/Convert2netcdf.all
+                    SmallTools/Convert2netcdf.all
 endif
 ifeq ($(IS_NETCDF),false)
 ConvertToHDF5.all : Mohid_Base_2.all
@@ -127,3 +121,4 @@ endif
 ConvertToXYZ.all : Mohid_Base_2.all
 MohidRiver.all : Mohid_Base_2.all
 HDF5Extrator.all : Mohid_Base_2.all
+
