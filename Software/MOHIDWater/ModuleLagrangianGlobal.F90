@@ -13334,7 +13334,9 @@ d1:     do em =1, Me%EulerModelNumber
         !Local-----------------------------------------------------------------
         type (T_Origin), pointer                    :: CurrentOrigin
         real(8), dimension(:), pointer              :: Matrix1D, Matrix1DX, Matrix1DY
+#ifdef _USE_PROJ4  
         real(8), dimension(:), pointer              :: Aux1DX, Aux1DY        
+#endif        
         integer                                     :: nP
         type (T_Partic), pointer                    :: CurrentPartic
         integer                                     :: OutPutNumber
@@ -13615,8 +13617,8 @@ i1:             if (nP>0) then
                                                           "Longitude", "Latitude", "º", OutputNumber, em)  
                             endif
                             
-#ifdef _USE_PROJ4  
 
+#ifdef _USE_PROJ4  
                             allocate   (Aux1DX(CurrentOrigin%nParticle))
                             allocate   (Aux1DY(CurrentOrigin%nParticle))
                             Aux1DX(:) = FillValueReal
