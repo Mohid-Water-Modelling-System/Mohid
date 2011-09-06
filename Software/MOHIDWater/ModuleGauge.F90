@@ -2240,7 +2240,7 @@ if5:            if (PresentGauge%VelEvolution == TimeSerie)  then
         type(T_TidalWave), pointer                              :: PresentWave
         real                                                    :: WaterLevelRef
         character(LEN=WaveNameLength), pointer, dimension(:)    :: WaveName
-        integer                                                 :: nn
+        ! integer                                                 :: nn
 
         !Begin------------------------------------------------------------------                         
 

@@ -8,16 +8,21 @@ SUFF := $(suffix $(TARGET))
 all: $(TARGET)
 
 $(TARGET) : $(OBJS) $(LIBS)
+	@echo  
+	@echo Build with compilation flags $(CCFLAGS) $(INCS)
+	@echo 
 ifeq ($(SUFF),$(SUFFLIB))
-	@$(AR) $@ $^
+	$(AR) $@ $^
 else
 	$(CC) $(LFLAGS) -o $@ $^ $(LLFLAGS)
 endif
+	@echo 
 	@echo Finished building $@.
+	@echo 
 
 #Fortran compilation rule
 %.$(O) : $(SRCF)/%.$(F)
-	$(CC) $(CCFLAGS) $(INCS) $<
+	@$(CC) $(CCFLAGS) $(INCS) $<
 	@echo $* .................. [OK]
 
 #make clean

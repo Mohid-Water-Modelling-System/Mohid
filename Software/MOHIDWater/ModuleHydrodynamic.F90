@@ -38715,8 +38715,8 @@ cd2:            if (WaterPoints3D(i  , j  ,k)== WaterPoint .and.                
                                              Me%Energy%VelMaxBaroclinicBuffer(iBuffer), &
                                              Me%Energy%VorticityBuffer       (iBuffer)
                                                          
-            100 format(1x, f5.0, 1x, f4.0, 1x, f4.0, 1x, f4.0, 1x, f4.0, f4.0, 1x, e14.8, 1x, e14.8, 1x, e14.8, 1x, e14.8, 1x,  &
-                       e14.8, 1x, e14.8, 1x, e14.8, 1x, f12.6, 1x, e14.8, 1x, e14.8, 1x, e14.8, 1x, e14.8, 1x, e14.8)
+            100 format(1x, f5.0, 1x, f4.0, 1x, f4.0, 1x, f4.0, 1x, f4.0, f4.0, 1x, e16.8, 1x, e16.8, 1x, e16.8, 1x, e16.8, 1x,  &
+                       e16.8, 1x, e16.8, 1x, e16.8, 1x, f14.6, 1x, e16.8, 1x, e16.8, 1x, e16.8, 1x, e16.8, 1x, e16.8)
         enddo
         Me%Energy%BufferCount = 0
 

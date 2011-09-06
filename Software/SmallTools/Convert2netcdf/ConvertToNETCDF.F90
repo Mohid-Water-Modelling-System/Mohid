@@ -620,7 +620,8 @@ program Convert2netcdf
     subroutine ReadSetDimensions
 
         !Local-----------------------------------------------------------------
-        integer(HID_T)                              :: gr_id, dset_id, class_id, size
+        integer(HID_T)                              :: gr_id, dset_id, class_id
+        integer(8)                                  :: ssize
         integer(HID_T)                              :: space_id, datatype_id
         integer(HID_T)                              :: rank
         integer(HSIZE_T), dimension(7)              :: dims, maxdims
@@ -638,7 +639,7 @@ program Convert2netcdf
         call h5dget_space_f                 (dset_id, space_id, STAT_CALL)
         call h5sget_simple_extent_ndims_f   (space_id, rank, STAT_CALL)
         call h5dget_type_f                  (dset_id, datatype_id,   STAT_CALL)
-        call h5tget_size_f                  (datatype_id, size,      STAT_CALL)
+        call h5tget_size_f                  (datatype_id, ssize,      STAT_CALL)
         call h5tget_class_f                 (datatype_id, class_id,  STAT_CALL) 
         call h5tclose_f                     (datatype_id, STAT_CALL) 
         call h5sget_simple_extent_dims_f    (space_id, dims, maxdims, STAT_CALL) 
@@ -664,7 +665,7 @@ program Convert2netcdf
         Me%HDFFile%Size%JUB = dims(2)
         Me%HDFFile%Size%KUB = dims(3)
 
-        call NETCDFSetDimensions(Me%NCDF_File%ObjNETCDF, dims(1), dims(2), dims(3), STAT = STAT_CALL)
+        call NETCDFSetDimensions(Me%NCDF_File%ObjNETCDF, int(dims(1),4), int(dims(2),4), int(dims(3),4), STAT = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_) stop 'ReadSetDimensions - Convert2netcdf - ERR02'
 
         write(*,*)
@@ -1054,7 +1055,8 @@ program Convert2netcdf
         character(len=StringLength)                 :: obj_name
         integer                                     :: rank, obj_type
         integer(HSIZE_T), dimension(7)              :: dims, maxdims
-        integer(HID_T)                              :: gr_id, dset_id, class_id, size
+        integer(HID_T)                              :: gr_id, dset_id, class_id
+        integer(8)                                  :: ssize
         integer(HID_T)                              :: space_id, datatype_id
         logical                                     :: IsMapping
         integer                                     :: ILB, IUB, JLB, JUB, KLB, KUB
@@ -1091,7 +1093,7 @@ program Convert2netcdf
                 call h5dget_space_f (dset_id, space_id, STAT_CALL)
                 call h5sget_simple_extent_ndims_f (space_id, rank, STAT_CALL)
                 call h5dget_type_f (dset_id, datatype_id,   STAT_CALL)
-                call h5tget_size_f (datatype_id, size,      STAT_CALL)
+                call h5tget_size_f (datatype_id, ssize,      STAT_CALL)
                 call h5tget_class_f(datatype_id, class_id,  STAT_CALL) 
                 call h5tclose_f    (datatype_id, STAT_CALL) 
                 call h5sget_simple_extent_dims_f  (space_id, dims, maxdims, STAT_CALL) 
@@ -1698,7 +1700,8 @@ if1:   if(present(Int2D) .or. present(Int3D))then
         !Local-----------------------------------------------------------------
         integer                                     :: STAT_CALL
         integer(HID_T)                              :: class_id, space_id, dset_id
-        integer(HID_T)                              :: datatype_id, size, rank, NumType
+        integer(HID_T)                              :: datatype_id, rank, NumType
+        integer(8)                                  :: ssize
         integer(HSIZE_T), dimension(7)              :: dims
         integer                                     :: ILB, IUB, JLB, JUB, KLB, KUB
         character(len=StringLength)                 :: Name, NCDFName, LongName, StandardName, Units
@@ -1724,7 +1727,7 @@ if1:   if(present(Int2D) .or. present(Int3D))then
         call h5dget_space_f                 (dset_id,       space_id,       STAT_CALL)
         call h5sget_simple_extent_ndims_f   (space_id,      rank,           STAT_CALL)
         call h5dget_type_f                  (dset_id,       datatype_id,    STAT_CALL)
-        call h5tget_size_f                  (datatype_id,   size,           STAT_CALL)
+        call h5tget_size_f                  (datatype_id, ssize,           STAT_CALL)
         call h5tget_class_f                 (datatype_id,   class_id,       STAT_CALL) 
         call h5tclose_f                     (datatype_id,                   STAT_CALL) 
         call h5sclose_f                     (space_id,                      STAT_CALL)

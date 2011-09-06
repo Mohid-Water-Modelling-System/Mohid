@@ -34,7 +34,9 @@ program ConvertToXYZ
     use ModuleEtopo2
     use ModuleEtopo5
     use ModuleNASA
+#ifndef _NO_NETCDF
     use ModuleGEBCO
+#endif    
     use ModuleNOAA_ShoreLine
     use ModuleASCII
     use ModuleSRTM30
@@ -234,11 +236,11 @@ if2 :           if (BlockFound) then
 
                 call ConvertEtopo5(Me%Window, Me%ObjEnterData, STAT = STAT_CALL)
 
-
+#ifndef _NO_NETCDF
             case(GEBCO)
 
                 call ConvertGEBCO (Me%Window, Me%ObjEnterData, STAT = STAT_CALL)
-
+#endif
 
             case(NOAA_ShoreLine)
 
