@@ -12,8 +12,14 @@ export O = o
 export F = F90
 export MOD = mod
 export CC= ifort
-export CCFLAGS  = -c -r8 -inline-level=0 -fpp -warn all -nologo -convert big_endian -fpe0 -D_USE_NIX -traceback -mcmodel=large $(FPP_DEFINES) # Debug: -g; Profiling: -p; Openmp: -openmp; Endianness: -convert big_endian
-export LFLAGS   = -fpp -p -nologo -warn all -i-static -convert big_endian -traceback -D_USE_NIX -mcmodel=large # Profiling: -p; Openmp: -openmp -lpthread;endianness: -convert big_endian
+export CCFLAGS  = -g -p -c -r8 -inline-level=0 -fpp -warn all -nologo
+-convert big_endian -fpe0 -D_USE_NIX -traceback -mcmodel=large
+-heap-arrays 64 -openmp $(FPP_DEFINES) # Debug: -g; Profiling: -p;
+Openmp: -openmp; Endianness: -convert big_endian
+export LFLAGS   = -g -openmp -lpthread -fpp -p -nologo -warn all
+-i-static -convert big_endian -traceback -D_USE_NIX -mcmodel=large #
+Profiling: -p; Openmp: -openmp -lpthread;endianness: -convert
+big_endian
 export LLFLAGS  =
 export MKFLAGS =
 export AR = ar rc
@@ -31,6 +37,9 @@ export BASE1 = Mohid_Base_1$(SUFFLIB)
 export BASE2INC = ../Mohid_Base_2
 export BASE2 = Mohid_Base_2$(SUFFLIB)
 
+#ConvertToNetcdf
+export CONVERT2NETCDFINC = ../SmallTools/Convert2netcdf
+
 # HDF5 lib
 export LHDF5FORTRAN = libhdf5_fortran.a
 export LHDF5 = libhdf5.a
@@ -42,45 +51,62 @@ export ZLIB = libz.so
 
 # Netcdf lib
 export LNETCDF  = libnetcdf.a
+export LNETCDFF = libnetcdff.a
+
+# Curl lib
+export LCURL = libcurl.so
 
 # libfproj4 static lib
 export LPROJ4F = libfproj4.a
 
 # All libs folders
 export BASELIBS := \
-       $(BASE1INC)/$(BASE1) \
-       $(BASE2INC)/$(BASE2)
+      $(BASE2INC)/$(BASE2) \
+      $(BASE1INC)/$(BASE1)
 
 export HDFLIBS := \
-       $(HDF5LIB)/$(LHDF5FORTRAN) \
-       $(HDF5LIB)/$(LHDF5) \
-       $(HDF5LIB)/$(LHDF5HL) \
-       $(ZLIBINC)/$(ZLIB)
+      $(HDF5LIB)/$(LHDF5FORTRAN) \
+      $(HDF5LIB)/$(LHDF5) \
+      $(HDF5LIB)/$(LHDF5HL) \
+      $(ZLIBINC)/$(ZLIB)
 
 # All libs folders (including netcdf)
+# Order of libraries *is relevant* at link-time
 export NETCDFLIBS := \
-	$(NETCDFLIB)/$(LNETCDF)
+       $(NETCDFLIB)/$(LNETCDFF) \
+       $(NETCDFLIB)/$(LNETCDF) \
+       $(CURLLIB)/$(LCURL)
 
 export PROJ4FLIBS := \
-    $(PROJ4FLIB)/$(LPROJ4F)
+   $(PROJ4FLIB)/$(LPROJ4F)
+
+export MODULENETCDFOBJ := \
+       $(CONVERT2NETCDFINC)/ModuleNETCDF.$(O)
 
 #------Files and modules lists------
 
 METAFILES = \
-        README \
-        Editme_template.smk \
-        Nix.smk
+       README \
+       Editme_template.smk \
+       Nix.smk
 
-MODULES = \
-          Makefiles \
-          MohidLand \
-          MohidWater \
-          Mohid_Base_2 \
-          Mohid_Base_1
-#          ConvertToHDF5 \
-#          ConvertToXYZ \
-#          MohidRiver \
-#          HDF5Extrator
+MODULES :=
+MODULES := $(MODULES) Makefiles
+MODULES := $(MODULES) MohidWater
+MODULES := $(MODULES) Mohid_Base_2
+MODULES := $(MODULES) Mohid_Base_1
+MODULES := $(MODULES) MohidLand
+MODULES := $(MODULES) ConvertToHDF5
+MODULES := $(MODULES) ConvertToXYZ
+# MODULES := $(MODULES) MohidRiver
+# MODULES := $(MODULES) HDF5Extrator
+
+NCMODULES :=
+NCMODULES := $(NCMODULES) SmallTools/Convert2netcdf
+
+ifeq ($(IS_NETCDF),true)
+MODULES := $(MODULES) $(NCMODULES)
+endif
 
 #------Makefile rules---------------
 
@@ -91,7 +117,13 @@ include Makefiles/Makemodules.mk
 Mohid_Base_2.all : Mohid_Base_1.all
 MohidLand.all : Mohid_Base_2.all
 MohidWater.all : Mohid_Base_2.all
+ifeq ($(IS_NETCDF),true)
+ConvertToHDF5.all : Mohid_Base_2.all \
+                   SmallTools/Convert2netcdf.all
+endif
+ifeq ($(IS_NETCDF),false)
 ConvertToHDF5.all : Mohid_Base_2.all
-ConvertToXYZ.all : Mohid_Base_2.all	
+endif
+ConvertToXYZ.all : Mohid_Base_2.all
 MohidRiver.all : Mohid_Base_2.all
 HDF5Extrator.all : Mohid_Base_2.all
