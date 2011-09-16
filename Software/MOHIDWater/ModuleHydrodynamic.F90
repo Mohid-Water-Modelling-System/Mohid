@@ -34878,7 +34878,7 @@ dok:            do  k = kbottom, KUB
         !                        DT_Velocity,                              &
         !                        UpStream_CenterDif, ImplicitVertAdvection,   &
         !                        ILB, IUB, JLB, JUB, KUB)             
-                  
+
 
 
         !Arguments------------------------------------------------------------
@@ -34896,22 +34896,22 @@ dok:            do  k = kbottom, KUB
         integer, dimension(:,:,:), pointer :: ComputeFaces3D_UV
         integer, dimension(:,:),   pointer :: KFloor_UV, BoundaryFacesUV
 
+        real                               :: UpStream_CenterDif, ImplicitVertAdvection, WaterColumn2D
+
+        integer                            :: IUB, ILB, JUB, JLB, KUB, KLB, di, dj
+
         real(8), dimension(4)              :: V4
         real,    dimension(4)              :: CFace, Vel4, du4
-        
+
+        real(8)                            :: Correction, Face_Flux, MomentumFlux
+
+        integer                            :: i, j, k, Kbottom, iSouth, jWest
+
+        logical                            :: NearBoundary
+
         !griflet: needed to initialize outside of the parallel zone of the code
         real                               :: DT
         integer                            :: STAT_CALL
-
-        real                               :: UpStream_CenterDif, ImplicitVertAdvection, WaterColumn2D
-
-        real(8)                            :: CorrectionOld, CorrectionNew, Face_Flux, MomentumFlux
-    
-        integer                            :: di, dj, i, j, k, Kbottom, iSouth, jWest
-
-        integer                            :: IUB, ILB, JUB, JLB, KUB, KLB
-
-        logical                            :: NearBoundary
 
         !$ integer                            :: CHUNK
 
@@ -34937,11 +34937,6 @@ dok:            do  k = kbottom, KUB
 
         ImplicitVertAdvection   =  Me%ComputeOptions%ImplicitVertAdvection
 
-        DCoef_3D             => Me%Coef%D3%D
-        ECoef_3D             => Me%Coef%D3%E
-        FCoef_3D             => Me%Coef%D3%F
-        TiCoef_3D            => Me%Coef%D3%Ti
-        
         WaterFlux_Z          => Me%WaterFluxes%Z
 
         Velocity_UV_Old      => Me%Velocity%Horizontal%UV%Old
@@ -34964,140 +34959,70 @@ dok:            do  k = kbottom, KUB
         if (STAT_CALL /= SUCCESS_)                                                          &
             call SetError (FATAL_, INTERNAL_, "Velocity_VerticalAdvection - ModuleHydrodynamic - ERR01")
 
-!        allocate(BottomCell_BottomFace(KUB), CenterCell_BottomFace(KUB), &
-!                 CenterCell_TopFace(KUB), TopCell_TopFace(KUB))
-
-        !$ CHUNK = CHUNK_J(JLB, JUB)
-        
         if (MonitorPerformance) then
             call StartWatch ("ModuleHydrodynamic", "Velocity_VerticalAdvection")
         endif
-        
+
+        !$ CHUNK = CHUNK_J(JLB, JUB)
+
         !griflet: Ok, it is assumed that *statically* allocated arrays may be safely replicated
         !with the private directive.
-        !!!!$OMP PARALLEL PRIVATE( i,j,k,iSouth,jWest,Kbottom,CorrectionOld, &
-        !!!!$OMP                   Face_Flux,CorrectionNew,NearBoundary,Vel4, &
-        !!!!$OMP                   du4,V4,MomentumFlux,CFace)
-        !!!!$OMP DO SCHEDULE(DYNAMIC,CHUNK)
-doi:     do j=JLB, JUB
-doj:     do i=ILB, IUB
+        !$OMP PARALLEL PRIVATE( i,j,k,iSouth,jWest,Kbottom,Correction,      &
+        !$OMP                   Face_Flux,NearBoundary,Vel4,                &
+        !$OMP                   du4,V4,MomentumFlux,CFace,                  &
+        !$OMP                   DCoef_3D, ECoef_3D, FCoef_3D, TiCoef_3D)
 
-            !This if impose in the open boundary gradient null for the vertical advection 
-cd1:        if (ComputeFaces3D_UV(i, j, KUB) == Covered  .and.                           &
-                WaterColumnUV(i, j) > WaterColumn2D) then 
+        DCoef_3D             => Me%Coef%D3%D
+        ECoef_3D             => Me%Coef%D3%E
+        FCoef_3D             => Me%Coef%D3%F
+        TiCoef_3D            => Me%Coef%D3%Ti
 
-                if (BoundaryFacesUV  (i, j) == Boundary .and.                            &
-                    .not. Me%SubModel%ON .and. (.not. Me%CyclicBoundary%ON .or.          &
-                   (Me%CyclicBoundary%ON .and. Me%CyclicBoundary%Direction == Me%Direction%YX)))  then
+        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+doj:    do j=JLB, JUB
+doi:    do i=ILB, IUB
 
-                    Cycle
-
-                endif
+            !This if impose in the open boundary gradient null for the vertical advection
+cd1:        if (    ComputeFaces3D_UV(i, j, KUB) == Covered  .and.              &
+                    WaterColumnUV(i, j) > WaterColumn2D .and.                   &
+                    .not. (                                                     &
+                        BoundaryFacesUV  (i, j) == Boundary .and.               &
+                        .not. Me%SubModel%ON .and. (                            &
+                            .not. Me%CyclicBoundary%ON .or.                     &
+                            (Me%CyclicBoundary%ON .and.                         &
+                            Me%CyclicBoundary%Direction == Me%Direction%YX)     &
+                         )                                                      &
+                    )                                                           &
+             ) then
 
                 iSouth = i - di
                 jWest  = j - dj
 
                 Kbottom = KFloor_UV(i, j)
 
-!                TopFace_Flux  = 0.
-
-                CorrectionOld = 0.
+                Correction = 0.
 
 dok1:           do  k = Kbottom + 1, KUB                              
-
-                    !This formulation assumes that AreaUV / VolumeUV = DZX_ZY, because
-                    !is the only way of cancel the vertical diffusion and advection terms 
-                    !when the water flow is considered implicit in the water level calculation. 
-                    !However, this relation is not true when AreaUV is computed using the 
-                    !minimum thickness metodology.    
-                    !See ModuleGeometry 
-                    ![s/m]                   =   [s] /  [m]
-!                    DT_V                     =   DT_Velocity / (Area_UV(i, j, k) * DZX_ZY(iSouth, jWest))
-
-                    !When the faces area is compute using the average thickness metodology
-                    !(See ModuleGeometry) then this relation and the above one are equal.  
-
-                    ![s/m^3]        = [s] / [m^3]
-!                    DT_V            = DT_Velocity / Volume_UV(i, j, k)
-
-
-                    !BottomFace_Flux = (WaterFlux_Z(iSouth, jWest, k) + WaterFlux_Z(i, j, k))/2. 
-                    
-!                    BottomFace_Flux = TopFace_Flux
-
-!                    TopFace_Flux    = (WaterFlux_Z(iSouth, jWest, k+1) + WaterFlux_Z(i, j, k+1))/2.
-
-!                    if (Me%SubModel%ON .and. BoundaryFacesUV  (i, j) == Boundary ) then
-!                    
-!                        call VertAdvectionSubModel ( CorrectionOld, CorrectionNew, i, j, k)
-
-!                        TopFace_Flux   = TopFace_Flux + CorrectionNew / 2.
-
-!                        CorrectionOld  = CorrectionNew
-
-!                    endif
-
-
-                    !Upwind Coefficients :
-                    ! bottom face - UpWind_Velocity = Coef_Up_1*Velocity(k-1) +  Coef_Up_2*Velocity(k)
-                    !if (BottomFace_Flux>0) then
-                    !   Coef_Up_1 = 1.
-                    !   Coef_Up_2 = 0.
-                    !else 
-                    !   Coef_Up_1 = 0.
-                    !   Coef_Up_2 = 1.
-                    !endif 
-
-                    !Coef_Centered_1          = Area_UV(i, j, k)   / (Area_UV(i, j, k) + Area_UV(i, j, k-1))
-
-                    !Coef_Centered_2          = Area_UV(i, j, k-1) / (Area_UV(i, j, k) + Area_UV(i, j, k-1))
-
-                    ![ ]                     = [s/m^3] * [m^3/s]
-                    !BottomCell_BottomFace(k) = DT_V * BottomFace_Flux * (UpStream_CenterDif * Coef_Up_1 +  &
-                    !                           (1. - UpStream_CenterDif) * Coef_Centered_1)
-
-                    ![ ]                     = [s/m^3] * [m^3/s]
-                    !CenterCell_BottomFace(k) = DT_V * BottomFace_Flux * (UpStream_CenterDif * Coef_Up_2 +  &
-                    !                           (1. - UpStream_CenterDif) * Coef_Centered_2)
-
-
-                    !Upwind Coefficients :
-                    ! top face  - UpWind_Velocity = Coef_Up_1*Velocity(k)   +  Coef_Up_2*Velocity(k+1)
-                    !if (TopFace_Flux>0) then
-                    !!   Coef_Up_1 = 1.
-                    !   Coef_Up_2 = 0.
-                    !else 
-                    !   Coef_Up_1 = 0.
-                    !   Coef_Up_2 = 1.
-                    !endif 
-
-                    !Coef_Centered_1          = Area_UV(i, j, k+1) / (Area_UV(i, j, k) + Area_UV(i, j, k+1))
-
-                    !Coef_Centered_2          = Area_UV(i, j, k)   / (Area_UV(i, j, k) + Area_UV(i, j, k+1))
-
-
-                    ![ ]                     = [s/m^3] * [m^3/s]
-                    !CenterCell_TopFace(k)    = DT_V * TopFace_Flux * (UpStream_CenterDif * Coef_Up_1      + &
-                    !                          (1 - UpStream_CenterDif) * Coef_Centered_1)
-
-                    ![ ]                     = [s/m^3] * [m^3/s]
-                    !TopCell_TopFace(k)       = DT_V * TopFace_Flux * (UpStream_CenterDif * Coef_Up_2 +         &
-                    !                          (1 - UpStream_CenterDif) * Coef_Centered_2)
-
 
                     Face_Flux    = (WaterFlux_Z(iSouth, jWest, k) + WaterFlux_Z(i, j, k))/2.
 
                     if (Me%SubModel%ON .and. BoundaryFacesUV  (i, j) == Boundary ) then
-                    
-                        !!!!$OMP CRITICAL (VVA_SUB01)
-                        CorrectionNew = VertAdvectionSubModel ( CorrectionOld, DT, i, j, k)
-                        !!!!$OMP END CRITICAL (VVA_SUB01)
 
-                        Face_Flux   = Face_Flux + CorrectionNew / 2.
+                        !GRiflet, openmp: no reduce danger.
+                        Correction = VertAdvectionSubModel ( Correction, DT, i, j, k)
 
-                        CorrectionOld  = CorrectionNew
+                        Face_Flux   = Face_Flux + Correction / 2.
 
                     endif
+                    
+                    !griflet: Falta esta linha! Sem esta linha os
+                    !griflet: resultados com e sem openmp não batem certo.
+                    !griflet: O problema é que com esta linha activa
+                    !griflet: o meu caso teste, o pcoms, rebenta logo :(
+                    !griflet: mudando o esquema de adv vertical para upwind1
+                    !griflet: já corre.
+                    !griflet: Podes confirmar isso Paulo? Obrigado.
+                    !griflet: 2011-08-08
+                    NearBoundary = .false.
 
                     if (Face_Flux > 0) then
                         if (k == Kbottom + 1) NearBoundary = .true.
@@ -35144,7 +35069,6 @@ dok1:           do  k = Kbottom + 1, KUB
                                         Vel4(3) * CFace(3)  + Vel4(4) * CFace(4)) *     &
                                         Face_Flux ![m/s*m^3/s]
 
-
                     TiCoef_3D(i, j, k  )  = TiCoef_3D(i, j, k  ) + (1. - ImplicitVertAdvection) * &
                                             MomentumFlux * Me%Velocity%DT / V4(3)
 
@@ -35165,54 +35089,23 @@ dok1:           do  k = Kbottom + 1, KUB
 
                 enddo dok1
 
-                !Boundary conditions - bottom 
-                !BottomCell_BottomFace(kbottom) = 0.
-
-                !CenterCell_BottomFace(kbottom) = 0.
-
-                !Boundary conditions - surface
-                !CenterCell_TopFace(KUB)        = 0.
-      
-                !TopCell_TopFace(KUB)           = 0.
-   
-!dok2:           do k=kbottom, KUB
-
-!                DCoef_3D (i, j, k)  = DCoef_3D (i, j, k) + ImplicitVertAdvection * (- BottomCell_BottomFace(k))
-
-!                ECoef_3D (i, j, k)  = ECoef_3D (i, j, k) + ImplicitVertAdvection * (- CenterCell_BottomFace(k)  &
-!                                                            + CenterCell_TopFace(k))
-
-!                FCoef_3D (i, j, k)  = FCoef_3D (i, j, k) + ImplicitVertAdvection * (+ TopCell_TopFace(k))
-
-                    ![ ]                      =               [ ]           *    [m/s]               
-!                    TotalExplicitVerticalAdv = BottomCell_BottomFace(k)  * Velocity_UV_Old(i,j,k-1) &
-!                                              +(CenterCell_BottomFace(k) - CenterCell_TopFace(k))    &
-!                                                                   * Velocity_UV_Old(i,j,k  )        &
-!                                              - TopCell_TopFace(k) * Velocity_UV_Old(i,j,k+1)                              
-
-
-
-                   !ImplicitVertAdvection (1 - Implicit, 0 - Explicit)
-!                   TiCoef_3D(i, j, k)  = TiCoef_3D(i, j, k) + (1. - ImplicitVertAdvection) * &
-!                                       TotalExplicitVerticalAdv
-!                enddo dok2
-
             endif cd1
 
-        enddo doj
         enddo doi
-        !!!!$OMP END DO NOWAIT
-        !!!!$OMP END PARALLEL
-
-        if (MonitorPerformance) then
-            call StopWatch ("ModuleHydrodynamic", "Velocity_VerticalAdvection")
-        endif
-
+        enddo doj
+        !$OMP END DO
+        
+        !$OMP END PARALLEL
+        
         !Nullify auxiliar pointers
         nullify(DCoef_3D)
         nullify(ECoef_3D)
         nullify(FCoef_3D)
         nullify(TiCoef_3D)
+        
+        if (MonitorPerformance) then
+            call StopWatch ("ModuleHydrodynamic", "Velocity_VerticalAdvection")
+        endif
         
         nullify(WaterFlux_Z)
 
@@ -35232,7 +35125,6 @@ dok1:           do  k = Kbottom + 1, KUB
 !                   CenterCell_TopFace,    TopCell_TopFace)
 
     End Subroutine Velocity_VerticalAdvection
-
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !                                                                                      !
