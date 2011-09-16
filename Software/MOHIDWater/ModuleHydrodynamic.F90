@@ -26715,6 +26715,8 @@ cd3:                    if (Manning) then
         integer                            :: iSouth, jWest, di, dj, i_North, j_East
         integer                            :: IUB, ILB, JUB, JLB, KUB
         integer                            :: I, J, kbottom
+    
+        !$ integer                            :: CHUNK
 
         !Begin--------------------------------------------------------------------------
 
@@ -26739,8 +26741,6 @@ cd3:                    if (Manning) then
 
         RugosityMatrix    => Me%External_Var%RugosityMatrix
 
-        ChezyVelUV        => Me%External_Var%ChezyVelUV
-
         KFloor_UV         => Me%External_Var%KFloor_UV
         Volume_UV         => Me%External_Var%Volume_UV
 
@@ -26763,7 +26763,17 @@ cd3:                    if (Manning) then
 
         endif
 
-            
+        !$ CHUNK = CHUNK_J(JLB,JUB)
+
+        !$OMP PARALLEL PRIVATE( AuxZ, EP, WallDistance,         &
+        !$OMP                   Rugosity, Chezy, DT_Z,          &
+        !$OMP                   VelMod_UV, ChezyWave,          &
+        !$OMP                   iSouth, jWest, i_North, j_East,    &
+        !$OMP                   I, J, kbottom, ChezyVelUV)
+
+        ChezyVelUV        => Me%External_Var%ChezyVelUV
+
+        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)    
 doj:    do  j = JLB, JUB
 doi:    do  i = ILB, IUB
                     
@@ -26886,6 +26896,9 @@ cd3:                   if (Manning) then
 
         enddo doi
         enddo doj
+        !$OMP END DO NOWAIT
+        
+        !$OMP END PARALLEL
 
         !Nullify auxiliar variables
         nullify (KFloor_UV         )
