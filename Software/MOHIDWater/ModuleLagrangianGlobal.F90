@@ -196,6 +196,7 @@ Module ModuleLagrangianGlobal
 !                                                                               !admitted with a constant concentration.
 ! WQM_DATA_FILE             : character                 []                      !Data File of the WQM module
 !
+!
 !<<BeginProperty>>
 !   NAME                    : char                      []                      !Name of the property
 !   UNITS                   : char                      []                      !Units of the property
@@ -254,7 +255,9 @@ Module ModuleLagrangianGlobal
                                        GetNumberOfTimeSeries, GetTimeSerieLocation,         &
                                        CorrectsCellsTimeSerie, GetTimeSerieIntegral,        &
                                        WriteTimeSerieLine, GetTimeSerieValue, KillTimeSerie,&
-                                       TryIgnoreTimeSerie
+                                       TryIgnoreTimeSerie, GetTimeSerieTimeFrameIndexes,    &
+                                       GetTimeSerieDataMatrix
+                                       
     use ModuleLightExtinction,  only : ConstructLightExtinction, ModifyLightExtinctionField,&
                                        GetLightExtinctionOptions, KillLightExtinction,      &
                                        GetShortWaveExtinctionField, UnGetLightExtinction,   &
@@ -425,6 +428,8 @@ Module ModuleLagrangianGlobal
     integer, parameter                          :: Point_               = 1
     integer, parameter                          :: Accident_            = 2
     integer, parameter                          :: Box_                 = 3
+
+
 
     !Aleat movement
     integer, parameter                          :: SullivanAllen_       = 1
@@ -982,6 +987,7 @@ Module ModuleLagrangianGlobal
         type (T_Movement)                       :: Movement
         type (T_Deposition)                     :: Deposition
         type (T_Position)                       :: Position
+        real, dimension(:), pointer             :: x, y, z
         integer                                 :: nParticle
         integer                                 :: nProperties
         integer                                 :: nPropT90
@@ -1002,6 +1008,7 @@ Module ModuleLagrangianGlobal
         integer                                 :: MovingOriginColumnX
         integer                                 :: MovingOriginColumnY
         character(PathLength)                   :: MovingOriginFile
+        logical                                 :: MovingOriginCloudEmission        
         character(PathLength)                   :: WQM_DataFile
         integer                                 :: ObjTimeSerie   = 0
         integer                                 :: WaterQualityID = 0
@@ -1019,6 +1026,7 @@ Module ModuleLagrangianGlobal
         logical                                 :: KillPartInsideBox = OFF
         logical                                 :: EstimateMinVol    = OFF
         integer                                 :: MaxPart
+        real                                    :: AgeLimit
     end type T_Origin
 
     type T_OptionsStat
@@ -2779,6 +2787,16 @@ iDF:                if (.not. NewOrigin%Default) then
                                  STAT         = STAT_CALL)        
                     if (STAT_CALL /= SUCCESS_ .or. flag /= 1) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR440'
 
+                    call GetData(NewOrigin%MovingOriginCloudEmission,                   &
+                                 Me%ObjEnterData,                                       &
+                                 flag,                                                  &
+                                 SearchType   = FromBlock,                              &
+                                 keyword      ='MOVING_ORIGIN_CLOUD_EMISSION',          &
+                                 default      = .false.,                                &
+                                 ClientModule ='ModuleLagrangianGlobal',                &
+                                 STAT         = STAT_CALL)        
+                    if (STAT_CALL /= SUCCESS_ .or. flag /= 1) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR440'
+
                     if (.not. NewOrigin%Default) then
                         call StartTimeSerieInput(NewOrigin%ObjTimeSerie,            &
                                                  NewOrigin%MovingOriginFile,        &
@@ -4300,21 +4318,35 @@ SP:             if (NewProperty%SedimentPartition%ON) then
 
         if (NewOrigin%State%Age) Me%State%Age = .true.
 
+        if (NewOrigin%State%Age) then
+        !Age limit in days
+            call GetData(NewOrigin%AgeLimit,                                            &
+                         Me%ObjEnterData,                                               &
+                         flag,                                                          &
+                         SearchType   = FromBlock,                                      &
+                         keyword      ='AGE_LIMIT',                                     &
+                         ClientModule ='ModuleLagrangianGlobal',                        &
+                         Default      = -FillValueReal,                                 &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR1525'
+
+        endif 
+        
 
         if (NewOrigin%State%ComputePlume .and. .not. NewOrigin%Default) then
 
-            call Construct_Jet(JetID       = NewOrigin%Movement%ObjJet,          &
-                               FileName    = NewOrigin%Movement%JetDataFile,     &
-                               PositionX   = NewOrigin%Position%CartX,           & 
-                               PositionY   = NewOrigin%Position%CartY,           & 
-                               Flow        = NewOrigin%Flow,                     &
-                               Salinity    = NewOrigin%Movement%JetSalinity,     &
-                               Temperature = NewOrigin%Movement%JetTemperature,  &
+            call Construct_Jet(JetID       = NewOrigin%Movement%ObjJet,                 &
+                               FileName    = NewOrigin%Movement%JetDataFile,            &
+                               PositionX   = NewOrigin%Position%CartX,                  & 
+                               PositionY   = NewOrigin%Position%CartY,                  & 
+                               Flow        = NewOrigin%Flow,                            &
+                               Salinity    = NewOrigin%Movement%JetSalinity,            &
+                               Temperature = NewOrigin%Movement%JetTemperature,         &
                                STAT        = STAT_CALL) 
 
             if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR1530'
 
-            call UnitsManager(NewOrigin%Movement%JetUnit, OPEN_FILE,             &
+            call UnitsManager(NewOrigin%Movement%JetUnit, OPEN_FILE,                    &
                               STAT = STAT_CALL)
 
             if (STAT_CALL /= SUCCESS_) then
@@ -6180,9 +6212,8 @@ OP:         if ((EulerModel%OpenPoints3D(i, j, k) == OpenPoint) .and. &
         type (T_Origin), pointer                    :: CurrentOrigin
 
         !Local-----------------------------------------------------------------
-        integer                                     :: nP
+        integer                                     :: nP, emp
         type (T_Partic), pointer                    :: NewParticle
-        !logical                                     :: CanEmit
         real                                        :: ParticleVolume
 
         !Begin-----------------------------------------------------------------
@@ -6194,23 +6225,39 @@ OP:         if ((EulerModel%OpenPoints3D(i, j, k) == OpenPoint) .and. &
             call ActualizeOrigin (CurrentOrigin, ParticleVolume)
         endif
 
-!        if (CurrentOrigin%EmissionTemporal == Continuous_ .and. CurrentOrigin%Flow<=0)  then
-            !CanEmit = .false.
-!            CurrentOrigin%Flow = 1e-15
-!        endif
-
-!ic:     if (CanEmit) then
 
         do nP = 1, CurrentOrigin%NbrParticlesIteration
 
             !Allocates a new Particle
             call AllocateNewParticle (NewParticle, CurrentOrigin%nProperties,            &
                                       CurrentOrigin%NextParticID)
+                                      
+            if (CurrentOrigin%MovingOriginCloudEmission) then
+            
+                emp = CurrentOrigin%Position%ModelID            
+                
+                if (trim(CurrentOrigin%MovingOriginUnits) == trim(Char_Cells)) then
+
+                    CurrentOrigin%Position%CellI = CurrentOrigin%y(nP)
+                    CurrentOrigin%Position%CellJ = CurrentOrigin%x(nP)
+
+                    !Convert Coordinates
+                    call Convert_CellIJ_XY(Me%EulerModel(emp), CurrentOrigin%Position)
+
+                else
+                
+                    CurrentOrigin%Position%CoordX = CurrentOrigin%x(nP)
+                    CurrentOrigin%Position%CoordY = CurrentOrigin%y(nP)
+
+                    !Convert Coordinates
+                    call Convert_XY_CellIJ(Me%EulerModel(emp),CurrentOrigin%Position, Referential = GridCoord_)
+
+                endif
+            endif
             
             !Sets Initial Position
             NewParticle%Position = CurrentOrigin%Position
-
-
+            
             if (CurrentOrigin%Position%MaintainRelative .and. CurrentOrigin%Position%DepthDefinition == Cells) then
 
                 NewParticle%Position%CellK = NewParticle%Position%Depth
@@ -7448,6 +7495,11 @@ CurrOr: do while (associated(CurrentOrigin))
                 !Updates first origin
                 if (OriginToDelete%ID == FirstOrigin%ID) then
                     FirstOrigin => NextOrigin
+                endif
+                
+                if (OriginToDelete%MovingOriginCloudEmission) then
+                    deallocate(CurrentOrigin%x)
+                    deallocate(CurrentOrigin%y)
                 endif
 
                 !Kill oil
@@ -9040,73 +9092,105 @@ IfParticNotBeached: if (.NOT. CurrentPartic%Beached) then
    
 
         !Local-----------------------------------------------------------------
+        real,  dimension(:,:), pointer              :: DataMatrix
         type (T_Origin), pointer                    :: CurrentOrigin
         type (T_Time)                               :: Time1, Time2
         real                                        :: Value1, Value2
         real                                        :: NewValueX, NewValueY
         logical                                     :: TimeCycle
-        integer                                     :: STAT_CALL, emp
+        integer                                     :: STAT_CALL, emp, iStart, iEnd
 
+        !Begin-----------------------------------------------------------------
 
         CurrentOrigin => Me%FirstOrigin
 CurrOr: do while (associated(CurrentOrigin))
 
             if (CurrentOrigin%MovingOrigin) then
-
-                !Gets Value arround current instant     
-                call GetTimeSerieValue(CurrentOrigin%ObjTimeSerie,                       &
-                                       Me%Now,                    &
-                                       CurrentOrigin%MovingOriginColumnX,                &
-                                       Time1, Value1, Time2, Value2, TimeCycle,          &
-                                       STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'MoveOrigin - ModuleLagrangianGlobal - ERR01'
-
-                if (TimeCycle) then
-                    NewValueX = Value1
-                else
-                    !Interpolates Value for current instant
-                    call InterpolateValueInTime(Me%Now, Time1,    &
-                                                Value1, Time2, Value2, NewValueX)
-                endif
-                                
-
-                !Gets Value arround current instant    
-                call GetTimeSerieValue(CurrentOrigin%ObjTimeSerie,                       &
-                                       Me%Now,                    &
-                                       CurrentOrigin%MovingOriginColumnY,                &
-                                       Time1, Value1, Time2, Value2, TimeCycle,          &
-                                       STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'MoveOrigin - ModuleLagrangianGlobal - ERR02'
-
-                if (TimeCycle) then
-                    NewValueY = Value1
-                else
-                    !Interpolates Value for current instant
-                    call InterpolateValueInTime(Me%Now, Time1,    &
-                                                Value1, Time2, Value2, NewValueY)
-                endif
-
-                emp = CurrentOrigin%Position%ModelID
-                 
-                if (trim(CurrentOrigin%MovingOriginUnits) == trim(Char_Cells)) then
-
-                    CurrentOrigin%Position%CellI = NewValueY
-                    CurrentOrigin%Position%CellJ = NewValueX
-
-                    !Convert Coordinates
-                    call Convert_CellIJ_XY(Me%EulerModel(emp), CurrentOrigin%Position)
-
-
-                else
+            
+                if (CurrentOrigin%MovingOriginCloudEmission) then
                 
-                    CurrentOrigin%Position%CoordX = NewValueX
-                    CurrentOrigin%Position%CoordY = NewValueY
+                    Time1 = Me%Now
+                    Time2 = Me%Now + CurrentOrigin%DT_Emit
+                
+                    call GetTimeSerieTimeFrameIndexes(CurrentOrigin%ObjTimeSerie,       &
+                                                      StartTime = Time1, EndTime = Time2, &
+                                                      StartIndex = iStart, EndIndex = iEnd, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'MoveOrigin - ModuleLagrangianGlobal - ERR10'
+                    
+                    CurrentOrigin%NbrParticlesIteration = iEnd - iStart + 1
+                    
+                    if (associated(CurrentOrigin%x)) deallocate(CurrentOrigin%x)
+                    if (associated(CurrentOrigin%y)) deallocate(CurrentOrigin%y)                    
+                    
+                    allocate(CurrentOrigin%x(CurrentOrigin%NbrParticlesIteration))
+                    allocate(CurrentOrigin%y(CurrentOrigin%NbrParticlesIteration))    
+                    
+                    call GetTimeSerieDataMatrix (CurrentOrigin%ObjTimeSerie, DataMatrix, STAT  = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'MoveOrigin - ModuleLagrangianGlobal - ERR20'     
+                    
+                    CurrentOrigin%x(:)= DataMatrix(iStart:iEnd, CurrentOrigin%MovingOriginColumnX)
+                    CurrentOrigin%y(:)= DataMatrix(iStart:iEnd, CurrentOrigin%MovingOriginColumnY)
+                
+                else
 
-                    !Convert Coordinates
-                    call Convert_XY_CellIJ(Me%EulerModel(emp),CurrentOrigin%Position, Referential = GridCoord_)
+                    !Gets Value arround current instant     
+                    call GetTimeSerieValue(CurrentOrigin%ObjTimeSerie,                       &
+                                           Me%Now,                    &
+                                           CurrentOrigin%MovingOriginColumnX,                &
+                                           Time1, Value1, Time2, Value2, TimeCycle,          &
+                                           STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'MoveOrigin - ModuleLagrangianGlobal - ERR40'
+
+                    if (TimeCycle) then
+                        NewValueX = Value1
+                    else
+                        !Interpolates Value for current instant
+                        call InterpolateValueInTime(Me%Now, Time1,    &
+                                                    Value1, Time2, Value2, NewValueX)
+                    endif
+                                    
+
+                    !Gets Value arround current instant    
+                    call GetTimeSerieValue(CurrentOrigin%ObjTimeSerie,                       &
+                                           Me%Now,                    &
+                                           CurrentOrigin%MovingOriginColumnY,                &
+                                           Time1, Value1, Time2, Value2, TimeCycle,          &
+                                           STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'MoveOrigin - ModuleLagrangianGlobal - ERR50'
+
+                    if (TimeCycle) then
+                        NewValueY = Value1
+                    else
+                        !Interpolates Value for current instant
+                        call InterpolateValueInTime(Me%Now, Time1,    &
+                                                    Value1, Time2, Value2, NewValueY)
+                    endif
 
 
+                    emp = CurrentOrigin%Position%ModelID
+                     
+                    if (trim(CurrentOrigin%MovingOriginUnits) == trim(Char_Cells)) then
+
+                        CurrentOrigin%Position%CellI = NewValueY
+                        CurrentOrigin%Position%CellJ = NewValueX
+
+                        !Convert Coordinates
+                        call Convert_CellIJ_XY(Me%EulerModel(emp), CurrentOrigin%Position)
+
+
+                    else
+                    
+                        CurrentOrigin%Position%CoordX = NewValueX
+                        CurrentOrigin%Position%CoordY = NewValueY
+
+                        !Convert Coordinates
+                        call Convert_XY_CellIJ(Me%EulerModel(emp),CurrentOrigin%Position, Referential = GridCoord_)
+
+
+                    endif
                 endif
+                
+
 
             endif
 
@@ -12260,6 +12344,9 @@ CurrOr: do while (associated(CurrentOrigin))
                         enddo
                     
                     endif
+                    
+                    !seconds
+                    if (CurrentPartic%Age > CurrentOrigin%AgeLimit * 86400) CurrentPartic%KillPartic = ON
                   
                     CurrentPartic => CurrentPartic%Next
                 
@@ -13617,14 +13704,14 @@ i1:             if (nP>0) then
                                                           "Longitude", "Latitude", "º", OutputNumber, em)  
                             endif
                             
-
-#ifdef _USE_PROJ4  
+#ifdef _GOOGLEMAPS  
                             allocate   (Aux1DX(CurrentOrigin%nParticle))
                             allocate   (Aux1DY(CurrentOrigin%nParticle))
                             Aux1DX(:) = FillValueReal
                             Aux1DY(:) = FillValueReal
 
-                            call FromGeo2SpherMercator1D    (Matrix1DX, Matrix1DY, 1, CurrentOrigin%nParticle, Aux1DX, Aux1DY)
+
+                            call WGS84toGoogleMaps (Matrix1DX, Matrix1DY, CurrentOrigin%nParticle, Aux1DX, Aux1DY)
 
                             if (CurrentOrigin%AveragePositionON) then
                                 AverageX = sum(Aux1DX(1:nP)) / real(nP)
@@ -13652,22 +13739,22 @@ i1:             if (nP>0) then
                             if (STAT_CALL /= SUCCESS_) stop 'ParticleOutput - ModuleLagrangianGlobal - ERR130'
 
                             !HDF 5
-                            call HDF5WriteData  (Me%ObjHDF5(em), "/Results/"//trim(CurrentOrigin%Name)//"/SphericMercatorX", &
-                                                "SphericMercatorX",  "-", Array1D = Aux1DX,                      &
+                            call HDF5WriteData  (Me%ObjHDF5(em), "/Results/"//trim(CurrentOrigin%Name)//"/googlemaps_x", &
+                                                "googlemaps_x",  "-", Array1D = Aux1DX,                      &
                                                  Average = AverageX, Radius = RadiusOfInfluence,             &
                                                  OutputNumber = OutPutNumber, STAT = STAT_CALL)
                             if (STAT_CALL /= SUCCESS_) stop 'ParticleOutput - ModuleLagrangianGlobal - ERR140'
 
                             !HDF 5
-                            call HDF5WriteData  (Me%ObjHDF5(em), "/Results/"//trim(CurrentOrigin%Name)//"/SphericMercatorY", &
-                                                "SphericMercatorY",  "-", Array1D = Aux1DY,                       &
+                            call HDF5WriteData  (Me%ObjHDF5(em), "/Results/"//trim(CurrentOrigin%Name)//"/googlemaps_y", &
+                                                "googlemaps_y",  "-", Array1D = Aux1DY,                       &
                                                  Average = AverageY, Radius = RadiusOfInfluence,             &
                                                  OutputNumber = OutPutNumber, STAT = STAT_CALL)
                             if (STAT_CALL /= SUCCESS_) stop 'ParticleOutput - ModuleLagrangianGlobal - ERR150'
 
                             if (Me%OutPut%OriginEnvelope) then
                                 call WriteOriginEnvelope(CurrentOrigin, Aux1DX, Aux1DY, &
-                                                          "SphericMercatorX", "SphericMercatorY", "-", OutputNumber, em)  
+                                                          "googlemaps_x", "googlemaps_y", "-", OutputNumber, em)  
                             endif    
     
                             deallocate   (Aux1DX)
@@ -14219,26 +14306,26 @@ iTP:                if (TotParticle(ig) > 1) then
 
 
 
-#ifdef _USE_PROJ4  
+#ifdef _GOOGLEMAPS  
 
                         allocate   (Aux1DX(TotParticle(ig)))
                         allocate   (Aux1DY(TotParticle(ig)))
                         Aux1DX(:) = FillValueReal
                         Aux1DY(:) = FillValueReal
 
-                        call FromGeo2SpherMercator1D    (Matrix1DX, Matrix1DY, 1, TotParticle(ig), Aux1DX, Aux1DY)
+                        call WGS84toGoogleMaps (Matrix1DX, Matrix1DY, TotParticle(ig), Aux1DX, Aux1DY)
 
                         !HDF 5
                         call HDF5WriteData  (Me%ObjHDF5(em),  "/Results/Group_"//trim(adjustl(AuxChar)) &
-                                             //"/Data_1D/SphericMercatorX", &
-                                            "SphericMercatorX",  "-", Array1D = Aux1DX,                      &
+                                             //"/Data_1D/googlemaps_x",                                 &
+                                            "googlemaps_x",  "-", Array1D = Aux1DX,                     &
                                              OutputNumber = OutPutNumber, STAT = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_) stop 'ParticleOutput - ModuleLagrangianGlobal - ERR410'
 
                         !HDF 5
                         call HDF5WriteData  (Me%ObjHDF5(em),  "/Results/Group_"//trim(adjustl(AuxChar)) &
-                                            //"/Data_1D/SphericMercatorY", &
-                                            "SphericMercatorY",  "-", Array1D = Aux1DY,                       &
+                                            //"/Data_1D/googlemaps_y",                                  &
+                                            "googlemaps_y",  "-", Array1D = Aux1DY,                     &
                                              OutputNumber = OutPutNumber, STAT = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_) stop 'ParticleOutput - ModuleLagrangianGlobal - ERR420'
 
