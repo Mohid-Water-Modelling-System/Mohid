@@ -93,6 +93,7 @@ Module ModuleNetCDFCF_2_HDF5MOHID
         type (T_ValueIn)                        :: ValueIn        
         type(T_Time), dimension(:), pointer     :: Value1DOut
         integer                                 :: NumberInst
+        integer                                 :: TotalInst        
         type(T_Time)                            :: RefDateTimeIn, RefDateTimeOut            
         real                                    :: UnitsFactor
         logical                                 :: RefAttribute
@@ -118,9 +119,14 @@ Module ModuleNetCDFCF_2_HDF5MOHID
         real, dimension(:,:,:),   pointer       :: Value3DOut
         logical                                 :: ON
         logical                                 :: Sigma !true - sigma false - z-level                
-        logical                                 :: SigmaDistortion            = .false.
-        real                                    :: theta_s, theta_b, Hc
+        logical                                 :: RomsDistortion            = .true.
+        real                                    :: theta_s = 0, theta_b = 0, Hc = 0
+        character(len=StringLength)             :: positive = "down"
         integer                                 :: kmax
+        logical                                 :: Interpolate
+        integer                                 :: N_ZLevels
+        real(8), dimension(:),       pointer    :: Zlevels
+        
     end type  T_Depth
 
     private :: T_Bathym
@@ -151,6 +157,12 @@ Module ModuleNetCDFCF_2_HDF5MOHID
         type (T_ValueIn)                        :: ValueIn        
         real, dimension(:,:),     pointer       :: Value2DOut
         real, dimension(:,:,:),   pointer       :: Value3DOut
+        logical                                 :: FromDir2Vector
+        character(len=StringLength)             :: DirX
+        character(len=StringLength)             :: DirY
+        logical                                 :: ComputeIntensity
+        character(len=StringLength)             :: VectorX
+        character(len=StringLength)             :: VectorY        
     end type  T_Field
 
     type T_NetCDF_Out                                         
@@ -178,6 +190,7 @@ Module ModuleNetCDFCF_2_HDF5MOHID
         integer                                 :: ObjMap               = 0
         integer                                 :: ObjTime              = 0
         integer                                 :: Unit, ClientNumber
+        integer                                 :: FieldInType
         character(len=PathLength)               :: FileName
         character(len=PathLength)               :: GridFileName
         character(len=PathLength)               :: OutputFileName
@@ -186,13 +199,14 @@ Module ModuleNetCDFCF_2_HDF5MOHID
         type(T_Size3D)                          :: Size, WorkSize
         type(T_Size2D)                          :: Size2D, WorkSize2D
         type(T_Field),  dimension(:), allocatable :: Field 
-        integer                                 :: PropNumber
+        integer                                 :: PropNumber, ReadPropNumber
         type(T_Date)                            :: Date  
         type(T_LongLat)                         :: LongLat
         type(T_Depth)                           :: Depth
         type(T_Mapping)                         :: Mapping
         type(T_Bathym)                          :: Bathym
-        logical                                 :: OutHDF5, OutNetcdf
+        logical                                 :: OutHDF5, OutNetcdf, ReadInvertXY 
+        integer                                 :: OutCountProp = 0
     end type  T_NetCDFCF_2_HDF5MOHID
 
     type(T_NetCDFCF_2_HDF5MOHID), pointer             :: Me
@@ -234,6 +248,8 @@ Module ModuleNetCDFCF_2_HDF5MOHID
 
         call ReadNetCDFCF_WriteHDF5MOHID
 
+        call WriteComputeIntensity
+
         !call WriteVelocityModulus
 
         call KillNetCDFCF_2_HDF5MOHID
@@ -243,92 +259,125 @@ Module ModuleNetCDFCF_2_HDF5MOHID
     end subroutine ConvertNetCDFCF_2_HDF5MOHID
 
     !------------------------------------------------------------------------
+    
+    subroutine WriteComputeIntensity
+    
+        !Local-----------------------------------------------------------------
+        integer                                     :: i, iP, iPx, iPy
+        logical                                     :: Found
+        !Begin-----------------------------------------------------------------
+        
+        do iP = 1, Me%PropNumber
+        
+            if (Me%Field(iP)%ComputeIntensity) then
+        
+                !Found component X
+                Found = .false.
+                do iPx = 1, Me%PropNumber
+                    if (trim(Me%Field(iPx)%ID%Name)==trim(Me%Field(iP)%VectorX)) then
+                        Found = .true.
+                        exit
+                    endif
+                enddo
+                if (.not. Found) stop 'WriteComputeIntensity - ModuleNetCDFCF_2_HDF5MOHID - ERR10'
 
-    subroutine WriteVectorModulus(Field_U, Field_V, VectorModulus_, iOut, PropUnits)
+                !Found component Y
+                Found = .false.
+                do iPy = 1, Me%PropNumber
+                    if (trim(Me%Field(iPy)%ID%Name)==trim(Me%Field(iP)%VectorY)) then
+                        Found = .true.
+                        exit
+                    endif
+                enddo
+                if (.not. Found) stop 'WriteComputeIntensity - ModuleNetCDFCF_2_HDF5MOHID - ERR20'
+
+
+                do i=1, Me%Date%TotalInst
+                    !Read component X
+                    call ReadFieldHDF5(iPx, i)
+                    !Read component Y                    
+                    call ReadFieldHDF5(iPy, i)
+                    
+
+                    !Compute vector intensity
+                    call ComputeVectorIntensity(iPx, iPy, iP)              
+                
+                    !Write Intensity
+                    if (Me%OutHDF5) then
+                        call WriteFieldHDF5  (iP, i)    
+                    endif
+
+                    if (Me%OutNetCDF) then
+                        call WriteFieldNetCDF(iP, i)                        
+                    endif
+                enddo
+            endif                
+        enddo    
+        
+    end subroutine WriteComputeIntensity
+    
+    !------------------------------------------------------------------------    
+
+    subroutine ComputeVectorIntensity(iPx, iPy, iP)
     
         !Arguments-------------------------------------------------------------
-        type(T_Field)                               :: Field_U, Field_V
-        integer                                     :: VectorModulus_, iOut        
-        character(Len=StringLength)                 :: PropUnits 
+        integer                                     :: iPx, iPy, iP
+        
         !Local-----------------------------------------------------------------
-        real,   dimension(:,:,:  ), pointer         :: Aux3D
-        real,   dimension(:,:    ), pointer         :: Aux2D        
-        integer                                     :: STAT_CALL
-        character(Len=StringLength)                 :: MohidName
+        type(T_Field), pointer                      :: Field_U, Field_V        
         integer                                     :: i, j, k
         !Begin-----------------------------------------------------------------
 
-        MohidName = GetPropertyName(VectorModulus_)
-
-        if (Field_U%Dim==3) then
+        nullify(Field_U)
         
-            allocate(Aux3D(Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB, Me%Size%KLB:Me%Size%KUB))
+        Field_U => Me%Field(iPx)
 
-            Aux3D(:,:,:) = 0.0
+        nullify(Field_V)
+        
+        Field_V => Me%Field(iPy)
+
+        if      (Me%Field(iP)%Dim==3) then
+        
+            allocate(Me%Field(iP)%Value3DOut(Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB,Me%Size%KLB:Me%Size%KUB))
+
+            Me%Field(iP)%Value3DOut(:,:,:) = 0.0
 
             do k = Me%WorkSize%KLB, Me%WorkSize%KUB
             do j = Me%WorkSize%JLB, Me%WorkSize%JUB
             do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                 
                 if(Me%Mapping%Value3DOut(i,j,k) == 1)then
-                    Aux3D(i,j,k) = sqrt(Field_U%Value3DOut(i,j,k)**2 + Field_V%Value3DOut(i,j,k)**2)
+                    Me%Field(iP)%Value3DOut(i,j,k) = sqrt(Field_U%Value3DOut(i,j,k)**2 + Field_V%Value3DOut(i,j,k)**2)
                 endif
 
             enddo
             enddo
             enddo
-
-            call HDF5SetLimits  (Me%ObjHDF5, Me%WorkSize%ILB, Me%WorkSize%IUB,          &
-                                             Me%WorkSize%JLB, Me%WorkSize%JUB,          &
-                                             Me%WorkSize%KLB, Me%WorkSize%KUB,          &
-                                             STAT = STAT_CALL)
-
-            call HDF5WriteData  (Me%ObjHDF5, "/Results/"//trim(MohidName),              &
-                                 trim(MohidName),trim(PropUnits), Array3D = Aux3D,      &
-                                 OutputNumber = iOut, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'WriteVelocityModulus - ModuleMecatorFormat - ERR40'
         
-        endif
+        else if (Me%Field(iP)%Dim==2) then
         
-        if (Field_U%Dim==2) then
-        
-            allocate(Aux2D(Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
+            allocate(Me%Field(iP)%Value2DOut(Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
 
-            Aux2D(:,:) = 0.0
+            Me%Field(iP)%Value2DOut(:,:) = 0.0
 
             do j = Me%WorkSize%JLB, Me%WorkSize%JUB
             do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                 
                 if(Me%Mapping%Value2DOut(i,j) == 1)then
-                    Aux2D(i,j) = sqrt(Field_U%Value2DOut(i,j)**2 + Field_V%Value2DOut(i,j)**2)
+                    Me%Field(iP)%Value2DOut(i,j) = sqrt(Field_U%Value2DOut(i,j)**2 + Field_V%Value2DOut(i,j)**2)
                 endif
 
             enddo
             enddo
 
-            call HDF5SetLimits  (Me%ObjHDF5, Me%WorkSize%ILB, Me%WorkSize%IUB,          &
-                                 Me%WorkSize%JLB, Me%WorkSize%JUB,                      &
-                                 STAT = STAT_CALL)
-
-            call HDF5WriteData  (Me%ObjHDF5, "/Results/"//trim(MohidName),              &
-                                 trim(MohidName),trim(PropUnits), Array2D = Aux2D,      &
-                                 OutputNumber = iOut, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'WriteVelocityModulus - ModuleMecatorFormat - ERR40'
-        
         endif        
 
-        if (Field_U%Dim==3) then
-            deallocate(Aux3D)
-            nullify   (Aux3D)
-        endif
-        
-        if (Field_U%Dim==2) then
-            deallocate(Aux2D)
-            nullify   (Aux2D)
-        endif
+        nullify(Field_U)
+        nullify(Field_V)
+
         
 
-    end subroutine WriteVectorModulus
+    end subroutine ComputeVectorIntensity
     !------------------------------------------------------------------------
 
     subroutine ReadOptions
@@ -392,6 +441,17 @@ Module ModuleNetCDFCF_2_HDF5MOHID
                      ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',                       &
                      STAT         = STAT_CALL)        
         if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR110'
+        
+
+        call GetData(Me%ReadInvertXY,                                                   &
+                     Me%ObjEnterData, iflag,                                            &
+                     SearchType   = FromBlock,                                          &
+                     keyword      = 'READ_INVERT_XY',                                   &
+                     default      = .false.,                                            &
+                     ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',                       &
+                     STAT         = STAT_CALL)        
+        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR120'
+
         
         if (Me%OutNetCDF) then
         
@@ -586,7 +646,7 @@ BF:         if (BlockFound) then
                 call GetData(Me%Date%ValueIn%DataType,                                  &
                              Me%ObjEnterData, iflag,                                    &
                              SearchType   = FromBlock,                                  &
-                             keyword      = 'DATA_TYPE_IN',                             &
+                             keyword      = 'DATE_TYPE_IN',                             &
                              default      = Real8_,                                     &
                              ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',               &
                              STAT         = STAT_CALL)        
@@ -655,6 +715,7 @@ BF:         if (BlockFound) then
     subroutine ReadGridOptions
 
         !Local-----------------------------------------------------------------
+        real, allocatable, dimension(:)             :: Aux1D
         logical                                     :: BlockFound
         integer                                     :: iflag, STAT_CALL
         !begin-----------------------------------------------------------------
@@ -691,9 +752,10 @@ BF:         if (BlockFound) then
                 
                 Me%LongLat%LatIn%DataType  = Real8_
                 Me%LongLat%LongIn%DataType = Real8_
-                
-                Me%LongLat%LatIn%Dim  = 2
-                Me%LongLat%LongIn%Dim = 2
+ 
+ 
+                Me%LongLat%LatIn%Dim       = 2
+                Me%LongLat%LongIn%Dim      = Me%LongLat%LatIn%Dim
 
                 call GetData(Me%Depth%NetCDFName,                                       &
                              Me%ObjEnterData, iflag,                                    &
@@ -727,8 +789,27 @@ BF:         if (BlockFound) then
                     Me%Bathym%ON = .true.
                 endif  
                 
-                Me%Bathym%ValueIn%DataType = Real8_
+
+                call GetData(Me%Bathym%ValueIn%DataType,                                &
+                             Me%ObjEnterData, iflag,                                    &
+                             SearchType   = FromBlock,                                  &
+                             keyword      = 'BATHYM_TYPE_IN',                           &
+                             default      = Real8_,                                     &
+                             ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',               &
+                             STAT         = STAT_CALL)        
+                if (STAT_CALL /= SUCCESS_) stop 'ReadTimeOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR50'
+                
                 Me%Bathym%ValueIn%Dim      = 2
+                
+                call GetData(Me%FieldInType,                                            &
+                             Me%ObjEnterData, iflag,                                    &
+                             SearchType   = FromBlock,                                  &
+                             keyword      = 'FIELD_TYPE_IN',                            &
+                             default      = Real8_,                                     &
+                             ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',               &
+                             STAT         = STAT_CALL)        
+                if (STAT_CALL /= SUCCESS_) stop 'ReadTimeOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR50'                   
+                
                 
                 if (.not. Me%Bathym%ON) then
                 
@@ -770,19 +851,114 @@ BF:         if (BlockFound) then
                 
                 Me%Mapping%ValueIn%DataType = Real8_
  
+                !true - sigma false - z-level                
+                call GetData(Me%Depth%Sigma,                                            &
+                             Me%ObjEnterData, iflag,                                    &
+                             SearchType   = FromBlockInBlock,                           &
+                             keyword      = 'GEO_SIGMA',                                &
+                             ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',               &
+                             default      = .false.,                                    &
+                             STAT         = STAT_CALL)        
+                if (STAT_CALL /= SUCCESS_) stop 'ReadGridOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR90'  
                 
-                !call Block_Unlock(Me%ObjEnterData, Me%ClientNumber, STAT = STAT_CALL) 
+                if (Me%Depth%Sigma .and. .not. Me%Bathym%ON) then
+                    stop 'ReadGridOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR95'  
+                endif             
 
-                !if (STAT_CALL /= SUCCESS_) stop 'ReadTimeOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR60'    
+                if (Me%Depth%Sigma) then
                 
+                    call GetData(Me%Depth%theta_s,                                      &
+                                 Me%ObjEnterData, iflag,                                &
+                                 SearchType   = FromBlockInBlock,                       &
+                                 keyword      = 'THETA_S',                              &
+                                 ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',           &
+                                 default      = 0.,                                     &
+                                 STAT         = STAT_CALL)        
+                    if (STAT_CALL /= SUCCESS_) stop 'ReadGridOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR100'
+                    
+                    call GetData(Me%Depth%theta_b,                                      &
+                                 Me%ObjEnterData, iflag,                                &
+                                 SearchType   = FromBlockInBlock,                       &
+                                 keyword      = 'THETA_B',                              &
+                                 ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',           &
+                                 default      = 0.,                                     &
+                                 STAT         = STAT_CALL)        
+                    if (STAT_CALL /= SUCCESS_) stop 'ReadGridOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR110'
+
+                    call GetData(Me%Depth%hc,                                           &
+                                 Me%ObjEnterData, iflag,                                &
+                                 SearchType   = FromBlockInBlock,                       &
+                                 keyword      = 'HC',                                   &
+                                 ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',           &
+                                 default      = 0.,                                     &
+                                 STAT         = STAT_CALL)        
+                    if (STAT_CALL /= SUCCESS_) stop 'ReadGridOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR120'
+                
+                endif
+                
+                call GetData(Me%Depth%Interpolate,                                      &
+                             Me%ObjEnterData, iflag,                                    &
+                             SearchType   = FromBlockInBlock,                           &
+                             keyword      = 'GEO_INTERPOLATE',                          &
+                             ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',               &
+                             default      = .false.,                                    &
+                             STAT         = STAT_CALL)        
+                if (STAT_CALL /= SUCCESS_) stop 'ReadGridOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR130'
+                
+                if (Me%Depth%Interpolate) then
+                
+                    allocate(Aux1D(200))
+
+                    call GetData(Aux1D,                                                 &
+                                 Me%ObjEnterData, iflag,                                &
+                                 SearchType   = FromBlockInBlock,                       &
+                                 keyword      = 'GEO_ZLEVEL_INTERPOL',                  &
+                                 ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',           &
+                                 STAT         = STAT_CALL)  
+                                       
+                    if (STAT_CALL /= SUCCESS_ .and. STAT_CALL /= SIZE_ERR_)             &
+                        stop 'ReadGridOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR140'   
+                    if (iflag     == 0       ) stop 'ReadGridOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR150'   
+                    
+                    Me%Depth%N_ZLevels = iflag
+                    
+                    allocate(Me%Depth%Zlevels(Me%Depth%N_ZLevels))
+                    
+                    Me%Depth%Zlevels(1:Me%Depth%N_ZLevels) = Aux1D(1:Me%Depth%N_ZLevels)
+                    
+                    deallocate(Aux1D)
+
+                endif
+
+                !down or up
+                call GetData(Me%Depth%Positive,                                         &
+                             Me%ObjEnterData, iflag,                                    &
+                             SearchType   = FromBlockInBlock,                           &
+                             keyword      = 'GEO_POSITIVE',                             &
+                             ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',               &
+                             default      = "down",                                     &
+                             STAT         = STAT_CALL)        
+                if (STAT_CALL /= SUCCESS_) stop 'ReadGridOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR160'  
+
+
+                call GetData(Me%Depth%RomsDistortion,                                   &
+                             Me%ObjEnterData, iflag,                                    &
+                             SearchType   = FromBlockInBlock,                           &
+                             keyword      = 'ROMS_DISTORTION',                          &
+                             ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',               &
+                             default      = .false.,                                    &
+                             STAT         = STAT_CALL)        
+                if (STAT_CALL /= SUCCESS_) stop 'ReadGridOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR170'  
+                
+ 
             else BF
             
-                stop 'ReadGridOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR100'    
+                stop 'ReadGridOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR200'    
                 
             endif BF
         else IS
         
-            stop 'ReadGrid2DOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR200'    
+            stop 'ReadGrid2DOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR300'    
         
         endif IS                             
                               
@@ -853,13 +1029,74 @@ BF:         if (BlockFound) then
                     call ConstructPropertyID (Me%Field(ip)%ID,  Me%ObjEnterData, FromBlockInBlock)
                     
                     !Index 1 is time
-                    Me%Field(ip)%ValueIn%DataType = Real8_
+                    Me%Field(ip)%ValueIn%DataType = Me%FieldInType
                     
                     if      (Me%Field(ip)%Dim == 2) then
                         Me%Field(ip)%ValueIn%Dim = 3
                     else if (Me%Field(ip)%Dim == 3) then
                         Me%Field(ip)%ValueIn%Dim = 4
                     endif
+
+                    call GetData(Me%Field(ip)%FromDir2Vector,                           &
+                                 Me%ObjEnterData, iflag,                                &
+                                 SearchType   = FromBlockInBlock,                       &
+                                 keyword      = 'DIR_TO_VECTOR',                        &
+                                 default      = .false.,                                &
+                                 ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',           &
+                                 STAT         = STAT_CALL)        
+                    if (STAT_CALL /= SUCCESS_) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR70'
+                    
+                    if (Me%Field(ip)%FromDir2Vector) then
+
+                        call GetData(Me%Field(ip)%DirX,                                 &
+                                     Me%ObjEnterData, iflag,                            &
+                                     SearchType   = FromBlockInBlock,                   &
+                                     keyword      = 'DIR_X',                            &
+                                     ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',       &
+                                     STAT         = STAT_CALL)       
+                        if (STAT_CALL /= SUCCESS_ .or. iflag == 0) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR80'
+
+                        call GetData(Me%Field(ip)%DirY,                                 &
+                                     Me%ObjEnterData, iflag,                            &
+                                     SearchType   = FromBlockInBlock,                   &
+                                     keyword      = 'DIR_Y',                            &
+                                     ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',       &
+                                     STAT         = STAT_CALL)       
+                        if (STAT_CALL /= SUCCESS_ .or. iflag == 0) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR90'
+                                        
+                                        
+                    endif
+
+
+                    call GetData(Me%Field(ip)%ComputeIntensity,                         &
+                                 Me%ObjEnterData, iflag,                                &
+                                 SearchType   = FromBlockInBlock,                       &
+                                 keyword      = 'VECTOR_INTENSITY',                     &
+                                 default      = .false.,                                &
+                                 ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',           &
+                                 STAT         = STAT_CALL)        
+                    if (STAT_CALL /= SUCCESS_) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR100'
+                    
+                    if (Me%Field(ip)%ComputeIntensity) then
+
+                        call GetData(Me%Field(ip)%VectorX,                              &
+                                     Me%ObjEnterData, iflag,                            &
+                                     SearchType   = FromBlockInBlock,                   &
+                                     keyword      = 'VECTOR_X',                         &
+                                     ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',       &
+                                     STAT         = STAT_CALL)       
+                        if (STAT_CALL /= SUCCESS_ .or. iflag == 0) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR110'
+
+                        call GetData(Me%Field(ip)%VectorY,                              &
+                                     Me%ObjEnterData, iflag,                            &
+                                     SearchType   = FromBlockInBlock,                   &
+                                     keyword      = 'VECTOR_Y',                         &
+                                     ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',       &
+                                     STAT         = STAT_CALL)       
+                        if (STAT_CALL /= SUCCESS_ .or. iflag == 0) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR120'
+                                        
+                                        
+                    endif                    
                     
                     !call Block_Unlock(Me%ObjEnterData, Me%ClientNumber, STAT = STAT_CALL) 
 
@@ -869,12 +1106,12 @@ BF:         if (BlockFound) then
             
                 else BF
                 
-                    stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR100'    
+                    stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR130'    
                     
                 endif BF
             else IS
             
-                stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR200'    
+                stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR140'    
             
             endif IS            
         
@@ -895,7 +1132,7 @@ BF:         if (BlockFound) then
         logical                                 :: BlockFound
         integer                                 :: iflag, line, FirstLine, LastLine,    &
                                                    STAT_CALL, HDF5_CREATE, iOut, status,&
-                                                   ncid
+                                                   ncid, iP
 
 
         !Begin----------------------------------------------------------------
@@ -914,7 +1151,20 @@ BF:         if (BlockFound) then
             call OpenNCDFFile
 
         endif
+        
+        Me%ReadPropNumber = Me%PropNumber
+       
+        do iP = 1, Me%PropNumber
+        
+            if (Me%Field(iP)%ComputeIntensity) then
+            
+                Me%ReadPropNumber = Me%ReadPropNumber - 1
+            
+            endif
+        
+        enddo
 
+        Me%Date%TotalInst = 0
         
         call ExtractBlockFromBlock(Me%ObjEnterData, Me%ClientNumber,                    &
                                    input_files_begin, input_files_end,                  &
@@ -926,8 +1176,10 @@ IS:     if(STAT_CALL .EQ. SUCCESS_) then
 
             !The block is found to exist before when reading depth
 BF:         if (BlockFound) then            
-            
+
                 iOut = 0
+                
+                Me%OutCountProp = 0
 
                 do line = FirstLine + 1, LastLine - 1
 
@@ -942,22 +1194,33 @@ BF:         if (BlockFound) then
                     write(*,*) 'Reading ', trim(InputFile)
 
                     !Time
-                    call ReadWriteTime          (ncid, iOut)                    
+                    if (Me%OutCountProp == 0) then
+                        call ReadWriteTime          (ncid, iOut)                    
                         
-                    if (line == FirstLine + 1) then
-                        !Grid/Bathym and Grid/Longitude and Grid/Latitude
-                         call ReadWriteGrid2D  (ncid) 
-                         !Bathym, mapping
-                         call ReadWriteGrid3D  (ncid)
-                    endif 
-                    !Grid/Vertical Z
-                    if  (Me%Depth%On) then
-    !                        call ReadWriteVerticalZ    (ncid, iOut)
+                        if (line == FirstLine + 1) then
+                            !Grid/Bathym and Grid/Longitude and Grid/Latitude
+                             call ReadWriteGrid2D  (ncid) 
+                             !Bathym, mapping
+                             call ReadWriteGrid3D  (ncid)
+                        endif 
+                        !Grid/Vertical Z
+                        if (Me%Depth%Dim3D) then
+                            call WriteDepth    (iOut)
+                        endif
+                    
                     endif
+                    
                     !Results/XXX    
+                    
                     call ReadWriteFields    (ncid, iOut) 
                     
-                    iOut = iOut + Me%Date%NumberInst
+                    if (Me%OutCountProp == Me%Date%NumberInst * Me%ReadPropNumber) then
+                    
+                        iOut = iOut + Me%Date%NumberInst
+                        
+                        Me%OutCountProp = 0
+
+                    endif
                     
                     status=NF90_CLOSE(ncid)
                     if (status /= nf90_noerr)  stop 'ReadNetCDFCF_WriteHDF5MOHID - ModuleNetCDFCF_2_HDF5MOHID - ERR30'
@@ -1033,6 +1296,8 @@ BF:         if (BlockFound) then
         
         if (Me%OutNetCDF) call WriteTimeNetCDF(iOut)
         
+        Me%Date%TotalInst = Me%Date%TotalInst + Me%Date%NumberInst
+        
         call DeAllocateValueIn(Me%Date%ValueIn)            
 
     end subroutine ReadWriteTime
@@ -1085,9 +1350,15 @@ BF:         if (BlockFound) then
 
         !Begin-----------------------------------------------------------------
         
+        call ReadBathymNetCDF(ncid)
+
+        if (Me%OutHDF5) call WriteBathymHDF5        
+        
+        if (Me%OutNetCDF) call WriteBathymNetCDF
+
         call ReadGrid3DNetCDF(ncid)
         
-        if (Me%OutHDF5) call WriteGrid3DHDF5
+        if (Me%OutHDF5) call WriteGrid3DHDF5        
         
         if (Me%OutNetCDF) call WriteGridNetCDF
             
@@ -1102,109 +1373,25 @@ BF:         if (BlockFound) then
         !Arguments-------------------------------------------------------------
         
         !Local-----------------------------------------------------------------
-        real,    dimension(:,:), pointer    :: lon, lat, lon_stag, lat_stag, bathym
-        real(8), dimension(:,:), pointer    :: SphericMercatorX_stag, SphericMercatorY_stag
         integer, dimension(:,:,:), pointer  :: mask3D
         integer, dimension(:,:  ), pointer  :: mask2D        
-        character(len=StringLength)         :: NCDFName, LongName, StandardName, Units, Positive
+        character(len=StringLength)         :: NCDFName, LongName, StandardName, Units
         real                                :: MinValue, MaxValue, ValidMin, ValidMax, MissingValue
         integer                             :: i, j, k, STAT_CALL
      
         !Begin-----------------------------------------------------------------
-        
-        
-        allocate(lon     (Me%WorkSize%IUB,  Me%WorkSize%JUB  ), lat     (Me%WorkSize%IUB,Me%WorkSize%JUB    ))
-        allocate(lon_stag(Me%WorkSize%IUB+1,Me%WorkSize%JUB+1), lat_stag(Me%WorkSize%IUB+1,Me%WorkSize%JUB+1))
 
-        allocate(SphericMercatorX_stag(Me%WorkSize%IUB+1,Me%WorkSize%JUB+1),            &
-                 SphericMercatorY_stag(Me%WorkSize%IUB+1,Me%WorkSize%JUB+1))
-        
-        do j=1,  Me%WorkSize%JUB+1
-        do i=1,  Me%WorkSize%IUB+1            
-        
-            lon_stag(i,j) = Me%LongLat%LongOut(i,j)
-            lat_stag(i,j) = Me%LongLat%LatOut (i,j)
-        
-        enddo
-        enddo
-        
-        do j=1,  Me%WorkSize%JUB
-        do i=1,  Me%WorkSize%IUB            
-        
-            lon(i,j) = (lon_stag(i,j) + lon_stag(i+1,j) + lon_stag(i,j+1) + lon_stag(i+1,j+1))/4.
-            lat(i,j) = (lat_stag(i,j) + lat_stag(i+1,j) + lat_stag(i,j+1) + lat_stag(i+1,j+1))/4.
-        
-        enddo
-        enddo
 
-        if (Me%Depth%Dim3D) then
-            call NETCDFSetDimensions (Me%NetCDF_Out%ObjNetCDF,                          &
-                                                    IUB  = Me%WorkSize%IUB,             &
-                                                    JUB  = Me%WorkSize%JUB,             &
-                                                    KUB  = Me%WorkSize%KUB,             &
-                                                    STAT = STAT_CALL)        
-            if (STAT_CALL /= SUCCESS_)stop 'WriteGridNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR10'
-        else
-            call NETCDFSetDimensions (Me%NetCDF_Out%ObjNetCDF,                          &
-                                                    IUB  = Me%WorkSize%IUB,             &
-                                                    JUB  = Me%WorkSize%JUB,             &
-                                                    KUB  = 0,                           &
-                                                    STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)stop 'WriteGridNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR20'
 
-        endif
-
-        call WGS84toGoogleMaps(lon_stag, lat_stag, Me%WorkSize2D,  SphericMercatorX_stag, SphericMercatorY_stag)
-
-                
-        call NETCDFWriteLatLon(Me%NetCDF_Out%ObjNetCDF, Lat, Lon, Lat_Stag, Lon_Stag,   &
-                               SphericMercatorX_stag, SphericMercatorY_stag,            &
-                               GeoCoordinates = .true., STAT = STAT_CALL)
-                                
-        if (STAT_CALL /= SUCCESS_)stop 'WriteGridNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR40'
-
-        deallocate(lon     , lat     )
-        deallocate(lon_stag, lat_stag)
-        deallocate(SphericMercatorX_stag, SphericMercatorY_stag)
-
-        
-        allocate(bathym(Me%WorkSize%IUB,Me%WorkSize%JUB))
-        
-        do j=1,  Me%WorkSize%JUB
-        do i=1,  Me%WorkSize%IUB
-            bathym(i,j) = Me%Bathym%Value2DOut(i,j)
-        enddo
-        enddo        
-        
-        call BuildAttributes("Bathymetry", NCDFName, LongName, StandardName,            &
-                                           Units, ValidMin, ValidMax,                   &
-                                           MinValue, MaxValue, MissingValue, Positive, bathym)
-        
-        call NETCDFWriteData (NCDFID        = Me%NetCDF_Out%ObjNetCDF,                  &
-                              Name          = trim(NCDFName),                           &
-                              LongName      = trim(LongName),                           &
-                              StandardName  = trim(StandardName),                       & 
-                              Units         = trim(Units),                              &
-                              ValidMin      = ValidMin,                                 &
-                              ValidMax      = ValidMax,                                 &
-                              MinValue      = MinValue,                                 &
-                              MaxValue      = MaxValue,                                 &
-                              MissingValue  = MissingValue,                             &
-                              Array2D       = bathym,                                   &
-                              STAT          = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)stop 'WriteGridNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR50'
-
-        deallocate(bathym)
-        
         
         if (Me%Depth%Dim3D) then
         
-            allocate(mask3D(1:Me%WorkSize%IUB, 1:Me%WorkSize%JUB, 1:Me%WorkSize%KUB))
+            allocate(mask3D(1:Me%WorkSize%JUB, 1:Me%WorkSize%IUB, 1:Me%WorkSize%KUB))
             
             do k=1,  Me%WorkSize%KUB
             do j=1,  Me%WorkSize%JUB
             do i=1,  Me%WorkSize%IUB            
-                mask3D(i,j,k) = Me%Mapping%Value3DOut(i,j,k)
+                mask3D(j,i,k) = Me%Mapping%Value3DOut(i,j,k)
             enddo
             enddo
             enddo
@@ -1234,11 +1421,11 @@ BF:         if (BlockFound) then
         else
 
 
-            allocate(mask2D(1:Me%WorkSize%IUB, 1:Me%WorkSize%JUB))
+            allocate(mask2D(1:Me%WorkSize%JUB, 1:Me%WorkSize%IUB))
             
             do j=1,  Me%WorkSize%JUB
             do i=1,  Me%WorkSize%IUB            
-                mask2D(i,j) = Me%Mapping%Value2DOut(i,j)
+                mask2D(j,i) = Me%Mapping%Value2DOut(i,j)
             enddo
             enddo
 
@@ -1274,38 +1461,261 @@ BF:         if (BlockFound) then
     !------------------------------------------------------------------------
 
    !------------------------------------------------------------------------
+    subroutine WriteBathymNetCDF
+        !Arguments-------------------------------------------------------------
+        
+        !Local-----------------------------------------------------------------
+        real,    dimension(:,:), pointer    :: lon, lat, lon_stag, lat_stag, bathym
+        real(8), dimension(:,:), pointer    :: SphericMercatorX_stag, SphericMercatorY_stag
+        character(len=StringLength)         :: NCDFName, LongName, StandardName, Units, Positive
+        real                                :: MinValue, MaxValue, ValidMin, ValidMax, MissingValue
+        integer                             :: i, j, STAT_CALL
+     
+        !Begin-----------------------------------------------------------------
+        
+        
+        allocate(lon     (Me%WorkSize%IUB,  Me%WorkSize%JUB  ), lat     (Me%WorkSize%IUB,Me%WorkSize%JUB    ))
+        allocate(lon_stag(Me%WorkSize%IUB+1,Me%WorkSize%JUB+1), lat_stag(Me%WorkSize%IUB+1,Me%WorkSize%JUB+1))
+
+        allocate(SphericMercatorX_stag(Me%WorkSize%IUB+1,Me%WorkSize%JUB+1),            &
+                 SphericMercatorY_stag(Me%WorkSize%IUB+1,Me%WorkSize%JUB+1))
+        
+        do j=1,  Me%WorkSize%JUB+1
+        do i=1,  Me%WorkSize%IUB+1            
+        
+            lon_stag(i,j) = Me%LongLat%LongOut(i,j)
+            lat_stag(i,j) = Me%LongLat%LatOut (i,j)
+        
+        enddo
+        enddo
+        
+        do j=1,  Me%WorkSize%JUB
+        do i=1,  Me%WorkSize%IUB            
+        
+            lon(i,j) = (lon_stag(i,j) + lon_stag(i+1,j) + lon_stag(i,j+1) + lon_stag(i+1,j+1))/4.
+            lat(i,j) = (lat_stag(i,j) + lat_stag(i+1,j) + lat_stag(i,j+1) + lat_stag(i+1,j+1))/4.
+        
+        enddo
+        enddo
+
+        
+        if (Me%Depth%Dim3D) then
+            call NETCDFSetDimensions (Me%NetCDF_Out%ObjNetCDF,                          &
+                                                    IUB  = Me%WorkSize%IUB,             &
+                                                    JUB  = Me%WorkSize%JUB,             &
+                                                    KUB  = Me%WorkSize%KUB,             &
+                                                    STAT = STAT_CALL)        
+            if (STAT_CALL /= SUCCESS_)stop 'WriteGridNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR10'
+        else
+            call NETCDFSetDimensions (Me%NetCDF_Out%ObjNetCDF,                          &
+                                                    IUB  = Me%WorkSize%IUB,             &
+                                                    JUB  = Me%WorkSize%JUB,             &
+                                                    KUB  = 0,                           &
+                                                    STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)stop 'WriteGridNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR20'
+
+        endif
+
+        call WGS84toGoogleMaps(lon_stag, lat_stag, Me%WorkSize2D,  SphericMercatorX_stag, SphericMercatorY_stag)
+
+                
+        call NETCDFWriteLatLon(Me%NetCDF_Out%ObjNetCDF, Lat, Lon, Lat_Stag, Lon_Stag,   &
+                               SphericMercatorX_stag, SphericMercatorY_stag,            &
+                               GeoCoordinates = .true., STAT = STAT_CALL)
+                                
+        if (STAT_CALL /= SUCCESS_)stop 'WriteGridNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR40'
+
+        deallocate(lon     , lat     )
+        deallocate(lon_stag, lat_stag)
+        deallocate(SphericMercatorX_stag, SphericMercatorY_stag)
+
+        
+        allocate(bathym(Me%WorkSize%JUB,Me%WorkSize%IUB))
+        
+        do j=1,  Me%WorkSize%JUB
+        do i=1,  Me%WorkSize%IUB
+            bathym(j,i) = Me%Bathym%Value2DOut(i,j)
+        enddo
+        enddo        
+        
+        call BuildAttributes("Bathymetry", NCDFName, LongName, StandardName,            &
+                                           Units, ValidMin, ValidMax,                   &
+                                           MinValue, MaxValue, MissingValue, Positive, bathym)
+        
+        call NETCDFWriteData (NCDFID        = Me%NetCDF_Out%ObjNetCDF,                  &
+                              Name          = trim(NCDFName),                           &
+                              LongName      = trim(LongName),                           &
+                              StandardName  = trim(StandardName),                       & 
+                              Units         = trim(Units),                              &
+                              ValidMin      = ValidMin,                                 &
+                              ValidMax      = ValidMax,                                 &
+                              MinValue      = MinValue,                                 &
+                              MaxValue      = MaxValue,                                 &
+                              MissingValue  = MissingValue,                             &
+                              Array2D       = bathym,                                   &
+                              STAT          = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)stop 'WriteGridNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR50'
+
+        deallocate(bathym)
+        
+    
+    end subroutine WriteBathymNetCDF
+
+    !------------------------------------------------------------------------
+
+   !------------------------------------------------------------------------
     subroutine ReadWriteFields(ncid, iOut)
         !Arguments-------------------------------------------------------------
         integer                                         :: iOut, ncid
         
         !Local-----------------------------------------------------------------
-        integer                                         :: iP 
+        integer                                         :: iP, iT
+        logical                                         :: WriteProp
         !Begin-----------------------------------------------------------------
+        
+        WriteProp = .false. 
         
         do iP = 1, Me%PropNumber
+            do iT =1, Me%Date%NumberInst
         
-            call ReadFieldNetCDF(ncid, iP)
+                if (Me%Field(iP)%ComputeIntensity) then
+                
+                    WriteProp       = .false.
+                
+                else
             
-            call WriteFieldAllInst(iOut, iP)
+                    call ReadFieldNetCDF(ncid, iP, WriteProp, iT)
+                    
+                endif
+                
+                if (WriteProp) then
+                
+                    call WriteFieldAllInst(iOut, iP, iT)
+                    
+                    Me%OutCountProp = Me%OutCountProp + 1
 
-            call DeAllocateValueIn(Me%Field(iP)%ValueIn)
+                endif
 
+                if (.not. Me%Field(iP)%ComputeIntensity)                                &
+                    call DeAllocateValueIn(Me%Field(iP)%ValueIn)
+            enddo
         enddo
         
-          
 
-    end subroutine ReadWriteFields        
+   end subroutine ReadWriteFields        
                   
    !------------------------------------------------------------------------
+
+
    !------------------------------------------------------------------------
-    subroutine WriteFieldAllInst(iOut, iP)
+    subroutine WriteDepth(iOut)
         !Arguments-------------------------------------------------------------
-        integer                                         :: iOut, iP
+        integer                                         :: iOut
         
         !Local-----------------------------------------------------------------
-        integer                                         :: iFinal, iT, i, j, k, mask
+        real(8), dimension(:), pointer                  :: DepthAux
+        real,    dimension(:), pointer                  :: DepthOut
+        integer                                         :: iFinal, i, j, k, l, iT, STAT_CALL
         !Begin-----------------------------------------------------------------
-        do iT = 1, Me%Date%NumberInst
+
+        allocate(Me%Depth%Value3DOut(Me%Size%ILB:Me%Size%IUB,           &
+                                     Me%Size%JLB:Me%Size%JUB,           &
+                                     Me%Size%KLB:Me%Size%KUB))
+
+        
+        
+        do iT =1, Me%Date%NumberInst
+        
+            iFinal = iOut + iT
+
+            if (iFinal ==1) then
+                allocate(DepthOut(Me%WorkSize%KLB:Me%WorkSize%KUB))                
+
+                if (Me%Depth%Interpolate) then
+
+                    DepthOut(:) =  Me%Depth%ZLevels(:)
+
+                else
+                    do k= Me%WorkSize%KLB, Me%WorkSize%KUB 
+                        DepthOut(k) = GetNetCDFValue(Me%Depth%ValueIn,  Dim1 = k)
+                    enddo
+                endif
+
+                if (Me%OutNetCDF) then
+                    call NETCDFWriteVert(Me%NetCDF_Out%ObjNetCDF, DepthOut, Me%Depth%Sigma, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'WriteDepth - ModuleNetCDFCF_2_HDF5MOHID - ERR30' 
+                endif                
+                
+                deallocate(DepthOut)
+            endif  
+            
+            if (Me%Depth%Interpolate) allocate(DepthAux(1:Me%Depth%kmax+1))                                          
+            
+            do k= Me%WorkSize%KUB, Me%WorkSize%KLB, -1
+            do j= Me%WorkSize%JLB, Me%WorkSize%JUB
+            do i= Me%WorkSize%ILB, Me%WorkSize%IUB
+            
+                if (Me%Mapping%Value3DOut(i,j,k) == 1) then
+                
+                    if (k==Me%WorkSize%KUB) Me%Depth%Value3DOut(i, j, k) = 0.
+
+                    if (.not. Me%Depth%Interpolate) then
+            
+                        Me%Depth%Value3DOut(i, j, k-1) = 2*GetCellInDepth(i, j, k) - Me%Depth%Value3DOut(i, j, k)
+                    else
+                        DepthAux(Me%Depth%kmax+1)=0.
+                        do l=Me%Depth%kmax,1,-1
+                            DepthAux(l)= 2*GetCellInDepth(i, j, l) - DepthAux(l+1)
+                        enddo
+
+                        Me%Depth%Value3DOut(i, j, k-1) = InterpolateProfileR8 (Me%Depth%ZLevels(k), &
+                                                           Me%Depth%kmax+1, DepthAux, DepthAux)
+                    endif
+                                                                          
+!                    Me%Depth%Value3DOut(i, j, k-1) = Me%Depth%Value3DOut(i, j, k) * Me%Field(iP)%Multiply + Me%Field(iP)%Add
+!                                                        
+
+                else 
+                    if (k==Me%WorkSize%KUB) Me%Depth%Value3DOut(i, j, k) = FillValueReal
+                    Me%Depth%Value3DOut(i, j, k-1) = FillValueReal
+                endif                
+            enddo
+            enddo
+            enddo
+            
+            if (Me%Depth%Interpolate) deallocate(DepthAux)
+            
+            if (Me%OutHDF5) then
+                call HDF5SetLimits  (Me%ObjHDF5, Me%WorkSize%ILB, Me%WorkSize%IUB,      &
+                                                 Me%WorkSize%JLB, Me%WorkSize%JUB,      &
+                                                 Me%WorkSize%KLB-1, Me%WorkSize%KUB,    &
+                                                 STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'WriteDepth - ModuleNetCDFCF_2_HDF5MOHID - ERR10' 
+
+                call HDF5WriteData  (Me%ObjHDF5, "/Grid/VerticalZ", "Vertical",         &
+                                     "m", Array3D = Me%Depth%Value3DOut, OutputNumber = iFinal, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'WriteDepth - ModuleNetCDFCF_2_HDF5MOHID - ERR20' 
+                
+            endif
+
+        enddo    
+
+        deallocate(Me%Depth%Value3DOut)
+
+   end subroutine WriteDepth        
+                  
+   !------------------------------------------------------------------------
+
+   !------------------------------------------------------------------------
+    subroutine WriteFieldAllInst(iOut, iP, iT)
+        !Arguments-------------------------------------------------------------
+        integer                                         :: iOut, iP, iT
+        
+        !Local-----------------------------------------------------------------
+        real(8), dimension(:), pointer                  :: DepthAux, ValueAux
+        integer                                         :: iFinal, i, j, k, mask, l
+        !Begin-----------------------------------------------------------------
+!        do iT = 1, Me%Date%NumberInst
         
             if      (Me%Field(iP)%Dim==3 .and. .not. associated(Me%Field(iP)%Value3DOut)) then 
                 allocate(Me%Field(iP)%Value3DOut(Me%Size%ILB:Me%Size%IUB,           &
@@ -1319,16 +1729,33 @@ BF:         if (BlockFound) then
             
             if       (Me%Field(iP)%Dim==3) then
             
+                if (Me%Depth%Interpolate) allocate(ValueAux(1:Me%Depth%kmax),DepthAux(1:Me%Depth%kmax))
+            
                 do k= Me%WorkSize%KLB, Me%WorkSize%KUB                    
                 do j= Me%WorkSize%JLB, Me%WorkSize%JUB
                 do i= Me%WorkSize%ILB, Me%WorkSize%IUB
                 
                     if (Me%Mapping%Value3DOut(i,j,k) == 1) then
+
+                        if (.not. Me%Depth%Interpolate) then
                 
-                        Me%Field(iP)%Value3DOut(i, j, k) = GetNetCDFValue(Me%Field(iP)%ValueIn,  Dim1 = j+1, &
-                                                                          Dim2 = i+1, Dim3 = k, Dim4 = iT)
-                        Me%Field(iP)%Value3DOut(i, j, k) = (Me%Field(iP)%Value3DOut(i, j, k) + Me%Field(iP)%Add) &
-                                                            * Me%Field(iP)%Multiply 
+                            Me%Field(iP)%Value3DOut(i, j, k) = GetNetCDFValue(Me%Field(iP)%ValueIn,  Dim1 = j+1, &
+                                                                              Dim2 = i+1, Dim3 = k, Dim4 = 1)
+                        else
+                            do l=1, Me%Depth%kmax
+                                ValueAux(l)= GetNetCDFValue(Me%Field(iP)%ValueIn,  Dim1 = j+1, &
+                                                            Dim2 = i+1, Dim3 = l, Dim4 = 1)
+                                                            
+                                DepthAux(l)= GetCellInDepth(i, j, l)                                                            
+                            enddo
+
+                            Me%Field(iP)%Value3DOut(i, j, k) = InterpolateProfileR8 (Me%Depth%ZLevels(k), &
+                                                               Me%Depth%kmax, DepthAux, ValueAux)
+                        endif
+                                                                              
+                        Me%Field(iP)%Value3DOut(i, j, k) = Me%Field(iP)%Add +           &
+                            Me%Field(iP)%Value3DOut(i, j, k)* Me%Field(iP)%Multiply
+                                                             
 
                     else 
                         Me%Field(iP)%Value3DOut(i, j, k) = FillValueReal
@@ -1336,6 +1763,8 @@ BF:         if (BlockFound) then
                 enddo
                 enddo
                 enddo
+                
+                if (Me%Depth%Interpolate) deallocate(DepthAux, ValueAux)
                 
             else if  (Me%Field(iP)%Dim==2) then
             
@@ -1350,9 +1779,10 @@ BF:         if (BlockFound) then
                     
                     if (mask == 1) then
                         Me%Field(iP)%Value2DOut(i, j) = GetNetCDFValue(Me%Field(iP)%ValueIn,  &
-                                                            Dim1 = j+1, Dim2 = i+1, Dim3 = iT)
-                        Me%Field(iP)%Value2DOut(i, j) = (Me%Field(iP)%Value2DOut(i, j) + Me%Field(iP)%Add) &
-                                                        * Me%Field(iP)%Multiply 
+                                                            !Dim1 = j+1, Dim2 = i+1, Dim3 = iT)
+                                                            Dim1 = j+1, Dim2 = i+1, Dim3 = 1)
+                        Me%Field(iP)%Value2DOut(i, j) = Me%Field(iP)%Value2DOut(i, j)* Me%Field(iP)%Multiply + Me%Field(iP)%Add
+                                                         
                     else 
                         Me%Field(iP)%Value2DOut(i, j) = FillValueReal
                     endif                
@@ -1371,10 +1801,87 @@ BF:         if (BlockFound) then
             if (Me%OutNetCDF) then
                 call WriteFieldNetCDF(iP, iFinal)    
             endif
-        enddo    
+ !       enddo    
     
     end subroutine WriteFieldAllInst
 !------------------------------------------------------------------------
+
+    !Computes the depth of a cell in the original grid 
+    real function GetCellInDepth (i, j, l)
+
+        !Arguments-------------------------------------------------------------
+        integer                     :: i, j, l 
+
+        !Local-----------------------------------------------------------------
+        real                        :: Aux, A, B, C
+        !Begin-----------------------------------------------------------------
+        
+        Aux = GetNetCDFValue(Me%Depth%ValueIn,  Dim1 = l)
+
+i1:     if (Me%Depth%Sigma) then
+            
+        
+i2:         if      (Me%Depth%Positive == "up"  ) then
+
+                !Do not do anything            
+                
+            elseif  (Me%Depth%Positive == "down") then i2
+
+                Aux =  - Aux 
+            
+            else  i2
+            
+                stop 'GetCellInDepth - ModuleNetCDFCF_2_HDF5MOHID - ERR10' 
+                
+            endif i2
+            
+            if ( Me%Bathym%Value2DOut(i, j)>-50) then
+            
+    i3:         if (Me%Depth%RomsDistortion) then
+                !ROMS Stretching Function
+                    !Song, Y. and D. B. Haidvogel, 1994: A semi-implicit ocean circulation model 
+                    !using a generalized topography-following coordinate system, J. Comp. Phys., 115 (1), 228-244. (PDF)
+                    !https://www.myroms.org/wiki/index.php/Vertical_S-coordinate
+                    A = (1.-Me%Depth%theta_b)*sinh(Me%Depth%theta_s * Aux) / sinh(Me%Depth%theta_s)
+                    
+                    B = tanh(Me%Depth%theta_s*(Aux+0.5))/tanh(0.5*Me%Depth%theta_s)
+                    
+                    C = A  + Me%Depth%theta_b * 0.5*(B-1.)
+                    
+                    GetCellInDepth = - (Me%Depth%Hc * Aux + ( Me%Bathym%Value2DOut(i, j) - Me%Depth%Hc) * C)
+                
+                else i3
+                    
+                    GetCellInDepth = - Aux * Me%Bathym%Value2DOut(i, j)
+                    
+                endif i3
+                                                       
+            else
+                    GetCellInDepth = -99.
+            endif                                                       
+        !z level             
+        else i1
+
+i4:         if      (Me%Depth%Positive == "up"  ) then
+            
+                GetCellInDepth = Aux - Me%Bathym%Value2DOut(i, j)
+                
+            elseif  (Me%Depth%Positive == "down") then i4
+            
+                GetCellInDepth = Aux
+            
+            else i4
+                stop 'GetCellInDepth - ModuleNetCDFCF_2_HDF5MOHID - ERR20' 
+            endif i4       
+        
+        endif i1
+            
+            
+
+    end function GetCellInDepth
+
+
+    !--------------------------------------------------------------------------
             
    
     subroutine WriteTimeHDF5(iOut)
@@ -1501,14 +2008,6 @@ BF:         if (BlockFound) then
         call HDF5SetLimits  (Me%ObjHDF5, Me%WorkSize%ILB, Me%WorkSize%IUB, Me%WorkSize%JLB, Me%WorkSize%JUB, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)stop 'WriteGrid3DHDF5 - ModuleNetCDFCF_2_HDF5MOHID - ERR10'
 
-
-        call HDF5WriteData  (Me%ObjHDF5, "/Grid",                                       &
-                             "Bathymetry", "m",                                         &
-                             Array2D = Me%Bathym%Value2DOut,                            &
-                             STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)stop 'WriteGrid3DHDF5 - ModuleNetCDFCF_2_HDF5MOHID - ERR20'
-            
-        
         if (Me%Depth%Dim3D) then
 
             call HDF5SetLimits  (Me%ObjHDF5, Me%WorkSize%ILB, Me%WorkSize%IUB,          &
@@ -1538,6 +2037,36 @@ BF:         if (BlockFound) then
         
 
     end subroutine WriteGrid3DHDF5
+
+
+   !---------------------------------------------------------------------------
+
+   !------------------------------------------------------------------------
+    subroutine WriteBathymHDF5
+        !Arguments-------------------------------------------------------------
+        
+        !Local-----------------------------------------------------------------
+        integer                                         :: STAT_CALL
+
+        !Begin-----------------------------------------------------------------
+        
+        write(*,*)
+        write(*,*)'Writing Grid 3D HDF5 file...'
+
+        call HDF5SetLimits  (Me%ObjHDF5, Me%WorkSize%ILB, Me%WorkSize%IUB, Me%WorkSize%JLB, Me%WorkSize%JUB, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)stop 'WriteGrid3DHDF5 - ModuleNetCDFCF_2_HDF5MOHID - ERR10'
+
+
+        call HDF5WriteData  (Me%ObjHDF5, "/Grid",                                       &
+                             "Bathymetry", "m",                                         &
+                             Array2D = Me%Bathym%Value2DOut,                            &
+                             STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)stop 'WriteGrid3DHDF5 - ModuleNetCDFCF_2_HDF5MOHID - ERR20'
+            
+        
+
+
+    end subroutine WriteBathymHDF5
 
 
    !---------------------------------------------------------------------------
@@ -1632,7 +2161,7 @@ BF:         if (BlockFound) then
                
             
         endif
-        
+    
  
     end subroutine ReadTimeNetCDF
 
@@ -1673,16 +2202,26 @@ BF:         if (BlockFound) then
 
             status=NF90_INQUIRE_DIMENSION(ncid, rhDimIdsLong(2), len = Me%LongLat%imax)
             if (status /= nf90_noerr) stop 'ReadGrid2DNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR50' 
+            
+            if (Me%ReadInvertXY) then
+
+                status=NF90_INQUIRE_DIMENSION(ncid, rhDimIdsLong(2), len = Me%LongLat%jmax)
+                if (status /= nf90_noerr) stop 'ReadGrid2DNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR60'        
+
+                status=NF90_INQUIRE_DIMENSION(ncid, rhDimIdsLong(1), len = Me%LongLat%imax)
+                if (status /= nf90_noerr) stop 'ReadGrid2DNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR70' 
+            
+            endif
                     
         else if (numDims == 1) then
             status = nf90_inquire_variable(ncid, RhVarIdLat, dimids = rhDimIdsLat(:numDims))
-            if (status /= nf90_noerr) stop 'ReadGrid2DNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR60'      
+            if (status /= nf90_noerr) stop 'ReadGrid2DNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR80'      
             
             status=NF90_INQUIRE_DIMENSION(ncid, rhDimIdsLat(1), len = Me%LongLat%imax)
-            if (status /= nf90_noerr) stop 'ReadGrid2DNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR70' 
+            if (status /= nf90_noerr) stop 'ReadGrid2DNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR90' 
             
         else
-            stop 'ReadGrid2DNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR80'
+            stop 'ReadGrid2DNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR100'
         endif
         
         call AllocateValueIn(Me%LongLat%LongIn, Dim1 =  Me%LongLat%jmax, Dim2 = Me%LongLat%imax)
@@ -1696,10 +2235,10 @@ BF:         if (BlockFound) then
             allocate(Lat1D (1:Me%LongLat%imax))
             
             status = nf90_get_var(ncid, RhVarIdLong, Long1D)
-            if (status /= nf90_noerr) stop 'ReadGrid2DNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR90'      
+            if (status /= nf90_noerr) stop 'ReadGrid2DNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR110'      
             
             status = nf90_get_var(ncid, RhVarIdLat, Lat1D)
-            if (status /= nf90_noerr) stop 'ReadGrid2DNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR100'     
+            if (status /= nf90_noerr) stop 'ReadGrid2DNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR120'     
              
             do j=1, Me%LongLat%jmax
             do i=1, Me%LongLat%imax
@@ -1759,40 +2298,15 @@ BF:         if (BlockFound) then
         integer                                 :: ncid
         
         !Local-----------------------------------------------------------------
-        integer                                 :: status, i, j, k, dn, mn, bn, dimid, numDims
-        real(8)                                 :: Aux
+        real(8)                                 :: DepthAux
+        integer                                 :: status, i, j, k, mn, numDims, l
+        real(8)                                 :: Aux, Aux1
         !Begin-----------------------------------------------------------------
         
         write(*,*)
         write(*,*)'Read Grid 3D NetCDF file...'
 
-        !Read number of layers and their depth
-        if (Me%Depth%Dim3D) then
-
-            status=NF90_INQ_DIMID(ncid,trim(Me%Depth%NetCDFName),dimid)
-            if (status /= nf90_noerr) stop 'ReadGrid3DNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR10'
-
-            status=NF90_INQUIRE_DIMENSION(ncid, dimid, len = Me%Depth%kmax)
-            if (status /= nf90_noerr) stop 'ReadGrid3DNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR20'
-            
-            call AllocateValueIn(Me%Depth%ValueIn, Dim1 = Me%Depth%kmax)
-
-            status = nf90_inq_varid(ncid, trim(Me%Depth%NetCDFName), dn)
-            if (status /= nf90_noerr) stop 'ReadGrid3DNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR30'            
-            
-            call GetNetCDFMatrix(ncid, dn, Me%Depth%ValueIn) 
-            
-        else
-        
-            Me%Depth%kmax = -99
-        
-        endif
-        
-        Me%WorkSize%KLB = 1
-        Me%WorkSize%KUB = Me%Depth%kmax        
-
-        Me%Size%KLB = Me%WorkSize%KLB - 1
-        Me%Size%KUB = Me%WorkSize%KUB + 1      
+  
 
         if (Me%Mapping%ON) then
 
@@ -1842,18 +2356,51 @@ BF:         if (BlockFound) then
             Me%Mapping%Value3DOut(:,:,:) = 1
 
             if (Me%Mapping%ON) then
-
+            
+            
                 do k= Me%WorkSize%KLB, Me%WorkSize%KUB                    
                 do j= Me%WorkSize%JLB, Me%WorkSize%JUB
                 do i= Me%WorkSize%ILB, Me%WorkSize%IUB
+                                    
+i2:                 if (Me%Depth%Interpolate) then
+
+                        if (Me%Mapping%Limit <= 1) then
+                            Aux = Me%Mapping%Limit - 1
+                        else
+                            Aux = Me%Mapping%Limit + 1                    
+                        endif
+
+                        do l= Me%Depth%kmax, 1,-1
+                        
+                            if      (Me%Mapping%ValueIn%Dim == 4) then
+                                Aux1 = GetNetCDFValue(Me%Mapping%ValueIn,  Dim1 = j+1, Dim2 = i+1, Dim3 = l, Dim4 = 1)
+                            else if (Me%Mapping%ValueIn%Dim == 3) then
+                                Aux1 = GetNetCDFValue(Me%Mapping%ValueIn,  Dim1 = j+1, Dim2 = i+1, Dim3 = l)
+                            else if (Me%Mapping%ValueIn%Dim == 2) then
+                                Aux1 = GetNetCDFValue(Me%Mapping%ValueIn,  Dim1 = j+1, Dim2 = i+1)
+                            endif
+                            
+                            DepthAux= GetCellInDepth(i, j, l) 
+                            
+                            if (DepthAux > Me%Depth%ZLevels(k)) then
+                                Aux = Aux1
+                                exit
+                            endif                                                            
+                        enddo
+
+
+                                    
+                    else i2
                 
-                    if      (Me%Mapping%ValueIn%Dim == 4) then
-                        Aux = GetNetCDFValue(Me%Mapping%ValueIn,  Dim1 = j+1, Dim2 = i+1, Dim3 = k, Dim4 = 1)
-                    else if (Me%Mapping%ValueIn%Dim == 3) then
-                        Aux = GetNetCDFValue(Me%Mapping%ValueIn,  Dim1 = j+1, Dim2 = i+1, Dim3 = k)
-                    else if (Me%Mapping%ValueIn%Dim == 2) then
-                        Aux = GetNetCDFValue(Me%Mapping%ValueIn,  Dim1 = j+1, Dim2 = i+1)
-                    endif
+                        if      (Me%Mapping%ValueIn%Dim == 4) then
+                            Aux = GetNetCDFValue(Me%Mapping%ValueIn,  Dim1 = j+1, Dim2 = i+1, Dim3 = k, Dim4 = 1)
+                        else if (Me%Mapping%ValueIn%Dim == 3) then
+                           Aux = GetNetCDFValue(Me%Mapping%ValueIn,  Dim1 = j+1, Dim2 = i+1, Dim3 = k)
+                        else if (Me%Mapping%ValueIn%Dim == 2) then
+                            Aux = GetNetCDFValue(Me%Mapping%ValueIn,  Dim1 = j+1, Dim2 = i+1)
+                        endif
+
+                    endif i2                        
                     
                     if (Me%Mapping%Limit <= 1) then
                         if (Aux > Me%Mapping%Limit) then
@@ -1871,6 +2418,9 @@ BF:         if (BlockFound) then
                 enddo
                 enddo
                 enddo
+            
+
+                            
             endif
         else
             allocate(Me%Mapping%Value2DOut(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
@@ -1901,14 +2451,66 @@ BF:         if (BlockFound) then
             endif            
         endif        
         
-        !Read bathymetry
+   
+            
+        if (Me%Mapping%ON)                                                              &
+            call DeAllocateValueIn(Me%Mapping%ValueIn)
         
+
+        
+        
+    end subroutine ReadGrid3DNetCDF
+
+    !------------------------------------------------------------------------
+    subroutine ReadBathymNetCDF(ncid)
+        !Arguments-------------------------------------------------------------
+        integer                                 :: ncid
+        
+        !Local-----------------------------------------------------------------
+        integer                                 :: status, i, j, bn, dn, dimid
+
+        !Begin-----------------------------------------------------------------    
+
+        !Read bathymetry
+       !Read number of layers and their depth
+        if (Me%Depth%Dim3D) then
+
+            status=NF90_INQ_DIMID(ncid,trim(Me%Depth%NetCDFName),dimid)
+            if (status /= nf90_noerr) stop 'ReadGrid3DNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR10'
+
+            status=NF90_INQUIRE_DIMENSION(ncid, dimid, len = Me%Depth%kmax)
+            if (status /= nf90_noerr) stop 'ReadGrid3DNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR20'
+            
+            call AllocateValueIn(Me%Depth%ValueIn, Dim1 = Me%Depth%kmax)
+
+            status = nf90_inq_varid(ncid, trim(Me%Depth%NetCDFName), dn)
+            if (status /= nf90_noerr) stop 'ReadGrid3DNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR30'            
+            
+            call GetNetCDFMatrix(ncid, dn, Me%Depth%ValueIn) 
+            
+        else
+        
+            Me%Depth%kmax = -99
+        
+        endif
+        
+        Me%WorkSize%KLB = 1
+        
+        if (Me%Depth%Interpolate) then
+            Me%WorkSize%KUB = Me%Depth%N_ZLevels
+        else
+            Me%WorkSize%KUB = Me%Depth%kmax        
+        endif
+
+        Me%Size%KLB = Me%WorkSize%KLB - 1
+        Me%Size%KUB = Me%WorkSize%KUB + 1     
+                
         if (Me%Bathym%ON) then 
             
             call AllocateValueIn(Me%Bathym%ValueIn, Dim1 = Me%LongLat%jmax, Dim2 = Me%LongLat%imax)
 
             status = nf90_inq_varid(ncid, trim(Me%Bathym%NetCDFName), bn)
-            if (status /= nf90_noerr) stop 'ReadGrid3DNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR60'            
+            if (status /= nf90_noerr) stop 'ReadBathymNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR10'            
             
             call GetNetCDFMatrix(ncid, bn, Me%Bathym%ValueIn) 
             
@@ -1922,6 +2524,8 @@ BF:         if (BlockFound) then
             do j= Me%WorkSize%JLB, Me%WorkSize%JUB
             do i= Me%WorkSize%ILB, Me%WorkSize%IUB
                 Me%Bathym%Value2DOut(i,j) = GetNetCDFValue(Me%Bathym%ValueIn,  Dim1 = j+1, Dim2 = i+1)
+                
+                if (Me%Bathym%Value2DOut(i,j) < -50) Me%Bathym%Value2DOut(i,j) = -99.
             enddo
             enddo
         
@@ -1931,23 +2535,18 @@ BF:         if (BlockFound) then
         
         endif
         
-        if (Me%Depth%Dim3D)                                                             &
-            call DeAllocateValueIn(Me%Depth%ValueIn)
-
-        if (Me%Mapping%ON)                                                              &
-            call DeAllocateValueIn(Me%Mapping%ValueIn)
-        
         if (Me%Bathym%ON)                                                               &
             call DeAllocateValueIn(Me%Bathym%ValueIn)
-        
-        
-    end subroutine ReadGrid3DNetCDF
-
-    !------------------------------------------------------------------------
+            
+    end subroutine ReadBathymNetCDF         
+                     
+    
    !---------------------------------------------------------------------------
-    subroutine ReadFieldNetCDF(ncid, iP)
+    subroutine ReadFieldNetCDF(ncid, iP, WriteProp, inst)
         !Arguments-------------------------------------------------------------
         integer                                 :: ncid, iP
+        logical                                 :: WriteProp
+        integer                                 :: inst
         
         !Local-----------------------------------------------------------------
         integer                                 :: status, pn 
@@ -1959,19 +2558,23 @@ BF:         if (BlockFound) then
             call AllocateValueIn(Me%Field(iP)%ValueIn, Dim1 = Me%LongLat%jmax,          &
                                                        Dim2 = Me%LongLat%imax,          &
                                                        Dim3 = Me%Depth%kmax,            &
-                                                       Dim4 = Me%Date%NumberInst)
+                                                       Dim4 = 1)                                                       
+!                                                       Dim4 = Me%Date%NumberInst)
         else if (Me%Field(iP)%Dim == 2) then
             call AllocateValueIn(Me%Field(iP)%ValueIn, Dim1 = Me%LongLat%jmax,          &
                                                        Dim2 = Me%LongLat%imax,          &
-                                                       Dim3 = Me%Date%NumberInst)
+                                                       Dim3 = 1)
+!                                                       Dim3 = Me%Date%NumberInst)
         endif     
 
         status = nf90_inq_varid(ncid, trim(Me%Field(iP)%NetCDFName), pn)
-        if (status /= nf90_noerr) stop 'ReadGrid3DNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR60'            
-
-        call GetNetCDFMatrix(ncid, pn, Me%Field(iP)%ValueIn)         
-        
-
+        if (status /= nf90_noerr) then
+            !stop 'ReadFieldNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR60'            
+            WriteProp = .false.
+        else
+            call GetNetCDFMatrix(ncid, pn, Me%Field(iP)%ValueIn, Inst)         
+            WriteProp = .true.
+        endif
         
     end subroutine ReadFieldNetCDF
 
@@ -1983,6 +2586,7 @@ BF:         if (BlockFound) then
         integer             :: Dim1
         integer, optional   :: Dim2, Dim3, Dim4
         !Local-----------------------------------------------------------------                
+        integer             :: Dim1_, Dim2_, Dim3_, Dim4_
         integer             :: Dim, DataTypeIn
         !Begin-----------------------------------------------------------------        
         
@@ -2006,41 +2610,53 @@ BF:         if (BlockFound) then
                 stop 'AllocateValueIn - ModuleNetCDFCF_2_HDF5MOHID - ERR40'
         endif
         
+        Dim1_ = Dim1
+        if (present(Dim2)) Dim2_ = Dim2
+        if (present(Dim3)) Dim3_ = Dim3
+        if (present(Dim4)) Dim4_ = Dim4
+        
+
+        if (Me%ReadInvertXY .and. Dim >=2) then
+            Dim2_ = Dim1
+            Dim1_ = Dim2
+        endif        
+        
         if      (Dim==1) then
             allocate(ValueIn%CountDim(1))
-            ValueIn%CountDim(1) = Dim1
+            ValueIn%CountDim(1) = Dim1_
         else if (Dim==2) then
             allocate(ValueIn%CountDim(2))
-            ValueIn%CountDim(1) = Dim1
-            ValueIn%CountDim(2) = Dim2
+            ValueIn%CountDim(1) = Dim1_
+            ValueIn%CountDim(2) = Dim2_
         else if (Dim==3) then
             allocate(ValueIn%CountDim(3))
-            ValueIn%CountDim(1) = Dim1
-            ValueIn%CountDim(2) = Dim2
-            ValueIn%CountDim(3) = Dim3
+            ValueIn%CountDim(1) = Dim1_
+            ValueIn%CountDim(2) = Dim2_
+            ValueIn%CountDim(3) = Dim3_
         else if (Dim==4) then
             allocate(ValueIn%CountDim(4))
-            ValueIn%CountDim(1) = Dim1
-            ValueIn%CountDim(2) = Dim2
-            ValueIn%CountDim(3) = Dim3        
-            ValueIn%CountDim(4) = Dim4
+            ValueIn%CountDim(1) = Dim1_
+            ValueIn%CountDim(2) = Dim2_
+            ValueIn%CountDim(3) = Dim3_        
+            ValueIn%CountDim(4) = Dim4_
         else
             stop 'AllocateValueIn - ModuleNetCDFCF_2_HDF5MOHID - ERR50'
         endif
+        
 
         if      (Dim==1) then
         
             if      (DataTypeIn == Real8_   ) then
                 
-                allocate (ValueIn%R81D(1:Dim1))
+                allocate (ValueIn%R81D(1:Dim1_))
                 
             else if (DataTypeIn == Real4_   ) then
             
-                allocate (ValueIn%R41D(1:Dim1))            
+                allocate (ValueIn%R41D(1:Dim1_))            
             
             else if (DataTypeIn == Integer4_) then
             
-                allocate (ValueIn%I41D(1:Dim1))                        
+                allocate (ValueIn%I41D(1:Dim1_))                        
             
             endif
         
@@ -2048,15 +2664,15 @@ BF:         if (BlockFound) then
     
             if      (DataTypeIn == Real8_   ) then
                 
-                allocate (ValueIn%R82D(1:Dim1,1:Dim2))
+                allocate (ValueIn%R82D(1:Dim1_,1:Dim2_))
                 
             else if (DataTypeIn == Real4_   ) then
             
-                allocate (ValueIn%R42D(1:Dim1,1:Dim2))            
+                allocate (ValueIn%R42D(1:Dim1_,1:Dim2_))            
             
             else if (DataTypeIn == Integer4_) then
             
-                allocate (ValueIn%I42D(1:Dim1,1:Dim2))                        
+                allocate (ValueIn%I42D(1:Dim1_,1:Dim2_))                        
             
             endif    
     
@@ -2064,15 +2680,15 @@ BF:         if (BlockFound) then
 
             if      (DataTypeIn == Real8_   ) then
                 
-                allocate (ValueIn%R83D(1:Dim1,1:Dim2,1:Dim3))
+                allocate (ValueIn%R83D(1:Dim1_,1:Dim2_,1:Dim3_))
                 
             else if (DataTypeIn == Real4_   ) then
             
-                allocate (ValueIn%R43D(1:Dim1,1:Dim2,1:Dim3))            
+                allocate (ValueIn%R43D(1:Dim1_,1:Dim2_,1:Dim3_))            
             
             else if (DataTypeIn == Integer4_) then
             
-                allocate (ValueIn%I43D(1:Dim1,1:Dim2,1:Dim3))                        
+                allocate (ValueIn%I43D(1:Dim1_,1:Dim2_,1:Dim3_))                        
             
             endif    
         
@@ -2080,15 +2696,15 @@ BF:         if (BlockFound) then
 
             if      (DataTypeIn == Real8_   ) then
                 
-                allocate (ValueIn%R84D(1:Dim1,1:Dim2,1:Dim3,1:Dim4))
+                allocate (ValueIn%R84D(1:Dim1_,1:Dim2_,1:Dim3_,1:Dim4_))
                 
             else if (DataTypeIn == Real4_   ) then
             
-                allocate (ValueIn%R44D(1:Dim1,1:Dim2,1:Dim3,1:Dim4))            
+                allocate (ValueIn%R44D(1:Dim1_,1:Dim2_,1:Dim3_,1:Dim4_))            
             
             else if (DataTypeIn == Integer4_) then
             
-                allocate (ValueIn%I44D(1:Dim1,1:Dim2,1:Dim3,1:Dim4))                        
+                allocate (ValueIn%I44D(1:Dim1_,1:Dim2_,1:Dim3_,1:Dim4_))                        
             
             endif    
 
@@ -2338,6 +2954,23 @@ BF:         if (BlockFound) then
                 ValidMax        = 10.
                 MissingValue    = FillValueReal
 
+            case("velocity modulus")
+                NCDFName        = "velocity_modulus"
+                LongName        = "velocity modulus"
+                StandardName    = "velocity modulus"
+                Units           = "ms/s"
+                ValidMin        = 0.
+                ValidMax        = 20.
+                MissingValue    = FillValueReal
+
+            case("wind modulus")
+                NCDFName        = "wind_modulus"
+                LongName        = "wind modulus"
+                StandardName    = "wind modulus"
+                Units           = "ms/s"
+                ValidMin        = 0.
+                ValidMax        = 200.
+                MissingValue    = FillValueReal
             case default
 
                 NCDFName        = trim(adjustl(Name))
@@ -2363,16 +2996,16 @@ if1:   if(present(Int2D) .or. present(Int3D))then
             do j = 1, Me%WorkSize%JUB
             do i = 1, Me%WorkSize%IUB
 
-                if(Float2D(i,j) .gt. FillValueReal/2. .and. Float2D(i,j) .lt.  Min .and. &
-                                                            Float2D(i,j) .ge. ValidMin)then
+                if(Float2D(j,i) .gt. FillValueReal/2. .and. Float2D(j,i) .lt.  Min .and. &
+                                                            Float2D(j,i) .ge. ValidMin)then
 
-                    Min = Float2D(i,j)
+                    Min = Float2D(j,i)
 
                 end if
 
-                if(Float2D(i,j) > Max .and. Float2D(i,j) .le. ValidMax) then
+                if(Float2D(j,i) > Max .and. Float2D(j,i) .le. ValidMax) then
 
-                    Max = Float2D(i,j) 
+                    Max = Float2D(j,i) 
 
                 endif
 
@@ -2385,16 +3018,16 @@ if1:   if(present(Int2D) .or. present(Int3D))then
             do i = 1, Me%WorkSize%IUB
             do k = 1, Me%WorkSize%KUB
 
-                if(Float3D(i,j,k) .gt. FillValueReal/2. .and. Float3D(i,j,k) .lt.  Min .and. &
-                                                              Float3D(i,j,k) .ge. ValidMin)then
+                if(Float3D(j,i,k) .gt. FillValueReal/2. .and. Float3D(j,i,k) .lt.  Min .and. &
+                                                              Float3D(j,i,k) .ge. ValidMin)then
 
-                    Min = Float3D(i,j,k)
+                    Min = Float3D(j,i,k)
 
                 end if
 
-                if(Float3D(i,j,k) > Max .and. Float3D(i,j,k) .le. ValidMax) then
+                if(Float3D(j,i,k) > Max .and. Float3D(j,i,k) .le. ValidMax) then
 
-                    Max = Float3D(i,j,k) 
+                    Max = Float3D(j,i,k) 
 
                 endif
 
@@ -2519,13 +3152,14 @@ if1:   if(present(Int2D) .or. present(Int3D))then
 
     !------------------------------------------------------------------------
     
-    subroutine GetNetCDFMatrix(ncid, n, ValueIn)
+    subroutine GetNetCDFMatrix(ncid, n, ValueIn, inst)
         !Arguments-------------------------------------------------------------        
         integer             :: ncid, n
         type(T_ValueIn)     :: ValueIn
+        integer, optional   :: inst
         !Local-----------------------------------------------------------------                
-        integer             :: Dim, DataTypeIn, status
-        character(len=StringLength) :: Error
+        integer, dimension(nf90_max_var_dims)   :: dimIDs
+        integer             :: Dim, DataTypeIn, status, xdim, ydim, zdim
         !Begin-----------------------------------------------------------------        
         
         Dim         = ValueIn%Dim
@@ -2534,24 +3168,27 @@ if1:   if(present(Int2D) .or. present(Int3D))then
         if (DataTypeIn /= Real8_ .and. DataTypeIn /= Real4_ .and. DataTypeIn /= Integer4_) then
             stop 'GetNetCDFMatrix - ModuleNetCDFCF_2_HDF5MOHID - ERR10'
         endif
-        
+
+        status = nf90_inquire_variable(ncid, n, dimids = dimIDs(:Dim))
+        if (status /= nf90_noerr) stop 'GetNetCDFMatrix - ModuleNetCDFCF_2_HDF5MOHID - ERR20'
+ 
 
         if      (Dim==1) then
         
             if      (DataTypeIn == Real8_   ) then
 
                 status = NF90_GET_VAR(ncid,n,ValueIn%R81D)
-                if (status /= nf90_noerr) stop 'GetNetCDFMatrix - ModuleNetCDFCF_2_HDF5MOHID - ERR20'
+                if (status /= nf90_noerr) stop 'GetNetCDFMatrix - ModuleNetCDFCF_2_HDF5MOHID - ERR30'
                 
             else if (DataTypeIn == Real4_   ) then
             
                 status = NF90_GET_VAR(ncid,n,ValueIn%R41D)
-                if (status /= nf90_noerr) stop 'GetNetCDFMatrix - ModuleNetCDFCF_2_HDF5MOHID - ERR30'
+                if (status /= nf90_noerr) stop 'GetNetCDFMatrix - ModuleNetCDFCF_2_HDF5MOHID - ERR40'
             
             else if (DataTypeIn == Integer4_) then
             
                 status = NF90_GET_VAR(ncid,n,ValueIn%I41D)
-                if (status /= nf90_noerr) stop 'GetNetCDFMatrix - ModuleNetCDFCF_2_HDF5MOHID - ERR40'
+                if (status /= nf90_noerr) stop 'GetNetCDFMatrix - ModuleNetCDFCF_2_HDF5MOHID - ERR50'
             
             endif
         
@@ -2560,63 +3197,140 @@ if1:   if(present(Int2D) .or. present(Int3D))then
             if      (DataTypeIn == Real8_   ) then
 
                 status = NF90_GET_VAR(ncid,n,ValueIn%R82D)
-                if (status /= nf90_noerr) stop 'GetNetCDFMatrix - ModuleNetCDFCF_2_HDF5MOHID - ERR50'
+                if (status /= nf90_noerr) stop 'GetNetCDFMatrix - ModuleNetCDFCF_2_HDF5MOHID - ERR60'
                 
             else if (DataTypeIn == Real4_   ) then
             
                 status = NF90_GET_VAR(ncid,n,ValueIn%R42D)
-                if (status /= nf90_noerr) stop 'GetNetCDFMatrix - ModuleNetCDFCF_2_HDF5MOHID - ERR60'
+                if (status /= nf90_noerr) stop 'GetNetCDFMatrix - ModuleNetCDFCF_2_HDF5MOHID - ERR70'
             
             else if (DataTypeIn == Integer4_) then
             
                 status = NF90_GET_VAR(ncid,n,ValueIn%I42D)
-                if (status /= nf90_noerr) stop 'GetNetCDFMatrix - ModuleNetCDFCF_2_HDF5MOHID - ERR70'
+                if (status /= nf90_noerr) stop 'GetNetCDFMatrix - ModuleNetCDFCF_2_HDF5MOHID - ERR80'
             
             endif    
     
         else if (Dim==3) then
 
+            if (present(inst)) then   
+                                
+                status = nf90_inquire_dimension(ncid, dimIDs(1), len = xdim)
+                if (status /= nf90_noerr) stop 'GetNetCDFMatrix - ModuleNetCDFCF_2_HDF5MOHID - ERR90'
+
+                status = nf90_inquire_dimension(ncid, dimIDs(2), len = ydim)
+                if (status /= nf90_noerr) stop 'GetNetCDFMatrix - ModuleNetCDFCF_2_HDF5MOHID - ERR100'
+
+            endif
+
             if      (DataTypeIn == Real8_   ) then
 
-                status = NF90_GET_VAR(ncid,n,ValueIn%R83D)
-                if (status /= nf90_noerr) stop 'GetNetCDFMatrix - ModuleNetCDFCF_2_HDF5MOHID - ERR80'
+                if (present(inst)) then   
+                                    
+                    status = nf90_get_var(ncid,n,ValueIn%R83D,                          &
+                            start = (/ 1, 1, inst /),                                   &
+                            count = (/ xdim, ydim, 1 /))                
+                    if (status /= nf90_noerr) stop 'GetNetCDFMatrix - ModuleNetCDFCF_2_HDF5MOHID - ERR110'
+                    
+                else
+                    status = NF90_GET_VAR(ncid,n,ValueIn%R83D)
+                    if (status /= nf90_noerr) stop 'GetNetCDFMatrix - ModuleNetCDFCF_2_HDF5MOHID - ERR120'
+                endif
                 
             else if (DataTypeIn == Real4_   ) then
-            
-                status = NF90_GET_VAR(ncid,n,ValueIn%R43D)
-                if (status /= nf90_noerr) stop 'GetNetCDFMatrix - ModuleNetCDFCF_2_HDF5MOHID - ERR90'
-            
+
+                if (present(inst)) then   
+                                    
+                    status = nf90_get_var(ncid,n,ValueIn%R43D,                          &
+                            start = (/ 1, 1, inst /),                                   &
+                            count = (/ xdim, ydim, 1 /))                
+                    if (status /= nf90_noerr) stop 'GetNetCDFMatrix - ModuleNetCDFCF_2_HDF5MOHID - ERR130'
+                    
+                else
+                    status = NF90_GET_VAR(ncid,n,ValueIn%R43D)
+                    if (status /= nf90_noerr) stop 'GetNetCDFMatrix - ModuleNetCDFCF_2_HDF5MOHID - ERR140'
+                endif
+                
             else if (DataTypeIn == Integer4_) then
             
-                status = NF90_GET_VAR(ncid,n,ValueIn%I43D)
-                if (status /= nf90_noerr) stop 'GetNetCDFMatrix - ModuleNetCDFCF_2_HDF5MOHID - ERR100'
+                if (present(inst)) then   
+                                    
+                    status = nf90_get_var(ncid,n,ValueIn%I43D,                          &
+                            start = (/ 1, 1, inst /),                                   &
+                            count = (/ xdim, ydim, 1 /))                
+                    if (status /= nf90_noerr) stop 'GetNetCDFMatrix - ModuleNetCDFCF_2_HDF5MOHID - ERR150'
+                    
+                else
+                    status = NF90_GET_VAR(ncid,n,ValueIn%I43D)
+                    if (status /= nf90_noerr) stop 'GetNetCDFMatrix - ModuleNetCDFCF_2_HDF5MOHID - ERR160'
+                endif
             
             endif
 
-        else if (Dim==4) then        
+        else if (Dim==4) then     
+        
+            if (present(inst)) then  
+                status = nf90_inquire_dimension(ncid, dimIDs(1), len = xdim)
+                if (status /= nf90_noerr) stop 'GetNetCDFMatrix - ModuleNetCDFCF_2_HDF5MOHID - ERR170'
+
+                status = nf90_inquire_dimension(ncid, dimIDs(2), len = ydim)
+                if (status /= nf90_noerr) stop 'GetNetCDFMatrix - ModuleNetCDFCF_2_HDF5MOHID - ERR180'
+
+                status = nf90_inquire_dimension(ncid, dimIDs(3), len = zdim)
+                if (status /= nf90_noerr) stop 'GetNetCDFMatrix - ModuleNetCDFCF_2_HDF5MOHID - ERR190'           
+            endif
 
             if      (DataTypeIn == Real8_   ) then
 
-                status = NF90_GET_VAR(ncid,n,ValueIn%R84D)
-                Error = nf90_strerror(status)
-                write(*,*) Error
-                if (status /= nf90_noerr) stop 'GetNetCDFMatrix - ModuleNetCDFCF_2_HDF5MOHID - ERR110'
-                
+                if (present(inst)) then   
+                                    
+                    status = nf90_get_var(ncid,n,ValueIn%R84D,                          &
+                            start = (/    1,    1,    1, inst /),                       &
+                            count = (/ xdim, ydim, zdim,    1 /))                
+                    if (status /= nf90_noerr) stop 'GetNetCDFMatrix - ModuleNetCDFCF_2_HDF5MOHID - ERR200'                
+
+                else
+
+                    status = NF90_GET_VAR(ncid,n,ValueIn%R84D)
+                    if (status /= nf90_noerr) stop 'GetNetCDFMatrix - ModuleNetCDFCF_2_HDF5MOHID - ERR210'
+
+                endif
                 
             else if (DataTypeIn == Real4_   ) then
             
-                status = NF90_GET_VAR(ncid,n,ValueIn%R44D)
-                if (status /= nf90_noerr) stop 'GetNetCDFMatrix - ModuleNetCDFCF_2_HDF5MOHID - ERR120'
-            
+                if (present(inst)) then   
+                                    
+                    status = nf90_get_var(ncid,n,ValueIn%R44D,                          &
+                            start = (/    1,    1,    1, inst /),                       &
+                            count = (/ xdim, ydim, zdim,    1 /))                
+                    if (status /= nf90_noerr) stop 'GetNetCDFMatrix - ModuleNetCDFCF_2_HDF5MOHID - ERR220'                
+
+                else
+
+                    status = NF90_GET_VAR(ncid,n,ValueIn%R44D)
+                    if (status /= nf90_noerr) stop 'GetNetCDFMatrix - ModuleNetCDFCF_2_HDF5MOHID - ERR210'
+
+                endif
+                            
             else if (DataTypeIn == Integer4_) then
             
-                status = NF90_GET_VAR(ncid,n,ValueIn%I44D)
-                if (status /= nf90_noerr) stop 'GetNetCDFMatrix - ModuleNetCDFCF_2_HDF5MOHID - ERR130'
-            
+                if (present(inst)) then   
+                                    
+                    status = nf90_get_var(ncid,n,ValueIn%I44D,                          &
+                            start = (/    1,    1,    1, inst /),                       &
+                            count = (/ xdim, ydim, zdim,    1 /))                
+                    if (status /= nf90_noerr) stop 'GetNetCDFMatrix - ModuleNetCDFCF_2_HDF5MOHID - ERR220'                
+
+                else
+
+                    status = NF90_GET_VAR(ncid,n,ValueIn%I44D)
+                    if (status /= nf90_noerr) stop 'GetNetCDFMatrix - ModuleNetCDFCF_2_HDF5MOHID - ERR230'
+
+                endif            
             endif
 
         else
-            stop 'GetNetCDFMatrix - ModuleNetCDFCF_2_HDF5MOHID - ERR140'
+            stop 'GetNetCDFMatrix - ModuleNetCDFCF_2_HDF5MOHID - ERR240'
         endif
         
     end subroutine GetNetCDFMatrix
@@ -2631,11 +3345,13 @@ if1:   if(present(Int2D) .or. present(Int3D))then
         integer             :: Dim1
         integer, optional   :: Dim2, Dim3, Dim4
         !Local-----------------------------------------------------------------                
+        integer             :: Dim1_, Dim2_, Dim3_, Dim4_
         integer             :: Dim, DataTypeIn
         !Begin-----------------------------------------------------------------        
         
         Dim         = ValueIn%Dim
         DataTypeIn  = ValueIn%DataType
+        
         
         if (DataTypeIn /= Real8_ .and. DataTypeIn /= Real4_ .and. DataTypeIn /= Integer4_) then
             stop 'GetNetCDFValue - ModuleNetCDFCF_2_HDF5MOHID - ERR10'
@@ -2650,23 +3366,35 @@ if1:   if(present(Int2D) .or. present(Int3D))then
         endif
         
         if (Dim ==4) then
-            if (.not.(present(Dim2).and.present(Dim3).and.present(Dim4))) &
+            if (.not.(present(Dim2).and.present(Dim3).and.present(Dim4))) then
                 stop 'GetNetCDFValue - ModuleNetCDFCF_2_HDF5MOHID - ERR40'
+            endif
         endif
+        
+        Dim1_ = Dim1
+        if (present(Dim2)) Dim2_ = Dim2
+        if (present(Dim3)) Dim3_ = Dim3        
+        if (present(Dim4)) Dim4_ = Dim4                
+        
+                
+        if (Me%ReadInvertXY .and. Dim >=2) then
+            Dim1_ = Dim2
+            Dim2_ = Dim1
+        endif        
 
         if      (Dim==1) then
         
             if      (DataTypeIn == Real8_   ) then
                 
-                GetNetCDFValue = ValueIn%R81D(Dim1)
+                GetNetCDFValue = ValueIn%R81D(Dim1_)
                 
             else if (DataTypeIn == Real4_   ) then
             
-                GetNetCDFValue = ValueIn%R41D(Dim1)            
+                GetNetCDFValue = ValueIn%R41D(Dim1_)            
             
             else if (DataTypeIn == Integer4_) then
             
-                GetNetCDFValue = ValueIn%I41D(Dim1)                        
+                GetNetCDFValue = ValueIn%I41D(Dim1_)                        
             
             endif
         
@@ -2674,15 +3402,15 @@ if1:   if(present(Int2D) .or. present(Int3D))then
     
             if      (DataTypeIn == Real8_   ) then
                 
-                GetNetCDFValue = ValueIn%R82D(Dim1,Dim2)
+                GetNetCDFValue = ValueIn%R82D(Dim1_,Dim2_)
                 
             else if (DataTypeIn == Real4_   ) then
             
-                GetNetCDFValue = ValueIn%R42D(Dim1,Dim2)            
+                GetNetCDFValue = ValueIn%R42D(Dim1_,Dim2_)            
             
             else if (DataTypeIn == Integer4_) then
             
-                GetNetCDFValue = ValueIn%I42D(Dim1,Dim2)                        
+                GetNetCDFValue = ValueIn%I42D(Dim1_,Dim2_)                        
             
             endif    
     
@@ -2690,15 +3418,15 @@ if1:   if(present(Int2D) .or. present(Int3D))then
 
             if      (DataTypeIn == Real8_   ) then
                 
-                GetNetCDFValue = ValueIn%R83D(Dim1,Dim2,Dim3)
+                GetNetCDFValue = ValueIn%R83D(Dim1_,Dim2_,Dim3_)
                 
             else if (DataTypeIn == Real4_   ) then
             
-                GetNetCDFValue = ValueIn%R43D(Dim1,Dim2,Dim3)            
+                GetNetCDFValue = ValueIn%R43D(Dim1_,Dim2_,Dim3_)            
             
             else if (DataTypeIn == Integer4_) then
             
-                GetNetCDFValue = ValueIn%I43D(Dim1,Dim2,Dim3)                        
+                GetNetCDFValue = ValueIn%I43D(Dim1_,Dim2_,Dim3_)                        
             
             endif    
         
@@ -2706,15 +3434,15 @@ if1:   if(present(Int2D) .or. present(Int3D))then
 
             if      (DataTypeIn == Real8_   ) then
                 
-                GetNetCDFValue = ValueIn%R84D(Dim1,Dim2,Dim3,Dim4)
+                GetNetCDFValue = ValueIn%R84D(Dim1_,Dim2_,Dim3_,Dim4_)
                 
             else if (DataTypeIn == Real4_   ) then
             
-                GetNetCDFValue = ValueIn%R44D(Dim1,Dim2,Dim3,Dim4)            
+                GetNetCDFValue = ValueIn%R44D(Dim1_,Dim2_,Dim3_,Dim4_)            
             
             else if (DataTypeIn == Integer4_) then
             
-                GetNetCDFValue = ValueIn%I44D(Dim1,Dim2,Dim3,Dim4)                        
+                GetNetCDFValue = ValueIn%I44D(Dim1_,Dim2_,Dim3_,Dim4_)                        
             
             endif    
 
@@ -2734,6 +3462,7 @@ if1:   if(present(Int2D) .or. present(Int3D))then
         integer             :: Dim1
         integer, optional   :: Dim2, Dim3, Dim4
         !Local-----------------------------------------------------------------                
+        integer             :: Dim1_, Dim2_, Dim3_, Dim4_
         integer             :: Dim, DataTypeIn
         !Begin-----------------------------------------------------------------        
         
@@ -2756,20 +3485,31 @@ if1:   if(present(Int2D) .or. present(Int3D))then
             if (.not.(present(Dim2).and.present(Dim3).and.present(Dim4))) &
                 stop 'SetNetCDFValue - ModuleNetCDFCF_2_HDF5MOHID - ERR40'
         endif
+        
+        Dim1_ = Dim1
+        if (present(Dim2)) Dim2_ = Dim2
+        if (present(Dim3)) Dim3_ = Dim3        
+        if (present(Dim4)) Dim4_ = Dim4                
+        
+                
+        if (Me%ReadInvertXY .and. Dim >=2) then
+            Dim1_ = Dim2
+            Dim2_ = Dim1
+        endif           
 
         if      (Dim==1) then
         
             if      (DataTypeIn == Real8_   ) then
                 
-                ValueIn%R81D(Dim1) = SetValue
+                ValueIn%R81D(Dim1_) = SetValue
                 
             else if (DataTypeIn == Real4_   ) then
             
-               ValueIn%R41D(Dim1)  = SetValue
+               ValueIn%R41D(Dim1_)  = SetValue
             
             else if (DataTypeIn == Integer4_) then
             
-                ValueIn%I41D(Dim1) = SetValue                        
+                ValueIn%I41D(Dim1_) = SetValue                        
             
             endif
         
@@ -2777,15 +3517,15 @@ if1:   if(present(Int2D) .or. present(Int3D))then
     
             if      (DataTypeIn == Real8_   ) then
                 
-                ValueIn%R82D(Dim1,Dim2) = SetValue
+                ValueIn%R82D(Dim1_,Dim2_) = SetValue
                 
             else if (DataTypeIn == Real4_   ) then
             
-                ValueIn%R42D(Dim1,Dim2) = SetValue
+                ValueIn%R42D(Dim1_,Dim2_) = SetValue
             
             else if (DataTypeIn == Integer4_) then
             
-                ValueIn%I42D(Dim1,Dim2) = SetValue
+                ValueIn%I42D(Dim1_,Dim2_) = SetValue
             
             endif    
     
@@ -2793,15 +3533,15 @@ if1:   if(present(Int2D) .or. present(Int3D))then
 
             if      (DataTypeIn == Real8_   ) then
                 
-                ValueIn%R83D(Dim1,Dim2,Dim3) = SetValue
+                ValueIn%R83D(Dim1_,Dim2_,Dim3_) = SetValue
                 
             else if (DataTypeIn == Real4_   ) then
             
-                ValueIn%R43D(Dim1,Dim2,Dim3) = SetValue
+                ValueIn%R43D(Dim1_,Dim2_,Dim3_) = SetValue
             
             else if (DataTypeIn == Integer4_) then
             
-                ValueIn%I43D(Dim1,Dim2,Dim3) = SetValue
+                ValueIn%I43D(Dim1_,Dim2_,Dim3_) = SetValue
             
             endif    
         
@@ -2809,15 +3549,15 @@ if1:   if(present(Int2D) .or. present(Int3D))then
 
             if      (DataTypeIn == Real8_   ) then
                 
-                ValueIn%R84D(Dim1,Dim2,Dim3,Dim4) = SetValue
+                ValueIn%R84D(Dim1_,Dim2_,Dim3_,Dim4_) = SetValue
                 
             else if (DataTypeIn == Real4_   ) then
             
-                ValueIn%R44D(Dim1,Dim2,Dim3,Dim4) = SetValue
+                ValueIn%R44D(Dim1_,Dim2_,Dim3_,Dim4_) = SetValue
             
             else if (DataTypeIn == Integer4_) then
             
-                ValueIn%I44D(Dim1,Dim2,Dim3,Dim4) = SetValue
+                ValueIn%I44D(Dim1_,Dim2_,Dim3_,Dim4_) = SetValue
             
             endif    
 
@@ -2830,6 +3570,118 @@ if1:   if(present(Int2D) .or. present(Int3D))then
     !------------------------------------------------------------------------
         
     subroutine WriteFieldHDF5(iP, iFinal)
+
+        !Arguments-------------------------------------------------------------
+        integer                                         :: iP, iFinal
+
+        !Local-----------------------------------------------------------------
+        real,   pointer, dimension(:,:)                 :: Aux2D
+        integer                                         :: STAT_CALL
+        integer                                         :: WorkILB, WorkJLB, WorkKLB
+        integer                                         :: WorkIUB, WorkJUB, WorkKUB
+        integer                                         :: i, j
+
+        !Begin-----------------------------------------------------------------
+        
+        !Bounds
+
+
+
+        WorkILB = Me%WorkSize%ILB 
+        WorkIUB = Me%WorkSize%IUB 
+
+        WorkJLB = Me%WorkSize%JLB 
+        WorkJUB = Me%WorkSize%JUB 
+
+        WorkKLB = Me%WorkSize%KLB 
+        WorkKUB = Me%WorkSize%KUB 
+
+
+
+        if      (Me%Field(iP)%Dim==2) then
+        
+            call HDF5SetLimits  (Me%ObjHDF5, WorkILB, WorkIUB, WorkJLB, WorkJUB, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'WriteFieldHDF5 - ModuleNetCDFCF_2_HDF5MOHID - ERR10'        
+
+            call HDF5WriteData  (Me%ObjHDF5, "/Results/"//trim(Me%Field(iP)%ID%Name),   &
+                                 trim(Me%Field(iP)%ID%Name),                            &
+                                 trim(Me%Field(iP)%ID%Units),                           &
+                                 Array2D = Me%Field(iP)%Value2DOut,                     &
+                                 OutputNumber = iFinal, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'WriteFieldHDF5 - ModuleNetCDFCF_2_HDF5MOHID - ERR20'
+            
+            if (Me%Field(iP)%FromDir2Vector) then
+            
+                allocate(Aux2D(WorkILB:WorkIUB, WorkJLB:WorkJUB))
+
+                do j = WorkJLB, WorkJUB
+                do i = WorkILB, WorkIUB                
+                    !Nautical convention 
+                    Aux2D(i,j) = cos((270 - Me%Field(iP)%Value2DOut(i,j))*Pi/180.) 
+                enddo
+                enddo
+                
+                call HDF5WriteData  (HDF5ID       = Me%ObjHDF5,                             &
+                                     GroupName    = "/Results/"//trim(Me%Field(iP)%DirX),&
+                                     Name         = trim(Me%Field(iP)%DirX),             &
+                                     Units        = "-",                                    &
+                                     Array2D      = Aux2D,                                  &
+                                     OutputNumber = iFinal,                                 &
+                                     STAT         = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'WriteFieldHDF5 - ModuleNetCDFCF_2_HDF5MOHID - ERR30'
+                
+                do j = WorkJLB, WorkJUB
+                do i = WorkILB, WorkIUB                
+                    !Nautical convention 
+                    Aux2D(i,j) = sin((270 - Me%Field(iP)%Value2DOut(i,j))*Pi/180.) 
+                enddo
+                enddo
+                
+                call HDF5WriteData  (HDF5ID       = Me%ObjHDF5,                             &
+                                     GroupName    = "/Results/"//trim(Me%Field(iP)%DirY),&
+                                     Name         = trim(Me%Field(iP)%DirY),             &
+                                     Units        = "-",                                    &
+                                     Array2D      = Aux2D,                                  &
+                                     OutputNumber = iFinal,                                 &
+                                     STAT         = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'WriteFieldHDF5 - ModuleNetCDFCF_2_HDF5MOHID - ERR40'
+                                    
+                deallocate(Aux2D)
+
+            endif
+
+        else if (Me%Field(iP)%Dim==3) then
+        
+            call HDF5SetLimits  (Me%ObjHDF5, WorkILB, WorkIUB, WorkJLB,                 &
+                                 WorkJUB, WorkKLB, WorkKUB, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'WriteFieldHDF5 - ModuleNetCDFCF_2_HDF5MOHID - ERR50'        
+
+            call HDF5WriteData  (Me%ObjHDF5, "/Results/"//trim(Me%Field(iP)%ID%Name),   &
+                                 trim(Me%Field(iP)%ID%Name),                            &
+                                 trim(Me%Field(iP)%ID%Units),                           &
+                                 Array3D = Me%Field(iP)%Value3DOut,                     &
+                                 OutputNumber = iFinal, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'WriteFieldHDF5 - ModuleNetCDFCF_2_HDF5MOHID - ERR60'
+
+        else 
+
+            stop 'WriteFieldHDF5 - ModuleNetCDFCF_2_HDF5MOHID - ERR70'
+
+        endif
+
+
+        !Writes everything to disk
+        call HDF5FlushMemory (Me%ObjHDF5, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFieldHDF5 - ModuleNetCDFCF_2_HDF5MOHID - ERR90'
+
+
+    end subroutine WriteFieldHDF5
+
+
+    !----------------------------------------------------------------------
+    !------------------------------------------------------------------------
+        
+    subroutine ReadFieldHDF5(iP, iFinal)
 
         !Arguments-------------------------------------------------------------
         integer                                         :: iP, iFinal
@@ -2858,47 +3710,41 @@ if1:   if(present(Int2D) .or. present(Int3D))then
 
         if      (Me%Field(iP)%Dim==2) then
         
-            call HDF5SetLimits  (Me%ObjHDF5, WorkILB, WorkIUB, WorkJLB,                 &
-                                 WorkJUB, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'WriteFieldHDF5 - ModuleNetCDFCF_2_HDF5MOHID - ERR10'        
+            call HDF5SetLimits  (Me%ObjHDF5, WorkILB, WorkIUB, WorkJLB, WorkJUB, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadFieldHDF5 - ModuleNetCDFCF_2_HDF5MOHID - ERR10'        
 
-            call HDF5WriteData  (Me%ObjHDF5, "/Results/"//trim(Me%Field(iP)%ID%Name),   &
+            call HDF5ReadData  (Me%ObjHDF5, "/Results/"//trim(Me%Field(iP)%ID%Name),    &
                                  trim(Me%Field(iP)%ID%Name),                            &
-                                 trim(Me%Field(iP)%ID%Units),                           &
                                  Array2D = Me%Field(iP)%Value2DOut,                     &
                                  OutputNumber = iFinal, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'WriteFieldHDF5 - ModuleNetCDFCF_2_HDF5MOHID - ERR20'
+            if (STAT_CALL /= SUCCESS_) stop 'ReadFieldHDF5 - ModuleNetCDFCF_2_HDF5MOHID - ERR20'
+            
 
         else if (Me%Field(iP)%Dim==3) then
         
             call HDF5SetLimits  (Me%ObjHDF5, WorkILB, WorkIUB, WorkJLB,                 &
                                  WorkJUB, WorkKLB, WorkKUB, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'WriteFieldHDF5 - ModuleNetCDFCF_2_HDF5MOHID - ERR30'        
+            if (STAT_CALL /= SUCCESS_) stop 'ReadFieldHDF5 - ModuleNetCDFCF_2_HDF5MOHID - ERR30'
 
-            call HDF5WriteData  (Me%ObjHDF5, "/Results/"//trim(Me%Field(iP)%ID%Name),   &
+            call HDF5ReadData  (Me%ObjHDF5, "/Results/"//trim(Me%Field(iP)%ID%Name),    &
                                  trim(Me%Field(iP)%ID%Name),                            &
-                                 trim(Me%Field(iP)%ID%Units),                           &
                                  Array3D = Me%Field(iP)%Value3DOut,                     &
                                  OutputNumber = iFinal, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'WriteFieldHDF5 - ModuleNetCDFCF_2_HDF5MOHID - ERR40'
+            if (STAT_CALL /= SUCCESS_) stop 'ReadFieldHDF5 - ModuleNetCDFCF_2_HDF5MOHID - ERR40'
 
         else 
 
-            stop 'WriteFieldHDF5 - ModuleNetCDFCF_2_HDF5MOHID - ERR50'
+            stop 'ReadFieldHDF5 - ModuleNetCDFCF_2_HDF5MOHID - ERR50'
 
         endif
 
 
         !Writes everything to disk
         call HDF5FlushMemory (Me%ObjHDF5, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'WriteFieldHDF5 - ModuleMecatorFormat - ERR90'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadFieldHDF5 - ModuleNetCDFCF_2_HDF5MOHID - ERR60'
 
 
-    end subroutine WriteFieldHDF5
-
-
-    !----------------------------------------------------------------------
-
+    end subroutine ReadFieldHDF5
     !------------------------------------------------------------------------
         
     subroutine WriteFieldNetCDF(iP, iFinal)
@@ -2924,11 +3770,11 @@ if1:   if(present(Int2D) .or. present(Int3D))then
 
         if      (Me%Field(iP)%Dim==2) then
         
-            allocate(Field2D(1:WorkIUB,1:WorkJUB))
+            allocate(Field2D(1:WorkJUB,1:WorkIUB))
 
             do j = 1, WorkJUB
             do i = 1, WorkIUB
-                Field2D(i,j)=Me%Field(iP)%Value2DOut(i,j)
+                Field2D(j,i)=Me%Field(iP)%Value2DOut(i,j)
             enddo
             enddo                
              
@@ -2952,16 +3798,74 @@ if1:   if(present(Int2D) .or. present(Int3D))then
                                   STAT          = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_) stop 'WriteFieldNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR10'        
             
+            if (Me%Field(iP)%FromDir2Vector) then
+            
+                do j = 1, WorkJUB
+                do i = 1, WorkIUB
+                    !Nautical convention 
+                    Field2D(j,i) = cos((270 - Me%Field(iP)%Value2DOut(i,j))*Pi/180.) 
+                enddo
+                enddo
+
+                call BuildAttributes(trim(Me%Field(iP)%DirX), NCDFName, LongName, StandardName, &
+                                           Units, ValidMin, ValidMax,        &
+                                           MinValue, MaxValue, MissingValue, Float2D = Field2D)
+
+
+                call NETCDFWriteData (NCDFID        = Me%NetCDF_Out%ObjNetCDF,  &
+                                      Name          = trim(NCDFName),           &
+                                      LongName      = trim(LongName),           &
+                                      StandardName  = trim(StandardName),       & 
+                                      Units         = trim(Units),              &
+                                      ValidMin      = ValidMin,                 &
+                                      ValidMax      = ValidMax,                 &
+                                      MinValue      = MinValue,                 &
+                                      MaxValue      = MaxValue,                 &
+                                      OutputNumber  = iFinal,                   &
+                                      Array2D       = Field2D,                  &
+                                      STAT          = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_) stop 'WriteFieldNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR20'                  
+
+                do j = 1, WorkJUB
+                do i = 1, WorkIUB
+                    !Nautical convention 
+                    Field2D(j,i) = cos((270 - Me%Field(iP)%Value2DOut(i,j))*Pi/180.) 
+                enddo
+                enddo
+
+                call BuildAttributes(trim(Me%Field(iP)%DirY), NCDFName, LongName, StandardName, &
+                                           Units, ValidMin, ValidMax,        &
+                                           MinValue, MaxValue, MissingValue, Float2D = Field2D)
+
+
+                call NETCDFWriteData (NCDFID        = Me%NetCDF_Out%ObjNetCDF,  &
+                                      Name          = trim(NCDFName),           &
+                                      LongName      = trim(LongName),           &
+                                      StandardName  = trim(StandardName),       & 
+                                      Units         = trim(Units),              &
+                                      ValidMin      = ValidMin,                 &
+                                      ValidMax      = ValidMax,                 &
+                                      MinValue      = MinValue,                 &
+                                      MaxValue      = MaxValue,                 &
+                                      OutputNumber  = iFinal,                   &
+                                      Array2D       = Field2D,                  &
+                                      STAT          = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_) stop 'WriteFieldNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR30'
+                
+            endif
+
             deallocate(Field2D)
+            
+            
 
         else if (Me%Field(iP)%Dim==3) then
 
-            allocate(Field3D(1:WorkIUB,1:WorkJUB,1:WorkKUB))   
+            allocate(Field3D(1:WorkJUB,1:WorkIUB,1:WorkKUB))   
 
             do k = 1, WorkKUB
             do j = 1, WorkJUB
             do i = 1, WorkIUB
-                Field3D(i,j,k)=Me%Field(iP)%Value3DOut(i,j,k)
+                Field3D(j,i,k)=Me%Field(iP)%Value3DOut(i,j,k)
             enddo
             enddo                
             enddo
@@ -2986,7 +3890,7 @@ if1:   if(present(Int2D) .or. present(Int3D))then
                                   OutputNumber  = iFinal,                               &
                                   Array3D       = Field3D,                              &
                                   STAT          = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_) stop 'WriteFieldNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR20'
+            if (STAT_CALL .NE. SUCCESS_) stop 'WriteFieldNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR40'
             
             deallocate(Field3D)        
 
