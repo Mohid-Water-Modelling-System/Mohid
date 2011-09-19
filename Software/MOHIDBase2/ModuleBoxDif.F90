@@ -36,7 +36,8 @@ Module ModuleBoxDif
     use ModuleFunctions,        only: RodaXY, IsOdd
     use ModuleGridData,         only: WriteGridData
     use ModuleHorizontalGrid,   only: GetZCoordinates,  GetGridBorderPolygon,           &
-                                      GetHorizontalGridSize, UnGetHorizontalGrid  
+                                      GetHorizontalGridSize, UnGetHorizontalGrid,       &
+                                      GetCornersCoordinates  
     use ModuleTimeSerie,        only: StartTimeSerie, WriteTimeSerieLine, KillTimeSerie
     use ModuleDrawing
 
@@ -185,6 +186,7 @@ Module ModuleBoxDif
     type       T_External                                   
         type(T_Time)                                        :: Now
         real,    dimension(:,:  ), pointer                  :: ZCoordX, ZCoordY
+        real,    dimension(:,:  ), pointer                  :: CornersX, CornersY
         real(8), dimension(:,:  ), pointer                  :: FluxX2D
         real(8), dimension(:,:  ), pointer                  :: FluxY2D
         real(8), dimension(:,:,:), pointer                  :: FluxX3D
@@ -1076,6 +1078,8 @@ cd2 :           if (BlockFound) then
         call GetZCoordinates(Me%ObjHorizontalGrid, Me%ExternalVar%ZCoordX, Me%ExternalVar%ZCoordY, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadLockGridInformation - ModuleBoxDif - ERR10'
 
+        call GetCornersCoordinates(Me%ObjHorizontalGrid, Me%ExternalVar%CornersX, Me%ExternalVar%CornersY, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadLockGridInformation - ModuleBoxDif - ERR10'
 
     end subroutine ReadLockGridInformation
     
@@ -1100,6 +1104,16 @@ cd2 :           if (BlockFound) then
                                  STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadUnLockGridInformation - ModuleBoxDif - ERR20'
 
+        call UnGetHorizontalGrid(Me%ObjHorizontalGrid,                                  &
+                                 Me%ExternalVar%CornersX,                                &
+                                 STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadUnLockGridInformation - ModuleBoxDif - ERR30'
+        
+        call UnGetHorizontalGrid(Me%ObjHorizontalGrid,                                  &
+                                 Me%ExternalVar%CornersY,                                &
+                                 STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadUnLockGridInformation - ModuleBoxDif - ERR40'
+
 
     end subroutine ReadUnLockGridInformation
     
@@ -1117,8 +1131,9 @@ cd2 :           if (BlockFound) then
         type (T_Box),    pointer                        :: CurrentBox
         integer                                         :: WILB, WIUB
         integer                                         :: WJLB, WJUB
-        integer                                         :: i, j
+        integer                                         :: i, j, ii, jj
         type(T_PointF), pointer                         :: Point
+        logical                                         :: NoPointInsidePolygon =.true.
 
         !Begin-----------------------------------------------------------------
         
@@ -1130,33 +1145,58 @@ cd2 :           if (BlockFound) then
 
         allocate(Point)
 
-        do i = WILB,  WIUB
-        do j = WJLB , WJUB
+        CurrentBox => Me%FirstBox
 
-            if(WaterPoints2D(i,j).eq. WaterPoint)then
+        do while(associated(CurrentBox))
+                
+            NoPointInsidePolygon  =.true.                
+                    
+            do i = WILB,  WIUB
+            do j = WJLB , WJUB
 
+                if(WaterPoints2D(i,j).eq. WaterPoint)then
 
-                Point%X = Me%ExternalVar%ZCoordX(I, J  )
-
-                Point%Y = Me%ExternalVar%ZCoordY(I, J  )
-
-            
-                CurrentBox => Me%FirstBox
-
-                do while(associated(CurrentBox))
-
+                    Point%X = Me%ExternalVar%ZCoordX(I, J  )
+                    Point%Y = Me%ExternalVar%ZCoordY(I, J  )
+                    
                     if(IsPointInsidePolygon(Point, CurrentBox%Polygon))then
 
                         Me%Boxes2D(i,j) = CurrentBox%MainID
+                        
+                         NoPointInsidePolygon  =.false.
 
                     end if
+                end if
+            enddo
+            enddo
+            
+            if (NoPointInsidePolygon) then
+            
+                do i = WILB,  WIUB
+                do j = WJLB , WJUB
 
-                    CurrentBox => CurrentBox%Next
-                end do
-            end if
+                    if(WaterPoints2D(i,j).eq. WaterPoint)then
+                        do ii=i,i+1
+                        do jj=j,j+1
+    
+                            Point%X = Me%ExternalVar%CornersX(ii,jj)
+                            Point%Y = Me%ExternalVar%CornersY(ii,jj)
+                        
+                            if(IsPointInsidePolygon(Point, CurrentBox%Polygon))then
+                                Me%Boxes2D(i,j) = CurrentBox%MainID
+                            end if
+                            
+                        enddo
+                        enddo
+                    end if
+                enddo
+                enddo            
+            
+            endif        
 
-        enddo
-        enddo
+            CurrentBox => CurrentBox%Next
+            
+        end do
 
         deallocate(Point)
 
@@ -1176,7 +1216,8 @@ cd2 :           if (BlockFound) then
         type (T_Box),    pointer                        :: CurrentBox
         integer                                         :: WILB, WIUB
         integer                                         :: WJLB, WJUB, WKUB
-        integer                                         :: i, j
+        integer                                         :: i, j, ii, jj
+        logical                                         :: NoPointInsidePolygon
         type(T_PointF), pointer                         :: Point
 
         !Begin-----------------------------------------------------------------
@@ -1190,31 +1231,58 @@ cd2 :           if (BlockFound) then
 
         allocate(Point)
 
-        do i = WILB,  WIUB
-        do j = WJLB , WJUB
+        CurrentBox => Me%FirstBox
 
-            if(WaterPoints3D(i,j, WKUB).eq. WaterPoint)then
+        do while(associated(CurrentBox))
+                
+            NoPointInsidePolygon  =.true.                
+                    
+            do i = WILB,  WIUB
+            do j = WJLB , WJUB
 
-                Point%X = Me%ExternalVar%ZCoordX(I, J  )
+                if(WaterPoints3D(i,j, WKUB).eq. WaterPoint)then
 
-                Point%Y = Me%ExternalVar%ZCoordY(I, J  )
-            
-                CurrentBox => Me%FirstBox
-
-                do while(associated(CurrentBox))
-
+                    Point%X = Me%ExternalVar%ZCoordX(I, J  )
+                    Point%Y = Me%ExternalVar%ZCoordY(I, J  )
+                    
                     if(IsPointInsidePolygon(Point, CurrentBox%Polygon))then
 
                         Me%Boxes2D(i,j) = CurrentBox%MainID
+                        
+                         NoPointInsidePolygon  =.false.
 
                     end if
+                end if
+            enddo
+            enddo
+            
+            if (NoPointInsidePolygon) then
+            
+                do i = WILB,  WIUB
+                do j = WJLB , WJUB
 
-                    CurrentBox => CurrentBox%Next
-                end do
-            end if
+                    if(WaterPoints3D(i,j, WKUB).eq. WaterPoint)then
+                        do ii=i,i+1
+                        do jj=j,j+1
+    
+                            Point%X = Me%ExternalVar%CornersX(ii,jj)
+                            Point%Y = Me%ExternalVar%CornersY(ii,jj)
+                        
+                            if(IsPointInsidePolygon(Point, CurrentBox%Polygon))then
+                                Me%Boxes2D(i,j) = CurrentBox%MainID
+                            end if
+                            
+                        enddo
+                        enddo
+                    end if
+                enddo
+                enddo            
+            
+            endif        
 
-        enddo
-        enddo
+            CurrentBox => CurrentBox%Next
+            
+        end do
 
         deallocate(Point)
 
