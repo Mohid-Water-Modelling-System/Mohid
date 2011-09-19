@@ -102,6 +102,7 @@ Module ModuleHorizontalGrid
     public  :: GetDefineCellsMap
     public  :: GetNotDefinedCells
     public  :: GetZCoordinates 
+    public  :: GetCornersCoordinates
     public  :: GetFatherGridID
     public  :: GetGridCellArea
     private ::      Search_FatherGrid
@@ -164,6 +165,12 @@ Module ModuleHorizontalGrid
         module procedure ConstructHorizontalGridV1
         module procedure ConstructHorizontalGridV2
     end interface  ConstructHorizontalGrid
+
+    interface  WGS84toGoogleMaps
+        module procedure WGS84toGoogleMaps1D
+        module procedure WGS84toGoogleMaps2D
+    end interface  WGS84toGoogleMaps
+
 
     private :: UnGetHorizontalGrid1d
     private :: UnGetHorizontalGrid2d
@@ -3000,7 +3007,7 @@ cd23:   if (Me%CoordType == CIRCULAR_) then
 
 !------------------------------------------------------------------------------
 
-    subroutine WGS84toGoogleMaps(lon, lat, WorkSize, x, y) 
+    subroutine WGS84toGoogleMaps2D(lon, lat, WorkSize, x, y) 
 
         !Arguments-------------------------------------------------------------
          real,    dimension(:,:), pointer :: lon, lat
@@ -3019,16 +3026,44 @@ cd23:   if (Me%CoordType == CIRCULAR_) then
                 y(i,j) = y(i,j) * 20037508.34 / 180
             else
                 write(*,*) 'Out of range - Lat >= 90 or Lat <=-90'
-                stop 'WGS84toGoogleMap - ModuleHorizontalGrid - ERR10'
+                stop 'WGS84toGoogleMap2D - ModuleHorizontalGrid - ERR10'
             endif
             
         enddo
         enddo
         
-    end subroutine WGS84toGoogleMaps
+    end subroutine WGS84toGoogleMaps2D
   
 !------------------------------------------------------------------------------
+!------------------------------------------------------------------------------
+
+    subroutine WGS84toGoogleMaps1D(lon, lat, Dim,  x, y) 
+
+        !Arguments-------------------------------------------------------------
+         real(8), dimension(:  ), pointer :: lon, lat
+         integer                          :: Dim
+         real(8), dimension(:  ), pointer :: x, y
+        !Local-----------------------------------------------------------------
+        integer                           :: i
+        !Begin-----------------------------------------------------------------
+        
+        do i=1, Dim
+            x(i) = lon(i) * 20037508.34 / 180;
+        enddo
+        
+        do i=1, Dim
+            if (abs(lat(i))<90) then
+                y(i) = log(tan((90 + lat(i)) * Pi / 360)) / (Pi / 180)
+                y(i) = y(i) * 20037508.34 / 180
+            else
+                write(*,*) 'Out of range - Lat >= 90 or Lat <=-90'
+                stop 'WGS84toGoogleMap1D - ModuleHorizontalGrid - ERR10'
+            endif
+        enddo
+        
+    end subroutine WGS84toGoogleMaps1D
   
+!------------------------------------------------------------------------------  
     subroutine CheckGridBorder()
 
         !Arguments-------------------------------------------------------------
@@ -4486,6 +4521,49 @@ cd4 :       if (present(GridLongitudeConn)) then
         !------------------------------------------------------------------------
 
     end subroutine GetZCoordinates
+
+    subroutine GetCornersCoordinates(HorizontalGridID, CoordX, CoordY, STAT)
+
+        !Arguments---------------------------------------------------------------
+        integer                                     :: HorizontalGridID
+        real, dimension(:,:), optional, pointer     :: CoordX, CoordY
+        integer, optional,  intent(OUT)             :: STAT    
+
+        !Local-------------------------------------------------------------------
+        integer                                     :: STAT_             
+        integer                                     :: ready_              
+
+        !------------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(HorizontalGridID, ready_)    
+        
+        if ((ready_ == IDLE_ERR_     ) .OR.                                     &
+            (ready_ == READ_LOCK_ERR_)) then
+            
+            call Read_Lock(mHORIZONTALGRID_, Me%InstanceID)
+            call Read_Lock(mHORIZONTALGRID_, Me%InstanceID)
+            
+            if (Me%CoordType == GEOG_ .or. Me%CoordType == SIMPLE_GEOG_) then            
+                CoordX => Me%LongitudeConn
+                CoordY => Me%LatitudeConn
+            else
+                CoordX => Me%XX_IE
+                CoordY => Me%YY_IE
+            endif
+            
+            STAT_ = SUCCESS_
+        else 
+            STAT_ = ready_
+        end if
+
+        if (present(STAT))                                                      &
+            STAT = STAT_
+
+        !------------------------------------------------------------------------
+
+    end subroutine GetCornersCoordinates
 
     !----------------------------------------------------------------------------
 
@@ -6042,12 +6120,12 @@ doi:        do i = ILBSon, IUBSon
                 Iupper = ISon(i, j) + 1
 
                 if (Jupper > JUBFather) Jupper = JUBFather
-
                 if (Iupper > IUBFather) Iupper = IUBFather
-
                 if (Jlower < JLBFather) Jlower = JLBFather
-
                 if (Ilower < ILBFather) Ilower = ILBFather
+                
+                if (Jupper < JLBFather) Jupper = JLBFather
+                if (Iupper < ILBFather) Iupper = ILBFather              
 
                 if (.not. ObjHorizontalGridFather%CornersXYInput) then
 
@@ -6691,6 +6769,9 @@ doi:        do i = ILBSon, IUBSon
                 if (Iupper > IUBFather) Iupper = IUBFather
                 if (Jlower < JLBFather) Jlower = JLBFather
                 if (Ilower < ILBFather) Ilower = ILBFather
+
+                if (Jupper < JLBFather) Jupper = JLBFather
+                if (Iupper < ILBFather) Iupper = ILBFather
 
                 if (.not. ObjHorizontalGridFather%CornersXYInput) then
                 
