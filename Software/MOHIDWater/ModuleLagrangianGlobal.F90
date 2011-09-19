@@ -13421,9 +13421,9 @@ d1:     do em =1, Me%EulerModelNumber
         !Local-----------------------------------------------------------------
         type (T_Origin), pointer                    :: CurrentOrigin
         real(8), dimension(:), pointer              :: Matrix1D, Matrix1DX, Matrix1DY
-#ifdef _USE_PROJ4  
+#ifdef _GOOGLEMAPS          
         real(8), dimension(:), pointer              :: Aux1DX, Aux1DY        
-#endif        
+#endif
         integer                                     :: nP
         type (T_Partic), pointer                    :: CurrentPartic
         integer                                     :: OutPutNumber
@@ -13450,7 +13450,8 @@ d1:     do em =1, Me%EulerModelNumber
         integer                                     :: OutPutLines, JetTotalParticles, FirstParticle, em, em1, emMax, emp
         type (T_Position)                           :: Position
         real(8)                                     :: AverageX, AverageY, Stdv, RadiusOfInfluence
-        
+                           
+       
         !Begin--------------------------------------------------------------------------
 
         if (Me%Output%Write_) then
@@ -13705,6 +13706,7 @@ i1:             if (nP>0) then
                             endif
                             
 #ifdef _GOOGLEMAPS  
+
                             allocate   (Aux1DX(CurrentOrigin%nParticle))
                             allocate   (Aux1DY(CurrentOrigin%nParticle))
                             Aux1DX(:) = FillValueReal
