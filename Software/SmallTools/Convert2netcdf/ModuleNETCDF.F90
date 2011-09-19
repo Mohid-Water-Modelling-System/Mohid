@@ -664,22 +664,21 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             
             if     (STAT_CALL == nf90_enotvar)then
 
+                Dims2ID(1) = Me%Dims(1)%ID%Number  !x
+                Dims2ID(2) = Me%Dims(2)%ID%Number  !y
+            
                 !enter definition mode
                 STAT_CALL = nf90_redef(ncid = Me%ncid)
                 if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteDataR4_2D - ModuleNETCDF - ERR00'
 
                 if(present(OutputNumber))then
-                    
-                    Dims3ID(1) = Me%Dims(2)%ID%Number  !y
-                    Dims3ID(2) = Me%Dims(1)%ID%Number  !x
-                    Dims3ID(3) = Me%Dims(4)%ID%Number  !time
+                    Dims3ID(1:2) = Dims2ID(1:2)
+                    Dims3ID(3)   = Me%Dims(4)%ID%Number  !time
 
                     STAT_CALL= nf90_def_var(Me%ncid, trim(Name), nf90_float, Dims3ID, VarID)
                     if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteDataR4_2D - ModuleNETCDF - ERR01'
                 else
                     
-                    Dims2ID(1) = Me%Dims(2)%ID%Number  !y
-                    Dims2ID(2) = Me%Dims(1)%ID%Number  !x
 
                     STAT_CALL= nf90_def_var(Me%ncid, trim(Name), nf90_float, Dims2ID, VarID)
                     if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteDataR4_2D - ModuleNETCDF - ERR02'
@@ -715,7 +714,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
                 STAT_CALL = nf90_put_var(Me%ncid, VarID, Array2D,                       &
                                          start = (/ 1, 1, OutputNumber /),              &
-                                         count = (/ Me%Dims(2)%UB, Me%Dims(1)%UB, 1 /))
+                                         count = (/ Me%Dims(1)%UB, Me%Dims(2)%UB, 1 /))
                 if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteDataR4_2D - ModuleNETCDF - ERR05' 
 
             else
@@ -773,7 +772,11 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             STAT_CALL= nf90_inq_varid (Me%ncid, trim(Name), VarID)
             
             if     (STAT_CALL == nf90_enotvar)then
-
+            
+                Dims3ID(1) = Me%Dims(1)%ID%Number  !x
+                Dims3ID(2) = Me%Dims(2)%ID%Number  !y
+                Dims3ID(3) = Me%Dims(3)%ID%Number  !z                            
+                
                 if(present(OutputNumber))then
                 
                     if (OutputNumber == 1) then
@@ -781,11 +784,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                         !enter definition mode
                         STAT_CALL = nf90_redef(ncid = Me%ncid)
                         if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteDataR4_3D - ModuleNETCDF - ERR10'
-
-                        Dims4ID(1) = Me%Dims(2)%ID%Number  !y
-                        Dims4ID(2) = Me%Dims(1)%ID%Number  !x
-                        Dims4ID(3) = Me%Dims(3)%ID%Number  !z
-                        Dims4ID(4) = Me%Dims(4)%ID%Number  !time
+                    
+                        Dims4ID(1:3) = Dims3ID(1:3)
+                        Dims4ID(4)   = Me%Dims(4)%ID%Number  !time
 
                         STAT_CALL= nf90_def_var(Me%ncid, trim(Name), nf90_float, Dims4ID, VarID)
                         if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteDataR4_3D - ModuleNETCDF - ERR20'
@@ -814,9 +815,6 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                     STAT_CALL = nf90_redef(ncid = Me%ncid)
                     if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteDataR4_3D - ModuleNETCDF - ERR40'
                     
-                    Dims3ID(1) = Me%Dims(2)%ID%Number  !y
-                    Dims3ID(2) = Me%Dims(1)%ID%Number  !x
-                    Dims3ID(3) = Me%Dims(3)%ID%Number  !z
 
                     STAT_CALL= nf90_def_var(Me%ncid, trim(Name), nf90_float, Dims3ID, VarID)
                     if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteDataR4_3D - ModuleNETCDF - ERR50'
@@ -853,7 +851,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
                 STAT_CALL = nf90_put_var(Me%ncid, VarID, Array3D,                       &
                                          start = (/ 1, 1, 1, OutputNumber /),           &
-                                         count = (/ Me%Dims(2)%UB, Me%Dims(1)%UB, Me%Dims(3)%UB, 1 /))
+                                         count = (/ Me%Dims(1)%UB, Me%Dims(2)%UB, Me%Dims(3)%UB, 1 /))
                 if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteDataR4_3D - ModuleNETCDF - ERR80' 
 
             else
@@ -911,24 +909,22 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             STAT_CALL= nf90_inq_varid (Me%ncid, trim(Name), VarID)
             
             if     (STAT_CALL == nf90_enotvar)then
+            
+                Dims2ID(1) = Me%Dims(1)%ID%Number  !x
+                Dims2ID(2) = Me%Dims(2)%ID%Number  !y
 
                 !enter definition mode
                 STAT_CALL = nf90_redef(ncid = Me%ncid)
                 if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteDataR8_2D - ModuleNETCDF - ERR00'
 
                 if(present(OutputNumber))then
-                    
-                    Dims3ID(1) = Me%Dims(2)%ID%Number  !y
-                    Dims3ID(2) = Me%Dims(1)%ID%Number  !x
-                    Dims3ID(3) = Me%Dims(4)%ID%Number  !time
+                    Dims3ID(1:2) = Dims2ID(1:2)                    
+                    Dims3ID(3  ) = Me%Dims(4)%ID%Number  !time
 
                     STAT_CALL= nf90_def_var(Me%ncid, trim(Name), nf90_double, Dims3ID, VarID)
                     if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteDataR8_2D - ModuleNETCDF - ERR01'
                 else
                     
-                    Dims2ID(1) = Me%Dims(2)%ID%Number  !y
-                    Dims2ID(2) = Me%Dims(1)%ID%Number  !x
-
                     STAT_CALL= nf90_def_var(Me%ncid, trim(Name), nf90_double, Dims2ID, VarID)
                     if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteDataR8_2D - ModuleNETCDF - ERR02'
 
@@ -963,7 +959,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
                 STAT_CALL = nf90_put_var(Me%ncid, VarID, Array2D,                       &
                                          start = (/ 1, 1, OutputNumber /),              &
-                                         count = (/ Me%Dims(2)%UB, Me%Dims(1)%UB, 1 /))
+                                         count = (/ Me%Dims(1)%UB, Me%Dims(2)%UB, 1 /))
                 if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteDataR8_2D - ModuleNETCDF - ERR05' 
 
             else
@@ -1022,6 +1018,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             
             STAT_CALL= nf90_inq_varid (Me%ncid, trim(Name), VarID)
             
+            Dims3ID(1) = Me%Dims(1)%ID%Number  !z
+            Dims3ID(2) = Me%Dims(2)%ID%Number  !y
+            Dims3ID(3) = Me%Dims(3)%ID%Number  !z
+            
             if     (STAT_CALL == nf90_enotvar)then
 
                 !enter definition mode
@@ -1029,20 +1029,12 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteDataR8_3D - ModuleNETCDF - ERR00'
 
                 if(present(OutputNumber))then
-                
-                    Dims4ID(1) = Me%Dims(2)%ID%Number  !y
-                    Dims4ID(2) = Me%Dims(1)%ID%Number  !x
-                    Dims4ID(3) = Me%Dims(3)%ID%Number  !z
-                    Dims4ID(4) = Me%Dims(4)%ID%Number  !time
+                    Dims4ID(1:3) = Dims3ID(1:3)
+                    Dims4ID(4)   = Me%Dims(4)%ID%Number  !time
 
                     STAT_CALL= nf90_def_var(Me%ncid, trim(Name), nf90_double, Dims4ID, VarID)
                     if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteDataR8_3D - ModuleNETCDF - ERR01'
                 else
-                
-                    Dims3ID(1) = Me%Dims(2)%ID%Number  !y
-                    Dims3ID(2) = Me%Dims(1)%ID%Number  !x
-                    Dims3ID(3) = Me%Dims(3)%ID%Number  !z
-
                     STAT_CALL= nf90_def_var(Me%ncid, trim(Name), nf90_double, Dims3ID, VarID)
                     if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteDataR8_3D - ModuleNETCDF - ERR02'
 
@@ -1076,7 +1068,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
                 STAT_CALL = nf90_put_var(Me%ncid, VarID, Array3D,                       &
                                          start = (/ 1, 1, 1, OutputNumber /),           &
-                                         count = (/ Me%Dims(2)%UB, Me%Dims(1)%UB, Me%Dims(3)%UB, 1 /))
+                                         count = (/ Me%Dims(1)%UB, Me%Dims(2)%UB, Me%Dims(3)%UB, 1 /))
                 if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteDataR8_3D - ModuleNETCDF - ERR05' 
 
             else
@@ -1132,7 +1124,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         if (ready_ .EQ. IDLE_ERR_) then
 
             STAT_CALL= nf90_inq_varid (Me%ncid, trim(Name), VarID)
-            
+
+            Dims2ID(1) = Me%Dims(1)%ID%Number  !x
+            Dims2ID(2) = Me%Dims(2)%ID%Number  !y
+        
             if     (STAT_CALL == nf90_enotvar)then
 
                 !enter definition mode
@@ -1141,17 +1136,13 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
                 if(present(OutputNumber))then
                     
-                    Dims3ID(1) = Me%Dims(2)%ID%Number  !y
-                    Dims3ID(2) = Me%Dims(1)%ID%Number  !x
-                    Dims3ID(3) = Me%Dims(4)%ID%Number  !time
+                    Dims3ID(1:2) = Dims2ID(1:2)                    
+                    Dims3ID(3  ) = Me%Dims(4)%ID%Number  !time
 
                     STAT_CALL= nf90_def_var(Me%ncid, trim(Name), nf90_int, Dims3ID, VarID)
                     if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteDataI4_2D - ModuleNETCDF - ERR01'
                 else
                     
-                    Dims2ID(1) = Me%Dims(2)%ID%Number  !y
-                    Dims2ID(2) = Me%Dims(1)%ID%Number  !x
-
                     STAT_CALL= nf90_def_var(Me%ncid, trim(Name), nf90_int, Dims2ID, VarID)
                     if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteDataI4_2D - ModuleNETCDF - ERR02'
 
@@ -1173,7 +1164,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
             elseif(STAT_CALL /= nf90_noerr)then
 
-                stop 'NETCDFWriteDataI4_3D - ModuleNETCDF - ERR04'
+                stop 'NETCDFWriteDataI4_2D - ModuleNETCDF - ERR04'
 
             end if
             
@@ -1186,7 +1177,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
                 STAT_CALL = nf90_put_var(Me%ncid, VarID, Array2D,                       &
                                          start = (/ 1, 1, OutputNumber /),              &
-                                         count = (/ Me%Dims(2)%UB, Me%Dims(1)%UB, Me%Dims(3)%UB, 1 /))
+                                         count = (/ Me%Dims(1)%UB, Me%Dims(2)%UB, Me%Dims(3)%UB, 1 /))
                 if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteDataI4_2D - ModuleNETCDF - ERR05' 
             else
                 STAT_CALL = nf90_put_var(Me%ncid, VarID, Array2D)
@@ -1240,6 +1231,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
             STAT_CALL= nf90_inq_varid (Me%ncid, trim(Name), VarID)
             
+            Dims3ID(1) = Me%Dims(1)%ID%Number  !x
+            Dims3ID(2) = Me%Dims(2)%ID%Number  !y
+            Dims3ID(3) = Me%Dims(3)%ID%Number  !z
+        
             if     (STAT_CALL == nf90_enotvar)then
 
                 !enter definition mode
@@ -1247,19 +1242,12 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteDataI4_3D - ModuleNETCDF - ERR00'
 
                 if(present(OutputNumber))then
-                    
-                    Dims4ID(1) = Me%Dims(2)%ID%Number  !y
-                    Dims4ID(2) = Me%Dims(1)%ID%Number  !x
-                    Dims4ID(3) = Me%Dims(3)%ID%Number  !z
-                    Dims4ID(4) = Me%Dims(4)%ID%Number  !time
+                    Dims4ID(1:3) = Dims3ID(1:3)                    
+                    Dims4ID(4  ) = Me%Dims(4)%ID%Number  !time
 
                     STAT_CALL= nf90_def_var(Me%ncid, trim(Name), nf90_int, Dims4ID, VarID)
                     if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteDataI4_3D - ModuleNETCDF - ERR01'
                 else
-                    
-                    Dims3ID(1) = Me%Dims(2)%ID%Number  !y
-                    Dims3ID(2) = Me%Dims(1)%ID%Number  !x
-                    Dims3ID(3) = Me%Dims(3)%ID%Number  !z
 
                     STAT_CALL= nf90_def_var(Me%ncid, trim(Name), nf90_int, Dims3ID, VarID)
                     if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteDataI4_3D - ModuleNETCDF - ERR02'
@@ -1294,7 +1282,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
                 STAT_CALL = nf90_put_var(Me%ncid, VarID, Array3D,                       &
                                          start = (/ 1, 1, 1, OutputNumber /),           &
-                                         count = (/ Me%Dims(2)%UB, Me%Dims(1)%UB, Me%Dims(3)%UB, 1 /))
+                                         count = (/ Me%Dims(1)%UB, Me%Dims(2)%UB, Me%Dims(3)%UB, 1 /))
                 if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteDataI4_3D - ModuleNETCDF - ERR05' 
             else
                 STAT_CALL = nf90_put_var(Me%ncid, VarID, Array3D)
@@ -1477,13 +1465,13 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                                              MissingValue = FillValueReal)
             else
 
-                call NETCDFWriteAttributes(Me%Dims(2)%VarID, LongName     = "metric X coordinate",  &
+                call NETCDFWriteAttributes(Me%Dims(1)%VarID, LongName     = "metric X coordinate",  &
                                                              StandardName = "longitude",            &
                                                              Units        = "m",                    &
                                                              FillValue    = FillValueReal,          &
                                                              MissingValue = FillValueReal)
 
-                call NETCDFWriteAttributes(Me%Dims(1)%VarID, LongName     = "metric Y coordinate",  &
+                call NETCDFWriteAttributes(Me%Dims(2)%VarID, LongName     = "metric Y coordinate",  &
                                                              StandardName = "latitude",             &
                                                              Units        = "m",                    &
                                                              FillValue    = FillValueReal,          &
