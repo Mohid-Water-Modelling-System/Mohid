@@ -5310,7 +5310,7 @@ cd1 :   if ((Property == Temperature_           ) .OR.  (Property == Salinity_  
         real(8)                         :: CellDepth
         integer                         :: NDEPTHS
         real(8), dimension (:)          :: Depth, Values
-        logical                         :: FoundBottom, FoundSurface
+        logical, optional               :: FoundBottom, FoundSurface
 
         !Local-----------------------------------------------------------------
         real(8)                         :: dx
@@ -5318,19 +5318,19 @@ cd1 :   if ((Property == Temperature_           ) .OR.  (Property == Salinity_  
 
         !Begin-----------------------------------------------------------------
 
-        FoundBottom  = .false.
-        FoundSurface = .false.
+        if (present(FoundBottom )) FoundBottom  = .false.
+        if (present(FoundSurface)) FoundSurface = .false.
 
         if (CellDepth >= Depth(1)) then
 
             InterpolateProfileR8 = Values(1)
 
-            FoundBottom = .true.
+            if (present(FoundBottom ))  FoundBottom = .true.
 
         else if (CellDepth <= Depth(NDEPTHS)) then
     
             InterpolateProfileR8 = Values(NDEPTHS)
-            FoundSurface = .true.
+            if (present(FoundSurface))  FoundSurface = .true.
         else  
 
             do i = 1 , NDEPTHS
