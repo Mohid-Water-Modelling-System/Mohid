@@ -76,6 +76,7 @@ Module ModuleTimeSerie
     public  :: GetTimeSerieDataMatrix
     public  :: GetTimeSerieDataColumns
     public  :: GetTimeSerieDataValues
+    public  :: GetTimeSerieTimeFrameIndexes
 
 
     !Destructor
@@ -177,6 +178,7 @@ Module ModuleTimeSerie
         character(len=line_length)                  :: Header               = null_str
         type (T_Time)                               :: InitialData
         integer                                     :: CurrentIndex  = 2
+        integer                                     :: StartIndex = 1, EndIndex  = 1
 
         !TimeSerieOutput
         type(T_TimeSerie), dimension(:), pointer    :: TimeSerie
@@ -2855,6 +2857,78 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
 
 
     !--------------------------------------------------------------------------
+    
+   subroutine GetTimeSerieTimeFrameIndexes(TimeSerieID, StartTime, EndTime, StartIndex, EndIndex, STAT) 
+
+        !Arguments-------------------------------------------------------------
+        integer                                     :: TimeSerieID
+        type(T_Time),      intent(IN)               :: StartTime,  EndTime
+        integer,           intent(OUT)              :: StartIndex, EndIndex
+        integer, optional, intent(OUT)              :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: ready_         
+        integer                                     :: STAT_ 
+        !Begin-----------------------------------------------------------------        
+
+
+        STAT_ = UNKNOWN_
+
+        call Ready(TimeSerieID, ready_)    
+        
+cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            !Find Start Index
+            do while (Me%InitialData + Me%DataMatrix(Me%StartIndex, 1) .lt. &
+                      StartTime)
+                Me%StartIndex = Me%StartIndex + 1
+                
+                !Last Instant
+                if (Me%StartIndex >= Me%DataValues) then
+                    Me%StartIndex = Me%DataValues
+                    exit 
+                endif
+            enddo
+
+
+            !Find End Index
+            do while (Me%InitialData + Me%DataMatrix(Me%EndIndex, 1) .lt. &
+                      EndTime)
+                Me%EndIndex = Me%EndIndex + 1
+                
+                !Last Instant
+                if (Me%EndIndex >= Me%DataValues) then
+                    Me%EndIndex = Me%DataValues
+                    exit 
+                endif
+            enddo                
+            
+            if (Me%InitialData + Me%DataMatrix(Me%EndIndex, 1) == EndTime) then
+                 Me%EndIndex = Me%EndIndex - 1
+            endif
+            
+            StartIndex = Me%StartIndex
+            EndIndex   = Me%EndIndex            
+
+            STAT_ = SUCCESS_
+        else 
+
+            STAT_ = ready_
+
+        end if cd1
+
+
+        if (present(STAT))                                                    &
+            STAT = STAT_
+        
+    end subroutine GetTimeSerieTimeFrameIndexes
+
+
+    !-------------------------------------------------------------------------    
+
+    !--------------------------------------------------------------------------
+
 
     real function GetTimeSerieIntegral(TimeSerieID, StartTime, EndTime, DataColumn, STAT) 
 
