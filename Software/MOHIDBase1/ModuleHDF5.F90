@@ -1971,7 +1971,11 @@ Module ModuleHDF5
 
         !Creates a simple dataspace
         call h5screate_simple_f(Rank, dims, space_id, STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'PrepareWrite - ModuleHDF5 - ERR01'
+        if (STAT_CALL /= SUCCESS_) then
+            write(*,*) GroupName
+            write(*,*) ItemName
+            stop 'PrepareWrite - ModuleHDF5 - ERR01'
+        endif
 
         !Creates a property list
         call h5pcreate_f (H5P_DATASET_CREATE_F, prp_id, STAT_CALL) 
