@@ -356,6 +356,7 @@ Module ModuleGlobalData
     integer, parameter :: VelocityDirection_                = 907
     !integer, parameter :: WaterLevelMax_                    = 908
     !integer, parameter :: WaterLevelMin_                    = 909
+    integer, parameter :: WaterColumn_                      = 910
     
     !Assimilation Properties        guillaume nogueira
     integer, parameter :: AltimLevelAnalyzed_               = 4000
@@ -738,6 +739,9 @@ Module ModuleGlobalData
     !ChainReactions 
     integer, parameter :: SoilVolumetricDensity_           = 13000
     
+    !Other properties
+    integer, parameter :: SolEC_                            = 14000 !Solution electrical conductivity
+
     !Pesticides
     integer, parameter :: GenericDissPesticide_1_           = 15001
     integer, parameter :: GenericDissPesticide_2_           = 15002
@@ -748,6 +752,9 @@ Module ModuleGlobalData
     integer, parameter :: GenericPartPesticide_2_           = 15006
     integer, parameter :: GenericPartPesticide_3_           = 15007
     integer, parameter :: GenericPartPesticide_4_           = 15008
+    
+    !number of individuals per cell
+    integer, parameter :: IndividualsPerCell_               = 20000
     
 
     !Spatial emission discharge
@@ -767,8 +774,6 @@ Module ModuleGlobalData
     integer, parameter :: DischLayer_                       = 4
     integer, parameter :: DischUniform_                     = 5
 
-    !Other properties
-    integer, parameter :: SolEC_                            = 14000 !Solution electrical conductivity
 
 !_______________________________________________________________________________________________
 
@@ -1003,6 +1008,7 @@ Module ModuleGlobalData
     character(StringLength), private, parameter :: Char_VelocityV_           = 'velocity V'
     character(StringLength), private, parameter :: Char_VelocityW_           = 'velocity W'
     character(StringLength), private, parameter :: Char_ShearStress_         = 'shear stress'
+    character(StringLength), private, parameter :: Char_WaterColumn_         = 'water column'    
 
 
 !_______used @ moduleWQ for POM pools (aquaculture cages)_____________________________________________________________
@@ -1304,6 +1310,7 @@ Module ModuleGlobalData
     character(StringLength), private, parameter :: Char_GenericPartPesticide_2       = 'generic particulate pesticide 2'
     character(StringLength), private, parameter :: Char_GenericPartPesticide_3       = 'generic particulate pesticide 3'
     character(StringLength), private, parameter :: Char_GenericPartPesticide_4       = 'generic particulate pesticide 4'
+    character(StringLength), private, parameter :: Char_IndividualsPerCell           = 'individuals per cell' 
 
     !Mapping
     integer, parameter :: Compute         = 1
@@ -2097,6 +2104,7 @@ Module ModuleGlobalData
             call AddPropList (HorizontalTransportY_,    Char_HorizontalTransportY_,     ListNumber)
             call AddPropList (BarotropicVelocityU_ ,    Char_BarotropicVelocityU_ ,     ListNumber)
             call AddPropList (BarotropicVelocityV_ ,    Char_BarotropicVelocityV_ ,     ListNumber)
+            call AddPropList (WaterColumn_,             Char_WaterColumn_,              ListNumber)            
 
 
 !____POM pools (for aquaculture cages)__________________________________________    
@@ -2388,6 +2396,8 @@ Module ModuleGlobalData
             call AddPropList (GenericPartPesticide_2_,  Char_GenericPartPesticide_2,     ListNumber)
             call AddPropList (GenericPartPesticide_3_,  Char_GenericPartPesticide_3,     ListNumber) 
             call AddPropList (GenericPartPesticide_4_,  Char_GenericPartPesticide_4,     ListNumber) 
+            call AddPropList (IndividualsPerCell_,      Char_IndividualsPerCell,         ListNumber)             
+            
                         
             !Place to add new properties to the names list
         
@@ -2569,7 +2579,7 @@ cd1 :   if ((Property == POC_                   ) .OR.  (Property == PON_       
             (Property == ParticulateLead_       ) .OR.  (Property == ParticulateZinc_       ) .OR.          &
             (Property == ParticulateMercury_    ) .OR.  (Property == AnaerobicPop_          ) .OR.          &
             (Property == AutotrophicPop_        ) .OR.  (Property == HeterotrophicPop_      ) .OR.          &
-            (Property == SolPop_                )         ) then
+            (Property == SolPop_                ) .OR.  (Property == IndividualsPerCell_    )        ) then
 
             Check_Particulate_Property = .TRUE.    
         
