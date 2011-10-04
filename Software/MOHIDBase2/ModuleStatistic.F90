@@ -309,6 +309,7 @@ Module ModuleStatistic
             StatisticID = Me%InstanceID
 
         else
+            write(*,*) Name
 
             stop 'ModuleStatistic - ConstructStatistic - ERR99' 
 
@@ -4307,8 +4308,9 @@ cd1:    if (StatisticID > 0) then
             Me => Me%Next
         enddo
 
-        if (.not. associated(Me))                                          &
+        if (.not. associated(Me)) then
             stop 'ModuleStatistic - LocateObjStatistic - ERR01'
+        endif
 
     end subroutine LocateObjStatistic
 
