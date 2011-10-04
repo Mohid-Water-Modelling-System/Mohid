@@ -7,9 +7,9 @@
 ! MODULE        : Lagrangian
 ! URL           : http://www.mohid.com
 ! AFFILIATION   : IST/MARETEC, Marine Modelling Group
-! DATE          : Jun 2003
-! REVISION      : Frank Braunschweig - v4.0
-! DESCRIPTION   : Three dimensional lagrangian tracers model
+! DATE          : September 2011
+! REVISION      : Paulo Leitão 
+! DESCRIPTION   : Three dimensional multinesting lagrangian tracers model
 !
 !------------------------------------------------------------------------------
 !
@@ -214,14 +214,22 @@ Module ModuleLagrangianGlobal
 !                                                       [2]                     !Fecal decay according to Chapra (1997)
 !   T90                     : real                      [7200]                  !Coliform Decay rate (s)
 !   T90_NAME                ; char                      [T90]
-!   STATISTICS              : logical                   [0]                     !Wheter to calculate or not the statistic
-!   STATISTICS_FILE         : char                      []                      !File name with the statistics definition
-!   STATISTICS_LAG          : logical                   [0]                     !Do a frequency analysis tracer by tracer.
 !<<EndProperty>>
 !!  parameter from the Module Oil
-!
+!<<BeginOil>>
 !<<EndOil>>
+!
 !<EndOrigin>
+
+
+!<BeginStatistic>
+!<<BeginProperty>>
+!NAME                    : char                      []                      !Name of the property
+!UNITS                   : char                      []                      !Units of the property
+!STATISTICS_FILE         : char                      []                      !File name with the statistics definition
+!STATISTICS_LAG          : logical                   [0]                     !Do a frequency analysis tracer by tracer.
+!<<EndProperty>>
+!<EndStatistic>
 
 !
 !
@@ -241,13 +249,14 @@ Module ModuleLagrangianGlobal
                                        InterpolateValueInTime, RodaXY,                      &
                                        ComputeT90_Chapra, ComputeT90_Canteras,              &
                                        GetDataOnlineString, SetMatrixValue, TimeToString,   &
-                                       ChangeSuffix, ConstructPropertyID
+                                       ChangeSuffix, ConstructPropertyID, DistanceBetweenTwoGPSPoints
     use ModuleEnterData,        only : ReadFileName, ConstructEnterData, GetData,           &
                                        ExtractBlockFromBuffer, ExtractBlockFromBlock,       &
                                        Block_Unlock, GetOutPutTime, RewindBuffer,           &
                                        GetKeywordFromLine, GetFullBufferLine,               &
                                        ReplaceFullBufferLine, RewindBlock,                  &
                                        GetBlockSize, KillEnterData
+    use ModuleDrawing,          only : T_Polygon, T_PointF, PointDistanceToPolygon, New
     use ModuleWaterQuality,     only : StartWaterQuality, WaterQuality, GetDTWQM,           &
                                        GetWQPropIndex, KillWaterQuality
     use ModuleGridData,         only : GetGridData, GetMaximumValue, UngetGridData
@@ -285,7 +294,9 @@ Module ModuleLagrangianGlobal
                                        GetFiltrationRate, SetLagrangianSinksSources
     use ModuleStatistic,        only : ConstructStatistic, ModifyStatistic, KillStatistic,  &
                                        GetStatisticClassesNumber, GetStatisticClasses,      &
-                                       UnGetStatistic
+                                       UnGetStatistic, GetStatisticMethod,                  &
+                                       GetStatisticParameters, GetStatisticLayersNumber,    &
+                                       GetStatisticLayerDef, AddStatisticLayers
     use ModuleOil_0D
     use ModuleJet,              only : Construct_Jet, GetPlumeTemperature, GetOutPutMatrix, &
                                        GetPlumeLocation, GetPlumeVelocity, GetPlumeDilution,&
@@ -554,6 +565,7 @@ Module ModuleLagrangianGlobal
         real,    dimension(:, :, :, :, :), pointer          :: GridConc
         integer, dimension(:, :, :, :   ), pointer          :: GridTracerNumber
         real,    dimension(:, :, :, :, :), pointer          :: GridMaxTracer
+        real,    dimension(:, :, :, :, :), pointer          :: GridMaxMass        
         real,    dimension(:, :,    :, :), pointer          :: GridBottomConc
 
         real(8), dimension(:, :, :, :   ), pointer          :: GridVolume
@@ -573,7 +585,8 @@ Module ModuleLagrangianGlobal
                           !i,j,k,f,ig
         real,    dimension(:,:,:,:,:), pointer :: FrequencyLag
                                   !ig
-        integer, dimension(        :), pointer :: Statistic1_ID, Statistic2_ID
+        integer, dimension(        :), pointer :: Statistic1_ID, Statistic2_ID,         &
+                                                  Statistic3_ID, Statistic4_ID
     end type T_PropStatistic
 
     type T_OilSpreading
@@ -667,6 +680,7 @@ Module ModuleLagrangianGlobal
 
 
         real   , dimension(:,:,:),    pointer   :: BeachingProbability
+        real   , dimension(:,:  ),    pointer   :: DistanceToCoast
 
         integer                                 :: ObjTimeSerie         = 0
         integer                                 :: ObjWaterProperties   = 0
@@ -737,6 +751,11 @@ Module ModuleLagrangianGlobal
         logical                                 :: OriginDefault        = OFF
         logical                                 :: T90                  = OFF
         logical                                 :: KillPartInsideBox    = OFF
+        logical                                 :: StokesDrift          = OFF
+        logical                                 :: AccidentProbability  = OFF
+        logical                                 :: DistanceToCoast      = OFF
+        logical                                 :: ComputeRisk          = OFF
+        logical                                 :: Waves                = OFF
     end type T_State
 
     !IO
@@ -767,6 +786,7 @@ Module ModuleLagrangianGlobal
          integer                                :: NextOutPut, NextRestartOutPut
          integer                                :: OutPutConcType = Maximum
          logical                                :: ConcMaxTracer   
+         logical                                :: MassTracer            
          logical                                :: OriginEnvelope
          logical                                :: Write_, WriteRestartFile = .false. 
          logical                                :: RestartOverwrite
@@ -813,8 +833,7 @@ Module ModuleLagrangianGlobal
         logical                                 :: WindOriginON             = .false.
         real                                    :: WindX, WindY
 
-        logical                                 :: StokesDrift              = .false.        
-        
+       
         logical                                 :: SlipCondition            = .true.         
         
         !Sediment stuff
@@ -912,6 +931,7 @@ Module ModuleLagrangianGlobal
         character(PathLength)                   :: DischargeFile
         integer                                 :: TimeSerieInput           = 0
         logical                                 :: EqualToAmbient           = OFF
+        real                                    :: Risk                     = null_real        
     end type T_Property
 
 
@@ -943,7 +963,9 @@ Module ModuleLagrangianGlobal
         real                                    :: Radiation                = 0.
         real                                    :: ShortWaveExt             = null_real
         real                                    :: T90                      = null_real
-
+        real                                    :: AccidentProbability      = null_real
+        logical                                 :: ComputeAccidentProb      = .false.
+        type (T_Time)                           :: EmissionTime
     end type T_Partic
 
     !Particle deposition
@@ -1027,6 +1049,7 @@ Module ModuleLagrangianGlobal
         logical                                 :: EstimateMinVol    = OFF
         integer                                 :: MaxPart
         real                                    :: AgeLimit
+        real                                    :: AccidentProbDefault = FillValueReal
     end type T_Origin
 
     type T_OptionsStat
@@ -1114,6 +1137,10 @@ Module ModuleLagrangianGlobal
 
         type(T_EulerModel ), pointer, dimension(:) :: EulerModel
         integer                                 :: EulerModelNumber
+        
+        type (T_Polygon), pointer               :: CoastLine
+        character(StringLength)                 :: CoastLineFile
+       
 
 !#ifdef _CGI_
         type(T_Online)                          :: Online    
@@ -1124,7 +1151,7 @@ Module ModuleLagrangianGlobal
         logical                                 :: RunOnlyMov2D         = .false.
         logical                                 :: Overlay
         logical                                 :: FirstIteration       = .true.
-        logical                                 :: ConstructPhase       = .true.
+        logical                                 :: ConstructLag         = .true.        
 
         integer, dimension(:), pointer          :: ObjHDF5              
 
@@ -1336,7 +1363,7 @@ em4:        do em =1, Me%EulerModelNumber
 
             !Constructs the origin list 
             call ConstructOrigins
-
+ 
             if (Me%Overlay) then
 
 em2:            do em =1, Me%EulerModelNumber
@@ -1372,6 +1399,10 @@ em2:            do em =1, Me%EulerModelNumber
             if (Me%State%AssociateBeachProb) then
                 call VerifyBeachingProbabilities
             end if
+            
+            if (Me%State%DistanceToCoast) then
+                call ComputeDistanceToCoast
+            endif
  
 
             !Reads previuos data
@@ -1412,7 +1443,7 @@ em2:            do em =1, Me%EulerModelNumber
             
             !Allocates all the necessary matrix for integrate lag data in eulerian grids
             call ConstructLag2Euler      
-
+            
             !Starts the HDF Output
             if (Me%OutPut%Write_) call ConstructHDF5Output      
 
@@ -1423,7 +1454,6 @@ em2:            do em =1, Me%EulerModelNumber
             endif
 
             if (Me%State%Oil) call AllocateOil
-
 
             !Message to the User
             call ConstructLog             
@@ -1436,8 +1466,8 @@ em2:            do em =1, Me%EulerModelNumber
 
             call ReadUnLockEulerianDensity()
             
-            Me%ConstructPhase = .false. 
-
+            Me%ConstructLag = .false. 
+            
 !            nullify(TimeID, GridDataID, HorizontalGridID, HorizontalMapID, GeometryID)
 !            nullify(MapID, AssimilationID, HydrodynamicID, TurbulenceID, WavesID, WaterPropertiesID)
 
@@ -1565,6 +1595,73 @@ d2:         do ig = 1, Me%NGroups
     end subroutine AllocateOil
 
     !------------------------------------------------------------------------------
+
+    !------------------------------------------------------------------------------
+
+    subroutine ComputeDistanceToCoast
+
+        !Local---------------------------------------------------------------------
+        real, dimension(:,:), pointer   :: CoordX, CoordY    
+        real, dimension(:), pointer     :: AngleList, DistanceByDirection               
+        type (T_PointF),    pointer     :: Point
+        real                            :: Distance, IntersectX, IntersectY
+        integer                         :: em, i, j, d, STAT_CALL   
+        integer, parameter              :: Ndir = 36        
+
+
+        !Begin---------------------------------------------------------------------
+        
+        allocate(AngleList(Ndir),DistanceByDirection(Ndir))
+        allocate(Point)
+        AngleList(1) = 0.
+        do d=2,Ndir
+            AngleList(d) = AngleList(d-1) + 360./real(NDir)
+        enddo
+
+d1:     do em =1, Me%EulerModelNumber 
+
+            call GetZCoordinates(Me%EulerModel(em)%ObjHorizontalGrid, CoordX, CoordY, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ComputeDistanceToCoast - ModuleLagrangianGlobal - ERR10'
+            
+             allocate (Me%EulerModel(em)%DistanceToCoast(Me%EulerModel(em)%Size%ILB:    &
+                                                         Me%EulerModel(em)%Size%IUB,    &
+                                                         Me%EulerModel(em)%Size%JLB:    &
+                                                         Me%EulerModel(em)%Size%JUB),   &
+                                                         STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ComputeDistanceToCoast - ModuleLagrangianGlobal - ERR20'          
+            
+            do j=Me%EulerModel(em)%WorkSize%JLB,Me%EulerModel(em)%WorkSize%JUB
+            do i=Me%EulerModel(em)%WorkSize%ILB,Me%EulerModel(em)%WorkSize%IUB
+
+                Point%X = CoordX(i, j)
+                Point%Y = CoordY(i, j)
+                
+                call PointDistanceToPolygon (Point, Me%CoastLine, AngleList, DistanceByDirection, Distance, IntersectX, IntersectY)
+                
+                !The distance is always in meters
+                if (Me%EulerModel(em)%Grid%GeoGrid) then
+                    Distance = DistanceBetweenTwoGPSPoints(Point%X, Point%Y, IntersectX, IntersectY)
+                endif
+                
+                Me%EulerModel(em)%DistanceToCoast(i, j) = Distance                
+                        
+            enddo
+            enddo
+
+            call UnGetHorizontalGrid(Me%EulerModel(em)%ObjHorizontalGrid, CoordX, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ComputeDistanceToCoast - ModuleLagrangianGlobal - ERR30'
+
+            call UnGetHorizontalGrid(Me%EulerModel(em)%ObjHorizontalGrid, CoordY, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ComputeDistanceToCoast - ModuleLagrangianGlobal - ERR40'
+
+        enddo d1
+        
+        deallocate(AngleList, DistanceByDirection, Point)
+
+    end subroutine ComputeDistanceToCoast
+
+    !------------------------------------------------------------------------------
+
 
     subroutine ConstructGlobalVariables
 
@@ -1813,7 +1910,7 @@ if1:    if (StatisticFound) then
 
 
 
-        allocate(AuxStatistic(Me%OriginDefault%nProperties))
+        allocate(AuxStatistic(Me%OriginDefault%nProperties+1))
 
         nProp = 0
 
@@ -1882,17 +1979,12 @@ i1:         if (PropertyFound) then
         deallocate(AuxStatistic)
         nullify   (AuxStatistic)
 
-        allocate(Me%Statistic%ON(Me%OriginDefault%NProperties))
-
-        Me%Statistic%ON(:) = .false.
-
         j = 0
         CurrentProperty => Me%OriginDefault%FirstProperty
         do while(associated(CurrentProperty))
             j = j + 1
             do i=1, Me%Statistic%PropNumber
                 if (CurrentProperty%ID == Me%Statistic%OptionsStat(i)%ID%IDNumber) then
-                    Me%Statistic%ON(j)                    = .true.
                     Me%Statistic%OptionsStat(i)%PropOrder = j
                 endif
             enddo
@@ -1901,6 +1993,14 @@ i1:         if (PropertyFound) then
 
         nullify(CurrentProperty)
 
+        do i=1, Me%Statistic%PropNumber
+            if (IndividualsPerCell_ == Me%Statistic%OptionsStat(i)%ID%IDNumber) then
+                Me%Statistic%OptionsStat(i)%PropOrder = -99
+            endif
+        enddo
+
+
+        
 
     end subroutine ReadStatisticProperties
                 
@@ -1970,8 +2070,13 @@ d1:     do em = 1, Me%EulerModelNumber
                 allocate (Me%EulerModel(em)%Lag2Euler%GridMaxTracer(ILB:IUB, JLB:JUB, KLB:KUB, 1:nProp, 1:Me%NGroups))
                                                           !i,j,k,p,ig 
                 Me%EulerModel(em)%Lag2Euler%GridMaxTracer (:,:,:,:,:) = 0.
+                
+                if (Me%OutPut%MassTracer) then
+                    allocate (Me%EulerModel(em)%Lag2Euler%GridMaxMass(ILB:IUB, JLB:JUB, KLB:KUB, 1:nProp, 1:Me%NGroups))
+                                                              !i,j,k,p,ig 
+                    Me%EulerModel(em)%Lag2Euler%GridMaxMass   (:,:,:,:,:) = 0.                
+                endif
             endif
-
         enddo d1
 
 
@@ -2203,6 +2308,17 @@ d2:     do em =1, Me%EulerModelNumber
         if (STAT_CALL /= SUCCESS_) stop 'ConstructOrigins - ModuleLagrangianGlobal - ERR30'
 
 
+        !Checks if the users wants to output the mass per cell
+        call GetData(Me%OutPut%MassTracer,                                              &
+                     Me%ObjEnterData,                                                   &
+                     flag,                                                              &
+                     SearchType   = FromFile,                                           &
+                     keyword      ='OUTPUT_MASS_TRACER',                                &
+                     ClientModule ='ModuleLagrangianGlobal',                            &
+                     Default      = .false.,                                            &
+                     STAT         = STAT_CALL)        
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructOrigins - ModuleLagrangianGlobal - ERR30'
+
         call GetData(Me%OutPut%OriginEnvelope,                                          & 
                      Me%ObjEnterData,                                                   &
                      flag,                                                              &
@@ -2287,7 +2403,7 @@ d2:     do em =1, Me%EulerModelNumber
                      flag,                                                              &
                      SearchType   = FromFile,                                           &
                      keyword      ='VERT_STEPS',                                        &
-                     default      = 10,                                                 &
+                     default      = 1 ,                                                 &
                      ClientModule ='ModuleLagrangianGlobal',                            &
                      STAT         = STAT_CALL)        
         if (STAT_CALL /= SUCCESS_) stop 'ConstructOrigins - ModuleLagrangianGlobal - ERR230'        
@@ -2814,7 +2930,8 @@ iDF:                if (.not. NewOrigin%Default) then
 
         if (NewOrigin%EmissionSpatial  == Accident_      .or.                           &
            (NewOrigin%EmissionSpatial  == Point_         .and.                          &
-           (NewOrigin%EmissionTemporal == Instantaneous_ .or. NewOrigin%FlowVariable))) then
+           (NewOrigin%EmissionTemporal == Instantaneous_ .or. NewOrigin%FlowVariable    &
+           .or. NewOrigin%MovingOriginCloudEmission))) then
             call GetData(NewOrigin%PointVolume,                                         &
                          Me%ObjEnterData,                                               &
                          flag,                                                          &
@@ -3154,7 +3271,7 @@ TURB_V:                 if (flag == 1) then
         if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR820'
 
 
-        call GetData(NewOrigin%Movement%StokesDrift,                             &
+        call GetData(NewOrigin%State%StokesDrift,                             &
                      Me%ObjEnterData,                                            &
                      flag,                                                       &
                      SearchType   = FromBlock,                                   &
@@ -3164,7 +3281,13 @@ TURB_V:                 if (flag == 1) then
                      STAT         = STAT_CALL)             
         if (STAT_CALL /= SUCCESS_) stop 'ConstructOrigins - ModuleLagrangian - ERR830'
 
-
+        if (NewOrigin%State%StokesDrift) then
+            if (NewOrigin%Movement%Float) then
+                Me%State%StokesDrift = .true.
+            else
+                stop 'ConstructOrigins - ModuleLagrangian - ERR835'
+            endif
+        endif 
 
         !WINDCOEF
         call GetData(NewOrigin%Movement%WindTransferCoef,                        &
@@ -4306,13 +4429,13 @@ SP:             if (NewProperty%SedimentPartition%ON) then
 
         endif
 
-        call GetData(NewOrigin%State%Age,                                        &
-                     Me%ObjEnterData,                                 &
-                     flag,                                                       &
-                     SearchType   = FromBlock,                                   &
-                     keyword      ='COMPUTE_AGE',                                &
-                     ClientModule ='ModuleLagrangianGlobal',                           &
-                     Default      = .false.,                                     &
+        call GetData(NewOrigin%State%Age,                                               &
+                     Me%ObjEnterData,                                                   &
+                     flag,                                                              &
+                     SearchType   = FromBlock,                                          &
+                     keyword      ='COMPUTE_AGE',                                       &
+                     ClientModule ='ModuleLagrangianGlobal',                            &
+                     Default      = .false.,                                            &
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR1520'
 
@@ -4328,11 +4451,72 @@ SP:             if (NewProperty%SedimentPartition%ON) then
                          ClientModule ='ModuleLagrangianGlobal',                        &
                          Default      = -FillValueReal,                                 &
                          STAT         = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR1525'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR1530'
 
         endif 
         
+        call GetData(NewOrigin%State%AccidentProbability,                               &
+                     Me%ObjEnterData,                                                   &
+                     flag,                                                              &
+                     SearchType   = FromBlock,                                          &
+                     keyword      ='ACCIDENT_PROBABILITY',                              &
+                     ClientModule ='ModuleLagrangianGlobal',                            &
+                     Default      = .false.,                                            &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR1540'
 
+        if (NewOrigin%State%AccidentProbability) then
+
+            Me%State%AccidentProbability    = .true.
+            Me%State%DistanceToCoast        = .true.
+                        
+            NewOrigin%State%DistanceToCoast = .true.
+
+            !This the the frequency of vessel accidents per annual ship traffic based in the 
+            !Lloyd's register database
+            !see EROCIPS projects - Interreg - "Methodology for risk assessment of accidents that originate
+            !hydrocarbon substances spills at sea, and their potential impact"
+            call GetData(NewOrigin%AccidentProbDefault,                                 &
+                         Me%ObjEnterData,                                               &
+                         flag,                                                          &
+                         SearchType   = FromBlock,                                      &
+                         keyword      ='DEFAULT_ACCIDENT_PROBABILITY',                  &
+                         ClientModule ='ModuleLagrangianGlobal',                        &
+                         !In average a vessel 1 in ~25000 has an accident per year
+                         default      = 4.45238E-05,                                    &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR1550'
+            
+
+            call GetData(Me%CoastLineFile,                                              &
+                         Me%ObjEnterData,                                               &
+                         flag,                                                          &
+                         SearchType   = FromBlock,                                      &
+                         keyword      ='COASTLINE_FILE',                                &
+                         ClientModule ='ModuleLagrangianGlobal',                        &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR1560'
+            
+            if (flag == 0) then
+                stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR1570'
+            else
+                call New(Me%CoastLine, Me%CoastLineFile)
+            endif
+
+            call GetData(NewOrigin%State%ComputeRisk,                                   &
+                         Me%ObjEnterData,                                               &
+                         flag,                                                          &
+                         SearchType   = FromBlock,                                      &
+                         keyword      ='COMPUTE_RISK',                                  &
+                         default      = .false.,                                        &
+                         ClientModule ='ModuleLagrangianGlobal',                        &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR1580'
+            
+            if (NewOrigin%State%ComputeRisk) Me%State%ComputeRisk = .true. 
+
+        endif            
+        
         if (NewOrigin%State%ComputePlume .and. .not. NewOrigin%Default) then
 
             call Construct_Jet(JetID       = NewOrigin%Movement%ObjJet,                 &
@@ -4344,13 +4528,13 @@ SP:             if (NewProperty%SedimentPartition%ON) then
                                Temperature = NewOrigin%Movement%JetTemperature,         &
                                STAT        = STAT_CALL) 
 
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR1530'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR1590'
 
             call UnitsManager(NewOrigin%Movement%JetUnit, OPEN_FILE,                    &
                               STAT = STAT_CALL)
 
             if (STAT_CALL /= SUCCESS_) then
-                stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR1540'
+                stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR1600'
             endif
 
             call ReadFileName("ROOT_SRT", RootPath, STAT = STAT_CALL)
@@ -4365,7 +4549,7 @@ SP:             if (NewProperty%SedimentPartition%ON) then
             if (STAT_CALL /= SUCCESS_) then
                 write(*,*) 'Error opening time series file ',                       &
                             trim(NewOrigin%Movement%JetFileOut)
-                stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR1560'
+                stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR1610'
             endif
 
             write(NewOrigin%Movement%JetUnit,'(A110)')"Year Month Day Hour Minutes "&
@@ -4390,7 +4574,7 @@ SP:             if (NewProperty%SedimentPartition%ON) then
                      ClientModule ='ModuleLagrangianGlobal',                          &
                      Default      = OFF,                                        &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR1570'
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR1620'
 
 
 
@@ -4402,7 +4586,7 @@ SP:             if (NewProperty%SedimentPartition%ON) then
                      ClientModule ='ModuleLagrangianGlobal',                          &
                      Default      = OFF,                                        &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR1580'
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR1630'
 
         if (NewOrigin%AveragePositionON) then
 
@@ -4415,8 +4599,13 @@ SP:             if (NewProperty%SedimentPartition%ON) then
                          !90% of the particles inside the circle
                          Default      = 1.645,                                  &
                          STAT         = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR1590'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR1640'
             
+        endif
+        
+        if (NewOrigin%State%Oil .or. NewOrigin%State%StokesDrift .or. NewOrigin%State%AccidentProbability) then
+            NewOrigin%State%Waves = .true.
+            Me%State%Waves        = .true.
         endif
         
 
@@ -6276,7 +6465,6 @@ OP:         if ((EulerModel%OpenPoints3D(i, j, k) == OpenPoint) .and. &
 
             case (Continuous_)
 
-
                 if (CurrentOrigin%FlowVariable) then
                     !Volume of the Seed Particle
                     !See subroutine ActualizeOrigin 
@@ -6287,6 +6475,11 @@ OP:         if ((EulerModel%OpenPoints3D(i, j, k) == OpenPoint) .and. &
                                                   CurrentOrigin%DT_EMIT  /              &
                                                   CurrentOrigin%NbrParticlesIteration
 
+                endif
+                
+                if (CurrentOrigin%MovingOriginCloudEmission) then
+                    !Volume of the Seed Particle
+                    NewParticle%Geometry%Volume = CurrentOrigin%PointVolume                
                 endif
 
             case (Instantaneous_)
@@ -7152,6 +7345,7 @@ em1:    do em =1, Me%EulerModelNumber
                 !Gets a pointer to Bathymetry
                 call GetGridData        (EulerModel%ObjGridData, Bathymetry, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5Output - ModuleLagrangianGlobal - ERR01'
+                
 
                 !Gets WaterPoints3D
                 call GetWaterPoints3D   (EulerModel%ObjMap, WaterPoints3D, STAT = STAT_CALL)
@@ -7159,7 +7353,7 @@ em1:    do em =1, Me%EulerModelNumber
 
 
                 !Sets limits for next write operations
-                call HDF5SetLimits   (Me%ObjHDF5(em), ILB, IUB, JLB, JUB, KLB, KUB,     &
+                call HDF5SetLimits   (Me%ObjHDF5(em), ILB, IUB, JLB, JUB,               &
                                       STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5Output - ModuleLagrangianGlobal - ERR17'
 
@@ -7170,10 +7364,27 @@ em1:    do em =1, Me%EulerModelNumber
                                       STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5Output - ModuleLagrangianGlobal - ERR18'
 
+                if (Me%State%DistanceToCoast) then
+
+                    !Writes distance of each cell to the coast 
+                    call HDF5WriteData   (Me%ObjHDF5(em), "/Grid", "Distance to the coast", "m", &
+                                          Array2D = Me%EulerModel(em)%DistanceToCoast,     &
+                                          STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5Output - ModuleLagrangianGlobal - ERR18'
+
+                endif
+
+                !Sets limits for next write operations
+                call HDF5SetLimits   (Me%ObjHDF5(em), ILB, IUB, JLB, JUB, KLB, KUB,     &
+                                      STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5Output - ModuleLagrangianGlobal - ERR17'
+
+
                 call HDF5WriteData   (Me%ObjHDF5(em), "/Grid", "WaterPoints3D", "-",    &
                                       Array3D = WaterPoints3D,                          &
                                       STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5Output - ModuleLagrangianGlobal - ERR19'
+
 
                 !Flushes All pending HDF5 commands
                 call HDF5FlushMemory (Me%ObjHDF5(em), ErrorMessage =                    &
@@ -7187,6 +7398,7 @@ em1:    do em =1, Me%EulerModelNumber
                 !Ungets the Waterpoints3D
                 call UnGetMap        (EulerModel%ObjMap, WaterPoints3D, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5Output - ModuleLagrangianGlobal - ERR25'
+
 
 
 !            endif
@@ -7247,13 +7459,29 @@ d1:     do em = 1, Me%EulerModelNumber
 
             endif
 
+            if (Me%OutPut%MassTracer) then
+
+                allocate(Me%EulerModel(em)%PropStatistic(nP)%Statistic3_ID(1:Me%NGroups))
+
+                Me%EulerModel(em)%PropStatistic(nP)%Statistic3_ID(1:Me%NGroups) = 0
+
+                if (Me%OutPut%ConcMaxTracer) then
+
+                    allocate(Me%EulerModel(em)%PropStatistic(nP)%Statistic4_ID(1:Me%NGroups))
+
+                    Me%EulerModel(em)%PropStatistic(nP)%Statistic4_ID(1:Me%NGroups) = 0
+
+                endif
+
+            endif
+
             do ig = 1, Me%NGroups
 
                 GroupName = trim(Me%EulerModel(em)%Name)//"_"
 
                 call ConstructStatistic (Me%EulerModel(em)%PropStatistic(nP)%Statistic1_ID(ig),     &
                                          ObjTime          = Me%EulerModel(em)%ObjTime,              &
-                                         ObjHDF5          = Me%ObjHDF5(em),                             &
+                                         ObjHDF5          = Me%ObjHDF5(em),                         &
                                          Size             = Me%EulerModel(em)%Size,                 &
                                          WorkSize         = Me%EulerModel(em)%WorkSize,             &
                                          DataFile         = Me%Statistic%OptionsStat(nP)%File,      &
@@ -7261,15 +7489,15 @@ d1:     do em = 1, Me%EulerModelNumber
                                          GroupName        = trim(GroupName),                        &
                                          STAT             = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_)                                              &
-                    stop 'ConstructParticStatistic - ModuleLagrangianGlobal - ERR02'
+                    stop 'ConstructParticStatistic - ModuleLagrangianGlobal - ERR10'
 
                 if (Me%OutPut%ConcMaxTracer) then
 
-                    GroupName = trim(GroupName)//"MaxTracer_"
+                    GroupName = trim(Me%EulerModel(em)%Name)//"_"//"MaxTracer_"
 
                     call ConstructStatistic (Me%EulerModel(em)%PropStatistic(nP)%Statistic2_ID(ig), &
                                              ObjTime      = Me%EulerModel(em)%ObjTime,              &
-                                             ObjHDF5      = Me%ObjHDF5(em),                             &
+                                             ObjHDF5      = Me%ObjHDF5(em),                         &
                                              Size         = Me%EulerModel(em)%Size,                 &
                                              WorkSize     = Me%EulerModel(em)%WorkSize,             &
                                              DataFile     = Me%Statistic%OptionsStat(nP)%File,      &
@@ -7277,7 +7505,45 @@ d1:     do em = 1, Me%EulerModelNumber
                                              GroupName    = GroupName,                              &
                                              STAT         = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_)                                          &
-                        stop 'ConstructParticStatistic - ModuleLagrangianGlobal - ERR03'
+                        stop 'ConstructParticStatistic - ModuleLagrangianGlobal - ERR20'
+
+                endif
+
+                if (Me%OutPut%MassTracer) then
+
+                    GroupName = trim(Me%EulerModel(em)%Name)//"_"//"MassTracer_"
+
+                    call ConstructStatistic (Me%EulerModel(em)%PropStatistic(nP)%Statistic3_ID(ig), &
+                                             ObjTime      = Me%EulerModel(em)%ObjTime,              &
+                                             ObjHDF5      = Me%ObjHDF5(em),                         &
+                                             Size         = Me%EulerModel(em)%Size,                 &
+                                             WorkSize     = Me%EulerModel(em)%WorkSize,             &
+                                             DataFile     = Me%Statistic%OptionsStat(nP)%File,      &
+                                             Name         = Me%Statistic%OptionsStat(nP)%ID%Name,   &
+                                             GroupName    = GroupName,                              &
+                                             STAT         = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_)                                          &
+                        stop 'ConstructParticStatistic - ModuleLagrangianGlobal - ERR30'
+
+
+                    if (Me%OutPut%ConcMaxTracer) then
+
+                        GroupName = trim(Me%EulerModel(em)%Name)//"_"//"MaxMassTracer_"
+
+                        call ConstructStatistic (Me%EulerModel(em)%PropStatistic(nP)%Statistic4_ID(ig), &
+                                                 ObjTime      = Me%EulerModel(em)%ObjTime,              &
+                                                 ObjHDF5      = Me%ObjHDF5(em),                         &
+                                                 Size         = Me%EulerModel(em)%Size,                 &
+                                                 WorkSize     = Me%EulerModel(em)%WorkSize,             &
+                                                 DataFile     = Me%Statistic%OptionsStat(nP)%File,      &
+                                                 Name         = Me%Statistic%OptionsStat(nP)%ID%Name,   &
+                                                 GroupName    = GroupName,                              &
+                                                 STAT         = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_)                                          &
+                            stop 'ConstructParticStatistic - ModuleLagrangianGlobal - ERR40'
+
+                    endif
+
 
                 endif
 
@@ -7292,7 +7558,7 @@ d1:     do em = 1, Me%EulerModelNumber
                     call GetStatisticClassesNumber(Me%EulerModel(em)%PropStatistic(nP)%Statistic1_ID(ig),&
                                                    Me%Statistic%OptionsStat(nP)%nClassesLag, STAT= STAT_CALL)
                     if (STAT_CALL /= SUCCESS_)                                          &
-                        stop 'ConstructParticStatistic - ModuleLagrangianGlobal - ERR04'
+                        stop 'ConstructParticStatistic - ModuleLagrangianGlobal - ERR50'
 
                     allocate(Me%EulerModel(em)%PropStatistic(nP)%FrequencyLag           &
                                    (ILB:IUB,JLB:JUB,KLB:KUB,                            &
@@ -7817,6 +8083,8 @@ CurrOr: do while (associated(CurrentOrigin))
 
         NewPartic%ID         = NextParticID
         NextParticID         = NextParticID + 1
+        
+        NewPartic%EmissionTime = Me%Now
 
 
     end subroutine AllocateNewParticle
@@ -8226,9 +8494,9 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
             call ReadLockExternalVar
 
             do while (Me%ExternalVar%Now >= Me%NextCompute)
-
+                
                 Me%Now = Me%NextCompute
-
+                
                 if (Me%OverLay) then
                     call OverLayProcess
                 endif
@@ -8237,6 +8505,11 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
 
                 !Emits new particles in all origins
                 call ParticleEmission       ()
+                
+                !Only compute emission for particle that~were just emitted
+                if (Me%State%AccidentProbability) then
+                    call ComputeAccidentProbability
+                endif                
 
                 !Calculates the Particle Density
                 !call ParticleDensity        ()
@@ -8325,6 +8598,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
                 if (Me%State%Filtration) then
                     call ActualizesMassFilterGrid()
                 endif
+                
 
                 !Statistic
                 if (Me%State%Statistics) then
@@ -8334,7 +8608,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
                 if (Me%State%Deposition) then
                     call ActualizesTauErosionGrid()
                 endif
-
+                
                 !Writes Particle Output
                 call ParticleOutput         ()
 
@@ -9411,7 +9685,7 @@ CurrOr: do while (associated(CurrentOrigin))
         logical                                     :: NoIntU, NoIntV, ComputeTrajectory, HaveDomain, MovePartic
         logical                                     :: SlipConditionX, SlipConditionY, ConvertOK
         real                                        :: WavePeriod, WaveHeight, WaveDirection,UStokesDrift, VStokesDrift
-        real                                        :: AngFrequency, WaveNumber, VelStokesDrift
+        real                                        :: AngFrequency, WaveNumber, VelStokesDrift, Depth
 
         CurrentPartic => CurrentOrigin%FirstPartic
 CP:     do while (associated (CurrentPartic))
@@ -9491,6 +9765,9 @@ BD:             if (CurrentPartic%Beached .or. CurrentPartic%Deposited) then
                                               Me%EulerModel(emp)%DWZ_Xgrad(i,  j+1,k), Balx)
                 GradDWy = LinearInterpolation(Me%EulerModel(emp)%DWZ_Ygrad(i,  j  ,k),  &
                                               Me%EulerModel(emp)%DWZ_Ygrad(i+1,j  ,k), Baly)
+                                              
+                UStokesDrift = 0.
+                VStokesDrift = 0.
 
                 !Floating particle 
 MF:             if (CurrentOrigin%Movement%Float) then 
@@ -9520,6 +9797,40 @@ MF:             if (CurrentOrigin%Movement%Float) then
                     !Plume velocity
                     UPlume = 0.
                     VPlume = 0.
+
+
+                    ! Velocity due Stokes Drift
+                    if (CurrentOrigin%State%StokesDrift) then    
+                    
+                        WaveHeight          = Me%EulerModel(emp)%WaveHeight2D(i, j)
+                        WavePeriod          = Me%EulerModel(emp)%WavePeriod2D(i, j)
+                        WaveDirection       = Me%EulerModel(emp)%WaveDirection2D(i, j)
+
+
+                        AngFrequency        = 2 * Pi / WavePeriod
+                        WaveNumber          = AngFrequency * AngFrequency / gravity
+                        
+                        Depth               = CurrentOrigin%FirstPartic%Position%Z-             &
+                            Me%EulerModel(emp)%SZZ(i, j, Me%EulerModel(emp)%WorkSize%KUB)
+                        if (Depth >0)       Depth = 0
+                        
+                        VelStokesDrift      = 0.5 * (WaveHeight /  2 )**2 * WaveNumber * AngFrequency * & 
+                                              exp(2* WaveNumber * Depth)
+                                              
+                        if (VelStokesDrift > 10) then
+                            write(*,*) 'Stokes drift velocity > 10, null value is assumed'
+                            write(*,*) 'i j =',i, j
+                            write(*,*)'WaveHeight  =', WaveHeight
+                            write(*,*)'WavePeriod  =', WavePeriod
+                            write(*,*)'WaveDirection  =', WaveDirection
+                            write(*,*) 'MoveParticHorizontal - ModuleLagrangianGlobal - WRN10'
+                            VelStokesDrift = 0
+                        endif
+                                              
+                        UStokesDrift        = cos(WaveDirection * (Pi / 180.)) * VelStokesDrift
+                        VStokesDrift        = sin(WaveDirection * (Pi / 180.)) * VelStokesDrift
+
+                    end if
 
                     if (CurrentOrigin%State%Oil) then
 
@@ -9747,38 +10058,6 @@ MT:             if (CurrentOrigin%Movement%MovType == SullivanAllen_) then
 
                 endif
 
-                ! Velocity due Stokes Drift
-                if (CurrentOrigin%State%Oil .and. CurrentOrigin%Movement%StokesDrift) then    
-                
-                    WaveHeight          = Me%EulerModel(emp)%WaveHeight2D(i, j)
-                    WavePeriod          = Me%EulerModel(emp)%WavePeriod2D(i, j)
-                    WaveDirection       = Me%EulerModel(emp)%WaveDirection2D(i, j)
-
-
-                    AngFrequency        = 2 * Pi / WavePeriod
-                    WaveNumber          = AngFrequency * AngFrequency / gravity
-                    VelStokesDrift      = 0.5 * (WaveHeight /  2 )**2 * WaveNumber * AngFrequency * & 
-                                          exp(2* WaveNumber *                                       &
-                                          abs(Me%EulerModel(emp)%SZZ(i, j, k) - CurrentOrigin%FirstPartic%Position%Z) )
-                                          
-                    if (CurrentOrigin%Movement%WindOriginON) then
-
-                        WindX = CurrentOrigin%Movement%WindX
-                        WindY = CurrentOrigin%Movement%WindY
-
-                    else
-
-                        WindX = Me%EulerModel(emp)%WindX(i, j)
-                        WindY = Me%EulerModel(emp)%WindY(i, j)
-
-                    endif
-
-                    UStokesDrift        = cos(WaveDirection * (Pi / 180.)) * VelStokesDrift
-                    VStokesDrift        = sin(WaveDirection * (Pi / 180.)) * VelStokesDrift
-                    UOIL = UOIL + UStokesDrift
-                    VOIL = VOIL + VStokesDrift
-                end if
-
 
                 if (CurrentOrigin%Movement%Advection) then
 
@@ -9789,8 +10068,8 @@ MT:             if (CurrentOrigin%Movement%MovType == SullivanAllen_) then
                         DX = DX + UD *  Me%DT_Partic
                         DY = DY + VD *  Me%DT_Partic
                     else
-                        DX = (UINT + UD + UWIND + UOIL) * Me%DT_Partic
-                        DY = (VINT + VD + VWIND + VOIL) * Me%DT_Partic
+                        DX = (UINT + UD + UWIND + UOIL + UStokesDrift) * Me%DT_Partic
+                        DY = (VINT + VD + VWIND + VOIL + VStokesDrift) * Me%DT_Partic
                     endif
                 else
                     DX =         UD                 * Me%DT_Partic
@@ -9811,7 +10090,7 @@ d1:             do em = 1, Me%EulerModelNumber
                                    CurrentPartic%Position%CoordX,                       &
                                    CurrentPartic%Position%CoordY,                       &
                                    Referential= GridCoord_, STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'Locate_ModelDomain - ModuleLagrangianGlobal - ERR10'
+                    if (STAT_CALL /= SUCCESS_) stop 'MoveParticHorizontal - ModuleLagrangianGlobal - ERR20'
 
                     if (HaveDomain .and. em == emp) then
                     
@@ -9920,7 +10199,7 @@ d33:                    do emX = 1, Me%EulerModelNumber
                             HaveDomain = GetXYInsideDomain(Me%EulerModel(emX)%ObjHorizontalGrid, &
                                            AuxPosition%CoordX, AuxPosition%CoordY,              &
                                            Referential= GridCoord_, STAT = STAT_CALL)
-                            if (STAT_CALL /= SUCCESS_) stop 'Locate_ModelDomain - ModuleLagrangianGlobal - ERR10'
+                            if (STAT_CALL /= SUCCESS_) stop 'MoveParticHorizontal - ModuleLagrangianGlobal - ERR30'
 
                             if (HaveDomain .and. NewPosition%ModelID == emX) then
                                 SlipConditionX = .true.
@@ -9959,7 +10238,7 @@ d34:                            do emY = 1, Me%EulerModelNumber
                                     HaveDomain = GetXYInsideDomain(Me%EulerModel(emY)%ObjHorizontalGrid, &
                                                    AuxPosition%CoordX, AuxPosition%CoordY,              &
                                                    Referential= GridCoord_, STAT = STAT_CALL)
-                                    if (STAT_CALL /= SUCCESS_) stop 'Locate_ModelDomain - ModuleLagrangianGlobal - ERR10'
+                                    if (STAT_CALL /= SUCCESS_) stop 'MoveParticHorizontal - ModuleLagrangianGlobal - ERR40'
 
                                     if (HaveDomain .and. NewPosition%ModelID == emY) then
                                         SlipConditionY = .true.
@@ -12365,6 +12644,319 @@ CurrOr: do while (associated(CurrentOrigin))
     end subroutine NewParticleAge
 
     !--------------------------------------------------------------------------
+    
+    !--------------------------------------------------------------------------
+    subroutine ComputeAccidentProbability ()
+
+        !Arguments-------------------------------------------------------------
+   
+
+        !Local-----------------------------------------------------------------
+        type (T_Origin), pointer                    :: CurrentOrigin
+        type (T_Partic), pointer                    :: CurrentPartic
+        real                                        :: WaveHeight, CurrentIntensity, WindIntensity, DistanceToCoast
+        integer                                     :: i, j, KUB, emp, nprop
+
+        !Begin-----------------------------------------------------------------        
+        
+
+        CurrentOrigin => Me%FirstOrigin
+CurrOr: do while (associated(CurrentOrigin))
+
+            if (CurrentOrigin%State%AccidentProbability) then
+
+                CurrentPartic => CurrentOrigin%FirstPartic
+                do while (associated(CurrentPartic))
+                
+                    if (.not. CurrentPartic%ComputeAccidentProb) then
+                
+                        emp = CurrentPartic%Position%ModelID
+                        
+                        i   = CurrentPartic%Position%i
+                        j   = CurrentPartic%Position%j
+                        
+                        KUB = Me%EulerModel(emp)%WorkSize%KUB
+                        
+                        WaveHeight       = Me%EulerModel(emp)%WaveHeight2D(i, j)
+                        
+                        CurrentIntensity = sqrt(Me%EulerModel(emp)%Velocity_U(i,j,KUB)**2 + &
+                                                Me%EulerModel(emp)%Velocity_V(i,j,KUB)**2)
+                        
+                        WindIntensity    = sqrt(Me%EulerModel(emp)%WindX(i,j)**2 +          &
+                                                Me%EulerModel(emp)%WindY(i,j)**2)
+
+                        DistanceToCoast  = Me%EulerModel(emp)%DistanceToCoast(i, j)
+
+                        CurrentPartic%AccidentProbability = CurrentOrigin%AccidentProbDefault * &
+                            AccidentCorrectionFactors(WaveHeight, CurrentIntensity, WindIntensity, DistanceToCoast)
+                            
+                        if (CurrentOrigin%State%ComputeRisk) then
+                            do nprop=1,CurrentOrigin%nProperties 
+
+                                   CurrentPartic%Concentration(nprop) = CurrentPartic%Concentration(nprop)* &
+                                                                        CurrentPartic%AccidentProbability
+                            enddo
+                        endif
+                        
+                        CurrentPartic%ComputeAccidentProb = .true. 
+                            
+                    endif
+                    
+                    CurrentPartic => CurrentPartic%Next
+                    
+                enddo
+                
+                nullify(CurrentPartic)
+
+            endif
+
+            CurrentOrigin => CurrentOrigin%Next
+
+        enddo CurrOr
+        
+        nullify(CurrentOrigin)
+
+    end subroutine ComputeAccidentProbability
+
+    !--------------------------------------------------------------------------    
+    real  function AccidentCorrectionFactors(WaveHeight, CurrentIntensity, WindIntensity, DistanceToCoast)
+
+
+        !Arguments-------------------------------------------------------------
+        real, intent(in)        :: WaveHeight, CurrentIntensity, WindIntensity, DistanceToCoast
+
+        !Local-----------------------------------------------------------------       
+        real, dimension(5)      :: TypeInPercentage, Limits
+        real                    :: RAND, F_SeatState, F_SeaCurrents, F_Wind, F_Coast 
+        integer                 :: i
+        
+        !Begin-----------------------------------------------------------------       
+        
+        call random_number(RAND)
+        
+        !Vessels accidents classified by type (MEHRA's - Factors Influence Vessel Risks in UK Waters - 1989 to 1998)
+
+        !Ship to ship collision
+        TypeInPercentage(1) = 0.21
+        !Fire / Explosion
+        TypeInPercentage(2) = 0.28
+        !Foundering and structural failure
+        TypeInPercentage(3) = 0.18
+        !Grounding during navigation
+        TypeInPercentage(4) = 0.29
+        !Drift grounding
+        TypeInPercentage(5) = 0.04
+        
+        do i=1,5
+            Limits(i) = sum(TypeInPercentage(1:i))
+        enddo
+        
+        
+        if      (RAND < Limits(1)) then
+            !Ship to ship collision        
+            i=1
+        else if (RAND < Limits(2) .and. RAND >= Limits(1)) then
+            !Fire / Explosion        
+            i=2
+        else if (RAND < Limits(3) .and. RAND >= Limits(2)) then
+            !Foundering and structural failure       
+            i=3
+        else if (RAND < Limits(4) .and. RAND >= Limits(3)) then
+            !Grounding during navigation  
+            i=4
+        else if (RAND <=Limits(5) .and. RAND >= Limits(4)) then
+            !Drift grounding       
+            i=5
+        endif    
+
+        if      (i==1) then                
+            F_SeatState    = 1
+            F_SeaCurrents  = CurrentsCorrectionFactor(CurrentIntensity)
+            F_Wind         = WindCorrectionFactor    (WindIntensity    )
+            F_Coast        = 1
+        else if (i==2) then                
+            F_SeatState    = 1
+            F_SeaCurrents  = 1
+            F_Wind         = 1
+            F_Coast        = 1
+        else if (i==3) then                
+            if (TurbulentSeaState(WaveHeight))  then
+                F_SeatState    = 1
+            else
+                F_SeatState    = 0.1
+            endif
+            F_SeaCurrents  = 1
+            F_Wind         = 1
+            F_Coast        = 1
+        else if (i==4) then                
+            if (TurbulentSeaState(WaveHeight))  then
+                F_SeatState    = 1.4
+            else
+                F_SeatState    = 0.6
+            endif
+            F_SeaCurrents  = CurrentsCorrectionFactor      (CurrentIntensity)
+            F_Wind         = WindCorrectionFactor          (WindIntensity   )
+            F_Coast        = CoastProximityCorrectionFactor(DistanceToCoast )
+    
+        else if (i==5) then                
+            if (TurbulentSeaState(WaveHeight))  then
+                F_SeatState    = 1.78
+            else
+                F_SeatState    = 0.22
+            endif
+            F_SeaCurrents  = CurrentsCorrectionFactor      (CurrentIntensity)
+            F_Wind         = WindCorrectionFactor          (WindIntensity   )
+            F_Coast        = CoastProximityCorrectionFactor(DistanceToCoast )
+
+        endif
+        
+        AccidentCorrectionFactors = F_SeatState * F_SeaCurrents * F_Wind * F_Coast
+    
+    end function AccidentCorrectionFactors
+    
+   !--------------------------------------------------------------------------
+   
+   !--------------------------------------------------------------------------    
+    real  function WindCorrectionFactor(WindIntensity)
+
+
+        !Arguments-------------------------------------------------------------
+        !                          m/s
+        real,   intent(in)      :: WindIntensity
+
+        !Local-----------------------------------------------------------------       
+        real                    :: WindKmh
+        !Begin-----------------------------------------------------------------    
+
+        WindKmh = 3.6 * WindIntensity
+         
+        ! km/h
+        if      (WindKmh >= 90 ) then
+        
+            WindCorrectionFactor = 2.
+            
+        else if (WindKmh < 90 .and. WindKmh >= 50) then
+        
+            WindCorrectionFactor = 1.6
+            
+        else if (WindKmh < 50 .and. WindKmh >= 30) then       
+        
+            WindCorrectionFactor = 1.2
+            
+        else if (WindKmh < 30                                ) then       
+        
+            WindCorrectionFactor = 0.8
+        
+        endif
+        
+    end function WindCorrectionFactor
+    !--------------------------------------------------------------------------
+   
+   
+    !--------------------------------------------------------------------------    
+    real  function CurrentsCorrectionFactor(CurrentIntensity)
+
+
+        !Arguments-------------------------------------------------------------
+        !                          m/s
+        real,   intent(in)      :: CurrentIntensity
+
+        !Local-----------------------------------------------------------------       
+        !                          Knots
+        real                    :: CurrentsKnots        
+        !Begin-----------------------------------------------------------------    
+
+         
+        CurrentsKnots = CurrentIntensity / 0.514
+         
+        ! knots
+        if      (CurrentsKnots >= 3 ) then
+        
+            CurrentsCorrectionFactor = 2.
+            
+        else if (CurrentsKnots < 3 .and. CurrentsKnots >= 2) then
+        
+            CurrentsCorrectionFactor = 1.6
+            
+        else if (CurrentsKnots < 2 .and. CurrentsKnots >= 1) then
+        
+            CurrentsCorrectionFactor = 1.2
+            
+        else if (CurrentsKnots < 1 .and. CurrentsKnots >= 0.7) then
+        
+            CurrentsCorrectionFactor = 0.8      
+
+        else if (CurrentsKnots < 0.7                         ) then
+        
+            CurrentsCorrectionFactor = 0.4
+            
+        endif
+        
+        
+    end function CurrentsCorrectionFactor
+    
+    !--------------------------------------------------------------------------
+    !--------------------------------------------------------------------------    
+    real  function CoastProximityCorrectionFactor(DistanceToCoast)
+
+
+        !Arguments-------------------------------------------------------------
+        !                          m
+        real,   intent(in)      :: DistanceToCoast
+
+        !Local-----------------------------------------------------------------       
+        !                          nautical miles
+        real                    :: DistanceMiles        
+        !Begin-----------------------------------------------------------------    
+
+         
+        DistanceMiles = DistanceToCoast / 1852.
+         
+        ! knots
+        if      (DistanceMiles >= 8 ) then
+        
+            CoastProximityCorrectionFactor = 0.8
+            
+        else if (DistanceMiles < 8 .and. DistanceMiles >= 6) then
+        
+            CoastProximityCorrectionFactor = 1.
+            
+        else if (DistanceMiles < 6 ) then
+        
+            CoastProximityCorrectionFactor = 2.
+            
+        endif
+        
+        
+    end function CoastProximityCorrectionFactor
+    
+    !--------------------------------------------------------------------------   
+    !--------------------------------------------------------------------------    
+    logical  function TurbulentSeaState(WaveHeight)
+
+
+        !Arguments-------------------------------------------------------------
+        !                          m
+        real,   intent(in)      :: WaveHeight
+
+        !Local-----------------------------------------------------------------       
+       
+        !Begin-----------------------------------------------------------------    
+
+        !http://en.wikipedia.org/wiki/Sea_state
+         
+        if      (WaveHeight > 2.5 ) then
+            TurbulentSeaState = .true.
+        else
+            TurbulentSeaState = .false.        
+        endif
+        
+        
+    end function TurbulentSeaState
+    
+    !--------------------------------------------------------------------------
+    !--------------------------------------------------------------------------    
+
 
     subroutine MonitorParticle ()
 
@@ -12698,10 +13290,13 @@ d5:     do em =1, Me%EulerModelNumber
    
 
         !Local-----------------------------------------------------------------
-        type (T_Property), pointer                  :: CurrentProperty
         real, dimension(:, :, :), pointer           :: AuxGrid3D 
         integer                                     :: ILB, IUB, JLB, JUB, KLB, KUB
         integer                                     :: iProp, STAT_CALL, em, p, ig
+        integer                                     :: ln, LayersNumber, MethodStatistic
+        integer                                     :: Value3DStatLayers, Depth, Layer, LayerDefinition
+        logical                                     :: PropNumber
+
 
         !Begin--------------------------------------------------------------------------
 
@@ -12725,49 +13320,135 @@ d2:     do ig = 1, Me%NGroups
             !Allocates auxiliar variable
             allocate (AuxGrid3D (ILB:IUB, JLB:JUB, KLB:KUB))
 
-            iProp = 1
-            CurrentProperty => Me%FirstOrigin%FirstProperty
-            do while (associated(CurrentProperty))
+dp:         do p=1, Me%Statistic%PropNumber
+                
 
-                if (Me%Statistic%ON(iProp)) then
+                iProp = Me%Statistic%OptionsStat(p)%PropOrder
+                
+                if (IndividualsPerCell_ == Me%Statistic%OptionsStat(p)%ID%IDNumber) then
+                    PropNumber = .true.
+                else
+                    PropNumber = .false.
+                endif
 
-                    do p=1, Me%Statistic%PropNumber
-                    
-                        if (CurrentProperty%ID == Me%Statistic%OptionsStat(p)%ID%IDNumber) exit
+                if (PropNumber) then
+                    AuxGrid3D(:,:,:) = Me%EulerModel(em)%Lag2Euler%GridTracerNumber(:, :, :, ig)
+                else
+                    AuxGrid3D(:,:,:) = Me%EulerModel(em)%Lag2Euler%GridConc(:, :, :, iProp, ig)
+                endif
+                
 
+                call GetStatisticMethod (Me%EulerModel(em)%PropStatistic(p)%Statistic1_ID(ig), &
+                                         MethodStatistic, STAT = STAT_CALL)
+                                                
+                if (STAT_CALL /= SUCCESS_)                                               &
+                    stop 'ModifyParticStatistic - ModuleLagrangianGlobal - ERR10'
+
+                call GetStatisticParameters (Me%EulerModel(em)%PropStatistic(p)%Statistic1_ID(ig),&
+                                             Value3DStatLayers = Value3DStatLayers,      &
+                                             Depth             = Depth,                  &
+                                             Layer             = Layer,                  &
+                                             STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)                                               &
+                    stop 'ModifyParticStatistic - ModuleLagrangianGlobal - ERR20'
+
+
+
+                if (MethodStatistic == Value3DStatLayers) then
+
+                    call GetStatisticLayersNumber(Me%EulerModel(em)%PropStatistic(p)%Statistic1_ID(ig),&
+                                                  LayersNumber, STAT = STAT_CALL)
+                                                    
+                    if (STAT_CALL /= SUCCESS_)                                          &
+                        stop 'ModifyParticStatistic - ModuleLagrangianGlobal - ERR20'
+
+                    do ln=1, LayersNumber
+
+                        call GetStatisticLayerDef(Me%EulerModel(em)%PropStatistic(p)%Statistic1_ID(ig), &
+                                                  ln, LayerDefinition, STAT = STAT_CALL)
+                                                    
+                        if (STAT_CALL /= SUCCESS_)                                      &
+                            stop 'ModifyParticStatistic - ModuleLagrangianGlobal - ERR30'
+
+
+                        !Statistic of properties values along the bottom 
+                        if (LayerDefinition == Layer) then 
+
+
+                            call AddStatisticLayers (StatisticID    = Me%EulerModel(em)%PropStatistic(p)%Statistic1_ID(ig),        &
+                                                     Value3D        = AuxGrid3D,      &
+                                                     WaterPoints3D  = Me%EulerModel(em)%Waterpoints3D, &
+                                                     DZ3D           = Me%EulerModel(em)%DWZ,           &
+                                                     LayerNumber    = ln,             &
+                                                     STAT= STAT_CALL) 
+
+                            if (STAT_CALL /= SUCCESS_)                                &
+                                stop 'ModifyParticStatistic - ModuleLagrangianGlobal - ERR40'
+
+
+                        else if (LayerDefinition == Depth) then 
+
+                            stop 'ModifyParticStatistic - ModuleLagrangianGlobal - ERR50'
+
+                        endif
+
+                   
                     enddo
 
-                    AuxGrid3D(:,:,:) = Me%EulerModel(em)%Lag2Euler%GridConc(:, :, :, iProp, ig)
-                    call ModifyStatistic    (Me%EulerModel(em)%PropStatistic(p)%Statistic1_ID(ig), &
-                                             Value3D       = AuxGrid3D,                         &
-                                             WaterPoints3D = Me%EulerModel(em)%Waterpoints3D,   &
-                                             STAT          = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_)                                               &
-                        stop 'ModifyParticStatistic - ModuleLagrangianGlobal - ERR01'
+                endif
+                
+                call ModifyStatistic    (Me%EulerModel(em)%PropStatistic(p)%Statistic1_ID(ig), &
+                                         Value3D       = AuxGrid3D,                     &
+                                         WaterPoints3D = Me%EulerModel(em)%Waterpoints3D,&
+                                         STAT          = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)                                              &
+                    stop 'ModifyParticStatistic - ModuleLagrangianGlobal - ERR60'
 
+                if (Me%OutPut%ConcMaxTracer .and. .not. PropNumber) then
+
+                    AuxGrid3D(:,:,:) = Me%EulerModel(em)%Lag2Euler%GridMaxTracer(:, :, :, iProp, ig)
+
+                    call ModifyStatistic (Me%EulerModel(em)%PropStatistic(p)%Statistic2_ID(ig), &
+                                          Value3D       = AuxGrid3D,                    &
+                                          WaterPoints3D = Me%EulerModel(em)%Waterpoints3D,      &
+                                          STAT          = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_)                                          &
+                        stop 'ModifyParticStatistic - ModuleLagrangianGlobal - ERR70'
+                endif 
+                
+                if (Me%OutPut%MassTracer .and. .not. PropNumber) then
+
+                    AuxGrid3D(:,:,:) = Me%EulerModel(em)%Lag2Euler%GridMass(:, :, :, iProp, ig)
+
+                    call ModifyStatistic (Me%EulerModel(em)%PropStatistic(p)%Statistic3_ID(ig), &
+                                          Value3D       = AuxGrid3D,                    &
+                                          WaterPoints3D = Me%EulerModel(em)%Waterpoints3D,      &
+                                          STAT          = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_)                                          &
+                        stop 'ModifyParticStatistic - ModuleLagrangianGlobal - ERR80'
+                        
                     if (Me%OutPut%ConcMaxTracer) then
 
-                        AuxGrid3D(:,:,:) = Me%EulerModel(em)%Lag2Euler%GridMaxTracer(:, :, :, iProp, ig)
+                        AuxGrid3D(:,:,:) = Me%EulerModel(em)%Lag2Euler%GridMaxMass(:, :, :, iProp, ig)
 
-                        call ModifyStatistic (Me%EulerModel(em)%PropStatistic(p)%Statistic2_ID(ig),                 &
-                                              Value3D       = AuxGrid3D,                     &
-                                              WaterPoints3D = Me%EulerModel(em)%Waterpoints3D,  &
+                        call ModifyStatistic (Me%EulerModel(em)%PropStatistic(p)%Statistic4_ID(ig), &
+                                              Value3D       = AuxGrid3D,                            &
+                                              WaterPoints3D = Me%EulerModel(em)%Waterpoints3D,      &
                                               STAT          = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_)                                           &
-                            stop 'ModifyParticStatistic - ModuleLagrangianGlobal - ERR02'
-                    endif 
+                        if (STAT_CALL /= SUCCESS_)                                          &
+                            stop 'ModifyParticStatistic - ModuleLagrangianGlobal - ERR90'
+                    endif                         
+                endif                 
 
-                    if (Me%Statistic%OptionsStat(p)%Lag) then
+                if (Me%Statistic%OptionsStat(p)%Lag .and. .not. PropNumber) then
 
-                        call ComputeStatisticsLag(CurrentProperty%ID, p, ig, iProp)
-
-                    endif
+                    call ComputeStatisticsLag(Me%Statistic%OptionsStat(p)%ID%IDNumber, p, ig, iProp)
 
                 endif
-                CurrentProperty => CurrentProperty%Next
-                iProp = iProp + 1
-            enddo
 
+
+            enddo dp
+                
             !Deallocates auxiliar variable
             deallocate (AuxGrid3D   )
             !if (Me%OutPut%ConcMaxTracer) deallocate (GridMaxTracer)
@@ -15272,7 +15953,7 @@ CurrOr:     do while (associated(CurrentOrigin))
         real(8),   dimension(:), pointer    :: Envelope1DX, Envelope1DY
         integer,   dimension(:), pointer    :: BoundaryNodes
         character(Len=StringLength)         :: StringXaux, StringYaux
-        real                                :: AverageX, AverageY
+        real                                :: AverageX, AverageY, MaxX, MaxY, rand
         integer                             :: ObjTriangulation, NumberOfBoundaryNodes
         integer                             :: STAT_CALL, NumberOfNodes, i, j
 
@@ -15293,6 +15974,26 @@ CurrOr:     do while (associated(CurrentOrigin))
 
             NodeX(:) = Matrix1DX(:) - AverageX
             NodeY(:) = Matrix1DY(:) - AverageY
+            
+            !Check for points that are concident 
+            MaxX = maxval(NodeX)
+            MaxY = maxval(NodeY)
+            MaxX = MaxX/100
+            MaxY = MaxY/100
+            do i=1,NumberOfNodes
+            do j=1,NumberOfNodes
+                if (i/=j) then
+                    if (abs(NodeX(i) - NodeX(j)) <MaxX /10) then
+                        call RANDOM_NUMBER(rand)
+                        NodeX(i) = NodeX(i) + MaxX*rand
+                    endif
+                    if (abs(NodeY(i) - NodeY(j)) <MaxY /10) then
+                        call RANDOM_NUMBER(rand)
+                        NodeY(i) = NodeY(i) + MaxY*rand
+                    endif
+                endif
+            enddo
+            enddo
             
             ObjTriangulation = 0
 
@@ -15581,6 +16282,9 @@ d1:     do em = 1, Me%EulerModelNumber
 
             if (Me%OutPut%ConcMaxTracer) then
                 Me%EulerModel(em)%Lag2Euler%GridMaxTracer (:,:,:,:,:) = 0.
+                if (Me%OutPut%MassTracer) then
+                    Me%EulerModel(em)%Lag2Euler%GridMaxMass   (:,:,:,:,:) = 0.                
+                endif
             endif
 
 dg:         do ig = 1, Me%NGroups 
@@ -15638,15 +16342,24 @@ cd1:                if (.not. CurrentPartic%Deposited) then
                             
 cd0:                    if (nProp > 0) then
 
-                            if (Me%OutPut%ConcMaxTracer) then
+                            do nP=1, nProp
 
-                                !In this grid is stored the maximum concentration of all tracers present in the cell
-                                Me%EulerModel(em)%Lag2Euler%GridMaxTracer(i, j, k, :, ig) = &
-                                    max(Me%EulerModel(em)%Lag2Euler%GridMaxTracer(i, j, k, :, ig), &
-                                    CurrentPartic%Concentration(:))
+                                if (Me%OutPut%ConcMaxTracer) then
 
-                            endif
+                                    !In this grid is stored the maximum concentration of all tracers present in the cell
+                                    Me%EulerModel(em)%Lag2Euler%GridMaxTracer(i, j, k, nP, ig) = &
+                                        max(Me%EulerModel(em)%Lag2Euler%GridMaxTracer(i, j, k, nP, ig), &
+                                        CurrentPartic%Concentration(nP))
 
+                                    if (Me%OutPut%MassTracer) then
+                                        !In this grid is stored the maximum mass of all tracers present in the cell
+                                        Me%EulerModel(em)%Lag2Euler%GridMaxMass(i, j, k, nP, ig) = &
+                                            max(Me%EulerModel(em)%Lag2Euler%GridMaxMass(i, j, k, nP, ig), &
+                                            CurrentPartic%Mass(nP))
+                                    endif                                        
+                                endif
+                            
+                            enddo
                             !Particle fits inside Grid Cell?    
         cd2:                if (CurrentPartic%Geometry%Volume <= Me%EulerModel(em)%VolumeZ(i, j, k)) then
 
@@ -16060,6 +16773,21 @@ ih:             if (CurrentProperty%WritesPropHDF) then
                                                Array3D = GridConc3D,                        &
                                                OutputNumber = Me%OutPut%NextOutPut)
 
+                        if (Me%OutPut%MassTracer) then
+
+                            GridConc3D(:,:,:) = Me%EulerModel(em)%Lag2Euler%GridMaxMass(:, :, :, p, ig)
+
+                            AuxChar3 = "/Results/Group_"//trim(adjustl(AuxChar))//&
+                                       "/Data_3D_MaxMassTracer/"//trim(CurrentProperty%Name)
+
+                            !HDF 5
+                            call HDF5WriteData    (Me%ObjHDF5(em),                              &
+                                                   trim(AuxChar3),                              &
+                                                   trim(CurrentProperty%Name),                  &
+                                                   trim(CurrentProperty%Units),                 &
+                                                   Array3D = GridConc3D,                        &
+                                                   OutputNumber = Me%OutPut%NextOutPut)
+                        endif
                     endif
 
                     if (Me%State%Deposition) then
@@ -16769,6 +17497,12 @@ d1:         do em = 1, Me%EulerModelNumber
                     deallocate (Me%EulerModel(em)%BeachingProbability)
 
                 end if
+                
+                if (Me%State%DistanceToCoast) then
+                
+                    deallocate(Me%EulerModel(em)%DistanceToCoast)
+                
+                endif
                
 
                 if (Me%State%Deposition)  then
@@ -17342,6 +18076,21 @@ d3:             do ig = 1, Me%NGroups
 
                     endif
                     
+                    if (Me%OutPut%MassTracer) then
+
+                        call KillStatistic(Me%EulerModel(em)%PropStatistic(p)%Statistic3_ID(ig), STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'KillParticleStatistic - ModuleLagrangianGlobal - ERR30'
+
+                        if (Me%OutPut%ConcMaxTracer) then
+
+                            call KillStatistic(Me%EulerModel(em)%PropStatistic(p)%Statistic4_ID(ig), STAT = STAT_CALL)
+                            if (STAT_CALL /= SUCCESS_) stop 'KillParticleStatistic - ModuleLagrangianGlobal - ERR40'
+
+                        endif                        
+
+                    endif
+
+                    
                 enddo d3
 
                 deallocate(Me%EulerModel(em)%PropStatistic(p)%Statistic1_ID)
@@ -17352,7 +18101,18 @@ d3:             do ig = 1, Me%NGroups
 
                 endif
                     
+                if (Me%OutPut%MassTracer) then
 
+                    deallocate(Me%EulerModel(em)%PropStatistic(p)%Statistic3_ID)
+                    
+                        if (Me%OutPut%ConcMaxTracer) then
+
+                            deallocate(Me%EulerModel(em)%PropStatistic(p)%Statistic4_ID)
+                            if (STAT_CALL /= SUCCESS_) stop 'KillParticleStatistic - ModuleLagrangianGlobal - ERR40'
+
+                        endif                          
+
+                endif
 
                 if (Me%Statistic%OptionsStat(p)%Lag) then
                     deallocate(Me%EulerModel(em)%PropStatistic(p)%FrequencyLag)
@@ -17397,6 +18157,9 @@ d1:     do em = 1, Me%EulerModelNumber
 
             if (Me%OutPut%ConcMaxTracer) then
                 deallocate (Me%EulerModel(em)%Lag2Euler%GridMaxTracer)
+                if (Me%OutPut%MassTracer) then
+                    deallocate (Me%EulerModel(em)%Lag2Euler%GridMaxMass  )                
+                endif
             endif
 
         enddo d1
@@ -17683,7 +18446,7 @@ em1:    do em =1, Me%EulerModelNumber
                 
                
 #ifndef _WAVES_
-                if (Me%State%Oil .and. .not.Me%ConstructPhase) then
+                if (Me%State%Waves .and. .not. Me%ConstructLag) then
                 
                     call GetWaves (WavesID      = EulerModel%ObjWaves,                    &
                                    WavePeriod   = EulerModel%WavePeriod2D,                &
@@ -17917,7 +18680,7 @@ i1:         if (.not. Me%RunOnlyMov2D) then
                 if (STAT_CALL /= SUCCESS_) stop 'ReadUnLockExternalVar - ModuleLagrangianGlobal - ERR240'
                 
 #ifndef _WAVES_
-                if (Me%State%Oil .and. .not.Me%ConstructPhase) then
+                if (Me%State%Waves  .and. .not. Me%ConstructLag) then
 
                     call UnGetWaves (EulerModel%ObjWaves, EulerModel%WavePeriod2D, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'ReadUnLockExternalVar - ModuleLagrangianGlobal - ERR250'
