@@ -1249,7 +1249,7 @@ Module ModuleHydrodynamic
         logical                              :: ON
         character(len=StringLength)          :: File
         integer                              :: NProp = 4
-        integer, dimension(4)                :: PropList, ID
+        integer, dimension(:), allocatable   :: PropList, ID
     end type T_HydroStatistic
 
     type T_CyclicBoundary
@@ -7115,11 +7115,18 @@ i7:             if (.not. ContinuousGOTM)  then
             if (Status /= SUCCESS_ .or. iflag /= 1)                                     &
                 call SetError(FATAL_, INTERNAL_, 'ConstructHydroStatistic - Hydrodynamic - ERR02') 
 
+            Me%Statistics%NProp = 4
+
+            allocate(Me%Statistics%PropList(Me%Statistics%NProp))
+            allocate(Me%Statistics%ID      (Me%Statistics%NProp))
+
 
             Me%Statistics%PropList(1) = VelocityU_
             Me%Statistics%PropList(2) = VelocityV_
             Me%Statistics%PropList(3) = VelocityW_
             Me%Statistics%PropList(4) = VelocityModulus_            
+            
+            Me%Statistics%ID(:) = 0
 
             do i=1, Me%Statistics%NProp
 
@@ -7183,23 +7190,34 @@ i7:             if (.not. ContinuousGOTM)  then
                  STAT = Status)
             if (Status /= SUCCESS_ .or. iflag /= 1)                                     &
                 call SetError(FATAL_, INTERNAL_, 'ConstructHydroStatistic - Hydrodynamic - ERR07') 
+                
+            Me%Statistics2D%NProp = 2
 
-            i = 1
+            allocate(Me%Statistics2D%PropList(Me%Statistics2D%NProp))
 
-            Me%Statistics2D%PropList(i) = WaterLevel_
+            Me%Statistics2D%PropList(1) = WaterLevel_
+            Me%Statistics2D%PropList(2) = WaterColumn_
 
-            call ConstructStatistic (Me%Statistics2D%ID(i),                             &
-                                     Me%ObjTime,                                        &
-                                     Me%ObjHDF5,                                        &
-                                     Me%Size,                                           &
-                                     Me%WorkSize,                                       &
-                                     Me%Statistics2D%File,                              &
-                                     GetPropertyName (Me%Statistics2D%PropList(i)),     &
-                                     STAT = Status)
-            if (Status /= SUCCESS_)                                                     &
-                call SetError(FATAL_, INTERNAL_, 'ConstructHydroStatistic - Hydrodynamic - ERR08') 
+            allocate(Me%Statistics2D%ID      (Me%Statistics2D%NProp))
+            Me%Statistics2D%ID(:) = 0
+
+            
+            do i=1, Me%Statistics2D%NProp
+                
+                call ConstructStatistic (Me%Statistics2D%ID(i),                             &
+                                         Me%ObjTime,                                        &
+                                         Me%ObjHDF5,                                        &
+                                         Me%Size,                                           &
+                                         Me%WorkSize,                                       &
+                                         Me%Statistics2D%File,                              &
+                                         GetPropertyName (Me%Statistics2D%PropList(i)),     &
+                                         STAT = Status)
+                if (Status /= SUCCESS_)                                                     &
+                    call SetError(FATAL_, INTERNAL_, 'ConstructHydroStatistic - Hydrodynamic - ERR08') 
+            enddo
         endif
 
+        
     end subroutine ConstructHydroStatistic
 
     !--------------------------------------------------------------------------
@@ -8800,145 +8818,6 @@ cd5:                if (SurfaceElevation(i,j) < (- Bathymetry(i, j) + 0.999 * Mi
 
 
         
-        !Creates Groups
-        call HDF5CreateGroup (ObjHDF5, "/Grid",              STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleHydrodynamic - ERR40'
-
-        call HDF5CreateGroup (ObjHDF5, "/Grid/VerticalZ",    STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleHydrodynamic - ERR50'
-
-        call HDF5CreateGroup (ObjHDF5, "/Grid/OpenPoints",   STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleHydrodynamic - ERR60'
-
-        call HDF5CreateGroup (ObjHDF5, "/Time",              STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleHydrodynamic - ERR70'
-
-        if (Me%Generic4D%ON) then
-            call HDF5CreateGroup (ObjHDF5, "/Genreric4D",    STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleHydrodynamic - ERR80'
-        endif
-
-
-        call HDF5CreateGroup (ObjHDF5, "/Results",           STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleHydrodynamic - ERR90'
-
-        call HDF5CreateGroup (ObjHDF5, "/Results/"//trim(GetPropertyName (WaterLevel_)),STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleHydrodynamic - ERR100'
-
-        !call HDF5CreateGroup (ObjHDF5, "/Results/"//trim(GetPropertyName (WaterLevelMax_)),STAT = STAT_CALL)
-        !if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleHydrodynamic - ERR101'
-
-        !call HDF5CreateGroup (ObjHDF5, "/Results/"//trim(GetPropertyName (WaterLevelMin_)),STAT = STAT_CALL)
-        !if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleHydrodynamic - ERR102'
-
-        call HDF5CreateGroup (ObjHDF5, "/Results/"//trim(GetPropertyName (VelocityU_)),  STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleHydrodynamic - ERR110'
-
-        call HDF5CreateGroup (ObjHDF5, "/Results/"//trim(GetPropertyName (VelocityV_)),STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleHydrodynamic - ERR120'
-
-        call HDF5CreateGroup (ObjHDF5, "/Results/"//trim(GetPropertyName (VelocityW_)),STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleHydrodynamic - ERR130'
-
-        call HDF5CreateGroup (ObjHDF5, "/Results/"//trim(GetPropertyName (VelocityModulus_)),STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleHydrodynamic - ERR140'
-
-sp:     if (.not. SimpleOutPut) then
-
-            if (.not. Me%ComputeOptions%BaroclinicRadia == NoRadiation_) then
-
-                call HDF5CreateGroup (ObjHDF5, "/Results/Baroclinic",   STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleHydrodynamic - ERR150'
-
-                call HDF5CreateGroup (ObjHDF5, "/Results/Baroclinic/X", STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleHydrodynamic - ERR160'
-
-                call HDF5CreateGroup (ObjHDF5, "/Results/Baroclinic/Y", STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleHydrodynamic - ERR170'
-
-                call HDF5CreateGroup (ObjHDF5, "/Results/Baroclinic/Z", STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleHydrodynamic - ERR190'
-
-            endif
-
-            call HDF5CreateGroup (ObjHDF5, "/Results/Error", STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleHydrodynamic - ERR360'
-
-            call HDF5CreateGroup (ObjHDF5, "/Results/VolumeCreated", STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleHydrodynamic - ERR370'
-
-            if (Me%TidePotential%Compute) then
-
-                call HDF5CreateGroup (ObjHDF5, "/Results/TidePotential", STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleHydrodynamic - ERR380'
-
-            endif
-
-            if (Me%ComputeOptions%Baroclinic) then
-
-                call HDF5CreateGroup (ObjHDF5, "/Results/"//trim(GetPropertyName(BaroclinicForceX_)), STAT = STAT_CALL)
-
-                if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleHydrodynamic - ERR390'
-
-                call HDF5CreateGroup (ObjHDF5, "/Results/"//trim(GetPropertyName(BaroclinicForceY_)), STAT = STAT_CALL)
-
-                if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleHydrodynamic - ERR400'
-
-            endif            
-            
-        endif sp
-            
-
-        if (Me%ComputeOptions%Residual .and. .not. SimpleOutPut) then
-
-            call HDF5CreateGroup (ObjHDF5, "/Residual",   STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleHydrodynamic - ERR200'
-
-            call HDF5CreateGroup (ObjHDF5, "/Residual/Velocity",   STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleHydrodynamic - ERR210'
-
-            call HDF5CreateGroup (ObjHDF5, "/Residual/Velocity/X", STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleHydrodynamic - ERR220'
-
-            call HDF5CreateGroup (ObjHDF5, "/Residual/Velocity/Y", STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleHydrodynamic - ERR230'
-            
-            call HDF5CreateGroup (ObjHDF5, "/Residual/Velocity/Modulus", STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleHydrodynamic - ERR240'
-            
-            call HDF5CreateGroup (ObjHDF5, "/Residual/Velocity/Z", STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleHydrodynamic - ERR250'
-
-            call HDF5CreateGroup (ObjHDF5, "/Residual/Flux",    STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleHydrodynamic - ERR260'
-
-            call HDF5CreateGroup (ObjHDF5, "/Residual/Flux/X",  STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleHydrodynamic - ERR270'
-
-            call HDF5CreateGroup (ObjHDF5, "/Residual/Flux/Y",  STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleHydrodynamic - ERR280'
-
-            call HDF5CreateGroup (ObjHDF5, "/Residual/Flux/Modulus", STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleHydrodynamic - ERR290'
-
-            call HDF5CreateGroup (ObjHDF5, "/Residual/FluxVel",    STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleHydrodynamic - ERR300'
-
-            call HDF5CreateGroup (ObjHDF5, "/Residual/FluxVel/X",  STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleHydrodynamic - ERR310'
-
-            call HDF5CreateGroup (ObjHDF5, "/Residual/FluxVel/Y",  STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleHydrodynamic - ERR320'
-
-            call HDF5CreateGroup (ObjHDF5, "/Residual/FluxVel/Modulus", STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleHydrodynamic - ERR340'
-
-            call HDF5CreateGroup (ObjHDF5, "/Residual/Waterlevel", STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleHydrodynamic - ERR350'
-
-        endif
-        
-
         
         !Write the Horizontal Grid
         call WriteHorizontalGrid(Me%ObjHorizontalGrid, ObjHDF5,                         &
@@ -12731,25 +12610,28 @@ cd1:            if (MethodStatistic == Value3DStatLayers) then
 
         if (Me%Statistics2D%ON) then
 
-            np = 1
+            do np = 1, Me%Statistics2D%NProp
 
-            if (Me%Statistics2D%PropList(np) == WaterLevel_)           &
-                Value2D => WaterLevel
+                if (Me%Statistics2D%PropList(np) == WaterLevel_)           &
+                    Value2D => WaterLevel
 
-            call GetStatisticMethod (Me%Statistics2D%ID(np), MethodStatistic, &
-                                    STAT = status)
-                                        
-            if (status /= SUCCESS_)                                                  &
-                call SetError (FATAL_, INTERNAL_, 'Statistics_OutPut - ModuleHydrodynamic - ERR01b')
+                if (Me%Statistics2D%PropList(np) == WaterColumn_)          &
+                    Value2D => Me%External_Var%WaterColumn
 
-            call ModifyStatistic (Me%Statistics2D%ID(np),                              &
-                                  Value2D       = Value2D,                           &
-                                  WaterPoints2D = Me%External_Var%WaterPoints2D,     &
-                                  STAT          = status)
-            if (status /= SUCCESS_)                                                  &
-                call SetError (FATAL_, INTERNAL_, 'Statistics_OutPut - ModuleHydrodynamic - ERR12')
+                call GetStatisticMethod (Me%Statistics2D%ID(np), MethodStatistic, &
+                                        STAT = status)
+                                            
+                if (status /= SUCCESS_)                                                  &
+                    call SetError (FATAL_, INTERNAL_, 'Statistics_OutPut - ModuleHydrodynamic - ERR01b')
 
+                call ModifyStatistic (Me%Statistics2D%ID(np),                              &
+                                      Value2D       = Value2D,                           &
+                                      WaterPoints2D = Me%External_Var%WaterPoints2D,     &
+                                      STAT          = status)
+                if (status /= SUCCESS_)                                                  &
+                    call SetError (FATAL_, INTERNAL_, 'Statistics_OutPut - ModuleHydrodynamic - ERR12')
 
+            enddo
            
         endif
 
@@ -38864,6 +38746,12 @@ cd2:            if (WaterPoints3D(i  , j  ,k)== WaterPoint .and.                
                              OutputNumber = Index, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR100'
 
+        call HDF5WriteData  (ObjHDF5,                                                   &
+                             "/Results/"//trim(GetPropertyName (WaterColumn_)),         &
+                             trim(GetPropertyName (WaterColumn_)), "m",                 &
+                             Array2D = Me%External_Var%WaterColumn,                     &
+                             OutputNumber = Index, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR105'
 
         !!Writes Waterlevel maximum
         !call HDF5WriteData  (ObjHDF5,                                                &
@@ -40836,23 +40724,26 @@ cd1:    if (Me%State%BOXFLUXES) then
             
                 call KillStatistic (Me%Statistics%ID(i), STAT = STATUS)
                 if (STATUS /= SUCCESS_)                                                  &
-                    call SetError (FATAL_, OUT_OF_MEM_, "KillHydroStatistics - Hydrodynamic - ERR01")
+                    call SetError (FATAL_, OUT_OF_MEM_, "KillHydroStatistics - Hydrodynamic - ERR10")
 
             enddo
         
+            deallocate(Me%Statistics%PropList, Me%Statistics%ID)
 
         endif
 
         if (Me%Statistics2D%ON) then
 
 
-            i = 1
+            do i = 1, Me%Statistics2D%Nprop
         
-            call KillStatistic (Me%Statistics2D%ID(i), STAT = STATUS)
-            if (STATUS /= SUCCESS_)                                                  &
-                call SetError (FATAL_, OUT_OF_MEM_, "KillHydroStatistics - Hydrodynamic - ERR01b")
+                call KillStatistic (Me%Statistics2D%ID(i), STAT = STATUS)
+                if (STATUS /= SUCCESS_)                                                  &
+                    call SetError (FATAL_, OUT_OF_MEM_, "KillHydroStatistics - Hydrodynamic - ERR20")
+                    
+            enddo                    
 
-    
+            deallocate(Me%Statistics2D%PropList, Me%Statistics2D%ID)
 
         endif
 
