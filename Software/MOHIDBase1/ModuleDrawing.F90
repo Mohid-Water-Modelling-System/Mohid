@@ -1484,20 +1484,23 @@ logical function VertPolygonInsidePolygon(PolygonA, PolygonB)
     !and the tangent to the polygon segment. If the intersection point is between the 
     !polygon segment limits and is along the right direction then distances are evaluated  
  
-    subroutine PointDistanceToPolygon (Point, Polygons, AngleList,                &
-                                             MinDistanceFromPoint)
+    subroutine PointDistanceToPolygon (Point, Polygons, AngleList,                      &
+                                       MinDistanceFromPoint,                            &
+                                       TotalMinDistance, MinIntersectX, MinIntersectY)
         
         !Arguments-------------------------------------------------------------
         type (T_PointF),    pointer                 :: Point
         type (T_Polygon),   pointer                 :: Polygons
         real, dimension(:), pointer                 :: AngleList
-        real, dimension(:), pointer                 :: MinDistanceFromPoint      
+        real, dimension(:), pointer                 :: MinDistanceFromPoint
+        real,               optional                :: TotalMinDistance, MinIntersectX, MinIntersectY              
 
         !Local-----------------------------------------------------------------
         integer                                     :: CurrentVertix
         type(T_Segment),  pointer                   :: Segment
         real                                        :: SegmentSlope, DirectionSlope  
         real                                        :: IntersectionPointX, IntersectionPointY
+        real, dimension(:), pointer                 :: IntersectMinX, IntersectMinY
         real                                        :: Xleft, Xright, Ytop, Ybottom
         integer                                     :: Direction, EndDirection, LastVertix
         real                                        :: Angle
@@ -1509,6 +1512,12 @@ logical function VertPolygonInsidePolygon(PolygonA, PolygonB)
         
         !How many directions to compute
         EndDirection = size(AngleList)
+
+        if (present(MinIntersectX   )) MinIntersectX    = - FillValueReal
+        if (present(MinIntersectY   )) MinIntersectY    = - FillValueReal   
+        if (present(TotalMinDistance)) TotalMinDistance = - FillValueReal
+        
+        allocate(IntersectMinX(EndDirection), IntersectMinY(EndDirection))
         
         !Nullify Distances
         do Direction = 1, EndDirection 
@@ -1516,11 +1525,13 @@ logical function VertPolygonInsidePolygon(PolygonA, PolygonB)
         enddo
       
         !If point is not inside polygons collection
-        if(.not.IsVisible(Polygons, Point)) then
+i1:     if(.not.IsVisible(Polygons, Point)) then
 
             allocate(Segment)
-                      
-            do Direction = 1, EndDirection
+            allocate(Segment%StartAt)
+            allocate(Segment%EndAt)            
+                                  
+d1:         do Direction = 1, EndDirection
                 
                 MinDistanceFromPoint(Direction)=999999999999.
                 Angle = AngleList(Direction) * Pi / 180.
@@ -1532,7 +1543,7 @@ logical function VertPolygonInsidePolygon(PolygonA, PolygonB)
                 
                 CurrentPolygon => Polygons
 
-                do while(associated(CurrentPolygon))      
+d2:             do while(associated(CurrentPolygon))      
 
                     !Last vertix has always to be filled in AddPolygon routine
                     !If polygon(s) input is(are) already closed last vertix will
@@ -1549,7 +1560,7 @@ logical function VertPolygonInsidePolygon(PolygonA, PolygonB)
                     endif
                     
                     !Run across polygon segments
-                    do CurrentVertix = 1, LastVertix
+d3:                 do CurrentVertix = 1, LastVertix
 
                         Segment%StartAt%X = CurrentPolygon%VerticesF(CurrentVertix)%X
                         Segment%StartAt%Y = CurrentPolygon%VerticesF(CurrentVertix)%Y
@@ -1562,7 +1573,7 @@ logical function VertPolygonInsidePolygon(PolygonA, PolygonB)
                         Ybottom= min(Segment%StartAt%Y, Segment%EndAt%Y)
 
                         !if segments have slope 
-                        if (Segment%StartAt%X.ne.Segment%EndAt%X.and.                   &
+i2:                     if (Segment%StartAt%X.ne.Segment%EndAt%X.and.                   &
                             DirectionNewPointX.ne.Point%X) then
 
                             SegmentSlope = (Segment%StartAt%Y - Segment%EndAt%Y)  /     &
@@ -1571,7 +1582,7 @@ logical function VertPolygonInsidePolygon(PolygonA, PolygonB)
                             DirectionSlope = (DirectionNewPointY - Point%Y)  /          &
                                              (DirectionNewPointX - Point%X)
 
-                            if (SegmentSlope.ne.DirectionSlope) then
+i3:                         if (SegmentSlope.ne.DirectionSlope) then
                                                    
                                 !Solving tangent equations
                                 IntersectionPointX = (Segment%StartAt%Y - SegmentSlope *&
@@ -1586,21 +1597,21 @@ logical function VertPolygonInsidePolygon(PolygonA, PolygonB)
                                                       DirectionSlope * Point%X)) /      &
                                                       (SegmentSlope - DirectionSlope)
 
-                            else
+                            else i3
                                 !Segments are parallel so there is no Intersection Point.
                                 !Obbligate the intersection point to go outside the polygon segment limits
                                 IntersectionPointX = Xleft - 1
                                 IntersectionPointY = YTop + 1
 
-                            endif
+                            endif i3
 
                         !if there is one segment with vertical slope,
                         !tangent equations are to be changed (axe change)
                         elseif (Segment%StartAt%X.eq.Segment%EndAt%X.or.                &
-                                DirectionNewPointX.eq.Point%X) then
+                                DirectionNewPointX.eq.Point%X) then i2
                         
                             !if direction segment and polygon segment are not perpendicular
-                            if (Segment%StartAt%Y.ne.Segment%EndAt%Y.and.               &
+i4:                         if (Segment%StartAt%Y.ne.Segment%EndAt%Y.and.               &
                                 DirectionNewPointY.ne.Point%Y) then
 
                                 SegmentSlope = (Segment%StartAt%X - Segment%EndAt%X)  / &
@@ -1633,7 +1644,7 @@ logical function VertPolygonInsidePolygon(PolygonA, PolygonB)
                             !if direction segment and polygon segment are perpendiclar.
                             !Two cases possible
                             elseif (Segment%StartAt%Y.eq.Segment%EndAt%Y.or.            &
-                                    DirectionNewPointY.eq.Point%Y) then
+                                    DirectionNewPointY.eq.Point%Y) then i4
 
                                 if (Segment%StartAt%X.eq.Segment%EndAt%X.and.           &
                                     DirectionNewPointY.eq.Point%Y) then
@@ -1656,19 +1667,19 @@ logical function VertPolygonInsidePolygon(PolygonA, PolygonB)
                                     
                                 endif
 
-                            else
+                            else i4
                         
                                 stop 'PointDistanceToPolygon - ModuleDrawing - ERR10'
-                            endif
+                            endif i4
 
-                        else
+                        else i2
 
                             stop 'PointDistanceToPolygon - ModuleDrawing - ERR20'
                 
-                        endif                   
+                        endif  i2                 
                 
                         !if the intersection point is in the polygon segment limits "box"
-                        if (IntersectionPointX.ge.Xleft.and.                            &
+i5:                     if (IntersectionPointX.ge.Xleft.and.                            &
                             IntersectionPointX.le.Xright.and.                           &
                             IntersectionPointY.ge.Ybottom.and.                          &
                             IntersectionPointY.le.Ytop) then
@@ -1688,7 +1699,7 @@ logical function VertPolygonInsidePolygon(PolygonA, PolygonB)
                             !
                             !Directions in the positive x-axe (From NNE to SSE) and
                             !negative x-axe (From SSW to NNW).
-                            if (DirectionX.ne.0.) then
+i6:                         if (DirectionX.ne.0.) then
                         
                                 if ((DirectionX.gt.0..and.XDistance.ge.0.).or.          &
                                     (DirectionX.lt.0..and.XDistance.le.0.)) then                     
@@ -1697,13 +1708,15 @@ logical function VertPolygonInsidePolygon(PolygonA, PolygonB)
                 
                                     if (DistanceFromPoint.lt.MinDistanceFromPoint(Direction)) then
                                         MinDistanceFromPoint(Direction) = DistanceFromPoint
+                                        IntersectMinX(Direction)        = IntersectionPointX
+                                        IntersectMinY(Direction)        = IntersectionPointY
 
                                     endif
 
                                 endif
                     
                             !Directions North and South
-                            elseif (DirectionX.eq.0.) then
+                            elseif (DirectionX.eq.0.) then i6
                         
                                 if ((DirectionY.gt.0..and.YDistance.ge.0.).or.          &
                                     (DirectionY.lt.0..and.YDistance.le.0.)) then
@@ -1712,32 +1725,45 @@ logical function VertPolygonInsidePolygon(PolygonA, PolygonB)
                 
                                     if (DistanceFromPoint.lt.MinDistanceFromPoint(Direction)) then
                                         MinDistanceFromPoint(Direction) = DistanceFromPoint
+                                        IntersectMinX(Direction)        = IntersectionPointX
+                                        IntersectMinY(Direction)        = IntersectionPointY                                                                                
 
                                     endif
 
                                 endif
 
-                            endif
+                            endif i6
                                                
-                        endif
+                        endif i5
             
-                    enddo 
+                    enddo d3
                     
                     CurrentPolygon => CurrentPolygon%Next             
 
-                enddo
+                enddo d2
 
-            enddo
-        
+               if (present(TotalMinDistance)) then
+                    if (TotalMinDistance > MinDistanceFromPoint(Direction)) then
+                        TotalMinDistance = MinDistanceFromPoint(Direction)
+                        if (present(MinIntersectX)) MinIntersectX = IntersectMinX(Direction) 
+                        if (present(MinIntersectY)) MinIntersectY = IntersectMinY(Direction)    
+                    endif
+                endif
+                
+            enddo d1
+            deallocate(Segment%StartAt)
+            deallocate(Segment%EndAt)        
             deallocate(Segment)
+            
     
         !else
 
             !do nothing. if point is inside polygon collection, go to end of routine. 
             !Distances were reset to zero in the beggining of routine.
-            
-        endif
+             
+        endif i1
         
+        deallocate(IntersectMinX, IntersectMinY)
 
     end subroutine PointDistanceToPolygon
 
