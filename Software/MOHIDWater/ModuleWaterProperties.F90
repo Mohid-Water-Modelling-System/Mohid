@@ -15662,34 +15662,6 @@ i2:     if (Me%OutPut%Radiation) then
                 if (STAT_CALL /= SUCCESS_)                                               &
                     call SetError (FATAL_, KEYWORD_, 'OutPut_Statistics - ModuleWaterProperties - ERR09')
 
-
-                if (MethodStatistic == Value3DStatLayers) then
-
-
-                    do ln=1, LayersNumber
-
-                        call GetStatisticLayerDef(PropertyX%StatisticID, ln, LayerDefinition, STAT = STAT_CALL)
-                                                    
-                        if (STAT_CALL /= SUCCESS_)                                          &
-                                call SetError (FATAL_, KEYWORD_, 'OutPut_Statistics - ModuleWaterProperties - ERR10')
-
-
-                        !Statistic of properties values in the surface mixed layer 
-!                        if (LayerDefinition == Depth) then 
-
-!                            call UnGetTurbulence(Me%ObjTurbulence,                          &
-!                                                 MLD_Surf, STAT = STAT_CALL) 
-!                            if (STAT_CALL /= SUCCESS_)                                      &
-!                                call SetError (FATAL_, KEYWORD_, 'OutPut_Statistics - ModuleWaterProperties - ERR12')
-
-!                        endif
-
-                    enddo
-
-                endif
-
-
-
             endif
             PropertyX=>PropertyX%Next
         enddo
