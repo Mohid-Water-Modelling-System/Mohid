@@ -91,6 +91,7 @@ Module ModuleNetCDFCF_2_HDF5MOHID
     type       T_Date
         character(len=StringLength)             :: NetCDFName    
         type (T_ValueIn)                        :: ValueIn        
+        real(8), dimension(:), pointer          :: ValueInTotal
         type(T_Time), dimension(:), pointer     :: Value1DOut
         integer                                 :: NumberInst
         integer                                 :: TotalInst        
@@ -652,7 +653,8 @@ BF:         if (BlockFound) then
                              STAT         = STAT_CALL)        
                 if (STAT_CALL /= SUCCESS_) stop 'ReadTimeOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR50'    
                 
-                Me%Date%ValueIn%Dim = 1
+                Me%Date%ValueIn%Dim      = 1
+          
 
                 !call GetData(Me%Date%UnitsFactor,                                       &
                 !             Me%ObjEnterData, iflag,                                    &
@@ -687,7 +689,7 @@ BF:         if (BlockFound) then
                 endif
                 
                 !Index 1 is time
-                Me%Date%ValueIn%t = 1
+                Me%Date%ValueIn%t      = 1
                 
                 !call Block_Unlock(Me%ObjEnterData, Me%ClientNumber, STAT = STAT_CALL) 
 
@@ -1129,7 +1131,7 @@ BF:         if (BlockFound) then
         
         !Local-----------------------------------------------------------------
         character(len=PathLength)               :: InPutFile
-        logical                                 :: BlockFound
+        logical                                 :: BlockFound, LastLineON
         integer                                 :: iflag, line, FirstLine, LastLine,    &
                                                    STAT_CALL, HDF5_CREATE, iOut, status,&
                                                    ncid, iP
@@ -1164,8 +1166,7 @@ BF:         if (BlockFound) then
         
         enddo
 
-        Me%Date%TotalInst = 0
-        
+       
         call ExtractBlockFromBlock(Me%ObjEnterData, Me%ClientNumber,                    &
                                    input_files_begin, input_files_end,                  &
                                    BlockInBlockFound = BlockFound,                      &
@@ -1177,9 +1178,49 @@ IS:     if(STAT_CALL .EQ. SUCCESS_) then
             !The block is found to exist before when reading depth
 BF:         if (BlockFound) then            
 
-                iOut = 0
+                iOut              = 0
+
+                Me%Date%TotalInst = 0
+                Me%OutCountProp   = 0
+
+                do line = FirstLine + 1, LastLine - 1
+
+                    call GetData(InputFile, EnterDataID = Me%ObjEnterData, flag = iflag,    &
+                                 Buffer_Line = line, STAT = STAT_CALL)
+
+                    
+                    !Verifies if file exists
+                    status=NF90_OPEN(trim(InputFile),NF90_NOWRITE,ncid)
+                    if (status /= nf90_noerr) stop 'ReadNetCDFCF_WriteHDF5MOHID - ModuleNetCDFCF_2_HDF5MOHID - ERR20'
+                    
+                    write(*,*) 'Reading ', trim(InputFile)
+                    
+                    if (line == LastLine - 1) then
+                        LastLineON = .true.
+                    else
+                        LastLineON = .false.
+                    endif
+
+                    !Time
+                    call ReadWriteTime          (ncid, LastLineON)                    
+
+                    Me%Date%TotalInst = Me%Date%TotalInst + Me%Date%NumberInst                        
+                    
+                    if (line == FirstLine + 1) then
+!                            !Grid/Bathym and Grid/Longitude and Grid/Latitude
+                             call ReadWriteGrid2D  (ncid) 
+                         !Bathym, mapping
+                             call ReadWriteGrid3D  (ncid)
+                    endif 
+                    
+                    status=NF90_CLOSE(ncid)
+                    if (status /= nf90_noerr)  stop 'ReadNetCDFCF_WriteHDF5MOHID - ModuleNetCDFCF_2_HDF5MOHID - ERR30'
+
                 
-                Me%OutCountProp = 0
+                enddo
+
+                iOut              = 0
+                Me%Date%TotalInst = 0
 
                 do line = FirstLine + 1, LastLine - 1
 
@@ -1195,14 +1236,10 @@ BF:         if (BlockFound) then
 
                     !Time
                     if (Me%OutCountProp == 0) then
-                        call ReadWriteTime          (ncid, iOut)                    
+                        call ReadTimeNetCDF(ncid)
+                        Me%Date%TotalInst = Me%Date%TotalInst + Me%Date%NumberInst    
+                        call deallocatevaluein(Me%Date%ValueIn)                                        
                         
-                        if (line == FirstLine + 1) then
-                            !Grid/Bathym and Grid/Longitude and Grid/Latitude
-                             call ReadWriteGrid2D  (ncid) 
-                             !Bathym, mapping
-                             call ReadWriteGrid3D  (ncid)
-                        endif 
                         !Grid/Vertical Z
                         if (Me%Depth%Dim3D) then
                             call WriteDepth    (iOut)
@@ -1227,6 +1264,7 @@ BF:         if (BlockFound) then
 
                 
                 enddo
+
                 
             else  BF
                 stop 'ReadNetCDFCF_WriteHDF5MOHID - ModuleNetCDFCF_2_HDF5MOHID - ERR40'
@@ -1282,23 +1320,50 @@ BF:         if (BlockFound) then
 
     end subroutine OpenNCDFFile
    !------------------------------------------------------------------------
-    subroutine ReadWriteTime(ncid, iOut)
+    subroutine ReadWriteTime(ncid, LastLineON)
         !Arguments-------------------------------------------------------------
-        integer                                         :: iOut, ncid
+        integer                                         :: ncid
+        logical                                         :: LastLineON
         
         !Local-----------------------------------------------------------------
-
+        real(8), dimension(:), pointer                  :: AuxT
+        integer                                         :: iAux, j
         !Begin-----------------------------------------------------------------
         
         call ReadTimeNetCDF(ncid)
+ 
+        if(associated(Me%Date%ValueInTotal)) then
+            iAux = size(Me%Date%ValueInTotal)
+        else 
+            iAux = 0
+        endif
         
-        if (Me%OutHDF5  ) call WriteTimeHDF5  (iOut)
+        allocate(AuxT(iAux + Me%Date%NumberInst))
         
-        if (Me%OutNetCDF) call WriteTimeNetCDF(iOut)
+        if(associated(Me%Date%ValueInTotal)) then
+            AuxT(1:iAux) = Me%Date%ValueInTotal(:)
+        endif
+        do j=1, Me%Date%NumberInst
+            AuxT(j+iAux:j+iAux) =  GetNetCDFValue(Me%Date%ValueIn, Dim1 = j) 
+        enddo
         
-        Me%Date%TotalInst = Me%Date%TotalInst + Me%Date%NumberInst
+        allocate(Me%Date%ValueInTotal(Me%Date%NumberInst+iAux))
         
+        Me%Date%ValueInTotal(:) = AuxT(:)
+        
+        deallocate(AuxT)
         call DeAllocateValueIn(Me%Date%ValueIn)            
+        
+        
+        if (LastLineON) then
+        
+            if (Me%OutHDF5  ) call WriteTimeHDF5  
+            
+            if (Me%OutNetCDF) call WriteTimeNetCDF
+        
+            DeAllocate(Me%Date%ValueInTotal)            
+       
+        endif
 
     end subroutine ReadWriteTime
 
@@ -1884,9 +1949,8 @@ i4:         if      (Me%Depth%Positive == "up"  ) then
     !--------------------------------------------------------------------------
             
    
-    subroutine WriteTimeHDF5(iOut)
+    subroutine WriteTimeHDF5
         !Arguments-------------------------------------------------------------
-        integer                                         :: iOut
         
         !Local-----------------------------------------------------------------
         real,    dimension(6), target                   :: AuxTime
@@ -1903,9 +1967,9 @@ i4:         if      (Me%Depth%Positive == "up"  ) then
         !allocate(Me%Date%Value1DOut(1:Me%Date%NumberInst))
         
 
-        do i=1, Me%Date%NumberInst
+        do i=1, size(Me%Date%ValueInTotal)
 
-            Aux = GetNetCDFValue(Me%Date%ValueIn, Dim1 = i)
+            Aux = Me%Date%ValueInTotal(i)
             
             Aux = Aux * dble(Me%Date%UnitsFactor)
             
@@ -1926,7 +1990,7 @@ i4:         if      (Me%Depth%Positive == "up"  ) then
             call HDF5WriteData  (Me%ObjHDF5, "/Time",                                   &
                                  "Time", "YYYY/MM/DD HH:MM:SS",                         &
                                  Array1D = TimePtr,                                     &
-                                 OutputNumber = i+iOut, STAT = STAT_CALL)
+                                 OutputNumber = i, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)stop 'WriteTimeHDF5 - ModuleNetCDFCF_2_HDF5MOHID - ERR20'
             
            
@@ -1939,15 +2003,14 @@ i4:         if      (Me%Depth%Positive == "up"  ) then
 
    !---------------------------------------------------------------------------
    !------------------------------------------------------------------------
-    subroutine WriteTimeNetCDF(iOut)
+    subroutine WriteTimeNetCDF
         !Arguments-------------------------------------------------------------
-        integer                                         :: iOut
-        
+       
         !Local-----------------------------------------------------------------
         real(8), dimension(:), pointer                  :: Times        
         real(8)                                         :: Aux
         type(T_Time)                                    :: CurrentTime
-        integer                                         :: STAT_CALL, i
+        integer                                         :: STAT_CALL, i, TotalInst
         character(len=Stringlength)                     :: AuxChar
 
         !Begin-----------------------------------------------------------------
@@ -1955,17 +2018,16 @@ i4:         if      (Me%Depth%Positive == "up"  ) then
         write(*,*)
         write(*,*)'Writing Time NetCDF file...'
         
-        if (iOut == 0) then
+        TotalInst = size(Me%Date%ValueInTotal)
 
-            AuxChar = TimeToStringV2(Me%Date%RefDateTimeOut)
-           
-        endif        
+        AuxChar = TimeToStringV2(Me%Date%RefDateTimeOut)
+     
         
-        allocate(Times(Me%Date%NumberInst))
+        allocate(Times(TotalInst))
 
-        do i=1, Me%Date%NumberInst
+        do i=1, TotalInst
 
-            Aux = GetNetCDFValue(Me%Date%ValueIn, Dim1 = i)
+            Aux = Me%Date%ValueInTotal(i)
             
             Aux = Aux * dble(Me%Date%UnitsFactor)
             
@@ -1979,9 +2041,8 @@ i4:         if      (Me%Depth%Positive == "up"  ) then
         
         call NETCDFWriteTime(NCDFID       = Me%NetCDF_Out%ObjNetCDF,                    &
                              InitialDate  = AuxChar,                                    &
-                             nInstants    = Me%Date%NumberInst,                         &
+                             nInstants    = TotalInst,                                  &
                              Times        = Times,                                      &
-                             StartInstant = iOut+1,                                     &
                              STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)stop 'WriteTimeNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR10'
 

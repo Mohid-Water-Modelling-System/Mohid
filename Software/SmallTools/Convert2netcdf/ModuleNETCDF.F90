@@ -1362,7 +1362,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteTime - ModuleNETCDF - ERR03'
                 
             endif                
-
+            
             !write time
             if (present(StartInstant)) then
                 STAT_CALL = nf90_put_var(Me%ncid, Me%Dims(4)%VarID, Times,                  &
@@ -1375,7 +1375,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             endif
 
             STAT_ = SUCCESS_
-
+            
         else
 
             STAT_ = ready_
