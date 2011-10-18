@@ -2052,16 +2052,16 @@ IS:     if(STAT_CALL .EQ. SUCCESS_) then
             
 BF:         if (BlockFound) then
 
-                call GetData(InputGridFile, EnterDataID = Me%ObjEnterData, flag = iflag, &
+                call GetData(ME%InputGridFile, EnterDataID = Me%ObjEnterData, flag = iflag, &
                              Buffer_Line = FirstLine + 1, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_)                                              &
                     stop 'OpenAndReadBathymMERCATORV6 - ModuleMERCATORFormat - ERR10'
 
-                inquire(file = InputGridFile, exist = exist)
+                inquire(file = ME%InputGridFile, exist = exist)
 
 i1:             if (exist) then
 
-                    status=NF90_OPEN(trim(InputGridFile),NF90_NOWRITE,ncid)
+                    status=NF90_OPEN(trim(ME%InputGridFile),NF90_NOWRITE,ncid)
                     if (status /= nf90_noerr)                                           &
                     stop 'OpenAndReadBathymMERCATORV6- ModuleMERCATORFormat - ERR20'
 
@@ -3654,15 +3654,6 @@ i1:         if (CheckName(nameAux, MohidName)) then
                                     
                                     endif
                                     
-                                    
-!                                    if (Field3D(i, j, k) >= MERCATORFillVReal/2.) then
-!                                    
-!
-!                                        !Field3D(i, j, k) = 0.
-!                                        Field3D(i, j, k) = FillValueReal
-!                                        
-!                                    endif
-
                                 endif
 
                             enddo
@@ -3706,7 +3697,6 @@ i1:         if (CheckName(nameAux, MohidName)) then
 
                                     if (Aux3D(j+1,i+1,ni) == MERCATORFillVInteger) then
                                         
-                                        !Field2D(i, j) = MERCATORFillVReal
                                         Field2D(i, j) = FillValueReal
                                     else
                                     
@@ -3714,7 +3704,6 @@ i1:         if (CheckName(nameAux, MohidName)) then
                                     
                                     endif
                                     
-                                    !if (Field2D(i, j) >= MERCATORFillVReal/2.) then
                                     if (Field2D(i, j) <= FillValueReal/2.) then
 
                                         Field2D(i, j) = 0.
@@ -3796,8 +3785,6 @@ i1:         if (CheckName(nameAux, MohidName)) then
             
                 do ni=1, ninst
                 
-                    iOut = ni
-                    
                     do j=Me%WorkSize%JLB, Me%WorkSize%JUB
                     do i=Me%WorkSize%ILB, Me%WorkSize%IUB
 
@@ -3826,22 +3813,6 @@ i1:         if (CheckName(nameAux, MohidName)) then
                             AuxBaroV2D(i,j) = 0.
 
                         endif
-
-    !                    if (Me%WaterPoints3D(i,j,k) == WaterPoint) then
-    !
-    !                        if (AuxU4D(j+1,i+1,Me%WorkSize%KUB+1-k) >= MERCATORFillVReal/2.)    &
-    !                            then
-    !
-    !                            AuxU4D(j+1,i+1, Me%WorkSize%KUB+1-k) = 0.
-    !
-    !                        endif
-    !
-    !                        if (AuxV4D(j+1,i+1,Me%WorkSize%KUB+1-k) >= MERCATORFillVReal/2.)    &
-    !                            then
-    !
-    !                            AuxV4D(j+1,i+1, Me%WorkSize%KUB+1-k) = 0.
-    !
-    !                        endif
 
                         if (Me%WaterPoints3D(i, j, k) == WaterPoint) then
                                 
@@ -3902,13 +3873,29 @@ i1:         if (CheckName(nameAux, MohidName)) then
                     enddo
                     enddo
 
+
+                    !call WriteHDF5Field(FieldTime,                                          &
+                    !                    GetPropertyName(BarotropicVelocityU_),              &
+                    !                    iOut, Aux2D = AuxBaroU2D)
+
+                    !call WriteHDF5Field(FieldTime,                                          &
+                    !                    GetPropertyName(BarotropicVelocityV_),              &
+                    !                    iOut, Aux2D = AuxBaroV2D)
+                    
+
+
+                    MohidName =  GetPropertyName(BarotropicVelocityU_)
                     call WriteHDF5Field(FieldTime,                                          &
                                         GetPropertyName(BarotropicVelocityU_),              &
-                                        iOut, Aux2D = AuxBaroU2D)
+                                        OutputInstants(MohidName), Aux2D = AuxBaroU2D)
+
+                    MohidName =  GetPropertyName(BarotropicVelocityV_)
 
                     call WriteHDF5Field(FieldTime,                                          &
                                         GetPropertyName(BarotropicVelocityV_),              &
-                                        iOut, Aux2D = AuxBaroV2D)
+                                        OutputInstants(MohidName), Aux2D = AuxBaroV2D)
+
+
 
                 enddo                
 
