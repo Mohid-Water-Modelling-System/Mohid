@@ -2941,6 +2941,9 @@ do1 :   do while (associated(PropertyX))
         if (iflag == 0)            stop 'CoupleMacroAlgae - ModuleWaterProperties - ERR06'
         endif
         
+        allocate(Me%MacroAlgae%Height  (ILB:IUB, JLB:JUB)) !m
+        
+        
         if (Me%MacroAlgae%VariableHeight) then 
         
                
@@ -18174,6 +18177,7 @@ cd9 :               if (associated(PropertyX%Assimilation%Field)) then
                     deallocate(Me%MacroAlgae%Occupation    )
                     deallocate(Me%MacroAlgae%MaxShearStress)
                     deallocate(Me%MacroAlgae%MaxSPMDepFlux )
+                    deallocate(Me%MacroAlgae%Height )
 
                     nullify(Me%MacroAlgae%Distribution     )
                     nullify(Me%MacroAlgae%ShearStress3D    )
@@ -18181,6 +18185,7 @@ cd9 :               if (associated(PropertyX%Assimilation%Field)) then
                     nullify(Me%MacroAlgae%Occupation       )
                     nullify(Me%MacroAlgae%MaxShearStress   )
                     nullify(Me%MacroAlgae%MaxSPMDepFlux    )
+                    nullify(Me%MacroAlgae%Height    )
 
                 end if
 
