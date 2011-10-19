@@ -2315,7 +2315,8 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
 !            JUB     = Me%Size2D%JUB    
 
             nullify (RateFlux  )
-            nullify (RateFlux2D)
+           ! nullify (RateFlux2D)
+            RateFlux2D=0.
 
             !Number indexed to each property 
             nFirstProp  = PropertyIndexNumber(FirstProp )
