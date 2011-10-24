@@ -241,6 +241,7 @@ Module ModuleDrainageNetwork
     public  :: GetChannelsVolume
     public  :: GetChannelsMaxVolume
     public  :: GetChannelsOpenProcess
+    public  :: GetChannelsActiveState
     public  :: GetHasProperties
     public  :: GetDNnProperties
     public  :: GetDNPropertiesIDByIdx   
@@ -794,7 +795,8 @@ Module ModuleDrainageNetwork
         real,    dimension(:,:), pointer            :: ChannelsNodeLength   => null()
         real,    dimension(:,:), pointer            :: ChannelsVolume       => null()
         real,    dimension(:,:), pointer            :: ChannelsMaxVolume    => null()
-        integer, dimension(:,:), pointer            :: ChannelsOpenProcess  => null()               
+        integer, dimension(:,:), pointer            :: ChannelsOpenProcess  => null()
+        integer, dimension(:,:), pointer            :: ChannelsActiveState  => null()
         real,    dimension(:)  , pointer            :: ShortWaveExtinction  => null()
         real,    dimension(:)  , pointer            :: ShortWaveField       => null()
         real,    dimension(:)  , pointer            :: LongWaveField        => null()
@@ -1792,7 +1794,7 @@ if2:        if (Me%Downstream%Evolution == ReadTimeSerie) then
 
         if (flag == 0 .or. (Me%CoordType /= 1 .and. Me%CoordType /= 2)) then
             write(*,*)'The Drainage Network does not contain a valid specification for the coordinate system.'
-            write(*,*)'Please set the keyword COORD_TIP to a valid option'
+            write(*,*)'Please set the keyword COORDINATE_TYPE to a valid option (file Drainage Network.dnt)'
             write(*,*)'Allowed options are:'
             write(*,*)'COORDINATE_TYPE      : 1 ! Geographic Coordinates'
             write(*,*)'COORDINATE_TYPE      : 2 ! Projected Coordinates'
@@ -4331,6 +4333,7 @@ if1:    if (Me%HasGrid) then
             allocate(Me%ChannelsBankSlope     (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
             allocate(Me%ChannelsNodeLength    (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
             allocate(Me%ChannelsOpenProcess   (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+            allocate(Me%ChannelsActiveState   (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
             allocate(Me%ChannelsID            (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
             
             Me%ChannelsBottomLevel  = null_real
@@ -4339,6 +4342,7 @@ if1:    if (Me%HasGrid) then
             Me%ChannelsBankSlope    = null_real
             Me%ChannelsNodeLength   = null_real
             Me%ChannelsOpenProcess  = null_int
+            Me%ChannelsActiveState  = null_int
             Me%ChannelsID           = null_int
             Me%ChannelsVolume       = null_int
             Me%ChannelsMaxVolume    = null_int
@@ -4351,6 +4355,20 @@ if1:    if (Me%HasGrid) then
                        
                 Me%ChannelsBottomLevel  (CurrNode%GridI, CurrNode%GridJ) = CurrNode%CrossSection%BottomLevel
                 Me%ChannelsNodeLength   (CurrNode%GridI, CurrNode%GridJ) = CurrNode%Length
+
+                Me%ChannelsActiveState  (CurrNode%GridI, CurrNode%GridJ) = 0
+                do iUp = 1, CurrNode%nUpStreamReaches
+                    if (Me%Reaches (CurrNode%UpstreamReaches(iUp))%Active) then
+                        Me%ChannelsActiveState  (CurrNode%GridI, CurrNode%GridJ) = 1
+                    endif
+                enddo
+                
+                do iDown = 1, CurrNode%nDownStreamReaches
+                    if (Me%Reaches (CurrNode%DownStreamReaches(iDown))%Active) then
+                        Me%ChannelsActiveState  (CurrNode%GridI, CurrNode%GridJ) = 1
+                    endif
+                enddo
+
 
                 if (CurrNode%CrossSection%Form == Trapezoidal) then
 
@@ -6315,6 +6333,41 @@ if0:    if (Me%HasProperties) then
 
     end subroutine GetChannelsOpenProcess
 
+    !--------------------------------------------------------------------------
+
+    subroutine GetChannelsActiveState (DrainageNetworkID, ChannelsActiveState, STAT)
+
+        !Arguments--------------------------------------------------------------
+        integer                                         :: DrainageNetworkID
+        integer, dimension (:,:), pointer               :: ChannelsActiveState
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local------------------------------------------------------------------
+        integer                                         :: STAT_CALL, ready_
+        !-----------------------------------------------------------------------
+
+
+        STAT_CALL = UNKNOWN_
+
+        call Ready(DrainageNetworkID, ready_)
+
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+           
+            call Read_Lock(mDRAINAGENETWORK_, Me%InstanceID)
+            ChannelsActiveState => Me%ChannelsActiveState
+                    
+            STAT_CALL = SUCCESS_
+
+        else 
+            STAT_CALL = ready_
+        end if
+
+        if (present(STAT)) STAT = STAT_CALL
+
+    end subroutine GetChannelsActiveState
+    
     !---------------------------------------------------------------------------
 
     subroutine GetHasProperties (DrainageNetworkID, HasProperties, STAT)
@@ -7450,9 +7503,9 @@ do2 :   do while (associated(PropertyX))
                 Niter = Niter + Me%InternalTimeStepSplit
                 LocalDT = Me%ExtVar%DT / Niter
                 call WriteDTLog ('ModuleDrainageNetwork', Niter, LocalDT)
-                if (LocalDT < Me%ExtVar%DT / 10000.) then
-                    write(*,*)'LocalDT below limit'
-                    write(*,*)'Module Drainage Network Decrease Global DT'
+                if (Niter > Me%MaxIterations) then
+                    write(*,*)'Number of iterations above maximum'
+                    write(*,*)'Check DT configurations'
                     stop 'ModifyDrainageNetLocal - ModuleDrainageNetwork - ERR03'
                 endif
                 call ResetToInitialValues ()
@@ -8150,8 +8203,8 @@ do2 :   do while (associated(PropertyX))
         do NodeID = 1, Me%TotalNodes
             CurrNode => Me%Nodes (NodeID)
             CurrNode%VolumeNew = CurrNode%VolumeNew + (Me%DiffuseVector (NodeID) * LocalDT)
-        enddo        
-    
+        enddo
+        
                
     end subroutine ModifyWaterExchange 
 
@@ -8739,7 +8792,10 @@ if2:        if (CurrNode%VolumeNew > PoolVolume) then
         type (T_Reach), pointer                 :: CurrReach
         type (T_Node ), pointer                 :: UpNode, DownNode    
         real                                    :: PoolDepth, PoolVolume
-        real                                    :: WeightedWetPerimiter   
+        real                                    :: WetPerimiter
+        real                                    :: AverageWaterDepth, SurfaceWidth
+        real                                    :: AvTrapez1, AvTrapez2, PTrapez1
+        real                                    :: aux, aux2, TopH   
 
         UpNode    => Me%Nodes(CurrReach%UpstreamNode)
         DownNode  => Me%Nodes(CurrReach%DownstreamNode)
@@ -8768,13 +8824,76 @@ if2:        if (CurrNode%VolumeNew > PoolVolume) then
         !New approach for calculating channel geometries. The above appraoch does not working for backwater effects. 
         !When water was flowing into an empty channel (backwards), the upstream area is zero. This makes later
         !the Manning equation crash.
-        !Another approach, not implemented, would be to recalculate the area based on the waterlevel. This needs
-        !some code refactoring for the routines which calculated the channel geometry.
+        !Another approach, not implemented (commented below), would be to recalculate the area based on the waterlevel.
+        !I tested it but works worths
         !Frank - 29-08-2011
-        CurrReach%VerticalArea    = 0.9 * UpNode%VerticalArea + 0.1 * DownNode%VerticalArea
-        weightedWetPerimiter = ( 0.9 * UpNode%WetPerimeter + 0.1* DownNode%WetPerimeter)
-        if (WeightedWetPerimiter > AllmostZero) then
-            CurrReach%HydraulicRadius = CurrReach%VerticalArea / WeightedWetPerimiter
+        
+!        CurrReach%VerticalArea    = 0.9 * UpNode%VerticalArea + 0.1 * DownNode%VerticalArea
+!        WetPerimiter              = ( 0.9 * UpNode%WetPerimeter + 0.1* DownNode%WetPerimeter)
+
+        if (UpNode%WaterLevel > DownNode%WaterLevel) then
+            AverageWaterDepth = UpNode%WaterDepth
+        else
+            AverageWaterDepth = DownNode%WaterDepth
+        endif
+        
+        if (UpNode%CrossSection%Form == Trapezoidal .OR.            &
+           (UpNode%CrossSection%Form == TrapezoidalFlood .AND.      &
+            UpNode%WaterDepth <= UpNode%CrossSection%MiddleHeight))  then
+
+            call TrapezoidGeometry (b  = UpNode%CrossSection%BottomWidth,   &
+                                    mR = UpNode%CrossSection%Slope,         &
+                                    mL = UpNode%CrossSection%Slope,         &
+                                    h  = AverageWaterDepth,                 &
+                                    Av = CurrReach%VerticalArea,            &
+                                    P  = WetPerimiter,                      &
+                                    Sw = SurfaceWidth)
+
+        elseif (UpNode%CrossSection%Form == TrapezoidalFlood) then
+
+            !NOT TESTED CODE
+
+            call TrapezoidGeometry (b  = UpNode%CrossSection%BottomWidth, &
+                                    mR = UpNode%CrossSection%Slope,       &
+                                    mL = UpNode%CrossSection%Slope,       &
+                                    h  = UpNode%CrossSection%MiddleHeight,&
+                                    Av = AvTrapez1,                         &
+                                    P  = PTrapez1,                          &
+                                    Sw = aux)
+
+            TopH = AverageWaterDepth - UpNode%CrossSection%MiddleHeight
+
+            call TrapezoidGeometry (b  = UpNode%CrossSection%MiddleWidth, &
+                                    mR = UpNode%CrossSection%SlopeTop,    &
+                                    mL = UpNode%CrossSection%SlopeTop,    &
+                                    h  = TopH,                            &
+                                    Av = AvTrapez2,                         &
+                                    P  = aux,                               &
+                                    Sw = aux2)
+
+            CurrReach%VerticalArea = AvTrapez1 + AvTrapez2
+            WetPerimiter           = PTrapez1 + 2. * TopH * sqrt (1. + UpNode%CrossSection%SlopeTop**2.)
+
+
+        elseif (UpNode%CrossSection%Form == Tabular) then
+                
+            !NOT TESTED CODE
+                
+                
+                call TabularGeometry (UpNode%CrossSection,      &
+                                      AverageWaterDepth,        &
+                                      CurrReach%VerticalArea,   & 
+                                      WetPerimiter,             &
+                                      aux2)
+
+        else                 
+            stop 'Invalid cross section form - UpdateReachCrossSection - ModuleDrainageNetwork - ERR01'
+        end if
+        
+        
+        
+        if (WetPerimiter > AllmostZero) then
+            CurrReach%HydraulicRadius = CurrReach%VerticalArea / WetPerimiter
         else
             CurrReach%HydraulicRadius = 0.0
         endif
@@ -8833,6 +8952,7 @@ if2:        if (CurrNode%VolumeNew > PoolVolume) then
         type (T_Node ), pointer                 :: UpNode, DownNode 
         real                                    :: LevelSlope, Pressure
         real                                    :: Friction, Advection !, AdvectionUp, AdvectionDown
+        real                                    :: CriticalFlow, FlowNew
 
         UpNode   => Me%Nodes (CurrReach%UpstreamNode  )
         DownNode => Me%Nodes (CurrReach%DownstreamNode)
@@ -8856,10 +8976,25 @@ if2:        if (CurrNode%VolumeNew > PoolVolume) then
         Advection = HydroAdvection(CurrReach, DT)
 
         !FLOW---------------------------------------------------------------
-        CurrReach%FlowNew = ( CurrReach%FlowOld + Advection + Pressure )    &
+        FlowNew = ( CurrReach%FlowOld + Advection + Pressure )    &
                           / ( 1. + Friction )
+
+
+        !Critical Flow
+        CriticalFlow = CurrReach%VerticalArea * sqrt(Gravity*UpNode%WaterDepth)
+
+        if (abs(FlowNew) < CriticalFlow) then
+            CurrReach%FlowNew = FlowNew
+        else
+            if (FlowNew > 0) then
+                CurrReach%FlowNew = CriticalFlow
+            else
+                CurrReach%FlowNew = -1.0 * CriticalFlow
+            endif
+        endif
+
+
        
-        
         !Velocity
         CurrReach%Velocity = CurrReach%FlowNew / (CurrReach%VerticalArea + CurrReach%PoolVerticalArea)
 
@@ -8978,6 +9113,11 @@ if2:        if (CurrNode%VolumeNew > PoolVolume) then
      
             CurrNode%VolumeNew = CurrNode%VolumeOld + ( InFlow - OutFlow ) * DT
             
+!            if (CurrNode%VolumeNew < 0 .and. CurrNode%nDownStreamReaches /= 0) then
+!                write(*,*)'Volume negative after Modify node'
+!                write(*,*)CurrNode%ID
+!                write(*,*)CurrNode%VolumeNew, Inflow, Outflow
+!            endif
         !else
         
             !CurrNode%VolumeNew = CurrNode%VolumeOld
@@ -8987,6 +9127,7 @@ if2:        if (CurrNode%VolumeNew > PoolVolume) then
     end subroutine ModifyNode
 
     !---------------------------------------------------------------------------            
+
     subroutine VerifyMinimumVolume (NodeID, Restart, Niter)
 
         !Arguments--------------------------------------------------------------
@@ -8999,17 +9140,26 @@ if2:        if (CurrNode%VolumeNew > PoolVolume) then
         
         CurrNode => Me%Nodes (NodeID)
 
+        if (CurrNode%nDownstreamReaches /= 0 .and. CurrNode%VolumeNew < 0.0) then
+!            write(*,*)'DNet - test 1', NodeID, Niter
+            Restart = .true.
+            return
+        endif
+
         if (Me%Stabilize .and. Niter < Me%MaxIterations) then
-            if (CurrNode%nDownstreamReaches /= 0 .and. CurrNode%VolumeOld > Me%StabilizeCoefficient * CurrNode%VolumeMax) then
-                if (abs(CurrNode%VolumeNew - CurrNode%VolumeOld) > Me%StabilizeFactor * CurrNode%VolumeMax) then
-                    Restart = .true.
-                    return
+
+            if (CurrNode%nDownstreamReaches /= 0) then 
+            
+                if (CurrNode%VolumeOld > Me%StabilizeCoefficient * CurrNode%VolumeMax) then
+                    if (abs(CurrNode%VolumeNew - CurrNode%VolumeOld) > Me%StabilizeFactor * CurrNode%VolumeMax) then
+!                        write(*,*)'DNet - test 2', NodeID, Niter
+                        Restart = .true.
+                        return
+                    endif
                 endif
-                if (CurrNode%VolumeNew < 0.0) then
-                    Restart = .true.
-                    return
-                endif
+
             endif
+
         end if
 
     end subroutine VerifyMinimumVolume

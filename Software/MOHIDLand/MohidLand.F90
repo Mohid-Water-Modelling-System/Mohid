@@ -259,7 +259,7 @@ program MohidLand
                               
             DT = min(NewDT, MaxDT)
 
-            !Rounds new DT to full second
+            !Rounds new DT to full decimal second
             if (DT > AINT(DT)) then
                DT = AINT(DT) + 1.0
             else

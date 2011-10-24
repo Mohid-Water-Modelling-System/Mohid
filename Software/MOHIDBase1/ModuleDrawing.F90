@@ -1726,7 +1726,7 @@ i6:                         if (DirectionX.ne.0.) then
                                     if (DistanceFromPoint.lt.MinDistanceFromPoint(Direction)) then
                                         MinDistanceFromPoint(Direction) = DistanceFromPoint
                                         IntersectMinX(Direction)        = IntersectionPointX
-                                        IntersectMinY(Direction)        = IntersectionPointY                                                                                
+                                        IntersectMinY(Direction)        = IntersectionPointY
 
                                     endif
 

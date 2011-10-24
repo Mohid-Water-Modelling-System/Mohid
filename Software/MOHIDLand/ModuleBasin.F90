@@ -327,7 +327,8 @@ Module ModuleBasin
         type (T_PropertyB)                          :: ThetaS               
         type (T_PropertyB)                          :: ThetaI               
         type (T_PropertyB)                          :: InfRate              
-        type (T_PropertyB)                          :: AccInf               
+        type (T_PropertyB)                          :: AccInf
+        type (T_PropertyB)                          :: ImpFrac
     end type T_SimpleInfiltration
     
     type T_WaterMassBalance
@@ -1232,7 +1233,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
     !        endif
 
             if (Me%Coupled%PorousMedia .and. Me%Coupled%SimpleInfiltration) then
-                write(*,*)'You can use SimpleInfiltration and PorousMedia at the same time'
+                write(*,*)'You can not use SimpleInfiltration and PorousMedia at the same time'
                 stop 'VerifyOptions - ModuleBasin - ERR03'
             endif
 
@@ -1419,6 +1420,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         call ConstructOneProperty (Me%SI%ThetaI,    "ThetaI",   "<BeginThetaI>",    "<EndThetaI>")
         call ConstructOneProperty (Me%SI%InfRate,   "InfRate",  "<BeginInfRate>",   "<EndInfRate>")
         call ConstructOneProperty (Me%SI%AccInf,    "AccInf",   "<BeginAccInf>",    "<EndAccInf>")
+        call ConstructOneProperty (Me%SI%ImpFrac,   "ImpFrac",  "<BeginImpFrac>",   "<EndImpFrac>")
     
     end subroutine ConstructSimpleInfiltration    
 
@@ -1436,8 +1438,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         integer                                     :: FirstLine, LastLine
         integer                                     :: STAT_CALL
 
-        !call RewindBuffer(Me%ObjEnterData, STAT = STAT_CALL)       
-        !if (STAT_CALL /= SUCCESS_) stop 'ConstructSimpleInfiltration - ModuleBasin - ERR01'
+        call RewindBuffer(Me%ObjEnterData, STAT = STAT_CALL)       
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructSimpleInfiltration - ModuleBasin - ERR01'
         
         call ExtractBlockFromBuffer(Me%ObjEnterData, ClientNumber,                   &
                                     BlockBegin, BlockEnd, BlockFound,                &
@@ -1472,6 +1474,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         call KillFillMatrix (NewProperty%ID%ObjFillMatrix, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructOneProperty - ModuleBasin - ERR05'
+
+        call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructOneProperty - ModuleBasin - ERR06'
 
     end subroutine ConstructOneProperty
 
@@ -2156,12 +2161,14 @@ i1:         if (CoordON) then
             allocate(Me%SI%ThetaI%Field    (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
             allocate(Me%SI%InfRate%Field   (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
             allocate(Me%SI%AccInf%Field    (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
+            allocate(Me%SI%ImpFrac%Field   (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
             Me%SI%Ks%Field                  = FillValueReal
             Me%SI%MP%Field                  = FillValueReal
             Me%SI%ThetaS%Field              = FillValueReal
             Me%SI%ThetaI%Field              = FillValueReal
             Me%SI%InfRate%Field             = FillValueReal
             Me%SI%AccInf%Field              = AllmostZero
+            Me%SI%ImpFrac%Field             = FillValueReal
          endif
          
         if (Me%DiffuseWaterSource) then
@@ -2389,6 +2396,7 @@ i1:         if (CoordON) then
     end subroutine ConstructCoupledModules
 
     !--------------------------------------------------------------------------
+    
     subroutine ConstructPropertyList
 
         !Local-----------------------------------------------------------------
@@ -2402,6 +2410,10 @@ i1:         if (CoordON) then
         integer                                     :: i,j
 
         !----------------------------------------------------------------------
+
+        call RewindBuffer(Me%ObjEnterData, STAT = STAT_CALL)       
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructPropertyList - ModuleBasin - ERR00'
+
 
 do1 :   do
             call ExtractBlockFromBuffer(Me%ObjEnterData, ClientNumber,          &
@@ -4338,8 +4350,7 @@ cd2 :           if (BlockFound) then
         !Arguments-------------------------------------------------------------
 
         !Local-----------------------------------------------------------------
-        integer                                     :: I, J !, STAT_CALL
-!        integer                                     :: TID, OMP_GET_THREAD_NUM, OMP_GET_NUM_THREADS
+        integer                                     :: I, J
 
         integer, parameter                          :: ChunkSize = 10
         integer                                     :: Chunk
@@ -4347,21 +4358,12 @@ cd2 :           if (BlockFound) then
         !Begin-----------------------------------------------------------------
         
         if (MonitorPerformance) call StartWatch ("ModuleBasin", "SimpleInfiltration")
-        CHUNK = Me%WorkSize%JUB / 10
+        
+        CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
         
          
-!$OMP PARALLEL PRIVATE(I,J)
-        
-!        TID = OMP_GET_THREAD_NUM()
-!        IF (TID .EQ. 0) THEN
-!            NTHREADS = OMP_GET_NUM_THREADS()
-!            PRINT *, 'Number of threads =', NTHREADS
-!        END IF
-!        PRINT *, 'Thread',TID,' starting...'
-        
-        !Updates Water column
-        
-!$OMP DO SCHEDULE(DYNAMIC)
+        !$OMP PARALLEL PRIVATE(I,J)
+        !$OMP DO SCHEDULE(DYNAMIC)
         do J = Me%WorkSize%JLB, Me%WorkSize%JUB
         do I = Me%WorkSize%ILB, Me%WorkSize%IUB
 
@@ -4369,10 +4371,12 @@ cd2 :           if (BlockFound) then
             
                 if (Me%ExtUpdate%Watercolumn(i, j) > 0.0) then
 
+
                     !Infiltration Rate
                     Me%SI%InfRate%Field(i, j) = Me%SI%Ks%Field(i, j) + Me%SI%Ks%Field(i, j) * (Me%SI%MP%Field(i, j) * &
                                                 (Me%SI%ThetaS%Field(i, j) - Me%SI%ThetaI%Field(i, j))) /              &
-                                                Me%SI%AccInf%Field(i, j)
+                                                max(Me%SI%AccInf%Field(i, j), 0.001)
+                    
                     
                     if (Me%SI%InfRate%Field(i, j) > Me%ExtUpdate%Watercolumn(i, j) / Me%CurrentDT) then
                         Me%SI%InfRate%Field(i, j) = Me%ExtUpdate%Watercolumn(i, j) / Me%CurrentDT
@@ -4387,29 +4391,32 @@ cd2 :           if (BlockFound) then
                 
                     !Resets accumulated infiltration
                     Me%SI%AccInf%Field(i, j) = AllmostZero
+                    
                 endif
                 
+                !m                            = m - m/s * s
+                Me%ExtUpdate%WaterLevel(i, j) = Me%ExtUpdate%WaterLevel (i, j) - Me%SI%InfRate%Field(i, j) * &
+                                                (1.0- Me%SI%ImpFrac%Field(i, j)) * Me%CurrentDT
                 
-                Me%ExtUpdate%WaterLevel       (i, j) = Me%ExtUpdate%WaterLevel (i, j) - Me%SI%InfRate%Field(i, j) * Me%CurrentDT
                 !mm /hour
-                Me%InfiltrationRate (i, j) = Me%SI%InfRate%Field(i, j) * 1000.0 * 3600.0
+                Me%InfiltrationRate (i, j)    = Me%SI%InfRate%Field(i, j) * 1000.0 * 3600.0
+                
                 !mm /hour
-                Me%EVTPRate         (i, j) = 0.0
+                Me%EVTPRate         (i, j)    = 0.0
+                
                 !m
-                Me%AccInfiltration  (i, j) = Me%AccInfiltration  (i, j) + Me%SI%InfRate%Field(i, j) * Me%CurrentDT
+                Me%AccInfiltration  (i, j)    = Me%AccInfiltration  (i, j) + Me%SI%InfRate%Field(i, j) * Me%CurrentDT
+                
                 !m
-                Me%AccEVTP          (i, j) = 0.0
+                Me%AccEVTP          (i, j)    = 0.0
                 
             endif
             
-!            WRITE(*,*) TID,I,J
-            
+           
         enddo
-       enddo
- !$OMP END DO NOWAIT
-      !PRINT *, 'Thread',TID,' done.'
-
-!$OMP END PARALLEL
+        enddo
+        !$OMP END DO NOWAIT
+        !$OMP END PARALLEL
 
         if (MonitorPerformance) call StopWatch ("ModuleBasin", "SimpleInfiltration")
 

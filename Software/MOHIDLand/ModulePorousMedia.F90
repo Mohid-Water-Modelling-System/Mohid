@@ -306,6 +306,7 @@ Module ModulePorousMedia
         integer :: DNLink
         logical :: ComputeHydroPressure
         integer :: InfiltrationConductivity
+        logical :: DryChannelsCompletely = .false.
     end type T_SoilOptions
 
     type T_SoilType
@@ -5714,15 +5715,28 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                 !If the channel looses water (infiltration), then set max flux so that volume in channel does not get 
                 !negative                
                 if (dH < 0) then
+
+
                     ![m3]
                     ChannelsVolume     = (ChannelsWaterLevel(i, j) - ChannelsBottomLevel(i, j))               &
                                           * ChannelsBottomWidth(i, j) * ChannelsNodeLength(i, j)
                     InfiltrationVolume = -1. * Me%lFlowToChannels(i, j) * Me%ExtVar%DT                
-                    
-                    if (InfiltrationVolume > ChannelsVolume) then
-                        Me%lFlowToChannels(i, j) = -0.5 * ChannelsVolume / Me%ExtVar%DT
-!                        write(*,*)'FlowToChannels corrected - ModulePorousMedia'
+
+                    if (InfiltrationVolume > 0.5 * ChannelsVolume) then
+                        Me%lFlowToChannels(i, j) = -0.50 * ChannelsVolume / Me%ExtVar%DT
                     endif
+
+                            
+                    !This will only infiltrate water when there is more then enough... Increase numerical stability
+                    if (.not. Me%SoilOpt%DryChannelsCompletely) then
+                    
+                        if (ChannelsOpenProcess(i, j) == 0) then 
+                            Me%lFlowToChannels(i, j) = 0.0
+                        endif
+                    
+                    endif
+                    
+
                 
                 !If soil looses water set flow so that cell stays at least with field theta
                 elseif (dH > 0) then

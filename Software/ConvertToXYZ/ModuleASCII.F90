@@ -50,7 +50,7 @@ Module ModuleASCII
         type(T_Limits)                  :: Window
         character(len=StringLength)     :: FileName
         character(len=StringLength)     :: OutputFileName
-		logical                         :: IgnoreNegativeValues
+        logical                         :: IgnoreNegativeValues
         integer                         :: nCols
         integer                         :: nRows
         real                            :: xllCorner
