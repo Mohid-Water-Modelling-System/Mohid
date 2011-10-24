@@ -522,17 +522,13 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             !Call to module GOTM, 1D column model for turbulence   
 
             !write(*,*) 'One iteration... griflet'
-
-            ! We don't compute turbulence coefficients at the limits of the domain. 
-            !$OMP PARALLEL &
-            !$OMP PRIVATE(i,j,k,Kbottom,Depth, &
-            !$OMP           u_taus,u_taub,z0b,z0s,nlev, &
-            !$OMP           LocalObjGOTM, &
-            !$OMP           TID, CHUNK)
-
-            !$ CHUNK = CHUNK_J(JLB,JUB)            
             
-            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            !$ CHUNK = CHUNK_J(JLB,JUB)            
+            ! We don't compute turbulence coefficients at the limits of the domain. 
+            !!$OMP PARALLEL PRIVATE(i,j,k,Kbottom, &
+            !!$OMP                   Depth,u_taus,u_taub,z0b,z0s, &
+            !!$OMP                   nlev,LocalObjGOTM,TID)
+            !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
 doj :       do j = JLB+1, JUB-1
 doi :       do i = ILB+1, IUB-1
 
@@ -540,7 +536,7 @@ ifwp :          if (Me%ExternalVar%OpenPoints3D(i,j,KUB) .EQ. Openpoint) then
                     
                     !griflet
                     TID = 1
-                    !$ TID = 1 + omp_get_thread_num();
+                    !!$ TID = 1 + omp_get_thread_num();
                     LocalObjGOTM => Me%ObjGotm(TID)
                                         
                     Kbottom = Me%ExternalVar%KFloorZ        (i,j)
@@ -606,11 +602,13 @@ dok4 :              do k=Kbottom,KUB+1
 
             end do doi
             end do doj
-            !$OMP END DO
+            !!$OMP END DO NOWAIT
+            !!$OMP END PARALLEL          
 
             !Values at open boundary points at the limits of the domain 
             ! are set to the values of the nearest interior point. Null_gradient
             i=IUB
+            !$OMP PARALLEL PRIVATE(j,k,Kbottom)
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
             do j=JLB,JUB
                 if(BoundaryPoints2D(i,j) == 1) then
@@ -622,8 +620,10 @@ dok4 :              do k=Kbottom,KUB+1
                 end if
             end do
             !$OMP END DO
+            !$OMP END PARALLEL          
 
             i=ILB
+            !$OMP PARALLEL PRIVATE(j,k,Kbottom)
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
             do j=JLB,JUB
                 if(BoundaryPoints2D(i,j) == 1) then
@@ -635,9 +635,11 @@ dok4 :              do k=Kbottom,KUB+1
                 end if 
             end do
             !$OMP END DO
+            !$OMP END PARALLEL          
 
             j=JUB
             !$ CHUNK = CHUNK_I(ILB,IUB)
+            !$OMP PARALLEL PRIVATE(i,k,Kbottom)
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
             do i=ILB,IUB
                 if(BoundaryPoints2D(i,j) == 1) then
@@ -649,8 +651,10 @@ dok4 :              do k=Kbottom,KUB+1
                 end if 
             end do
             !$OMP END DO
+            !$OMP END PARALLEL          
 
             j=JLB
+            !$OMP PARALLEL PRIVATE(i,k,Kbottom)
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
             do i=ILB,IUB
                 if(BoundaryPoints2D(i,j) == 1) then
@@ -662,7 +666,6 @@ dok4 :              do k=Kbottom,KUB+1
                 end if 
             end do
             !$OMP END DO
-
             !$OMP END PARALLEL          
 
             !WaterPoints3D

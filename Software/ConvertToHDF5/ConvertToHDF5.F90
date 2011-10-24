@@ -40,8 +40,10 @@ program ConvertToHDF5
     use ModuleSWAN
     use ModuleHDF5ToASCIIandBIN
     use ModuleGFSasciiWind
+#ifndef _NO_NETCDF    
 #ifdef _USE_PROJ4 
     use ModuleWRFFormat
+#endif
 #endif
 #ifdef _USE_MODIS
 !    use ModuleConvertModisL3Mapped
