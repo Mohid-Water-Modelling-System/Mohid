@@ -389,7 +389,7 @@ cd1:    if (ObjCuda_ID > 0) then
         
         !Arguments-------------------------------------------------------------
         
-        integer(C_INT)                              :: ObjCudaID, XDim, YDim, ZDim
+        integer(C_INT), intent(IN)                  :: ObjCudaID, XDim, YDim, ZDim
         type(C_PTR)                                 :: Ptr
         real(C_DOUBLE), dimension(:,:,:), pointer   :: Arr
         
@@ -413,7 +413,14 @@ cd1:    if (ObjCuda_ID > 0) then
             call c_f_pointer(Ptr, TmpArr, [XDim, YDim, ZDim])
             ! Remap from 1 to 0
             ! TODO: theoretically speaking this should be ILB, JLB, KLB instead of 0
+#ifdef _USE_PAGELOCKED
+            !Fortran 2003 onwards only. Requires ifort version >= 12.0
             Arr(0:, 0:, 0:) => TmpArr
+            !Arr => TmpArr
+#else
+            !griflet - use this just to make it compilable with ifort version <= 11.1
+            Arr => TmpArr
+#endif _USE_PAGELOCKED      
         end if
 
     end subroutine

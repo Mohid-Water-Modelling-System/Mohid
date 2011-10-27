@@ -203,7 +203,7 @@ __global__ void DevThomasJ(
 }
 #pragma endregion
 
-map<int, Thomas*>Thomas::Instances;
+map<int, Thomas*> Thomas::Instances;
 
 Thomas::Thomas(int cudaID, int xDim, int yDim, int zDim)
 {
@@ -510,7 +510,7 @@ void Thomas::SaveThomas(CU_TYPE *results, NSThomas::Dim dimension)
 
 		stringstream fileName;
 		fileName << "output_model" << CudaID << "_dim" << dimStr << "_" << FileCounter[dim] << ".txt";
-		ofstream outputFile = ofstream(fileName.str());
+		ofstream outputFile = ofstream(fileName.str().c_str());
 		char buff[50];
 		for(int z = 0; z < Sizes.z; z++)
 		{

@@ -2,6 +2,7 @@
 #include "stdafx.h"
 #include <map>
 #include <fstream>
+#include <ymath.h>
 #include <iomanip>
 
 struct T_Size3D;

@@ -21,6 +21,7 @@ typedef double CU_TYPE;
 #include <stdio.h>
 #include <iostream>
 #include <sstream>
+#include <math.h>
 
 using namespace std;
 
