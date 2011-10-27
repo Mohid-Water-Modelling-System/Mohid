@@ -38,7 +38,8 @@ Module ModuleModel
     use ModuleGridData,                 only : ConstructGridData, KillGridData
     use ModuleHorizontalMap,            only : ConstructHorizontalMap,  KillHorizontalMap,  &
                                                GetWaterPoints2D, UnGetHorizontalMap
-    use ModuleGeometry,                 only : ConstructGeometry,       KillGeometry
+    use ModuleGeometry,                 only : ConstructGeometry,       KillGeometry,    &
+                                               GetGeometrySize
     use ModuleMap,                      only : ConstructMap,            KillMap,         &
                                                UpdateComputeFaces3D
     use ModuleTurbulence,               only : ConstructTurbulence, Turbulence,          &
@@ -123,6 +124,12 @@ Module ModuleModel
                                                GetSeqAssimilationOptions
 #endif _USE_SEQASSIMILATION
     use ModuleStopWatch,            only: StartWatch, StopWatch
+    
+#ifdef _ENABLE_CUDA
+    ! JPW, CUDA support
+    use ModuleCuda
+#endif
+
     !$ use omp_lib
 
 
@@ -273,6 +280,11 @@ Module ModuleModel
         integer                                 :: ObjSeqAssimilation       = 0
 #endif _USE_SEQASSIMILATION
 
+#ifdef _ENABLE_CUDA
+        ! JPW: CUDA support
+        integer                                 :: ObjCuda                  = 0
+#endif _ENABLE_CUDA
+
         !Linked list of Instances
         type(T_Model), pointer                  :: Next
 
@@ -330,6 +342,11 @@ Module ModuleModel
         logical                                     :: WaterSeqAssim = .false.
 #endif _USE_SEQASSIMILATION
         !$ integer                                     :: openmp_num_threads
+        
+#ifdef _ENABLE_CUDA
+        type(T_Size3D)                              :: GeometrySize
+#endif _ENABLE_CUDA
+
         !----------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
@@ -578,6 +595,21 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
                 if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR135'
 
             endif
+            
+#ifdef _ENABLE_CUDA
+        ! Construct a ModuleCuda instance.
+        call ConstructCuda(Me%ObjCuda, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR136'
+
+        call GetGeometrySize(Me%Water%ObjGeometry, Size = GeometrySize, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR137'
+        
+        ! JPW: Initialize a C++ Thomas instance for CUDA. 
+        ! This will allocate device memory for all Thomas variables (D, E, F, TI, Res)
+        ! Do this seperately from ConstructCuda, because later on ModuleCuda might be used for things other than Thomas algorithm
+        call InitializeThomas(Me%ObjCuda, GeometrySize, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR138'
+#endif _ENABLE_CUDA
 
 #ifndef _WAVES_
             if(Me%RunWaves)then
@@ -636,9 +668,11 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
                                          TurbulenceID     = Me%ObjTurbulence,           &
                                          DischargesID     = Me%ObjDischarges,           &
                                          WavesID          = Me%ObjWaves,                &
+#ifdef _ENABLE_CUDA
+                                         CudaID           = Me%ObjCuda,                 &
+#endif
                                          STAT             = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR160'
-
 
 #ifndef _WAVES_
             !Need the watercolumn thickness that is compute the first time in the StartHydrodynamic
@@ -666,6 +700,9 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
                                            TurbulenceID     = Me%ObjTurbulence,         &
                                            AssimilationID   = Me%ObjAssimilation,       &
                                            DischargesID     = Me%ObjDischarges,         &
+#ifdef _ENABLE_CUDA
+                                           CudaID           = Me%ObjCuda,                 &
+#endif _ENABLE_CUDA
                                            STAT             = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop "Sub. ConstructModel - ModuleModel - ERR200"
 
@@ -2043,7 +2080,13 @@ if7 :               if     (DT_error > 0) then
                 !Kills Compute Time
                 call KillComputeTime    (Me%ObjTime,                STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'KillModel - ModuleModel - ERR190'
-
+                
+#ifdef _ENABLE_CUDA                
+                !Kills ModuleCuda
+                call KillCuda           (Me%ObjCuda,                STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'KillModel - ModuleModel - ERR200'
+#endif _ENABLE_CUDA                
+                
                 !ObjHorizontalGrid
                 call DeallocateInstance
                 

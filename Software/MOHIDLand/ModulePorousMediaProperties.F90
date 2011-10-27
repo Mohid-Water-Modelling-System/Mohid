@@ -116,6 +116,10 @@ Module ModulePorousMediaProperties
     use ModulePhreeqC
 #endif
 
+#ifdef _ENABLE_CUDA
+    use ModuleCuda
+#endif _ENABLE_CUDA
+
     !griflet
     !$ use omp_lib
 
@@ -446,6 +450,9 @@ Module ModulePorousMediaProperties
     type T_Property
         type (T_PropertyID)                     :: ID
         real, dimension(:,:,:), pointer         :: Concentration            => null()
+#ifdef _USE_PAGELOCKED
+        type(C_PTR)                             :: ConcentrationPtr
+#endif _USE_PAGELOCKED
         real, dimension(:,:,:), pointer         :: ConcentrationOld         => null()
         real, dimension(:,:), pointer           :: ConcentrationOnInfColumn => null()
         real, dimension(:,:), pointer           :: ConcentrationDN          => null()
@@ -574,6 +581,9 @@ Module ModulePorousMediaProperties
         integer                                      :: ObjInterface          = 0
         integer                                      :: ObjChainReactions     = 0 !ChainReactionsID
         integer                                      :: ObjBoxDif             = 0
+#ifdef _ENABLE_CUDA
+        integer                                      :: ObjCuda               = 0
+#endif _ENABLE_CUDA        
 
         real,    pointer, dimension(:,:,:)           :: CellWaterVolume            !Used by SoilChemistry & ChainReactions modules        
         integer, pointer, dimension(:)               :: PropertiesList             !List with ID of all properties used 
@@ -594,6 +604,9 @@ Module ModulePorousMediaProperties
         type(T_FluxCoef)                             :: COEF3_HorAdvXX           !Horizont advection coeficients
         type(T_FluxCoef)                             :: COEF3_HorAdvYY           !Horizont advection coeficients
         real, pointer, dimension(: , : , :)          :: TICOEF3               
+#ifdef _USE_PAGELOCKED
+        type(C_PTR)                                  :: TICOEF3Ptr
+#endif _USE_PAGELOCKED      
         real(8), pointer, dimension(:)               :: VECG                     !Auxiliar thomas arrays 
         real(8), pointer, dimension(:)               :: VECW                     !Auxiliar thomas arrays     
 
@@ -677,6 +690,9 @@ Module ModulePorousMediaProperties
                                               MapID,                                      &
                                               CoupledDN,                                  &
                                               CheckGlobalMass,                            &
+#ifdef _ENABLE_CUDA
+                                              CudaID,                                   &
+#endif _ENABLE_CUDA    
                                               STAT)
      
         !Arguments---------------------------------------------------------------
@@ -690,6 +706,9 @@ Module ModulePorousMediaProperties
         integer                                         :: MapID
         logical, optional                               :: CoupledDN
         logical                                         :: CheckGlobalMass
+#ifdef _ENABLE_CUDA
+        integer                                         :: CudaID
+#endif _ENABLE_CUDA
         integer, optional, intent(OUT)                  :: STAT 
         !External----------------------------------------------------------------
         integer                                         :: ready_         
@@ -722,6 +741,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             Me%ObjPorousMedia    = AssociateInstance (mPOROUSMEDIA_,    PorousMediaID   )
             Me%ObjGeometry       = AssociateInstance (mGEOMETRY_,       GeometryID      )
             Me%ObjMap            = AssociateInstance (mMap_,            MapID           )
+#ifdef _ENABLE_CUDA
+            Me%ObjCuda           = AssociateInstance (mCUDA_,           CudaID          )
+#endif
         
             if (present(CoupledDN)) then
                 Me%ExtVar%CoupledDN = CoupledDN
@@ -1353,8 +1375,13 @@ doi3:   do J = JLB, JUB
             allocate (Me%COEFExpl%CoefInterfRunoff (ILB:IUB,JLB:JUB,KLB:KUB))
             allocate (Me%COEFExpl%CoefInterfDN     (ILB:IUB,JLB:JUB,KLB:KUB))
             allocate (Me%COEFExpl%CoefInterfVeg    (ILB:IUB,JLB:JUB,KLB:KUB))
-
+            
+#ifdef _USE_PAGELOCKED
+            ! Allocate pagelocked memory to optimize CUDA transfers
+            call Alloc3DPageLocked(Me%ObjCuda, Me%TICOEF3Ptr, Me%TICOEF3, IUB + 1, JUB + 1, KUB + 1)        
+#else
             allocate(Me%TICOEF3                 (ILB:IUB, JLB:JUB, KLB:KUB))
+#endif _USE_PAGELOCKED            
 
             allocate(Me%COEF3_VertAdv%C_Flux    (ILB:IUB, JLB:JUB, KLB:KUB))
             allocate(Me%COEF3_VertAdv%D_Flux    (ILB:IUB, JLB:JUB, KLB:KUB))
@@ -1391,10 +1418,17 @@ doi3:   do J = JLB, JUB
             
             if (.not. Me%AdvDiff_Explicit) then
                 
+#ifdef _USE_PAGELOCKED
+                ! Allocate pagelocked memory to optimize CUDA transfers
+                call Alloc3DPageLocked(Me%ObjCuda, Me%COEF3%DPtr, Me%COEF3%D, IUB + 1, JUB + 1, KUB + 1)        
+                call Alloc3DPageLocked(Me%ObjCuda, Me%COEF3%EPtr, Me%COEF3%E, IUB + 1, JUB + 1, KUB + 1)        
+                call Alloc3DPageLocked(Me%ObjCuda, Me%COEF3%FPtr, Me%COEF3%F, IUB + 1, JUB + 1, KUB + 1)        
+#else
                 allocate(Me%COEF3%D                 (ILB:IUB, JLB:JUB, KLB:KUB))
                 allocate(Me%COEF3%E                 (ILB:IUB, JLB:JUB, KLB:KUB))
                 allocate(Me%COEF3%F                 (ILB:IUB, JLB:JUB, KLB:KUB))
-                
+#endif _USE_PAGELOCKED
+
                 allocate(Me%VECG                    (IJKLB:IJKUB))
                 allocate(Me%VECW                    (IJKLB:IJKUB))
 
@@ -2731,9 +2765,14 @@ do1 :   do
         WorkSizeJUB = Me%WorkSize%JUB
         WorkSizeKLB = Me%WorkSize%KLB
         WorkSizeKUB = Me%WorkSize%KUB
-
+        
+#ifdef _USE_PAGELOCKED
+        ! Allocate pagelocked memory to optimize CUDA transfers
+        call Alloc3DPageLocked(Me%ObjCuda, NewProperty%ConcentrationPtr, NewProperty%Concentration, IUB + 1, JUB + 1, KUB + 1)
+#else
         allocate(NewProperty%Concentration(ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)stop 'Construct_PropertyValues - ModulePorousMediaProperties - ERR10'
+#endif _USE_PAGELOCKED        
         NewProperty%Concentration(:,:,:) = FillValueReal
 
         allocate(NewProperty%ConcentrationOld(ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT_CALL)
@@ -6876,9 +6915,14 @@ cd2:            if (ImpExp_AdvXX == ImplicitScheme) then
                     !     Me%VECW)     
                     !griflet: new call 
                     call THOMAS_3D(ILBWS, IUBWS, JLBWS, JUBWS, KLBWS, KUBWS, di, dj,    &
-                         Me%THOMAS,                                                    &
-                         CurrProp%Concentration)      
-                
+                         Me%THOMAS,                                                     &
+                         CurrProp%Concentration                                         &     
+#ifdef _ENABLE_CUDA
+                         , Me%ObjCuda,                                                  &
+                         .FALSE.                                                        &
+#endif _ENABLE_CUDA
+                         )
+                         
                 else if (ImpExp_AdvYY == ImplicitScheme) then cd2
 
                     di = 1
@@ -6895,9 +6939,14 @@ cd2:            if (ImpExp_AdvXX == ImplicitScheme) then
 !                         Me%VECW)  
                     !griflet: new call    
                     call THOMAS_3D(JLBWS, JUBWS, ILBWS, IUBWS, KLBWS, KUBWS, di, dj,    &
-                         Me%THOMAS,                                                    &
-                         CurrProp%Concentration)      
-
+                         Me%THOMAS,                                                     &
+                         CurrProp%Concentration                                         &     
+#ifdef _ENABLE_CUDA
+                         , Me%ObjCuda,                                                  &
+                         .FALSE.                                                        &
+#endif _ENABLE_CUDA
+                         )
+                         
                 endif cd2
 
                 
@@ -8067,13 +8116,18 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 !                         Me%VECG,                                                       &
 !                         Me%VECW)      
             !griflet: new call
+            ! Use CUDA to solve Thomas
             call THOMASZ(Me%WorkSize%ILB, Me%WorkSize%IUB,                              &
                          Me%WorkSize%JLB, Me%WorkSize%JUB,                              &
                          Me%WorkSize%KLB, Me%WorkSize%KUB,                              &
-                         Me%THOMAS,                                                    &
-                         CurrProperty%Concentration)      
+                         Me%THOMAS,                                                     &
+                         CurrProperty%Concentration                                     &
+#ifdef _ENABLE_CUDA
+                         , Me%ObjCuda,                                                  &
+                         .FALSE.                                                        &
+#endif _ENABLE_CUDA
+                         )
                  
-           
         endif
 
         if (MonitorPerformance) call StopWatch ("ModulePorousMediaProperties", "ModifyPropertyValues")
@@ -10102,6 +10156,12 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                 
                 call DeallocateVariables
 
+#ifdef _ENABLE_CUDA                
+                !Kills ModuleCuda. Do this after DeallocateVariables, since ModuleCuda is needed in DeallocateVariables
+                call KillCuda (Me%ObjCuda, STAT = STAT_CALL)
+                ! No need to give error yet, Module still has users
+#endif _ENABLE_CUDA
+
                 !Deallocates Instance
                 call DeallocateInstance ()
 
@@ -10172,7 +10232,12 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
         if (Me%Coupled%AdvectionDiffusion) then
             deallocate (Me%WaterVolume)
             deallocate (Me%FluxWCorr)
+#ifdef _USE_PAGELOCKED
+            ! FreePageLocked will also nullify the pointers and arrays
+            call FreePageLocked(Me%ObjCuda, Me%TICOEF3Ptr, Me%TICOEF3)
+#else
             deallocate(Me%TICOEF3)
+#endif _USE_PAGELOCKED            
             
             deallocate (Me%ThetaAtFaces%ThetaW)
             deallocate (Me%ThetaAtFaces%ThetaU)
@@ -10197,9 +10262,17 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
             endif
             
             if (.not. Me%AdvDiff_Explicit) then
+#ifdef _USE_PAGELOCKED
+                ! FreePageLocked will also nullify the pointers and arrays
+                call FreePageLocked(Me%ObjCuda, Me%COEF3%DPtr, Me%COEF3%D)
+                call FreePageLocked(Me%ObjCuda, Me%COEF3%EPtr, Me%COEF3%E)
+                call FreePageLocked(Me%ObjCuda, Me%COEF3%FPtr, Me%COEF3%F)
+#else
                 deallocate(Me%COEF3%D)
                 deallocate(Me%COEF3%E)
                 deallocate(Me%COEF3%F)
+#endif _USE_PAGELOCKED
+
                 deallocate(Me%VECG)
                 deallocate(Me%VECW)
               

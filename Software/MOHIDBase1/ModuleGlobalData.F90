@@ -29,8 +29,10 @@
 !------------------------------------------------------------------------------
 
 Module ModuleGlobalData
+    use, intrinsic      :: Iso_C_Binding
 
     implicit none
+    
 
     public
 
@@ -70,7 +72,7 @@ Module ModuleGlobalData
     end interface SetError
 
     !Parameter-----------------------------------------------------------------
-    integer, parameter  :: MaxModules           =  76
+    integer, parameter  :: MaxModules           =  77
 
 #ifdef _INCREASE_MAXINSTANCES
     integer, parameter  :: MaxInstances         = 2000
@@ -1529,26 +1531,37 @@ Module ModuleGlobalData
     integer, parameter ::  mPHREEQC_                = 74
     integer, parameter ::  mRUNOFFPROPERTIES_       = 75
     integer, parameter ::  mCHAINREACTIONS_         = 76
+    integer, parameter ::  mCUDA_                   = 77
 
     type T_Size1D
         integer                 :: ILB            = null_int
         integer                 :: IUB            = null_int
     end type T_Size1D
 
+#ifdef _USE_CUDA
+    ! Bind this type to C if CUDA is used
+    type, bind(c)   :: T_Size2D
+#else
     type T_Size2D
+#endif _USE_CUDA
         integer                 :: ILB            = null_int
         integer                 :: IUB            = null_int
         integer                 :: JLB            = null_int
         integer                 :: JUB            = null_int
     end type T_Size2D
 
+#ifdef _USE_CUDA
+    ! Bind this type to C if CUDA is used
+    type, bind(c)   :: T_Size3D
+#else
     type T_Size3D
-        integer                 :: ILB            = null_int
-        integer                 :: IUB            = null_int
-        integer                 :: JLB            = null_int
-        integer                 :: JUB            = null_int
-        integer                 :: KLB            = null_int
-        integer                 :: KUB            = null_int
+#endif _USE_CUDA
+        integer(C_INT)                 :: ILB            = null_int
+        integer(C_INT)                 :: IUB            = null_int
+        integer(C_INT)                 :: JLB            = null_int
+        integer(C_INT)                 :: JUB            = null_int
+        integer(C_INT)                 :: KLB            = null_int
+        integer(C_INT)                 :: KUB            = null_int
     end type T_Size3D
 
     type T_PropertyID
@@ -1610,6 +1623,7 @@ Module ModuleGlobalData
         T_Module(mMACROALGAE_            , "MacroAlgae"),            T_Module(mBFM_                    , "BFM"),                   &
         T_Module(mNETCDF_                , "NETCDF"),                T_Module(mSEQUENTIALASSIMILATION_ , "SequentialAssimilation"),&
         T_Module(mPOROUSMEDIAPROPERTIES_ , "PorousMediaProperties"), T_Module(mPHREEQC_                , "PhreeqC"),               &
+        T_Module(mCUDA_                  , "Cuda"),                                                                                &
         T_Module(mRUNOFFPROPERTIES_      , "RunoffProperties"),      T_Module(mCHAINREACTIONS_         , "ChainReactions") /)
 
     !Variables

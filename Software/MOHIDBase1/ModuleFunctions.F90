@@ -34,8 +34,12 @@ Module ModuleFunctions
     use ModuleTime
     use ModuleEnterData,        only : GetData
     use ModuleStopWatch,        only : StartWatch, StopWatch
+#ifdef _ENABLE_CUDA    
+    !JPW. Include C/C++/CUDA binding
+    use ModuleCuda
+#endif _ENABLE_CUDA    
     !$ use omp_lib !!
-
+    
 #if _USE_MPI
     use mpi
 #endif    
@@ -250,6 +254,12 @@ Module ModuleFunctions
         real   , pointer, dimension(: , : , :)  :: D
         real(8), pointer, dimension(: , : , :)  :: E
         real   , pointer, dimension(: , : , :)  :: F
+#ifdef _USE_PAGELOCKED
+        !Pointers needed to allocate pagelocked memory for faster CUDA transfers
+        type(C_PTR)                             :: DPtr
+        type(C_PTR)                             :: EPtr
+        type(C_PTR)                             :: FPtr
+#endif _USE_PAGELOCKED
     end type T_D_E_F
 
     !griflet
@@ -288,7 +298,7 @@ Module ModuleFunctions
         module procedure THOMASZ_Original
         module procedure THOMASZ_NewType
     end interface THOMASZ
-
+    
     interface QuadraticInterpolation
         module procedure QuadraticInterpolationR8
         module procedure QuadraticInterpolationR4
@@ -2345,8 +2355,13 @@ do1 :       do II = JImin+1, JImax+1
                                   Kmin,  Kmax,                                          &
                                   di,    dj,                                            &
                                   Thomas,                                               &
-                                  ANSWER)
-
+                                  ANSWER                                                &
+#ifdef _ENABLE_CUDA
+                                 , CudaID                                               &
+                                 , SaveResults                                          &
+#endif _ENABLE_CUDA 
+                                )
+        
         !Arguments-------------------------------------------------------------
         integer,                         intent(IN) :: IJmin, IJmax
         integer,                         intent(IN) :: JImin, JImax
@@ -2354,26 +2369,48 @@ do1 :       do II = JImin+1, JImax+1
         integer,                         intent(IN) :: di,    dj
         type(T_THOMAS), pointer                     :: Thomas
         real,    dimension(:,:,:), pointer          :: ANSWER
+#ifdef _ENABLE_CUDA
+        ! Solve Thomas on a CUDA device
+        integer                                     :: CudaID
+        logical                                     :: SaveResults
+#endif _ENABLE_CUDA
 
-        !Local-----------------------------------------------------------------
-        
+         !Local-----------------------------------------------------------------
+        integer                                     :: Dim
+       
         if (MonitorPerformance) call StartWatch ("ModuleFunctions", "THOMAS_3D")
-
+        
         if (di == 0 .and. dj == 1) then
-
+            write(*,*) ' Solving Thomas for Y'
+            Dim = 1
+            
+#ifdef _USE_CUDA
+            ! If Y dimension, JImin / JImax = JLB / JUB. Dim = 1 = Y
+            call SolveThomas(CudaID, IJmin, IJmax, JImin, JImax, Kmin, Kmax,          &
+                Thomas%COEF3%D, Thomas%COEF3%E, Thomas%COEF3%F, Thomas%TI, ANSWER, Dim)
+#else
             call THOMAS_3D_i0_j1_NewType(IJmin, IJmax,                                  &
                                  JImin, JImax,                                          &
                                  Kmin,  Kmax,                                           &
                                  Thomas,                                                &
                                  ANSWER)
+#endif _USE_CUDA
 
         else if (di == 1 .and. dj == 0) then
+            write(*,*) ' Solving Thomas for X'
+            Dim = 0
+#ifdef _USE_CUDA
+            ! If X dimension, JImin / JImax = ILB / IUB. Dim = 0 = X
+            call SolveThomas(CudaID, JImin, JImax, IJmin, IJmax, Kmin, Kmax,          &
+                Thomas%COEF3%D, Thomas%COEF3%E, Thomas%COEF3%F, Thomas%TI, ANSWER, Dim)
 
+#else
             call THOMAS_3D_i1_j0_NewType(IJmin, IJmax,                                  &
                                  JImin, JImax,                                          &
                                  Kmin,  Kmax,                                           &
                                  Thomas,                                                &
                                  ANSWER)
+#endif _USE_CUDA
 
         else
 
@@ -2382,6 +2419,13 @@ do1 :       do II = JImin+1, JImax+1
         endif
 
         if (MonitorPerformance) call StopWatch ("ModuleFunctions", "THOMAS_3D")
+
+#ifdef _ENABLE_CUDA
+        if(SaveResults) then
+            ! Correctness test only
+            ! call SaveThomas(CudaID, ANSWER, Dim)
+        endif
+#endif _ENABLE_CUDA
 
     end subroutine THOMAS_3D_NewType
 
@@ -2565,7 +2609,12 @@ do4 :       DO II = KLB+1, KUB+1
                                  JLB, JUB,                                        &
                                  KLB, KUB,                                        &
                                  Thomas,                                          &
-                                 RES)
+                                 RES                                              &
+#ifdef _ENABLE_CUDA
+                                 , CudaID                                         &
+                                 , SaveResults                                    &
+#endif _ENABLE_CUDA 
+                                )
 
         !Arguments---------------------------------------------------------------
         integer,                         intent(IN) :: ILB, IUB
@@ -2574,17 +2623,31 @@ do4 :       DO II = KLB+1, KUB+1
         real,    dimension(:,:,:), pointer          :: RES
         type(T_THOMAS), pointer                     :: Thomas
 
+#ifdef _ENABLE_CUDA
+        ! Solve Thomas on a CUDA device
+        integer                                     :: CudaID
+        logical                                     :: SaveResults
+#endif _ENABLE_CUDA
+
         !Local-------------------------------------------------------------------
         type(T_VECGW), pointer                      :: VEC
         integer                                     :: TID
         !$ integer                                  :: CHUNK !
         integer :: I, J, K
-        integer :: II, MM
+        integer :: II, MM     
 
         !------------------------------------------------------------------------
 
         if (MonitorPerformance) call StartWatch ("ModuleFunctions", "THOMASZ")
-
+        
+            write(*,*) ' Solving Thomas for Z'
+            
+#ifdef _USE_CUDA
+        ! This method can solve Thomas for any dimension. Dim 0 = X, 1 = Y, 2 = Z
+        call SolveThomas(CudaID, ILB, IUB, JLB, JUB, KLB, KUB,                     &
+                          Thomas%COEF3%D, Thomas%COEF3%E, Thomas%COEF3%F,           &
+                          Thomas%TI, RES, 2)
+#else
         !$ CHUNK = CHUNK_J(JLB,JUB) !
 
         !$OMP PARALLEL PRIVATE(J,I,K,II,MM,TID,VEC)
@@ -2594,8 +2657,12 @@ do4 :       DO II = KLB+1, KUB+1
         !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
 do2 :   DO J = JLB, JUB
 do1 :   DO I = ILB, IUB
-            VEC%W(KLB) =-Thomas%COEF3%F (I, J, 1) / Thomas%COEF3%E(I, J, 1)
-            VEC%G(KLB) = Thomas%TI(I, J, 1) / Thomas%COEF3%E(I, J, 1)
+            ! JPW: Changed 1 to KLB for consistency. Results should be the same as long as KLB = 1
+            VEC%W(KLB) =-Thomas%COEF3%F (I, J, KLB) / Thomas%COEF3%E(I, J, KLB)
+            VEC%G(KLB) = Thomas%TI(I, J, KLB) / Thomas%COEF3%E(I, J, KLB)
+            ! JPW: Original
+            !VEC%W(KLB) =-Thomas%COEF3%F (I, J, 1) / Thomas%COEF3%E(I, J, 1)
+            !VEC%G(KLB) = Thomas%TI(I, J, 1) / Thomas%COEF3%E(I, J, 1)
 
 do3 :       DO K  = KLB+1, KUB+1
                 VEC%W(K) = -Thomas%COEF3%F(I, J, K) / (Thomas%COEF3%E(I, J, K) + Thomas%COEF3%D(I, J, K) * VEC%W(K-1))
@@ -2614,9 +2681,16 @@ do4 :       DO II = KLB+1, KUB+1
         END DO do2
         !$OMP END DO NOWAIT
         !$OMP END PARALLEL
-        
+       
+#endif
         if (MonitorPerformance) call StopWatch ("ModuleFunctions", "THOMASZ")
 
+#ifdef _ENABLE_CUDA
+        if(SaveResults) then
+            ! Correctness test only
+            ! call SaveThomas(CudaID, RES, 2);
+        endif
+#endif
     end subroutine THOMASZ_NewType
 
     !--------------------------------------------------------------------------

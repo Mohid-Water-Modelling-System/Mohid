@@ -445,7 +445,7 @@ Module ModuleSedimentProperties
         integer                                 :: ObjInterface         = 0
         
         !Instance of ModuleInterface
-        integer                                 :: ObjLUD               = 0
+        integer                                 :: ObjLUD               = 0    
 
         !Collection of instances
         type(T_SedimentProperties), pointer     :: Next
@@ -1670,6 +1670,7 @@ do1:    do while(associated(Property))
 
         allocate(NewProperty%Concentration(ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)stop 'Construct_PropertyValues - ModuleSedimentProperties - ERR03'
+             
         NewProperty%Concentration(:,:,:) = FillValueReal
         
         !This variable is a logic one is true if the property is old
@@ -4899,7 +4900,7 @@ cd1:    if (ready_ .NE. OFF_ERR_) then
                 PropertyX => Me%FirstProperty
 
 do1 :           do while(associated(PropertyX))  
-                    
+
                     deallocate(PropertyX%Concentration, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_)                               &
                         stop 'KillSedimentProperties - ModuleSedimentProperties - ERR19'

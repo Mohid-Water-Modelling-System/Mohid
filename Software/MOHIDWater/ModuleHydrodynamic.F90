@@ -178,6 +178,10 @@ Module ModuleHydrodynamic
     use mpi
 #endif    
 
+#ifdef _ENABLE_CUDA
+    use ModuleCuda
+#endif _ENABLE_CUDA
+
     implicit none 
 
     private
@@ -539,7 +543,6 @@ Module ModuleHydrodynamic
     integer, parameter :: WestSouth        = 1
     integer, parameter :: EastNorth        = 2
 
-
     !Numeric Options
     integer, parameter :: UpWind_Scheme   = 1
     integer, parameter :: Quick_Scheme    = 2
@@ -718,6 +721,10 @@ Module ModuleHydrodynamic
         type(T_PropertyID)                 :: ID
         real, dimension (:, :, :), pointer :: New
         real, dimension (:, :, :), pointer :: Old
+#ifdef _USE_PAGELOCKED
+        type(C_PTR)                         :: OldPtr
+        type(C_PTR)                         :: NewPtr
+#endif _USE_PAGELOCKED
         real                               :: Default
         integer                            :: InTypeZUV
     end type T_Vel_UV 
@@ -735,6 +742,9 @@ Module ModuleHydrodynamic
         real, dimension (:, :, :), pointer :: Cartesian
         real, dimension (:, :, :), pointer :: CartesianOld
         real, dimension (:, :, :), pointer :: Across
+#ifdef _USE_PAGELOCKED
+        type(C_PTR)                        :: CartesianPtr
+#endif
     end type T_Vertical
 
     private :: T_Velocity
@@ -808,8 +818,16 @@ Module ModuleHydrodynamic
 
     private :: T_Coef_3D
     type T_Coef_3D
+#ifdef _ENABLE_CUDA
+        real(C_DOUBLE), dimension (:, :, :), pointer    :: D, F, Ti
+        real(C_DOUBLE), dimension (:, :, :), pointer    :: E
+#else
         real,    dimension (:, :, :), pointer :: D, F, Ti
         real(8), dimension (:, :, :), pointer :: E
+#endif _ENABLE_CUDA
+#ifdef _USE_PAGELOCKED
+        type(C_PTR)                                     :: DPtr, EPtr, FPtr, TiPtr
+#endif _USE_PAGELOCKED
     end type T_Coef_3D
 
     private :: T_Coef_Baroc
@@ -1376,6 +1394,11 @@ Module ModuleHydrodynamic
 
         !Instance of Waves      
         integer :: ObjWaves                 = 0
+        
+#ifdef _ENABLE_CUDA
+        !Instance of CUDA
+        integer :: ObjCuda                  = 0
+#endif _ENABLE_CUDA
 
         !griflet
         integer :: MaxThreads
@@ -1433,6 +1456,9 @@ Module ModuleHydrodynamic
                                   TurbulenceID,                                         &
                                   DischargesID,                                         &
                                   WavesID,                                              &
+#ifdef _ENABLE_CUDA
+                                  CudaID,                                               &
+#endif _ENABLE_CUDA
                                   STAT)
 
 !
@@ -1451,6 +1477,9 @@ Module ModuleHydrodynamic
         integer, intent (IN)          :: TurbulenceID
         integer, intent (IN)          :: WavesID
         integer                       :: DischargesID
+#ifdef _ENABLE_CUDA
+        integer                       :: CudaID
+#endif _ENABLE_CUDA
 
 ! !OUTPUT PARAMETERS:                                          
         
@@ -1494,6 +1523,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             if(WavesID /= 0)then
                 Me%ObjWaves      = AssociateInstance (mWAVES_,          WavesID)
             end if
+            
+#ifdef _ENABLE_CUDA
+            Me%ObjCuda          = AssociateInstance (mCUDA_,             CudaID)
+#endif _ENABLE_CUDA
 
             call Construct_Hydrodynamic (DischargesID,  AssimilationID)
 
@@ -6326,13 +6359,23 @@ cd43:   if (.NOT. BlockFound) then
         allocate (Me%WaterLevel%Old             (ILB:IUB, JLB:JUB         )) 
         allocate (Me%WaterLevel%VolumeCreated   (ILB:IUB, JLB:JUB         )) 
         allocate (Me%WaterLevel%Maxi            (ILB:IUB, JLB:JUB         )) 
-        allocate (Me%WaterLevel%Mini            (ILB:IUB, JLB:JUB         )) 
+        allocate (Me%WaterLevel%Mini            (ILB:IUB, JLB:JUB         ))
+#ifdef _USE_PAGELOCKED
+        call Alloc3DPageLocked(Me%ObjCuda, Me%Velocity%Horizontal%U%NewPtr, Me%Velocity%Horizontal%U%New, IUB + 1, JUB + 1, KUB + 1)
+        call Alloc3DPageLocked(Me%ObjCuda, Me%Velocity%Horizontal%U%OldPtr, Me%Velocity%Horizontal%U%Old, IUB + 1, JUB + 1, KUB + 1)
+        call Alloc3DPageLocked(Me%ObjCuda, Me%Velocity%Horizontal%V%NewPtr, Me%Velocity%Horizontal%V%New, IUB + 1, JUB + 1, KUB + 1)
+        call Alloc3DPageLocked(Me%ObjCuda, Me%Velocity%Horizontal%V%OldPtr, Me%Velocity%Horizontal%V%Old, IUB + 1, JUB + 1, KUB + 1)
+        call Alloc3DPageLocked(Me%ObjCuda, Me%Velocity%Vertical%CartesianPtr, Me%Velocity%Vertical%Cartesian, IUB + 1, JUB + 1, KUB + 1)
+#else
         allocate (Me%Velocity%Horizontal%U%New  (ILB:IUB, JLB:JUB, KLB:KUB)) 
         allocate (Me%Velocity%Horizontal%U%Old  (ILB:IUB, JLB:JUB, KLB:KUB)) 
         allocate (Me%Velocity%Horizontal%V%New  (ILB:IUB, JLB:JUB, KLB:KUB)) 
         allocate (Me%Velocity%Horizontal%V%Old  (ILB:IUB, JLB:JUB, KLB:KUB)) 
-        allocate (Me%Velocity%Vertical%Across   (ILB:IUB, JLB:JUB, KLB:KUB)) 
         allocate (Me%Velocity%Vertical%Cartesian(ILB:IUB, JLB:JUB, KLB:KUB)) 
+#endif  
+
+        allocate (Me%Velocity%Vertical%Across   (ILB:IUB, JLB:JUB, KLB:KUB)) 
+        
         ! guillaume
         if (Me%ComputeOptions%AltimetryAssimilation%Yes .or.                            &
             Me%ComputeOptions%Geost_Initialization) then
@@ -6484,11 +6527,17 @@ cd2:    if (Me%ComputeOptions%BarotropicRadia == FlatherWindWave_ .or.      &
             Me%Coef%D2%TiRad = FillValueReal
         endif cd2
 
-
+#ifdef _USE_PAGELOCKED
+        call Alloc3DPageLocked(Me%ObjCuda, Me%Coef%D3%DPtr, Me%Coef%D3%D, IUB + 1, JUB + 1, KUB + 1)
+        call Alloc3DPageLocked(Me%ObjCuda, Me%Coef%D3%EPtr, Me%Coef%D3%E, IUB + 1, JUB + 1, KUB + 1)
+        call Alloc3DPageLocked(Me%ObjCuda, Me%Coef%D3%FPtr, Me%Coef%D3%F, IUB + 1, JUB + 1, KUB + 1)
+        call Alloc3DPageLocked(Me%ObjCuda, Me%Coef%D3%TiPtr, Me%Coef%D3%Ti, IUB + 1, JUB + 1, KUB + 1)
+#else
         allocate (Me%Coef%D3%D(ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT_CALL) 
         allocate (Me%Coef%D3%E(ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT_CALL) 
         allocate (Me%Coef%D3%F(ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT_CALL) 
         allocate (Me%Coef%D3%Ti(ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT_CALL) 
+#endif _USE_PAGELOCKED
 
         Me%Coef%D3%D = FillValueReal
         Me%Coef%D3%E = FillValueReal 
@@ -19543,9 +19592,15 @@ cd2:        if      (Num_Discretization == Abbott    ) then
         !griflet: old call
         !call THOMASZ(ilb, iub, jlb, jub, klb, kub, dCoef, eCoef, fCoef, tiCoef,        &
         !              Me%Velocity%Vertical%Cartesian, Me%VECG_3D, Me%VECW_3D)
-        !griflet: new call                      
-        call THOMASZ(ilb, iub, jlb, jub, klb, kub, Me%THOMAS,        &
-                      Me%Velocity%Vertical%Cartesian)
+        !griflet: new call
+        call THOMASZ(ilb, iub, jlb, jub, klb, kub, Me%THOMAS,       &
+                      Me%Velocity%Vertical%Cartesian                &
+#ifdef _ENABLE_CUDA
+        ! Use CUDA to solve the Thomas algorithm, ID of ModuleCuda is needed
+                         , Me%ObjCuda,                              &
+                         .FALSE.                                    &
+#endif _ENABLE_CUDA
+                         )
 
         !----DeAllocate...
         deallocate(fx)
@@ -21321,9 +21376,13 @@ cd2D:   if (KUB == 1) then !If the model is 2D then the implicit direction is in
             !               DCoef_3D, ECoef_3D, FCoef_3D, TiCoef_3D, Velocity_UV_New,     &
             !               Me%VECG_3D, Me%VECW_3D)
             !griflet: new call
-            call THOMAS_3D(IJmin, IJmax, JImin, JImax, KLB, KUB, di, dj,                 &
-                           Me%THOMAS, Velocity_UV_New)
-
+            call THOMAS_3D(IJmin, IJmax, JImin, JImax, KLB, KUB, di, dj,                &
+                           Me%THOMAS, Velocity_UV_New                                   &
+#ifdef _ENABLE_CUDA
+                           , Me%ObjCuda,                                                &
+                           .FALSE.                                                      &
+#endif _ENABLE_CUDA
+                           )
         else cd2D ! The implicit direction is in the vertical
 
 
@@ -21333,7 +21392,15 @@ cd2D:   if (KUB == 1) then !If the model is 2D then the implicit direction is in
             !             FCoef_3D, TiCoef_3D, Velocity_UV_New,                           &
             !             Me%VECG_3D, Me%VECW_3D)
             !griflet: new call
-            call THOMASZ(ILB, IUB, JLB, JUB, KLB, KUB, Me%THOMAS, Velocity_UV_New)
+
+            ! Use CUDA to solve the Thomas algorithm, ID of ModuleCuda is needed
+            ! Save results while computing velocity in X direction
+            call THOMASZ(ILB, IUB, JLB, JUB, KLB, KUB, Me%THOMAS, Velocity_UV_New       &
+#ifdef _ENABLE_CUDA
+                         , Me%ObjCuda,                                                  &
+                         .FALSE.                                                        &
+#endif _ENABLE_CUDA
+                        )
 
         endif cd2D
 
@@ -40137,6 +40204,11 @@ cd3:            if (Me%OutPut%hdf5ON) then
 
                 endif
 
+#ifdef _ENABLE_CUDA                
+                !Kills ModuleCuda
+                call KillCuda (Me%ObjCuda, STAT = STAT_CALL)
+                ! No need to give error yet, Module still has users
+#endif _ENABLE_CUDA                
                 
                 call DeallocateVariables                 
                
@@ -41016,6 +41088,13 @@ cd2:    if (Me%SubModel%DeadZone) then
 
         nullify (Me%WaterLevel%Mini) 
 
+#ifdef _USE_PAGELOCKED
+        ! FreePageLocked will also nullify the pointers and arrays
+        call FreePageLocked(Me%ObjCuda, Me%Velocity%Horizontal%U%NewPtr, Me%Velocity%Horizontal%U%New)
+        call FreePageLocked(Me%ObjCuda, Me%Velocity%Horizontal%U%OldPtr, Me%Velocity%Horizontal%U%Old)
+        call FreePageLocked(Me%ObjCuda, Me%Velocity%Horizontal%V%NewPtr, Me%Velocity%Horizontal%U%New)
+        call FreePageLocked(Me%ObjCuda, Me%Velocity%Horizontal%V%OldPtr, Me%Velocity%Horizontal%U%Old)
+#else
         !Horizontal velocity
         deallocate (Me%Velocity%Horizontal%U%New, STAT = STAT_CALL) 
         if (STAT_CALL /= SUCCESS_)                                                       &
@@ -41046,7 +41125,7 @@ cd2:    if (Me%SubModel%DeadZone) then
             stop 'Subroutine DeallocateVariables; Module ModuleHydrodynamic. ERR08.' 
 
         nullify (Me%Velocity%Horizontal%V%Old) 
-
+#endif _USE_PAGELOCKED
              
         !Auxiliar horizontal velocity pointers
         nullify (Me%Velocity%Horizontal%UV%New) 
@@ -41075,20 +41154,23 @@ cd2:    if (Me%SubModel%DeadZone) then
         endif
 
         !Vertical Velocity
+#ifdef _USE_PAGELOCKED
+        ! FreePageLocked will also nullify the pointers and arrays
+        call FreePageLocked(Me%ObjCuda, Me%Velocity%Vertical%CartesianPtr, Me%Velocity%Vertical%Cartesian)
+#else
+        deallocate (Me%Velocity%Vertical%Cartesian, STAT = STAT_CALL) 
+        if (STAT_CALL /= SUCCESS_)                                                       &
+            stop 'Subroutine DeallocateVariables; Module ModuleHydrodynamic. ERR11.' 
+
+        nullify (Me%Velocity%Vertical%Cartesian) 
+#endif _USE_PAGELOCKED        
+        
         deallocate (Me%Velocity%Vertical%Across, STAT = STAT_CALL) 
         if (STAT_CALL /= SUCCESS_)                                                       &
             stop 'Subroutine DeallocateVariables; Module ModuleHydrodynamic. ERR10.' 
         
         nullify (Me%Velocity%Vertical%Across)         
 
-         
-        deallocate (Me%Velocity%Vertical%Cartesian, STAT = STAT_CALL) 
-        if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'Subroutine DeallocateVariables; Module ModuleHydrodynamic. ERR11.' 
-
-        nullify (Me%Velocity%Vertical%Cartesian) 
-        
-        
         if (Me%NonHydrostatic%ON) then
 
             deallocate (Me%Velocity%Vertical%CartesianOld, STAT = STAT_CALL) 
@@ -41411,40 +41493,35 @@ cd2:    if (Me%ComputeOptions%BarotropicRadia == FlatherWindWave_ .or.      &
 
         endif cd2
 
+#ifdef _USE_PAGELOCKED
+        ! FreePageLocked will also nullify the pointers and arrays
+        call FreePageLocked(Me%ObjCuda, Me%Coef%D3%DPtr, Me%Coef%D3%D)
+        call FreePageLocked(Me%ObjCuda, Me%Coef%D3%EPtr, Me%Coef%D3%E)
+        call FreePageLocked(Me%ObjCuda, Me%Coef%D3%FPtr, Me%Coef%D3%F)
+        call FreePageLocked(Me%ObjCuda, Me%Coef%D3%TiPtr, Me%Coef%D3%Ti)
+#else
         deallocate (Me%Coef%D3%D, STAT = STAT_CALL) 
         if (STAT_CALL /= SUCCESS_)                                                       &
             stop 'Subroutine DeallocateVariables; Module ModuleHydrodynamic. ERR24.'  
-
-        nullify (Me%Coef%D3%D) 
-
-
-
+        
         deallocate (Me%Coef%D3%E, STAT = STAT_CALL) 
         if (STAT_CALL /= SUCCESS_)                                                       &
             stop 'Subroutine DeallocateVariables; Module ModuleHydrodynamic. ERR25.' 
- 
-         nullify (Me%Coef%D3%E) 
-
-
         
-             
         deallocate (Me%Coef%D3%F, STAT = STAT_CALL) 
-
         if (STAT_CALL /= SUCCESS_)                                                       &
             stop 'Subroutine DeallocateVariables; Module ModuleHydrodynamic. ERR26.' 
         
-        nullify (Me%Coef%D3%F) 
-
-
-             
         deallocate (Me%Coef%D3%Ti, STAT = STAT_CALL) 
-
         if (STAT_CALL /= SUCCESS_)                                                       &
             stop 'Subroutine DeallocateVariables; Module ModuleHydrodynamic. ERR27.'  
-
-        nullify (Me%Coef%D3%Ti)
-
         
+        nullify (Me%Coef%D3%D) 
+        nullify (Me%Coef%D3%E) 
+        nullify (Me%Coef%D3%F) 
+        nullify (Me%Coef%D3%Ti)
+#endif _USE_PAGELOCKED
+
         !External Variables
 
         !Bottom boundary: this variable in the future must migrate to the module ModuleBottom

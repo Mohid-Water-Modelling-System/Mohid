@@ -247,6 +247,10 @@ Module ModuleWaterProperties
     use ModuleHydrodynamic,         only: GetWaterFluxes, GetWaterLevel, GetDischargesFluxes,   &
                                           UngetHydrodynamic, GetHydroAltimAssim, GetVertical1D, &
                                           GetXZFlow, GetHydrodynamicAirOptions 
+    
+#ifdef _ENABLE_CUDA
+    use ModuleCuda
+#endif _ENABLE_CUDA
 
     implicit none 
 
@@ -725,6 +729,9 @@ Module ModuleWaterProperties
         character(len=Pathlength)               :: StatisticsFile
         integer                                 :: StatisticID
         real, pointer, dimension(:,:,:)         :: Concentration
+#ifdef _USE_PAGELOCKED
+        type(C_PTR)                             :: ConcentrationPtr
+#endif
         real, pointer, dimension(:,:,:)         :: ConcentrationOld
         real, pointer, dimension(:,:  )         :: SurfaceFlux
         real, pointer, dimension(:,:,:)         :: Mass_Created
@@ -1015,6 +1022,10 @@ Module ModuleWaterProperties
         !Instance of ModuleAssimilation         
         integer                                 :: ObjAssimilation          = 0
 
+#ifdef _ENABLE_CUDA
+        integer                                 :: ObjCuda                  = 0
+#endif _ENABLE_CUDA        
+
         !Collection of instances
         type(T_WaterProperties), pointer        :: Next
 
@@ -1050,7 +1061,10 @@ Module ModuleWaterProperties
                                          TurbulenceID,                       &
                                          TimeID,                             &
                                          DischargesID,                       &
-                                         STAT)
+#ifdef _ENABLE_CUDA
+                                         CudaID,                             &
+#endif
+                                        STAT)
 
         !Arguments-------------------------------------------------------------
         character(Len=*)                            :: ModelName
@@ -1065,6 +1079,9 @@ Module ModuleWaterProperties
         integer                                     :: TurbulenceID
         integer                                     :: AssimilationID
         integer                                     :: DischargesID
+#ifdef _ENABLE_CUDA
+        integer                                     :: CudaID
+#endif
         integer, optional, intent(OUT)              :: STAT
 
         !External--------------------------------------------------------------
@@ -1109,7 +1126,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             Me%ObjTurbulence     = AssociateInstance (mTURBULENCE_,     TurbulenceID    )
             ! guillaume nogueira
 !            Me%ObjAssimilation   = AssociateInstance (mASSIMILATION_,     AssimilationID  )
-           
+#ifdef _ENABLE_CUDA
+            Me%ObjCuda           = AssociateInstance (mCUDA_,           CudaID          )
+#endif
+
             call ReadLockExternalVar
 
             ! Construct the variable common to all module  
@@ -1158,7 +1178,12 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             call ConstructBooleanAltimAssim        
 
             !Construct the Sub-Modules
+#ifdef _ENABLE_CUDA
+            ! CudaID is needed for thomas algorithm in ModuleAdvectionDiffusion
+            call Construct_Sub_Modules(AssimilationID, DischargesID, CudaID)
+#else
             call Construct_Sub_Modules(AssimilationID, DischargesID)
+#endif _ENABLE_CUDA
 
             call CheckAditionalOutputs
          
@@ -1977,11 +2002,17 @@ cd2 :           if (BlockFound) then
 
     !--------------------------------------------------------------------------
 
-    subroutine Construct_Sub_Modules(AssimilationID, DischargesID)
+    subroutine Construct_Sub_Modules(AssimilationID, DischargesID       &
+#ifdef _ENABLE_CUDA
+                                     , CudaID                           &
+#endif _ENABLE_CUDA  
+    )
 
         integer                                              :: DischargesID
         integer                                              :: AssimilationID
-
+#ifdef _ENABLE_CUDA
+        integer                                              :: CudaID
+#endif
         !Local-----------------------------------------------------------------
         type (T_Property),           pointer                 :: PropertyX            
         integer                                              :: STAT_CALL, dis, TotalCells
@@ -2226,6 +2257,9 @@ do1 :   do while (associated(PropertyX))
                                          Me%ObjTime,                     &
                                          Vertical1D = Me%ExternalVar%Vertical1D, &
                                          XZFlow     = Me%ExternalVar%XZFlow, &
+#ifdef _ENABLE_CUDA
+                                         ObjCudaID  = CudaID,            &
+#endif
                                          STAT = STAT_CALL)
 
             if (STAT_CALL /= SUCCESS_) stop 'Construct_Sub_Modules - WaterProperties - ERR10'
@@ -2236,7 +2270,7 @@ do1 :   do while (associated(PropertyX))
 
         endif
 
-        !Light extinction
+!        Light extinction
         if(Me%Coupled%LightExtinction%Yes .or. SolarRadiationIsNeeded())then
 
             call CoupleLightExtinction
@@ -2287,7 +2321,12 @@ do1 :   do while (associated(PropertyX))
         !Free vertical movement   
         if(Me%Coupled%FreeVerticalMovement%Yes) then
 
+#ifdef _ENABLE_CUDA
+            ! CudaID needed by ModuleFreeVerticalMovement for Thomas algorithm
+            call CoupleFreeVerticalMovement (CudaID)
+#else
             call CoupleFreeVerticalMovement
+#endif
 
         end if
 
@@ -3049,8 +3088,16 @@ do1 :   do while (associated(PropertyX))
     
     !--------------------------------------------------------------------------
 
-    subroutine CoupleFreeVerticalMovement
-
+    subroutine CoupleFreeVerticalMovement (             &
+#ifdef _ENABLE_CUDA
+                                            CudaID      &
+#endif    
+    )
+        
+        !Arguments-------------------------------------------------------------
+#ifdef _ENABLE_CUDA
+        integer                                             :: CudaID
+#endif
         !Local-----------------------------------------------------------------
         type(T_Property), pointer                           :: PropertyX
         integer                                             :: STAT_CALL
@@ -3065,6 +3112,9 @@ do1 :   do while (associated(PropertyX))
                                             HorizontalGridID       = Me%ObjHorizontalGrid,       &
                                             MapID                  = Me%ObjMap,                  &
                                             GeometryID             = Me%ObjGeometry,             &
+#ifdef _ENABLE_CUDA
+                                            ObjCudaID              = CudaID,                     &
+#endif
                                             STAT                   = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                               &
             stop 'CoupleFreeVerticalMovement - ModuleWaterProperties - ERR01'
@@ -3853,10 +3903,15 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
         WKLB = Me%WorkSize%KLB
         WKUB = Me%WorkSize%KUB
 
-
+#ifdef _USE_PAGELOCKED
+        ! Allocate pagelocked memory to optimize CUDA transfers
+        call Alloc3DPageLocked(Me%ObjCuda, NewProperty%ConcentrationPtr, NewProperty%Concentration, IUB + 1, JUB + 1, KUB + 1)
+#else
         allocate(NewProperty%Concentration(ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)                                                     &
             stop 'Construct_PropertyValues - ModuleWaterProperties - ERR10' 
+#endif
+
         NewProperty%Concentration(:,:,:) = FillValueReal
 
         !To store oxygen and CO2 fluxes across the water-air interface 
@@ -17982,11 +18037,15 @@ do1 :           do while(associated(PropertyX))
                         if (STAT_CALL /= SUCCESS_) &
                             stop 'KillWaterProperties - ModuleWaterProperties - ERR220'
                     endif
-  
+#ifdef _USE_PAGELOCKED
+                    ! FreePageLocked will also nullify the pointers and arrays
+                    call FreePageLocked(Me%ObjCuda, PropertyX%ConcentrationPtr, PropertyX%Concentration)
+#else
                     deallocate(PropertyX%Concentration, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) &
                         stop 'KillWaterProperties - ModuleWaterProperties - ERR230'
                     nullify   (PropertyX%Concentration)
+#endif                    
 
                     if (PropertyX%Evolution%Filtration%On) then
                                         
@@ -18245,6 +18304,12 @@ cd9 :               if (associated(PropertyX%Assimilation%Field)) then
 
                 if (Me%SolarRadiation%Exists) call KillSolarRadiation
                     
+#ifdef _ENABLE_CUDA                
+                !Kills ModuleCuda.
+                call KillCuda (Me%ObjCuda, STAT = STAT_CALL)
+                ! No need to give error yet, Module still has users
+#endif _ENABLE_CUDA
+
                 call DeallocateInstance
 
                 WaterPropertiesID  = 0

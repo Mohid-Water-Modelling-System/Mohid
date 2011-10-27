@@ -41,6 +41,11 @@ Module ModuleAdvectionDiffusion
     use ModuleHorizontalMap , only : KillHorizontalMap, GetBoundaries, UnGetHorizontalMap
     use ModuleGeometry      , only : GetGeometrySize, GetGeometryKFloor, GetGeometryWaterColumn, &
                                      GetGeometryAreas, GetGeometryDistances, UnGetGeometry
+
+#ifdef _ENABLE_CUDA
+    use ModuleCuda
+#endif
+
     !$ use omp_lib
 
     implicit none
@@ -246,6 +251,9 @@ Module ModuleAdvectionDiffusion
         type(T_FluxCoef)                        :: COEF3_HorAdvXX           !Horinzontal advection coeficients
         type(T_FluxCoef)                        :: COEF3_HorAdvYY           !Horinzontal advection coeficients
         real, pointer, dimension(: , : , :)     :: TICOEF3       
+#ifdef _USE_PAGELOCKED
+        type(C_PTR)                             :: TICOEF3Ptr
+#endif _USE_PAGELOCKED
         real(8), pointer, dimension(:,:,:)      :: WaterFluxOBoundary
         !griflet
         type(T_THOMAS), pointer                 :: THOMAS
@@ -281,6 +289,10 @@ Module ModuleAdvectionDiffusion
         !Instance of ModuleTime
         integer                                 :: ObjTime            = 0
 
+#ifdef _ENABLE_CUDA
+        integer                                 :: ObjCuda            = 0
+#endif
+
         !Collection of instances
         type(T_AdvectionDiffusion),  pointer    :: Next               => null()
 
@@ -310,6 +322,9 @@ Module ModuleAdvectionDiffusion
                                        TimeID,                                          &
                                        Vertical1D,                                      &
                                        XZFlow,                                          &
+#ifdef _ENABLE_CUDA
+                                       ObjCudaID,                                       &
+#endif    
                                        STAT)
 
         !Arguments-------------------------------------------------------------
@@ -319,7 +334,10 @@ Module ModuleAdvectionDiffusion
         integer                             :: HorizontalMapID
         integer                             :: HorizontalGridID
         integer                             :: TimeID    
-        logical, optional, intent(IN )      :: Vertical1D, XZFlow           
+        logical, optional, intent(IN )      :: Vertical1D, XZFlow
+#ifdef _ENABLE_CUDA
+        integer                             :: ObjCudaID
+#endif
         integer, optional, intent(OUT)      :: STAT     
 
         !External--------------------------------------------------------------
@@ -353,6 +371,9 @@ cd0 :   if (ready_ == OFF_ERR_) then
             Me%ObjHorizontalGrid = AssociateInstance (mHORIZONTALGRID_, HorizontalGridID)
             Me%ObjHorizontalMap  = AssociateInstance (mHORIZONTALMAP_,  HorizontalMapID )
             Me%ObjGeometry       = AssociateInstance (mGEOMETRY_,       GeometryID      )
+#ifdef _ENABLE_CUDA
+            Me%ObjCuda           = AssociateInstance (mCUDA_,           ObjCudaID       )
+#endif
 
             !Gets the size from the Geometry
             call GetGeometrySize(Me%ObjGeometry,                                         &
@@ -467,9 +488,16 @@ cd0 :   if (ready_ == OFF_ERR_) then
         allocate(Me%Fluxes%DifFluxY         (ILB:IUB, JLB:JUB, KLB:KUB))
         allocate(Me%Fluxes%DifFluxZ         (ILB:IUB, JLB:JUB, KLB:KUB))
 
+#ifdef _USE_PAGELOCKED
+        ! Allocate pagelocked memory to optimize CUDA transfers
+        call Alloc3DPageLocked(Me%ObjCuda, Me%COEF3%DPtr, Me%COEF3%D, IUB + 1, JUB + 1, KUB + 1)        
+        call Alloc3DPageLocked(Me%ObjCuda, Me%COEF3%EPtr, Me%COEF3%E, IUB + 1, JUB + 1, KUB + 1)        
+        call Alloc3DPageLocked(Me%ObjCuda, Me%COEF3%FPtr, Me%COEF3%F, IUB + 1, JUB + 1, KUB + 1)        
+#else
         allocate(Me%COEF3%D                 (ILB:IUB, JLB:JUB, KLB:KUB))
         allocate(Me%COEF3%E                 (ILB:IUB, JLB:JUB, KLB:KUB))
         allocate(Me%COEF3%F                 (ILB:IUB, JLB:JUB, KLB:KUB))
+#endif _USE_PAGELOCKED
 
         allocate(Me%COEF3_VertAdv%C_Flux    (ILB:IUB, JLB:JUB, KLB:KUB))
         allocate(Me%COEF3_VertAdv%D_Flux    (ILB:IUB, JLB:JUB, KLB:KUB))
@@ -486,7 +514,12 @@ cd0 :   if (ready_ == OFF_ERR_) then
         allocate(Me%COEF3_HorAdvYY%E_Flux   (ILB:IUB, JLB:JUB, KLB:KUB))
         allocate(Me%COEF3_HorAdvYY%F_Flux   (ILB:IUB, JLB:JUB, KLB:KUB))
 
+#ifdef _USE_PAGELOCKED       
+        ! Allocate pagelocked memory to optimize CUDA transfers
+        call Alloc3DPageLocked(Me%ObjCuda, Me%TICOEF3Ptr, Me%TICOEF3, IUB + 1, JUB + 1, KUB + 1)        
+#else
         allocate(Me%TICOEF3                 (ILB:IUB, JLB:JUB, KLB:KUB))
+#endif _USE_PAGELOCKED
 
         allocate(Me%WaterFluxOBoundary      (ILB:IUB, JLB:JUB, KLB:KUB))
 
@@ -1446,7 +1479,12 @@ cd3:    if (KUBWS == 1 .and. ImpExp_AdvXX == ImplicitScheme) then !ImplicitSchem
                            KLBWS, KUBWS,                                                &
                            di, dj,                                                      &
                            Me%THOMAS,                                                   &
-                           Me%ExternalVar%PROP)      
+                           Me%ExternalVar%PROP                                          &     
+#ifdef _ENABLE_CUDA
+                           , Me%ObjCuda,                                                &
+                           .FALSE.                                                      &
+#endif _ENABLE_CUDA
+                           )
                             
         else if (KUBWS == 1 .and. ImpExp_AdvYY == ImplicitScheme) then cd3 !ImplicitScheme = 0
 
@@ -1471,7 +1509,12 @@ cd3:    if (KUBWS == 1 .and. ImpExp_AdvXX == ImplicitScheme) then !ImplicitSchem
                            KLBWS, KUBWS,                                                &
                            di, dj,                                                      &
                            Me%THOMAS,                                                   &
-                           Me%ExternalVar%PROP)      
+                           Me%ExternalVar%PROP                                          &      
+#ifdef _ENABLE_CUDA
+                           , Me%ObjCuda,                                                &
+                           .FALSE.                                                      &
+#endif _ENABLE_CUDA
+                           )
         else cd3
  
             ! If the model is 3D the vertical diffusion must be implicit so is necessary to 
@@ -1490,11 +1533,16 @@ cd3:    if (KUBWS == 1 .and. ImpExp_AdvXX == ImplicitScheme) then !ImplicitSchem
             !             Me%VECW)      
         
             !griflet: new call
-            CALL THOMASZ(ILBWS, IUBWS,                                                  &
+            call THOMASZ(ILBWS, IUBWS,                                                  &
                          JLBWS, JUBWS,                                                  &
                          KLBWS, KUBWS,                                                  &
                          Me%THOMAS,                                                     &
-                         Me%ExternalVar%PROP)
+                         Me%ExternalVar%PROP                                            &
+#ifdef _ENABLE_CUDA
+                         , Me%ObjCuda,                                                  &
+                         .FALSE.                                                        &
+#endif _ENABLE_CUDA
+                        )
 
         endif cd3
 
@@ -2873,8 +2921,12 @@ cd2:            if (ImpExp_AdvXX == ImplicitScheme) then
                     !griflet: new call 
                     call THOMAS_3D(ILBWS, IUBWS, JLBWS, JUBWS, KLBWS, KUBWS, di, dj,    &
                          Me%THOMAS,                                                     &
-                         Me%ExternalVar%PROP)
-                
+                         Me%ExternalVar%PROP                                            &
+#ifdef _ENABLE_CUDA
+                         , Me%ObjCuda,                                                  &
+                         .FALSE.                                                         &
+#endif _ENABLE_CUDA
+                         )
                 else if (ImpExp_AdvYY == ImplicitScheme) then cd2
 
                     di = 1
@@ -2892,8 +2944,12 @@ cd2:            if (ImpExp_AdvXX == ImplicitScheme) then
                     !griflet: new call
                     call THOMAS_3D(JLBWS, JUBWS, ILBWS, IUBWS, KLBWS, KUBWS, di, dj,    &
                          Me%THOMAS,                                                     &
-                         Me%ExternalVar%PROP)      
-
+                         Me%ExternalVar%PROP                                            &      
+#ifdef _ENABLE_CUDA
+                         , Me%ObjCuda,                                                  &
+                         .FAlSE.                                                         &
+#endif _ENABLE_CUDA
+                         )
                 endif cd2
 
                 
@@ -3911,6 +3967,11 @@ cd1 :   if (ready_ /= OFF_ERR_) then
                 if (nUsers == 0) stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR04'
 
 
+#ifdef _ENABLE_CUDA                
+                !Kills ModuleCuda
+                call KillCuda (Me%ObjCuda, STAT = STAT_CALL)
+                ! No need to give error yet, Module still has users
+#endif _ENABLE_CUDA                
 
                 deallocate(Me%Diffusion_CoeficientX, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_)                                             &
@@ -3968,7 +4029,12 @@ cd1 :   if (ready_ /= OFF_ERR_) then
                     stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR13'
                 nullify   (Me%WaterFluxOBoundary)
 
-
+#ifdef _USE_PAGELOCKED
+                ! FreePageLocked will also nullify the pointers and arrays
+                call FreePageLocked(Me%ObjCuda, Me%COEF3%DPtr, Me%COEF3%D)
+                call FreePageLocked(Me%ObjCuda, Me%COEF3%EPtr, Me%COEF3%E)
+                call FreePageLocked(Me%ObjCuda, Me%COEF3%FPtr, Me%COEF3%F)
+#else
                 deallocate(Me%COEF3%D, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_)                                             &
                     stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR14a'
@@ -3983,6 +4049,7 @@ cd1 :   if (ready_ /= OFF_ERR_) then
                 if (STAT_CALL /= SUCCESS_)                                             &
                     stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR14c'
                 nullify   (Me%COEF3%F) 
+#endif
 
                 deallocate(Me%COEF3_VertAdv%D_Flux, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_)                                             &
@@ -4044,12 +4111,15 @@ cd1 :   if (ready_ /= OFF_ERR_) then
                 if (STAT_CALL /= SUCCESS_)                                             &
                     stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR20i'
                 nullify   (Me%COEF3_HorAdvYY%F_Flux) 
-
+#ifdef _USE_PAGELOCKED
+                ! FreePageLocked will also nullify the pointers and arrays
+                call FreePageLocked(Me%ObjCuda, Me%TICOEF3Ptr, Me%TICOEF3)
+#else
                 deallocate(Me%TICOEF3, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_)                                             &
                     stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR21'
                 nullify   (Me%TICOEF3) 
-
+#endif
                 !griflet
                 do p = 1, Me%MaxThreads
                     VECGW => Me%THOMAS%VEC(p)

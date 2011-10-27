@@ -62,6 +62,11 @@ Module ModuleFreeVerticalMovement
     use ModuleEnterData,        only: ReadFileName, ConstructEnterData, GetData, Block_Unlock, &
                                       ExtractBlockFromBuffer, KillEnterData
     use ModuleStopWatch,            only: StartWatch, StopWatch
+
+#ifdef _ENABLE_CUDA
+    use ModuleCuda
+#endif _ENABLE_CUDA
+
     !griflet: openmp
     !$ use omp_lib
 
@@ -135,6 +140,11 @@ Module ModuleFreeVerticalMovement
         real,    pointer, dimension(: , : , :)  :: D 
         real(8), pointer, dimension(: , : , :)  :: E
         real,    pointer, dimension(: , : , :)  :: F
+#ifdef _USE_PAGELOCKED
+        type(C_PTR)                             :: DPtr
+        type(C_PTR)                             :: EPtr
+        type(C_PTR)                             :: FPtr
+#endif _USE_PAGELOCKED
         real,    pointer, dimension(: , : , :)  :: D_flux    !Coeficient to calculate ConvFlux and DifFlux
         real,    pointer, dimension(: , : , :)  :: E_flux    !Coeficient to calculate ConvFlux and DifFlux
     end type T_DEF
@@ -142,7 +152,10 @@ Module ModuleFreeVerticalMovement
     type       T_External
         integer, pointer, dimension(: , : , :)  :: LandPoints
         integer, pointer, dimension(: , : , :)  :: OpenPoints3D
-        real, pointer, dimension   (: , : , :)  :: Concentration   
+        real, pointer, dimension   (: , : , :)  :: Concentration
+#ifdef _USE_PAGELOCKED
+        type(C_PTR)                             :: ConcentrationPtr
+#endif
         real, pointer, dimension   (: , : , :)  :: SPM
         real, pointer, dimension   (: , : , :)  :: SalinityField
         real,    pointer, dimension(: , :    )  :: DepositionProbability
@@ -167,6 +180,9 @@ Module ModuleFreeVerticalMovement
         type(T_DEF   )                          :: COEF3
         type(T_Options )                        :: Needs
         real, pointer, dimension(:,:,:)         :: TICOEF3
+#ifdef _USE_PAGELOCKED
+        type(C_PTR)                             :: TICOEF3Ptr
+#endif _USE_PAGELOCKED
                                                 
         !Auxiliar thomas arrays                 
         real(8), pointer, dimension(:)          :: VECG
@@ -197,6 +213,11 @@ Module ModuleFreeVerticalMovement
         !Instance of ModuleMap                                          
         integer                                 :: ObjMap               = 0
 
+#ifdef _ENABLE_CUDA        
+        !Instance of ModuleCuda
+        integer                                 :: ObjCuda              = 0
+#endif _ENABLE_CUDA
+
         !Collection of instances
         type(T_FreeVerticalMovement), pointer   :: Next
 
@@ -226,7 +247,11 @@ Module ModuleFreeVerticalMovement
 
     Subroutine Construct_FreeVerticalMovement(FreeVerticalMovementID,         &
                                               TimeID, HorizontalGridID,       &
-                                              MapID, GeometryID, STAT)
+                                              MapID, GeometryID,              &
+#ifdef _ENABLE_CUDA
+                                              ObjCudaID,                      &
+#endif    
+                                              STAT)
 
         !Arguments-------------------------------------------------------------
         integer                                     :: FreeVerticalMovementID
@@ -234,6 +259,9 @@ Module ModuleFreeVerticalMovement
         integer                                     :: HorizontalGridID
         integer                                     :: MapID
         integer                                     :: GeometryID
+#ifdef _ENABLE_CUDA
+        integer                                     :: ObjCudaID
+#endif
         integer, optional, intent(OUT)              :: STAT                
         
         !External--------------------------------------------------------------
@@ -265,6 +293,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             Me%ObjHorizontalGrid = AssociateInstance (mHORIZONTALGRID_, HorizontalGridID)
             Me%ObjGeometry       = AssociateInstance (mGEOMETRY_,       GeometryID      )
             Me%ObjMap            = AssociateInstance (mMAP_,            MapID           )
+#ifdef _ENABLE_CUDA
+            Me%ObjCuda           = AssociateInstance (mCUDA_,           ObjCudaID       )
+#endif _ENABLE_CUDA
 
             call GetGeometrySize(Me%ObjGeometry,                                        &
                                  Size       = Me%Size,                                  &
@@ -372,7 +403,12 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         nullify(Me%TICOEF3)       
 
-
+#ifdef _USE_PAGELOCKED
+        ! Allocate pagelocked memory to optimize CUDA transfers
+        call Alloc3DPageLocked(Me%ObjCuda, Me%COEF3%DPtr, Me%COEF3%D, IUB + 1, JUB + 1, KUB + 1)        
+        call Alloc3DPageLocked(Me%ObjCuda, Me%COEF3%EPtr, Me%COEF3%E, IUB + 1, JUB + 1, KUB + 1)        
+        call Alloc3DPageLocked(Me%ObjCuda, Me%COEF3%FPtr, Me%COEF3%F, IUB + 1, JUB + 1, KUB + 1)        
+#else
         allocate(Me%COEF3%D      (ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT_CALL)         
         if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleFreeVerticalMovement - ERR01'
         Me%COEF3%D = FillValueReal
@@ -386,7 +422,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         allocate(Me%COEF3%F      (ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT_CALL)         
         if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleFreeVerticalMovement - ERR03'
         Me%COEF3%F = FillValueReal
-
+#endif _USE_PAGELOCKED
 
         allocate(Me%COEF3%D_flux (ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT_CALL)         
         if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleFreeVerticalMovement - ERR04'
@@ -397,10 +433,14 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleFreeVerticalMovement - ERR05'
          Me%COEF3%E_flux = FillValueReal
 
-
+#ifdef _USE_PAGELOCKED
+        ! Allocate pagelocked memory to optimize CUDA transfers
+        call Alloc3DPageLocked(Me%ObjCuda, Me%TICOEF3Ptr, Me%TICOEF3, IUB + 1, JUB + 1, KUB + 1)        
+#else
         allocate(Me%TICOEF3      (ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT_CALL)         
         if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleFreeVerticalMovement - ERR06'
          Me%TICOEF3        = FillValueReal
+#endif _USE_PAGELOCKED
 
         allocate(Me%VECG        (                  KLB:KUB), STAT = STAT_CALL)         
         if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleFreeVerticalMovement - ERR07'
@@ -1054,8 +1094,15 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             CALL THOMASZ(Me%WorkSize%ILB, Me%WorkSize%IUB,  &
                          Me%WorkSize%JLB, Me%WorkSize%JUB,  &
                          Me%WorkSize%KLB, Me%WorkSize%KUB,  &
-                         Me%THOMAS,                        &
-                         Me%ExternalVar%Concentration)
+                         Me%THOMAS,                         &
+                         Me%ExternalVar%Concentration       &
+#ifdef _ENABLE_CUDA
+            ! Use CUDA to solve Thomas
+                         , Me%ObjCuda,                      &
+                         .FALSE.                            &
+#endif _ENABLE_CUDA
+                         )
+
         else ! Explicit
         
             call SetMatrixValue(Me%ExternalVar%Concentration, Me%Size, Me%TICOEF3)
@@ -1801,7 +1848,12 @@ cd1:    if (ready_ .NE. OFF_ERR_) then
                 nUsers = DeassociateInstance(mMAP_,             Me%ObjMap)
                 if (nUsers == 0) stop 'Kill_FreeVerticalMovement - ModuleFreeVerticalMovement - ERR04'
 
-
+#ifdef _USE_PAGELOCKED
+                ! FreePageLocked will also nullify the pointers and arrays
+                call FreePageLocked(Me%ObjCuda, Me%COEF3%DPtr, Me%COEF3%D)
+                call FreePageLocked(Me%ObjCuda, Me%COEF3%EPtr, Me%COEF3%E)
+                call FreePageLocked(Me%ObjCuda, Me%COEF3%FPtr, Me%COEF3%F)
+#else
                 deallocate(Me%COEF3%D,     STAT = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_) &
                     stop 'Kill_FreeVerticalMovement - ModuleFreeVerticalMovement - ERR05'
@@ -1818,7 +1870,7 @@ cd1:    if (ready_ .NE. OFF_ERR_) then
                 if (STAT_CALL .NE. SUCCESS_) &
                     stop 'Kill_FreeVerticalMovement - ModuleFreeVerticalMovement - ERR07'
                 nullify(Me%COEF3%F     ) 
-
+#endif _USE_PAGELOCKED
 
                 deallocate(Me%COEF3%D_flux, STAT = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_) &
@@ -1832,11 +1884,15 @@ cd1:    if (ready_ .NE. OFF_ERR_) then
                 nullify(Me%COEF3%E_flux) 
 
 
+#ifdef _USE_PAGELOCKED
+                ! FreePageLocked will also nullify the pointers and arrays
+                call FreePageLocked(Me%ObjCuda, Me%TICOEF3Ptr, Me%TICOEF3)
+#else
                 deallocate(Me%TICOEF3,      STAT = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_) &
                     stop 'Kill_FreeVerticalMovement - ModuleFreeVerticalMovement - ERR10'
                 nullify(Me%TICOEF3     )
-
+#endif _USE_PAGELOCKED
 
                 do while(associated(PropertyX))
 
@@ -1873,6 +1929,12 @@ cd1:    if (ready_ .NE. OFF_ERR_) then
                 deallocate(Me%THOMAS%VEC)
                 deallocate(Me%THOMAS%COEF3)
                 deallocate(Me%THOMAS)
+
+#ifdef _ENABLE_CUDA                
+                !Kills ModuleCuda
+                call KillCuda (Me%ObjCuda, STAT = STAT_CALL)
+                ! No need to give error yet, Module still has users
+#endif _ENABLE_CUDA
 
                 !Deallocates Instance
                 call DeallocateInstance 

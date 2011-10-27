@@ -2246,6 +2246,8 @@ if5:            if (PresentGauge%VelEvolution == TimeSerie)  then
 
         call GetNumberWaves(PresentGauge, NWaves)
         
+        ! JPW: Define to prevent using random value
+        Nmax = 0
         if (Me%ComputeAdmittance) then
             Nmax = NWaves + NAdmit
         endif

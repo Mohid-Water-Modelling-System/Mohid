@@ -136,6 +136,9 @@ Module ModuleBasin
     use ModuleStopWatch,      only : StartWatch, StopWatch
     
     use ModuleGeometry,       only : GetGeometrySize
+#ifdef _ENABLE_CUDA
+    use ModuleCuda
+#endif _ENABLE_CUDA    
     
     implicit none
 
@@ -327,7 +330,7 @@ Module ModuleBasin
         type (T_PropertyB)                          :: ThetaS               
         type (T_PropertyB)                          :: ThetaI               
         type (T_PropertyB)                          :: InfRate              
-        type (T_PropertyB)                          :: AccInf
+        type (T_PropertyB)                          :: AccInf               
         type (T_PropertyB)                          :: ImpFrac
     end type T_SimpleInfiltration
     
@@ -472,6 +475,9 @@ Module ModuleBasin
         integer                                     :: ObjTimeSerieBasinMass    = 0
         integer                                     :: ObjTimeSerieBasinMass2   = 0
         integer                                     :: ObjPorousMediaProperties = 0
+#ifdef _ENABLE_CUDA
+        integer                                     :: ObjCuda                  = 0
+#endif _ENABLE_CUDA
         type (T_Basin), pointer                     :: Next
 
         !Used by PorousMediaProperties        
@@ -511,6 +517,9 @@ Module ModuleBasin
         character (Len = StringLength)                  :: LockToWhichModules
         character (Len = StringLength)                  :: UnLockToWhichModules
         character (Len = StringLength)                  :: OptionsType
+#ifdef _ENABLE_CUDA        
+        type (T_Size3D)                                 :: GeometrySize
+#endif _ENABLE_CUDA        
         !------------------------------------------------------------------------
 !        integer                                     :: TID, OMP_GET_THREAD_NUM
 
@@ -545,7 +554,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
             !Associates External Instances
             Me%ObjTime           = AssociateInstance (mTIME_,   ObjTime)
-
+            
             call GetComputeCurrentTime  (Me%ObjTime, CurrentTime = Me%CurrentTime,       &
                                          STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructBasin - ModuleBasin - ERR01'
@@ -596,6 +605,23 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                         STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructBasin - ModuleBasin - ERR09'
 
+#ifdef _ENABLE_CUDA            
+            ! Construct a ModuleCuda instance.
+            call ConstructCuda(Me%ObjCuda, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructBasin - ModuleBasin - ERR20'
+
+            call GetGeometrySize (Me%ObjGeometry,             &    
+                                  WorkSize = GeometrySize,    &
+                                  STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructBasin - ModuleBasin - ERR21'
+        
+            ! JPW: Initialize a C++ Thomas instance for CUDA. 
+            ! This will allocate device memory for all Thomas variables (D, E, F, TI, Res)
+            ! Do this seperately from ConstructCuda, because later on ModuleCuda might be used for things other than Thomas algorithm
+            call InitializeThomas(Me%ObjCuda, GeometrySize, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructBasin - ModuleBasin - ERR22'
+#endif _ENABLE_CUDA
+
             !Gets ExternalVars
             LockToWhichModules = 'AllModules'
             OptionsType = 'ConstructBasin'
@@ -612,7 +638,11 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             call VerifyOptions(OptionsType)
 
             !Constructs Coupled Modules
+#ifdef _ENABLE_CUDA
+            call ConstructCoupledModules(Me%ObjCuda)
+#else
             call ConstructCoupledModules()
+#endif _ENABLE_CUDA
             
             !Checks property related options
             if (Me%Coupled%RunoffProperties) then
@@ -2180,10 +2210,16 @@ i1:         if (CoordON) then
 
     !--------------------------------------------------------------------------
 
-    subroutine ConstructCoupledModules()
+    subroutine ConstructCoupledModules(                 &
+#ifdef _ENABLE_CUDA
+                                        ObjCudaID       &
+#endif _ENABLE_CUDA                                        
+                                      )
 
         !Arguments-------------------------------------------------------------
-        
+#ifdef _ENABLE_CUDA
+        integer                                     :: ObjCudaID
+#endif
         !Local-----------------------------------------------------------------
         integer                                     :: STAT_CALL
         logical                                     :: VariableDT
@@ -2294,6 +2330,9 @@ i1:         if (CoordON) then
                                                        MapID                      = MapID,                        &
                                                        CoupledDN                  = Me%Coupled%DrainageNetwork,   &
                                                        CheckGlobalMass            = Me%VerifyGlobalMass,          &
+#ifdef _ENABLE_CUDA
+                                                       CudaID                     = ObjCudaID,                    &
+#endif _ENABLE_CUDA
                                                        STAT                       = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ConstructCoupledModules - ModuleBasin - ERR060'
             endif
@@ -2396,7 +2435,6 @@ i1:         if (CoordON) then
     end subroutine ConstructCoupledModules
 
     !--------------------------------------------------------------------------
-    
     subroutine ConstructPropertyList
 
         !Local-----------------------------------------------------------------
@@ -7603,6 +7641,12 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                     call KillTimeSerie(Me%MonthlyFlow%ObjTimeSerie, STAT = STAT_CALL)
                     if (STAT_CALL .NE. SUCCESS_) stop 'KillBasin - ModuleBasin - ERR200'
                 endif
+                
+#ifdef _ENABLE_CUDA                
+                !Kills ModuleCuda
+                call KillCuda           (Me%ObjCuda,                STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'KillModel - ModuleModel - ERR200'
+#endif _ENABLE_CUDA
 
 
 !                deallocate (Me%WaterLevel)
