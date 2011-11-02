@@ -2381,10 +2381,10 @@ do1 :       do II = JImin+1, JImax+1
         if (MonitorPerformance) call StartWatch ("ModuleFunctions", "THOMAS_3D")
         
         if (di == 0 .and. dj == 1) then
-            write(*,*) ' Solving Thomas for Y'
             Dim = 1
             
 #ifdef _USE_CUDA
+            write(*,*) ' Solving Thomas for Y'
             ! If Y dimension, JImin / JImax = JLB / JUB. Dim = 1 = Y
             call SolveThomas(CudaID, IJmin, IJmax, JImin, JImax, Kmin, Kmax,          &
                 Thomas%COEF3%D, Thomas%COEF3%E, Thomas%COEF3%F, Thomas%TI, ANSWER, Dim)
@@ -2397,9 +2397,9 @@ do1 :       do II = JImin+1, JImax+1
 #endif _USE_CUDA
 
         else if (di == 1 .and. dj == 0) then
-            write(*,*) ' Solving Thomas for X'
             Dim = 0
 #ifdef _USE_CUDA
+            write(*,*) ' Solving Thomas for X'
             ! If X dimension, JImin / JImax = ILB / IUB. Dim = 0 = X
             call SolveThomas(CudaID, JImin, JImax, IJmin, IJmax, Kmin, Kmax,          &
                 Thomas%COEF3%D, Thomas%COEF3%E, Thomas%COEF3%F, Thomas%TI, ANSWER, Dim)
@@ -2640,9 +2640,10 @@ do4 :       DO II = KLB+1, KUB+1
 
         if (MonitorPerformance) call StartWatch ("ModuleFunctions", "THOMASZ")
         
-            write(*,*) ' Solving Thomas for Z'
             
 #ifdef _USE_CUDA
+            write(*,*) ' Solving Thomas for Z'
+            
         ! This method can solve Thomas for any dimension. Dim 0 = X, 1 = Y, 2 = Z
         call SolveThomas(CudaID, ILB, IUB, JLB, JUB, KLB, KUB,                     &
                           Thomas%COEF3%D, Thomas%COEF3%E, Thomas%COEF3%F,           &
@@ -2658,11 +2659,11 @@ do4 :       DO II = KLB+1, KUB+1
 do2 :   DO J = JLB, JUB
 do1 :   DO I = ILB, IUB
             ! JPW: Changed 1 to KLB for consistency. Results should be the same as long as KLB = 1
-            VEC%W(KLB) =-Thomas%COEF3%F (I, J, KLB) / Thomas%COEF3%E(I, J, KLB)
-            VEC%G(KLB) = Thomas%TI(I, J, KLB) / Thomas%COEF3%E(I, J, KLB)
+            !VEC%W(KLB) =-Thomas%COEF3%F (I, J, KLB) / Thomas%COEF3%E(I, J, KLB)
+            !VEC%G(KLB) = Thomas%TI(I, J, KLB) / Thomas%COEF3%E(I, J, KLB)
             ! JPW: Original
-            !VEC%W(KLB) =-Thomas%COEF3%F (I, J, 1) / Thomas%COEF3%E(I, J, 1)
-            !VEC%G(KLB) = Thomas%TI(I, J, 1) / Thomas%COEF3%E(I, J, 1)
+            VEC%W(KLB) =-Thomas%COEF3%F (I, J, 1) / Thomas%COEF3%E(I, J, 1)
+            VEC%G(KLB) = Thomas%TI(I, J, 1) / Thomas%COEF3%E(I, J, 1)
 
 do3 :       DO K  = KLB+1, KUB+1
                 VEC%W(K) = -Thomas%COEF3%F(I, J, K) / (Thomas%COEF3%E(I, J, K) + Thomas%COEF3%D(I, J, K) * VEC%W(K-1))
