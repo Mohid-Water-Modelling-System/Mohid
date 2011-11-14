@@ -241,6 +241,12 @@ Module ModuleFunctions
     public  :: maxival
     public  :: minival
     
+    public  :: WGS84toGoogleMaps    
+    interface  WGS84toGoogleMaps
+        module procedure WGS84toGoogleMaps1D
+        module procedure WGS84toGoogleMaps2D
+    end interface  WGS84toGoogleMaps
+    
     !types -------------------------------------------------------------------
 
     !griflet
@@ -9141,6 +9147,66 @@ D2:     do I=imax-1,2,-1
     end function
 
     !--------------------------------------------------------------------------
+!------------------------------------------------------------------------------
+
+    subroutine WGS84toGoogleMaps2D(lon, lat, ILB, IUB, JLB, JUB, x, y) 
+
+        !Arguments-------------------------------------------------------------
+         real,    dimension(:,:), pointer :: lon, lat
+         integer                          :: ILB, IUB, JLB, JUB
+         real(8), dimension(:,:), pointer :: x, y
+        !Local-----------------------------------------------------------------
+        integer                           :: i, j
+        !Begin-----------------------------------------------------------------
+        
+        do j=JLB, JUB+1
+        do i=ILB, IUB+1        
+        
+            x(i,j) = lon(i,j) * 20037508.34 / 180;
+            if (abs(lat(i,j))<90) then
+                y(i,j) = log(tan((90 + lat(i,j)) * Pi / 360)) / (Pi / 180)
+                y(i,j) = y(i,j) * 20037508.34 / 180
+            else
+                write(*,*) 'Out of range - Lat >= 90 or Lat <=-90'
+                write(*,*) 'i=',i,' j=',j,' Lat=',Lat(i,j)
+                stop 'WGS84toGoogleMaps2D - ModuleHorizontalGrid - ERR10'
+            endif
+            
+        enddo
+        enddo
+        
+    end subroutine WGS84toGoogleMaps2D
+  
+!------------------------------------------------------------------------------
+!------------------------------------------------------------------------------
+
+    subroutine WGS84toGoogleMaps1D(lon, lat, Dim,  x, y) 
+
+        !Arguments-------------------------------------------------------------
+         real(8), dimension(:  ), pointer :: lon, lat
+         integer                          :: Dim
+         real(8), dimension(:  ), pointer :: x, y
+        !Local-----------------------------------------------------------------
+        integer                           :: i
+        !Begin-----------------------------------------------------------------
+        
+        do i=1, Dim
+            x(i) = lon(i) * 20037508.34 / 180;
+        enddo
+        
+        do i=1, Dim
+            if (abs(lat(i))<90) then
+                y(i) = log(tan((90 + lat(i)) * Pi / 360)) / (Pi / 180)
+                y(i) = y(i) * 20037508.34 / 180
+            else
+                write(*,*) 'Out of range - Lat >= 90 or Lat <=-90'
+                stop 'WGS84toGoogleMap1D - ModuleHorizontalGrid - ERR10'
+            endif
+        enddo
+        
+    end subroutine WGS84toGoogleMaps1D
+  
+!------------------------------------------------------------------------------  
 
     !--------------------------------------------------------------------------
 
