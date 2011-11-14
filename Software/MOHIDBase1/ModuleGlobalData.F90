@@ -359,6 +359,8 @@ Module ModuleGlobalData
     !integer, parameter :: WaterLevelMax_                    = 908
     !integer, parameter :: WaterLevelMin_                    = 909
     integer, parameter :: WaterColumn_                      = 910
+    integer, parameter :: ZonalVelocity_                    = 920
+    integer, parameter :: MeridionalVelocity_               = 930
     
     !Assimilation Properties        guillaume nogueira
     integer, parameter :: AltimLevelAnalyzed_               = 4000
@@ -1011,6 +1013,9 @@ Module ModuleGlobalData
     character(StringLength), private, parameter :: Char_VelocityW_           = 'velocity W'
     character(StringLength), private, parameter :: Char_ShearStress_         = 'shear stress'
     character(StringLength), private, parameter :: Char_WaterColumn_         = 'water column'    
+    character(StringLength), private, parameter :: Char_MeridionalVelocity_  = 'meridional velocity'
+    character(StringLength), private, parameter :: Char_ZonalVelocity_       = 'zonal velocity'
+
 
 
 !_______used @ moduleWQ for POM pools (aquaculture cages)_____________________________________________________________
@@ -2118,8 +2123,9 @@ Module ModuleGlobalData
             call AddPropList (HorizontalTransportY_,    Char_HorizontalTransportY_,     ListNumber)
             call AddPropList (BarotropicVelocityU_ ,    Char_BarotropicVelocityU_ ,     ListNumber)
             call AddPropList (BarotropicVelocityV_ ,    Char_BarotropicVelocityV_ ,     ListNumber)
-            call AddPropList (WaterColumn_,             Char_WaterColumn_,              ListNumber)            
-
+            call AddPropList (WaterColumn_,             Char_WaterColumn_,              ListNumber)
+            call AddPropList (MeridionalVelocity_,      Char_MeridionalVelocity_,       ListNumber)
+            call AddPropList (ZonalVelocity_,           Char_ZonalVelocity_,            ListNumber)
 
 !____POM pools (for aquaculture cages)__________________________________________    
     
