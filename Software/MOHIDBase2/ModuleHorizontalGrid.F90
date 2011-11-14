@@ -36,13 +36,13 @@ Module ModuleHorizontalGrid
                                   UTMToLatLon, LatLonToUTM, ComputeGridZone,            &
                                   LatLonToLambertSP2, RelativePosition4VertPolygon,     &
                                   GeographicToCartesian, CartesianToGeographic,         &
-                                  CHUNK_J
+                                  CHUNK_J, WGS84toGoogleMaps
 
 #else                                  
     use ModuleFunctions, only   : Rodaxy, FromCartesianToGrid, FromGridToCartesian,     &
                                   UTMToLatLon, LatLonToUTM, ComputeGridZone,            &
                                   LatLonToLambertSP2, RelativePosition4VertPolygon,     &
-                                  CHUNK_J
+                                  CHUNK_J, WGS84toGoogleMaps
 
 #endif
     
@@ -126,7 +126,6 @@ Module ModuleHorizontalGrid
     public  :: FromGeo2SpherMercatorScalar
     public  :: FromGeographic2SphericMercator    
 #endif
-    public  :: WGS84toGoogleMaps
 
     !Destructor
     public  :: KillHorizontalGrid
@@ -166,10 +165,6 @@ Module ModuleHorizontalGrid
         module procedure ConstructHorizontalGridV2
     end interface  ConstructHorizontalGrid
 
-    interface  WGS84toGoogleMaps
-        module procedure WGS84toGoogleMaps1D
-        module procedure WGS84toGoogleMaps2D
-    end interface  WGS84toGoogleMaps
 
 
     private :: UnGetHorizontalGrid1d
@@ -3005,65 +3000,6 @@ cd23:   if (Me%CoordType == CIRCULAR_) then
     
 #endif
 
-!------------------------------------------------------------------------------
-
-    subroutine WGS84toGoogleMaps2D(lon, lat, WorkSize, x, y) 
-
-        !Arguments-------------------------------------------------------------
-         real,    dimension(:,:), pointer :: lon, lat
-         type (T_Size2D)                  :: WorkSize
-         real(8), dimension(:,:), pointer :: x, y
-        !Local-----------------------------------------------------------------
-        integer                           :: i, j
-        !Begin-----------------------------------------------------------------
-        
-        do j=WorkSize%JLB, WorkSize%JUB+1
-        do i=WorkSize%ILB, WorkSize%IUB+1        
-        
-            x(i,j) = lon(i,j) * 20037508.34 / 180;
-            if (abs(lat(i,j))<90) then
-                y(i,j) = log(tan((90 + lat(i,j)) * Pi / 360)) / (Pi / 180)
-                y(i,j) = y(i,j) * 20037508.34 / 180
-            else
-                write(*,*) 'Out of range - Lat >= 90 or Lat <=-90'
-                stop 'WGS84toGoogleMap2D - ModuleHorizontalGrid - ERR10'
-            endif
-            
-        enddo
-        enddo
-        
-    end subroutine WGS84toGoogleMaps2D
-  
-!------------------------------------------------------------------------------
-!------------------------------------------------------------------------------
-
-    subroutine WGS84toGoogleMaps1D(lon, lat, Dim,  x, y) 
-
-        !Arguments-------------------------------------------------------------
-         real(8), dimension(:  ), pointer :: lon, lat
-         integer                          :: Dim
-         real(8), dimension(:  ), pointer :: x, y
-        !Local-----------------------------------------------------------------
-        integer                           :: i
-        !Begin-----------------------------------------------------------------
-        
-        do i=1, Dim
-            x(i) = lon(i) * 20037508.34 / 180;
-        enddo
-        
-        do i=1, Dim
-            if (abs(lat(i))<90) then
-                y(i) = log(tan((90 + lat(i)) * Pi / 360)) / (Pi / 180)
-                y(i) = y(i) * 20037508.34 / 180
-            else
-                write(*,*) 'Out of range - Lat >= 90 or Lat <=-90'
-                stop 'WGS84toGoogleMap1D - ModuleHorizontalGrid - ERR10'
-            endif
-        enddo
-        
-    end subroutine WGS84toGoogleMaps1D
-  
-!------------------------------------------------------------------------------  
     subroutine CheckGridBorder()
 
         !Arguments-------------------------------------------------------------
@@ -7049,7 +6985,10 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
                         allocate(XX_aux(WorkILB-1:WorkIUB+1, WorkJLB-1:WorkJUB+1))
                         allocate(YY_Aux(WorkILB-1:WorkIUB+1, WorkJLB-1:WorkJUB+1))
 
-                        call WGS84toGoogleMaps(Me%LongitudeConn, Me%LatitudeConn, WorkSize_, XX_aux, YY_aux)
+                        call WGS84toGoogleMaps(Me%LongitudeConn, Me%LatitudeConn,       &
+                                               WorkSize_%ILB, WorkSize_%IUB,            &
+                                               WorkSize_%JLB, WorkSize_%JUB,            &
+                                               XX_aux, YY_aux)
 
                         !Sets limits for next write operations
                         call HDF5SetLimits   (ObjHDF5, WorkILB, WorkIUB+1, WorkJLB, WorkJUB+1,      &
@@ -7729,13 +7668,13 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
 
                 if (Me%CornersXYInput) then
 
-                    deallocate(Me%DefineFacesUMap, stat = STATUS)
+                    if (associated(Me%DefineFacesUMap)) deallocate(Me%DefineFacesUMap, stat = STATUS)
                     if (STATUS /= SUCCESS_) stop 'KillHorizontalGrid - HorizontalGrid - ERR360'
 
-                    deallocate(Me%DefineFacesVMap, stat = STATUS)
+                    if (associated(Me%DefineFacesVMap)) deallocate(Me%DefineFacesVMap, stat = STATUS)
                     if (STATUS /= SUCCESS_) stop 'KillHorizontalGrid - HorizontalGrid - ERR370'
 
-                    deallocate(Me%DefineCrossMap,  stat = STATUS)
+                    if (associated(Me%DefineCrossMap )) deallocate(Me%DefineCrossMap,  stat = STATUS)
                     if (STATUS /= SUCCESS_) stop 'KillHorizontalGrid - HorizontalGrid - ERR380'
 
                 endif
