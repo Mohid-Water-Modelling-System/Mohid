@@ -143,6 +143,7 @@ Module ModuleInterpolateGrids
         real,    dimension(:  ), pointer                    :: NodeX, NodeY, NodeZ
         logical                                             :: DoNotBelieveMap, PoliIsEven, ExtrapolateProfile
         integer                                             :: Extrapolate2DFields
+        real                                                :: ExtrapolateLimit
         integer                                             :: PoliDegree
         character(len=StringLength)                         :: BaseGroup
         logical                                             :: DoNotBelieveTime
@@ -553,6 +554,15 @@ Module ModuleInterpolateGrids
                      SearchType   = FromBlock,                                          &
                      keyword      = 'EXTRAPOLATE_2D',                                   &
                      default      =  Null,                                              &
+                     ClientModule = 'ConvertToHDF5',                                    &
+                     STAT         = STAT_CALL)        
+        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleInterpolateGrids - ERR190'
+
+        call GetData(Me%ExtrapolateLimit,                                               &
+                     Me%ObjEnterData, iflag,                                            &
+                     SearchType   = FromBlock,                                          &
+                     keyword      = 'EXTRAPOLATE_LIMIT',                                &
+                     default      =  FillValueReal/4.,                                  &
                      ClientModule = 'ConvertToHDF5',                                    &
                      STAT         = STAT_CALL)        
         if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleInterpolateGrids - ERR190'
@@ -4119,7 +4129,7 @@ iN:     if (NumberOfNodes > 0) then
         do j = Me%Father%WorkSize2D%JLB, Me%Father%WorkSize2D%JUB
         do i = Me%Father%WorkSize2D%ILB, Me%Father%WorkSize2D%IUB
 
-            if (Me%Father%WaterPoints2D(i, j) == WaterPoint .and. InValues2D(i, j) > FillValueReal/4.) then
+            if (Me%Father%WaterPoints2D(i, j) == WaterPoint .and. InValues2D(i, j) > Me%ExtrapolateLimit) then
 
                 Count           = Count + 1
 
@@ -4177,7 +4187,7 @@ iN:     if (NumberOfNodes > 0) then
         do i = NewGrid%WorkSize2D%ILB, NewGrid%WorkSize2D%IUB
 
         if ( NewGrid%WaterPoints2D(i, j) /= WaterPoint  .or. &
-            (NewGrid%WaterPoints2D(i, j) == WaterPoint .and. OutValues2D(i, j) < FillValueReal/4)) then
+            (NewGrid%WaterPoints2D(i, j) == WaterPoint .and. OutValues2D(i, j) < Me%ExtrapolateLimit)) then
 
             Aux = - FillValueReal
 
@@ -4244,7 +4254,7 @@ iN:     if (NumberOfNodes > 0) then
             do j = JLB, JUB
             do i = ILB, IUB
 
-            if (OutValues2D(i, j) < FillValueReal/4.) then
+            if (OutValues2D(i, j) < Me%ExtrapolateLimit) then
 
                     dimax = IUB-ILB + 1
                     djmax = JUB-JLB + 1
@@ -4264,7 +4274,7 @@ iN:     if (NumberOfNodes > 0) then
                             if (ii < ILB) cycle
                             if (ii > IUB) cycle
 
-                            if (OutValues2D(ii, jj) > FillValueReal/4.) then
+                            if (OutValues2D(ii, jj) > Me%ExtrapolateLimit) then
                                 SumValues   = SumValues   + OutValues2D(ii, jj) 
                                 Count = Count + 1
                             endif
