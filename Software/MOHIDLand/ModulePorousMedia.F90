@@ -6246,8 +6246,8 @@ do5:                do K = Me%ExtVar%KFloor(i,j), Me%WorkSize%KUB
                 !----------------------------------------------------------------------------
                 
                 !UGWaterLevel
-                call HDF5WriteData   (Me%ObjHDF5, "/Results/WaterLevel",            &
-                                      "WaterLevel", "m",                            &
+                call HDF5WriteData   (Me%ObjHDF5, "/Results/water level",           &
+                                      "water level", "m",                           &
                                       Array2D      = Me%UGWaterLevel2D,             &
                                       OutputNumber = Me%OutPut%NextOutPut,          &
                                       STAT         = STAT_CALL)
@@ -6271,12 +6271,12 @@ do5:                do K = Me%ExtVar%KFloor(i,j), Me%WorkSize%KUB
                                      STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModulePorousMedia - ERR01'
                 
-!                call HDF5WriteData ( Me%ObjHDF5,    "/Results/relative water content",     &
-!                                    "relative water content", "m3water/m3water"        ,   &
-!                                     Array3D      =  Me%RC%ThetaF         ,         &
-!                                     OutputNumber =  Me%OutPut%NextOutPut    ,      &
-!                                     STAT = STAT_CALL)
-!                if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModulePorousMedia - ERR01'
+                call HDF5WriteData ( Me%ObjHDF5,    "/Results/relative water content",   &
+                                    "relative water content", "m3water/m3water"      ,   &
+                                     Array3D      =  GetPointer(Me%RC%ThetaF)  ,         &
+                                     OutputNumber =  Me%OutPut%NextOutPut    ,      &
+                                     STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModulePorousMedia - ERR01'
 
                 call HDF5WriteData ( Me%ObjHDF5, "/Results/Head"            ,       &
                                     "Head"     , 'm'                            ,   &

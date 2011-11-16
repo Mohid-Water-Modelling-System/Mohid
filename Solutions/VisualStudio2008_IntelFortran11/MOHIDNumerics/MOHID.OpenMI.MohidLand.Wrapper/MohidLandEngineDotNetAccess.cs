@@ -266,7 +266,7 @@ namespace MOHID.OpenMI.MohidLand.Wrapper
 
         public int GetNumberOfStormWaterInFlowNodes(int drainageNetworkInstanceID)
         {
-            return MohidLandEngineDLLAccess.GetNumberOfOutFlowNodes(ref drainageNetworkInstanceID);
+            return MohidLandEngineDLLAccess.GetNumberOfInFlowNodes(ref drainageNetworkInstanceID);
         }
 
         public void SetStormWaterInflow(int drainageNetworkInstanceID, int numberOfInflowNodes, ref double[] inflow)

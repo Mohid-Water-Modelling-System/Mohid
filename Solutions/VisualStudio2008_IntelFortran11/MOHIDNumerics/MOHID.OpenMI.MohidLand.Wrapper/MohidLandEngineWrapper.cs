@@ -174,17 +174,21 @@ namespace MOHID.OpenMI.MohidLand.Wrapper
             ElementSet stormWaterInflowNodes = new ElementSet("Nodes which receive flow to the Storm Water System",
                                                           "Storm Water Outlets", ElementType.XYPoint, spatialReference);
             int numberOfInflowNodes = mohidLandEngine.GetNumberOfStormWaterInFlowNodes(drainageNetworkInstanceID);
-            int[] inflowNodeIDs = new int[numberOfInflowNodes];
-            mohidLandEngine.GetStormWaterInflowIDs(drainageNetworkInstanceID, numberOfOutflowNodes, ref inflowNodeIDs);
-            for (int i = 1; i <= numberOfInflowNodes; i++)
+            if (numberOfInflowNodes > 0)
             {
-                int nodeID = inflowNodeIDs[i - 1];
+                int[] inflowNodeIDs = new int[numberOfInflowNodes];
+                mohidLandEngine.GetStormWaterInflowIDs(drainageNetworkInstanceID, numberOfOutflowNodes,
+                                                       ref inflowNodeIDs);
+                for (int i = 1; i <= numberOfInflowNodes; i++)
+                {
+                    int nodeID = inflowNodeIDs[i - 1];
 
-                Element element = new Element(nodeID.ToString());
-                element.AddVertex(new Vertex(mohidLandEngine.GetXCoordinate(drainageNetworkInstanceID, nodeID),
-                                             mohidLandEngine.GetYCoordinate(drainageNetworkInstanceID, nodeID),
-                                             0));
-                stormWaterInflowNodes.AddElement(element);
+                    Element element = new Element(nodeID.ToString());
+                    element.AddVertex(new Vertex(mohidLandEngine.GetXCoordinate(drainageNetworkInstanceID, nodeID),
+                                                 mohidLandEngine.GetYCoordinate(drainageNetworkInstanceID, nodeID),
+                                                 0));
+                    stormWaterInflowNodes.AddElement(element);
+                }
             }
 
 
@@ -459,7 +463,6 @@ namespace MOHID.OpenMI.MohidLand.Wrapper
             performStepWatch.Start();
             mohidLandEngine.PerformTimeStep();
             performStepWatch.Stop();
-         
             return true;
         }
 

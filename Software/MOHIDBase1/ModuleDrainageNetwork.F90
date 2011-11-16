@@ -4912,11 +4912,13 @@ if1:        if (CurrNode%nDownstreamReaches /= 0) then
         if (Me%StormWaterModelLink%nOutflowNodes > 0) then
             allocate (Me%StormWaterModelLink%OutflowIDs (Me%StormWaterModelLink%nOutflowNodes))
             allocate (Me%StormWaterModelLink%Outflow    (Me%StormWaterModelLink%nOutflowNodes))
+            Me%StormWaterModelLink%Outflow = 0.0
         endif
         
         if (Me%StormWaterModelLink%nInflowNodes > 0) then
             allocate (Me%StormWaterModelLink%InflowIDs  (Me%StormWaterModelLink%nInflowNodes))
             allocate (Me%StormWaterModelLink%Inflow     (Me%StormWaterModelLink%nInflowNodes))
+            Me%StormWaterModelLink%Inflow = 0.0
         endif
         
         !Fills Matrixes
@@ -5792,7 +5794,7 @@ if0:    if (Me%HasProperties) then
         type (T_Property), pointer                  :: Property
 
 
-#ifndef _OPENMI_
+!#ifndef _OPENMI_
         write(*, *)
         write(*, *)"-------------------- DRAINAGE NETWORK --------------------"         
         write(*, *)
@@ -5873,7 +5875,18 @@ if0:    if (Me%HasProperties) then
                 Property=>Property%Next
             enddo
         end if
-#endif  
+        
+        if (Me%ComputeOptions%StormWaterModelLink) then
+        
+            write(*, *)"--------------- DRAINAGE NETWORK SWMM LINKS --------------"      
+            write(*, *)
+            write(*, *)"Num of Inflow  Nodes: ", Me%StormWaterModelLink%nInflowNodes
+            write(*, *)"Num of Outflow Nodes: ", Me%StormWaterModelLink%nOutflowNodes
+            write(*, *)
+            
+        endif
+        
+!#endif  
 
     end subroutine ConstructLog
 
@@ -13073,6 +13086,7 @@ cd1:    if (ObjDrainageNetwork_ID > 0) then
         if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
         
             do iNode = 1, nInflowNodes 
+                write(*,*)StormWaterInflow(iNode)
                 Me%StormWaterModelLink%Inflow(iNode) = StormWaterInflow(iNode)
             enddo
             

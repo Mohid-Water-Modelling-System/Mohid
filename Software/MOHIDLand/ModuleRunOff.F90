@@ -2601,6 +2601,7 @@ doIter:         do while (iter <= Niter)
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
         do j = JLB, JUB
         do i = ILB, IUB
+            
             if (Me%ComputeFaceU(i, j) == Compute) then
             
                 !Adds to the final level the height of the buidings, if any
@@ -3134,7 +3135,9 @@ doIter:         do while (iter <= Niter)
                                                 Me%ExtVar%GridCellArea(i, j)
                                              
                 if (Me%myWaterColumnOld(i, j) < 0.0) then
-                    !Write(*,*)'Negative WC: ', i, j, Me%myWaterColumnOld(i, j)
+                    if (Me%myWaterColumnOld(i, j) < -1e-5) then
+                        write(*,*)'Negative WC: ', i, j, Me%myWaterColumnOld(i, j)
+                    endif
                     Me%myWaterColumnOld   (i, j)  = 0.0
                 endif
                 
@@ -3159,9 +3162,12 @@ doIter:         do while (iter <= Niter)
         real                                        :: DifLevel
         real                                        :: Slope, AverageCellLength, dVol
         real                                        :: Area, HydraulicRadius, MaxFlow
+        real                                        :: ChannelFreeVolume
         real   , dimension(:, :), pointer           :: ChannelsWaterLevel 
         real   , dimension(:, :), pointer           :: ChannelsNodeLength 
         integer, dimension(:, :), pointer           :: ChannelsActiveState
+        real   , dimension(:, :), pointer           :: ChannelsMaxVolume
+        real   , dimension(:, :), pointer           :: ChannelsVolume
         integer                                     :: CHUNK
 
         CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
@@ -3176,12 +3182,19 @@ doIter:         do while (iter <= Niter)
         call GetChannelsActiveState (Me%ObjDrainageNetwork, ChannelsActiveState, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'FlowIntoChannels - ModuleRunOff - ERR03'        
 
+        call GetChannelsVolume      (Me%ObjDrainageNetwork, ChannelsVolume, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'FlowIntoChannels - ModuleRunOff - ERR04'     
+
+        call GetChannelsMaxVolume   (Me%ObjDrainageNetwork, ChannelsMaxVolume, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'FlowIntoChannels - ModuleRunOff - ERR05'   
+
+
         ILB = Me%WorkSize%ILB
         IUB = Me%WorkSize%IUB
         JLB = Me%WorkSize%JLB
         JUB = Me%WorkSize%JUB
         
-        !$OMP PARALLEL PRIVATE(I,J, DifLevel, Slope, AverageCellLength, dVol, Area, HydraulicRadius, MaxFlow)
+        !$OMP PARALLEL PRIVATE(I,J, DifLevel, Slope, AverageCellLength, dVol, Area, HydraulicRadius, MaxFlow, ChannelFreeVolume)
 
 
         !X
@@ -3203,21 +3216,38 @@ doIter:         do while (iter <= Niter)
                         DifLevel           = Me%myWaterColumn(i, j)
                     endif
 
-                    Slope                      = AdjustSlope(DifLevel / (AverageCellLength / 4.0))                
-
-                    Area                       = DifLevel * ChannelsNodeLength(i, j)
+                    !Volume which can enter the channel
+                    ChannelFreeVolume = ChannelsMaxVolume(i, j) - ChannelsVolume (i, j)
                 
-                    HydraulicRadius            = Area / ChannelsNodeLength(i, j)
-            
-                    !Minium between friction (manning) and critical flow
-                    Me%lFlowToChannels(i, j)   = min(Area * HydraulicRadius**(2./3.) * sqrt(Slope) /  Me%OverlandCoefficient(i,j), &
-                                                     Area * sqrt(Gravity * DifLevel))
+                    !Channel almost empty... put all water into channel    
+                    if (ChannelFreeVolume / ChannelsMaxVolume(i, j) > 0.01) then
+
+                        !Volume to channel: minimum between free volume and current volume in cell
+                        dVol = min(ChannelFreeVolume, Me%myWaterVolume (i, j))
+
+                        !Flow to channel - positive if enters
+                        Me%lFlowToChannels(i, j) = dVol / LocalDT
+
+                    else
+                
+                        Slope                      = AdjustSlope(DifLevel / (AverageCellLength / 4.0))
+
+                        Area                       = DifLevel * ChannelsNodeLength(i, j)
                     
-                 
-                    MaxFlow = 0.5 * (DifLevel) * Me%ExtVar%GridCellArea(i, j) / LocalDT
-               
-                    if (Me%lFlowToChannels(i, j) > MaxFlow) then
-                        Me%lFlowToChannels(i, j) = MaxFlow
+                        HydraulicRadius            = Area / ChannelsNodeLength(i, j)
+                
+                        !Minium between friction (manning) and critical flow
+                        Me%lFlowToChannels(i, j)   = min(Area * HydraulicRadius**(2./3.) * sqrt(Slope) /  &
+                                                         Me%OverlandCoefficient(i,j), &
+                                                         Area * sqrt(Gravity * DifLevel))
+                        
+                     
+                        MaxFlow = 0.5 * (DifLevel) * Me%ExtVar%GridCellArea(i, j) / LocalDT
+                   
+                        if (Me%lFlowToChannels(i, j) > MaxFlow) then
+                            Me%lFlowToChannels(i, j) = MaxFlow
+                        endif
+                        
                     endif
                               
                     !dVol
@@ -3248,14 +3278,19 @@ doIter:         do while (iter <= Niter)
         !$OMP END PARALLEL
         
         call UnGetDrainageNetwork (Me%ObjDrainageNetwork, ChannelsWaterLevel, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'FlowIntoChannels - ModuleRunOff - ERR04'
-
-        call UnGetDrainageNetwork (Me%ObjDrainageNetwork, ChannelsNodeLength, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'FlowIntoChannels - ModuleRunOff - ERR05'
-
-        call UnGetDrainageNetwork (Me%ObjDrainageNetwork, ChannelsActiveState, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'FlowIntoChannels - ModuleRunOff - ERR06'
 
+        call UnGetDrainageNetwork (Me%ObjDrainageNetwork, ChannelsNodeLength, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'FlowIntoChannels - ModuleRunOff - ERR07'
+
+        call UnGetDrainageNetwork (Me%ObjDrainageNetwork, ChannelsActiveState, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'FlowIntoChannels - ModuleRunOff - ERR08'
+
+        call UnGetDrainageNetwork (Me%ObjDrainageNetwork, ChannelsMaxVolume, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'FlowIntoChannels - ModuleRunOff - ERR09'
+
+        call UnGetDrainageNetwork (Me%ObjDrainageNetwork, ChannelsVolume,  STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'FlowIntoChannels - ModuleRunOff - ERR10'
         
         
     end subroutine FlowIntoChannels   
@@ -3858,7 +3893,7 @@ doIter:         do while (iter <= Niter)
 
             !Writes Flow X
             call HDF5WriteData   (Me%ObjHDF5,                                       &
-                                  "/Results/flow/flow X",                           &
+                                  "/Results/flow X",                                &
                                   "flow X",                                         &   
                                   "m3/s",                                           &
                                   Array2D      = Me%CenterFlowX,                    &
@@ -3869,7 +3904,7 @@ doIter:         do while (iter <= Niter)
             
             !Writes Flow Y
             call HDF5WriteData   (Me%ObjHDF5,                                       &
-                                  "/Results/flow/flow Y",                           &
+                                  "/Results/flow Y",                                &
                                   "flow Y",                                         &   
                                   "m3/s",                                           &
                                   Array2D      = Me%CenterFlowY,                    &
@@ -3879,7 +3914,7 @@ doIter:         do while (iter <= Niter)
 
              !Writes Flow Modulus
             call HDF5WriteData   (Me%ObjHDF5,                                       &
-                                  "/Results/flow/"//trim(GetPropertyName (FlowModulus_)),&
+                                  "/Results/"//trim(GetPropertyName (FlowModulus_)),&
                                   trim(GetPropertyName (FlowModulus_)),             &   
                                   "m3/s",                                           &
                                   Array2D      = Me%FlowModulus,                    &
@@ -3889,7 +3924,7 @@ doIter:         do while (iter <= Niter)
 
              !Writes Velocity X 
             call HDF5WriteData   (Me%ObjHDF5,                                          &
-                                  "/Results/velocity/"//trim(GetPropertyName (VelocityU_)),     &
+                                  "/Results/"//trim(GetPropertyName (VelocityU_)),     &
                                   trim(GetPropertyName (VelocityU_)),                  &
                                   "m/s",                                               &
                                   Array2D      = Me%CenterVelocityX,                   &
@@ -3899,7 +3934,7 @@ doIter:         do while (iter <= Niter)
 
              !Writes Velocity Y 
             call HDF5WriteData   (Me%ObjHDF5,                                          &
-                                  "/Results/velocity/"//trim(GetPropertyName (VelocityV_)),     &
+                                  "/Results/"//trim(GetPropertyName (VelocityV_)),     &
                                   trim(GetPropertyName (VelocityV_)),                  &
                                   "m/s",                                               &
                                   Array2D      = Me%CenterVelocityY,                   &
@@ -3909,7 +3944,7 @@ doIter:         do while (iter <= Niter)
 
             !Writes Velocity Modulus
             call HDF5WriteData   (Me%ObjHDF5,                                                &
-                                  "/Results/velocity/"//trim(GetPropertyName (VelocityModulus_)),     &
+                                  "/Results/"//trim(GetPropertyName (VelocityModulus_)),     &
                                   trim(GetPropertyName (VelocityModulus_)),                  &
                                   "m/s",                                                     &
                                   Array2D      = Me%VelocityModulus,                         &
@@ -3919,17 +3954,17 @@ doIter:         do while (iter <= Niter)
 
             !Writes Storm Water Volume of each Cell
             if (Me%StormWaterDrainage) then
-                call HDF5WriteData   (Me%ObjHDF5, "//Results/storm water/water volume",     &
-                                      "storm water volume", "m3",                           &
-                                      Array2D      = Me%StormWaterVolume,                   &
-                                      OutputNumber = Me%OutPut%NextOutPut,                  &
+                call HDF5WriteData   (Me%ObjHDF5, "//Results/storm water volume",      &
+                                      "storm water volume", "m3",                      &
+                                      Array2D      = Me%StormWaterVolume,              &
+                                      OutputNumber = Me%OutPut%NextOutPut,             &
                                       STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'HDF5Output - ModuleRunOff - ERR080'
                 
                 
                 !Writes Flow X
                 call HDF5WriteData   (Me%ObjHDF5,                                       &
-                                      "//Results/storm water/storm flow X",             &
+                                      "//Results/storm water flow X",                   &
                                       "storm water flow X",                             &   
                                       "m3/s",                                           &
                                       Array2D      = Me%StormWaterCenterFlowX,          &
@@ -3940,7 +3975,7 @@ doIter:         do while (iter <= Niter)
                 
                 !Writes SW Flow Y
                 call HDF5WriteData   (Me%ObjHDF5,                                       &
-                                      "//Results/storm water/storm flow Y",             &
+                                      "//Results/storm water flow Y",                   &
                                       "storm water flow Y",                             &   
                                       "m3/s",                                           &
                                       Array2D      = Me%StormWaterCenterFlowY,          &
@@ -3952,7 +3987,7 @@ doIter:         do while (iter <= Niter)
                
                 !Writes SW Modulus
                 call HDF5WriteData   (Me%ObjHDF5,                                       &
-                                      "//Results/storm water/storm flow modulus",       &
+                                      "//Results/storm water flow modulus",             &
                                       "storm water flow modulus",                       &   
                                       "m3/s",                                           &
                                       Array2D      = Me%StormWaterCenterModulus,        &
@@ -3965,10 +4000,10 @@ doIter:         do while (iter <= Niter)
             
             if (Me%StormWaterModel) then
             
-                call HDF5WriteData   (Me%ObjHDF5, "//Results/storm water/water flow",       &
-                                      "storm water flow", "m3",                             &
-                                      Array2D      = Me%StormWaterModelFlow,                &
-                                      OutputNumber = Me%OutPut%NextOutPut,                  &
+                call HDF5WriteData   (Me%ObjHDF5, "//Results/storm water flow",         &
+                                      "storm water flow", "m3",                         &
+                                      Array2D      = Me%StormWaterModelFlow,            &
+                                      OutputNumber = Me%OutPut%NextOutPut,              &
                                       STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'HDF5Output - ModuleRunOff - ERR085'
                 
@@ -4614,11 +4649,16 @@ cd1:    if (RunOffID > 0) then
                     if (Me%StormWaterDrainageCoef(i, j) > AllmostZero) then
                         waterColumn(idx) = Me%MyWaterColumn(i, j)
 
-                        !Removes Water from this module                        
-                        Me%myWaterColumnOld(i, j) = 0.0
-                        Me%myWaterColumn(i, j)    = 0.0
-                        Me%myWaterLevel (i, j) = Me%ExtVar%Topography(i, j)
-                        Me%myWaterVolume(i, j) = 0.0
+                        !Removes Water from this module -> Flow will be calculated by SWMM
+                        !Variables will be updated in next iteration by
+                        !AddFlowFromStormWaterModel
+                        !Me%myWaterColumn(i, j)    = 0.0
+                        
+                        
+                        !Me%myWaterColumnOld(i, j) = 0.0
+                        !Me%myWaterColumn(i, j)    = 0.0
+                        !Me%myWaterLevel (i, j) = Me%ExtVar%Topography(i, j)
+                        !Me%myWaterVolume(i, j) = 0.0
                     else
                         waterColumn(idx) = 0.0
                     endif
