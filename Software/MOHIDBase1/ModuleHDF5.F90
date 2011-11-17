@@ -88,6 +88,8 @@ Module ModuleHDF5
     public  :: HDF5GetDimensions
 #endif
 
+    public  :: HDF5ReadGenericRealAttribute
+    
     !Management
     private ::  Ready
     private ::      LocateObjHDF5
@@ -3785,6 +3787,102 @@ Module ModuleHDF5
 
 
     end subroutine GetHDF5ObjectInfo
+
+    !--------------------------------------------------------------------------
+
+    subroutine HDF5ReadGenericRealAttribute (HDF5ID, GroupName, ItemName, ItemType, AttributeName, ValueReal, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer(HID_T)                              :: HDF5ID
+        character(len=*)                            :: GroupName
+        character(len=*)                            :: ItemName
+        integer                                     :: ItemType
+        character(len=*)                            :: AttributeName
+        real                                        :: ValueReal
+        integer, optional                           :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: STAT_, ready_
+        integer(HID_T)                              :: STAT_CALL        
+        integer(HID_T)                              :: gr_id, attr_id, dset_id
+        integer(HSIZE_T), dimension(7)              :: dims
+
+        !Begin-----------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready (HDF5ID, ready_)
+
+        if (ready_ .EQ. IDLE_ERR_) then
+
+            !If item is a group
+            if (ItemType == TypeSDS) then
+
+                !Opens the group
+                call h5gopen_f (Me%FileID, GroupName, gr_id, STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadGenericRealAttribute - ModuleHDF5 - ERR10'
+
+                !Opens the Dataset
+                call h5dopen_f          (gr_id, ItemName, dset_id, STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadGenericRealAttribute - ModuleHDF5 - ERR20'
+
+                !Reads Real Value
+                call h5aopen_name_f     (dset_id, trim(AttributeName), attr_id, STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadGenericRealAttribute - ModuleHDF5 - ERR30'
+                
+                call h5aread_f          (attr_id, H5T_NATIVE_REAL, ValueReal, dims, STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadGenericRealAttribute - ModuleHDF5 - ERR40'
+                
+                call h5aclose_f         (attr_id, STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadGenericRealAttribute - ModuleHDF5 - ERR50'
+
+                !Closes the Dataset
+                call h5dclose_f        (dset_id, STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadGenericRealAttribute - ModuleHDF5 - ERR60'
+                
+
+                !Closes the Group
+                call h5gclose_f         (gr_id, STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadGenericRealAttribute - ModuleHDF5 - ERR70'
+
+            endif
+
+
+            if (ItemType == TypeVG) then
+
+                !Opens the group
+                call h5gopen_f (Me%FileID, trim(GroupName)//"/"//trim(ItemName), gr_id, STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadGenericRealAttribute - ModuleHDF5 - ERR80'
+
+                !Reads Real Value
+                call h5aopen_name_f     (dset_id, trim(AttributeName), attr_id, STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadGenericRealAttribute - ModuleHDF5 - ERR90'
+                
+                call h5aread_f          (attr_id, H5T_NATIVE_REAL, ValueReal, dims, STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadGenericRealAttribute - ModuleHDF5 - ERR90'
+                call h5aclose_f         (attr_id, STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadGenericRealAttribute - ModuleHDF5 - ERR100'
+
+                !Closes the Group
+                call h5gclose_f         (gr_id, STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadGenericRealAttribute - ModuleHDF5 - ERR110'
+
+            endif
+ 
+             STAT_ = SUCCESS_
+
+        else
+
+            STAT_ = ready_
+
+        endif
+
+        if (present(STAT)) STAT = STAT_
+        
+    end subroutine HDF5ReadGenericRealAttribute
+
+    !--------------------------------------------------------------------------
+
 
     !--------------------------------------------------------------------------
       
