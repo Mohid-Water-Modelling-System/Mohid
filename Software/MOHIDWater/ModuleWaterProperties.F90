@@ -1845,7 +1845,16 @@ cd2 :           if (BlockFound) then
             
             PropertyX=>PropertyX%Next
         enddo
-
+            
+            
+            if (Me%ObjLightExtinction /= 0) then
+            ! if light extinction is calculated, output in the time series also 
+            ! 1. the average short wave radiation
+            ! 2. the shortwave radiation extinction coefficient
+            ! for this, add 2 more properties to be output:
+            nProperties = nProperties + 2
+            
+            endif
 
 
         if (nProperties > 0) then
@@ -1873,6 +1882,19 @@ cd2 :           if (BlockFound) then
                 endif
                 PropertyX=>PropertyX%Next
             enddo
+   
+   
+            if (Me%ObjLightExtinction /= 0) then
+            ! if light extinction is calculated, output in the time series also 
+            ! 1. the average short wave radiation
+            ! 2. the shortwave radiation extinction coefficient
+            ! they are added separately because they are not water properties
+            nProperties = nProperties + 1
+            PropertyList(nProperties) = "average short wave radiation"
+            
+            nProperties = nProperties + 1
+            PropertyList(nProperties) = "short wave extinction coefficient"
+            endif
 
 
             call GetData(TimeSerieLocationFile,                                         &
@@ -15443,6 +15465,7 @@ i2:     if (Me%OutPut%Radiation) then
         real                                    :: DepthLevel
         integer                                 :: STAT_CALL, TimeSerieNumber, dn, id, jd, kd
         logical                                 :: DepthON, IgnoreOK
+        real,   dimension(:,:,:), pointer       :: ShortWaveExtinctionField
 
         !Begin-----------------------------------------------------------------
 
@@ -15517,6 +15540,29 @@ i2:     if (Me%OutPut%Radiation) then
             PropertyX=>PropertyX%Next
 
         enddo
+        
+         if (Me%ObjLightExtinction /= 0) then
+        
+           call WriteTimeSerie(Me%ObjTimeSerie,                                     &
+                                        Data3D = Me%SolarRadiation%ShortWaveAverage, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_)                                               &
+                        stop 'OutPut_TimeSeries - ModuleWaterProperties - ERR71'
+                        
+                        
+        call GetShortWaveExtinctionField(Me%ObjLightExtinction, ShortWaveExtinctionField, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'OutPut_TimeSeries - ModuleWaterProperties - ERR72'
+        
+          call WriteTimeSerie(Me%ObjTimeSerie,                                     &
+                                        Data3D = ShortWaveExtinctionField, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_)                                               &
+                        stop 'OutPut_TimeSeries - ModuleWaterProperties - ERR73'
+        
+        
+        call UnGetLightExtinction(Me%ObjLightExtinction, ShortWaveExtinctionField, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'OutPut_TimeSeries - ModuleWaterProperties - ERR74'
+        
+        
+        endif
 
         if (MonitorPerformance) call StopWatch ("ModuleWaterProperties", "OutPut_TimeSeries")
 
