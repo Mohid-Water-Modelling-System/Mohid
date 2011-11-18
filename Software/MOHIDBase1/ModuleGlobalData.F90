@@ -616,7 +616,7 @@ Module ModuleGlobalData
     integer, parameter ::  WindSeaPeakFrequency_           = 3511
     integer, parameter ::  WindSeaPeakDirection_           = 3512
     integer, parameter ::  WaveSwellHeight_                = 3513 
-
+    integer, parameter ::  PeakPeriod_                     = 3520
 !____________________________________________________________________________________
 !________________________________________________________exclusive use @ modulelife__
 
@@ -1277,6 +1277,7 @@ Module ModuleGlobalData
     character(StringLength), private, parameter :: Char_MeanDirectionalSpread    = 'mean directional spread'
     character(StringLength), private, parameter :: Char_PeakFrequency            = 'peak frequency'
     character(StringLength), private, parameter :: Char_PeakDirection            = 'peak direction'
+    character(StringLength), private, parameter :: Char_PeakPeriod               = 'peak period'    
     character(StringLength), private, parameter :: Char_WindSeaPeakFrequency     = 'wind sea peak frequency'
     character(StringLength), private, parameter :: Char_WindSeaPeakDirection     = 'wind sea peak direction'
     character(StringLength), private, parameter :: Char_WaveSwellHeight          = 'wave swell height'
@@ -2329,6 +2330,7 @@ Module ModuleGlobalData
             call AddPropList (MeanDirectionalSpread_,   Char_MeanDirectionalSpread,      ListNumber)
             call AddPropList (PeakFrequency_,           Char_PeakFrequency,              ListNumber)
             call AddPropList (PeakDirection_,           Char_PeakDirection,              ListNumber)
+            call AddPropList (PeakPeriod_,              Char_PeakPeriod,                 ListNumber)
             call AddPropList (WindSeaPeakFrequency_,    Char_WindSeaPeakFrequency,       ListNumber)
             call AddPropList (WindSeaPeakDirection_,    Char_WindSeaPeakDirection,       ListNumber)
             call AddPropList (WaveSwellHeight_     ,    Char_WaveSwellHeight,            ListNumber)
