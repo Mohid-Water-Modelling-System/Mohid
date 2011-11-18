@@ -1303,7 +1303,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
     
     !--------------------------------------------------------------------------
 
-    subroutine NETCDFWriteTime(NCDFID, InitialDate, nInstants, Times, StartInstant, STAT)
+    subroutine NETCDFWriteTime(NCDFID, InitialDate, nInstants, Times, StartInstant, DefDimTime, STAT)
 
         !Arguments-------------------------------------------------------------
         integer                                         :: NCDFID
@@ -1311,12 +1311,12 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         integer                                         :: nInstants
         real(8), dimension(:), pointer                  :: Times
         integer, optional                               :: StartInstant
+        logical, optional                               :: DefDimTime
         integer, optional                               :: STAT
         
         !Local-----------------------------------------------------------------
         integer                                         :: STAT_, ready_
         integer                                         :: STAT_CALL
-        logical                                         :: DefDimTime
         integer, dimension(1)                           :: TimeDimID
 
         !Begin-----------------------------------------------------------------
