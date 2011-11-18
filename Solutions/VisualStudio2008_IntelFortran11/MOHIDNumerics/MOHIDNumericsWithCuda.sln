@@ -7,7 +7,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Libs", "Libs", "{F4334CCB-9
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Tools", "Tools", "{0C2D3D02-FB0B-4A4D-8DA2-A01B104B528B}"
 EndProject
-Project("{6989167D-11E4-40FE-8C1A-2192A86A7E90}") = "MOHIDBase1", "MOHIDBase1\MOHIDBase1.vfproj", "{0056F7D7-347A-40DE-98B8-843CF05B5488}"
+Project("{6989167D-11E4-40FE-8C1A-2192A86A7E90}") = "MOHIDBase1", "MOHIDBase1\MOHIDBase1WithCUDA.vfproj", "{0056F7D7-347A-40DE-98B8-843CF05B5488}"
 EndProject
 Project("{6989167D-11E4-40FE-8C1A-2192A86A7E90}") = "MOHIDBase2", "MOHIDBase2\MOHIDBase2.vfproj", "{98ABA093-7927-4BCD-B011-BF409B5BBB78}"
 	ProjectSection(ProjectDependencies) = postProject
@@ -91,10 +91,19 @@ Project("{6989167D-11E4-40FE-8C1A-2192A86A7E90}") = "JoinTimeSeries", "JoinTimeS
 EndProject
 Project("{6989167D-11E4-40FE-8C1A-2192A86A7E90}") = "HDF5Statistics", "HDF5Statistics\HDF5Statistics.vfproj", "{C447F70C-970B-4274-A711-048C5D6F2C87}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "CudaWrapper", "CudaWrapper\CudaWrapper.vcproj", "{594822A3-0DE5-4C31-AF33-F29BB3F18BC8}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "CudaThomas", "CudaThomas\CudaThomas.vcproj", "{C225FEF3-1D61-461D-9467-649F22AD43FC}"
+	ProjectSection(ProjectDependencies) = postProject
+		{594822A3-0DE5-4C31-AF33-F29BB3F18BC8} = {594822A3-0DE5-4C31-AF33-F29BB3F18BC8}
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug Developper Single|Win32 = Debug Developper Single|Win32
 		Debug Developper Single|x64 = Debug Developper Single|x64
+		Debug Double CUDA|Win32 = Debug Double CUDA|Win32
+		Debug Double CUDA|x64 = Debug Double CUDA|x64
 		Debug Double Openmp|Win32 = Debug Double Openmp|Win32
 		Debug Double Openmp|x64 = Debug Double Openmp|x64
 		Debug Double PhreeqC|Win32 = Debug Double PhreeqC|Win32
@@ -107,6 +116,8 @@ Global
 		Debug OpenMP|x64 = Debug OpenMP|x64
 		Debug|Win32 = Debug|Win32
 		Debug|x64 = Debug|x64
+		Release Double CUDA|Win32 = Release Double CUDA|Win32
+		Release Double CUDA|x64 = Release Double CUDA|x64
 		Release Double OpenMP PhreeqC|Win32 = Release Double OpenMP PhreeqC|Win32
 		Release Double OpenMP PhreeqC|x64 = Release Double OpenMP PhreeqC|x64
 		Release Double OpenMP|Win32 = Release Double OpenMP|Win32
@@ -123,6 +134,10 @@ Global
 		{0056F7D7-347A-40DE-98B8-843CF05B5488}.Debug Developper Single|Win32.Build.0 = Debug Developper Single|Win32
 		{0056F7D7-347A-40DE-98B8-843CF05B5488}.Debug Developper Single|x64.ActiveCfg = Debug Developper Single|x64
 		{0056F7D7-347A-40DE-98B8-843CF05B5488}.Debug Developper Single|x64.Build.0 = Debug Developper Single|x64
+		{0056F7D7-347A-40DE-98B8-843CF05B5488}.Debug Double CUDA|Win32.ActiveCfg = Debug Double CUDA|Win32
+		{0056F7D7-347A-40DE-98B8-843CF05B5488}.Debug Double CUDA|Win32.Build.0 = Debug Double CUDA|Win32
+		{0056F7D7-347A-40DE-98B8-843CF05B5488}.Debug Double CUDA|x64.ActiveCfg = Debug Double CUDA|Win32
+		{0056F7D7-347A-40DE-98B8-843CF05B5488}.Debug Double CUDA|x64.Build.0 = Debug Double CUDA|Win32
 		{0056F7D7-347A-40DE-98B8-843CF05B5488}.Debug Double Openmp|Win32.ActiveCfg = Debug Double Openmp|Win32
 		{0056F7D7-347A-40DE-98B8-843CF05B5488}.Debug Double Openmp|Win32.Build.0 = Debug Double Openmp|Win32
 		{0056F7D7-347A-40DE-98B8-843CF05B5488}.Debug Double Openmp|x64.ActiveCfg = Debug Double Openmp|x64
@@ -147,6 +162,10 @@ Global
 		{0056F7D7-347A-40DE-98B8-843CF05B5488}.Debug|Win32.Build.0 = Debug|Win32
 		{0056F7D7-347A-40DE-98B8-843CF05B5488}.Debug|x64.ActiveCfg = Debug|x64
 		{0056F7D7-347A-40DE-98B8-843CF05B5488}.Debug|x64.Build.0 = Debug|x64
+		{0056F7D7-347A-40DE-98B8-843CF05B5488}.Release Double CUDA|Win32.ActiveCfg = Release Double CUDA|Win32
+		{0056F7D7-347A-40DE-98B8-843CF05B5488}.Release Double CUDA|Win32.Build.0 = Release Double CUDA|Win32
+		{0056F7D7-347A-40DE-98B8-843CF05B5488}.Release Double CUDA|x64.ActiveCfg = Release Double CUDA|Win32
+		{0056F7D7-347A-40DE-98B8-843CF05B5488}.Release Double CUDA|x64.Build.0 = Release Double CUDA|Win32
 		{0056F7D7-347A-40DE-98B8-843CF05B5488}.Release Double OpenMP PhreeqC|Win32.ActiveCfg = Release Double OpenMP PhreeqC|Win32
 		{0056F7D7-347A-40DE-98B8-843CF05B5488}.Release Double OpenMP PhreeqC|Win32.Build.0 = Release Double OpenMP PhreeqC|Win32
 		{0056F7D7-347A-40DE-98B8-843CF05B5488}.Release Double OpenMP PhreeqC|x64.ActiveCfg = Release Double OpenMP PhreeqC|x64
@@ -171,6 +190,9 @@ Global
 		{98ABA093-7927-4BCD-B011-BF409B5BBB78}.Debug Developper Single|Win32.Build.0 = Debug Developper Single|Win32
 		{98ABA093-7927-4BCD-B011-BF409B5BBB78}.Debug Developper Single|x64.ActiveCfg = Debug Developper Single|x64
 		{98ABA093-7927-4BCD-B011-BF409B5BBB78}.Debug Developper Single|x64.Build.0 = Debug Developper Single|x64
+		{98ABA093-7927-4BCD-B011-BF409B5BBB78}.Debug Double CUDA|Win32.ActiveCfg = Debug Double CUDA|Win32
+		{98ABA093-7927-4BCD-B011-BF409B5BBB78}.Debug Double CUDA|Win32.Build.0 = Debug Double CUDA|Win32
+		{98ABA093-7927-4BCD-B011-BF409B5BBB78}.Debug Double CUDA|x64.ActiveCfg = Debug Double CUDA|Win32
 		{98ABA093-7927-4BCD-B011-BF409B5BBB78}.Debug Double Openmp|Win32.ActiveCfg = Debug Double Openmp|Win32
 		{98ABA093-7927-4BCD-B011-BF409B5BBB78}.Debug Double Openmp|Win32.Build.0 = Debug Double Openmp|Win32
 		{98ABA093-7927-4BCD-B011-BF409B5BBB78}.Debug Double Openmp|x64.ActiveCfg = Debug Double Openmp|x64
@@ -195,6 +217,10 @@ Global
 		{98ABA093-7927-4BCD-B011-BF409B5BBB78}.Debug|Win32.Build.0 = Debug|Win32
 		{98ABA093-7927-4BCD-B011-BF409B5BBB78}.Debug|x64.ActiveCfg = Debug|x64
 		{98ABA093-7927-4BCD-B011-BF409B5BBB78}.Debug|x64.Build.0 = Debug|x64
+		{98ABA093-7927-4BCD-B011-BF409B5BBB78}.Release Double CUDA|Win32.ActiveCfg = Release Double CUDA|Win32
+		{98ABA093-7927-4BCD-B011-BF409B5BBB78}.Release Double CUDA|Win32.Build.0 = Release Double CUDA|Win32
+		{98ABA093-7927-4BCD-B011-BF409B5BBB78}.Release Double CUDA|x64.ActiveCfg = Release Double CUDA|Win32
+		{98ABA093-7927-4BCD-B011-BF409B5BBB78}.Release Double CUDA|x64.Build.0 = Release Double CUDA|Win32
 		{98ABA093-7927-4BCD-B011-BF409B5BBB78}.Release Double OpenMP PhreeqC|Win32.ActiveCfg = Release Double OpenMP PhreeqC|Win32
 		{98ABA093-7927-4BCD-B011-BF409B5BBB78}.Release Double OpenMP PhreeqC|Win32.Build.0 = Release Double OpenMP PhreeqC|Win32
 		{98ABA093-7927-4BCD-B011-BF409B5BBB78}.Release Double OpenMP PhreeqC|x64.ActiveCfg = Release Double OpenMP PhreeqC|x64
@@ -217,6 +243,9 @@ Global
 		{98ABA093-7927-4BCD-B011-BF409B5BBB78}.Release|x64.Build.0 = Release|x64
 		{8FDBAD87-52D7-4B29-A346-CF6918785077}.Debug Developper Single|Win32.ActiveCfg = Debug Developper Single|Win32
 		{8FDBAD87-52D7-4B29-A346-CF6918785077}.Debug Developper Single|x64.ActiveCfg = Debug Developper Single|x64
+		{8FDBAD87-52D7-4B29-A346-CF6918785077}.Debug Double CUDA|Win32.ActiveCfg = Debug Double CUDA|Win32
+		{8FDBAD87-52D7-4B29-A346-CF6918785077}.Debug Double CUDA|Win32.Build.0 = Debug Double CUDA|Win32
+		{8FDBAD87-52D7-4B29-A346-CF6918785077}.Debug Double CUDA|x64.ActiveCfg = Debug Double CUDA|Win32
 		{8FDBAD87-52D7-4B29-A346-CF6918785077}.Debug Double Openmp|Win32.ActiveCfg = Debug Double Openmp|Win32
 		{8FDBAD87-52D7-4B29-A346-CF6918785077}.Debug Double Openmp|x64.ActiveCfg = Debug Double Openmp|x64
 		{8FDBAD87-52D7-4B29-A346-CF6918785077}.Debug Double Openmp|x64.Build.0 = Debug Double Openmp|x64
@@ -240,6 +269,10 @@ Global
 		{8FDBAD87-52D7-4B29-A346-CF6918785077}.Debug|Win32.Build.0 = Debug|Win32
 		{8FDBAD87-52D7-4B29-A346-CF6918785077}.Debug|x64.ActiveCfg = Debug|x64
 		{8FDBAD87-52D7-4B29-A346-CF6918785077}.Debug|x64.Build.0 = Debug|x64
+		{8FDBAD87-52D7-4B29-A346-CF6918785077}.Release Double CUDA|Win32.ActiveCfg = Release Double CUDA|Win32
+		{8FDBAD87-52D7-4B29-A346-CF6918785077}.Release Double CUDA|Win32.Build.0 = Release Double CUDA|Win32
+		{8FDBAD87-52D7-4B29-A346-CF6918785077}.Release Double CUDA|x64.ActiveCfg = Release Double CUDA|Win32
+		{8FDBAD87-52D7-4B29-A346-CF6918785077}.Release Double CUDA|x64.Build.0 = Release Double CUDA|Win32
 		{8FDBAD87-52D7-4B29-A346-CF6918785077}.Release Double OpenMP PhreeqC|Win32.ActiveCfg = Release Double OpenMP PhreeqC|Win32
 		{8FDBAD87-52D7-4B29-A346-CF6918785077}.Release Double OpenMP PhreeqC|Win32.Build.0 = Release Double OpenMP PhreeqC|Win32
 		{8FDBAD87-52D7-4B29-A346-CF6918785077}.Release Double OpenMP PhreeqC|x64.ActiveCfg = Release Double OpenMP PhreeqC|x64
@@ -264,6 +297,9 @@ Global
 		{141470D5-4F1E-4328-828C-8767F85E9629}.Debug Developper Single|Win32.Build.0 = Debug Developper Single|Win32
 		{141470D5-4F1E-4328-828C-8767F85E9629}.Debug Developper Single|x64.ActiveCfg = Debug Developper Single|x64
 		{141470D5-4F1E-4328-828C-8767F85E9629}.Debug Developper Single|x64.Build.0 = Debug Developper Single|x64
+		{141470D5-4F1E-4328-828C-8767F85E9629}.Debug Double CUDA|Win32.ActiveCfg = Debug Double CUDA|Win32
+		{141470D5-4F1E-4328-828C-8767F85E9629}.Debug Double CUDA|Win32.Build.0 = Debug Double CUDA|Win32
+		{141470D5-4F1E-4328-828C-8767F85E9629}.Debug Double CUDA|x64.ActiveCfg = Debug Double CUDA|Win32
 		{141470D5-4F1E-4328-828C-8767F85E9629}.Debug Double Openmp|Win32.ActiveCfg = Debug Double Openmp|Win32
 		{141470D5-4F1E-4328-828C-8767F85E9629}.Debug Double Openmp|Win32.Build.0 = Debug Double Openmp|Win32
 		{141470D5-4F1E-4328-828C-8767F85E9629}.Debug Double Openmp|x64.ActiveCfg = Debug Double Openmp|x64
@@ -288,6 +324,10 @@ Global
 		{141470D5-4F1E-4328-828C-8767F85E9629}.Debug|Win32.Build.0 = Debug|Win32
 		{141470D5-4F1E-4328-828C-8767F85E9629}.Debug|x64.ActiveCfg = Debug|x64
 		{141470D5-4F1E-4328-828C-8767F85E9629}.Debug|x64.Build.0 = Debug|x64
+		{141470D5-4F1E-4328-828C-8767F85E9629}.Release Double CUDA|Win32.ActiveCfg = Release Double CUDA|Win32
+		{141470D5-4F1E-4328-828C-8767F85E9629}.Release Double CUDA|Win32.Build.0 = Release Double CUDA|Win32
+		{141470D5-4F1E-4328-828C-8767F85E9629}.Release Double CUDA|x64.ActiveCfg = Release Double CUDA|Win32
+		{141470D5-4F1E-4328-828C-8767F85E9629}.Release Double CUDA|x64.Build.0 = Release Double CUDA|Win32
 		{141470D5-4F1E-4328-828C-8767F85E9629}.Release Double OpenMP PhreeqC|Win32.ActiveCfg = Release|Win32
 		{141470D5-4F1E-4328-828C-8767F85E9629}.Release Double OpenMP PhreeqC|Win32.Build.0 = Release|Win32
 		{141470D5-4F1E-4328-828C-8767F85E9629}.Release Double OpenMP PhreeqC|x64.ActiveCfg = Release Double OpenMP|x64
@@ -310,6 +350,8 @@ Global
 		{141470D5-4F1E-4328-828C-8767F85E9629}.Release|x64.Build.0 = Release|x64
 		{7033A311-58C3-4992-B524-75396846B759}.Debug Developper Single|Win32.ActiveCfg = Debug Developper Single|Win32
 		{7033A311-58C3-4992-B524-75396846B759}.Debug Developper Single|x64.ActiveCfg = Debug Developper Single|x64
+		{7033A311-58C3-4992-B524-75396846B759}.Debug Double CUDA|Win32.ActiveCfg = Debug Double CUDA|Win32
+		{7033A311-58C3-4992-B524-75396846B759}.Debug Double CUDA|x64.ActiveCfg = Debug Double CUDA|x64
 		{7033A311-58C3-4992-B524-75396846B759}.Debug Double Openmp|Win32.ActiveCfg = Debug Double Openmp|Win32
 		{7033A311-58C3-4992-B524-75396846B759}.Debug Double Openmp|x64.ActiveCfg = Debug Double Openmp|x64
 		{7033A311-58C3-4992-B524-75396846B759}.Debug Double PhreeqC|Win32.ActiveCfg = Debug Double|Win32
@@ -327,6 +369,8 @@ Global
 		{7033A311-58C3-4992-B524-75396846B759}.Debug|Win32.ActiveCfg = Debug|Win32
 		{7033A311-58C3-4992-B524-75396846B759}.Debug|Win32.Build.0 = Debug|Win32
 		{7033A311-58C3-4992-B524-75396846B759}.Debug|x64.ActiveCfg = Debug|x64
+		{7033A311-58C3-4992-B524-75396846B759}.Release Double CUDA|Win32.ActiveCfg = Release Double CUDA|Win32
+		{7033A311-58C3-4992-B524-75396846B759}.Release Double CUDA|x64.ActiveCfg = Release Double CUDA|x64
 		{7033A311-58C3-4992-B524-75396846B759}.Release Double OpenMP PhreeqC|Win32.ActiveCfg = Release|Win32
 		{7033A311-58C3-4992-B524-75396846B759}.Release Double OpenMP PhreeqC|x64.ActiveCfg = Release|x64
 		{7033A311-58C3-4992-B524-75396846B759}.Release Double OpenMP|Win32.ActiveCfg = Release|Win32
@@ -340,6 +384,8 @@ Global
 		{7033A311-58C3-4992-B524-75396846B759}.Release|x64.ActiveCfg = Release|x64
 		{3E94FB51-7A8D-41D7-B945-4435992AE154}.Debug Developper Single|Win32.ActiveCfg = Debug Developper Single|Win32
 		{3E94FB51-7A8D-41D7-B945-4435992AE154}.Debug Developper Single|x64.ActiveCfg = Debug Developper Single|x64
+		{3E94FB51-7A8D-41D7-B945-4435992AE154}.Debug Double CUDA|Win32.ActiveCfg = Debug Double CUDA|Win32
+		{3E94FB51-7A8D-41D7-B945-4435992AE154}.Debug Double CUDA|x64.ActiveCfg = Debug Double CUDA|x64
 		{3E94FB51-7A8D-41D7-B945-4435992AE154}.Debug Double Openmp|Win32.ActiveCfg = Debug Double Openmp|Win32
 		{3E94FB51-7A8D-41D7-B945-4435992AE154}.Debug Double Openmp|x64.ActiveCfg = Debug Double Openmp|x64
 		{3E94FB51-7A8D-41D7-B945-4435992AE154}.Debug Double PhreeqC|Win32.ActiveCfg = Debug|Win32
@@ -355,6 +401,8 @@ Global
 		{3E94FB51-7A8D-41D7-B945-4435992AE154}.Debug|Win32.ActiveCfg = Debug|Win32
 		{3E94FB51-7A8D-41D7-B945-4435992AE154}.Debug|Win32.Build.0 = Debug|Win32
 		{3E94FB51-7A8D-41D7-B945-4435992AE154}.Debug|x64.ActiveCfg = Debug|x64
+		{3E94FB51-7A8D-41D7-B945-4435992AE154}.Release Double CUDA|Win32.ActiveCfg = Release Double CUDA|Win32
+		{3E94FB51-7A8D-41D7-B945-4435992AE154}.Release Double CUDA|x64.ActiveCfg = Release Double CUDA|x64
 		{3E94FB51-7A8D-41D7-B945-4435992AE154}.Release Double OpenMP PhreeqC|Win32.ActiveCfg = Release|Win32
 		{3E94FB51-7A8D-41D7-B945-4435992AE154}.Release Double OpenMP PhreeqC|x64.ActiveCfg = Release|x64
 		{3E94FB51-7A8D-41D7-B945-4435992AE154}.Release Double OpenMP|Win32.ActiveCfg = Release|Win32
@@ -368,6 +416,8 @@ Global
 		{3E94FB51-7A8D-41D7-B945-4435992AE154}.Release|x64.ActiveCfg = Release|x64
 		{79B53A56-7C7D-45A2-A951-2106626FDABB}.Debug Developper Single|Win32.ActiveCfg = Debug Developper Single|Win32
 		{79B53A56-7C7D-45A2-A951-2106626FDABB}.Debug Developper Single|x64.ActiveCfg = Debug Developper Single|x64
+		{79B53A56-7C7D-45A2-A951-2106626FDABB}.Debug Double CUDA|Win32.ActiveCfg = Debug Double CUDA|Win32
+		{79B53A56-7C7D-45A2-A951-2106626FDABB}.Debug Double CUDA|x64.ActiveCfg = Debug Double CUDA|Win32
 		{79B53A56-7C7D-45A2-A951-2106626FDABB}.Debug Double Openmp|Win32.ActiveCfg = Debug Double Openmp|Win32
 		{79B53A56-7C7D-45A2-A951-2106626FDABB}.Debug Double Openmp|x64.ActiveCfg = Debug Double Openmp|x64
 		{79B53A56-7C7D-45A2-A951-2106626FDABB}.Debug Double Openmp|x64.Build.0 = Debug Double Openmp|x64
@@ -384,6 +434,8 @@ Global
 		{79B53A56-7C7D-45A2-A951-2106626FDABB}.Debug|Win32.ActiveCfg = Debug|Win32
 		{79B53A56-7C7D-45A2-A951-2106626FDABB}.Debug|Win32.Build.0 = Debug|Win32
 		{79B53A56-7C7D-45A2-A951-2106626FDABB}.Debug|x64.ActiveCfg = Debug|x64
+		{79B53A56-7C7D-45A2-A951-2106626FDABB}.Release Double CUDA|Win32.ActiveCfg = Release Double CUDA|Win32
+		{79B53A56-7C7D-45A2-A951-2106626FDABB}.Release Double CUDA|x64.ActiveCfg = Release Double CUDA|x64
 		{79B53A56-7C7D-45A2-A951-2106626FDABB}.Release Double OpenMP PhreeqC|Win32.ActiveCfg = Release|Win32
 		{79B53A56-7C7D-45A2-A951-2106626FDABB}.Release Double OpenMP PhreeqC|x64.ActiveCfg = Release Double|x64
 		{79B53A56-7C7D-45A2-A951-2106626FDABB}.Release Double OpenMP|Win32.ActiveCfg = Release|Win32
@@ -397,6 +449,8 @@ Global
 		{79B53A56-7C7D-45A2-A951-2106626FDABB}.Release|x64.ActiveCfg = Release|x64
 		{4D8FB248-4615-441A-AF9E-0C7FA58C4F6B}.Debug Developper Single|Win32.ActiveCfg = Debug Developper Single|Win32
 		{4D8FB248-4615-441A-AF9E-0C7FA58C4F6B}.Debug Developper Single|x64.ActiveCfg = Debug Developper Single|x64
+		{4D8FB248-4615-441A-AF9E-0C7FA58C4F6B}.Debug Double CUDA|Win32.ActiveCfg = Debug Double CUDA|Win32
+		{4D8FB248-4615-441A-AF9E-0C7FA58C4F6B}.Debug Double CUDA|x64.ActiveCfg = Debug Double CUDA|x64
 		{4D8FB248-4615-441A-AF9E-0C7FA58C4F6B}.Debug Double Openmp|Win32.ActiveCfg = Debug Double Openmp|Win32
 		{4D8FB248-4615-441A-AF9E-0C7FA58C4F6B}.Debug Double Openmp|x64.ActiveCfg = Debug Double Openmp|x64
 		{4D8FB248-4615-441A-AF9E-0C7FA58C4F6B}.Debug Double PhreeqC|Win32.ActiveCfg = Debug|Win32
@@ -412,6 +466,8 @@ Global
 		{4D8FB248-4615-441A-AF9E-0C7FA58C4F6B}.Debug|Win32.ActiveCfg = Debug|Win32
 		{4D8FB248-4615-441A-AF9E-0C7FA58C4F6B}.Debug|Win32.Build.0 = Debug|Win32
 		{4D8FB248-4615-441A-AF9E-0C7FA58C4F6B}.Debug|x64.ActiveCfg = Debug|x64
+		{4D8FB248-4615-441A-AF9E-0C7FA58C4F6B}.Release Double CUDA|Win32.ActiveCfg = Release Double CUDA|Win32
+		{4D8FB248-4615-441A-AF9E-0C7FA58C4F6B}.Release Double CUDA|x64.ActiveCfg = Release Double CUDA|x64
 		{4D8FB248-4615-441A-AF9E-0C7FA58C4F6B}.Release Double OpenMP PhreeqC|Win32.ActiveCfg = Release Double|Win32
 		{4D8FB248-4615-441A-AF9E-0C7FA58C4F6B}.Release Double OpenMP PhreeqC|x64.ActiveCfg = Release Double|x64
 		{4D8FB248-4615-441A-AF9E-0C7FA58C4F6B}.Release Double OpenMP|Win32.ActiveCfg = Release Double|x64
@@ -428,6 +484,8 @@ Global
 		{4D8FB248-4615-441A-AF9E-0C7FA58C4F6B}.Release|x64.ActiveCfg = Release|x64
 		{DD4BF52A-DA2B-49B5-871F-133150FDB18C}.Debug Developper Single|Win32.ActiveCfg = Debug Developper Single|Win32
 		{DD4BF52A-DA2B-49B5-871F-133150FDB18C}.Debug Developper Single|x64.ActiveCfg = Debug Developper Single|x64
+		{DD4BF52A-DA2B-49B5-871F-133150FDB18C}.Debug Double CUDA|Win32.ActiveCfg = Debug Double CUDA|Win32
+		{DD4BF52A-DA2B-49B5-871F-133150FDB18C}.Debug Double CUDA|x64.ActiveCfg = Debug Double CUDA|x64
 		{DD4BF52A-DA2B-49B5-871F-133150FDB18C}.Debug Double Openmp|Win32.ActiveCfg = Debug Double Openmp|Win32
 		{DD4BF52A-DA2B-49B5-871F-133150FDB18C}.Debug Double Openmp|x64.ActiveCfg = Debug Double Openmp|x64
 		{DD4BF52A-DA2B-49B5-871F-133150FDB18C}.Debug Double PhreeqC|Win32.ActiveCfg = Debug|Win32
@@ -443,6 +501,8 @@ Global
 		{DD4BF52A-DA2B-49B5-871F-133150FDB18C}.Debug|Win32.ActiveCfg = Debug|Win32
 		{DD4BF52A-DA2B-49B5-871F-133150FDB18C}.Debug|Win32.Build.0 = Debug|Win32
 		{DD4BF52A-DA2B-49B5-871F-133150FDB18C}.Debug|x64.ActiveCfg = Debug|x64
+		{DD4BF52A-DA2B-49B5-871F-133150FDB18C}.Release Double CUDA|Win32.ActiveCfg = Release Double CUDA|Win32
+		{DD4BF52A-DA2B-49B5-871F-133150FDB18C}.Release Double CUDA|x64.ActiveCfg = Release Double CUDA|x64
 		{DD4BF52A-DA2B-49B5-871F-133150FDB18C}.Release Double OpenMP PhreeqC|Win32.ActiveCfg = Release|Win32
 		{DD4BF52A-DA2B-49B5-871F-133150FDB18C}.Release Double OpenMP PhreeqC|x64.ActiveCfg = Release|x64
 		{DD4BF52A-DA2B-49B5-871F-133150FDB18C}.Release Double OpenMP|Win32.ActiveCfg = Release|Win32
@@ -456,6 +516,8 @@ Global
 		{DD4BF52A-DA2B-49B5-871F-133150FDB18C}.Release|x64.ActiveCfg = Release|x64
 		{0FCF0362-5F48-4D9B-BBD8-FD2CA58E83F9}.Debug Developper Single|Win32.ActiveCfg = Debug Developper Single|Win32
 		{0FCF0362-5F48-4D9B-BBD8-FD2CA58E83F9}.Debug Developper Single|x64.ActiveCfg = Debug Developper Single|x64
+		{0FCF0362-5F48-4D9B-BBD8-FD2CA58E83F9}.Debug Double CUDA|Win32.ActiveCfg = Debug Double CUDA|Win32
+		{0FCF0362-5F48-4D9B-BBD8-FD2CA58E83F9}.Debug Double CUDA|x64.ActiveCfg = Debug Double CUDA|x64
 		{0FCF0362-5F48-4D9B-BBD8-FD2CA58E83F9}.Debug Double Openmp|Win32.ActiveCfg = Debug Double Openmp|Win32
 		{0FCF0362-5F48-4D9B-BBD8-FD2CA58E83F9}.Debug Double Openmp|x64.ActiveCfg = Debug Double Openmp|x64
 		{0FCF0362-5F48-4D9B-BBD8-FD2CA58E83F9}.Debug Double PhreeqC|Win32.ActiveCfg = Debug Double|Win32
@@ -473,6 +535,8 @@ Global
 		{0FCF0362-5F48-4D9B-BBD8-FD2CA58E83F9}.Debug|Win32.ActiveCfg = Debug|Win32
 		{0FCF0362-5F48-4D9B-BBD8-FD2CA58E83F9}.Debug|Win32.Build.0 = Debug|Win32
 		{0FCF0362-5F48-4D9B-BBD8-FD2CA58E83F9}.Debug|x64.ActiveCfg = Debug|x64
+		{0FCF0362-5F48-4D9B-BBD8-FD2CA58E83F9}.Release Double CUDA|Win32.ActiveCfg = Release Double CUDA|Win32
+		{0FCF0362-5F48-4D9B-BBD8-FD2CA58E83F9}.Release Double CUDA|x64.ActiveCfg = Release Double CUDA|x64
 		{0FCF0362-5F48-4D9B-BBD8-FD2CA58E83F9}.Release Double OpenMP PhreeqC|Win32.ActiveCfg = Release Double|Win32
 		{0FCF0362-5F48-4D9B-BBD8-FD2CA58E83F9}.Release Double OpenMP PhreeqC|Win32.Build.0 = Release Double|Win32
 		{0FCF0362-5F48-4D9B-BBD8-FD2CA58E83F9}.Release Double OpenMP PhreeqC|x64.ActiveCfg = Release Double|x64
@@ -489,6 +553,8 @@ Global
 		{0FCF0362-5F48-4D9B-BBD8-FD2CA58E83F9}.Release|x64.ActiveCfg = Release|x64
 		{BCE54D78-EFF6-4492-86D3-E6EFB49E9083}.Debug Developper Single|Win32.ActiveCfg = Debug Developper Single|Win32
 		{BCE54D78-EFF6-4492-86D3-E6EFB49E9083}.Debug Developper Single|x64.ActiveCfg = Debug Developper Single|x64
+		{BCE54D78-EFF6-4492-86D3-E6EFB49E9083}.Debug Double CUDA|Win32.ActiveCfg = Debug Double CUDA|Win32
+		{BCE54D78-EFF6-4492-86D3-E6EFB49E9083}.Debug Double CUDA|x64.ActiveCfg = Debug Double CUDA|x64
 		{BCE54D78-EFF6-4492-86D3-E6EFB49E9083}.Debug Double Openmp|Win32.ActiveCfg = Debug Double Openmp|Win32
 		{BCE54D78-EFF6-4492-86D3-E6EFB49E9083}.Debug Double Openmp|x64.ActiveCfg = Debug Double Openmp|x64
 		{BCE54D78-EFF6-4492-86D3-E6EFB49E9083}.Debug Double PhreeqC|Win32.ActiveCfg = Debug|Win32
@@ -504,6 +570,8 @@ Global
 		{BCE54D78-EFF6-4492-86D3-E6EFB49E9083}.Debug|Win32.ActiveCfg = Debug|Win32
 		{BCE54D78-EFF6-4492-86D3-E6EFB49E9083}.Debug|Win32.Build.0 = Debug|Win32
 		{BCE54D78-EFF6-4492-86D3-E6EFB49E9083}.Debug|x64.ActiveCfg = Debug|x64
+		{BCE54D78-EFF6-4492-86D3-E6EFB49E9083}.Release Double CUDA|Win32.ActiveCfg = Release Double CUDA|Win32
+		{BCE54D78-EFF6-4492-86D3-E6EFB49E9083}.Release Double CUDA|x64.ActiveCfg = Release Double CUDA|x64
 		{BCE54D78-EFF6-4492-86D3-E6EFB49E9083}.Release Double OpenMP PhreeqC|Win32.ActiveCfg = Release|Win32
 		{BCE54D78-EFF6-4492-86D3-E6EFB49E9083}.Release Double OpenMP PhreeqC|Win32.Build.0 = Release|Win32
 		{BCE54D78-EFF6-4492-86D3-E6EFB49E9083}.Release Double OpenMP PhreeqC|x64.ActiveCfg = Release|x64
@@ -520,6 +588,8 @@ Global
 		{BCE54D78-EFF6-4492-86D3-E6EFB49E9083}.Release|x64.ActiveCfg = Release|x64
 		{4831291D-0227-4FEB-9A09-0BD2A1E5B8EA}.Debug Developper Single|Win32.ActiveCfg = Debug Developper Single|Win32
 		{4831291D-0227-4FEB-9A09-0BD2A1E5B8EA}.Debug Developper Single|x64.ActiveCfg = Debug Developper Single|x64
+		{4831291D-0227-4FEB-9A09-0BD2A1E5B8EA}.Debug Double CUDA|Win32.ActiveCfg = Debug Double CUDA|Win32
+		{4831291D-0227-4FEB-9A09-0BD2A1E5B8EA}.Debug Double CUDA|x64.ActiveCfg = Debug Double CUDA|x64
 		{4831291D-0227-4FEB-9A09-0BD2A1E5B8EA}.Debug Double Openmp|Win32.ActiveCfg = Debug Double Openmp|Win32
 		{4831291D-0227-4FEB-9A09-0BD2A1E5B8EA}.Debug Double Openmp|x64.ActiveCfg = Debug Double Openmp|x64
 		{4831291D-0227-4FEB-9A09-0BD2A1E5B8EA}.Debug Double PhreeqC|Win32.ActiveCfg = Debug|Win32
@@ -535,6 +605,8 @@ Global
 		{4831291D-0227-4FEB-9A09-0BD2A1E5B8EA}.Debug|Win32.ActiveCfg = Debug|Win32
 		{4831291D-0227-4FEB-9A09-0BD2A1E5B8EA}.Debug|Win32.Build.0 = Debug|Win32
 		{4831291D-0227-4FEB-9A09-0BD2A1E5B8EA}.Debug|x64.ActiveCfg = Debug|x64
+		{4831291D-0227-4FEB-9A09-0BD2A1E5B8EA}.Release Double CUDA|Win32.ActiveCfg = Release Double CUDA|Win32
+		{4831291D-0227-4FEB-9A09-0BD2A1E5B8EA}.Release Double CUDA|x64.ActiveCfg = Release Double CUDA|x64
 		{4831291D-0227-4FEB-9A09-0BD2A1E5B8EA}.Release Double OpenMP PhreeqC|Win32.ActiveCfg = Release|Win32
 		{4831291D-0227-4FEB-9A09-0BD2A1E5B8EA}.Release Double OpenMP PhreeqC|Win32.Build.0 = Release|Win32
 		{4831291D-0227-4FEB-9A09-0BD2A1E5B8EA}.Release Double OpenMP PhreeqC|x64.ActiveCfg = Release|x64
@@ -551,6 +623,8 @@ Global
 		{4831291D-0227-4FEB-9A09-0BD2A1E5B8EA}.Release|x64.ActiveCfg = Release|x64
 		{5AEB2DAA-81F0-439A-8EE0-2148D7045B96}.Debug Developper Single|Win32.ActiveCfg = Debug Developper Single|Win32
 		{5AEB2DAA-81F0-439A-8EE0-2148D7045B96}.Debug Developper Single|x64.ActiveCfg = Debug Developper Single|Win32
+		{5AEB2DAA-81F0-439A-8EE0-2148D7045B96}.Debug Double CUDA|Win32.ActiveCfg = Debug Double CUDA|Win32
+		{5AEB2DAA-81F0-439A-8EE0-2148D7045B96}.Debug Double CUDA|x64.ActiveCfg = Debug Double CUDA|Win32
 		{5AEB2DAA-81F0-439A-8EE0-2148D7045B96}.Debug Double Openmp|Win32.ActiveCfg = Debug Double Openmp|Win32
 		{5AEB2DAA-81F0-439A-8EE0-2148D7045B96}.Debug Double Openmp|x64.ActiveCfg = Debug Double Openmp|Win32
 		{5AEB2DAA-81F0-439A-8EE0-2148D7045B96}.Debug Double PhreeqC|Win32.ActiveCfg = Debug Double|Win32
@@ -567,6 +641,8 @@ Global
 		{5AEB2DAA-81F0-439A-8EE0-2148D7045B96}.Debug OpenMP|x64.ActiveCfg = Debug OpenMI|Win32
 		{5AEB2DAA-81F0-439A-8EE0-2148D7045B96}.Debug|Win32.ActiveCfg = Debug Double|Win32
 		{5AEB2DAA-81F0-439A-8EE0-2148D7045B96}.Debug|x64.ActiveCfg = Debug Double Openmp|Win32
+		{5AEB2DAA-81F0-439A-8EE0-2148D7045B96}.Release Double CUDA|Win32.ActiveCfg = Release Double CUDA|Win32
+		{5AEB2DAA-81F0-439A-8EE0-2148D7045B96}.Release Double CUDA|x64.ActiveCfg = Release Double CUDA|Win32
 		{5AEB2DAA-81F0-439A-8EE0-2148D7045B96}.Release Double OpenMP PhreeqC|Win32.ActiveCfg = Release Double|Win32
 		{5AEB2DAA-81F0-439A-8EE0-2148D7045B96}.Release Double OpenMP PhreeqC|Win32.Build.0 = Release Double|Win32
 		{5AEB2DAA-81F0-439A-8EE0-2148D7045B96}.Release Double OpenMP PhreeqC|x64.ActiveCfg = Release Double|Win32
@@ -583,6 +659,8 @@ Global
 		{5AEB2DAA-81F0-439A-8EE0-2148D7045B96}.Release|x64.ActiveCfg = Release Double|Win32
 		{DC8642E4-9D47-45E6-8617-BA40A15CF1EF}.Debug Developper Single|Win32.ActiveCfg = Debug Developper Single|Win32
 		{DC8642E4-9D47-45E6-8617-BA40A15CF1EF}.Debug Developper Single|x64.ActiveCfg = Debug Developper Single|x64
+		{DC8642E4-9D47-45E6-8617-BA40A15CF1EF}.Debug Double CUDA|Win32.ActiveCfg = Debug Double CUDA|Win32
+		{DC8642E4-9D47-45E6-8617-BA40A15CF1EF}.Debug Double CUDA|x64.ActiveCfg = Debug Double CUDA|x64
 		{DC8642E4-9D47-45E6-8617-BA40A15CF1EF}.Debug Double Openmp|Win32.ActiveCfg = Debug Double Openmp|Win32
 		{DC8642E4-9D47-45E6-8617-BA40A15CF1EF}.Debug Double Openmp|x64.ActiveCfg = Debug Double Openmp|x64
 		{DC8642E4-9D47-45E6-8617-BA40A15CF1EF}.Debug Double PhreeqC|Win32.ActiveCfg = Debug|Win32
@@ -600,6 +678,8 @@ Global
 		{DC8642E4-9D47-45E6-8617-BA40A15CF1EF}.Debug|Win32.ActiveCfg = Debug|Win32
 		{DC8642E4-9D47-45E6-8617-BA40A15CF1EF}.Debug|Win32.Build.0 = Debug|Win32
 		{DC8642E4-9D47-45E6-8617-BA40A15CF1EF}.Debug|x64.ActiveCfg = Debug|x64
+		{DC8642E4-9D47-45E6-8617-BA40A15CF1EF}.Release Double CUDA|Win32.ActiveCfg = Release Double CUDA|Win32
+		{DC8642E4-9D47-45E6-8617-BA40A15CF1EF}.Release Double CUDA|x64.ActiveCfg = Release Double CUDA|x64
 		{DC8642E4-9D47-45E6-8617-BA40A15CF1EF}.Release Double OpenMP PhreeqC|Win32.ActiveCfg = Release Double|Win32
 		{DC8642E4-9D47-45E6-8617-BA40A15CF1EF}.Release Double OpenMP PhreeqC|Win32.Build.0 = Release Double|Win32
 		{DC8642E4-9D47-45E6-8617-BA40A15CF1EF}.Release Double OpenMP PhreeqC|x64.ActiveCfg = Release|x64
@@ -617,6 +697,8 @@ Global
 		{9DC85AC0-1EAF-42B5-A6D0-28AC10A96D15}.Debug Developper Single|Win32.ActiveCfg = Debug Developper Single|Win32
 		{9DC85AC0-1EAF-42B5-A6D0-28AC10A96D15}.Debug Developper Single|Win32.Build.0 = Debug Developper Single|Win32
 		{9DC85AC0-1EAF-42B5-A6D0-28AC10A96D15}.Debug Developper Single|x64.ActiveCfg = Debug Developper Single|Win32
+		{9DC85AC0-1EAF-42B5-A6D0-28AC10A96D15}.Debug Double CUDA|Win32.ActiveCfg = Debug Double CUDA|Win32
+		{9DC85AC0-1EAF-42B5-A6D0-28AC10A96D15}.Debug Double CUDA|x64.ActiveCfg = Debug Double CUDA|x64
 		{9DC85AC0-1EAF-42B5-A6D0-28AC10A96D15}.Debug Double Openmp|Win32.ActiveCfg = Debug|Win32
 		{9DC85AC0-1EAF-42B5-A6D0-28AC10A96D15}.Debug Double Openmp|Win32.Build.0 = Debug|Win32
 		{9DC85AC0-1EAF-42B5-A6D0-28AC10A96D15}.Debug Double Openmp|x64.ActiveCfg = Debug|Win32
@@ -635,6 +717,8 @@ Global
 		{9DC85AC0-1EAF-42B5-A6D0-28AC10A96D15}.Debug|Win32.ActiveCfg = Debug|Win32
 		{9DC85AC0-1EAF-42B5-A6D0-28AC10A96D15}.Debug|Win32.Build.0 = Debug|Win32
 		{9DC85AC0-1EAF-42B5-A6D0-28AC10A96D15}.Debug|x64.ActiveCfg = Debug|Win32
+		{9DC85AC0-1EAF-42B5-A6D0-28AC10A96D15}.Release Double CUDA|Win32.ActiveCfg = Release Double CUDA|Win32
+		{9DC85AC0-1EAF-42B5-A6D0-28AC10A96D15}.Release Double CUDA|x64.ActiveCfg = Release Double CUDA|x64
 		{9DC85AC0-1EAF-42B5-A6D0-28AC10A96D15}.Release Double OpenMP PhreeqC|Win32.ActiveCfg = Release|Win32
 		{9DC85AC0-1EAF-42B5-A6D0-28AC10A96D15}.Release Double OpenMP PhreeqC|Win32.Build.0 = Release|Win32
 		{9DC85AC0-1EAF-42B5-A6D0-28AC10A96D15}.Release Double OpenMP PhreeqC|x64.ActiveCfg = Release|Win32
@@ -652,6 +736,8 @@ Global
 		{C5CF769A-D6B5-4DC8-B39C-734B4D9D685C}.Debug Developper Single|Win32.ActiveCfg = Debug Developper Single|Win32
 		{C5CF769A-D6B5-4DC8-B39C-734B4D9D685C}.Debug Developper Single|Win32.Build.0 = Debug Developper Single|Win32
 		{C5CF769A-D6B5-4DC8-B39C-734B4D9D685C}.Debug Developper Single|x64.ActiveCfg = Debug Developper Single|Win32
+		{C5CF769A-D6B5-4DC8-B39C-734B4D9D685C}.Debug Double CUDA|Win32.ActiveCfg = Debug Double CUDA|Win32
+		{C5CF769A-D6B5-4DC8-B39C-734B4D9D685C}.Debug Double CUDA|x64.ActiveCfg = Debug Double CUDA|Win32
 		{C5CF769A-D6B5-4DC8-B39C-734B4D9D685C}.Debug Double Openmp|Win32.ActiveCfg = Debug|Win32
 		{C5CF769A-D6B5-4DC8-B39C-734B4D9D685C}.Debug Double Openmp|Win32.Build.0 = Debug|Win32
 		{C5CF769A-D6B5-4DC8-B39C-734B4D9D685C}.Debug Double Openmp|x64.ActiveCfg = Debug|Win32
@@ -670,6 +756,8 @@ Global
 		{C5CF769A-D6B5-4DC8-B39C-734B4D9D685C}.Debug|Win32.ActiveCfg = Debug|Win32
 		{C5CF769A-D6B5-4DC8-B39C-734B4D9D685C}.Debug|Win32.Build.0 = Debug|Win32
 		{C5CF769A-D6B5-4DC8-B39C-734B4D9D685C}.Debug|x64.ActiveCfg = Debug|Win32
+		{C5CF769A-D6B5-4DC8-B39C-734B4D9D685C}.Release Double CUDA|Win32.ActiveCfg = Release Double CUDA|Win32
+		{C5CF769A-D6B5-4DC8-B39C-734B4D9D685C}.Release Double CUDA|x64.ActiveCfg = Release Double CUDA|Win32
 		{C5CF769A-D6B5-4DC8-B39C-734B4D9D685C}.Release Double OpenMP PhreeqC|Win32.ActiveCfg = Release|Win32
 		{C5CF769A-D6B5-4DC8-B39C-734B4D9D685C}.Release Double OpenMP PhreeqC|Win32.Build.0 = Release|Win32
 		{C5CF769A-D6B5-4DC8-B39C-734B4D9D685C}.Release Double OpenMP PhreeqC|x64.ActiveCfg = Release|Win32
@@ -687,6 +775,8 @@ Global
 		{C5CF769A-D6B5-4DC8-B39C-734B4D9D685C}.Release|x64.ActiveCfg = Release|Win32
 		{13636891-3890-4E73-894C-6315A1C71989}.Debug Developper Single|Win32.ActiveCfg = Debug|Win32
 		{13636891-3890-4E73-894C-6315A1C71989}.Debug Developper Single|x64.ActiveCfg = Debug|Win32
+		{13636891-3890-4E73-894C-6315A1C71989}.Debug Double CUDA|Win32.ActiveCfg = Debug Double CUDA|Win32
+		{13636891-3890-4E73-894C-6315A1C71989}.Debug Double CUDA|x64.ActiveCfg = Debug Double CUDA|x64
 		{13636891-3890-4E73-894C-6315A1C71989}.Debug Double Openmp|Win32.ActiveCfg = Debug|Win32
 		{13636891-3890-4E73-894C-6315A1C71989}.Debug Double Openmp|Win32.Build.0 = Debug|Win32
 		{13636891-3890-4E73-894C-6315A1C71989}.Debug Double Openmp|x64.ActiveCfg = Debug|Win32
@@ -705,6 +795,8 @@ Global
 		{13636891-3890-4E73-894C-6315A1C71989}.Debug|Win32.ActiveCfg = Debug|Win32
 		{13636891-3890-4E73-894C-6315A1C71989}.Debug|Win32.Build.0 = Debug|Win32
 		{13636891-3890-4E73-894C-6315A1C71989}.Debug|x64.ActiveCfg = Debug|Win32
+		{13636891-3890-4E73-894C-6315A1C71989}.Release Double CUDA|Win32.ActiveCfg = Release Double CUDA|Win32
+		{13636891-3890-4E73-894C-6315A1C71989}.Release Double CUDA|x64.ActiveCfg = Release Double CUDA|x64
 		{13636891-3890-4E73-894C-6315A1C71989}.Release Double OpenMP PhreeqC|Win32.ActiveCfg = Release|Win32
 		{13636891-3890-4E73-894C-6315A1C71989}.Release Double OpenMP PhreeqC|Win32.Build.0 = Release|Win32
 		{13636891-3890-4E73-894C-6315A1C71989}.Release Double OpenMP PhreeqC|x64.ActiveCfg = Release|Win32
@@ -722,6 +814,8 @@ Global
 		{C447F70C-970B-4274-A711-048C5D6F2C87}.Debug Developper Single|Win32.ActiveCfg = Debug|Win32
 		{C447F70C-970B-4274-A711-048C5D6F2C87}.Debug Developper Single|Win32.Build.0 = Debug|Win32
 		{C447F70C-970B-4274-A711-048C5D6F2C87}.Debug Developper Single|x64.ActiveCfg = Debug|Win32
+		{C447F70C-970B-4274-A711-048C5D6F2C87}.Debug Double CUDA|Win32.ActiveCfg = Debug Double CUDA|Win32
+		{C447F70C-970B-4274-A711-048C5D6F2C87}.Debug Double CUDA|x64.ActiveCfg = Debug Double CUDA|x64
 		{C447F70C-970B-4274-A711-048C5D6F2C87}.Debug Double Openmp|Win32.ActiveCfg = Debug|Win32
 		{C447F70C-970B-4274-A711-048C5D6F2C87}.Debug Double Openmp|Win32.Build.0 = Debug|Win32
 		{C447F70C-970B-4274-A711-048C5D6F2C87}.Debug Double Openmp|x64.ActiveCfg = Debug|Win32
@@ -740,6 +834,8 @@ Global
 		{C447F70C-970B-4274-A711-048C5D6F2C87}.Debug|Win32.ActiveCfg = Debug|Win32
 		{C447F70C-970B-4274-A711-048C5D6F2C87}.Debug|Win32.Build.0 = Debug|Win32
 		{C447F70C-970B-4274-A711-048C5D6F2C87}.Debug|x64.ActiveCfg = Debug|Win32
+		{C447F70C-970B-4274-A711-048C5D6F2C87}.Release Double CUDA|Win32.ActiveCfg = Release Double CUDA|Win32
+		{C447F70C-970B-4274-A711-048C5D6F2C87}.Release Double CUDA|x64.ActiveCfg = Release Double CUDA|x64
 		{C447F70C-970B-4274-A711-048C5D6F2C87}.Release Double OpenMP PhreeqC|Win32.ActiveCfg = Release|Win32
 		{C447F70C-970B-4274-A711-048C5D6F2C87}.Release Double OpenMP PhreeqC|Win32.Build.0 = Release|Win32
 		{C447F70C-970B-4274-A711-048C5D6F2C87}.Release Double OpenMP PhreeqC|x64.ActiveCfg = Release|Win32
@@ -755,6 +851,94 @@ Global
 		{C447F70C-970B-4274-A711-048C5D6F2C87}.Release|Win32.ActiveCfg = Release|Win32
 		{C447F70C-970B-4274-A711-048C5D6F2C87}.Release|Win32.Build.0 = Release|Win32
 		{C447F70C-970B-4274-A711-048C5D6F2C87}.Release|x64.ActiveCfg = Release|Win32
+		{594822A3-0DE5-4C31-AF33-F29BB3F18BC8}.Debug Developper Single|Win32.ActiveCfg = Debug|Win32
+		{594822A3-0DE5-4C31-AF33-F29BB3F18BC8}.Debug Developper Single|Win32.Build.0 = Debug|Win32
+		{594822A3-0DE5-4C31-AF33-F29BB3F18BC8}.Debug Developper Single|x64.ActiveCfg = Debug|Win32
+		{594822A3-0DE5-4C31-AF33-F29BB3F18BC8}.Debug Double CUDA|Win32.ActiveCfg = Debug Double CUDA|Win32
+		{594822A3-0DE5-4C31-AF33-F29BB3F18BC8}.Debug Double CUDA|Win32.Build.0 = Debug Double CUDA|Win32
+		{594822A3-0DE5-4C31-AF33-F29BB3F18BC8}.Debug Double CUDA|x64.ActiveCfg = Debug Double CUDA|x64
+		{594822A3-0DE5-4C31-AF33-F29BB3F18BC8}.Debug Double CUDA|x64.Build.0 = Debug Double CUDA|x64
+		{594822A3-0DE5-4C31-AF33-F29BB3F18BC8}.Debug Double Openmp|Win32.ActiveCfg = Debug|Win32
+		{594822A3-0DE5-4C31-AF33-F29BB3F18BC8}.Debug Double Openmp|Win32.Build.0 = Debug|Win32
+		{594822A3-0DE5-4C31-AF33-F29BB3F18BC8}.Debug Double Openmp|x64.ActiveCfg = Debug|Win32
+		{594822A3-0DE5-4C31-AF33-F29BB3F18BC8}.Debug Double PhreeqC|Win32.ActiveCfg = Debug|Win32
+		{594822A3-0DE5-4C31-AF33-F29BB3F18BC8}.Debug Double PhreeqC|Win32.Build.0 = Debug|Win32
+		{594822A3-0DE5-4C31-AF33-F29BB3F18BC8}.Debug Double PhreeqC|x64.ActiveCfg = Debug|Win32
+		{594822A3-0DE5-4C31-AF33-F29BB3F18BC8}.Debug Double|Win32.ActiveCfg = Debug|Win32
+		{594822A3-0DE5-4C31-AF33-F29BB3F18BC8}.Debug Double|Win32.Build.0 = Debug|Win32
+		{594822A3-0DE5-4C31-AF33-F29BB3F18BC8}.Debug Double|x64.ActiveCfg = Debug|Win32
+		{594822A3-0DE5-4C31-AF33-F29BB3F18BC8}.Debug OpenMI|Win32.ActiveCfg = Debug|Win32
+		{594822A3-0DE5-4C31-AF33-F29BB3F18BC8}.Debug OpenMI|Win32.Build.0 = Debug|Win32
+		{594822A3-0DE5-4C31-AF33-F29BB3F18BC8}.Debug OpenMI|x64.ActiveCfg = Debug|Win32
+		{594822A3-0DE5-4C31-AF33-F29BB3F18BC8}.Debug OpenMP|Win32.ActiveCfg = Debug|Win32
+		{594822A3-0DE5-4C31-AF33-F29BB3F18BC8}.Debug OpenMP|Win32.Build.0 = Debug|Win32
+		{594822A3-0DE5-4C31-AF33-F29BB3F18BC8}.Debug OpenMP|x64.ActiveCfg = Debug|Win32
+		{594822A3-0DE5-4C31-AF33-F29BB3F18BC8}.Debug|Win32.ActiveCfg = Debug|Win32
+		{594822A3-0DE5-4C31-AF33-F29BB3F18BC8}.Debug|Win32.Build.0 = Debug|Win32
+		{594822A3-0DE5-4C31-AF33-F29BB3F18BC8}.Debug|x64.ActiveCfg = Debug|Win32
+		{594822A3-0DE5-4C31-AF33-F29BB3F18BC8}.Release Double CUDA|Win32.ActiveCfg = Release Double CUDA|Win32
+		{594822A3-0DE5-4C31-AF33-F29BB3F18BC8}.Release Double CUDA|Win32.Build.0 = Release Double CUDA|Win32
+		{594822A3-0DE5-4C31-AF33-F29BB3F18BC8}.Release Double CUDA|x64.ActiveCfg = Release Double CUDA|x64
+		{594822A3-0DE5-4C31-AF33-F29BB3F18BC8}.Release Double CUDA|x64.Build.0 = Release Double CUDA|x64
+		{594822A3-0DE5-4C31-AF33-F29BB3F18BC8}.Release Double OpenMP PhreeqC|Win32.ActiveCfg = Release|Win32
+		{594822A3-0DE5-4C31-AF33-F29BB3F18BC8}.Release Double OpenMP PhreeqC|Win32.Build.0 = Release|Win32
+		{594822A3-0DE5-4C31-AF33-F29BB3F18BC8}.Release Double OpenMP PhreeqC|x64.ActiveCfg = Release|Win32
+		{594822A3-0DE5-4C31-AF33-F29BB3F18BC8}.Release Double OpenMP|Win32.ActiveCfg = Release|Win32
+		{594822A3-0DE5-4C31-AF33-F29BB3F18BC8}.Release Double OpenMP|Win32.Build.0 = Release|Win32
+		{594822A3-0DE5-4C31-AF33-F29BB3F18BC8}.Release Double OpenMP|x64.ActiveCfg = Release|Win32
+		{594822A3-0DE5-4C31-AF33-F29BB3F18BC8}.Release Double|Win32.ActiveCfg = Release|Win32
+		{594822A3-0DE5-4C31-AF33-F29BB3F18BC8}.Release Double|Win32.Build.0 = Release|Win32
+		{594822A3-0DE5-4C31-AF33-F29BB3F18BC8}.Release Double|x64.ActiveCfg = Release|Win32
+		{594822A3-0DE5-4C31-AF33-F29BB3F18BC8}.Release OpenMP|Win32.ActiveCfg = Release|Win32
+		{594822A3-0DE5-4C31-AF33-F29BB3F18BC8}.Release OpenMP|Win32.Build.0 = Release|Win32
+		{594822A3-0DE5-4C31-AF33-F29BB3F18BC8}.Release OpenMP|x64.ActiveCfg = Release|Win32
+		{594822A3-0DE5-4C31-AF33-F29BB3F18BC8}.Release|Win32.ActiveCfg = Release|Win32
+		{594822A3-0DE5-4C31-AF33-F29BB3F18BC8}.Release|Win32.Build.0 = Release|Win32
+		{594822A3-0DE5-4C31-AF33-F29BB3F18BC8}.Release|x64.ActiveCfg = Release|Win32
+		{C225FEF3-1D61-461D-9467-649F22AD43FC}.Debug Developper Single|Win32.ActiveCfg = Debug|Win32
+		{C225FEF3-1D61-461D-9467-649F22AD43FC}.Debug Developper Single|Win32.Build.0 = Debug|Win32
+		{C225FEF3-1D61-461D-9467-649F22AD43FC}.Debug Developper Single|x64.ActiveCfg = Debug|Win32
+		{C225FEF3-1D61-461D-9467-649F22AD43FC}.Debug Double CUDA|Win32.ActiveCfg = Debug Double CUDA|Win32
+		{C225FEF3-1D61-461D-9467-649F22AD43FC}.Debug Double CUDA|Win32.Build.0 = Debug Double CUDA|Win32
+		{C225FEF3-1D61-461D-9467-649F22AD43FC}.Debug Double CUDA|x64.ActiveCfg = Debug Double CUDA|x64
+		{C225FEF3-1D61-461D-9467-649F22AD43FC}.Debug Double CUDA|x64.Build.0 = Debug Double CUDA|x64
+		{C225FEF3-1D61-461D-9467-649F22AD43FC}.Debug Double Openmp|Win32.ActiveCfg = Debug|Win32
+		{C225FEF3-1D61-461D-9467-649F22AD43FC}.Debug Double Openmp|Win32.Build.0 = Debug|Win32
+		{C225FEF3-1D61-461D-9467-649F22AD43FC}.Debug Double Openmp|x64.ActiveCfg = Debug|Win32
+		{C225FEF3-1D61-461D-9467-649F22AD43FC}.Debug Double PhreeqC|Win32.ActiveCfg = Debug|Win32
+		{C225FEF3-1D61-461D-9467-649F22AD43FC}.Debug Double PhreeqC|Win32.Build.0 = Debug|Win32
+		{C225FEF3-1D61-461D-9467-649F22AD43FC}.Debug Double PhreeqC|x64.ActiveCfg = Debug|Win32
+		{C225FEF3-1D61-461D-9467-649F22AD43FC}.Debug Double|Win32.ActiveCfg = Debug|Win32
+		{C225FEF3-1D61-461D-9467-649F22AD43FC}.Debug Double|Win32.Build.0 = Debug|Win32
+		{C225FEF3-1D61-461D-9467-649F22AD43FC}.Debug Double|x64.ActiveCfg = Debug|Win32
+		{C225FEF3-1D61-461D-9467-649F22AD43FC}.Debug OpenMI|Win32.ActiveCfg = Debug|Win32
+		{C225FEF3-1D61-461D-9467-649F22AD43FC}.Debug OpenMI|Win32.Build.0 = Debug|Win32
+		{C225FEF3-1D61-461D-9467-649F22AD43FC}.Debug OpenMI|x64.ActiveCfg = Debug|Win32
+		{C225FEF3-1D61-461D-9467-649F22AD43FC}.Debug OpenMP|Win32.ActiveCfg = Debug|Win32
+		{C225FEF3-1D61-461D-9467-649F22AD43FC}.Debug OpenMP|Win32.Build.0 = Debug|Win32
+		{C225FEF3-1D61-461D-9467-649F22AD43FC}.Debug OpenMP|x64.ActiveCfg = Debug|Win32
+		{C225FEF3-1D61-461D-9467-649F22AD43FC}.Debug|Win32.ActiveCfg = Debug|Win32
+		{C225FEF3-1D61-461D-9467-649F22AD43FC}.Debug|Win32.Build.0 = Debug|Win32
+		{C225FEF3-1D61-461D-9467-649F22AD43FC}.Debug|x64.ActiveCfg = Debug|Win32
+		{C225FEF3-1D61-461D-9467-649F22AD43FC}.Release Double CUDA|Win32.ActiveCfg = Release Double CUDA|Win32
+		{C225FEF3-1D61-461D-9467-649F22AD43FC}.Release Double CUDA|Win32.Build.0 = Release Double CUDA|Win32
+		{C225FEF3-1D61-461D-9467-649F22AD43FC}.Release Double CUDA|x64.ActiveCfg = Release Double CUDA|x64
+		{C225FEF3-1D61-461D-9467-649F22AD43FC}.Release Double CUDA|x64.Build.0 = Release Double CUDA|x64
+		{C225FEF3-1D61-461D-9467-649F22AD43FC}.Release Double OpenMP PhreeqC|Win32.ActiveCfg = Release|Win32
+		{C225FEF3-1D61-461D-9467-649F22AD43FC}.Release Double OpenMP PhreeqC|Win32.Build.0 = Release|Win32
+		{C225FEF3-1D61-461D-9467-649F22AD43FC}.Release Double OpenMP PhreeqC|x64.ActiveCfg = Release|Win32
+		{C225FEF3-1D61-461D-9467-649F22AD43FC}.Release Double OpenMP|Win32.ActiveCfg = Release|Win32
+		{C225FEF3-1D61-461D-9467-649F22AD43FC}.Release Double OpenMP|Win32.Build.0 = Release|Win32
+		{C225FEF3-1D61-461D-9467-649F22AD43FC}.Release Double OpenMP|x64.ActiveCfg = Release|Win32
+		{C225FEF3-1D61-461D-9467-649F22AD43FC}.Release Double|Win32.ActiveCfg = Release|Win32
+		{C225FEF3-1D61-461D-9467-649F22AD43FC}.Release Double|Win32.Build.0 = Release|Win32
+		{C225FEF3-1D61-461D-9467-649F22AD43FC}.Release Double|x64.ActiveCfg = Release|Win32
+		{C225FEF3-1D61-461D-9467-649F22AD43FC}.Release OpenMP|Win32.ActiveCfg = Release|Win32
+		{C225FEF3-1D61-461D-9467-649F22AD43FC}.Release OpenMP|Win32.Build.0 = Release|Win32
+		{C225FEF3-1D61-461D-9467-649F22AD43FC}.Release OpenMP|x64.ActiveCfg = Release|Win32
+		{C225FEF3-1D61-461D-9467-649F22AD43FC}.Release|Win32.ActiveCfg = Release|Win32
+		{C225FEF3-1D61-461D-9467-649F22AD43FC}.Release|Win32.Build.0 = Release|Win32
+		{C225FEF3-1D61-461D-9467-649F22AD43FC}.Release|x64.ActiveCfg = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -767,6 +951,8 @@ Global
 		{98ABA093-7927-4BCD-B011-BF409B5BBB78} = {F4334CCB-92E6-43E4-B5EE-8700A0BE00D5}
 		{5AEB2DAA-81F0-439A-8EE0-2148D7045B96} = {F4334CCB-92E6-43E4-B5EE-8700A0BE00D5}
 		{C5CF769A-D6B5-4DC8-B39C-734B4D9D685C} = {F4334CCB-92E6-43E4-B5EE-8700A0BE00D5}
+		{594822A3-0DE5-4C31-AF33-F29BB3F18BC8} = {F4334CCB-92E6-43E4-B5EE-8700A0BE00D5}
+		{C225FEF3-1D61-461D-9467-649F22AD43FC} = {F4334CCB-92E6-43E4-B5EE-8700A0BE00D5}
 		{7033A311-58C3-4992-B524-75396846B759} = {0C2D3D02-FB0B-4A4D-8DA2-A01B104B528B}
 		{3E94FB51-7A8D-41D7-B945-4435992AE154} = {0C2D3D02-FB0B-4A4D-8DA2-A01B104B528B}
 		{4D8FB248-4615-441A-AF9E-0C7FA58C4F6B} = {0C2D3D02-FB0B-4A4D-8DA2-A01B104B528B}
