@@ -757,6 +757,7 @@ Module ModuleLagrangianGlobal
         logical                                 :: DistanceToCoast      = OFF
         logical                                 :: ComputeRisk          = OFF
         logical                                 :: Waves                = OFF
+        logical                                 :: FloatingObject       = OFF 
     end type T_State
 
     !IO
@@ -979,6 +980,13 @@ Module ModuleLagrangianGlobal
         real                                    :: Tdecay                   = null_real
         logical                                 :: BottomEmission           = OFF
     end type T_Deposition
+    
+
+    type T_FloatingObject
+        real                                    :: AirDragCoef            = null_real
+        real                                    :: WaterDragCoef          = null_real
+        real                                    :: ImmersionRatio         = null_real
+    end type T_FloatingObject    
 
     !Origin list
     type T_Origin
@@ -1025,8 +1033,6 @@ Module ModuleLagrangianGlobal
         real                                    :: VolumeOilTotal
         real                                    :: VolTotOilBeached
         real                                    :: VolTotBeached
-        logical                                 :: AveragePositionON        = .false. 
-        real                                    :: CoefRadius
         logical                                 :: MovingOrigin
         character(StringLength)                 :: MovingOriginUnits
         integer                                 :: MovingOriginColumnX
@@ -1053,6 +1059,7 @@ Module ModuleLagrangianGlobal
         real                                    :: AgeLimit
         real                                    :: AccidentProbDefault = FillValueReal
         logical                                 :: AreaVTS           = .true.
+        type (T_FloatingObject)                 :: FloatingObject        
     end type T_Origin
 
     type T_OptionsStat
@@ -1155,6 +1162,10 @@ Module ModuleLagrangianGlobal
         logical                                 :: Overlay
         logical                                 :: FirstIteration       = .true.
         logical                                 :: ConstructLag         = .true.        
+
+
+        logical                                 :: AveragePositionON    = .false. 
+        real                                    :: CoefRadius
 
         integer, dimension(:), pointer          :: ObjHDF5              
 
@@ -1448,15 +1459,21 @@ em2:            do em =1, Me%EulerModelNumber
             call ConstructLag2Euler      
             
             !Starts the HDF Output
-            if (Me%OutPut%Write_) call ConstructHDF5Output      
-
+            if (Me%OutPut%Write_) call ConstructHDF5Output    
+            
             !Starts the Statistic
             if (Me%State%Statistics) then
                 call NewParticleMass            
                 call ConstructParticStatistic   
             endif
 
-            if (Me%State%Oil) call AllocateOil
+            if (Me%State%Oil) then
+                call AllocateOil
+                call FillGridThickness      ()                             
+            endif
+                
+            
+            call LagrangianOutput            
 
             !Message to the User
             call ConstructLog             
@@ -1827,7 +1844,7 @@ BF:     if (BlockFound) then
                 MatchModel = .false. 
                 do l = 1, Nmodels
                     if (trim(AuxChar) == trim(ModelNames(l))) then
-                        IndexMatch(l) = em
+                        IndexMatch(em) = l
                         MatchModel = .true.
                         exit
                     endif
@@ -2448,7 +2465,7 @@ d2:     do em =1, Me%EulerModelNumber
                      ClientModule ='ModuleLagrangianGlobal',                            &  
                      Default      = .false.,                                            &
                      STAT         = STAT_CALL)             
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructOrigins - ModuleLagrangianGlobal - ERR255'
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructOrigins - ModuleLagrangianGlobal - ERR260'
 
 
 !#ifdef _CGI_
@@ -2471,7 +2488,33 @@ d2:     do em =1, Me%EulerModelNumber
                      ClientModule ='ModuleLagrangianGlobal',                            &  
                      Default      = .false.,                                            &
                      STAT         = STAT_CALL)             
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructOrigins - ModuleLagrangianGlobal - ERR257'
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructOrigins - ModuleLagrangianGlobal - ERR270'
+        
+
+        call GetData(Me%AveragePositionON,                                              &
+                     Me%ObjEnterData,                                                   &
+                     flag,                                                              &
+                     SearchType   = FromFile,                                           &
+                     keyword      ='COMPUTE_AVERAGE_POSITION',                          &
+                     ClientModule ='ModuleLagrangianGlobal',                            &
+                     Default      = OFF,                                                &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructOrigins - ModuleLagrangianGlobal - ERR280'
+
+        if (Me%AveragePositionON) then
+        
+            call GetData(Me%CoefRadius,                                                 &
+                         Me%ObjEnterData,                                               &
+                         flag,                                                          &
+                         SearchType   = FromFile,                                       &
+                         keyword      ='COEF_RADIUS',                                   &
+                         ClientModule ='ModuleLagrangianGlobal',                        &
+                         !90% of the particles inside the circle
+                         Default      = 1.645,                                          &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructOrigins - ModuleLagrangianGlobal - ERR290'
+            
+        endif        
 
         !Number of times it read the lagrangian data looking for origins
         !Only when the _CGI_ option is on is able to read several times 
@@ -2491,7 +2534,7 @@ DW:     do
                                             block_begin, block_end,                     &
                                             BlockFound,                                 &
                                             STAT = STAT_CALL)  
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructOrigins - ModuleLagrangianGlobal - ERR260'
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructOrigins - ModuleLagrangianGlobal - ERR300'
 
             endif
 
@@ -4589,32 +4632,6 @@ SP:             if (NewProperty%SedimentPartition%ON) then
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR1630'
 
-
-
-        call GetData(NewOrigin%AveragePositionON,                               &
-                     Me%ObjEnterData,                                           &
-                     flag,                                                      &
-                     SearchType   = FromBlock,                                  &
-                     keyword      ='COMPUTE_AVERAGE_POSITION',                  &
-                     ClientModule ='ModuleLagrangianGlobal',                    &
-                     Default      = OFF,                                        &
-                     STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR1640'
-
-        if (NewOrigin%AveragePositionON) then
-
-            call GetData(NewOrigin%CoefRadius,                                  &
-                         Me%ObjEnterData,                                       &
-                         flag,                                                  &
-                         SearchType   = FromBlock,                              &
-                         keyword      ='COEF_RADIUS',                           &
-                         ClientModule ='ModuleLagrangianGlobal',                &
-                         !90% of the particles inside the circle
-                         Default      = 1.645,                                  &
-                         STAT         = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR1650'
-            
-        endif
         
         if (NewOrigin%State%Oil .or. NewOrigin%State%StokesDrift .or. NewOrigin%State%AccidentProbability) then
             NewOrigin%State%Waves = .true.
@@ -4622,6 +4639,54 @@ SP:             if (NewProperty%SedimentPartition%ON) then
         endif
         
 
+        !model the tracers as if they were solid floating objects (containers, e.g.)
+        call GetData(NewOrigin%State%FloatingObject,                             &
+                     Me%ObjEnterData,                                            &
+                     flag,                                                       &
+                     SearchType   = FromBlock,                                   &
+                     keyword      ='FLOATING_OBJECT',                            &
+                     Default      = OFF,                                         &
+                     ClientModule ='ModuleLagrangianGlobal',                     &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR1660'
+
+        if (NewOrigin%State%FloatingObject) then
+            call GetData(NewOrigin%FloatingObject%AirDragCoef,                &
+                         Me%ObjEnterData,                                     &
+                         flag,                                                &
+                         SearchType   = FromBlock,                            &
+                         keyword      ='AIR_DRAG_COEF',                       &
+                         ClientModule ='ModuleLagrangianGlobal',              &
+                         !Air drag coeeficients of bluff objects at highr Reynolds number is tipically 1
+                         ! (Smith, 1993)
+                         Default      = 1.0,                                  &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR1660'
+
+
+            call GetData(NewOrigin%FloatingObject%WaterDragCoef,              &
+                         Me%ObjEnterData,                                     &
+                         flag,                                                &
+                         SearchType   = FromBlock,                            &
+                         keyword      ='WATER_DRAG_COEF',                     &
+                         ClientModule ='ModuleLagrangianGlobal',              &
+                         !Experimental work gives 0.8 < WaterDragCoef < 1.2 
+                         ! (Cabioc'h and Aoustin, 1997)
+                         Default      = 1.0,                                  &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR1670'
+
+            call GetData(NewOrigin%FloatingObject%ImmersionRatio,             &
+                         Me%ObjEnterData,                                     &
+                         flag,                                                &
+                         SearchType   = FromBlock,                            &
+                         keyword      ='IMMERSION_RATIO',                     &
+                         ClientModule ='ModuleLagrangianGlobal',              &
+                         Default      = 50.0,                                 &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR1680'
+
+        endif
 
     end subroutine ConstructOneOrigin
 
@@ -8622,17 +8687,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
                     call ActualizesTauErosionGrid()
                 endif
                 
-                !Writes Particle Output
-                call ParticleOutput         ()
-
-                !Writes Time Series !FM
-                if (Me%WritesTimeSerie) then
-                   call OutPut_TimeSeries   ()
-                endif
-
-                if(Me%Output%WriteRestartFile)then
-                    call OutputRestartFile
-                end if
+                call LagrangianOutput
 
                 Me%NextCompute = Me%NextCompute + Me%DT_Partic
 
@@ -8656,6 +8711,30 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
     end subroutine ModifyLagrangianGlobal
 
     !--------------------------------------------------------------------------
+    
+    
+    subroutine LagrangianOutput ()
+    
+        !Arguments-------------------------------------------------------------
+        
+        !Begin-----------------------------------------------------------------    
+        
+            !Writes Particle Output
+            call ParticleOutput         ()
+
+            !Writes Time Series !FM
+            if (Me%WritesTimeSerie) then
+               call OutPut_TimeSeries   ()
+            endif
+
+            if(Me%Output%WriteRestartFile)then
+                call OutputRestartFile
+            end if
+
+    end subroutine LagrangianOutput
+    
+    !--------------------------------------------------------------------------    
+    
     subroutine OverLayProcess ()
 
         !Arguments-------------------------------------------------------------
@@ -8810,7 +8889,6 @@ iON:        if (CurrentOrigin%EmissionON) then
 
         enddo CurrOr
 
-
     end subroutine ParticleEmission
 
    !--------------------------------------------------------------------------
@@ -8870,6 +8948,7 @@ i1:                 if (Me%EulerModel(em)%WaterPoints3D(i, j, KUB) == WaterPoint
         real                                        :: WaterDensity
 
         !Local-----------------------------------------------------------------
+        real                                        :: WaveHeightAux
         integer                                     :: ILB, IUB, JLB, JUB, KUB
         integer                                     :: i, j, em, ig
 
@@ -8891,13 +8970,15 @@ d4:         do i  = ILB, IUB
                          
 i2:             if (Me%EulerModel(em)%WaterPoints3D(i, j, KUB) == WaterPoint) then 
 
+                WaveHeightAux = max(WaveHeight, 0.01)
+
                 !Calculates the Concentration
                 ! CurrentOrigin%OilGridConcentration = (Specific_MSurface + Specific_MDispersed) / (MixingDepth * WaterDensity)
                     Me%EulerModel(em)%OilSpreading(ig)%OilGridConcentration(i, j) =                     &
                                   1.e6 * ((Me%EulerModel(em)%OilSpreading(ig)%GridThickness(i, j) * &
                                   Me%ExternalVar%OilDensity) + & 
                                   (Me%ExternalVar%MDispersed / max(AllmostZero,Me%ExternalVar%AreaTotal))) / & 
-                                  (1.5 * WaveHeight * WaterDensity)                      
+                                  (1.5 * WaveHeightAux * WaterDensity)                      
 
                 endif i2
 
@@ -9698,7 +9779,9 @@ CurrOr: do while (associated(CurrentOrigin))
         logical                                     :: NoIntU, NoIntV, ComputeTrajectory, HaveDomain, MovePartic
         logical                                     :: SlipConditionX, SlipConditionY, ConvertOK
         real                                        :: WavePeriod, WaveHeight, WaveDirection,UStokesDrift, VStokesDrift
+        real                                        :: WavePeriodAux
         real                                        :: AngFrequency, WaveNumber, VelStokesDrift, Depth
+        real                                        :: WaterDensity, UDrift, VDrift
 
         CurrentPartic => CurrentOrigin%FirstPartic
 CP:     do while (associated (CurrentPartic))
@@ -9810,6 +9893,10 @@ MF:             if (CurrentOrigin%Movement%Float) then
                     !Plume velocity
                     UPlume = 0.
                     VPlume = 0.
+                    
+                    UDrift = 0.
+                    VDrift = 0.
+
 
 
                     ! Velocity due Stokes Drift
@@ -9819,8 +9906,14 @@ MF:             if (CurrentOrigin%Movement%Float) then
                         WavePeriod          = Me%EulerModel(emp)%WavePeriod2D(i, j)
                         WaveDirection       = Me%EulerModel(emp)%WaveDirection2D(i, j)
 
-
-                        AngFrequency        = 2 * Pi / WavePeriod
+                        WavePeriodAux       = max (WavePeriod, 0.01)
+                        
+                        if (WavePeriod == 0 .and. WaveHeight>0) then
+                            write(*,*) 'Can not have a null wave period and a positive wave height'
+                            stop 'MoveParticHorizontal - ModuleLagrangianGlobal - ERR10'
+                        endif
+                        
+                        AngFrequency        = 2 * Pi / WavePeriodAux
                         WaveNumber          = AngFrequency * AngFrequency / gravity
                         
                         Depth               = CurrentOrigin%FirstPartic%Position%Z-             &
@@ -9883,6 +9976,30 @@ MF:             if (CurrentOrigin%Movement%Float) then
                         VOil  = 0.0
             
                     end if
+                    
+                    if (CurrentOrigin%State%FloatingObject) then
+                    
+                        WaterDensity        = Me%EulerModel(emp)%Density(i, j, k)
+
+                        UDrift = GetDriftVelocity(Air_Density,                                  &
+                                                  CurrentOrigin%FloatingObject%AirDragCoef,     &
+                                                  CurrentOrigin%FloatingObject%ImmersionRatio,  &
+                                                  WindX,                                        &
+                                                  WaterDensity,                                 &
+                                                  CurrentOrigin%FloatingObject%WaterDragCoef,   &
+                                                  UINT)
+                                                  
+                        VDrift = GetDriftVelocity(Air_Density,                                  &
+                                                  CurrentOrigin%FloatingObject%AirDragCoef,     &
+                                                  CurrentOrigin%FloatingObject%ImmersionRatio,  &
+                                                  WindY,                                        &
+                                                  WaterDensity,                                 &
+                                                  CurrentOrigin%FloatingObject%WaterDragCoef,   &
+                                                  VINT)
+                                                 
+                                                 
+                    end if
+                    
 
                 else MF
 
@@ -10081,8 +10198,8 @@ MT:             if (CurrentOrigin%Movement%MovType == SullivanAllen_) then
                         DX = DX + UD *  Me%DT_Partic
                         DY = DY + VD *  Me%DT_Partic
                     else
-                        DX = (UINT + UD + UWIND + UOIL + UStokesDrift) * Me%DT_Partic
-                        DY = (VINT + VD + VWIND + VOIL + VStokesDrift) * Me%DT_Partic
+                        DX = (UINT + UD + UWIND + UOIL + UStokesDrift + UDrift) * Me%DT_Partic
+                        DY = (VINT + VD + VWIND + VOIL + VStokesDrift + VDrift) * Me%DT_Partic
                     endif
                 else
                     DX =         UD                 * Me%DT_Partic
@@ -10463,6 +10580,38 @@ cd2:        if (Me%EulerModel(emp)%BottomStress(i,j) <                          
     end function LinearInterpolation    
 
     !--------------------------------------------------------------------------
+    
+    !--------------------------------------------------------------------------
+    !Drift velocity based on an analytical solution proposed by Daniel, Pierre, 2002,
+    !"Drift Modelling of Cargo Containers" (Spill Science & Technology Bulletin);
+    ! but without the assumption of a null water current;
+    !(In the next few months a numerical solution will also be implemented)
+    real function GetDriftVelocity(var_a, var_b, var_c,var_d,var_e,var_f,var_g)
+        
+        !Arguments-------------------------------------------------------------
+        real                                        :: var_a, var_b, var_c, var_d, var_e, var_f, var_g
+        real                                        :: First, Second, Third, Forth, Fifth, Sixth, Seventh 
+
+        !Begin-----------------------------------------------------------------
+        First  = - 2 * var_a * var_b * var_c  * var_d + 200 * var_a * var_b * var_d - 2 * var_c * var_e * var_f * var_g
+        Second = var_a * var_b * var_c - 100 * var_a * var_b + var_c * var_e * var_f
+        Third  = var_a * var_b * var_c * var_d * var_d - 100 * var_a * var_b * var_d * var_d + var_c * var_e * var_f * var_g * var_g
+        Forth  = var_a * var_b * var_c * var_d
+        Fifth  = var_a * var_b * var_d
+        Sixth  = var_c * var_e * var_f * var_g
+        Seventh= var_a * var_b * var_c - 100 * var_a * var_b + var_c * var_e * var_f
+
+        If (var_d > var_g) then
+                GetDriftVelocity =  (SQRT(First*First-4*Second*Third) + 2*Forth - 200*Fifth + 2*Sixth)/(2*Seventh)
+        else
+                GetDriftVelocity =  (-SQRT(First*First-4*Second*Third) + 2*Forth - 200*Fifth + 2*Sixth)/(2*Seventh)
+        end if
+
+
+    end function GetDriftVelocity    
+    
+    !--------------------------------------------------------------------------
+   
 
     subroutine MoveParticVertical(CurrentOrigin, CurrentPartic,           &
                                   NewPosition, VelModH)
@@ -14156,7 +14305,7 @@ d1:     do em =1, Me%EulerModelNumber
         real, dimension(:, :   ), pointer           :: OutPutMatrix
         integer                                     :: WorkILB, WorkIUB, WorkJLB, WorkJUB
         integer                                     :: WorkKLB, WorkKUB
-        character(StringLength)                     :: AuxChar
+        character(StringLength)                     :: AuxChar, GroupName
         real, dimension(:),       pointer           :: MaximumDepth
         integer                                     :: OutPutLines, JetTotalParticles, FirstParticle, em, em1, emMax, emp
         type (T_Position)                           :: Position
@@ -14315,7 +14464,7 @@ i1:             if (nP>0) then
                         enddo
                         if (nP > 0) then
 
-                            if (CurrentOrigin%AveragePositionON) then
+                            if (Me%AveragePositionON) then
                                 AverageX = sum(Matrix1DX(1:nP)) / real(nP)
                                 AverageY = sum(Matrix1DY(1:nP)) / real(nP)
                                 if (nP > 1) then
@@ -14325,7 +14474,7 @@ i1:             if (nP>0) then
                                                        (Matrix1DY(n) - AverageY)**2.) / (real(nP) - 1)
                                 
                                     enddo
-                                    RadiusOfInfluence = CurrentOrigin%CoefRadius * sqrt(Stdv)
+                                    RadiusOfInfluence = Me%CoefRadius * sqrt(Stdv)
                                 else
                                     RadiusOfInfluence = 0.
                                 endif
@@ -14350,7 +14499,7 @@ i1:             if (nP>0) then
                             
 
                             if (Me%OutPut%OriginEnvelope) then
-                                call WriteOriginEnvelope(CurrentOrigin, Matrix1DX, Matrix1DY, &
+                                call WriteOriginEnvelope(CurrentOrigin%Name, Matrix1DX, Matrix1DY, &
                                                           "X Pos", "Y Pos",  "m", OutputNumber, em)  
                             endif                            
 
@@ -14370,7 +14519,7 @@ i1:             if (nP>0) then
 
                         if (nP > 0) then
 
-                            if (CurrentOrigin%AveragePositionON) then
+                            if (Me%AveragePositionON) then
                                 AverageX = sum(Matrix1DX(1:nP)) / real(nP)
                                 AverageY = sum(Matrix1DY(1:nP)) / real(nP)
 
@@ -14381,7 +14530,7 @@ i1:             if (nP>0) then
                                                        (Matrix1DY(n) - AverageY)**2.) / (real(nP) - 1)
                             
                                     enddo
-                                    RadiusOfInfluence = CurrentOrigin%CoefRadius * sqrt(Stdv)
+                                    RadiusOfInfluence = Me%CoefRadius * sqrt(Stdv)
                                 else
                                     RadiusOfInfluence = 0.
                                 endif
@@ -14412,7 +14561,7 @@ i1:             if (nP>0) then
                             if (STAT_CALL /= SUCCESS_) stop 'ParticleOutput - ModuleLagrangianGlobal - ERR120'
 
                             if (Me%OutPut%OriginEnvelope) then
-                                call WriteOriginEnvelope(CurrentOrigin, Matrix1DX, Matrix1DY, &
+                                call WriteOriginEnvelope(CurrentOrigin%Name, Matrix1DX, Matrix1DY, &
                                                           "Longitude", "Latitude", "�", OutputNumber, em)  
                             endif
                             
@@ -14426,7 +14575,7 @@ i1:             if (nP>0) then
 
                             call WGS84toGoogleMaps (Matrix1DX, Matrix1DY, CurrentOrigin%nParticle, Aux1DX, Aux1DY)
 
-                            if (CurrentOrigin%AveragePositionON) then
+                            if (Me%AveragePositionON) then
                                 AverageX = sum(Aux1DX(1:nP)) / real(nP)
                                 AverageY = sum(Aux1DY(1:nP)) / real(nP)
 
@@ -14437,7 +14586,7 @@ i1:             if (nP>0) then
                                                        (Aux1DY(n) - AverageY)**2.) / (real(nP) - 1)
                             
                                     enddo
-                                    RadiusOfInfluence = CurrentOrigin%CoefRadius * sqrt(Stdv)
+                                    RadiusOfInfluence = Me%CoefRadius * sqrt(Stdv)
                                 else
                                     RadiusOfInfluence = 0.
                                 endif
@@ -14466,14 +14615,20 @@ i1:             if (nP>0) then
                             if (STAT_CALL /= SUCCESS_) stop 'ParticleOutput - ModuleLagrangianGlobal - ERR150'
 
 
+                            if (Me%OutPut%OriginEnvelope) then
+                                call WriteOriginEnvelope(CurrentOrigin%Name, Aux1DX, Aux1DY, &
+                                                          "googlemaps_x", "googlemaps_y", "-", OutputNumber, em)  
+                            endif   
+
                             deallocate(Aux1DX, Aux1DY)
+                            
                             allocate  (Aux1DX(1), Aux1DY(1))
                             
                             Aux1DX(1) = AverageX
                             Aux1DY(1) = AverageY
                             
                             call HDF5SetLimits  (Me%ObjHDF5(em), 1, 1, STAT = STAT_CALL)
-                            if (STAT_CALL /= SUCCESS_) stop 'ParticleOutput - ModuleLagrangianGlobal - ERR160'                            
+                            if (STAT_CALL /= SUCCESS_) stop 'ParticleOutput - ModuleLagrangianGlobal - ERR160'
     
                             !HDF 5
                             call HDF5WriteData  (Me%ObjHDF5(em), "/Results/"//trim(CurrentOrigin%Name)//"/googlemaps_x_average", &
@@ -14487,10 +14642,7 @@ i1:             if (nP>0) then
                                                  OutputNumber = OutPutNumber, STAT = STAT_CALL)
                             if (STAT_CALL /= SUCCESS_) stop 'ParticleOutput - ModuleLagrangianGlobal - ERR180'
 
-                            if (Me%OutPut%OriginEnvelope) then
-                                call WriteOriginEnvelope(CurrentOrigin, Aux1DX, Aux1DY, &
-                                                          "googlemaps_x", "googlemaps_y", "-", OutputNumber, em)  
-                            endif    
+
     
                             deallocate   (Aux1DX)
                             deallocate   (Aux1DY)    
@@ -14921,6 +15073,8 @@ iTP:                if (TotParticle(ig) > 1) then
                         Matrix1DY(:) = FillValueReal
                         
                         write (AuxChar, fmt='(i3)') Me%GroupIDs(ig)
+                        
+                        GroupName = "Group_"//trim(adjustl(AuxChar))//"/Data_1D"
 
                         call HDF5SetLimits  (Me%ObjHDF5(em), 1, TotParticle(ig),  &
                                              STAT = STAT_CALL)
@@ -14945,13 +15099,12 @@ iTP:                if (TotParticle(ig) > 1) then
                         enddo XPos
 
                         !HDF 5
-                        call HDF5WriteData        (Me%ObjHDF5(em),                    &
-                                                   "/Results/Group_"//trim(adjustl(AuxChar)) &
-                                                   //"/Data_1D/X Pos",                       &
-                                                   "X Position",                             &
-                                                   "m",                                      &
-                                                   Array1D = Matrix1DX,                      &
-                                                   OutputNumber = OutPutNumber,              &
+                        call HDF5WriteData        (Me%ObjHDF5(em),                          &
+                                                   "/Results/"//trim(GroupName)//"/X Pos",  &
+                                                   "X Position",                            &
+                                                   "m",                                     &
+                                                   Array1D = Matrix1DX,                     &
+                                                   OutputNumber = OutPutNumber,             &
                                                    STAT = STAT_CALL)
 
                         !(YPosition)
@@ -14971,16 +15124,22 @@ iTP:                if (TotParticle(ig) > 1) then
                 
                             CurrentOrigin => CurrentOrigin%Next
                         enddo YPos
+                    
 
                         !HDF 5
                         call HDF5WriteData        (Me%ObjHDF5(em),                    &
-                                                   "/Results/Group_"//trim(adjustl(AuxChar)) &
-                                                   //"/Data_1D/Y Pos",                       &
+                                                   "/Results/"//trim(GroupName)//"/Y Pos",   &
                                                    "Y Position",                             &
                                                    "m",                                      &
                                                    Array1D = Matrix1DY,                      &
                                                    OutputNumber = OutPutNumber,              &
                                                    STAT = STAT_CALL)
+                                                   
+                        if (Me%OutPut%OriginEnvelope) then
+                            call WriteOriginEnvelope(GroupName, Matrix1DX, Matrix1DY,   &
+                                                      "X Pos", "Y Pos",  "m", OutputNumber, em)  
+                        endif                            
+                                               
 
 
                         nP = 1
@@ -14998,11 +15157,15 @@ iTP:                if (TotParticle(ig) > 1) then
                             endif
                             CurrentOrigin => CurrentOrigin%Next
                         enddo
+                        
+                        
+                        call HDF5SetLimits  (Me%ObjHDF5(em), 1, TotParticle(ig), STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'ParticleOutput - ModuleLagrangianGlobal - ERR440'
+                        
 
                         !HDF 5
                         call HDF5WriteData        (Me%ObjHDF5(em),                    &
-                                                   "/Results/Group_"//trim(adjustl(AuxChar)) &
-                                                   //"/Data_1D/Longitude",                   &
+                                                   "/Results/"//trim(GroupName)//"/Longitude", &
                                                    "Longitude",                              &
                                                    "�",                                      &
                                                    Array1D = Matrix1DX,                      &
@@ -15031,13 +15194,19 @@ iTP:                if (TotParticle(ig) > 1) then
 
                         !HDF 5
                         call HDF5WriteData        (Me%ObjHDF5(em),                    &
-                                                   "/Results/Group_"//trim(adjustl(AuxChar)) &
-                                                   //"/Data_1D/Latitude",                    &
+                                                   "/Results/"//trim(GroupName)//"/Latitude",&
                                                    "Latitude",                               &
                                                    "�",                                      &
                                                    Array1D = Matrix1DY,                      &
                                                    OutputNumber = OutPutNumber,              &
                                                    STAT = STAT_CALL)
+                                                   
+
+                        if (Me%OutPut%OriginEnvelope) then
+                            call WriteOriginEnvelope(trim(GroupName),Matrix1DX, Matrix1DY, &
+                                                      "Longitude", "Latitude", "�", OutputNumber, em)  
+                        endif
+                                                   
 
 
 
@@ -15049,20 +15218,74 @@ iTP:                if (TotParticle(ig) > 1) then
                         Aux1DY(:) = FillValueReal
 
                         call WGS84toGoogleMaps (Matrix1DX, Matrix1DY, TotParticle(ig), Aux1DX, Aux1DY)
+                        
+                        nP = TotParticle(ig)
+                        
+                        if (Me%AveragePositionON) then
+                            AverageX = sum(Aux1DX(1:nP)) / real(nP)
+                            AverageY = sum(Aux1DY(1:nP)) / real(nP)
+
+                            if (nP > 1) then
+                                Stdv = 0.
+                                do n = 1, nP
+                                    Stdv = Stdv + ((Aux1DY(n) - AverageX)**2. +      &
+                                                   (Aux1DY(n) - AverageY)**2.) / (real(nP) - 1)
+                        
+                                enddo
+                                RadiusOfInfluence = Me%CoefRadius * sqrt(Stdv)
+                            else
+                                RadiusOfInfluence = 0.
+                            endif
+
+                        else
+                            AverageX          = FillValueReal
+                            AverageY          = FillValueReal
+                            RadiusOfInfluence = FillValueReal
+                        endif                         
+                        
+                        call HDF5SetLimits  (Me%ObjHDF5(em), 1, TotParticle(ig), STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'ParticleOutput - ModuleLagrangianGlobal - ERR450'
+                        
 
                         !HDF 5
-                        call HDF5WriteData  (Me%ObjHDF5(em),  "/Results/Group_"//trim(adjustl(AuxChar)) &
-                                             //"/Data_1D/googlemaps_x",                                 &
+                        call HDF5WriteData  (Me%ObjHDF5(em),  "/Results/"//trim(GroupName)//"/googlemaps_x",&
                                             "googlemaps_x",  "-", Array1D = Aux1DX,                     &
                                              OutputNumber = OutPutNumber, STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'ParticleOutput - ModuleLagrangianGlobal - ERR440'
+                        if (STAT_CALL /= SUCCESS_) stop 'ParticleOutput - ModuleLagrangianGlobal - ERR460'
 
                         !HDF 5
-                        call HDF5WriteData  (Me%ObjHDF5(em),  "/Results/Group_"//trim(adjustl(AuxChar)) &
-                                            //"/Data_1D/googlemaps_y",                                  &
+                        call HDF5WriteData  (Me%ObjHDF5(em),  "/Results/"//trim(GroupName)//"/googlemaps_y",&
                                             "googlemaps_y",  "-", Array1D = Aux1DY,                     &
                                              OutputNumber = OutPutNumber, STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'ParticleOutput - ModuleLagrangianGlobal - ERR450'
+                        if (STAT_CALL /= SUCCESS_) stop 'ParticleOutput - ModuleLagrangianGlobal - ERR470'
+
+                        if (Me%OutPut%OriginEnvelope) then
+                            call WriteOriginEnvelope(GroupName, Aux1DX, Aux1DY,         &
+                                                     "googlemaps_x", "googlemaps_y",    &
+                                                     "-", OutputNumber, em)  
+                        endif  
+
+                        deallocate(Aux1DX, Aux1DY)
+                        
+                        allocate  (Aux1DX(1), Aux1DY(1))
+                        
+                        Aux1DX(1) = AverageX
+                        Aux1DY(1) = AverageY
+                        
+                        call HDF5SetLimits  (Me%ObjHDF5(em), 1, 1, STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'ParticleOutput - ModuleLagrangianGlobal - ERR480'
+
+                        !HDF 5
+                        call HDF5WriteData  (Me%ObjHDF5(em), "/Results/"//trim(GroupName)//"/googlemaps_x_average", &
+                                            "googlemaps_x_average",  "-", Array1D = Aux1DX,                      &
+                                             OutputNumber = OutPutNumber, STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'ParticleOutput - ModuleLagrangianGlobal - ERR490'
+
+                        !HDF 5
+                        call HDF5WriteData  (Me%ObjHDF5(em), "/Results/"//trim(GroupName)//"/googlemaps_y_average", &
+                                            "googlemaps_y_average",  "-", Array1D = Aux1DY,                       &
+                                             OutputNumber = OutPutNumber, STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'ParticleOutput - ModuleLagrangianGlobal - ERR500'
 
 
                         deallocate   (Aux1DX)
@@ -15093,11 +15316,14 @@ iTP:                if (TotParticle(ig) > 1) then
                                         
                             CurrentOrigin => CurrentOrigin%Next
                         enddo ZPos
+                        
+                        
+                        call HDF5SetLimits  (Me%ObjHDF5(em), 1, TotParticle(ig), STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'ParticleOutput - ModuleLagrangianGlobal - ERR510'
 
                         !HDF 5
                         call HDF5WriteData        (Me%ObjHDF5(em),                    &
-                                                   "/Results/Group_"//trim(adjustl(AuxChar)) &
-                                                   //"/Data_1D/Z Pos",                       &
+                                                   "/Results/"//trim(GroupName)//"/Z Pos",   &
                                                    "Z Position",                             &
                                                    "m",                                      &
                                                    Array1D = Matrix1D,                       &
@@ -15143,8 +15369,7 @@ iTP:                if (TotParticle(ig) > 1) then
 
                         !HDF 5
                         call HDF5WriteData        (Me%ObjHDF5(em),                    &
-                                                   "/Results/Group_"//trim(adjustl(AuxChar)) &
-                                                   //"/Data_1D/Volume",                      &
+                                                   "/Results/"//trim(GroupName)//"/Volume",  &
                                                    "Volume",                                 &
                                                    "m3",                                     &
                                                    Array1D = Matrix1D,                       &
@@ -15171,8 +15396,7 @@ iTP:                if (TotParticle(ig) > 1) then
 
                         !HDF 5
                         call HDF5WriteData        (Me%ObjHDF5(em),                    &
-                                                   "/Results/Group_"//trim(adjustl(AuxChar)) &
-                                                   //"/Data_1D/Origin ID",                   &
+                                                   "/Results/"//trim(GroupName)//"/Origin ID",&
                                                    "Origin ID",                              &
                                                    "-",                                      &
                                                    Array1D = Matrix1D,                       &
@@ -15198,8 +15422,7 @@ ModelID:                do while (associated(CurrentOrigin))
 
                         !HDF 5
                         call HDF5WriteData        (Me%ObjHDF5(em),                    &
-                                                   "/Results/Group_"//trim(adjustl(AuxChar)) &
-                                                   //"/Data_1D/Model ID",                    &
+                                                   "/Results/"//trim(GroupName)//"/Model ID",&
                                                    "Model ID",                               &
                                                    "-",                                      &
                                                    Array1D = Matrix1D,                       &
@@ -15235,8 +15458,7 @@ iobp:                   if (Me%State%AssociateBeachProb) then
 
                             !HDF 5
                             call HDF5WriteData        (Me%ObjHDF5(em),                    &
-                                                       "/Results/Group_"//trim(adjustl(AuxChar)) &
-                                                       //"/Data_1D/Beach Prop.",                 &
+                                                       "/Results/"//trim(GroupName)//"/Beach Prop.", &
                                                        "Origin ID",                              &
                                                        "-",                                      &
                                                        Array1D = Matrix1D,                       &
@@ -15281,8 +15503,7 @@ idp:                    if (Me%State%Deposition) then
 
                             !HDF 5
                             call HDF5WriteData        (Me%ObjHDF5(em),                    &
-                                                       "/Results/Group_"//trim(adjustl(AuxChar)) &
-                                                       //"/Data_1D/Deposition State",            &
+                                                       "/Results/"//trim(GroupName)//"/Deposition State", &
                                                        "Origin ID",                              &
                                                        "-",                                      &
                                                        Array1D = Matrix1D,                       &
@@ -15330,8 +15551,7 @@ idp:                    if (Me%State%Deposition) then
 
                             !HDF 5
                             call HDF5WriteData        (Me%ObjHDF5(em),                               &
-                                                       "/Results/Group_"//trim(adjustl(AuxChar)) &
-                                                       //"/Data_1D/T90-Fecal coli.",             &
+                                                       "/Results/"//trim(GroupName)//"/T90-Fecal coli.",&
                                                        "T90",                                    &
                                                        "-",                                      &
                                                        Array1D = Matrix1D,                       &
@@ -15372,8 +15592,7 @@ idp:                    if (Me%State%Deposition) then
 
                             !HDF 5
                             call HDF5WriteData        (Me%ObjHDF5(em),                           &
-                                                       "/Results/Group_"//trim(adjustl(AuxChar)) &
-                                                       //"/Data_1D/Age",                         &
+                                                       "/Results/"//trim(GroupName)//"/Age",     &
                                                        "Age",                                    &
                                                        "days",                                   &
                                                        Array1D = Matrix1D,                       &
@@ -15406,7 +15625,7 @@ thick:                      do while (associated(CurrentOrigin))
                                                  XInput           = CurrentPartic%Position%CoordX,                     &
                                                  YInput           = CurrentPartic%Position%CoordY,                     &
                                                  STAT             = STAT_CALL)
-                                            if (STAT_CALL /= SUCCESS_) stop 'ParticleOutput - ModuleLagrangianGlobal - ERR430'
+                                            if (STAT_CALL /= SUCCESS_) stop 'ParticleOutput - ModuleLagrangianGlobal - ERR520'
                                             
                                             Matrix1D(nP)  =  Matrix1D(nP) * 1e6 * (1 - Me%ExternalVar%VWaterContent)
                                             
@@ -15424,8 +15643,7 @@ thick:                      do while (associated(CurrentOrigin))
                                       
                             !HDF 5
                             call HDF5WriteData        (Me%ObjHDF5(em),                           &
-                                                       "/Results/Group_"//trim(adjustl(AuxChar)) &
-                                                       //"/Data_1D/Thickness",                   &
+                                                       "/Results/"//trim(GroupName)//"/Thickness",&
                                                        "Thickness",                              &
                                                        "micro m",                                &
                                                        Array1D = Matrix1D,                       &
@@ -15463,8 +15681,7 @@ thick:                      do while (associated(CurrentOrigin))
 
                             !HDF 5
                             call HDF5WriteData        (Me%ObjHDF5(em),                           &
-                                                       "/Results/Group_"//trim(adjustl(AuxChar)) &
-                                                       //"/Data_1D/density",                     &
+                                                       "/Results/"//trim(GroupName)//"/density", &
                                                        "Origin ID",                              &
                                                        "sigma density kg/m^3",                   &
                                                        Array1D = Matrix1D,                       &
@@ -15516,13 +15733,13 @@ thick:                      do while (associated(CurrentOrigin))
                             enddo      
 
                             !HDF 5
-                            call HDF5WriteData        (Me%ObjHDF5(em),                    &
-                                                       "/Results/Group_"//trim(adjustl(AuxChar)) &
-                                                       //"/Data_1D/"//trim(CurrentProperty%Name), &
-                                                       trim(CurrentProperty%Name),               &
-                                                       trim(CurrentProperty%Units),              &
-                                                       Array1D = Matrix1D,                       &
-                                                       OutputNumber = OutPutNumber,              &
+                            call HDF5WriteData        (Me%ObjHDF5(em),                  &
+                                                       "/Results/"//trim(GroupName)//"/"//&
+                                                       trim(CurrentProperty%Name),      &
+                                                       trim(CurrentProperty%Name),      &
+                                                       trim(CurrentProperty%Units),     &
+                                                       Array1D = Matrix1D,              &
+                                                       OutputNumber = OutPutNumber,     &
                                                        STAT = STAT_CALL)
 
                             nProp = nProp + 1
@@ -15576,14 +15793,14 @@ thick:                      do while (associated(CurrentOrigin))
                             enddo iplume3
                             
 
-                            call HDF5WriteData  (Me%ObjHDF5(em), "/Results/Group_"//trim(adjustl(AuxChar)) &
-                                                //"/Data_1D/"//"/Plume X", "Plume X",  "m", Array1D = Matrix1DX,  &
+                            call HDF5WriteData  (Me%ObjHDF5(em), "/Results/"//trim(GroupName)//"/Plume X", &
+                                                "Plume X",  "m", Array1D = Matrix1DX,  &
                                                 OutputNumber = OutPutNumber, STAT = STAT_CALL)
 
                             if (STAT_CALL /= SUCCESS_) stop 'ParticleOutput - ModuleLagrangianGlobal - ERR870'
 
-                            call HDF5WriteData  (Me%ObjHDF5(em), "/Results/Group_"//trim(adjustl(AuxChar)) &
-                                                //"/Data_1D/"//"/Plume Y", "Plume Y",  "m", Array1D = Matrix1DY,  &
+                            call HDF5WriteData  (Me%ObjHDF5(em), "/Results/"//trim(GroupName)//"/Plume Y", &
+                                                "Plume Y",  "m", Array1D = Matrix1DY,   &
                                                 OutputNumber = OutPutNumber, STAT = STAT_CALL)
                         
                             if (STAT_CALL /= SUCCESS_) stop 'ParticleOutput - ModuleLagrangianGlobal - ERR880'
@@ -15616,14 +15833,14 @@ thick:                      do while (associated(CurrentOrigin))
                             enddo iplume4
 
 
-                            call HDF5WriteData  (Me%ObjHDF5(em), "/Results/Group_"//trim(adjustl(AuxChar)) &
-                                                //"/Data_1D/"//"/Plume Z", "Plume Z",  "m", Array1D = Matrix1DX,  &
+                            call HDF5WriteData  (Me%ObjHDF5(em), "/Results/"//trim(GroupName)//"/Plume Z", &
+                                                "Plume Z",  "m", Array1D = Matrix1DX,  &
                                                 OutputNumber = OutPutNumber, STAT = STAT_CALL)
                             if (STAT_CALL /= SUCCESS_) stop 'ParticleOutput - ModuleLagrangianGlobal - ERR910'
 
-                            call HDF5WriteData  (Me%ObjHDF5(em), "/Results/Group_"//trim(adjustl(AuxChar)) &
-                                                //"/Data_1D/"//"/Plume Conc", "Plume Conc",  "a",                 &
-                                                Array1D = Matrix1DY, OutputNumber = OutPutNumber, STAT = STAT_CALL)
+                            call HDF5WriteData  (Me%ObjHDF5(em), "/Results/"//trim(GroupName)//"/Plume Conc", &
+                                                "Plume Conc",  "a", Array1D = Matrix1DY, &
+                                                OutputNumber = OutPutNumber, STAT = STAT_CALL)
                             if (STAT_CALL /= SUCCESS_) stop 'ParticleOutput - ModuleLagrangianGlobal - ERR960'
 
 
@@ -15720,7 +15937,7 @@ CurrOr:     do while (associated(CurrentOrigin))
             Matrix1DX(1)  =  CurrentOrigin%Position%CoordX
             Matrix1DY(1)  =  CurrentOrigin%Position%CoordY
 
-            if (CurrentOrigin%AveragePositionON) then
+            if (Me%AveragePositionON) then
                 AverageX = CurrentOrigin%Position%CoordX
                 AverageY = CurrentOrigin%Position%CoordY
                 RadiusOfInfluence = 0.
@@ -15750,12 +15967,12 @@ CurrOr:     do while (associated(CurrentOrigin))
             if (STAT_CALL /= SUCCESS_) stop 'DummyParticleStartDate - ModuleLagrangianGlobal - ERR60'
 
             if (Me%OutPut%OriginEnvelope) then
-                call WriteOriginEnvelope(CurrentOrigin, Matrix1DX, Matrix1DY,           &
+                call WriteOriginEnvelope(CurrentOrigin%Name, Matrix1DX, Matrix1DY,      &
                                           "Longitude", "Latitude", "�", Me%OutPut%NextOutPut, em)  
             endif
 
 
-            if (CurrentOrigin%AveragePositionON) then
+            if (Me%AveragePositionON) then
             
                 call HDF5SetLimits  (Me%ObjHDF5(em), 1, 1, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'DummyParticleStartDate - ModuleLagrangianGlobal - ERR70'
@@ -15870,7 +16087,7 @@ CurrOr:     do while (associated(CurrentOrigin))
 
                 if (nP > 0) then
 
-                    if (CurrentOrigin%AveragePositionON) then
+                    if (Me%AveragePositionON) then
                         AverageX = sum(Matrix1DX(1:nP)) / real(nP)
                         AverageY = sum(Matrix1DY(1:nP)) / real(nP)
 
@@ -15881,7 +16098,7 @@ CurrOr:     do while (associated(CurrentOrigin))
                                                (Matrix1DY(n) - AverageY)**2.) / (real(nP) - 1)
                     
                             enddo
-                            RadiusOfInfluence = CurrentOrigin%CoefRadius * sqrt(Stdv)
+                            RadiusOfInfluence = Me%CoefRadius * sqrt(Stdv)
                         else
                             RadiusOfInfluence = 0.
                         endif
@@ -15912,11 +16129,11 @@ CurrOr:     do while (associated(CurrentOrigin))
                     if (STAT_CALL /= SUCCESS_) stop 'WriteRunOnline - ModuleLagrangianGlobal - ERR60'
 
                     if (Me%OutPut%OriginEnvelope) then
-                        call WriteOriginEnvelope(CurrentOrigin, Matrix1DX, Matrix1DY, &
+                        call WriteOriginEnvelope(CurrentOrigin%Name, Matrix1DX, Matrix1DY, &
                                                   "Longitude", "Latitude", "�", Me%OutPut%NextOutPut, em)  
                     endif
                     
-                    if (CurrentOrigin%AveragePositionON) then
+                    if (Me%AveragePositionON) then
                     
                         allocate   (MX1D(1))
                         allocate   (MY1D(1))                                
@@ -15944,7 +16161,7 @@ CurrOr:     do while (associated(CurrentOrigin))
                         deallocate   (MX1D)
                         deallocate   (MY1D)
 
-                    endif                            
+                    endif
                     
 
         
@@ -15995,11 +16212,11 @@ CurrOr:     do while (associated(CurrentOrigin))
 
     !--------------------------------------------------------------------------
 
-    subroutine WriteOriginEnvelope(CurrentOrigin, Matrix1DX, Matrix1DY,                &
+    subroutine WriteOriginEnvelope(OriginName, Matrix1DX, Matrix1DY,                    &
                                     StringX, StringY, Units, OutputNumber, em)
 
         !Arguments------------------------------------------------------------
-        type (T_Origin), pointer            :: CurrentOrigin
+        character(Len=*)                    :: OriginName
         real(8),   dimension(:), pointer    :: Matrix1DX, Matrix1DY
         character(Len=*)                    :: StringX, StringY, Units
         integer                             :: OutputNumber, em
@@ -16102,13 +16319,13 @@ CurrOr:     do while (associated(CurrentOrigin))
 
 
         !HDF 5
-        call HDF5WriteData  (Me%ObjHDF5(em), "/Results/"//trim(CurrentOrigin%Name)//"/"//trim(StringXaux), &
+        call HDF5WriteData  (Me%ObjHDF5(em), "/Results/"//trim(OriginName)//"/"//trim(StringXaux), &
                             trim(StringXaux),  trim(Units), Array1D = Envelope1DX,                     &
                              OutputNumber = OutPutNumber, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'WriteOriginEnvelope - ModuleLagrangianGlobal - ERR50'
 
         !HDF 5
-        call HDF5WriteData  (Me%ObjHDF5(em), "/Results/"//trim(CurrentOrigin%Name)//"/"//trim(StringYaux), &
+        call HDF5WriteData  (Me%ObjHDF5(em), "/Results/"//trim(OriginName)//"/"//trim(StringYaux), &
                             trim(StringYaux),  trim(Units), Array1D = Envelope1DY,                     &
                              OutputNumber = OutPutNumber, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'WriteOriginEnvelope - ModuleLagrangianGlobal - ERR60'
