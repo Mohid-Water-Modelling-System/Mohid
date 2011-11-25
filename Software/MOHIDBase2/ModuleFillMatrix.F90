@@ -3270,10 +3270,14 @@ i4:         if(Me%Dim == Dim2D)then
             (Jmax /= JUB - JLB + 1) .or.                                                &
             (Kmax /= KUB - KLB + 1)) then
             
-            write (*,*) trim(Me%HDF%VGroupPath)
-            write (*,*) trim(Me%HDF%FieldName)
-            write (*,*) 'miss match between the HDF5 input file and model domain'
-            stop 'ReadHDF5Values3D - ModuleFillMatrix - ERR20'                                   
+            if (.not.(Kmax == 0 .and. KUB-KLB == 0)) then
+            
+                write (*,*) trim(Me%HDF%VGroupPath)
+                write (*,*) trim(Me%HDF%FieldName)
+                write (*,*) 'miss match between the HDF5 input file and model domain'
+                stop 'ReadHDF5Values3D - ModuleFillMatrix - ERR20'                                   
+            
+            endif
 
         endif
       
