@@ -3698,6 +3698,7 @@ cd2:       if (Me%State%FirstStepAP) then
         real            :: Delta
         real            :: Density15
         real            :: Density
+        real(8)         :: Aux
         !tentar alterar as próximas constantes para variáveis
         real, parameter :: ConstantWaterDensity     = 1027.0
         real, parameter :: ConstantWaterTemperature = 18.0
@@ -3731,9 +3732,11 @@ cd2:       if (Me%State%FirstStepAP) then
         Delta     = (ConstantWaterDensity - Density) / ConstantWaterDensity
 
         
-        F_FayArea = Pi * (CFay_2**4/(CFay_1 * CFay_1)) * (1./4.) *                                  &
+        Aux       = Pi * (CFay_2**4/(CFay_1 * CFay_1)) * (1./4.) *                                  &
                    (VolInic**5 * Gravity * Delta /                                                  &
                     (WaterCinematicVisc * WaterCinematicVisc))**(1./6.)
+                    
+        F_FayArea = real(Aux)
 
         !------------------------------------------------------------------------
 
