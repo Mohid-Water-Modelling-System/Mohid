@@ -187,12 +187,14 @@ Module ModuleInterfaceWaterAir
          type (T_Time), pointer, dimension(:)       :: OutTime
          integer                                    :: NextOutPut
          logical                                    :: Yes                  =.false.
+         integer                                    :: Number
     end type T_OutPut
     
     private :: T_Ext_Global
     type       T_Ext_Global
         type(T_Time)                                :: Now
         real,    pointer, dimension(:,:)            :: GridCellArea
+        logical                                     :: Backtracking         = .false.                        
     end type T_Ext_Global
 
 
@@ -674,39 +676,45 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         Me%ActualTime = Me%BeginTime
 
 
-        !Altitude in km
-        call GetData(Me%Altitude,                                           &
-                     Me%ObjEnterData, iflag,                                &
-                     Keyword      ='ALTITUDE',                              &
-                     SearchType   = FromFile,                               &
-                     ClientModule = 'ModuleInterfaceWaterAir',              &
-                     Default      = 0.0,                                    &
-                     STAT         = STAT_CALL)            
-        if (STAT_CALL  /= SUCCESS_)                                         &
+        ! Check if the simulation goes backward in time or forward in time (default mode)
+        call GetBackTracking(Me%ObjTime, Me%ExternalVar%BackTracking, STAT = STAT_CALL)                    
+        if (STAT_CALL /= SUCCESS_)                                                      &
             stop 'ConstructGlobalVariables - ModuleInterfaceWaterAir - ERR40'
+        
+
+        !Altitude in km
+        call GetData(Me%Altitude,                                                       &
+                     Me%ObjEnterData, iflag,                                            &
+                     Keyword      ='ALTITUDE',                                          &
+                     SearchType   = FromFile,                                           &
+                     ClientModule = 'ModuleInterfaceWaterAir',                          &
+                     Default      = 0.0,                                                &
+                     STAT         = STAT_CALL)            
+        if (STAT_CALL  /= SUCCESS_)                                                     &
+            stop 'ConstructGlobalVariables - ModuleInterfaceWaterAir - ERR50'
 
         !Mortimer's altitude correction
         Me%AltitudeCorrection = (1. - (Me%Altitude/1000.)/44.3)**5.25
 
-        call GetData(Me%AerationEquation,                                   &
-                     Me%ObjEnterData, iflag,                                &
-                     Keyword      ='AERATION_METHOD',                       &
-                     SearchType   = FromFile,                               &
-                     ClientModule = 'ModuleInterfaceWaterAir',              &
-                     Default      = Gelda_et_al_1996,                       &
+        call GetData(Me%AerationEquation,                                               &
+                     Me%ObjEnterData, iflag,                                            &
+                     Keyword      ='AERATION_METHOD',                                   &
+                     SearchType   = FromFile,                                           &
+                     ClientModule = 'ModuleInterfaceWaterAir',                          &
+                     Default      = Gelda_et_al_1996,                                   &
                      STAT         = STAT_CALL)            
-        if (STAT_CALL  /= SUCCESS_)                                         &
-            stop 'ConstructGlobalVariables - ModuleInterfaceWaterAir - ERR50'
-        
-        call GetData(Me%CO2AerationEquation,                                &
-                     Me%ObjEnterData, iflag,                                &
-                     Keyword      ='CO2_AERATION_METHOD',                   &
-                     SearchType   = FromFile,                               &
-                     ClientModule = 'ModuleInterfaceWaterAir',              &
-                     Default      = Borges_et_al_2004,                      &
-                     STAT         = STAT_CALL)            
-        if (STAT_CALL  /= SUCCESS_)                                         &
+        if (STAT_CALL  /= SUCCESS_)                                                     &
             stop 'ConstructGlobalVariables - ModuleInterfaceWaterAir - ERR60'
+        
+        call GetData(Me%CO2AerationEquation,                                            &
+                     Me%ObjEnterData, iflag,                                            &
+                     Keyword      ='CO2_AERATION_METHOD',                               &
+                     SearchType   = FromFile,                                           &
+                     ClientModule = 'ModuleInterfaceWaterAir',                          &
+                     Default      = Borges_et_al_2004,                                  &
+                     STAT         = STAT_CALL)            
+        if (STAT_CALL  /= SUCCESS_)                                                     &
+            stop 'ConstructGlobalVariables - ModuleInterfaceWaterAir - ERR70'
         
 
     end subroutine ConstructGlobalVariables
@@ -1350,16 +1358,17 @@ cd2 :           if (BlockFound) then
 
         if(OutputON)then
 
-            call GetOutPutTime(Me%ObjEnterData,                              &
-                               CurrentTime = Me%ExternalVar%Now,             &
-                               EndTime     = Me%EndTime,                     &
-                               keyword     = 'OUTPUT_TIME',                  &
-                               SearchType  = FromFile,                       &
-                               OutPutsTime = Me%OutPut%OutTime,              &
-                               OutPutsOn   = Me%OutPut%Yes,                  &
-                               STAT        = STAT_CALL)
-
-            if (STAT_CALL /= SUCCESS_)                                                          &
+            call GetOutPutTime(Me%ObjEnterData,                                         &
+                               CurrentTime      = Me%ExternalVar%Now,                   &
+                               EndTime          = Me%EndTime,                           &
+                               keyword          = 'OUTPUT_TIME',                        &
+                               SearchType       = FromFile,                             &
+                               OutPutsTime      = Me%OutPut%OutTime,                    &
+                               OutPutsOn        = Me%OutPut%Yes,                        &
+                               OutPutsNumber    = Me%OutPut%Number,                     &                               
+                               STAT             = STAT_CALL)
+                                                
+            if (STAT_CALL /= SUCCESS_)                                                  &
                 stop 'ConstructGlobalOutput - ModuleInterfaceWaterAir - ERR01' 
 
             if (Me%OutPut%Yes) then
@@ -4087,6 +4096,8 @@ do2:    do i=ILB, IUB
         real,    dimension(:    ), pointer :: TimePtr
         integer                            :: WorkILB, WorkIUB, WorkJLB, WorkJUB
         integer                            :: WorkKLB, WorkKUB
+        real(8)                            :: TotalTime, AuxPeriod
+        type (T_Time)                      :: Aux
 
         !----------------------------------------------------------------------
 
@@ -4102,6 +4113,23 @@ do2:    do i=ILB, IUB
 
 
 TOut:   if (Me%ExternalVar%Now >= Me%OutPut%OutTime(OutPutNumber)) then
+
+
+                if (Me%ExternalVar%BackTracking) then
+                    OutPutNumber = Me%OutPut%Number - OutPutNumber + 1 
+                endif 
+                
+                
+                if (Me%ExternalVar%BackTracking) then  
+                    TotalTime = Me%EndTime - Me%BeginTime                  
+                    AuxPeriod = Me%ExternalVar%Now     - Me%BeginTime
+                    AuxPeriod = TotalTime  - AuxPeriod
+                    
+                    Aux = Me%BeginTime + AuxPeriod
+                else
+                    Aux = Me%ExternalVar%Now
+                endif   
+                
 
                 call ExtractDate(Me%ExternalVar%Now,                         &
                                  Year = Year, Month  = Month,  Day    = Day, &
