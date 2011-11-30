@@ -45,6 +45,7 @@ Module ModuleTime
     public  :: GetComputeTimeLimits
     public  :: GetVariableDT
     public  :: GetGmtReference
+    public  :: GetBackTracking
     
     !Modifier
     public  :: ActualizeCurrentTime
@@ -128,6 +129,7 @@ Module ModuleTime
         logical                         :: VariableDT
         real                            :: GmtReference         !Time zone from GMT. Ex: Lisbon :: GMT +0; 
                                                                 !Madrid :: GMT +1; NYC :: GMT -5
+        logical                         :: Backtracking                                                                
         type(T_ComputeTime), pointer    :: Next
     end type T_ComputeTime
 
@@ -212,7 +214,7 @@ Module ModuleTime
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
     subroutine StartComputeTime(TimeID, InitialSystemTime, BeginTime, EndTime,                              &
-                                DT, VariableDT, MaxDT, GmtReference, STAT)
+                                DT, VariableDT, MaxDT, GmtReference, BackTracking, STAT)
                       
         !Arguments-------------------------------------------------------------
         integer                                     :: TimeID
@@ -222,6 +224,7 @@ Module ModuleTime
         logical,       intent(IN)                   :: VariableDT
         real,    optional, intent(IN)               :: MaxDT
         real,    optional, intent(IN)               :: GmtReference  
+        logical, optional, intent(IN)               :: BackTracking
         integer, optional, intent(OUT)              :: STAT  
 
         !Local-----------------------------------------------------------------
@@ -255,6 +258,12 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 Me%MaxDT           = MaxDT
             else
                 Me%MaxDT           = null_real
+            endif
+
+            if (present(BackTracking)) then
+                Me%BackTracking    = BackTracking
+            else
+                Me%BackTracking    = .false.
             endif
 
             if (present(GmtReference)) then
@@ -564,6 +573,45 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
         !----------------------------------------------------------------------
 
     end subroutine GetGmtReference
+
+    !--------------------------------------------------------------------------
+
+    !--------------------------------------------------------------------------
+
+    subroutine GetBacktracking(TimeID, Backtracking, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                                     :: TimeID
+        logical,        intent(OUT)                 :: Backtracking
+        integer, optional, intent(OUT)              :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: ready_        
+        integer                                     :: STAT_
+
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(TimeID, ready_) 
+        
+cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            Backtracking = Me%Backtracking
+
+            STAT_ = SUCCESS_
+        else 
+            STAT_ = ready_
+        end if cd1
+
+
+        if (present(STAT))                                                    &
+            STAT = STAT_
+
+        !----------------------------------------------------------------------
+
+    end subroutine GetBacktracking
 
     !--------------------------------------------------------------------------
 
