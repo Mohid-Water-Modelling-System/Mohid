@@ -133,6 +133,7 @@ Module ModuleWaves
         real                                                :: GridAngle
         logical                                             :: DistortionOn         = .false.
         real                                                :: CurrentValue4D       = FillValueReal
+        logical                                             :: Backtracking
     end type   T_External                               
                                                         
     type       T_OutPut                                 
@@ -140,6 +141,7 @@ Module ModuleWaves
          integer                                            :: NextOutPut
          logical                                            :: TimeSerie            = .false.
          logical                                            :: HDF                  = .false.
+         integer                                            :: Number
     end type T_OutPut                                   
                                                         
     type T_WaveProperty                                 
@@ -358,17 +360,21 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                    Size        = Me%Size,                               &
                                    WorkSize    = Me%WorkSize,                           &
                                    STAT        = STAT_CALL)
-        if(STAT_CALL .ne. SUCCESS_) stop 'ConstructGlobalVariables - ModuleWaves - ERR01'
+        if(STAT_CALL .ne. SUCCESS_) stop 'ConstructGlobalVariables - ModuleWaves - ERR10'
 
         !Gets time
         call GetComputeTimeLimits(Me%ObjTime,                                           &
                                   BeginTime = Me%BeginTime,                             &
                                   EndTime   = Me%EndTime,                               &
                                   STAT      = STAT_CALL)
-        if(STAT_CALL .ne. SUCCESS_) stop 'ConstructGlobalVariables - ModuleWaves - ERR10'
+        if(STAT_CALL .ne. SUCCESS_) stop 'ConstructGlobalVariables - ModuleWaves - ERR20'
 
         !Actualize the time
         Me%ActualTime = Me%BeginTime  
+        
+        ! Check if the simulation goes backward in time or forward in time (default mode)
+        call GetBackTracking(Me%ObjTime, Me%ExternalVar%BackTracking, STAT = STAT_CALL)                    
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleAtmosphere - ERR20'        
         
 
     end subroutine ConstructGlobalVariables
@@ -784,13 +790,14 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         if(OutputON)then
 
             call GetOutPutTime(Me%ObjEnterData,                                         &
-                               CurrentTime = Me%ActualTime,                             &
-                               EndTime     = Me%EndTime,                                &
-                               keyword     = 'OUTPUT_TIME',                             &
-                               SearchType  = FromFile,                                  &
-                               OutPutsTime = Me%OutPut%OutTime,                         &
-                               OutPutsOn   = Me%OutPut%HDF,                             &
-                               STAT        = STAT_CALL)                           
+                               CurrentTime     = Me%ActualTime,                         &
+                               EndTime         = Me%EndTime,                            &
+                               keyword         = 'OUTPUT_TIME',                         &
+                               SearchType      = FromFile,                              &
+                               OutPutsTime     = Me%OutPut%OutTime,                     &
+                               OutPutsOn       = Me%OutPut%HDF,                         &
+                               OutPutsNumber   = Me%OutPut%Number,                      &
+                               STAT            = STAT_CALL)                           
                                                                                   
             if (STAT_CALL /= SUCCESS_)                                                  &
                 stop 'ConstructGlobalOutput - ModuleWaves - ERR01'              
@@ -2095,7 +2102,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 if (Me%ExternalVar%WaterPoints2D(i, j) == WaterPoint) then
 
 
-cd2:                if (Me%WaveHeight%Field(i,j) .lt. 0.1 .or. Me%ExternalVar%WaterColumn(i,j) .lt. 0.1)then 
+cd2:                if (Me%WaveHeight%Field(i,j) .lt. 0.1 .or. Me%ExternalVar%WaterColumn(i,j) .lt. 0.1 .or. Me%WavePeriod%Field(i,j) < 1e-3)then 
 
                        Me%Ubw(i, j)              = 0.001
                        Me%Abw(i, j)              = 0.001
@@ -2524,6 +2531,8 @@ cd2:                if (Me%WaveHeight%Field(i,j) .lt. 0.1 .or. Me%ExternalVar%Wa
         real,    dimension(6    ), target  :: AuxTime
         real,    dimension(:    ), pointer :: TimePtr
         integer                            :: WorkILB, WorkIUB, WorkJLB, WorkJUB
+        real(8)                            :: AuxPeriod, TotalTime
+        type(T_Time)                       :: Aux
  
         !----------------------------------------------------------------------
         
@@ -2542,9 +2551,24 @@ TOut:   if (Me%ActualTime >= Me%OutPut%OutTime(OutPutNumber)) then
                                   STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'OutPut_Results_HDF - ModuleWaves - ERR01'
 
+            if (Me%ExternalVar%BackTracking) then
+                OutPutNumber = Me%OutPut%Number - OutPutNumber + 1 
+            endif 
+            
+            
+            if (Me%ExternalVar%BackTracking) then  
+                TotalTime = Me%EndTime      - Me%BeginTime                  
+                AuxPeriod = Me%ActualTime   - Me%BeginTime
+                AuxPeriod = TotalTime       - AuxPeriod
+                
+                Aux = Me%BeginTime + AuxPeriod
+            else
+                Aux = Me%ActualTime
+            endif
 
-            call ExtractDate(Me%ActualTime,                         &
-                             Year = Year, Month  = Month,  Day    = Day, &
+
+            call ExtractDate(Aux,                                                       &
+                             Year = Year, Month  = Month,  Day    = Day,                &
                              Hour = Hour, Minute = Minute, Second = Second)
 
             TimeAux(1) = int(Year  )
@@ -2650,7 +2674,7 @@ TOut:   if (Me%ActualTime >= Me%OutPut%OutTime(OutPutNumber)) then
                 stop 'OutPut_Results_HDF - ModuleWaves - ERR100'
 
 
-            Me%OutPut%NextOutPut = OutPutNumber + 1
+            Me%OutPut%NextOutPut = Me%OutPut%NextOutPut + 1
 
             !UnGets OpenPoints2D
             call UnGetHorizontalMap(Me%ObjHorizontalMap, Me%ExternalVar%OpenPoints2D,   &
