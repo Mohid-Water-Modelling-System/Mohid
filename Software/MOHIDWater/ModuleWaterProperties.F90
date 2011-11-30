@@ -664,6 +664,8 @@ Module ModuleWaterProperties
          type (T_Time), pointer, dimension(:)   :: OutTime
          type (T_Time), pointer, dimension(:)   :: RestartOutTime
          type (T_Time), pointer, dimension(:)   :: SurfaceOutTime
+         integer                                :: TotalOutputs
+         integer                                :: TotalSurfaceOutputs         
          integer                                :: NextOutPut
          integer                                :: NextRestartOutput
          integer                                :: NextSurfaceOutput
@@ -890,6 +892,7 @@ Module ModuleWaterProperties
         real,    pointer, dimension(:,:  )      :: SPMDepositionFlux
         logical                                 :: Vertical1D           = .false.
         logical                                 :: XZFlow               = .false.
+        logical                                 :: Backtracking         = .false.        
     end type T_External
 
     type       T_ExtSurface
@@ -1436,19 +1439,24 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                              WorkSize = Me%WorkSize,        &
                              STAT = STAT_CALL)              
         if (STAT_CALL /= SUCCESS_)                          &
-            stop 'Construct_GlobalVariables - ModuleWaterProperties - ERR01'
+            stop 'Construct_GlobalVariables - ModuleWaterProperties - ERR10'
 
         call GetComputeTimeLimits(Me%ObjTime,               &
                                   EndTime   = Me%EndTime,   &
                                   BeginTime = Me%BeginTime, &
                                   STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                          &
-            stop 'Construct_GlobalVariables - ModuleWaterProperties - ERR02'
+            stop 'Construct_GlobalVariables - ModuleWaterProperties - ERR20'
 
         !Actualize the time
         call GetComputeCurrentTime(Me%ObjTime, Me%ExternalVar%Now, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                          &
-            stop 'Construct_GlobalVariables - ModuleWaterProperties - ERR03'
+            stop 'Construct_GlobalVariables - ModuleWaterProperties - ERR30'
+
+        ! Check if the simulation goes backward in time or forward in time (default mode)
+        call GetBackTracking(Me%ObjTime, Me%ExternalVar%BackTracking, STAT = STAT_CALL)                    
+        if (STAT_CALL /= SUCCESS_)                          &
+            stop 'Construct_GlobalVariables - ModuleWaterProperties - ERR40'
 
 
         ! read the name of the files need to construct and modify
@@ -1458,11 +1466,11 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         call GetVertical1D (Me%ObjHydrodynamic, Vertical1D = Me%ExternalVar%Vertical1D, STAT= STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                          &
-            stop 'Construct_GlobalVariables - ModuleWaterProperties - ERR04'
+            stop 'Construct_GlobalVariables - ModuleWaterProperties - ERR50'
 
         call GetXZFlow (Me%ObjHydrodynamic, XZFlow = Me%ExternalVar%XZFlow, STAT= STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                          &
-            stop 'Construct_GlobalVariables - ModuleWaterProperties - ERR05'
+            stop 'Construct_GlobalVariables - ModuleWaterProperties - ERR60'
 
 
     end subroutine Construct_GlobalVariables
@@ -1845,17 +1853,7 @@ cd2 :           if (BlockFound) then
             
             PropertyX=>PropertyX%Next
         enddo
-            
-            
-            if (Me%ObjLightExtinction /= 0) then
-            ! if light extinction is calculated, output in the time series also 
-            ! 1. the average short wave radiation
-            ! 2. the short wave radiation at the top of the cell
-            ! 3. the shortwave radiation extinction coefficient
-            ! for this, add 2 more properties to be output:
-            nProperties = nProperties + 3
-            
-            endif
+
 
 
         if (nProperties > 0) then
@@ -1883,23 +1881,6 @@ cd2 :           if (BlockFound) then
                 endif
                 PropertyX=>PropertyX%Next
             enddo
-   
-   
-            if (Me%ObjLightExtinction /= 0) then
-            ! if light extinction is calculated, output in the time series also 
-            ! 1. the average short wave radiation
-            ! 2. the short wave radiation at the top of the cell
-            ! 3. the shortwave radiation extinction coefficient
-            ! they are added separately because they are not water properties
-            nProperties = nProperties + 1
-            PropertyList(nProperties) = "average short wave radiation"
-            
-            nProperties = nProperties + 1
-            PropertyList(nProperties) = "top cell short wave radiation"
-            
-            nProperties = nProperties + 1
-            PropertyList(nProperties) = "short wave extinction coefficient"
-            endif
 
 
             call GetData(TimeSerieLocationFile,                                         &
@@ -7777,13 +7758,14 @@ cd2 :       if (BlockFound) then
         if(OutputON)then
 
             call GetOutPutTime(Me%ObjEnterData,                                         &
-                               CurrentTime = Me%ExternalVar%Now,                        &
-                               EndTime     = Me%EndTime,                                &
-                               keyword     = 'OUTPUT_TIME',                             &
-                               SearchType  = FromFile,                                  &
-                               OutPutsTime = Me%OutPut%OutTime,                         &
-                               OutPutsOn   = Me%OutPut%Yes,                             &
-                               STAT        = STAT_CALL)
+                               CurrentTime      = Me%ExternalVar%Now,                   &
+                               EndTime          = Me%EndTime,                           &
+                               keyword          = 'OUTPUT_TIME',                        &
+                               SearchType       = FromFile,                             &
+                               OutPutsTime      = Me%OutPut%OutTime,                    &
+                               OutPutsOn        = Me%OutPut%Yes,                        &
+                               OutPutsNumber    = Me%OutPut%TotalOutputs,               &
+                               STAT             = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                                  &
                 stop 'ConstructGlobalOutput - WaterProperties - ERR01' 
 
@@ -7856,13 +7838,14 @@ cd2 :       if (BlockFound) then
         if(SurfaceOutputON)then
         
             call GetOutPutTime(Me%ObjEnterData,                                         &
-                               CurrentTime = Me%ExternalVar%Now,                        &
-                               EndTime     = Me%EndTime,                                &
-                               keyword     = 'SURFACE_OUTPUT_TIME',                     &
-                               SearchType  = FromFile,                                  &
-                               OutPutsTime = Me%OutPut%SurfaceOutTime,                  &
-                               OutPutsOn   = Me%OutPut%SurfaceOutputs,                  &
-                               STAT        = STAT_CALL)
+                               CurrentTime   = Me%ExternalVar%Now,                      &
+                               EndTime       = Me%EndTime,                              &
+                               keyword       = 'SURFACE_OUTPUT_TIME',                   &
+                               SearchType    = FromFile,                                &
+                               OutPutsTime   = Me%OutPut%SurfaceOutTime,                &
+                               OutPutsOn     = Me%OutPut%SurfaceOutputs,                &
+                               OutPutsNumber = Me%OutPut%TotalSurfaceOutputs,           &
+                               STAT          = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                                  &
                 stop 'ConstructGlobalOutput - WaterProperties - ERR04' 
 
@@ -14792,14 +14775,14 @@ do9:                do k=kbottom, KUB
         type (T_Property), pointer         :: PropertyX
         logical                            :: FirstTime
         integer                            :: OutPutNumber, ObjHDF5
-        type (T_Time)                      :: Actual, OutTime
-        integer, dimension (6)             :: TimeAux
+        type (T_Time)                      :: Actual, OutTime, Aux
         real,    dimension(6    ), target  :: AuxTime
         real,    dimension(:    ), pointer :: TimePtr
         integer                            :: WorkILB, WorkIUB, WorkJLB, WorkJUB
         integer                            :: WorkKLB, WorkKUB
         logical                            :: SimpleOutPut
         character(len=StringLength)        :: AuxGroup
+        real(8)                            :: AuxPeriod, TotalTime
 
         !----------------------------------------------------------------------
 
@@ -14850,7 +14833,11 @@ do9:                do k=kbottom, KUB
             !Current output
             OutPutNumber = Me%OutPut%NextOutPut
             OutTime      = Me%OutPut%OutTime(OutPutNumber)
-
+            
+            if (Me%ExternalVar%BackTracking) then
+                OutPutNumber = Me%OutPut%TotalOutputs - OutPutNumber + 1 
+            endif 
+            
         endif
         
 
@@ -14864,21 +14851,22 @@ TOut:   if (Actual >= OutTime) then
 PropX:      do while (associated(PropertyX))
 
                 if(PropertyX%OutputHDF)then
- 
-                    call ExtractDate(Actual, Year = Year, Month  = Month,  Day    = Day, &
-                                             Hour = Hour, Minute = Minute, Second = Second)
-
-                    TimeAux(1) = int(Year  )
-                    TimeAux(2) = int(Month )
-                    TimeAux(3) = int(Day   )
-                    TimeAux(4) = int(Hour  )
-                    TimeAux(5) = int(Minute)
-                    TimeAux(6) = int(Second)
-
+                
 First:              if (FirstTime) then 
 
+
+                        if (Me%ExternalVar%BackTracking) then  
+                            TotalTime = Me%EndTime - Me%BeginTime                  
+                            AuxPeriod = Actual     - Me%BeginTime
+                            AuxPeriod = TotalTime  - AuxPeriod
+                            
+                            Aux = Me%BeginTime + AuxPeriod
+                        else
+                            Aux = Actual
+                        endif    
+                    
                         !Writes current time
-                        call ExtractDate   (Actual, AuxTime(1), AuxTime(2), AuxTime(3),  &
+                        call ExtractDate   (Aux, AuxTime(1), AuxTime(2), AuxTime(3),  &
                                             AuxTime(4), AuxTime(5), AuxTime(6))
                         TimePtr => AuxTime
                         call HDF5SetLimits  (ObjHDF5, 1, 6, STAT = STAT_CALL)
@@ -15043,7 +15031,8 @@ sp3:                if (.not. SimpleOutPut) then
         type (T_Property), pointer         :: PropertyX
         logical                            :: FirstTimeSurface
         integer                            :: SurfaceOutPutNumber
-        type (T_Time)                      :: Actual
+        real(8)                            :: TotalTime, AuxPeriod
+        type (T_Time)                      :: Actual, SurfaceOutTime, Aux
         integer, dimension (6)             :: TimeAux
         integer                            :: ILB, IUB, JLB, JUB, KLB, KUB
         real,    dimension(6    ), target  :: AuxTime
@@ -15083,8 +15072,13 @@ sp3:                if (.not. SimpleOutPut) then
 
         !surface outputs
         SurfaceOutPutNumber = Me%OutPut%NextSurfaceOutPut
+        SurfaceOutTime      = Me%OutPut%SurfaceOutTime(SurfaceOutPutNumber)
+        
+        if ( Me%ExternalVar%BackTracking) then
+            SurfaceOutPutNumber = Me%OutPut%TotalSurfaceOutputs - SurfaceOutPutNumber + 1 
+        endif 
 
-AO:     if (Actual >= Me%OutPut%SurfaceOutTime(SurfaceOutPutNumber)) then
+AO:     if (Actual >= SurfaceOutTime) then
 
             FirstTimeSurface = .true.        
 
@@ -15106,9 +15100,19 @@ AO:     if (Actual >= Me%OutPut%SurfaceOutTime(SurfaceOutPutNumber)) then
 
                     if (FirstTimeSurface) then 
 
+                        if (Me%ExternalVar%BackTracking) then  
+                            TotalTime = Me%EndTime - Me%BeginTime                  
+                            AuxPeriod = Actual     - Me%BeginTime
+                            AuxPeriod = TotalTime  - AuxPeriod
+                            
+                            Aux = Me%BeginTime + AuxPeriod
+                        else
+                            Aux = Actual
+                        endif 
+                        
                         !Writes current time
-                        call ExtractDate   (Actual, AuxTime(1), AuxTime(2), AuxTime(3), &
-                                                    AuxTime(4), AuxTime(5), AuxTime(6))
+                        call ExtractDate   (Aux, AuxTime(1), AuxTime(2), AuxTime(3), &
+                                                 AuxTime(4), AuxTime(5), AuxTime(6))
                         TimePtr => AuxTime
 
                         call HDF5SetLimits  (Me%ObjSurfaceHDF5, 1, 6, STAT = STAT_CALL)
@@ -15470,7 +15474,6 @@ i2:     if (Me%OutPut%Radiation) then
         real                                    :: DepthLevel
         integer                                 :: STAT_CALL, TimeSerieNumber, dn, id, jd, kd
         logical                                 :: DepthON, IgnoreOK
-        real,   dimension(:,:,:), pointer       :: ShortWaveExtinctionField
 
         !Begin-----------------------------------------------------------------
 
@@ -15545,44 +15548,6 @@ i2:     if (Me%OutPut%Radiation) then
             PropertyX=>PropertyX%Next
 
         enddo
-        
-         if (Me%ObjLightExtinction /= 0) then
-        
-           
-           ! if the light extinction is activated, write additional outputs
-           
-           ! 1. the average short wave radiation
-
-           
-           call WriteTimeSerie(Me%ObjTimeSerie,                                     &
-                         Data3D = Me%SolarRadiation%ShortWaveAverage, STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_)                                               &
-                        stop 'OutPut_TimeSeries - ModuleWaterProperties - ERR71'
-            
-            
-          ! 2. the short wave radiation at the top of the cell
-          
-          call WriteTimeSerie(Me%ObjTimeSerie,                                     &
-                     Data3D = Me%SolarRadiation%ShortWaveTop, STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_)                                               &
-                        stop 'OutPut_TimeSeries - ModuleWaterProperties - ERR72'   
-                        
-          ! 3. the shortwave radiation extinction coefficient                
-       
-        call GetShortWaveExtinctionField(Me%ObjLightExtinction, ShortWaveExtinctionField, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'OutPut_TimeSeries - ModuleWaterProperties - ERR73'
-        
-          call WriteTimeSerie(Me%ObjTimeSerie,                                     &
-                                        Data3D = ShortWaveExtinctionField, STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_)                                               &
-                        stop 'OutPut_TimeSeries - ModuleWaterProperties - ERR74'
-        
-        
-        call UnGetLightExtinction(Me%ObjLightExtinction, ShortWaveExtinctionField, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'OutPut_TimeSeries - ModuleWaterProperties - ERR75'
-        
-        
-        endif
 
         if (MonitorPerformance) call StopWatch ("ModuleWaterProperties", "OutPut_TimeSeries")
 
