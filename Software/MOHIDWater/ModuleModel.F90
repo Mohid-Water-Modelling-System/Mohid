@@ -243,6 +243,8 @@ Module ModuleModel
 
         type (T_Size2D)                         :: SubModelWindow
         logical                                 :: SubModelWindowON
+        
+        logical                                 :: BackTracking
 
 #ifdef OVERLAP
         type (T_Overlap)                        :: Overlap
@@ -385,7 +387,7 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
 
             !Constructs EnterData
             call ConstructEnterData (ObjEnterData, DataFile, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR14'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR20'
 
 
             !Read the Time related keywords
@@ -406,7 +408,7 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
                                   default       = ReadCommandLine_,                      &
                                   ClientModule  = 'ModuleModel',                         &
                                   STAT          = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR16'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR30'
 
             call ReadStringOnline
 #endif
@@ -418,7 +420,7 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
                                   default       = .false.,                               &
                                   ClientModule  = 'ModuleModel',                         &
                                   STAT          = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR20'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR40'
 
 
             !Use Lagrangian
@@ -428,7 +430,7 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
                                   default       = .false.,                               &
                                   ClientModule  = 'ModuleModel',                         &
                                   STAT          = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR30'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR50'
 
             !Use Waves
             call GetData         (Me%RunWaves, ObjEnterData, flag,                       &
@@ -437,7 +439,7 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
                                   default       = .false.,                               &
                                   ClientModule  = 'ModuleModel',                         &
                                   STAT          = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR40'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR60'
 
 #ifdef _USE_SEQASSIMILATION
             !Use SequentialAssimilation (Ang)
@@ -447,7 +449,7 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
                                   default       = .false.,                               &
                                   ClientModule  = 'ModuleModel',                         &
                                   STAT          = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR40a'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR70'
 #endif _USE_SEQASSIMILATION
 
             call GetData         (Me%NoIsolatedCells, ObjEnterData, flag,                &
@@ -456,23 +458,34 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
                                   default       = .true.,                                &
                                   ClientModule  = 'ModuleModel',                         &
                                   STAT          = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR45'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR80'
+
+
+
+            call GetData         (Me%BackTracking, ObjEnterData, flag,                  &
+                                  SearchType    =  FromFile,                            &
+                                  keyword       = 'BACKTRACKING',                       &
+                                  default       = .false.,                              &
+                                  ClientModule  = 'ModuleModel',                        &
+                                  STAT          = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR90'
+
 
             !Start Module Time
             Me%CurrentTime = Me%BeginTime
             call StartComputeTime(Me%ObjTime, Me%InitialSystemTime, Me%BeginTime, Me%EndTime, Me%DT,     &
-                                  Me%VariableDT, Me%MaxDT, Me%GmtReference, STAT = STAT_CALL)   
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR60'
+                                  Me%VariableDT, Me%MaxDT, Me%GmtReference, Me%BackTracking, STAT = STAT_CALL)   
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR100'
 
             !Gets the file name of the Bathymetry
             call ReadFileName('IN_BATIM', BathymetryFile, "Bathymetry File", STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR70'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR110'
 
             !Horizontal Grid
             call ConstructHorizontalGrid(HorizontalGridID = Me%ObjHorizontalGrid,        &
                                          DataFile         = BathymetryFile,              &
                                          STAT             = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR90'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR120'
           
             allocate(AuxInt4(1:4))
 
@@ -488,7 +501,7 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
                 stop 'ConstructModel - ModuleModel - ERR47'
 
             if (flag > 0) then
-                if (flag /= 4) stop 'ConstructModel - ModuleModel - ERR48'
+                if (flag /= 4) stop 'ConstructModel - ModuleModel - ERR130'
                 Me%SubModelWindow%ILB = AuxInt4(1)
                 Me%SubModelWindow%JLB = AuxInt4(2)
                 Me%SubModelWindow%IUB = AuxInt4(3)
@@ -508,7 +521,7 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
                          keyword       = 'OVERLAP',                                         &
                          ClientModule  = 'ModuleModel',                                     &
                          STAT          = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR49'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR140'
 
             if(Me%Overlap%Yes)then
                 call ConstructOverlap(ObjEnterData)
@@ -547,7 +560,7 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
             !$ endif
 
             call KillEnterData    (ObjEnterData, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR50'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR150'
 
             !Horizontal Grid Data - Water Column (Bathymetry)
             call ConstructGridData      (GridDataID       = Me%Water%ObjBathymetry,      &
@@ -555,7 +568,7 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
                                          TimeID           = Me%ObjTime,                  &
                                          FileName         = BathymetryFile,              &
                                          STAT             = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR100'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR160'
 
             !Horizontal Map
             call ConstructHorizontalMap (HorizontalMapID  = Me%Water%ObjHorizontalMap,   &
@@ -563,7 +576,7 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
                                          HorizontalGridID = Me%ObjHorizontalGrid,        &
                                          ActualTime       = Me%CurrentTime,              &
                                          STAT             = STAT_CALL)  
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR110'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR170'
 
             !Geometry - Water Column
             call ConstructGeometry      (GeometryID       = Me%Water%ObjGeometry,        &
@@ -572,7 +585,7 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
                                          HorizontalMapID  = Me%Water%ObjHorizontalMap,   &
                                          ActualTime       = Me%CurrentTime,              &
                                          STAT             = STAT_CALL)  
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR120'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR180'
 
             !Map - Water Column            
             if (Me%NoIsolatedCells) then
@@ -583,7 +596,7 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
                                              GridDataID       = Me%Water%ObjBathymetry,   &
                                              HorizontalGridID = Me%ObjHorizontalGrid,     &
                                              STAT             = STAT_CALL)  
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR130'
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR190'
             else
 
                 call ConstructMap           (Map_ID           = Me%Water%ObjMap,          &
@@ -592,7 +605,7 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
                                              TimeID           = Me%ObjTime,               &
                                              HorizontalGridID = Me%ObjHorizontalGrid,     &
                                              STAT             = STAT_CALL)  
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR135'
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR200'
 
             endif
             
@@ -608,7 +621,7 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
         ! This will allocate device memory for all Thomas variables (D, E, F, TI, Res)
         ! Do this seperately from ConstructCuda, because later on ModuleCuda might be used for things other than Thomas algorithm
         call InitializeThomas(Me%ObjCuda, GeometrySize, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR138'
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR210'
 #endif _ENABLE_CUDA
 
 #ifndef _WAVES_
@@ -622,7 +635,7 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
                                 GridDataID          = Me%Water%ObjBathymetry,           &
                                 GeometryID          = Me%Water%ObjGeometry,             &
                                 STAT                = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop "Sub. ConstructModel - ModuleModel - ERR140"
+                if (STAT_CALL /= SUCCESS_) stop "Sub. ConstructModel - ModuleModel - ERR220"
 
             end if
 #else
@@ -630,7 +643,7 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
             write(*,*)"<Compilation Options Warning>"
             write(*,*)"This executable was not compiled with the Waves module."
             if (Me%RunWaves) then
-                stop 'ConstructModel - ModuleModel - ERR141'
+                stop 'ConstructModel - ModuleModel - ERR230'
             endif
             write(*,*)"<Compilation Options Warning>"
             write(*,*)
@@ -648,12 +661,12 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
                                          HorizontalMapID  = Me%Water%ObjHorizontalMap,  &
                                          TimeID           = Me%ObjTime,                 &
                                          STAT             = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR150'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR240'
 
             call GetTurbulenceOptions   (TurbulenceID     = Me%ObjTurbulence,            &
                                          NeedsTempSalinity= Me%ExternalVar%NeedsTempSalinity, &
                                          STAT             = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR151'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR250'
 
             !Constructs hydrodynamic
             call StartHydrodynamic      (ModelName        = trim(Me%ModelName),         &  
@@ -672,17 +685,17 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
                                          CudaID           = Me%ObjCuda,                 &
 #endif
                                          STAT             = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR160'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR260'
 
 #ifndef _WAVES_
             !Need the watercolumn thickness that is compute the first time in the StartHydrodynamic
             if(Me%RunWaves)then
                 call GetWavesOptions(Me%ObjWaves, WaveParametersON = WaveParametersON, STAT  = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR170'
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR270'
                 
                 if (WaveParametersON) then
                     call ComputeWaveParameters(Me%ObjWaves, STAT  = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR180'
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR280'
                 endif
             endif
 #endif
@@ -704,7 +717,7 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
                                            CudaID           = Me%ObjCuda,                 &
 #endif _ENABLE_CUDA
                                            STAT             = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop "Sub. ConstructModel - ModuleModel - ERR200"
+            if (STAT_CALL /= SUCCESS_) stop "Sub. ConstructModel - ModuleModel - ERR290"
 
 #ifndef _LAGRANGIAN_
 
@@ -730,7 +743,7 @@ il:         if (Me%RunLagrangian) then
                     call AllocateLagrangianGlobal(LagrangianID = ObjLagrangianGlobal,   &
                                                   STAT         = STAT_CALL)
 
-                    if (STAT_CALL /= SUCCESS_) stop "Sub. ConstructModel - ModuleModel - ERR205"
+                    if (STAT_CALL /= SUCCESS_) stop "Sub. ConstructModel - ModuleModel - ERR300"
                     
                 endif
                 
@@ -745,7 +758,7 @@ il:         if (Me%RunLagrangian) then
                                                    LagInstance  = LagInstance,          &             
                                                    STAT         = STAT_CALL)
 
-                    if (STAT_CALL /= SUCCESS_) stop "Sub. ConstructModel - ModuleModel - ERR210"
+                    if (STAT_CALL /= SUCCESS_) stop "Sub. ConstructModel - ModuleModel - ERR310"
 
                 endif
 
@@ -767,7 +780,7 @@ il:         if (Me%RunLagrangian) then
                                          Me%ObjWaves,                                   &
                                          Me%ObjWaterProperties,                         &
                                          STAT )
-                if (STAT_CALL /= SUCCESS_) stop "Sub. ConstructModel - ModuleModel - ERR212"
+                if (STAT_CALL /= SUCCESS_) stop "Sub. ConstructModel - ModuleModel - ERR320"
 
                 !Removed warning for unused variable
                 ObjLagrangianGlobal =  null_int
@@ -782,7 +795,7 @@ il:         if (Me%RunLagrangian) then
             write(*,*)"<Compilation Options Warning>"
             write(*,*)"This executable was not compiled with the Lagrangian module."
             if (Me%RunLagrangian) then
-                stop 'ConstructModel - ModuleModel - ERR214'
+                stop 'ConstructModel - ModuleModel - ERR330'
             endif
             write(*,*)"<Compilation Options Warning>"
             write(*,*)
@@ -795,18 +808,18 @@ il:         if (Me%RunLagrangian) then
 
                 !Gets the file name of the Bathymetry
                 call ReadFileName('IN_SEDIMENT', SedimentFile, "Sediment File", STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR215'
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR340'
 
                 !Gets the file name of the Bathymetry
                 call ReadFileName('SED_GEOM', SedGeometryFile, "Sediment Geometry File", STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR216'
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR350'
 
                 !Horizontal Grid Data - Sediment Column (Bathymetry)
                 call ConstructGridData      (GridDataID       = Me%Sediment%ObjBathymetry,   &
                                              HorizontalGridID = Me%ObjHorizontalGrid,        &
                                              FileName         = SedimentFile,                &
                                              STAT             = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR220'
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR360'
 
                 !Horizontal Map
                 call ConstructHorizontalMap (HorizontalMapID  = Me%Sediment%ObjHorizontalMap,&
@@ -814,7 +827,7 @@ il:         if (Me%RunLagrangian) then
                                              HorizontalGridID = Me%ObjHorizontalGrid,        &
                                              ActualTime       = Me%CurrentTime,              &
                                              STAT             = STAT_CALL)  
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR230'
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR370'
 
                 !Geometry - Sediment Column
                 call ConstructGeometry      (GeometryID       = Me%Sediment%ObjGeometry,     &
@@ -824,7 +837,7 @@ il:         if (Me%RunLagrangian) then
                                              ActualTime       = Me%CurrentTime,              &
                                              NewDomain        = SedGeometryFile,             &
                                              STAT             = STAT_CALL)  
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR240'
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR380'
 
                 !Map - Sediment Column            
                 call ConstructMap           (Map_ID           = Me%Sediment%ObjMap,          &
@@ -832,7 +845,7 @@ il:         if (Me%RunLagrangian) then
                                              HorizontalMapID  = Me%Sediment%ObjHorizontalMap,&
                                              TimeID           = Me%ObjTime,                  &
                                              STAT             = STAT_CALL)  
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR250'
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR390'
 
 
                 call ConstructConsolidation(ConsolidationID     = Me%ObjConsolidation,          &
@@ -843,7 +856,7 @@ il:         if (Me%RunLagrangian) then
                                             GeometryID          = Me%Sediment%ObjGeometry,      &
                                             MapID               = Me%Sediment%ObjMap,           &
                                             STAT                = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR260'
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR400'
 
 
                 !Constructs SedimentProperties
@@ -856,7 +869,7 @@ il:         if (Me%RunLagrangian) then
                                                   GeometryID            = Me%Sediment%ObjGeometry,      &
                                                   ConsolidationID       = Me%ObjConsolidation,          &
                                                   STAT                  = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR270'
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR410'
 
             endif
 #else
@@ -864,7 +877,7 @@ il:         if (Me%RunLagrangian) then
             write(*,*)"<Compilation Options Warning>"
             write(*,*)"This executable was not compiled with the Sediment modules."
             if(Me%RunSediments)then
-                stop 'ConstructModel - ModuleModel - ERR271'
+                stop 'ConstructModel - ModuleModel - ERR420'
             endif
             write(*,*)"<Compilation Options Warning>"
             write(*,*)
@@ -898,13 +911,13 @@ il:         if (Me%RunLagrangian) then
                                              DischargesID                = Me%ObjDischarges,             &
                                              RunsSediments               = Me%RunSediments,              &
                                              STAT                        = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR280'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR430'
 
 #ifndef _AIR_
 
             !Starts Atmosphere
             call GetWaterPoints2D (Me%Water%ObjHorizontalMap, WaterPoints2D, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR290'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR440'
 
             call StartAtmosphere(ModelName          = trim(Me%ModelName),&
                                  AtmosphereID       = Me%ObjAtmosphere,                 &
@@ -913,10 +926,10 @@ il:         if (Me%RunLagrangian) then
                                  HorizontalGridID   = Me%ObjHorizontalGrid,             &
                                  MappingPoints      = WaterPoints2D,                    &
                                  STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR300'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR450'
 
             call UnGetHorizontalMap (Me%Water%ObjHorizontalMap, WaterPoints2D, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR310'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR460'
 
             call StartInterfaceWaterAir(ModelName                   = trim(Me%ModelName),&
                                         ObjInterfaceWaterAirID      = Me%ObjInterfaceWaterAir,&
@@ -937,7 +950,7 @@ il:         if (Me%RunLagrangian) then
                                         LagrangianID                = Me%ObjLagrangian,       &
 #endif
                                         STAT                        = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - 320'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - 470'
 #else
             write(*,*)
             write(*,*)"<Compilation Options Warning>"
@@ -954,17 +967,17 @@ il:         if (Me%RunLagrangian) then
                 !Check if sequential data assimilation is commanded in modules
                 !Hydrodynamic
                 call GetHydroSeqAssimilation(Me%ObjHydrodynamic, HydroSeqAssim, STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR322'
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR480'
 
                 !WaterProperties
                 call GetWaterSeqAssimilation(Me%ObjWaterProperties, WaterSeqAssim, STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR325'
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR490'
 
                 if (.not. HydroSeqAssim .and. .not. WaterSeqAssim) then
                     write(*,*)
                     write(*,*)"Sequential assimilation commanded in Model input file"
                     write(*,*)"but absent from Hydrodynamic and WaterProperties input files."
-                    stop 'ConstructModel - ModuleModel - ERR327'
+                    stop 'ConstructModel - ModuleModel - ERR500'
                 endif
 
                 call StartSequentialAssimilation(Me%ObjSeqAssimilation,                     &
@@ -976,7 +989,7 @@ il:         if (Me%RunLagrangian) then
                                          GeometryID         = Me%Water%ObjGeometry,         &
                                          MapID              = Me%Water%ObjMap,              &
                                          STAT               = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR330'
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR510'
 
                 !Get essential sequential assimilation variables
                 !(Me%StateCovEvolution .and. Me%StateCovRank)
@@ -984,12 +997,12 @@ il:         if (Me%RunLagrangian) then
                                                 StateCovEvolution = Me%StateCovEvolution,   &
                                                 StateCovRank      = Me%StateCovRank,        &
                                                 STAT             = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR340'
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR520'
 
                 !Actualizes Me%NextSeqAssimilationTime
                 call GetSeqAssimilationTime(Me%ObjSeqAssimilation,                          &
                                             Me%SeqAssimilationTime, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR350'
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR530'
             endif
 #endif _USE_SEQASSIMILATION
 
@@ -1002,7 +1015,7 @@ il:         if (Me%RunLagrangian) then
 
         else 
 
-            stop 'ModuleModel - ConstructModel - ERR99' 
+            stop 'ModuleModel - ConstructModel - ERR540' 
 
         end if if0
 
