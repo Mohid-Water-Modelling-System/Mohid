@@ -786,6 +786,7 @@ Module ModuleLagrangianGlobal
     type       T_OutPut
          type (T_Time), pointer, dimension(:)   :: OutTime, RestartOutTime
          integer                                :: NextOutPut, NextRestartOutPut
+         integer                                :: TotalOutputs
          integer                                :: OutPutConcType = Maximum
          logical                                :: ConcMaxTracer   
          logical                                :: MassTracer            
@@ -1107,6 +1108,8 @@ Module ModuleLagrangianGlobal
         type(T_Time     )                       :: LastConcCompute
 
         real                                    :: RunPeriod
+        
+        logical                                 :: Backtracking         = .false.           
 
     end type T_ExternalVar
 
@@ -1161,9 +1164,8 @@ Module ModuleLagrangianGlobal
         logical                                 :: RunOnlyMov2D         = .false.
         logical                                 :: Overlay
         logical                                 :: FirstIteration       = .true.
-        logical                                 :: ConstructLag         = .true.        
-
-
+        logical                                 :: ConstructLag         = .true. 
+        
         logical                                 :: AveragePositionON    = .false. 
         real                                    :: CoefRadius
 
@@ -1305,7 +1307,7 @@ em0:        do em =1, Nmodels
             !Construct enter data 
             call ConstructEnterData(Me%ObjEnterData, Me%Files%ConstructData, &
                     ErrorMessage = "ConstructLagrangianGlobal - ModuleLagrangianGlobal", STAT = STAT_CALL) 
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructLagrangianGlobal - ModuleLagrangianGlobal - ERR13'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructLagrangianGlobal - ModuleLagrangianGlobal - ERR10'
 
             allocate(IndexMatch(1:Nmodels))
 
@@ -1342,23 +1344,29 @@ em1:        do em =1, Me%EulerModelNumber
                                               BeginTime = Me%ExternalVar%BeginTime,     &
                                               EndTime   = Me%ExternalVar%EndTime,       &
                                               STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'ConstructLagrangianGlobal - ModuleLagrangianGlobal - ERR02'
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructLagrangianGlobal - ModuleLagrangianGlobal - ERR20'
 
                     ! Actualized the time
-                    call GetComputeCurrentTime(Me%ExternalVar%ObjTime,                            &
+                    call GetComputeCurrentTime(Me%ExternalVar%ObjTime,                  &
                                                Me%ExternalVar%Now, STAT = STAT_CALL)                    
-                    if (STAT_CALL /= SUCCESS_) stop 'ConstructLagrangianGlobal - ModuleLagrangianGlobal - ERR03'
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructLagrangianGlobal - ModuleLagrangianGlobal - ERR30'
                     
+                    ! Check if the simulation goes backward in time or forward in time (default mode)
+                    call GetBackTracking(Me%ExternalVar%ObjTime,                        &
+                                         Me%ExternalVar%BackTracking, STAT = STAT_CALL)                    
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructLagrangianGlobal - ModuleLagrangianGlobal - ERR40'
+
+
                     call ConstructOuptusFilesNames                    
                 
                 endif
 
                 !Gets Size
-                call GetGeometrySize(Me%EulerModel(em)%ObjGeometry,                                  &
-                                     Size     = Me%EulerModel(em)%Size,                  &
-                                     WorkSize = Me%EulerModel(em)%WorkSize,              &
+                call GetGeometrySize(Me%EulerModel(em)%ObjGeometry,                     &
+                                     Size     = Me%EulerModel(em)%Size,                 &
+                                     WorkSize = Me%EulerModel(em)%WorkSize,             &
                                      STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructLagrangianGlobal - ModuleLagrangianGlobal - ERR04'
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructLagrangianGlobal - ModuleLagrangianGlobal - ERR50'
 
             enddo em1
 
@@ -1393,7 +1401,7 @@ em2:            do em =1, Me%EulerModelNumber
                                                 Me%EulerModel(em)%ObjMap,                                &
                                                 Me%EulerModel(em)%ObjGeometry,                           &
                                                 STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'ConstructLagrangianGlobal - ModuleLagrangianGlobal - ERR08a'
+                        if (STAT_CALL /= SUCCESS_) stop 'ConstructLagrangianGlobal - ModuleLagrangianGlobal - ERR60'
                     
                         AssimilationID = Me%EulerModel(em)%ObjAssimilation
 
@@ -1438,7 +1446,7 @@ em2:            do em =1, Me%EulerModelNumber
 
             !Kills EnterData
             call KillEnterData(Me%ObjEnterData, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructLagrangianGlobal - ModuleLagrangianGlobal - ERR14'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructLagrangianGlobal - ModuleLagrangianGlobal - ERR70'
 
             !Merges Old with New Origins
             call MergeOldWithNewOrigins
@@ -2265,12 +2273,13 @@ d2:     do em =1, Me%EulerModelNumber
 
 
         call GetOutPutTime(Me%ObjEnterData,                                             &
-                           CurrentTime = Me%ExternalVar%Now,                            &
-                           EndTime     = Me%ExternalVar%EndTime,                        &
-                           keyword     = 'OUTPUT_TIME',                                 &
-                           SearchType  = FromFile,                                      &
-                           OutPutsTime = Me%OutPut%OutTime,                             &
-                           OutPutsOn   = Me%OutPut%Write_,                              &
+                           CurrentTime      = Me%ExternalVar%Now,                       &
+                           EndTime          = Me%ExternalVar%EndTime,                   &
+                           keyword          = 'OUTPUT_TIME',                            &
+                           SearchType       = FromFile,                                 &
+                           OutPutsTime      = Me%OutPut%OutTime,                        &
+                           OutPutsOn        = Me%OutPut%Write_,                         &
+                           OutPutsNumber    = Me%OutPut%TotalOutputs,                   &                           
                            STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructOrigins - ModuleLagrangianGlobal - ERR10'
 
@@ -6828,6 +6837,8 @@ OP:         if ((EulerModel%OpenPoints3D(i, j, k) == OpenPoint) .and. &
         else
             OutPutJet = .false.
         endif
+        
+        
             
         call ModifyJet(JetID          = CurrentOrigin%Movement%ObjJet,                  &
                        Salinity       = Salinity3D,                                     &
@@ -9889,6 +9900,11 @@ MF:             if (CurrentOrigin%Movement%Float) then
                     UWind = CurrentOrigin%Movement%WindTransferCoef * WindX
                         
                     VWind = CurrentOrigin%Movement%WindTransferCoef * WindY
+                    
+                    if (Me%ExternalVar%BackTracking) then
+                        UWind = - UWind
+                        VWind = - VWind
+                    endif                    
 
                     !Plume velocity
                     UPlume = 0.
@@ -9935,6 +9951,12 @@ MF:             if (CurrentOrigin%Movement%Float) then
                                               
                         UStokesDrift        = cos(WaveDirection * (Pi / 180.)) * VelStokesDrift
                         VStokesDrift        = sin(WaveDirection * (Pi / 180.)) * VelStokesDrift
+                        
+                  
+                        if (Me%ExternalVar%BackTracking) then
+                            UStokesDrift = - UStokesDrift
+                            VStokesDrift = - VStokesDrift
+                        endif                            
 
                     end if
 
@@ -9996,7 +10018,12 @@ MF:             if (CurrentOrigin%Movement%Float) then
                                                   WaterDensity,                                 &
                                                   CurrentOrigin%FloatingObject%WaterDragCoef,   &
                                                   VINT)
-                                                 
+
+                   
+                        if (Me%ExternalVar%BackTracking) then
+                            UDrift = - UDrift
+                            VDrift = - VDrift
+                        endif                                                     
                                                  
                     end if
                     
@@ -10101,6 +10128,11 @@ MF:             if (CurrentOrigin%Movement%Float) then
                     end if
 
                 end if MF
+                
+                if (Me%ExternalVar%BackTracking) then
+                    UINT = - UINT
+                    VINT = - VINT
+                endif
 
 
 MT:             if (CurrentOrigin%Movement%MovType == SullivanAllen_) then 
@@ -10602,9 +10634,9 @@ cd2:        if (Me%EulerModel(emp)%BottomStress(i,j) <                          
         Seventh= var_a * var_b * var_c - 100 * var_a * var_b + var_c * var_e * var_f
 
         If (var_d > var_g) then
-                GetDriftVelocity =  (SQRT(First*First-4*Second*Third) + 2*Forth - 200*Fifth + 2*Sixth)/(2*Seventh)
+                GetDriftVelocity =  (SQRT(abs(First*First-4*Second*Third)) + 2*Forth - 200*Fifth + 2*Sixth)/(2*Seventh)
         else
-                GetDriftVelocity =  (-SQRT(First*First-4*Second*Third) + 2*Forth - 200*Fifth + 2*Sixth)/(2*Seventh)
+                GetDriftVelocity =  (-SQRT(abs(First*First-4*Second*Third)) + 2*Forth - 200*Fifth + 2*Sixth)/(2*Seventh)
         end if
 
 
@@ -14287,10 +14319,7 @@ d1:     do em =1, Me%EulerModelNumber
         integer                                     :: nP
         type (T_Partic), pointer                    :: CurrentPartic
         integer                                     :: OutPutNumber
-        type (T_Time)                               :: Actual
-        real                                        :: Year, Month, Day
-        real                                        :: Hour, Minute, Second
-        integer, dimension (6)                      :: TimeAux
+        type (T_Time)                               :: Actual, Aux
         integer                                     :: STAT_CALL
         integer, dimension(:), allocatable          :: TotParticle
         integer                                     :: ParticleBeached
@@ -14309,7 +14338,9 @@ d1:     do em =1, Me%EulerModelNumber
         real, dimension(:),       pointer           :: MaximumDepth
         integer                                     :: OutPutLines, JetTotalParticles, FirstParticle, em, em1, emMax, emp
         type (T_Position)                           :: Position
-        real(8)                                     :: AverageX, AverageY, Stdv, RadiusOfInfluence
+        real(8)                                     :: AverageX, AverageY, Stdv, RadiusOfInfluence,AuxPeriod,TotalTime
+                    
+                    
                            
        
         !Begin--------------------------------------------------------------------------
@@ -14321,6 +14352,10 @@ d1:     do em =1, Me%EulerModelNumber
             Actual       =  Me%Now
 
 TOut:       if (Actual >= Me%OutPut%OutTime(OutPutNumber)) then 
+
+                if (Me%ExternalVar%Backtracking) then
+                    OutPutNumber = Me%OutPut%TotalOutputs - OutPutNumber + 1 
+                endif 
 
                 emMax = Me%EulerModelNumber 
 
@@ -14363,28 +14398,27 @@ d1:             do while (associated(CurrentOrigin))
 i0:             if (Me%RunOnline .and. em == emMax .and. Me%Online%EmissionTemporal == Instantaneous_) then 
 
                     if (nP == 0) then
-                        call DummyParticleStartDate(em)
+                        call DummyParticleStartDate(em, OutPutNumber)
                     else
-                        call WriteRunOnline(em)
+                        call WriteRunOnline(em, OutputNumber)
                     endif 
 
                     cycle
 
                 endif i0
-
-                call ExtractDate(Actual, Year = Year, Month  = Month,  Day    = Day,     &
-                                         Hour = Hour, Minute = Minute, Second = Second)
-
-                TimeAux(1) = int(Year  )
-                TimeAux(2) = int(Month )
-                TimeAux(3) = int(Day   )
-                TimeAux(4) = int(Hour  )
-                TimeAux(5) = int(Minute)
-                TimeAux(6) = int(Second)
-
+                
+                if (Me%ExternalVar%Backtracking) then  
+                    TotalTime = Me%ExternalVar%EndTime - Me%ExternalVar%BeginTime                  
+                    AuxPeriod = Actual     - Me%ExternalVar%BeginTime
+                    AuxPeriod = TotalTime  - AuxPeriod
+                    
+                    Aux = Me%ExternalVar%BeginTime + AuxPeriod
+                else
+                    Aux = Actual
+                endif                 
 
                 !Writes the Instant - HDF 5
-                call ExtractDate   (Actual, AuxTime(1), AuxTime(2), AuxTime(3),          &
+                call ExtractDate   (Aux, AuxTime(1), AuxTime(2), AuxTime(3),          &
                                     AuxTime(4), AuxTime(5), AuxTime(6))
                 TimePtr => AuxTime
                 call HDF5SetLimits  (Me%ObjHDF5(em), 1, 6, STAT = STAT_CALL)
@@ -14418,7 +14452,7 @@ i0:             if (Me%RunOnline .and. em == emMax .and. Me%Online%EmissionTempo
 
                 if (Me%Now > Me%ExternalVar%LastConcCompute .and. em == 1) call FillGridConcentration
 
-                call WriteGridConcentration(em) 
+                call WriteGridConcentration(em, OutputNumber) 
 
                 !Flushes All pending HDF5 commands
                 call HDF5FlushMemory (Me%ObjHDF5(em), ErrorMessage ='ParticleOutput - ModuleLagrangianGlobal - ERR75',&
@@ -14429,8 +14463,8 @@ i1:             if (nP>0) then
 
 
                     if (Me%State%Oil) then
-                        call WriteOilGridThickness     (em) 
-                        call WriteOilGridConcentration (em)
+                        call WriteOilGridThickness     (em, OutputNumber) 
+                        call WriteOilGridConcentration (em, OutputNumber)
                     endif
 
                     if (em /= emMax) cycle
@@ -14564,6 +14598,32 @@ i1:             if (nP>0) then
                                 call WriteOriginEnvelope(CurrentOrigin%Name, Matrix1DX, Matrix1DY, &
                                                           "Longitude", "Latitude", "�", OutputNumber, em)  
                             endif
+                            
+                            
+                            allocate  (Aux1DX(1), Aux1DY(1))
+                            
+                            Aux1DX(1) = AverageX
+                            Aux1DY(1) = AverageY
+                            
+                            call HDF5SetLimits  (Me%ObjHDF5(em), 1, 1, STAT = STAT_CALL)
+                            if (STAT_CALL /= SUCCESS_) stop 'ParticleOutput - ModuleLagrangianGlobal - ERR160'
+    
+                            !HDF 5
+                            call HDF5WriteData  (Me%ObjHDF5(em), "/Results/"//trim(CurrentOrigin%Name)//"/Longitude average", &
+                                                "Longitude average",  "-", Array1D = Aux1DX,                      &
+                                                 OutputNumber = OutPutNumber, STAT = STAT_CALL)
+                            if (STAT_CALL /= SUCCESS_) stop 'ParticleOutput - ModuleLagrangianGlobal - ERR170'
+
+                            !HDF 5
+                            call HDF5WriteData  (Me%ObjHDF5(em), "/Results/"//trim(CurrentOrigin%Name)//"/Latitude average", &
+                                                "Latitude average",  "-", Array1D = Aux1DY,                       &
+                                                 OutputNumber = OutPutNumber, STAT = STAT_CALL)
+                            if (STAT_CALL /= SUCCESS_) stop 'ParticleOutput - ModuleLagrangianGlobal - ERR180'
+
+
+    
+                            deallocate   (Aux1DX)
+                            deallocate   (Aux1DY)                                
                             
 #ifdef _GOOGLEMAPS  
 
@@ -15191,7 +15251,7 @@ iTP:                if (TotParticle(ig) > 1) then
                             endif
                             CurrentOrigin => CurrentOrigin%Next
                         enddo
-
+                        
                         !HDF 5
                         call HDF5WriteData        (Me%ObjHDF5(em),                    &
                                                    "/Results/"//trim(GroupName)//"/Latitude",&
@@ -15208,8 +15268,52 @@ iTP:                if (TotParticle(ig) > 1) then
                         endif
                                                    
 
+                        nP = TotParticle(ig)
+                        
+                        if (nP > 0) then
 
+                            if (Me%AveragePositionON) then
+                                AverageX = sum(Matrix1DX(1:nP)) / real(nP)
+                                AverageY = sum(Matrix1DY(1:nP)) / real(nP)
 
+                                if (nP > 1) then
+                                    Stdv = 0.
+                                    do n = 1, nP
+                                        Stdv = Stdv + ((Matrix1DX(n) - AverageX)**2. +      &
+                                                       (Matrix1DY(n) - AverageY)**2.) / (real(nP) - 1)
+                            
+                                    enddo
+                                    RadiusOfInfluence = Me%CoefRadius * sqrt(Stdv)
+                                else
+                                    RadiusOfInfluence = 0.
+                                endif
+
+                            else
+                                AverageX          = FillValueReal
+                                AverageY          = FillValueReal
+                                RadiusOfInfluence = FillValueReal
+                            endif    
+                            
+                        endif        
+                        
+                        allocate  (Aux1DX(1), Aux1DY(1))
+                        
+                        Aux1DX(1) = AverageX
+                        Aux1DY(1) = AverageY                                      
+
+                        !HDF 5
+                        call HDF5WriteData  (Me%ObjHDF5(em), "/Results/"//trim(GroupName)//"/Longitude average", &
+                                            "Longitude average",  "-", Array1D = Aux1DX,                      &
+                                             OutputNumber = OutPutNumber, STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'ParticleOutput - ModuleLagrangianGlobal - ERR170'
+
+                        !HDF 5
+                        call HDF5WriteData  (Me%ObjHDF5(em), "/Results/"//trim(GroupName)//"/Latitude average", &
+                                            "Latitude average",  "-", Array1D = Aux1DY,                       &
+                                             OutputNumber = OutPutNumber, STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'ParticleOutput - ModuleLagrangianGlobal - ERR180'
+
+                        deallocate  (Aux1DX, Aux1DY)
 #ifdef _GOOGLEMAPS  
 
                         allocate   (Aux1DX(TotParticle(ig)))
@@ -15858,7 +15962,7 @@ thick:                      do while (associated(CurrentOrigin))
 
                 
                     if (Me%State%Monitor) then
-                        call WriteMonitorOutput ()
+                        call WriteMonitorOutput (OutputNumber)
                     endif
 
 
@@ -15873,7 +15977,7 @@ thick:                      do while (associated(CurrentOrigin))
 
 
                 !Increments Output number
-                Me%OutPut%NextOutPut = OutPutNumber + 1
+                Me%OutPut%NextOutPut = Me%OutPut%NextOutPut + 1
 
                 !Verifies if all outputs are done (necessary for partic DT smaller then global DT)
                 if (Me%OutPut%NextOutPut > size(Me%OutPut%OutTime)) then
@@ -15893,10 +15997,10 @@ thick:                      do while (associated(CurrentOrigin))
 !--------------------------------------------------------------------------
 
 
-    subroutine DummyParticleStartDate(em)
+    subroutine DummyParticleStartDate(em, OutputNumber)
 
         !Arguments-------------------------------------------------------------
-        integer                                     :: em
+        integer                                     :: em, OutputNumber
         !Local-----------------------------------------------------------------
         type (T_Origin), pointer                    :: CurrentOrigin
         real(8), dimension(:), pointer              :: Matrix1D, Matrix1DX, Matrix1DY
@@ -15916,7 +16020,7 @@ thick:                      do while (associated(CurrentOrigin))
         if (STAT_CALL /= SUCCESS_) stop 'DummyParticleStartDate - ModuleLagrangianGlobal - ERR10'
 
         call HDF5WriteData  (Me%ObjHDF5(em), "/Time", "Time", "YYYY/MM/DD HH:MM:SS",        &
-                             Array1D = TimePtr, OutputNumber = Me%OutPut%NextOutPut, STAT = STAT_CALL)
+                             Array1D = TimePtr, OutputNumber = OutputNumber, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'DummyParticleStartDate - ModuleLagrangianGlobal - ERR20'
 
 
@@ -15956,19 +16060,19 @@ CurrOr:     do while (associated(CurrentOrigin))
             call HDF5WriteData  (Me%ObjHDF5(em), "/Results/"//trim(CurrentOrigin%Name)//"/Longitude", &
                                 "Longitude",  "�", Array1D = Matrix1DX,                 &
                                  Average = AverageX, Radius = RadiusOfInfluence,        &
-                                 OutputNumber = Me%OutPut%NextOutPut, STAT = STAT_CALL)
+                                 OutputNumber = OutputNumber, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'DummyParticleStartDate - ModuleLagrangianGlobal - ERR50'
 
             !HDF 5
             call HDF5WriteData  (Me%ObjHDF5(em), "/Results/"//trim(CurrentOrigin%Name)//"/Latitude", &
                                 "Latitude",  "�", Array1D = Matrix1DY,                  &
                                  Average = AverageY, Radius = RadiusOfInfluence,        &
-                                 OutputNumber = Me%OutPut%NextOutPut, STAT = STAT_CALL)
+                                 OutputNumber = OutputNumber, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'DummyParticleStartDate - ModuleLagrangianGlobal - ERR60'
 
             if (Me%OutPut%OriginEnvelope) then
                 call WriteOriginEnvelope(CurrentOrigin%Name, Matrix1DX, Matrix1DY,      &
-                                          "Longitude", "Latitude", "�", Me%OutPut%NextOutPut, em)  
+                                          "Longitude", "Latitude", "�", OutputNumber, em)  
             endif
 
 
@@ -15983,12 +16087,12 @@ CurrOr:     do while (associated(CurrentOrigin))
                 !HDF 5
                 call HDF5WriteData  (Me%ObjHDF5(em), "/Results/"//trim(CurrentOrigin%Name)//"/Longitude average", &
                                     "Longitude",  "�", Array1D = Matrix1DX,                                       &
-                                     OutputNumber = Me%OutPut%NextOutPut, STAT = STAT_CALL)
+                                     OutputNumber = OutputNumber, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'DummyParticleStartDate - ModuleLagrangianGlobal - ERR80'
                 !HDF 5
                 call HDF5WriteData  (Me%ObjHDF5(em), "/Results/"//trim(CurrentOrigin%Name)//"/Latitude average", &
                                     "Latitude",  "�", Array1D = Matrix1DY,                                       &
-                                     OutputNumber = Me%OutPut%NextOutPut, STAT = STAT_CALL)
+                                     OutputNumber = OutputNumber, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'WriteRunOnline - ModuleLagrangianGlobal - ERR90'
             
              endif                            
@@ -16005,7 +16109,7 @@ CurrOr:     do while (associated(CurrentOrigin))
 
          !HDF 5
             call HDF5WriteData  (Me%ObjHDF5(em), "/Results/"//trim(CurrentOrigin%Name)//"/Z Pos", &
-                                "Z Position",  "m", Array1D = Matrix1D, OutputNumber = Me%OutPut%NextOutPut,    &
+                                "Z Position",  "m", Array1D = Matrix1D, OutputNumber = OutputNumber,    &
                                  STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'DummyParticleStartDate - ModuleLagrangianGlobal - ERR110'
 
@@ -16030,10 +16134,10 @@ CurrOr:     do while (associated(CurrentOrigin))
 !--------------------------------------------------------------------------
 
 
-    subroutine WriteRunOnline(em)
+    subroutine WriteRunOnline(em, OutputNumber)
 
         !Arguments-------------------------------------------------------------
-        integer                                     :: em
+        integer                                     :: em, OutputNumber
         !Local-----------------------------------------------------------------
         type (T_Origin), pointer                    :: CurrentOrigin
         type (T_Partic), pointer                    :: CurrentPartic
@@ -16056,7 +16160,7 @@ CurrOr:     do while (associated(CurrentOrigin))
         if (STAT_CALL /= SUCCESS_) stop 'WriteRunOnline - ModuleLagrangianGlobal - ERR10'
 
         call HDF5WriteData  (Me%ObjHDF5(em), "/Time", "Time", "YYYY/MM/DD HH:MM:SS",        &
-                             Array1D = TimePtr, OutputNumber = Me%OutPut%NextOutPut, STAT = STAT_CALL)
+                             Array1D = TimePtr, OutputNumber = OutputNumber, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'WriteRunOnline - ModuleLagrangianGlobal - ERR20'
 
 
@@ -16118,19 +16222,19 @@ CurrOr:     do while (associated(CurrentOrigin))
                     call HDF5WriteData  (Me%ObjHDF5(em), "/Results/"//trim(CurrentOrigin%Name)//"/Longitude", &
                                         "Longitude",  "�", Array1D = Matrix1DX,                      &
                                          Average = AverageX, Radius = RadiusOfInfluence,             &
-                                         OutputNumber = Me%OutPut%NextOutPut, STAT = STAT_CALL)
+                                         OutputNumber = OutputNumber, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'WriteRunOnline - ModuleLagrangianGlobal - ERR50'
 
                     !HDF 5
                     call HDF5WriteData  (Me%ObjHDF5(em), "/Results/"//trim(CurrentOrigin%Name)//"/Latitude", &
                                         "Latitude",  "�", Array1D = Matrix1DY,                       &
                                          Average = AverageY, Radius = RadiusOfInfluence,             &
-                                         OutputNumber = Me%OutPut%NextOutPut, STAT = STAT_CALL)
+                                         OutputNumber = OutputNumber, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'WriteRunOnline - ModuleLagrangianGlobal - ERR60'
 
                     if (Me%OutPut%OriginEnvelope) then
                         call WriteOriginEnvelope(CurrentOrigin%Name, Matrix1DX, Matrix1DY, &
-                                                  "Longitude", "Latitude", "�", Me%OutPut%NextOutPut, em)  
+                                                  "Longitude", "Latitude", "�", OutputNumber, em)  
                     endif
                     
                     if (Me%AveragePositionON) then
@@ -16147,12 +16251,12 @@ CurrOr:     do while (associated(CurrentOrigin))
                         !HDF 5
                         call HDF5WriteData  (Me%ObjHDF5(em), "/Results/"//trim(CurrentOrigin%Name)//"/Longitude average", &
                                             "Longitude",  "�", Array1D = MX1D,                          &
-                                             OutputNumber = Me%OutPut%NextOutPut, STAT = STAT_CALL)
+                                             OutputNumber = OutputNumber, STAT = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_) stop 'WriteRunOnline - ModuleLagrangianGlobal - ERR80'
                         !HDF 5
                         call HDF5WriteData  (Me%ObjHDF5(em), "/Results/"//trim(CurrentOrigin%Name)//"/Latitude average", &
                                             "Latitude",  "�", Array1D = MY1D,                           &
-                                             OutputNumber = Me%OutPut%NextOutPut, STAT = STAT_CALL)
+                                             OutputNumber = OutputNumber, STAT = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_) stop 'WriteRunOnline - ModuleLagrangianGlobal - ERR90'
                     
                         call HDF5SetLimits  (Me%ObjHDF5(em), 1, CurrentOrigin%nParticle, STAT = STAT_CALL)
@@ -16190,7 +16294,7 @@ CurrOr:     do while (associated(CurrentOrigin))
                 if (nP > 0) then
                     !HDF 5
                     call HDF5WriteData  (Me%ObjHDF5(em), "/Results/"//trim(CurrentOrigin%Name)//"/Z Pos", &
-                                        "Z Position",  "m", Array1D = Matrix1D, OutputNumber = Me%OutPut%NextOutPut,    &
+                                        "Z Position",  "m", Array1D = Matrix1D, OutputNumber = OutputNumber,    &
                                          STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'WriteRunOnline - ModuleLagrangianGlobal - ERR80'
                         endif
@@ -16226,10 +16330,10 @@ CurrOr:     do while (associated(CurrentOrigin))
         real(8),   dimension(:), pointer    :: Envelope1DX, Envelope1DY
         integer,   dimension(:), pointer    :: BoundaryNodes
         character(Len=StringLength)         :: StringXaux, StringYaux
-        real                                :: AverageX, AverageY, MaxX, MaxY, rand
+        real(8)                             :: AverageX, AverageY, MaxX, MaxY, rand, AuxX, AuxY
         integer                             :: ObjTriangulation, NumberOfBoundaryNodes
         integer                             :: STAT_CALL, NumberOfNodes, i, j
-
+        logical                             :: Coincident
 
         !Begin-----------------------------------------------------------------
 
@@ -16237,6 +16341,17 @@ CurrOr:     do while (associated(CurrentOrigin))
         StringYaux = trim(StringY)//' envelope'
 
         NumberOfNodes = Size(Matrix1DX)
+        
+        !check if are not coincident points
+        Coincident = .false.
+        do i=1, NumberOfNodes-1
+            if (Matrix1DX(i)==Matrix1DX(i+1) .and. Matrix1DY(i)==Matrix1DY(i+1)) then
+                Coincident = .true. 
+                exit
+            endif
+        enddo
+        
+        if (Coincident) NumberOfNodes = 1
 
         if (NumberOfNodes > 3) then
 
@@ -16244,28 +16359,27 @@ CurrOr:     do while (associated(CurrentOrigin))
 
             AverageX =sum(Matrix1DX) / real(NumberOfNodes)
             AverageY =sum(Matrix1DY) / real(NumberOfNodes)
-
-            NodeX(:) = Matrix1DX(:) - AverageX
-            NodeY(:) = Matrix1DY(:) - AverageY
             
-            !Check for points that are concident 
+            do i=1, NumberOfNodes
+                AuxX = Matrix1DX(i) - AverageX                    
+                NodeX(i) = AuxX
+            enddo
+
+            do i=1, NumberOfNodes
+                AuxY = Matrix1DY(i) - AverageY                    
+                NodeY(i) = AuxY
+            enddo            
+           
+
             MaxX = maxval(NodeX)
             MaxY = maxval(NodeY)
-            MaxX = MaxX/100
-            MaxY = MaxY/100
+            MaxX = MaxX/1e5
+            MaxY = MaxY/1e5
             do i=1,NumberOfNodes
-            do j=1,NumberOfNodes
-                if (i/=j) then
-                    if (abs(NodeX(i) - NodeX(j)) <MaxX /10) then
-                        call RANDOM_NUMBER(rand)
-                        NodeX(i) = NodeX(i) + MaxX*rand
-                    endif
-                    if (abs(NodeY(i) - NodeY(j)) <MaxY /10) then
-                        call RANDOM_NUMBER(rand)
-                        NodeY(i) = NodeY(i) + MaxY*rand
-                    endif
-                endif
-            enddo
+                call RANDOM_NUMBER(rand)
+                NodeX(i) = NodeX(i) + MaxX*(rand-0.5)
+                call RANDOM_NUMBER(rand)                
+                NodeY(i) = NodeY(i) + MaxY*(rand-0.5)
             enddo
             
             ObjTriangulation = 0
@@ -16933,10 +17047,10 @@ g3:             do ig = 1, Me%NGroups
     !--------------------------------------------------------------------------
 
 
-    subroutine WriteGridConcentration(em)
+    subroutine WriteGridConcentration(em, OutputNumber)
 
         !Arguments-------------------------------------------------------------
-        integer                                     :: em
+        integer                                     :: em, OutputNumber
 
         !Local-----------------------------------------------------------------
         integer, dimension(:, :, :   ), pointer     :: WaterPoints3D
@@ -17006,12 +17120,12 @@ ih:             if (CurrentProperty%WritesPropHDF) then
                     AuxChar3 = trim(AuxChar2)//trim(CurrentProperty%Name)
 
                     !HDF 5
-                    call HDF5WriteData        (Me%ObjHDF5(em),                                  &
-                                               trim(AuxChar3),                              &
-                                               trim(CurrentProperty%Name),                  &
-                                               trim(CurrentProperty%Units),                 &
-                                               Array3D = GridConc3D,                        &
-                                               OutputNumber = Me%OutPut%NextOutPut)
+                    call HDF5WriteData        (Me%ObjHDF5(em),                          &
+                                               trim(AuxChar3),                          &
+                                               trim(CurrentProperty%Name),              &
+                                               trim(CurrentProperty%Units),             &
+                                               Array3D = GridConc3D,                    &
+                                               OutputNumber = OutputNumber)
 
                     if (CurrentProperty%T90ON) then
 
@@ -17026,7 +17140,7 @@ ih:             if (CurrentProperty%WritesPropHDF) then
                                                    trim(CurrentProperty%T90Name),           &
                                                    's',                                     &
                                                    Array3D = GridConc3D,                    &
-                                                   OutputNumber = Me%OutPut%NextOutPut)
+                                                   OutputNumber = OutputNumber)
 
 
                     endif
@@ -17039,12 +17153,12 @@ ih:             if (CurrentProperty%WritesPropHDF) then
                                    "/Data_3D_MaxTracer/"//trim(CurrentProperty%Name)
 
                         !HDF 5
-                        call HDF5WriteData    (Me%ObjHDF5(em),                                  &
-                                               trim(AuxChar3),                              &
-                                               trim(CurrentProperty%Name),                  &
-                                               trim(CurrentProperty%Units),                 &
-                                               Array3D = GridConc3D,                        &
-                                               OutputNumber = Me%OutPut%NextOutPut)
+                        call HDF5WriteData    (Me%ObjHDF5(em),                          &
+                                               trim(AuxChar3),                          &
+                                               trim(CurrentProperty%Name),              &
+                                               trim(CurrentProperty%Units),             &
+                                               Array3D = GridConc3D,                    &
+                                               OutputNumber = OutputNumber)
 
                         if (Me%OutPut%MassTracer) then
 
@@ -17054,12 +17168,12 @@ ih:             if (CurrentProperty%WritesPropHDF) then
                                        "/Data_3D_MaxMassTracer/"//trim(CurrentProperty%Name)
 
                             !HDF 5
-                            call HDF5WriteData    (Me%ObjHDF5(em),                              &
-                                                   trim(AuxChar3),                              &
-                                                   trim(CurrentProperty%Name),                  &
-                                                   trim(CurrentProperty%Units),                 &
-                                                   Array3D = GridConc3D,                        &
-                                                   OutputNumber = Me%OutPut%NextOutPut)
+                            call HDF5WriteData    (Me%ObjHDF5(em),                      &
+                                                   trim(AuxChar3),                      &
+                                                   trim(CurrentProperty%Name),          &
+                                                   trim(CurrentProperty%Units),         &
+                                                   Array3D = GridConc3D,                &
+                                                   OutputNumber = OutputNumber)
                         endif
                     endif
 
@@ -17076,7 +17190,7 @@ ih:             if (CurrentProperty%WritesPropHDF) then
                                                    trim(CurrentProperty%Name),              &
                                                    trim(CurrentProperty%Units),             &
                                                    Array2D = GridConc2D,                    &
-                                                   OutputNumber = Me%OutPut%NextOutPut)
+                                                   OutputNumber = OutputNumber)
 
                     endif
 
@@ -17099,7 +17213,7 @@ ih:             if (CurrentProperty%WritesPropHDF) then
                                        trim(AuxChar3),                                  &
                                        "Number", "a",                                   &
                                        Array3D = GridConc3D,                            &
-                                       OutputNumber = Me%OutPut%NextOutPut)
+                                       OutputNumber = OutputNumber)
 
         enddo d2
 !        enddo d1
@@ -17200,10 +17314,10 @@ i1:     if (Me%Statistic%OptionsStat(p)%Lag) then
 
     !--------------------------------------------------------------------------
 
-    subroutine WriteOilGridThickness(em) 
+    subroutine WriteOilGridThickness(em, OutputNumber) 
 
         !Arguments-------------------------------------------------------------
-        integer                                     :: em   
+        integer                                     :: em, OutputNumber
 
         !Local-----------------------------------------------------------------
         type (T_Origin), pointer                    :: CurrentOrigin
@@ -17266,7 +17380,7 @@ CurrOr:         do while (associated(CurrentOrigin))
                                                    "Thickness_2D",                              &
                                                    "mm",                                        &
                                                    Array2D = OilGridThick2D,                    &
-                                                   OutputNumber = Me%OutPut%NextOutPut)
+                                                   OutputNumber = OutputNumber)
                     endif
 
                 CurrentOrigin => CurrentOrigin%Next
@@ -17283,10 +17397,10 @@ CurrOr:         do while (associated(CurrentOrigin))
 
     !--------------------------------------------------------------------------
 
-    subroutine WriteOilGridConcentration(em) 
+    subroutine WriteOilGridConcentration(em, OutputNumber) 
 
         !Arguments-------------------------------------------------------------
-        integer                                     :: em
+        integer                                     :: em, OutputNumber
 
         !Local-----------------------------------------------------------------
         type (T_Origin), pointer                    :: CurrentOrigin
@@ -17346,7 +17460,7 @@ CurrOr:     do while (associated(CurrentOrigin))
                                                "OilConcentration_2D",                       &
                                                "ppm",                                       &
                                                Array2D = OilGridConc2D,                     &
-                                               OutputNumber = Me%OutPut%NextOutPut)
+                                               OutputNumber = OutputNumber)
 
 
                 endif
@@ -17399,10 +17513,10 @@ CurrOr:     do while (associated(CurrentOrigin))
 
     !--------------------------------------------------------------------------
 
-    subroutine WriteMonitorOutput 
+    subroutine WriteMonitorOutput(OutputNumber)
 
         !Arguments-------------------------------------------------------------
-   
+        integer                                     :: OutputNumber
 
         !Local-----------------------------------------------------------------
         type (T_Origin), pointer                    :: CurrentOrigin
@@ -17466,7 +17580,7 @@ CurrOr:     do while (associated(CurrentOrigin))
                                         "/Results/"//trim(CurrentOrigin%Name)//"/InstVolume", &
                                         "InstVolumeContribution",  "%",                       &
                                         Array3D = OutputMatrix,                               &
-                                        OutputNumber = Me%OutPut%NextOutPut,       &
+                                        OutputNumber = OutputNumber,       &
                                         STAT = STAT_CALL)
 
             CurrentOrigin => CurrentOrigin%Next
@@ -17496,7 +17610,7 @@ CurrOr:     do while (associated(CurrentOrigin))
                                         "/Results/"//trim(CurrentOrigin%Name)//"/IntgVolume", &
                                         "IntgVolumeContribution",  "%",                       &
                                         Array3D = OutputMatrix,                               &
-                                        OutputNumber = Me%OutPut%NextOutPut,       &
+                                        OutputNumber = OutputNumber,                    &
                                         STAT = STAT_CALL)
 
 
@@ -17529,7 +17643,7 @@ CurrOr:     do while (associated(CurrentOrigin))
                                         "/Results/"//trim(CurrentOrigin%Name)//"/InstMass", &
                                         "InstMassContribution",  "%",                       &
                                         Array3D = OutputMatrix,                               &
-                                        OutputNumber = Me%OutPut%NextOutPut,       &
+                                        OutputNumber = OutPutNumber,       &
                                         STAT = STAT_CALL)
 
             CurrentOrigin => CurrentOrigin%Next
@@ -17608,7 +17722,7 @@ CurrOr:     do while (associated(CurrentOrigin))
                                     "/Results/Monitor",                             &
                                     "VolumeContributedByOrigin",  "%",              &
                                     Array3D = OutputMatrix,                         &
-                                    OutputNumber = Me%OutPut%NextOutPut, &
+                                    OutputNumber = OutPutNumber, &
                                     STAT = STAT_CALL)
 
         !Unget The Boxes
