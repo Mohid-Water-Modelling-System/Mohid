@@ -244,6 +244,8 @@ Module ModuleFillMatrix
         logical                                     :: InterpolateValues
         logical                                     :: AccumulateValues
         logical                                     :: UseOriginalValues
+        
+        logical                                     :: Backtracking         = .false.
          
         real                                        :: MinForDTDecrease     = AllmostZero
         real                                        :: DefaultValue
@@ -3174,16 +3176,22 @@ i4:         if(Me%Dim == Dim2D)then
 
     
     !--------------------------------------------------------------------------
-    subroutine ReadHDF5Values2D (Instant, Field)
+    subroutine ReadHDF5Values2D (InstantIn, Field)
 
         !Arguments-------------------------------------------------------------
-        integer                                 :: Instant
+        integer                                 :: InstantIn
         real, dimension(:,:), pointer           :: Field
         
         !Local-----------------------------------------------------------------
-        integer                                 :: STAT_CALL, Imax, Jmax, i, j
+        integer                                 :: Instant, STAT_CALL, Imax, Jmax, i, j
 
         !Begin-----------------------------------------------------------------
+        
+        if (Me%Backtracking) then
+            Instant = Me%HDF%NumberOfInstants - InstantIn + 1
+        else
+            Instant = InstantIn
+        endif
         
         call GetHDF5ArrayDimensions(Me%HDF%ObjHDF5, trim(Me%HDF%VGroupPath),            &
                           trim(Me%HDF%FieldName), OutputNumber = Instant,               &
@@ -3232,18 +3240,23 @@ i4:         if(Me%Dim == Dim2D)then
     !--------------------------------------------------------------------------
 
     
-    subroutine ReadHDF5Values3D (Instant, Field)
+    subroutine ReadHDF5Values3D (InstantIn, Field)
 
         !Arguments-------------------------------------------------------------
-        integer                                 :: Instant
+        integer                                 :: InstantIn
         real, dimension(:,:,:), pointer         :: Field
 
         !Local-----------------------------------------------------------------
-        integer                                 :: Imax, Jmax, Kmax
+        integer                                 :: Instant, Imax, Jmax, Kmax
         integer                                 :: STAT_CALL, i, j, k, ILB, IUB, JLB, JUB, KLB, KUB
 
         !Begin-----------------------------------------------------------------
 
+        if (Me%Backtracking) then
+            Instant = Me%HDF%NumberOfInstants - InstantIn + 1
+        else
+            Instant = InstantIn
+        endif
 
          ILB = Me%WorkSize3D%ILB
          IUB = Me%WorkSize3D%IUB

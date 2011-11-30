@@ -156,6 +156,7 @@ Module ModuleAtmosphere
         real,    dimension(:,:), pointer            :: GridCellArea         => null()
         real,    dimension(:,:), pointer            :: Latitude             => null()
         real,    dimension(:,:), pointer            :: Longitude            => null()
+        logical                                     :: Backtracking         = .false.                
     end type   T_External
 
 
@@ -436,20 +437,26 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         !Begin------------------------------------------------------------------
 
-        call GetComputeTimeLimits(Me%ObjTime, BeginTime = Me%BeginTime, &
+        call GetComputeTimeLimits(Me%ObjTime, BeginTime = Me%BeginTime,                 &
                                   EndTime = Me%EndTime, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleAtmosphere - ERR01'
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleAtmosphere - ERR10'
         
         !Actualize the time
         Me%ActualTime  = Me%BeginTime
         Me%NextCompute = Me%ActualTime
+        
+        ! Check if the simulation goes backward in time or forward in time (default mode)
+        call GetBackTracking(Me%ObjTime, Me%ExternalVar%BackTracking, STAT = STAT_CALL)                    
+        if (STAT_CALL /= SUCCESS_)                                                      &
+            stop 'ConstructGlobalVariables - ModuleAtmosphere - ERR20'
+        
 
         ! Sets the last output equal to zero 
         call SetDate(Me%LastOutPutHDF5, 0, 0, 0, 0, 0, 0)
 
         call GetHorizontalGridSize(Me%ObjHorizontalGrid, Size = Me%Size, &
                                    WorkSize = Me%WorkSize, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleAtmosphere - ERR02'
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleAtmosphere - ERR30'
 
 
         call GetData(Me%RadiationMethod,                                                &
@@ -459,7 +466,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      ClientModule = 'ModuleAtmosphere',                                 &
                      Default      = Radiation_Mohid,                                    &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleAtmosphere - ERR03'
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleAtmosphere - ERR40'
 
 
         call GetData(Me%CloudCoverMethod,                                               &
@@ -469,7 +476,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      ClientModule = 'ModuleAtmosphere',                                 &
                      Default      = CloudFromRandom,                                    &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleAtmosphere - ERR04'
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleAtmosphere - ERR50'
 
     end subroutine ConstructGlobalVariables
 
@@ -3187,10 +3194,11 @@ do2 :   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         !Local-----------------------------------------------------------------
         type (T_Property), pointer                  :: PropertyX
         integer                                     :: STAT_CALL
-        type(T_Time)                                :: Actual, LastTime, EndTime
+        type(T_Time)                                :: Actual, LastTime, EndTime, Aux
         integer                                     :: OutPutNumber
         real, dimension(6), target                  :: AuxTime
         real, dimension(:), pointer                 :: TimePtr
+        real(8)                                     :: AuxPeriod, TotalTime
              
         !Begin----------------------------------------------------------------
 
@@ -3202,9 +3210,25 @@ do2 :   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
 TNum:   if (OutPutNumber <= Me%OutPut%Number)            then 
 TOut:   if (Actual .GE. Me%OutPut%OutTime(OutPutNumber)) then 
+
+            if (Me%ExternalVar%BackTracking) then
+                OutPutNumber = Me%OutPut%Number - OutPutNumber + 1 
+            endif 
+            
+            
+            if (Me%ExternalVar%BackTracking) then  
+                TotalTime = Me%EndTime - Me%BeginTime                  
+                AuxPeriod = Actual     - Me%BeginTime
+                AuxPeriod = TotalTime  - AuxPeriod
                 
-            call ExtractDate   (Actual, AuxTime(1), AuxTime(2), AuxTime(3),          &
-                                AuxTime(4), AuxTime(5), AuxTime(6))
+                Aux = Me%BeginTime + AuxPeriod
+            else
+                Aux = Actual
+            endif    
+
+            !Writes current time
+            call ExtractDate   (Aux, AuxTime(1), AuxTime(2), AuxTime(3),                &
+                                     AuxTime(4), AuxTime(5), AuxTime(6))
 
 First:      if (LastTime.LT.Actual) then 
                     
@@ -3250,7 +3274,7 @@ First:      if (LastTime.LT.Actual) then
 
             enddo
 
-            Me%OutPut%NextHDF5 = OutPutNumber + 1
+            Me%OutPut%NextHDF5 = Me%OutPut%NextHDF5 + 1
 
             !Writes everything to disk
             call HDF5FlushMemory (Me%ObjHDF5, STAT = STAT_CALL)
