@@ -1014,6 +1014,8 @@ Module ModuleHydrodynamic
         real                               :: AltimDecayTime
         real                               :: AltimAssimDT
         real,    dimension(:,:,:), pointer :: AltimSigmaDensAnalyzed
+        
+        logical                            :: Backtracking         = .false.                
 
     end type T_External
 
@@ -2364,14 +2366,14 @@ Cov2:       if ( Me%External_Var%ComputeFaces3D_V(I, J, K) == Covered) then
         call GetComputeCurrentTime(Me%ObjTime, CurrentTime, STAT = STAT_CALL)
 
         if (STAT_CALL /= SUCCESS_) &
-            stop 'Sub. Construct_HydrodynamicTime - ModuleHydrodynamic - Error01'
+            stop 'Sub. Construct_HydrodynamicTime - ModuleHydrodynamic - ERR10'
 
 
         call GetComputeTimeLimits(Me%ObjTime, BeginTime = BeginTime, &
                                   EndTime = EndTime, STAT = STAT_CALL)
 
         if (STAT_CALL /= SUCCESS_) &
-            stop 'Sub. Construct_HydrodynamicTime - ModuleHydrodynamic - Error02'
+            stop 'Sub. Construct_HydrodynamicTime - ModuleHydrodynamic - ERR20'
 
 
         Me%BeginTime   = BeginTime
@@ -2379,6 +2381,13 @@ Cov2:       if ( Me%External_Var%ComputeFaces3D_V(I, J, K) == Covered) then
         Me%CurrentTime = CurrentTime
 
         Me%EndTime     = EndTime
+        
+
+        ! Check if the simulation goes backward in time or forward in time (default mode)
+        call GetBackTracking(Me%ObjTime, Me%External_Var%BackTracking, STAT = STAT_CALL)                    
+        if (STAT_CALL /= SUCCESS_) &
+            stop 'Sub. Construct_HydrodynamicTime - ModuleHydrodynamic - ERR20'
+
 
     End Subroutine Construct_HydrodynamicTime
 
@@ -37909,10 +37918,10 @@ do5:            do i = ILB, IUB
                 if (Me%CurrentTime >= Me%OutPut%OutTime(NextOutPut)) then
 
                     OutPutFileOK = .true.
-
+                    
                 endif
             endif
-
+            
             !Computes cartesian vertical velocity
             !if (OutPutFileOK .or. Me%OutPut%TimeSerieON) then
 
@@ -37938,7 +37947,7 @@ do5:            do i = ILB, IUB
 
                 !Output in HDF
                 call Write_HDF5_Format
-                
+
                 !
                 ! This passed to the module ModuleModel
                 !
@@ -37949,7 +37958,7 @@ do5:            do i = ILB, IUB
                 if (.not. Me%VirtualRun) then 
 #endif _USE_SEQASSIMILATION
 
-                Me%OutPut%NextOutPut = NextOutPut + 1
+                Me%OutPut%NextOutPut = Me%OutPut%NextOutPut + 1
 
 #ifdef _USE_SEQASSIMILATION
                 endif
@@ -38690,6 +38699,8 @@ cd2:            if (WaterPoints3D(i  , j  ,k)== WaterPoint .and.                
         character(len = StringLength)       :: AuxChar
         integer                             :: CHUNK
         logical                             :: SimpleOutPut
+        type (T_Time)                       :: Aux
+        real(8)                             :: AuxPeriod, TotalTime        
 
         !----------------------------------------------------------------------
 
@@ -38715,6 +38726,10 @@ cd2:            if (WaterPoints3D(i  , j  ,k)== WaterPoint .and.                
             Index   = Me%OutW%OutPutWindows(iW)%NextOutPut     
             
             if (Me%OutW%Simple) SimpleOutPut = .true.
+            
+            if (Me%External_Var%BackTracking) then
+                Index = Me%OutW%OutPutWindows(iW)%Number - Index + 1 
+            endif               
            
         else
 
@@ -38730,7 +38745,11 @@ cd2:            if (WaterPoints3D(i  , j  ,k)== WaterPoint .and.                
             ObjHDF5 = Me%ObjHDF5
             
             !Current output index
-            Index   = Me%OutPut%NextOutPut            
+            Index   = Me%OutPut%NextOutPut    
+            
+            if (Me%External_Var%BackTracking) then
+                Index = Me%OutPut%Number - Index + 1 
+            endif                      
             
         endif
         
@@ -38745,9 +38764,19 @@ cd2:            if (WaterPoints3D(i  , j  ,k)== WaterPoint .and.                
         SZZ                 => Me%External_Var%SZZ
         DWZ                 => Me%External_Var%DWZ
 
+       if (Me%External_Var%BackTracking) then  
+            TotalTime = Me%EndTime      - Me%BeginTime                  
+            AuxPeriod = Me%CurrentTime  - Me%BeginTime
+            AuxPeriod = TotalTime       - AuxPeriod
+            
+            Aux = Me%BeginTime + AuxPeriod
+        else
+            Aux = Me%CurrentTime
+        endif           
+
         !Writes current time
-        call ExtractDate   (Me%CurrentTime, AuxTime(1), AuxTime(2), AuxTime(3),         &
-                                            AuxTime(4), AuxTime(5), AuxTime(6))
+        call ExtractDate   (Aux, AuxTime(1), AuxTime(2), AuxTime(3),                    &
+                                 AuxTime(4), AuxTime(5), AuxTime(6))
         TimePtr => AuxTime
         call HDF5SetLimits  (ObjHDF5, 1, 6, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR10'
@@ -39304,6 +39333,8 @@ cd3:        if (Me%ComputeOptions%Residual .and. .not.  SimpleOutPut) then
         integer                             :: WorkILB, WorkIUB, WorkJLB, WorkJUB
         integer                             :: WorkKLB, WorkKUB
         integer, dimension(:,:,:), pointer  :: OpenPoints3D
+        real(8)                             :: AuxPeriod, TotalTime  
+        type (T_Time)                       :: Aux              
 
         !----------------------------------------------------------------------
 
@@ -39319,10 +39350,26 @@ cd3:        if (Me%ComputeOptions%Residual .and. .not.  SimpleOutPut) then
 
         OpenPoints3D      => Me%External_Var%OpenPoints3D
         NextSurfaceOutPut =  Me%OutPut%NextSurfaceOutPut
+        
+           
+        if (Me%External_Var%BackTracking) then
+            NextSurfaceOutPut = Me%OutPut%NumberSurfaceOutputs - NextSurfaceOutPut + 1 
+        endif         
+    
 
+        if (Me%External_Var%BackTracking) then  
+            TotalTime = Me%EndTime         - Me%BeginTime                  
+            AuxPeriod = Me%CurrentTime     - Me%BeginTime
+            AuxPeriod = TotalTime          - AuxPeriod
+            
+            Aux = Me%BeginTime + AuxPeriod
+        else
+            Aux = Me%CurrentTime
+        endif    
+    
         !Writes current time
-        call ExtractDate   (Me%CurrentTime, AuxTime(1), AuxTime(2), AuxTime(3),         &
-                                            AuxTime(4), AuxTime(5), AuxTime(6))
+        call ExtractDate   (Aux, AuxTime(1), AuxTime(2), AuxTime(3),         &
+                            AuxTime(4), AuxTime(5), AuxTime(6))
         TimePtr => AuxTime
 
         call HDF5SetLimits  (Me%ObjSurfaceHDF5, 1, 6, STAT = STAT_CALL)
