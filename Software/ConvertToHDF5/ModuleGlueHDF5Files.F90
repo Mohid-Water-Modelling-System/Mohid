@@ -325,6 +325,7 @@ if2 :           if (BlockFound) then
 
         if(Me%File_3D)then
             call GlueInResults (Me%ObjHDF5_Out, IDOut, IDIn, "/Grid/VerticalZ", Me%FirstInstant(i))
+            call GlueInResults (Me%ObjHDF5_Out, IDOut, IDIn, "/Grid/OpenPoints", Me%FirstInstant(i), 2)
         endif
 
         call GlueInResults (Me%ObjHDF5_Out, IDOut, IDIn, '/'//trim(Me%BaseGroup)//'/', Me%FirstInstant(i))
@@ -624,12 +625,13 @@ if2 :           if (BlockFound) then
 
     !--------------------------------------------------------------------------
 
-    recursive subroutine GlueInResults (ObjHDF5_Out, IDOut, IDIn, GroupName, FirstInstant)
+    recursive subroutine GlueInResults (ObjHDF5_Out, IDOut, IDIn, GroupName, FirstInstant, dataType)
 
         !Arguments-------------------------------------------------------------
         integer(HID_T)                              :: IDOut, IDIn, ObjHDF5_Out
         character(len=*)                            :: GroupName
         integer                                     :: FirstInstant
+        integer, optional                           :: dataType
 
 
 
@@ -647,6 +649,7 @@ if2 :           if (BlockFound) then
         real, pointer, dimension(:)                 :: DataVal1D
         real, pointer, dimension(:,:)               :: DataVal2D
         real, pointer, dimension(:,:,:)             :: DataVal3D
+        integer, pointer, dimension(:,:,:)          :: DataInt3D
         integer(HID_T)                              :: attr_id, type_id
         character(len=StringLength)                 :: Units
 
@@ -714,11 +717,20 @@ if2 :           if (BlockFound) then
 
                 elseif(Rank == 3) then
                     
-                    allocate(DataVal3D(1:dims(1),1:dims(2),1:dims(3)))
-                    !stop 'GlueInResults - ModuleHDF5Files - ERR100'
-
-                    call ReadInterface(dset_id, DataVal3D, dims,   STAT_CALL)
-                    if (STAT_CALL /= 0) stop 'GlueInResults - ModuleHDF5Files - ERR110'
+                    if ( present(dataType) ) then
+                        if ( dataType .eq. 2 ) then
+                            allocate(DataInt3D(1:dims(1),1:dims(2),1:dims(3)))
+                            call ReadInterface(dset_id, DataInt3D, dims,   STAT_CALL)
+                            if (STAT_CALL /= 0) stop 'GlueInResults - ModuleHDF5Files - ERR110'
+                        endif
+                    endif
+                    
+                    if ( .not. present(dataType) .or. present(dataType) .and. dataType .eq. 1 ) then
+                        allocate(DataVal3D(1:dims(1),1:dims(2),1:dims(3)))
+                        call ReadInterface(dset_id, DataVal3D, dims,   STAT_CALL)
+                        if (STAT_CALL /= 0) stop 'GlueInResults - ModuleHDF5Files - ERR110'
+                    endif
+                    
 
                 endif
 
@@ -796,11 +808,21 @@ if2 :           if (BlockFound) then
 
                     call HDF5SetLimits  (ObjHDF5_Out, 1, dims_int(1), 1, dims_int(2),1, dims_int(3),  STAT = STAT_CALL)
 
-                    call HDF5WriteData(ObjHDF5_Out, GroupName, trim(adjustl(obj_name(1:ia-1))), & 
+                    if ( present(dataType) ) then
+                        if ( dataType .eq. 2 ) then
+                            call HDF5WriteData(ObjHDF5_Out, GroupName, trim(adjustl(obj_name(1:ia-1))), & 
+                                       Units, Array3D = DataInt3D, OutputNumber = nmembersOut + k, STAT = STAT_CALL)
+                            if (STAT_CALL /= 0) stop 'GlueInResults - ModuleHDF5Files - ERR240'
+                            deallocate(DataInt3D)
+                        endif
+                    endif
+                    
+                    if ( .not. present(dataType) .or. present(dataType) .and. dataType .eq. 1 ) then
+                        call HDF5WriteData(ObjHDF5_Out, GroupName, trim(adjustl(obj_name(1:ia-1))), & 
                                        Units, Array3D = DataVal3D, OutputNumber = nmembersOut + k, STAT = STAT_CALL)
-                    if (STAT_CALL /= 0) stop 'GlueInResults - ModuleHDF5Files - ERR240'
-
-                    deallocate(DataVal3D)
+                        if (STAT_CALL /= 0) stop 'GlueInResults - ModuleHDF5Files - ERR240'
+                        deallocate(DataVal3D)
+                    endif
 
 
                 endif
@@ -986,7 +1008,7 @@ if2 :           if (BlockFound) then
         integer,   dimension(:)                     :: DataVal
 
         !Begin--------------------------------------------------------------------
-        call h5dread_f(dset_id, H5T_NATIVE_REAL, DataVal, dims,  STAT_CALL)
+        call h5dread_f(dset_id, H5T_NATIVE_INTEGER, DataVal, dims,  STAT_CALL)
 
     end subroutine ReadInterface1DI4 
 
@@ -999,7 +1021,7 @@ if2 :           if (BlockFound) then
         integer,   dimension(:,:)                   :: DataVal
 
         !Begin--------------------------------------------------------------------
-        call h5dread_f(dset_id, H5T_NATIVE_REAL, DataVal, dims,  STAT_CALL)
+        call h5dread_f(dset_id, H5T_NATIVE_INTEGER, DataVal, dims,  STAT_CALL)
 
     end subroutine ReadInterface2DI4 
 
@@ -1013,7 +1035,7 @@ if2 :           if (BlockFound) then
         integer,   dimension(:,:,:)                 :: DataVal
 
         !Begin--------------------------------------------------------------------
-        call h5dread_f(dset_id, H5T_NATIVE_REAL, DataVal, dims,  STAT_CALL)
+        call h5dread_f(dset_id, H5T_NATIVE_INTEGER, DataVal, dims,  STAT_CALL)
 
     end subroutine ReadInterface3DI4 
 
