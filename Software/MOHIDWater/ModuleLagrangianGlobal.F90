@@ -14313,9 +14313,7 @@ d1:     do em =1, Me%EulerModelNumber
         !Local-----------------------------------------------------------------
         type (T_Origin), pointer                    :: CurrentOrigin
         real(8), dimension(:), pointer              :: Matrix1D, Matrix1DX, Matrix1DY
-#ifdef _GOOGLEMAPS          
         real(8), dimension(:), pointer              :: Aux1DX, Aux1DY        
-#endif
         integer                                     :: nP
         type (T_Partic), pointer                    :: CurrentPartic
         integer                                     :: OutPutNumber
