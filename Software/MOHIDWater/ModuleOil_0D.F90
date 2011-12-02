@@ -3590,11 +3590,9 @@ cd1:    if (Me%Var%OilThickness .GE. Me%Var%ThicknessLimit) then
            
 cd2:       if (Me%State%FirstStepAP) then
      
-               Me%Var%AreaTeoric = Pi * (CFay_2**4/(CFay_1 * CFay_1)) * (1./4.) *                                  &
-                                       (Me%Var%VolInic**5 * Gravity * Delta /                                                  &
-                                       (WaterCinematicVisc * WaterCinematicVisc))**(1./6.)
+               Me%Var%AreaTeoric = TheoricArea(Me%Var%VolInic, Delta)
            
-               Me%Var%beta_old              = Me%Var%beta
+               Me%Var%beta_old   = Me%Var%beta
 
            else cd2
            
@@ -3698,7 +3696,6 @@ cd2:       if (Me%State%FirstStepAP) then
         real            :: Delta
         real            :: Density15
         real            :: Density
-        real(8)         :: Aux
         !tentar alterar as próximas constantes para variáveis
         real, parameter :: ConstantWaterDensity     = 1027.0
         real, parameter :: ConstantWaterTemperature = 18.0
@@ -3732,11 +3729,7 @@ cd2:       if (Me%State%FirstStepAP) then
         Delta     = (ConstantWaterDensity - Density) / ConstantWaterDensity
 
         
-        Aux       = Pi * (CFay_2**4/(CFay_1 * CFay_1)) * (1./4.) *                                  &
-                   (VolInic**5 * Gravity * Delta /                                                  &
-                    (WaterCinematicVisc * WaterCinematicVisc))**(1./6.)
-                    
-        F_FayArea = real(Aux)
+        F_FayArea = TheoricArea(VolInic, Delta)
 
         !------------------------------------------------------------------------
 
@@ -3745,6 +3738,23 @@ cd2:       if (Me%State%FirstStepAP) then
 
 
 
+    real  function TheoricArea(VolInic, Delta)
+
+        !Arguments---------------------------------------------------------------
+        real, intent (IN)                           :: VolInic, Delta
+
+        !Local-------------------------------------------------------------------               
+        real(8)                                     :: Aux
+        
+        !Begin-------------------------------------------------------------------    
+
+    
+        Aux         = Pi * (CFay_2**2/CFay_1)**2 * (1./4.) 
+        Aux         = Aux * VolInic**(5./6.)*(Gravity * Delta)**(1./6.)*WaterCinematicVisc**(-1./3.)
+        
+        TheoricArea = real(Aux)
+    
+    end function TheoricArea
 
 
 
