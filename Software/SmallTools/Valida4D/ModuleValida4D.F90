@@ -771,6 +771,7 @@ do1 :                   do i = 2, iLength
         EndTime   = Me%InitialDate + Me%T(Me%TableValues)
 
         call StartComputeTime       (TimeID           = Me%ObjTime,                     &
+                                     InitialSystemTime= BeginTime,                      &
                                      BeginTime        = BeginTime,                      &
                                      EndTime          = EndTime,                        &
                                      DT               = 1.,                             & 
