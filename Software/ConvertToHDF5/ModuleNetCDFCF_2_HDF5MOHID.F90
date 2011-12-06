@@ -1709,7 +1709,7 @@ BF:         if (BlockFound) then
         
         call GetNCDFFileAccess(NCDF_CREATE = NCDF_CREATE)
         
-        call ConstructNETCDF(ObjNCDFID = Me%NetCDF_Out%ObjNetCDF,                       &
+        call ConstructNETCDF(NCDFID = Me%NetCDF_Out%ObjNetCDF,                          &
                              FileName  = trim(Me%NetCDF_Out%Name),                      &
                              Access    = NCDF_CREATE,                                   &
                              STAT      = STAT_CALL)            
