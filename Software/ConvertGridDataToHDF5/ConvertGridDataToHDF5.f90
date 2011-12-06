@@ -21,7 +21,7 @@ program ConvertGridDataToHDF5
     use ModuleGridData
     use ModuleTime
     use ModuleEnterData
-	
+
     implicit none
 
     integer                              :: ObjHDF5           = 0
