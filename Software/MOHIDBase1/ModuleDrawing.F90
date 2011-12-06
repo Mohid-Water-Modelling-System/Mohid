@@ -103,7 +103,16 @@ Module ModuleDrawing
     private :: LessPoint
     private :: DotProduct2D
     private :: PerpProduct2D
-        
+
+    private :: SegIntersectSeg
+    private :: IntersectionBoundCellV2
+    private :: IntersectionBoundCell
+    private :: CreateDomainPolygon
+    private :: LocateCellPolygonsV2
+    private :: ArrayPolygonWindow
+    private :: SliceCellIn4
+    private :: PointInsideCell
+    private :: CellInterSectCell
 
     !Parameter-----------------------------------------------------------------
     integer(4), parameter  :: TypeX_Y_Z     =  1
@@ -1819,339 +1828,339 @@ i6:                         if (DirectionX.ne.0.) then
 
 
 
-logical function CellInterSectCell (Cell1, Cell2)
-!Arguments---------------------------------------
-real(8), dimension(2,4) :: Cell1, Cell2
-!Local-------------------------------------------
-integer                  :: i
-!Begin-------------------------------------------
+    logical function CellInterSectCell (Cell1, Cell2)
+    !Arguments---------------------------------------
+    real(8), dimension(2,4) :: Cell1, Cell2
+    !Local-------------------------------------------
+    integer                  :: i
+    !Begin-------------------------------------------
 
-    CellInterSectCell = .false.
-    !if cell1 corners inside Cell2
-    do i=1,4
-        if (PointInsideCell(Cell1(1,i),Cell1(2,i),Cell2)) CellInterSectCell = .true.
-    enddo
+        CellInterSectCell = .false.
+        !if cell1 corners inside Cell2
+        do i=1,4
+            if (PointInsideCell(Cell1(1,i),Cell1(2,i),Cell2)) CellInterSectCell = .true.
+        enddo
 
-    !if cell2 corners inside Cell1
-    do i=1,4
-        if (PointInsideCell(Cell2(1,i),Cell2(2,i),Cell1)) CellInterSectCell = .true.
-    enddo
-
-
-end function CellInterSectCell
-
-logical function PointInsideCell (X, Y, Cell)
-!Arguments---------------------------------------
-real(8)                  :: X, Y
-real(8), dimension(2,4) :: Cell
-
-!Local------------------------------------------
-real(8)            :: Xmin, Ymin, Xmax, Ymax
-!Begin-------------------------------------------
-
-    PointInsideCell = .false.
-    Xmin = Cell(1,1)
-    Ymin = Cell(2,1)
-
-    Xmax = Cell(1,3)
-    Ymax = Cell(2,3)
-
-    if (X>= Xmin .and. X<=Xmax) then
-        if (Y>= Ymin .and. Y<=Ymax) PointInsideCell = .true.
-    endif
+        !if cell2 corners inside Cell1
+        do i=1,4
+            if (PointInsideCell(Cell2(1,i),Cell2(2,i),Cell1)) CellInterSectCell = .true.
+        enddo
 
 
-end function PointInsideCell
+    end function CellInterSectCell
 
+    logical function PointInsideCell (X, Y, Cell)
+    !Arguments---------------------------------------
+    real(8)                  :: X, Y
+    real(8), dimension(2,4) :: Cell
 
-subroutine SliceCellIn4 (Xo, Yo, Face, Cells4)
+    !Local------------------------------------------
+    real(8)            :: Xmin, Ymin, Xmax, Ymax
+    !Begin-------------------------------------------
 
-!Arguments----------------------------------------
-real(8)                   :: Xo, Yo, Face
-real(8), dimension(2,4,4) :: Cells4
-!Local--------------------------------------------
-integer                   :: i
-!Begin--------------------------------------------
+        PointInsideCell = .false.
+        Xmin = Cell(1,1)
+        Ymin = Cell(2,1)
 
+        Xmax = Cell(1,3)
+        Ymax = Cell(2,3)
 
-    !Lower left cell - lower left corner
-    Cells4(1,1,1) = Xo
-    Cells4(2,1,1) = Yo    
-
-    
-    !Upper left cell - lower left corner
-    Cells4(1,1,2) = Xo 
-    Cells4(2,1,2) = Yo + Face/2.   
-
-    !Upper right cell - lower left corner
-    Cells4(1,1,3) = Xo + Face/2.
-    Cells4(2,1,3) = Yo + Face/2.
-    
-    !Lower right cell- lower left corner
-    Cells4(1,1,4) = Xo + Face/2.
-    Cells4(2,1,4) = Yo 
-
-
-    do i=1,4
-    
-        Cells4(1,2,i) = Cells4(1,1,i)
-        Cells4(2,2,i) = Cells4(2,1,i) + Face/2.
-
-        Cells4(1,3,i) = Cells4(1,2,i) + Face/2.
-        Cells4(2,3,i) = Cells4(2,2,i) 
-
-        Cells4(1,4,i) = Cells4(1,3,i) 
-        Cells4(2,4,i) = Cells4(2,3,i) - Face/2.
-    
-    enddo
-    
-
-end subroutine SliceCellIn4
-
-!This subroutine returns the indexes (WindowOut) of the smallest sub-domain of a curvilinear grid (XX, YY) 
-!that comprehends a cartesian window (WindowOut). 
-!Returns also a logical if the grid intersects the cartesian window (WindowWithData)
-subroutine ArrayPolygonWindow(XX, YY, WindowIn, ILB, IUB, JLB, JUB, WindowOut, WindowWithData)
-
-!Arguments------------------------------------
-real(8), dimension(:,:), intent(IN)     :: XX, YY
-real(8), dimension(2,4), intent(IN)     :: WindowIn
-integer                , intent(IN)     :: ILB, IUB, JLB, JUB
-integer, dimension(2,4), intent(OUT)    :: WindowOut
-logical,                 intent(OUT)    :: WindowWithData
-
-!Local----------------------------------------
-type(T_Polygon),          pointer       :: PolygonDomain
-type(T_PointF),           pointer       :: Point
-integer, dimension(:), allocatable      :: Xj, Yi
-integer, dimension(2,100)               :: WindowInIndex
-integer                                 :: i, imin, imax, jmin, jmax, count, p, ncells, j
-logical, dimension(5)                   :: WindowCornerInside, GridCornerInside
-real(8), dimension(2,5)                 :: WindowInAux
-real(8), dimension(2,4)                 :: DomainEnvelop
-real(8)                                 :: x3, y3, x4, y4, X, Y
-logical                                 :: Intersect, NoOverlap
-!Begin----------------------------------------
-
-!WindowIn(1,:) -> X
-!WindowIn(2,:) -> Y
-
-!WindowInIndex(1,:) -> i
-!WindowInIndex(2,:) -> j
-
-   
-    WindowInIndex (:,:) = -99
-
-    allocate(Point)
-    call CreateDomainPolygon(XX, YY, ILB, IUB, JLB, JUB, PolygonDomain)
-    
-    DomainEnvelop(1,1) = PolygonDomain%Limits%Left
-    DomainEnvelop(2,1) = PolygonDomain%Limits%Bottom
-    DomainEnvelop(1,2) = PolygonDomain%Limits%Left
-    DomainEnvelop(2,2) = PolygonDomain%Limits%Top
-    DomainEnvelop(1,3) = PolygonDomain%Limits%Right
-    DomainEnvelop(2,3) = PolygonDomain%Limits%Top
-    DomainEnvelop(1,4) = PolygonDomain%Limits%Right
-    DomainEnvelop(2,4) = PolygonDomain%Limits%Bottom
-    
-i1: if (.not. cellIntersectCell(DomainEnvelop, WindowIn)) then
-        !if the  window request do not intersect the grid envelop. There is no data to returm    
-        WindowWithData =.false.
-        
-    else i1
-        !if there an intersection between the window request and the grid envelop there a high probability of 
-        !the window intersect the grid
-        count = 0
-
-        if (PointInsideCell(XX(ILB,JLB),YY(ILB,JLB),WindowIn)) then
-            count = count + 1                                              
-            WindowInIndex(1,count ) = ILB
-            WindowInIndex(2,count ) = JLB
-            GridCornerInside(1) = .true. 
-        else
-            GridCornerInside(1) = .false. 
+        if (X>= Xmin .and. X<=Xmax) then
+            if (Y>= Ymin .and. Y<=Ymax) PointInsideCell = .true.
         endif
 
-        if (PointInsideCell(XX(IUB,JLB),YY(IUB,JLB),WindowIn)) then
-            count = count + 1                                              
-            WindowInIndex(1,count) = IUB-1
-            WindowInIndex(2,count) = JLB
-            GridCornerInside(2) = .true. 
-        else
-            GridCornerInside(2) = .false.             
-        endif
-        
-        if (PointInsideCell(XX(IUB,JUB),YY(IUB,JUB),WindowIn)) then
-            count = count + 1                                              
-            WindowInIndex(1,count) = IUB-1
-            WindowInIndex(2,count) = JUB-1
-            GridCornerInside(3) = .true. 
-        else
-            GridCornerInside(3) = .false.             
-        endif        
 
-        if (PointInsideCell(XX(ILB,JUB),YY(ILB,JUB),WindowIn)) then
-            count = count + 1                                              
-            WindowInIndex(1,count) = ILB
-            WindowInIndex(2,count) = JUB-1
-            GridCornerInside(4) = .true. 
-        else
-            GridCornerInside(4) = .false.             
-        endif       
+    end function PointInsideCell
+
+
+    subroutine SliceCellIn4 (Xo, Yo, Face, Cells4)
+
+    !Arguments----------------------------------------
+    real(8)                   :: Xo, Yo, Face
+    real(8), dimension(2,4,4) :: Cells4
+    !Local--------------------------------------------
+    integer                   :: i
+    !Begin--------------------------------------------
+
+
+        !Lower left cell - lower left corner
+        Cells4(1,1,1) = Xo
+        Cells4(2,1,1) = Yo    
+
         
+        !Upper left cell - lower left corner
+        Cells4(1,1,2) = Xo 
+        Cells4(2,1,2) = Yo + Face/2.   
+
+        !Upper right cell - lower left corner
+        Cells4(1,1,3) = Xo + Face/2.
+        Cells4(2,1,3) = Yo + Face/2.
+        
+        !Lower right cell- lower left corner
+        Cells4(1,1,4) = Xo + Face/2.
+        Cells4(2,1,4) = Yo 
+
+
+        do i=1,4
+        
+            Cells4(1,2,i) = Cells4(1,1,i)
+            Cells4(2,2,i) = Cells4(2,1,i) + Face/2.
+
+            Cells4(1,3,i) = Cells4(1,2,i) + Face/2.
+            Cells4(2,3,i) = Cells4(2,2,i) 
+
+            Cells4(1,4,i) = Cells4(1,3,i) 
+            Cells4(2,4,i) = Cells4(2,3,i) - Face/2.
+        
+        enddo
+        
+
+    end subroutine SliceCellIn4
+
+    !This subroutine returns the indexes (WindowOut) of the smallest sub-domain of a curvilinear grid (XX, YY) 
+    !that comprehends a cartesian window (WindowOut). 
+    !Returns also a logical if the grid intersects the cartesian window (WindowWithData)
+    subroutine ArrayPolygonWindow(XX, YY, WindowIn, ILB, IUB, JLB, JUB, WindowOut, WindowWithData)
+
+    !Arguments------------------------------------
+    real(8), dimension(:,:), intent(IN)     :: XX, YY
+    real(8), dimension(2,4), intent(IN)     :: WindowIn
+    integer                , intent(IN)     :: ILB, IUB, JLB, JUB
+    integer, dimension(2,4), intent(OUT)    :: WindowOut
+    logical,                 intent(OUT)    :: WindowWithData
+
+    !Local----------------------------------------
+    type(T_Polygon),          pointer       :: PolygonDomain
+    type(T_PointF),           pointer       :: Point
+    integer, dimension(:), allocatable      :: Xj, Yi
+    integer, dimension(2,100)               :: WindowInIndex
+    integer                                 :: i, imin, imax, jmin, jmax, count, p, ncells, j
+    logical, dimension(5)                   :: WindowCornerInside, GridCornerInside
+    real(8), dimension(2,5)                 :: WindowInAux
+    real(8), dimension(2,4)                 :: DomainEnvelop
+    real(8)                                 :: x3, y3, x4, y4, X, Y
+    logical                                 :: Intersect, NoOverlap
+    !Begin----------------------------------------
+
+    !WindowIn(1,:) -> X
+    !WindowIn(2,:) -> Y
+
+    !WindowInIndex(1,:) -> i
+    !WindowInIndex(2,:) -> j
+
        
-        if (count<4) then 
-                
-            do i=1,4
-                Point%X = WindowIn(1,i)
-                Point%Y = WindowIn(2,i)
+        WindowInIndex (:,:) = -99
 
-                if (IsPointInsidePolygon(Point, PolygonDomain)) then
-                    count = count + 1                                              
-                    call LocateCellPolygonsV2(XX,YY, Point, ILB, IUB, JLB, JUB, &
-                                              WindowInIndex(1,count),WindowInIndex(2,count))
-                    WindowCornerInside(i) = .true.                                      
-                else
-                    WindowCornerInside(i) = .false.
-                endif
-            enddo    
+        allocate(Point)
+        call CreateDomainPolygon(XX, YY, ILB, IUB, JLB, JUB, PolygonDomain)
         
-        endif
+        DomainEnvelop(1,1) = PolygonDomain%Limits%Left
+        DomainEnvelop(2,1) = PolygonDomain%Limits%Bottom
+        DomainEnvelop(1,2) = PolygonDomain%Limits%Left
+        DomainEnvelop(2,2) = PolygonDomain%Limits%Top
+        DomainEnvelop(1,3) = PolygonDomain%Limits%Right
+        DomainEnvelop(2,3) = PolygonDomain%Limits%Top
+        DomainEnvelop(1,4) = PolygonDomain%Limits%Right
+        DomainEnvelop(2,4) = PolygonDomain%Limits%Bottom
         
-        if (count==0) then
-            !If there is not window corners inside the grid two of the follow conditions are possible:
-                !Window  contains the entire grid
-                !Window contains part of the grid
+    i1: if (.not. cellIntersectCell(DomainEnvelop, WindowIn)) then
+            !if the  window request do not intersect the grid envelop. There is no data to returm    
+            WindowWithData =.false.
             
-            !the first option is true if the boundary segments of the window do mnot intersect the grid domain
-            Intersect = .false. 
+        else i1
+            !if there an intersection between the window request and the grid envelop there a high probability of 
+            !the window intersect the grid
+            count = 0
 
-            WindowInAux(:,1:4) = WindowIn(:,:)
-            WindowInAux(:,5  ) = WindowIn(:,1)
-            
-            do i=1,4 
-                !Segment 
-                x3 = WindowInAux(1,i)
-                y3 = WindowInAux(2,i)
-                
-                x4 = WindowInAux(1,i+1)
-                y4 = WindowInAux(2,i+1)
-                
-                call IntersectionBoundCell(XX,YY, x3, y3, x4, y4, ILB, IUB, JLB, JUB, Intersect, &
-                                           WindowInIndex(1,1),WindowInIndex(2,1))
-                !Window bound segments intersect the grid domain                                            
-                if (Intersect) exit                                           
-            enddo
-            
-            
-            if (Intersect) then
-                !Window bound segments intersect the grid domain                                            
-                !In this case a brute force is requeired. Are verify what domain bound points are inside window
-                nCells = 0
-                allocate(Xj(1:2*(IUB+1)+2*(JUB+1)),Yi(1:2*(IUB+1)+2*(JUB+1)))
-                
-                do p=1, PolygonDomain%Count-1
-                    X = PolygonDomain%VerticesF(p)%X
-                    Y = PolygonDomain%VerticesF(p)%Y
-                    if (PointInsideCell(X,Y,WindowIn)) then
-                        nCells     = nCells + 1
-                        Xj(nCells) = j
-                        Yi(nCells) = i
-                    endif
-                enddo    
-                
-                imin = minval(Yi(1:nCells))
-                imax = maxval(Yi(1:nCells))
-
-                jmin = minval(Xj(1:nCells))
-                jmax = maxval(Xj(1:nCells))
-                
-                
+            if (PointInsideCell(XX(ILB,JLB),YY(ILB,JLB),WindowIn)) then
+                count = count + 1                                              
+                WindowInIndex(1,count ) = ILB
+                WindowInIndex(2,count ) = JLB
+                GridCornerInside(1) = .true. 
             else
-                NoOverlap = .false.
-                do i=1,4
-                    if (WindowCornerInside(i) .and. GridCornerInside(i)) then
-                        NoOverlap      = .true.
-                        exit
-                    endif
-                enddo
-                
-                if (NoOverlap) then
-                    WindowWithData = .false. 
-                else
-                    !The window contains the entire grid domain
-                    imin = ILB
-                    imax = IUB - 1
+                GridCornerInside(1) = .false. 
+            endif
 
-                    jmin = JLB
-                    jmax = JUB - 1
-                endif
+            if (PointInsideCell(XX(IUB,JLB),YY(IUB,JLB),WindowIn)) then
+                count = count + 1                                              
+                WindowInIndex(1,count) = IUB-1
+                WindowInIndex(2,count) = JLB
+                GridCornerInside(2) = .true. 
+            else
+                GridCornerInside(2) = .false.             
             endif
             
-        else        
-            !At least there are one window corner inside the grid domain
-            if (count<4) then
-                !If not all window corners are inside the grid domain it is necesssary to 
-                !identify the boundary cell along which the window boundary segments intersect the 
-                !grid border
-                WindowCornerInside(5) = WindowCornerInside(1)            
-        
+            if (PointInsideCell(XX(IUB,JUB),YY(IUB,JUB),WindowIn)) then
+                count = count + 1                                              
+                WindowInIndex(1,count) = IUB-1
+                WindowInIndex(2,count) = JUB-1
+                GridCornerInside(3) = .true. 
+            else
+                GridCornerInside(3) = .false.             
+            endif        
+
+            if (PointInsideCell(XX(ILB,JUB),YY(ILB,JUB),WindowIn)) then
+                count = count + 1                                              
+                WindowInIndex(1,count) = ILB
+                WindowInIndex(2,count) = JUB-1
+                GridCornerInside(4) = .true. 
+            else
+                GridCornerInside(4) = .false.             
+            endif       
+            
+           
+            if (count<4) then 
+                    
+                do i=1,4
+                    Point%X = WindowIn(1,i)
+                    Point%Y = WindowIn(2,i)
+
+                    if (IsPointInsidePolygon(Point, PolygonDomain)) then
+                        count = count + 1                                              
+                        call LocateCellPolygonsV2(XX,YY, Point, ILB, IUB, JLB, JUB, &
+                                                  WindowInIndex(1,count),WindowInIndex(2,count))
+                        WindowCornerInside(i) = .true.                                      
+                    else
+                        WindowCornerInside(i) = .false.
+                    endif
+                enddo    
+            
+            endif
+            
+            if (count==0) then
+                !If there is not window corners inside the grid two of the follow conditions are possible:
+                    !Window  contains the entire grid
+                    !Window contains part of the grid
+                
+                !the first option is true if the boundary segments of the window do mnot intersect the grid domain
+                Intersect = .false. 
+
                 WindowInAux(:,1:4) = WindowIn(:,:)
                 WindowInAux(:,5  ) = WindowIn(:,1)
                 
-           
                 do i=1,4 
-                    !if i outside inside and i+1 outside or vice-versa compute the intersection cell   
-                    if (.not.WindowCornerInside(i).eqv.WindowCornerInside(i+1)) then
-                        Count = Count + 1
-                        !Segment 
-                        x3 = WindowInAux(1,i)
-                        y3 = WindowInAux(2,i)
-                        
-                        x4 = WindowInAux(1,i+1)
-                        y4 = WindowInAux(2,i+1)
-                        
-                        call IntersectionBoundCell(XX,YY, x3, y3, x4, y4, ILB, IUB, JLB, JUB, &
-                                                   Intersect, WindowInIndex(1,count),WindowInIndex(2,count))
-                    endif
+                    !Segment 
+                    x3 = WindowInAux(1,i)
+                    y3 = WindowInAux(2,i)
+                    
+                    x4 = WindowInAux(1,i+1)
+                    y4 = WindowInAux(2,i+1)
+                    
+                    call IntersectionBoundCell(XX,YY, x3, y3, x4, y4, ILB, IUB, JLB, JUB, Intersect, &
+                                               WindowInIndex(1,1),WindowInIndex(2,1))
+                    !Window bound segments intersect the grid domain                                            
+                    if (Intersect) exit                                           
                 enddo
-
-                GridCornerInside(5) = GridCornerInside(1)
                 
-                call IntersectionBoundCellV2(XX,YY, WindowInAux, ILB, IUB, JLB, JUB, &
-                                             Intersect, WindowInIndex, GridCornerInside, Count)
-        
+                
+                if (Intersect) then
+                    !Window bound segments intersect the grid domain                                            
+                    !In this case a brute force is requeired. Are verify what domain bound points are inside window
+                    nCells = 0
+                    allocate(Xj(1:2*(IUB+1)+2*(JUB+1)),Yi(1:2*(IUB+1)+2*(JUB+1)))
+                    
+                    do p=1, PolygonDomain%Count-1
+                        X = PolygonDomain%VerticesF(p)%X
+                        Y = PolygonDomain%VerticesF(p)%Y
+                        if (PointInsideCell(X,Y,WindowIn)) then
+                            nCells     = nCells + 1
+                            Xj(nCells) = j
+                            Yi(nCells) = i
+                        endif
+                    enddo    
+                    
+                    imin = minval(Yi(1:nCells))
+                    imax = maxval(Yi(1:nCells))
+
+                    jmin = minval(Xj(1:nCells))
+                    jmax = maxval(Xj(1:nCells))
+                    
+                    
+                else
+                    NoOverlap = .false.
+                    do i=1,4
+                        if (WindowCornerInside(i) .and. GridCornerInside(i)) then
+                            NoOverlap      = .true.
+                            exit
+                        endif
+                    enddo
+                    
+                    if (NoOverlap) then
+                        WindowWithData = .false. 
+                    else
+                        !The window contains the entire grid domain
+                        imin = ILB
+                        imax = IUB - 1
+
+                        jmin = JLB
+                        jmax = JUB - 1
+                    endif
+                endif
+                
+            else        
+                !At least there are one window corner inside the grid domain
+                if (count<4) then
+                    !If not all window corners are inside the grid domain it is necesssary to 
+                    !identify the boundary cell along which the window boundary segments intersect the 
+                    !grid border
+                    WindowCornerInside(5) = WindowCornerInside(1)            
+            
+                    WindowInAux(:,1:4) = WindowIn(:,:)
+                    WindowInAux(:,5  ) = WindowIn(:,1)
+                    
+               
+                    do i=1,4 
+                        !if i outside inside and i+1 outside or vice-versa compute the intersection cell   
+                        if (.not.WindowCornerInside(i).eqv.WindowCornerInside(i+1)) then
+                            Count = Count + 1
+                            !Segment 
+                            x3 = WindowInAux(1,i)
+                            y3 = WindowInAux(2,i)
+                            
+                            x4 = WindowInAux(1,i+1)
+                            y4 = WindowInAux(2,i+1)
+                            
+                            call IntersectionBoundCell(XX,YY, x3, y3, x4, y4, ILB, IUB, JLB, JUB, &
+                                                       Intersect, WindowInIndex(1,count),WindowInIndex(2,count))
+                        endif
+                    enddo
+
+                    GridCornerInside(5) = GridCornerInside(1)
+                    
+                    call IntersectionBoundCellV2(XX,YY, WindowInAux, ILB, IUB, JLB, JUB, &
+                                                 Intersect, WindowInIndex, GridCornerInside, Count)
+            
+                endif
+            
+                imin = minval(WindowInIndex(1,1:count))
+                imax = maxval(WindowInIndex(1,1:count))
+
+                jmin = minval(WindowInIndex(2,1:count))
+                jmax = maxval(WindowInIndex(2,1:count))
+            
             endif
-        
-            imin = minval(WindowInIndex(1,1:count))
-            imax = maxval(WindowInIndex(1,1:count))
+            
+            WindowOut(1,1) = imin
+            WindowOut(2,1) = jmin
 
-            jmin = minval(WindowInIndex(2,1:count))
-            jmax = maxval(WindowInIndex(2,1:count))
-        
-        endif
-        
-        WindowOut(1,1) = imin
-        WindowOut(2,1) = jmin
+            WindowOut(1,2) = imax
+            WindowOut(2,2) = jmin
 
-        WindowOut(1,2) = imax
-        WindowOut(2,2) = jmin
+            WindowOut(1,3) = imax
+            WindowOut(2,3) = jmax
 
-        WindowOut(1,3) = imax
-        WindowOut(2,3) = jmax
+            WindowOut(1,4) = imin
+            WindowOut(2,4) = jmax
 
-        WindowOut(1,4) = imin
-        WindowOut(2,4) = jmax
+            WindowWithData = .true.
+            
+        endif  i1     
 
-        WindowWithData = .true.
-        
-    endif  i1     
+    end subroutine ArrayPolygonWindow
 
-end subroutine ArrayPolygonWindow
-
-!Locates in a grid (XX, YY) the cell (IZ, JZ) where a point is (Point)
-!There is a similar subroutine in ModuleHorizontalGrid
-subroutine LocateCellPolygonsV2(XX, YY, Point, ILB, IUB, JLB, JUB, IZ, JZ)
+    !Locates in a grid (XX, YY) the cell (IZ, JZ) where a point is (Point)
+    !There is a similar subroutine in ModuleHorizontalGrid
+    subroutine LocateCellPolygonsV2(XX, YY, Point, ILB, IUB, JLB, JUB, IZ, JZ)
 
         !Arguments ---------------------------------------------------------
         real(8), dimension(:,:)              :: XX, YY
@@ -2304,8 +2313,8 @@ subroutine LocateCellPolygonsV2(XX, YY, Point, ILB, IUB, JLB, JUB, IZ, JZ)
 
     end subroutine LocateCellPolygonsV2
 
-!Returns a polygon (PolygonDomain) that corresponds to the boundary of a grid (XX, YY)
-subroutine CreateDomainPolygon(XX, YY, ILB, IUB, JLB, JUB, PolygonDomain)
+    !Returns a polygon (PolygonDomain) that corresponds to the boundary of a grid (XX, YY)
+    subroutine CreateDomainPolygon(XX, YY, ILB, IUB, JLB, JUB, PolygonDomain)
 
         !Arguments ---------------------------------------------------------
         real(8), dimension(:,:)              :: XX, YY
@@ -2379,304 +2388,303 @@ subroutine CreateDomainPolygon(XX, YY, ILB, IUB, JLB, JUB, PolygonDomain)
 !If intersects returns the boundary cell where the intersection happens (iOut, jOut)
     subroutine IntersectionBoundCell(XX,YY,x3, y3, x4, y4,                             &
                                      ILB, IUB, JLB, JUB, Intersect, iOut,jOut)   
-    !Arguments------------------------------------
-    real(8), dimension(:,:), intent(IN)     :: XX, YY
-    real(8)                                 :: x3, y3, x4, y4
-    integer                , intent(IN)     :: ILB, IUB, JLB, JUB
-    logical,     optional,   intent(OUT)    :: Intersect
-    integer,     optional,   intent(OUT)    :: iOut,jOut
+        !Arguments------------------------------------
+        real(8), dimension(:,:), intent(IN)     :: XX, YY
+        real(8)                                 :: x3, y3, x4, y4
+        integer                , intent(IN)     :: ILB, IUB, JLB, JUB
+        logical,     optional,   intent(OUT)    :: Intersect
+        integer,     optional,   intent(OUT)    :: iOut,jOut
 
 
-    !Local----------------------------------------
-    real(8)                     :: x1,y1,x2,y2
-    integer                     :: i, j
+        !Local----------------------------------------
+        real(8)                     :: x1,y1,x2,y2
+        integer                     :: i, j
 
-    !Begin----------------------------------------
-    Intersect = .false.
+        !Begin----------------------------------------
+        Intersect = .false.
 
-    
-    !West Boundary
-    x1 = XX(ILB,JLB)
-    y1 = YY(ILB,JLB)
-    x2 = XX(IUB,JLB)
-    y2 = YY(IUB,JLB)
-    
-    if (SegIntersectSeg(x1,y1,x2,y2, x3, y3, x4, y4)) then
-        do i=ILB,IUB-1        
-            x1 = XX(i,JLB)
-            y1 = YY(i,JLB)
-            x2 = XX(i+1,JLB)
-            y2 = YY(i+1,JLB)
-            if (SegIntersectSeg(x1,y1,x2,y2, x3, y3, x4, y4)) then
-                Intersect = .true.
-                iOut = i
-                jOut = JLB
-                exit
-            endif                      
-        enddo
         
-        if (.not. Intersect) stop "IntersectionBoundCell - ERR10"
+        !West Boundary
+        x1 = XX(ILB,JLB)
+        y1 = YY(ILB,JLB)
+        x2 = XX(IUB,JLB)
+        y2 = YY(IUB,JLB)
         
-    endif
+        if (SegIntersectSeg(x1,y1,x2,y2, x3, y3, x4, y4)) then
+            do i=ILB,IUB-1        
+                x1 = XX(i,JLB)
+                y1 = YY(i,JLB)
+                x2 = XX(i+1,JLB)
+                y2 = YY(i+1,JLB)
+                if (SegIntersectSeg(x1,y1,x2,y2, x3, y3, x4, y4)) then
+                    Intersect = .true.
+                    iOut = i
+                    jOut = JLB
+                    exit
+                endif                      
+            enddo
+            
+            if (.not. Intersect) stop "IntersectionBoundCell - ERR10"
+            
+        endif
 
-    !North Boundary
-    x1 = XX(IUB,JLB)
-    y1 = YY(IUB,JLB)
-    x2 = XX(IUB,JUB)
-    y2 = YY(IUB,JUB)
-    
-    if (SegIntersectSeg(x1,y1,x2,y2, x3, y3, x4, y4)) then
-        do j=JLB,JUB-1        
-            x1 = XX(IUB,j  )
-            y1 = YY(IUB,j  )
-            x2 = XX(IUB,j+1)
-            y2 = YY(IUB,j+1)
-            if (SegIntersectSeg(x1,y1,x2,y2, x3, y3, x4, y4)) then
-                Intersect = .true.
-                iOut = IUB-1
-                jOut = j
-                exit
-            endif                      
-        enddo
+        !North Boundary
+        x1 = XX(IUB,JLB)
+        y1 = YY(IUB,JLB)
+        x2 = XX(IUB,JUB)
+        y2 = YY(IUB,JUB)
         
-        if (.not. Intersect) stop "IntersectionBoundCell - ERR20"
-        
-    endif
+        if (SegIntersectSeg(x1,y1,x2,y2, x3, y3, x4, y4)) then
+            do j=JLB,JUB-1        
+                x1 = XX(IUB,j  )
+                y1 = YY(IUB,j  )
+                x2 = XX(IUB,j+1)
+                y2 = YY(IUB,j+1)
+                if (SegIntersectSeg(x1,y1,x2,y2, x3, y3, x4, y4)) then
+                    Intersect = .true.
+                    iOut = IUB-1
+                    jOut = j
+                    exit
+                endif                      
+            enddo
+            
+            if (.not. Intersect) stop "IntersectionBoundCell - ERR20"
+            
+        endif
 
-    !East Boundary
-    x1 = XX(ILB,JUB)
-    y1 = YY(ILB,JUB)
-    x2 = XX(IUB,JUB)
-    y2 = YY(IUB,JUB)
-    
-    if (SegIntersectSeg(x1,y1,x2,y2, x3, y3, x4, y4)) then
-        do i=ILB,IUB-1        
-            x1 = XX(i,JUB)
-            y1 = YY(i,JUB)
-            x2 = XX(i+1,JUB)
-            y2 = YY(i+1,JUB)
-            if (SegIntersectSeg(x1,y1,x2,y2, x3, y3, x4, y4)) then
-                Intersect = .true.
-                iOut = i
-                jOut = JUB-1
-                exit
-            endif                      
-        enddo
+        !East Boundary
+        x1 = XX(ILB,JUB)
+        y1 = YY(ILB,JUB)
+        x2 = XX(IUB,JUB)
+        y2 = YY(IUB,JUB)
         
-        if (.not. Intersect) write(*,*) "IntersectionBoundCell - ERR30"
-        
-    endif
+        if (SegIntersectSeg(x1,y1,x2,y2, x3, y3, x4, y4)) then
+            do i=ILB,IUB-1        
+                x1 = XX(i,JUB)
+                y1 = YY(i,JUB)
+                x2 = XX(i+1,JUB)
+                y2 = YY(i+1,JUB)
+                if (SegIntersectSeg(x1,y1,x2,y2, x3, y3, x4, y4)) then
+                    Intersect = .true.
+                    iOut = i
+                    jOut = JUB-1
+                    exit
+                endif                      
+            enddo
+            
+            if (.not. Intersect) write(*,*) "IntersectionBoundCell - ERR30"
+            
+        endif
 
-    !South Boundary
-    x1 = XX(ILB,JLB)
-    y1 = YY(ILB,JLB)
-    x2 = XX(ILB,JUB)
-    y2 = YY(ILB,JUB)
-    
-    if (SegIntersectSeg(x1,y1,x2,y2, x3, y3, x4, y4)) then
-        do j=JLB,JUB-1        
-            x1 = XX(ILB,j  )
-            y1 = YY(ILB,j  )
-            x2 = XX(ILB,j+1)
-            y2 = YY(ILB,j+1)
-            if (SegIntersectSeg(x1,y1,x2,y2, x3, y3, x4, y4)) then
-                Intersect = .true.
-                iOut = ILB
-                jOut = j
-                exit
-            endif                      
-        enddo
+        !South Boundary
+        x1 = XX(ILB,JLB)
+        y1 = YY(ILB,JLB)
+        x2 = XX(ILB,JUB)
+        y2 = YY(ILB,JUB)
         
-        if (.not. Intersect) stop "IntersectionBoundCell - ERR40"
-        
-    endif
+        if (SegIntersectSeg(x1,y1,x2,y2, x3, y3, x4, y4)) then
+            do j=JLB,JUB-1        
+                x1 = XX(ILB,j  )
+                y1 = YY(ILB,j  )
+                x2 = XX(ILB,j+1)
+                y2 = YY(ILB,j+1)
+                if (SegIntersectSeg(x1,y1,x2,y2, x3, y3, x4, y4)) then
+                    Intersect = .true.
+                    iOut = ILB
+                    jOut = j
+                    exit
+                endif                      
+            enddo
+            
+            if (.not. Intersect) stop "IntersectionBoundCell - ERR40"
+            
+        endif
     
     end subroutine IntersectionBoundCell   
 
 
-subroutine IntersectionBoundCellV2(XX,YY, WindowInAux, ILB, IUB, JLB, JUB, &
-                                   Intersect, WindowInIndex, GridCornerInside, Count)
+    subroutine IntersectionBoundCellV2(XX,YY, WindowInAux, ILB, IUB, JLB, JUB, &
+                                       Intersect, WindowInIndex, GridCornerInside, Count)
 
 
-    !Arguments------------------------------------
-    real(8), dimension(:,:), intent(IN)     :: XX, YY
-    real(8), dimension(2,5)                 :: WindowInAux    
-    integer                , intent(IN)     :: ILB, IUB, JLB, JUB
-    logical,     optional,   intent(OUT)    :: Intersect
-    integer, dimension(2,8)                 :: WindowInIndex    
-    logical, dimension(5)                   :: GridCornerInside    
-    integer                                 :: Count
+        !Arguments------------------------------------
+        real(8), dimension(:,:), intent(IN)     :: XX, YY
+        real(8), dimension(2,5)                 :: WindowInAux    
+        integer                , intent(IN)     :: ILB, IUB, JLB, JUB
+        logical,     optional,   intent(OUT)    :: Intersect
+        integer, dimension(2,8)                 :: WindowInIndex    
+        logical, dimension(5)                   :: GridCornerInside    
+        integer                                 :: Count
 
 
-    !Local----------------------------------------
-    real(8)                     :: x1,y1,x2,y2,x3,y3,x4,y4
-    integer                     :: i, j, g, w
+        !Local----------------------------------------
+        real(8)                     :: x1,y1,x2,y2,x3,y3,x4,y4
+        integer                     :: i, j, g, w
 
-    !Begin----------------------------------------
-    Intersect = .false.
-    
-
-                
-g1: do g=1,4
-    
-        if (GridCornerInside(g).eqv.GridCornerInside(g+1)) cycle
-                
-w1:     do w=1,4 
-
-            !Segment 
-            x3 = WindowInAux(1,w)
-            y3 = WindowInAux(2,w)
-            
-            x4 = WindowInAux(1,w+1)
-            y4 = WindowInAux(2,w+1)
-
+        !Begin----------------------------------------
+        Intersect = .false.
         
-            !West Boundary
-            x1 = XX(ILB,JLB)
-            y1 = YY(ILB,JLB)
-            x2 = XX(IUB,JLB)
-            y2 = YY(IUB,JLB)
-            
-            if (SegIntersectSeg(x1,y1,x2,y2, x3, y3, x4, y4)) then
-                do i=ILB,IUB-1        
-                    x1 = XX(i,JLB)
-                    y1 = YY(i,JLB)
-                    x2 = XX(i+1,JLB)
-                    y2 = YY(i+1,JLB)
-                    if (SegIntersectSeg(x1,y1,x2,y2, x3, y3, x4, y4)) then
-                        Intersect = .true.
 
-                        Count = Count + 1
+                    
+    g1: do g=1,4
+        
+            if (GridCornerInside(g).eqv.GridCornerInside(g+1)) cycle
+                    
+    w1:     do w=1,4 
 
-                        WindowInIndex(1,Count) = i
-                        WindowInIndex(2,Count) = JLB
-                    endif                      
-                enddo
+                !Segment 
+                x3 = WindowInAux(1,w)
+                y3 = WindowInAux(2,w)
                 
-                if (.not. Intersect) stop "IntersectionBoundCell - ERR10"
-                
-            endif
+                x4 = WindowInAux(1,w+1)
+                y4 = WindowInAux(2,w+1)
 
-            !North Boundary
-            x1 = XX(IUB,JLB)
-            y1 = YY(IUB,JLB)
-            x2 = XX(IUB,JUB)
-            y2 = YY(IUB,JUB)
             
-            if (SegIntersectSeg(x1,y1,x2,y2, x3, y3, x4, y4)) then
-                do j=JLB,JUB-1        
-                    x1 = XX(IUB,j  )
-                    y1 = YY(IUB,j  )
-                    x2 = XX(IUB,j+1)
-                    y2 = YY(IUB,j+1)
-                    if (SegIntersectSeg(x1,y1,x2,y2, x3, y3, x4, y4)) then
-                        Intersect = .true.
-                        Count = Count + 1                    
-                        WindowInIndex(1,Count) = IUB-1
-                        WindowInIndex(2,Count) = j
-                    endif                      
-                enddo
+                !West Boundary
+                x1 = XX(ILB,JLB)
+                y1 = YY(ILB,JLB)
+                x2 = XX(IUB,JLB)
+                y2 = YY(IUB,JLB)
                 
-                if (.not. Intersect) stop "IntersectionBoundCell - ERR20"
-                
-            endif
+                if (SegIntersectSeg(x1,y1,x2,y2, x3, y3, x4, y4)) then
+                    do i=ILB,IUB-1        
+                        x1 = XX(i,JLB)
+                        y1 = YY(i,JLB)
+                        x2 = XX(i+1,JLB)
+                        y2 = YY(i+1,JLB)
+                        if (SegIntersectSeg(x1,y1,x2,y2, x3, y3, x4, y4)) then
+                            Intersect = .true.
 
-            !East Boundary
-            x1 = XX(ILB,JUB)
-            y1 = YY(ILB,JUB)
-            x2 = XX(IUB,JUB)
-            y2 = YY(IUB,JUB)
-            
-            if (SegIntersectSeg(x1,y1,x2,y2, x3, y3, x4, y4)) then
-                do i=IUB-1,ILB,-1
-                    x1 = XX(i,JUB)
-                    y1 = YY(i,JUB)
-                    x2 = XX(i+1,JUB)
-                    y2 = YY(i+1,JUB)
-                    if (SegIntersectSeg(x1,y1,x2,y2, x3, y3, x4, y4)) then
-                        Intersect = .true.
-                        Count = Count + 1                    
-                        WindowInIndex(1,Count) =i
-                        WindowInIndex(2,Count) =JUB-1
-                    endif                      
-                enddo
-                
-                if (.not. Intersect) write(*,*) "IntersectionBoundCell - ERR30"
-                
-            endif
+                            Count = Count + 1
 
-            !South Boundary
-            x1 = XX(ILB,JLB)
-            y1 = YY(ILB,JLB)
-            x2 = XX(ILB,JUB)
-            y2 = YY(ILB,JUB)
-            
-            if (SegIntersectSeg(x1,y1,x2,y2, x3, y3, x4, y4)) then
-                do j=JUB-1,JLB,-1
-                    x1 = XX(ILB,j  )
-                    y1 = YY(ILB,j  )
-                    x2 = XX(ILB,j+1)
-                    y2 = YY(ILB,j+1)
-                    if (SegIntersectSeg(x1,y1,x2,y2, x3, y3, x4, y4)) then
-                        Intersect = .true.
-                        Count = Count + 1
-                        WindowInIndex(1,Count) =ILB
-                        WindowInIndex(2,Count) =j
-                    endif                      
-                enddo
+                            WindowInIndex(1,Count) = i
+                            WindowInIndex(2,Count) = JLB
+                        endif                      
+                    enddo
+                    
+                    if (.not. Intersect) stop "IntersectionBoundCell - ERR10"
+                    
+                endif
+
+                !North Boundary
+                x1 = XX(IUB,JLB)
+                y1 = YY(IUB,JLB)
+                x2 = XX(IUB,JUB)
+                y2 = YY(IUB,JUB)
                 
-                if (.not. Intersect) stop "IntersectionBoundCell - ERR40"
+                if (SegIntersectSeg(x1,y1,x2,y2, x3, y3, x4, y4)) then
+                    do j=JLB,JUB-1        
+                        x1 = XX(IUB,j  )
+                        y1 = YY(IUB,j  )
+                        x2 = XX(IUB,j+1)
+                        y2 = YY(IUB,j+1)
+                        if (SegIntersectSeg(x1,y1,x2,y2, x3, y3, x4, y4)) then
+                            Intersect = .true.
+                            Count = Count + 1                    
+                            WindowInIndex(1,Count) = IUB-1
+                            WindowInIndex(2,Count) = j
+                        endif                      
+                    enddo
+                    
+                    if (.not. Intersect) stop "IntersectionBoundCell - ERR20"
+                    
+                endif
+
+                !East Boundary
+                x1 = XX(ILB,JUB)
+                y1 = YY(ILB,JUB)
+                x2 = XX(IUB,JUB)
+                y2 = YY(IUB,JUB)
                 
-            endif
-            
-        enddo w1
-    enddo g1       
-    
+                if (SegIntersectSeg(x1,y1,x2,y2, x3, y3, x4, y4)) then
+                    do i=IUB-1,ILB,-1
+                        x1 = XX(i,JUB)
+                        y1 = YY(i,JUB)
+                        x2 = XX(i+1,JUB)
+                        y2 = YY(i+1,JUB)
+                        if (SegIntersectSeg(x1,y1,x2,y2, x3, y3, x4, y4)) then
+                            Intersect = .true.
+                            Count = Count + 1                    
+                            WindowInIndex(1,Count) =i
+                            WindowInIndex(2,Count) =JUB-1
+                        endif                      
+                    enddo
+                    
+                    if (.not. Intersect) write(*,*) "IntersectionBoundCell - ERR30"
+                    
+                endif
+
+                !South Boundary
+                x1 = XX(ILB,JLB)
+                y1 = YY(ILB,JLB)
+                x2 = XX(ILB,JUB)
+                y2 = YY(ILB,JUB)
+                
+                if (SegIntersectSeg(x1,y1,x2,y2, x3, y3, x4, y4)) then
+                    do j=JUB-1,JLB,-1
+                        x1 = XX(ILB,j  )
+                        y1 = YY(ILB,j  )
+                        x2 = XX(ILB,j+1)
+                        y2 = YY(ILB,j+1)
+                        if (SegIntersectSeg(x1,y1,x2,y2, x3, y3, x4, y4)) then
+                            Intersect = .true.
+                            Count = Count + 1
+                            WindowInIndex(1,Count) =ILB
+                            WindowInIndex(2,Count) =j
+                        endif                      
+                    enddo
+                    
+                    if (.not. Intersect) stop "IntersectionBoundCell - ERR40"
+                    
+                endif
+                
+            enddo w1
+        enddo g1       
+        
     end subroutine IntersectionBoundCellV2   
 
  !Checks if a segment (x1,y1,x2,y2) intersect nother segment (x3, y3, x4, y4)
     logical function SegIntersectSeg(x1,y1,x2,y2, x3, y3, x4, y4)
-    !Arguments--------------------------------------------------
-    real(8)                         :: x1,y1,x2,y2, x3, y3, x4, y4
-    !Local------------------------------------------------------
-    real(8)                         :: xi, yi, d
-    !Begin------------------------------------------------------
+        !Arguments--------------------------------------------------
+        real(8)                         :: x1,y1,x2,y2, x3, y3, x4, y4
+        !Local------------------------------------------------------
+        real(8)                         :: xi, yi, d
+        !Begin------------------------------------------------------
 
-    SegIntersectSeg = .true.
+        SegIntersectSeg = .true.
 
-    d = (x1-x2)*(y3-y4) - (y1-y2)*(x3-x4);
-    if (d == 0) SegIntersectSeg = .false.
-    
-    if (SegIntersectSeg) then
-    
-        xi = ((x3-x4)*(x1*y2-y1*x2)-(x1-x2)*(x3*y4-y3*x4))/d
-        
-        if      (abs(x1-x2)>0) then
-            yi = y2 + (y1-y2)/(x1-x2) * (xi-x2)
-        else if (abs(x3-x4)>0) then
-            yi = y4 + (y3-y4)/(x3-x4) * (xi-x4)
-        else
-            SegIntersectSeg = .false.
-        endif
+        d = (x1-x2)*(y3-y4) - (y1-y2)*(x3-x4);
+        if (d == 0) SegIntersectSeg = .false.
         
         if (SegIntersectSeg) then
         
-            if (abs(x1-x2) > abs(y1-y2)) then
-                if (xi < min(x1,x2) .or. xi > max(x1,x2)) SegIntersectSeg = .false.
+            xi = ((x3-x4)*(x1*y2-y1*x2)-(x1-x2)*(x3*y4-y3*x4))/d
+            
+            if      (abs(x1-x2)>0) then
+                yi = y2 + (y1-y2)/(x1-x2) * (xi-x2)
+            else if (abs(x3-x4)>0) then
+                yi = y4 + (y3-y4)/(x3-x4) * (xi-x4)
             else
-                if (yi < min(y1,y2) .or. yi > max(y1,y2)) SegIntersectSeg = .false.
-            endif 
+                SegIntersectSeg = .false.
+            endif
+            
+            if (SegIntersectSeg) then
+            
+                if (abs(x1-x2) > abs(y1-y2)) then
+                    if (xi < min(x1,x2) .or. xi > max(x1,x2)) SegIntersectSeg = .false.
+                else
+                    if (yi < min(y1,y2) .or. yi > max(y1,y2)) SegIntersectSeg = .false.
+                endif 
 
-            if (abs(x3-x4) > abs(y3-y4)) then
-                if (xi < min(x3,x4) .or. xi > max(x3,x4)) SegIntersectSeg = .false.        
-            else
-                if (yi < min(y3,y4) .or. yi > max(y3,y4)) SegIntersectSeg = .false.
+                if (abs(x3-x4) > abs(y3-y4)) then
+                    if (xi < min(x3,x4) .or. xi > max(x3,x4)) SegIntersectSeg = .false.        
+                else
+                    if (yi < min(y3,y4) .or. yi > max(y3,y4)) SegIntersectSeg = .false.
+                endif
             endif
         endif
-    endif
     
     end function SegIntersectSeg    
-
 
 
 end module ModuleDrawing
