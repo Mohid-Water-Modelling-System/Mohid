@@ -76,17 +76,17 @@ Module ModuleNetCDFCF_2_HDF5MOHID
         integer,    dimension(:),       allocatable   :: CountDim
         integer                                       :: x = -99, y = -99, z = -99, t = -99
         real(4),    dimension(:),       allocatable   :: R41D
-        real(4),    dimension(:,:  ),   allocatable   :: R42D        
-        real(4),    dimension(:,:,:),   allocatable   :: R43D
-        real(4),    dimension(:,:,:,:), allocatable   :: R44D        
+        real(4),    dimension(:,:  ),   pointer   :: R42D        
+        real(4),    dimension(:,:,:),   pointer   :: R43D
+        real(4),    dimension(:,:,:,:), pointer   :: R44D        
         real(8),    dimension(:),       allocatable   :: R81D
-        real(8),    dimension(:,:  ),   allocatable   :: R82D        
-        real(8),    dimension(:,:,:),   allocatable   :: R83D
-        real(8),    dimension(:,:,:,:), allocatable   :: R84D        
+        real(8),    dimension(:,:  ),   pointer   :: R82D        
+        real(8),    dimension(:,:,:),   pointer   :: R83D
+        real(8),    dimension(:,:,:,:), pointer   :: R84D        
         integer(4), dimension(:),       allocatable   :: I41D
-        integer(4), dimension(:,:  ),   allocatable   :: I42D        
-        integer(4), dimension(:,:,:),   allocatable   :: I43D
-        integer(4), dimension(:,:,:,:), allocatable   :: I44D        
+        integer(4), dimension(:,:  ),   pointer   :: I42D        
+        integer(4), dimension(:,:,:),   pointer   :: I43D
+        integer(4), dimension(:,:,:,:), pointer   :: I44D        
     end type T_ValueIn    
     
     private :: T_Date
@@ -1709,7 +1709,7 @@ BF:         if (BlockFound) then
         
         call GetNCDFFileAccess(NCDF_CREATE = NCDF_CREATE)
         
-        call ConstructNETCDF(NCDFID = Me%NetCDF_Out%ObjNetCDF,                          &
+        call ConstructNETCDF(ObjNCDFID = Me%NetCDF_Out%ObjNetCDF,                          &
                              FileName  = trim(Me%NetCDF_Out%Name),                      &
                              Access    = NCDF_CREATE,                                   &
                              STAT      = STAT_CALL)            
