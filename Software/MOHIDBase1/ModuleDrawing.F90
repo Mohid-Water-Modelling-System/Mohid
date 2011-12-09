@@ -54,12 +54,6 @@ Module ModuleDrawing
 
     public  ::    VertPolygonInsidePolygon
     
-    public  ::    SliceCellIn4
-    
-    public  ::    ArrayPolygonWindow
-    public  ::    CellInterSectCell
-    public  ::    SegIntersectSeg
-   
     private ::    NewPolygon
     private ::    NewXYZPoint
     private ::    NewXYZPoint_V2
