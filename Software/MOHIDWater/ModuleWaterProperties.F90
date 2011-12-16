@@ -542,6 +542,8 @@ Module ModuleWaterProperties
         integer                                 :: AdvMethodH, TVDLimitationH
         integer                                 :: AdvMethodV, TVDLimitationV
         logical                                 :: Upwind2H, Upwind2V
+        logical                                 :: AdvectionNudging
+        integer                                 :: AdvectionNudgingCells
     end type T_AdvectionDiffusion_Parameters
 
     type       T_FreeVerticalMovParameters
@@ -5828,8 +5830,63 @@ cd1:    if (BoundaryCondition == Orlanski) then
 
         endif
 
+        !<BeginKeyword>
+            !Keyword          : ADVECTION_NUDGING
+            !<BeginDescription>       
+               ! 
+               ! When using null-gradient for a property, one may want to nudge 
+               !the advection of that property to null near the open-boundaries.
+               ! This method could avoid undesired advection due to 
+               ! spurious velocities accumulated at the open-boundaries.
+               !
+            !<EndDescription>
+            !Type             : Logical 
+            !Default          : .FALSE.
+            !Search Type      : FromBlock
+            !Begin Block      : <beginproperty>
+            !End Block        : <endproperty>
+        !<EndKeyword>
+        call GetData(NewProperty%evolution%Advec_Difus_Parameters%AdvectionNudging,   &
+                     Me%ObjEnterData, iflag,                                            &
+                     keyword    = 'ADVECTION_NUDGING',                                &
+                     default    = .false.,                                                  &
+                     SearchType = FromBlock,                                            &
+                     ClientModule = 'ModuleWaterProperties',                            &
+                     STAT       = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)                                                      &
+            stop 'Read_Advec_Difus_Parameters - ModuleWaterProperties - ERR71'
 
+        if ( BoundaryCondition /= NullGradient .and. NewProperty%evolution%Advec_Difus_Parameters%AdvectionNudging ) then      
+            write(*,*) 'WARNING: When ADVECTION_NUDGING is ACTIVATED the BOUNDARY_CONDITION should be NULLGRADIENT.'
+        end if
 
+        if ( NewProperty%evolution%Advec_Difus_Parameters%AdvectionNudging ) then      
+        
+            !<BeginKeyword>
+                !Keyword          : ADVECTION_NUDGING_CELLS
+                !<BeginDescription>       
+                ! 
+                ! Number of cells to use when using ADVECTION_NUDGING
+                !
+                !<EndDescription>
+                !Type             : Integer
+                !Default          : 10
+                !Search Type      : FromBlock
+                !Begin Block      : <beginproperty>
+                !End Block        : <endproperty>
+            !<EndKeyword>
+            call GetData(NewProperty%evolution%Advec_Difus_Parameters%AdvectionNudgingCells,&
+                     Me%ObjEnterData, iflag,                                            &
+                     keyword    = 'ADVECTION_NUDGING_CELLS',                            &
+                     default    = 10,                                                   &
+                     SearchType = FromBlock,                                            &
+                     ClientModule = 'ModuleWaterProperties',                            &
+                     STAT       = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                  &
+                stop 'Read_Advec_Difus_Parameters - ModuleWaterProperties - ERR72'
+            
+        endif
+            
     end subroutine Read_Advec_Difus_Parameters
 
 
@@ -10170,6 +10227,8 @@ cd10:                       if (Property%evolution%Advec_Difus_Parameters%Implic
                             Property%evolution%Advec_Difus_Parameters%Upwind2H,             &
                             Property%evolution%Advec_Difus_Parameters%Upwind2V,             &
                             Property%evolution%Advec_Difus_Parameters%VolumeRelMax,         &
+                            Property%evolution%Advec_Difus_Parameters%AdvectionNudging,     &
+                            Property%evolution%Advec_Difus_Parameters%AdvectionNudgingCells, &
                             Property%evolution%DTInterval,                                  &
                             Property%evolution%Advec_Difus_Parameters%AdvectionV_imp_exp,   &
                             Property%evolution%Advec_Difus_Parameters%DiffusionV_imp_exp,   &

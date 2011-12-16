@@ -42,6 +42,7 @@ Module ModuleAdvectionDiffusion
     use ModuleGeometry      , only : GetGeometrySize, GetGeometryKFloor, GetGeometryWaterColumn, &
                                      GetGeometryAreas, GetGeometryDistances, UnGetGeometry
 
+									 
 #ifdef _ENABLE_CUDA
     use ModuleCuda
 #endif
@@ -228,6 +229,8 @@ Module ModuleAdvectionDiffusion
         integer                            :: AdvMethodH, TVDLimitationH
         integer                            :: AdvMethodV, TVDLimitationV
         logical                            :: Upwind2H, Upwind2V
+        logical                            :: AdvectionNudging
+        integer                            :: AdvectionNudgingCells             
 
         !Discharges
         real,    pointer, dimension(:)     :: DischFlow, DischConc
@@ -250,7 +253,7 @@ Module ModuleAdvectionDiffusion
         type(T_FluxCoef)                        :: COEF3_VertAdv            !Vertical    advection coeficients
         type(T_FluxCoef)                        :: COEF3_HorAdvXX           !Horinzontal advection coeficients
         type(T_FluxCoef)                        :: COEF3_HorAdvYY           !Horinzontal advection coeficients
-        real, pointer, dimension(: , : , :)     :: TICOEF3       
+        real, pointer, dimension(: , : , :)     :: TICOEF3, AdvectionE, AdvectionD, AdvectionF, AdvectionTi
 #ifdef _USE_PAGELOCKED
         type(C_PTR)                             :: TICOEF3Ptr
 #endif _USE_PAGELOCKED
@@ -519,6 +522,10 @@ cd0 :   if (ready_ == OFF_ERR_) then
         call Alloc3DPageLocked(Me%ObjCuda, Me%TICOEF3Ptr, Me%TICOEF3, IUB + 1, JUB + 1, KUB + 1)        
 #else
         allocate(Me%TICOEF3                 (ILB:IUB, JLB:JUB, KLB:KUB))
+        allocate(Me%AdvectionE              (ILB:IUB, JLB:JUB, KLB:KUB))
+        allocate(Me%AdvectionD              (ILB:IUB, JLB:JUB, KLB:KUB))        
+        allocate(Me%AdvectionF              (ILB:IUB, JLB:JUB, KLB:KUB))                
+        allocate(Me%AdvectionTi             (ILB:IUB, JLB:JUB, KLB:KUB))                
 #endif _USE_PAGELOCKED
 
         allocate(Me%WaterFluxOBoundary      (ILB:IUB, JLB:JUB, KLB:KUB))
@@ -1017,6 +1024,8 @@ cd1 :   if (ready_ == IDLE_ERR_) then
                                   Upwind2H,                                     &
                                   Upwind2V,                                     &
                                   VolumeRelMax,                                 &
+                                  AdvectionNudging,                             &
+                                  AdvectionNudgingCells,                        &
                                   DTProp,                                       &
                                   ImpExp_AdvV, ImpExp_DifV,                     &
                                   ImpExp_AdvXX, ImpExp_AdvYY,                   &
@@ -1066,6 +1075,8 @@ cd1 :   if (ready_ == IDLE_ERR_) then
         integer,           intent(IN)      :: AdvMethodV, TVDLimitationV
         logical,           intent(IN)      :: Upwind2H, Upwind2V
         real   ,           intent(IN)      :: VolumeRelMax 
+        logical,           intent(IN)      :: AdvectionNudging
+        integer,           intent(IN)      :: AdvectionNudgingCells
         real,    optional, intent(IN )     :: DecayTime 
         real,              intent(IN )     :: DTProp
         real,              intent(IN )     :: ImpExp_DifV, ImpExp_AdvV 
@@ -1187,8 +1198,9 @@ cd99 :      if (present(NumericStability)) then
 
             Me%ExternalVar%Upwind2H         = Upwind2H
             Me%ExternalVar%Upwind2V         = Upwind2V
-            Me%ExternalVar%VolumeRelMax     = VolumeRelMax 
-
+            Me%ExternalVar%VolumeRelMax     = VolumeRelMax
+            Me%ExternalVar%AdvectionNudging = AdvectionNudging            
+            Me%ExternalVar%AdvectionNudgingCells = AdvectionNudgingCells
 
 cd9 :       if (present(DecayTime)) then
                 Me%ExternalVar%DecayTime = DecayTime
@@ -1417,6 +1429,9 @@ cd2 :   if (Me%State%HorAdv) then
             if (.not. Me%Vertical1D) call VerticalAdvection()
         endif
         
+!        Me%ExternalVar%AdvectionNudging = .true.
+        
+        call AdvectionNudging( Me%ExternalVar%AdvectionNudging, Me%ExternalVar%AdvectionNudgingCells)
 
         ! This subroutine must be always the last to be called
         if (Me%State%OpenBoundary)                                                      &
@@ -1596,6 +1611,7 @@ cd5 :   if (Me%State%CellFluxes) then
         logical  :: Found
         integer  :: i, j, k, ILB, IUB, JLB, JUB, KLB, KUB
         integer  :: CHUNK
+ 
 
         !Begin------------------------------------------------------------------
 
@@ -1649,6 +1665,88 @@ do1 :           do  k = KLB, KUB
         if (MonitorPerformance) call StopWatch ("ModuleAdvectionDiffusion", "ImposeNullGradient")
 
     end subroutine ImposeNullGradient
+    
+    subroutine AdvectionNudging ( AdvectionNudge, nCells )
+    
+       !Arguments--------------------------------------------------------------
+        logical, intent(IN)  :: AdvectionNudge
+        integer, intent(IN)  :: nCells
+
+        !Local------------------------------------------------------------------
+        integer  :: i, j, k, ILB, IUB, JLB, JUB
+        logical  :: NudgeCell
+        integer  :: in, jn
+        real     :: n 
+        !$ integer :: CHUNK
+
+        !Begin------------------------------------------------------------------    
+    
+             
+        ILB = Me%WorkSize%ILB
+        IUB = Me%WorkSize%IUB
+
+        JLB = Me%WorkSize%JLB
+        JUB = Me%WorkSize%JUB
+
+        !$ CHUNK = CHUNK_J(JLB,JUB)
+
+        !$OMP PARALLEL PRIVATE(i,j,k,NudgeCell,in,jn,n)
+        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+        do j=JLB, JUB
+        do i=ILB, IUB
+            
+            NudgeCell = .false.
+            
+            if ( AdvectionNudge ) then
+            
+                if (i<nCells+1) then 
+                    NudgeCell = .true.    
+                    in = max(0, i-ILB+1) 
+                else if (i>IUB-nCells) then 
+                    NudgeCell = .true.    
+                    in = max(0, IUB-i+1) 
+                endif
+            
+                if (j<nCells+1) then 
+                    NudgeCell = .true.    
+                    jn = max(0, j-JLB+1) 
+                else if (j>JUB-nCells) then 
+                    NudgeCell = .true.    
+                    jn = max(0, JUB-j+1) 
+                endif
+            
+            endif
+            
+            if (NudgeCell) then
+                n = min(in,jn)
+                n = n/nCells
+            else
+                n = 1.0
+            endif
+               
+!            Me%AdvectionTi(i,j,:) = n * Me%AdvectionTi(i,j,:)
+!            Me%AdvectionD (i,j,:) = n * Me%AdvectionD (i,j,:)            
+!            Me%AdvectionE (i,j,:) = n * Me%AdvectionE (i,j,:)            
+!            Me%AdvectionF (i,j,:) = n * Me%AdvectionF (i,j,:)   
+            
+            do k=Me%WorkSize%KLB,Me%WorkSize%KUB
+            
+                if (Me%ExternalVar%OpenPoints3D (i,j,k) == 1) then                                 
+                
+                    Me%TICOEF3(i, j, k) = Me%TICOEF3(i, j, k) + n * Me%AdvectionTi(i, j, k)
+                    Me%Coef3%D(i, j, k) = Me%Coef3%D(i, j, k) + n * Me%AdvectionD (i, j, k)
+                    Me%Coef3%E(i, j, k) = Me%Coef3%E(i, j, k) + n * Me%AdvectionE (i, j, k)
+                    Me%Coef3%F(i, j, k) = Me%Coef3%F(i, j, k) + n * Me%AdvectionF (i, j, k)
+                    
+                endif
+            enddo
+            
+        enddo
+        enddo
+        !$OMP END DO NOWAIT
+        !$OMP END PARALLEL
+    
+    end subroutine AdvectionNudging
 
 
     subroutine NullGradProp(BoundaryProp, i, j, k, Found)
@@ -2327,9 +2425,15 @@ doi3 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                             +  Me%COEF3_VertAdv%F_flux(i,   j,   k)                     &
                             *  Me%ExternalVar%PROP    (i,   j, k+1))
 
-                Me%TICOEF3(i,j,k-1) = Me%TICOEF3(i,j,k-1) - AdvFluxZ *                  &
+                !Me%TICOEF3(i,j,k-1) = Me%TICOEF3(i,j,k-1) - AdvFluxZ *                  &
+                !                      Me%ExternalVar%DTProp / Me%ExternalVar%VolumeZ(i,j,k-1)
+                !Me%TICOEF3(i,j,k  ) = Me%TICOEF3(i,j,k  ) + AdvFluxZ *                  &
+                !                      Me%ExternalVar%DTProp / Me%ExternalVar%VolumeZ(i,j,k  )
+
+                Me%AdvectionTi(i,j,k-1) = Me%AdvectionTi(i,j,k-1) - AdvFluxZ *                  &
                                       Me%ExternalVar%DTProp / Me%ExternalVar%VolumeZ(i,j,k-1)
-                Me%TICOEF3(i,j,k  ) = Me%TICOEF3(i,j,k  ) + AdvFluxZ *                  &
+                Me%AdvectionTi(i,j,k  ) = Me%AdvectionTi(i,j,k  ) + AdvFluxZ *                  &
+
                                       Me%ExternalVar%DTProp / Me%ExternalVar%VolumeZ(i,j,k  )
 
 
@@ -2352,11 +2456,18 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                     DT1 = Me%ExternalVar%DTProp / Me%ExternalVar%VolumeZ(i,j,k-1)
                     DT2 = Me%ExternalVar%DTProp / Me%ExternalVar%VolumeZ(i,j,k  )
 
-                    Me%COEF3%D(i,j,k  ) = Me%COEF3%D(i,j,k  ) - Me%COEF3_VertAdv%D_flux(i,   j, k) * DT2
-                    Me%COEF3%E(i,j,k  ) = Me%COEF3%E(i,j,k  ) - Me%COEF3_VertAdv%E_flux(i,   j, k) * DT2
+                    !Me%COEF3%D(i,j,k  ) = Me%COEF3%D(i,j,k  ) - Me%COEF3_VertAdv%D_flux(i,   j, k) * DT2
+                    !Me%COEF3%E(i,j,k  ) = Me%COEF3%E(i,j,k  ) - Me%COEF3_VertAdv%E_flux(i,   j, k) * DT2
 
-                    Me%COEF3%E(i,j,k-1) = Me%COEF3%E(i,j,k-1) + Me%COEF3_VertAdv%D_flux(i,   j, k) * DT1
-                    Me%COEF3%F(i,j,k-1) = Me%COEF3%F(i,j,k-1) + Me%COEF3_VertAdv%E_flux(i,   j, k) * DT1
+                    !Me%COEF3%E(i,j,k-1) = Me%COEF3%E(i,j,k-1) + Me%COEF3_VertAdv%D_flux(i,   j, k) * DT1
+                    !Me%COEF3%F(i,j,k-1) = Me%COEF3%F(i,j,k-1) + Me%COEF3_VertAdv%E_flux(i,   j, k) * DT1
+                    
+
+                    Me%AdvectionD(i,j,k  ) = Me%AdvectionD(i,j,k  ) - Me%COEF3_VertAdv%D_flux(i,   j, k) * DT2
+                    Me%AdvectionE(i,j,k  ) = Me%AdvectionE(i,j,k  ) - Me%COEF3_VertAdv%E_flux(i,   j, k) * DT2
+
+                    Me%AdvectionE(i,j,k-1) = Me%AdvectionE(i,j,k-1) + Me%COEF3_VertAdv%D_flux(i,   j, k) * DT1
+                    Me%AdvectionF(i,j,k-1) = Me%AdvectionF(i,j,k-1) + Me%COEF3_VertAdv%E_flux(i,   j, k) * DT1                    
 
                 endif
 
@@ -2890,6 +3001,11 @@ fl:                     if (Flow > 0.) then
 
         KLB   = Me%Size%KLB
         KUB   = Me%Size%KUB
+        
+        Me%AdvectionTi(:,:,:) = 0.
+        Me%AdvectionD (:,:,:) = 0.        
+        Me%AdvectionE (:,:,:) = 0.                
+        Me%AdvectionF (:,:,:) = 0.                
 
         
         call HorizontalAdvectionXX(ImpExp_AdvXX)
@@ -3069,8 +3185,13 @@ doi3 :      do i = ILB, IUB
                             +  Me%COEF3_HorAdvXX%F_flux(i,   j, k)                          &
                             *  Me%ExternalVar%PROP     (i, j+1, k))
 
-                Me%TICOEF3(i,j  ,k) = Me%TICOEF3(i,j  ,k) + AdvFluxX * Me%ExternalVar%DTProp / Me%ExternalVar%VolumeZ(i,j  ,k)
-                Me%TICOEF3(i,j-1,k) = Me%TICOEF3(i,j-1,k) - AdvFluxX * Me%ExternalVar%DTProp / Me%ExternalVar%VolumeZ(i,j-1,k)
+                !Me%TICOEF3(i,j  ,k) = Me%TICOEF3(i,j  ,k) + AdvFluxX * Me%ExternalVar%DTProp / Me%ExternalVar%VolumeZ(i,j  ,k)
+                !Me%TICOEF3(i,j-1,k) = Me%TICOEF3(i,j-1,k) - AdvFluxX * Me%ExternalVar%DTProp / Me%ExternalVar%VolumeZ(i,j-1,k)
+
+                Me%AdvectionTi(i,j  ,k) = Me%AdvectionTi(i,j  ,k) + AdvFluxX * Me%ExternalVar%DTProp / &
+                                          Me%ExternalVar%VolumeZ(i,j  ,k)
+                Me%AdvectionTi(i,j-1,k) = Me%AdvectionTi(i,j-1,k) - AdvFluxX * Me%ExternalVar%DTProp / &
+                                          Me%ExternalVar%VolumeZ(i,j-1,k)
 
             endif
 
@@ -3092,11 +3213,20 @@ doi4 :      do i = ILB, IUB
                 DT2 = Me%ExternalVar%DTProp / Me%ExternalVar%VolumeZ(i,j  ,k)
                 DT1 = Me%ExternalVar%DTProp / Me%ExternalVar%VolumeZ(i,j-1,k)
 
-                Me%COEF3%D(i,j  ,k) = Me%COEF3%D(i,j  ,k) - Me%COEF3_HorAdvXX%D_flux(i,   j, k) * DT2
-                Me%COEF3%E(i,j  ,k) = Me%COEF3%E(i,j  ,k) - Me%COEF3_HorAdvXX%E_flux(i,   j, k) * DT2
+                !Me%COEF3%D(i,j  ,k) = Me%COEF3%D(i,j  ,k) - Me%COEF3_HorAdvXX%D_flux(i,   j, k) * DT2
+                !Me%COEF3%E(i,j  ,k) = Me%COEF3%E(i,j  ,k) - Me%COEF3_HorAdvXX%E_flux(i,   j, k) * DT2
 
-                Me%COEF3%E(i,j-1,k) = Me%COEF3%E(i,j-1,k) + Me%COEF3_HorAdvXX%D_flux(i,   j, k) * DT1
-                Me%COEF3%F(i,j-1,k) = Me%COEF3%F(i,j-1,k) + Me%COEF3_HorAdvXX%E_flux(i,   j, k) * DT1
+                !Me%COEF3%E(i,j-1,k) = Me%COEF3%E(i,j-1,k) + Me%COEF3_HorAdvXX%D_flux(i,   j, k) * DT1
+                !Me%COEF3%F(i,j-1,k) = Me%COEF3%F(i,j-1,k) + Me%COEF3_HorAdvXX%E_flux(i,   j, k) * DT1
+
+                Me%AdvectionD(i,j  ,k) = Me%AdvectionD(i,j  ,k) - Me%COEF3_HorAdvXX%D_flux(i,   j, k) * DT2
+                Me%AdvectionE(i,j  ,k) = Me%AdvectionE(i,j  ,k) - Me%COEF3_HorAdvXX%E_flux(i,   j, k) * DT2
+
+                Me%AdvectionE(i,j-1,k) = Me%AdvectionE(i,j-1,k) + Me%COEF3_HorAdvXX%D_flux(i,   j, k) * DT1
+                Me%AdvectionF(i,j-1,k) = Me%AdvectionF(i,j-1,k) + Me%COEF3_HorAdvXX%E_flux(i,   j, k) * DT1
+
+
+
 
 !The module advection is only able to compute tridiagonal linear systems 
 !
@@ -3221,8 +3351,14 @@ doi3 :      do i = ILB, IUB
                             +  Me%COEF3_HorAdvYY%F_flux(  i, j, k)                          &
                             *  Me%ExternalVar%PROP     (i+1, j, k))
 
-                Me%TICOEF3(i  ,j,k) = Me%TICOEF3(i  ,j,k) + AdvFluxY * Me%ExternalVar%DTProp / Me%ExternalVar%VolumeZ(i  ,j,k)
-                Me%TICOEF3(i-1,j,k) = Me%TICOEF3(i-1,j,k) - AdvFluxY * Me%ExternalVar%DTProp / Me%ExternalVar%VolumeZ(i-1,j,k)
+                !Me%TICOEF3(i  ,j,k) = Me%TICOEF3(i  ,j,k) + AdvFluxY * Me%ExternalVar%DTProp / Me%ExternalVar%VolumeZ(i  ,j,k)
+                !Me%TICOEF3(i-1,j,k) = Me%TICOEF3(i-1,j,k) - AdvFluxY * Me%ExternalVar%DTProp / Me%ExternalVar%VolumeZ(i-1,j,k)
+
+                Me%AdvectionTi(i  ,j,k) = Me%AdvectionTi(i  ,j,k) + AdvFluxY * Me%ExternalVar%DTProp / &
+                                          Me%ExternalVar%VolumeZ(i  ,j,k)
+                Me%AdvectionTi(i-1,j,k) = Me%AdvectionTi(i-1,j,k) - AdvFluxY * Me%ExternalVar%DTProp / &
+                                          Me%ExternalVar%VolumeZ(i-1,j,k)
+                
 
             endif
 
@@ -3244,11 +3380,19 @@ doi4 :      do i = ILB, IUB
                 DT2 = Me%ExternalVar%DTProp / Me%ExternalVar%VolumeZ(i  ,j  ,k)
                 DT1 = Me%ExternalVar%DTProp / Me%ExternalVar%VolumeZ(i-1,j  ,k)
 
-                Me%COEF3%D(i,j  ,k) = Me%COEF3%D(i,j  ,k) - Me%COEF3_HorAdvYY%D_flux(i,   j, k) * DT2
-                Me%COEF3%E(i,j  ,k) = Me%COEF3%E(i,j  ,k) - Me%COEF3_HorAdvYY%E_flux(i,   j, k) * DT2
+                !Me%COEF3%D(i,j  ,k) = Me%COEF3%D(i,j  ,k) - Me%COEF3_HorAdvYY%D_flux(i,   j, k) * DT2
+                !Me%COEF3%E(i,j  ,k) = Me%COEF3%E(i,j  ,k) - Me%COEF3_HorAdvYY%E_flux(i,   j, k) * DT2
 
-                Me%COEF3%E(i-1,j,k) = Me%COEF3%E(i-1,j,k) + Me%COEF3_HorAdvYY%D_flux(i,   j, k) * DT1
-                Me%COEF3%F(i-1,j,k) = Me%COEF3%F(i-1,j,k) + Me%COEF3_HorAdvYY%E_flux(i,   j, k) * DT1
+                !Me%COEF3%E(i-1,j,k) = Me%COEF3%E(i-1,j,k) + Me%COEF3_HorAdvYY%D_flux(i,   j, k) * DT1
+                !Me%COEF3%F(i-1,j,k) = Me%COEF3%F(i-1,j,k) + Me%COEF3_HorAdvYY%E_flux(i,   j, k) * DT1
+                
+                Me%AdvectionD(i,j  ,k) = Me%AdvectionD(i,j  ,k) - Me%COEF3_HorAdvYY%D_flux(i,   j, k) * DT2
+                Me%AdvectionE(i,j  ,k) = Me%AdvectionE(i,j  ,k) - Me%COEF3_HorAdvYY%E_flux(i,   j, k) * DT2
+
+                Me%AdvectionE(i-1,j,k) = Me%AdvectionE(i-1,j,k) + Me%COEF3_HorAdvYY%D_flux(i,   j, k) * DT1
+                Me%AdvectionF(i-1,j,k) = Me%AdvectionF(i-1,j,k) + Me%COEF3_HorAdvYY%E_flux(i,   j, k) * DT1                
+                
+                
 
 !The module advection is only able to compute tridiagonal linear systems 
 !
@@ -4119,6 +4263,8 @@ cd1 :   if (ready_ /= OFF_ERR_) then
                 if (STAT_CALL /= SUCCESS_)                                             &
                     stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR21'
                 nullify   (Me%TICOEF3) 
+                deallocate(Me%AdvectionTi,Me%AdvectionE, Me%AdvectionD, Me%AdvectionF)
+                nullify   (Me%AdvectionTi,Me%AdvectionE, Me%AdvectionD, Me%AdvectionF) 
 #endif
                 !griflet
                 do p = 1, Me%MaxThreads

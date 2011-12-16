@@ -431,7 +431,6 @@ Module ModuleInterfaceSedimentWater
         type(T_Time)                                :: NextCompute
     end type  T_Evolution
 
-
     type       T_Property
          type(T_PropertyID)                         :: ID
          logical                                    :: Particulate          = .false.
@@ -454,7 +453,7 @@ Module ModuleInterfaceSedimentWater
          type(T_Evolution)                          :: Evolution
          type(T_Property), pointer                  :: Next
          type(T_Property), pointer                  :: Prev
-    end type  T_Property
+    end type  T_Property 
 
     type       T_BenthicRate
         type (T_ID)                                 :: ID
@@ -650,6 +649,7 @@ Module ModuleInterfaceSedimentWater
 
     !Global Module Variables
     type (T_InterfaceSedimentWater), pointer        :: FirstObjInterfaceSedimentWater
+
     type (T_InterfaceSedimentWater), pointer        :: Me
 
     !--------------------------------------------------------------------------
