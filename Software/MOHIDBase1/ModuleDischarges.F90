@@ -1638,7 +1638,7 @@ ifvar:  if (NewProperty%Variable) then
         !Arguments-------------------------------------------------------------
 
         !Local-----------------------------------------------------------------
-#ifndef _OPENMI_
+#ifndef _OUTPUT_OFF_
         type(T_IndividualDischarge), pointer        :: CurrentDischarge
 
         write(*, *)"----------------------- DISCHARGES -----------------------"

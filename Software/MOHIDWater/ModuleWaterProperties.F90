@@ -7740,7 +7740,7 @@ cd2 :       if (BlockFound) then
         !Local-----------------------------------------------------------------
         type (T_Property), pointer                  :: CurrentProperty
 
-#ifndef _OPENMI_
+#ifndef _OUTPUT_OFF_
 
         write(*, *)"--------------------- WATERPROPERTIES --------------------"
         write(*, *)

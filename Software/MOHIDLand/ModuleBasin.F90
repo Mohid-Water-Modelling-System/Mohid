@@ -426,7 +426,6 @@ Module ModuleBasin
         real,    dimension(:,:), pointer            :: RainStartTime          => null()
         real,    dimension(:,:), pointer            :: RainDuration           => null()
         real,    dimension(:,:), pointer            :: DiffuseFlow            => null()
-        real                                        :: InitialWaterColumn
 !        real                                        :: WaterColumnCoef
         real                                        :: ETConversionFactor       = 1
         type (T_WaterMassBalance)                   :: MB
@@ -797,14 +796,14 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         !Local-----------------------------------------------------------------
         integer                                     :: STAT_CALL
         integer                                     :: iflag
-
+        real                                        :: dummy
 
         !Constructs the DataFile
         call ConstructEnterData (Me%ObjEnterData, Me%Files%ConstructData, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR010'
 
         !Basin Initial Water Column
-        call GetData(Me%InitialWaterColumn,                                              &
+        call GetData(dummy,                                                              &
                      Me%ObjEnterData, iflag,                                             &
                      SearchType   = FromFile,                                            &
                      keyword      = 'INITIAL_WATER_COLUMN',                              &
@@ -2383,7 +2382,6 @@ i1:         if (CoordON) then
                                          GridDataID         = Me%ObjGridData,            &
                                          BasinGeometryID    = Me%ObjBasinGeometry,       &
                                          DrainageNetworkID  = Me%ObjDrainageNetwork,     &
-                                         InitialWaterColumn = Me%InitialWaterColumn,     &
                                          STAT               = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructCoupledModules - ModuleBasin - ERR070'
             
@@ -2397,7 +2395,6 @@ i1:         if (CoordON) then
                                                        BasinGeometryID            = Me%ObjBasinGeometry,          &
                                                        RunoffID                   = Me%ObjRunoff,                 &
                                                        GridDataID                 = Me%ObjGridData,               &
-                                                       InitialWaterColumn         = Me%InitialWaterColumn,        &
  !                                                      GeometryID                 = Me%ObjGeometry,               &
  !                                                      CoupledPMP                 = Me%Coupled%PorousMediaProperties, &
                                                        CoupledDN                  = Me%Coupled%DrainageNetwork,   &
@@ -7771,7 +7768,43 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
 
     !--------------------------------------------------------------------------
 
+#ifdef _OPENMI_
+
+
+    !DEC$ IFDEFINED (VF66)
+    !dec$ attributes dllexport::IsDrainageNetworkActive
+    !DEC$ ELSE
+    !dec$ attributes dllexport,alias:"_ISDRAINAGENETWORKACTIVE"::IsDrainageNetworkActive
+    !DEC$ ENDIF
+    logical function IsDrainageNetworkActive(BasinID)
+    
+        !Arguments-------------------------------------------------------------
+        integer                                     :: BasinID
+        
+        !Local-----------------------------------------------------------------
+        integer                                     :: STAT_CALL
+        integer                                     :: ready_         
+
+        call Ready(BasinID, ready_)    
+        
+        if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
+            IsDrainageNetworkActive = Me%Coupled%DrainageNetwork
+        else 
+            IsDrainageNetworkActive = .false.
+        end if
+           
+        return
+
+    end function IsDrainageNetworkActive
+
+#endif
+
+
+
 end module ModuleBasin
+
+
+
 
 !MOHID Water Modelling System.
 !Copyright (C) 1985, 1998, 2002, 2006. MARETEC, Instituto Superior Técnico, Technical University of Lisbon. 

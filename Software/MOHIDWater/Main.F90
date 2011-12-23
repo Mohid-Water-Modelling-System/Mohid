@@ -1175,7 +1175,7 @@ doNext:     do while (associated(NextModel))
         !real                                        :: DT_Father
         real                                        :: DTmin, DTmax
 
-#ifndef _OPENMI_
+#ifndef _OUTPUT_OFF_
         write(*, *)"-------------------------- MOHID -------------------------"
         write(*, *)
         write(*, *)"Running MOHID, please wait..."
@@ -1354,7 +1354,7 @@ doNext:     do while (associated(NextModel))
         call GetSystemTime (WorkCycleFinal )
         call cpu_time      (CPUTimeModifier)
 
-#ifndef _OPENMI_
+#ifndef _OUTPUT_OFF_
         write(*, *)"-------------------------- MOHID -------------------------"
         write(*, *)
         write(*, *)"Shuting down MOHID, please wait..."

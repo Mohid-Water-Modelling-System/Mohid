@@ -2561,7 +2561,7 @@ do1 :   do
         type (T_Property), pointer                  :: CurrentProperty
 
 
-#ifndef _OPENMI_
+#ifndef _OUTPUT_OFF_
         write(*, *)"---------------- INTERFACE SEDIMENT-WATER -----------------"
         write(*, *)
         write(*, *)"Num of Properties : ", Me%PropertiesNumber

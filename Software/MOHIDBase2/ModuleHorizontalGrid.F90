@@ -10200,19 +10200,41 @@ cd1:    if      (SumON > 0) then
         
         if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
         
-            !Anticlockwise, closed
-            xCoords(1) = Me%XX_IE(i, j)
-            xCoords(2) = Me%XX_IE(i, j+1)
-            xCoords(3) = Me%XX_IE(i+1, j+1)
-            xCoords(4) = Me%XX_IE(i+1, j)
-            xCoords(5) = Me%XX_IE(i, j)
+        
+            if (Me%CoordType == SIMPLE_GEOG_ .or. Me%CoordType == GEOG_) then
+
+                !Anticlockwise, closed
+                xCoords(1) = Me%LongitudeConn(i, j)
+                xCoords(2) = Me%LongitudeConn(i, j+1)
+                xCoords(3) = Me%LongitudeConn(i+1, j+1)
+                xCoords(4) = Me%LongitudeConn(i+1, j)
+                xCoords(5) = Me%LongitudeConn(i, j)
+                
+                !Anticlockwise, closed  
+                yCoords(1) = Me%LatitudeConn(i, j)
+                yCoords(2) = Me%LatitudeConn(i, j+1)
+                yCoords(3) = Me%LatitudeConn(i+1, j+1)
+                yCoords(4) = Me%LatitudeConn(i+1, j)
+                yCoords(5) = Me%LatitudeConn(i, j)
+
             
-            !Anticlockwise, closed  
-            yCoords(1) = Me%YY_IE(i, j)
-            yCoords(2) = Me%YY_IE(i, j+1)
-            yCoords(3) = Me%YY_IE(i+1, j+1)
-            yCoords(4) = Me%YY_IE(i+1, j)
-            yCoords(5) = Me%YY_IE(i, j)
+            else
+        
+                !Anticlockwise, closed
+                xCoords(1) = Me%XX_IE(i, j)
+                xCoords(2) = Me%XX_IE(i, j+1)
+                xCoords(3) = Me%XX_IE(i+1, j+1)
+                xCoords(4) = Me%XX_IE(i+1, j)
+                xCoords(5) = Me%XX_IE(i, j)
+                
+                !Anticlockwise, closed  
+                yCoords(1) = Me%YY_IE(i, j)
+                yCoords(2) = Me%YY_IE(i, j+1)
+                yCoords(3) = Me%YY_IE(i+1, j+1)
+                yCoords(4) = Me%YY_IE(i+1, j)
+                yCoords(5) = Me%YY_IE(i, j)
+
+            endif
 
             GetGridCellCoordinates = .true.
         else 

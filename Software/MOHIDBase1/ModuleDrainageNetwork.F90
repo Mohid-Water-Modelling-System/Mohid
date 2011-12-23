@@ -5713,8 +5713,9 @@ if0:    if (Me%HasProperties) then
         !Local------------------------------------------------------------------
         integer                                             :: HDF5_CREATE, STAT_CALL
         integer                                             :: iNode, ReachID
-        real, dimension(:), pointer                         :: NodeX, NodeY
-        integer, dimension(:), pointer                      :: NodeID, ReachIDs, UpNode, DownNode
+        real, dimension(:), pointer                         :: NodeX, NodeY, ReachSize
+        integer, dimension(:), pointer                      :: NodeID, ReachIDs
+        integer, dimension(:), pointer                      :: UpNode, DownNode, ReachActive
         
         
         Me%OutPut%NextOutPut = 1  
@@ -5737,14 +5738,22 @@ if0:    if (Me%HasProperties) then
             NodeY(iNode)  = Me%Nodes(iNode)%Y
         enddo
 
-        allocate(UpNode  (1: Me%TotalReaches))
-        allocate(DownNode(1: Me%TotalReaches))
-        allocate(ReachIDs(1: Me%TotalReaches))
+        allocate(UpNode     (1: Me%TotalReaches))
+        allocate(DownNode   (1: Me%TotalReaches))
+        allocate(ReachIDs   (1: Me%TotalReaches))
+        allocate(ReachSize  (1: Me%TotalReaches))
+        allocate(ReachActive(1: Me%TotalReaches))
         
         do ReachID = 1, Me%TotalReaches
-            ReachIDs(ReachID) = ReachID
-            UpNode  (ReachID) = Me%Nodes(Me%Reaches(ReachID)%UpstreamNode)%ID
-            DownNode(ReachID) = Me%Nodes(Me%Reaches(ReachID)%DownstreamNode)%ID
+            ReachIDs    (ReachID) = ReachID
+            UpNode      (ReachID) = Me%Nodes(Me%Reaches(ReachID)%UpstreamNode)%ID
+            DownNode    (ReachID) = Me%Nodes(Me%Reaches(ReachID)%DownstreamNode)%ID
+            ReachSize   (ReachID) = Me%Nodes(Me%Reaches(ReachID)%UpstreamNode)%CrossSection%TopWidth
+            if (Me%Reaches(ReachID)%Active) then 
+                ReachActive (ReachID) = 1
+            else
+                ReachActive (ReachID) = 0
+            endif
         enddo
 
         !Nodes
@@ -5765,22 +5774,33 @@ if0:    if (Me%HasProperties) then
         !Reaches
         call HDF5SetLimits  (Me%ObjHDF5, 1, Me%TotalReaches, STAT = STAT_CALL)
         
+        !Reach - ID
         call HDF5WriteData   (Me%ObjHDF5, "/Reaches", "ID", "-",                         &
                               Array1D = ReachIDs, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5Output - ModuleDrainageNetwork - ERR04'
 
-
+        !Reach - Up Node
         call HDF5WriteData   (Me%ObjHDF5, "/Reaches", "Up", "-",                         &
                               Array1D = UpNode, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5Output - ModuleDrainageNetwork - ERR04'
 
+        !Reach - Down Node
         call HDF5WriteData   (Me%ObjHDF5, "/Reaches", "Down", "-",                       &
                               Array1D = DownNode, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5Output - ModuleDrainageNetwork - ERR05'
 
+        !Reach - Size
+        call HDF5WriteData   (Me%ObjHDF5, "/Reaches", "Size", "-",                       &
+                              Array1D = ReachSize, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5Output - ModuleDrainageNetwork - ERR06'
 
-        deallocate(NodeX, NodeY)
-        deallocate(DownNode, UpNode)
+        !Reach - Active
+        call HDF5WriteData   (Me%ObjHDF5, "/Reaches", "Active", "-",                       &
+                              Array1D = ReachActive, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5Output - ModuleDrainageNetwork - ERR07'
+
+        deallocate(NodeID, NodeX, NodeY)
+        deallocate(DownNode, UpNode, ReachIDs, ReachSize, ReachActive)
         
     end subroutine ConstructHDF5Output
 
@@ -5792,9 +5812,11 @@ if0:    if (Me%HasProperties) then
 
         !Local------------------------------------------------------------------
         type (T_Property), pointer                  :: Property
+        integer                                     :: iNode        
 
 
-!#ifndef _OPENMI_
+#ifndef _OUTPUT_OFF_
+
         write(*, *)
         write(*, *)"-------------------- DRAINAGE NETWORK --------------------"         
         write(*, *)
@@ -5881,12 +5903,18 @@ if0:    if (Me%HasProperties) then
             write(*, *)"--------------- DRAINAGE NETWORK SWMM LINKS --------------"      
             write(*, *)
             write(*, *)"Num of Inflow  Nodes: ", Me%StormWaterModelLink%nInflowNodes
+            do iNode = 1, Me%StormWaterModelLink%nInflowNodes
+                write(*, *)"       Inflow  Node : ", Me%StormWaterModelLink%InflowIDs(iNode)
+            enddo
             write(*, *)"Num of Outflow Nodes: ", Me%StormWaterModelLink%nOutflowNodes
+            do iNode = 1, Me%StormWaterModelLink%nOutflowNodes
+                write(*, *)"      Outflow  Node : ", Me%StormWaterModelLink%OutflowIDs(iNode)
+            enddo
             write(*, *)
             
         endif
         
-!#endif  
+#endif  
 
     end subroutine ConstructLog
 

@@ -228,7 +228,6 @@ Module ModuleRunoffProperties
         real(8), pointer, dimension(:,:)            :: InfiltrationFlux
 
         logical                                     :: CoupledDN  = .false.
-        real                                        :: InitialWaterColumn
 
         !from basin
 !        real,    dimension(:,:  ), pointer          :: WindVelocity2D  !m/s
@@ -536,7 +535,6 @@ Module ModuleRunoffProperties
                                               BasinGeometryID,                            &
                                               RunoffID,                                   &
                                               GridDataID,                                 &
-                                              InitialWaterColumn,                         &
                                               CoupledDN,                                  &
                                               CheckGlobalMass,                            &
                                               CoupledVegetation,                          &
@@ -551,7 +549,6 @@ Module ModuleRunoffProperties
         integer                                         :: BasinGeometryID
         integer                                         :: RunoffID
         integer                                         :: GridDataID
-        real                                            :: InitialWaterColumn
         logical, optional                               :: CoupledDN 
         logical                                         :: CheckGlobalMass
         logical                                         :: CoupledVegetation
@@ -585,7 +582,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             Me%ObjHorizontalGrid = AssociateInstance (mHORIZONTALGRID_, HorizontalGridID)
             Me%ObjHorizontalMap  = AssociateInstance (mHORIZONTALMAP_,  HorizontalMapID )
             Me%ObjBasinGeometry  = AssociateInstance (mBASINGEOMETRY_,  BasinGeometryID )
-            Me%ObjRunoff         = AssociateInstance (mRUNOFF_,              RunoffID   )
+            Me%ObjRunoff         = AssociateInstance (mRUNOFF_,         RunoffID        )
             Me%ObjGridData       = AssociateInstance (mGRIDDATA_,       GridDataID      )
             
             Me%CheckGlobalMass = CheckGlobalMass
@@ -594,7 +591,6 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 Me%ExtVar%CoupledDN  = CoupledDN
             endif            
             
-            Me%ExtVar%InitialWaterColumn     = InitialWaterColumn
             Me%ExtVar%CoupledVegetation      = CoupledVegetation
             Me%ExtVar%VegParticFertilization = VegParticFertilization
 
@@ -2363,8 +2359,8 @@ cd2 :           if (BlockFound) then
                     stop 'Construct_PropertyValues - ModuleRunoffProperties - ERR0150'
             end if
 
-!            call GetRunoffWaterColumn     (Me%ObjRunoff, Me%ExtVar%WaterColumn, STAT = STAT_CALL) 
-!            if (STAT_CALL /= SUCCESS_) stop 'Construct_PropertyValues - ModuleRunoffProperties - ERR151'            
+            call GetRunoffWaterColumn     (Me%ObjRunoff, Me%ExtVar%WaterColumn, STAT = STAT_CALL) 
+            if (STAT_CALL /= SUCCESS_) stop 'Construct_PropertyValues - ModuleRunoffProperties - ERR151'            
 
             call GetGridCellArea    (Me%ObjHorizontalGrid,                                     & 
                                      GridCellArea = Me%ExtVar%Area,                            & 
@@ -2375,7 +2371,7 @@ cd2 :           if (BlockFound) then
             do j=Me%WorkSize%JLB, Me%WorkSize%JUB
             do i=Me%WorkSize%ILB, Me%WorkSize%IUB                    
                 if (Me%ExtVar%BasinPoints(i,j) == BasinPoint) then 
-                    if (Me%ExtVar%InitialWaterColumn .gt. 0.0) then
+                    if (Me%ExtVar%WaterColumn(i,j) .gt. 0.0) then
                         NewProperty%ConcentrationOld(i,j) = NewProperty%Concentration(i,j)
                         !g = g/m3 * m * m2
 !                        NewProperty%Mass(i,j)             = NewProperty%Concentration(i,j) * Me%ExtVar%InitialWaterColumn &
@@ -2388,7 +2384,7 @@ cd2 :           if (BlockFound) then
                     if (NewProperty%Particulate) then
                         !kg/m2 = (g/m3 * (m * m2) * 1E-3 kg/g) / m2 + kg/m2
                         NewProperty%TotalConcentration(i,j) = NewProperty%Concentration(i,j)          &
-                                                              * Me%ExtVar%InitialWaterColumn * 1E-3   &
+                                                              * Me%ExtVar%WaterColumn(i,j) * 1E-3   &
                                                               + NewProperty%BottomConcentration(i,j)
                     endif
                 endif
@@ -2397,8 +2393,8 @@ cd2 :           if (BlockFound) then
             
 !            call SetMatrixValue(NewProperty%ConcentrationOld, Me%Size, NewProperty%Concentration,Me%ExtVar%BasinPoints)
 
-!            call UnGetRunoff     (Me%ObjRunoff, Me%ExtVar%WaterColumn, STAT = STAT_CALL) 
-!            if (STAT_CALL /= SUCCESS_) stop 'Construct_PropertyValues - ModuleRunoffProperties - ERR152'            
+            call UnGetRunoff     (Me%ObjRunoff, Me%ExtVar%WaterColumn, STAT = STAT_CALL) 
+            if (STAT_CALL /= SUCCESS_) stop 'Construct_PropertyValues - ModuleRunoffProperties - ERR152'            
 
             call UnGetHorizontalGrid        (Me%ObjHorizontalGrid,Me%ExtVar%Area,STAT = STAT_CALL)   
             if (STAT_CALL /= SUCCESS_) stop 'Construct_PropertyValues - ModuleRunoffProperties - ERR0153'

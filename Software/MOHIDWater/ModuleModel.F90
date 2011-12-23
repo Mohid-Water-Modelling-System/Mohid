@@ -372,7 +372,7 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
             !Stores name
             Me%ModelName        = trim(ModelNames(Me%InstanceID))
 
-#ifndef _OPENMI_
+#ifndef _OUTPUT_OFF_
             write(*, *)"-------------------------- MODEL -------------------------"
             write(*, *)
             write(*, *)"Constructing      : ", trim(Me%ModelName)
@@ -1964,7 +1964,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                 if (STAT_CALL /= SUCCESS_) stop 'KillModel - ModuleModel - ERR01'
 
                 DT_error = Me%EndTime - Me%CurrentTime
-#ifndef _OPENMI_
+#ifndef _OUTPUT_OFF_
 if9 :           if (DT_error /= 0.) then
                     write(*,*)  
                     write(*,*) 'Warning: The model = ',trim(Me%ModelName)

@@ -2949,7 +2949,7 @@ cd3 :   if (ErrorMagnitude == FATAL_) then
         Seed = 1
         call RANDOM_SEED(PUT  = Seed)
 
-#ifndef _OPENMI_
+#ifndef _OUTPUT_OFF_
         write(*, *)"-------------------------- MOHID -------------------------"
         write(*, *)
         write(*, *)"      AUTHOR   : IST/MARETEC, Marine Modelling Group      "
@@ -3047,7 +3047,7 @@ do2:    do
         ElapsedHours = INT(Elapsedseconds/3600)
         ElapsedMinutes = INT((ElapsedSeconds-ElapsedHours*3600)/60)
         ElapsedSecremain = INT((ElapsedSeconds-ElapsedMinutes*60-ElapsedHours*3600))
-#ifndef _OPENMI_
+#ifndef _OUTPUT_OFF_
         write(*, *)"-------------------------- MOHID -------------------------"
         write(*, *)
         write(*, *)"Program "//ModelName//" successfully terminated"
@@ -3065,7 +3065,10 @@ do2:    do
         endif
         write(*, *)
         write(*, *)"----------------------------------------------------------"
-        
+
+#endif
+
+#ifndef _OPENMI_        
         !This Stop Statement has been removed because it makes OpenMI Destructor work improberly
         stop
 #endif

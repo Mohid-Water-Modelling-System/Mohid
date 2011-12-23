@@ -10024,7 +10024,7 @@ cd2 :       if (Courant .LT. Courant_temp) then
 
         !------------------------------------------------------------------------
 
-#ifndef _OPENMI_
+#ifndef _OUTPUT_OFF_
         write(*, *)"---------------------- HYDRODYNAMICS ---------------------"
         write(*, *)
         write(*, *)"Courant Number is : ", Courant

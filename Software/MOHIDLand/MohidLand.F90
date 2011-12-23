@@ -204,7 +204,7 @@ program MohidLand
         !real                                        :: CPUTime, LastCPUTime = 0.
         logical                                      :: finished
 
-#ifndef _OPENMI_
+#ifndef _OUTPUT_OFF_
         write(*, *)"-------------------------- MOHID -------------------------"
         write(*, *)
         write(*, *)"Running MOHID Land, please wait..."

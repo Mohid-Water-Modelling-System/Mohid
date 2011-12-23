@@ -1793,7 +1793,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
             endif
 
             !Prints Messages to the Screen
-#ifndef _OPENMI_
+#ifndef _OUTPUT_OFF_
             write(*, *)"-----Current Simulation Instant---------------------------"
             write(*,100)int(Me%Current%Time_(1)), int(Me%Current%Time_(2)), &
                         int(Me%Current%Time_(3)), int(Me%Current%Time_(4)), &
