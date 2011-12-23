@@ -91,6 +91,8 @@ Project("{6989167D-11E4-40FE-8C1A-2192A86A7E90}") = "JoinTimeSeries", "JoinTimeS
 EndProject
 Project("{6989167D-11E4-40FE-8C1A-2192A86A7E90}") = "HDF5Statistics", "HDF5Statistics\HDF5Statistics.vfproj", "{C447F70C-970B-4274-A711-048C5D6F2C87}"
 EndProject
+Project("{6989167D-11E4-40FE-8C1A-2192A86A7E90}") = "SmoothBathymNesting", "SmoothBathymNesting\SmoothBathymNesting.vfproj", "{8AAFBBAB-D61C-42EE-8346-67EDA6AAABFA}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug Developper Single|Win32 = Debug Developper Single|Win32
@@ -755,6 +757,42 @@ Global
 		{C447F70C-970B-4274-A711-048C5D6F2C87}.Release|Win32.ActiveCfg = Release|Win32
 		{C447F70C-970B-4274-A711-048C5D6F2C87}.Release|Win32.Build.0 = Release|Win32
 		{C447F70C-970B-4274-A711-048C5D6F2C87}.Release|x64.ActiveCfg = Release|Win32
+		{8AAFBBAB-D61C-42EE-8346-67EDA6AAABFA}.Debug Developper Single|Win32.ActiveCfg = Debug|Win32
+		{8AAFBBAB-D61C-42EE-8346-67EDA6AAABFA}.Debug Developper Single|Win32.Build.0 = Debug|Win32
+		{8AAFBBAB-D61C-42EE-8346-67EDA6AAABFA}.Debug Developper Single|x64.ActiveCfg = Debug|Win32
+		{8AAFBBAB-D61C-42EE-8346-67EDA6AAABFA}.Debug Double Openmp|Win32.ActiveCfg = Debug|Win32
+		{8AAFBBAB-D61C-42EE-8346-67EDA6AAABFA}.Debug Double Openmp|Win32.Build.0 = Debug|Win32
+		{8AAFBBAB-D61C-42EE-8346-67EDA6AAABFA}.Debug Double Openmp|x64.ActiveCfg = Debug|Win32
+		{8AAFBBAB-D61C-42EE-8346-67EDA6AAABFA}.Debug Double PhreeqC|Win32.ActiveCfg = Debug|Win32
+		{8AAFBBAB-D61C-42EE-8346-67EDA6AAABFA}.Debug Double PhreeqC|Win32.Build.0 = Debug|Win32
+		{8AAFBBAB-D61C-42EE-8346-67EDA6AAABFA}.Debug Double PhreeqC|x64.ActiveCfg = Debug|Win32
+		{8AAFBBAB-D61C-42EE-8346-67EDA6AAABFA}.Debug Double|Win32.ActiveCfg = Debug|Win32
+		{8AAFBBAB-D61C-42EE-8346-67EDA6AAABFA}.Debug Double|Win32.Build.0 = Debug|Win32
+		{8AAFBBAB-D61C-42EE-8346-67EDA6AAABFA}.Debug Double|x64.ActiveCfg = Debug|Win32
+		{8AAFBBAB-D61C-42EE-8346-67EDA6AAABFA}.Debug OpenMI|Win32.ActiveCfg = Debug|Win32
+		{8AAFBBAB-D61C-42EE-8346-67EDA6AAABFA}.Debug OpenMI|Win32.Build.0 = Debug|Win32
+		{8AAFBBAB-D61C-42EE-8346-67EDA6AAABFA}.Debug OpenMI|x64.ActiveCfg = Debug|Win32
+		{8AAFBBAB-D61C-42EE-8346-67EDA6AAABFA}.Debug OpenMP|Win32.ActiveCfg = Debug|Win32
+		{8AAFBBAB-D61C-42EE-8346-67EDA6AAABFA}.Debug OpenMP|Win32.Build.0 = Debug|Win32
+		{8AAFBBAB-D61C-42EE-8346-67EDA6AAABFA}.Debug OpenMP|x64.ActiveCfg = Debug|Win32
+		{8AAFBBAB-D61C-42EE-8346-67EDA6AAABFA}.Debug|Win32.ActiveCfg = Debug|Win32
+		{8AAFBBAB-D61C-42EE-8346-67EDA6AAABFA}.Debug|Win32.Build.0 = Debug|Win32
+		{8AAFBBAB-D61C-42EE-8346-67EDA6AAABFA}.Debug|x64.ActiveCfg = Debug|Win32
+		{8AAFBBAB-D61C-42EE-8346-67EDA6AAABFA}.Release Double OpenMP PhreeqC|Win32.ActiveCfg = Release|Win32
+		{8AAFBBAB-D61C-42EE-8346-67EDA6AAABFA}.Release Double OpenMP PhreeqC|Win32.Build.0 = Release|Win32
+		{8AAFBBAB-D61C-42EE-8346-67EDA6AAABFA}.Release Double OpenMP PhreeqC|x64.ActiveCfg = Release|Win32
+		{8AAFBBAB-D61C-42EE-8346-67EDA6AAABFA}.Release Double OpenMP|Win32.ActiveCfg = Release|Win32
+		{8AAFBBAB-D61C-42EE-8346-67EDA6AAABFA}.Release Double OpenMP|Win32.Build.0 = Release|Win32
+		{8AAFBBAB-D61C-42EE-8346-67EDA6AAABFA}.Release Double OpenMP|x64.ActiveCfg = Release|Win32
+		{8AAFBBAB-D61C-42EE-8346-67EDA6AAABFA}.Release Double|Win32.ActiveCfg = Release|Win32
+		{8AAFBBAB-D61C-42EE-8346-67EDA6AAABFA}.Release Double|Win32.Build.0 = Release|Win32
+		{8AAFBBAB-D61C-42EE-8346-67EDA6AAABFA}.Release Double|x64.ActiveCfg = Release|Win32
+		{8AAFBBAB-D61C-42EE-8346-67EDA6AAABFA}.Release OpenMP|Win32.ActiveCfg = Release|Win32
+		{8AAFBBAB-D61C-42EE-8346-67EDA6AAABFA}.Release OpenMP|Win32.Build.0 = Release|Win32
+		{8AAFBBAB-D61C-42EE-8346-67EDA6AAABFA}.Release OpenMP|x64.ActiveCfg = Release|Win32
+		{8AAFBBAB-D61C-42EE-8346-67EDA6AAABFA}.Release|Win32.ActiveCfg = Release|Win32
+		{8AAFBBAB-D61C-42EE-8346-67EDA6AAABFA}.Release|Win32.Build.0 = Release|Win32
+		{8AAFBBAB-D61C-42EE-8346-67EDA6AAABFA}.Release|x64.ActiveCfg = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -778,5 +816,6 @@ Global
 		{9DC85AC0-1EAF-42B5-A6D0-28AC10A96D15} = {0C2D3D02-FB0B-4A4D-8DA2-A01B104B528B}
 		{13636891-3890-4E73-894C-6315A1C71989} = {0C2D3D02-FB0B-4A4D-8DA2-A01B104B528B}
 		{C447F70C-970B-4274-A711-048C5D6F2C87} = {0C2D3D02-FB0B-4A4D-8DA2-A01B104B528B}
+		{8AAFBBAB-D61C-42EE-8346-67EDA6AAABFA} = {0C2D3D02-FB0B-4A4D-8DA2-A01B104B528B}
 	EndGlobalSection
 EndGlobal
