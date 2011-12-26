@@ -7978,6 +7978,8 @@ do1 :   do while(associated(FatherGrid))
         !Arguments-------------------------------------------------------------
         integer                                     :: ObjHorizontalGrid_ID
         integer                                     :: ready_
+        !The locate option is activated by default
+        logical                                     :: locate = 1
 
         !----------------------------------------------------------------------
 
@@ -7985,22 +7987,28 @@ do1 :   do while(associated(FatherGrid))
 
 cd1:    if (ObjHorizontalGrid_ID > 0) then
 
-            if ( .not. associated(Me) .or. ObjHorizontalGrid_ID /= Me%InstanceID ) then    
-            
-                nullify (Me)
-                
-                call LocateObjHorizontalGrid(ObjHorizontalGrid_ID)
-                
+            if ( associated(Me) ) then                
+                if ( ObjHorizontalGrid_ID == Me%InstanceID ) then            
+                    !If Me already points to the correct instance then
+                    !deactivate the locate option.
+                    locate = 0
+                endif                
             endif
-                
+
+            !Locate the desired instance if locate is active
+            if (locate) then            
+                nullify (Me)                
+                call LocateObjHorizontalGrid(ObjHorizontalGrid_ID)                
+            endif
+
             ready_ = VerifyReadLock (mHORIZONTALGRID_, Me%InstanceID)
-                
+
         else
-            
+
             ready_ = OFF_ERR_
-                
+
         end if cd1
-        
+
         !----------------------------------------------------------------------
 
     end subroutine Ready
