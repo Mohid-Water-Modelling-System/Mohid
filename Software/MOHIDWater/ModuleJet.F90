@@ -1029,7 +1029,7 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     
     subroutine ModifyJet(JetID, Salinity, Temperature, VelU, VelV, VelW, SZZ,  &
-                         I, J, BottomLayer, SurfaceLayer, OutPutOK, STAT)
+                         I, J, BottomLayer, SurfaceLayer, OutPutOK, JetFlow, JetTemperature, JetSalinity, STAT)
 
         !Arguments-------------------------------------------------------------
         integer                                     :: JetID
@@ -1037,6 +1037,7 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
                                                        VelU, VelV, VelW, SZZ
         integer                                     :: I, J, BottomLayer, SurfaceLayer
         logical                                     :: OutPutOK
+        real                                        :: JetFlow, JetSalinity, JetTemperature
         integer, optional, intent(OUT)              :: STAT
    
         !Local-----------------------------------------------------------------
@@ -1067,6 +1068,12 @@ if1 :   if (ready_ .EQ. IDLE_ERR_) then
 
             Me%OutPut%OK           =  OutPutOK
 
+            !GRiflet : Actualiza caudal, temperatura e salinidade
+            Me%Port%Salinity    = JetSalinity
+            Me%Port%Temperature = JetTemperature
+            Me%Port%TotalFlow   = JetFlow
+            call ComputePortProperties
+            
             call ResetVariables             
 
             call ComputeInitialJetProperties

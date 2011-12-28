@@ -5542,6 +5542,9 @@ OP:         if ((Me%ExternalVar%OpenPoints3D(i, j, k) == OpenPoint) .and. &
                        BottomLayer    = Me%ExternalVar%kFloor(I, J),                    &
                        SurfaceLayer   = Me%ExternalVar%WorkSize%KUB,                    &
                        OutPutOK       = .true.,                                         &
+                       JetFlow        = CurrentOrigin%Flow,                             & 
+                       JetTemperature = CurrentOrigin%Movement%JetTemperature,          &
+                       JetSalinity    = CurrentOrigin%Movement%JetSalinity,             &
                        STAT           = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ActualizeJetProperties - ModuleLagrangian - ERR03'
 

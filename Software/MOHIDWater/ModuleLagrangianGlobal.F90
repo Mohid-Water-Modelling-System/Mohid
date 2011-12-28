@@ -6852,6 +6852,9 @@ OP:         if ((EulerModel%OpenPoints3D(i, j, k) == OpenPoint) .and. &
                        BottomLayer    = Me%EulerModel(em)%kFloor(I, J),                 &
                        SurfaceLayer   = Me%EulerModel(em)%WorkSize%KUB,                 &
                        OutPutOK       = .true.,                                         &
+                       JetFlow        = CurrentOrigin%Flow,                            &
+                       JetTemperature = CurrentOrigin%Movement%JetTemperature,         &
+                       JetSalinity    = CurrentOrigin%Movement%JetSalinity,            &
                        STAT           = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ActualizeJetProperties - ModuleLagrangianGlobal - ERR03'
 
