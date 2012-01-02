@@ -7978,8 +7978,7 @@ do1 :   do while(associated(FatherGrid))
         !Arguments-------------------------------------------------------------
         integer                                     :: ObjHorizontalGrid_ID
         integer                                     :: ready_
-        !The locate option is activated by default
-        logical                                     :: locate = 1
+        logical                                     :: locate
 
         !----------------------------------------------------------------------
 
@@ -7987,6 +7986,9 @@ do1 :   do while(associated(FatherGrid))
 
 cd1:    if (ObjHorizontalGrid_ID > 0) then
 
+            !The locate option is activated by default
+            locate = 1
+            
             if ( associated(Me) ) then                
                 if ( ObjHorizontalGrid_ID == Me%InstanceID ) then            
                     !If Me already points to the correct instance then
