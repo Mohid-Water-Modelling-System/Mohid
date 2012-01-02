@@ -7978,7 +7978,7 @@ do1 :   do while(associated(FatherGrid))
         !Arguments-------------------------------------------------------------
         integer                                     :: ObjHorizontalGrid_ID
         integer                                     :: ready_
-        !logical                                     :: locate
+        logical                                     :: locate
 
         !----------------------------------------------------------------------
 
@@ -7988,44 +7988,52 @@ do1 :   do while(associated(FatherGrid))
         !                  The "Griflet" method also generates a compiler warning (conversion from int to bool). 
         !                  That's why I reverted the code to the old version. (shorter code, easier to read). 
         !                  What do you mean with is openmp safer? 
-        
-        
-        nullify (Me)
+        !Griflet -> Frank: In sequential programming, Frank is right. But in 
+        !                  multi-threaded programming, it is safer to avoid nullifying the auxiliar 
+        !                  Me pointer in a parallel zone, because it can be read-accessed by another thread 
+        !                  (Which is the case in this module). I removed the warning
+        !                  Frank mentions by using logical values instead of integers 1 and 0...
 
-cd1:    if (ObjHorizontalGrid_ID > 0) then
-            call LocateObjHorizontalGrid (ObjHorizontalGrid_ID)
-            ready_ = VerifyReadLock (mHORIZONTALGRID_, Me%InstanceID)
-        else
-            ready_ = OFF_ERR_
-        end if cd1
-        
-        
+!Griflet -> Frank: Classical, sequential, shorter, default version of the code:             
+!        nullify (Me)
+!
 !cd1:    if (ObjHorizontalGrid_ID > 0) then
-!
-!            !The locate option is activated by default
-!            locate = 1
-!            
-!            if ( associated(Me) ) then                
-!                if ( ObjHorizontalGrid_ID == Me%InstanceID ) then            
-!                    !If Me already points to the correct instance then
-!                    !deactivate the locate option.
-!                    locate = 0
-!                endif                
-!            endif
-!
-!            !Locate the desired instance if locate is active
-!            if (locate) then            
-!                nullify (Me)                
-!                call LocateObjHorizontalGrid(ObjHorizontalGrid_ID)                
-!            endif
-!
+!            call LocateObjHorizontalGrid (ObjHorizontalGrid_ID)
 !            ready_ = VerifyReadLock (mHORIZONTALGRID_, Me%InstanceID)
-!
 !        else
-!
 !            ready_ = OFF_ERR_
-!
 !        end if cd1
+        
+        !Griflet -> Frank: Thread-safer version of the code: the Me is nullified 
+        !and reset only when ID is different than current ID. That way, read-access
+        !to the auxiliar varible Me for all threads in a parallel zone 
+        !with a call to Ready is safe.
+cd1:    if (ObjHorizontalGrid_ID > 0) then
+
+            !The locate option is activated by default
+            locate = .true.
+            
+            if ( associated(Me) ) then                
+                if ( ObjHorizontalGrid_ID == Me%InstanceID ) then            
+                    !If Me already points to the correct instance then
+                    !deactivate the locate option.
+                    locate = .false.
+                endif                
+            endif
+
+            !Locate the desired instance if locate is active
+            if (locate) then            
+                nullify (Me)                
+                call LocateObjHorizontalGrid(ObjHorizontalGrid_ID)                
+            endif
+
+            ready_ = VerifyReadLock (mHORIZONTALGRID_, Me%InstanceID)
+
+        else
+
+            ready_ = OFF_ERR_
+
+        end if cd1
 
         !----------------------------------------------------------------------
 
