@@ -67,6 +67,7 @@ Module ModuleFunctions
     
     !Matrix Operations
     public  :: SetMatrixValue
+    public  :: SetMatrixValueAllocatable
     public  :: GetPointer
 #ifdef _USE_SEQASSIMILATION
     public  :: InvSingularDiagMatrix2D
@@ -323,25 +324,28 @@ Module ModuleFunctions
         module procedure SetMatrixValues1D_R8_FromMatrix
         module procedure SetMatrixValues2D_I4_Constant
         module procedure SetMatrixValues2D_R4_Constant
-        module procedure SetMatrixValues2D_R4_ConstantAllocatable
         module procedure SetMatrixValues2D_R8_Constant
-        module procedure SetMatrixValues2D_R8_ConstantAllocatable
         module procedure SetMatrixValues2D_R4_FromMatrix
-        module procedure SetMatrixValues2D_R4_FromMatrixAllocatable
         module procedure SetMatrixValues2D_R8_FromMatrix
-        module procedure SetMatrixValues2D_R8_FromMatrixAllocatable
         module procedure SetMatrixValues2D_I4_FromMatrix
         module procedure SetMatrixValues3D_I4_Constant
         module procedure SetMatrixValues3D_R4_Constant
-        module procedure SetMatrixValues3D_R4_ConstantAllocatable
         module procedure SetMatrixValues3D_R8_Constant
-        module procedure SetMatrixValues3D_R8_ConstantAllocatable
         module procedure SetMatrixValues3D_R4_FromMatrix
-        module procedure SetMatrixValues3D_R4_FromMatrixAllocatable
         module procedure SetMatrixValues3D_R8_FromMatrix
-        module procedure SetMatrixValues3D_R8_FromMatrixAllocatable
         module procedure SetMatrixValues3D_I4_FromMatrix
     end interface SetMatrixValue
+
+    interface SetMatrixValueAllocatable
+        module procedure SetMatrixValues2D_R4_ConstantAllocatable
+        module procedure SetMatrixValues2D_R4_FromMatrixAllocatable
+        module procedure SetMatrixValues2D_R8_ConstantAllocatable
+        module procedure SetMatrixValues2D_R8_FromMatrixAllocatable
+        module procedure SetMatrixValues3D_R4_ConstantAllocatable
+        module procedure SetMatrixValues3D_R8_ConstantAllocatable
+        module procedure SetMatrixValues3D_R4_FromMatrixAllocatable
+        module procedure SetMatrixValues3D_R8_FromMatrixAllocatable
+    end interface SetMatrixValueAllocatable
 
     interface GetPointer
         module procedure GetPointer2D_I4

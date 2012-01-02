@@ -2102,7 +2102,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 if (Me%ExternalVar%WaterPoints2D(i, j) == WaterPoint) then
 
 
-cd2:                if (Me%WaveHeight%Field(i,j) .lt. 0.1 .or. Me%ExternalVar%WaterColumn(i,j) .lt. 0.1 .or. Me%WavePeriod%Field(i,j) < 1e-3)then 
+cd2:                if (Me%WaveHeight%Field(i,j)        .lt. 0.1 .or. &
+                        Me%ExternalVar%WaterColumn(i,j) .lt. 0.1 .or. &
+                        Me%WavePeriod%Field(i,j) < 1e-3)then 
 
                        Me%Ubw(i, j)              = 0.001
                        Me%Abw(i, j)              = 0.001

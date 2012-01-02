@@ -65,7 +65,8 @@ Module ModuleGeometry
                                       GetLatitudeLongitude, GetGridOrigin,              &
                                       GetGridLatitudeLongitude, GetCoordTypeList,       &
                                       GetCheckDistortion, UnGetHorizontalGrid
-    use ModuleFunctions,        only: SetMatrixValue, Chunk_J, Chunk_K, GetPointer
+    use ModuleFunctions,        only: SetMatrixValue, SetMatrixValueAllocatable,        &
+                                      Chunk_J, Chunk_K, GetPointer
     use ModuleHDF5
     use ModuleStopWatch,        only : StartWatch, StopWatch         
 
@@ -3359,7 +3360,7 @@ cd1:    if (FacesOption == MinTickness) then
 
         !Stores the initial SZZ
         if (ComputionType == INITIALGEOMETRY) then
-            call SetMatrixValue(Me%Distances%InitialSZZ, Me%Size, Me%Distances%SZZ)
+            call SetMatrixValueAllocatable(Me%Distances%InitialSZZ, Me%Size, Me%Distances%SZZ)
         endif
 
         !Disposes pointer to the Bathymetry

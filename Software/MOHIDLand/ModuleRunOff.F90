@@ -2657,7 +2657,7 @@ doIter:         do while (iter <= Niter)
         real                                        :: Friction
         real                                        :: Pressure
         real                                        :: inAdv, outAdv, Advection, averageFlux
-        real(8)                                     :: MaxFlow, CriticalFlow
+!        real(8)                                     :: MaxFlow, CriticalFlow
         integer                                     :: CHUNK
 
         CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)

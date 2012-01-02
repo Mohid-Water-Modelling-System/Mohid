@@ -339,7 +339,7 @@ Module ModuleHorizontalGrid
     end type T_HorizontalGrid
 
     !Global Module Variables
-    type (T_HorizontalGrid), pointer            :: FirstHorizontalGrid
+    type (T_HorizontalGrid), pointer            :: FirstHorizontalGrid  
     type (T_HorizontalGrid), pointer            :: Me
 
 
@@ -7978,38 +7978,54 @@ do1 :   do while(associated(FatherGrid))
         !Arguments-------------------------------------------------------------
         integer                                     :: ObjHorizontalGrid_ID
         integer                                     :: ready_
-        logical                                     :: locate
+        !logical                                     :: locate
 
         !----------------------------------------------------------------------
 
         !Griflet: openmp safer
+        !Frank -> Griflet: The option implmentent does not makes sense. Why not set the auxiliar module variable Me to null and 
+        !                  locate the object like in all other modules? This is easy and fast (you only compare integers)
+        !                  The "Griflet" method also generates a compiler warning (conversion from int to bool). 
+        !                  That's why I reverted the code to the old version. (shorter code, easier to read). 
+        !                  What do you mean with is openmp safer? 
+        
+        
+        nullify (Me)
 
 cd1:    if (ObjHorizontalGrid_ID > 0) then
-
-            !The locate option is activated by default
-            locate = 1
-            
-            if ( associated(Me) ) then                
-                if ( ObjHorizontalGrid_ID == Me%InstanceID ) then            
-                    !If Me already points to the correct instance then
-                    !deactivate the locate option.
-                    locate = 0
-                endif                
-            endif
-
-            !Locate the desired instance if locate is active
-            if (locate) then            
-                nullify (Me)                
-                call LocateObjHorizontalGrid(ObjHorizontalGrid_ID)                
-            endif
-
+            call LocateObjHorizontalGrid (ObjHorizontalGrid_ID)
             ready_ = VerifyReadLock (mHORIZONTALGRID_, Me%InstanceID)
-
         else
-
             ready_ = OFF_ERR_
-
         end if cd1
+        
+        
+!cd1:    if (ObjHorizontalGrid_ID > 0) then
+!
+!            !The locate option is activated by default
+!            locate = 1
+!            
+!            if ( associated(Me) ) then                
+!                if ( ObjHorizontalGrid_ID == Me%InstanceID ) then            
+!                    !If Me already points to the correct instance then
+!                    !deactivate the locate option.
+!                    locate = 0
+!                endif                
+!            endif
+!
+!            !Locate the desired instance if locate is active
+!            if (locate) then            
+!                nullify (Me)                
+!                call LocateObjHorizontalGrid(ObjHorizontalGrid_ID)                
+!            endif
+!
+!            ready_ = VerifyReadLock (mHORIZONTALGRID_, Me%InstanceID)
+!
+!        else
+!
+!            ready_ = OFF_ERR_
+!
+!        end if cd1
 
         !----------------------------------------------------------------------
 

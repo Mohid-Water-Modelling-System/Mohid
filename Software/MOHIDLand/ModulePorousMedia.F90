@@ -3662,15 +3662,15 @@ i1:         if (CoordON) then
         if (MonitorPerformance) call StartWatch ("ModulePorousMedia", "VariableSaturatedFlow")
 
         !Stores initial values
-        call SetMatrixValue (Me%CV%ThetaIni,      Me%Size,   Me%Theta,          Me%ExtVar%WaterPoints3D)
-        call SetMatrixValue (Me%CV%HeadIni,       Me%Size,   Me%Head,           Me%ExtVar%WaterPoints3D)
+        call SetMatrixValueAllocatable (Me%CV%ThetaIni,      Me%Size,   Me%Theta,          Me%ExtVar%WaterPoints3D)
+        call SetMatrixValueAllocatable (Me%CV%HeadIni,       Me%Size,   Me%Head,           Me%ExtVar%WaterPoints3D)
         call SetMatrixValue (Me%WaterColumn,      Me%Size2D, InfiltrationColumn,Me%ExtVar%BasinPoints)
 
         !Time Integrated Values
         call SetMatrixValue (Me%Infiltration,     Me%Size2D, dble(0.0),         Me%ExtVar%BasinPoints)
         call SetMatrixValue (Me%EfectiveEVTP,     Me%Size2D, dble(0.0),         Me%ExtVar%BasinPoints)
-        call SetMatrixValue (Me%iFlowToChannels,  Me%Size2D, Zero,              Me%ExtVar%BasinPoints)
-        call SetMatrixValue (Me%iFlowToChannelsLayer,  Me%Size, Zero,         Me%ExtVar%WaterPoints3D)
+        call SetMatrixValueAllocatable (Me%iFlowToChannels,  Me%Size2D, Zero,              Me%ExtVar%BasinPoints)
+        call SetMatrixValueAllocatable (Me%iFlowToChannelsLayer,  Me%Size, Zero,         Me%ExtVar%WaterPoints3D)
         if (Me%EvaporationExists) then
             call SetMatrixValue (Me%EfectiveEVAP,     Me%Size2D, dble(0.0),         Me%ExtVar%BasinPoints)
         endif        
@@ -3688,7 +3688,7 @@ i1:         if (CoordON) then
 dConv:  do while (iteration <= Niteration)
         
             !Convergence Test
-            call SetMatrixValue (Me%CV%ThetaOld, Me%Size, Me%Theta, Me%ExtVar%WaterPoints3D)
+            call SetMatrixValueAllocatable (Me%CV%ThetaOld, Me%Size, Me%Theta, Me%ExtVar%WaterPoints3D)
 
             !Calculates Face Conductivities
             call Condutivity_Face
@@ -3727,15 +3727,15 @@ dConv:  do while (iteration <= Niteration)
                 StrongVariation   = .false.
                 
                 !Restores Initial Values
-                call SetMatrixValue (Me%Theta,          Me%Size,   Me%CV%ThetaIni,      Me%ExtVar%WaterPoints3D)
-                call SetMatrixValue (Me%Head,           Me%Size,   Me%CV%HeadIni,       Me%ExtVar%WaterPoints3D)
+                call SetMatrixValueAllocatable (Me%Theta,          Me%Size,   Me%CV%ThetaIni,      Me%ExtVar%WaterPoints3D)
+                call SetMatrixValueAllocatable (Me%Head,           Me%Size,   Me%CV%HeadIni,       Me%ExtVar%WaterPoints3D)
                 call SetMatrixValue (Me%WaterColumn,    Me%Size2D, InfiltrationColumn,  Me%ExtVar%BasinPoints)
 
                 !Resets Time Integrated Values
                 call SetMatrixValue (Me%Infiltration,   Me%Size2D, dble(0.0),           Me%ExtVar%BasinPoints)
                 call SetMatrixValue (Me%EfectiveEVTP,   Me%Size2D, dble(0.0),           Me%ExtVar%BasinPoints)
-                call SetMatrixValue (Me%iFlowToChannels,Me%Size2D, Zero,                Me%ExtVar%BasinPoints)
-                call SetMatrixValue (Me%iFlowToChannelsLayer,Me%Size, Zero,           Me%ExtVar%WaterPoints3D)
+                call SetMatrixValueAllocatable (Me%iFlowToChannels,Me%Size2D, Zero,                Me%ExtVar%BasinPoints)
+                call SetMatrixValueAllocatable (Me%iFlowToChannelsLayer,Me%Size, Zero,           Me%ExtVar%WaterPoints3D)
                 if (Me%EvaporationExists) then
                     call SetMatrixValue (Me%EfectiveEVAP,     Me%Size2D, dble(0.0),         Me%ExtVar%BasinPoints)
                 endif                 !Resets Accumulated flows
@@ -5764,7 +5764,7 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
         !!Computation of Flow by layers - from total flow computed above.
         if (Me%SoilOpt%DNLink == GWFlowToChanByLayer_) then
 
-            call SetMatrixValue (Me%lFlowToChannelsLayer, Me%Size, 0.0, Me%ExtVar%WaterPoints3D)
+            call SetMatrixValueAllocatable (Me%lFlowToChannelsLayer, Me%Size, 0.0, Me%ExtVar%WaterPoints3D)
            
 do3:        do J = Me%WorkSize%JLB, Me%WorkSize%JUB
 do4:        do I = Me%WorkSize%ILB, Me%WorkSize%IUB
