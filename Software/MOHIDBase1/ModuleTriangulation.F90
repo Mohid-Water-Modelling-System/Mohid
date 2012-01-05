@@ -50,7 +50,8 @@ Module ModuleTriangulation
 
     !Modifier
     public  :: SetHeightValues
-    public  :: InterPolation
+    public  :: Interpolation
+    public  :: Interpolation_ThreadSafe
     public  :: CalculateReaches
     private ::      AddNewReach
     private ::      InsertReachToList
@@ -1039,8 +1040,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
                     endif
                 endif
             endif
-
-          
+         
         else               
             STAT_ = ready_
         end if cd1
@@ -1051,6 +1051,162 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
         !----------------------------------------------------------------------
 
     end function InterPolation
+
+    !--------------------------------------------------------------------------
+
+    real function InterPolation_ThreadSafe(TriangulationID, PX, PY, FillOutsidePoints, Default, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer,           intent(IN )              :: TriangulationID
+        real,           intent(IN )                 :: PX, PY
+        logical,           intent(IN )              :: FillOutsidePoints
+        real, optional,           intent(IN )       :: Default
+        integer, optional, intent(OUT)              :: STAT     
+    
+        !Local-----------------------------------------------------------------
+        integer                                     :: ready_ 
+        integer                                     :: STAT_            
+        real                                        :: a,b,c,d
+        real                                        :: x1, y1, z1
+        real                                        :: x2, y2, z2
+        real                                        :: x3, y3, z3
+        integer                                     :: i1, i2, i3
+        real                                        :: dist, distNearest, distNextPoint, distPrevPoint
+        integer                                     :: NearestNode, NextBNodeID, PrevBNodeID
+        integer                                     :: iN, iNode
+        type (T_Triangulation), pointer             :: LocalMe
+
+        !----------------------------------------------------------------------                         
+
+        LocalMe => Ready_ThreadSafe(TriangulationID, ready_)
+
+cd1 :   if (ready_ .EQ. IDLE_ERR_) then
+
+            if (.not. LocalMe%HaveHeightValues) then
+                write(*,*)'Height Values not set or not up to date'
+                stop 'ModuleTriangulation - InterPolation_ThreadSafe - ERR01'
+            endif
+
+
+            !Locates the triangle in which the point is located
+            call TRFIND (1, PX, PY, LocalMe%NumberOfNodes, LocalMe%XT,    &
+                         LocalMe%YT, LocalMe%List, LocalMe%lptr, &
+                         LocalMe%lend, i1, i2, i3)
+            
+            if (i1 == 0 .or. i2 == 0 .or. i3 == 0) then
+
+                !See minimum distance to closed points
+                if (i1 /= 0 .and. i2 /= 0 .and. FillOutsidePoints) then
+
+                    !Finds nearest boundary Node
+                    distNearest       = -null_real
+                    do iN = 1, LocalMe%NumberOfBoundaryNodes
+                        iNode = LocalMe%BNodes(iN)
+                        dist  = sqrt((LocalMe%XT(iNode)-PX)**2. + (LocalMe%YT(iNode)-PY)**2.)
+                        if (dist < distNearest) then
+                            distNearest       = dist
+                            NearestNode       = iNode
+                        endif                        
+                    enddo
+
+                    !Finds Prev and next node
+                    do iN = 1, LocalMe%NumberOfBoundaryNodes
+                        if (LocalMe%BNodes(iN) == NearestNode) then
+                            if (iN == LocalMe%NumberOfBoundaryNodes) then
+                                NextBNodeID = LocalMe%BNodes(1)
+                            else
+                                NextBNodeID = LocalMe%BNodes(iN + 1)
+                            endif
+                            if (iN == 1) then
+                                PrevBNodeID = LocalMe%BNodes(LocalMe%NumberOfBoundaryNodes)
+                            else
+                                PrevBNodeID = LocalMe%BNodes(iN-1)
+                            endif
+                            exit 
+                        endif
+                    enddo
+
+                    distPrevPoint = sqrt((LocalMe%XT(PrevBNodeID)-PX)**2.0 + (LocalMe%YT(PrevBNodeID)-PY)**2.0)
+                    distNextPoint = sqrt((LocalMe%XT(NextBNodeID)-PX)**2.0 + (LocalMe%YT(NextBNodeID)-PY)**2.0)
+
+
+                    !Point on the left of Nearest -> Next?
+                    if (left(   LocalMe%XT(NearestNode), LocalMe%YT(NearestNode),                   &
+                                LocalMe%XT(NextBNodeID), LocalMe%YT(NextBNodeID), PX, PY) .and.     &
+                        left(   LocalMe%XT(NearestNode), LocalMe%YT(NearestNode),                   &
+                                LocalMe%XT(PrevBNodeID), LocalMe%YT(PrevBNodeID), PX, PY) ) then
+                       InterPolation_ThreadSafe = (LocalMe%ZT(NearestNode) * distPrevPoint +  &
+                                         LocalMe%ZT(PrevBNodeID) * distNearest) / &
+                                         (distPrevPoint  + distNearest)
+                    elseif (.not. left( LocalMe%XT(NearestNode), LocalMe%YT(NearestNode), &
+                                        LocalMe%XT(NextBNodeID),  &
+                                        LocalMe%YT(NextBNodeID), PX, PY) .and.                       &
+                            .not. left( LocalMe%XT(NearestNode), LocalMe%YT(NearestNode),            &
+                                        LocalMe%XT(PrevBNodeID),  &
+                                        LocalMe%YT(PrevBNodeID), PX, PY) ) then
+                        InterPolation_ThreadSafe = (LocalMe%ZT(NearestNode) * distNextPoint +     &
+                                         LocalMe%ZT(NextBNodeID) * distNearest) / &
+                                         (distNextPoint + distNearest)
+                    else
+                        InterPolation_ThreadSafe = LocalMe%ZT(NearestNode)
+                    endif
+
+
+                    STAT_ = SUCCESS_
+
+                else
+
+                    if (present(Default)) then
+                        InterPolation_ThreadSafe = Default
+                        STAT_ = SUCCESS_
+                    else
+                        STAT_ = UNKNOWN_
+                    endif
+
+                endif
+            else
+
+                x1 = LocalMe%XT(i1)
+                y1 = LocalMe%YT(i1)
+                z1 = LocalMe%ZT(i1)
+
+                x2 = LocalMe%XT(i2)
+                y2 = LocalMe%YT(i2)
+                z2 = LocalMe%ZT(i2)
+
+                x3 = LocalMe%XT(i3)
+                y3 = LocalMe%YT(i3)
+                z3 = LocalMe%ZT(i3)
+
+
+                a =  y1 * (z2-z3) + y2 * (z3-z1) + y3 * (z1-z2)
+                b =  z1 * (x2-x3) + z2 * (x3-x1) + z3 * (x1-x2)
+                c =  x1 * (y2-y3) + x2 * (y3-y1) + x3 * (y1-y2)
+                d = -x1 * (y2*z3-y3*z2) - x2*(y3*z1-y1*z3) - x3*(y1*z2-y2*z1)
+
+                if (c.ne.0) then
+                    InterPolation_ThreadSafe = - (a * PX + b * PY + d) / c
+                    STAT_ = SUCCESS_
+                else
+                    if (present(Default)) then
+                        InterPolation_ThreadSafe = Default
+                        STAT_ = SUCCESS_
+                    else
+                        STAT_ = UNKNOWN_
+                    endif
+                endif
+            endif
+         
+        else               
+            STAT_ = ready_
+        end if cd1
+
+        if (present(STAT))                                                    &
+            STAT = STAT_
+
+        !----------------------------------------------------------------------
+
+    end function InterPolation_ThreadSafe
 
     !--------------------------------------------------------------------------
 
@@ -4986,36 +5142,50 @@ end function nearnd
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
-    subroutine Ready (TriangulationID, ready_) 
+    subroutine Ready (ObjTriangulation_ID, ready_) 
 
         !Arguments-------------------------------------------------------------
-        integer                                     :: TriangulationID
+        integer                                     :: ObjTriangulation_ID
         integer                                     :: ready_
+
         !----------------------------------------------------------------------
+           
+        nullify (Me)
 
-        !Griflet: openmp safer
-
-cd1:    if (TriangulationID > 0) then
-
-            if ( .not. associated(Me) .or. TriangulationID /= Me%InstanceID) then    
-            
-                nullify (Me)
-                
-                call LocateObjTriangulation(TriangulationID)
-                           
-            endif
-                
+cd1:    if (ObjTriangulation_ID > 0) then
+            call LocateObjTriangulation(ObjTriangulation_ID)
             ready_ = VerifyReadLock (mTRIANGULATION_, Me%InstanceID)
-                
         else
-            
             ready_ = OFF_ERR_
-                
         end if cd1
-        
+
         !----------------------------------------------------------------------
 
     end subroutine Ready
+
+    !--------------------------------------------------------------------------
+    
+    function Ready_ThreadSafe (ObjTriangulation_ID, ready_) result(LocalMe)
+
+        !Arguments-------------------------------------------------------------
+        integer,           intent(IN )              :: ObjTriangulation_ID
+        integer,           intent(OUT )             :: ready_
+        type (T_Triangulation), pointer             :: LocalMe
+        
+        !----------------------------------------------------------------------
+
+        nullify (LocalMe)
+
+cd1:    if (ObjTriangulation_ID > 0) then
+            LocalMe => LocateObjTriangulation_ThrdSf(ObjTriangulation_ID)
+            ready_ = VerifyReadLock (mTRIANGULATION_, LocalMe%InstanceID)
+        else
+            ready_ = OFF_ERR_
+        end if cd1
+
+        !----------------------------------------------------------------------
+
+    end function Ready_ThreadSafe    
 
     !--------------------------------------------------------------------------
 
@@ -5038,6 +5208,25 @@ cd1:    if (TriangulationID > 0) then
 
     !--------------------------------------------------------------------------
 
+    function LocateObjTriangulation_ThrdSf (TriangulationID) result(LocatedMe)
+
+        !Arguments-------------------------------------------------------------
+        integer,           intent(IN )                      :: TriangulationID
+        type (T_Triangulation), pointer                     :: LocatedMe
+
+        !Local-----------------------------------------------------------------
+
+        LocatedMe => FirstTriangulation
+        do while (associated (LocatedMe))
+            if (LocatedMe%InstanceID == TriangulationID) exit
+            LocatedMe => LocatedMe%Next
+        enddo
+
+        if (.not. associated(LocatedMe)) stop 'ModuleTriangulation - LocateObjTriangulation_ThreadSafe - ERR01'
+        
+    end function LocateObjTriangulation_ThrdSf
+    
+    !--------------------------------------------------------------------------
 
 end Module ModuleTriangulation
 

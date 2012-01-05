@@ -107,6 +107,7 @@ Module ModuleHorizontalGrid
     public  :: GetGridCellArea
     private ::      Search_FatherGrid
     public  :: GetXYCellZ
+    public  :: GetXYCellZ_ThreadSafe
     public  :: GetCellZ_XY
     public  :: GetCellZInterceptByLine
     public  :: GetCellZInterceptByPolygon
@@ -4824,6 +4825,190 @@ i2:         if (GetGridBorderType == ComplexPolygon_) then
 
     !--------------------------------------------------------------------------
 
+    subroutine GetXYCellZ_ThreadSafe(HorizontalGridID, XPoint, YPoint, I, J, PercI, PercJ, Referential, STAT)
+
+        !Arguments---------------------------------------------------------------
+        integer,            intent(IN)              :: HorizontalGridID
+        real,               intent(IN)              :: XPoint, YPoint
+        integer,            intent(OUT)             :: I, J
+        real,    optional,  intent(OUT)             :: PercI, PercJ
+        integer, optional,  intent(IN)              :: Referential
+        integer, optional,  intent(OUT)             :: STAT    
+ 
+        !Local-------------------------------------------------------------------
+        real,   dimension(:,:), pointer             :: XX2D, YY2D
+        real,   dimension(:  ), pointer             :: XX1D, YY1D
+        real,   dimension(:  ), pointer             :: XX1D_Aux, YY1D_Aux
+        integer                                     :: STAT_             
+        integer                                     :: ready_              
+        real                                        :: XPoint2, YPoint2, Xorig2, Yorig2
+        integer                                     :: Referential_, GetGridBorderType
+        integer                                     :: ILB, IUB, JLB, JUB
+        type (T_HorizontalGrid), pointer            :: LocalMe
+        !------------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        LocalMe => Ready_ThreadSafe(HorizontalGridID, ready_)    
+        
+i1:     if ((ready_ == IDLE_ERR_     ) .OR.                                             & 
+            (ready_ == READ_LOCK_ERR_)) then
+
+            ILB = LocalMe%Size%ILB
+            IUB = LocalMe%Size%IUB
+
+            JLB = LocalMe%Size%JLB
+            JUB = LocalMe%Size%JUB
+
+            if (present(Referential)) then
+
+                Referential_ = Referential
+
+            else
+
+                Referential_ = GridCoord_
+
+            endif
+
+ 
+            XX2D        => LocalMe%XX_IE 
+            YY2D        => LocalMe%YY_IE 
+
+            XX1D        => LocalMe%Compute%XX_Cross 
+            YY1D        => LocalMe%Compute%YY_Cross 
+            
+            allocate(XX1D_Aux(JLB:JUB))
+            allocate(YY1D_Aux(ILB:IUB))
+
+            if (Referential_ == Cartesian_) then  
+
+                GetGridBorderType = LocalMe%GridBorderCart%Type_
+
+            endif
+
+            if (Referential_ == GridCoord_) then
+
+                GetGridBorderType = LocalMe%GridBorderCoord%Type_    
+            
+                if (LocalMe%CoordType == SIMPLE_GEOG_ .or. LocalMe%CoordType == GEOG_) then 
+ 
+                    XX2D        => LocalMe%LongitudeConn
+                    YY2D        => LocalMe%LatitudeConn
+
+                endif
+
+            endif
+
+            if (Referential_ == AlongGrid_) then
+
+                GetGridBorderType = LocalMe%GridBorderAlongGrid%Type_
+
+                XX2D        => LocalMe%XX_AlongGrid
+                YY2D        => LocalMe%YY_AlongGrid
+
+            endif
+
+    
+i2:         if (GetGridBorderType == ComplexPolygon_) then
+
+                call LocateCellPolygons(XX2D,                                           &
+                                        YY2D,                                           &
+                                        XPoint, YPoint, LocalMe%DefineCellsMap,              &
+                                        LocalMe%WorkSize%ILB, LocalMe%WorkSize%IUB + 1,           &
+                                        LocalMe%WorkSize%JLB, LocalMe%WorkSize%JUB + 1,           &
+                                        I, J)
+
+                if (I < 0 .or. J < 0) then
+                    STAT_ = OUT_OF_BOUNDS_ERR_
+                    !stop 'GetXYCellZ - ModuleHorizontalGrid - ERR10'
+
+                else
+
+                    if (present(PercI) .and. present(PercJ)) then
+                        ! 
+                        call RelativePosition4VertPolygon(Xa = XX2D(I+1, J  ), Ya = YY2D(I+1, J  ), &
+                                                          Xb = XX2D(I+1, J+1), Yb = YY2D(I+1, J+1), &
+                                                          Xc = XX2D(I  , J  ), Yc = YY2D(I  , J  ), &
+                                                          Xd = XX2D(I  , J+1), Yd = YY2D(I  , J+1), &
+                                                          Xe = XPoint,         Ye = YPoint,         &
+                                                          Xex= PercJ,          Yey= PercI)
+                    endif
+
+                endif
+
+            else i2
+
+                XPoint2 = XPoint
+                YPoint2 = YPoint
+
+                if (GetGridBorderType == Rectang_ .or. Referential_ == AlongGrid_) then
+
+                    XX1D_Aux(JLB:JUB) = XX2D(ILB+1  ,JLB:JUB)
+                    YY1D_Aux(ILB:IUB) = YY2D(ILB:IUB,JLB+1  )
+
+                else
+
+                    Xorig2  = LocalMe%Xorig
+                    Yorig2  = LocalMe%Yorig
+                       
+                    XPoint2 =  XPoint - Xorig2
+                    YPoint2 =  YPoint - Yorig2
+
+                    call RODAXY(0., 0., -LocalMe%Grid_Angle, XPoint2, YPoint2) 
+
+                    XX1D_Aux(JLB+1:JUB) = LocalMe%XX(JLB+1:JUB)
+                    YY1D_Aux(ILB+1:IUB) = LocalMe%YY(ILB+1:IUB)
+
+                endif
+                
+                call LocateCell (XX1D_Aux,                                           &
+                                 YY1D_Aux,                                           &
+                                 XPoint2, YPoint2,                                      &
+                                 LocalMe%WorkSize%ILB, LocalMe%WorkSize%IUB + 1,                  &
+                                 LocalMe%WorkSize%JLB, LocalMe%WorkSize%JUB + 1,                  &
+                                 I, J)
+
+                if (present(PercI)) then
+                    if (I < 0) then
+                        STAT_ = OUT_OF_BOUNDS_ERR_
+                    else
+                        PercI  = (YPoint2 - YY1D_Aux(I)) / (YY1D_Aux(I+1) - YY1D_Aux(I))
+                    endif
+                endif
+                
+                if (present(PercJ)) then
+                    if (J < 0) then
+                        STAT_ = OUT_OF_BOUNDS_ERR_
+                    else
+                        PercJ  = (XPoint2 - XX1D_Aux(J)) / (XX1D_Aux(J+1) - XX1D_Aux(J))
+                    endif
+                endif
+
+            endif i2
+            
+            deallocate(XX1D_Aux)
+            deallocate(YY1D_Aux)
+           
+            nullify(XX1D_Aux)
+            nullify(YY1D_Aux)
+           
+            nullify(XX2D)
+            nullify(YY2D)
+
+            if (STAT_ == UNKNOWN_) STAT_ = SUCCESS_
+            
+        else    i1
+        
+            STAT_ = ready_
+            
+        end if  i1
+
+        if (present(STAT)) STAT = STAT_
+
+    end subroutine GetXYCellZ_ThreadSafe
+
+    !--------------------------------------------------------------------------
+
 
     subroutine GetCellZ_XY(HorizontalGridID, I, J, PercI, PercJ, XPoint, YPoint, &
                            Referential, STAT)
@@ -7972,72 +8157,50 @@ do1 :   do while(associated(FatherGrid))
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-
     subroutine Ready (ObjHorizontalGrid_ID, ready_) 
 
         !Arguments-------------------------------------------------------------
         integer                                     :: ObjHorizontalGrid_ID
         integer                                     :: ready_
-        logical                                     :: locate
 
         !----------------------------------------------------------------------
+           
+        nullify (Me)
 
-        !Griflet: openmp safer
-        !Frank -> Griflet: The option implmentent does not makes sense. Why not set the auxiliar module variable Me to null and 
-        !                  locate the object like in all other modules? This is easy and fast (you only compare integers)
-        !                  The "Griflet" method also generates a compiler warning (conversion from int to bool). 
-        !                  That's why I reverted the code to the old version. (shorter code, easier to read). 
-        !                  What do you mean with is openmp safer? 
-        !Griflet -> Frank: In sequential programming, Frank is right. But in 
-        !                  multi-threaded programming, it is safer to avoid nullifying the auxiliar 
-        !                  Me pointer in a parallel zone, because it can be read-accessed by another thread 
-        !                  (Which is the case in this module). I removed the warning
-        !                  Frank mentions by using logical values instead of integers 1 and 0...
-
-!Griflet -> Frank: Classical, sequential, shorter, default version of the code:             
-!        nullify (Me)
-!
-!cd1:    if (ObjHorizontalGrid_ID > 0) then
-!            call LocateObjHorizontalGrid (ObjHorizontalGrid_ID)
-!            ready_ = VerifyReadLock (mHORIZONTALGRID_, Me%InstanceID)
-!        else
-!            ready_ = OFF_ERR_
-!        end if cd1
-        
-        !Griflet -> Frank: Thread-safer version of the code: the Me is nullified 
-        !and reset only when ID is different than current ID. That way, read-access
-        !to the auxiliar varible Me for all threads in a parallel zone 
-        !with a call to Ready is safe.
 cd1:    if (ObjHorizontalGrid_ID > 0) then
-
-            !The locate option is activated by default
-            locate = .true.
-            
-            if ( associated(Me) ) then                
-                if ( ObjHorizontalGrid_ID == Me%InstanceID ) then            
-                    !If Me already points to the correct instance then
-                    !deactivate the locate option.
-                    locate = .false.
-                endif                
-            endif
-
-            !Locate the desired instance if locate is active
-            if (locate) then            
-                nullify (Me)                
-                call LocateObjHorizontalGrid(ObjHorizontalGrid_ID)                
-            endif
-
+            call LocateObjHorizontalGrid (ObjHorizontalGrid_ID)
             ready_ = VerifyReadLock (mHORIZONTALGRID_, Me%InstanceID)
-
         else
-
             ready_ = OFF_ERR_
-
         end if cd1
 
         !----------------------------------------------------------------------
 
     end subroutine Ready
+
+    !--------------------------------------------------------------------------
+    
+    function Ready_ThreadSafe (ObjHorizontalGrid_ID, ready_) result(LocalMe)
+
+        !Arguments-------------------------------------------------------------
+        integer,           intent(IN )              :: ObjHorizontalGrid_ID
+        integer,           intent(OUT)              :: ready_
+        type (T_HorizontalGrid), pointer            :: LocalMe
+        
+        !----------------------------------------------------------------------
+
+        nullify (LocalMe)
+
+cd1:    if (ObjHorizontalGrid_ID > 0) then
+            LocalMe => LocateObjHorizontalGrid_ThreadSafe(ObjHorizontalGrid_ID)
+            ready_ = VerifyReadLock (mHORIZONTALGRID_, LocalMe%InstanceID)
+        else
+            ready_ = OFF_ERR_
+        end if cd1
+
+        !----------------------------------------------------------------------
+
+    end function Ready_ThreadSafe    
 
     !--------------------------------------------------------------------------
 
@@ -8058,6 +8221,26 @@ cd1:    if (ObjHorizontalGrid_ID > 0) then
         
     end subroutine LocateObjHorizontalGrid
 
+    !--------------------------------------------------------------------------
+
+    function LocateObjHorizontalGrid_ThreadSafe (ObjHorizontalGridID) result(LocatedMe)
+
+        !Arguments-------------------------------------------------------------
+        integer,           intent(IN )              :: ObjHorizontalGridID
+        type (T_HorizontalGrid), pointer            :: LocatedMe
+
+        !Local-----------------------------------------------------------------
+
+        LocatedMe => FirstHorizontalGrid
+        do while (associated (LocatedMe))
+            if (LocatedMe%InstanceID == ObjHorizontalGridID) exit
+            LocatedMe => LocatedMe%Next
+        enddo
+
+        if (.not. associated(LocatedMe)) stop 'HorizontalGrid - LocateObjHorizontalGrid_ThreadSafe - ERR01'
+        
+    end function LocateObjHorizontalGrid_ThreadSafe
+    
     !--------------------------------------------------------------------------
 
     subroutine LocateObjFather (ObjHorizontalGrid, ObjHorizontalGridID)

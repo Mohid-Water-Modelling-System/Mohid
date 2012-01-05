@@ -34,7 +34,7 @@ Module ModuleGauge
     use ModuleEnterData
     use ModuleToga               
     use ModuleHorizontalGrid,   only : GetGridAngle, GetGridOrigin, GetHorizontalGrid,   &
-                                       GetXYCellZ, UnGetHorizontalGrid
+                                       GetXYCellZ, GetXYCellZ_ThreadSafe, UnGetHorizontalGrid
     use ModuleTimeSerie,        only : StartTimeSerieInput, GetTimeSerieValue, KillTimeSerie
     use ModuleFunctions,        only : RodaXY
     use ModuleTask2000,         only : Task2000Level, NTask2000          
@@ -64,7 +64,9 @@ Module ModuleGauge
     public  :: GetReferenceLevel
     public  :: GetLevelEvolution
     public  :: GetIJWaterLevel
+    public  :: GetIJWaterLevel_ThreadSafe
     public  :: GetIJReferenceLevel
+    public  :: GetIJReferenceLevel_ThreadSafe
     public  :: GetTriangGaugesON
     public  :: GetVelEvolution
 
@@ -1789,6 +1791,90 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
 
     !----------------------------------------------------------------------
 
+    subroutine GetIJReferenceLevel_ThreadSafe(GaugeID, HorizontalGridID, I, J, ReferenceLevel, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer,           intent(IN )  :: GaugeID
+        integer,           intent(IN )  :: HorizontalGridID
+        integer,           intent(IN )  :: I, J
+        real,              intent(OUT)  :: ReferenceLevel
+        integer, optional, intent(OUT)  :: STAT
+
+        !Local-----------------------------------------------------------------
+        real                            :: PX, PY             
+        integer                         :: STAT_, ready_
+        type(T_TideGauge), pointer      :: PresentGauge
+        logical                         :: Found
+        real                            :: PercI, PercJ 
+        integer                         :: Iaux, Jaux        
+        type (T_Gauge), pointer         :: LocalMe
+
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        LocalMe => Ready_ThreadSafe(GaugeID, ready_) 
+        
+if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            PresentGauge => LocalMe%FirstGauge
+
+            Found = .false.
+
+            do while (associated(PresentGauge) .and. .not. Found) 
+
+                if (PresentGauge%Grid_I == I .and. PresentGauge%Grid_J == J) then
+
+                    ReferenceLevel = PresentGauge%ReferenceLevel                    
+
+                    Found = .true.
+
+                endif
+                
+                PX = PresentGauge%Metric_X
+                PY = PresentGauge%Metric_Y
+                
+                call GetXYCellZ_ThreadSafe(HorizontalGridID, PX, PY, Iaux, Jaux, STAT = STAT_)
+
+  
+                if (I == Iaux .and. J == Jaux) then
+                
+                    call GetXYCellZ_ThreadSafe(HorizontalGridID, PX, PY, Iaux, Jaux, PercI = PercI, PercJ = PercJ, STAT = STAT_)
+
+                    if (abs(PercI-0.5) < 0.02 .and. abs(PercJ-0.5) < 0.02) then
+
+                        ReferenceLevel = PresentGauge%ReferenceLevel                     
+
+                        Found = .true.
+                        
+                    endif
+                
+                endif
+
+                PresentGauge => PresentGauge%Next
+
+             enddo
+
+
+            if (Found) then
+
+                STAT_ = SUCCESS_
+
+            else
+
+                STAT_ = NOT_FOUND_ERR_
+
+            endif
+        else 
+            STAT_ = ready_
+        end if if1
+
+        if (present(STAT)) STAT = STAT_
+
+        !----------------------------------------------------------------------
+
+    end subroutine GetIJReferenceLevel_ThreadSafe
 
     !--------------------------------------------------------------------------
 
@@ -1875,6 +1961,92 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
 
     end subroutine GetIJWaterLevel
 
+    !----------------------------------------------------------------------
+
+    subroutine GetIJWaterLevel_ThreadSafe(GaugeID, HorizontalGridID, I, J, WaterLevel, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer,           intent(IN )  :: GaugeID
+        integer,           intent(IN )  :: HorizontalGridID
+        integer,           intent(IN )  :: I, J
+        real,              intent(OUT)  :: WaterLevel
+        integer, optional, intent(OUT)  :: STAT
+
+        !Local-----------------------------------------------------------------
+        real                            :: PX, PY       
+        integer                         :: STAT_, ready_
+        type(T_TideGauge), pointer      :: PresentGauge
+        logical                         :: Found
+        real                            :: PercI, PercJ 
+        integer                         :: Iaux, Jaux 
+        type (T_Gauge), pointer         :: LocalMe
+
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        LocalMe => Ready_ThreadSafe(GaugeID, ready_) 
+        
+if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            PresentGauge => LocalMe%FirstGauge
+
+            Found = .false.
+
+            do while (associated(PresentGauge) .and. .not. Found) 
+
+                if (PresentGauge%Grid_I == I .and. PresentGauge%Grid_J == J) then
+
+                    WaterLevel = PresentGauge%WaterLevel                    
+
+                    Found      = .true.
+
+                endif
+                
+                PX = PresentGauge%Metric_X
+                PY = PresentGauge%Metric_Y                
+                
+                call GetXYCellZ_ThreadSafe(HorizontalGridID, PX, PY, Iaux, Jaux, STAT = STAT_)
+
+  
+                if (I == Iaux .and. J == Jaux) then
+
+                    call GetXYCellZ_ThreadSafe(HorizontalGridID, PX, PY, Iaux, Jaux, PercI = PercI, PercJ = PercJ, STAT = STAT_)
+
+                    if (abs(PercI-0.5) < 0.02 .and. abs(PercJ-0.5) < 0.02) then
+
+                        WaterLevel = PresentGauge%WaterLevel                    
+
+                        Found = .true.
+                        
+                    endif
+
+                endif
+
+                PresentGauge => PresentGauge%Next
+
+             enddo
+
+            if (Found) then
+
+                STAT_ = SUCCESS_
+
+            else
+
+                STAT_ = NOT_FOUND_ERR_
+
+            endif
+        else 
+            STAT_ = ready_
+        end if if1
+
+        if (present(STAT)) STAT = STAT_
+
+        !----------------------------------------------------------------------
+
+    end subroutine GetIJWaterLevel_ThreadSafe
+    
     !----------------------------------------------------------------------
 
 
@@ -3911,30 +4083,43 @@ if1 :   if (associated(FirstGauge)) then
         integer                                     :: ready_
 
         !----------------------------------------------------------------------
-        
-        !Griflet: openmp safer
+           
+        nullify (Me)
 
 cd1:    if (ObjGauge_ID > 0) then
-
-            if ( .not. associated(Me) .or. ObjGauge_ID /= Me%InstanceID) then    
-            
-                nullify (Me)
-                
-                call LocateObjGauge(ObjGauge_ID)
-                
-            endif
-                
+            call LocateObjGauge(ObjGauge_ID)
             ready_ = VerifyReadLock (mGAUGE_, Me%InstanceID)
-                
         else
-            
             ready_ = OFF_ERR_
-                
         end if cd1
-        
+
         !----------------------------------------------------------------------
 
     end subroutine Ready
+
+    !--------------------------------------------------------------------------
+    
+    function Ready_ThreadSafe (ObjGauge_ID, ready_) result(LocalMe)
+
+        !Arguments-------------------------------------------------------------
+        integer,           intent(IN )              :: ObjGauge_ID
+        integer,           intent(OUT)              :: ready_
+        type (T_Gauge), pointer                     :: LocalMe
+        
+        !----------------------------------------------------------------------
+
+        nullify (LocalMe)
+
+cd1:    if (ObjGauge_ID > 0) then
+            LocalMe => LocateObjGauge_ThreadSafe(ObjGauge_ID)
+            ready_ = VerifyReadLock (mGAUGE_, LocalMe%InstanceID)
+        else
+            ready_ = OFF_ERR_
+        end if cd1
+
+        !----------------------------------------------------------------------
+
+    end function Ready_ThreadSafe    
 
     !--------------------------------------------------------------------------
 
@@ -3955,6 +4140,26 @@ cd1:    if (ObjGauge_ID > 0) then
         
     end subroutine LocateObjGauge
 
+    !--------------------------------------------------------------------------
+
+    function LocateObjGauge_ThreadSafe (ObjGaugeID) result(LocatedMe)
+
+        !Arguments-------------------------------------------------------------
+        integer,           intent(IN )              :: ObjGaugeID
+        type (T_Gauge), pointer                     :: LocatedMe
+
+        !Local-----------------------------------------------------------------
+
+        LocatedMe => FirstGauge
+        do while (associated (LocatedMe))
+            if (LocatedMe%InstanceID == ObjGaugeID) exit
+            LocatedMe => LocatedMe%Next
+        enddo
+
+        if (.not. associated(LocatedMe)) stop 'ModuleGauge - LocateObjGauge - ERR01'
+        
+    end function LocateObjGauge_ThreadSafe
+    
     !--------------------------------------------------------------------------
 
 end module ModuleGauge

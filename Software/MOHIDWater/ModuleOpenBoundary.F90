@@ -1036,7 +1036,7 @@ cd6:                    if (FoundBound) then
 
                             STAT_CALL = UNKNOWN_
                             
-                            call GetIJWaterLevel(Me%ObjGauge, Me%ObjHorizontalGrid, i, j, WaterLevel, STAT = STAT_CALL)
+                            call GetIJWaterLevel_ThreadSafe(Me%ObjGauge, Me%ObjHorizontalGrid, i, j, WaterLevel, STAT = STAT_CALL)
                             if (STAT_CALL /= SUCCESS_ .and. STAT_CALL /= NOT_FOUND_ERR_) then
                                 write(*,*) ' STAT_CALL is ', STAT_CALL
                                 stop 'Modify_OpenBoundary - ModuleOpenBoundary - ERR10'
@@ -1048,7 +1048,7 @@ cd23:                       if (STAT_CALL == NOT_FOUND_ERR_) then
 
                                     STAT_CALL = UNKNOWN_
 
-                                    WaterLevel = InterPolation(Me%ObjTriangulation,  &
+                                    WaterLevel = InterPolation_ThreadSafe(Me%ObjTriangulation,  &
                                                                PX, PY, FillOutsidePoints=.true., &
                                                                STAT = STAT_CALL)
                                     if (STAT_CALL /= SUCCESS_) then
@@ -1108,7 +1108,7 @@ cd23:                       if (STAT_CALL == NOT_FOUND_ERR_) then
 
                             STAT_CALL = UNKNOWN_
                             
-                            call GetIJReferenceLevel(Me%ObjGauge, Me%ObjHorizontalGrid, i, j, RefLevel, STAT = STAT_CALL)
+                            call GetIJReferenceLevel_ThreadSafe(Me%ObjGauge, Me%ObjHorizontalGrid, i, j, RefLevel, STAT = STAT_CALL)
                             if (STAT_CALL /= SUCCESS_ .and. STAT_CALL /= NOT_FOUND_ERR_) then                                
                                  write(*,*) 'STAT_CALL is ', STAT_CALL
                                 stop 'Modify_OpenBoundary - ModuleOpenBoundary - ERR13'
@@ -1120,7 +1120,7 @@ cd23:                       if (STAT_CALL == NOT_FOUND_ERR_) then
 
                                     STAT_CALL = UNKNOWN_
 
-                                    RefLevel = InterPolation(Me%ObjTriangulation, &
+                                    RefLevel = InterPolation_ThreadSafe(Me%ObjTriangulation, &
                                                              PX, PY, FillOutsidePoints=.true., STAT = STAT_CALL)
                                     if (STAT_CALL /= SUCCESS_) then
                                         write(*,*) 'STAT_CALL is ', STAT_CALL
