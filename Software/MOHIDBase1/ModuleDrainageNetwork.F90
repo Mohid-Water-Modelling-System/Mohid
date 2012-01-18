@@ -844,7 +844,10 @@ Module ModuleDrainageNetwork
         real                                        :: StabilizeCoefficient
         integer                                     :: MaxIterations
         real                                        :: DTFactor
-        real                                        :: MaxDTFlood
+        logical                                     :: LimitDTCourant               = .false.
+        logical                                     :: LimitDTVariation             = .true.
+        real                                        :: MaxCourant                   = 1.0
+        
 
         integer                                     :: nPropWithDischarges          = 0   !Performance
         !T90    
@@ -1381,16 +1384,40 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      STAT         = STAT_CALL)                                  
         if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR25a'        
 
-
-        !Max DT if channel water level exceeds full bank 
-        call GetData(Me%MaxDTFlood,                                         &
+        !Gets flag of DT is limited by the courant number
+        call GetData(Me%LimitDTCourant,                                     &
                      Me%ObjEnterData, flag,                                 &  
-                     keyword      = 'MAX_DT_FLOOD',                         &
+                     keyword      = 'LIMIT_DT_COURANT',                     &
                      ClientModule = 'DrainageNetwork',                      &
                      SearchType   = FromFile,                               &
-                     Default      = 10.0,                                   &
+                     Default      = .false.,                                &
                      STAT         = STAT_CALL)                                  
         if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR26'        
+
+        if (Me%LimitDTCourant) then
+
+            !Gets Maximum allowed Courant Number
+            call GetData(Me%MaxCourant,                                         &
+                         Me%ObjEnterData, flag,                                 &  
+                         keyword      = 'MAX_COURANT',                          &
+                         ClientModule = 'DrainageNetwork',                      &
+                         SearchType   = FromFile,                               &
+                         Default      = 1.0,                                    &
+                         STAT         = STAT_CALL)                                  
+            if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR26'        
+
+        endif
+
+        !Gets flag of DT is limited by the volume variation
+        call GetData(Me%LimitDTVariation,                                   &
+                     Me%ObjEnterData, flag,                                 &  
+                     keyword      = 'LIMIT_DT_VARIATION',                   &
+                     ClientModule = 'DrainageNetwork',                      &
+                     SearchType   = FromFile,                               &
+                     Default      = .true.,                                 &
+                     STAT         = STAT_CALL)                                  
+        if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR26'        
+
 
         call GetData(Me%AerationEquation,                                   &
                      Me%ObjEnterData, flag,                                 &
@@ -7973,40 +8000,78 @@ do2 :   do while (associated(PropertyX))
         type (T_Node), pointer                      :: CurrNode
         integer                                     :: STAT_CALL
         logical                                     :: VariableDT
+        real                                        :: nextDTCourant, aux
+        real                                        :: nextDTVariation, MaxDT
 
 
         call GetVariableDT(Me%ObjTime, VariableDT, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ComputeNextDT - ModuleDrainageNetwork -  ERR00'
         
+        call GetMaxComputeTimeStep(Me%ObjTime, MaxDT, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ComputeNextDT - ModuleDrainageNetwork -  ERR01'
+        
         if (VariableDT) then
 
-            MaxrdVol = null_real
-
-            do NodeID = 1, Me%TotalNodes
-
-                CurrNode => Me%Nodes (NodeID)
-
-                rdVol = abs(CurrNode%InitialVolumeNew - CurrNode%VolumeNew) / CurrNode%VolumeMax
+            nextDTCourant = -null_real
             
-                MaxrdVol = max(rdVol, MaxrdVol)
-                
-            enddo
+            if (Me%LimitDTCourant) then
+            
+                do NodeID = 1, Me%TotalNodes
 
-            if (MaxrdVol > 0.0) then
-                
-                
-                if (Me%LastGoodNiter == Me%InternalTimeStepSplit .and. MaxrdVol < Me%StabilizeFactor) then
-                    Me%NextDT = Me%ExtVar%DT * Me%DTFactor
-                else if (Me%LastGoodNiter ==  Me%InternalTimeStepSplit) then
-                    Me%NextDT = Me%ExtVar%DT
-                else
-                    Me%NextDT = Me%ExtVar%DT / Me%DTFactor
-                endif                
+                    CurrNode => Me%Nodes (NodeID)
 
-            else
-                Me%NextDT = Me%ExtVar%DT * Me%DTFactor
+                    if (CurrNode%WaterDepth > Me%MinimumWaterDepth) then
+
+                        aux = CurrNode%Length / sqrt(Gravity * CurrNode%WaterDepth) * Me%MaxCourant
+                        
+                        nextDTCourant = min(nextDTCourant, aux)
+                        
+                    endif
+                    
+                enddo
+
             endif
             
+            nextDTVariation = - null_real
+
+            if (Me%LimitDTVariation) then
+
+                MaxrdVol = null_real
+
+                do NodeID = 1, Me%TotalNodes
+
+                    CurrNode => Me%Nodes (NodeID)
+
+                    rdVol = abs(CurrNode%InitialVolumeNew - CurrNode%VolumeNew) / CurrNode%VolumeMax
+                
+                    MaxrdVol = max(rdVol, MaxrdVol)
+                    
+                enddo
+
+                if (MaxrdVol > 0.0) then
+                    
+                    
+                    if (Me%LastGoodNiter == Me%InternalTimeStepSplit .and. MaxrdVol < Me%StabilizeFactor) then
+                        nextDTVariation = Me%ExtVar%DT * Me%DTFactor
+                    else if (Me%LastGoodNiter ==  Me%InternalTimeStepSplit) then
+                        nextDTVariation = Me%ExtVar%DT
+                    else
+                        nextDTVariation = Me%ExtVar%DT / Me%DTFactor
+                    endif                
+
+                else
+                    nextDTVariation = Me%ExtVar%DT * Me%DTFactor
+                endif
+
+            endif
+
+            if (min(nextDTVariation, nextDTCourant) > MaxDT) then
+                Me%NextDT = Me%ExtVar%DT * Me%DTFactor
+            else
+                Me%NextDT = min(nextDTVariation, nextDTCourant)
+            endif
+            
+
         else
         
             Me%NextDT = Me%ExtVar%DT
@@ -8722,11 +8787,19 @@ if2:        if (CurrNode%VolumeNew > PoolVolume) then
         else !if1
         
             if (Me%Downstream%Boundary == ImposedWaterLevel) then
-           
-                    if (Me%Downstream%Evolution  == None .or. Me%Downstream%Evolution == OpenMI) then
-                       CurrNode%WaterLevel = Me%Downstream%DefaultValue
+
+                    if (Me%Downstream%Evolution  == None) then
+
+                        !Sets Level so it "tends" to the imposed level
+                        UpReach             => Me%Reaches (CurrNode%UpstreamReaches (1))
+                        UpNode              => Me%Nodes   (UpReach%UpstreamNode) 
+                        
+                        CurrNode%WaterLevel = (Me%Downstream%DefaultValue + UpNode%WaterLevel) / 2.0
+                        
+                    else if (Me%Downstream%Evolution == OpenMI) then
+                        CurrNode%WaterLevel = Me%Downstream%DefaultValue
                     else if (Me%Downstream%Evolution == ReadTimeSerie) then
-                       call ModifyDownstreamTimeSerie (CurrNode%WaterLevel)
+                        call ModifyDownstreamTimeSerie (CurrNode%WaterLevel)
                     end if
 
                     CurrNode%WaterDepth = CurrNode%WaterLevel - CurrNode%CrossSection%BottomLevel
@@ -8833,8 +8906,8 @@ if2:        if (CurrNode%VolumeNew > PoolVolume) then
         type (T_Reach), pointer                 :: CurrReach
         type (T_Node ), pointer                 :: UpNode, DownNode    
         real                                    :: PoolDepth, PoolVolume
-        real                                    :: WetPerimiter
-        real                                    :: AverageWaterDepth, SurfaceWidth
+        real                                    :: WetPerimiter, MaxBottom
+        real                                    :: WaterDepth, SurfaceWidth
         real                                    :: AvTrapez1, AvTrapez2, PTrapez1
         real                                    :: aux, aux2, TopH   
 
@@ -8872,11 +8945,15 @@ if2:        if (CurrNode%VolumeNew > PoolVolume) then
 !        CurrReach%VerticalArea    = 0.9 * UpNode%VerticalArea + 0.1 * DownNode%VerticalArea
 !        WetPerimiter              = ( 0.9 * UpNode%WetPerimeter + 0.1* DownNode%WetPerimeter)
 
-        if (UpNode%WaterLevel > DownNode%WaterLevel) then
-            AverageWaterDepth = UpNode%WaterDepth
-        else
-            AverageWaterDepth = DownNode%WaterDepth
-        endif
+!        if (UpNode%WaterLevel > DownNode%WaterLevel) then
+!            WaterDepth = UpNode%WaterDepth
+!        else
+!            WaterDepth = max(DownNode%WaterLevel - UpNode%CrossSection%BottomLevel, 0.0)
+!        endif
+
+        MaxBottom  = max(UpNode%CrossSection%BottomLevel, DownNode%CrossSection%BottomLevel)
+        WaterDepth = (max(UpNode%WaterLevel - MaxBottom, 0.0) + max(DownNode%WaterLevel - MaxBottom, 0.0)) / 2.0
+        
         
         if (UpNode%CrossSection%Form == Trapezoidal .OR.            &
            (UpNode%CrossSection%Form == TrapezoidalFlood .AND.      &
@@ -8885,7 +8962,7 @@ if2:        if (CurrNode%VolumeNew > PoolVolume) then
             call TrapezoidGeometry (b  = UpNode%CrossSection%BottomWidth,   &
                                     mR = UpNode%CrossSection%Slope,         &
                                     mL = UpNode%CrossSection%Slope,         &
-                                    h  = AverageWaterDepth,                 &
+                                    h  = WaterDepth,                        &
                                     Av = CurrReach%VerticalArea,            &
                                     P  = WetPerimiter,                      &
                                     Sw = SurfaceWidth)
@@ -8902,7 +8979,7 @@ if2:        if (CurrNode%VolumeNew > PoolVolume) then
                                     P  = PTrapez1,                          &
                                     Sw = aux)
 
-            TopH = AverageWaterDepth - UpNode%CrossSection%MiddleHeight
+            TopH = WaterDepth - UpNode%CrossSection%MiddleHeight
 
             call TrapezoidGeometry (b  = UpNode%CrossSection%MiddleWidth, &
                                     mR = UpNode%CrossSection%SlopeTop,    &
@@ -8922,7 +8999,7 @@ if2:        if (CurrNode%VolumeNew > PoolVolume) then
                 
                 
                 call TabularGeometry (UpNode%CrossSection,      &
-                                      AverageWaterDepth,        &
+                                      WaterDepth,               &
                                       CurrReach%VerticalArea,   & 
                                       WetPerimiter,             &
                                       aux2)
@@ -9067,39 +9144,53 @@ if2:        if (CurrNode%VolumeNew > PoolVolume) then
 
         HydroAdvection = 0.0
 
-       !Down Flux
+        !Down Flux
         AdvectionDown = 0.0
         do i = 1, DownNode%nDownstreamReaches
-            DownReach   => Me%Reaches (DownNode%DownstreamReaches (i))
-            DownFlux = (CurrReach%FlowOld + DownReach%FlowOld) / 2.
+            DownReach => Me%Reaches (DownNode%DownstreamReaches (i))
+            
+            if (DownNode%VerticalArea .GE. AllmostZero ) then
+           
+                DownFlux  = (CurrReach%FlowOld + DownReach%FlowOld) / 2.
 
-            if (DownFlux.GE.0.0) then
-                DownProp = CurrReach%Velocity
-            else
-                DownProp = DownReach%Velocity 
-            end if
-                                                                        
-            !m4/s2        = m4/s2           m3/s     * m/s
-            AdvectionDown = AdvectionDown + DownFlux * DownProp
+                
+                DownProp  = abs(DownFlux) / DownNode%VerticalArea
+                
+    !            if (DownFlux.GE.0.0) then
+    !                DownProp = CurrReach%Velocity
+    !            else
+    !                DownProp = DownReach%Velocity 
+    !            end if
+                                                                            
+                !m4/s2        = m4/s2           m3/s     * m/s
+                AdvectionDown = AdvectionDown + DownFlux * DownProp
+            endif
         end do
        
         !UpFlux
         AdvectionUp = 0.0
         do i = 1, UpNode%nUpstreamReaches                    
-           UpReach   => Me%Reaches (UpNode%UpstreamReaches (i))
-           UpFlux = ( CurrReach%FlowOld + UpReach%FlowOld) / 2.
+            UpReach => Me%Reaches (UpNode%UpstreamReaches (i))
 
-            if (UpFlux.GE.0.0) then
-                UpProp = UpReach%Velocity
-            else
-                UpProp = CurrReach%Velocity
-            end if
+            if (UpNode%VerticalArea .GE. AllmostZero ) then
 
-           AdvectionUp    =  AdvectionUp + UpFlux * UpProp
+                UpFlux  = (CurrReach%FlowOld + UpReach%FlowOld) / 2.
+
+                UpProp  = abs(UpFlux) / UpNode%VerticalArea
+
+    !            if (UpFlux.GE.0.0) then
+    !                UpProp = UpReach%Velocity
+    !            else
+    !                UpProp = CurrReach%Velocity
+    !            end if
+
+               AdvectionUp    =  AdvectionUp + UpFlux * UpProp
+            endif
         end do
    
         !m3/s          =  m4/s2                        *  s / m
         HydroAdvection = (AdvectionUp - AdvectionDown) * DT / CurrReach%Length
+
 
         nullify(UpNode)
         nullify(DownNode)

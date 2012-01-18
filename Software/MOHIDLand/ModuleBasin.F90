@@ -7242,11 +7242,11 @@ cd2 :           if (BlockFound) then
         !    NewDT = MaxDT
         !endif
         
-        if (NewDT < 1.0) then
-            call WriteDTLog ('ModuleBasin < 1', ID_DT, NewDT)
-            NewDT = 1.0
-            ID_DT = 7
-        endif
+!        if (NewDT < 1.0) then
+!            call WriteDTLog ('ModuleBasin < 1', ID_DT, NewDT)
+!            NewDT = 1.0
+!            ID_DT = 7
+!        endif
 
         call WriteDTLog ('ModuleBasin', ID_DT, NewDT)
 

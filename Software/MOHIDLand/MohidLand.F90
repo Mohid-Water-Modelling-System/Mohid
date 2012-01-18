@@ -260,11 +260,13 @@ program MohidLand
             DT = min(NewDT, MaxDT)
 
             !Rounds new DT to full decimal second
-            if (DT > AINT(DT)) then
-               DT = AINT(DT) + 1.0
+            if (DT * 100.0 > AINT(DT*100.0)) then
+               DT = AINT(DT*100.0) + 1.0
             else
-               DT = max(AINT(DT), 1.0)
+               DT = max(AINT(DT*100.0), 1.0)
             endif
+
+            DT = DT / 100.0
 
             !Fit last Iteration
             if (CurrentTime + DT > EndTime) then

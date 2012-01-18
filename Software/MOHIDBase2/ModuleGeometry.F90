@@ -1523,8 +1523,8 @@ cd2 :                       if (BlockLayersFound) then
         allocate(NewBathymetry(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
         
         !Copy bathymetry array
-        NewBathymetry(:,:) = Bathymetry(:,:)
-
+        !NewBathymetry(:,:) = Bathymetry(:,:)
+        call SetMatrixValue(NewBathymetry, Size2D, Bathymetry)
 
         CurrentDomain => Me%FirstDomain
 do1:    do while (associated(CurrentDomain))
