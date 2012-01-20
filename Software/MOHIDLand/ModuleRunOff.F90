@@ -1194,14 +1194,18 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             
             if (Me%ExtVar%BasinPoints(i, j) == BasinPoint) then
             
-                if (Me%ExtVar%BasinPoints(i+1, j) == BasinPoint                 .and. &
-                    Me%ExtVar%Topography (i+1, j) > Me%ExtVar%Topography(i, j)  .and. &
-                    Me%ExtVar%BasinPoints(i-1, j) == BasinPoint                 .and. &
-                    Me%ExtVar%Topography (i-1, j) > Me%ExtVar%Topography(i, j)  .and. &
-                    Me%ExtVar%BasinPoints(i, j+1) == BasinPoint                 .and. &
-                    Me%ExtVar%Topography (i, j+1) > Me%ExtVar%Topography(i, j)  .and. &
-                    Me%ExtVar%BasinPoints(i, j-1) == BasinPoint                 .and. &
-                    Me%ExtVar%Topography (i, j-1) > Me%ExtVar%Topography(i, j)) then
+                if (((Me%ExtVar%BasinPoints(i+1, j) == BasinPoint                 .and. &
+                      Me%ExtVar%Topography (i+1, j) > Me%ExtVar%Topography(i, j)) .or.  &  
+                      Me%ExtVar%BasinPoints(i+1, j) /= BasinPoint)                .and. &
+                    ((Me%ExtVar%BasinPoints(i-1, j) == BasinPoint                 .and. &
+                      Me%ExtVar%Topography (i-1, j) > Me%ExtVar%Topography(i, j)) .or.  &
+                      Me%ExtVar%BasinPoints(i-1, j) /= BasinPoint)                .and. &
+                    ((Me%ExtVar%BasinPoints(i, j+1) == BasinPoint                 .and. &
+                      Me%ExtVar%Topography (i, j+1) > Me%ExtVar%Topography(i, j)) .or.  &
+                      Me%ExtVar%BasinPoints(i, j+1) /= BasinPoint)                .and. &
+                    ((Me%ExtVar%BasinPoints(i, j-1) == BasinPoint                 .and. &
+                      Me%ExtVar%Topography (i, j-1) > Me%ExtVar%Topography(i, j)) .or.  &
+                      Me%ExtVar%BasinPoints(i, j-1) /= BasinPoint)) then
                     
                     Me%DFourSinkPoint(i, j) = BasinPoint
                     
@@ -3145,7 +3149,7 @@ doIter:         do while (iter <= Niter)
         !Local-----------------------------------------------------------------
         integer                                     :: i, j, it, jt
         integer                                     :: ILB, IUB, JLB, JUB
-        real                                        :: dVol, volMax, FlowMax
+        real                                        :: dVol, AverageCellLength, FlowMax
         integer                                     :: CHUNK
 
         CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
@@ -3155,34 +3159,42 @@ doIter:         do while (iter <= Niter)
         JLB = Me%WorkSize%JLB
         JUB = Me%WorkSize%JUB
 
-        !$OMP PARALLEL PRIVATE(I,J, it, jt, dVol, volMax, FlowMax)
+        !$OMP PARALLEL PRIVATE(I,J, it, jt, dVol, AverageCellLength, FlowMax)
 
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
         do j = JLB, JUB
         do i = ILB, IUB
             
-            if (Me%DFourSinkPoint(i, j) == BasinPoint) then
+            if (Me%DFourSinkPoint(i, j) == BasinPoint .and. Me%LowestNeighborI(i, j) /= null_int .and. &
+                Me%myWaterColumn(i,  j) > Me%MinimumWaterColumn) then
             
 
                 !
-                !Checks if Water Column is lower then in 4 direction
+                !Checks if Water Column is lower then in 4 direction. If not flood occurs and 4 drainage will not be used...
                 !
-                if (Me%myWaterLevel(i,   j) < Me%ExtVar%Topography(i-1, j) .and.  &
-                    Me%myWaterLevel(i,   j) < Me%ExtVar%Topography(i+1, j) .and.  &
-                    Me%myWaterLevel(i,   j) < Me%ExtVar%Topography(i, j-1) .and.  &
-                    Me%myWaterLevel(i,   j) < Me%ExtVar%Topography(i, j+1) .and.  &
-                    Me%myWaterColumn(i,  j) > Me%MinimumWaterColumn) then
+                if ( ((Me%ExtVar%BasinPoints(i-1, j) == BasinPoint             .and.  &
+                       Me%myWaterLevel(i,   j) < Me%ExtVar%Topography(i-1, j)) .or.   &
+                       Me%ExtVar%BasinPoints(i-1, j) /= BasinPoint)            .and.  &
+                     ((Me%ExtVar%BasinPoints(i+1, j) == BasinPoint             .and.  &
+                       Me%myWaterLevel(i,   j) < Me%ExtVar%Topography(i+1, j)) .or.   &
+                       Me%ExtVar%BasinPoints(i+1, j) /= BasinPoint)            .and.  &
+                     ((Me%ExtVar%BasinPoints(i, j-1) == BasinPoint             .and.  &
+                       Me%myWaterLevel(i,   j) < Me%ExtVar%Topography(i, j-1)) .or.   &
+                       Me%ExtVar%BasinPoints(i, j-1) /= BasinPoint)            .and.  &
+                     ((Me%ExtVar%BasinPoints(i, j+1) == BasinPoint             .and.  &
+                       Me%myWaterLevel(i,   j) < Me%ExtVar%Topography(i, j+1)) .or.   &
+                       Me%ExtVar%BasinPoints(i, j+1) /= BasinPoint)) then
                     
 
                     it = Me%LowestNeighborI(i, j)
                     jt = Me%LowestNeighborJ(i, j)
 
-                    !dVol
-                    volMax = (Me%myWaterColumn(i, j) - Me%MinimumWaterColumn) * Me%ExtVar%GridCellArea(i,j)
-                    
-                    FlowMax = sqrt(Gravity * Me%myWaterColumn(i, j)) *  Me%myWaterVolume(i,j) / Me%ExtVar%GridCellArea(i, j)
+                    !Critical Flow                    
+                    AverageCellLength  = ( Me%ExtVar%DUX (i, j) + Me%ExtVar%DVY (i, j) ) / 2.0
+                    FlowMax = sqrt(Gravity * Me%myWaterColumn(i, j)) *  Me%myWaterColumn(i, j) * AverageCellLength
 
-                    dVol = min(volMax / Me%ExtVar%DT, FlowMax)
+                    !dVol -> max Critical Flow & Avaliable Volume
+                    dVol = min(Me%myWaterVolume(i,j), FlowMax)
 
                     !Updates Water Volume
                     Me%myWaterVolume (i, j)    = Me%myWaterVolume (i, j)   - dVol 
@@ -3853,11 +3865,20 @@ doIter:         do while (iter <= Niter)
                     !Maximum flow is equal to volume avaliable at watercolumn
                     
                     dh      = abs(Me%myWaterLevel(i, j) - ChannelsWaterLevel(i, j))
-                    Flow    = sqrt(Gravity * dh) * 2.0 * ChannelsNodeLength(i, j) * dh
                     
-                    MaxFlow = Me%myWaterColumn (i, j) * Me%ExtVar%GridCellArea(i, j) / Me%ExtVar%DT
+                    if (dh > Me%MinimumWaterColumn) then
                     
-                    Me%iFlowToChannels(i, j) = min(Flow, MaxFlow)
+                        Flow    = sqrt(Gravity * dh) * 2.0 * ChannelsNodeLength(i, j) * dh
+                        
+                        MaxFlow = Me%myWaterColumn (i, j) * Me%ExtVar%GridCellArea(i, j) / Me%ExtVar%DT
+                        
+                        Me%iFlowToChannels(i, j) = min(Flow, MaxFlow)
+                    
+                    else
+                    
+                        Me%iFlowToChannels(i, j) = 0.0
+                        
+                    endif
                     
                 else
                 
@@ -3896,29 +3917,38 @@ doIter:         do while (iter <= Niter)
                         endif
                     endif
 
-                    !Variation in volume by comparing old level with new level
-                    dVol = (Me%myWaterLevel(i, j) - NewLevel ) *  Me%ExtVar%GridCellArea(i, j)
-         
-                    Me%iFlowToChannels(i, j)    = dVol / Me%ExtVar%DT
-                    
-                    !Prevent negative volumes
-                    if (Me%iFlowToChannels(i, j) > 0.0) then
-                        Me%iFlowToChannels(i, j) = min(Me%iFlowToChannels(i, j),                &
-                                                       Me%myWaterColumn (i, j) * Me%ExtVar%GridCellArea(i, j) / Me%ExtVar%DT)
-                    else
-                        Me%iFlowToChannels(i, j) = max(Me%iFlowToChannels(i, j),                &
-                                                       -1.0 * (ChannelsVolume(i,j) - ChannelsMaxVolume(i, j)) / Me%ExtVar%DT)
-                    endif
-                    
-                    !Limits to critical flow to critical one
                     dh      = abs(Me%myWaterLevel(i, j) - ChannelsWaterLevel(i, j))
-                    MaxFlow = sqrt(Gravity * dh) * 2.0 * ChannelsNodeLength(i, j) * dh
-                    if (abs(Me%iFlowToChannels(i, j)) > MaxFlow) then
+
+                    if (dh > Me%MinimumWaterColumn) then
+                    
+                        !Variation in volume by comparing old level with new level
+                        dVol = (Me%myWaterLevel(i, j) - NewLevel ) *  Me%ExtVar%GridCellArea(i, j)
+             
+                        Me%iFlowToChannels(i, j)    = dVol / Me%ExtVar%DT
+                        
+                        !Prevent negative volumes
                         if (Me%iFlowToChannels(i, j) > 0.0) then
-                            Me%iFlowToChannels(i, j) = MaxFlow
+                            Me%iFlowToChannels(i, j) = min(Me%iFlowToChannels(i, j),                &
+                                                           Me%myWaterColumn (i, j) * Me%ExtVar%GridCellArea(i, j) / Me%ExtVar%DT)
                         else
-                            Me%iFlowToChannels(i, j) = -1.0 * MaxFlow
+                            Me%iFlowToChannels(i, j) = max(Me%iFlowToChannels(i, j),                &
+                                                           -1.0 * (ChannelsVolume(i,j) - ChannelsMaxVolume(i, j)) / Me%ExtVar%DT)
                         endif
+                        
+                        !Limits to critical flow to critical one
+                        MaxFlow = sqrt(Gravity * dh) * 2.0 * ChannelsNodeLength(i, j) * dh
+                        if (abs(Me%iFlowToChannels(i, j)) > MaxFlow) then
+                            if (Me%iFlowToChannels(i, j) > 0.0) then
+                                Me%iFlowToChannels(i, j) = MaxFlow
+                            else
+                                Me%iFlowToChannels(i, j) = -1.0 * MaxFlow
+                            endif
+                        endif
+                        
+                    else
+                    
+                        Me%iFlowToChannels(i, j) = 0.0
+                        
                     endif
                     
                  endif
@@ -4312,6 +4342,8 @@ doIter:         do while (iter <= Niter)
                     Me%CenterVelocityX (i, j) = Me%CenterFlowX (i,j) / ( Me%ExtVar%DYY(i, j) * Me%myWaterColumn (i,j) )
                     Me%CenterVelocityY (i, j) = Me%CenterFlowY (i,j) / ( Me%ExtVar%DXX(i, j) * Me%myWaterColumn (i,j) )
                     Me%VelocityModulus (i, j) = sqrt (Me%CenterVelocityX(i, j)**2.0 + Me%CenterVelocityY(i, j)**2.0)
+                else
+                    Me%myWaterColumn (i,j) = 0.0
                 end if
 
                 if(Me%WriteMaxFlowModulus) then
