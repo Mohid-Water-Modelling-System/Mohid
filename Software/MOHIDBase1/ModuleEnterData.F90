@@ -3731,7 +3731,9 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   
         ! that this property don"t have outputs
         if (iflag==0) OutPutsOn = .false.
 
-
+        ! iflag returns also the number of values read                   
+        ReadValuesNumber = iflag
+        
         ! If iflag=1 it can means :
         ! 1 - only one value is read  
         ! 2 - the keyword was find but don"t have any values AuxDT(1)=FillValueReal
@@ -3749,14 +3751,9 @@ cd2 :   if (AuxDT(1) > 0) then
         end if cd1
 
 cd3:    if (OutPutsOn) then
-            ! iflag returns also the number of values read                   
-            ReadValuesNumber = iflag
-
             ! We need to now the interval between the last specific output and the end of the simulation (TimeE).
             ! This information is important to compute the number of outputs after the last specific 
             ! output 
-
-
             ExtraTime_Seconds = EndTime - (CurrentTime + AuxDT(ReadValuesNumber - 1))
 
             if (ExtraTime_Seconds < 0)                                                   &
