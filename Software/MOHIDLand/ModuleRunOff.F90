@@ -1219,6 +1219,31 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         enddo
         enddo
         
+        !If drainage network modules is associated, then don't apply D4 on drainage network point
+        if (Me%ObjDrainageNetwork /= 0) then
+        
+            do j = Me%Size%JLB, Me%Size%JUB
+            do i = Me%Size%ILB, Me%Size%IUB
+                
+                !Source Point is a DNet Point
+                if (Me%ExtVar%RiverPoints (i, j) == BasinPoint) then
+                    Me%DFourSinkPoint(i, j) = 0
+                endif
+                
+                !Target Point is a DNet Point
+                if (Me%DFourSinkPoint(i, j) == BasinPoint .and. Me%LowestNeighborI(i, j) /= null_int) then
+              
+                    if (Me%ExtVar%RiverPoints (Me%LowestNeighborI(i, j), Me%LowestNeighborJ(i, j)) == BasinPoint) then
+                        Me%DFourSinkPoint(i, j) = 0
+                    endif
+              
+                endif              
+                
+            enddo
+            enddo
+                        
+        endif
+        
         do j = Me%Size%JLB, Me%Size%JUB
         do i = Me%Size%ILB, Me%Size%IUB
             
@@ -1480,7 +1505,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             Me%StormWaterFlowY         = 0.0
             Me%StormWaterCenterFlowX   = 0.0
             Me%StormWaterCenterFlowY   = 0.0
-            Me%StormWaterCenterModulus = null_real
+            Me%StormWaterCenterModulus = 0.0
 
             do j = JLB, JUB
             do i = ILB, IUB
@@ -2815,6 +2840,9 @@ doIter:         do while (iter <= Niter)
         real(8)                                     :: MaxFlow, CriticalFlow
         integer                                     :: CHUNK
 
+        if (MonitorPerformance) call StartWatch ("ModuleRunOff", "DynamicWave")
+
+
         CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
 
         ILB = Me%WorkSize%ILB
@@ -3060,6 +3088,8 @@ doIter:         do while (iter <= Niter)
         !$OMP END DO NOWAIT
         !$OMP END PARALLEL
         
+        if (MonitorPerformance) call StopWatch ("ModuleRunOff", "DynamicWave")
+        
         
     end subroutine DynamicWave
     
@@ -3302,9 +3332,40 @@ doIter:         do while (iter <= Niter)
                 endif
                 
                 dist = sqrt(dx**2.0 + dy**2.0)
-                flow = Me%StormWaterVolume(i,j) / dist * Me%StormWaterFlowVelocity
+                flow = Me%StormWaterVolume(i, j) / dist * Me%StormWaterFlowVelocity
 
                 dVol = min(flow * Me%ExtVar%DT, Me%StormWaterVolume(i, j))
+                
+                flow = dVol/Me%ExtVar%DT
+                
+                !Output
+                Me%StormWaterCenterModulus (i, j) = flow
+                if      (Me%LowestNeighborI(i, j) == i-1 .and. Me%LowestNeighborJ(i, j) == j-1) then
+                    Me%StormWaterCenterFlowX   (i, j) = -1.0 * sqrt(flow)
+                    Me%StormWaterCenterFlowY   (i, j) = -1.0 * sqrt(flow)
+                else if (Me%LowestNeighborI(i, j) == i-1 .and. Me%LowestNeighborJ(i, j) == j) then
+                    Me%StormWaterCenterFlowX   (i, j) = 0.0
+                    Me%StormWaterCenterFlowY   (i, j) = -1.0 * flow
+                else if (Me%LowestNeighborI(i, j) == i-1 .and. Me%LowestNeighborJ(i, j) == j+1) then
+                    Me%StormWaterCenterFlowX   (i, j) = +1.0 * sqrt(flow)
+                    Me%StormWaterCenterFlowY   (i, j) = -1.0 * sqrt(flow)
+                else if (Me%LowestNeighborI(i, j) == i .and. Me%LowestNeighborJ(i, j) == j+1) then
+                    Me%StormWaterCenterFlowX   (i, j) = flow
+                    Me%StormWaterCenterFlowY   (i, j) = 0.0
+                else if (Me%LowestNeighborI(i, j) == i+1 .and. Me%LowestNeighborJ(i, j) == j+1) then
+                    Me%StormWaterCenterFlowX   (i, j) = sqrt(flow)
+                    Me%StormWaterCenterFlowY   (i, j) = sqrt(flow)
+                else if (Me%LowestNeighborI(i, j) == i+1 .and. Me%LowestNeighborJ(i, j) == j) then
+                    Me%StormWaterCenterFlowX   (i, j) = 0.0
+                    Me%StormWaterCenterFlowY   (i, j) = flow
+                else if (Me%LowestNeighborI(i, j) == i+1 .and. Me%LowestNeighborJ(i, j) == j-1) then
+                    Me%StormWaterCenterFlowX   (i, j) = -1.0 * sqrt(flow)
+                    Me%StormWaterCenterFlowY   (i, j) = +1.0 * sqrt(flow)
+                else
+                    Me%StormWaterCenterFlowX   (i, j) = -1.0 * flow                    
+                    Me%StormWaterCenterFlowY   (i, j) = 0.0
+                endif                    
+                                            
                 
                 !
                 !If the lowest neighbor is a stromwater drainage point, route it there. Otherwise put the water back to the surface
@@ -3326,6 +3387,12 @@ doIter:         do while (iter <= Niter)
                     Me%StormWaterVolume(i, j) = Me%StormWaterVolume(i, j) - dVol
                 endif
                 
+            else
+            
+                Me%StormWaterCenterModulus (i, j) = 0.0
+                Me%StormWaterCenterFlowX   (i, j) = 0.0
+                Me%StormWaterCenterFlowY   (i, j) = 0.0
+            
             endif
                
         enddo
@@ -4358,30 +4425,30 @@ doIter:         do while (iter <= Niter)
         enddo
         !$OMP END DO NOWAIT
         
-        if (Me%StormWaterDrainage) then
-        
-            Me%StormWaterCenterFlowX    = 0.0
-            Me%StormWaterCenterFlowY    = 0.0
-            Me%StormWaterCenterModulus  = 0.0
-        
-            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
-            do j = JLB, JUB
-            do i = ILB, IUB
-                    
-                if (Me%ExtVar%BasinPoints(i, j) == BasinPoint) then
-
-                    Me%StormWaterCenterFlowX(i, j)   = (Me%StormWaterFlowX(i, j) + Me%StormWaterFlowX(i, j+1)) / 2.0
-                    Me%StormWaterCenterFlowY(i, j)   = (Me%StormWaterFlowY(i, j) + Me%StormWaterFlowY(i+1, j)) / 2.0
-                    Me%StormWaterCenterModulus(i, j) = sqrt (Me%StormWaterCenterFlowX(i, j)**2. + &
-                                                             Me%StormWaterCenterFlowY(i, j)**2.)
-
-                endif
-
-            enddo
-            enddo
-            !$OMP END DO NOWAIT
-        
-        endif
+!        if (Me%StormWaterDrainage) then
+!        
+!            Me%StormWaterCenterFlowX    = 0.0
+!            Me%StormWaterCenterFlowY    = 0.0
+!            Me%StormWaterCenterModulus  = 0.0
+!        
+!            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+!            do j = JLB, JUB
+!            do i = ILB, IUB
+!                    
+!                if (Me%ExtVar%BasinPoints(i, j) == BasinPoint) then
+!
+!                    Me%StormWaterCenterFlowX(i, j)   = (Me%StormWaterFlowX(i, j) + Me%StormWaterFlowX(i, j+1)) / 2.0
+!                    Me%StormWaterCenterFlowY(i, j)   = (Me%StormWaterFlowY(i, j) + Me%StormWaterFlowY(i+1, j)) / 2.0
+!                    Me%StormWaterCenterModulus(i, j) = sqrt (Me%StormWaterCenterFlowX(i, j)**2. + &
+!                                                             Me%StormWaterCenterFlowY(i, j)**2.)
+!
+!                endif
+!
+!            enddo
+!            enddo
+!            !$OMP END DO NOWAIT
+!        
+!        endif
         
         !$OMP END PARALLEL
         

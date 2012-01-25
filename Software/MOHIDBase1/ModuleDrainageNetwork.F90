@@ -4689,7 +4689,7 @@ if1:        if (CurrNode%nDownstreamReaches /= 0) then
         real                                            :: PTrapez1, aux
 
 
-        if (CurrNode%nDownstreamReaches /= 0) then
+!        if (CurrNode%nDownstreamReaches /= 0) then
 
             if (CurrNode%CrossSection%Form == Trapezoidal .OR.            &
                (CurrNode%CrossSection%Form == TrapezoidalFlood .AND.      &
@@ -4768,7 +4768,7 @@ if1:        if (CurrNode%nDownstreamReaches /= 0) then
             endif
 
                 
-        end if
+!        end if
 
     end subroutine ComputeXSFromWaterDepth
     
@@ -7577,7 +7577,7 @@ do2 :   do while (associated(PropertyX))
                     stop 'ModifyDrainageNetLocal - ModuleDrainageNetwork - ERR03'
                 endif
                 call ResetToInitialValues ()
-                call UpdateCrossSections  ()
+                call UpdateCrossSections  
                 SumDT   = 0.0
                 Restart = .false.
                 iter    = 1
@@ -8643,6 +8643,11 @@ if1:        if (DownNode%nDownstreamReaches .EQ. 0) then
 
                     case(ImposedWaterLevel)
 
+!                        CurrReach%Slope = (Me%Nodes(CurrReach%UpstreamNode)%Waterlevel -            &
+!                                           Me%Nodes(CurrReach%DownstreamNode)%Waterlevel) /         &
+!                                           CurrReach%Length
+!                        call ComputeKinematicWave (CurrReach) 
+
                         call ComputeStVenant (CurrReach, DT)
                                         
                     case (ImposedVelocity)
@@ -8704,6 +8709,7 @@ if1:        if (DownNode%nDownstreamReaches .EQ. 0) then
         real(8)                                     :: PoolVolume, VolNewAux
         type(T_Reach), pointer                      :: UpReach
         type(T_Node), pointer                       :: UpNode
+        real                                        :: LevelOut
 
 if1:    if (CurrNode%nDownstreamReaches /= 0) then
             
@@ -8784,26 +8790,29 @@ if2:        if (CurrNode%VolumeNew > PoolVolume) then
                 
             endif if2
 
-        else !if1
+        else !if1 -> Outlet
         
             if (Me%Downstream%Boundary == ImposedWaterLevel) then
 
+                    !Sets Level so it "tends" to the imposed level. Using Radiation with exterior velocity = 0
+                    !(v - v_ext)*h = (n-n_ext ) sqrt(gh) with v_ext = 0 =>
+                    !n = v*h / sqrt(gh) + n_ext
+
+                    UpReach             => Me%Reaches (CurrNode%UpstreamReaches (1))
+                    UpNode              => Me%Nodes   (UpReach%UpstreamNode) 
+
                     if (Me%Downstream%Evolution  == None) then
-
-                        !Sets Level so it "tends" to the imposed level
-                        UpReach             => Me%Reaches (CurrNode%UpstreamReaches (1))
-                        UpNode              => Me%Nodes   (UpReach%UpstreamNode) 
-                        
-                        CurrNode%WaterLevel = (Me%Downstream%DefaultValue + UpNode%WaterLevel) / 2.0
-                        
+                        LevelOut = Me%Downstream%DefaultValue
                     else if (Me%Downstream%Evolution == OpenMI) then
-                        CurrNode%WaterLevel = Me%Downstream%DefaultValue
+                        LevelOut = Me%Downstream%DefaultValue
                     else if (Me%Downstream%Evolution == ReadTimeSerie) then
-                        call ModifyDownstreamTimeSerie (CurrNode%WaterLevel)
+                        call ModifyDownstreamTimeSerie (LevelOut)
                     end if
-
+                    
+                    CurrNode%WaterLevel = UpReach%Velocity*UpNode%WaterDepth / sqrt(Gravity*UpNode%WaterDepth) + LevelOut
                     CurrNode%WaterDepth = CurrNode%WaterLevel - CurrNode%CrossSection%BottomLevel
-                
+
+               
             else
             
                 !Assumes constant slope in the last reach
@@ -8813,6 +8822,8 @@ if2:        if (CurrNode%VolumeNew > PoolVolume) then
                 CurrNode%WaterDepth = max(CurrNode%WaterLevel - CurrNode%CrossSection%BottomLevel, 0.0)
                 
             endif
+            
+            call ComputeXSFromWaterDepth (CurrNode)
                   
         end if if1
 
@@ -9096,7 +9107,6 @@ if2:        if (CurrNode%VolumeNew > PoolVolume) then
         !FLOW---------------------------------------------------------------
         FlowNew = ( CurrReach%FlowOld + Advection + Pressure )    &
                           / ( 1. + Friction )
-
 
         !Critical Flow
         CriticalFlow = CurrReach%VerticalArea * sqrt(Gravity*UpNode%WaterDepth)
@@ -9399,6 +9409,7 @@ do2:            do while (Iterate)
     subroutine UpdateCrossSections ()
 
         !Arguments--------------------------------------------------------------
+
 
         !Local------------------------------------------------------------------
         type (T_Node) , pointer                     :: CurrNode
