@@ -296,6 +296,8 @@ program MohidBatimFilter
         write(*,*)"Filtering original bathymetry..."
         write(*,*)
 
+        NewBathymetry(:,:) = Bathymetry(:,:)
+
         do j = WorkSize%JLB, WorkSize%JUB
         do i = WorkSize%ILB, WorkSize%IUB
 
