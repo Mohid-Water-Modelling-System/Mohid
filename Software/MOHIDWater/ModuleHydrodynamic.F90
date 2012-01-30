@@ -6364,11 +6364,11 @@ cd43:   if (.NOT. BlockFound) then
         KUB = Me%Size%KUB 
 
         !Variables allocation
-        allocate (Me%WaterLevel%New             (ILB:IUB, JLB:JUB         )) 
-        allocate (Me%WaterLevel%Old             (ILB:IUB, JLB:JUB         )) 
-        allocate (Me%WaterLevel%VolumeCreated   (ILB:IUB, JLB:JUB         )) 
-        allocate (Me%WaterLevel%Maxi            (ILB:IUB, JLB:JUB         )) 
-        allocate (Me%WaterLevel%Mini            (ILB:IUB, JLB:JUB         ))
+        allocate (Me%WaterLevel%New             (ILB:Pad(ILB, IUB), JLB:JUB         )) 
+        allocate (Me%WaterLevel%Old             (ILB:Pad(ILB, IUB), JLB:JUB         )) 
+        allocate (Me%WaterLevel%VolumeCreated   (ILB:Pad(ILB, IUB), JLB:JUB         )) 
+        allocate (Me%WaterLevel%Maxi            (ILB:Pad(ILB, IUB), JLB:JUB         )) 
+        allocate (Me%WaterLevel%Mini            (ILB:Pad(ILB, IUB), JLB:JUB         ))
 #ifdef _USE_PAGELOCKED
         call Alloc3DPageLocked(Me%ObjCuda, Me%Velocity%Horizontal%U%NewPtr, Me%Velocity%Horizontal%U%New, IUB + 1, JUB + 1, KUB + 1)
         call Alloc3DPageLocked(Me%ObjCuda, Me%Velocity%Horizontal%U%OldPtr, Me%Velocity%Horizontal%U%Old, IUB + 1, JUB + 1, KUB + 1)
@@ -6376,11 +6376,11 @@ cd43:   if (.NOT. BlockFound) then
         call Alloc3DPageLocked(Me%ObjCuda, Me%Velocity%Horizontal%V%OldPtr, Me%Velocity%Horizontal%V%Old, IUB + 1, JUB + 1, KUB + 1)
         call Alloc3DPageLocked(Me%ObjCuda, Me%Velocity%Vertical%CartesianPtr, Me%Velocity%Vertical%Cartesian, IUB + 1, JUB + 1, KUB + 1)
 #else
-        allocate (Me%Velocity%Horizontal%U%New  (ILB:IUB, JLB:JUB, KLB:KUB)) 
-        allocate (Me%Velocity%Horizontal%U%Old  (ILB:IUB, JLB:JUB, KLB:KUB)) 
-        allocate (Me%Velocity%Horizontal%V%New  (ILB:IUB, JLB:JUB, KLB:KUB)) 
-        allocate (Me%Velocity%Horizontal%V%Old  (ILB:IUB, JLB:JUB, KLB:KUB)) 
-        allocate (Me%Velocity%Vertical%Cartesian(ILB:IUB, JLB:JUB, KLB:KUB)) 
+        allocate (Me%Velocity%Horizontal%U%New  (ILB:Pad(ILB, IUB), JLB:JUB, KLB:KUB)) 
+        allocate (Me%Velocity%Horizontal%U%Old  (ILB:Pad(ILB, IUB), JLB:JUB, KLB:KUB)) 
+        allocate (Me%Velocity%Horizontal%V%New  (ILB:Pad(ILB, IUB), JLB:JUB, KLB:KUB)) 
+        allocate (Me%Velocity%Horizontal%V%Old  (ILB:Pad(ILB, IUB), JLB:JUB, KLB:KUB)) 
+        allocate (Me%Velocity%Vertical%Cartesian(ILB:Pad(ILB, IUB), JLB:JUB, KLB:KUB)) 
 #endif  
 
         allocate (Me%Velocity%Vertical%Across   (ILB:IUB, JLB:JUB, KLB:KUB)) 
@@ -6392,12 +6392,12 @@ cd43:   if (.NOT. BlockFound) then
         endif
         
         if (Me%Geostroph%ON) then
-            allocate (Me%Geostroph%U               (ILB:IUB, JLB:JUB, KLB:KUB)) 
-            allocate (Me%Geostroph%V               (ILB:IUB, JLB:JUB, KLB:KUB)) 
-            allocate (Me%Geostroph%AuxDesCentre    (ILB:IUB, JLB:JUB, KLB:KUB)) 
-            allocate (Me%Geostroph%PressGrad       (ILB:IUB, JLB:JUB, KLB:KUB))             
-            allocate (Me%Geostroph%U_barotropic    (ILB:IUB, JLB:JUB)) 
-            allocate (Me%Geostroph%V_barotropic    (ILB:IUB, JLB:JUB)) 
+            allocate (Me%Geostroph%U               (ILB:Pad(ILB, IUB), JLB:JUB, KLB:KUB)) 
+            allocate (Me%Geostroph%V               (ILB:Pad(ILB, IUB), JLB:JUB, KLB:KUB)) 
+            allocate (Me%Geostroph%AuxDesCentre    (ILB:Pad(ILB, IUB), JLB:JUB, KLB:KUB)) 
+            allocate (Me%Geostroph%PressGrad       (ILB:Pad(ILB, IUB), JLB:JUB, KLB:KUB))             
+            allocate (Me%Geostroph%U_barotropic    (ILB:Pad(ILB, IUB), JLB:JUB)) 
+            allocate (Me%Geostroph%V_barotropic    (ILB:Pad(ILB, IUB), JLB:JUB)) 
             Me%Geostroph%U                      (:,:,:) = 0.     
             Me%Geostroph%V                      (:,:,:) = 0.
             Me%Geostroph%AuxDesCentre           (:,:,:) = 0.
@@ -6427,11 +6427,11 @@ cd43:   if (.NOT. BlockFound) then
         !NonHydrostatic
         if (Me%NonHydrostatic%ON) then
 
-            allocate (Me%Velocity%Vertical%CartesianOld(ILB:IUB, JLB:JUB, KLB:KUB)) 
-            allocate (Me%NonHydrostatic%PressureCorrect(ILB:IUB, JLB:JUB, KLB:KUB))
-            allocate (Me%NonHydrostatic%PrevisionalQ(ILB:IUB, JLB:JUB, KLB:KUB))
-            allocate (Me%NonHydrostatic%CCoef(ILB:IUB, JLB:JUB, KLB:KUB))
-            allocate (Me%NonHydrostatic%GCoef(ILB:IUB, JLB:JUB, KLB:KUB))
+            allocate (Me%Velocity%Vertical%CartesianOld(ILB:Pad(ILB, IUB), JLB:JUB, KLB:KUB)) 
+            allocate (Me%NonHydrostatic%PressureCorrect(ILB:Pad(ILB, IUB), JLB:JUB, KLB:KUB))
+            allocate (Me%NonHydrostatic%PrevisionalQ(ILB:Pad(ILB, IUB), JLB:JUB, KLB:KUB))
+            allocate (Me%NonHydrostatic%CCoef(ILB:Pad(ILB, IUB), JLB:JUB, KLB:KUB))
+            allocate (Me%NonHydrostatic%GCoef(ILB:Pad(ILB, IUB), JLB:JUB, KLB:KUB))
             Me%Velocity%Vertical%CartesianOld (:,:,:) = FillValueReal
             Me%NonHydrostatic%PressureCorrect (:,:,:) = FillValueReal
             Me%NonHydrostatic%PrevisionalQ(:, : ,:)   = FillValueReal
@@ -6439,10 +6439,10 @@ cd43:   if (.NOT. BlockFound) then
 
 
 
-        allocate (Me%WaterFluxes%X          (ILB:IUB, JLB:JUB, KLB:KUB)) 
-        allocate (Me%WaterFluxes%Y          (ILB:IUB, JLB:JUB, KLB:KUB)) 
-        allocate (Me%WaterFluxes%Z          (ILB:IUB, JLB:JUB, KLB:KUB)) 
-        allocate (Me%WaterFluxes%Discharges (ILB:IUB, JLB:JUB, KLB:KUB))
+        allocate (Me%WaterFluxes%X          (ILB:Pad(ILB, IUB), JLB:JUB, KLB:KUB)) 
+        allocate (Me%WaterFluxes%Y          (ILB:Pad(ILB, IUB), JLB:JUB, KLB:KUB)) 
+        allocate (Me%WaterFluxes%Z          (ILB:Pad(ILB, IUB), JLB:JUB, KLB:KUB)) 
+        allocate (Me%WaterFluxes%Discharges (ILB:Pad(ILB, IUB), JLB:JUB, KLB:KUB))
  
         Me%WaterFluxes%X         (:,:,:) = FillValueReal
         Me%WaterFluxes%Y         (:,:,:) = FillValueReal
@@ -6468,13 +6468,13 @@ cd43:   if (.NOT. BlockFound) then
 cd1:    if (Me%ComputeOptions%Residual) then 
 
             !Can be interesting to compute the average water level
-            allocate (Me%Residual%WaterLevel        (ILB:IUB, JLB:JUB))        
-            allocate (Me%Residual%Velocity_U        (ILB:IUB, JLB:JUB, KLB:KUB)) 
-            allocate (Me%Residual%Velocity_V        (ILB:IUB, JLB:JUB, KLB:KUB)) 
-            allocate (Me%Residual%Vertical_Velocity (ILB:IUB, JLB:JUB, KLB:KUB)) 
-            allocate (Me%Residual%WaterFlux_X       (ILB:IUB, JLB:JUB, KLB:KUB)) 
-            allocate (Me%Residual%WaterFlux_Y       (ILB:IUB, JLB:JUB, KLB:KUB)) 
-            allocate (Me%Residual%DWZ               (ILB:IUB, JLB:JUB, KLB:KUB)) 
+            allocate (Me%Residual%WaterLevel        (ILB:Pad(ILB, IUB), JLB:JUB))        
+            allocate (Me%Residual%Velocity_U        (ILB:Pad(ILB, IUB), JLB:JUB, KLB:KUB)) 
+            allocate (Me%Residual%Velocity_V        (ILB:Pad(ILB, IUB), JLB:JUB, KLB:KUB)) 
+            allocate (Me%Residual%Vertical_Velocity (ILB:Pad(ILB, IUB), JLB:JUB, KLB:KUB)) 
+            allocate (Me%Residual%WaterFlux_X       (ILB:Pad(ILB, IUB), JLB:JUB, KLB:KUB)) 
+            allocate (Me%Residual%WaterFlux_Y       (ILB:Pad(ILB, IUB), JLB:JUB, KLB:KUB)) 
+            allocate (Me%Residual%DWZ               (ILB:Pad(ILB, IUB), JLB:JUB, KLB:KUB)) 
 
             Me%Residual%WaterLevel(:,:) = FillValueReal
             Me%Residual%Velocity_U(:,:,:) = FillValueReal
@@ -6488,15 +6488,15 @@ cd1:    if (Me%ComputeOptions%Residual) then
 
 
         !Forces 
-        allocate (Me%Forces%Rox3X                   (ILB:IUB, JLB:JUB, KLB:KUB)) 
-        allocate (Me%Forces%Rox3Y                   (ILB:IUB, JLB:JUB, KLB:KUB)) 
+        allocate (Me%Forces%Rox3X                   (ILB:Pad(ILB, IUB), JLB:JUB, KLB:KUB)) 
+        allocate (Me%Forces%Rox3Y                   (ILB:Pad(ILB, IUB), JLB:JUB, KLB:KUB)) 
 
-        allocate (Me%Forces%Horizontal_Transport    (ILB:IUB, JLB:JUB, KLB:KUB)) 
-        allocate (Me%Forces%Inertial_Aceleration    (ILB:IUB, JLB:JUB, KLB:KUB)) 
-        allocate (Me%Forces%TidePotentialLevel      (ILB:IUB, JLB:JUB)) 
+        allocate (Me%Forces%Horizontal_Transport    (ILB:Pad(ILB, IUB), JLB:JUB, KLB:KUB)) 
+        allocate (Me%Forces%Inertial_Aceleration    (ILB:Pad(ILB, IUB), JLB:JUB, KLB:KUB)) 
+        allocate (Me%Forces%TidePotentialLevel      (ILB:Pad(ILB, IUB), JLB:JUB)) 
 
         if(Me%ComputeOptions%AltimetryAssimilation%Yes) then 
-            allocate (Me%Forces%Altim_Relax_Aceleration (ILB:IUB, JLB:JUB, KLB:KUB)) 
+            allocate (Me%Forces%Altim_Relax_Aceleration (ILB:Pad(ILB, IUB), JLB:JUB, KLB:KUB)) 
             Me%Forces%Altim_Relax_Aceleration(:,:,:)= 0.
         endif
 
@@ -6507,12 +6507,12 @@ cd1:    if (Me%ComputeOptions%Residual) then
         Me%Forces%TidePotentialLevel(:,:)       = FillValueReal
 
 
-        allocate (Me%Coef%D2%D                      (ILB:IUB, JLB:JUB)) 
-        allocate (Me%Coef%D2%E                      (ILB:IUB, JLB:JUB)) 
-        allocate (Me%Coef%D2%Eaux                   (ILB:IUB, JLB:JUB))         
-        allocate (Me%Coef%D2%F                      (ILB:IUB, JLB:JUB)) 
-        allocate (Me%Coef%D2%Ti                     (ILB:IUB, JLB:JUB)) 
-        allocate (Me%Coef%D2%TiAux                  (ILB:IUB, JLB:JUB)) 
+        allocate (Me%Coef%D2%D                      (ILB:Pad(ILB, IUB), JLB:JUB)) 
+        allocate (Me%Coef%D2%E                      (ILB:Pad(ILB, IUB), JLB:JUB)) 
+        allocate (Me%Coef%D2%Eaux                   (ILB:Pad(ILB, IUB), JLB:JUB))         
+        allocate (Me%Coef%D2%F                      (ILB:Pad(ILB, IUB), JLB:JUB)) 
+        allocate (Me%Coef%D2%Ti                     (ILB:Pad(ILB, IUB), JLB:JUB)) 
+        allocate (Me%Coef%D2%TiAux                  (ILB:Pad(ILB, IUB), JLB:JUB)) 
 
 
         Me%Coef%D2%D(:,:)                       = FillValueReal
@@ -6529,8 +6529,8 @@ cd1:    if (Me%ComputeOptions%Residual) then
 cd2:    if (Me%ComputeOptions%BarotropicRadia == FlatherWindWave_ .or.      &
             Me%ComputeOptions%BarotropicRadia == FlatherLocalSolution_) then 
 
-            allocate (Me%Coef%D2%Rad  (ILB:IUB, JLB:JUB)) 
-            allocate (Me%Coef%D2%TiRad(ILB:IUB, JLB:JUB)) 
+            allocate (Me%Coef%D2%Rad  (ILB:Pad(ILB, IUB), JLB:JUB)) 
+            allocate (Me%Coef%D2%TiRad(ILB:Pad(ILB, IUB), JLB:JUB)) 
 
             Me%Coef%D2%Rad   = FillValueReal
             Me%Coef%D2%TiRad = FillValueReal
@@ -6542,10 +6542,10 @@ cd2:    if (Me%ComputeOptions%BarotropicRadia == FlatherWindWave_ .or.      &
         call Alloc3DPageLocked(Me%ObjCuda, Me%Coef%D3%FPtr, Me%Coef%D3%F, IUB + 1, JUB + 1, KUB + 1)
         call Alloc3DPageLocked(Me%ObjCuda, Me%Coef%D3%TiPtr, Me%Coef%D3%Ti, IUB + 1, JUB + 1, KUB + 1)
 #else
-        allocate (Me%Coef%D3%D(ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT_CALL) 
-        allocate (Me%Coef%D3%E(ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT_CALL) 
-        allocate (Me%Coef%D3%F(ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT_CALL) 
-        allocate (Me%Coef%D3%Ti(ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT_CALL) 
+        allocate (Me%Coef%D3%D(ILB:Pad(ILB, IUB), JLB:JUB, KLB:KUB), STAT = STAT_CALL) 
+        allocate (Me%Coef%D3%E(ILB:Pad(ILB, IUB), JLB:JUB, KLB:KUB), STAT = STAT_CALL) 
+        allocate (Me%Coef%D3%F(ILB:Pad(ILB, IUB), JLB:JUB, KLB:KUB), STAT = STAT_CALL) 
+        allocate (Me%Coef%D3%Ti(ILB:Pad(ILB, IUB), JLB:JUB, KLB:KUB), STAT = STAT_CALL) 
 #endif _USE_PAGELOCKED
 
         Me%Coef%D3%D = FillValueReal
@@ -6554,8 +6554,8 @@ cd2:    if (Me%ComputeOptions%BarotropicRadia == FlatherWindWave_ .or.      &
         Me%Coef%D3%Ti = FillValueReal
         
         !Bottom boundary: these variables in the future must migrate to the module ModuleBottom
-        allocate (Me%External_Var%ChezyZ    (ILB:IUB, JLB:JUB)) 
-        allocate (Me%External_Var%ChezyVelUV(ILB:IUB, JLB:JUB)) 
+        allocate (Me%External_Var%ChezyZ    (ILB:Pad(ILB, IUB), JLB:JUB)) 
+        allocate (Me%External_Var%ChezyVelUV(ILB:Pad(ILB, IUB), JLB:JUB)) 
 
         Me%External_Var%ChezyZ    (:,:) = 0.
         Me%External_Var%ChezyVelUV(:,:) = 0.
@@ -6654,8 +6654,8 @@ cd2:    if (Me%ComputeOptions%BarotropicRadia == FlatherWindWave_ .or.      &
 
         if (Me%ComputeOptions%BiHarmonic) then
 
-            allocate (Me%ComputeOptions%BiHarmonicUX_VY(ILB:IUB, JLB:JUB, KLB:KUB))
-            allocate (Me%ComputeOptions%BiHarmonicUY_VX(ILB:IUB, JLB:JUB, KLB:KUB))
+            allocate (Me%ComputeOptions%BiHarmonicUX_VY(ILB:Pad(ILB, IUB), JLB:JUB, KLB:KUB))
+            allocate (Me%ComputeOptions%BiHarmonicUY_VX(ILB:Pad(ILB, IUB), JLB:JUB, KLB:KUB))
             
             Me%ComputeOptions%BiHarmonicUX_VY(:,:,:) = FillValueReal
             Me%ComputeOptions%BiHarmonicUY_VX(:,:,:) = FillValueReal
@@ -6692,8 +6692,8 @@ ic1:    if (Me%CyclicBoundary%ON) then
 
         if(Me%ComputeOptions%Obstacle)then
 
-            allocate (Me%Drag%Coef                          (ILB:IUB, JLB:JUB, KLB:KUB))
-            allocate (Me%Forces%ObstacleDrag_Aceleration    (ILB:IUB, JLB:JUB, KLB:KUB)) 
+            allocate (Me%Drag%Coef                          (ILB:Pad(ILB, IUB), JLB:JUB, KLB:KUB))
+            allocate (Me%Forces%ObstacleDrag_Aceleration    (ILB:Pad(ILB, IUB), JLB:JUB, KLB:KUB)) 
 
             Me%Forces%ObstacleDrag_Aceleration(:,:,:) = 0.
             Me%Drag%Coef                      (:,:,:) = FillValueReal
@@ -6726,17 +6726,17 @@ ic1:    if (Me%CyclicBoundary%ON) then
             nullify(Me%SubModel%qYX     )
 
 
-            allocate (Me%SubModel%Z         (ILB:IUB, JLB:JUB))
-            allocate (Me%SubModel%U_New     (ILB:IUB, JLB:JUB, KLB:KUB))
-            allocate (Me%SubModel%DUZ_New   (ILB:IUB, JLB:JUB, KLB:KUB))
-            allocate (Me%SubModel%V_New     (ILB:IUB, JLB:JUB, KLB:KUB))
-            allocate (Me%SubModel%DVZ_New   (ILB:IUB, JLB:JUB, KLB:KUB))
-            allocate (Me%SubModel%qX        (ILB:IUB, JLB:JUB, KLB:KUB))
-            allocate (Me%SubModel%qY        (ILB:IUB, JLB:JUB, KLB:KUB))
-            allocate (Me%SubModel%DUZ_Old   (ILB:IUB, JLB:JUB, KLB:KUB))
-            allocate (Me%SubModel%DVZ_Old   (ILB:IUB, JLB:JUB, KLB:KUB))
-            allocate (Me%SubModel%U_Old     (ILB:IUB, JLB:JUB, KLB:KUB))
-            allocate (Me%SubModel%V_Old     (ILB:IUB, JLB:JUB, KLB:KUB))
+            allocate (Me%SubModel%Z         (ILB:Pad(ILB, IUB), JLB:JUB))
+            allocate (Me%SubModel%U_New     (ILB:Pad(ILB, IUB), JLB:JUB, KLB:KUB))
+            allocate (Me%SubModel%DUZ_New   (ILB:Pad(ILB, IUB), JLB:JUB, KLB:KUB))
+            allocate (Me%SubModel%V_New     (ILB:Pad(ILB, IUB), JLB:JUB, KLB:KUB))
+            allocate (Me%SubModel%DVZ_New   (ILB:Pad(ILB, IUB), JLB:JUB, KLB:KUB))
+            allocate (Me%SubModel%qX        (ILB:Pad(ILB, IUB), JLB:JUB, KLB:KUB))
+            allocate (Me%SubModel%qY        (ILB:Pad(ILB, IUB), JLB:JUB, KLB:KUB))
+            allocate (Me%SubModel%DUZ_Old   (ILB:Pad(ILB, IUB), JLB:JUB, KLB:KUB))
+            allocate (Me%SubModel%DVZ_Old   (ILB:Pad(ILB, IUB), JLB:JUB, KLB:KUB))
+            allocate (Me%SubModel%U_Old     (ILB:Pad(ILB, IUB), JLB:JUB, KLB:KUB))
+            allocate (Me%SubModel%V_Old     (ILB:Pad(ILB, IUB), JLB:JUB, KLB:KUB))
 
             Me%SubModel%Z  (:,:  )          = FillValueReal
             Me%SubModel%U_New  (:,:,:)      = FillValueReal

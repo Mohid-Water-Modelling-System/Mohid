@@ -1380,7 +1380,7 @@ doi3:   do J = JLB, JUB
             ! Allocate pagelocked memory to optimize CUDA transfers
             call Alloc3DPageLocked(Me%ObjCuda, Me%TICOEF3Ptr, Me%TICOEF3, IUB + 1, JUB + 1, KUB + 1)        
 #else
-            allocate(Me%TICOEF3                 (ILB:IUB, JLB:JUB, KLB:KUB))
+            allocate(Me%TICOEF3                 (ILB:Pad(ILB, IUB), JLB:JUB, KLB:KUB))
 #endif _USE_PAGELOCKED            
 
             allocate(Me%COEF3_VertAdv%C_Flux    (ILB:IUB, JLB:JUB, KLB:KUB))
@@ -1424,9 +1424,9 @@ doi3:   do J = JLB, JUB
                 call Alloc3DPageLocked(Me%ObjCuda, Me%COEF3%EPtr, Me%COEF3%E, IUB + 1, JUB + 1, KUB + 1)        
                 call Alloc3DPageLocked(Me%ObjCuda, Me%COEF3%FPtr, Me%COEF3%F, IUB + 1, JUB + 1, KUB + 1)        
 #else
-                allocate(Me%COEF3%D                 (ILB:IUB, JLB:JUB, KLB:KUB))
-                allocate(Me%COEF3%E                 (ILB:IUB, JLB:JUB, KLB:KUB))
-                allocate(Me%COEF3%F                 (ILB:IUB, JLB:JUB, KLB:KUB))
+                allocate(Me%COEF3%D                 (ILB:Pad(ILB, IUB), JLB:JUB, KLB:KUB))
+                allocate(Me%COEF3%E                 (ILB:Pad(ILB, IUB), JLB:JUB, KLB:KUB))
+                allocate(Me%COEF3%F                 (ILB:Pad(ILB, IUB), JLB:JUB, KLB:KUB))
 #endif _USE_PAGELOCKED
 
                 allocate(Me%VECG                    (IJKLB:IJKUB))
@@ -2770,7 +2770,7 @@ do1 :   do
         ! Allocate pagelocked memory to optimize CUDA transfers
         call Alloc3DPageLocked(Me%ObjCuda, NewProperty%ConcentrationPtr, NewProperty%Concentration, IUB + 1, JUB + 1, KUB + 1)
 #else
-        allocate(NewProperty%Concentration(ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT_CALL)
+        allocate(NewProperty%Concentration(ILB:Pad(ILB, IUB), JLB:JUB, KLB:KUB), STAT = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)stop 'Construct_PropertyValues - ModulePorousMediaProperties - ERR10'
 #endif _USE_PAGELOCKED        
         NewProperty%Concentration(:,:,:) = FillValueReal

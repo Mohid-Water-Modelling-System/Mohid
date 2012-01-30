@@ -53,7 +53,7 @@ Module ModuleFreeVerticalMovement
 
     use ModuleGlobalData
     use ModuleFunctions,        only: THOMASZ, ConstructPropertyID, SettlingVelocity,          &
-                                      SetMatrixValue, CHUNK_J, CHUNK_K, T_VECGW, T_THOMAS, T_D_E_F
+                                      SetMatrixValue, CHUNK_J, CHUNK_K, T_VECGW, T_THOMAS, T_D_E_F, Pad
     use ModuleTime
     use ModuleHorizontalGrid,   only: GetGridCellArea, UngetHorizontalGrid
     use ModuleGeometry,         only: GetGeometrySize, GetGeometryVolumes, UnGetGeometry,      &
@@ -409,27 +409,27 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         call Alloc3DPageLocked(Me%ObjCuda, Me%COEF3%EPtr, Me%COEF3%E, IUB + 1, JUB + 1, KUB + 1)        
         call Alloc3DPageLocked(Me%ObjCuda, Me%COEF3%FPtr, Me%COEF3%F, IUB + 1, JUB + 1, KUB + 1)        
 #else
-        allocate(Me%COEF3%D      (ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT_CALL)         
+        allocate(Me%COEF3%D      (ILB:Pad(ILB, IUB), JLB:JUB, KLB:KUB), STAT = STAT_CALL)         
         if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleFreeVerticalMovement - ERR01'
         Me%COEF3%D = FillValueReal
 
 
-        allocate(Me%COEF3%E      (ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT_CALL)         
+        allocate(Me%COEF3%E      (ILB:Pad(ILB, IUB), JLB:JUB, KLB:KUB), STAT = STAT_CALL)         
         if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleFreeVerticalMovement - ERR02'
          Me%COEF3%E = FillValueReal
 
 
-        allocate(Me%COEF3%F      (ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT_CALL)         
+        allocate(Me%COEF3%F      (ILB:Pad(ILB, IUB), JLB:JUB, KLB:KUB), STAT = STAT_CALL)         
         if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleFreeVerticalMovement - ERR03'
         Me%COEF3%F = FillValueReal
 #endif _USE_PAGELOCKED
 
-        allocate(Me%COEF3%D_flux (ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT_CALL)         
+        allocate(Me%COEF3%D_flux (ILB:Pad(ILB, IUB), JLB:JUB, KLB:KUB), STAT = STAT_CALL)         
         if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleFreeVerticalMovement - ERR04'
          Me%COEF3%D_flux = FillValueReal
 
 
-        allocate(Me%COEF3%E_flux (ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT_CALL)         
+        allocate(Me%COEF3%E_flux (ILB:Pad(ILB, IUB), JLB:JUB, KLB:KUB), STAT = STAT_CALL)         
         if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleFreeVerticalMovement - ERR05'
          Me%COEF3%E_flux = FillValueReal
 
@@ -437,7 +437,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         ! Allocate pagelocked memory to optimize CUDA transfers
         call Alloc3DPageLocked(Me%ObjCuda, Me%TICOEF3Ptr, Me%TICOEF3, IUB + 1, JUB + 1, KUB + 1)        
 #else
-        allocate(Me%TICOEF3      (ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT_CALL)         
+        allocate(Me%TICOEF3      (ILB:Pad(ILB, IUB), JLB:JUB, KLB:KUB), STAT = STAT_CALL)         
         if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleFreeVerticalMovement - ERR06'
          Me%TICOEF3        = FillValueReal
 #endif _USE_PAGELOCKED

@@ -32,7 +32,7 @@ Module ModuleAdvectionDiffusion
                                     
     use ModuleGlobalData
     use ModuleFunctions     , only : OrlanskiCelerity2D, THOMAS_3D, THOMASZ, ComputeAdvection1D_V2,     &
-                                     SetMatrixValue, Chunk_J, Chunk_K, Chunk_I, T_THOMAS, T_VECGW, T_D_E_F
+                                     SetMatrixValue, Chunk_J, Chunk_K, Chunk_I, T_THOMAS, T_VECGW, T_D_E_F, Pad
     use ModuleTime          , only : GetComputeCurrentTime, T_Time, KillComputeTime, &
                                      null_time, operator(+), operator(-),            &
                                      operator (==), operator (/=)
@@ -497,9 +497,9 @@ cd0 :   if (ready_ == OFF_ERR_) then
         call Alloc3DPageLocked(Me%ObjCuda, Me%COEF3%EPtr, Me%COEF3%E, IUB + 1, JUB + 1, KUB + 1)        
         call Alloc3DPageLocked(Me%ObjCuda, Me%COEF3%FPtr, Me%COEF3%F, IUB + 1, JUB + 1, KUB + 1)        
 #else
-        allocate(Me%COEF3%D                 (ILB:IUB, JLB:JUB, KLB:KUB))
-        allocate(Me%COEF3%E                 (ILB:IUB, JLB:JUB, KLB:KUB))
-        allocate(Me%COEF3%F                 (ILB:IUB, JLB:JUB, KLB:KUB))
+        allocate(Me%COEF3%D                 (ILB:Pad(ILB, IUB), JLB:JUB, KLB:KUB))
+        allocate(Me%COEF3%E                 (ILB:Pad(ILB, IUB), JLB:JUB, KLB:KUB))
+        allocate(Me%COEF3%F                 (ILB:Pad(ILB, IUB), JLB:JUB, KLB:KUB))
 #endif _USE_PAGELOCKED
 
         allocate(Me%COEF3_VertAdv%C_Flux    (ILB:IUB, JLB:JUB, KLB:KUB))
@@ -518,15 +518,17 @@ cd0 :   if (ready_ == OFF_ERR_) then
         allocate(Me%COEF3_HorAdvYY%F_Flux   (ILB:IUB, JLB:JUB, KLB:KUB))
 
 #ifdef _USE_PAGELOCKED       
+        allocate(Me%TICOEF3         (ILB:IUB, JLB:JUB, KLB:KUB))
         ! Allocate pagelocked memory to optimize CUDA transfers
-        call Alloc3DPageLocked(Me%ObjCuda, Me%TICOEF3Ptr, Me%TICOEF3, IUB + 1, JUB + 1, KUB + 1)        
+!        call Alloc3DPageLocked(Me%ObjCuda, Me%TICOEF3Ptr, Me%TICOEF3, IUB + 1, JUB + 1, KUB + 1)        
 #else
-        allocate(Me%TICOEF3                 (ILB:IUB, JLB:JUB, KLB:KUB))
+        allocate(Me%TICOEF3                 (ILB:Pad(ILB, IUB), JLB:JUB, KLB:KUB))
+#endif _USE_PAGELOCKED
+
         allocate(Me%AdvectionE              (ILB:IUB, JLB:JUB, KLB:KUB))
         allocate(Me%AdvectionD              (ILB:IUB, JLB:JUB, KLB:KUB))        
         allocate(Me%AdvectionF              (ILB:IUB, JLB:JUB, KLB:KUB))                
         allocate(Me%AdvectionTi             (ILB:IUB, JLB:JUB, KLB:KUB))                
-#endif _USE_PAGELOCKED
 
         allocate(Me%WaterFluxOBoundary      (ILB:IUB, JLB:JUB, KLB:KUB))
 
@@ -4263,9 +4265,9 @@ cd1 :   if (ready_ /= OFF_ERR_) then
                 if (STAT_CALL /= SUCCESS_)                                             &
                     stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR21'
                 nullify   (Me%TICOEF3) 
+#endif
                 deallocate(Me%AdvectionTi,Me%AdvectionE, Me%AdvectionD, Me%AdvectionF)
                 nullify   (Me%AdvectionTi,Me%AdvectionE, Me%AdvectionD, Me%AdvectionF) 
-#endif
                 !griflet
                 do p = 1, Me%MaxThreads
                     VECGW => Me%THOMAS%VEC(p)

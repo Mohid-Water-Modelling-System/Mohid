@@ -228,7 +228,8 @@ Module ModuleWaterProperties
                                           CO2PartialPressure, CO2_K0,                           &
                                           SpecificHeatUNESCO, ComputeT90_Chapra,                &
                                           ComputeT90_Canteras, SetMatrixValue, CHUNK_J, CHUNK_K, &
-                                          InterpolateProfileR8, TimeToString, ChangeSuffix, ExtraPol3DNearestCell 
+                                          InterpolateProfileR8, TimeToString, ChangeSuffix,     &
+                                          ExtraPol3DNearestCell, Pad
     use mpi
 #else _USE_MPI
     use ModuleFunctions,            only: SigmaLeendertse, SigmaUNESCO, SigmaWang,              &
@@ -239,7 +240,8 @@ Module ModuleWaterProperties
                                           CO2PartialPressure, CO2_K0,                           &
                                           SpecificHeatUNESCO, ComputeT90_Chapra,                &
                                           ComputeT90_Canteras, SetMatrixValue, CHUNK_J, CHUNK_K, &
-                                          InterpolateProfileR8, TimeToString, ChangeSuffix, ExtraPol3DNearestCell 
+                                          InterpolateProfileR8, TimeToString, ChangeSuffix,     &
+                                          ExtraPol3DNearestCell, Pad
 #endif _USE_MPI
                                           
     use ModuleTurbulence,           only: GetHorizontalViscosity, GetVerticalDiffusivity,       &
@@ -3917,7 +3919,7 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
         ! Allocate pagelocked memory to optimize CUDA transfers
         call Alloc3DPageLocked(Me%ObjCuda, NewProperty%ConcentrationPtr, NewProperty%Concentration, IUB + 1, JUB + 1, KUB + 1)
 #else
-        allocate(NewProperty%Concentration(ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT_CALL)
+        allocate(NewProperty%Concentration(ILB:Pad(ILB, IUB), JLB:JUB, KLB:KUB), STAT = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)                                                     &
             stop 'Construct_PropertyValues - ModuleWaterProperties - ERR10' 
 #endif

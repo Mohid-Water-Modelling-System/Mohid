@@ -398,7 +398,6 @@ cd1:    if (ObjCuda_ID > 0) then
         
         !Local-----------------------------------------------------------------
         real(C_DOUBLE), dimension(:,:,:), pointer   :: TmpArr
-        
         !----------------------------------------------------------------------
        
         call Ready(ObjCudaID, ready_)
@@ -416,11 +415,10 @@ cd1:    if (ObjCuda_ID > 0) then
 #ifdef _USE_PAGELOCKED
             !Fortran 2003 onwards only. Requires ifort version >= 12.0
             Arr(0:, 0:, 0:) => TmpArr
-            !Arr => TmpArr
 #else
             !griflet - use this just to make it compilable with ifort version <= 11.1
             Arr => TmpArr
-#endif _USE_PAGELOCKED      
+#endif _USE_PAGELOCKED
         end if
 
     end subroutine
@@ -446,7 +444,7 @@ cd1:    if (ObjCuda_ID > 0) then
             call Read_Lock(mCUDA_, ObjCudaID)
             
             call FreePageLocked_C(Ptr)
-            !nullify(Ptr)
+            
             nullify(Arr)
         end if
 

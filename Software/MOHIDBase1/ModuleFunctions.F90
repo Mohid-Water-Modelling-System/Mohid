@@ -76,6 +76,7 @@ Module ModuleFunctions
     private :: NormalRand
     private :: UniformRand01
 #endif
+    public :: Pad
 
     !Linear systems solvers
 #ifdef _USE_SEQASSIMILATION
@@ -1556,7 +1557,32 @@ Module ModuleFunctions
         ptr => matrix
     
     end function GetPointer3D_R8
+    
+    !--------------------------------------------------------------------------
+    ! Function Pad
+    ! Returns an upperbound value for padding a matrix.
+    ! Should be applied to the first dimension of the matrix to get a performance gain.
+    ! Note that this uses slightly more memory.
+    ! Written by Jonathan van der Wielen, 2012-01-27, jonathan.vanderwielen@hydrologic.com
+    !--------------------------------------------------------------------------
+    function Pad(LowerBound, UpperBound) result (PaddedUpperBound)
+    
+        !Arguments-------------------------------------------------------------
+        integer, intent(in)     :: LowerBound, UpperBound
+        
+        !Local-----------------------------------------------------------------
+        integer                 :: PaddedUpperBound
+        
+#ifdef _PAD_MATRICES
+        ! Padding a matrix to a multiple of 128 bytes gives a significant performance gain
+        ! Padding to 32 values ensures a padding of 128 bytes for integer / single and 256 bytes for double
+        ! Also take LowerBound into account when padding (is 0 by default, but who knows what might change in the future)
+        PaddedUpperBound = int(ceiling((UpperBound - LowerBound) / 32.0)) * 32 + LowerBound
+#else
+        PaddedUpperBound = UpperBound
+#endif _PAD_MATRICES
 
+    end function Pad
 
 #ifdef _USE_SEQASSIMILATION
 

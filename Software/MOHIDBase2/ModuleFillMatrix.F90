@@ -41,10 +41,10 @@ Module ModuleFillMatrix
                                        UngetBoxDif, KillBoxDif
     use ModuleGridData,         only : ConstructGridData, GetGridData, UnGetGridData,    &
                                        KillGridData, GetGridDataType 
-    use ModuleHorizontalGrid,   only : GetGridAngle
+    use ModuleHorizontalGrid,   only : GetGridAngle, GetHorizontalGridSize
     use ModuleTimeSerie,        only : StartTimeSerieInput, GetTimeSerieValue,           &
                                        GetTimeSerieDTForNextEvent, KillTimeSerie
-    use ModuleGeometry,         only : GetGeometryDistances, UnGetGeometry
+    use ModuleGeometry,         only : GetGeometryDistances, UnGetGeometry, GetGeometrySize
     use ModuleHDF5,             only : ConstructHDF5, HDF5ReadData, GetHDF5GroupID,      &
                                        GetHDF5FileAccess, GetHDF5GroupNumberOfItems,     &
                                        HDF5SetLimits, GetHDF5ArrayDimensions, KillHDF5
@@ -333,15 +333,19 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             Me%ObjTime           = AssociateInstance (mTIME_,           TimeID          )
             Me%ObjHorizontalGrid = AssociateInstance (mHORIZONTALGRID_, HorizontalGridID)
 
-
-            Me%Size2D%ILB       = lbound(PointsToFill2D, dim = 1)
-            Me%Size2D%IUB       = ubound(PointsToFill2D, dim = 1)
-            Me%Size2D%JLB       = lbound(PointsToFill2D, dim = 2)
-            Me%Size2D%JUB       = ubound(PointsToFill2D, dim = 2)
-            Me%WorkSize2D%ILB   = Me%Size2D%ILB + 1
-            Me%WorkSize2D%IUB   = Me%Size2D%IUB - 1
-            Me%WorkSize2D%JLB   = Me%Size2D%JLB + 1
-            Me%WorkSize2D%JUB   = Me%Size2D%JUB - 1
+            ! JPW 2012-01-28: Use HorizontalGridSize to set size of the matrix.
+            ! Using ubound may cause inconsistency with padded matrices (making IUB larger than the actual grid bound).
+            ! PointsToFill2D should have the same dimensions as HorizontalGrid anyway.
+            ! Matrices that are used for the Thomas algorithm are padded if _USE_PAGELOCKED (CUDA only) or _PAD_MATRICES (Fortran) is defined
+            call GetHorizontalGridSize(HorizontalGridID, Me%Size2D, Me%WorkSize2D, STAT_)
+!            Me%Size2D%ILB       = lbound(PointsToFill2D, dim = 1)
+!            Me%Size2D%IUB       = ubound(PointsToFill2D, dim = 1)
+!            Me%Size2D%JLB       = lbound(PointsToFill2D, dim = 2)
+!            Me%Size2D%JUB       = ubound(PointsToFill2D, dim = 2)
+!            Me%WorkSize2D%ILB   = Me%Size2D%ILB + 1
+!            Me%WorkSize2D%IUB   = Me%Size2D%IUB - 1
+!            Me%WorkSize2D%JLB   = Me%Size2D%JLB + 1
+!            Me%WorkSize2D%JUB   = Me%Size2D%JUB - 1
 
             Me%Size3D       = T_Size3D(null_int, null_int, null_int, null_int, null_int, null_int)
             Me%Dim          = Dim2D
@@ -464,18 +468,23 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             Me%ObjHorizontalGrid = AssociateInstance (mHORIZONTALGRID_, HorizontalGridID)
             Me%ObjGeometry       = AssociateInstance (mGEOMETRY_,       GeometryID      )
 
-            Me%Size3D%ILB       = lbound(PointsToFill3D, dim = 1)
-            Me%Size3D%IUB       = ubound(PointsToFill3D, dim = 1)
-            Me%Size3D%JLB       = lbound(PointsToFill3D, dim = 2)
-            Me%Size3D%JUB       = ubound(PointsToFill3D, dim = 2)
-            Me%Size3D%KLB       = lbound(PointsToFill3D, dim = 3)
-            Me%Size3D%KUB       = ubound(PointsToFill3D, dim = 3)
-            Me%WorkSize3D%ILB   = Me%Size3D%ILB + 1
-            Me%WorkSize3D%IUB   = Me%Size3D%IUB - 1
-            Me%WorkSize3D%JLB   = Me%Size3D%JLB + 1
-            Me%WorkSize3D%JUB   = Me%Size3D%JUB - 1
-            Me%WorkSize3D%KLB   = Me%Size3D%KLB + 1
-            Me%WorkSize3D%KUB   = Me%Size3D%KUB - 1
+            ! JPW 2012-01-28: Use GeometrySize to set size of the matrix.
+            ! Using ubound may cause inconsistency with padded matrices (making IUB larger than the actual grid bound).
+            ! PointsToFill3D should have the same dimensions as Geometry anyway.
+            ! Matrices that are used for the Thomas algorithm are padded if _USE_PAGELOCKED (CUDA only) or _PAD_MATRICES (Fortran) is defined
+            call GetGeometrySize(GeometryID , Me%Size3D, Me%WorkSize3D, STAT_)
+!            Me%Size3D%ILB       = lbound(PointsToFill3D, dim = 1)
+!            Me%Size3D%IUB       = ubound(PointsToFill3D, dim = 1)
+!            Me%Size3D%JLB       = lbound(PointsToFill3D, dim = 2)
+!            Me%Size3D%JUB       = ubound(PointsToFill3D, dim = 2)
+!            Me%Size3D%KLB       = lbound(PointsToFill3D, dim = 3)
+!            Me%Size3D%KUB       = ubound(PointsToFill3D, dim = 3)
+!            Me%WorkSize3D%ILB   = Me%Size3D%ILB + 1
+!            Me%WorkSize3D%IUB   = Me%Size3D%IUB - 1
+!            Me%WorkSize3D%JLB   = Me%Size3D%JLB + 1
+!            Me%WorkSize3D%JUB   = Me%Size3D%JUB - 1
+!            Me%WorkSize3D%KLB   = Me%Size3D%KLB + 1
+!            Me%WorkSize3D%KUB   = Me%Size3D%KUB - 1
 
 
             Me%Size2D       = T_Size2D(null_int, null_int, null_int, null_int)
