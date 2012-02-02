@@ -235,7 +235,7 @@ Module ModuleGlobalData
     integer, parameter :: DissolO2PercentSat_               = 26
     integer, parameter :: CO2PartialPressure_               = 27
 
-
+    integer, parameter :: PhytoChla_                        = 50
     integer, parameter :: Nitrite_                          = 51
     integer, parameter :: BOD_                              = 52
     integer, parameter :: Cohesive_Sediment_                = 53
@@ -1033,6 +1033,9 @@ Module ModuleGlobalData
     character(StringLength), private, parameter :: Char_POP3                  = 'pop3'
     character(StringLength), private, parameter :: Char_POP4                  = 'pop4'
     character(StringLength), private, parameter :: Char_POP5                  = 'pop5'
+
+!_______used @ moduleWQ for output
+    character(StringLength), private, parameter :: Char_PhytoChla             = 'phytoplankton Chla'
 
 
     ! guillaume nogueira
@@ -1999,7 +2002,8 @@ Module ModuleGlobalData
             call AddPropList (CarbonDioxide_,           Char_CarbonDioxide,             ListNumber)                      
             call AddPropList (Oxygen_,                  Char_Oxygen,                    ListNumber) 
             call AddPropList (DissolO2PercentSat_,      Char_DissolO2PercentSat,        ListNumber)
-            call AddPropList (CO2PartialPressure_,      Char_CO2PartialPressure,        ListNumber) 
+            call AddPropList (CO2PartialPressure_,      Char_CO2PartialPressure,        ListNumber)
+            call AddPropList (PhytoChla_,               Char_PhytoChla,                 ListNumber)
             call AddPropList (Diatom_C_,                Char_Diatom_C,                  ListNumber)     
             call AddPropList (Diatom_N_,                Char_Diatom_N,                  ListNumber)                 
             call AddPropList (Diatom_P_,                Char_Diatom_P,                  ListNumber)                 

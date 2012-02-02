@@ -135,6 +135,10 @@
 !                                                               !water column equal to saturation
 !   CO2_PPRESSURE_OUTPUT        : 0/1               [0]         !Optinal HDF output for CO2 (partial pressure in the water)
 !   O2_SATURATION_OUTPUT        : 0/1               [0]         !Optinal HDF output for O2 (saturation in the water)
+
+!   CHLA_WQ_OUTPUT              : 0/1               [0]         !Optinal HDF output for Chla in WaterQuality module (conversion from mgC/L to ug Chla/L)
+!   C_CHLA_OUTPUT               : real              [60]        !C:Chla ratio for the conversion
+
       
 !   LIGHT_EXTINCTION            : 0/1               [0]         !Property is accounted to compute light extinction coef.
 !       EXTINCTION_PARAMETER    : real              [0]         !Property specific coefficient to compute total 
@@ -648,7 +652,11 @@ Module ModuleWaterProperties
         logical                                 :: LagSinksSources
         logical                                 :: OxygenSaturation     = .false. 
         logical                                 :: CO2_PP_Output        = .false.
-        logical                                 :: O2_Sat_Output        = .false.   
+        logical                                 :: O2_Sat_Output        = .false. 
+        logical                                 :: CHLA_WQ_Output       = .false.   
+        real                                    :: C_CHLA_Output
+              
+        
         type (T_Filtration                   )  :: Filtration           !aqui
         type (T_Reinitialize                 )  :: Reinitialize
         type (T_AdvectionDiffusion_Parameters)  :: Advec_Difus_Parameters
@@ -676,6 +684,7 @@ Module ModuleWaterProperties
          logical                                :: Yes                  = .false.
          logical                                :: Run_End              = .false.
          logical                                :: DO_PercentSat        = .false.
+         logical                                :: CHLA_WQ              = .false.
          logical                                :: CO2_PartialPressure  = .false.
          logical                                :: T90                  = .false.
          logical                                :: Radiation            = .false.
@@ -683,6 +692,7 @@ Module ModuleWaterProperties
          logical                                :: WriteRestartFile     = .false.
          logical                                :: RestartOverwrite     = .false.
          logical                                :: SurfaceOutputs       = .false.
+         real                                   :: C_CHLA
          real,    pointer, dimension(:,:,:)     :: Aux3D
          real,    pointer, dimension(:,:)       :: Aux2D
     end type T_OutPut
@@ -951,7 +961,10 @@ Module ModuleWaterProperties
         
         logical                                 :: OxygenSaturation = .false.
         logical                                 :: CO2_PP_Output    = .false.
-        logical                                 :: O2_Sat_Output    = .false.      
+        logical                                 :: O2_Sat_Output    = .false. 
+        logical                                 :: CHLA_WQ_Output   = .false.
+        real(8)                                 :: C_CHLA_Output
+                
         
 #ifdef _USE_SEQASSIMILATION
         integer, pointer, dimension(:)          :: PropertiesID
@@ -5244,9 +5257,39 @@ case1 : select case(PropertyID)
                              STAT         = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                              &
                 stop 'Subroutine Construct_PropertyEvolution - ModuleWaterProperties - ERR280'
-
+              
         endif   
-
+                 
+        if (NewProperty%ID%IDNumber == PHYTOPLANKTON_) then
+            call GetData(NewProperty%evolution%CHLA_WQ_Output,                          &
+                             Me%ObjEnterData,                                           &
+                             iflag,                                                     &
+                             SearchType   = FromBlock,                                  &
+                             keyword      ='CHLA_WQ_OUTPUT',                            &
+                             ClientModule ='ModuleWaterProperties',                     &
+                             Default      = .false.,                                    &    
+                             STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                              &
+                stop 'Subroutine Construct_PropertyEvolution - ModuleWaterProperties - ERR290'
+              
+        endif   
+        
+        
+        if (NewProperty%ID%IDNumber == PHYTOPLANKTON_) then
+            call GetData(NewProperty%evolution%C_CHLA_Output,                           &
+                             Me%ObjEnterData,                                           &
+                             iflag,                                                     &
+                             SearchType   = FromBlock,                                  &
+                             keyword      ='C_CHLA_OUTPUT',                             &
+                             ClientModule ='ModuleWaterProperties',                     &
+                             Default      = 60.0,                                       &    
+                             STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                              &
+                stop 'Subroutine Construct_PropertyEvolution - ModuleWaterProperties - ERR300'
+              
+        endif                    
+                 
+                 
 
 
        !<BeginKeyword>
@@ -8028,6 +8071,7 @@ cd2 :       if (BlockFound) then
         !Begin-----------------------------------------------------------------
         
         Me%OutPut%DO_PercentSat         = .false.
+        Me%OutPut%CHLA_WQ               = .false.
         Me%OutPut%Radiation             = .false. 
         Me%OutPut%AditionalFields       = .false.
         Me%OutPut%CO2_PartialPressure   = .false.
@@ -8086,6 +8130,21 @@ case1 :     select case(Property%ID%IDNumber)
                         endif
 
                     endif
+
+
+                case (Phytoplankton_)
+
+                    !Search the temperature
+                    call Search_Property(PropAux, PropertyXID = Temperature_, STAT = STAT_CALL)
+                    if (STAT_CALL == SUCCESS_ .AND. Property%evolution%CHLA_WQ_Output) then
+
+                            Me%OutPut%CHLA_WQ         = .true.
+                            Me%OutPut%AditionalFields = .true.
+                            Me%OutPut%C_CHLA          = Property%evolution%C_CHLA_Output
+
+                    endif
+
+
                 
                 case default
                 
@@ -15247,10 +15306,10 @@ AO:     if (Actual >= SurfaceOutTime) then
         
         
         !Local-----------------------------------------------------------------
-        type (T_Property), pointer                  :: PropSalinity, PropTemperature, PropOxygen, PropCO2
+        type (T_Property), pointer                  :: PropSalinity, PropTemperature, PropOxygen, PropCO2, PropPhytoplankton
         real,   dimension(:,:,:), pointer           :: ShortWaveAverage, ShortWaveExtinctionField
         character (Len = StringLength)              :: PropName, PropName2
-        real                                        :: DOSAT, Palt, CO2PP, Pressure
+        real                                        :: DOSAT, Palt, CO2PP, Pressure, Chla
         integer                                     :: STAT_CALL, ObjHDF5
         integer                                     :: WILB, WIUB, WJLB, WJUB, WKUB, i, j, k, kbottom
 
@@ -15301,12 +15360,28 @@ AO:     if (Actual >= SurfaceOutTime) then
         endif
 
 
+        if (Me%OutPut%CHLA_WQ) then
+
+            call Search_Property(PropPhytoplankton, PropertyXID = Phytoplankton_, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) then
+                stop 'OutPutHDF_AditionalFields - ModuleWaterProperties - ERR25'
+            endif
+            
+            if (Me%OutPut%C_CHLA .LE. 0.0) then
+                stop '*** C:CHLA ratio equal or lesser than 0 ***'
+            endif
+            
+            
+        endif
+
+
 i1:     if (Me%OutPut%DO_PercentSat) then
 
             call Search_Property(PropOxygen, PropertyXID = Oxygen_, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) then
                 stop 'OutPutHDF_AditionalFields - ModuleWaterProperties - ERR30'
             endif
+    
 
 i3:         if (me%DoSatType.eq.Apha) then
 
@@ -15507,6 +15582,56 @@ i2:     if (Me%OutPut%Radiation) then
             nullify(PropCO2)            
           
           endif i5
+
+
+
+ i6:     if (Me%OutPut%CHLA_WQ) then
+
+            call Search_Property(PropPhytoplankton, PropertyXID = Phytoplankton_, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) then
+                stop 'OutPutHDF_AditionalFields - ModuleWaterProperties - ERR130'
+            endif
+            
+            
+            do j=WJLB, WJUB
+            do i=WILB, WIUB
+
+                    if (Me%ExternalVar%OpenPoints3D(i, j, WKUB) == OpenPoint) then
+
+                        kbottom = Me%ExternalVar%Kfloor_Z(i,j)
+
+                        do k = kbottom, WKUB
+                            
+                            ! conversion from mg C L-1 to ug Chla L-1
+                            Chla =  PropPhytoplankton%Concentration(i,j,k) /            &
+                                    Me%OutPut%C_CHLA *                                  &
+                                    1000
+                                    
+                                    
+                            !New Concentration
+                            Me%OutPut%Aux3D(i, j, k) = Chla
+
+                        enddo
+             
+
+                    endif
+               enddo
+               enddo
+            
+               
+          PropName = trim(GetPropertyName(PhytoChla_))
+          
+
+            call HDF5WriteData  (ObjHDF5, "/Results/"//PropName, PropName,'ug/L',       &
+                                 Array3D = Me%OutPut%Aux3D,                             &
+                                 OutputNumber = OutPutNumber, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'OutPutHDF_AditionalFields - ModuleWaterProperties - ERR120'
+            
+
+            nullify(PropPhytoplankton)            
+          
+          endif i6
+          
           
          
          
@@ -15523,6 +15648,9 @@ i2:     if (Me%OutPut%Radiation) then
             nullify(PropOxygen   )
         endif
         
+        if (Me%OutPut%CHLA_WQ) then
+            nullify(PropPhytoplankton   )
+        endif
 
 
     end subroutine OutPutHDF_AditionalFields
