@@ -15624,7 +15624,9 @@ i2:     if (Me%OutPut%Radiation) then
             
           Write (Unit=CChla_text, FMT="(F4.1)") Me%OutPut%C_CHLA
                
-          PropName = trim(GetPropertyName(PhytoChla_))//" (C:Chla="//trim(CChla_text)//")"
+!          PropName = trim(GetPropertyName(PhytoChla_))//" (C:Chla="//trim(CChla_text)//")"
+
+           PropName = trim(GetPropertyName(PhytoChla_))
           
 
             call HDF5WriteData  (ObjHDF5, "/Results/"//PropName, PropName,'ug/L',       &
