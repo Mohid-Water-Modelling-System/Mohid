@@ -15308,7 +15308,7 @@ AO:     if (Actual >= SurfaceOutTime) then
         !Local-----------------------------------------------------------------
         type (T_Property), pointer                  :: PropSalinity, PropTemperature, PropOxygen, PropCO2, PropPhytoplankton
         real,   dimension(:,:,:), pointer           :: ShortWaveAverage, ShortWaveExtinctionField
-        character (Len = StringLength)              :: PropName, PropName2
+        character (Len = StringLength)              :: PropName, PropName2, CChla_text
         real                                        :: DOSAT, Palt, CO2PP, Pressure, Chla
         integer                                     :: STAT_CALL, ObjHDF5
         integer                                     :: WILB, WIUB, WJLB, WJUB, WKUB, i, j, k, kbottom
@@ -15617,9 +15617,14 @@ i2:     if (Me%OutPut%Radiation) then
                     endif
                enddo
                enddo
+          
+          
+          
+          ! output for phytoplankton Chla based on a given C:Chla
             
+          Write (Unit=CChla_text, FMT="(F4.1)") Me%OutPut%C_CHLA
                
-          PropName = trim(GetPropertyName(PhytoChla_))
+          PropName = trim(GetPropertyName(PhytoChla_))//" (C:Chla="//trim(CChla_text)//")"
           
 
             call HDF5WriteData  (ObjHDF5, "/Results/"//PropName, PropName,'ug/L',       &
