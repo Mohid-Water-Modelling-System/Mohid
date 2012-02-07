@@ -8662,35 +8662,32 @@ if1:        if (DownNode%nDownstreamReaches .EQ. 0) then
 
                 end select
 
-
-            else if (Me%HydrodynamicApproximation == KinematicWave) then !if1                      
-                    
-                call ComputeKinematicWave (CurrReach)
-                
-            else if (Me%HydrodynamicApproximation == DiffusionWave) then
+            else
             
-                !Update Slope based on water level
-                CurrReach%Slope = (Me%Nodes(CurrReach%UpstreamNode)%Waterlevel -            &
-                                   Me%Nodes(CurrReach%DownstreamNode)%Waterlevel) /         &
-                                   CurrReach%Length
+                if (Me%HydrodynamicApproximation == KinematicWave) then !if1                      
+                    
+                    call ComputeKinematicWave (CurrReach)
                 
+                else if (Me%HydrodynamicApproximation == DiffusionWave) then
+            
+                    !Update Slope based on water level
+                    CurrReach%Slope = (Me%Nodes(CurrReach%UpstreamNode)%Waterlevel -            &
+                                       Me%Nodes(CurrReach%DownstreamNode)%Waterlevel) /         &
+                                       CurrReach%Length
                 
-!                !Don't allow negative slopes and impose a minimum slope..
-!                if (.not. Me%AllowBackwardWater) then
-!                    CurrReach%Slope = max(CurrReach%Slope, Me%MinimumSlope)
-!                endif
-                
-                call ComputeKinematicWave (CurrReach)
+                    call ComputeKinematicWave (CurrReach)
 
-            else !if1
+                else
 
-                call ComputeStVenant (CurrReach, DT)                
+                    call ComputeStVenant (CurrReach, DT)
+                    
+                endif
         
             end if if1
                         
         else !if0
 
-            CurrReach%FlowNew = 0.0
+            CurrReach%FlowNew   = 0.0
             CurrReach%Velocity  = 0.0
 
         end if if0
@@ -9082,6 +9079,7 @@ if2:        if (CurrNode%VolumeNew > PoolVolume) then
         real                                    :: LevelSlope, Pressure
         real                                    :: Friction, Advection !, AdvectionUp, AdvectionDown
         real                                    :: CriticalFlow, FlowNew
+        real                                    :: MaxBottom, WaterDepth
 
         UpNode   => Me%Nodes (CurrReach%UpstreamNode  )
         DownNode => Me%Nodes (CurrReach%DownstreamNode)
@@ -9108,8 +9106,12 @@ if2:        if (CurrNode%VolumeNew > PoolVolume) then
         FlowNew = ( CurrReach%FlowOld + Advection + Pressure )    &
                           / ( 1. + Friction )
 
+        !Waterdepth at the center of the reach
+        MaxBottom  = max(UpNode%CrossSection%BottomLevel, DownNode%CrossSection%BottomLevel)
+        WaterDepth = (max(UpNode%WaterLevel - MaxBottom, 0.0) + max(DownNode%WaterLevel - MaxBottom, 0.0)) / 2.0
+
         !Critical Flow
-        CriticalFlow = CurrReach%VerticalArea * sqrt(Gravity*UpNode%WaterDepth)
+        CriticalFlow = CurrReach%VerticalArea * sqrt(Gravity * WaterDepth)
 
         if (abs(FlowNew) < CriticalFlow) then
             CurrReach%FlowNew = FlowNew
@@ -9159,19 +9161,12 @@ if2:        if (CurrNode%VolumeNew > PoolVolume) then
         do i = 1, DownNode%nDownstreamReaches
             DownReach => Me%Reaches (DownNode%DownstreamReaches (i))
             
-            if (DownNode%VerticalArea .GE. AllmostZero ) then
+            if (DownNode%VerticalArea .GE. Me%MinimumWaterDepth ) then
            
                 DownFlux  = (CurrReach%FlowOld + DownReach%FlowOld) / 2.
-
                 
                 DownProp  = abs(DownFlux) / DownNode%VerticalArea
-                
-    !            if (DownFlux.GE.0.0) then
-    !                DownProp = CurrReach%Velocity
-    !            else
-    !                DownProp = DownReach%Velocity 
-    !            end if
-                                                                            
+                                                                           
                 !m4/s2        = m4/s2           m3/s     * m/s
                 AdvectionDown = AdvectionDown + DownFlux * DownProp
             endif
@@ -9182,19 +9177,13 @@ if2:        if (CurrNode%VolumeNew > PoolVolume) then
         do i = 1, UpNode%nUpstreamReaches                    
             UpReach => Me%Reaches (UpNode%UpstreamReaches (i))
 
-            if (UpNode%VerticalArea .GE. AllmostZero ) then
+            if (UpNode%VerticalArea .GE. Me%MinimumWaterDepth ) then
 
                 UpFlux  = (CurrReach%FlowOld + UpReach%FlowOld) / 2.
 
                 UpProp  = abs(UpFlux) / UpNode%VerticalArea
 
-    !            if (UpFlux.GE.0.0) then
-    !                UpProp = UpReach%Velocity
-    !            else
-    !                UpProp = CurrReach%Velocity
-    !            end if
-
-               AdvectionUp    =  AdvectionUp + UpFlux * UpProp
+                AdvectionUp    =  AdvectionUp + UpFlux * UpProp
             endif
         end do
    
@@ -9248,24 +9237,16 @@ if2:        if (CurrNode%VolumeNew > PoolVolume) then
                                        
         CurrNode => Me%Nodes(NodeID)                                    
 
-        !if (Me%OpenPointsFlow (NodeID) == OpenPoint) then
-                    
-            call ComputeNodeInFlow  (CurrNode, InFlow)
-            call ComputeNodeOutFlow (CurrNode, OutFlow)
+        call ComputeNodeInFlow  (CurrNode, InFlow)
+        call ComputeNodeOutFlow (CurrNode, OutFlow)
      
-            CurrNode%VolumeNew = CurrNode%VolumeOld + ( InFlow - OutFlow ) * DT
-            
-!            if (CurrNode%VolumeNew < 0 .and. CurrNode%nDownStreamReaches /= 0) then
-!                write(*,*)'Volume negative after Modify node'
-!                write(*,*)CurrNode%ID
-!                write(*,*)CurrNode%VolumeNew, Inflow, Outflow
-!            endif
-        !else
+        CurrNode%VolumeNew = CurrNode%VolumeOld + ( InFlow - OutFlow ) * DT
         
-            !CurrNode%VolumeNew = CurrNode%VolumeOld
-                        
-        !end if        
-        
+        !If Volume is negative with less then 1/10. of a ml set it to zero
+        if (CurrNode%VolumeNew < 0 .and. CurrNode%VolumeNew > -1.0e-7) then
+            CurrNode%VolumeNew = 0.0
+        endif
+
     end subroutine ModifyNode
 
     !---------------------------------------------------------------------------            
@@ -9283,7 +9264,15 @@ if2:        if (CurrNode%VolumeNew > PoolVolume) then
         CurrNode => Me%Nodes (NodeID)
 
         if (CurrNode%nDownstreamReaches /= 0 .and. CurrNode%VolumeNew < 0.0) then
-!            write(*,*)'DNet - test 1', NodeID, Niter
+        
+            !Feed back to user -> model will stop
+            if (Niter + Me%InternalTimeStepSplit > Me%MaxIterations) then
+                write(*,*)'Negative Volume!'
+                write(*,*)'Node ID        : ', CurrNode%ID
+                write(*,*)'New Volume     : ', CurrNode%VolumeNew
+                write(*,*)'Old Volume     : ', CurrNode%VolumeOld
+            endif
+            
             Restart = .true.
             return
         endif
@@ -9294,7 +9283,15 @@ if2:        if (CurrNode%VolumeNew > PoolVolume) then
             
                 if (CurrNode%VolumeOld > Me%StabilizeCoefficient * CurrNode%VolumeMax) then
                     if (abs(CurrNode%VolumeNew - CurrNode%VolumeOld) > Me%StabilizeFactor * CurrNode%VolumeMax) then
-!                        write(*,*)'DNet - test 2', NodeID, Niter
+
+                        !Feed back to user -> model will stop
+                        if (Niter + Me%InternalTimeStepSplit > Me%MaxIterations) then
+                            write(*,*)'High Volume Variation!'
+                            write(*,*)'Node ID        : ', CurrNode%ID
+                            write(*,*)'New Volume     : ', CurrNode%VolumeNew
+                            write(*,*)'Old Volume     : ', CurrNode%VolumeOld
+                        endif
+
                         Restart = .true.
                         return
                     endif

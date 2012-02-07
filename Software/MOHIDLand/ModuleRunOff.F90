@@ -973,7 +973,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         
         
         !Looks for StormWater DrainageCoef
-        if (Me%StormWaterDrainage .or. Me%StormWaterModel) then
+        if (Me%StormWaterDrainage) then
 
             allocate(Me%StormWaterDrainageCoef (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
             Me%StormWaterDrainageCoef  = null_real
@@ -1352,7 +1352,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         Me%myWaterLevel            = null_real
         Me%myWaterColumn           = null_real
         Me%InitialWaterColumn      = null_real
-        Me%myWaterVolume           = null_real
+        Me%myWaterVolume           = 0.0        !For OpenMI
         Me%myWaterColumnOld        = null_real
         Me%myWaterVolumeOld        = null_real
         Me%MassError               = 0
@@ -5422,9 +5422,96 @@ cd1:    if (RunOffID > 0) then
             call PlaceErrorMessageOnStack("Runoff not ready")
             GetPondedWaterColumn = .false.
         end if
-           
 
     end function GetPondedWaterColumn
+
+    !DEC$ IFDEFINED (VF66)
+    !dec$ attributes dllexport::GetInletInFlow
+    !DEC$ ELSE
+    !dec$ attributes dllexport,alias:"_GETINLETINFLOW"::GetInletInFlow
+    !DEC$ ENDIF
+    logical function GetInletInFlow(RunOffID, nComputePoints, inletInflow)
+    
+        !Arguments-------------------------------------------------------------
+        integer                                     :: RunOffID
+        integer                                     :: nComputePoints
+        real(8), dimension(nComputePoints)          :: inletInflow
+        
+        !Local-----------------------------------------------------------------
+        integer                                     :: STAT_CALL
+        integer                                     :: ready_         
+        integer                                     :: i, j, idx
+        real                                        :: flow, y0
+        real                                        :: AverageCellLength
+
+        call Ready(RunOffID, ready_)    
+        
+        if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
+        
+            call GetComputeTimeStep     (Me%ObjTime, Me%ExtVar%DT, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'GetInletInFlow - ModuleRunOff - ERR01'
+            
+            call GetHorizontalGrid(Me%ObjHorizontalGrid,                                     &
+                                   DUX    = Me%ExtVar%DUX,    DVY    = Me%ExtVar%DVY,        &
+                                   STAT   = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'GetInletInFlow - ModuleRunOff - ERR02'
+        
+            idx = 1
+            do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+            do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+                if (Me%StormWaterInteraction(i, j) > AllmostZero) then
+                
+                
+                    if (Me%myWaterColumn(i, j) > Me%MinimumWaterColumn) then 
+                
+                        !Q  = L * K * y0^(3/2) * sqrt(g)
+                        !L  = Cumprimento Sargeta = 0.5
+                        !K  = Coef = 0.2
+                        !y0 = Altura a montante da sargeta
+                               
+                        AverageCellLength  = ( Me%ExtVar%DUX (i, j) + Me%ExtVar%DVY (i, j) ) / 2.0
+                        
+                        !Considering an average side slope of 5% (1/0.05 = 20) of the street
+                        y0 = sqrt(2.0*Me%myWaterColumn(i, j)*AverageCellLength / 20.0)
+                        
+                        !When triangle of street is full, consider new head 
+                        if (y0 * 20.0 > AverageCellLength) then
+                            y0 = AverageCellLength / 40.0 + Me%myWaterColumn(i, j)
+                        endif
+                        
+                        flow = 0.5 * 0.2 * y0**1.5 * sqrt(Gravity)
+                    
+                        !inlet Flow rate min between 
+                        inletInflow(idx) = Min(flow, Me%myWaterVolume(i, j) / Me%ExtVar%DT / Me%StormWaterInteraction(i, j))
+                        
+                   
+                    else
+                    
+                        inletInflow(idx) = 0.0
+                    
+                    endif
+
+                    idx = idx + 1
+                    
+                endif
+            enddo
+            enddo
+
+            call UnGetHorizontalGrid(Me%ObjHorizontalGrid, Me%ExtVar%DUX, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'GetInletInFlow - ModuleRunOff - ERR03'
+
+            call UnGetHorizontalGrid(Me%ObjHorizontalGrid, Me%ExtVar%DVY, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'GetInletInFlow - ModuleRunOff - ERR04'
+
+
+            GetInletInFlow = .true.
+        else 
+            call PlaceErrorMessageOnStack("Runoff not ready")
+            GetInletInFlow = .false.
+        end if
+
+    end function GetInletInFlow
+
     
     !DEC$ IFDEFINED (VF66)
     !dec$ attributes dllexport::SetStormWaterModelFlow
@@ -5453,7 +5540,6 @@ cd1:    if (RunOffID > 0) then
                 if (Me%StormWaterInteraction(i, j) > AllmostZero) then
                     Me%StormWaterModelFlow(i, j) = overlandToSewerFlow(idx)
                     idx = idx + 1
-                     
                 endif
             enddo
             enddo

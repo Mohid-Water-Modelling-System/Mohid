@@ -4439,8 +4439,9 @@ cd2 :           if (BlockFound) then
                 !mm /hour
                 Me%EVTPRate         (i, j)    = 0.0
                 
-                !m
-                Me%AccInfiltration  (i, j)    = Me%AccInfiltration  (i, j) + Me%SI%InfRate%Field(i, j) * Me%CurrentDT
+                !m - Accumulated Infiltration of the entite area
+                Me%AccInfiltration  (i, j)    = Me%AccInfiltration  (i, j) + Me%SI%InfRate%Field(i, j) *     &
+                                                (1.0- Me%SI%ImpFrac%Field(i, j)) * Me%CurrentDT
                 
                 !m
                 Me%AccEVTP          (i, j)    = 0.0
