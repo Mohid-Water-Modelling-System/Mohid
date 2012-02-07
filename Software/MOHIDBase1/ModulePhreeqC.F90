@@ -82,17 +82,24 @@ Module ModulePhreeqC
 !    private ::          CalculateSolutionParameters
 !    private ::          ConvertInputs
 !    private ::          ConvertResults 
+
+#ifdef _DEBUG_PHREEQC_
     private ::          PrintDataInput
     private ::          PrintDataOutput       
-        
+#endif        
+
     !Destructor
     public  :: KillPhreeqC                                                     
     private ::      DeallocateInstance
 
     !Management
     private :: EndWithError
+    
+#ifdef DEBUG_PHREEQC    
     private :: OpenDebugFile
     private :: CloseDebugFile
+#endif    
+    
     private :: Ready
     private ::      LocateObjPhreeqC
         
@@ -195,7 +202,12 @@ Module ModulePhreeqC
         integer                 :: ForceEquality         = 0
         integer                 :: DissolveOnly          = 0
         integer                 :: PhaseType             = 1 ! 1 - Solid, 2 - Gas
-        logical                 :: Debug                 = .false.
+        
+#ifdef _DEBUG_PHREEQC_        
+        !logical                 :: Debug                 = .false.   
+        logical                 :: PrintInput   = .false.    
+        logical                 :: PrintOutput  = .false.   
+#endif               
     end type T_ChemistryParameters    
     
     type T_PhreeqCUnits
@@ -211,9 +223,7 @@ Module ModulePhreeqC
         integer              :: ID
         character(len=2048)  :: Database                  !Path for database
         character(len=2048)  :: DatabaseAux  = ''         !Path for auxiliary database
-        logical              :: LoadDefaults = .true.     !If true, will load databases from input data file
-        logical              :: PrintInput   = .false.    !For DEBUG 
-        logical              :: PrintOutput  = .false.   
+        logical              :: LoadDefaults = .true.     !If true, will load databases from input data file            
         real                 :: DTSeconds    = null_real 
         real                 :: DTDay        = null_real
         real                 :: HPlusDensity              !g/L
@@ -236,9 +246,8 @@ Module ModulePhreeqC
         integer              :: UseGas           = 0
         integer              :: UseSolidSolution = 0
         integer              :: UseSurface       = 0
-        logical              :: Debug            = .false.
-        logical              :: PrintAllways     = .false.  
-        integer              :: LowerLayerStart  = 1      
+        integer              :: LowerLayerStart  = 1                 
+        !logical              :: PrintAllways     = .false.                
     end type T_PhreeqCOptions
 
 
@@ -290,11 +299,11 @@ Module ModulePhreeqC
     type T_PhreeqC
         private
         integer                                           :: InstanceID           !ID of the ModulePhreeqC instance 
-!        integer                                           :: PhreeqCInstanceID    !ID of the PhreeqC Object instance linked to the InstanceID instance
         integer                                           :: ObjEnterData = 0     !Instance of ModuleEnterData
         type(T_PhreeqC) , pointer                         :: Next                 !Collection of instances of ModulePhreeqC
         type(T_PhreeqCOptions)                            :: MOptions             !Global options read from the PhreeqC Input File
-        type(T_External)                                  :: Ext                  !Pointers to Water Mass, Properties Values and other required data 
+        type(T_External)                                  :: Ext                  !Pointers to Water Mass, 
+                                                                                  !Properties Values and other required data 
         !type(T_PhreeqCProperty), dimension(MaxProperties) :: Properties           !Info about each property. Use or delete?
 !        integer                                           :: PropertyCount        !Number of properties
         integer                                           :: PropertiesNumber =  0
@@ -302,11 +311,14 @@ Module ModulePhreeqC
         type(T_Calculations)                              :: CalcData             !Temporary data for calculations   
         type(T_PhreeqCProperty), pointer                  :: FirstProperty => null()
         type(T_PhreeqCProperty), pointer                  :: LastProperty  => null()  
-        integer                                           :: DebugFileUnit = -1
+        
 !        type(T_Model), dimension(:), pointer              :: Models
 !        integer                                           :: NumberOfModels
 !        character(PathLenght), dimension(:), pointer      :: Databases     => null()
 !        integer                                           :: DBLower, DBUpper
+#ifdef _DEBUG_PHREEQC_
+        integer                                           :: DebugFileUnit = -1
+#endif        
     end type T_PhreeqC
 
 
@@ -328,7 +340,7 @@ Module ModulePhreeqC
             integer*4 a [REFERENCE]
             integer*4 b [REFERENCE]
         end
-	    
+        
         subroutine pm_conc_use [ALIAS:'?pm_conc_use@@YAXPAH0000000@Z'] (a, b, c, d, e, f, g, h)
             integer*4 a [REFERENCE] 
             integer*4 b [REFERENCE] 
@@ -879,7 +891,7 @@ Module ModulePhreeqC
     subroutine StartPhreeqC(PhreeqCID, Filename, Database, DatabaseAux, STAT)
         
         !Arguments-------------------------------------------------------------
-        integer                                   :: PhreeqCID
+        integer, intent(OUT)                      :: PhreeqCID
         character(LEN = *)                        :: FileName 
         character(LEN = *), optional              :: Database
         character(LEN = *), optional              :: DatabaseAux
@@ -888,7 +900,7 @@ Module ModulePhreeqC
         !Local-----------------------------------------------------------------
         integer :: status
         integer :: ready_stat         
-        integer :: i
+!        integer :: i
 
         !----------------------------------------------------------------------
         
@@ -1061,7 +1073,7 @@ cd0 :   if (ready_stat .EQ. OFF_ERR_) then
         integer :: FromFile
         integer :: STAT_CALL
         integer :: flag
-        integer :: i
+!        integer :: i
         
         !Begin-----------------------------------------------------------------       
         call GetExtractType (FromFile = FromFile)
@@ -1088,27 +1100,7 @@ cd0 :   if (ready_stat .EQ. OFF_ERR_) then
                          STAT         = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_) &
                 call EndWithError ('Subroutine ReadPhreeqCOptions; ModulePhreeqC. ERR030.') 
-        endif
-        
-        call GetData(Me%MOptions%PrintInput,         &
-                     Me%ObjEnterData, flag,          &
-                     SearchType   = FromFile,        &
-                     keyword      = 'PRINT_INPUT',   &
-                     default      = .false.,         &
-                     ClientModule = 'ModulePhreeqC', &
-                     STAT         = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_) &
-            call EndWithError ('Subroutine ReadPhreeqCOptions; ModulePhreeqC. ERR040.') 
-        
-        call GetData(Me%MOptions%PrintOutput,        &
-                     Me%ObjEnterData, flag,          &
-                     SearchType   = FromFile,        &
-                     keyword      = 'PRINT_OUTPUT',  &
-                     default      = .false.,         &
-                     ClientModule = 'ModulePhreeqC', &
-                     STAT         = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_) &
-            call EndWithError ('Subroutine ReadPhreeqCOptions; ModulePhreeqC. ERR050.') 
+        endif                
 
         call GetData(Me%MOptions%HPlusDensity,       &
                      Me%ObjEnterData, flag,          &
@@ -1228,32 +1220,32 @@ cd1:   if (flag .EQ. 0) then
             write(*,*) 
             write(*,*) 'Keyword DTSECONDS not found in PhreeqC data file.'
             write(*,*) 'Subroutine ReadPhreeqCOptions; ModulePhreeqC. WRN010.'
-            write(*,*) 'Assumed ', Me%MOptions%DTSeconds, 'seconds (',  Me%MOptions%DTSeconds / 60.0, 'hour).'
+            write(*,*) 'Assumed 3600 seconds (1 hour).'
             write(*,*) 
         end if cd1
                 
         !For compatibility with the rest of the program,  
-        Me%MOptions%DTDay = Me%MOptions%DTSeconds / 24.0 / 60.0 / 60.0        
+        Me%MOptions%DTDay = Me%MOptions%DTSeconds / 86400        
         
-        call GetData(Me%MOptions%Debug,               &
-                     Me%ObjEnterData, flag,           &
-                     SearchType   = FromFile,         &
-                     keyword      = 'DEBUG',          &
-                     default      = .false.,          &
-                     ClientModule = 'ModulePhreeqC',  &
-                     STAT         = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_) &
-            call EndWithError ('Subroutine ReadPhreeqCOptions; ModulePhreeqC. ERR170.') 
+!        call GetData(Me%MOptions%Debug,               &
+!                     Me%ObjEnterData, flag,           &
+!                     SearchType   = FromFile,         &
+!                     keyword      = 'DEBUG',          &
+!                     default      = .false.,          &
+!                     ClientModule = 'ModulePhreeqC',  &
+!                     STAT         = STAT_CALL)
+!        if (STAT_CALL .NE. SUCCESS_) &
+!            call EndWithError ('Subroutine ReadPhreeqCOptions; ModulePhreeqC. ERR170.') 
 
-        call GetData(Me%MOptions%PrintAllways,        &
-                     Me%ObjEnterData, flag,           &
-                     SearchType   = FromFile,         &
-                     keyword      = 'PRINT_ALLWAYS',  &
-                     default      = .false.,          &
-                     ClientModule = 'ModulePhreeqC',  &
-                     STAT         = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_) &
-            call EndWithError ('Subroutine ReadPhreeqCOptions; ModulePhreeqC. ERR180.') 
+!        call GetData(Me%MOptions%PrintAllways,        &
+!                     Me%ObjEnterData, flag,           &
+!                     SearchType   = FromFile,         &
+!                     keyword      = 'PRINT_ALLWAYS',  &
+!                     default      = .false.,          &
+!                     ClientModule = 'ModulePhreeqC',  &
+!                     STAT         = STAT_CALL)
+!        if (STAT_CALL .NE. SUCCESS_) &
+!            call EndWithError ('Subroutine ReadPhreeqCOptions; ModulePhreeqC. ERR180.') 
 
         call GetData(Me%MOptions%LowerLayerStart,        &
                      Me%ObjEnterData, flag,              &
@@ -1578,14 +1570,36 @@ cd2 :           if (BlockFound) then
                      STAT         = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_) call EndWithError ('ReadChemistryParameters - ModulePhreeqC - ERR030')        
         
-        call GetData(NewProperty%Params%Debug,       &
+#ifdef _DEBUG_PHREEQC_        
+        call GetData(NewProperty%Params%PrintInput,  &
                      Me%ObjEnterData, iflag,         &
                      SearchType   = FromBlock,       &
-                     keyword      = 'PHREEQC_DEBUG', &
-                     Default      = .false.,         &
+                     keyword      = 'PRINT_INPUT',   &
+                     default      = .true.,          &
                      ClientModule = 'ModulePhreeqC', &
                      STAT         = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_) call EndWithError ('ReadChemistryParameters - ModulePhreeqC - ERR040')
+        if (STAT_CALL .NE. SUCCESS_) &
+            call EndWithError ('ReadChemistryParameters; ModulePhreeqC. ERR040.') 
+        
+        call GetData(NewProperty%Params%PrintOutput, &
+                     Me%ObjEnterData, iflag,         &
+                     SearchType   = FromBlock,       &
+                     keyword      = 'PRINT_OUTPUT',  &
+                     default      = .true.,          &
+                     ClientModule = 'ModulePhreeqC', &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) &
+            call EndWithError ('ReadChemistryParameters; ModulePhreeqC. ERR050.')
+#endif           
+        
+!        call GetData(NewProperty%Params%Debug,       &
+!                     Me%ObjEnterData, iflag,         &
+!                     SearchType   = FromBlock,       &
+!                     keyword      = 'PHREEQC_DEBUG', &
+!                     Default      = .false.,         &
+!                     ClientModule = 'ModulePhreeqC', &
+!                     STAT         = STAT_CALL)
+!        if (STAT_CALL .NE. SUCCESS_) call EndWithError ('ReadChemistryParameters - ModulePhreeqC - ERR040')
         
         
 !        call GetData(NewProperty%Params%Charge,                    &
@@ -2639,18 +2653,22 @@ do1:    do while (associated(PropertyX))
                 
         end do do1
         
-        !This will print the input to a file if user turn on the option
-        if (Me%MOptions%PrintAllways) then
-            call PrintDataInput (CellIndex)        
-        endif
+!        !This will print the input to a file if user turn on the option
+!        if (Me%MOptions%PrintAllways) then
+!            call PrintDataInput (CellIndex)        
+!        endif
+        
+#ifdef _DEBUG_PHREEQC_
+        call PrintDataInput (CellIndex) 
+#endif 
         
         call pmRunPhreeqC (Me%MOptions%ID, STAT_) 
         if (STAT_ .EQ. 0) then
-            if (Me%MOptions%Debug) then
-                call PrintDataInput (CellIndex)        
-            endif
+!            if (Me%MOptions%Debug) then
+!                call PrintDataInput (CellIndex)        
+!            endif
             call EndWithError ('Subroutine MakeCalculations; ModulePhreeqC. ERR060.')
-        endif
+        endif               
         
         call pmGetSolutionData(Me%MOptions%ID, mass_of_water, ph, pe, STAT_)
         if (STAT_ .EQ. 0) &
@@ -2677,11 +2695,10 @@ do2:    do while (associated(PropertyX))
             PropertyX => PropertyX%Next
                     
         end do do2
-                     
-        if (Me%MOptions%PrintAllways) then
-            call PrintDataOutput (CellIndex)
-        endif
-                                
+               
+#ifdef _DEBUG_PHREEQC_                             
+        call PrintDataOutput (CellIndex)
+#endif                                
         !------------------------------------------------------------------------
        
     end subroutine MakeCalculations
@@ -2832,6 +2849,7 @@ do1:    do while (associated(PropertyX))
     
     
     !----------------------------------------------------------------------------
+#ifdef _DEBUG_PHREEQC_    
     subroutine PrintDataInput(CellIndex)
     
         !Argument----------------------------------------------------------------
@@ -2841,34 +2859,30 @@ do1:    do while (associated(PropertyX))
         type(T_PhreeqCProperty), pointer :: PropertyX
 
         !------------------------------------------------------------------------
-        if (Me%MOptions%PrintInput) then
+        write (Me%DebugFileUnit, *) 'INPUT FOR CELL: ', CellIndex
+        write (Me%DebugFileUnit, *) 'Volume of Water: ', Me%Ext%WaterVolume(CellIndex)
+        write (Me%DebugFileUnit, *) 'Mass of Water: ', Me%Ext%WaterMass(CellIndex)
+        write (Me%DebugFileUnit, *) 'Volume of Solution: ', Me%Ext%WaterVolume(CellIndex)
+        write (Me%DebugFileUnit, *) 'Mass of Solution: ', Me%CalcData%MassOfSolution            
+        write (Me%DebugFileUnit, *) 'Solution Density: ', Me%CalcData%DensityOfSolution
+        write (Me%DebugFileUnit, *) 'Mass of Soil: ', Me%Ext%SolidMass(CellIndex)
+        write (Me%DebugFileUnit, *) 'pH: ', Me%Ext%pH(CellIndex)
+        write (Me%DebugFileUnit, *) 'pE: ', Me%Ext%pE(CellIndex)
+        
+        PropertyX => Me%FirstProperty
+do1:    do while (associated(PropertyX))
 
-            write (Me%DebugFileUnit, *) 'INPUT FOR CELL: ', CellIndex
-            write (Me%DebugFileUnit, *) 'Volume of Water: ', Me%Ext%WaterVolume(CellIndex)
-            write (Me%DebugFileUnit, *) 'Mass of Water: ', Me%Ext%WaterMass(CellIndex)
-            write (Me%DebugFileUnit, *) 'Volume of Solution: ', Me%Ext%WaterVolume(CellIndex)
-            write (Me%DebugFileUnit, *) 'Mass of Solution: ', Me%CalcData%MassOfSolution            
-            write (Me%DebugFileUnit, *) 'Solution Density: ', Me%CalcData%DensityOfSolution
-            write (Me%DebugFileUnit, *) 'Mass of Soil: ', Me%Ext%SolidMass(CellIndex)
-            write (Me%DebugFileUnit, *) 'pH: ', Me%Ext%pH(CellIndex)
-            write (Me%DebugFileUnit, *) 'pE: ', Me%Ext%pE(CellIndex)
-            
-            PropertyX => Me%FirstProperty
-do1:        do while (associated(PropertyX))
-
-                if (PropertyX%Params%Debug) then
-                    
-                    write (Me%DebugFileUnit, *) trim(PropertyX%Params%PhreeqCName), ': ', &
-                                                Me%Ext%PropertiesValues(PropertyX%Index, CellIndex), &
-                                                " (", PropertyX%PropertyValue , ")"
+            if (PropertyX%Params%PrintInput) then
                 
-                endif
-                                                  
-                PropertyX => PropertyX%Next    
-                    
-            end do do1
-
-        endif
+                write (Me%DebugFileUnit, *) trim(PropertyX%Params%PhreeqCName), ': ', &
+                                            Me%Ext%PropertiesValues(PropertyX%Index, CellIndex), &
+                                            " (", PropertyX%PropertyValue , ")"
+            
+            endif
+                                              
+            PropertyX => PropertyX%Next    
+                
+        end do do1
         !------------------------------------------------------------------------
     
     end subroutine PrintDataInput
@@ -2885,33 +2899,29 @@ do1:        do while (associated(PropertyX))
         type(T_PhreeqCProperty), pointer :: PropertyX
 
         !------------------------------------------------------------------------
-        if (Me%MOptions%PrintOutput) then
+        write (Me%DebugFileUnit, *) 'OUTPUT FOR CELL: ', CellIndex
 
-
-            write (Me%DebugFileUnit, *) 'OUTPUT FOR CELL: ', CellIndex
-
-            PropertyX => Me%FirstProperty
+        PropertyX => Me%FirstProperty
 do1:        do while (associated(PropertyX))
 
-                if (PropertyX%Params%Debug) then
-                    
-                    write (Me%DebugFileUnit, *) trim(PropertyX%Params%PhreeqCName), ': ', &
-                                                Me%Ext%PropertiesValues(PropertyX%Index, CellIndex), &
-                                                "(", PropertyX%PropertyValue, ")"
+            if (PropertyX%Params%PrintOutput) then
                 
-                endif
-                                                  
-                PropertyX => PropertyX%Next    
-                    
-            end do do1
+                write (Me%DebugFileUnit, *) trim(PropertyX%Params%PhreeqCName), ': ', &
+                                            Me%Ext%PropertiesValues(PropertyX%Index, CellIndex), &
+                                            "(", PropertyX%PropertyValue, ")"
+            
+            endif
+                                              
+            PropertyX => PropertyX%Next    
+                
+        end do do1
 
-            write (Me%DebugFileUnit, *) '--------------------------------'
-
-        endif
+        write (Me%DebugFileUnit, *) '--------------------------------'
         !------------------------------------------------------------------------
 
     end subroutine PrintDataOutput
     !----------------------------------------------------------------------------
+#endif
     
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -3025,10 +3035,11 @@ cd2 :       if (nUsers == 0) then
         character(LEN=*) :: ErrorMessage
     
         !------------------------------------------------------------------------
+#ifdef _DEBUG_PHREEQC_        
         call CloseDebugFile
-        write (*,*) ErrorMessage
-        stop
-        
+#endif        
+        write(*,*) ErrorMessage
+        stop        
         !------------------------------------------------------------------------
 
     end subroutine EndWithError
@@ -3036,33 +3047,26 @@ cd2 :       if (nUsers == 0) then
     
     
     !----------------------------------------------------------------------------
+#ifdef _DEBUG_PHREEQC_    
     subroutine OpenDebugFile 
     
         !Local-------------------------------------------------------------------
         integer :: STAT
     
         !------------------------------------------------------------------------
-        if (Me%MOptions%PrintInput .OR. Me%MOptions%PrintOutput) then
+        call UnitsManager (Me%DebugFileUnit, OPEN_FILE, STAT)
         
-            call UnitsManager (Me%DebugFileUnit, OPEN_FILE, STAT)
-            
-            if (STAT .NE. SUCCESS_) &
-                stop 'Subroutine OpenDebugFile; ModulePhreeqC. ERR010.'            
+        if (STAT .NE. SUCCESS_) &
+            stop 'Subroutine OpenDebugFile; ModulePhreeqC. ERR010.'            
 
-            Open (UNIT=Me%DebugFileUnit,   &
-                  FILE='PhreeqCDebug.txt', &
-                  STATUS='REPLACE',        &
-                  ACTION='WRITE',          &
-                  IOSTAT=STAT)
-            
-            if (STAT .NE. SUCCESS_) &
-                stop 'Subroutine OpenDebugFile; ModulePhreeqC. ERR020.'            
-
-        else
+        Open (UNIT=Me%DebugFileUnit,      &
+              FILE='MOHID-PhreeqC.debug', &
+              STATUS='REPLACE',           &
+              ACTION='WRITE',             &
+              IOSTAT=STAT)
         
-            Me%DebugFileUnit = -1
-        
-        endif
+        if (STAT .NE. SUCCESS_) &
+            stop 'Subroutine OpenDebugFile; ModulePhreeqC. ERR020.'            
         !------------------------------------------------------------------------
     
     end subroutine OpenDebugFile 
@@ -3087,7 +3091,7 @@ cd2 :       if (nUsers == 0) then
         
     end subroutine CloseDebugFile
     !----------------------------------------------------------------------------
-
+#endif    
 
     !----------------------------------------------------------------------------
     subroutine Ready (PhreeqCID, ready_) 
