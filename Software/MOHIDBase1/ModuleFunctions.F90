@@ -34,12 +34,12 @@ Module ModuleFunctions
     use ModuleTime
     use ModuleEnterData,        only : GetData
     use ModuleStopWatch,        only : StartWatch, StopWatch
-#ifdef _ENABLE_CUDA    
+#ifdef _ENABLE_CUDA
     !JPW. Include C/C++/CUDA binding
     use ModuleCuda
-#endif _ENABLE_CUDA    
+#endif _ENABLE_CUDA
     !$ use omp_lib !!
-    
+
 #if _USE_MPI
     use mpi
 #endif    
@@ -2186,6 +2186,7 @@ do1 :       do II = JImin+1, JImax+1
         type(T_VECGW), pointer                      :: VEC
         integer                                     :: TID
         !$ integer                                  :: CHUNK !
+        real                                        :: AUX
 
         !Begin-----------------------------------------------------------------
 
@@ -2193,7 +2194,7 @@ do1 :       do II = JImin+1, JImax+1
         
         !$ CHUNK = CHUNK_J(IJmin,IJmax) !
 
-        !$OMP PARALLEL PRIVATE(TID,VEC,IJ,I,J,JI,II,MM)
+        !$OMP PARALLEL PRIVATE(TID,VEC,IJ,I,J,JI,II,MM,AUX)
         TID = 1
         !$ TID = 1 + omp_get_thread_num() !
         VEC => THOMAS%VEC(TID)
@@ -2207,11 +2208,14 @@ do2 :   do IJ = IJmin, IJmax
 do3 :       do JI=JImin+1,JImax+1
                 I        = IJ*dj + JI*di
                 J        = IJ*di + JI*dj
-
-                VEC%W(JI) = -THOMAS%COEF2%F(I,J) / (THOMAS%COEF2%E(I,J) + THOMAS%COEF2%D(I,J) * VEC%W(JI-1))
-
-                VEC%G(JI) = (THOMAS%TI(I,J) - THOMAS%COEF2%D(I,J) * VEC%G(JI-1))/   &
-                           (THOMAS%COEF2%E(I,J) + THOMAS%COEF2%D(I,J) * VEC%W(JI-1))
+                AUX = THOMAS%COEF2%E(I,J) + THOMAS%COEF2%D(I,J) * VEC%W(JI-1)
+                if (AUX .ne. 0) then
+                    VEC%W(JI) = -THOMAS%COEF2%F(I,J) / AUX
+                    VEC%G(JI) = (THOMAS%TI(I,J) - THOMAS%COEF2%D(I,J) * VEC%G(JI-1))/ AUX
+                else
+                    write(*,*) 'I, J: ', I, J
+                    stop 'Error: Instability in THOMAS2D - Module Functions - ERR10'
+                end if
             end do do3
 
             I = IJ * dj + (JImax+1) * di
@@ -2490,12 +2494,13 @@ do1 :       do II = JImin+1, JImax+1
         type(T_VECGW), pointer                      :: VEC
         integer                                     :: TID
         !$ integer                                  :: CHUNK !
+        real                                        :: AUX
 
         !Begin-----------------------------------------------------------------
 
         !$ CHUNK = CHUNK_K(Kmin,Kmax) !
 
-        !$OMP PARALLEL PRIVATE(TID,VEC,K,IJ,JI,II)
+        !$OMP PARALLEL PRIVATE(TID,VEC,K,IJ,JI,II,AUX)
         TID = 1
         !$ TID = 1 + omp_get_thread_num() !
         VEC => Thomas%VEC(TID)
@@ -2507,11 +2512,15 @@ do2 :   do IJ = IJmin, IJmax
             VEC%G(JImin) = Thomas%TI(IJ, JImin, K)/Thomas%COEF3%E(IJ, JImin, K)
 
 do3 :       do JI=JImin+1,JImax+1
-                VEC%W(JI) = - Thomas%COEF3%F(IJ, JI, K) / (Thomas%COEF3%E(IJ, JI, K) +                    &
-                             Thomas%COEF3%D(IJ, JI, K) * VEC%W(JI-1))
-
-                VEC%G(JI) =  (Thomas%TI(IJ, JI, K) - Thomas%COEF3%D(IJ, JI, K) * VEC%G(JI-1))/      &
-                            (Thomas%COEF3%E (IJ, JI, K) + Thomas%COEF3%D(IJ, JI, K) * VEC%W(JI-1))
+                AUX = Thomas%COEF3%E(IJ, JI, K) + Thomas%COEF3%D(IJ, JI, K) * VEC%W(JI-1)
+                if (AUX .ne. 0) then
+                    VEC%W(JI) = - Thomas%COEF3%F(IJ, JI, K) / AUX
+                    VEC%G(JI) =  (Thomas%TI(IJ, JI, K) - Thomas%COEF3%D(IJ, JI, K) * VEC%G(JI-1))/ AUX
+                else
+                    write(*,*) 'I, J, K: ', IJ, JI, K
+                    stop 'Error: Instability in THOMAS3D - Module Functions - ERR10'
+                end if
+                
             end do do3
 
             ANSWER(IJ, (JImax+1), K) = VEC%G(JImax+1)
@@ -2549,12 +2558,13 @@ do1 :       do II = JImin+1, JImax+1
         type(T_VECGW), pointer                      :: VEC
         integer                                     :: TID
         !$ integer                                  :: CHUNK !
+        real                                        :: AUX
 
         !Begin-----------------------------------------------------------------
 
         !$ CHUNK = CHUNK_K(Kmin,Kmax) !
 
-        !$OMP PARALLEL PRIVATE(TID,VEC,K,IJ,JI,II)
+        !$OMP PARALLEL PRIVATE(TID,VEC,K,IJ,JI,II,AUX)
         TID = 1
         !$ TID = 1 + omp_get_thread_num() !
         VEC => Thomas%VEC(TID)
@@ -2566,11 +2576,14 @@ do2 :   do IJ = IJmin, IJmax
             VEC%G(JImin) = Thomas%TI(JImin, IJ, K)/Thomas%COEF3%E(JImin, IJ, K)
 
 do3 :       do JI=JImin+1,JImax+1
-                VEC%W(JI) = - Thomas%COEF3%F(JI, IJ, K) / (Thomas%COEF3%E(JI, IJ, K) +                    &
-                             Thomas%COEF3%D(JI, IJ, K) * VEC%W(JI-1))
-
-                VEC%G(JI) = (Thomas%TI(JI, IJ, K) - Thomas%COEF3%D(JI, IJ, K) * VEC%G(JI-1))/      &
-                            (Thomas%COEF3%E(JI, IJ, K) + Thomas%COEF3%D(JI, IJ, K) * VEC%W(JI-1))
+                AUX = Thomas%COEF3%E(JI, IJ, K) + Thomas%COEF3%D(JI, IJ, K) * VEC%W(JI-1)
+                if (AUX .ne. 0) then
+                    VEC%W(JI) = - Thomas%COEF3%F(JI, IJ, K) / AUX
+                    VEC%G(JI) = (Thomas%TI(JI, IJ, K) - Thomas%COEF3%D(JI, IJ, K) * VEC%G(JI-1))/ AUX
+                else
+                    write(*,*) 'I, J, K: ', JI, IJ, K
+                    stop 'ERROR: Instability in THOMAS3D - module Functions - ERR10'
+                end if
             end do do3
 
             ANSWER(JImax+1, IJ, K) = VEC%G(JImax+1)
@@ -2671,6 +2684,7 @@ do4 :       DO II = KLB+1, KUB+1
         !$ integer                                  :: CHUNK !
         integer :: I, J, K
         integer :: II, MM     
+        real :: AUX
 
         !------------------------------------------------------------------------
 
@@ -2687,7 +2701,7 @@ do4 :       DO II = KLB+1, KUB+1
 #else
         !$ CHUNK = CHUNK_J(JLB,JUB) !
 
-        !$OMP PARALLEL PRIVATE(J,I,K,II,MM,TID,VEC)
+        !$OMP PARALLEL PRIVATE(J,I,K,II,MM,TID,VEC,AUX)
         TID = 1
         !$ TID = 1 + omp_get_thread_num() !
         VEC => Thomas%VEC(TID)
@@ -2702,10 +2716,14 @@ do1 :   DO I = ILB, IUB
             VEC%G(KLB) = Thomas%TI(I, J, 1) / Thomas%COEF3%E(I, J, 1)
 
 do3 :       DO K  = KLB+1, KUB+1
-                VEC%W(K) = -Thomas%COEF3%F(I, J, K) / (Thomas%COEF3%E(I, J, K) + Thomas%COEF3%D(I, J, K) * VEC%W(K-1))
-
-                VEC%G(K) = (Thomas%TI(I, J, K) - Thomas%COEF3%D(I, J, K) * VEC%G(K-1))            &
-                         / (Thomas%COEF3%E (I, J, K) + Thomas%COEF3%D(I, J, K) * VEC%W(K-1))
+                AUX = Thomas%COEF3%E(I, J, K) + Thomas%COEF3%D(I, J, K) * VEC%W(K-1)
+                IF (AUX .ne. 0) then
+                    VEC%W(K) = -Thomas%COEF3%F(I, J, K) / AUX
+                    VEC%G(K) = (Thomas%TI(I, J, K) - Thomas%COEF3%D(I, J, K) * VEC%G(K-1)) / AUX
+                ELSE
+                        write(*,*) 'i, j, k: ', I, J, K
+                        stop 'ERROR: Instability in THOMASZ - ModuleFunctions - ERR10'
+                END IF
             END DO do3
 
             RES(I, J, KUB+1) = VEC%G(KUB+1)
@@ -4884,8 +4902,7 @@ d3:                     do dij=1,dijmax
                 write (*,*) 'Module :',ClientModule
                 stop 'ReadTimeKeyWords - ModuleFunctions - ERR25a'
             endif
-        endif
-        
+        endif        
 
         !Verifies Time Variables
         if (EndTime .le. BeginTime) then
@@ -6469,13 +6486,22 @@ i5:         if      (TVD_Limitation == MinMod) then
 
         endif i2
         
+        !GRiflet: Should theta fall out of [0, 1], theta is brought
+        !back to [0, 1].
+        !A Theta bigger than 1D7 meant
+        !that, numerically, 1. - Theta = - Theta.
+        !This would imply a division by zero later, in the 
+        !the Thomas Algorithm...
+        if (Theta > 1.) then
+            Theta = 1.
+        elseif (Theta < 0.) then
+            Theta = 0.
+        endif
    
         CFace(1) =  (1. - Theta) * Cup1(1) + Theta * CupHighOrder(1)
         CFace(2) =  (1. - Theta) * Cup1(2) + Theta * CupHighOrder(2)
         CFace(3) =  (1. - Theta) * Cup1(3) + Theta * CupHighOrder(3)
-        CFace(4) =  (1. - Theta) * Cup1(4) + Theta * CupHighOrder(4)
-
-    
+        CFace(4) =  (1. - Theta) * Cup1(4) + Theta * CupHighOrder(4)    
 
     end subroutine ComputeAdvectionFace
 
