@@ -87,7 +87,7 @@ Module ModuleTime
     public  :: operator(-) 
 
     public  :: assignment(=)
-
+    
     !Parameter-----------------------------------------------------------------
 
     integer, parameter :: Year_   = 1
@@ -112,6 +112,15 @@ Module ModuleTime
         logical                                  :: ON
         integer                                  :: KLB, KUB, JLB, JUB, ILB, IUB
     end type T_OutPutTime 
+    
+    public :: T_NewDT
+    type      T_NewDT
+        character(StringLength)     :: property
+        real                        :: DT
+        integer                     :: i
+        integer                     :: j
+        integer                     :: k
+    end type T_NewDT
 
     type      T_ComputeTime
         integer                         :: InstanceID
@@ -178,6 +187,7 @@ Module ModuleTime
 
     interface  assignment (=)
         module procedure TimeEqualAssignment
+        module procedure NewDtEqualAssignment
     end interface
 
 
@@ -988,6 +998,22 @@ do1 :   do I = 1, 6
         !----------------------------------------------------------------------
 
     end subroutine TimeEqualAssignment
+
+    !--------------------------------------------------------------------------
+
+    subroutine NewDtEqualAssignment(NewDT1, NewDT2)
+
+        !Arguments-------------------------------------------------------------
+        type(T_NewDT), intent(OUT)                   :: NewDT1
+        type(T_NewDT), intent(IN)                    :: NewDT2
+
+        NewDT1%property = NewDT2%property
+        NewDT1%DT       = NewDT2%DT
+        NewDT1%i        = NewDT2%i
+        NewDT1%j        = NewDT2%j
+        NewDT1%k        = NewDT2%k
+
+    end subroutine NewDtEqualAssignment
 
     !--------------------------------------------------------------------------
 

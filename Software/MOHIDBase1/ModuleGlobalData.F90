@@ -2913,20 +2913,36 @@ cd3 :   if (ErrorMagnitude == FATAL_) then
 
     !----------------------------------------------------------------------
 
-    subroutine WriteDTLog (ModuleName, iter, DT)
+    subroutine WriteDTLog (ModelName, iter, DT, i, j, k, PropertyName)
 
-        !Arguments-------------------------------------------------------------
-        character(len=*)                :: ModuleName
+        !Arguments---------------------------------------------------------
+        character(len=*)                :: ModelName
         integer                         :: iter
         real                            :: DT
+        integer, optional               :: i, j, k
+        character(len=*), optional      :: PropertyName
 
         if (MonitorDT) then
-            write (UnitDT, '(A25, I10,F12.4)') ModuleName, iter, DT 
+            if (present(k)) then
+                write (UnitDT, 211) iter, DT, i, j, k, trim(ModelName), trim(PropertyName)
+            elseif (present(j)) then
+                write (UnitDT, 212) iter, DT, i, j, trim(ModelName), trim(PropertyName)
+            elseif (present(i)) then
+                write (UnitDT, 213) iter, DT, i, trim(ModelName), trim(PropertyName)
+            else
+                write (UnitDT, 214) trim(ModelName), iter, DT
+                !write (UnitDT, '(A25, I10,F12.4)') ModuleName, iter, DT
+            end if
         end if
+
+211 format(i8, ', DT: ', f9.3, ', I: ', i4, ', J: ', i4, ', K: ', i4, ', Model - Property: ', a, ' - ', a)
+212 format(i8, ', DT: ', f9.3, ', I: ', i4, ', J: ', i4, ', Model - Property: ', a, ' - ', a)
+213 format(i8, ', DT: ', f9.3, ', I: ', i4, ', Model - Property: ', a, ' - ', a)
+214 format(i8, ', DT: ', f9.3, a)
 
     end subroutine WriteDTLog
 
-    !--------------------------------------------------------------------------
+    !-----------------------------------------------------------------------
 
     subroutine StartupMohid(ModelName)
 

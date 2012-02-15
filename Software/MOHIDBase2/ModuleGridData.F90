@@ -38,11 +38,17 @@ Module ModuleGridData
                                       GetGridCoordType, GetGridAngle, GetGridZone,      &
                                       GetLatitudeLongitude, GetGridOrigin,              &
                                       UnGetHorizontalGrid, GetCoordTypeList,            &
-                                      WriteHorizontalGrid, GetCheckDistortion,          &
+#ifndef _NO_HDF5                                      
+                                      WriteHorizontalGrid,                              &
+#endif
+                                      GetCheckDistortion,          &
                                       GetGridLatitudeLongitude, GetZCoordinates
+                                      
+#ifndef _NO_HDF5
     use ModuleHDF5,             only: ConstructHDF5, HDF5ReadData, GetHDF5FileAccess,   &
                                       GetHDF5GroupNumberOfItems, HDF5SetLimits,         &
                                       HDF5WriteData, KillHDF5
+#endif                                      
     use ModuleStopWatch,        only: StartWatch, StopWatch
     use ModuleFunctions,        only: CHUNK_J
 
@@ -57,7 +63,9 @@ Module ModuleGridData
     public  :: ConstructGridData
     private ::      AllocateInstance
     private ::      ReadGridDataFile
+#ifndef _NO_HDF5    
     private ::      ReadFileEvolution
+#endif
 
     !Selector
     public  :: GetGridDataFileName
@@ -79,7 +87,10 @@ Module ModuleGridData
     !Destructor
     public  :: KillGridData
     private ::      DeallocateInstance
+#ifndef _NO_HDF5
+    
     private ::      WriteFileEvolution
+#endif
 
     !Management
     private ::      Ready
@@ -715,7 +726,7 @@ Coln:               if (flag == 4)  then
 
     end subroutine ReadGridDataFile
 
-    
+#ifndef _NO_HDF5    
     subroutine ReadFileEvolution
 
         !Arguments-------------------------------------------------------------                                                    
@@ -807,13 +818,13 @@ old:        if (Me%Evolution%OldInstants > 0) then
 
 
     end subroutine ReadFileEvolution
-
+#endif
         !----------------------------------------------------------------------
 
 
 
     !--------------------------------------------------------------------------
-
+#ifndef _NO_HDF5
     type(T_Time) function HDF5TimeInstant(Instant)
 
         !Arguments-------------------------------------------------------------
@@ -847,7 +858,6 @@ old:        if (Me%Evolution%OldInstants > 0) then
         nullify   (TimeVector)
 
     end function HDF5TimeInstant
-
     
     !--------------------------------------------------------------------------
 
@@ -875,7 +885,8 @@ old:        if (Me%Evolution%OldInstants > 0) then
 
 
     end subroutine ReadHDF5Values2D
-    
+#endif
+   
     
     !--------------------------------------------------------------------------
 
@@ -2041,7 +2052,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
     end subroutine WriteGridData_v2
 
-
+#ifndef _NO_HDF5
     subroutine WriteFileEvolution
 
         !Arguments-------------------------------------------------------------                                                    
@@ -2181,7 +2192,7 @@ d1:     do i = 1, Me%Evolution%OldInstants + 1
         if (STAT_CALL .NE. SUCCESS_) stop 'WriteFileEvolution - ModuleGridData - ERR11'
 
     end subroutine WriteFileEvolution
-
+#endif
         !----------------------------------------------------------------------
 
 

@@ -8313,7 +8313,7 @@ case1 :     select case(Property%ID%IDNumber)
 
         !Arguments-------------------------------------------------------------
         integer                                     :: WaterPropertiesID
-        real   , optional, intent(OUT)              :: NewDT
+        type(T_NewDT) , optional, intent(OUT)       :: NewDT
         integer, optional, intent(OUT)              :: STAT
    
         !Local-----------------------------------------------------------------
@@ -12749,7 +12749,7 @@ do1 :   do while (associated(PropertyX))
     subroutine CalcNewDT (NewDT)
         
         !Arguments-------------------------------------------------------------
-        real                                        :: NewDT
+        type(T_NewDT)                               :: NewDT
         
         !Local-----------------------------------------------------------------
         
@@ -12758,7 +12758,7 @@ do1 :   do while (associated(PropertyX))
         real                                        :: ModelDT
         logical                                     :: VariableDT
         integer                                     :: ILB, IUB, JLB, JUB, KUB
-        integer                                     :: i, j, k, Kbottom, STAT_CALL, iaux, jaux, kaux
+        integer                                     :: i, j, k, Kbottom, STAT_CALL !, iaux, jaux, kaux
         integer                                     :: CHUNK
         !Begin----------------------------------------------------------------------
 
@@ -12787,7 +12787,9 @@ do1 :   do while (associated(PropertyX))
             if (STAT_CALL .NE. SUCCESS_)                                                &
                 stop 'CalcNewDT - ModuleWaterProperties - ERR30'                
 
-            NewDT = ModelDT
+            NewDT%property = 'ModelDT'
+            NewDT%DT = - FillValueReal
+            NewDT%i = 0; NewDT%j = 0; NewDT%k = 0;
             
             PropertyX => Me%FirstProperty  
 
@@ -12796,6 +12798,8 @@ do1 :   do while (associated(PropertyX))
                     if(Me%ExternalVar%Now .ge. PropertyX%Evolution%NextCompute)then
 
                         CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+                                               
+                        NewDT%DT = ModelDT
                         
                         if (.not.associated(PropertyX%ConcentrationOld)) then 
                         
@@ -12826,8 +12830,10 @@ do1 :   do while (associated(PropertyX))
                                     
                                         !!$OMP CRITICAL
                                         
+                                        NewDT%property = PropertyX%ID%name
                                         DAuxMin = DAux
-                                        iaux = i; jaux = j; kaux = k;
+                                        !iaux = i; jaux = j; kaux = k;
+                                        NewDT%i = i; NewDT%j = j; NewDT%k = k;
                                         
                                         !!$OMP CRITICAL
                                     endif
@@ -12844,21 +12850,23 @@ do1 :   do while (associated(PropertyX))
                         !!$OMP END PARALLEL
 
                     end if
+
                 end if
 
                 PropertyX => PropertyX%Next
+
             end do do1
 
             nullify(PropertyX)
-            
-            if (abs(DAuxMin) > .6) NewDT = NewDT / 2. 
-            
-            if (abs(DAuxMin) < .2) NewDT = NewDT * 1.2 
+
+            if (abs(DAuxMin) > .6) NewDT%DT = NewDT%DT / 2.
+
+            if (abs(DAuxMin) < .2) NewDT%DT = NewDT%DT * 1.2
 
             call UnGetGeometry(Me%ObjGeometry, Me%ExternalVar%VolumeZOld, STAT = STAT_CALL)
-            
+
             if (STAT_CALL .NE. SUCCESS_)                                                &
-                stop 'CalcNewDT - ModuleWaterProperties - ERR40'                
+                stop 'CalcNewDT - ModuleWaterProperties - ERR40'
 
             !write(88,*) NewDT, iaux, jaux
 
@@ -12867,7 +12875,6 @@ do1 :   do while (associated(PropertyX))
         if (MonitorPerformance) call StopWatch ("ModuleWaterProperties", "CalcNewDT")
 
     end subroutine CalcNewDT
-
 
     !-------------------------------------------------------------------------- 
        

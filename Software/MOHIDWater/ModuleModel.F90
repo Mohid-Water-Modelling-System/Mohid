@@ -229,6 +229,7 @@ Module ModuleModel
         type (T_Time)                           :: CurrentTime
         type (T_Time)                           :: BeginTime
         type (T_Time)                           :: EndTime
+        integer                                 :: Iteration
         real                                    :: DT, MaxDT
         logical                                 :: VariableDT
         real                                    :: InitialDT
@@ -397,7 +398,7 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
                                   Me%DT, Me%VariableDT, "Model", Me%MaxDT,               &
                                   Me%GmtReference, Me%DTPredictionInterval)
             Me%InitialDT = Me%DT
-
+            Me%Iteration = 0
 
 #ifdef      _ONLINE_
 
@@ -1584,7 +1585,7 @@ if2:            if (Global_CurrentTime .GE. Me%CurrentTime) then
         !Local-----------------------------------------------------------------
         real                                        :: CPUTime, LastCPUTime = 0.
         real                                        :: NewDT
-        real                                        :: PredictedDT
+        type(T_NewDT)                               :: PredictedDT
         integer                                     :: STAT_, ready_
         integer                                     :: STAT_CALL
 #ifdef _USE_SEQASSIMILATION
@@ -1668,7 +1669,9 @@ if1 :   if (ready_ .EQ. IDLE_ERR_) then
 
            if (Me%VariableDT) then
 
-                NewDT = PredictedDT
+                NewDT = PredictedDT%DT
+                
+                Me%Iteration = Me%Iteration + 1
 
 !                if (NewDT > Me%DT) then
 !                    !At maximum increase DT by 5%
@@ -1685,13 +1688,14 @@ if1 :   if (ready_ .EQ. IDLE_ERR_) then
                     NewDT = Me%InitialDT
                 endif
 
-
                 !Fit DT so model will stop at the right time
                 if (Me%CurrentTime + NewDT > Me%EndTime .and. Me%EndTime > Me%CurrentTime) then
                     NewDT = Me%EndTime - Me%CurrentTime
                 endif
 
-                if (MonitorDT) call WriteDTLog ('ModuleModel', -99, NewDT)
+                !WriteDTLog: com i, j e k opcionais. O nome do módulo deve conter
+                !a propriedade limitadora. O -99 deve conter o número da iteração.
+                if (MonitorDT) call WriteDTLog (trim(Me%ModelName), Me%Iteration, NewDT, PredictedDT%i, PredictedDT%j, predictedDT%k, trim(predictedDT%property))
 
                 !Actualize the Time Step
                 call ActualizeDT(Me%ObjTime, NewDT, STAT = STAT_CALL)     
@@ -1730,10 +1734,12 @@ if1 :   if (ready_ .EQ. IDLE_ERR_) then
     subroutine RunOneModel(PredictedDT, DT_Father)
 
         !Arguments-------------------------------------------------------------
-        real                                        :: PredictedDT, DT_Father
+        real                                        :: DT_Father
+        type(T_NewDT)                               :: PredictedDT
 
         !Local-----------------------------------------------------------------
-        real                                        :: PredHydroDT, PredWaterDT, AuxReal
+        type(T_NewDT)                               :: PredHydroDT, PredWaterDT
+        real                                        :: AuxReal
         integer                                     :: STAT_CALL, AuxInt
 #ifndef _AIR_
         integer, dimension(:, :), pointer           :: WaterPoints2D
@@ -1844,7 +1850,7 @@ if1 :   if (ready_ .EQ. IDLE_ERR_) then
                                Me%ExternalVar%Chezy, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'RunOneModel - ModuleModel - ERR17'
 
-        PredictedDT = Me%DT             
+        PredictedDT%DT = Me%DT             
         call Modify_Hydrodynamic(Me%ObjHydrodynamic,                                &
                                  Me%ExternalVar%Density,                            &
                                  Me%ExternalVar%SigmaDens,                          &
@@ -1878,13 +1884,22 @@ if1 :   if (ready_ .EQ. IDLE_ERR_) then
 
         if (Me%VariableDT) then
 
-            PredictedDT = min(PredHydroDT, PredWaterDT, DT_Father)
+            AuxReal = min(PredHydroDT%DT, PredWaterDT%DT, DT_Father)
+            
+            if (PredHydroDT%DT .eq. AuxReal) then
+                PredictedDT = PredHydroDT
+            elseif (PredWaterDT%DT .eq. AuxReal) then
+                PredictedDT = PredWaterDT
+            else
+                PredictedDT%property = 'DT_Father'
+                PredictedDT%DT = DT_Father
+            end if
             
             if (DT_Father < - FillValueReal/100.) then
-                AuxReal      = DT_Father/PredictedDT
+                AuxReal      = DT_Father/PredictedDT%DT
                 AuxInt       = int(AuxReal) 
                 if (AuxReal/= real(AuxInt)) AuxInt = AuxInt + 1
-                PredictedDT =  DT_Father / real(AuxInt)
+                PredictedDT%DT =  DT_Father / real(AuxInt)
             endif
             
             !write(998,*)  PredHydroDT, PredWaterDT, DT_Father, PredictedDT
