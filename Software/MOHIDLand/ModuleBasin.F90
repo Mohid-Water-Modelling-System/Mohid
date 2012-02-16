@@ -3853,10 +3853,6 @@ cd2 :           if (BlockFound) then
         !Begin-----------------------------------------------------------------
                                   
         !Mass Balance to vegetation water on leafs
-        
-        !To check if mass is to be accumulated
-        call GetVegetationGrowing(Me%ObjVegetation, IsVegGrowing, STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'UpdateVegConcentration - ModuleBasin - ERR00'  
                 
         !Mix after routine DividePrecipitation
         if (WarningString == "WaterMix") then      
@@ -3884,67 +3880,61 @@ cd2 :           if (BlockFound) then
 
                         if (Me%ExtVar%BasinPoints(i, j) == WaterPoint) then
                             
-                            if (IsVegGrowing(i,j)) then
-                                !At this point old volume has to be the one from previous time step - covered fraction old
-                                !and canopystorage before the mix with rain and removal from drainage
-                                OldVolumeOnLeafs = Me%CoveredFractionOld(i, j) * Me%CanopyStorageOld(i, j)                        &
-                                                   * Me%ExtVar%GridCellArea(i, j)
-                                
-                                !Mass from Rain
-                                !m3 = m * m2plant
-                                RainVolume          = Me%RainCovered(i,j) * Me%CoveredFraction(i, j)                              &
-                                                       * Me%ExtVar%GridCellArea(i, j) 
-                                !g = (m * m2plant) * g/m3
-                                RainMassToVeg       = RainVolume * AtmConcentration(i,j)
-                                                       
-                                !m3
-                                VegetationNewVolume = OldVolumeOnLeafs + RainVolume   
-                                !g
-                                VegetationNewMass   = Property%VegetationOldMass(i,j) + RainMassToVeg
-                                
-                                !Update veg conc with rain because the drainage flux needs a new conc
-                                if (VegetationNewVolume .gt. 0.0) then
-                                    !g/m3 = g / (m * m2)
-                                    Property%VegetationConc(i,j) = VegetationNewMass / VegetationNewVolume
-                                else
-                                    Property%VegetationConc(i,j) = 0.0
-                                endif                                                   
-                                
-                                !Mass drained to soil - with the new veg conc.
-                                !m3 = m * m2plant
-                                DrainageVolume      = Me%CanopyDrainage(i,j) * Me%ExtVar%GridCellArea(i, j)
-                                
-                                !g = (m * m2cel) * g/m3 - Canopy drainage is height in cell area
-                                DrainageMassFromVeg = DrainageVolume * Property%VegetationConc(i,j)
-                                
-                                Property%VegetationDrainage(i,j) = DrainageMassFromVeg
-
-                                if (Me%VerifyGlobalMass) then
-                                    !output for vegetation leafs
-                                    !kg = kg + ((m*m2cell * g/m3 * 1e-3 kg/g) - Canopy drainage is height in cell area
-                                    Property%MB%VegDrainedMass   = Property%MB%VegDrainedMass + DrainageMassFromVeg * 1e-3
-                                endif
-
-                                !m3
-                                VegetationNewVolume = VegetationNewVolume - DrainageVolume
-                                
-                                !g
-                                VegetationNewMass   = VegetationNewMass - DrainageMassFromVeg
-                                
-                                !Update the new conc now with drainage flux
-                                if (VegetationNewVolume .gt. 0.0) then
-                                    !g/m3 = g / (m * m2)
-                                    Property%VegetationConc(i,j) = VegetationNewMass / VegetationNewVolume
-                                else
-                                    Property%VegetationConc(i,j) = 0.0
-                                endif 
-                                
-                                Property%VegetationOldMass(i,j) = VegetationNewMass
+                            !At this point old volume has to be the one from previous time step - covered fraction old
+                            !and canopystorage before the mix with rain and removal from drainage
+                            OldVolumeOnLeafs = Me%CoveredFractionOld(i, j) * Me%CanopyStorageOld(i, j)                        &
+                                               * Me%ExtVar%GridCellArea(i, j)
+                            
+                            !Mass from Rain
+                            !m3 = m * m2plant
+                            RainVolume          = Me%RainCovered(i,j) * Me%CoveredFraction(i, j)                              &
+                                                   * Me%ExtVar%GridCellArea(i, j) 
+                            !g = (m * m2plant) * g/m3
+                            RainMassToVeg       = RainVolume * AtmConcentration(i,j)
+                                                   
+                            !m3
+                            VegetationNewVolume = OldVolumeOnLeafs + RainVolume   
+                            !g
+                            VegetationNewMass   = Property%VegetationOldMass(i,j) + RainMassToVeg
+                            
+                            !Update veg conc with rain because the drainage flux needs a new conc
+                            if (VegetationNewVolume .gt. 0.0) then
+                                !g/m3 = g / (m * m2)
+                                Property%VegetationConc(i,j) = VegetationNewMass / VegetationNewVolume
                             else
-                                Property%VegetationConc(i,j)    = 0.0
-                                Property%VegetationOldMass(i,j) = 0.0
-                                Property%VegetationDrainage(i,j)= 0.0
+                                Property%VegetationConc(i,j) = 0.0
+                            endif                                                   
+                            
+                            !Mass drained to soil - with the new veg conc.
+                            !m3 = m * m2plant
+                            DrainageVolume      = Me%CanopyDrainage(i,j) * Me%ExtVar%GridCellArea(i, j)
+                            
+                            !g = (m * m2cel) * g/m3 - Canopy drainage is height in cell area
+                            DrainageMassFromVeg = DrainageVolume * Property%VegetationConc(i,j)
+                            
+                            Property%VegetationDrainage(i,j) = DrainageMassFromVeg
+
+                            if (Me%VerifyGlobalMass) then
+                                !output for vegetation leafs
+                                !kg = kg + ((m*m2cell * g/m3 * 1e-3 kg/g) - Canopy drainage is height in cell area
+                                Property%MB%VegDrainedMass   = Property%MB%VegDrainedMass + DrainageMassFromVeg * 1e-3
                             endif
+
+                            !m3
+                            VegetationNewVolume = VegetationNewVolume - DrainageVolume
+                            
+                            !g
+                            VegetationNewMass   = VegetationNewMass - DrainageMassFromVeg
+                            
+                            !Update the new conc now with drainage flux
+                            if (VegetationNewVolume .gt. 0.0) then
+                                !g/m3 = g / (m * m2)
+                                Property%VegetationConc(i,j) = VegetationNewMass / VegetationNewVolume
+                            else
+                                Property%VegetationConc(i,j) = 0.0
+                            endif 
+                            
+                            Property%VegetationOldMass(i,j) = VegetationNewMass
                         
                         endif
                     enddo
@@ -3977,24 +3967,18 @@ cd2 :           if (BlockFound) then
                     do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
                         if (Me%ExtVar%BasinPoints(i, j) == WaterPoint) then
-                            
-                            if (IsVegGrowing(i,j)) then
-                            
-                                !Mass does not change with evaporation
-                                VegetationNewMass = Property%VegetationOldMass(i,j)
-                            
-                                if (Me%CanopyStorage(i, j) .gt. 0.0) then
-                                    !g/m3 = g / (m * m2)
-                                    Property%VegetationConc(i,j) = VegetationNewMass / (Me%CanopyStorage(i, j)                    &
-                                                                   * Me%CoveredFraction(i, j) * Me%ExtVar%GridCellArea(i, j))
-                                else
-                                    Property%VegetationConc(i,j) = 0.0
-                                endif                        
-
+                        
+                            !Mass does not change with evaporation
+                            VegetationNewMass = Property%VegetationOldMass(i,j)
+                        
+                            if (Me%CanopyStorage(i, j) .gt. 0.0) then
+                                !g/m3 = g / (m * m2)
+                                Property%VegetationConc(i,j) = VegetationNewMass / (Me%CanopyStorage(i, j)                    &
+                                                               * Me%CoveredFraction(i, j) * Me%ExtVar%GridCellArea(i, j))
                             else
-                                Property%VegetationConc(i,j)    = 0.0
-                                Property%VegetationOldMass(i,j) = 0.0                           
-                            endif
+                                Property%VegetationConc(i,j) = 0.0
+                            endif                        
+
                         endif
                     enddo
                     enddo
@@ -4030,31 +4014,24 @@ cd2 :           if (BlockFound) then
                     do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                     
                         if (Me%ExtVar%BasinPoints(i, j) == WaterPoint) then
-                            
-                            if (IsVegGrowing(i,j)) then
 
-                                !g = kg/ha * dt/dtveg * 1e3 g/kg * (area) * 1ha/10000m2
-                                !area is from all cell because leaf pesticide did account all area
-                                MassAdded = PesticideVegetation(i,j) * Me%CurrentDT / VegDT * 1e3 * Me%ExtVar%GridCellArea(i,j)  &
-                                             / 10000.
-                                
-                                VegetationNewMass = Property%VegetationOldMass(i,j) + MassAdded
-                                
-                                if (Me%CanopyStorage(i, j) .gt. 0.0) then
-                                    !g/m3 = g / (m * m2)
-                                    Property%VegetationConc(i,j) = VegetationNewMass / (Me%CanopyStorage(i, j)                    &
-                                                                   * Me%CoveredFraction(i, j) * Me%ExtVar%GridCellArea(i, j))
-                                else
-                                    Property%VegetationConc(i,j) = 0.0
-                                endif                        
-                                
-                                Property%VegetationOldMass(i,j) = VegetationNewMass
+                            !g = kg/ha * dt/dtveg * 1e3 g/kg * (area) * 1ha/10000m2
+                            !area is from all cell because leaf pesticide did account all area
+                            MassAdded = PesticideVegetation(i,j) * Me%CurrentDT / VegDT * 1e3 * Me%ExtVar%GridCellArea(i,j)  &
+                                         / 10000.
                             
+                            VegetationNewMass = Property%VegetationOldMass(i,j) + MassAdded
+                            
+                            if (Me%CanopyStorage(i, j) .gt. 0.0) then
+                                !g/m3 = g / (m * m2)
+                                Property%VegetationConc(i,j) = VegetationNewMass / (Me%CanopyStorage(i, j)                    &
+                                                               * Me%CoveredFraction(i, j) * Me%ExtVar%GridCellArea(i, j))
                             else
-                                Property%VegetationConc(i,j)    = 0.0
-                                Property%VegetationOldMass(i,j) = 0.0                           
+                                Property%VegetationConc(i,j) = 0.0
                             endif                        
-                        
+                            
+                            Property%VegetationOldMass(i,j) = VegetationNewMass               
+                    
                         endif                    
                     
                     enddo 
@@ -4093,32 +4070,25 @@ cd2 :           if (BlockFound) then
                     do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
                         if (Me%ExtVar%BasinPoints(i, j) == WaterPoint) then
-
-                            if (IsVegGrowing(i,j)) then
-                                !WQ process without volume change. only mass change
-                               
-                                !P = P0*exp(-kt)
-                                !g
-                                MassSink = min (Property%VegetationOldMass(i,j)                                       &
-                                                - Property%VegetationOldMass(i,j) * exp(-DecayRate * DT),             &
-                                                  Property%VegetationOldMass(i,j))
-                                
-                                VegetationNewMass = Property%VegetationOldMass(i,j) - MassSink
-                                
-                                if (Me%CanopyStorage(i, j) .gt. 0.0) then
-                                    !g/m3 = g / (m * m2)
-                                    Property%VegetationConc(i,j) = VegetationNewMass / (Me%CanopyStorage(i, j)                    &
-                                                                   * Me%CoveredFraction(i, j) * Me%ExtVar%GridCellArea(i, j))
-                                else
-                                    Property%VegetationConc(i,j) = 0.0
-                                endif                        
-                                
-                                Property%VegetationOldMass(i,j) = VegetationNewMass
-
+                            !WQ process without volume change. only mass change
+                           
+                            !P = P0*exp(-kt)
+                            !g
+                            MassSink = min (Property%VegetationOldMass(i,j)                                       &
+                                            - Property%VegetationOldMass(i,j) * exp(-DecayRate * DT),             &
+                                              Property%VegetationOldMass(i,j))
+                            
+                            VegetationNewMass = Property%VegetationOldMass(i,j) - MassSink
+                            
+                            if (Me%CanopyStorage(i, j) .gt. 0.0) then
+                                !g/m3 = g / (m * m2)
+                                Property%VegetationConc(i,j) = VegetationNewMass / (Me%CanopyStorage(i, j)                    &
+                                                               * Me%CoveredFraction(i, j) * Me%ExtVar%GridCellArea(i, j))
                             else
-                                Property%VegetationConc(i,j)    = 0.0
-                                Property%VegetationOldMass(i,j) = 0.0                           
-                            endif     
+                                Property%VegetationConc(i,j) = 0.0
+                            endif                        
+                            
+                            Property%VegetationOldMass(i,j) = VegetationNewMass
                             
                         endif
                     enddo
@@ -4131,9 +4101,6 @@ cd2 :           if (BlockFound) then
             enddo                        
             
         endif                   
-
-        call UnGetVegetation  (Me%ObjVegetation, IsVegGrowing, STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'UpdateVegConcentration - ModuleBasin - ERR0100'
     
     end subroutine UpdateVegConcentration
 
