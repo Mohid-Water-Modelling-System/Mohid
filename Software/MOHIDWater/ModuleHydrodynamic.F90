@@ -12423,28 +12423,35 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
         real(8)                                     :: TotalFlux  
         real(8)                                     :: CourantDT, Courant, AuxDT
         real                                        :: DT_Model
-        integer                                     :: CHUNK
+        !$ integer                                     :: CHUNK, TID
+        !$ type(T_NewDT)                               :: StoredDT
+        !$ type(T_NewDT), dimension(Me%MaxThreads)     :: NewDTs
+        !$ real(8), dimension(Me%MaxThreads)           :: CourantDTs
 
-        CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+        !CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
 
         if (MonitorPerformance) call StartWatch ("ModuleHydrodynamic", "CalcNewDT")
+        
+        NewDT%property = 'momentum'
+        !$ StoredDT = NewDT
 
+        !$OMP PARALLEL PRIVATE(i,j,k,TotalFlux,AuxDT,CourantDT,NewDT,TID)
+                        
+        !$ TID = 1 + omp_get_thread_num()
+        !$ NewDT = StoredDT
+                        
         !Test Frank.
         !Calculates new DT which guarantees a transport Courant < 1 for horizontal fluxes
         !Just consider Fluxes which leave cell
         CourantDT = -FillValueReal
-
-        NewDT%property = 'momentum'
-        
-        !!!!$OMP PARALLEL PRIVATE(i,j,k,TotalFlux,AuxDT)
-                
+                        
         do k = Me%WorkSize%KLB, Me%WorkSize%KUB
-        !!!!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
         do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
             if (Me%External_Var%WaterPoints3D(i, j, k) == WaterPoint) then
-                
+                                
                 !Verifies the horizontal condition
                 TotalFlux   = 0.0
 
@@ -12476,22 +12483,32 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
                 if (TotalFlux > 0.1 .and. Me%External_Var%Volume_Z_New(i, j, k) > 0. ) then   !To avoid division by zero
                     AuxDT = Me%External_Var%Volume_Z_New(i, j, k) / TotalFlux
-                    !!!!!$OMP CRITICAL (CNDT_ModuleHydrodynamic_SEC01)
                     if (AuxDT < CourantDT) then
                         CourantDT = AuxDT
                         NewDT%i = i; NewDT%j = j; NewDT%k = k
                     endif
-                    !!!!!$OMP END CRITICAL (CNDT_ModuleHydrodynamic_SEC01)
                 endif
 
             endif
         enddo
         enddo
-        !!!!!$OMP END DO NOWAIT
+        !$OMP END DO NOWAIT
         enddo
-        !!!!!$OMP END PARALLEL
-        
-        
+
+        !$ CourantDTs(TID) = CourantDT
+        !$ NewDTs(TID) = NewDT                        
+                        
+        !$OMP END PARALLEL
+
+        !$ CourantDT = - FillValueReal
+        !$ NewDT = StoredDT
+        !$ do i = 1, Me%MaxThreads
+        !$    if (CourantDTs(i) < CourantDT) then
+        !$        CourantDT = CourantDTs(i)
+        !$        NewDT = NewDTs(i)
+        !$    endif
+        !$ enddo
+
         if (MonitorPerformance) call StopWatch ("ModuleHydrodynamic", "CalcNewDT")
 
         call GetComputeTimeStep(Me%ObjTime, DT_Model, STAT = status)

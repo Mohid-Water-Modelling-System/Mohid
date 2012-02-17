@@ -258,6 +258,8 @@ Module ModuleWaterProperties
     use ModuleCuda
 #endif _ENABLE_CUDA
 
+    !$ use omp_lib
+
     implicit none 
 
     private
@@ -965,6 +967,7 @@ Module ModuleWaterProperties
         logical                                 :: CHLA_WQ_Output   = .false.
         real(8)                                 :: C_CHLA_Output
                 
+        integer                                 :: MaxThreads
         
 #ifdef _USE_SEQASSIMILATION
         integer, pointer, dimension(:)          :: PropertiesID
@@ -1122,12 +1125,14 @@ Module ModuleWaterProperties
         endif
 
         call Ready(WaterPropertiesID, ready_)    
-
+        
 cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
             !Allocates a new Instance
             call AllocateInstance
 
+            Me%MaxThreads = 1
+            !$ Me%MaxThreads = omp_get_max_threads()
             Me%ModelName = ModelName
             
             nullify (Me%FirstProperty)
@@ -12754,12 +12759,15 @@ do1 :   do while (associated(PropertyX))
         !Local-----------------------------------------------------------------
         
         type (T_Property), pointer                  :: PropertyX
-        real(8)                                     :: DAux, DauxMin
+        real(8)                                     :: DAux, DAuxMax
         real                                        :: ModelDT
         logical                                     :: VariableDT
         integer                                     :: ILB, IUB, JLB, JUB, KUB
         integer                                     :: i, j, k, Kbottom, STAT_CALL !, iaux, jaux, kaux
-        integer                                     :: CHUNK
+        !$ integer                                     :: CHUNK, TID
+        !$ type(T_NewDT)                               :: StoredDT
+        !$ type(T_NewDT), dimension(Me%MaxThreads)     :: NewDTs
+        !$ real(8), dimension(Me%MaxThreads)           :: DAuxMaxs
         !Begin----------------------------------------------------------------------
 
         if (MonitorPerformance) call StartWatch ("ModuleWaterProperties", "CalcNewDT")
@@ -12770,7 +12778,7 @@ do1 :   do while (associated(PropertyX))
         JUB = Me%WorkSize%JUB 
         KUB = Me%WorkSize%KUB 
         
-        DauxMin = - FillValueReal
+        DAuxMax = 0.0
         
         call GetVariableDT (Me%ObjTime, VariableDT, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'CalcNewDT - ModuleWaterProperties - ERR10'
@@ -12788,19 +12796,20 @@ do1 :   do while (associated(PropertyX))
                 stop 'CalcNewDT - ModuleWaterProperties - ERR30'                
 
             NewDT%property = 'ModelDT'
-            NewDT%DT = - FillValueReal
+            NewDT%DT = ModelDT
             NewDT%i = 0; NewDT%j = 0; NewDT%k = 0;
-            
+                                    
             PropertyX => Me%FirstProperty  
 
     do1 :   do while (associated(PropertyX))
+    
+                !$ StoredDT = NewDT
+                
                 if (PropertyX%Evolution%Variable) then
                     if(Me%ExternalVar%Now .ge. PropertyX%Evolution%NextCompute)then
 
-                        CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
-                                               
-                        NewDT%DT = ModelDT
-                        
+                        !$CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+                                                                       
                         if (.not.associated(PropertyX%ConcentrationOld)) then 
                         
                             allocate(PropertyX%ConcentrationOld(Me%Size%ILB:Me%Size%IUB,&
@@ -12812,8 +12821,12 @@ do1 :   do while (associated(PropertyX))
                         
                         endif
                         
-                        !!$OMP PARALLEL PRIVATE(Daux,I,J,K,kbottom)
-                        !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+                        !$OMP PARALLEL PRIVATE(Daux,I,J,K,kbottom,TID,NewDT) FIRSTPRIVATE(DAuxMax)
+
+                        !$ NewDT = StoredDT
+                        !$ TID = 1 + omp_get_thread_num()
+                        
+                        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
                         do j=JLB, JUB
                         do i=ILB, IUB
 
@@ -12826,16 +12839,12 @@ do1 :   do while (associated(PropertyX))
                                     DAux = (PropertyX%Concentration   (i, j, k) * Me%ExternalVar%VolumeZ   (i, j, k)) / &
                                            (PropertyX%ConcentrationOld(i, j, k) * Me%ExternalVar%VolumeZOld(i, j, k)) - 1.
                                    
-                                    if (DAux < DAuxMin) then 
+                                    if (DAux > DAuxMax) then 
                                     
-                                        !!$OMP CRITICAL
-                                        
                                         NewDT%property = PropertyX%ID%name
-                                        DAuxMin = DAux
-                                        !iaux = i; jaux = j; kaux = k;
+                                        DAuxMax = DAux
                                         NewDT%i = i; NewDT%j = j; NewDT%k = k;
-                                        
-                                        !!$OMP CRITICAL
+            
                                     endif
                                    
                                     PropertyX%ConcentrationOld(i,j,k) = PropertyX%Concentration(i,j,k)
@@ -12846,9 +12855,22 @@ do1 :   do while (associated(PropertyX))
 
                         enddo
                         enddo
-                        !!$OMP END DO NOWAIT
-                        !!$OMP END PARALLEL
-
+                        !$OMP END DO NOWAIT
+                        
+                        !$ DAuxMaxs(TID) = DAuxMax
+                        !$ NewDTs(TID) = NewDT        
+                                        
+                        !$OMP END PARALLEL
+        
+                        !$ NewDT = StoredDT
+                        !$ DAuxMax = 0.0
+                        !$ do i = 1, Me%MaxThreads
+                        !$    if (DAuxMaxs(i) > DAuxMax) then
+                        !$        DAuxMax = DAuxMaxs(i)
+                        !$        NewDT = NewDTs(i)
+                        !$    endif
+                        !$ enddo
+        
                     end if
 
                 end if
@@ -12859,9 +12881,9 @@ do1 :   do while (associated(PropertyX))
 
             nullify(PropertyX)
 
-            if (abs(DAuxMin) > .6) NewDT%DT = NewDT%DT / 2.
+            if (abs(DAuxMax) > .6) NewDT%DT = NewDT%DT / 2.
 
-            if (abs(DAuxMin) < .2) NewDT%DT = NewDT%DT * 1.2
+            if (abs(DAuxMax) < .2) NewDT%DT = NewDT%DT * 1.2
 
             call UnGetGeometry(Me%ObjGeometry, Me%ExternalVar%VolumeZOld, STAT = STAT_CALL)
 
