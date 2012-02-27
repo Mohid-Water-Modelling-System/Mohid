@@ -220,6 +220,8 @@ Module ModuleDischarges
          integer                                :: nCells                           = 1
          integer, dimension(:), pointer         :: VectorI, VectorJ, VectorK
          integer                                :: FlowDistribution                 = DischByCell_
+         integer                                :: kmin                             = FillValueInt
+         integer                                :: kmax                             = FillValueInt
 
     end  type T_Localization
 
@@ -771,7 +773,33 @@ i1:     if (NewDischarge%Localization%Location2D) then
                     if (STAT_CALL .NE. SUCCESS_)                                        &
                         stop 'Subroutine ConstDischargeLoc; Module ModuleDischarges. ERR70.'
 
-                case (DischBottom_, DischSurf_, DischUniform_)
+                case (DischUniform_)
+
+
+                    call GetData(NewDischarge%Localization%kmin,                        &
+                                 Me%ObjEnterData,                                       &
+                                 flag,                                                  &
+                                 FromBlock,                                             &
+                                 keyword      ='K_MIN',                                 &
+                                 default      = FillValueInt,                           &
+                                 ClientModule = 'ModuleDischarges',                     &
+                                 STAT         = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_)                                        &
+                        stop 'Subroutine ConstDischargeLoc; Module ModuleDischarges. ERR74.'
+
+
+                    call GetData(NewDischarge%Localization%kmax,                        &
+                                 Me%ObjEnterData,                                       &
+                                 flag,                                                  &
+                                 FromBlock,                                             &
+                                 keyword      ='K_MAX',                                 &
+                                 default      = FillValueInt,                           &
+                                 ClientModule = 'ModuleDischarges',                     &
+                                 STAT         = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_)                                        &
+                        stop 'Subroutine ConstDischargeLoc; Module ModuleDischarges. ERR76.'
+
+                case (DischBottom_, DischSurf_)
                     !do not do nothing 
                 case default
                     write(*,*) "VERTICAL DISCHARGE option not known ", NewDischarge%Localization%DischVertical
@@ -2420,7 +2448,7 @@ cd3 :       if (STAT_CALL/=SUCCESS_) then
 
     Subroutine GetDischargeFlowDistribuiton(DischargesID, DischargeIDNumber,            &
                                             nCells, FlowDistribution,                   &
-                                            VectorI, VectorJ, VectorK, STAT)
+                                            VectorI, VectorJ, VectorK, kmin, kmax, STAT)
 
         !Arguments-------------------------------------------------------------
         integer                                     :: DischargesID
@@ -2429,6 +2457,7 @@ cd3 :       if (STAT_CALL/=SUCCESS_) then
         integer, optional,              intent(OUT) :: FlowDistribution
                         
         integer, dimension(:), pointer, optional    :: VectorI, VectorJ, VectorK
+        integer,                        optional    :: kmin, kmax
         integer, optional,              intent(OUT) :: STAT
 
         !Local-----------------------------------------------------------------
@@ -2483,6 +2512,18 @@ cd3 :       if (STAT_CALL/=SUCCESS_) then
                 VectorK => DischargeX%Localization%VectorK
 
             endif
+            
+            if (present(kmin)) then
+
+                kmin = DischargeX%Localization%kmin
+
+            endif    
+            
+            if (present(kmax)) then
+
+                kmax = DischargeX%Localization%kmax
+
+            endif                       
 
             nullify(DischargeX)
 
