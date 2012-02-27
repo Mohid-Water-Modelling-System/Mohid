@@ -87,7 +87,7 @@ Module ModuleTime
     public  :: operator(-) 
 
     public  :: assignment(=)
-    
+
     !Parameter-----------------------------------------------------------------
 
     integer, parameter :: Year_   = 1
@@ -1635,9 +1635,9 @@ cd1 :   if ((J .LT. 1) .OR. (J .GT. 12)) then
 
         !Arguments-------------------------------------------------------------
 
+        type(T_Time)  , intent(IN ) :: Time1
         real, optional, intent(OUT) :: Year, Month, Day, Hour, Minute, Second
 
-        type(T_Time),      intent(IN ) :: Time1
 
         !----------------------------------------------------------------------
 
