@@ -73,8 +73,8 @@ Module ModuleFunctions
     public  :: InvSingularDiagMatrix2D
     public  :: CholeskyFactorization
     public  :: EOFAnalysis
-    private :: NormalRand
     private :: UniformRand01
+    private :: NormalRand
 #endif
     public :: Pad
 
@@ -248,6 +248,10 @@ Module ModuleFunctions
         module procedure WGS84toGoogleMaps1D
         module procedure WGS84toGoogleMaps2D
     end interface  WGS84toGoogleMaps
+    
+    !sea state functions    
+    public :: WindBeaufortScale    
+    public :: WaveBeaufortScale            
     
     !types -------------------------------------------------------------------
 
@@ -570,12 +574,12 @@ Module ModuleFunctions
     !--------------------------------------------------------------------------
     !--------------------------------------------------------------------------
 
-    subroutine SetMatrixValues2D_I4_Constant (Matrix, Size, Value, MapMatrix)
+    subroutine SetMatrixValues2D_I4_Constant (Matrix, Size, ValueX, MapMatrix)
 
         !Arguments-------------------------------------------------------------
         integer(4), dimension(:, :), pointer            :: Matrix
         type (T_Size2D)                                 :: Size
-        integer(4), intent (IN)                         :: Value
+        integer(4), intent (IN)                         :: ValueX
         integer, dimension(:, :), pointer, optional     :: MapMatrix
 
         !Local-----------------------------------------------------------------
@@ -592,7 +596,7 @@ Module ModuleFunctions
             do j = Size%JLB, Size%JUB
             do i = Size%ILB, Size%IUB
                 if (MapMatrix(i, j) == 1) then
-                    Matrix (i, j) = Value
+                    Matrix (i, j) = ValueX
                 endif
             enddo
             enddo
@@ -603,7 +607,7 @@ Module ModuleFunctions
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
             do j = Size%JLB, Size%JUB
             do i = Size%ILB, Size%IUB
-                Matrix (i, j) = Value
+                Matrix (i, j) = ValueX
             enddo
             enddo
             !$OMP END DO NOWAIT
@@ -614,12 +618,12 @@ Module ModuleFunctions
     
     !--------------------------------------------------------------------------
 
-    subroutine SetMatrixValues2D_R4_Constant (Matrix, Size, Value, MapMatrix)
+    subroutine SetMatrixValues2D_R4_Constant (Matrix, Size, ValueX, MapMatrix)
 
         !Arguments-------------------------------------------------------------
         real(4), dimension(:, :), pointer               :: Matrix
         type (T_Size2D)                                 :: Size
-        real(4), intent (IN)                            :: Value
+        real(4), intent (IN)                            :: ValueX
         integer, dimension(:, :), pointer, optional     :: MapMatrix
 
         !Local-----------------------------------------------------------------
@@ -636,7 +640,7 @@ Module ModuleFunctions
             do j = Size%JLB, Size%JUB
             do i = Size%ILB, Size%IUB
                 if (MapMatrix(i, j) == 1) then
-                    Matrix (i, j) = Value
+                    Matrix (i, j) = ValueX
                 endif
             enddo
             enddo
@@ -647,7 +651,7 @@ Module ModuleFunctions
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
             do j = Size%JLB, Size%JUB
             do i = Size%ILB, Size%IUB
-                Matrix (i, j) = Value
+                Matrix (i, j) = ValueX
             enddo
             enddo
             !$OMP END DO NOWAIT
@@ -658,12 +662,12 @@ Module ModuleFunctions
 
     !--------------------------------------------------------------------------
 
-    subroutine SetMatrixValues2D_R4_ConstantAllocatable (Matrix, Size, Value, MapMatrix)
+    subroutine SetMatrixValues2D_R4_ConstantAllocatable (Matrix, Size, ValueX, MapMatrix)
 
         !Arguments-------------------------------------------------------------
         real(4), dimension(:, :), allocatable           :: Matrix
         type (T_Size2D)                                 :: Size
-        real(4), intent (IN)                            :: Value
+        real(4), intent (IN)                            :: ValueX
         integer, dimension(:, :), pointer, optional     :: MapMatrix
 
         !Local-----------------------------------------------------------------
@@ -680,7 +684,7 @@ Module ModuleFunctions
             do j = Size%JLB, Size%JUB
             do i = Size%ILB, Size%IUB
                 if (MapMatrix(i, j) == 1) then
-                    Matrix (i, j) = Value
+                    Matrix (i, j) = ValueX
                 endif
             enddo
             enddo
@@ -691,7 +695,7 @@ Module ModuleFunctions
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
             do j = Size%JLB, Size%JUB
             do i = Size%ILB, Size%IUB
-                Matrix (i, j) = Value
+                Matrix (i, j) = ValueX
             enddo
             enddo
             !$OMP END DO NOWAIT
@@ -702,12 +706,12 @@ Module ModuleFunctions
     
     !--------------------------------------------------------------------------
 
-    subroutine SetMatrixValues2D_R8_Constant (Matrix, Size, Value, MapMatrix)
+    subroutine SetMatrixValues2D_R8_Constant (Matrix, Size, ValueX, MapMatrix)
 
         !Arguments-------------------------------------------------------------
         real(8), dimension(:, :), pointer               :: Matrix
         type (T_Size2D)                                 :: Size
-        real(8), intent (IN)                            :: Value
+        real(8), intent (IN)                            :: ValueX
         integer, dimension(:, :), pointer, optional     :: MapMatrix
 
         !Local-----------------------------------------------------------------
@@ -724,7 +728,7 @@ Module ModuleFunctions
             do j = Size%JLB, Size%JUB
             do i = Size%ILB, Size%IUB
                 if (MapMatrix(i, j) == 1) then
-                    Matrix (i, j) = Value
+                    Matrix (i, j) = ValueX
                 endif
             enddo
             enddo
@@ -735,7 +739,7 @@ Module ModuleFunctions
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
             do j = Size%JLB, Size%JUB
             do i = Size%ILB, Size%IUB
-                Matrix (i, j) = Value
+                Matrix (i, j) = ValueX
             enddo
             enddo
             !$OMP END DO NOWAIT
@@ -746,12 +750,12 @@ Module ModuleFunctions
     
     !--------------------------------------------------------------------------
 
-    subroutine SetMatrixValues2D_R8_ConstantAllocatable (Matrix, Size, Value, MapMatrix)
+    subroutine SetMatrixValues2D_R8_ConstantAllocatable (Matrix, Size, ValueX, MapMatrix)
 
         !Arguments-------------------------------------------------------------
         real(8), dimension(:, :), allocatable           :: Matrix
         type (T_Size2D)                                 :: Size
-        real(8), intent (IN)                            :: Value
+        real(8), intent (IN)                            :: ValueX
         integer, dimension(:, :), pointer, optional     :: MapMatrix
 
         !Local-----------------------------------------------------------------
@@ -768,7 +772,7 @@ Module ModuleFunctions
             do j = Size%JLB, Size%JUB
             do i = Size%ILB, Size%IUB
                 if (MapMatrix(i, j) == 1) then
-                    Matrix (i, j) = Value
+                    Matrix (i, j) = ValueX
                 endif
             enddo
             enddo
@@ -779,7 +783,7 @@ Module ModuleFunctions
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
             do j = Size%JLB, Size%JUB
             do i = Size%ILB, Size%IUB
-                Matrix (i, j) = Value
+                Matrix (i, j) = ValueX
             enddo
             enddo
             !$OMP END DO NOWAIT
@@ -1058,12 +1062,12 @@ Module ModuleFunctions
     
     !--------------------------------------------------------------------------
 
-    subroutine SetMatrixValues3D_I4_Constant (Matrix, Size, Value, MapMatrix)
+    subroutine SetMatrixValues3D_I4_Constant (Matrix, Size, ValueX, MapMatrix)
 
         !Arguments-------------------------------------------------------------
         integer(4), dimension(:, :, :), pointer         :: Matrix
         type (T_Size3D)                                 :: Size
-        integer(4), intent (IN)                         :: Value
+        integer(4), intent (IN)                         :: ValueX
         integer, dimension(:, :, :), pointer, optional  :: MapMatrix
 
         !Local-----------------------------------------------------------------
@@ -1081,7 +1085,7 @@ Module ModuleFunctions
             do j = Size%JLB, Size%JUB
             do i = Size%ILB, Size%IUB
                 if (MapMatrix(i, j, k) == 1) then
-                    Matrix (i, j, k) = Value
+                    Matrix (i, j, k) = ValueX
                 endif
             enddo
             enddo
@@ -1094,7 +1098,7 @@ Module ModuleFunctions
             do k = Size%KLB, Size%KUB
             do j = Size%JLB, Size%JUB
             do i = Size%ILB, Size%IUB
-                Matrix (i, j, k) = Value
+                Matrix (i, j, k) = ValueX
             enddo
             enddo
             enddo
@@ -1106,12 +1110,12 @@ Module ModuleFunctions
     
     !--------------------------------------------------------------------------
 
-    subroutine SetMatrixValues3D_R4_Constant (Matrix, Size, Value, MapMatrix)
+    subroutine SetMatrixValues3D_R4_Constant (Matrix, Size, ValueX, MapMatrix)
 
         !Arguments-------------------------------------------------------------
         real(4), dimension(:, :, :), pointer            :: Matrix
         type (T_Size3D)                                 :: Size
-        real(4), intent (IN)                            :: Value
+        real(4), intent (IN)                            :: ValueX
         integer, dimension(:, :, :), pointer, optional  :: MapMatrix
 
         !Local-----------------------------------------------------------------
@@ -1129,7 +1133,7 @@ Module ModuleFunctions
             do j = Size%JLB, Size%JUB
             do i = Size%ILB, Size%IUB
                 if (MapMatrix(i, j, k) == 1) then
-                    Matrix (i, j, k) = Value
+                    Matrix (i, j, k) = ValueX
                 endif
             enddo
             enddo
@@ -1142,7 +1146,7 @@ Module ModuleFunctions
             do k = Size%KLB, Size%KUB
             do j = Size%JLB, Size%JUB
             do i = Size%ILB, Size%IUB
-                Matrix (i, j, k) = Value
+                Matrix (i, j, k) = ValueX
             enddo
             enddo
             enddo
@@ -1154,12 +1158,12 @@ Module ModuleFunctions
     
     !--------------------------------------------------------------------------
 
-    subroutine SetMatrixValues3D_R4_ConstantAllocatable (Matrix, Size, Value, MapMatrix)
+    subroutine SetMatrixValues3D_R4_ConstantAllocatable (Matrix, Size, ValueX, MapMatrix)
 
         !Arguments-------------------------------------------------------------
         real(4), dimension(:, :, :), allocatable        :: Matrix
         type (T_Size3D)                                 :: Size
-        real(4), intent (IN)                            :: Value
+        real(4), intent (IN)                            :: ValueX
         integer, dimension(:, :, :), pointer, optional  :: MapMatrix
 
         !Local-----------------------------------------------------------------
@@ -1177,7 +1181,7 @@ Module ModuleFunctions
             do j = Size%JLB, Size%JUB
             do i = Size%ILB, Size%IUB
                 if (MapMatrix(i, j, k) == 1) then
-                    Matrix (i, j, k) = Value
+                    Matrix (i, j, k) = ValueX
                 endif
             enddo
             enddo
@@ -1190,7 +1194,7 @@ Module ModuleFunctions
             do k = Size%KLB, Size%KUB
             do j = Size%JLB, Size%JUB
             do i = Size%ILB, Size%IUB
-                Matrix (i, j, k) = Value
+                Matrix (i, j, k) = ValueX
             enddo
             enddo
             enddo
@@ -1202,12 +1206,12 @@ Module ModuleFunctions
         
     !--------------------------------------------------------------------------
 
-    subroutine SetMatrixValues3D_R8_Constant (Matrix, Size, Value, MapMatrix)
+    subroutine SetMatrixValues3D_R8_Constant (Matrix, Size, ValueX, MapMatrix)
 
         !Arguments-------------------------------------------------------------
         real(8), dimension(:, :, :), pointer            :: Matrix
         type (T_Size3D)                                 :: Size
-        real(8), intent (IN)                            :: Value
+        real(8), intent (IN)                            :: ValueX
         integer, dimension(:, :, :), pointer, optional  :: MapMatrix
 
         !Local-----------------------------------------------------------------
@@ -1225,7 +1229,7 @@ Module ModuleFunctions
             do j = Size%JLB, Size%JUB
             do i = Size%ILB, Size%IUB
                 if (MapMatrix(i, j, k) == 1) then
-                    Matrix (i, j, k) = Value
+                    Matrix (i, j, k) = ValueX
                 endif
             enddo
             enddo
@@ -1238,7 +1242,7 @@ Module ModuleFunctions
             do k = Size%KLB, Size%KUB
             do j = Size%JLB, Size%JUB
             do i = Size%ILB, Size%IUB
-                Matrix (i, j, k) = Value
+                Matrix (i, j, k) = ValueX
             enddo
             enddo
             enddo
@@ -1250,12 +1254,12 @@ Module ModuleFunctions
 
     !--------------------------------------------------------------------------
 
-    subroutine SetMatrixValues3D_R8_ConstantAllocatable (Matrix, Size, Value, MapMatrix)
+    subroutine SetMatrixValues3D_R8_ConstantAllocatable (Matrix, Size, ValueX, MapMatrix)
 
         !Arguments-------------------------------------------------------------
         real(8), dimension(:, :, :), allocatable        :: Matrix
         type (T_Size3D)                                 :: Size
-        real(8), intent (IN)                            :: Value
+        real(8), intent (IN)                            :: ValueX
         integer, dimension(:, :, :), pointer, optional  :: MapMatrix
 
         !Local-----------------------------------------------------------------
@@ -1273,7 +1277,7 @@ Module ModuleFunctions
             do j = Size%JLB, Size%JUB
             do i = Size%ILB, Size%IUB
                 if (MapMatrix(i, j, k) == 1) then
-                    Matrix (i, j, k) = Value
+                    Matrix (i, j, k) = ValueX
                 endif
             enddo
             enddo
@@ -1286,7 +1290,7 @@ Module ModuleFunctions
             do k = Size%KLB, Size%KUB
             do j = Size%JLB, Size%JUB
             do i = Size%ILB, Size%IUB
-                Matrix (i, j, k) = Value
+                Matrix (i, j, k) = ValueX
             enddo
             enddo
             enddo
@@ -1571,7 +1575,7 @@ Module ModuleFunctions
         integer, intent(in)     :: LowerBound, UpperBound
         
         !Local-----------------------------------------------------------------
-        integer                 :: PaddedUpperBound
+        integer                 :: PaddedUpperBound, a
         
 #ifdef _PAD_MATRICES
         ! Padding a matrix to a multiple of 128 bytes gives a significant performance gain
@@ -1580,6 +1584,8 @@ Module ModuleFunctions
         PaddedUpperBound = int(ceiling((UpperBound - LowerBound) / 32.0)) * 32 + LowerBound
 #else
         PaddedUpperBound = UpperBound
+        !To avoid the warnning "This variable has not be used"
+        a                = LowerBound
 #endif _PAD_MATRICES
 
     end function Pad
@@ -1987,7 +1993,7 @@ do1 :       do
 
     end subroutine EOFAnalysis
 
-    !--------------------------------------------------------------------------
+#endif    !--------------------------------------------------------------------------
 
     real function UniformRand01(idum)
 
@@ -2100,9 +2106,7 @@ do1 :       do
         endif
 
     end function NormalRand
-
-#endif
-
+    
     !--------------------------------------------------------------------------
     
     subroutine THOMAS_2D_Original(IJmin, IJmax,                                        &
@@ -4166,7 +4170,7 @@ end function
             
             !!$OMP PARALLEL SHARED(CHUNK, DT1, Matrix2, DT2, Matrix1, DTtotal, PointsToFill2D) PRIVATE(I,J)
             !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
-            do j = Size%ILB, Size%JUB
+            do j = Size%JLB, Size%JUB
             do i = Size%ILB, Size%IUB
             
                 if(PointsToFill2D(i,j) == 1)then
@@ -4184,7 +4188,7 @@ end function
             
             !!$OMP PARALLEL SHARED(CHUNK, DT1, Matrix2, DT2, Matrix1, DTtotal) PRIVATE(I,J)
             !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
-            do j = Size%ILB, Size%JUB
+            do j = Size%JLB, Size%JUB
             do i = Size%ILB, Size%IUB
             
                 MatrixOUT(i,j) = (DT1 * Matrix2(i,j) + DT2 * Matrix1(i,j)) / DTtotal
@@ -4234,7 +4238,7 @@ end function
             !!$OMP PARALLEL SHARED(CHUNK, DT1, Matrix2, DT2, Matrix1, DTtotal, PointsToFill3D) PRIVATE(I,J)
             !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
             do k = Size%KLB, Size%KUB
-            do j = Size%ILB, Size%JUB
+            do j = Size%JLB, Size%JUB
             do i = Size%ILB, Size%IUB
 
                 if(PointsToFill3D(i,j,k) == 1)then
@@ -4254,7 +4258,7 @@ end function
             !!$OMP PARALLEL SHARED(CHUNK, DT1, Matrix2, DT2, Matrix1, DTtotal, PointsToFill3D) PRIVATE(I,J)
             !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
             do k = Size%KLB, Size%KUB
-            do j = Size%ILB, Size%JUB
+            do j = Size%JLB, Size%JUB
             do i = Size%ILB, Size%IUB
 
                 MatrixOUT(i,j,k) = (DT1 * Matrix2(i,j,k) + DT2 * Matrix1(i,j,k)) / DTtotal
@@ -4902,8 +4906,8 @@ d3:                     do dij=1,dijmax
                 write (*,*) 'Module :',ClientModule
                 stop 'ReadTimeKeyWords - ModuleFunctions - ERR25a'
             endif
-        endif        
-
+        endif
+        
         !Verifies Time Variables
         if (EndTime .le. BeginTime) then
             write (*,*) 'End Time is BEFORE model Start Time'
@@ -6501,7 +6505,7 @@ i5:         if      (TVD_Limitation == MinMod) then
         CFace(1) =  (1. - Theta) * Cup1(1) + Theta * CupHighOrder(1)
         CFace(2) =  (1. - Theta) * Cup1(2) + Theta * CupHighOrder(2)
         CFace(3) =  (1. - Theta) * Cup1(3) + Theta * CupHighOrder(3)
-        CFace(4) =  (1. - Theta) * Cup1(4) + Theta * CupHighOrder(4)    
+        CFace(4) =  (1. - Theta) * Cup1(4) + Theta * CupHighOrder(4)
 
     end subroutine ComputeAdvectionFace
 
@@ -9225,7 +9229,7 @@ D2:     do I=imax-1,2,-1
             else
                 write(*,*) 'Out of range - Lat >= 90 or Lat <=-90'
                 write(*,*) 'i=',i,' j=',j,' Lat=',Lat(i,j)
-                stop 'WGS84toGoogleMaps2D - ModuleHorizontalGrid - ERR10'
+                stop 'WGS84toGoogleMaps2D - ModuleFunctions - ERR10'
             endif
             
         enddo
@@ -9728,7 +9732,78 @@ D2:     do I=imax-1,2,-1
         
     end function maxival3D_I8
 
-end module ModuleFunctions
+    !------------------------------------------------------------------------    
+    !Beaufort scale for wave height see http://en.wikipedia.org/wiki/Beaufort_scale    
+    real function WindBeaufortScale (wind)        
+    !Arguments-------------------------------------------------------------            
+    real                :: wind        
+    !Begin--------------------------------------------------------------------        
+    if     (wind < 0.3) then             
+        WindBeaufortScale = 0        
+    elseif (wind >= 0.3 .and. wind <1.6) then             
+        WindBeaufortScale = 1        
+    elseif (wind >= 1.6 .and. wind <3.4) then             
+        WindBeaufortScale = 2        
+    elseif (wind >= 3.4 .and. wind <5.5) then             
+        WindBeaufortScale = 3        
+    elseif (wind >= 5.5 .and. wind <8  ) then             
+        WindBeaufortScale = 4        
+    elseif (wind >= 8 .and. wind <10.8 ) then             
+        WindBeaufortScale = 5        
+    elseif (wind >= 10.8 .and. wind <13.9) then             
+        WindBeaufortScale = 6        
+    elseif (wind >= 13.9 .and. wind <17.2) then
+        WindBeaufortScale = 7        
+    elseif (wind >= 17.2 .and. wind <20.8) then
+        WindBeaufortScale = 8        
+    elseif (wind >= 20.8 .and. wind <24.5) then             
+        WindBeaufortScale = 9        
+    elseif (wind >= 24.5 .and. wind <28.5) then             
+        WindBeaufortScale = 10        
+    elseif (wind >= 28.5 .and. wind <32.5) then             
+        WindBeaufortScale = 11        
+    elseif (wind >= 32.7) then             
+        WindBeaufortScale = 12        
+    endif                    
+    end function WindBeaufortScale     
+    !-----------------------------------------------------------------------    
+    
+    !Beaufort scale for wave height see http://en.wikipedia.org/wiki/Beaufort_scale		        
+    real function WaveBeaufortScale (Wave)        
+    !Arguments-------------------------------------------------------------            
+    real                :: Wave        
+    !Begin--------------------------------------------------------------------        
+        if     (Wave == 0) then            
+            WaveBeaufortScale = 0        
+        elseif (Wave > 0 .and. Wave<=0.2) then                
+         WaveBeaufortScale = 1       
+        elseif (Wave > 0.2 .and. Wave<=0.5) then                
+          WaveBeaufortScale = 2        
+        elseif (Wave > 0.5 .and. Wave<=1) then                
+         WaveBeaufortScale = 3        
+        elseif (Wave > 1 .and. Wave<=2) then                
+            WaveBeaufortScale = 4        
+        elseif (Wave > 2 .and. Wave<=3) then                
+            WaveBeaufortScale = 5        
+        elseif (Wave > 3 .and. Wave<=4) then                
+            WaveBeaufortScale = 6        
+        elseif (Wave > 4 .and. Wave<=5.5) then                
+            WaveBeaufortScale = 7        
+        elseif (Wave > 5.5 .and. Wave<=7.5) then                
+            WaveBeaufortScale = 8        
+        elseif (Wave > 7.5 .and. Wave<=10) then                
+            WaveBeaufortScale = 9        
+        elseif (Wave > 9 .and. Wave<=12.5) then                
+            WaveBeaufortScale = 10        
+        elseif (Wave > 12.5 .and. Wave<=14) then                
+            WaveBeaufortScale = 11        
+        elseif (Wave >14) then                
+            WaveBeaufortScale = 12        
+        endif        
+    
+    end function WaveBeaufortScale 
+    
+    end module ModuleFunctions
 
 !----------------------------------------------------------------------------------------------------------
 !MOHID Water Modelling System.
