@@ -54,6 +54,12 @@ Module ModuleDrawing
 
     public  ::    VertPolygonInsidePolygon
     
+    public  ::    SliceCellIn4
+    
+    public  ::    ArrayPolygonWindow
+    public  ::    CellInterSectCell
+    public  ::    SegIntersectSeg
+   
     private ::    NewPolygon
     private ::    NewXYZPoint
     private ::    NewXYZPoint_V2
@@ -98,15 +104,11 @@ Module ModuleDrawing
     private :: DotProduct2D
     private :: PerpProduct2D
 
-    private :: SegIntersectSeg
     private :: IntersectionBoundCellV2
     private :: IntersectionBoundCell
     private :: CreateDomainPolygon
     private :: LocateCellPolygonsV2
-    private :: ArrayPolygonWindow
-    private :: SliceCellIn4
     private :: PointInsideCell
-    private :: CellInterSectCell
 
     !Parameter-----------------------------------------------------------------
     integer(4), parameter  :: TypeX_Y_Z     =  1
@@ -1824,7 +1826,7 @@ i6:                         if (DirectionX.ne.0.) then
 
     logical function CellInterSectCell (Cell1, Cell2)
     !Arguments---------------------------------------
-    real(8), dimension(2,4) :: Cell1, Cell2
+    real, dimension(2,4) :: Cell1, Cell2
     !Local-------------------------------------------
     integer                  :: i
     !Begin-------------------------------------------
@@ -1845,11 +1847,11 @@ i6:                         if (DirectionX.ne.0.) then
 
     logical function PointInsideCell (X, Y, Cell)
     !Arguments---------------------------------------
-    real(8)                  :: X, Y
-    real(8), dimension(2,4) :: Cell
+    real                  :: X, Y
+    real, dimension(2,4) :: Cell
 
     !Local------------------------------------------
-    real(8)            :: Xmin, Ymin, Xmax, Ymax
+    real            :: Xmin, Ymin, Xmax, Ymax
     !Begin-------------------------------------------
 
         PointInsideCell = .false.
@@ -1911,17 +1913,17 @@ i6:                         if (DirectionX.ne.0.) then
 
     end subroutine SliceCellIn4
 
-    !This subroutine returns the indexes (WindowOut) of the smallest sub-domain of a curvilinear grid (XX, YY) 
-    !that comprehends a cartesian window (WindowOut). 
+    !This subroutine returns the indexes (WOut) of the smallest sub-domain of a curvilinear grid (XX, YY) 
+    !that comprehends a cartesian window (WIn). 
     !Returns also a logical if the grid intersects the cartesian window (WindowWithData)
-    subroutine ArrayPolygonWindow(XX, YY, WindowIn, ILB, IUB, JLB, JUB, WindowOut, WindowWithData)
+    subroutine ArrayPolygonWindow(XX, YY, WIn, ILB, IUB, JLB, JUB, WOut, WindowWithData)
 
     !Arguments------------------------------------
-    real(8), dimension(:,:), intent(IN)     :: XX, YY
-    real(8), dimension(2,4), intent(IN)     :: WindowIn
-    integer                , intent(IN)     :: ILB, IUB, JLB, JUB
-    integer, dimension(2,4), intent(OUT)    :: WindowOut
-    logical,                 intent(OUT)    :: WindowWithData
+    real,    dimension(:,:), pointer, intent(IN)    :: XX, YY
+    real,    dimension(2,2),          intent(IN)    :: WIn
+    integer                ,          intent(IN)    :: ILB, IUB, JLB, JUB
+    integer, dimension(:,:), pointer, intent(OUT)   :: WOut
+    logical,                          intent(OUT)   :: WindowWithData
 
     !Local----------------------------------------
     type(T_Polygon),          pointer       :: PolygonDomain
@@ -1930,10 +1932,11 @@ i6:                         if (DirectionX.ne.0.) then
     integer, dimension(2,100)               :: WindowInIndex
     integer                                 :: i, imin, imax, jmin, jmax, count, p, ncells, j
     logical, dimension(5)                   :: WindowCornerInside, GridCornerInside
-    real(8), dimension(2,5)                 :: WindowInAux
-    real(8), dimension(2,4)                 :: DomainEnvelop
-    real(8)                                 :: x3, y3, x4, y4, X, Y
+    real, dimension(2,5)                 :: WindowInAux
+    real, dimension(2,4)                 :: DomainEnvelop
+    real                                 :: x3, y3, x4, y4, X, Y
     logical                                 :: Intersect, NoOverlap
+    real, dimension(2,4)                 :: WindowIn        
     !Begin----------------------------------------
 
     !WindowIn(1,:) -> X
@@ -1941,7 +1944,15 @@ i6:                         if (DirectionX.ne.0.) then
 
     !WindowInIndex(1,:) -> i
     !WindowInIndex(2,:) -> j
-
+    
+        WindowIn(2,1) = Win(2,1)
+        WindowIn(2,2) = Win(2,1)                  
+        WindowIn(2,3) = Win(2,2)
+        WindowIn(2,4) = Win(2,2)                   
+        WindowIn(1,1) = Win(1,1)
+        WindowIn(1,4) = Win(1,1)                  
+        WindowIn(1,2) = Win(1,2)
+        WindowIn(1,3) = Win(1,2)                  
        
         WindowInIndex (:,:) = -99
 
@@ -2133,19 +2144,12 @@ i6:                         if (DirectionX.ne.0.) then
                 jmax = maxval(WindowInIndex(2,1:count))
             
             endif
+
+            WOut(1,1) = imin
+            WOut(1,2) = imax
+            WOut(2,1) = jmin            
+            WOut(2,2) = jmax
             
-            WindowOut(1,1) = imin
-            WindowOut(2,1) = jmin
-
-            WindowOut(1,2) = imax
-            WindowOut(2,2) = jmin
-
-            WindowOut(1,3) = imax
-            WindowOut(2,3) = jmax
-
-            WindowOut(1,4) = imin
-            WindowOut(2,4) = jmax
-
             WindowWithData = .true.
             
         endif  i1     
@@ -2157,8 +2161,8 @@ i6:                         if (DirectionX.ne.0.) then
     subroutine LocateCellPolygonsV2(XX, YY, Point, ILB, IUB, JLB, JUB, IZ, JZ)
 
         !Arguments ---------------------------------------------------------
-        real(8), dimension(:,:)              :: XX, YY
-        type(T_PointF),           pointer    :: Point
+        real, dimension(:,:),    pointer     :: XX, YY
+        type(T_PointF),          pointer     :: Point
         integer,                 intent(IN ) :: ILB, IUB, JLB, JUB
         integer,                 intent(OUT) :: IZ, JZ
 
@@ -2311,62 +2315,66 @@ i6:                         if (DirectionX.ne.0.) then
     subroutine CreateDomainPolygon(XX, YY, ILB, IUB, JLB, JUB, PolygonDomain)
 
         !Arguments ---------------------------------------------------------
-        real(8), dimension(:,:)              :: XX, YY
+        real, dimension(:,:), pointer        :: XX, YY
         integer,                 intent(IN ) :: ILB, IUB, JLB, JUB
         type(T_Polygon),          pointer    :: PolygonDomain
         !Local -------------------------------------------------------------
-
-
-        integer                              :: i, j
+        integer                              :: i, j, imax, ip 
         !Begin -------------------------------------------------------------
 
-        allocate(PolygonDomain)
-        allocate(PolygonDomain%VerticesF(1: 2*(IUB-ILB+1+JUB-JLB+1)+1))
+        imax =  2*(IUB-ILB+1+JUB-JLB+1)-3
 
+        allocate(PolygonDomain)
+        allocate(PolygonDomain%VerticesF(1:imax))
+
+        PolygonDomain%VerticesF(1:imax)%X = FillValueReal
+        PolygonDomain%VerticesF(1:imax)%Y = FillValueReal        
                
-        PolygonDomain%Count = 0.
+        ip = 0
 
         do j = JLB, JUB
 
-            PolygonDomain%Count = PolygonDomain%Count + 1                   
+            ip = ip + 1                   
 
-            PolygonDomain%VerticesF(PolygonDomain%Count)%X  = XX(ILB,j)
-            PolygonDomain%VerticesF(PolygonDomain%Count)%Y  = YY(ILB,j)
-
-        end do
-
-        do i = ILB, IUB
-
-            PolygonDomain%Count = PolygonDomain%Count + 1                   
-
-            PolygonDomain%VerticesF(PolygonDomain%Count)%X  = XX(i,JUB)
-            PolygonDomain%VerticesF(PolygonDomain%Count)%Y  = YY(i,JUB)
+            PolygonDomain%VerticesF(ip)%X  = XX(ILB,j)
+            PolygonDomain%VerticesF(ip)%Y  = YY(ILB,j)
 
         end do
 
-        do j = JUB, JLB, -1
+        do i = ILB+1, IUB
 
-            PolygonDomain%Count = PolygonDomain%Count + 1                   
+            ip = ip + 1                   
 
-            PolygonDomain%VerticesF(PolygonDomain%Count)%X  = XX(IUB,j)
-            PolygonDomain%VerticesF(PolygonDomain%Count)%Y  = YY(IUB,j)
+            PolygonDomain%VerticesF(ip)%X  = XX(i,JUB)
+            PolygonDomain%VerticesF(ip)%Y  = YY(i,JUB)
+
+        end do
+
+        do j = JUB-1, JLB, -1
+
+            ip = ip + 1                   
+
+            PolygonDomain%VerticesF(ip)%X  = XX(IUB,j)
+            PolygonDomain%VerticesF(ip)%Y  = YY(IUB,j)
         
         end do
 
-        do i = IUB, ILB, -1
+        do i = IUB-1, ILB+1, -1
 
-            PolygonDomain%Count = PolygonDomain%Count + 1                   
+            ip = ip + 1                   
 
-            PolygonDomain%VerticesF(PolygonDomain%Count)%X  = XX(i,JLB)
-            PolygonDomain%VerticesF(PolygonDomain%Count)%Y  = YY(i,JLB)
+            PolygonDomain%VerticesF(ip)%X  = XX(i,JLB)
+            PolygonDomain%VerticesF(ip)%Y  = YY(i,JLB)
         
         end do
 
-        PolygonDomain%Count = PolygonDomain%Count + 1                   
+        ip = ip + 1                   
 
         !Close PolygonDomain
-        PolygonDomain%VerticesF(PolygonDomain%Count)%X  = PolygonDomain%VerticesF(1)%X
-        PolygonDomain%VerticesF(PolygonDomain%Count)%Y  = PolygonDomain%VerticesF(1)%Y
+        PolygonDomain%VerticesF(ip)%X  = PolygonDomain%VerticesF(1)%X
+        PolygonDomain%VerticesF(ip)%Y  = PolygonDomain%VerticesF(1)%Y
+        
+        PolygonDomain%Count = ip
 
         PolygonDomain%Limits%Left   = minval(PolygonDomain%VerticesF%X)
         PolygonDomain%Limits%Right  = maxval(PolygonDomain%VerticesF%X)
@@ -2383,15 +2391,15 @@ i6:                         if (DirectionX.ne.0.) then
     subroutine IntersectionBoundCell(XX,YY,x3, y3, x4, y4,                             &
                                      ILB, IUB, JLB, JUB, Intersect, iOut,jOut)   
         !Arguments------------------------------------
-        real(8), dimension(:,:), intent(IN)     :: XX, YY
-        real(8)                                 :: x3, y3, x4, y4
+        real, dimension(:,:), pointer, intent(IN) :: XX, YY
+        real                                    :: x3, y3, x4, y4
         integer                , intent(IN)     :: ILB, IUB, JLB, JUB
         logical,     optional,   intent(OUT)    :: Intersect
         integer,     optional,   intent(OUT)    :: iOut,jOut
 
 
         !Local----------------------------------------
-        real(8)                     :: x1,y1,x2,y2
+        real                        :: x1,y1,x2,y2
         integer                     :: i, j
 
         !Begin----------------------------------------
@@ -2502,17 +2510,17 @@ i6:                         if (DirectionX.ne.0.) then
 
 
         !Arguments------------------------------------
-        real(8), dimension(:,:), intent(IN)     :: XX, YY
-        real(8), dimension(2,5)                 :: WindowInAux    
-        integer                , intent(IN)     :: ILB, IUB, JLB, JUB
-        logical,     optional,   intent(OUT)    :: Intersect
-        integer, dimension(2,8)                 :: WindowInIndex    
-        logical, dimension(5)                   :: GridCornerInside    
-        integer                                 :: Count
+        real, dimension(:,:), pointer, intent(IN)   :: XX, YY
+        real, dimension(2,5)                        :: WindowInAux    
+        integer                , intent(IN)         :: ILB, IUB, JLB, JUB
+        logical,     optional,   intent(OUT)        :: Intersect
+        integer, dimension(2,8)                     :: WindowInIndex    
+        logical, dimension(5)                       :: GridCornerInside    
+        integer                                     :: Count
 
 
         !Local----------------------------------------
-        real(8)                     :: x1,y1,x2,y2,x3,y3,x4,y4
+        real                        :: x1,y1,x2,y2,x3,y3,x4,y4
         integer                     :: i, j, g, w
 
         !Begin----------------------------------------
@@ -2640,9 +2648,9 @@ i6:                         if (DirectionX.ne.0.) then
  !Checks if a segment (x1,y1,x2,y2) intersect nother segment (x3, y3, x4, y4)
     logical function SegIntersectSeg(x1,y1,x2,y2, x3, y3, x4, y4)
         !Arguments--------------------------------------------------
-        real(8)                         :: x1,y1,x2,y2, x3, y3, x4, y4
+        real                         :: x1,y1,x2,y2, x3, y3, x4, y4
         !Local------------------------------------------------------
-        real(8)                         :: xi, yi, d
+        real                         :: xi, yi, d
         !Begin------------------------------------------------------
 
         SegIntersectSeg = .true.
