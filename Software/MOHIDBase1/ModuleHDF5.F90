@@ -510,7 +510,7 @@ Module ModuleHDF5
             if (len_trim(Units)==0) then
                 Units ="-"
             endif
-            call h5Tset_size_f (new_type_id, int(len_trim(Units), 8), STAT_CALL)
+            call h5Tset_size_f (new_type_id, int(len_trim(Units),8), STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'CreateMinMaxAttribute - ModuleHDF5 - ERR13'
 
             !Creates attribute
@@ -681,7 +681,7 @@ Module ModuleHDF5
             if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteGlobalAttribute_Char - ModuleHDF5 - ERR02'
 
             !Sets Size
-            call h5Tset_size_f (new_type_id, int(len_trim(Att_Char), 8), STAT_CALL)
+            call h5Tset_size_f (new_type_id, int(len_trim(Att_Char),8), STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteGlobalAttribute_Char - ModuleHDF5 - ERR03'
 
             !Creates attribute
@@ -3471,7 +3471,7 @@ Module ModuleHDF5
 
 
         !Local-----------------------------------------------------------------
-        integer                                     :: STAT_, ready_
+        integer                                     :: STAT_, ready_, STAT_CALL
         character(StringLength)                     :: ItemName_
         
 
@@ -3492,25 +3492,32 @@ Module ModuleHDF5
             endif
             
            !Opens the group
-            call h5gopen_f (Me%FileID, GroupName, gr_id, STAT)
+            call h5gopen_f (Me%FileID, GroupName, gr_id, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'GetHDF5ArrayDimensions - ModuleHDF5 - ERR10'
 
             !Opens the Dataset
-            call h5dopen_f          (gr_id, ItemName_, dset_id, STAT)
-
+            call h5dopen_f          (gr_id, ItemName_, dset_id, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'GetHDF5ArrayDimensions - ModuleHDF5 - ERR20'
+            
             !Opens data space
-            call h5dget_space_f     (dset_id, space_id, STAT)
+            call h5dget_space_f     (dset_id, space_id,  STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'GetHDF5ArrayDimensions - ModuleHDF5 - ERR30'
 
             !Gets dims
-            call h5sget_simple_extent_dims_f  (space_id, dims, maxdims, STAT) 
+            call h5sget_simple_extent_dims_f  (space_id, dims, maxdims,  STAT_CALL)
+            if (STAT_CALL < SUCCESS_) stop 'GetHDF5ArrayDimensions - ModuleHDF5 - ERR40'
 
             !Closes data space
-            call h5sclose_f         (space_id, STAT)
+            call h5sclose_f         (space_id,  STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'GetHDF5ArrayDimensions - ModuleHDF5 - ERR50'
 
             !Closes data set
-            call h5dclose_f         (dset_id, STAT)
+            call h5dclose_f         (dset_id,  STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'GetHDF5ArrayDimensions - ModuleHDF5 - ERR60'
 
             !Closes the Group
-            call h5gclose_f         (gr_id, STAT)
+            call h5gclose_f         (gr_id,  STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'GetHDF5ArrayDimensions - ModuleHDF5 - ERR70'
 
             if (present(Imax)) Imax = dims(1)
             if (present(Jmax)) Jmax = dims(2)
@@ -3604,7 +3611,7 @@ Module ModuleHDF5
                 !Reads Units
                 call h5aopen_name_f     (dset_id, "Units", attr_id, STAT_CALL)
                 call h5Tcopy_f          (H5T_NATIVE_CHARACTER, type_id, STAT_CALL)
-                call h5Tset_size_f      (type_id, int(StringLength, 8), STAT_CALL)
+                call h5Tset_size_f      (type_id, int(StringLength,8), STAT_CALL)
                 call h5aread_f          (attr_id, type_id, Units_, dims, STAT_CALL)
                 call h5aclose_f         (attr_id, STAT_CALL) 
                 call h5Tclose_f         (type_id, STAT_CALL)
