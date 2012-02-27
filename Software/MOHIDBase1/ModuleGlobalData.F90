@@ -72,7 +72,7 @@ Module ModuleGlobalData
     end interface SetError
 
     !Parameter-----------------------------------------------------------------
-    integer, parameter  :: MaxModules           =  77
+    integer, parameter  :: MaxModules           =  78
 
 #ifdef _INCREASE_MAXINSTANCES
     integer, parameter  :: MaxInstances         = 2000
@@ -235,7 +235,8 @@ Module ModuleGlobalData
     integer, parameter :: DissolO2PercentSat_               = 26
     integer, parameter :: CO2PartialPressure_               = 27
 
-    integer, parameter :: PhytoChla_                        = 50
+    integer, parameter :: PhytoChla_                        = 49
+    integer, parameter :: OilThickness_                     = 50
     integer, parameter :: Nitrite_                          = 51
     integer, parameter :: BOD_                              = 52
     integer, parameter :: Cohesive_Sediment_                = 53
@@ -459,6 +460,7 @@ Module ModuleGlobalData
     integer, parameter :: SpecificHumidity_                 = 616
     integer, parameter :: CO2AtmosphericPressure_           = 617
     integer, parameter :: O2AtmosphericPressure_            = 618
+    integer, parameter :: WindModulusBeaufort_              = 619
 
 
     !Basin Properties
@@ -595,12 +597,16 @@ Module ModuleGlobalData
     integer, parameter ::  TransportCapacityY_             = 3103 
     integer, parameter ::  BottomEvolution_                = 3104 
     integer, parameter ::  Newbathymetry_                  = 3105 
+    integer, parameter ::  bathymetry_                     = 3106     
 
     !wave dynamics
     integer, parameter ::  WaveStressX_                    = 3401
     integer, parameter ::  WaveStressY_                    = 3402
     integer, parameter ::  CurrentX_                       = 3403
     integer, parameter ::  CurrentY_                       = 3404
+    integer, parameter ::  WaveX_                          = 3405
+    integer, parameter ::  WaveY_                          = 3406
+
     !!Monocromatic:
     integer, parameter ::  WaveAmplitude_                  = 3501
     integer, parameter ::  WavePeriod_                     = 3502
@@ -619,6 +625,7 @@ Module ModuleGlobalData
     integer, parameter ::  PeakPeriod_                     = 3520
     integer, parameter ::  PeakDirectionX_                 = 3530    
     integer, parameter ::  PeakDirectionY_                 = 3531        
+    integer, parameter ::  SignificantWaveHeightBeaufort_  = 3532
 !____________________________________________________________________________________
 !________________________________________________________exclusive use @ modulelife__
 
@@ -923,6 +930,7 @@ Module ModuleGlobalData
     character(StringLength), private, parameter :: Char_T90_E_Coli           = 'T90 e.coli'
 
     character(StringLength), private, parameter :: Char_Oil                  = 'oil'
+    character(StringLength), private, parameter :: Char_OilThickness         = 'oil thickness'
     character(StringLength), private, parameter :: Char_Ciliate              = 'ciliate'
     character(StringLength), private, parameter :: Char_Bacteria             = 'bacteria'
     character(StringLength), private, parameter :: Char_ParticulateArsenic   = 'particulate arsenic'
@@ -1243,6 +1251,7 @@ Module ModuleGlobalData
 
     character(StringLength), private, parameter :: Char_MeanSeaLevelPressure     = 'mean sea level pressure'
     character(StringLength), private, parameter :: Char_WindModulus              = 'wind modulus'
+    character(StringLength), private, parameter :: Char_WindModulusBeaufort      = 'wind modulus beaufort'    
     character(StringLength), private, parameter :: Char_WindDirection            = 'wind direction'
     character(StringLength), private, parameter :: Char_SpecificHumidity         = 'specific humidity'
 
@@ -1264,18 +1273,24 @@ Module ModuleGlobalData
     character(StringLength), private, parameter :: Char_BottomEvolution          = "bottom evolution"
     character(StringLength), private, parameter :: Char_Newbathymetry            = "new bathymetry"
     character(StringLength), private, parameter :: Char_Sand                     = "sand"
+    character(StringLength), private, parameter :: Char_bathymetry               = "bathymetry"    
 
     !wave dynamics
     character(StringLength), private, parameter :: Char_WaveStressX              = 'wave stress X'
     character(StringLength), private, parameter :: Char_WaveStressY              = 'wave stress Y'   
     character(StringLength), private, parameter :: Char_CurrentX                 = 'Current X'
     character(StringLength), private, parameter :: Char_CurrentY                 = 'Current Y'
+    character(StringLength), private, parameter :: Char_WaveX                    = 'wave_x'
+    character(StringLength), private, parameter :: Char_WaveY                    = 'wave_y'
+
+
     !!Monocromatic:
     character(StringLength), private, parameter :: Char_WaveAmplitude            = 'wave amplitude'
     character(StringLength), private, parameter :: Char_WavePeriod               = 'wave period'
     character(StringLength), private, parameter :: Char_WaveDirection            = 'wave direction'
     !!Statistical wave parametres (WW3,SWAN)
     character(StringLength), private, parameter :: Char_SignificantWaveHeight    = 'significant wave height'
+    character(StringLength), private, parameter :: Char_SignificantWaveHeightBeaufort    = 'significant wave height beaufort'
     character(StringLength), private, parameter :: Char_MeanWaveLength           = 'mean wave length'
     character(StringLength), private, parameter :: Char_MeanWavePeriod           = 'mean wave period'
     character(StringLength), private, parameter :: Char_MeanWaveDirection        = 'mean wave direction'
@@ -1288,6 +1303,7 @@ Module ModuleGlobalData
     character(StringLength), private, parameter :: Char_WindSeaPeakFrequency     = 'wind sea peak frequency'
     character(StringLength), private, parameter :: Char_WindSeaPeakDirection     = 'wind sea peak direction'
     character(StringLength), private, parameter :: Char_WaveSwellHeight          = 'wave swell height'
+
 
     !Consolidation
     character(StringLength), private, parameter :: Char_ConsolidationFlux        = 'consolidation flux'
@@ -1638,7 +1654,8 @@ Module ModuleGlobalData
         T_Module(mNETCDF_                , "NETCDF"),                T_Module(mSEQUENTIALASSIMILATION_ , "SequentialAssimilation"),&
         T_Module(mPOROUSMEDIAPROPERTIES_ , "PorousMediaProperties"), T_Module(mPHREEQC_                , "PhreeqC"),               &
         T_Module(mCUDA_                  , "Cuda"),                                                                                &
-        T_Module(mRUNOFFPROPERTIES_      , "RunoffProperties"),      T_Module(mCHAINREACTIONS_         , "ChainReactions") /)
+        T_Module(mRUNOFFPROPERTIES_      , "RunoffProperties"),      T_Module(mCHAINREACTIONS_         , "ChainReactions"),        &
+        T_Module(mField4D_               , "Field4D") /)
 
     !Variables
     logical, dimension(MaxModules)                                  :: RegisteredModules = .false.
@@ -2042,6 +2059,7 @@ Module ModuleGlobalData
             call AddPropList (T90_,                     Char_T90,                       ListNumber)
             call AddPropList (T90_E_Coli_,              Char_T90_E_Coli,                ListNumber)
             call AddPropList (Oil_,                     Char_Oil,                       ListNumber)
+            call AddPropList (OilThickness_,            Char_OilThickness,              ListNumber)            
             call AddPropList (Ciliate_,                 Char_Ciliate,                   ListNumber)
             call AddPropList (Bacteria_,                Char_Bacteria,                  ListNumber)
             call AddPropList (ParticulateArsenic_,      Char_ParticulateArsenic,        ListNumber)
@@ -2229,6 +2247,7 @@ Module ModuleGlobalData
 
             call AddPropList (MeanSeaLevelPressure_ ,   Char_MeanSeaLevelPressure,      ListNumber)
             call AddPropList (WindModulus_ ,            Char_WindModulus         ,      ListNumber)
+            call AddPropList (WindModulusBeaufort_ ,    Char_WindModulusBeaufort ,      ListNumber)            
             call AddPropList (WindDirection_ ,          Char_WindDirection       ,      ListNumber)
 
          
@@ -2320,12 +2339,15 @@ Module ModuleGlobalData
             call AddPropList (TransportCapacityY_,      Char_TransportCapacityY,         ListNumber)
             call AddPropList (BottomEvolution_,         Char_BottomEvolution  ,          ListNumber)
             call AddPropList (Newbathymetry_,           Char_Newbathymetry    ,          ListNumber)
-
+            call AddPropList (bathymetry_,              Char_bathymetry    ,             ListNumber)
             !wave dynamics
             call AddPropList (WaveStressX_,             Char_WaveStressX,                ListNumber)
             call AddPropList (WaveStressY_,             Char_WaveStressY,                ListNumber)
             call AddPropList (CurrentX_,                Char_CurrentX,                   ListNumber)
             call AddPropList (CurrentY_,                Char_CurrentY,                   ListNumber)
+            call AddPropList (WaveX_,                   Char_WaveX,                      ListNumber)
+            call AddPropList (WaveY_,                   Char_WaveY,                      ListNumber)
+
 
             !!Monocromatic:
             call AddPropList (WaveAmplitude_,           Char_WaveAmplitude,              ListNumber)
@@ -2333,6 +2355,7 @@ Module ModuleGlobalData
             call AddPropList (WaveDirection_,           Char_WaveDirection,              ListNumber)
             !!Statistical wave parametres (WW3,SWAN)
             call AddPropList (SignificantWaveHeight_,   Char_SignificantWaveHeight,      ListNumber)
+            call AddPropList (SignificantWaveHeightBeaufort_,   Char_SignificantWaveHeightBeaufort,      ListNumber)            
             call AddPropList (MeanWaveLength_,          Char_MeanWaveLength,             ListNumber)
             call AddPropList (MeanWavePeriod_,          Char_MeanWavePeriod,             ListNumber)
             call AddPropList (MeanWaveDirection_,       Char_MeanWaveDirection,          ListNumber)
@@ -2942,7 +2965,7 @@ cd3 :   if (ErrorMagnitude == FATAL_) then
 
     end subroutine WriteDTLog
 
-    !-----------------------------------------------------------------------
+    !--------------------------------------------------------------------------
 
     subroutine StartupMohid(ModelName)
 
