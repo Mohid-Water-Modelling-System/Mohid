@@ -46,6 +46,7 @@ Module ModuleEnterData
     !Modifier
     public  :: RewindBuffer     !Sets buffer for new search
     public  :: RewindBlock      !Sets block for new search
+    public  :: RewindBlockinBlock !Sets block in block for a new search
     public  :: ReplaceFullBufferLine
 
     !Selector
@@ -482,6 +483,63 @@ cd6 :               if (Me%BlockClientIDnumber .EQ. ClientNumber) then
     
     end subroutine RewindBlock
 
+    !--------------------------------------------------------------------------
+
+    subroutine RewindBlockinBlock(EnterDataID, ClientNumber, STAT)
+
+        !Parameter-------------------------------------------------------------
+        integer                                     :: EnterDataID
+        integer, optional                           :: ClientNumber
+        integer, optional, intent(OUT)              :: STAT    
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: ready_     
+        integer                                     :: STAT_
+
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(EnterDataID, ready_)
+
+cd4 :   if (.NOT. present(ClientNumber)) then
+cd1 :       if ( ready_ .EQ. IDLE_ERR_       ) then
+            
+                Me%BlockFromBlockFromBlock%BeginBlock = null_int
+                Me%BlockFromBlockFromBlock%EndBlock   = null_int
+           
+                STAT_ = SUCCESS_
+            else               
+                STAT_ = ready_
+            end if cd1
+        else 
+cd5 :       if (ready_ .NE. OFF_ERR_       ) then  
+
+cd2 :           if (Me%BLOCK_LOCK) then
+cd6 :               if (Me%BlockClientIDnumber .EQ. ClientNumber) then
+       
+                        Me%BlockFromBlockFromBlock%BeginBlock = null_int
+                        Me%BlockFromBlockFromBlock%EndBlock   = null_int
+
+                        STAT_ = SUCCESS_
+                    else
+                        STAT_ = CLIENT_NB_ERR_
+                    end if cd6
+                else
+                    STAT_ = BLOCK_UNLOCK_ERR_
+                end if cd2
+            else               
+                STAT_ = ready_
+            end if cd5
+        end if cd4
+
+
+        if (present(STAT))                                                    &
+            STAT = STAT_
+
+        !----------------------------------------------------------------------
+    
+    end subroutine RewindBlockinBlock
 
     !--------------------------------------------------------------------------
 
@@ -3731,9 +3789,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   
         ! that this property don"t have outputs
         if (iflag==0) OutPutsOn = .false.
 
-        ! iflag returns also the number of values read                   
-        ReadValuesNumber = iflag
-        
+
         ! If iflag=1 it can means :
         ! 1 - only one value is read  
         ! 2 - the keyword was find but don"t have any values AuxDT(1)=FillValueReal
@@ -3751,9 +3807,14 @@ cd2 :   if (AuxDT(1) > 0) then
         end if cd1
 
 cd3:    if (OutPutsOn) then
+            ! iflag returns also the number of values read                   
+            ReadValuesNumber = iflag
+
             ! We need to now the interval between the last specific output and the end of the simulation (TimeE).
             ! This information is important to compute the number of outputs after the last specific 
             ! output 
+
+
             ExtraTime_Seconds = EndTime - (CurrentTime + AuxDT(ReadValuesNumber - 1))
 
             if (ExtraTime_Seconds < 0)                                                   &
