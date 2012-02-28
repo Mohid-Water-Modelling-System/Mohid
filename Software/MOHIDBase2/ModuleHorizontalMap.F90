@@ -110,7 +110,7 @@ module ModuleHorizontalMap
     !Modifier
     public  :: UpdateComputeFaces2D
     private ::      UpdateOpenPoints2D
-
+    public  :: UpdateWaterPoints2D
 
     !Destructor
     public  :: KillHorizontalMap
@@ -196,13 +196,14 @@ module ModuleHorizontalMap
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
     subroutine ConstructHorizontalMapWater(HorizontalMapID, GridDataID, HorizontalGridID,   &
-                                           ActualTime, STAT)  
+                                           ActualTime, WaterPoints, STAT)  
 
         !Arguments-------------------------------------------------------------
-        integer                             :: HorizontalMapID
-        integer                             :: GridDataID
-        integer                             :: HorizontalGridID
-        type (T_Time), optional             :: ActualTime
+        integer, intent(INOUT)                :: HorizontalMapID
+        integer, intent(INOUT)                :: GridDataID
+        integer, intent(INOUT)                :: HorizontalGridID
+        type (T_Time), optional,   intent(IN) :: ActualTime
+        integer, optional, dimension(:,:), pointer :: WaterPoints
         integer, optional, intent(OUT)      :: STAT
 
         !Local-----------------------------------------------------------------
@@ -252,59 +253,77 @@ cd2 :   if (ready_ .EQ. OFF_ERR_) then
 
             JLB = Me%WorkSize%JLB
             JUB = Me%WorkSize%JUB
-
-            !Recieves the Bathymetry
-            call GetGridData(Me%ObjTopography, Bathymetry, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructHorizontalMapWater - ModuleHorizontalMap - ERR03'
-
+            
             !Allocates Variables
             call AllocateVariables()
-
-do1:        do j = JLB, JUB
-do2:        do i = ILB, IUB 
-cd3 :           if      ( Bathymetry(i, j) >-55.0) then
-
-                    Me%WaterPoints2D(i, j)    = 1
-
-                else if ( Bathymetry(i, j) <-90.0) then cd3
-
-                    Me%LandPoints2D(i, j)     = 1
-
-                else if ((Bathymetry(i, j) <-55.0) .AND. (Bathymetry(i, j) >-90.0)) then cd3
-
-                    Me%ExteriorPoints2D(i, j) = 1
-
-                end if cd3
-            end do do2
-            end do do1
-
-
-do3 :       do I = Me%Size%ILB, Me%Size%IUB
-                Me%ExteriorPoints2D(I,Me%Size%JLB) = 1
-                Me%ExteriorPoints2D(I,Me%Size%JUB) = 1
-            end do do3
-
-do4 :       do J = Me%Size%JLB, Me%Size%JUB
-                Me%ExteriorPoints2D(Me%Size%ILB,J) = 1
-                Me%ExteriorPoints2D(Me%Size%IUB,J) = 1
-            end do do4
-
-
-            !Computes Imax & Imin. These arrays are used to speed up the model avoiding the computation of land points. 
-            ! Important for applications with small Water/Domain ratios.
-            call ComputeIMaxIMin()
             
+
+            if (present(WaterPoints)) then
+
+do5:            do j = JLB, JUB
+do6:            do i = ILB, IUB 
+
+                    Me%WaterPoints2D(i, j)    =     WaterPoints(i, j)
+                    Me%LandPoints2D (i, j)    = 1 - WaterPoints(i, j)
+
+                enddo do6
+                enddo do5
             
-            !This subroutine search the matrix Bathymetry for boundary points
-            call ConstructBoundary(Bathymetry)
+            else 
 
-            !This subroutine defines the water faces
-            call ConstructWaterFaces
+                !Recieves the Bathymetry
+                call GetGridData(Me%ObjTopography, Bathymetry, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructHorizontalMapWater - ModuleHorizontalMap - ERR03'
+
+                
+do1:            do j = JLB, JUB
+do2:            do i = ILB, IUB 
+cd3 :               if      ( Bathymetry(i, j) >-55.0) then
+
+                        Me%WaterPoints2D(i, j)    = 1
+
+                    else if ( Bathymetry(i, j) <-90.0) then cd3
+
+                        Me%LandPoints2D(i, j)     = 1
+
+                    else if ((Bathymetry(i, j) <-55.0) .AND. (Bathymetry(i, j) >-90.0)) then cd3
+
+                        Me%ExteriorPoints2D(i, j) = 1
+
+                    end if cd3
+                end do do2
+                end do do1
 
 
-            !Ungets bathymetry
-            call UngetGridData  (Me%ObjTopography, Bathymetry, STAT = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_) stop 'ConstructHorizontalMapWater - ModuleHorizontalMap - ERR03'
+do3 :           do I = Me%Size%ILB, Me%Size%IUB
+                    Me%ExteriorPoints2D(I,Me%Size%JLB) = 1
+                    Me%ExteriorPoints2D(I,Me%Size%JUB) = 1
+                end do do3
+
+do4 :           do J = Me%Size%JLB, Me%Size%JUB
+                    Me%ExteriorPoints2D(Me%Size%ILB,J) = 1
+                    Me%ExteriorPoints2D(Me%Size%IUB,J) = 1
+                end do do4
+
+
+                !Computes Imax & Imin. These arrays are used to speed up the model avoiding the computation of land points. 
+                ! Important for applications with small Water/Domain ratios.
+                call ComputeIMaxIMin()
+                
+                
+                !This subroutine search the matrix Bathymetry for boundary points
+                call ConstructBoundary(Bathymetry)
+
+                !This subroutine defines the water faces
+                call ConstructWaterFaces
+
+
+                !Ungets bathymetry
+                call UngetGridData  (Me%ObjTopography, Bathymetry, STAT = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_) stop 'ConstructHorizontalMapWater - ModuleHorizontalMap - ERR03'
+            
+            endif
+
 
             !Returns ID
             HorizontalMapID = Me%InstanceID
@@ -483,6 +502,9 @@ do1 :   do j = JLB , JUB
 cd1 :       if (Bathymetry(i, j) > -55.) then
                 Me%BoundaryPoints2D(i, j)          = 1
                 Me%ExteriorBoundaryFaces%V(i, j)   = 1
+            else   cd1
+                Me%BoundaryPoints2D(i, j)          = 0
+                Me%ExteriorBoundaryFaces%V(i, j)   = 0
             end if cd1
         end do do1
 
@@ -491,6 +513,9 @@ do2 :   do j = JLB , JUB
 cd2 :       if (Bathymetry(i, j) > -55.) then
                 Me%BoundaryPoints2D(i, j)          = 1
                 Me%ExteriorBoundaryFaces%V(i+1, j) = 1
+            else   cd2
+                Me%BoundaryPoints2D(i, j)          = 0
+                Me%ExteriorBoundaryFaces%V(i+1, j) = 0
             end if cd2
         end do do2
 
@@ -499,6 +524,9 @@ do3 :   do i = ILB , IUB
 cd3 :       if (Bathymetry(i, j) > -55.) then
                 Me%BoundaryPoints2D(i, j)          = 1
                 Me%ExteriorBoundaryFaces%U(i, j)   = 1
+            else   cd3
+                Me%BoundaryPoints2D(i, j)          = 0
+                Me%ExteriorBoundaryFaces%U(i, j)   = 0
             end if cd3
         end do do3
 
@@ -507,6 +535,9 @@ do4 :   do i = ILB , IUB
 cd4 :       if (Bathymetry(i, j) > -55.) then
                 Me%BoundaryPoints2D(i, j)          = 1
                 Me%ExteriorBoundaryFaces%U(i, j+1) = 1
+            else   cd4                
+                Me%BoundaryPoints2D(i, j)          = 0
+                Me%ExteriorBoundaryFaces%U(i, j+1) = 0
             end if cd4
         end do do4
 
@@ -520,6 +551,9 @@ do6 :   do i = ILB+1 , IUB-1
                 Bathymetry(i-1, j)  > -90.0)    then
                     Me%BoundaryPoints2D(i, j)          = 1
                     Me%ExteriorBoundaryFaces%V(i, j)   = 1
+            else
+                    Me%BoundaryPoints2D(i, j)          = 0
+                    Me%ExteriorBoundaryFaces%V(i, j)   = 0
             endif
                     
             !left call of a waterpoint with -80?
@@ -528,6 +562,9 @@ do6 :   do i = ILB+1 , IUB-1
                 Bathymetry(i, j-1)  > -90.0)    then
                     Me%BoundaryPoints2D(i, j)          = 1
                     Me%ExteriorBoundaryFaces%U(i, j)   = 1
+            else
+                    Me%BoundaryPoints2D(i, j)          = 0
+                    Me%ExteriorBoundaryFaces%U(i, j)   = 0
             endif
 
             !upper cell of a waterpoint with -80?
@@ -536,7 +573,11 @@ do6 :   do i = ILB+1 , IUB-1
                 Bathymetry(i+1, j)  > -90.0)    then
                     Me%BoundaryPoints2D(i, j)          = 1
                     Me%ExteriorBoundaryFaces%V(i+1, j) = 1
+            else
+                    Me%BoundaryPoints2D(i, j)          = 0
+                    Me%ExteriorBoundaryFaces%V(i+1, j) = 0
             endif
+            
 
             !right cell of a waterpoint with -80?
             if (Bathymetry(i, j)    > -55.0     .and.  &
@@ -544,6 +585,9 @@ do6 :   do i = ILB+1 , IUB-1
                 Bathymetry(i, j+1)  > -90.0)    then
                     Me%BoundaryPoints2D(i, j)          = 1
                     Me%ExteriorBoundaryFaces%U(i, j+1) = 1
+            else
+                    Me%BoundaryPoints2D(i, j)          = 0
+                    Me%ExteriorBoundaryFaces%U(i, j+1) = 0
             endif
             
 
@@ -559,6 +603,10 @@ do8 :   do i = ILB+1 , IUB
                 Me%BoundaryPoints2D(i, j - 1) == Not_Boundary)  then 
 
                 Me%BoundaryFaces%U(i, j) = Boundary
+            
+            else                
+
+                Me%BoundaryFaces%U(i, j) = Not_Boundary
 
             endif
 
@@ -568,15 +616,19 @@ do8 :   do i = ILB+1 , IUB
                 Me%BoundaryPoints2D(i, j)     == Not_Boundary)  then 
 
                 Me%BoundaryFaces%U(i, j) = Boundary
+            else                
+
+                Me%BoundaryFaces%U(i, j) = Not_Boundary
+
 
             endif
 
             if (Me%BoundaryPoints2D(i, j)     == Boundary     .and.  & 
                 Me%WaterPoints2D   (i - 1, j) == WaterPoint   .and.  &
                 Me%BoundaryPoints2D(i - 1, j) == Not_Boundary)  then 
-
                 Me%BoundaryFaces%V(i, j) = Boundary
-
+            else                
+                Me%BoundaryFaces%V(i, j) = Not_Boundary
             endif
 
 
@@ -585,7 +637,8 @@ do8 :   do i = ILB+1 , IUB
                 Me%BoundaryPoints2D(i, j)     == Not_Boundary)  then 
 
                 Me%BoundaryFaces%V(i, j) = Boundary
-
+            else                
+                Me%BoundaryFaces%V(i, j) = Not_Boundary
             endif
 
         end do do8
@@ -618,7 +671,8 @@ do8 :   do i = ILB+1 , IUB
                 Me%ExteriorBoundaryFaces%U(i, j)  == 1) then
              
                 Me%WaterFaces%U(i, j) = 1
-             
+            else                
+                Me%WaterFaces%U(i, j) = 0
             end if 
         end do
         enddo
@@ -632,7 +686,8 @@ do8 :   do i = ILB+1 , IUB
                 Me%ExteriorBoundaryFaces%V(i, j)  == 1) then
              
                 Me%WaterFaces%V(i, j) = 1
-             
+            else
+                Me%WaterFaces%V(i, j) = 0            
             end if 
         end do
         enddo
@@ -1184,6 +1239,124 @@ do4:        do I = ILB+1, IUB
 
     end subroutine UpdateOpenPoints2D
 
+
+    !--------------------------------------------------------------------------
+
+    subroutine UpdateWaterPoints2D(HorizontalMapID, WaterPoints, STAT)  
+
+        !Arguments-------------------------------------------------------------
+        integer, intent(INOUT)                :: HorizontalMapID
+        integer, optional, dimension(:,:), pointer :: WaterPoints
+        integer, optional, intent(OUT)      :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                             :: STAT_CALL
+        integer                             :: ready_         
+        real, pointer, dimension(: , :)     :: Bathymetry    
+        integer                             :: i, j
+        integer                             :: STAT_ 
+        integer                             :: ILB, IUB, JLB, JUB
+                                            
+        !----------------------------------------------------------------------
+
+
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(HorizontalMapID, ready_)    
+
+cd1 :   if (ready_ .EQ. IDLE_ERR_) then
+
+            ILB = Me%WorkSize%ILB
+            IUB = Me%WorkSize%IUB
+
+            JLB = Me%WorkSize%JLB
+            JUB = Me%WorkSize%JUB
+
+            if (present(WaterPoints)) then
+
+do5:            do j = JLB, JUB
+do6:            do i = ILB, IUB 
+
+                    Me%WaterPoints2D(i, j)    =     WaterPoints(i, j)
+                    Me%LandPoints2D (i, j)    = 1 - WaterPoints(i, j)
+
+                enddo do6
+                enddo do5
+            
+            else 
+
+                !Recieves the Bathymetry
+                call GetGridData(Me%ObjTopography, Bathymetry, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'UpdateWaterPoints2D - ModuleHorizontalMap - ERR10'
+
+                
+do1:            do j = JLB, JUB
+do2:            do i = ILB, IUB 
+
+                    Me%WaterPoints2D   (i, j) = 0
+                    Me%LandPoints2D    (i, j) = 0
+                    Me%ExteriorPoints2D(i, j) = 0
+                    
+cd3 :               if      ( Bathymetry(i, j) >-55.0) then
+
+                        Me%WaterPoints2D(i, j)    = 1
+
+                    else if ( Bathymetry(i, j) <-90.0) then cd3
+
+                        Me%LandPoints2D(i, j)     = 1
+
+                    else if ((Bathymetry(i, j) <-55.0) .AND. (Bathymetry(i, j) >-90.0)) then cd3
+
+                        Me%ExteriorPoints2D(i, j) = 1
+
+                    end if cd3
+                end do do2
+                end do do1
+
+
+do3 :           do I = Me%Size%ILB, Me%Size%IUB
+                    Me%ExteriorPoints2D(I,Me%Size%JLB) = 1
+                    Me%ExteriorPoints2D(I,Me%Size%JUB) = 1
+                end do do3
+
+do4 :           do J = Me%Size%JLB, Me%Size%JUB
+                    Me%ExteriorPoints2D(Me%Size%ILB,J) = 1
+                    Me%ExteriorPoints2D(Me%Size%IUB,J) = 1
+                end do do4
+
+
+                !Computes Imax & Imin. These arrays are used to speed up the model avoiding the computation of land points. 
+                ! Important for applications with small Water/Domain ratios.
+                call ComputeIMaxIMin()
+                
+                
+                !This subroutine search the matrix Bathymetry for boundary points
+                call ConstructBoundary(Bathymetry)
+
+                !This subroutine defines the water faces
+                call ConstructWaterFaces
+
+
+                !Ungets bathymetry
+                call UngetGridData  (Me%ObjTopography, Bathymetry, STAT = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_) stop 'UpdateWaterPoints2D - ModuleHorizontalMap - ERR20'
+
+            endif
+
+            STAT_ = SUCCESS_
+        else               
+            STAT_ = ready_
+        end if cd1
+
+
+        if (present(STAT)) STAT = STAT_
+
+
+    end subroutine UpdateWaterPoints2D
+
+    !--------------------------------------------------------------------------
 
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
