@@ -699,6 +699,8 @@ Module ModuleLagrangian
         character(PathLength)                   :: JetFileOut
         integer                                 :: JetUnit
         integer                                 :: ObjJet                   = 0
+        
+        real                                    :: R_ice                    = null_real
 
     end type T_Movement
 
@@ -2668,7 +2670,20 @@ TURB_V:                 if (flag == 1) then
                              Default      = OFF,                                         &
                              STAT         = STAT_CALL)             
                 if (STAT_CALL /= SUCCESS_) stop 'ConstructOrigins - ModuleLagrangian - ERR820'
+                
+                if (NewOrigin%Movement%StokesDrift) then
 
+                    call GetData(NewOrigin%Movement%R_ice,                              &
+                                 Me%ObjEnterData,                                       &
+                                 flag,                                                  &
+                                 SearchType   = FromBlock,                              &
+                                 keyword      ='R_ICE',                                 &
+                                 ClientModule ='ModuleLagrangian',                      &    
+                                 Default      = 1.,                                     &
+                                 STAT         = STAT_CALL)             
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructOrigins - ModuleLagrangian - ERR825'
+    
+                endif
 
                 !WINDCOEF
                 call GetData(NewOrigin%Movement%WindTransferCoef,                        &
@@ -8825,6 +8840,9 @@ MT:             if (CurrentOrigin%Movement%MovType == SullivanAllen_) then
                     VelStokesDrift      = 0.5 * (WaveHeight /  2 )**2 * WaveNumber * AngFrequency * & 
                                           exp(2* WaveNumber *                                       &
                                           abs(Me%ExternalVar%SZZ(i, j, KUB) - CurrentPartic%Position%Z) )
+
+
+                    VelStokesDrift      = CurrentOrigin%Movement%R_ice * VelStokesDrift
                                           
                     if (CurrentOrigin%Movement%WindOriginON) then
 
