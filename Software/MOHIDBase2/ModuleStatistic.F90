@@ -287,9 +287,9 @@ Module ModuleStatistic
             if (Me%Daily%On) then
                 call AllocateStatisticMatrixes (Me%Daily)
 
-                call ExtractDate (Me%ExternalVar%Now, Year=Year, Month=Month, Day=Day)
+                call ExtractDate (Time1=Me%ExternalVar%Now, Year=Year, Month=Month, Day=Day)
                 
-                call SetDate(AuxTime, Year=Year, Month=Month, Day=Day,          &
+                call SetDate(Time1=AuxTime, Year=Year, Month=Month, Day=Day,          &
                              Hour=0.0, Minute=0.0, Second=0.0)
                 
                 Me%Daily%NextOutputTime = AuxTime + 24.*3600.
@@ -1716,8 +1716,8 @@ cd1:    if (DT>0) then
         enddo
 
         !Verifies if the present time is a new output
-        call ExtractDate (Me%ExternalVar%Now,       Day = PresentDay)
-        call ExtractDate (Me%Daily%LastCalculation, Day = OldDay)
+        call ExtractDate (Time1=Me%ExternalVar%Now,       Day = PresentDay)
+        call ExtractDate (Time1=Me%Daily%LastCalculation, Day = OldDay)
         if (int(PresentDay) /= int(OldDay)) then
             call WriteValuesToFileHDF5 (.false., .true., .false., .false., .false.)
             Me%Daily%Minimum           = Value
@@ -1890,8 +1890,8 @@ cd1:    if (DT>0) then
         enddo
 
         !Verifies if the present time is a new output
-        call ExtractDate (Me%ExternalVar%Now,         Month = PresentMonth)
-        call ExtractDate (Me%Monthly%LastCalculation, Month = OldMonth)
+        call ExtractDate (Time1=Me%ExternalVar%Now,         Month = PresentMonth)
+        call ExtractDate (Time1=Me%Monthly%LastCalculation, Month = OldMonth)
         if (int(PresentMonth) /= int(OldMonth)) then
             call WriteValuesToFileHDF5 (.false., .false., .true., .false., .false.)
             Me%Monthly%Minimum           = Value
@@ -1960,7 +1960,7 @@ cd1:    if (DT>0) then
         JLB = Me%ExternalVar%WorkSize%JLB
         JUB = Me%ExternalVar%WorkSize%JUB
 
-        call ExtractDate (Me%ExternalVar%Now, Hour = PresentHour)
+        call ExtractDate (Time1=Me%ExternalVar%Now, Hour = PresentHour)
         
 if1:    if (int(PresentHour) == int(Me%SpecificHourValue)) then
 
@@ -2550,8 +2550,8 @@ cd1:    if (DT>0) then
 
 
         !Verifies if the present time is a new output
-        call ExtractDate (Me%ExternalVar%Now,         Month = PresentMonth)
-        call ExtractDate (Me%Monthly%LastCalculation, Month = OldMonth)
+        call ExtractDate (Time1=Me%ExternalVar%Now,         Month = PresentMonth)
+        call ExtractDate (Time1=Me%Monthly%LastCalculation, Month = OldMonth)
         if (int(PresentMonth) /= int(OldMonth)) then
             call WriteValuesToFileHDF5 (.false., .false., .true., .false., .false.)
             Me%Monthly%Minimum2D           = Value2D
@@ -2617,7 +2617,7 @@ cd1:    if (DT>0) then
         JLB = Me%ExternalVar%WorkSize%JLB
         JUB = Me%ExternalVar%WorkSize%JUB
 
-        call ExtractDate (Me%ExternalVar%Now,         Hour = PresentHour)
+        call ExtractDate (Time1=Me%ExternalVar%Now,         Hour = PresentHour)
         
 if1:    if (int(PresentHour) == int(Me%SpecificHourValue)) then
        
