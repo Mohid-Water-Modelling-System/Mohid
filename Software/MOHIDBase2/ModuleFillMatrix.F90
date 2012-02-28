@@ -187,6 +187,7 @@ Module ModuleFillMatrix
         real,           dimension(:,:  ), pointer   :: Values, Depths
         type(T_Time),   dimension(:    ), pointer   :: TimeInstants
         integer                                     :: NumberOfInstants, nValues, nDepths
+        integer                                     :: FirstInstant, LastInstant        
         logical                                     :: CyclicTimeON = .false.
     end type T_ProfileTimeSerie
 
@@ -253,6 +254,8 @@ Module ModuleFillMatrix
         real                                        :: DTForNextEvent       = -null_real
         real, dimension(:, :   ), pointer           :: Matrix2D
         real, dimension(:, :, :), pointer           :: Matrix3D
+        
+        type(T_Time)                                :: BeginTime, EndTime
 
         !Initialization Methods
         type (T_Layers   )                          :: Layers
@@ -347,6 +350,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 !            Me%WorkSize2D%JLB   = Me%Size2D%JLB + 1
 !            Me%WorkSize2D%JUB   = Me%Size2D%JUB - 1
 
+
             Me%Size3D       = T_Size3D(null_int, null_int, null_int, null_int, null_int, null_int)
             Me%Dim          = Dim2D
             Me%TypeZUV      = TypeZUV
@@ -376,12 +380,11 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 Me%HDF%ArgumentFileName = .false.
             
             endif
-
-
+            
             call ReadOptions (ExtractType, PointsToFill2D = PointsToFill2D)
             
             nUsers = DeassociateInstance(mENTERDATA_, Me%ObjEnterData)
-            if (nUsers == 0) stop 'ConstructFillMatrix2D - ModuleFillMatrix - ERR01' 
+            if (nUsers == 0) stop 'ConstructFillMatrix2D - ModuleFillMatrix - ERR20' 
 
             
             if(Me%TimeEvolution == None)then
@@ -618,6 +621,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         integer                                         :: AuxInteger
 
         !---------------------------------------------------------------------
+
         !Reads Time Evolution
         call GetData(AuxString, Me%ObjEnterData,  iflag,                            &
                      SearchType     = ExtractType,                                  &
@@ -706,6 +710,15 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             end select
         
         end if
+        
+
+        ! Check if the simulation goes backward in time or forward in time (default mode)
+        call GetBackTracking(Me%ObjTime, Me%BackTracking, STAT = STAT_CALL)                    
+        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleFillMatrix - ERR210' 
+
+        call GetComputeTimeLimits(Me%ObjTime, BeginTime = Me%BeginTime,                 &
+                                  EndTime = Me%EndTime, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleFillMatrix - ERR220'        
 
         !Gets the default value
         call GetData(Me%DefaultValue, Me%ObjEnterData,  iflag,                          &
@@ -982,6 +995,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 endif
                 
         end select
+
+
 
 
     end subroutine ReadOptions
@@ -2611,11 +2626,10 @@ i2:     if (Me%Dim == Dim2D) then
         integer                                         :: STAT_CALL
         integer                                         :: iflag, HDF5_READ
         logical                                         :: exist
-        type(T_Time)                                    :: Now
+        type(T_Time)                                    :: Now, CurrentTime
 
         !Local-----------------------------------------------------------------
         integer                                         :: ILB, IUB, JLB, JUB, KLB, KUB, i, j, k
-        type(T_Time)                                    :: EndTime
         logical                                         :: FoundSecondInstant, LastGroupEqualField
         real                                            :: Year, Month, Day, Hour, Minute, Second
 
@@ -2781,19 +2795,27 @@ i0:     if(Me%Dim == Dim2D)then
         !if only one instant is found then values remain constant
         if(Me%HDF%NumberOfInstants == 1) Me%RemainsConstant = .true.
 
-        call GetComputeCurrentTime(Me%ObjTime, Now, STAT = STAT_CALL)
+        call GetComputeCurrentTime(Me%ObjTime, CurrentTime, STAT = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_) stop 'ConstructHDFInput - ModuleFillMatrix - ERR140'
-
-        call GetComputeTimeLimits(Me%ObjTime, EndTime = EndTime, STAT = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructHDFInput - ModuleFillMatrix - ERR150'
-
+        
+        if (Me%BackTracking) then  
+            call BacktrackingTime(Now)
+        else   
+            Now = CurrentTime
+        endif  
 
 i1:     if (.not. Me%HDF%Generic4D%ON) then
             
 i2:         if(Me%HDF%NumberOfInstants > 1)then
 
-                Me%HDF%PreviousInstant  = 1
-                Me%HDF%NextInstant      = Me%HDF%PreviousInstant
+                if (Me%Backtracking) then
+                    Me%HDF%PreviousInstant  = Me%HDF%NumberOfInstants
+                    Me%HDF%NextInstant      = Me%HDF%PreviousInstant               
+                else
+                    Me%HDF%PreviousInstant  = 1
+                    Me%HDF%NextInstant      = Me%HDF%PreviousInstant
+                endif
+                
                 Me%HDF%PreviousTime     = HDF5TimeInstant(Me%HDF%PreviousInstant) 
                 
                 call CheckCyclicMonths(Me%HDF%PreviousTime, RefTime = Now, CyclicTimeON = Me%HDF%CyclicTimeON)
@@ -2803,28 +2825,51 @@ i3:             if (Me%HDF%CyclicTimeON) then
                     if (Me%HDF%NumberOfInstants /= 12) stop 'ConstructHDFInput - ModuleFillMatrix - ERR160'
 
                 else i3
+                
+ib:                 if (Me%BackTracking) then  
+                        
+                        if(Me%HDF%PreviousTime .lt. Now)then
+                            write(*,*)
+                            write(*,*)'----------Backtracking mode-----------'
+                            write(*,*)'Could not read solution from HDF5 file'
+                            write(*,*)'Last file instant greater than current time'
+                            write(*,*)'Matrix name: '//trim(Me%HDF%FieldName)
+                            stop      'ConstructHDFInput - ModuleFillMatrix - ERR170'
+                        end if
 
-                    if(Me%HDF%PreviousTime .gt. Now)then
-                        write(*,*)
-                        write(*,*)'Could not read solution from HDF5 file'
-                        write(*,*)'First file instant greater than current time'
-                        write(*,*)'Matrix name: '//trim(Me%HDF%FieldName)
-                        stop      'ConstructHDFInput - ModuleFillMatrix - ERR170'
-                    end if
-            
+                        if(Me%TimeEvolution .ne. None)then                        
+                            if(Me%HDF%StartTime .gt. Me%BeginTime)then
+                                write(*,*)
+                                write(*,*)'----------Backtracking mode-----------'                                
+                                write(*,*)'Could not read solution from HDF5 file'
+                                write(*,*)'First instant in file lower than simulation starting time'
+                                write(*,*)'Matrix name: '//trim(Me%HDF%FieldName)
+                                stop      'ConstructHDFInput - ModuleFillMatrix - ERR180'
+                            end if
+                        endif
                     
-                    call CheckCyclicMonths(Me%HDF%EndTime, RefTime = EndTime)
-
-
-                    if(Me%TimeEvolution .ne. None)then
-                        if(Me%HDF%EndTime .lt. EndTime)then
+                    else   ib
+                        if(Me%HDF%PreviousTime .gt. Now)then
                             write(*,*)
                             write(*,*)'Could not read solution from HDF5 file'
-                            write(*,*)'Last instant in file lower than simulation ending time'
+                            write(*,*)'First file instant greater than current time'
                             write(*,*)'Matrix name: '//trim(Me%HDF%FieldName)
-                            stop      'ConstructHDFInput - ModuleFillMatrix - ERR180'
+                            stop      'ConstructHDFInput - ModuleFillMatrix - ERR190'
                         end if
-                    end if
+                    
+                        call CheckCyclicMonths(Me%HDF%EndTime, RefTime = Me%EndTime)
+
+
+                        if(Me%TimeEvolution .ne. None)then
+                            if(Me%HDF%EndTime .lt. Me%EndTime)then
+                                write(*,*)
+                                write(*,*)'Could not read solution from HDF5 file'
+                                write(*,*)'Last instant in file lower than simulation ending time'
+                                write(*,*)'Matrix name: '//trim(Me%HDF%FieldName)
+                                stop      'ConstructHDFInput - ModuleFillMatrix - ERR200'
+                            end if
+                        end if
+                    endif ib
 
                 endif i3
 
@@ -2833,9 +2878,13 @@ i3:             if (Me%HDF%CyclicTimeON) then
                 !if number of instants greater than 1 then 
                 !find first and second instants
 d2:             do while(.not. FoundSecondInstant)
-                
+
                     Me%HDF%PreviousInstant  = Me%HDF%NextInstant
-                    Me%HDF%NextInstant      = Me%HDF%NextInstant + 1
+                    if (Me%Backtracking) then
+                        Me%HDF%NextInstant      = Me%HDF%NextInstant - 1
+                    else                
+                        Me%HDF%NextInstant      = Me%HDF%NextInstant + 1
+                    endif
 
                     if (Me%HDF%CyclicTimeON .and. Me%HDF%NextInstant .gt. Me%HDF%NumberOfInstants) then
                         Me%HDF%NextInstant  = 1
@@ -2847,21 +2896,38 @@ d2:             do while(.not. FoundSecondInstant)
                     call CheckCyclicMonths(Me%HDF%NextTime, RefTime = Now,              &
                                            CyclicTimeON = Me%HDF%CyclicTimeON)
 
-                    if(Me%HDF%PreviousTime .le. Now .and. Me%HDF%NextTime .ge. Now) then
-                        FoundSecondInstant  = .true.
-                        exit
-                    end if
-
+                    if (Me%Backtracking) then
+                        if(Me%HDF%PreviousTime .ge. Now .and. Me%HDF%NextTime .le. Now) then
+                            FoundSecondInstant  = .true.
+                            exit
+                        end if
+                    else
+                        if(Me%HDF%PreviousTime .le. Now .and. Me%HDF%NextTime .ge. Now) then
+                            FoundSecondInstant  = .true.
+                            exit
+                        end if
+                    endif
                     Me%HDF%PreviousTime            = Me%HDF%NextTime
 
-                    if(Me%HDF%NextInstant .gt. Me%HDF%NumberOfInstants .and. .not. Me%HDF%CyclicTimeON) then
-                        write(*,*)
-                        write(*,*)'Could not read solution from HDF5 file'
-                        write(*,*)'Could not find second instant in file'
-                        write(*,*)'Matrix name: '//trim(Me%HDF%FieldName)
-                        stop      'ConstructHDFInput - ModuleFillMatrix - ERR190'
-                    end if
-
+                    if (Me%Backtracking) then
+                        if(Me%HDF%NextInstant .lt. 1 .and. .not. Me%HDF%CyclicTimeON) then
+                            write(*,*)
+                            write(*,*)'----------Backtracking mode-----------------'
+                            write(*,*)'Could not read solution from HDF5 file'
+                            write(*,*)'Could not find second instant in file'
+                            write(*,*)'Matrix name: '//trim(Me%HDF%FieldName)
+                            stop      'ConstructHDFInput - ModuleFillMatrix - ERR190'
+                        end if
+                    
+                    else
+                        if(Me%HDF%NextInstant .gt. Me%HDF%NumberOfInstants .and. .not. Me%HDF%CyclicTimeON) then
+                            write(*,*)
+                            write(*,*)'Could not read solution from HDF5 file'
+                            write(*,*)'Could not find second instant in file'
+                            write(*,*)'Matrix name: '//trim(Me%HDF%FieldName)
+                            stop      'ConstructHDFInput - ModuleFillMatrix - ERR200'
+                        end if
+                    endif
                 end do d2
 
             elseif(Me%HDF%NumberOfInstants == 1)then i2
@@ -3249,23 +3315,18 @@ i4:         if(Me%Dim == Dim2D)then
     !--------------------------------------------------------------------------
 
     
-    subroutine ReadHDF5Values3D (InstantIn, Field)
+    subroutine ReadHDF5Values3D (Instant, Field)
 
         !Arguments-------------------------------------------------------------
-        integer                                 :: InstantIn
+        integer                                 :: Instant
         real, dimension(:,:,:), pointer         :: Field
 
         !Local-----------------------------------------------------------------
-        integer                                 :: Instant, Imax, Jmax, Kmax
+        integer                                 :: Imax, Jmax, Kmax
         integer                                 :: STAT_CALL, i, j, k, ILB, IUB, JLB, JUB, KLB, KUB
 
         !Begin-----------------------------------------------------------------
 
-        if (Me%Backtracking) then
-            Instant = Me%HDF%NumberOfInstants - InstantIn + 1
-        else
-            Instant = InstantIn
-        endif
 
          ILB = Me%WorkSize3D%ILB
          IUB = Me%WorkSize3D%IUB
@@ -3727,48 +3788,14 @@ i4:         if(Me%Dim == Dim2D)then
         !Arguments------------------------------------------------------------
         integer, dimension(:, :, :), pointer            :: PointsToFill3D
         !Local----------------------------------------------------------------
-        integer                                         :: STAT_CALL, n, i, j, k
+        integer                                         :: n, i, j, k
         type (T_Time)                                   :: Now
 
         !Begin----------------------------------------------------------------
 
 
-        !Gets Current Time
-        call GetComputeCurrentTime(Me%ObjTime, Now, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ModifyHDFInput3D - ModuleFillMatrix - ERR10'
-
-        if(Now .ge. Me%HDF%NextTime)then
-
-            n = 0
-
-            do while (Now .ge. Me%HDF%NextTime) 
+        if (ReadNewField(Now,n))then
         
-                Me%HDF%PreviousInstant  = Me%HDF%NextInstant
-        
-                if(Me%HDF%NextInstant .lt. Me%HDF%NumberOfInstants) then
-                    Me%HDF%NextInstant  = Me%HDF%NextInstant + 1
-                else
-                    if (Me%HDF%CyclicTimeON) then
-                        Me%HDF%NextInstant  = 1
-                    else
-                        exit
-                    endif
-                end if
-        
-                Me%HDF%PreviousTime     = Me%HDF%NextTime
-                Me%HDF%NextTime         = HDF5TimeInstant(Me%HDF%NextInstant)
-
-                n = n + 1
-
-            enddo
-
-            if(Now .gt. Me%HDF%NextTime)then
-                write(*,*)
-                write(*,*)'Could not read solution from HDF5 file'
-                write(*,*)'Time instants inconsistency.'
-                stop      'ModifyHDFInput3D - ModuleFillMatrix - ERR20'
-            end if
-
             if (n==1) then
                 call SetMatrixValue(Me%HDF%PreviousField3D, Me%WorkSize3D, Me%HDF%NextField3D)
             else
@@ -3954,47 +3981,12 @@ i1:     if (.not.(Me%HDF%Previous4DValue <= Generic_4D_Value_ .and.             
         !Arguments------------------------------------------------------------
         integer, dimension(:, :), pointer               :: PointsToFill2D
         !Local----------------------------------------------------------------
-        integer                                         :: STAT_CALL, n, i, j
+        integer                                         :: n, i, j
         type (T_Time)                                   :: Now
 
         !Begin----------------------------------------------------------------
-
-        !Gets Current Time
-        call GetComputeCurrentTime(Me%ObjTime, Now, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ModifyHDFInput2DTime - ModuleFillMatrix - ERR10'
-
-        if (Now .ge. Me%HDF%NextTime)then
-
-            n = 0
-
-            do while (Now .ge. Me%HDF%NextTime) 
-
-                Me%HDF%PreviousInstant  = Me%HDF%NextInstant
-
-                if(Me%HDF%NextInstant .lt. Me%HDF%NumberOfInstants)then
-                    Me%HDF%NextInstant  = Me%HDF%NextInstant + 1
-                else
-                    if (Me%HDF%CyclicTimeON) then 
-                        Me%HDF%NextInstant  = 1
-                    else
-                        exit
-                    endif
-                end if
-
-                Me%HDF%PreviousTime     = Me%HDF%NextTime
-                Me%HDF%NextTime         = HDF5TimeInstant(Me%HDF%NextInstant)
-
-                n = n + 1
-                
-            enddo
-
-            if(Now .gt. Me%HDF%NextTime)then
-                write(*,*)
-                write(*,*)'Could not read solution from HDF5 file'
-                write(*,*)'Time instants inconsistency.'
-                stop      'ModifyHDFInput2DTime - ModuleFillMatrix - ERR20'
-            end if
-
+        
+        if (ReadNewField(Now,n))then
             if (n==1) then 
                 call SetMatrixValue(Me%HDF%PreviousField2D, Me%WorkSize2D, Me%HDF%NextField2D, PointsToFill2D)
             else
@@ -4071,6 +4063,126 @@ i1:     if (.not.(Me%HDF%Previous4DValue <= Generic_4D_Value_ .and.             
     end subroutine ModifyHDFInput2DTime
 
     !--------------------------------------------------------------------------
+    !-------------------------------------------------------------------------
+    subroutine BacktrackingTime(Now)
+
+        !Arguments------------------------------------------------------------
+        type (T_Time), intent(OUT)                      :: Now
+        !Local----------------------------------------------------------------
+        integer                                         :: STAT_CALL
+        type (T_Time)                                   :: CurrentTime
+        real                                            :: TotalTime, AuxPeriod
+
+        !Begin----------------------------------------------------------------
+
+        !Gets Current Time
+        call GetComputeCurrentTime(Me%ObjTime, CurrentTime, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'BacktrackingTime - ModuleFillMatrix - ERR10'
+
+        TotalTime = Me%EndTime  - Me%BeginTime                  
+        AuxPeriod = CurrentTime - Me%BeginTime
+        AuxPeriod = TotalTime   - AuxPeriod
+        
+        Now = Me%BeginTime + AuxPeriod
+
+    end subroutine BacktrackingTime
+    
+    !-------------------------------------------------------------------------
+    
+    logical function ReadNewField(Now,n)
+
+        !Arguments------------------------------------------------------------
+        type (T_Time), intent(OUT)                      :: Now
+        integer      , intent(OUT)                      :: n
+        !Local----------------------------------------------------------------
+        integer                                         :: STAT_CALL
+        type (T_Time)                                   :: CurrentTime
+        logical                                         :: ReadNewField_
+
+        !Begin----------------------------------------------------------------
+
+        !Gets Current Time
+        call GetComputeCurrentTime(Me%ObjTime, CurrentTime, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadNewField - ModuleFillMatrix - ERR10'
+
+        if (Me%BackTracking) then  
+            call BacktrackingTime(Now)
+        else   
+            Now = CurrentTime
+        endif     
+
+        ReadNewField_ = .false.
+        if (Me%BackTracking) then  
+            if (Now .le. Me%HDF%NextTime) ReadNewField_ = .true.
+        else            
+            if (Now .ge. Me%HDF%NextTime) ReadNewField_ = .true.
+        endif
+        
+        ReadNewField = ReadNewField_
+
+        if (ReadNewField_)then
+
+            n = 0
+            
+            do 
+
+                if (Me%BackTracking) then  
+                    if (Now .gt. Me%HDF%NextTime) exit
+                else            
+                    if (Now .lt. Me%HDF%NextTime) exit
+                endif            
+                
+                Me%HDF%PreviousInstant  = Me%HDF%NextInstant
+                    
+                if (Me%HDF%CyclicTimeON) then 
+                    Me%HDF%NextInstant  = 1
+                    exit
+                endif
+                
+                if (Me%BackTracking) then
+                    if(Me%HDF%NextInstant .gt. 1)then
+                        Me%HDF%NextInstant  = Me%HDF%NextInstant - 1
+                    else
+                        exit
+                    endif
+                else
+                    if(Me%HDF%NextInstant .lt. Me%HDF%NumberOfInstants)then
+                        Me%HDF%NextInstant  = Me%HDF%NextInstant + 1
+                    else
+                        exit
+                    endif
+                endif
+                
+                Me%HDF%PreviousTime     = Me%HDF%NextTime
+                Me%HDF%NextTime         = HDF5TimeInstant(Me%HDF%NextInstant)
+
+                n = n + 1
+                
+                
+            enddo
+            
+            if (Me%BackTracking) then
+                if(Now .lt. Me%HDF%NextTime)then
+                    write(*,*)
+                    write(*,*)'----------Backtracking mode-----------'
+                    write(*,*)'Could not read solution from HDF5 file'
+                    write(*,*)'Time instants inconsistency.'
+                    stop      'ReadNewField - ModuleFillMatrix - ERR20'
+                end if
+            else
+                if(Now .gt. Me%HDF%NextTime)then
+                    write(*,*)
+                    write(*,*)'Could not read solution from HDF5 file'
+                    write(*,*)'Time instants inconsistency.'
+                    stop      'ReadNewField - ModuleFillMatrix - ERR30'
+                end if
+            endif    
+    
+        endif 
+        
+    end function ReadNewField
+
+    !-------------------------------------------------------------------------
 
     subroutine ModifyHDFInput2DGeneric4D(PointsToFill2D, Generic_4D_Value_)
         
