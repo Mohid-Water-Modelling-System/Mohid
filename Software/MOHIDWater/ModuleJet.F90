@@ -1028,8 +1028,9 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     
-    subroutine ModifyJet(JetID, Salinity, Temperature, VelU, VelV, VelW, SZZ,  &
-                         I, J, BottomLayer, SurfaceLayer, OutPutOK, JetFlow, JetTemperature, JetSalinity, STAT)
+    subroutine ModifyJet(JetID, Salinity, Temperature, VelU, VelV, VelW, SZZ,           &
+                         I, J, BottomLayer, SurfaceLayer, OutPutOK, JetFlow,            &
+                         JetTemperature, JetSalinity, STAT)
 
         !Arguments-------------------------------------------------------------
         integer                                     :: JetID
