@@ -649,7 +649,6 @@ Module ModuleInterfaceSedimentWater
 
     !Global Module Variables
     type (T_InterfaceSedimentWater), pointer        :: FirstObjInterfaceSedimentWater
-
     type (T_InterfaceSedimentWater), pointer        :: Me
 
     !--------------------------------------------------------------------------
@@ -1491,6 +1490,7 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
 
             nullify(Me%Rugosity%Field)
             allocate(Me%Rugosity%Field(ILB:IUB, JLB:JUB))
+            Me%Rugosity%Field(:,:) = FillValueReal
 
             call ConstructFillMatrix  (PropertyID           = Me%Rugosity%ID,                   &
                                        EnterDataID          = Me%ObjEnterData,                  &
