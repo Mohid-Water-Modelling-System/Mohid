@@ -1695,7 +1695,10 @@ if1 :   if (ready_ .EQ. IDLE_ERR_) then
 
                 !WriteDTLog: com i, j e k opcionais. O nome do módulo deve conter
                 !a propriedade limitadora. O -99 deve conter o número da iteração.
-                if (MonitorDT) call WriteDTLog (trim(Me%ModelName), Me%Iteration, NewDT, PredictedDT%i, PredictedDT%j, predictedDT%k, trim(predictedDT%property))
+                if (MonitorDT)                                                          &
+                    call WriteDTLog (trim(Me%ModelName), Me%Iteration, NewDT,           &
+                                     PredictedDT%i, PredictedDT%j, predictedDT%k,       &
+                                     trim(predictedDT%property))
 
                 !Actualize the Time Step
                 call ActualizeDT(Me%ObjTime, NewDT, STAT = STAT_CALL)     
