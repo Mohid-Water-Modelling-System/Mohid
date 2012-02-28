@@ -95,6 +95,7 @@ Module ModuleGeometry
     !Modifier
     public  :: ComputeInitialGeometry       !To call when the initial SurfaceElevation is known
     public  :: ComputeVerticalGeometry      !To call in the "working cycle"
+    public  :: UpdateKfloor
     private ::      ComputeSZZ
     private ::          ComputeFixSpacing
 !    private ::          ComputeFixSediment
@@ -184,6 +185,15 @@ Module ModuleGeometry
     interface  WriteGeometry
         module procedure WriteGeometryBin
         module procedure WriteGeometryHDF
+    end interface 
+
+    
+
+    private :: ConstructGeometryV1
+    private :: ConstructGeometryV2
+    interface  ConstructGeometry
+        module procedure ConstructGeometryV1
+        module procedure ConstructGeometryV2
     end interface 
 
     !Parameter-----------------------------------------------------------------
@@ -343,10 +353,10 @@ Module ModuleGeometry
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-    subroutine ConstructGeometry(GeometryID, GridDataID, HorizontalGridID,              &
-                                 HorizontalMapID, ActualTime,                           &
-                                 NewDomain, SurfaceElevation, BathymTopoFactor,         &
-                                 STAT)
+    subroutine ConstructGeometryV1(GeometryID, GridDataID, HorizontalGridID,            &
+                                   HorizontalMapID, ActualTime,                         &
+                                   NewDomain, SurfaceElevation, BathymTopoFactor,       &
+                                   STAT)
 
         !Arguments-------------------------------------------------------------
         integer                                     :: GeometryID
@@ -425,7 +435,7 @@ Module ModuleGeometry
 
         else 
             
-            stop 'Geometry - ConstructGeometry - ERR99' 
+            stop 'Geometry - ConstructGeometryV1 - ERR99' 
 
         end if 
 
@@ -433,7 +443,85 @@ Module ModuleGeometry
         if (present(STAT)) STAT = STAT_
 
 
-    end subroutine ConstructGeometry
+    end subroutine ConstructGeometryV1
+ 
+    !--------------------------------------------------------------------------
+
+    subroutine ConstructGeometryV2(GeometryID, GridDataID, HorizontalGridID,            &
+                                   HorizontalMapID, KMAX,                               &
+                                   STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                                     :: GeometryID
+        integer                                     :: GridDataID
+        integer                                     :: HorizontalGridID
+        integer                                     :: HorizontalMapID
+        integer                                     :: KMAX        
+        integer,  intent(OUT),         optional     :: STAT
+        
+        !Local-----------------------------------------------------------------
+        type (T_Size2D)                             :: WorkSize2D, Size2D
+        integer                                     :: STAT_, ready_, STAT_CALL
+
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        !Assures nullification of the global variable
+        if (.not. ModuleIsRegistered(mGeometry_)) then
+            nullify (FirstGeometry)
+            call RegisterModule (mGeometry_) 
+        endif
+
+        call Ready(GeometryID, ready_)    
+
+        if (ready_ .EQ. OFF_ERR_) then
+
+            !Allocates Instance
+            call AllocateInstance
+
+            !Associates External Instances
+            Me%ObjTopography     = AssociateInstance (mGRIDDATA_,       GridDataID      )
+            Me%ObjHorizontalMap  = AssociateInstance (mHORIZONTALMAP_,  HorizontalMapID )
+            Me%ObjHorizontalGrid = AssociateInstance (mHORIZONTALGRID_, HorizontalGridID)
+ 
+ 
+             !Gets horizontal size from the Bathymetry
+            call GetHorizontalGridSize(Me%ObjHorizontalGrid,                                 &
+                                       Size     = Size2D,                                    &
+                                       WorkSize = WorkSize2D,                                &
+                                       STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructGeometryV2 - Geometry - ERR10'
+
+            Me%Size%ILB = Size2D%ILB
+            Me%Size%IUB = Size2D%IUB
+            Me%Size%JLB = Size2D%JLB
+            Me%Size%JUB = Size2D%JUB
+
+            Me%WorkSize%ILB = WorkSize2D%ILB
+            Me%WorkSize%IUB = WorkSize2D%IUB
+            Me%WorkSize%JLB = WorkSize2D%JLB
+            Me%WorkSize%JUB = WorkSize2D%JUB
+
+
+            call AllocateVariables(Kmax)
+
+            !Returns ID
+            GeometryID    = Me%InstanceID
+
+            STAT_ = SUCCESS_
+
+        else 
+            
+            stop 'Geometry - ConstructGeometryV2 - ERR99' 
+
+        end if 
+
+
+        if (present(STAT)) STAT = STAT_
+
+
+    end subroutine ConstructGeometryV2
  
     !--------------------------------------------------------------------------
 
@@ -643,22 +731,35 @@ Module ModuleGeometry
 
     !--------------------------------------------------------------------------
 
-    subroutine AllocateVariables
+    subroutine AllocateVariables(Kmax)
 
         !Parameter-------------------------------------------------------------
-
+        integer, optional               :: Kmax
         !Local-----------------------------------------------------------------
         integer                         :: STATUS
         integer                         :: ILB, IUB, JLB, JUB, KLB, KUB 
+
+
+        
+        if (present(KMAX)) then
+
+            Me%WorkSize%KLB = 1
+            Me%WorkSize%KUB = Kmax
+
+            Me%Size%KLB = Me%WorkSize%KLB - 1
+            Me%Size%KUB = Me%WorkSize%KUB + 1
+
+        endif
+
 
         ILB = Me%Size%ILB
         IUB = Me%Size%IUB
 
         JLB = Me%Size%JLB
         JUB = Me%Size%JUB
-
+        
         KLB = Me%Size%KLB
-        KUB = Me%Size%KUB
+        KUB = Me%Size%KUB        
 
         !Allocates T_Volumes
         allocate (Me%Volumes%VolumeZ(ILB:IUB, JLB:JUB, KLB:KUB), stat = STATUS)
@@ -1265,9 +1366,9 @@ cd2 :                       if (BlockLayersFound) then
 
         !Local-----------------------------------------------------------------
         type (T_Domain), pointer        :: CurrentDomain
-        real                            :: RelativSum, Error, DomainDif,           &
+        real                            :: RelativSum, Error,           &
                                            BottomDepth, TopDepth
-        real(8)                         :: Sum
+        real(8)                         :: Sum, DomainDif
         integer                         :: iLayer, LayersBelow
         !Begin-----------------------------------------------------------------
 
@@ -1346,7 +1447,7 @@ cd2 :                       if (BlockLayersFound) then
 
                 !Error = abs(DomainDif - Sum)
 
-                if (DomainDif > real(Sum)) then
+                if ((DomainDif - Sum)>1e-7) then
                     write(*,*)'Layers incorrectly defined - Domain number ',CurrentDomain%ID
                     stop 'ComputeLayers - Geometry - ERR20.'
 
@@ -1525,6 +1626,7 @@ cd2 :                       if (BlockLayersFound) then
         !Copy bathymetry array
         !NewBathymetry(:,:) = Bathymetry(:,:)
         call SetMatrixValue(NewBathymetry, Size2D, Bathymetry)
+
 
         CurrentDomain => Me%FirstDomain
 do1:    do while (associated(CurrentDomain))
@@ -1973,7 +2075,7 @@ doi:                do i = ILB, IUB
 doj:    do j = JLB, JUB
 doi:    do i = ILB, IUB
                 
-            if (WaterPoints2D(i, j) == WaterPoint) then
+iw:         if (WaterPoints2D(i, j) == WaterPoint) then
                 
                 LayersBelow = 0
                 CurrentDomain => Me%FirstDomain
@@ -2004,7 +2106,11 @@ doi:    do i = ILB, IUB
                         if (CurrentDomain%DomainType /= CartesianTop) then
                             TopDepth = 0.
                         else
-                            TopDepth = dble(-1.0 * SurfaceElevation(i, j))
+                            if (present(SurfaceElevation)) then
+                                TopDepth = dble(-1.0 * SurfaceElevation(i, j))
+                            else
+                                TopDepth = 0.
+                            endif
                         endif
                     else
                         TopDepth = dble(CurrentDomain%DomainDepth)
@@ -2102,8 +2208,12 @@ doi:    do i = ILB, IUB
                     endif
                 
                 endif
+            
+            else iw
 
-            endif
+                Me%KFloor%Z(i, j) = FillValueInt
+                
+            endif iw
 
         enddo doi
         enddo doj
@@ -2124,6 +2234,8 @@ doi:    do i = ILB, IUB
                   (Me%KFloor%Z(i, j - 1) > FillValueInt)) .or.           &
                  (ExteriorFacesU(i,j) == 1) ) then
                     Me%KFloor%U(i, j) = max(Me%KFloor%Z(i, j), Me%KFloor%Z(i, j - 1))
+            else
+                Me%KFloor%U(i, j) = FillValueInt
             endif
         
         enddo
@@ -2139,8 +2251,8 @@ doi:    do i = ILB, IUB
                   (Me%KFloor%Z(i - 1, j) > FillValueInt)) .or.           &
                  (ExteriorFacesV(i,j) == 1)) then
                     Me%KFloor%V(i, j) = max(Me%KFloor%Z(i, j), Me%KFloor%Z(i - 1, j))
-                                                 
-
+            else
+                Me%KFloor%V(i, j) = FillValueInt
             endif
         
         enddo
@@ -2270,7 +2382,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
         !Arguments-------------------------------------------------------------
         integer                                     :: GeometryID
         integer, dimension(:, :, :), pointer        :: WaterPoints3D
-        real, dimension(:, :), pointer              :: SurfaceElevation
+        real, dimension(:, :), pointer, optional    :: SurfaceElevation
         type(T_Time),        optional               :: ActualTime
         logical, intent(in), optional               :: ContinuesCompute
         logical, intent(in), optional               :: NonHydrostatic
@@ -2348,7 +2460,9 @@ cd2 :       if (Me%ExternalVar%ContinuesCompute) then
             end if cd2
 
             !Computes the WaterColumn
-            call ComputeWaterColumn (SurfaceElevation)
+            if (present(SurfaceElevation)) then
+                call ComputeWaterColumn (SurfaceElevation)
+            endif
 
             STAT_ = SUCCESS_
 
@@ -2361,6 +2475,46 @@ cd2 :       if (Me%ExternalVar%ContinuesCompute) then
         if (present(STAT)) STAT = STAT_
 
     end subroutine ComputeInitialGeometry
+
+    subroutine UpdateKfloor(GeometryID, SurfaceElevation, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                                     :: GeometryID
+        real, dimension(:, :), pointer, optional    :: SurfaceElevation
+        integer, intent(out), optional              :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: ready_   
+        integer                                     :: STAT_
+
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(GeometryID, ready_)    
+
+cd1 :   if (ready_ .EQ. IDLE_ERR_) then
+
+           !Updates the Matrixes which contains the Ks - KFloor, etc...
+            if (present(SurfaceElevation)) then
+                call ConstructKFloor (SurfaceElevation)
+            else
+                call ConstructKFloor
+            endif    
+
+            STAT_ = SUCCESS_
+
+        else cd1              
+
+            STAT_ = ready_
+
+        end if cd1
+
+        if (present(STAT)) STAT = STAT_
+
+    end subroutine UpdateKfloor
+
+    !--------------------------------------------------------------------------
 
     !--------------------------------------------------------------------------
     ! This subroutine computes the VerticalGeometry
@@ -2558,6 +2712,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
         enddo
         !$OMP END DO NOWAIT
         !$OMP END PARALLEL
+        
 
         !Computes WaterColumnU
         !$OMP PARALLEL PRIVATE(i,j,k,kbottom)
