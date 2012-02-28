@@ -81,7 +81,8 @@ Module ModuleHorizontalGrid
     !Modifier
     public  :: WriteHorizontalGrid
     public  :: LocateCell
-    public  :: LocateCellPolygons    
+    public  :: LocateCellPolygons
+    public  :: RecenterHorizontalGrid    
 
     !Selector
     public  :: GetHorizontalGridSize
@@ -113,7 +114,8 @@ Module ModuleHorizontalGrid
     public  :: GetCellZInterceptByPolygon
 
     public  :: GetGridBorderPolygon
-
+    public  :: GetGridBorderLimits
+    
     public  :: GetXYInsideDomain
     private ::      InsideDomainPolygon
 
@@ -340,7 +342,7 @@ Module ModuleHorizontalGrid
     end type T_HorizontalGrid
 
     !Global Module Variables
-    type (T_HorizontalGrid), pointer            :: FirstHorizontalGrid  
+    type (T_HorizontalGrid), pointer            :: FirstHorizontalGrid
     type (T_HorizontalGrid), pointer            :: Me
 
 
@@ -396,39 +398,7 @@ cd2 :   if (ready_ .EQ. OFF_ERR_) then
             !Construct the variable common to all module
             call ConstructGlobalVariables
 
-
-           !Constructs XX_IE, YY_IE, LatitudeZ and LongitudeZ
-            call Mercator
-
-            if (.not. Me%CornersXYInput) then
-
-                !Constructs XX_Z, YY_Z, XX_U, YY_U, XX_V, YY_V, XX_Cross, YY_Cross
-                call GridPointsLocation1D
-
-            endif
-
-            !Constructs XX2D_Z, YY2D_Z, XX2D_U, YY2D_U, XX2D_V, YY2D_V, XX2D_Cross, YY2D_Cross
-            call GridPointsLocation2D
-
-
-            !Check grid border type
-            call CheckGridBorder
-
-            !Computes DXX, DYY, DZX, DZY, DUX, DUY, DVX, DVY, XX_AlongGrid, YY_AlongGrid
-            call ComputeDistances
-
-            !Computes RotationX, RotationY
-            call ComputeRotation
-
-            !Computes Area
-            call ComputeGridCellArea
-
-            !Computes Coriolis
-            call ComputeCoriolis
-
-            !Defines the grid border polygon
-            call DefineBorderPolygons
-
+            call GenerateGrid
 
             !Returns ID
             HorizontalGridID    = Me%InstanceID
@@ -483,6 +453,27 @@ cd2 :   if (ready_ .EQ. OFF_ERR_) then
             call ConstructGlobalVariablesV1(LatitudeConn, LongitudeConn, XX, YY,          &
                                           Latitude, Longitude, ILB, IUB, JLB, JUB)
 
+            call GenerateGrid
+
+            !Returns ID
+            HorizontalGridID    = Me%InstanceID
+
+            STAT_ = SUCCESS_
+        else 
+            
+            stop 'HorizontalGrid - ConstructHorizontalGridV2 - ERR99' 
+
+        end if cd2
+
+
+        if (present(STAT)) STAT = STAT_
+
+    end subroutine ConstructHorizontalGridV2
+ 
+    !--------------------------------------------------------------------------
+
+    subroutine GenerateGrid
+    
            !Constructs XX_IE, YY_IE, LatitudeZ and LongitudeZ
             call Mercator
 
@@ -515,24 +506,7 @@ cd2 :   if (ready_ .EQ. OFF_ERR_) then
             !Defines the grid border polygon
             call DefineBorderPolygons
 
-
-            !Returns ID
-            HorizontalGridID    = Me%InstanceID
-
-            STAT_ = SUCCESS_
-        else 
-            
-            stop 'HorizontalGrid - ConstructHorizontalGridV2 - ERR99' 
-
-        end if cd2
-
-
-        if (present(STAT)) STAT = STAT_
-
-    end subroutine ConstructHorizontalGridV2
- 
-    !--------------------------------------------------------------------------
-
+    end subroutine GenerateGrid
 
     subroutine AllocateInstance 
 
@@ -3540,7 +3514,7 @@ cd1:    if (Me%Grid_Angle /= 0. .or. Me%CoordType == CIRCULAR_ .or. Me%CornersXY
             Me%XX_AlongGrid(:, :)  = Me%XX_IE(:,:)
         else
 
-            Me%XX_AlongGrid(ILB:IUB+1, 1)  = 0.
+            Me%XX_AlongGrid(ILB:IUB+1, JLB)  = 0.
         
             do j = JLB, JUB
             do i = ILB, IUB + 1
@@ -3554,7 +3528,7 @@ cd1:    if (Me%Grid_Angle /= 0. .or. Me%CoordType == CIRCULAR_ .or. Me%CornersXY
             Me%YY_AlongGrid(:,:)  = Me%YY_IE(:,:)
         else
 
-            Me%YY_AlongGrid(1, JLB:JUB+1)  = 0.
+            Me%YY_AlongGrid(ILB, JLB:JUB+1)  = 0.
         
             do j = JLB, JUB + 1
             do i = ILB, IUB
@@ -3686,6 +3660,75 @@ cd1:    if (Me%CornersXYInput .or. Me%CoordType == CIRCULAR_) then
         end do
 
     end subroutine ComputeCoriolis
+
+    !--------------------------------------------------------------------------
+
+    subroutine ReCenterHorizontalGrid(HorizontalGridID, Xcenter, Ycenter, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                                     :: HorizontalGridID
+        real,              intent(IN)               :: Xcenter, Ycenter
+        integer, optional, intent(OUT)              :: STAT
+
+
+        !Local-----------------------------------------------------------------
+        real                                        :: DX, DY, TranslationX, TranslationY
+        integer                                     :: STAT_, ready_
+        integer                                     :: ILB, IUB, JLB, JUB, ic, jc
+        !------------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(HorizontalGridID, ready_)    
+        
+cd1 :   if (ready_ .EQ. IDLE_ERR_) then
+
+            ILB = Me%WorkSize%ILB
+            IUB = Me%WorkSize%IUB
+
+            JLB = Me%WorkSize%JLB
+            JUB = Me%WorkSize%JUB        
+
+            if (Me%CornersXYInput) then
+            
+                ic = int((IUB - ILB + 2)/2.)
+                jc = int((JUB - JLB + 2)/2.)   
+                
+                TranslationX = Xcenter - Me%XX_IE(ic,jc)
+                TranslationY = Ycenter - Me%YY_IE(ic,jc)                
+                
+                Me%XX_IE(:,:) = Me%XX_IE(:,:) + TranslationX            
+                Me%YY_IE(:,:) = Me%YY_IE(:,:) + TranslationY
+                                
+            else
+                DX = Me%XX(JUB+1) - Me%XX(JLB)
+                DY = Me%YY(IUB+1) - Me%YY(ILB)
+                                
+                TranslationX = Xcenter - Me%Xorig - 0.5*DX
+                TranslationY = Ycenter - Me%Yorig - 0.5*DY                
+                
+                Me%Xorig = Me%Xorig + TranslationX            
+                Me%Yorig = Me%Yorig + TranslationY
+                
+            endif                    
+            
+            call GenerateGrid
+
+            STAT_ = SUCCESS_
+        else 
+            STAT_ = ready_
+        end if cd1
+
+
+        if (present(STAT)) STAT = STAT_
+
+        !----------------------------------------------------------------------
+
+    end subroutine ReCenterHorizontalGrid
+
+    !--------------------------------------------------------------------------
+
+
 
 
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -5279,7 +5322,44 @@ i1:     if ((ready_ == IDLE_ERR_     ) .OR.                                     
     end subroutine GetGridBorderPolygon
 
     !--------------------------------------------------------------------------
+    !--------------------------------------------------------------------------
 
+    subroutine GetGridBorderLimits(HorizontalGridID, West, East, South, North, STAT)
+
+        !Arguments---------------------------------------------------------------
+        integer,                  intent(IN)        :: HorizontalGridID
+        real,    optional,        intent(OUT)       :: West, East, South, North
+        integer, optional,        intent(OUT)       :: STAT    
+ 
+        !Local-------------------------------------------------------------------
+        integer                                     :: STAT_             
+        integer                                     :: ready_              
+        !------------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(HorizontalGridID, ready_)    
+        
+i1:     if ((ready_ == IDLE_ERR_     ) .OR.                                             & 
+            (ready_ == READ_LOCK_ERR_)) then
+
+            call Read_Lock(mHORIZONTALGRID_, Me%InstanceID)
+
+            West    = Me%GridBorderCoord%Polygon_%Limits%Left
+            East    = Me%GridBorderCoord%Polygon_%Limits%Right            
+            South   = Me%GridBorderCoord%Polygon_%Limits%Bottom
+            North   = Me%GridBorderCoord%Polygon_%Limits%Top            
+
+            STAT_ = SUCCESS_
+        else    i1
+            STAT_ = ready_
+        end if  i1
+
+        if (present(STAT)) STAT = STAT_
+
+    end subroutine GetGridBorderLimits
+
+    !--------------------------------------------------------------------------
     !--------------------------------------------------------------------------
 
     subroutine GetCellZInterceptByLine(HorizontalGridID, Line, WaterPoints2D, VectorI, VectorJ, VectorK, nCell, STAT)
@@ -8242,7 +8322,6 @@ cd1:    if (ObjHorizontalGrid_ID > 0) then
     end function LocateObjHorizontalGrid_ThreadSafe
     
     !--------------------------------------------------------------------------
-
     subroutine LocateObjFather (ObjHorizontalGrid, ObjHorizontalGridID)
 
         !Arguments-------------------------------------------------------------
