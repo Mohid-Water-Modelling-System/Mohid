@@ -134,6 +134,8 @@ module ModuleMap
     private ::      UpdateImposedValues
 
     public  :: SetComputesFaces3D
+    
+    public  :: UpDateWaterPoints3D
 
     !Destructor
     public  :: KillMap
@@ -229,7 +231,8 @@ module ModuleMap
     subroutine ConstructMap(Map_ID,                                           &
                             GeometryID,                                       &
                             HorizontalMapID,                                  &
-                            TimeID, GridDataID, HorizontalGridID, STAT)  
+                            TimeID, GridDataID, HorizontalGridID,             &
+                            WaterPoints3D, STAT)  
 
         !Arguments-------------------------------------------------------------
         integer                             :: Map_ID
@@ -238,6 +241,7 @@ module ModuleMap
         integer, optional                   :: TimeID
         integer, optional                   :: GridDataID
         integer, optional                   :: HorizontalGridID
+        integer, dimension(:,:,:), pointer, optional :: WaterPoints3D
         integer, optional, intent(OUT)      :: STAT
 
         !External--------------------------------------------------------------
@@ -295,98 +299,124 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             KLB = Me%WorkSize%KLB
             KUB = Me%WorkSize%KUB
 
-            !Recieves the WaterPoints2D
-            call GetWaterPoints2D(Me%ObjHorizontalMap, WaterPoints2D, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructMap - ModuleMap - ERR02'
+            if (present(WaterPoints3D)) then            
+               !Allocates Variables
+                call AllocateVariables()
 
-            !Recieves the LandPoints2D
-            call GetLandPoints2D(Me%ObjHorizontalMap, LandPoints2D, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructMap - ModuleMap - ERR03'
-
-            !Recieves KFloor
-            call GetGeometryKFloor(Me%ObjGeometry, Z = KFloorZ, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructMap - ModuleMap - ERR04'
-
-            !Allocates Variables
-            call AllocateVariables()
-
-            !Constructs Land/Water points3D
-do1:        do j = JLB, JUB
-do2:        do i = ILB, IUB 
-
-                if  (WaterPoints2D(i, j) == 1) then
-                    KFUNDO = KFloorZ(i, j)
-                    do K = KLB, KFUNDO - 1
-                        Me%LandPoints3D(i, j, k)      = 1
-                    enddo
-                    do K = KFUNDO, KUB
-                        Me%WaterPoints3D(i, j, k)     = 1
-                    end do
-                endif
-
-                if  (LandPoints2D(i, j) == 1) then
-                    do K = KLB, KUB
-                        Me%LandPoints3D(i, j, k)      = 1
-                    end do
-                end if
-
-            end do do2
-            end do do1
-
-            !This subroutine searches for the coastline
-            call ConstructLandBoundaryFaces3D()
-
-            !This subroutine identifiy faces that can water in both sides
-            call ConstructWaterFaces3D()
-
-            !GRIFLET, FFOUNND!! : Make sure that the FirstIsolatedCell is .not. associated!
-            nullify(FirstIsolatedCell)
-
-            if (present(GridDataID) .AND. present(HorizontalGridID)) then
-
-                !Checks the existence of isolated cells which may become endlessly hotter
-                !(cycle the cells and check the WaterPoints)
+                !Constructs Land/Water points3D
                 do j = JLB, JUB
                 do i = ILB, IUB 
+                    do K = KLB, KUB                
+                        Me%WaterPoints3D(i, j, k) =     WaterPoints3D(i, j, k)
+                        Me%LandPoints3D (i, j, k) = 1 - WaterPoints3D(i, j, k)                            
+                    enddo
+                enddo
+                enddo
+                
+            else            
+            
+                !Recieves the WaterPoints2D
+                call GetWaterPoints2D(Me%ObjHorizontalMap, WaterPoints2D, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructMap - ModuleMap - ERR02'
 
-                    if  (WaterPoints2D(i, j) == 1) then
-                        KFUNDO = KFloorZ(i, j)
-                        do k = KFUNDO, KUB !only waterpoints are checked
+                !Recieves the LandPoints2D
+                call GetLandPoints2D(Me%ObjHorizontalMap, LandPoints2D, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructMap - ModuleMap - ERR03'
 
-                            call CheckIsolatedCell(i, j, k, FirstIsolatedCell,      & 
-                                 IsolatedCell) 
+                !Recieves KFloor
+                call GetGeometryKFloor(Me%ObjGeometry, Z = KFloorZ, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructMap - ModuleMap - ERR04'
 
-                        end do
+                !Allocates Variables
+                call AllocateVariables()
+
+                !Constructs Land/Water points3D
+    do1:        do j = JLB, JUB
+    do2:        do i = ILB, IUB 
+
+                    if (present(WaterPoints3D)) then
+                        do K = KLB, KUB                
+                            Me%WaterPoints3D(i, j, k) =     WaterPoints3D(i, j, k)
+                            Me%LandPoints3D (i, j, k) = 1 - WaterPoints3D(i, j, k)                            
+                        enddo
+                    else
+                
+                        if  (WaterPoints2D(i, j) == 1) then
+                            KFUNDO = KFloorZ(i, j)
+                            do K = KLB, KFUNDO - 1
+                                Me%LandPoints3D(i, j, k)      = 1
+                            enddo
+                            do K = KFUNDO, KUB
+                                Me%WaterPoints3D(i, j, k)     = 1
+                            end do
+                        endif
+
+                        if  (LandPoints2D(i, j) == 1) then
+                            do K = KLB, KUB
+                                Me%LandPoints3D(i, j, k)      = 1
+                            end do
+                        end if
 
                     endif
 
-                end do 
-                end do 
+                end do do2
+                end do do1
 
-                if (IsolatedCell) then
-                    
-                    write(*,*)
-                    write(*,*) 'Isolated cells in horizontal are not allowed.'
-                    write(*,*)
+                !This subroutine searches for the coastline
+                call ConstructLandBoundaryFaces3D()
 
-                    !Construct a new bathymetry with no isolated cells
-                    call CorrectIsolatedCells(GridDataID, HorizontalGridID,         &
-                         FirstIsolatedCell)
-               
+                !This subroutine identifiy faces that can water in both sides
+                call ConstructWaterFaces3D()
+
+                !GRIFLET, FFOUNND!! : Make sure that the FirstIsolatedCell is .not. associated!
+                nullify(FirstIsolatedCell)
+
+                if (present(GridDataID) .AND. present(HorizontalGridID)) then
+
+                    !Checks the existence of isolated cells which may become endlessly hotter
+                    !(cycle the cells and check the WaterPoints)
+                    do j = JLB, JUB
+                    do i = ILB, IUB 
+
+                        if  (WaterPoints2D(i, j) == 1) then
+                            KFUNDO = KFloorZ(i, j)
+                            do k = KFUNDO, KUB !only waterpoints are checked
+
+                                call CheckIsolatedCell(i, j, k, FirstIsolatedCell,      & 
+                                     IsolatedCell) 
+
+                            end do
+
+                        endif
+
+                    end do 
+                    end do 
+
+                    if (IsolatedCell) then
+                        
+                        write(*,*)
+                        write(*,*) 'Isolated cells in horizontal are not allowed.'
+                        write(*,*)
+
+                        !Construct a new bathymetry with no isolated cells
+                        call CorrectIsolatedCells(GridDataID, HorizontalGridID,         &
+                             FirstIsolatedCell)
+                   
+                    endif
+
                 endif
 
+                call UnGetHorizontalMap(Me%ObjHorizontalMap, WaterPoints2D, STAT = STAT_CALL)           
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructMap - ModuleMap - ERR06'
+
+                call UnGetHorizontalMap(Me%ObjHorizontalMap, LandPoints2D, STAT = STAT_CALL)         
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructMap - ModuleMap - ERR07'
+                       
+                call UnGetGeometry     (Me%ObjGeometry, KFloorZ, STAT = STAT_CALL)       
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructMap - ModuleMap - ERR08'
+
             endif
-
-            call UnGetHorizontalMap(Me%ObjHorizontalMap, WaterPoints2D, STAT = STAT_CALL)           
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructMap - ModuleMap - ERR06'
-
-            call UnGetHorizontalMap(Me%ObjHorizontalMap, LandPoints2D, STAT = STAT_CALL)         
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructMap - ModuleMap - ERR07'
-                   
-            call UnGetGeometry     (Me%ObjGeometry, KFloorZ, STAT = STAT_CALL)       
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructMap - ModuleMap - ERR08'
-
-
+            
             STAT_ = SUCCESS_
             
             !Returns ID
@@ -892,11 +922,17 @@ do2:        do i = ILB, IUB
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
             do j = JLB, JUB
             do i = ILB, IUB
-                if (ComputeFaces2DU(i, j) == 1 .and. k >= KFloorU(i, j))                &
+                if (ComputeFaces2DU(i, j) == 1 .and. k >= KFloorU(i, j)) then
                     Me%ComputeFaces3D%U(i, j, k) = 1
+                else
+                    Me%ComputeFaces3D%U(i, j, k) = 0
+                endif
 
-                if (ComputeFaces2DV(i, j) == 1 .and. k >= KFloorV(i, j))                &
+                if (ComputeFaces2DV(i, j) == 1 .and. k >= KFloorV(i, j)) then
                     Me%ComputeFaces3D%V(i, j, k) = 1
+                else
+                    Me%ComputeFaces3D%V(i, j, k) = 0
+                endif
 
             enddo
             enddo
@@ -1250,6 +1286,152 @@ do2:        do i = ILB, IUB
     end subroutine UpdateSedimentCompFaces3D
 
     !--------------------------------------------------------------------------
+    subroutine UpDateWaterPoints3D(Map_ID, WaterPoints3D, STAT)  
+
+        !Arguments-------------------------------------------------------------
+        integer                             :: Map_ID
+        integer, dimension(:,:,:), pointer, optional :: WaterPoints3D
+        integer, optional, intent(OUT)      :: STAT
+
+        !External--------------------------------------------------------------
+        integer                             :: STAT_CALL
+        integer                             :: ready_         
+        integer, pointer, dimension(:, :)   :: WaterPoints2D, LandPoints2D, KFloorZ
+                    
+        !Local-----------------------------------------------------------------
+        integer                             :: i, j, k, KFundo
+        integer                             :: STAT_
+        integer                             :: ILB, IUB, JLB, JUB, KLB, KUB
+
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+
+        !Assures nullification of the global variable
+        if (.not. ModuleIsRegistered(mMap_)) then
+            nullify (FirstObjMap)
+            call RegisterModule (mMap_) 
+        endif
+        
+        call Ready (Map_ID, ready_)
+
+cd0 :   if (ready_ .EQ. IDLE_ERR_) then
+
+            !Gets the size from the Geometry
+            call GetGeometrySize(Me%ObjGeometry,                                     &
+                                   Size        = Me%Size,                            &
+                                   WorkSize    = Me%WorkSize,                        &
+                                   STAT        = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'UpDateWaterPoints3D - ModuleMap - ERR01'
+
+            !Auxiliar variables for the do loops
+            ILB = Me%WorkSize%ILB
+            IUB = Me%WorkSize%IUB
+
+            JLB = Me%WorkSize%JLB
+            JUB = Me%WorkSize%JUB
+
+            KLB = Me%WorkSize%KLB
+            KUB = Me%WorkSize%KUB
+
+            if (present(WaterPoints3D)) then            
+               !Allocates Variables
+                call AllocateVariables()
+
+                !Constructs Land/Water points3D
+                do j = JLB, JUB
+                do i = ILB, IUB 
+                    do K = KLB, KUB                
+                        Me%WaterPoints3D(i, j, k) =     WaterPoints3D(i, j, k)
+                        Me%LandPoints3D (i, j, k) = 1 - WaterPoints3D(i, j, k)                            
+                    enddo
+                enddo
+                enddo
+                
+            else            
+            
+                !Recieves the WaterPoints2D
+                call GetWaterPoints2D(Me%ObjHorizontalMap, WaterPoints2D, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'UpDateWaterPoints3D - ModuleMap - ERR02'
+
+                !Recieves the LandPoints2D
+                call GetLandPoints2D(Me%ObjHorizontalMap, LandPoints2D, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'UpDateWaterPoints3D - ModuleMap - ERR03'
+
+                !Recieves KFloor
+                call GetGeometryKFloor(Me%ObjGeometry, Z = KFloorZ, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'UpDateWaterPoints3D - ModuleMap - ERR04'
+
+                !Allocates Variables
+                call AllocateVariables()
+
+                !Constructs Land/Water points3D
+    do1:        do j = JLB, JUB
+    do2:        do i = ILB, IUB 
+
+                    if (present(WaterPoints3D)) then
+                        do K = KLB, KUB                
+                            Me%WaterPoints3D(i, j, k) =     WaterPoints3D(i, j, k)
+                            Me%LandPoints3D (i, j, k) = 1 - WaterPoints3D(i, j, k)                            
+                        enddo
+                    else
+                        Me%WaterPoints3D(i, j, :) = 0
+                        Me%LandPoints3D (i, j, :) = 0
+                        if  (WaterPoints2D(i, j) == 1) then
+                            KFUNDO = KFloorZ(i, j)
+                            do K = KLB, KFUNDO - 1
+                                Me%LandPoints3D(i, j, k)      = 1
+                            enddo
+                            do K = KFUNDO, KUB
+                                Me%WaterPoints3D(i, j, k)     = 1
+                            end do
+                        endif
+
+                        if  (LandPoints2D(i, j) == 1) then
+                            do K = KLB, KUB
+                                Me%LandPoints3D(i, j, k)      = 1
+                            end do
+                        end if
+
+                    endif
+
+                end do do2
+                end do do1
+
+                !This subroutine searches for the coastline
+                call ConstructLandBoundaryFaces3D()
+
+                !This subroutine identifiy faces that can water in both sides
+                call ConstructWaterFaces3D()
+
+                call UnGetHorizontalMap(Me%ObjHorizontalMap, WaterPoints2D, STAT = STAT_CALL)           
+                if (STAT_CALL /= SUCCESS_) stop 'UpDateWaterPoints3D - ModuleMap - ERR06'
+
+                call UnGetHorizontalMap(Me%ObjHorizontalMap, LandPoints2D, STAT = STAT_CALL)         
+                if (STAT_CALL /= SUCCESS_) stop 'UpDateWaterPoints3D - ModuleMap - ERR07'
+                       
+                call UnGetGeometry     (Me%ObjGeometry, KFloorZ, STAT = STAT_CALL)       
+                if (STAT_CALL /= SUCCESS_) stop 'UpDateWaterPoints3D - ModuleMap - ERR08'
+
+            endif
+            
+            STAT_ = SUCCESS_
+            
+         else cd0
+            
+            stop 'ModuleMap - UpDateWaterPoints3D - ERR10' 
+
+        end if cd0
+
+        if (present(STAT)) STAT = STAT_
+
+
+        !----------------------------------------------------------------------
+
+    end subroutine UpDateWaterPoints3D
+
+    !--------------------------------------------------------------------------
 
     subroutine UpdateComputeFacesW()
 
@@ -1307,6 +1489,8 @@ do2:        do i = ILB, IUB
     end subroutine UpdateComputeFacesW
 
     !--------------------------------------------------------------------------
+
+
 
     subroutine CleanBoundary()
 
