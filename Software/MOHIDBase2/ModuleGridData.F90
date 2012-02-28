@@ -150,9 +150,11 @@ Module ModuleGridData
         real, dimension(:,:,:), pointer :: GridData3D
         real, dimension(:,:), pointer   :: GridData2Dreference
         real                            :: DefaultValue
+        logical                         :: ConstantInSpace        
         real                            :: MaximumValue
         real                            :: MinimumValue
         logical                         :: Is3D
+        logical                         :: ReadFile        
         type (T_Size2D)                 :: WorkSize, Size
         integer                         :: KLB, KUB
         real                            :: FillValue
@@ -178,16 +180,19 @@ Module ModuleGridData
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-    subroutine ConstructGridData(GridDataID, HorizontalGridID, TimeID, FileName,         &
-                                 KLB, KUB, DefaultValue, STAT)
+    subroutine ConstructGridData(GridDataID, HorizontalGridID, TimeID, FileName,        &
+                                 KLB, KUB, DefaultValue, InMatrix3D, InMatrix2D,        &
+                                 STAT)
                       
         !Arguments-------------------------------------------------------------
-        integer                                     :: GridDataID
-        integer                                     :: HorizontalGridID
-        integer,            optional                :: TimeID
+        integer                     , intent(INOUT) :: GridDataID
+        integer                     , intent(INOUT) :: HorizontalGridID
+        integer,            optional, intent(IN )   :: TimeID
         character(LEN = *), optional, intent(IN )   :: FileName
         integer,            optional, intent(IN )   :: KLB, KUB
         real,               optional, intent(IN )   :: DefaultValue
+        real, dimension(:,:),   pointer, optional   :: InMatrix2D
+        real, dimension(:,:,:), pointer, optional   :: InMatrix3D
         integer,            optional, intent(OUT)   :: STAT    
 
         !Local-----------------------------------------------------------------
@@ -223,22 +228,38 @@ Module ModuleGridData
             else
                 Me%Is3D = .false.
             endif
-
-            !Gets File name to read
-            if (present(FileName)) then
-                Me%FileName = FileName    
+            
+            Me%ReadFile =.true.
+            
+            if (Me%Is3D) then
+                if (present(InMatrix3D)) then
+                    Me%ReadFile =.false.
+                endif
             else
-                call ReadFileName('IN_GRID_DATA', Me%FileName, Message = "GridData File",  &
-                                  STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructGridData - ModuleGridData - ERR01' 
-            end if
+                if (present(InMatrix2D)) then
+                    Me%ReadFile =.false.
+                endif
+            endif
+            
+            if (Me%ReadFile) then
 
-            inquire(FILE = Me%FileName, EXIST = exists)
-            if (.NOT. exists) then
-                write(*, *) 
-                write(*, *) 'GridData file especified does not exists: ', trim(Me%FileName)
-                stop 'ConstructGridData - ModuleGridData - ERR02' 
-            end if
+                !Gets File name to read
+                if (present(FileName)) then
+                    Me%FileName = FileName    
+                else
+                    call ReadFileName('IN_GRID_DATA', Me%FileName, Message = "GridData File",  &
+                                      STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructGridData - ModuleGridData - ERR01' 
+                end if
+
+                inquire(FILE = Me%FileName, EXIST = exists)
+                if (.NOT. exists) then
+                    write(*, *) 
+                    write(*, *) 'GridData file especified does not exists: ', trim(Me%FileName)
+                    stop 'ConstructGridData - ModuleGridData - ERR02' 
+                end if
+
+            endif
 
             !Associates Horizontal Grid
             Me%ObjHorizontalGrid = AssociateInstance (mHORIZONTALGRID_, HorizontalGridID)
@@ -262,7 +283,22 @@ Module ModuleGridData
 
 
             !Reads the GridData part
-            call ReadGridDataFile
+            if (Me%ReadFile) then
+                call ReadGridDataFile
+            else
+                if (Me%Is3D) then
+                    allocate(Me%GridData3D(Me%Size%ILB:Me%Size%IUB,                     &
+                                           Me%Size%JLB:Me%Size%JUB,                     &
+                                                   KLB:        KUB))
+
+                    Me%GridData3D(:,:,:) = InMatrix3D(:,:,:)                                                               
+                else
+                    allocate(Me%GridData2D(Me%Size%ILB:Me%Size%IUB,                     &
+                                           Me%Size%JLB:Me%Size%JUB))
+
+                    Me%GridData2D(:,:)   = InMatrix2D(:,:)                
+                endif
+            endif
 
             !Searches for the maximum and minimum Depth / Frank May 99
             Me%MaximumValue = -1.0 * ABS(null_real)
@@ -339,6 +375,7 @@ Module ModuleGridData
 
 
         !Allocates new instance
+        nullify  (NewObjGridData)
         allocate (NewObjGridData)
         nullify  (NewObjGridData%Next)
 
@@ -369,16 +406,9 @@ Module ModuleGridData
                                                                                                      
         !Local-----------------------------------------------------------------
         integer                                     :: ObjEnterData = 0
-        integer                                     :: ClientNumber
-        integer                                     :: FirstLine, LastLine
-        logical                                     :: BlockFound
         integer                                     :: STAT_CALL
         integer                                     :: flag
-        integer                                     :: line
-        integer                                     :: i, j, k, l
-        real, dimension(:), allocatable             :: Aux
         character(len=StringLength)                 :: Char_TypeZUV, Message
-        logical                                     :: Start3DFrom2D 
 
         !----------------------------------------------------------------------
 
@@ -420,28 +450,28 @@ Module ModuleGridData
         if (Me%Evolution%Yes) then
 
             !Gets if the bathymetry can change in time
-            call GetData            (Me%Evolution%File, ObjEnterData, flag,              &
-                                     keyword      = 'EVOLUTION_FILE',                    &
-                                     ClientModule = 'ModuleGridData',                    &
-                                     default      ='******.***',                         &
+            call GetData            (Me%Evolution%File, ObjEnterData, flag,             &
+                                     keyword      = 'EVOLUTION_FILE',                   &
+                                     ClientModule = 'ModuleGridData',                   &
+                                     default      ='******.***',                        &
                                      STAT         = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ReadGridDataFile - ModuleGridData - ERR70'
 
             if (flag == 0)  then
             
-                call ReadFileName('EVOLUTION_FILE', Me%Evolution%File, &
+                call ReadFileName('EVOLUTION_FILE', Me%Evolution%File,                  &
                                    Message = Message, STAT = STAT_CALL)
 
-                if (STAT_CALL /= SUCCESS_)                                           &
+                if (STAT_CALL /= SUCCESS_)                                              &
                     stop 'ReadGridDataFile - ModuleGridData - ERR80'
 
             endif
 
 
-            call GetData            (Me%Evolution%PropName, ObjEnterData, flag,              &
-                                     keyword      = 'PROPERTY_NAME',                     &
-                                     ClientModule = 'ModuleGridData',                    &
-                                     default      = trim(Char_Bathymetry),               &
+            call GetData            (Me%Evolution%PropName, ObjEnterData, flag,         &
+                                     keyword      = 'PROPERTY_NAME',                    &
+                                     ClientModule = 'ModuleGridData',                   &
+                                     default      = trim(Char_Bathymetry),              &
                                      STAT         = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ReadGridDataFile - ModuleGridData - ERR90'
 
@@ -449,6 +479,23 @@ Module ModuleGridData
         endif
 
 
+        call GetData                (Me%ConstantInSpace, ObjEnterData, flag,            &
+                                     keyword      = 'CONSTANT_IN_SPACE',                &
+                                     ClientModule = 'ModuleGridData',                   &
+                                     default      =  .false.,                           &
+                                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadGridDataFile - ModuleGridData - ERR100'
+
+
+
+        call GetData                (Me%DefaultValue, ObjEnterData, flag,               &
+                                     keyword      = 'DEFAULT_VALUE',                    &
+                                     ClientModule = 'ModuleGridData',                   &
+                                     default      =  0.,                                &
+                                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadGridDataFile - ModuleGridData - ERR110'        
+
+                
         select case(Char_TypeZUV)
 
             case("Z", "z")
@@ -468,10 +515,51 @@ Module ModuleGridData
             case default
                 
                 write(*,*)'Invalid type ZUV in grid data '//trim(Me%FileName)
-                stop 'ReadGridDataFile - ModuleGridData - ERR100'
+                stop 'ReadGridDataFile - ModuleGridData - ERR120'
 
         end select
 
+        if (Me%Is3D) then
+            allocate(Me%GridData3D(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB, Me%KLB:Me%KUB), STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadGridDataFile - ModuleGridData - ERR180a'
+            
+            Me%GridData3D(:,:,:) = Me%DefaultValue        
+        else
+            allocate(Me%GridData2D(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+            Me%GridData2D(:,:  ) = Me%DefaultValue
+        endif        
+        
+
+        if (.not.Me%ConstantInSpace) then
+            !Looks for data block
+            call ReadFromBlocks(ObjEnterData)
+        endif
+            
+        call KillEnterData(ObjEnterData, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadGridDataFile - ModuleGridData - ERR280'
+
+        !----------------------------------------------------------------------
+
+    end subroutine ReadGridDataFile
+
+    !--------------------------------------------------------------------------
+
+    subroutine ReadFromBlocks(ObjEnterData)
+
+        !Arguments-------------------------------------------------------------                                                    
+        integer                                     :: ObjEnterData
+        !Local-----------------------------------------------------------------
+        integer                                     :: ClientNumber
+        integer                                     :: FirstLine, LastLine
+        logical                                     :: BlockFound
+        integer                                     :: STAT_CALL
+        integer                                     :: flag
+        integer                                     :: line
+        integer                                     :: i, j, k, l
+        real, dimension(:), allocatable             :: Aux
+        logical                                     :: Start3DFrom2D 
+
+        !----------------------------------------------------------------------
 
         !Looks for data block
         if (.not. Me%Is3D) then
@@ -480,7 +568,7 @@ Module ModuleGridData
                                         FirstLine = FirstLine, LastLine = LastLine,      &
                                         STAT = STAT_CALL)
 
-            if (STAT_CALL /= SUCCESS_) stop 'ReadGridDataFile - ModuleGridData - ERR110'
+            if (STAT_CALL /= SUCCESS_) stop 'ReadFromBlocks - ModuleGridData - ERR110'
 
             if (.not. BlockFound) then
 
@@ -494,7 +582,7 @@ Module ModuleGridData
                                             FirstLine = FirstLine, LastLine = LastLine,          &
                                             STAT = STAT_CALL)
 
-                if (STAT_CALL /= SUCCESS_) stop 'ReadGridDataFile - ModuleGridData - ERR120'
+                if (STAT_CALL /= SUCCESS_) stop 'ReadFromBlocks - ModuleGridData - ERR120'
             endif
 
         else
@@ -504,25 +592,21 @@ Module ModuleGridData
                                         BeginGridData3D, EndGridData3D, BlockFound,      &
                                         FirstLine = FirstLine, LastLine = LastLine,      &
                                         STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ReadGridDataFile - ModuleGridData - ERR130'
+            if (STAT_CALL /= SUCCESS_) stop 'ReadFromBlocks - ModuleGridData - ERR130'
             !Verifies if there is a 2D block to initialize 3D filed (constant in vertical)
             if (.not. BlockFound) then
                 call ExtractBlockFromBuffer(ObjEnterData, ClientNumber,                      &
                                             BeginGridData2D, EndGridData2D, BlockFound,      &
                                             FirstLine = FirstLine, LastLine = LastLine,      &
                                             STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ReadGridDataFile - ModuleGridData - ERR140'
+                if (STAT_CALL /= SUCCESS_) stop 'ReadFromBlocks - ModuleGridData - ERR140'
                 if (BlockFound) Start3DFrom2D = .true.
             endif
         endif
-
-
         
 BF:     if (BlockFound) then 
             
 Is3D:       if (.not. Me%Is3D) then
-                allocate(Me%GridData2D(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
-                Me%GridData2D(:,:) = Me%DefaultValue
 
                 if (Me%Evolution%Yes) then
                     allocate(Me%GridData2Dreference(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
@@ -536,7 +620,7 @@ Is3D:       if (.not. Me%Is3D) then
                 call GetData(Aux, ObjEnterData, flag, Buffer_Line  = Line, STAT = STAT_CALL)
 
                 if (.not.(STAT_CALL == SUCCESS_ .or. STAT_CALL == SIZE_ERR_))            &
-                    stop 'ReadGridDataFile - ModuleGridData - ERR150'
+                    stop 'ReadFromBlocks - ModuleGridData - ERR150'
 
 Coln1:          if      (flag == 3) then 
 
@@ -546,7 +630,7 @@ Coln1:          if      (flag == 3) then
                                      flag, Buffer_Line  = l, STAT = STAT_CALL)
 
                         if (STAT_CALL /= SUCCESS_)                                       &
-                            stop 'ReadGridDataFile - ModuleGridData - ERR160'
+                            stop 'ReadFromBlocks - ModuleGridData - ERR160'
 
                         i = int(Aux(1))
                         j = int(Aux(2))
@@ -568,13 +652,13 @@ Coln1:          if      (flag == 3) then
                             write(*,*) 'Error in File=', trim(Me%FileName)
                             write(*,*) 'Error in Line=', line
                             write(*,*) 'Error reading GridData2D'
-                            stop       'ReadGridDataFile - ModuleGridData - ERR170'
+                            stop       'ReadFromBlocks - ModuleGridData - ERR170'
                         end if
 
                         call GetData(Me%GridData2D(I,J), ObjEnterData,  flag,         & 
                                      Buffer_Line  = Line,                             &
                                      STAT         = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'ReadGridDataFile - ModuleGridData - ERR180'
+                        if (STAT_CALL /= SUCCESS_) stop 'ReadFromBlocks - ModuleGridData - ERR180'
 
                     enddo
                     enddo
@@ -584,12 +668,6 @@ Coln1:          if      (flag == 3) then
                 deallocate(Aux)
 
             else Is3D
-
-                allocate(Me%GridData3D(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB, Me%KLB:Me%KUB), STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ReadGridDataFile - ModuleGridData - ERR180a'
-                
-                Me%GridData3D(:,:,:) = Me%DefaultValue
-
 
                 if (Start3DFrom2D) then
 
@@ -605,13 +683,13 @@ Coln1:          if      (flag == 3) then
                             write(*,*) 'Error in File=', trim(Me%FileName)
                             write(*,*) 'Error in Line=', line
                             write(*,*) 'Error reading GridData2D'
-                            stop       'ReadGridDataFile - ModuleGridData - ERR190'
+                            stop       'ReadFromBlocks - ModuleGridData - ERR190'
                         end if
 
                         call GetData(Aux, ObjEnterData,  flag,         & 
                                      Buffer_Line  = Line,              &
                                      STAT         = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'ReadGridDataFile - ModuleGridData - ERR200'
+                        if (STAT_CALL /= SUCCESS_) stop 'ReadFromBlocks - ModuleGridData - ERR200'
 
                         Me%GridData3D(i, j,:) = Aux(1)
                     enddo
@@ -627,7 +705,7 @@ Coln1:          if      (flag == 3) then
                     call GetData(Aux, ObjEnterData, flag, Buffer_Line  = Line, STAT = STAT_CALL)
 
                     if (.not.(STAT_CALL == SUCCESS_ .or. STAT_CALL == SIZE_ERR_))            &
-                        stop 'ReadGridDataFile - ModuleGridData - ERR210'
+                        stop 'ReadFromBlocks - ModuleGridData - ERR210'
 
 
 Coln:               if (flag == 4)  then
@@ -636,7 +714,7 @@ Coln:               if (flag == 4)  then
                             call GetData(Aux, ObjEnterData, flag, Buffer_Line  = l, STAT = STAT_CALL)
 
                             if (STAT_CALL /= SUCCESS_)                                       &
-                                stop 'ReadGridDataFile - ModuleGridData - ERR220'
+                                stop 'ReadFromBlocks - ModuleGridData - ERR220'
 
                             i = int(Aux(1))
                             j = int(Aux(2))
@@ -660,7 +738,7 @@ Coln:               if (flag == 4)  then
                                          flag, Buffer_Line  = l, STAT = STAT_CALL)
 
                             if (STAT_CALL /= SUCCESS_)                                       &
-                                stop 'ReadGridDataFile - ModuleGridData - ERR230'
+                                stop 'ReadFromBlocks - ModuleGridData - ERR230'
 
                             i = int(Aux(1))
                             j = int(Aux(2))
@@ -689,13 +767,13 @@ Coln:               if (flag == 4)  then
                             if (line .EQ. LastLine) then
                                 write(*,*) 
                                 write(*,*) 'Error reading GridData3D'
-                                stop       'ReadGridDataFile - ModuleGridData - ERR240'
+                                stop       'ReadFromBlocks - ModuleGridData - ERR240'
                             end if
 
                             call GetData(Me%GridData3D(i,j,k), ObjEnterData,  flag,         & 
                                          Buffer_Line  = Line,                               &
                                          STAT         = STAT_CALL)
-                            if (STAT_CALL /= SUCCESS_) stop 'ReadGridDataFile - ModuleGridData - ERR250'
+                            if (STAT_CALL /= SUCCESS_) stop 'ReadFromBlocks - ModuleGridData - ERR250'
 
                         enddo
                         enddo
@@ -712,19 +790,17 @@ Coln:               if (flag == 4)  then
             
             write(*,*)'Invalid Grid Data File'
             write(*,*)'File :',trim(adjustl(Me%FileName))
-            stop 'ReadGridDataFile - ModuleGridData - ERR260'
+            stop 'ReadFromBlocks - ModuleGridData - ERR260'
 
         endif BF
 
         call Block_Unlock(ObjEnterData, ClientNumber, STAT = STAT_CALL) 
-        if (STAT_CALL /= SUCCESS_) stop 'ReadGridDataFile - ModuleGridData - ERR270'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadFromBlocks - ModuleGridData - ERR270'
 
-        call KillEnterData(ObjEnterData, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadGridDataFile - ModuleGridData - ERR280'
 
         !----------------------------------------------------------------------
 
-    end subroutine ReadGridDataFile
+    end subroutine ReadFromBlocks
 
 #ifndef _NO_HDF5    
     subroutine ReadFileEvolution
@@ -858,6 +934,7 @@ old:        if (Me%Evolution%OldInstants > 0) then
         nullify   (TimeVector)
 
     end function HDF5TimeInstant
+
     
     !--------------------------------------------------------------------------
 
