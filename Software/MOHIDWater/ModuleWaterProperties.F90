@@ -5224,7 +5224,7 @@ case1 : select case(PropertyID)
             if (STAT_CALL /= SUCCESS_)                                              &
                 stop 'Subroutine Construct_PropertyEvolution - ModuleWaterProperties - ERR260'
 
-            if (NewProperty%evolution%OxygenSaturation) then 
+            if (NewProperty%evolution%OxygenSaturation) then
                 
                 Me%OxygenSaturation = .true. 
                 NewProperty%Evolution%AdvectionDiffusion = .false.
@@ -5274,7 +5274,7 @@ case1 : select case(PropertyID)
                              ClientModule ='ModuleWaterProperties',                     &
                              Default      = .false.,                                    &    
                              STAT         = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                              &
+            if (STAT_CALL /= SUCCESS_)                                                  &
                 stop 'Subroutine Construct_PropertyEvolution - ModuleWaterProperties - ERR290'
               
         endif   
@@ -5834,7 +5834,7 @@ cd1:    if (BoundaryCondition == Orlanski) then
         call GetData(NewProperty%evolution%Advec_Difus_Parameters%VolumeRelMax,         &  
                      Me%ObjEnterData, iflag,                                            & 
                      Keyword    = 'VOLUME_RELATION_MAX',                                &
-                     Default    = 5.,                                                   &
+                     Default    = 1.5,                                                  &
                      SearchType = FromFile,                                             &
                      ClientModule ='ModuleWaterProperties',                             &
                      STAT       = STAT_CALL)            
