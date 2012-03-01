@@ -320,7 +320,8 @@ Module ModuleWaterQuality
         real :: KNonRefrAmmoniaMinRate                      = null_real     !KNonRefrAmmoniaMinRate
         real :: NonRefrAmmoniaMinRate 
         real :: KDenitrificationRate                        = null_real
-        real :: KNitrificationRate                          = null_real
+        real :: KNitrificationRateK1                        = null_real     !FIRST NITRIFICATION STEP (NH3-»NO2)
+        real :: KNitrificationRateK2                        = null_real     !SECOND NITRIFICATION STEP (NO2-»NO3)
         real :: KPartDecompRate                             = null_real
         real :: PhytoAvaibleDecomp                          = null_real
 
@@ -454,9 +455,12 @@ Module ModuleWaterQuality
         real :: BODOxidationReferenceRate                   = null_real
         real :: BODOxygenSSatConstant                       = null_real
         real :: NConsOxyNitRatio                            = null_real     !NitrateConsumptionOxygenNitrateRatio
+        real :: NitrificationK1_ON_ratio                    = null_real     ! NH4 -> NO2 O:N Ratio   
+        real :: NitrificationK2_ON_ratio                    = null_real     ! NO2 -> NO3 O:N Ratio         
         real :: PConsOxyPhosphorusRatio                     = null_real     !PhosphateConsumptionOxygenPhosphorusRatio (Rosa)
         real :: PhytoTotalRespirationLossesRate             = null_real
-        real :: NitrificationRate                           = null_real
+        real :: NitrificationRateK1                         = null_real
+        real :: NitrificationRateK2                         = null_real
         real :: BODOxidationRate                            = null_real
 
 
@@ -1950,15 +1954,26 @@ cd22 :      if (flag .EQ. 0) then
             if (STAT_CALL .NE. SUCCESS_)                                            &
                 stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR12.' 
 
-            !KNitrificationRate, reference nitirfication rate, 1/T
-            call GetData(            Me%KNitrificationRate,                         &
+            !KNitrificationRateK1, reference nitrification rate, 1/T
+            call GetData(            Me%KNitrificationRateK1,                       &
                                      Me%ObjEnterData, flag,                         &
-                                     SearchType = FromFile,  keyword='NITRIREF',    &
-                                     default    = 0.06,                             & !1/day
+                                     SearchType = FromFile,  keyword='NITRIREFK1',  &
+                                     default    = 0.02,                             & !1/day
                                      ClientModule = 'ModuleWaterQuality',           &
                                      STAT       = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                            &
                 stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR13.' 
+                
+            !KNitrificationRateK2, reference nitrification rate, 1/T
+            call GetData(            Me%KNitrificationRateK2,                       &
+                                     Me%ObjEnterData, flag,                         &
+                                     SearchType = FromFile,  keyword='NITRIREFK2',  &
+                                     default    = 0.25,                             & !1/day
+                                     ClientModule = 'ModuleWaterQuality',           &
+                                     STAT       = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_)                                            &
+                stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR14.' 
+
 
 
             !TRefrAmmoniaMin, DONren mineralization temperature coefficient 
@@ -2000,7 +2015,7 @@ cd22 :      if (flag .EQ. 0) then
             call GetData(            Me%TNitrification,                             &
                                      Me%ObjEnterData, flag,                         &
                                      SearchType = FromFile,  keyword ='TNITCOEF',   & 
-                                     default    = 1.08,                             &
+                                     default    = 1.047,                            &
                                      ClientModule = 'ModuleWaterQuality',           &
                                      STAT       = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                            &
@@ -2777,7 +2792,32 @@ cd22 :      if (flag .EQ. 0) then
                                      STAT       = STAT_CALL)
 
             if (STAT_CALL .NE. SUCCESS_)                                            &
-                stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR79.' 
+                stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR79a.' 
+                
+            
+            call GetData(            Me%NitrificationK1_ON_ratio,                   &
+                                     Me%ObjEnterData, flag,                         &
+                                     SearchType = FromFile,keyword = 'NITK1_ONRAT', &
+                                     default    = (1.5*32) / 14.0,                      & !mgO2 / mgN
+                                     ClientModule = 'ModuleWaterQuality',           &
+                                     STAT       = STAT_CALL)
+
+            if (STAT_CALL .NE. SUCCESS_)                                            &
+                stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR79b.'
+                
+            call GetData(            Me%NitrificationK2_ON_ratio,                   &
+                                     Me%ObjEnterData, flag,                         &
+                                     SearchType = FromFile,keyword = 'NITK2_ONRAT', &
+                                     default    = (0.5*32) / 14.0,                      & !mgO2 / mgN
+                                     ClientModule = 'ModuleWaterQuality',           &
+                                     STAT       = STAT_CALL)
+
+            if (STAT_CALL .NE. SUCCESS_)                                            &
+                stop 'Subroutine WQReadFileConstants; Module ModuleWaterQuality. ERR79c.'    
+                
+                
+                
+                
 
             !     if (flag .EQ. 0)                                                   &
             !         Me%NConsOxyNitRatio = 48.0 / 14.0          !mgO2 / mgN
@@ -7862,7 +7902,8 @@ cd103 : if (Me%PropCalc%Silica) then
         real :: RefrAmmoniaMinRate      = null_real    !RefractoryAmmoniaMineralizationRate
 !       real :: NonRefrAmmoniaMinRate   = null_real    !NonRefractoryAmmoniaMineralizationRate
         real :: PartDecompRate          = null_real
-        real :: NitrificationRate       = null_real              
+        real :: NitrificationRateK1     = null_real 
+        real :: NitrificationRateK2     = null_real             
 
     !------------------------------------------------------------------------
 
@@ -7870,11 +7911,12 @@ cd103 : if (Me%PropCalc%Silica) then
         call WQAmmonia        (index, RefrAmmoniaMinRate,                                           &
 !                                     NonRefrAmmoniaMinRate,                                        &
                                       PartDecompRate,                                               &
-                                      NitrificationRate)
+                                      NitrificationRateK1,                                          &
+                                      NitrificationRateK2)
 
-        call WQNitrite        (index, NitrificationRate)
-                                                        
-        call WQNitrate        (index, NitrificationRate)
+        call WQNitrite        (index, NitrificationRateK1, NitrificationRateK2)
+                                                                                                            
+        call WQNitrate        (index, NitrificationRateK2)
 
         call WQOrganicNitrogen(index, RefrAmmoniaMinRate,                                           &
 !                                     NonRefrAmmoniaMinRate,                                        &
@@ -7896,7 +7938,8 @@ cd103 : if (Me%PropCalc%Silica) then
 subroutine WQAmmonia(index, RefrAmmoniaMinRate,                                     &
 !                           NonRefrAmmoniaMinRate,                                  &
                             PartDecompRate,                                         &
-                            NitrificationRate)
+                            NitrificationRateK1,                                    &
+                            NitrificationRateK2)
 !The mineralization processes assume Phytoplankton N/C Ratio; 
 
 
@@ -7907,8 +7950,8 @@ subroutine WQAmmonia(index, RefrAmmoniaMinRate,                                 
         real, intent(OUT) :: RefrAmmoniaMinRate
 !       real, intent(OUT) :: NonRefrAmmoniaMinRate
         real, intent(OUT) :: PartDecompRate                         
-        real, intent(OUT) :: NitrificationRate                         
-
+        real, intent(OUT) :: NitrificationRateK1                         
+        real, intent(OUT) :: NitrificationRateK2
 
     !Local-------------------------------------------------------------------
 
@@ -7947,9 +7990,14 @@ subroutine WQAmmonia(index, RefrAmmoniaMinRate,                                 
         x5 = MAX(Me%ExternalVar%Mass(O, index),Me%MinOxygen)                                        &
            /(Me%NitrificationSatConst + Me%ExternalVar%Mass(O, index))
 
-        NitrificationRate = Me%KNitrificationRate * Me%TNitrification                               &
+        NitrificationRateK1 = Me%KNitrificationRateK1 * Me%TNitrification                               &
                          **(Me%ExternalVar%Temperature(index) - 20.0) * x5
 
+    
+        NitrificationRateK2 = Me%KNitrificationRateK2 * Me%TNitrification                           &
+                         **(Me%ExternalVar%Temperature(index) - 20.0) * x5
+                         
+                                            
     !MineralizationRate-------------------------------------------------------
 
 cd2 :   if (Me%PropCalc%Phyto.and.(.not.Me%PropCalc%Diatoms)) then 
@@ -8041,14 +8089,14 @@ cd3 :       if (.NOT.Me%PropCalc%Bacteria) then
     ! 64/14 O/N
 
     if (Me%PropCalc%Oxygen)  then  
-        !aqui_4 acho que não devceria ser multiplicado pela concentração de oxigénio...testar
-        OxygenSinkNitrificationRate =  NitrificationRate * Me%NConsOxyNitRatio                   
+        
+        OxygenSinkNitrificationRate =  NitrificationRateK1 * Me%NitrificationK1_ON_ratio                   
         !MAX(Me%ExternalVar%Mass(O, index),Me%MinOxygen)
     end if
 
    !Calculation of system coeficients---------------------------------------
 
-       Me%Matrix(AM, AM   ) = 1.0 + NitrificationRate * DTDay
+       Me%Matrix(AM, AM   ) = 1.0 + NitrificationRateK1 * DTDay
 
        if (.NOT.Me%PropCalc%Bacteria) then
        
@@ -8080,33 +8128,46 @@ end subroutine WQAmmonia
     !
     !SINKS:   - nitrification step 2 (N-NO2-->N-NO3).
 
-subroutine WQNitrite(index, NitrificationRate)
+subroutine WQNitrite(index, NitrificationRateK1, NitrificationRateK2)
 
     !Arguments---------------------------------------------------------------
 
         integer, intent(IN) :: index
 
-        real, intent(IN) :: NitrificationRate                         
+        real, intent(IN) :: NitrificationRateK1, NitrificationRateK2
+                                 
 
     !Local-------------------------------------------------------------------
 
         integer :: AM
         integer :: NI
-
+        integer :: O
+        
         real :: DTDay
+        
+        real    :: OxygenSinkNitrificationRateK2     = null_real
 
     !------------------------------------------------------------------------
 
         AM = Me%PropIndex%Ammonia
         NI = Me%PropIndex%Nitrite
-
+        O  = Me%PropIndex%Oxygen
+        
         DTDay   = Me%DTDay
-
+        
+    if (Me%PropCalc%Oxygen)  then  
+        
+        OxygenSinkNitrificationRateK2 =  NitrificationRateK2 * Me%NitrificationK2_ON_ratio                   
+        !MAX(Me%ExternalVar%Mass(O, index),Me%MinOxygen)
+    end if
+    
 
     !Calculation of system coeficients---------------------------------------
-        Me%Matrix(NI, NI) =   DTDay * NitrificationRate + 1.0 
-        Me%Matrix(NI, AM) = - DTDay * NitrificationRate
-
+        Me%Matrix(NI, NI) =   DTDay * (NitrificationRateK2) + 1.0 
+        
+        Me%Matrix(NI, AM) =   DTDay * (-NitrificationRateK1)
+        
+        if (Me%PropCalc%Oxygen) Me%Matrix(O, NI) = DTDay * OxygenSinkNitrificationRateK2 
 
     !Independent term
         Me%IndTerm(NI) = Me%ExternalVar%Mass(NI, index) 
@@ -8132,13 +8193,13 @@ end subroutine WQNitrite
     !SINKS:   - denitrification (N-NO3-->N2) under anaerobic conditions;
     !         - phytoplankton uptake.
 
-subroutine WQNitrate(index, NitrificationRate)
+subroutine WQNitrate(index, NitrificationRateK2)
 
     !Arguments---------------------------------------------------------------
 
         integer, intent(IN) :: index
 
-        real, intent(IN) :: NitrificationRate                         
+        real, intent(IN) :: NitrificationRateK2                       
 
     !Local-------------------------------------------------------------------
 
@@ -8163,7 +8224,7 @@ subroutine WQNitrate(index, NitrificationRate)
 
     !------------------------------------------------------------------------
 
-
+                         
     !DenitrificationRate, denitrification rate
         x1 = Me%DenitrificationSatConst / (Me%DenitrificationSatConst                               &
                                          + MAX(Me%ExternalVar%Mass(O, index),Me%MinOxygen))
@@ -8179,10 +8240,10 @@ subroutine WQNitrate(index, NitrificationRate)
                                                     * DenitrificationRate
 
     !Calculation of system coeficients---------------------------------------
-        Me%Matrix(NA, NA) = 1. + DTDay * DenitrificationRate 
+        Me%Matrix(NA, NA) = 1. + DTDay * (DenitrificationRate)
 
 
-        Me%Matrix(NA, NI) = -DTDay * NitrificationRate
+        Me%Matrix(NA, NI) = -DTDay * NitrificationRateK2
 
         if (Me%PropCalc%Oxygen)                                                                     &
             Me%Matrix(O, NA) = -DTDay * ODsourceDenitrificationRate   
