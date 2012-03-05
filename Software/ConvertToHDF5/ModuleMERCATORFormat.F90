@@ -4527,7 +4527,7 @@ i2:         if (CheckName(nameAux, MohidName)) then
         if (STAT_CALL /= SUCCESS_) stop 'ConstructGridData - ModuleMERCATORFormat - ERR03'
 
         call ConstructHorizontalMap(Me%ObjHorizontalMap, Me%ObjGridData, Me%ObjHorizontalGrid,   &
-                                      Me%FirstField%Date, STAT_CALL)  
+                                      Me%FirstField%Date, STAT=STAT_CALL)  
         if (STAT_CALL /= SUCCESS_) stop 'ConstructGridData - ModuleMERCATORFormat - ERR04'
 
         call ConstructGeometry(Me%ObjGeometry, Me%ObjGridData, Me%ObjHorizontalGrid,    &
