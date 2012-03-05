@@ -409,7 +409,7 @@ Module ModuleWRFFormat
                      Me%ObjEnterData, iflag,                            &
                      SearchType   = FromBlock,                          &
                      keyword      = 'COMPUTE_MSLP_MM5',                 &
-                     Default      = ON,                                 &
+                     Default      = OFF,                                &
                      ClientModule = 'ModuleWRFFormat',                  &
                      STAT         = STAT_CALL)        
         if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleWRFFormat - ERR08b'
