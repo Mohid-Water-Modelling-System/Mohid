@@ -8489,7 +8489,7 @@ d2:         do i=1,n-m ! we loop over the current c’s and d’s and update them.
         real(8)                                     :: aux1, n, F, r, r_ref, theta
 
 
-        if (sp1 .GE. sp2) then
+        if (sp1 > sp2) then
             write(*,*)'sp1 must be lower than sp2'
             write(*,*)'sp1 = ', sp1
             write(*,*)'sp2 = ', sp2
