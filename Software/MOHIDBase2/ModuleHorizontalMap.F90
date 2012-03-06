@@ -495,6 +495,10 @@ do4 :       do J = Me%Size%JLB, Me%Size%JUB
 
         JLB = Me%WorkSize%JLB
         JUB = Me%WorkSize%JUB
+        
+        Me%BoundaryPoints2D       (:, :)   = 0
+        Me%ExteriorBoundaryFaces%U(:, :)   = 0        
+        Me%ExteriorBoundaryFaces%V(:, :)   = 0        
 
         !See if the matrix boundaries are also point boundaries
         i    = ILB
@@ -502,9 +506,6 @@ do1 :   do j = JLB , JUB
 cd1 :       if (Bathymetry(i, j) > -55.) then
                 Me%BoundaryPoints2D(i, j)          = 1
                 Me%ExteriorBoundaryFaces%V(i, j)   = 1
-            else   cd1
-                Me%BoundaryPoints2D(i, j)          = 0
-                Me%ExteriorBoundaryFaces%V(i, j)   = 0
             end if cd1
         end do do1
 
@@ -513,9 +514,6 @@ do2 :   do j = JLB , JUB
 cd2 :       if (Bathymetry(i, j) > -55.) then
                 Me%BoundaryPoints2D(i, j)          = 1
                 Me%ExteriorBoundaryFaces%V(i+1, j) = 1
-            else   cd2
-                Me%BoundaryPoints2D(i, j)          = 0
-                Me%ExteriorBoundaryFaces%V(i+1, j) = 0
             end if cd2
         end do do2
 
@@ -524,9 +522,6 @@ do3 :   do i = ILB , IUB
 cd3 :       if (Bathymetry(i, j) > -55.) then
                 Me%BoundaryPoints2D(i, j)          = 1
                 Me%ExteriorBoundaryFaces%U(i, j)   = 1
-            else   cd3
-                Me%BoundaryPoints2D(i, j)          = 0
-                Me%ExteriorBoundaryFaces%U(i, j)   = 0
             end if cd3
         end do do3
 
@@ -535,9 +530,6 @@ do4 :   do i = ILB , IUB
 cd4 :       if (Bathymetry(i, j) > -55.) then
                 Me%BoundaryPoints2D(i, j)          = 1
                 Me%ExteriorBoundaryFaces%U(i, j+1) = 1
-            else   cd4                
-                Me%BoundaryPoints2D(i, j)          = 0
-                Me%ExteriorBoundaryFaces%U(i, j+1) = 0
             end if cd4
         end do do4
 
@@ -551,9 +543,6 @@ do6 :   do i = ILB+1 , IUB-1
                 Bathymetry(i-1, j)  > -90.0)    then
                     Me%BoundaryPoints2D(i, j)          = 1
                     Me%ExteriorBoundaryFaces%V(i, j)   = 1
-            else
-                    Me%BoundaryPoints2D(i, j)          = 0
-                    Me%ExteriorBoundaryFaces%V(i, j)   = 0
             endif
                     
             !left call of a waterpoint with -80?
@@ -562,9 +551,6 @@ do6 :   do i = ILB+1 , IUB-1
                 Bathymetry(i, j-1)  > -90.0)    then
                     Me%BoundaryPoints2D(i, j)          = 1
                     Me%ExteriorBoundaryFaces%U(i, j)   = 1
-            else
-                    Me%BoundaryPoints2D(i, j)          = 0
-                    Me%ExteriorBoundaryFaces%U(i, j)   = 0
             endif
 
             !upper cell of a waterpoint with -80?
@@ -573,9 +559,6 @@ do6 :   do i = ILB+1 , IUB-1
                 Bathymetry(i+1, j)  > -90.0)    then
                     Me%BoundaryPoints2D(i, j)          = 1
                     Me%ExteriorBoundaryFaces%V(i+1, j) = 1
-            else
-                    Me%BoundaryPoints2D(i, j)          = 0
-                    Me%ExteriorBoundaryFaces%V(i+1, j) = 0
             endif
             
 
@@ -585,15 +568,16 @@ do6 :   do i = ILB+1 , IUB-1
                 Bathymetry(i, j+1)  > -90.0)    then
                     Me%BoundaryPoints2D(i, j)          = 1
                     Me%ExteriorBoundaryFaces%U(i, j+1) = 1
-            else
-                    Me%BoundaryPoints2D(i, j)          = 0
-                    Me%ExteriorBoundaryFaces%U(i, j+1) = 0
             endif
             
 
 
         end do do6
         end do do5
+
+
+        Me%BoundaryFaces%U(:, :) = Not_Boundary
+        Me%BoundaryFaces%V(:, :) = Not_Boundary
 
 do7 :   do j = JLB+1 , JUB
 do8 :   do i = ILB+1 , IUB
@@ -603,10 +587,6 @@ do8 :   do i = ILB+1 , IUB
                 Me%BoundaryPoints2D(i, j - 1) == Not_Boundary)  then 
 
                 Me%BoundaryFaces%U(i, j) = Boundary
-            
-            else                
-
-                Me%BoundaryFaces%U(i, j) = Not_Boundary
 
             endif
 
@@ -616,10 +596,6 @@ do8 :   do i = ILB+1 , IUB
                 Me%BoundaryPoints2D(i, j)     == Not_Boundary)  then 
 
                 Me%BoundaryFaces%U(i, j) = Boundary
-            else                
-
-                Me%BoundaryFaces%U(i, j) = Not_Boundary
-
 
             endif
 
@@ -627,18 +603,13 @@ do8 :   do i = ILB+1 , IUB
                 Me%WaterPoints2D   (i - 1, j) == WaterPoint   .and.  &
                 Me%BoundaryPoints2D(i - 1, j) == Not_Boundary)  then 
                 Me%BoundaryFaces%V(i, j) = Boundary
-            else                
-                Me%BoundaryFaces%V(i, j) = Not_Boundary
             endif
 
 
             if (Me%BoundaryPoints2D(i - 1, j) == Boundary     .and.    & 
                 Me%WaterPoints2D   (i, j)     == WaterPoint   .and.    &
                 Me%BoundaryPoints2D(i, j)     == Not_Boundary)  then 
-
                 Me%BoundaryFaces%V(i, j) = Boundary
-            else                
-                Me%BoundaryFaces%V(i, j) = Not_Boundary
             endif
 
         end do do8
