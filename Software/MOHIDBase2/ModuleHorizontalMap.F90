@@ -123,10 +123,10 @@ module ModuleHorizontalMap
     !Interfaces----------------------------------------------------------------
     private :: ConstructHorizontalMapWater
     private :: ConstructHorizontalMapLand
-    interface  ConstructHorizontalMap
-        module procedure ConstructHorizontalMapWater
-        module procedure ConstructHorizontalMapLand
-    end interface  ConstructHorizontalMap
+!    interface  ConstructHorizontalMap
+!        module procedure ConstructHorizontalMapWater
+!        module procedure ConstructHorizontalMapLand
+!    end interface  ConstructHorizontalMap
    
     interface  UpdateComputeFaces2D
         module procedure UpdateComputeFaces2D_R4
@@ -194,6 +194,48 @@ module ModuleHorizontalMap
 
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    subroutine ConstructHorizontalMap(HorizontalMapID, GridDataID, HorizontalGridID,        &
+                                      ActualTime, Points, Model, STAT) 
+                                              
+        !Arguments-------------------------------------------------------------
+        integer, intent(INOUT)                     :: HorizontalMapID
+        integer, intent(INOUT)                     :: GridDataID
+        integer, intent(INOUT)                     :: HorizontalGridID
+        type (T_Time), optional, intent(IN)        :: ActualTime
+        integer, optional, dimension(:,:), pointer :: Points
+        integer, optional, intent(OUT)             :: STAT
+        integer, optional                          :: Model !1 - Water, 2 - Land
+
+        !Local----------------------------------------------------------------- 
+        integer                                    :: model_
+        
+        !----------------------------------------------------------------------
+        if (present(Model)) then
+            model_ = Model
+        else
+            model_ = 1 !Mohid Water
+        endif
+        
+        if (model_ == 1) then
+            call ConstructHorizontalMapWater (HorizontalMapID,  &
+                                              GridDataID,       &
+                                              HorizontalGridID, &
+                                              ActualTime,       &
+                                              Points,           &
+                                              STAT)
+        else
+            call ConstructHorizontalMapLand  (HorizontalMapID,  &
+                                              GridDataID,       &
+                                              HorizontalGridID, &
+                                              ActualTime,       &
+                                              Points,           &
+                                              STAT)        
+        endif                                                                                                         
+        !----------------------------------------------------------------------
+
+    end subroutine ConstructHorizontalMap
+
+    !--------------------------------------------------------------------------
 
     subroutine ConstructHorizontalMapWater(HorizontalMapID, GridDataID, HorizontalGridID,   &
                                            ActualTime, WaterPoints, STAT)  

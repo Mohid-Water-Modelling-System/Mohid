@@ -590,7 +590,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             !Constructs Mapping
             call ConstructHorizontalMap (Me%ObjHorizontalMap, Me%ObjGridData,            &
                                         Me%ObjHorizontalGrid, Me%CurrentTime,            &
-                                        Me%ExtVar%BasinPoints, STAT = STAT_CALL)  
+                                        Me%ExtVar%BasinPoints, 2, STAT = STAT_CALL)  
             if (STAT_CALL /= SUCCESS_) stop 'ConstructBasin - ModuleBasin - ERR08'
 
             !Ungets BasinPoints
