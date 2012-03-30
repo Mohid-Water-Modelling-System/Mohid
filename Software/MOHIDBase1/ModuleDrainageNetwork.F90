@@ -270,14 +270,15 @@ Module ModuleDrainageNetwork
     private ::          ModifyWaterDischarges
     private ::          ModifyWaterExchange
     private ::          ModifyTransmissionLosses
-    private ::          UpdateCrossSections
-    private ::              ComputeCrossSection
-    private ::                  TrapezoidWaterHeight
-    private ::                  TabularWaterLevel
-    private ::                  ModifyDownstreamTimeSerie       
-    private ::              UpdateReachCrossSection
-    private ::          UpdateComputeFaces          
-    private ::          UpdateOpenPoints    
+    private ::          UpdateAreasAndMappings
+    private ::              UpdateCrossSections
+    private ::                  ComputeCrossSection
+    private ::                      TrapezoidWaterHeight
+    private ::                      TabularWaterLevel
+    private ::                      ModifyDownstreamTimeSerie       
+    private ::                  UpdateReachCrossSection
+    private ::              UpdateComputeFaces          
+    private ::              UpdateOpenPoints    
 
     private ::          ModifyHydrodynamics
     private ::              ModifyReach
@@ -7555,13 +7556,9 @@ do2 :   do while (associated(PropertyX))
                 call ModifyWaterExchange    (LocalDT)
             endif
 
+            call UpdateAreasAndMappings
             
-            call UpdateCrossSections
-
-            !Actualizes Mapping
-            call UpdateComputeFaces
-            call UpdateOpenPoints
-          
+         
             !Runs Hydrodynamic
             call ModifyHydrodynamics        (LocalDT, Restart, Niter)
 
@@ -7570,7 +7567,7 @@ do2 :   do while (associated(PropertyX))
                 !Niter   = Niter + 1
                 Niter = Niter + Me%InternalTimeStepSplit
                 LocalDT = Me%ExtVar%DT / Niter
-                call WriteDTLog ('ModuleDrainageNetwork', Niter, LocalDT)
+                call WriteDTLog_ML ('ModuleDrainageNetwork', Niter, LocalDT)
                 if (Niter > Me%MaxIterations) then
                     write(*,*)'Number of iterations above maximum'
                     write(*,*)'Check DT configurations'
@@ -8065,10 +8062,10 @@ do2 :   do while (associated(PropertyX))
 
             endif
 
-            if (min(nextDTVariation, nextDTCourant) > MaxDT) then
+            if (min(nextDTVariation, nextDTCourant * Me%InternalTimeStepSplit) > MaxDT) then
                 Me%NextDT = Me%ExtVar%DT * Me%DTFactor
             else
-                Me%NextDT = min(nextDTVariation, nextDTCourant)
+                Me%NextDT = min(nextDTVariation, nextDTCourant) 
             endif
             
 
@@ -8571,10 +8568,12 @@ do2 :   do while (associated(PropertyX))
 
         if (Me%NumericalScheme == ExplicitScheme) then
 
+            !Calculates Flow and Velocities
             do ReachID = 1, Me%TotalReaches                        
                 call ModifyReach (ReachID, LocalDT)
             end do
 
+            !Updates Volumes            
             do NodeID = 1, Me%TotalNodes
                 call ModifyNode          (NodeID, LocalDT)
                 call VerifyMinimumVolume (NodeID, Restart, Niter)
@@ -9232,18 +9231,34 @@ if2:        if (CurrNode%VolumeNew > PoolVolume) then
         real                                        :: DT
          
         !Local-----------------------------------------------------------------          
-        type (T_Node ), pointer                     :: CurrNode       
+        type (T_Node ), pointer                     :: CurrNode
+        type (T_Reach), pointer                     :: DownReach       
         real(8)                                     :: InFlow, OutFlow
+        integer                                     :: i
                                        
         CurrNode => Me%Nodes(NodeID)                                    
 
         call ComputeNodeInFlow  (CurrNode, InFlow)
         call ComputeNodeOutFlow (CurrNode, OutFlow)
      
+        !In same special ocasions, namely when water enters from downstream into a dry reach, 
+        !you may have and positive outflow, but zero volume. Even so, the node is open
+        !e.g. Up Down (flat bottom)
+        !WaterColumn at nodes: 0.0  0.2 0.1 
+        if (CurrNode%VolumeOld < AllmostZero .and. Inflow < AllmostZero .and. OutFlow > 0.0) then
+
+            do i = 1, CurrNode%nDownstreamReaches
+                DownReach => Me%Reaches (CurrNode%DownstreamReaches (i))
+                DownReach%FlowNew   = 0.0
+                DownReach%Velocity  = 0.0
+                Outflow             = 0.0
+            end do
+        endif
+     
         CurrNode%VolumeNew = CurrNode%VolumeOld + ( InFlow - OutFlow ) * DT
         
         !If Volume is negative with less then 1/10. of a ml set it to zero
-        if (CurrNode%VolumeNew < 0 .and. CurrNode%VolumeNew > -1.0e-7) then
+        if (CurrNode%VolumeNew < AllmostZero) then
             CurrNode%VolumeNew = 0.0
         endif
 
@@ -9401,6 +9416,23 @@ do2:            do while (Iterate)
     end subroutine Cascade
 
     !---------------------------------------------------------------------------            
+
+    subroutine UpdateAreasAndMappings
+
+        !Arguments--------------------------------------------------------------
+
+
+        !Local------------------------------------------------------------------
+
+        !Update Cross Sections 
+        call UpdateCrossSections
+
+        !Actualizes Mapping
+        call UpdateComputeFaces
+        call UpdateOpenPoints
+
+    end subroutine UpdateAreasAndMappings
+
     !---------------------------------------------------------------------------            
 
     subroutine UpdateCrossSections ()
@@ -10202,13 +10234,7 @@ if1:    if (Property%Diffusion_Scheme == CentralDif) then
 
             end do
 
-            !Updates Cross Sections    
-            call UpdateCrossSections
-
-            !Actualizes Mapping
-            call UpdateComputeFaces
-            call UpdateOpenPoints
-
+            call UpdateAreasAndMappings
 
         endif
 
@@ -10370,13 +10396,7 @@ if1:    if (Property%Diffusion_Scheme == CentralDif) then
 
         end do
 
-        !Updates Cross Sections    
-        call UpdateCrossSections
-
-        !Actualizes Mapping
-        call UpdateComputeFaces
-        call UpdateOpenPoints
-
+        call UpdateAreasAndMappings
 
         if (MonitorPerformance) call StopWatch ("ModuleDrainageNetwork", "ComputeEVTPFromReach")
 

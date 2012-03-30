@@ -3721,7 +3721,7 @@ dConv:  do while (iteration <= Niteration)
             
                 Niteration        = Niteration + Me%CV%IterStep
                 Me%CV%CurrentDT   = Me%ExtVar%DT / Niteration
-                call WriteDTLog ('ModulePorousMedia', Niteration, Me%CV%CurrentDT)                    
+                call WriteDTLog_ML ('ModulePorousMedia', Niteration, Me%CV%CurrentDT)                    
                 iteration         = 1
                 SumDT             = 0.0
                 StrongVariation   = .false.

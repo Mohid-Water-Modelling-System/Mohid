@@ -70,7 +70,7 @@ Module ModuleGlobalData
         module procedure SetErrorTime
         module procedure SetErrorMessage
     end interface SetError
-
+    
     !Parameter-----------------------------------------------------------------
     integer, parameter  :: MaxModules           =  78
 
@@ -2944,6 +2944,10 @@ cd3 :   if (ErrorMagnitude == FATAL_) then
         real                            :: DT
         integer, optional               :: i, j, k
         character(len=*), optional      :: PropertyName
+        
+        !Local-----------------------------------------------------------------
+        character(len=132)              :: Aux
+        
 
         if (MonitorDT) then
             if (present(k)) then
@@ -2964,6 +2968,29 @@ cd3 :   if (ErrorMagnitude == FATAL_) then
 214 format(i8, ', DT: ', f9.3, a)
 
     end subroutine WriteDTLog
+
+    !--------------------------------------------------------------------------
+
+    subroutine WriteDTLog_ML (ModuleName, iter, DT, Message)
+
+        !Arguments---------------------------------------------------------
+        character(len=*)                :: ModuleName
+        integer                         :: iter
+        real                            :: DT
+        character(len=*), optional      :: Message
+        
+        !Local-----------------------------------------------------------------
+        character(len=132)              :: Aux
+        
+        if (MonitorDT) then
+            if (present(Message)) then
+                write (UnitDT, '(A25, I10,F12.4,A132)') ModuleName, iter, DT, Message
+            else
+                write (UnitDT, '(A25, I10,F12.4)') ModuleName, iter, DT 
+            end if
+        end if
+
+    end subroutine WriteDTLog_ML
 
     !--------------------------------------------------------------------------
 

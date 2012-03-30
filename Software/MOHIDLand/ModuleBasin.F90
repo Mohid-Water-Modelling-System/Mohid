@@ -75,7 +75,7 @@ Module ModuleBasin
                                      GetFlowAtBoundary, UnGetRunOff, KillRunOff,         &
                                      SetBasinColumnToRunoff, GetRunoffWaterColumn,       &
                                      GetRunoffWaterColumnOld, GetRunoffWaterLevel,       &
-                                     GetRunoffTotalStoredVolume
+                                     GetRunoffTotalStoredVolume, GetMassError
                                      
                                      
     use ModuleRunoffProperties,                                                          &
@@ -242,14 +242,14 @@ Module ModuleBasin
         real   , dimension(:,:), pointer            :: SpecificLeafStorage
         real   , dimension(:,:), pointer            :: CropCoefficient
         real   , dimension(:,:,:), pointer          :: ActualTranspiration
-!        real   , dimension(:,:), pointer            :: PermeableFraction
+        real   , dimension(:,:), pointer            :: MassError
     end type T_ExtVar
     
     !External variables from Runoff but that will be updated and sent to Runoff
     type T_ExtUpdate
         real(8), dimension(:,:), pointer            :: WaterLevel             => null() 
         real(8), dimension(:,:), pointer            :: WaterColumn            => null() 
-        real(8), dimension(:,:), pointer            :: WaterColumnOld         => null() 
+        real(8), dimension(:,:), pointer            :: WaterColumnOld         => null()
     end type T_ExtUpdate
 
     type T_Files
@@ -332,6 +332,7 @@ Module ModuleBasin
         type (T_PropertyB)                          :: InfRate              
         type (T_PropertyB)                          :: AccInf               
         type (T_PropertyB)                          :: ImpFrac
+        type (T_PropertyB)                          :: TimeWithNoWC
     end type T_SimpleInfiltration
     
     type T_WaterMassBalance
@@ -1447,9 +1448,13 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         call ConstructOneProperty (Me%SI%MP,        "MP",       "<BeginMP>",        "<EndMP>")
         call ConstructOneProperty (Me%SI%ThetaS,    "ThetaS",   "<BeginThetaS>",    "<EndThetaS>")
         call ConstructOneProperty (Me%SI%ThetaI,    "ThetaI",   "<BeginThetaI>",    "<EndThetaI>")
-        call ConstructOneProperty (Me%SI%InfRate,   "InfRate",  "<BeginInfRate>",   "<EndInfRate>")
-        call ConstructOneProperty (Me%SI%AccInf,    "AccInf",   "<BeginAccInf>",    "<EndAccInf>")
+        !call ConstructOneProperty (Me%SI%InfRate,   "InfRate",  "<BeginInfRate>",   "<EndInfRate>")
+        !call ConstructOneProperty (Me%SI%AccInf,    "AccInf",   "<BeginAccInf>",    "<EndAccInf>")
         call ConstructOneProperty (Me%SI%ImpFrac,   "ImpFrac",  "<BeginImpFrac>",   "<EndImpFrac>")
+        
+        Me%SI%InfRate%ID%Name = "InfRate"
+        Me%SI%AccInf%ID%Name = "AccInf"
+        Me%SI%TimeWithNoWC%ID%Name = "NotPondedTime"
     
     end subroutine ConstructSimpleInfiltration    
 
@@ -2184,20 +2189,22 @@ i1:         if (CoordON) then
         if (Me%Coupled%Snow) Me%SnowPack = FillValueReal
         
         if (Me%Coupled%SimpleInfiltration) then
-            allocate(Me%SI%Ks%Field        (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
-            allocate(Me%SI%MP%Field        (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
-            allocate(Me%SI%ThetaS%Field    (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
-            allocate(Me%SI%ThetaI%Field    (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
-            allocate(Me%SI%InfRate%Field   (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
-            allocate(Me%SI%AccInf%Field    (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
-            allocate(Me%SI%ImpFrac%Field   (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
-            Me%SI%Ks%Field                  = FillValueReal
-            Me%SI%MP%Field                  = FillValueReal
-            Me%SI%ThetaS%Field              = FillValueReal
-            Me%SI%ThetaI%Field              = FillValueReal
-            Me%SI%InfRate%Field             = FillValueReal
-            Me%SI%AccInf%Field              = AllmostZero
-            Me%SI%ImpFrac%Field             = FillValueReal
+            allocate(Me%SI%Ks%Field             (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
+            allocate(Me%SI%MP%Field             (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
+            allocate(Me%SI%ThetaS%Field         (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
+            allocate(Me%SI%ThetaI%Field         (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
+            allocate(Me%SI%InfRate%Field        (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
+            allocate(Me%SI%AccInf%Field         (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
+            allocate(Me%SI%ImpFrac%Field        (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
+            allocate(Me%SI%TimeWithNoWC%Field   (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
+            Me%SI%Ks%Field                  =   FillValueReal
+            Me%SI%MP%Field                  =   FillValueReal
+            Me%SI%ThetaS%Field              =   FillValueReal
+            Me%SI%ThetaI%Field              =   FillValueReal
+            Me%SI%InfRate%Field             =   FillValueReal
+            Me%SI%AccInf%Field              =   AllmostZero
+            Me%SI%ImpFrac%Field             =   FillValueReal
+            Me%SI%TimeWithNoWC%Field        =   0.0
          endif
          
         if (Me%DiffuseWaterSource) then
@@ -4384,15 +4391,23 @@ cd2 :           if (BlockFound) then
                         Me%SI%InfRate%Field(i, j) = Me%ExtUpdate%Watercolumn(i, j) / Me%CurrentDT
                     endif
 
-                    Me%SI%AccInf%Field(i, j) = Me%SI%AccInf%Field(i, j) + Me%SI%InfRate%Field(i, j) * Me%CurrentDT
+                    Me%SI%AccInf%Field(i, j)        = Me%SI%AccInf%Field(i, j) + Me%SI%InfRate%Field(i, j) * Me%CurrentDT
+
+                    Me%SI%TimeWithNoWC%Field(i, j)  = 0.0
 
                 else
 
                     !Sets Infiltration Rate to zero
                     Me%SI%InfRate%Field(i, j) = 0.0
-                
-                    !Resets accumulated infiltration
-                    Me%SI%AccInf%Field(i, j) = AllmostZero
+
+                    Me%SI%TimeWithNoWC%Field(i, j)  = Me%SI%TimeWithNoWC%Field(i, j) + Me%CurrentDT
+                    
+                    if (Me%SI%TimeWithNoWC%Field(i, j) > 3600.0 * 3.0) then
+                   
+                        !Resets accumulated infiltration
+                        Me%SI%AccInf%Field(i, j) = AllmostZero
+                        
+                    endif
                     
                 endif
                 
@@ -5749,7 +5764,6 @@ cd2 :           if (BlockFound) then
         if (MonitorPerformance) call StartWatch ("ModuleBasin", "ActualizeWaterColumn")
 
         !$OMP PARALLEL PRIVATE(I,J, WarningString)
-
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
         do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         do i = Me%WorkSize%ILB, Me%WorkSize%IUB
@@ -5762,11 +5776,11 @@ cd2 :           if (BlockFound) then
 
                 if (Me%ExtUpdate%Watercolumn(i, j) < 0.0) then
                     
-                    !Rounding Error
-                    if (Me%ExtUpdate%Watercolumn(i, j) < -1.e-10) then 
-                        write (*,*) WarningString
-                        write (*,*) 'Negative Water Column corrected', i, j, Me%ExtUpdate%Watercolumn(i, j)
-                    endif
+                    !Mass Error
+                    Me%ExtVar%MassError     (i, j) = Me%ExtVar%MassError (i, j) -        &
+                                                     Me%ExtUpdate%Watercolumn(i, j) *    &
+                                                     Me%ExtVar%GridCellArea(i, j)
+
                     Me%ExtUpdate%Watercolumn(i, j) = 0.0
                     Me%ExtUpdate%WaterLevel (i, j) = Me%ExtVar%Topography(i, j)
                 
@@ -5776,8 +5790,6 @@ cd2 :           if (BlockFound) then
         enddo
         enddo
         !$OMP END DO
-
-
         !$OMP END PARALLEL
         
         !Send water column to runoff - the beholder of the water column
@@ -7132,8 +7144,9 @@ cd2 :           if (BlockFound) then
         integer                                     :: STAT_CALL     
         real                                        :: AtmosfereDT, DTForNextEvent
         real                                        :: DNetDT, RunOffDT
-        real                                        :: PorousMediaDT
-        integer                                     :: ID_DT   
+        real                                        :: PorousMediaDT, MaxDT
+        integer                                     :: ID_DT
+        character(len=132)                          :: AuxString   
 
         if (Me%Coupled%Atmosphere) then
             call GetAtmosphereDTPrediction(Me%ObjAtmosphere, AtmosfereDT, DTForNextEvent, STAT = STAT_CALL)
@@ -7206,7 +7219,6 @@ cd2 :           if (BlockFound) then
         endif
         
         !if (ID_DT == 0) then
-        !    call GetMaxComputeTimeStep(Me%ObjTime, MaxDT, STAT = STAT_CALL)
         !    NewDT = MaxDT
         !endif
         
@@ -7216,7 +7228,13 @@ cd2 :           if (BlockFound) then
 !            ID_DT = 7
 !        endif
 
-        call WriteDTLog ('ModuleBasin', ID_DT, NewDT)
+        call GetMaxComputeTimeStep(Me%ObjTime, MaxDT, STAT = STAT_CALL)
+        write(AuxString, fmt=10)min(DNetDT, MaxDT), min(RunOffDT, MaxDT), min(PorousMediaDT, MaxDT)
+        10 format(f12.4, 1x, f12.4, 1x, f12.4)
+
+        call WriteDTLog_ML ('ModuleBasin', ID_DT, NewDT, AuxString)
+
+
 
     end subroutine PredictNewDT 
 
@@ -7600,6 +7618,9 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
                     call GetRunoffWaterColumnOld  (Me%ObjRunoff, Me%ExtUpdate%WaterColumnOld, STAT = STAT_CALL) 
                     if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - ModuleBasin - ERR030'    
                     
+                    call GetMassError   (Me%ObjRunoff, Me%ExtVar%MassError, STAT = STAT_CALL) 
+                    if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - ModuleBasin - ERR040'    
+                    
                 endif
             endif
 
@@ -7683,6 +7704,9 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
 
                     call UngetRunoff (Me%ObjRunOff, Me%ExtUpdate%WaterColumnOld, STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'ReadUnLockExternalVar - ModuleBasin - ERR030'  
+
+                    call UngetRunoff (Me%ObjRunOff, Me%ExtVar%MassError, STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'ReadUnLockExternalVar - ModuleBasin - ERR040'  
                       
                 endif
             endif   
