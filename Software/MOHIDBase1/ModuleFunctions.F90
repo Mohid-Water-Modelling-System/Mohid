@@ -6490,17 +6490,19 @@ i5:         if      (TVD_Limitation == MinMod) then
 
         endif i2
         
-        !GRiflet: Should theta fall out of [0, 1], theta is brought
-        !back to [0, 1].
-        !A Theta bigger than 1D7 meant
-        !that, numerically, 1. - Theta = - Theta.
-        !This would imply a division by zero later, in the 
-        !the Thomas Algorithm...
-        if (Theta > 1.) then
-            Theta = 1.
-        elseif (Theta < 0.) then
-            Theta = 0.
-        endif
+        !GRiflet: It is best not to include this limitation as
+        !Tagus 3D with Sediments wouldn't run for some reason.
+        !!GRiflet: Should theta fall out of [0, 1], theta is brought        
+        !!back to [0, 1].
+        !!A Theta bigger than 1D7 meant
+        !!that, numerically, 1. - Theta = - Theta.
+        !!This would imply a division by zero later, in the 
+        !!the Thomas Algorithm...
+        !if (Theta > 1.) then
+        !    Theta = 1.
+        !elseif (Theta < 0.) then
+        !    Theta = 0.
+        !endif
    
         CFace(1) =  (1. - Theta) * Cup1(1) + Theta * CupHighOrder(1)
         CFace(2) =  (1. - Theta) * Cup1(2) + Theta * CupHighOrder(2)
