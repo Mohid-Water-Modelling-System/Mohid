@@ -2238,6 +2238,7 @@ Module ModuleGlobalData
             call AddPropList (O2AtmosphericPressure_,   Char_O2AtmosphericPressure  ,      ListNumber)
             call AddPropList (AirTemperature_,          Char_AirTemperature         ,      ListNumber)
             call AddPropList (RelativeHumidity_,        Char_RelativeHumidity       ,      ListNumber)
+            call AddPropList (SpecificHumidity_,        Char_SpecificHumidity       ,      ListNumber)                       
             call AddPropList (WindModulos_,             Char_WindModulos            ,      ListNumber)
             call AddPropList (WindAngle_,               Char_WindAngle              ,      ListNumber)
             call AddPropList (CloudCover_,              Char_CloudCover             ,      ListNumber)
