@@ -271,7 +271,7 @@ Module ModuleGridData
             if (present(DefaultValue)) then
                 Me%DefaultValue = DefaultValue
             else
-                Me%DefaultValue = null_real
+                Me%DefaultValue = 0.
             endif
 
             !Gets Size
@@ -405,6 +405,7 @@ Module ModuleGridData
         !Arguments-------------------------------------------------------------                                                    
                                                                                                      
         !Local-----------------------------------------------------------------
+        real                                        :: DefaultValue
         integer                                     :: ObjEnterData = 0
         integer                                     :: STAT_CALL
         integer                                     :: flag
@@ -486,12 +487,12 @@ Module ModuleGridData
                                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadGridDataFile - ModuleGridData - ERR100'
 
-
+        DefaultValue = Me%DefaultValue
 
         call GetData                (Me%DefaultValue, ObjEnterData, flag,               &
                                      keyword      = 'DEFAULT_VALUE',                    &
                                      ClientModule = 'ModuleGridData',                   &
-                                     default      =  0.,                                &
+                                     default      =  DefaultValue,                      &
                                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadGridDataFile - ModuleGridData - ERR110'        
 
