@@ -5478,7 +5478,7 @@ i2:                     if (Me%DefineCellsMap(i, j) == 1 .and. WaterPoints2D(i,j
 
                 enddo d1
 
-                CurrentLine => Line%Next
+                CurrentLine => CurrentLine%Next
             
             enddo dw
 
