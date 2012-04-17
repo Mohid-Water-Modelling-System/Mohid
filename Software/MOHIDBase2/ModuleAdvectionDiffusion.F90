@@ -1428,14 +1428,14 @@ cd2 :   if (Me%State%HorAdv) then
 
         if (KUBWS > 1) then
             call VerticalDiffusion ()
-            if (Me%ExternalVar%AdvectionNudging .eq. .false.) then
+            if (.not. Me%ExternalVar%AdvectionNudging) then
                 if (.not. Me%Vertical1D) call VerticalAdvection()
             else
-                if (.not. Me%Vertical1D) call VerticalAdvection_WithNudging()
+                if (.not. Me%Vertical1D) call VerticalAdvection_Nudge()
             endif
         endif
         
-        if (Me%ExternalVar%AdvectionNudging .eq. .true.) then
+        if (Me%ExternalVar%AdvectionNudging) then
         
             call AdvectionNudging( Me%ExternalVar%AdvectionNudging, Me%ExternalVar%AdvectionNudgingCells)
         
@@ -2491,7 +2491,7 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
     !--------------------------------------------------------------------------
 
-    subroutine VerticalAdvection_WithNudging()
+    subroutine VerticalAdvection_Nudge()
 
         !Local-----------------------------------------------------------------               
         real(8)             :: AdvFluxZ, DT1, DT2
@@ -2500,7 +2500,7 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
         !----------------------------------------------------------------------
         
-        if (MonitorPerformance) call StartWatch ("ModuleAdvectionDiffusion", "VerticalAdvection_WithNudging")
+        if (MonitorPerformance) call StartWatch ("ModuleAdvectionDiffusion", "VerticalAdvection_Nudge")
 
         CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
 
@@ -2616,7 +2616,7 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
         else cd6
 
-            stop 'sub. VerticalAdvection_WithNudging - ModuleAdvectionDiffusion - ERR01'
+            stop 'sub. VerticalAdvection_Nudge - ModuleAdvectionDiffusion - ERR01'
         
         endif cd6
 
@@ -2626,11 +2626,11 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         if (Me%State%CellFluxes .and. Me%ExternalVar%ImpExp_AdvV < 1.)    &
             call CalcVerticalAdvFlux(1. - Me%ExternalVar%ImpExp_AdvV)
 
-        if (MonitorPerformance) call StopWatch ("ModuleAdvectionDiffusion", "VerticalAdvection_WithNudging")
+        if (MonitorPerformance) call StopWatch ("ModuleAdvectionDiffusion", "VerticalAdvection_Nudge")
 
         !----------------------------------------------------------------------
 
-    end subroutine VerticalAdvection_WithNudging
+    end subroutine VerticalAdvection_Nudge
 
     !--------------------------------------------------------------------------
 
@@ -3139,20 +3139,20 @@ fl:                     if (Flow > 0.) then
         KLB   = Me%Size%KLB
         KUB   = Me%Size%KUB
                 
-        if (Me%ExternalVar%AdvectionNudging .eq. .false.) then
+        if (.not. Me%ExternalVar%AdvectionNudging) then
             call HorizontalAdvectionXX(ImpExp_AdvXX)
         else
             Me%AdvectionTi(:,:,:) = 0.
             Me%AdvectionD (:,:,:) = 0.        
             Me%AdvectionE (:,:,:) = 0.                
             Me%AdvectionF (:,:,:) = 0.                
-            call HorizontalAdvectionXX_WithNudging(ImpExp_AdvXX)
+            call HorizontalAdvectionXX_Nudge(ImpExp_AdvXX)
         endif
 
-        if (Me%ExternalVar%AdvectionNudging .eq. .false.) then
+        if (.not. Me%ExternalVar%AdvectionNudging) then
             if (.not. Me%XZFlow) call HorizontalAdvectionYY(ImpExp_AdvYY)
         else
-            if (.not. Me%XZFlow) call HorizontalAdvectionYY_WithNudging(ImpExp_AdvYY)
+            if (.not. Me%XZFlow) call HorizontalAdvectionYY_Nudge(ImpExp_AdvYY)
     endif
 
 cd1:    if (ImpExp_AdvYY == ImplicitScheme .or. ImpExp_AdvXX == ImplicitScheme) then 
@@ -3393,7 +3393,7 @@ doi4 :      do i = ILB, IUB
 
     !--------------------------------------------------------------------------
 
-    subroutine HorizontalAdvectionXX_WithNudging(ImpExp_AdvXX)
+    subroutine HorizontalAdvectionXX_Nudge(ImpExp_AdvXX)
 
         !External--------------------------------------------------------------
 
@@ -3553,7 +3553,7 @@ doi4 :      do i = ILB, IUB
 
         !----------------------------------------------------------------------
 
-    end subroutine HorizontalAdvectionXX_WithNudging
+    end subroutine HorizontalAdvectionXX_Nudge
 
     !--------------------------------------------------------------------------
 
@@ -3711,7 +3711,7 @@ doi4 :      do i = ILB, IUB
 
     !--------------------------------------------------------------------------
 
-    subroutine HorizontalAdvectionYY_WithNudging(ImpExp_AdvYY)
+    subroutine HorizontalAdvectionYY_Nudge(ImpExp_AdvYY)
 
         !Arguments--------------------------------------------------------------
         real                                :: ImpExp_AdvYY
@@ -3873,7 +3873,7 @@ doi4 :      do i = ILB, IUB
 
         !----------------------------------------------------------------------
 
-    end subroutine HorizontalAdvectionYY_WithNudging
+    end subroutine HorizontalAdvectionYY_Nudge
     
     !--------------------------------------------------------------------------
 
