@@ -1321,8 +1321,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                         0.054 * (PhytoConcentration3D(i, j, k) * Phyto_UnitsCoef) ** (2.0 / 3.0) 
                                     
                         Me%ShortWave%ExtinctionCoefField3D(i,j,k) =                                         &
-                                        Me%ShortWave%ExtinctionCoefField3D(i,j,k) * 0.7 +                   &
-                                        0.036 * 0.5 * (SPMConcentration3D(i, j, k) * SPM_UnitsCoef)
+                                        Me%ShortWave%ExtinctionCoefField3D(i,j,k) +                   &
+                                        0.036 * (SPMConcentration3D(i, j, k) * SPM_UnitsCoef)
                     end if
 
                 enddo
@@ -1349,8 +1349,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                         0.054 * (PhytoConcentration1D(i) * Phyto_UnitsCoef) ** (2.0 / 3.0) 
                                     
                         Me%ShortWave%ExtinctionCoefField1D(i) =                                             &
-                                        Me%ShortWave%ExtinctionCoefField1D(i) * 0.7 +                       &
-                                        0.036 * 0.5 * (SPMConcentration1D(i) * SPM_UnitsCoef)
+                                        Me%ShortWave%ExtinctionCoefField1D(i) +                       &
+                                        0.036 * (SPMConcentration1D(i) * SPM_UnitsCoef)
                     end if
 
                 enddo
