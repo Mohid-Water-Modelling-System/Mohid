@@ -6009,9 +6009,11 @@ cd3:            if (Me%ComputeOptions%Continuous) then
             call SetError(FATAL_, KEYWORD_, 'Verify_Numerical_Options - Hydrodynamic - ERR12.')
 
 
-        if (Me%ComputeOptions%Evolution == Residual_hydrodynamic_ .and.     &
-            .not. Me%ComputeOptions%Residual)                               &        
-            call SetError(FATAL_, KEYWORD_, 'Verify_Numerical_Options - Hydrodynamic - ERR13.')
+        !Guillaume & Guilherme: se corrermos com o EVOLUTION a RESIDUAL (continuação a
+        !a partir dum residual)não faz sentido calcular um novo residual.
+        !if (Me%ComputeOptions%Evolution == Residual_hydrodynamic_ .and.     &
+        !    .not. Me%ComputeOptions%Residual)                               &        
+        !    call SetError(FATAL_, KEYWORD_, 'Verify_Numerical_Options - Hydrodynamic - ERR13.')
 
        !Guillaume
        if ( Me%ComputeOptions%Evolution == Vertical1D_ ) then
