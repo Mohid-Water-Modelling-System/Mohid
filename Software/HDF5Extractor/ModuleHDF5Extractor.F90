@@ -2068,6 +2068,10 @@ do2:            do while(associated(CurrentField))
                 stop 'WriteItemFields - ModuleHDF5Extractor - ERR60'
 
                 write(*,*)'Writing '//trim(ObjItem%Name)//' fields'
+                
+                if (trim(ObjItem%Name)=="VerticalZ") then
+                    ObjItem%Name = "Vertical"
+                endif
 
                 CurrentField => ObjItem%FirstField
 
