@@ -174,6 +174,9 @@ Module ModuleInterfaceWaterAir
     !Constant for Air-Sea kinetic energy transfer        
     real,    parameter                              :: CDE = 0.63E-06        
     
+    !Methods to define the wind drag coefficient
+    integer, parameter                              :: Constant = 1, WindFunction = 2, ShearVelocity = 3
+    
     !Types---------------------------------------------------------------------
     private :: T_Files
     type       T_Files 
@@ -235,6 +238,7 @@ Module ModuleInterfaceWaterAir
         logical                                     :: SpecificOxygenFlux           = .false.
         logical                                     :: SpecificCarbonDioxideFlux    = .false.        
         logical                                     :: WindShearVelocity            = .false.
+        logical                                     :: WindShearVelAllocate         = .false. 
         logical                                     :: TurbulentKineticEnergy       = .false.
         logical                                     :: SurfaceRadiation             = .false.
     end type   T_Int_Options
@@ -351,6 +355,7 @@ Module ModuleInterfaceWaterAir
         real                                        :: ReflectionCoef           = FillValueReal
         real                                        :: CDWIND                   = FillValueReal
         logical                                     :: DefineCDWIND             = .false.
+        integer                                     :: CDWINDMethod             = FillValueInt
         real(8), pointer, dimension(:,:)            :: Scalar2D
         real   , pointer, dimension(:,:)            :: WindShearVelocity
         integer                                     :: AerationEquation         = FillValueInt
@@ -788,32 +793,32 @@ i1:         if(BlockFound)then
                 if (STAT_CALL  /= SUCCESS_) stop 'ConstructRugosity - ModuleInterfaceWaterAir - ERR30'
 
                 call GetIfMatrixRemainsConstant(FillMatrixID    = Me%Rugosity%ID%ObjFillMatrix,&
-                                                RemainsConstant = Me%Rugosity%Constant,        &
+                                                RemainsConstant = Me%Rugosity%Constant, &
                                                 STAT            = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)                                                  &
+                if (STAT_CALL /= SUCCESS_)                                              &
                     stop 'ConstructRugosity - ModuleInterfaceWaterAir - ERR40'
 
 
-                call GetData(Me%Rugosity%WavesFunction,                             &
-                             Me%ObjEnterData, iflag,                                &
-                             keyword      ='WAVES_FUNCTION',                        &
-                             SearchType   = FromBlock,                              &
-                             ClientModule = 'ModuleInterfaceWaterAir',              &
-                             Default      = .false.,                                &
+                call GetData(Me%Rugosity%WavesFunction,                                 &
+                             Me%ObjEnterData, iflag,                                    &
+                             keyword      ='WAVES_FUNCTION',                            &
+                             SearchType   = FromBlock,                                  &
+                             ClientModule = 'ModuleInterfaceWaterAir',                  &
+                             Default      = .false.,                                    &
                              STAT         = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)                                        &
+                if (STAT_CALL .NE. SUCCESS_)                                            &
                     stop 'ConstructRugosity - ModuleInterfaceWaterAir - ERR60'
 
                 if (Me%Rugosity%WavesFunction) then
 
-                    call GetData(Me%Rugosity%WavesRelation,                         &
-                                 Me%ObjEnterData, iflag,                            &
-                                 keyword      ='WAVES_RELATION',                    &
-                                 SearchType   = FromBlock,                          &
-                                 ClientModule = 'ModuleInterfaceWaterAir',          &
-                                 Default      = 1.,                                 &
+                    call GetData(Me%Rugosity%WavesRelation,                             &
+                                 Me%ObjEnterData, iflag,                                &
+                                 keyword      ='WAVES_RELATION',                        &
+                                 SearchType   = FromBlock,                              &
+                                 ClientModule = 'ModuleInterfaceWaterAir',              &
+                                 Default      = 1.,                                     &
                                  STAT         = STAT_CALL)
-                    if (STAT_CALL .NE. SUCCESS_)                                    &
+                    if (STAT_CALL .NE. SUCCESS_)                                        &
                         stop 'ConstructRugosity - ModuleInterfaceWaterAir - ERR70'
 
                     if (Me%ObjWaves == 0) stop 'ConstructRugosity - ModuleInterfaceWaterAir - ERR80'
@@ -973,19 +978,19 @@ cd2 :           if (BlockFound) then
                                    TypeZUV              = TypeZ_,                   &
                                    STAT                 = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                  &
-            stop 'Construct_PropertyValues - ModuleInterfaceWaterAir - ERR01'
+            stop 'Construct_PropertyValues - ModuleInterfaceWaterAir - ERR10'
 
         call GetIfMatrixRemainsConstant(FillMatrixID    = NewProperty%ID%ObjFillMatrix,&
                                         RemainsConstant = NewProperty%Constant,        &
                                         STAT            = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                  &
-            stop 'Construct_PropertyValues - ModuleInterfaceWaterAir - ERR02'
+            stop 'Construct_PropertyValues - ModuleInterfaceWaterAir - ERR20'
 
         if(.not. NewProperty%ID%SolutionFromFile)then
 
             call KillFillMatrix(NewProperty%ID%ObjFillMatrix, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)&
-                stop 'Construct_PropertyValues - ModuleInterfaceWaterAir - ERR03'
+                stop 'Construct_PropertyValues - ModuleInterfaceWaterAir - ERR30'
         endif
 
         if (NewProperty%ID%IDNumber == SurfaceRadiation_) then
@@ -999,7 +1004,7 @@ cd2 :           if (BlockFound) then
                          STAT         = STAT_CALL)
        
             if (STAT_CALL /= SUCCESS_)                                                  &
-                stop 'Construct_PropertyValues - ModuleInterfaceWaterAir - ERR04'
+                stop 'Construct_PropertyValues - ModuleInterfaceWaterAir - ERR40'
 
         endif
 
@@ -1015,7 +1020,35 @@ cd2 :           if (BlockFound) then
                          SearchType   = FromBlock,                                      &
                          STAT         = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                                  &
-                stop 'Construct_PropertyValues - ModuleInterfaceWaterAir - ERR05'
+                stop 'Construct_PropertyValues - ModuleInterfaceWaterAir - ERR50'
+                
+            if (iflag == 1) then
+            
+                if (Me%DefineCDWIND) then
+                
+                    Me%CDWINDmethod = Constant
+                
+                else
+                
+                    Me%CDWINDmethod = WindFunction                
+                
+                endif
+            
+            else
+
+                !method to define the wind drag coefficient 
+                !1 - constant, 2 - wind function (a*Wind + b), 3 - wind shear velocity 
+                call GetData(Me%CDWINDmethod,                                               &
+                             Me%ObjEnterData, iflag,                                        &
+                             keyword      = 'CDWIND_METHOD',                                &  
+                             default      = WindFunction,                                   &
+                             ClientModule = 'ModuleInterfaceWaterAir',                      &
+                             SearchType   = FromBlock,                                      &
+                             STAT         = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)                                                  &
+                    stop 'Construct_PropertyValues - ModuleInterfaceWaterAir - ERR60'
+            
+            endif                
 
             !Shear Coefficient at the Atmosphere
             ! Mellor, Introduction to Physical Oceanography, p52 (1996)
@@ -1923,11 +1956,29 @@ do1 :   do while (associated(PropertyX))
 
         endif
         
-        if (Me%ExtOptions%GOTMWindShearVelocityYes .and. Me%IntOptions%WindStress) then
+        Me%IntOptions%WindShearVelAllocate = .false.
+        
+        if (Me%ExtOptions%GOTMWindShearVelocityYes .and. Me%IntOptions%WindStress       &
+            .or. Me%CDWINDmethod == ShearVelocity) then
             
             Me%IntOptions%WindShearVelocity = .true.
+
+            call Search_Property(PropertyX, WindShearVelocity_, STAT = STAT_CALL) 
             
-            allocate(Me%WindShearVelocity(Me%Size2D%ILB:Me%Size2D%IUB,Me%Size2D%JLB:Me%Size2D%JUB))
+            if (STAT_CALL == SUCCESS_) then
+            
+                Me%WindShearVelocity  => PropertyX%Field
+            
+            else if (STAT_CALL == NOT_FOUND_ERR_) then  
+            
+                allocate(Me%WindShearVelocity(Me%Size2D%ILB:Me%Size2D%IUB,Me%Size2D%JLB:Me%Size2D%JUB))
+                Me%IntOptions%WindShearVelAllocate = .true.
+                
+            else if (STAT_CALL /= SUCCESS_) then
+            
+                stop 'CheckOptionsWater - ModuleInterfaceWaterAir - ERR230'
+                
+            endif
             
         else
         
@@ -2227,7 +2278,9 @@ do1 :   do while (associated(PropertyX))
             STAT_ = SUCCESS_  
         else
             if (present(PrintWarning)) then
-                if (PrintWarning) write (*,*)'Property Not Found in Module InterfaceWaterAir ',trim(GetPropertyName(PropertyXID))
+                if (PrintWarning) then
+                    write (*,*)'Property Not Found in Module InterfaceWaterAir ',trim(GetPropertyName(PropertyXID))
+                endif
             endif
             STAT_  = NOT_FOUND_ERR_  
         endif
@@ -3394,10 +3447,11 @@ i3:         if (PropDownLongWaveRadiation%ID%SolutionFromFile) then
 
         !Local----------------------------------------------------------------
         real,    dimension(:,:), pointer            :: UWIND, VWIND
+        type(T_Property), pointer                   :: WindShearVelocity
         integer                                     :: IUB, ILB, JUB, JLB, i, j
         real                                        :: VM, CDWIND
         real                                        :: Coef
-        integer                                     :: CHUNK
+        integer                                     :: CHUNK, STAT_CALL
 
         !Begin----------------------------------------------------------------
 
@@ -3415,7 +3469,7 @@ i3:         if (PropDownLongWaveRadiation%ID%SolutionFromFile) then
 
         CHUNK = CHUNK_J(JLB, JUB)
         !$OMP PARALLEL PRIVATE(i,j,VM,Coef,CDWIND)
-cd1:    if(Me%DefineCDWIND)then
+cd1:    if(Me%CDWINDmethod == Constant)then
         
             !The next line is done by each thread with OpenMP compilation.
             !This is ok because it is a private variable.
@@ -3444,7 +3498,7 @@ cd1:    if(Me%DefineCDWIND)then
             enddo
             !$OMP END DO
 
-        else cd1
+        else if (Me%CDWINDmethod == WindFunction) then cd1
         
             !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
             do j=JLB, JUB
@@ -3491,7 +3545,33 @@ cd1:    if(Me%DefineCDWIND)then
             enddo
             enddo
             !$OMP END DO
-            
+
+        else if (Me%CDWINDmethod == ShearVelocity) then cd1        
+        
+            call Search_Property(WindShearVelocity, WindShearVelocity_, PrintWarning = .true., STAT = STAT_CALL) 
+            if (STAT_CALL /= SUCCESS_) stop 'ComputeTauWind - ModuleInterfaceWaterAir - ERR10'
+
+            !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+            do j=JLB, JUB
+            do i=ILB, IUB
+
+                if (Me%ExtWater%WaterPoints2D(i, j) == WaterPoint) then
+                    
+                    !Compute the velocity modulus
+                    VM = sqrt(UWIND(i,j)**2. + VWIND(i,j)**2.)  
+                    
+                    ![M/L^2/T] = [L/T]^2/[L/T] * [M/L^3]
+                    Coef = WindShearVelocity%Field(i,j)**2 / VM * Air_Density
+                    
+                    ![M*L/T^2/L^2] = [M/L^2/T]*[L/T]
+                    PropWindStressX%FieldGrid(I,J) = Coef * UWIND(I,J)
+                    PropWindStressY%FieldGrid(I,J) = Coef * VWIND(I,J)
+
+                endif
+
+            enddo
+            enddo
+            !$OMP END DO
         endif cd1
         !$OMP END PARALLEL
 
@@ -3852,47 +3932,73 @@ do4:    do i=ILB, IUB
         !External--------------------------------------------------------------
         integer                             :: ILB, IUB, JLB, JUB, i, j
         real                                :: WindStressModule
-        type(T_Property), pointer           :: WindStressX, WindStressY
+        type(T_Property), pointer           :: WindShearVelocity, WindStressX, WindStressY
         integer                             :: STAT_CALL
         integer                             :: CHUNK
+        logical                             :: FromFile
 
         !Begin-----------------------------------------------------------------
-
-        IUB = Me%WorkSize2D%IUB
-        ILB = Me%WorkSize2D%ILB
-        JUB = Me%WorkSize2D%JUB
-        JLB = Me%WorkSize2D%JLB
-        
-        call Search_Property(WindStressX, WindStressX_, .true., STAT = STAT_CALL) 
-        if (STAT_CALL /= SUCCESS_) stop 'ModifyWindShearVelocity - ModuleInterfaceWaterAir - ERR01'
-
-
-        call Search_Property(WindStressY, WindStressY_, .true., STAT = STAT_CALL) 
-        if (STAT_CALL /= SUCCESS_) stop 'ModifyWindShearVelocity - ModuleInterfaceWaterAir - ERR02'
 
         if (MonitorPerformance) then
             call StartWatch ("ModuleInterfaceWaterAir", "ModifyWindShearVelocity")
         endif
+        
+        call Search_Property(WindShearVelocity, WindShearVelocity_, STAT = STAT_CALL) 
 
-        CHUNK = CHUNK_J(JLB, JUB)
-        !$OMP PARALLEL PRIVATE(i,j,WindStressModule)
-        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
-do1:    do j=JLB, JUB
-do2:    do i=ILB, IUB
+        if (STAT_CALL /= SUCCESS_ .and. STAT_CALL /= NOT_FOUND_ERR_) then               
+            stop 'ModifyWindStress - ModuleInterfaceWaterAir - ERR10'
+        endif
             
-            if (Me%ExtWater%WaterPoints2D(i, j) == WaterPoint) then
+        if (STAT_CALL == SUCCESS_) then
+            FromFile = WindShearVelocity%ID%SolutionFromFile
+        else
+            FromFile = .false.
+        endif
+       
+        if (FromFile) then
 
-                WindStressModule                  = sqrt(WindStressX%Field(i, j)**2. + &
-                                                         WindStressY%Field(i, j)**2.)
+            call ModifyFillMatrix(FillMatrixID      = WindShearVelocity%ID%ObjFillMatrix,   &
+                                  Matrix2D          = Me%WindShearVelocity,                 &
+                                  PointsToFill2D    = Me%ExtWater%WaterPoints2D,            &
+                                  STAT              = STAT_CALL)
+            if(STAT_CALL .ne. SUCCESS_) stop 'ModifyWindStress - ModuleInterfaceWaterAir - ERR20'
+                
+        else 
 
-               Me%WindShearVelocity(i, j) = sqrt(WindStressModule / SigmaDensityReference)
-                                                                
-            endif
+            call Search_Property(WindStressX, WindStressX_, .true., STAT = STAT_CALL) 
+            if (STAT_CALL /= SUCCESS_) stop 'ModifyWindShearVelocity - ModuleInterfaceWaterAir - ERR30'
 
-        enddo do2
-        enddo do1
-        !$OMP END DO
-        !$OMP END PARALLEL
+            call Search_Property(WindStressY, WindStressY_, .true., STAT = STAT_CALL) 
+            if (STAT_CALL /= SUCCESS_) stop 'ModifyWindShearVelocity - ModuleInterfaceWaterAir - ERR40'
+
+            IUB = Me%WorkSize2D%IUB
+            ILB = Me%WorkSize2D%ILB
+            JUB = Me%WorkSize2D%JUB
+            JLB = Me%WorkSize2D%JLB            
+
+            CHUNK = CHUNK_J(JLB, JUB)
+            !$OMP PARALLEL PRIVATE(i,j,WindStressModule)
+            !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+    do1:    do j=JLB, JUB
+    do2:    do i=ILB, IUB
+                
+                if (Me%ExtWater%WaterPoints2D(i, j) == WaterPoint) then
+
+                    WindStressModule                  = sqrt(WindStressX%Field(i, j)**2. + &
+                                                             WindStressY%Field(i, j)**2.)
+
+                   Me%WindShearVelocity(i, j) = sqrt(WindStressModule / SigmaDensityReference)
+                                                                    
+                endif
+
+            enddo do2
+            enddo do1
+            !$OMP END DO
+            !$OMP END PARALLEL            
+        
+        endif
+
+
 
         if (MonitorPerformance) then
             call StopWatch ("ModuleInterfaceWaterAir", "ModifyWindShearVelocity")
@@ -4686,7 +4792,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                     nullify   (Me%Scalar2D)
                 endif
                 
-                if (associated(Me%WindShearVelocity))then
+                if (Me%IntOptions%WindShearVelAllocate) then
                     deallocate(Me%WindShearVelocity)
                     nullify   (Me%WindShearVelocity)
                 endif
