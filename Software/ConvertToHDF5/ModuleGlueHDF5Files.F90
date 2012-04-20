@@ -50,6 +50,13 @@ Module ModuleGlueHDF5Files
         module procedure ReadInterface3DI4
     end interface
 
+    interface WriteInterface
+        module procedure WriteInterface1DR4
+        module procedure WriteInterface1DR8
+    end interface
+
+
+
     
     
     !Types---------------------------------------------------------------------
@@ -65,6 +72,7 @@ Module ModuleGlueHDF5Files
         character(len=PathLength)                        :: FileNameOut
         integer                                          :: FileNameInNumber
         logical                                          :: File_3D
+        logical                                          :: Vert3D, Open3D
         character(len=PathLength)                        :: BaseGroup
         character(len=PathLength)                        :: TimeGroup
     end type  T_GlueHDF5Files
@@ -127,40 +135,63 @@ Module ModuleGlueHDF5Files
        
 
  
-        call GetData(Me%FileNameOut,                                                     &
-                     Me%ObjEnterData, iflag,                                             &
-                     SearchType   = FromBlock,                                           &
-                     keyword      = 'OUTPUTFILENAME',                                    &
-                     ClientModule = 'ModuleGlueHDF5Files',                               &
+        call GetData(Me%FileNameOut,                                                    &
+                     Me%ObjEnterData, iflag,                                            &
+                     SearchType   = FromBlock,                                          &
+                     keyword      = 'OUTPUTFILENAME',                                   &
+                     ClientModule = 'ModuleGlueHDF5Files',                              &
                      STAT         = STAT_CALL)        
-        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleGlueHDF5Files - ERR01'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleGlueHDF5Files - ERR10'
 
 
-        call GetData(Me%File_3D,                                                         &
-                     Me%ObjEnterData, iflag,                                             &
-                     SearchType   = FromBlock,                                           &
-                     keyword      = '3D_FILE',                                           &
-                     ClientModule = 'ModuleGlueHDF5Files',                               &
+        call GetData(Me%File_3D,                                                        &
+                     Me%ObjEnterData, iflag,                                            &
+                     SearchType   = FromBlock,                                          &
+                     keyword      = '3D_FILE',                                          &
+                     default      = .false.,                                            &
+                     ClientModule = 'ModuleGlueHDF5Files',                              &
                      STAT         = STAT_CALL)        
-        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleGlueHDF5Files - ERR01'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleGlueHDF5Files - ERR20'
 
-        call GetData(Me%BaseGroup,                                                         &
-                     Me%ObjEnterData, iflag,                                             &
-                     SearchType   = FromBlock,                                           &
-                     keyword      = 'BASE_GROUP',                                           &
-                     Default      = 'Results',                               &
-                     ClientModule = 'ModuleGlueHDF5Files',                               &
+        call GetData(Me%Vert3D,                                                         &
+                     Me%ObjEnterData, iflag,                                            &
+                     SearchType   = FromBlock,                                          &
+                     keyword      = '3D_VERT',                                          &
+                     default      = .false.,                                            &
+                     ClientModule = 'ModuleGlueHDF5Files',                              &
                      STAT         = STAT_CALL)        
-        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleGlueHDF5Files - ERR01'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleGlueHDF5Files - ERR30'
+        
+        if (Me%File_3D) Me%Vert3D =.true.
 
-        call GetData(Me%TimeGroup,                                                         &
-                     Me%ObjEnterData, iflag,                                             &
-                     SearchType   = FromBlock,                                           &
-                     keyword      = 'TIME_GROUP',                                           &
-                     Default      = 'Time',                               &
-                     ClientModule = 'ModuleGlueHDF5Files',                               &
+        call GetData(Me%Open3D,                                                         &
+                     Me%ObjEnterData, iflag,                                            &
+                     SearchType   = FromBlock,                                          &
+                     keyword      = '3D_OPEN',                                          &
+                     default      = .false.,                                            &                     
+                     ClientModule = 'ModuleGlueHDF5Files',                              &
                      STAT         = STAT_CALL)        
-        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleGlueHDF5Files - ERR01'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleGlueHDF5Files - ERR40'
+
+        if (Me%File_3D) Me%Open3D =.true.        
+
+        call GetData(Me%BaseGroup,                                                      &
+                     Me%ObjEnterData, iflag,                                            &
+                     SearchType   = FromBlock,                                          &
+                     keyword      = 'BASE_GROUP',                                       &
+                     Default      = 'Results',                                          &
+                     ClientModule = 'ModuleGlueHDF5Files',                              &
+                     STAT         = STAT_CALL)        
+        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleGlueHDF5Files - ERR50'
+
+        call GetData(Me%TimeGroup,                                                      &
+                     Me%ObjEnterData, iflag,                                            &
+                     SearchType   = FromBlock,                                          &
+                     keyword      = 'TIME_GROUP',                                       &
+                     Default      = 'Time',                                             &
+                     ClientModule = 'ModuleGlueHDF5Files',                              &
+                     STAT         = STAT_CALL)        
+        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleGlueHDF5Files - ERR60'
 
 do1 :   do
             call ExtractBlockFromBlock(Me%ObjEnterData, ClientNumber,                    &
@@ -181,7 +212,7 @@ if2 :           if (BlockFound) then
                         call GetData(Me%FileNameIn(i), Me%ObjEnterData,  iflag,          & 
                                      Buffer_Line  = FirstLine + i,                       &
                                      STAT         = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleGlueHDF5Files - ERR02'
+                        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleGlueHDF5Files - ERR70'
 
                     enddo
 
@@ -192,7 +223,7 @@ if2 :           if (BlockFound) then
             else if (STAT_CALL .EQ. BLOCK_END_ERR_) then if1
                 write(*,*)  
                 write(*,*) 'Error calling ExtractBlockFromBuffer. '
-                if(STAT_CALL .ne. SUCCESS_)stop 'ReadOptions - ModuleGlueHDF5Files - ERR03'
+                if(STAT_CALL .ne. SUCCESS_)stop 'ReadOptions - ModuleGlueHDF5Files - ERR80'
                     
             end if if1
         end do do1
@@ -323,8 +354,10 @@ if2 :           if (BlockFound) then
             stop 'GlueFileIn - ModuleGlueHDF5Files - ERR40'
         endif
 
-        if(Me%File_3D)then
+        if(Me%Vert3D)then
             call GlueInResults (Me%ObjHDF5_Out, IDOut, IDIn, "/Grid/VerticalZ", Me%FirstInstant(i))
+        endif
+        if (Me%Open3D) then           
             call GlueInResults (Me%ObjHDF5_Out, IDOut, IDIn, "/Grid/OpenPoints", Me%FirstInstant(i), 2)
         endif
 
@@ -558,8 +591,10 @@ if2 :           if (BlockFound) then
             call h5dopen_f      (gr_id, trim(adjustl(obj_nameIn)), dset_id, STAT_CALL)
 
             if (STAT_CALL /= 0) stop 'GlueInTime - ModuleHDF5Files - ERR11'
+            
+            call ReadInterface (dset_id, DataVal, dims,  STAT_CALL)            
 
-            call h5dread_f(dset_id, H5T_NATIVE_REAL, DataVal, dims,   STAT_CALL)
+            !call h5dread_f(dset_id, H5T_NATIVE_REAL, DataVal, dims,   STAT_CALL)
 
             if (STAT_CALL /= 0) stop 'GlueInTime - ModuleHDF5Files - ERR12'
 
@@ -601,8 +636,7 @@ if2 :           if (BlockFound) then
                 call PrepareWrite (IDOut, Rank, dims, space_id, prp_id, gr_id,      &
                                    dset_id, NumType, GroupNameOut, trim(adjustl(Name)))
 
-
-                call h5dwrite_f (dset_id, H5T_NATIVE_REAL, DataVal, dims, STAT_CALL)
+                call WriteInterface (dset_id, DataVal, dims,  STAT_CALL)                
 
                 if (STAT_CALL /= 0) stop 'GlueInTime - ModuleHDF5Files - ERR16'
                 !Closes data set
@@ -915,6 +949,35 @@ if2 :           if (BlockFound) then
 
     end subroutine GlueInResults
 
+    subroutine WriteInterface1DR4 (dset_id, DataVal, dims,  STAT_CALL)
+
+        !Arguments----------------------------------------------------------------
+        integer(HID_T)                              :: dset_id
+        integer(HSIZE_T), dimension(7)              :: dims
+        integer                                     :: STAT_CALL
+        real(4),   dimension(:)                     :: DataVal
+
+        !Begin--------------------------------------------------------------------
+        call h5dWrite_f(dset_id, H5T_NATIVE_REAL, DataVal, dims,  STAT_CALL)
+
+    end subroutine WriteInterface1DR4 
+
+
+    subroutine WriteInterface1DR8 (dset_id, DataVal, dims,  STAT_CALL)
+
+        !Arguments----------------------------------------------------------------
+        integer(HID_T)                              :: dset_id
+        integer(HSIZE_T), dimension(7)              :: dims
+        integer                                     :: STAT_CALL
+        real(8),   dimension(:)                     :: DataVal
+
+        !Begin--------------------------------------------------------------------
+        call h5dWrite_f(dset_id, H5T_NATIVE_DOUBLE, DataVal, dims,  STAT_CALL)
+
+    end subroutine WriteInterface1DR8 
+
+
+
     subroutine ReadInterface1DR4 (dset_id, DataVal, dims,  STAT_CALL)
 
         !Arguments----------------------------------------------------------------
@@ -941,6 +1004,7 @@ if2 :           if (BlockFound) then
         call h5dread_f(dset_id, H5T_NATIVE_DOUBLE, DataVal, dims,  STAT_CALL)
 
     end subroutine ReadInterface1DR8 
+
 
 
     subroutine ReadInterface2DR4 (dset_id, DataVal, dims,  STAT_CALL)
