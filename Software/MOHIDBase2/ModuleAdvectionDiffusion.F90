@@ -235,6 +235,7 @@ Module ModuleAdvectionDiffusion
         !Discharges
         real,    pointer, dimension(:)     :: DischFlow, DischConc
         integer, pointer, dimension(:)     :: DischI, DischJ, DischK, DischnCells
+        integer, pointer, dimension(:)     :: DischKmin, DischKmax
         integer, pointer, dimension(:)     :: DischVert
         integer                            :: DischNumber  = null_int
         logical                            :: DischON     
@@ -893,14 +894,14 @@ cd1 :   if (ready_ == READ_LOCK_ERR_) then
         !----------------------------------------------------------------------
 
     subroutine SetDischarges (AdvectionDiffusionID, DischFlow, DischConc,               &
-                              DischI, DischJ, DischK, DischVert, DischNumber,           &
-                              IgnoreDisch, DischnCells, STAT)
+                              DischI, DischJ, DischK, DischKmin, DischKmax,             &
+                              DischVert, DischNumber, IgnoreDisch, DischnCells, STAT)
     
     
         !Arguments--------------------------------------------------------------
         integer,           intent(IN )     :: AdvectionDiffusionID
         real,    pointer, dimension(:)     :: DischFlow, DischConc
-        integer, pointer, dimension(:)     :: DischI, DischJ, DischK
+        integer, pointer, dimension(:)     :: DischI, DischJ, DischK, DischKmin, DischKmax
         integer, pointer, dimension(:)     :: DischVert 
         integer,           intent(IN )     :: DischNumber
         logical, pointer, dimension(:)     :: IgnoreDisch
@@ -929,6 +930,8 @@ cd1 :   if (ready_ == IDLE_ERR_) then
             Me%ExternalVar%DischI       => DischI 
             Me%ExternalVar%DischJ       => DischJ 
             Me%ExternalVar%DischK       => DischK 
+            Me%ExternalVar%DischKmin    => DischKmin 
+            Me%ExternalVar%DischKmax    => DischKmax
             Me%ExternalVar%DischVert    => DischVert
             Me%ExternalVar%IgnoreDisch  => IgnoreDisch
             Me%ExternalVar%DischnCells  => DischnCells
@@ -978,6 +981,8 @@ cd1 :   if (ready_ == IDLE_ERR_) then
             nullify(Me%ExternalVar%DischI   )
             nullify(Me%ExternalVar%DischJ   )
             nullify(Me%ExternalVar%DischK   )
+            nullify(Me%ExternalVar%DischKmin)            
+            nullify(Me%ExternalVar%DischKmax)            
             nullify(Me%ExternalVar%DischVert)
             nullify(Me%ExternalVar%IgnoreDisch)
             nullify(Me%ExternalVar%DischnCells)
@@ -3034,14 +3039,16 @@ dnc:        do   nc = 1, Me%ExternalVar%DischnCells(dis)
 
                 n = n + 1
             
-                i  = Me%ExternalVar%DischI(n)
-                j  = Me%ExternalVar%DischJ(n)
-                kd = Me%ExternalVar%DischK(n)
+                i    = Me%ExternalVar%DischI   (n)
+                j    = Me%ExternalVar%DischJ   (n)
+                kd   = Me%ExternalVar%DischK   (n)
+                kmin = Me%ExternalVar%DischKmin(n)
+                kmax = Me%ExternalVar%DischKmax(n)                
 
                 if (Me%ExternalVar%DischVert(dis) == DischUniform_) then
 
-                    kmin = Me%ExternalVar%KFloorZ(i,j)
-                    kmax = Me%WorkSize%KUB
+                    if (kmin == FillValueInt) kmin = Me%ExternalVar%KFloorZ(i, j)
+                    if (kmax == FillValueInt) kmax = Me%WorkSize%KUB
 
                 else
         
