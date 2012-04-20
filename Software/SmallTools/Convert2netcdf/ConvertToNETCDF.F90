@@ -59,6 +59,7 @@ program Convert2netcdf
     use ModuleEnterData
     use ModuleHDF5
     use ModuleNETCDF
+    use ModuleFunctions
     use HDF5
 
     implicit none
@@ -108,11 +109,17 @@ program Convert2netcdf
                                                             
         integer                                             :: ObjEnterData     = 0
                                                             
-        real,    dimension(:,:  ), pointer                  :: Float2D          => null()
-        real,    dimension(:,:,:), pointer                  :: Float3D          => null()
-        integer, dimension(:,:  ), pointer                  :: Int2D            => null()
-        integer, dimension(:,:,:), pointer                  :: Int3D            => null()
+        real,    dimension(:,:  ), pointer                  :: Float2DIn           => null()
+        real,    dimension(:,:,:), pointer                  :: Float3DIn           => null()
+        integer, dimension(:,:  ), pointer                  :: Int2DIn             => null()
+        integer, dimension(:,:,:), pointer                  :: Int3DIn             => null()
                                                             
+        real,    dimension(:,:  ), pointer                  :: Float2DOut          => null()
+        real,    dimension(:,:,:), pointer                  :: Float3DOut          => null()
+        integer, dimension(:,:  ), pointer                  :: Int2DOut            => null()
+        integer, dimension(:,:,:), pointer                  :: Int3DOut            => null()
+
+
         type(T_HDFFile)                                     :: HDFFile
         type(T_NCDFFile)                                    :: NCDF_File
 
@@ -572,7 +579,7 @@ program Convert2netcdf
 
         end do
 
-        CharInitialDate = TimeToString(Me%ReferenceTime)
+        CharInitialDate = TimeToStringV2(Me%ReferenceTime)
 
         call NETCDFWriteTime(NCDFID         = Me%NCDF_File%ObjNETCDF,           &
                              InitialDate    = CharInitialDate,                  &
@@ -621,7 +628,8 @@ program Convert2netcdf
 
         !Local-----------------------------------------------------------------
         integer(HID_T)                              :: gr_id, dset_id, class_id
-        integer(8)                                  :: ssize
+!        integer(8)                                  :: ssize
+        integer                                     :: ssize
         integer(HID_T)                              :: space_id, datatype_id
         integer(HID_T)                              :: rank
         integer(HSIZE_T), dimension(7)              :: dims, maxdims
@@ -647,15 +655,26 @@ program Convert2netcdf
         call h5dclose_f                     (dset_id, STAT_CALL)
         call h5gclose_f                     (gr_id, STAT_CALL)
 
-        allocate(Me%Int2D   (1:dims(1), 1:dims(2)))
-        allocate(Me%Int3D   (1:dims(1), 1:dims(2), 1:dims(3)))
-        allocate(Me%Float2D (1:dims(1), 1:dims(2)))
-        allocate(Me%Float3D (1:dims(1), 1:dims(2), 1:dims(3)))
+        allocate(Me%Int2DIn   (1:dims(1), 1:dims(2)))
+        allocate(Me%Int3DIn   (1:dims(1), 1:dims(2), 1:dims(3)))
+        allocate(Me%Float2DIn (1:dims(1), 1:dims(2)))
+        allocate(Me%Float3DIn (1:dims(1), 1:dims(2), 1:dims(3)))
+        
+        allocate(Me%Int2DOut  (1:dims(2), 1:dims(1)))
+        allocate(Me%Int3DOut  (1:dims(2), 1:dims(1), 1:dims(3)))
+        allocate(Me%Float2DOut(1:dims(2), 1:dims(1)))
+        allocate(Me%Float3DOut(1:dims(2), 1:dims(1), 1:dims(3)))        
 
-        Me%Int2D    = null_int
-        Me%Int3D    = null_int  
-        Me%Float2D  = null_real
-        Me%Float3D  = null_real  
+        Me%Int2DIn    = null_int
+        Me%Int3DIn    = null_int  
+        Me%Float2DIn  = null_real
+        Me%Float3DIn  = null_real  
+
+        Me%Int2DOut    = null_int
+        Me%Int3DOut    = null_int  
+        Me%Float2DOut  = null_real
+        Me%Float3DOut  = null_real  
+
        
         Me%HDFFile%Size%ILB = 1
         Me%HDFFile%Size%JLB = 1
@@ -682,30 +701,27 @@ program Convert2netcdf
 
         !Local-----------------------------------------------------------------
         integer                             :: STAT_CALL, i, j
-        real, dimension(:  ), pointer       :: Lat1D, Lon1D, Lat_Stag1D, Lon_Stag1D
-        real, dimension(:,:), pointer       :: Lat, Lon, Lat_Stag, Lon_Stag
+        real, dimension(:,:), pointer       :: Lat, Lon, Lat_Stag, Lon_Stag, Aux4
+        real(8), dimension(:,:), pointer    :: SphericX, SphericY               
         character(len=StringLength)         :: LatVar, LonVar
 
         !Begin-----------------------------------------------------------------
 
         write(*,*)"Reading and writing latitude and longitude..."
-        
-        allocate(Lat1D      (1:Me%HDFFile%Size%IUB))
-        allocate(Lon1D      (1:Me%HDFFile%Size%JUB))
 
-        allocate(Lat_Stag1D (1:Me%HDFFile%Size%IUB+1))
-        allocate(Lon_Stag1D (1:Me%HDFFile%Size%JUB+1))
+        allocate(Aux4        (1:Me%HDFFile%Size%IUB+1, 1:Me%HDFFile%Size%JUB+1))
+       
 
-        allocate(Lat        (1:Me%HDFFile%Size%IUB, 1:Me%HDFFile%Size%JUB))
-        allocate(Lon        (1:Me%HDFFile%Size%IUB, 1:Me%HDFFile%Size%JUB))
+        allocate(Lat        (1:Me%HDFFile%Size%JUB, 1:Me%HDFFile%Size%IUB))
+        allocate(Lon        (1:Me%HDFFile%Size%JUB, 1:Me%HDFFile%Size%IUB))
 
-        allocate(Lat_Stag   (1:Me%HDFFile%Size%IUB+1, 1:Me%HDFFile%Size%JUB+1))
-        allocate(Lon_Stag   (1:Me%HDFFile%Size%IUB+1, 1:Me%HDFFile%Size%JUB+1))
+        allocate(Lat_Stag   (1:Me%HDFFile%Size%JUB+1, 1:Me%HDFFile%Size%IUB+1))
+        allocate(Lon_Stag   (1:Me%HDFFile%Size%JUB+1, 1:Me%HDFFile%Size%IUB+1))
 
         call HDF5SetLimits(Me%HDFFile%ObjHDF5, ILB = 1, IUB = Me%HDFFile%Size%IUB+1, &
                                                JLB = 1, JUB = Me%HDFFile%Size%JUB+1, &
                                                STAT         = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_) stop 'ReadWriteLatLon - Convert2netcdf - ERR01'
+        if (STAT_CALL .NE. SUCCESS_) stop 'ReadWriteLatLon - Convert2netcdf - ERR10'
 
         if(Me%HDFFile%ReadLatLon)then
             LatVar = "Latitude"
@@ -718,57 +734,57 @@ program Convert2netcdf
         call HDF5ReadData(HDF5ID       = Me%HDFFile%ObjHDF5,            &
                           GroupName    = "/Grid",                       &
                           Name         = trim(LatVar),                  &
-                          Array2D      = Lat_Stag,                      &
+                          Array2D      = Aux4,                          &
                           STAT         = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_) stop 'ReadWriteLatLon - Convert2netcdf - ERR01'
+        if (STAT_CALL .NE. SUCCESS_) stop 'ReadWriteLatLon - Convert2netcdf - ERR20'
+        
+        do j = 1, Me%HDFFile%Size%JUB+1
+        do i = 1, Me%HDFFile%Size%IUB+1
+            Lat_Stag(j,i) = Aux4(i,j)
+        enddo
+        enddo        
         
         call HDF5ReadData(HDF5ID       = Me%HDFFile%ObjHDF5,            &
                           GroupName    = "/Grid",                       &
                           Name         = trim(LonVar),                  &
-                          Array2D      = Lon_Stag,                      &
+                          Array2D      = Aux4,                          &
                           STAT         = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_) stop 'ReadWriteLatLon - Convert2netcdf - ERR01'
+        if (STAT_CALL .NE. SUCCESS_) stop 'ReadWriteLatLon - Convert2netcdf - ERR30'
 
 
-        do j = 1, Me%HDFFile%Size%JUB
-        do i = 1, Me%HDFFile%Size%IUB
-            Lat(i,j) = (Lat_Stag(i, j) + Lat_Stag(i+1,j))/2.
+        do j = 1, Me%HDFFile%Size%JUB+1
+        do i = 1, Me%HDFFile%Size%IUB+1
+            Lon_Stag(j,i) = Aux4(i,j)
         enddo
-        enddo
+        enddo        
 
         do j = 1, Me%HDFFile%Size%JUB 
         do i = 1, Me%HDFFile%Size%IUB 
-            Lon(i,j) = (Lon_Stag(i, j) + Lon_Stag(i,j+1))/2.
+            Lat(j,i) = (Lat_Stag(j,i) + Lat_Stag(j,i+1)+Lat_Stag(j+1,i) + Lat_Stag(j+1,i+1))/4.
+            Lon(j,i) = (Lon_Stag(j,i) + Lon_Stag(j,i+1)+Lon_Stag(j+1,i) + Lon_Stag(j+1,i+1))/4.            
         enddo
         enddo
+        
+        allocate(SphericX(1:Me%HDFFile%Size%JUB+1, 1:Me%HDFFile%Size%IUB+1))
+        allocate(SphericY(1:Me%HDFFile%Size%JUB+1, 1:Me%HDFFile%Size%IUB+1))
 
-        do i = 1, Me%HDFFile%Size%IUB
-            Lat1D(i) = Lat(i, 1)
-        enddo
-
-        do j = 1, Me%HDFFile%Size%JUB
-            Lon1D(j) = Lon(1, j)
-        enddo
-
-        do i = 1, Me%HDFFile%Size%IUB+1
-            Lat_Stag1D(i) = Lat_Stag(i, 1)
-        enddo
-
-        do j = 1, Me%HDFFile%Size%JUB+1
-            Lon_Stag1D(j) = Lon_Stag(1, j)
-        enddo
+        call WGS84toGoogleMaps(lon_stag, lat_stag,                                      &
+                               1, Me%HDFFile%Size%JUB, 1, Me%HDFFile%Size%IUB,          &
+                               SphericX, SphericY)
 
         call NETCDFWriteLatLon(NCDFID           = Me%NCDF_File%ObjNETCDF,               &
-                               Lat              = Lat1D,                                &
-                               Lon              = Lon1D,                                &
-                               Lat_Stag         = Lat_Stag1D,                           &
-                               Lon_Stag         = Lon_Stag1D,                           &
-                               GeoCoordinates   = Me%HDFFile%ReadLatLon,                &
+                               Lat              = Lat,                                  &
+                               Lon              = Lon,                                  &
+                               Lat_Stag         = Lat_Stag,                             &
+                               Lon_Stag         = Lon_Stag,                             &
+                               SphericX         = SphericX,                             &
+                               SphericY         = SphericY,                             &
                                STAT             = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_) stop 'ReadWriteLatLon - Convert2netcdf - ERR01'
+        if (STAT_CALL .NE. SUCCESS_) stop 'ReadWriteLatLon - Convert2netcdf - ERR60'
 
-        deallocate(Lat1D, Lon1D, Lat, Lon, Lat_Stag, Lon_Stag, Lat_Stag1D, Lon_Stag1D)
-        nullify   (Lat1D, Lon1D, Lat, Lon, Lat_Stag, Lon_Stag, Lat_Stag1D, Lon_Stag1D)
+        deallocate(SphericX, SphericY)
+        deallocate(Lat, Lon, Lat_Stag, Lon_Stag)
+        nullify   (Lat, Lon, Lat_Stag, Lon_Stag)
 
         write(*,*)"Done!"
         write(*,*)
@@ -780,18 +796,20 @@ program Convert2netcdf
     subroutine ReadWriteVertical
 
         !Local-----------------------------------------------------------------
-        integer                             :: STAT_CALL, i, j, k
-        real, dimension(:  ), pointer       :: Vert1D
+        integer                             :: STAT_CALL, i, j, k, kk
+        real, dimension(:  ), pointer       :: Vert1D, Vert1DStag
         real, dimension(:,:,:), pointer     :: Vert3D
         integer, dimension(:,:,:),pointer   :: WaterPoints3D
         real                                :: Vert, area
         character(len=StringLength)         :: PointsVar
+
 
         !Begin-----------------------------------------------------------------
 
         write(*,*)"Reading and writing Vertical Coordinate..."
         
         allocate(Vert1D      (1:Me%HDFFile%Size%KUB))
+        allocate(Vert1DStag  (1:Me%HDFFile%Size%KUB+1))        
 
         !Same as SZZ
         allocate(Vert3D      (1:Me%HDFFile%Size%IUB, &
@@ -843,14 +861,20 @@ program Convert2netcdf
                 Vert1D(i) = i/Me%HDFFile%Size%KUB  !assuming constant spacing
             enddo
 
+            !Returns the depth of the cell's bottom face in a sigma referential i.e. [0 1]
+            do i = 0, Me%HDFFile%Size%KUB
+                Vert1DStag(i+1) = i/Me%HDFFile%Size%KUB  !assuming constant spacing
+            enddo
+
         !No? Then it must be a z-vertical coordinate.
         else
         
             !Returns the mean depth of the cell's top and down faces in a cartesian referential
-            Vert = 0.
-            area = 0.
 
             do k = 1, Me%HDFFile%Size%KUB
+
+                Vert = 0.
+                area = 0.
 
                 do j = 1, Me%HDFFile%Size%JUB
                 do i = 1, Me%HDFFile%Size%IUB
@@ -869,11 +893,36 @@ program Convert2netcdf
                     Vert1D(k) = maxval(Vert3D)
                 endif
 
+            enddo
+            
+            do k = 1, Me%HDFFile%Size%KUB+1
+
                 Vert = 0.
                 area = 0.
 
+                do j = 1, Me%HDFFile%Size%JUB
+                do i = 1, Me%HDFFile%Size%IUB
+                    if (k==Me%HDFFile%Size%KUB+1) then
+                        kk = k-1
+                    else
+                        kk = k
+                    endif
+                    if(WaterPoints3D(i, j, kk) == Waterpoint)then
+                        if(Vert3D(i, j, k) > FillValueReal/2.)then
+                            Vert = Vert + Vert3D(i, j, k) 
+                            area = area + 1 
+                        endif
+                    endif
+                enddo
+                enddo
+            
+                if(area > 0.)then
+                    Vert1DStag(k) = Vert / area 
+                else
+                    Vert1DStag(k) = maxval(Vert3D)
+                endif
 
-            enddo
+            enddo            
        
         endif
 
@@ -883,6 +932,11 @@ program Convert2netcdf
                              OffSet           = Me%DepthAddOffSet,                      &
                              STAT             = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_) stop 'ReadWriteVertical - Convert2netcdf - ERR05'
+        
+        call NETCDFWriteVertStag(NCDFID         = Me%NCDF_File%ObjNETCDF,               &
+                                 VertStag       = Vert1DStag,                           &
+                                 STAT           = STAT_CALL)
+        
 
         deallocate(WaterPoints3D)
         nullify   (WaterPoints3D)
@@ -905,7 +959,7 @@ program Convert2netcdf
         !Local-----------------------------------------------------------------
         character(len=StringLength)         :: NCDFName, LongName, StandardName, Units, Positive
         real                                :: MinValue, MaxValue, ValidMin, ValidMax, MissingValue
-        integer                             :: STAT_CALL
+        integer                             :: STAT_CALL, i, j
 
         !Begin-----------------------------------------------------------------
 
@@ -919,14 +973,21 @@ program Convert2netcdf
         call HDF5ReadData(HDF5ID       = Me%HDFFile%ObjHDF5,            &
                           GroupName    = "/Grid",                       &
                           Name         = "Bathymetry",                  &
-                          Array2D      = Me%Float2D,                    &
+                          Array2D      = Me%Float2DIn,                  &
                           STAT         = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_) stop 'ReadWriteBathymetry - Convert2netcdf - ERR01'
+        
+        do i=1,Me%HDFFile%Size%IUB
+        do j=1,Me%HDFFile%Size%JUB
+            Me%Float2DOut(j,i) = Me%Float2DIn(i, j)
+        enddo
+        enddo
         
 
         call BuildAttributes("Bathymetry", NCDFName, LongName, StandardName, &
                                            Units, ValidMin, ValidMax,        &
-                                           MinValue, MaxValue, MissingValue, Positive, Me%Float2D)
+                                           MinValue, MaxValue, MissingValue, &
+                                           Positive, Me%Float2DIn)
         
         call NETCDFWriteData (NCDFID        = Me%NCDF_File%ObjNETCDF,   &
                               Name          = trim(NCDFName),           &
@@ -938,7 +999,7 @@ program Convert2netcdf
                               MinValue      = MinValue,                 &
                               MaxValue      = MaxValue,                 &
                               MissingValue  = MissingValue,             &
-                              Array2D       = Me%Float2D,               &
+                              Array2D       = Me%Float2DOut,            &
                               STAT          = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_) stop 'ReadWriteBathymetry - Convert2netcdf - ERR01'
 
@@ -956,7 +1017,7 @@ program Convert2netcdf
         !Local-----------------------------------------------------------------
         character(len=StringLength)         :: NCDFName, LongName, StandardName, Units
         real                                :: MinValue, MaxValue, ValidMin, ValidMax, MissingValue
-        integer                             :: STAT_CALL
+        integer                             :: STAT_CALL, i, j, k
 
         !Begin-----------------------------------------------------------------
 
@@ -975,14 +1036,22 @@ program Convert2netcdf
                 call HDF5ReadData(HDF5ID       = Me%HDFFile%ObjHDF5,                        &
                                   GroupName    = Me%HDFFile%SizeGroup,                      &
                                   Name         = trim(Me%HDFFile%HdfMask),                  &
-                                  Array3D      = Me%Int3D,                                  &
+                                  Array3D      = Me%Int3DIn,                                &
                                   STAT         = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_) stop 'ReadMask - Convert2netcdf - ERR01'
+                
+                do i=1,Me%HDFFile%Size%IUB
+                do j=1,Me%HDFFile%Size%JUB
+                do k=1,Me%HDFFile%Size%KUB                
+                    Me%Int3DOut(j,i,k) = Me%Int3DIn(i,j,k)
+                enddo
+                enddo                
+                enddo
         
                 call BuildAttributes(trim(Me%HDFFile%HdfMask), NCDFName,                    &
                                      LongName, StandardName,                                &
                                      Units, ValidMin, ValidMax,                             &
-                                     MinValue, MaxValue, MissingValue, Int3D = Me%Int3D)
+                                     MinValue, MaxValue, MissingValue, Int3D = Me%Int3DIn)
         
                 call NETCDFWriteData (NCDFID        = Me%NCDF_File%ObjNETCDF,               &
                                       Name          = trim(NCDFName),                       &
@@ -994,7 +1063,7 @@ program Convert2netcdf
                                       MinValue      = MinValue,                             &
                                       MaxValue      = MaxValue,                             &
                                       MissingValue  = MissingValue,                         &
-                                      Array3D       = Me%Int3D,                             &
+                                      Array3D       = Me%Int3DOut,                          &
                                       STAT          = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_) stop 'ReadMask - Convert2netcdf - ERR01'
 
@@ -1008,13 +1077,19 @@ program Convert2netcdf
                 call HDF5ReadData(HDF5ID   = Me%HDFFile%ObjHDF5,                            &
                                   GroupName    = Me%HDFFile%SizeGroup,                      &
                                   Name         = Me%HDFFile%HdfMask,                        &
-                                  Array2D      = Me%Int2D,                                  &
+                                  Array2D      = Me%Int2DIn,                                &
                                   STAT         = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_) stop 'ReadMask - Convert2netcdf - ERR01'
+                
+                do i=1,Me%HDFFile%Size%IUB
+                do j=1,Me%HDFFile%Size%JUB
+                    Me%Int2DOut(j,i) = Me%Int2DIn(i,j)
+                enddo                
+                enddo                
 
-                call BuildAttributes("Bathymetry", NCDFName, LongName, StandardName,        &
-                                     Units, ValidMin, ValidMax,                       &
-                                     MinValue, MaxValue, MissingValue, Int2D = Me%Int2D)
+                call BuildAttributes("Bathymetry", NCDFName, LongName, StandardName,    &
+                                     Units, ValidMin, ValidMax,                         &
+                                     MinValue, MaxValue, MissingValue, Int2D = Me%Int2DIn)
         
                 call NETCDFWriteData (NCDFID        = Me%NCDF_File%ObjNETCDF,               &
                                       Name          = trim(NCDFName),                       &
@@ -1026,7 +1101,7 @@ program Convert2netcdf
                                       MinValue      = MinValue,                             &
                                       MaxValue      = MaxValue,                             &
                                       MissingValue  = MissingValue,                         &
-                                      Array2D       = Me%Int2D,                             &
+                                      Array2D       = Me%Int2DOut,                          &
                                       STAT          = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_) stop 'ReadMask - Convert2netcdf - ERR01'
 
@@ -1056,10 +1131,10 @@ program Convert2netcdf
         integer                                     :: rank, obj_type
         integer(HSIZE_T), dimension(7)              :: dims, maxdims
         integer(HID_T)                              :: gr_id, dset_id, class_id
-        integer(8)                                  :: ssize
+        integer(4)                                  :: ssize
         integer(HID_T)                              :: space_id, datatype_id
         logical                                     :: IsMapping
-        integer                                     :: ILB, IUB, JLB, JUB, KLB, KUB
+        integer                                     :: ILB, IUB, JLB, JUB, KLB, KUB, i, j, k
 
         !Begin-----------------------------------------------------------------
 
@@ -1121,13 +1196,20 @@ program Convert2netcdf
                             call HDF5ReadData(HDF5ID       = Me%HDFFile%ObjHDF5,            &
                                               GroupName    = "/Grid/",                      &
                                               Name         = trim(obj_name),                &
-                                              Array2D      = Me%Int2D,                      &
+                                              Array2D      = Me%Int2DIn,                    &
                                               STAT         = STAT_CALL)
                             if (STAT_CALL .NE. SUCCESS_) stop 'ReadMask - Convert2netcdf - ERR05'
+                            
+                            do i=ILB, IUB
+                            do j=JLB, JUB
+                                Me%Int2DOut(j,i) = Me%Int2DIn(i,j)
+                            enddo                
+                            enddo                            
 
                             call BuildAttributes(obj_name, NCDFName, LongName, StandardName, &
-                                                 Units, ValidMin, ValidMax,        &
-                                                 MinValue, MaxValue, MissingValue, Int2D = Me%Int2D)
+                                                 Units, ValidMin, ValidMax,             &
+                                                 MinValue, MaxValue, MissingValue,      &
+                                                 Int2D = Me%Int2DIn)
 
                             call CheckAndCorrectVarName(obj_name, NCDFName)
 
@@ -1141,7 +1223,7 @@ program Convert2netcdf
                                                   MinValue      = MinValue,                 &
                                                   MaxValue      = MaxValue,                 &
                                                   MissingValue  = MissingValue,             &
-                                                  Array2D       = Me%Int2D,                 &
+                                                  Array2D       = Me%Int2DOut,              &
                                                   STAT          = STAT_CALL)
                             if (STAT_CALL .NE. SUCCESS_) stop 'ReadMask - Convert2netcdf - ERR06'
 
@@ -1154,13 +1236,22 @@ program Convert2netcdf
                             call HDF5ReadData(HDF5ID       = Me%HDFFile%ObjHDF5,            &
                                               GroupName    = "/Grid",                       &
                                               Name         = trim(obj_name),                &
-                                              Array3D      = Me%Int3D,                      &
+                                              Array3D      = Me%Int3DIn,                    &
                                               STAT         = STAT_CALL)
                             if (STAT_CALL .NE. SUCCESS_) stop 'ReadMask - Convert2netcdf - ERR08'
+                            
+                            do i=ILB, IUB
+                            do j=JLB, JUB
+                            do k=KLB, KUB
+                                Me%Int3DOut(j,i,k) = Me%Int3DIn(i,j,k)
+                            enddo                
+                            enddo                            
+                            enddo
 
                             call BuildAttributes(obj_name, NCDFName, LongName, StandardName, &
                                                            Units, ValidMin, ValidMax,        &
-                                                           MinValue, MaxValue, MissingValue, Int3D = Me%Int3D)
+                                                           MinValue, MaxValue, MissingValue, &
+                                                           Int3D = Me%Int3DIn)
 
                             call NETCDFWriteData (NCDFID        = Me%NCDF_File%ObjNETCDF,   &
                                                   Name          = trim(NCDFName),           &
@@ -1172,7 +1263,7 @@ program Convert2netcdf
                                                   MinValue      = MinValue,                 &
                                                   MaxValue      = MaxValue,                 &
                                                   MissingValue  = MissingValue,             &
-                                                  Array3D       = Me%Int3D,                 &
+                                                  Array3D       = Me%Int3DOut,              &
                                                   STAT          = STAT_CALL)
                             if (STAT_CALL .NE. SUCCESS_) stop 'ReadMask - Convert2netcdf - ERR09'
 
@@ -1496,58 +1587,7 @@ if1:   if(present(Int2D) .or. present(Int3D))then
 
     end subroutine BuildAttributes
     
-    !--------------------------------------------------------------------------
-
-    character(len=19) function TimeToString(Date)
-
-        !Arguments-------------------------------------------------------------
-        type(T_Time)                            :: Date
-        real,    dimension(6)                   :: AuxTime
-        character(len=4)                        :: CharYear
-        character(len=2)                        :: CharMonth
-        character(len=2)                        :: CharDay
-        character(len=2)                        :: CharHour
-        character(len=2)                        :: CharMinute
-        character(len=2)                        :: CharSecond
-
-        !Begin-----------------------------------------------------------------
-
-        call ExtractDate(Date, Year     = AuxTime(1), Month  = AuxTime(2), &
-                               Day      = AuxTime(3), Hour   = AuxTime(4), &
-                               Minute   = AuxTime(5), Second = AuxTime(6))
-        
-        write(CharYear,  '(i4)')int(AuxTime(1))
-        write(CharMonth, '(i2)')int(AuxTime(2))
-        write(CharDay,   '(i2)')int(AuxTime(3))
-        write(CharHour,  '(i2)')int(AuxTime(4))
-        write(CharMinute,'(i2)')int(AuxTime(5))
-        write(CharSecond,'(i2)')int(AuxTime(6))
-
-        if(len_trim(trim(adjustl(CharMonth)))   < 2)then 
-            CharMonth = "0"//trim(adjustl(CharMonth))
-        endif
-        
-        if(len_trim(trim(adjustl(CharDay)))     < 2)then 
-            CharDay = "0"//trim(adjustl(CharDay))
-        endif
-
-        if(len_trim(trim(adjustl(CharHour)))    < 2)then 
-            CharHour = "0"//trim(adjustl(CharHour))
-        endif
-
-        if(len_trim(trim(adjustl(CharMinute)))  < 2)then 
-            CharMinute = "0"//trim(adjustl(CharMinute))
-        endif
-
-        if(len_trim(trim(adjustl(CharSecond)))  < 2)then 
-            CharSecond = "0"//trim(adjustl(CharSecond))
-        endif
-
-        TimeToString = CharYear//"-"//CharMonth//"-"//CharDay//" "//&
-                       CharHour//":"//CharMinute//":"//CharSecond
-
-    end function
-
+    
     !--------------------------------------------------------------------------
 
     type(T_Time) function HDF5TimeInstant(Instant)
@@ -1701,11 +1741,13 @@ if1:   if(present(Int2D) .or. present(Int3D))then
         integer                                     :: STAT_CALL
         integer(HID_T)                              :: class_id, space_id, dset_id
         integer(HID_T)                              :: datatype_id, rank, NumType
-        integer(8)                                  :: ssize
+        !integer(8)                                  :: ssize
+        integer                                     :: ssize        
         integer(HSIZE_T), dimension(7)              :: dims
         integer                                     :: ILB, IUB, JLB, JUB, KLB, KUB
         character(len=StringLength)                 :: Name, NCDFName, LongName, StandardName, Units
         real                                        :: MinValue, MaxValue, ValidMin, ValidMax, MissingValue
+        integer                                     :: i, j, k
 
         !Begin-----------------------------------------------------------------
         
@@ -1745,14 +1787,21 @@ if1:   if(present(Int2D) .or. present(Int3D))then
             case(2)
 
                 call h5dread_f   (dset_id, NumType,                                         &
-                                  Me%Float2D(Me%HDFFile%Size%ILB:Me%HDFFile%Size%IUB,       &
-                                             Me%HDFFile%Size%JLB:Me%HDFFile%Size%JUB),      &
+                                  Me%Float2DIn(Me%HDFFile%Size%ILB:Me%HDFFile%Size%IUB,     &
+                                               Me%HDFFile%Size%JLB:Me%HDFFile%Size%JUB),    &
                                   dims, STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_) stop 'ReadDataSet - Convert2netcdf - ERR02'
+                
+                do i=1,Me%HDFFile%Size%IUB
+                do j=1,Me%HDFFile%Size%JUB
+                    Me%Float2DOut(j,i) = Me%Float2DIn(i, j)
+                enddo
+                enddo                
 
                 call BuildAttributes(Name, NCDFName, LongName, StandardName, &
                                            Units, ValidMin, ValidMax,        &
-                                           MinValue, MaxValue, MissingValue, Float2D = Me%Float2D)
+                                           MinValue, MaxValue, MissingValue, &
+                                           Float2D = Me%Float2DIn)
 
                 if(nGItems > 1)then
 
@@ -1767,7 +1816,7 @@ if1:   if(present(Int2D) .or. present(Int3D))then
                                           MaxValue      = MaxValue,                 &
                                           MissingValue  = MissingValue,             &
                                           OutputNumber  = item,                     &
-                                          Array2D       = Me%Float2D,               &
+                                          Array2D       = Me%Float2DOut,            &
                                           STAT          = STAT_CALL)
                     if (STAT_CALL .NE. SUCCESS_) stop 'ReadDataSet - Convert2netcdf - ERR03'
                 
@@ -1783,7 +1832,7 @@ if1:   if(present(Int2D) .or. present(Int3D))then
                                           MinValue      = MinValue,                 &
                                           MaxValue      = MaxValue,                 &
                                           MissingValue  = MissingValue,             &
-                                          Array2D       = Me%Float2D,               &
+                                          Array2D       = Me%Float2DOut,             &
                                           STAT          = STAT_CALL)
                     if (STAT_CALL .NE. SUCCESS_) stop 'ReadDataSet - Convert2netcdf - ERR04'
                 end if
@@ -1792,16 +1841,24 @@ if1:   if(present(Int2D) .or. present(Int3D))then
             case(3)
 
                 call h5dread_f   (dset_id, NumType,                                         &
-                                  Me%Float3D(Me%HDFFile%Size%ILB:Me%HDFFile%Size%IUB,       &
-                                             Me%HDFFile%Size%JLB:Me%HDFFile%Size%JUB,       &
-                                             Me%HDFFile%Size%KLB:Me%HDFFile%Size%KUB),      &
+                                  Me%Float3DIn(Me%HDFFile%Size%ILB:Me%HDFFile%Size%IUB,     &
+                                               Me%HDFFile%Size%JLB:Me%HDFFile%Size%JUB,     &
+                                               Me%HDFFile%Size%KLB:Me%HDFFile%Size%KUB),    &
                                   dims, STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_) stop 'ReadDataSet - Convert2netcdf - ERR05'
 
+                do i=1,Me%HDFFile%Size%IUB
+                do j=1,Me%HDFFile%Size%JUB
+                do k=1,Me%HDFFile%Size%KUB                
+                    Me%Float3DOut(j,i,k) = Me%Float3DIn(i, j, k)
+                enddo
+                enddo
+                enddo
 
                 call BuildAttributes(Name, NCDFName, LongName, StandardName, &
                                            Units, ValidMin, ValidMax,        &
-                                           MinValue, MaxValue, MissingValue, Float3D = Me%Float3D)
+                                           MinValue, MaxValue, MissingValue, &
+                                           Float3D = Me%Float3DIn)
 
                 if(nGItems > 1)then
 
@@ -1815,7 +1872,7 @@ if1:   if(present(Int2D) .or. present(Int3D))then
                                           MinValue      = MinValue,                 &
                                           MaxValue      = MaxValue,                 &
                                           OutputNumber  = item,                     &
-                                          Array3D       = Me%Float3D,               &
+                                          Array3D       = Me%Float3DOut,            &
                                           STAT          = STAT_CALL)
                     if (STAT_CALL .NE. SUCCESS_) stop 'ReadDataSet - Convert2netcdf - ERR06'
                 
@@ -1830,7 +1887,7 @@ if1:   if(present(Int2D) .or. present(Int3D))then
                                           ValidMax      = ValidMax,                 &
                                           MinValue      = MinValue,                 &
                                           MaxValue      = MaxValue,                 &
-                                          Array3D       = Me%Float3D,               &
+                                          Array3D       = Me%Float3DOut,            &
                                           STAT          = STAT_CALL)
                     if (STAT_CALL .NE. SUCCESS_) stop 'ReadDataSet - Convert2netcdf - ERR07'
                 end if

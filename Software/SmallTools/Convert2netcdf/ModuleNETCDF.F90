@@ -42,10 +42,15 @@ Module ModuleNETCDF
     public  :: NETCDFWriteData
     public  :: NETCDFWriteHeader
     public  :: NETCDFWriteTime
+    public  :: NETCDFReadTime
+    public  :: NETCDFReadGrid2D    
     public  :: NETCDFSetDimensions
+    public  :: NETCDFGetDimensions    
     public  :: NETCDFWriteLatLon
     public  :: NETCDFWriteVert
-    !public  :: NETCDFReadData
+    public  :: NETCDFWriteVertStag    
+    public  :: NETCDFReadVert    
+    public  :: NETCDFReadData
     private :: NETCDFWriteAttributes
 
     !Destructor
@@ -66,22 +71,16 @@ Module ModuleNETCDF
         module procedure NETCDFWriteDataI4_3D
     end interface
     
-    interface NETCDFWriteLatLon    
-        module procedure NETCDFWriteLatLon_1D
-        module procedure NETCDFWriteLatLon_2D            
-    end interface
 
-    !interface NETCDFReadData
-        !module procedure NETCDFReadDataR4_1D
-        !module procedure NETCDFReadDataR4_2D
-        !module procedure NETCDFReadDataR4_3D
-        !module procedure NETCDFReadDataR8_1D
-        !module procedure NETCDFReadDataR8_2D
-        !module procedure NETCDFReadDataR8_3D
-        !module procedure NETCDFReadDataI4_1D
-        !module procedure NETCDFReadDataI4_2D
-        !module procedure NETCDFReadDataI4_3D
-    !end interface
+
+    interface NETCDFReadData
+        module procedure NETCDFReadDataR4_2D
+        module procedure NETCDFReadDataR4_3D
+        module procedure NETCDFReadDataR8_2D
+        module procedure NETCDFReadDataR8_3D
+        module procedure NETCDFReadDataI4_2D
+        module procedure NETCDFReadDataI4_3D
+    end interface
     
     !Parameters----------------------------------------------------------------
     integer, parameter                              :: NCDF_CREATE_     = 1
@@ -90,7 +89,30 @@ Module ModuleNETCDF
 
     !nf90_byte   = 1; nf90_char   = 2; nf90_short  = 3
     !nf90_int    = 4; nf90_float  = 5; nf90_double = 6
+    
+    !Grid
+    character(len=StringLength)                     :: Lat_Name        = "lat"
+    character(len=StringLength)                     :: Lon_Name        = "lon"    
+    character(len=StringLength)                     :: Lat_Stag_Name   = "lat_staggered"
+    character(len=StringLength)                     :: Lon_Stag_Name   = "lon_staggered"    
+    character(len=StringLength)                     :: gmaps_x_Name    = "googlemaps_x"
+    character(len=StringLength)                     :: gmaps_y_Name    = "googlemaps_y"
 
+    character(len=StringLength)                     :: depth_Name      = "depth"
+    character(len=StringLength)                     :: depth_Stag_Name = "depth_staggered"
+
+    
+    !Time
+    character(len=StringLength)                     :: Time_Name                = "time"    
+    !Dimensions
+    character(len=StringLength)                     :: Column_Name              = "column_c"
+    character(len=StringLength)                     :: Line_Name                = "line_c"
+    character(len=StringLength)                     :: Layer_Name               = "depth"
+    !horizontal vertices dimension
+    character(len=StringLength)                     :: HorizCell_Vertices_Names = "nvh"
+    !layers vertices dimension
+    character(len=StringLength)                     :: Layer_Vertices_Names     = "nvv"    
+    
     !Types---------------------------------------------------------------------
     type     T_ID
         character(len=StringLength)                 :: Name
@@ -121,7 +143,7 @@ Module ModuleNETCDF
         character(len=StringLength)                 :: Institution      
         character(len=StringLength)                 :: References       
 
-        type(T_Dimension), dimension(6)             :: Dims
+        type(T_Dimension), dimension(7)             :: Dims
 
         integer                                     :: Idate
         integer                                     :: nAttributes      = null_int     
@@ -149,10 +171,10 @@ Module ModuleNETCDF
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-    subroutine ConstructNETCDF(ObjNCDFID, FileName, Access, STAT)
+    subroutine ConstructNETCDF(NCDFID, FileName, Access, STAT)
 
         !Arguments---------------------------------------------------------------
-        integer                                         :: ObjNCDFID 
+        integer                                         :: NCDFID 
         character(len=*)                                :: FileName
         integer                                         :: Access
         integer, optional, intent(OUT)                  :: STAT     
@@ -175,7 +197,7 @@ Module ModuleNETCDF
             call RegisterModule (mNETCDF_) 
         endif
 
-        call Ready(ObjNCDFID, ready_)    
+        call Ready(NCDFID, ready_)    
 
 cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
@@ -185,7 +207,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
             if      (Access == NCDF_CREATE_) then
 
-                STAT_CALL = nf90_create(path=trim(FileName), cmode = NF90_CLOBBER , ncid = Me%ncid)
+                STAT_CALL = nf90_create(path  = trim(FileName),                         &
+                                        cmode = NF90_CLOBBER,                           &
+                                        ncid  = Me%ncid)
                 if(STAT_CALL /= nf90_noerr) stop 'ConstructNETCDF - ModuleNETCDF - ERR01'
 
                 STAT_CALL = nf90_close(Me%ncid)
@@ -221,7 +245,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
 
             !Returns ID
-            ObjNCDFID  = Me%InstanceID
+            NCDFID  = Me%InstanceID
 
             STAT_ = SUCCESS_
 
@@ -393,10 +417,11 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
     !--------------------------------------------------------------------------
 
-    subroutine NETCDFWriteAttributes (VarID, LongName, StandardName, Units, Positive, &
-                                             Calendar, ScaleFactor, FillValue,        &
-                                             MissingValue, ValidMin, ValidMax,        &
-                                             Maximum, Minimum, Add_Offset, Step, iFillValue)
+    subroutine NETCDFWriteAttributes (VarID, LongName, StandardName, Units, Positive,   &
+                                             Calendar, ScaleFactor, FillValue,          &
+                                             MissingValue, ValidMin, ValidMax,          &
+                                             Maximum, Minimum, Add_Offset, Step,        &
+                                             iFillValue, coordinates, bounds, axis)
 
         !Arguments-------------------------------------------------------------
         integer                                     :: VarID
@@ -415,10 +440,14 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         real            , optional                  :: Maximum
         real            , optional                  :: Add_Offset
         real            , optional                  :: Step
+        character(len=*), optional                  :: coordinates
+        character(len=*), optional                  :: bounds
+        character(len=*), optional                  :: axis
 
         !Local-----------------------------------------------------------------
         integer                                     :: STAT_CALL
         real                                        :: LastMax, LastMin
+
        
         !Begin-----------------------------------------------------------------
 
@@ -539,6 +568,24 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         end if
 
 
+        if(present(bounds))then
+            STAT_CALL = nf90_put_att(Me%ncid, VarID, 'bounds', bounds) 
+            if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteAttributes - ModuleNETCDF - ERR30' 
+        end if
+
+        if(present(coordinates))then
+            STAT_CALL = nf90_put_att(Me%ncid, VarID, 'coordinates', coordinates) 
+            if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteAttributes - ModuleNETCDF - ERR40' 
+        endif
+        
+
+
+        if(present(axis))then
+            STAT_CALL = nf90_put_att(Me%ncid, VarID, 'axis', axis) 
+            if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteAttributes - ModuleNETCDF - ERR50' 
+        end if
+
+
     end subroutine NETCDFWriteAttributes
 
     !--------------------------------------------------------------------------
@@ -564,53 +611,55 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         if (ready_ .EQ. IDLE_ERR_) then
             
-            Me%Dims(1)%ID%Name = "lon"
+            Me%Dims(1)%ID%Name = trim(Column_Name)
             Me%Dims(1)%LB      = 1
             Me%Dims(1)%UB      = JUB
 
-            Me%Dims(2)%ID%Name = "lat"
+            Me%Dims(2)%ID%Name = trim(Line_Name)
             Me%Dims(2)%LB      = 1
             Me%Dims(2)%UB      = IUB
 
             if(KUB > 0)then
-                Me%Dims(3)%ID%Name = "depth"
+                Me%Dims(3)%ID%Name = trim(Layer_Name)
                 Me%Dims(3)%LB      = 1
                 Me%Dims(3)%UB      = KUB
+                
+                Me%Dims(6)%ID%Name = trim(Layer_Vertices_Names)
+                Me%Dims(6)%LB      = 1
+                Me%Dims(6)%UB      = 2             
             endif
 
-            Me%Dims(5)%ID%Name = "lon_staggered"
+            Me%Dims(5)%ID%Name = trim(HorizCell_Vertices_Names)
             Me%Dims(5)%LB      = 1
-            Me%Dims(5)%UB      = JUB + 1
-
-            Me%Dims(6)%ID%Name = "lat_staggered"
-            Me%Dims(6)%LB      = 1
-            Me%Dims(6)%UB      = IUB + 1
+            Me%Dims(5)%UB      = 4
 
             !enter definition mode
             STAT_CALL = nf90_redef(ncid = Me%ncid)
             if(STAT_CALL /= nf90_noerr) stop 'NETCDFSetDimensions - ModuleNETCDF - ERR00'
 
-            !define longitude as dimension
+            !define matrixes columns as a dimension
             STAT_CALL = nf90_def_dim(Me%ncid, trim(Me%Dims(1)%ID%Name), Me%Dims(1)%UB, Me%Dims(1)%ID%Number)
             if(STAT_CALL /= nf90_noerr) stop 'NETCDFSetDimensions - ModuleNETCDF - ERR01'
 
-            !define latitude as dimension
+            !define matrixes lines as a dimension
             STAT_CALL = nf90_def_dim(Me%ncid, trim(Me%Dims(2)%ID%Name), Me%Dims(2)%UB, Me%Dims(2)%ID%Number)
             if(STAT_CALL /= nf90_noerr) stop 'NETCDFSetDimensions - ModuleNETCDF - ERR02'
             
-            if(KUB > 0)then
-                !define depth as dimension
-                STAT_CALL = nf90_def_dim(Me%ncid, trim(Me%Dims(3)%ID%Name), Me%Dims(3)%UB, Me%Dims(3)%ID%Number)
-                if(STAT_CALL /= nf90_noerr) stop 'NETCDFSetDimensions - ModuleNETCDF - ERR03'
-            end if
-
-            !define lon_staggered as dimension
+            !define the four horizontal cell vertices as a dimension
             STAT_CALL = nf90_def_dim(Me%ncid, trim(Me%Dims(5)%ID%Name), Me%Dims(5)%UB, Me%Dims(5)%ID%Number)
             if(STAT_CALL /= nf90_noerr) stop 'NETCDFSetDimensions - ModuleNETCDF - ERR04'
-
-            !define lat_staggered as dimension
-            STAT_CALL = nf90_def_dim(Me%ncid, trim(Me%Dims(6)%ID%Name), Me%Dims(6)%UB, Me%Dims(6)%ID%Number)
-            if(STAT_CALL /= nf90_noerr) stop 'NETCDFSetDimensions - ModuleNETCDF - ERR05'
+            
+            
+            if(KUB > 0)then
+                !define layers as dimension
+                STAT_CALL = nf90_def_dim(Me%ncid, trim(Me%Dims(3)%ID%Name), Me%Dims(3)%UB, Me%Dims(3)%ID%Number)
+                if(STAT_CALL /= nf90_noerr) stop 'NETCDFSetDimensions - ModuleNETCDF - ERR03'
+                
+                !define the two layers vertices as a dimension                
+                STAT_CALL = nf90_def_dim(Me%ncid, trim(Me%Dims(6)%ID%Name), Me%Dims(6)%UB, Me%Dims(6)%ID%Number)
+                if(STAT_CALL /= nf90_noerr) stop 'NETCDFSetDimensions - ModuleNETCDF - ERR03'
+                
+            end if
 
             !exit definition mode
             STAT_CALL = nf90_enddef(ncid = Me%ncid)
@@ -632,7 +681,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
     subroutine NETCDFWriteDataR4_2D (NCDFID, Name, LongName, StandardName, Units,           &
                                      ValidMin, ValidMax, MinValue, MaxValue, MissingValue,  &
-                                     Positive, OutputNumber, Array2D, STAT)
+                                     Positive, coordinates, OutputNumber, Array2D, STAT)
 
         !Arguments-------------------------------------------------------------
         integer                                         :: NCDFID
@@ -641,11 +690,14 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         character(len=*), intent(IN), optional          :: LongName, StandardName, Positive
         real,             intent(IN), optional          :: ValidMin, ValidMax, MissingValue
         real,             intent(IN), optional          :: MinValue, MaxValue
+        character(len=*), intent(IN), optional          :: coordinates        
         integer,                      optional          :: OutputNumber
         real(4), dimension(:, :) , pointer              :: Array2D
         integer,                      optional          :: STAT
 
         !Local-----------------------------------------------------------------
+        real                                            :: FillValue
+        character(len=StringLength)                     :: coordinates_
         integer                                         :: STAT_, ready_
         integer                                         :: STAT_CALL
         integer                                         :: VarID
@@ -659,7 +711,13 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         call Ready (NCDFID, ready_)
 
         if (ready_ .EQ. IDLE_ERR_) then
-
+        
+            if (present(coordinates)) then
+                coordinates_=coordinates
+            else
+                coordinates_="lon lat"
+            endif        
+            
             STAT_CALL= nf90_inq_varid (Me%ncid, trim(Name), VarID)
             
             if     (STAT_CALL == nf90_enotvar)then
@@ -684,18 +742,21 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                     if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteDataR4_2D - ModuleNETCDF - ERR02'
 
                 endif
+                
+                FillValue = FillValueReal
 
                 call NETCDFWriteAttributes(VarID          = VarID,                      &
                                            LongName       = trim(LongName),             &
                                            StandardName   = trim(StandardName),         &
                                            Units          = trim(Units),                &
-                                           FillValue      = FillValueReal,              &
+                                           FillValue      = FillValue,                  &
                                            ValidMin       = ValidMin,                   &
                                            ValidMax       = ValidMax,                   &
                                            Minimum        = MinValue,                   &
                                            Maximum        = MaxValue,                   &
                                            MissingValue   = MissingValue,               &
-                                           Positive       = Positive)
+                                           Positive       = Positive,                   &
+                                           coordinates    = "lon lat")
                 !exit definition mode
                 STAT_CALL = nf90_enddef(ncid = Me%ncid)
                 if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteDataR4_2D - ModuleNETCDF - ERR03'
@@ -720,8 +781,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             else
 
                 STAT_CALL = nf90_put_var(Me%ncid, VarID, Array2D)
-                if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteDataR4_2D - ModuleNETCDF - ERR06' 
-
+                if(STAT_CALL /= nf90_noerr) then
+                    print *, trim(nf90_strerror(STAT_CALL))
+                    stop 'NETCDFWriteDataR4_2D - ModuleNETCDF - ERR06' 
+                endif
             end if
 
 
@@ -741,7 +804,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
     subroutine NETCDFWriteDataR4_3D (NCDFID, Name, LongName, StandardName, Units,            &
                                      ValidMin, ValidMax,  MinValue, MaxValue, MissingValue,  &
-                                     Positive, OutputNumber, Array3D, STAT)
+                                     Positive, coordinates, OutputNumber, Array3D, STAT)
                                    
         !Arguments-------------------------------------------------------------
         integer                                         :: NCDFID
@@ -750,11 +813,14 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         character(len=*), intent(IN), optional          :: LongName, StandardName, Positive
         real,             intent(IN), optional          :: ValidMin, ValidMax, MissingValue
         real,             intent(IN), optional          :: MinValue, MaxValue
+        character(len=*), intent(IN), optional          :: coordinates
         integer,                      optional          :: OutputNumber
         real(4), dimension(:, :, :), pointer            :: Array3D
         integer, optional                               :: STAT
 
         !Local-----------------------------------------------------------------
+        real                                            :: FillValue
+        character(len=StringLength)                     :: coordinates_
         integer                                         :: STAT_, ready_
         integer                                         :: STAT_CALL
         integer                                         :: VarID
@@ -770,6 +836,15 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         if (ready_ .EQ. IDLE_ERR_) then
 
             STAT_CALL= nf90_inq_varid (Me%ncid, trim(Name), VarID)
+
+            if (present(coordinates)) then
+                coordinates_=coordinates
+            else
+                coordinates_="lon lat"
+            endif        
+            
+            FillValue = FillValueReal
+        
             
             if     (STAT_CALL == nf90_enotvar)then
             
@@ -795,13 +870,14 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                                    LongName       = trim(LongName),             &
                                                    StandardName   = trim(StandardName),         &
                                                    Units          = trim(Units),                &
-                                                   FillValue      = FillValueReal,              &
+                                                   FillValue      = FillValue,                  &
                                                    ValidMin       = ValidMin,                   &
                                                    ValidMax       = ValidMax,                   &
                                                    Minimum        = MinValue,                   &
                                                    Maximum        = MaxValue,                   &
                                                    MissingValue   = MissingValue,               &
-                                                   Positive       = Positive)
+                                                   Positive       = Positive,                   &
+                                                   coordinates    = "lon lat")
                         !exit definition mode
                         STAT_CALL = nf90_enddef(ncid = Me%ncid)
                         if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteDataR4_3D - ModuleNETCDF - ERR30'
@@ -823,13 +899,14 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                                LongName       = trim(LongName),             &
                                                StandardName   = trim(StandardName),         &
                                                Units          = trim(Units),                &
-                                               FillValue      = FillValueReal,              &
+                                               FillValue      = FillValue,                  &
                                                ValidMin       = ValidMin,                   &
                                                ValidMax       = ValidMax,                   &
                                                Minimum        = MinValue,                   &
                                                Maximum        = MaxValue,                   &
                                                MissingValue   = MissingValue,               &
-                                               Positive       = Positive)
+                                               Positive       = Positive,                   &
+                                               coordinates    = "lon lat")
                     !exit definition mode
                     STAT_CALL = nf90_enddef(ncid = Me%ncid)
                     if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteDataR4_3D - ModuleNETCDF - ERR60'
@@ -878,7 +955,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
     subroutine NETCDFWriteDataR8_2D (NCDFID, Name, LongName, StandardName, Units,           &
                                      ValidMin, ValidMax, MinValue, MaxValue, MissingValue,  &
-                                     OutputNumber, Array2D, STAT)
+                                     coordinates, OutputNumber, Array2D, STAT)
 
         !Arguments-------------------------------------------------------------
         integer                                         :: NCDFID
@@ -887,11 +964,14 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         character(len=*), intent(IN), optional          :: LongName, StandardName
         real,             intent(IN), optional          :: ValidMin, ValidMax, MissingValue
         real,             intent(IN), optional          :: MinValue, MaxValue
+        character(len=*), intent(IN), optional          :: coordinates        
         integer,                      optional          :: OutputNumber
         real(8), dimension(:, :) ,    pointer           :: Array2D
         integer,                      optional          :: STAT
 
         !Local-----------------------------------------------------------------
+        real                                            :: FillValue
+        character(len=StringLength)                     :: coordinates_
         integer                                         :: STAT_, ready_
         integer                                         :: STAT_CALL
         integer                                         :: VarID
@@ -907,6 +987,14 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         if (ready_ .EQ. IDLE_ERR_) then
             STAT_CALL= nf90_inq_varid (Me%ncid, trim(Name), VarID)
+            
+            if (present(coordinates)) then
+                coordinates_=coordinates
+            else
+                coordinates_="lon lat"
+            endif       
+            
+            FillValue = FillValueReal 
             
             if     (STAT_CALL == nf90_enotvar)then
             
@@ -934,12 +1022,13 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                            LongName       = trim(LongName),             &
                                            StandardName   = trim(StandardName),         &
                                            Units          = trim(Units),                &
-                                           FillValue      = FillValueReal,              &
+                                           FillValue      = FillValue,                  &
                                            ValidMin       = ValidMin,                   &
                                            ValidMax       = ValidMax,                   &
                                            Minimum        = MinValue,                   &
                                            Maximum        = MaxValue,                   &
-                                           MissingValue   = MissingValue)
+                                           MissingValue   = MissingValue,               &
+                                           coordinates    = "lon lat")
 
                 !exit definition mode
                 STAT_CALL = nf90_enddef(ncid = Me%ncid)
@@ -987,7 +1076,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
     subroutine NETCDFWriteDataR8_3D (NCDFID, Name, LongName, StandardName, Units,           &
                                      ValidMin, ValidMax,  MinValue, MaxValue, MissingValue, &
-                                     OutputNumber, Array3D, STAT)
+                                     coordinates, OutputNumber, Array3D, STAT)
                                    
         !Arguments-------------------------------------------------------------
         integer                                         :: NCDFID
@@ -996,11 +1085,14 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         character(len=*), intent(IN), optional          :: LongName, StandardName
         real,             intent(IN), optional          :: ValidMin, ValidMax, MissingValue
         real,             intent(IN), optional          :: MinValue, MaxValue
+        character(len=*), intent(IN), optional          :: coordinates        
         integer,                      optional          :: OutputNumber
         real(8), dimension(:, :, :), pointer            :: Array3D
         integer, optional                               :: STAT
 
         !Local-----------------------------------------------------------------
+        real                                            :: FillValue
+        character(len=StringLength)                     :: coordinates_        
         integer                                         :: STAT_, ready_
         integer                                         :: STAT_CALL
         integer                                         :: VarID
@@ -1021,6 +1113,14 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             Dims3ID(1) = Me%Dims(1)%ID%Number  !z
             Dims3ID(2) = Me%Dims(2)%ID%Number  !y
             Dims3ID(3) = Me%Dims(3)%ID%Number  !z
+            
+            FillValue = FillValueReal
+            
+            if (present(coordinates)) then
+                coordinates_=coordinates
+            else
+                coordinates_="lon lat"
+            endif        
             
             if     (STAT_CALL == nf90_enotvar)then
 
@@ -1044,12 +1144,13 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                            LongName       = trim(LongName),             &
                                            StandardName   = trim(StandardName),         &
                                            Units          = trim(Units),                &
-                                           FillValue      = FillValueReal,              &
+                                           FillValue      = FillValue,                  &
                                            ValidMin       = ValidMin,                   &
                                            ValidMax       = ValidMax,                   &
                                            Minimum        = MinValue,                   &
                                            Maximum        = MaxValue,                   &
-                                           MissingValue   = MissingValue)
+                                           MissingValue   = MissingValue,               &
+                                           coordinates    = "lon lat")
                 !exit definition mode
                 STAT_CALL = nf90_enddef(ncid = Me%ncid)
                 if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteDataR8_3D - ModuleNETCDF - ERR03'
@@ -1093,9 +1194,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
     
     !--------------------------------------------------------------------------
 
-    subroutine NETCDFWriteDataI4_2D (NCDFID, Name, LongName, StandardName, Units, &
-                                     ValidMin, ValidMax,  MinValue, MaxValue,     &
-                                     MissingValue, OutputNumber, Array2D, STAT)
+    subroutine NETCDFWriteDataI4_2D (NCDFID, Name, LongName, StandardName, Units,       &
+                                     ValidMin, ValidMax,  MinValue, MaxValue,           &
+                                     MissingValue, coordinates, OutputNumber,           &
+                                     Array2D, STAT)
                                    
         !Arguments-------------------------------------------------------------
         integer                                         :: NCDFID
@@ -1104,11 +1206,14 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         character(len=*), intent(IN), optional          :: LongName, StandardName
         real,             intent(IN), optional          :: ValidMin, ValidMax
         real,             intent(IN), optional          :: MinValue, MaxValue, MissingValue
+        character(len=*), intent(IN), optional          :: coordinates        
         integer,                      optional          :: OutputNumber
         integer, dimension(:, :), pointer               :: Array2D
         integer, optional                               :: STAT
 
         !Local-----------------------------------------------------------------
+        integer                                         :: FillValue
+        character(len=StringLength)                     :: coordinates_        
         integer                                         :: STAT_, ready_
         integer                                         :: STAT_CALL
         integer                                         :: VarID
@@ -1127,6 +1232,14 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
             Dims2ID(1) = Me%Dims(1)%ID%Number  !x
             Dims2ID(2) = Me%Dims(2)%ID%Number  !y
+            
+            if (present(coordinates)) then
+                coordinates_=coordinates
+            else
+                coordinates_="lon lat"
+            endif            
+            
+            FillValue = FillValueInt
         
             if     (STAT_CALL == nf90_enotvar)then
 
@@ -1157,7 +1270,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                            ValidMax       = ValidMax,                   &
                                            Minimum        = MinValue,                   &
                                            Maximum        = MaxValue,                   &
-                                           MissingValue   = MissingValue)
+                                           MissingValue   = MissingValue,               &
+                                           coordinates    = "lon lat")
                 !exit definition mode
                 STAT_CALL = nf90_enddef(ncid = Me%ncid)
                 if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteDataI4_2D - ModuleNETCDF - ERR03'
@@ -1199,9 +1313,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
     
     !--------------------------------------------------------------------------
 
-    subroutine NETCDFWriteDataI4_3D (NCDFID, Name, LongName, StandardName, Units, &
-                                     ValidMin, ValidMax,  MinValue, MaxValue,     &
-                                     MissingValue, OutputNumber, Array3D, STAT)
+    subroutine NETCDFWriteDataI4_3D (NCDFID, Name, LongName, StandardName, Units,       &
+                                     ValidMin, ValidMax,  MinValue, MaxValue,           &
+                                     MissingValue, coordinates, OutputNumber,           &
+                                     Array3D, STAT)
 
         !Arguments-------------------------------------------------------------
         integer                                         :: NCDFID
@@ -1210,11 +1325,13 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         character(len=*), intent(IN), optional          :: LongName, StandardName
         real,             intent(IN), optional          :: ValidMin, ValidMax, MissingValue
         real,             intent(IN), optional          :: MinValue, MaxValue
+        character(len=*), intent(IN), optional          :: coordinates        
         integer,                      optional          :: OutputNumber
         integer, dimension(:, :, :),  pointer           :: Array3D
         integer,                      optional          :: STAT
         
         !Local-----------------------------------------------------------------
+        character(len=StringLength)                     :: coordinates_        
         integer                                         :: STAT_, ready_
         integer                                         :: STAT_CALL
         integer                                         :: VarID
@@ -1234,7 +1351,13 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             Dims3ID(1) = Me%Dims(1)%ID%Number  !x
             Dims3ID(2) = Me%Dims(2)%ID%Number  !y
             Dims3ID(3) = Me%Dims(3)%ID%Number  !z
-        
+
+            if (present(coordinates)) then
+                coordinates_=coordinates
+            else
+                coordinates_="lon lat"
+            endif        
+            
             if     (STAT_CALL == nf90_enotvar)then
 
                 !enter definition mode
@@ -1253,7 +1376,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                     if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteDataI4_3D - ModuleNETCDF - ERR02'
 
                 endif
-
+                
                 call NETCDFWriteAttributes(VarID          = VarID,                      &
                                            LongName       = trim(LongName),             &
                                            StandardName   = trim(StandardName),         &
@@ -1263,7 +1386,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                            ValidMax       = ValidMax,                   &
                                            Minimum        = MinValue,                   &
                                            Maximum        = MaxValue,                   &
-                                           MissingValue   = MissingValue)
+                                           MissingValue   = MissingValue,               &
+                                           coordinates    = coordinates_)
                 !exit definition mode
                 STAT_CALL = nf90_enddef(ncid = Me%ncid)
                 if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteDataI4_3D - ModuleNETCDF - ERR03'
@@ -1317,6 +1441,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         !Local-----------------------------------------------------------------
         integer                                         :: STAT_, ready_
         integer                                         :: STAT_CALL
+        logical                                         :: DefDimTime_
         integer, dimension(1)                           :: TimeDimID
 
         !Begin-----------------------------------------------------------------
@@ -1331,13 +1456,17 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             Me%Dims(4)%LB      = 1
             Me%Dims(4)%UB      = nInstants
             
-            DefDimTime = .true.
-            
-            if (present(StartInstant)) then
-                if (StartInstant > 1) DefDimTime = .false.
+            if (present(DefDimTime))then
+                DefDimTime_ = DefDimTime
+            else
+                DefDimTime_ =.true.
             endif
             
-            if (DefDimTime) then
+            if (present(StartInstant)) then
+                if (StartInstant > 1) DefDimTime_ = .false.
+            endif
+            
+            if (DefDimTime_) then
 
                 !enter definition mode
                 STAT_CALL = nf90_redef(ncid = Me%ncid)
@@ -1350,13 +1479,13 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 TimeDimID(1) = Me%Dims(4)%ID%Number
 
                 !define time as variable 
-                STAT_CALL = nf90_def_var(Me%ncid, trim(Me%Dims(4)%ID%Name), NF90_DOUBLE, TimeDimID, Me%Dims(4)%VarID)
+                STAT_CALL = nf90_def_var(Me%ncid, trim(Time_Name), NF90_DOUBLE, TimeDimID, Me%Dims(4)%VarID)
                 if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteTime - ModuleNETCDF - ERR02'
 
                 !write variable attributes
                 call NETCDFWriteAttributes(Me%Dims(4)%VarID, Units          = "seconds since "//InitialDate, &
-                                                             LongName       = "time",                        &
-                                                             StandardName   = "time") 
+                                                             LongName       = trim(Time_Name),                        &
+                                                             StandardName   = trim(Time_Name)) 
                 !exit definition mode
                 STAT_CALL = nf90_enddef(ncid = Me%ncid)
                 if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteTime - ModuleNETCDF - ERR03'
@@ -1389,18 +1518,23 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
     !--------------------------------------------------------------------------
 
-    subroutine NETCDFWriteLatLon_1D(NCDFID, Lat, Lon, Lat_Stag, Lon_Stag, GeoCoordinates, STAT)
+    subroutine NETCDFReadTime(NCDFID, InitialDate, nInstants, Instants, TimeName, TimeDimName, STAT)
 
         !Arguments-------------------------------------------------------------
         integer                                         :: NCDFID
-        real, dimension(:  ), pointer                   :: Lat, Lon
-        real, dimension(:  ), pointer                   :: Lat_Stag, Lon_Stag
-        logical                                         :: GeoCoordinates
+        real,    dimension(6)                           :: InitialDate
+        integer                                         :: nInstants
+        real(8), dimension(:), pointer                  :: Instants
+        character(*), intent(IN), optional              :: TimeName, TimeDimName        
         integer, optional                               :: STAT
         
         !Local-----------------------------------------------------------------
+        real                                            :: UnitsFactor
+        character(len=StringLength)                     :: TimeName_, TimeDimName_
         integer                                         :: STAT_, ready_
-        integer                                         :: STAT_CALL
+        character(Len=StringLength)                     :: ref_date
+        integer                                         :: n, status, dimid, i, tmax
+        logical                                         :: ReadTime
 
         !Begin-----------------------------------------------------------------
 
@@ -1409,110 +1543,114 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         call Ready (NCDFID, ready_)
 
         if (ready_ .EQ. IDLE_ERR_) then
-
-            !enter definition mode
-            STAT_CALL = nf90_redef(ncid = Me%ncid)
-            if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLatLon_1D - ModuleNETCDF - ERR00'
-
-            !define latitude as variable
-            STAT_CALL = nf90_def_var(Me%ncid, "lat", NF90_FLOAT, Me%Dims(2)%ID%Number, Me%Dims(2)%VarID)
-            if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLatLon_1D - ModuleNETCDF - ERR01'
-
-            !define longitude as variable 
-            STAT_CALL = nf90_def_var(Me%ncid, "lon", NF90_FLOAT, Me%Dims(1)%ID%Number, Me%Dims(1)%VarID)
-            if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLatLon_1D - ModuleNETCDF - ERR02'
-
-            !define latitude staggered as variable
-            STAT_CALL = nf90_def_var(Me%ncid, "lat_staggered", NF90_FLOAT, Me%Dims(6)%ID%Number, Me%Dims(6)%VarID)
-            if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLatLon_1D - ModuleNETCDF - ERR03'
-
-            !define longitude staggered as variable 
-            STAT_CALL = nf90_def_var(Me%ncid, "lon_staggered", NF90_FLOAT, Me%Dims(5)%ID%Number, Me%Dims(5)%VarID)
-            if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLatLon_1D - ModuleNETCDF - ERR04'
-
-            if(GeoCoordinates)then
-
-                call NETCDFWriteAttributes(Me%Dims(2)%VarID, LongName     = "latitude",             &
-                                                             StandardName = "latitude",             &
-                                                             Units        = "degrees_north",        &
-                                                             FillValue    = FillValueReal,          &
-                                                             ValidMin     = -90.,                   &
-                                                             ValidMax     = 90.,                    &
-                                                             MissingValue = FillValueReal)
-               
-                call NETCDFWriteAttributes(Me%Dims(1)%VarID, LongName     = "longitude",            &
-                                                             StandardName = "longitude",            &
-                                                             Units        = "degrees_east",         &
-                                                             FillValue    = FillValueReal,          &
-                                                             ValidMin     = -180.,                  &
-                                                             ValidMax     = 180.,                   &
-                                                             MissingValue = FillValueReal)
-
-                call NETCDFWriteAttributes(Me%Dims(5)%VarID, LongName     = "latitude staggered",   &
-                                                             StandardName = "latitude",             &
-                                                             Units        = "degrees_north",        &
-                                                             FillValue    = FillValueReal,          &
-                                                             ValidMin     = -90.,                   &
-                                                             ValidMax     = 90.,                    &
-                                                             MissingValue = FillValueReal)
-
-                call NETCDFWriteAttributes(Me%Dims(6)%VarID, LongName     = "longitude staggered",  &
-                                                             StandardName = "longitude",            &
-                                                             Units        = "degrees_east",         &
-                                                             FillValue    = FillValueReal,          &
-                                                             ValidMin     = -180.,                  &
-                                                             ValidMax     = 180.,                   &
-                                                             MissingValue = FillValueReal)
+            
+            if (present(TimeName)) then
+                TimeName_ = TimeName
             else
+                TimeName_ = Time_Name
+            endif
+            
+            if (present(TimeDimName)) then
+                TimeDimName_ = TimeDimName
+            else
+                TimeDimName_ = Time_Name
+            endif
+                   
+            status=NF90_INQ_DIMID(Me%ncid, trim(TimeDimName_),dimid)
+            if (status /= nf90_noerr) stop 'NETCDFReadTime - ModuleNETCDF - ERR10'
 
-                call NETCDFWriteAttributes(Me%Dims(1)%VarID, LongName     = "metric X coordinate",  &
-                                                             StandardName = "longitude",            &
-                                                             Units        = "m",                    &
-                                                             FillValue    = FillValueReal,          &
-                                                             MissingValue = FillValueReal)
+            status=NF90_INQUIRE_DIMENSION(Me%ncid, dimid, len = nInstants)
+            if (status /= nf90_noerr) stop 'NETCDFReadTime - ModuleNETCDF - ERR20'
+            
+            allocate(Instants(nInstants))
 
-                call NETCDFWriteAttributes(Me%Dims(2)%VarID, LongName     = "metric Y coordinate",  &
-                                                             StandardName = "latitude",             &
-                                                             Units        = "m",                    &
-                                                             FillValue    = FillValueReal,          &
-                                                             MissingValue = FillValueReal)
-
-                call NETCDFWriteAttributes(Me%Dims(5)%VarID, LongName     = "metric X coordinate staggered",  &
-                                                             StandardName = "longitude",            &
-                                                             Units        = "m",                    &
-                                                             FillValue    = FillValueReal,          &
-                                                             MissingValue = FillValueReal)
-
-                call NETCDFWriteAttributes(Me%Dims(6)%VarID, LongName     = "metric Y coordinate staggered", &
-                                                             StandardName = "latitude",             &
-                                                             Units        = "m",                    &
-                                                             FillValue    = FillValueReal,          &
-                                                             MissingValue = FillValueReal)
-            end if
-
-            !exit definition mode
-            STAT_CALL = nf90_enddef(ncid = Me%ncid)
-            if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLatLon_1D - ModuleNETCDF - ERR05'
-
-            !write lat
-            STAT_CALL = nf90_put_var(Me%ncid, Me%Dims(2)%VarID, Lat)
-            if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLatLon_1D - ModuleNETCDF - ERR06'
-
-            !write lon
-            STAT_CALL = nf90_put_var(Me%ncid, Me%Dims(1)%VarID, Lon)
-            if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLatLon_1D - ModuleNETCDF - ERR07'
-
-            !write lat staggered
-            STAT_CALL = nf90_put_var(Me%ncid, Me%Dims(6)%VarID, Lat_Stag)
-            if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLatLon_1D - ModuleNETCDF - ERR08'
-
-            !write lon staggered
-            STAT_CALL = nf90_put_var(Me%ncid, Me%Dims(5)%VarID, Lon_Stag)
-            if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLatLon_1D - ModuleNETCDF - ERR09'
+            status = nf90_inq_varid(Me%ncid, trim(TimeName_), n)
+            if (status /= nf90_noerr) stop 'ReadTimeNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR30'
+            
+            status = NF90_GET_VAR(Me%ncid,n,Instants)
+            if (status /= nf90_noerr) stop 'NETCDFReadTime - ModuleNETCDF - ERR40'
 
 
+            !CF convention 
+            status=NF90_GET_ATT(Me%ncid,n,"units", ref_date)
+            if (status /= nf90_noerr) stop 'NETCDFReadTime - ModuleNETCDF - ERR50'
+            
+            tmax = len_trim(ref_date)
+
+            ReadTime =.false.
+            
+            UnitsFactor = 3600.
+
+            do i=1,tmax-5
+                if (ref_date(i:i+5)== "second") then
+                    ReadTime =.true.
+                    UnitsFactor = 1.
+                    exit
+                endif
+            enddo
+            
+            do i=1,tmax-2
+                if (ref_date(i:i+2)== "day") then
+                    ReadTime =.true.
+                    UnitsFactor = 86400.
+                    exit
+                endif
+            enddo            
+
+            do i=1,tmax-5
+                if (ref_date(i:i+5)== "minute") then
+                    ReadTime =.true.
+                    UnitsFactor = 60.
+                    exit
+                endif
+            enddo            
+
+
+            do i=1,tmax-4            
+                if (ref_date(i:i+4)== "since") then
+                    ref_date = ref_date(i+5:tmax)
+                    exit
+                endif
+                
+            enddo
+
+            ReadTime = .false.
+            do i=1,len_trim(ref_date)
+
+                if (ref_date(i:i) ==':') then
+                    ReadTime = .true.
+                endif
+
+            enddo  
+
+            do i=1,len_trim(ref_date)
+
+                if (ref_date(i:i) =='_'.or.ref_date(i:i) ==':'.or. ref_date(i:i) =='-'&
+                    .or. ref_date(i:i) =='Z'.or. ref_date(i:i) =='T') then
+                    ref_date(i:i) = ' '
+                endif
+
+            enddo  
+            
+            ref_date(1:19) = trim(adjustl(ref_date))
+            
+            InitialDate(:) = 0.
+            
+            read(ref_date(1:4),*) InitialDate(1)    
+            read(ref_date(6:7),*) InitialDate(2)                
+            read(ref_date(9:10),*) InitialDate(3)
+            if (ReadTime) then                            
+                read(ref_date(12:13),*) InitialDate(4) 
+                read(ref_date(15:16),*) InitialDate(5)                                                                   
+                read(ref_date(18:19),*) InitialDate(6)  
+            endif
+            
+            Me%Dims(4)%ID%Name = trim(TimeName_)
+            Me%Dims(4)%LB      = 1
+            Me%Dims(4)%UB      = nInstants            
+            
             STAT_ = SUCCESS_
-
+            
         else
 
             STAT_ = ready_
@@ -1522,26 +1660,103 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         if (present(STAT)) STAT = STAT_
 
 
-    end subroutine NETCDFWriteLatLon_1D
+    end subroutine NETCDFReadTime
+
+
+    !--------------------------------------------------------------------------
+
+    !--------------------------------------------------------------------------
+
+    subroutine NETCDFWriteLineColumn()
+
+        !Arguments-------------------------------------------------------------
+        
+        !Local-----------------------------------------------------------------
+        real                                            :: FillValue, MissingValue
+        real, dimension(:  ), pointer                   :: Line, Column
+        integer                                         :: STAT_CALL, j, i
+ 
+        !Begin-----------------------------------------------------------------
+
+        !enter definition mode
+        STAT_CALL = nf90_redef(ncid = Me%ncid)
+        if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLineColumn - ModuleNETCDF - ERR10'
+
+        !define matrix lines as variable
+        STAT_CALL = nf90_def_var(Me%ncid, trim(Line_Name), NF90_FLOAT, Me%Dims(2)%ID%Number, Me%Dims(2)%VarID)
+        if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLineColumn - ModuleNETCDF - ERR20'
+
+        !define longitude as variable 
+        STAT_CALL = nf90_def_var(Me%ncid, trim(Column_Name), NF90_FLOAT, Me%Dims(1)%ID%Number, Me%Dims(1)%VarID)
+        if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLineColumn - ModuleNETCDF - ERR30'
+
+        FillValue    = FillValueReal
+        MissingValue = FillValueReal
+        
+        call NETCDFWriteAttributes(Me%Dims(1)%VarID, LongName     = "X",                &
+                                                     StandardName = "x direction in the canonical space",   &
+                                                     Units        = "cell index",       &
+                                                     FillValue    = FillValue,          &
+                                                     MissingValue = MissingValue,       &
+                                                     axis           ="X")
+
+        call NETCDFWriteAttributes(Me%Dims(2)%VarID, LongName     = "Y",                &
+                                                     StandardName = "y direction in the canonical space",   &
+                                                     Units        = "cell index",       &
+                                                     FillValue    = FillValue,          &
+                                                     MissingValue = MissingValue,       &
+                                                     axis           ="Y")
+                                                     
+        allocate(Column(Me%Dims(1)%LB:Me%Dims(1)%UB))
+        allocate(Line  (Me%Dims(2)%LB:Me%Dims(2)%UB))  
+        
+        do j=Me%Dims(1)%LB,Me%Dims(1)%UB
+            Column  (j)=j
+        enddo        
+        
+        do i=Me%Dims(2)%LB,Me%Dims(2)%UB
+            Line    (i)=i
+        enddo            
+
+        !exit definition mode
+        STAT_CALL = nf90_enddef(ncid = Me%ncid)
+        if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLineColumn - ModuleNETCDF - ERR40'
+
+        !write column indexes
+        STAT_CALL = nf90_put_var(Me%ncid, Me%Dims(1)%VarID, Column)
+        if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLineColumn - ModuleNETCDF - ERR50'
+
+        !write line indexes
+        STAT_CALL = nf90_put_var(Me%ncid, Me%Dims(2)%VarID, Line)
+        if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLineColumn - ModuleNETCDF - ERR60'
+
+        deallocate(Column)
+        deallocate(Line  ) 
+
+    end subroutine NETCDFWriteLineColumn
 
     !--------------------------------------------------------------------------
     
 
     !--------------------------------------------------------------------------
 
-    subroutine NETCDFWriteLatLon_2D(NCDFID, Lat, Lon, Lat_Stag, Lon_Stag, SphericX, SphericY, GeoCoordinates, STAT)
+    subroutine NETCDFWriteLatLon(NCDFID, Lat, Lon, Lat_Stag, Lon_Stag, SphericX, SphericY, STAT)
 
         !Arguments-------------------------------------------------------------
         integer                                         :: NCDFID
         real, dimension(:,:), pointer                   :: Lat, Lon
         real, dimension(:,:), pointer                   :: Lat_Stag, Lon_Stag
-        real(8), dimension(:,:), pointer                :: SphericX, SphericY       
-        logical                                         :: GeoCoordinates
+        real(8), dimension(:,:), pointer, optional      :: SphericX, SphericY       
         integer, optional                               :: STAT
         
         !Local-----------------------------------------------------------------
-        integer, dimension(2)                           :: Dims2ID, Dims2IDStag
+        real,    dimension(:,:,:), pointer              :: AuxStag
+        integer, dimension(2)                           :: Dims2ID
+        integer, dimension(3)                           :: Dims3IDStag
+        real                                            :: FillValue, MissingValue        
+        integer                                         :: LatStagID, LonStagID
         integer                                         :: SphericXVarID, SphericYVarID
+        integer                                         :: i, j, nv, di, dj
         integer                                         :: STAT_, ready_
         integer                                         :: STAT_CALL
 
@@ -1555,158 +1770,204 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
             !enter definition mode
             STAT_CALL = nf90_redef(ncid = Me%ncid)
-            if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLatLon_2D - ModuleNETCDF - ERR10'
+            if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLatLon - ModuleNETCDF - ERR10'
             
-            Dims2ID(1) = Me%Dims(2)%ID%Number  !y
-            Dims2ID(2) = Me%Dims(1)%ID%Number  !x
+            Dims2ID(1) = Me%Dims(1)%ID%Number  !x
+            Dims2ID(2) = Me%Dims(2)%ID%Number  !y
             
-            Dims2IDStag(1) = Me%Dims(6)%ID%Number  !y
-            Dims2IDStag(2) = Me%Dims(5)%ID%Number  !x            
-    
+            Dims3IDStag(1)  = Me%Dims(5)%ID%Number  ! nvh
+            Dims3IDStag(2:3)= Dims2ID(1:2)  
 
             !define latitude as variable
-            STAT_CALL = nf90_def_var(Me%ncid, "lat", NF90_FLOAT, Dims2ID, Me%Dims(2)%VarID)
-            if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLatLon_2D - ModuleNETCDF - ERR20'
+            STAT_CALL = nf90_def_var(Me%ncid, trim(Lat_Name), NF90_FLOAT, Dims2ID, Me%Dims(2)%VarID)
+            if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLatLon - ModuleNETCDF - ERR20'
 
             !define longitude as variable 
-            STAT_CALL = nf90_def_var(Me%ncid, "lon", NF90_FLOAT, Dims2ID, Me%Dims(1)%VarID)
-            if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLatLon_2D - ModuleNETCDF - ERR30'
+            STAT_CALL = nf90_def_var(Me%ncid, trim(Lon_Name), NF90_FLOAT, Dims2ID, Me%Dims(1)%VarID)
+            if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLatLon - ModuleNETCDF - ERR30'
 
             !define latitude staggered as variable
-            STAT_CALL = nf90_def_var(Me%ncid, "lat_staggered", NF90_FLOAT, Dims2IDStag, Me%Dims(6)%VarID)
-            if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLatLon_2D - ModuleNETCDF - ERR40'
+            STAT_CALL = nf90_def_var(Me%ncid, trim(Lat_Stag_Name), NF90_FLOAT, Dims3IDStag, LatStagID)
+            if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLatLon - ModuleNETCDF - ERR40'
 
             !define longitude staggered as variable 
-            STAT_CALL = nf90_def_var(Me%ncid, "lon_staggered", NF90_FLOAT, Dims2IDStag, Me%Dims(5)%VarID)
-            if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLatLon_2D - ModuleNETCDF - ERR50'
+            STAT_CALL = nf90_def_var(Me%ncid, trim(Lon_Stag_Name), NF90_FLOAT, Dims3IDStag, LonStagID)
+            if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLatLon - ModuleNETCDF - ERR50'
 
             !define spherical mercator coordinates adopted by Google and Bing X staggered as variable 
             if (associated(SphericX)) then
-                STAT_CALL = nf90_def_var(Me%ncid, "googlemaps_x", NF90_FLOAT, Dims2IDStag, SphericXVarID)
-                if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLatLon_2D - ModuleNETCDF - ERR60'
+                STAT_CALL = nf90_def_var(Me%ncid, trim(gmaps_x_Name), NF90_FLOAT, Dims3IDStag, SphericXVarID)
+                if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLatLon - ModuleNETCDF - ERR60'
             endif
 
             !define spherical mercator Y staggered as variable 
             if (associated(SphericY)) then
-                STAT_CALL = nf90_def_var(Me%ncid, "googlemaps_y", NF90_FLOAT, Dims2IDStag, SphericYVarID)
-                if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLatLon_2D - ModuleNETCDF - ERR70'
+                STAT_CALL = nf90_def_var(Me%ncid, trim(gmaps_y_Name), NF90_FLOAT, Dims3IDStag, SphericYVarID)
+                if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLatLon - ModuleNETCDF - ERR70'
             endif
-
-            if(GeoCoordinates)then
-
-                call NETCDFWriteAttributes(Me%Dims(2)%VarID, LongName     = "latitude",             &
-                                                             StandardName = "latitude",             &
-                                                             Units        = "degrees_north",        &
-                                                             FillValue    = FillValueReal,          &
-                                                             ValidMin     = -90.,                   &
-                                                             ValidMax     = 90.,                    &
-                                                             MissingValue = FillValueReal)
-               
-                call NETCDFWriteAttributes(Me%Dims(1)%VarID, LongName     = "longitude",            &
-                                                             StandardName = "longitude",            &
-                                                             Units        = "degrees_east",         &
-                                                             FillValue    = FillValueReal,          &
-                                                             ValidMin     = -180.,                  &
-                                                             ValidMax     = 180.,                   &
-                                                             MissingValue = FillValueReal)
-
-                call NETCDFWriteAttributes(Me%Dims(5)%VarID, LongName     = "latitude staggered",   &
-                                                             StandardName = "latitude",             &
-                                                             Units        = "degrees_north",        &
-                                                             FillValue    = FillValueReal,          &
-                                                             ValidMin     = -90.,                   &
-                                                             ValidMax     = 90.,                    &
-                                                             MissingValue = FillValueReal)
-
-                call NETCDFWriteAttributes(Me%Dims(6)%VarID, LongName     = "longitude staggered",  &
-                                                             StandardName = "longitude",            &
-                                                             Units        = "degrees_east",         &
-                                                             FillValue    = FillValueReal,          &
-                                                             ValidMin     = -180.,                  &
-                                                             ValidMax     = 180.,                   &
-                                                             MissingValue = FillValueReal)
+            
+            FillValue       = FillValueReal
+            MissingValue    = FillValueReal
 
 
-                if (associated(SphericX)) then
-                                                             
-                    call NETCDFWriteAttributes(SphericXVarID,    LongName     = "spherical mercator - google maps - x staggered",  &
-                                                                 StandardName = "spherical mercator - google maps - x",            &
-                                                                 Units        = "paper meters",         &
-                                                                 FillValue    = FillValueReal,          &
-                                                                 ValidMin     = -20037508.34,           &
-                                                                 ValidMax     =  20037508.34,           &
-                                                                 MissingValue = FillValueReal)
-                endif
-                
-                if (associated(SphericY)) then
-                                                             
-                    call NETCDFWriteAttributes(SphericYVarID,    LongName     = "spherical mercator - google maps - y staggered",  &
-                                                                 StandardName = "spherical mercator - google maps - y",            &
-                                                                 Units        = "paper meters",         &
-                                                                 FillValue    = FillValueReal,          &
-                                                                 ValidMin     = -20037508.34,           &
-                                                                 ValidMax     =  20037508.34,           &
-                                                                 MissingValue = FillValueReal)
-                endif                
-                                                                                 
-            else
+            call NETCDFWriteAttributes(Me%Dims(2)%VarID, LongName     = "latitude",             &
+                                                         StandardName = "latitude",             &
+                                                         Units        = "degrees_north",        &
+                                                         FillValue    = FillValue,              &
+                                                         ValidMin     = -90.,                   &
+                                                         ValidMax     = 90.,                    &
+                                                         bounds       = trim(Lat_Stag_Name),    &
+                                                         MissingValue = MissingValue)
+           
+            call NETCDFWriteAttributes(Me%Dims(1)%VarID, LongName     = "longitude",            &
+                                                         StandardName = "longitude",            &
+                                                         Units        = "degrees_east",         &
+                                                         FillValue    = FillValue,              &
+                                                         ValidMin     = -180.,                  &
+                                                         ValidMax     = 180.,                   &
+                                                         bounds       = trim(Lon_Stag_Name),    &
+                                                         MissingValue = MissingValue)
 
-                call NETCDFWriteAttributes(Me%Dims(2)%VarID, LongName     = "metric X coordinate",  &
-                                                             StandardName = "longitude",            &
-                                                             Units        = "m",                    &
-                                                             FillValue    = FillValueReal,          &
-                                                             MissingValue = FillValueReal)
 
-                call NETCDFWriteAttributes(Me%Dims(1)%VarID, LongName     = "metric Y coordinate",  &
-                                                             StandardName = "latitude",             &
-                                                             Units        = "m",                    &
-                                                             FillValue    = FillValueReal,          &
-                                                             MissingValue = FillValueReal)
-
-                call NETCDFWriteAttributes(Me%Dims(5)%VarID, LongName     = "metric X coordinate staggered",  &
-                                                             StandardName = "longitude",            &
-                                                             Units        = "m",                    &
-                                                             FillValue    = FillValueReal,          &
-                                                             MissingValue = FillValueReal)
-
-                call NETCDFWriteAttributes(Me%Dims(6)%VarID, LongName     = "metric Y coordinate staggered", &
-                                                             StandardName = "latitude",             &
-                                                             Units        = "m",                    &
-                                                             FillValue    = FillValueReal,          &
-                                                             MissingValue = FillValueReal)
-            end if
-
+            if (associated(SphericX)) then
+                                                         
+                call NETCDFWriteAttributes(SphericXVarID,    LongName     = "spherical mercator - google maps - x staggered",  &
+                                                             StandardName = "spherical mercator - google maps - x",            &
+                                                             Units        = "paper meters",         &
+                                                             FillValue    = FillValue,              &
+                                                             ValidMin     = -20037508.34,           &
+                                                             ValidMax     =  20037508.34,           &
+                                                             MissingValue = MissingValue)
+            endif
+            
+            if (associated(SphericY)) then
+                                                         
+                call NETCDFWriteAttributes(SphericYVarID,    LongName     = "spherical mercator - google maps - y staggered",  &
+                                                             StandardName = "spherical mercator - google maps - y",            &
+                                                             Units        = "paper meters",         &
+                                                             FillValue    = FillValue,              & 
+                                                             ValidMin     = -20037508.34,           &
+                                                             ValidMax     =  20037508.34,           &
+                                                             MissingValue = MissingValue)
+            endif                
+            
             !exit definition mode
             STAT_CALL = nf90_enddef(ncid = Me%ncid)
-            if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLatLon_2D - ModuleNETCDF - ERR80'
+            if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLatLon - ModuleNETCDF - ERR80'
 
             !write lat
             STAT_CALL = nf90_put_var(Me%ncid, Me%Dims(2)%VarID, Lat)
-            if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLatLon_2D - ModuleNETCDF - ERR90'
+            if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLatLon - ModuleNETCDF - ERR90'
 
             !write lon
             STAT_CALL = nf90_put_var(Me%ncid, Me%Dims(1)%VarID, Lon)
-            if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLatLon_2D - ModuleNETCDF - ERR100'
+            if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLatLon - ModuleNETCDF - ERR100'
+            
+            allocate(AuxStag(Me%Dims(5)%LB:Me%Dims(5)%UB,Me%Dims(1)%LB:Me%Dims(1)%UB,Me%Dims(2)%LB:Me%Dims(2)%UB))
+            
+            do j = Me%Dims(1)%LB,Me%Dims(1)%UB
+            do i = Me%Dims(2)%LB,Me%Dims(2)%UB
+                do nv= Me%Dims(5)%LB,Me%Dims(5)%UB
+                    if (nv==1) then
+                        di=0;dj=0
+                    endif
+                    if (nv==2) then
+                        di=0;dj=1
+                    endif
+                    if (nv==3) then
+                        di=1;dj=1
+                    endif
+                    if (nv==4) then
+                        di=1;dj=0
+                    endif
+                    AuxStag(nv,j,i) = Lat_Stag(j+dj,i+di)
+                enddo
+            enddo
+            enddo
 
             !write lat staggered
-            STAT_CALL = nf90_put_var(Me%ncid, Me%Dims(6)%VarID, Lat_Stag)
-            if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLatLon_2D - ModuleNETCDF - ERR110'
+            STAT_CALL = nf90_put_var(Me%ncid, LatStagID, AuxStag)
+            if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLatLon - ModuleNETCDF - ERR110'
+
+            do j = Me%Dims(1)%LB,Me%Dims(1)%UB
+            do i = Me%Dims(2)%LB,Me%Dims(2)%UB
+                do nv= Me%Dims(5)%LB,Me%Dims(5)%UB
+                    if (nv==1) then
+                        di=0;dj=0
+                    endif
+                    if (nv==2) then
+                        di=0;dj=1
+                    endif
+                    if (nv==3) then
+                        di=1;dj=1
+                    endif
+                    if (nv==4) then
+                        di=1;dj=0
+                    endif
+                    AuxStag(nv,j,i) = Lon_Stag(j+dj,i+di)
+                enddo
+            enddo
+            enddo
 
             !write lon staggered
-            STAT_CALL = nf90_put_var(Me%ncid, Me%Dims(5)%VarID, Lon_Stag)
-            if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLatLon_2D - ModuleNETCDF - ERR120'
-
+            STAT_CALL = nf90_put_var(Me%ncid, LonStagID, AuxStag)
+            if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLatLon - ModuleNETCDF - ERR120'
+            
             !write spheric X staggered
             if (associated(SphericX)) then
-                STAT_CALL = nf90_put_var(Me%ncid, SphericXVarID, SphericX)
-                if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLatLon_2D - ModuleNETCDF - ERR130'
+            
+                do j = Me%Dims(1)%LB,Me%Dims(1)%UB
+                do i = Me%Dims(2)%LB,Me%Dims(2)%UB
+                    do nv= Me%Dims(5)%LB,Me%Dims(5)%UB
+                        if (nv==1) then
+                            di=0;dj=0
+                        endif
+                        if (nv==2) then
+                            di=0;dj=1
+                        endif
+                        if (nv==3) then
+                            di=1;dj=1
+                        endif
+                        if (nv==4) then
+                            di=1;dj=0
+                        endif
+                        AuxStag(nv,j,i) = SphericX(j+dj,i+di)
+                    enddo
+                enddo
+                enddo
+            
+                STAT_CALL = nf90_put_var(Me%ncid, SphericXVarID, AuxStag)
+                if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLatLon - ModuleNETCDF - ERR130'
             endif
             
             !write spheric Y staggered
             if (associated(SphericY)) then
-                STAT_CALL = nf90_put_var(Me%ncid, SphericYVarID, SphericY)
-                if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLatLon_2D - ModuleNETCDF - ERR140'
+
+                do j = Me%Dims(1)%LB,Me%Dims(1)%UB
+                do i = Me%Dims(2)%LB,Me%Dims(2)%UB
+                    do nv= Me%Dims(5)%LB,Me%Dims(5)%UB
+                        if (nv==1) then
+                            di=0;dj=0
+                        endif
+                        if (nv==2) then
+                            di=0;dj=1
+                        endif
+                        if (nv==3) then
+                            di=1;dj=1
+                        endif
+                        if (nv==4) then
+                            di=1;dj=0
+                        endif
+                        AuxStag(nv,j,i) = SphericY(j+dj,i+di)
+                    enddo
+                enddo
+                enddo            
+            
+                STAT_CALL = nf90_put_var(Me%ncid, SphericYVarID, AuxStag)
+                if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLatLon - ModuleNETCDF - ERR140'
             endif            
+            
+            call NETCDFWriteLineColumn            
 
             STAT_ = SUCCESS_
 
@@ -1719,7 +1980,331 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         if (present(STAT)) STAT = STAT_
 
 
-    end subroutine NETCDFWriteLatLon_2D
+    end subroutine NETCDFWriteLatLon
+
+    !--------------------------------------------------------------------------    
+    !--------------------------------------------------------------------------
+
+    subroutine NETCDFGetDimensions (NCDFID, JUB, IUB, KUB, nTime, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                                     :: NCDFID
+        integer, optional                           :: JUB
+        integer, optional                           :: IUB        
+        integer, optional                           :: KUB
+        integer, optional                           :: nTime
+        integer, optional                           :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: dimid
+        integer                                     :: STAT_, ready_
+        integer                                     :: STAT_CALL
+
+        !Begin-----------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready (NCDFID, ready_)
+
+        if (ready_ .EQ. IDLE_ERR_) then
+        
+            
+            if (present(JUB)) then
+
+                Me%Dims(1)%ID%Name = trim(Column_Name)
+
+                STAT_CALL = nf90_inq_dimid(Me%ncid, Me%Dims(1)%ID%Name, dimid)            
+                if(STAT_CALL /= nf90_noerr) stop 'NETCDFGetDimensions - ModuleNETCDF - ERR10'
+                
+                STAT_CALL = nf90_inquire_dimension(Me%ncid, dimid, Me%Dims(1)%ID%Name, JUB)     
+                if(STAT_CALL /= nf90_noerr) stop 'NETCDFGetDimensions - ModuleNETCDF - ERR20'
+                
+                Me%Dims(1)%LB      = 1
+                Me%Dims(1)%UB      = JUB
+
+                Me%Dims(5)%ID%Name = trim(HorizCell_Vertices_Names)
+                Me%Dims(5)%LB      = 1
+                Me%Dims(5)%UB      = 4
+                        
+            endif
+
+            if (present(IUB)) then 
+
+                Me%Dims(2)%ID%Name = trim(Line_Name)
+                
+                STAT_CALL = nf90_inq_dimid(Me%ncid, Me%Dims(2)%ID%Name, dimid)            
+                if(STAT_CALL /= nf90_noerr) stop 'NETCDFGetDimensions - ModuleNETCDF - ERR30'
+                
+                STAT_CALL = nf90_inquire_dimension(Me%ncid, dimid, Me%Dims(2)%ID%Name, IUB)
+                if(STAT_CALL /= nf90_noerr) stop 'NETCDFGetDimensions - ModuleNETCDF - ERR40'
+                
+                Me%Dims(2)%LB      = 1
+                Me%Dims(2)%UB      = IUB
+
+                Me%Dims(6)%ID%Name = trim(Layer_Vertices_Names)
+                Me%Dims(6)%LB      = 1
+                Me%Dims(6)%UB      = 2
+                        
+            endif
+
+            if (present(KUB)) then 
+
+                Me%Dims(3)%ID%Name = trim(Layer_Name)
+
+                STAT_CALL = nf90_inq_dimid(Me%ncid, Me%Dims(3)%ID%Name, dimid)            
+                if(STAT_CALL /= nf90_noerr) stop 'NETCDFGetDimensions - ModuleNETCDF - ERR50'
+                
+                STAT_CALL = nf90_inquire_dimension(Me%ncid, dimid, Me%Dims(3)%ID%Name, KUB)
+                if(STAT_CALL /= nf90_noerr) stop 'NETCDFGetDimensions - ModuleNETCDF - ERR60'
+                
+                Me%Dims(3)%LB      = 1
+                Me%Dims(3)%UB      = KUB
+
+                Me%Dims(6)%ID%Name = trim(Layer_Vertices_Names)
+                Me%Dims(6)%LB      = 1
+                Me%Dims(6)%UB      = 2
+                        
+            endif
+            
+            if (present(nTime)) then 
+
+                Me%Dims(4)%ID%Name = trim(Time_Name)
+
+                STAT_CALL = nf90_inq_dimid(Me%ncid, Me%Dims(4)%ID%Name, dimid)            
+                if(STAT_CALL /= nf90_noerr) stop 'NETCDFGetDimensions - ModuleNETCDF - ERR70'
+                
+                STAT_CALL = nf90_inquire_dimension(Me%ncid, dimid, Me%Dims(4)%ID%Name, nTime)
+                if(STAT_CALL /= nf90_noerr) stop 'NETCDFGetDimensions - ModuleNETCDF - ERR80'
+                
+                Me%Dims(4)%LB      = 1
+                Me%Dims(4)%UB      = nTime
+
+            endif
+            
+
+            STAT_ = SUCCESS_
+
+        else
+
+            STAT_ = ready_
+
+        endif
+
+        if (present(STAT)) STAT = STAT_
+
+    end subroutine NETCDFGetDimensions
+
+    !--------------------------------------------------------------------------
+    !--------------------------------------------------------------------------
+
+    subroutine NETCDFReadGrid2D(NCDFID, Lat, Lon, Lat_Stag, Lon_Stag, SphericX, SphericY, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                                         :: NCDFID
+        real(8), dimension(:,:), pointer                :: Lat, Lon
+        real(8), dimension(:,:), pointer, optional      :: Lat_Stag, Lon_Stag
+        real(8), dimension(:,:), pointer, optional      :: SphericX, SphericY       
+        integer, optional                               :: STAT
+        
+        !Local-----------------------------------------------------------------
+        real(8), pointer, dimension(:,:  )              :: Aux2D
+        real(8), pointer, dimension(:,:,:)              :: Aux3D        
+        integer                                         :: VarID, JUB, IUB, numDims, i, j
+        integer                                         :: STAT_, ready_
+        integer                                         :: STAT_CALL, nv
+
+        !Begin-----------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready (NCDFID, ready_)
+
+        if (ready_ .EQ. IDLE_ERR_) then
+
+            !Get the spatial horizontal dimensions        
+            call NETCDFGetDimensions (NCDFID, JUB = JUB, IUB = IUB, STAT = STAT_CALL) 
+            if (STAT_CALL /= nf90_noerr) stop 'NETCDFReadGrid2D - ModuleNETCDF - ERR10'
+
+            !Check if the grid is defined with 2D matrixes
+            STAT_CALL=nf90_inq_varid(Me%ncid,trim(Lon_Name),VarID)
+            if (STAT_CALL /= nf90_noerr) stop 'NETCDFReadGrid2D - ModuleNETCDF - ERR20'
+
+            STAT_CALL = nf90_inquire_variable(Me%ncid, VarID, ndims = numDims)
+            if (STAT_CALL /= nf90_noerr) stop 'NETCDFReadGrid2D - ModuleNETCDF - ERR30'
+        
+            if (numDims /= 2) stop 'NETCDFReadGrid2D - ModuleNETCDF - ERR40' 
+
+            allocate(Aux2D(Me%Dims(1)%LB:Me%Dims(1)%UB,Me%Dims(2)%LB:Me%Dims(2)%UB))
+        
+            !Read longitude
+            STAT_CALL = NF90_GET_VAR(Me%ncid,VarID,Aux2D)
+            if (STAT_CALL /= nf90_noerr) stop 'NETCDFReadGrid2D - ModuleNETCDF - ERR50'            
+            
+            do j=Me%Dims(1)%LB,Me%Dims(1)%UB
+            do i=Me%Dims(2)%LB,Me%Dims(2)%UB
+                Lon(i,j) = Aux2D(j,i)
+            enddo
+            enddo
+
+            !Read latitude
+            STAT_CALL = nf90_inq_varid(Me%ncid,trim(Lat_Name),VarID)
+            if (STAT_CALL /= nf90_noerr) stop 'NETCDFReadGrid2D - ModuleNETCDF - ERR60'
+
+            STAT_CALL = NF90_GET_VAR(Me%ncid,VarID,Aux2D)
+            if (STAT_CALL /= nf90_noerr) stop 'NETCDFReadGrid2D - ModuleNETCDF - ERR70'
+            
+            do j=Me%Dims(1)%LB,Me%Dims(1)%UB
+            do i=Me%Dims(2)%LB,Me%Dims(2)%UB
+                Lat(i,j) = Aux2D(j,i)
+            enddo
+            enddo
+                
+            deallocate(Aux2D)
+            
+            if (present(Lat_Stag) .and. present(Lon_Stag)) then
+
+                allocate(Aux3D(Me%Dims(5)%LB:Me%Dims(5)%UB,                             &
+                               Me%Dims(1)%LB:Me%Dims(1)%UB,                             &
+                               Me%Dims(2)%LB:Me%Dims(2)%UB))
+            
+                !Read longitude staggered
+                STAT_CALL = nf90_inq_varid(Me%ncid,trim(Lon_Stag_Name),VarID)
+                if (STAT_CALL /= nf90_noerr) stop 'NETCDFReadGrid2D - ModuleNETCDF - ERR80'
+                
+                STAT_CALL = NF90_GET_VAR(Me%ncid,VarID,Aux3D)
+                if (STAT_CALL /= nf90_noerr) stop 'NETCDFReadGrid2D - ModuleNETCDF - ERR90'            
+                
+                do j=Me%Dims(1)%LB,Me%Dims(1)%UB
+                do i=Me%Dims(2)%LB,Me%Dims(2)%UB
+                do nv= Me%Dims(5)%LB,Me%Dims(5)%UB
+                    Lon_Stag(i,j) = Aux3D(1,j,i)
+                enddo
+                enddo
+                enddo
+
+                !Upper limit  
+                do j=Me%Dims(1)%LB,Me%Dims(1)%UB                              
+                    Lon_Stag(Me%Dims(2)%UB+1,j) = Aux3D(4,j,Me%Dims(2)%UB)
+                enddo
+
+                !Right limit  
+                do i=Me%Dims(2)%LB,Me%Dims(2)%UB                              
+                    Lon_Stag(i,Me%Dims(1)%UB+1) = Aux3D(2,Me%Dims(1)%UB,i)
+                enddo
+                
+                !Upper right corner
+                Lon_Stag(Me%Dims(2)%UB+1,Me%Dims(1)%UB+1) = Aux3D(3,Me%Dims(1)%UB,Me%Dims(2)%UB)
+
+                !Read latitude staggered
+                STAT_CALL = nf90_inq_varid(Me%ncid,trim(Lat_Stag_Name),VarID)
+                if (STAT_CALL /= nf90_noerr) stop 'NETCDFReadGrid2D - ModuleNETCDF - ERR100'
+
+                STAT_CALL = NF90_GET_VAR(Me%ncid,VarID,Aux3D)
+                if (STAT_CALL /= nf90_noerr) stop 'NETCDFReadGrid2D - ModuleNETCDF - ERR110'
+                
+                do j=Me%Dims(1)%LB,Me%Dims(1)%UB
+                do i=Me%Dims(2)%LB,Me%Dims(2)%UB
+                do nv= Me%Dims(5)%LB,Me%Dims(5)%UB
+                    Lat_Stag(i,j) = Aux3D(1,j,i)
+                enddo
+                enddo
+                enddo
+
+                !Upper limit  
+                do j=Me%Dims(1)%LB,Me%Dims(1)%UB                              
+                    Lat_Stag(Me%Dims(2)%UB+1,j) = Aux3D(4,j,Me%Dims(2)%UB)
+                enddo
+
+                !Right limit  
+                do i=Me%Dims(2)%LB,Me%Dims(2)%UB                              
+                    Lat_Stag(i,Me%Dims(1)%UB+1) = Aux3D(2,Me%Dims(1)%UB,i)
+                enddo
+                
+                !Upper right corner
+                Lat_Stag(Me%Dims(2)%UB+1,Me%Dims(1)%UB+1) = Aux3D(3,Me%Dims(1)%UB,Me%Dims(2)%UB) 
+                    
+                deallocate(Aux3D)            
+            endif
+
+            if (present(SphericX) .and. present(SphericY)) then
+
+                allocate(Aux3D(Me%Dims(5)%LB:Me%Dims(5)%UB,                             &
+                               Me%Dims(1)%LB:Me%Dims(1)%UB,                             &
+                               Me%Dims(2)%LB:Me%Dims(2)%UB))
+
+            
+                !Read google maps X staggered
+                STAT_CALL = nf90_inq_varid(Me%ncid,trim(gmaps_x_Name),VarID)
+                if (STAT_CALL /= nf90_noerr) stop 'NETCDFReadGrid2D - ModuleNETCDF - ERR120'
+                
+                STAT_CALL = NF90_GET_VAR(Me%ncid,VarID,Aux3D)
+                if (STAT_CALL /= nf90_noerr) stop 'NETCDFReadGrid2D - ModuleNETCDF - ERR130'            
+                
+                do j=Me%Dims(1)%LB,Me%Dims(1)%UB
+                do i=Me%Dims(2)%LB,Me%Dims(2)%UB
+                do nv= Me%Dims(5)%LB,Me%Dims(5)%UB
+                    SphericX(i,j) = Aux3D(1,j,i)
+                enddo
+                enddo
+                enddo
+
+                !Upper limit  
+                do j=Me%Dims(1)%LB,Me%Dims(1)%UB                              
+                    SphericX(Me%Dims(2)%UB+1,j) = Aux3D(4,j,Me%Dims(2)%UB)
+                enddo
+
+                !Right limit  
+                do i=Me%Dims(2)%LB,Me%Dims(2)%UB                              
+                    SphericX(i,Me%Dims(1)%UB+1) = Aux3D(2,Me%Dims(1)%UB,i)
+                enddo
+                
+                !Upper right corner
+                SphericX(Me%Dims(2)%UB+1,Me%Dims(1)%UB+1) = Aux3D(3,Me%Dims(1)%UB,Me%Dims(2)%UB) 
+                    
+                
+                !Read google maps Y staggered
+                STAT_CALL = nf90_inq_varid(Me%ncid,trim(gmaps_y_Name),VarID)
+                if (STAT_CALL /= nf90_noerr) stop 'NETCDFReadGrid2D - ModuleNETCDF - ERR140'
+                
+                STAT_CALL = NF90_GET_VAR(Me%ncid,VarID,Aux3D)
+                if (STAT_CALL /= nf90_noerr) stop 'NETCDFReadGrid2D - ModuleNETCDF - ERR150'            
+                
+                do j=Me%Dims(1)%LB,Me%Dims(1)%UB
+                do i=Me%Dims(2)%LB,Me%Dims(2)%UB
+                do nv= Me%Dims(5)%LB,Me%Dims(5)%UB
+                    SphericY(i,j) = Aux3D(1,j,i)
+                enddo
+                enddo
+                enddo
+
+                !Upper limit  
+                do j=Me%Dims(1)%LB,Me%Dims(1)%UB                              
+                    SphericY(Me%Dims(2)%UB+1,j) = Aux3D(4,j,Me%Dims(2)%UB)
+                enddo
+
+                !Right limit  
+                do i=Me%Dims(2)%LB,Me%Dims(2)%UB                              
+                    SphericY(i,Me%Dims(1)%UB+1) = Aux3D(2,Me%Dims(1)%UB,i)
+                enddo
+                
+                !Upper right corner
+                SphericY(Me%Dims(2)%UB+1,Me%Dims(1)%UB+1) = Aux3D(3,Me%Dims(1)%UB,Me%Dims(2)%UB) 
+                    
+                deallocate(Aux3D)          
+            endif                            
+            
+            STAT_ = SUCCESS_
+
+        else
+
+            STAT_ = ready_
+
+        endif
+
+        if (present(STAT)) STAT = STAT_
+
+
+    end subroutine NETCDFReadGrid2D
 
     !--------------------------------------------------------------------------    
 
@@ -1733,6 +2318,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         integer, optional                               :: STAT
         
         !Local-----------------------------------------------------------------
+        real                                            :: FillValue, MissingValue
         integer                                         :: STAT_, ready_
         integer                                         :: STAT_CALL
 
@@ -1749,35 +2335,40 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteVert - ModuleNETCDF - ERR00'
             
             !define depth as variable
-            STAT_CALL = nf90_def_var(Me%ncid, "depth", NF90_FLOAT, Me%Dims(3)%ID%Number, Me%Dims(3)%VarID)
+            STAT_CALL = nf90_def_var(Me%ncid, depth_Name, NF90_FLOAT, Me%Dims(3)%ID%Number, Me%Dims(3)%VarID)
             if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteVert - ModuleNETCDF - ERR01'
+            
+            MissingValue    = FillValueReal
+            FillValue       = FillValueReal
 
             !Is it a sigma grid?
             if(VertCoordinate)then
 
-                call NETCDFWriteAttributes(Me%Dims(3)%VarID, LongName     = "depth",             &
-                                                             StandardName = "depth",             &
+                call NETCDFWriteAttributes(Me%Dims(3)%VarID, LongName     = depth_Name,          &
+                                                             StandardName = depth_Name,          &
                                                              Units        = "",                  &
                                                              Positive     = "down",              &
-                                                             FillValue    = FillValueReal,       &
+                                                             FillValue    = FillValue,           &
                                                              ValidMin     = 0.,                  &
                                                              ValidMax     = 1.,                  & 
                                                              Add_Offset   = OffSet,              &
-                                                             MissingValue = FillValueReal)
+                                                             MissingValue = MissingValue,        &
+                                                             bounds       = trim(depth_Stag_Name))
                
             !No? Then it must be a z-coordinate grid
             else
 
-                call NETCDFWriteAttributes(Me%Dims(3)%VarID, LongName     = "depth",             &
-                                                             StandardName = "depth",             &
+                call NETCDFWriteAttributes(Me%Dims(3)%VarID, LongName     = depth_Name,          &
+                                                             StandardName = depth_Name,          &
                                                              Units        = "m",                 &
                                                              Positive     = "down",              &
-                                                             FillValue    = FillValueReal,       &
-                                                             ValidMin     = -10.,                &
+                                                             FillValue    = FillValue,           &
+                                                             ValidMin     = -50.,                &
                                                              ValidMax     = 10000.,              &
                                                              Add_Offset   = OffSet,              &
-                                                             MissingValue = FillValueReal)
-
+                                                             MissingValue = MissingValue,        &
+                                                             bounds       = trim(depth_Stag_Name))
+                                                                                                
             end if
 
             !exit definition mode
@@ -1802,6 +2393,1032 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
     end subroutine NETCDFWriteVert
 
     !--------------------------------------------------------------------------
+    !--------------------------------------------------------------------------    
+
+    subroutine NETCDFWriteVertStag(NCDFID, VertStag, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                                         :: NCDFID
+        real, dimension(:  ), pointer                   :: VertStag
+        integer, optional                               :: STAT
+        
+        !Local-----------------------------------------------------------------
+        real,    dimension(:,:), pointer                :: Aux2D
+        integer                                         :: STAT_, ready_
+        integer                                         :: STAT_CALL
+        integer                                         :: VertStagVarID, nv, k
+        integer, dimension(2)                           :: VertStagDimID
+
+        !Begin-----------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready (NCDFID, ready_)
+
+        if (ready_ .EQ. IDLE_ERR_) then
+
+            !enter definition mode
+            STAT_CALL = nf90_redef(ncid = Me%ncid)
+            if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteVertStag - ModuleNETCDF - ERR10'
+
+            VertStagDimID(1) = Me%Dims(6)%ID%Number ! nvv                     
+            VertStagDimID(2) = Me%Dims(3)%ID%Number !z
+            
+            !define depth as variable
+            STAT_CALL = nf90_def_var(Me%ncid, depth_Stag_Name, NF90_FLOAT, VertStagDimID, VertStagVarID)
+            if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteVertStag - ModuleNETCDF - ERR20'
+
+
+            !exit definition mode
+            STAT_CALL = nf90_enddef(ncid = Me%ncid)
+            if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteVertStag - ModuleNETCDF - ERR30'
+            
+            allocate(Aux2D(Me%Dims(6)%LB:Me%Dims(6)%UB,Me%Dims(3)%LB:Me%Dims(3)%UB))
+            
+            do k = Me%Dims(3)%LB,Me%Dims(3)%UB
+                do nv = Me%Dims(6)%LB,Me%Dims(6)%UB
+                    Aux2D(nv,k)= VertStag (k+nv-1)
+                enddo
+            enddo
+            
+
+            !write Vertical coordinate
+            STAT_CALL = nf90_put_var(Me%ncid, VertStagVarID, Aux2D)
+            if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteVertStag - ModuleNETCDF - ERR40'
+            
+            deallocate(Aux2D)
+
+            STAT_ = SUCCESS_
+
+        else
+
+            STAT_ = ready_
+
+        endif
+
+        if (present(STAT)) STAT = STAT_
+
+
+    end subroutine NETCDFWriteVertStag
+
+    !--------------------------------------------------------------------------
+    !--------------------------------------------------------------------------    
+
+    subroutine NETCDFReadVert(NCDFID, CenterCellDepth, VerticalZ, nInstant,             &
+                              ILB, IUB, JLB, JUB, KLB, KUB, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                                         :: NCDFID
+        real,    dimension(:,:,:), pointer, optional    :: CenterCellDepth        
+        real,    dimension(:,:,:), pointer, optional    :: VerticalZ
+        integer, optional                               :: nInstant
+        integer, optional                               :: ILB, IUB, JLB, JUB, KLB, KUB         
+        integer, optional                               :: STAT
+        
+        !Local-----------------------------------------------------------------
+        real, dimension(:,:,:), pointer                 :: Aux3D
+        real, dimension(:,:  ), pointer                 :: Aux2D        
+        real, dimension(:    ), pointer                 :: Aux1D                
+        integer                                         :: VarID, numDims, i, j, k
+        integer                                         :: ILB_, IUB_, JLB_, JUB_, KLB_, KUB_
+        integer                                         :: in, jn, kn
+        integer                                         :: STAT_, ready_
+        integer                                         :: STAT_CALL
+
+        !Begin-----------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready (NCDFID, ready_)
+
+        if (ready_ .EQ. IDLE_ERR_) then
+
+            if (present(KUB)) then 
+                KUB_ = KUB
+            else
+                !Get the spatial vertical dimension        
+                call NETCDFGetDimensions (NCDFID, KUB = KUB_, STAT = STAT_CALL) 
+                if (STAT_CALL /= nf90_noerr) stop 'NETCDFReadDataR4_3D - ModuleNETCDF - ERR10'
+            endif
+            
+            if (present(KLB)) then 
+                KLB_ = KLB
+            else
+                KLB_ = 1
+            endif
+            
+            if (present(JUB)) then 
+                JUB_ = JUB
+            else
+                !Get one of the horizontal spatial dimension        
+                call NETCDFGetDimensions (NCDFID, JUB = JUB_, STAT = STAT_CALL) 
+                if (STAT_CALL /= nf90_noerr) stop 'NETCDFReadDataR4_3D - ModuleNETCDF - ERR20'
+            endif
+            
+            if (present(JLB)) then 
+                JLB_ = JLB
+            else
+                JLB_ = 1
+            endif
+                    
+            if (present(IUB)) then 
+                IUB_ = IUB
+            else
+                !Get one of the horizontal spatial dimension        
+                call NETCDFGetDimensions (NCDFID, IUB = IUB_, STAT = STAT_CALL) 
+                if (STAT_CALL /= nf90_noerr) stop 'NETCDFReadDataR4_3D - ModuleNETCDF - ERR30'
+            endif
+            
+            if (present(ILB)) then 
+                ILB_ = ILB
+            else
+                ILB_ = 1
+            endif                    
+            
+            in = IUB_ - ILB_ + 1
+            jn = JUB_ - JLB_ + 1                    
+            kn = KUB_ - KLB_ + 1              
+
+            if (present(CenterCellDepth)) then
+
+
+                !Check if depth is defined in :
+                ! a) 1D (variable in depth)
+                ! b) 3D (variable in depth and horizontaly)
+                ! c) 4D (variable in depth, horizontaly and in time)
+                
+                STAT_CALL=nf90_inq_varid(Me%ncid,trim(Depth_Name),VarID)
+                if (STAT_CALL /= nf90_noerr) stop 'NETCDFReadVert - ModuleNETCDF - ERR20'
+
+                STAT_CALL = nf90_inquire_variable(Me%ncid, VarID, ndims = numDims)
+                if (STAT_CALL /= nf90_noerr) stop 'NETCDFReadVert - ModuleNETCDF - ERR30'
+            
+                if (numDims /= 1 .and. numDims /= 3 .and. numDims /= 4) stop 'NETCDFReadVert - ModuleNETCDF - ERR40' 
+                
+                if (numDims == 4 .and. .not. present(nInstant)) stop 'NETCDFReadVert - ModuleNETCDF - ERR50' 
+                
+
+                if (numDims == 1) then
+                
+                    allocate(Aux1D(1:kn))
+            
+                    !Read 1D depth
+                    STAT_CALL = NF90_GET_VAR(Me%ncid,VarID,Aux1D)
+                    if (STAT_CALL /= nf90_noerr) stop 'NETCDFReadVert - ModuleNETCDF - ERR60'            
+                
+                    do j=JLB_, JUB_
+                    do i=ILB_, IUB_
+                        CenterCellDepth(i,j,KLB_:KUB_) = Aux1D(KLB_:KUB_)
+                    enddo
+                    enddo
+                    
+                    deallocate(Aux1D)
+
+                elseif (numDims == 3 .or. numDims == 4) then
+                
+                    allocate(Aux3D (1:jn,1:in,1:kn))
+                                    
+                    if (numDims == 3) then                                    
+            
+                        !Read 3D depth
+                        STAT_CALL = NF90_GET_VAR(Me%ncid,VarID,Aux3D,                   &
+                            start = (/ JLB_, ILB_, KLB_/),                              &
+                            count = (/   jn,   in,   kn/))                             
+                        if (STAT_CALL /= nf90_noerr) stop 'NETCDFReadVert - ModuleNETCDF - ERR70'            
+                    else
+                        !Read 4D depth
+                        STAT_CALL = NF90_GET_VAR(Me%ncid,VarID,Aux3D,                   &
+                            start = (/ JLB_, ILB_, KLB_,  ninstant/),                   &
+                            count = (/   jn,   in,   kn,  1       /))                             
+                        if (STAT_CALL /= nf90_noerr) stop 'NETCDFReadVert - ModuleNETCDF - ERR80'            
+                    
+                    endif
+
+                    do j=JLB_,JUB_
+                    do i=ILB_,IUB_
+                    do k=KLB_,KUB_
+                        CenterCellDepth(i,j,k) = Aux3D(j-JLB_+1,i-ILB_+1,k-KLB_+1)
+                    enddo
+                    enddo
+                    enddo
+
+                    deallocate(Aux3D)
+                else
+                    stop 'NETCDFReadVert - ModuleNETCDF - ERR90'            
+                endif
+            endif
+
+            if (present(VerticalZ)) then
+
+                !Check if depth of the cel interfaces are defined in :
+                ! a) 1D (variable in depth)
+                ! b) 3D (variable in depth and horizontaly)
+                ! c) 4D (variable in depth, horizontaly and in time)
+                
+                STAT_CALL=nf90_inq_varid(Me%ncid,trim(depth_Stag_Name),VarID)
+                if (STAT_CALL /= nf90_noerr) stop 'NETCDFReadVert - ModuleNETCDF - ERR100'
+
+                STAT_CALL = nf90_inquire_variable(Me%ncid, VarID, ndims = numDims)
+                if (STAT_CALL /= nf90_noerr) stop 'NETCDFReadVert - ModuleNETCDF - ERR110'
+            
+            
+                allocate(Aux2D(2, 1:kn))
+        
+                !Read 1D depth
+                STAT_CALL = NF90_GET_VAR(Me%ncid,VarID,Aux2D)
+                if (STAT_CALL /= nf90_noerr) stop 'NETCDFReadVert - ModuleNETCDF - ERR140'            
+            
+                do j=JLB_,JUB_
+                do i=ILB_,IUB_
+                do k=KLB_,KUB_
+                    VerticalZ(i,j,k)                = Aux2D(2,k)
+                    if (k==KLB_) VerticalZ(i,j,k-1) = Aux2D(1,k)
+                enddo
+                enddo
+                enddo
+                
+                deallocate(Aux2D)
+            else
+                stop 'NETCDFReadVert - ModuleNETCDF - ERR150'
+            endif
+
+
+            STAT_ = SUCCESS_
+
+        else
+
+            STAT_ = ready_
+
+        endif
+
+        if (present(STAT)) STAT = STAT_
+
+
+    end subroutine NETCDFReadVert
+
+    !--------------------------------------------------------------------------
+
+    !--------------------------------------------------------------------------    
+
+    subroutine NETCDFReadDataI4_3D(NCDFID, Array3D, Name, nInstant,     &
+                                   ILB, IUB, JLB, JUB, KLB, KUB, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                                         :: NCDFID
+        integer(4), dimension(:,:,:), pointer           :: Array3D        
+        character(len = *)                              :: Name
+        integer, optional                               :: nInstant
+        integer, optional                               :: ILB, IUB, JLB, JUB, KLB, KUB 
+        integer, optional                               :: STAT
+        
+        !Local-----------------------------------------------------------------
+        real, dimension(:,:,:), pointer                 :: Aux3D        
+        integer                                         :: VarID, numDims, i, j, k
+        integer                                         :: ILB_, IUB_, JLB_, JUB_, KLB_, KUB_         
+        integer                                         :: in, jn, kn        
+        integer                                         :: STAT_, ready_
+        integer                                         :: STAT_CALL
+
+        !Begin-----------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready (NCDFID, ready_)
+
+        if (ready_ .EQ. IDLE_ERR_) then
+        
+            if (present(KUB)) then 
+                KUB_ = KUB
+            else
+                !Get the spatial vertical dimension        
+                call NETCDFGetDimensions (NCDFID, KUB = KUB_, STAT = STAT_CALL) 
+                if (STAT_CALL /= nf90_noerr) stop 'NETCDFReadDataI4_3D - ModuleNETCDF - ERR10'
+            endif
+            
+            if (present(KLB)) then 
+                KLB_ = KLB
+            else
+                KLB_ = 1
+            endif
+            
+            if (present(JUB)) then 
+                JUB_ = JUB
+            else
+                !Get one of the horizontal spatial dimension        
+                call NETCDFGetDimensions (NCDFID, JUB = JUB_, STAT = STAT_CALL) 
+                if (STAT_CALL /= nf90_noerr) stop 'NETCDFReadDataI4_3D - ModuleNETCDF - ERR20'
+            endif
+            
+            if (present(JLB)) then 
+                JLB_ = JLB
+            else
+                JLB_ = 1
+            endif
+                    
+            if (present(IUB)) then 
+                IUB_ = IUB
+            else
+                !Get one of the horizontal spatial dimension        
+                call NETCDFGetDimensions (NCDFID, IUB = IUB_, STAT = STAT_CALL) 
+                if (STAT_CALL /= nf90_noerr) stop 'NETCDFReadDataI4_3D - ModuleNETCDF - ERR30'
+            endif
+            
+            if (present(ILB)) then 
+                ILB_ = ILB
+            else
+                ILB_ = 1
+            endif                    
+                        
+            !Check if depth is defined in :
+            ! b) 3D (variable in depth and horizontaly)
+            ! c) 4D (variable in depth, horizontaly and in time)
+            
+            STAT_CALL=nf90_inq_varid(Me%ncid,trim(Name),VarID)
+            if (STAT_CALL /= nf90_noerr) then
+                write(*,*) "Property ", trim(Name)," not found in NetCDF file ",trim(Me%FileName)
+                stop 'NETCDFReadDataI4_3D - ModuleNETCDF - ERR40'
+            endif
+
+            STAT_CALL = nf90_inquire_variable(Me%ncid, VarID, ndims = numDims)
+            if (STAT_CALL /= nf90_noerr) stop 'NETCDFReadDataI4_3D - ModuleNETCDF - ERR50'
+        
+            if (numDims /= 3 .and. numDims /= 4) stop 'NETCDFReadDataI4_3D - ModuleNETCDF - ERR60' 
+            
+            if (numDims == 4 .and. .not. present(nInstant)) stop 'NETCDFReadDataI4_3D - ModuleNETCDF - ERR70' 
+            
+           
+            jn = 1-JLB_+JUB_
+            in = 1-ILB_+IUB_
+            kn = 1-KLB_+KUB_
+            
+            allocate(Aux3D (1:jn,1:in,1:kn))
+                            
+            if (numDims == 3) then                                    
+    
+                !Read 3D Field
+                STAT_CALL = NF90_GET_VAR(Me%ncid,VarID,Aux3D,                           &
+                    start = (/ JLB_, ILB_, KLB_/),                                      &
+                    count = (/   jn,   in,   kn/))                             
+                if (STAT_CALL /= nf90_noerr) stop 'NETCDFReadDataI4_3D - ModuleNETCDF - ERR80'                                
+            else
+                !Read 4D Field
+                STAT_CALL = NF90_GET_VAR(Me%ncid,VarID,Aux3D,                           &
+                    start = (/ JLB_, ILB_, KLB_,  ninstant /),                          &
+                    count = (/   jn,   in,   kn, 1       /))                             
+                if (STAT_CALL /= nf90_noerr) stop 'NETCDFReadDataI4_3D - ModuleNETCDF - ERR90'            
+            
+            endif
+            
+            do j=JLB_,JUB_
+            do i=ILB_,IUB_
+            do k=KLB_,KUB_
+                Array3D(i,j,k) = Aux3D(j-JLB_+1,i-ILB_+1,k-KLB_+1)
+            enddo
+            enddo
+            enddo 
+
+            deallocate(Aux3D)
+
+            STAT_ = SUCCESS_
+
+        else
+
+            STAT_ = ready_
+
+        endif
+
+        if (present(STAT)) STAT = STAT_
+
+
+    end subroutine NETCDFReadDataI4_3D
+    !--------------------------------------------------------------------------    
+
+
+    !--------------------------------------------------------------------------    
+
+    subroutine NETCDFReadDataR4_3D(NCDFID, Array3D, Name, nInstant, &
+                                   ILB, IUB, JLB, JUB, KLB, KUB, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                                         :: NCDFID
+        real(4), dimension(:,:,:), pointer              :: Array3D        
+        character(len = *)                              :: Name
+        integer, optional                               :: nInstant
+        integer, optional                               :: ILB, IUB, JLB, JUB, KLB, KUB 
+        integer, optional                               :: STAT
+        
+        !Local-----------------------------------------------------------------
+        real, dimension(:,:,:), pointer                 :: Aux3D        
+        integer                                         :: VarID, numDims, i, j, k
+        integer                                         :: ILB_, IUB_, JLB_, JUB_, KLB_, KUB_         
+        integer                                         :: in, jn, kn
+        integer                                         :: STAT_, ready_
+        integer                                         :: STAT_CALL
+
+        !Begin-----------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready (NCDFID, ready_)
+
+        if (ready_ .EQ. IDLE_ERR_) then
+        
+            if (present(KUB)) then 
+                KUB_ = KUB
+            else
+                !Get the spatial vertical dimension        
+                call NETCDFGetDimensions (NCDFID, KUB = KUB_, STAT = STAT_CALL) 
+                if (STAT_CALL /= nf90_noerr) stop 'NETCDFReadDataR4_3D - ModuleNETCDF - ERR10'
+            endif
+            
+            if (present(KLB)) then 
+                KLB_ = KLB
+            else
+                KLB_ = 1
+            endif
+            
+            if (present(JUB)) then 
+                JUB_ = JUB
+            else
+                !Get one of the horizontal spatial dimension        
+                call NETCDFGetDimensions (NCDFID, JUB = JUB_, STAT = STAT_CALL) 
+                if (STAT_CALL /= nf90_noerr) stop 'NETCDFReadDataR4_3D - ModuleNETCDF - ERR20'
+            endif
+            
+            if (present(JLB)) then 
+                JLB_ = JLB
+            else
+                JLB_ = 1
+            endif
+                    
+            if (present(IUB)) then 
+                IUB_ = IUB
+            else
+                !Get one of the horizontal spatial dimension        
+                call NETCDFGetDimensions (NCDFID, IUB = IUB_, STAT = STAT_CALL) 
+                if (STAT_CALL /= nf90_noerr) stop 'NETCDFReadDataR4_3D - ModuleNETCDF - ERR30'
+            endif
+            
+            if (present(ILB)) then 
+                ILB_ = ILB
+            else
+                ILB_ = 1
+            endif                    
+                        
+            !Check if depth is defined in :
+            ! b) 3D (variable in depth and horizontaly)
+            ! c) 4D (variable in depth, horizontaly and in time)
+            
+            STAT_CALL=nf90_inq_varid(Me%ncid,trim(Name),VarID)
+            if (STAT_CALL /= nf90_noerr) then
+                write(*,*) "Property ", trim(Name)," not found in NetCDF file ",trim(Me%FileName)
+                stop 'NETCDFReadDataR4_3D - ModuleNETCDF - ERR40'
+            endif
+
+            STAT_CALL = nf90_inquire_variable(Me%ncid, VarID, ndims = numDims)
+            if (STAT_CALL /= nf90_noerr) stop 'NETCDFReadDataR4_3D - ModuleNETCDF - ERR50'
+        
+            if (numDims /= 3 .and. numDims /= 4) stop 'NETCDFReadDataR4_3D - ModuleNETCDF - ERR60' 
+            
+            if (numDims == 4 .and. .not. present(nInstant)) stop 'NETCDFReadDataR4_3D - ModuleNETCDF - ERR70' 
+            
+            
+            jn = 1-JLB_+JUB_
+            in = 1-ILB_+IUB_
+            kn = 1-KLB_+KUB_
+            
+            allocate(Aux3D (1:jn,1:in,1:kn))
+                            
+            if (numDims == 3) then                                    
+    
+                !Read 3D Field
+                STAT_CALL = NF90_GET_VAR(Me%ncid,VarID,Aux3D,                           &
+                    start = (/ JLB_, ILB_, KLB_/),                                      &
+                    count = (/   jn,   in,   kn/))                             
+                if (STAT_CALL /= nf90_noerr) stop 'NETCDFReadDataR4_3D - ModuleNETCDF - ERR80'                                
+            else
+                !Read 4D Field
+                STAT_CALL = NF90_GET_VAR(Me%ncid,VarID,Aux3D,                           &
+                    start = (/ JLB_, ILB_, KLB_,  ninstant /),                          &
+                    count = (/   jn,   in,   kn, 1       /))                             
+                if (STAT_CALL /= nf90_noerr) stop 'NETCDFReadDataR4_3D - ModuleNETCDF - ERR90'            
+            
+            endif
+            
+            do j=JLB_,JUB_
+            do i=ILB_,IUB_
+            do k=KLB_,KUB_
+                Array3D(i,j,k) = Aux3D(j-JLB_+1,i-ILB_+1,k-KLB_+1)
+            enddo
+            enddo
+            enddo 
+
+            deallocate(Aux3D)
+
+            STAT_ = SUCCESS_
+
+        else
+
+            STAT_ = ready_
+
+        endif
+
+        if (present(STAT)) STAT = STAT_
+
+
+    end subroutine NETCDFReadDataR4_3D
+    !--------------------------------------------------------------------------    
+!--------------------------------------------------------------------------    
+
+    subroutine NETCDFReadDataR8_3D(NCDFID, Array3D, Name, nInstant,      &
+                                   ILB, IUB, JLB, JUB, KLB, KUB, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                                         :: NCDFID
+        real(8), dimension(:,:,:), pointer              :: Array3D        
+        character(len = *)                              :: Name
+        integer, optional                               :: nInstant
+        integer, optional                               :: ILB, IUB, JLB, JUB, KLB, KUB 
+        integer, optional                               :: STAT
+        
+        !Local-----------------------------------------------------------------
+        real, dimension(:,:,:), pointer                 :: Aux3D        
+        integer                                         :: VarID, numDims, i, j, k
+        integer                                         :: ILB_, IUB_, JLB_, JUB_, KLB_, KUB_         
+        integer                                         :: in, jn, kn        
+        integer                                         :: STAT_, ready_
+        integer                                         :: STAT_CALL
+
+        !Begin-----------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready (NCDFID, ready_)
+
+        if (ready_ .EQ. IDLE_ERR_) then
+        
+            if (present(KUB)) then 
+                KUB_ = KUB
+            else
+                !Get the spatial vertical dimension        
+                call NETCDFGetDimensions (NCDFID, KUB = KUB_, STAT = STAT_CALL) 
+                if (STAT_CALL /= nf90_noerr) stop 'NETCDFReadDataR8_3D - ModuleNETCDF - ERR10'
+            endif
+            
+            if (present(KLB)) then 
+                KLB_ = KLB
+            else
+                KLB_ = 1
+            endif
+            
+            if (present(JUB)) then 
+                JUB_ = JUB
+            else
+                !Get one of the horizontal spatial dimension        
+                call NETCDFGetDimensions (NCDFID, JUB = JUB_, STAT = STAT_CALL) 
+                if (STAT_CALL /= nf90_noerr) stop 'NETCDFReadDataR8_3D - ModuleNETCDF - ERR20'
+            endif
+            
+            if (present(JLB)) then 
+                JLB_ = JLB
+            else
+                JLB_ = 1
+            endif
+                    
+            if (present(IUB)) then 
+                IUB_ = IUB
+            else
+                !Get one of the horizontal spatial dimension        
+                call NETCDFGetDimensions (NCDFID, IUB = IUB_, STAT = STAT_CALL) 
+                if (STAT_CALL /= nf90_noerr) stop 'NETCDFReadDataR8_3D - ModuleNETCDF - ERR30'
+            endif
+            
+            if (present(ILB)) then 
+                ILB_ = ILB
+            else
+                ILB_ = 1
+            endif                    
+                        
+            !Check if depth is defined in :
+            ! b) 3D (variable in depth and horizontaly)
+            ! c) 4D (variable in depth, horizontaly and in time)
+            
+            STAT_CALL=nf90_inq_varid(Me%ncid,trim(Name),VarID)
+            if (STAT_CALL /= nf90_noerr) then
+                write(*,*) "Property ", trim(Name)," not found in NetCDF file ",trim(Me%FileName)
+                stop 'NETCDFReadDataR8_3D - ModuleNETCDF - ERR40'
+            endif
+
+            STAT_CALL = nf90_inquire_variable(Me%ncid, VarID, ndims = numDims)
+            if (STAT_CALL /= nf90_noerr) stop 'NETCDFReadDataR8_3D - ModuleNETCDF - ERR50'
+        
+            if (numDims /= 3 .and. numDims /= 4) stop 'NETCDFReadDataR8_3D - ModuleNETCDF - ERR60' 
+            
+            if (numDims == 4 .and. .not. present(nInstant)) stop 'NETCDFReadDataR8_3D - ModuleNETCDF - ERR70' 
+            
+           
+            jn = 1-JLB_+JUB_
+            in = 1-ILB_+IUB_
+            kn = 1-KLB_+KUB_
+            
+            allocate(Aux3D (1:jn,1:in,1:kn))
+                            
+            if (numDims == 3) then                                    
+    
+                !Read 3D Field
+                STAT_CALL = NF90_GET_VAR(Me%ncid,VarID,Aux3D,                           &
+                    start = (/ JLB_, ILB_, KLB_/),                                      &
+                    count = (/   jn,   in,   kn/))                             
+                if (STAT_CALL /= nf90_noerr) stop 'NETCDFReadDataR8_3D - ModuleNETCDF - ERR80'                                
+            else
+                !Read 4D Field
+                STAT_CALL = NF90_GET_VAR(Me%ncid,VarID,Aux3D,                           &
+                    start = (/ JLB_, ILB_, KLB_,  ninstant /),                          &
+                    count = (/   jn,   in,   kn, 1       /))                             
+                if (STAT_CALL /= nf90_noerr) stop 'NETCDFReadDataR8_3D - ModuleNETCDF - ERR90'            
+            
+            endif
+            
+            do j=JLB_,JUB_
+            do i=ILB_,IUB_
+            do k=KLB_,KUB_
+                Array3D(i,j,k) = Aux3D(j-JLB_+1,i-ILB_+1,k-KLB_+1)
+            enddo
+            enddo
+            enddo 
+
+            deallocate(Aux3D)
+
+            STAT_ = SUCCESS_
+
+        else
+
+            STAT_ = ready_
+
+        endif
+
+        if (present(STAT)) STAT = STAT_
+
+
+    end subroutine NETCDFReadDataR8_3D
+    !--------------------------------------------------------------------------    
+
+
+    
+    !--------------------------------------------------------------------------    
+
+    subroutine NETCDFReadDataI4_2D(NCDFID, Array2D, Name, nInstant,                     &
+                                  ILB, IUB, JLB, JUB, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                                         :: NCDFID
+        integer(4), dimension(:,:), pointer             :: Array2D        
+        character(len = *)                              :: Name
+        integer, optional                               :: nInstant
+        integer, optional                               :: ILB, IUB, JLB, JUB
+        integer, optional                               :: STAT
+        
+        !Local-----------------------------------------------------------------
+        real, dimension(:,:), pointer                   :: Aux2D        
+        integer                                         :: VarID, numDims, i, j
+        integer                                         :: ILB_, IUB_, JLB_, JUB_
+        integer                                         :: in, jn
+        integer                                         :: STAT_, ready_
+        integer                                         :: STAT_CALL
+
+        !Begin-----------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready (NCDFID, ready_)
+
+        if (ready_ .EQ. IDLE_ERR_) then
+        
+            if (present(JUB)) then 
+                JUB_ = JUB
+            else
+                !Get one of the horizontal spatial dimension        
+                call NETCDFGetDimensions (NCDFID, JUB = JUB_, STAT = STAT_CALL) 
+                if (STAT_CALL /= nf90_noerr) stop 'NETCDFReadDataI4_2D - ModuleNETCDF - ERR20'
+            endif
+            
+            if (present(JLB)) then 
+                JLB_ = JLB
+            else
+                JLB_ = 1
+            endif
+                    
+            if (present(IUB)) then 
+                IUB_ = IUB
+            else
+                !Get one of the horizontal spatial dimension        
+                call NETCDFGetDimensions (NCDFID, IUB = IUB_, STAT = STAT_CALL) 
+                if (STAT_CALL /= nf90_noerr) stop 'NETCDFReadDataI4_2D - ModuleNETCDF - ERR30'
+            endif
+            
+            if (present(ILB)) then 
+                ILB_ = ILB
+            else
+                ILB_ = 1
+            endif                    
+                        
+            ! 1) 2D (variable in horizontaly)
+            ! 2) 3D (variable in horizontaly and in time)
+            
+            STAT_CALL=nf90_inq_varid(Me%ncid,trim(Name),VarID)
+            if (STAT_CALL /= nf90_noerr) then
+                write(*,*) "Property ", trim(Name)," not found in NetCDF file ",trim(Me%FileName)
+                stop 'NETCDFReadDataI4_2D - ModuleNETCDF - ERR40'
+            endif
+
+            STAT_CALL = nf90_inquire_variable(Me%ncid, VarID, ndims = numDims)
+            if (STAT_CALL /= nf90_noerr) stop 'NETCDFReadDataI4_2D - ModuleNETCDF - ERR50'
+        
+            if (numDims /= 2 .and. numDims /= 3) stop 'NETCDFReadDataI4_2D - ModuleNETCDF - ERR60' 
+            
+            if (numDims == 3 .and. .not. present(nInstant)) stop 'NETCDFReadDataI4_2D - ModuleNETCDF - ERR70' 
+            
+            
+            jn = 1-JLB_+JUB_
+            in = 1-ILB_+IUB_
+            
+            allocate(Aux2D (1:jn,1:in))
+                            
+            if (numDims == 2) then                                    
+    
+                !Read 2D Field
+                STAT_CALL = NF90_GET_VAR(Me%ncid,VarID,Aux2D,                           &
+                    start = (/ JLB_, ILB_/),                                            &
+                    count = (/   jn,   in/))                             
+                if (STAT_CALL /= nf90_noerr) stop 'NETCDFReadDataI4_2D - ModuleNETCDF - ERR80'                                
+            else
+                !Read 3D Field
+                STAT_CALL = NF90_GET_VAR(Me%ncid,VarID,Aux2D,                           &
+                    start = (/ JLB_, ILB_,  ninstant /),                                &
+                    count = (/   jn,   in, 1       /))                             
+                if (STAT_CALL /= nf90_noerr) stop 'NETCDFReadDataI4_2D - ModuleNETCDF - ERR90'            
+            
+            endif
+            
+            do j=JLB_,JUB_
+            do i=ILB_,IUB_
+                Array2D(i,j) = Aux2D(j-JLB_+1,i-ILB_+1)
+            enddo
+            enddo 
+
+            deallocate(Aux2D)
+
+            STAT_ = SUCCESS_
+
+        else
+
+            STAT_ = ready_
+
+        endif
+
+        if (present(STAT)) STAT = STAT_
+
+
+    end subroutine NETCDFReadDataI4_2D
+    
+    !--------------------------------------------------------------------------    
+
+    subroutine NETCDFReadDataR4_2D(NCDFID, Array2D, Name, nInstant,                     &
+                                  ILB, IUB, JLB, JUB, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                                         :: NCDFID
+        real(4), dimension(:,:), pointer                :: Array2D        
+        character(len = *)                              :: Name
+        integer, optional                               :: nInstant
+        integer, optional                               :: ILB, IUB, JLB, JUB
+        integer, optional                               :: STAT
+        
+        !Local-----------------------------------------------------------------
+        real, dimension(:,:), pointer                   :: Aux2D        
+        integer                                         :: VarID, numDims, i, j
+        integer                                         :: ILB_, IUB_, JLB_, JUB_
+        integer                                         :: in, jn
+        integer                                         :: STAT_, ready_
+        integer                                         :: STAT_CALL
+
+        !Begin-----------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready (NCDFID, ready_)
+
+        if (ready_ .EQ. IDLE_ERR_) then
+        
+            if (present(JUB)) then 
+                JUB_ = JUB
+            else
+                !Get one of the horizontal spatial dimension        
+                call NETCDFGetDimensions (NCDFID, JUB = JUB_, STAT = STAT_CALL) 
+                if (STAT_CALL /= nf90_noerr) stop 'NETCDFReadDataR4_2D - ModuleNETCDF - ERR20'
+            endif
+            
+            if (present(JLB)) then 
+                JLB_ = JLB
+            else
+                JLB_ = 1
+            endif
+                    
+            if (present(IUB)) then 
+                IUB_ = IUB
+            else
+                !Get one of the horizontal spatial dimension        
+                call NETCDFGetDimensions (NCDFID, IUB = IUB_, STAT = STAT_CALL) 
+                if (STAT_CALL /= nf90_noerr) stop 'NETCDFReadDataR4_2D - ModuleNETCDF - ERR30'
+            endif
+            
+            if (present(ILB)) then 
+                ILB_ = ILB
+            else
+                ILB_ = 1
+            endif                    
+                        
+            ! 1) 2D (variable in horizontaly)
+            ! 2) 3D (variable in horizontaly and in time)
+            
+            STAT_CALL=nf90_inq_varid(Me%ncid,trim(Name),VarID)
+            if (STAT_CALL /= nf90_noerr) then
+                write(*,*) "Property ", trim(Name)," not found in NetCDF file ",trim(Me%FileName)
+                stop 'NETCDFReadDataR4_2D - ModuleNETCDF - ERR40'
+            endif
+
+            STAT_CALL = nf90_inquire_variable(Me%ncid, VarID, ndims = numDims)
+            if (STAT_CALL /= nf90_noerr) stop 'NETCDFReadDataR4_2D - ModuleNETCDF - ERR50'
+        
+            if (numDims /= 2 .and. numDims /= 3) stop 'NETCDFReadDataR4_2D - ModuleNETCDF - ERR60' 
+            
+            if (numDims == 3 .and. .not. present(nInstant)) stop 'NETCDFReadDataR4_2D - ModuleNETCDF - ERR70' 
+            
+            
+            jn = 1-JLB_+JUB_
+            in = 1-ILB_+IUB_
+            
+            allocate(Aux2D (1:jn,1:in))
+                            
+            if (numDims == 2) then                                    
+    
+                !Read 2D Field
+                STAT_CALL = NF90_GET_VAR(Me%ncid,VarID,Aux2D,                           &
+                    start = (/ JLB_, ILB_/),                                            &
+                    count = (/   jn,   in/))                             
+                if (STAT_CALL /= nf90_noerr) then
+                    stop 'NETCDFReadDataR4_2D - ModuleNETCDF - ERR80'
+                endif
+            else
+                !Read 3D Field
+                STAT_CALL = NF90_GET_VAR(Me%ncid,VarID,Aux2D,                           &
+                    start = (/ JLB_, ILB_,  ninstant /),                                &
+                    count = (/   jn,   in, 1       /))                             
+                if (STAT_CALL /= nf90_noerr) stop 'NETCDFReadDataR4_2D - ModuleNETCDF - ERR90'            
+            
+            endif
+            
+            do j=JLB_,JUB_
+            do i=ILB_,IUB_
+                Array2D(i,j) = Aux2D(j-JLB_+1,i-ILB_+1)
+            enddo
+            enddo 
+
+            deallocate(Aux2D)
+
+            STAT_ = SUCCESS_
+
+        else
+
+            STAT_ = ready_
+
+        endif
+
+        if (present(STAT)) STAT = STAT_
+
+
+    end subroutine NETCDFReadDataR4_2D
+    !--------------------------------------------------------------------------    
+
+    subroutine NETCDFReadDataR8_2D(NCDFID, Array2D, Name, nInstant,                     &
+                                  ILB, IUB, JLB, JUB, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                                         :: NCDFID
+        real(8), dimension(:,:), pointer                :: Array2D        
+        character(len = *)                              :: Name
+        integer, optional                               :: nInstant
+        integer, optional                               :: ILB, IUB, JLB, JUB
+        integer, optional                               :: STAT
+        
+        !Local-----------------------------------------------------------------
+        real, dimension(:,:), pointer                   :: Aux2D        
+        integer                                         :: VarID, numDims, i, j
+        integer                                         :: ILB_, IUB_, JLB_, JUB_
+        integer                                         :: in, jn
+        integer                                         :: STAT_, ready_
+        integer                                         :: STAT_CALL
+
+        !Begin-----------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready (NCDFID, ready_)
+
+        if (ready_ .EQ. IDLE_ERR_) then
+        
+            if (present(JUB)) then 
+                JUB_ = JUB
+            else
+                !Get one of the horizontal spatial dimension        
+                call NETCDFGetDimensions (NCDFID, JUB = JUB_, STAT = STAT_CALL) 
+                if (STAT_CALL /= nf90_noerr) stop 'NETCDFReadDataR8_2D - ModuleNETCDF - ERR20'
+            endif
+            
+            if (present(JLB)) then 
+                JLB_ = JLB
+            else
+                JLB_ = 1
+            endif
+                    
+            if (present(IUB)) then 
+                IUB_ = IUB
+            else
+                !Get one of the horizontal spatial dimension        
+                call NETCDFGetDimensions (NCDFID, IUB = IUB_, STAT = STAT_CALL) 
+                if (STAT_CALL /= nf90_noerr) stop 'NETCDFReadDataR8_2D - ModuleNETCDF - ERR30'
+            endif
+            
+            if (present(ILB)) then 
+                ILB_ = ILB
+            else
+                ILB_ = 1
+            endif                    
+                        
+            ! 1) 2D (variable in horizontaly)
+            ! 2) 3D (variable in horizontaly and in time)
+            
+            STAT_CALL=nf90_inq_varid(Me%ncid,trim(Name),VarID)
+            if (STAT_CALL /= nf90_noerr) then
+                write(*,*) "Property ", trim(Name)," not found in NetCDF file ",trim(Me%FileName)
+                stop 'NETCDFReadDataR8_2D - ModuleNETCDF - ERR40'
+            endif
+            
+            STAT_CALL = nf90_inquire_variable(Me%ncid, VarID, ndims = numDims)
+            if (STAT_CALL /= nf90_noerr) stop 'NETCDFReadDataR8_2D - ModuleNETCDF - ERR50'
+        
+            if (numDims /= 2 .and. numDims /= 3) stop 'NETCDFReadDataR8_2D - ModuleNETCDF - ERR60' 
+            
+            if (numDims == 3 .and. .not. present(nInstant)) stop 'NETCDFReadDataR8_2D - ModuleNETCDF - ERR70' 
+            
+            
+            jn = 1-JLB_+JUB_
+            in = 1-ILB_+IUB_
+            
+            allocate(Aux2D (1:jn,1:in))
+                            
+            if (numDims == 2) then                                    
+    
+                !Read 2D Field
+                STAT_CALL = NF90_GET_VAR(Me%ncid,VarID,Aux2D,                           &
+                    start = (/ JLB_, ILB_/),                                            &
+                    count = (/   jn,   in/))                             
+                if (STAT_CALL /= nf90_noerr) stop 'NETCDFReadDataR8_2D - ModuleNETCDF - ERR80'                                
+            else
+                !Read 3D Field
+                STAT_CALL = NF90_GET_VAR(Me%ncid,VarID,Aux2D,                           &
+                    start = (/ JLB_, ILB_,  ninstant /),                                &
+                    count = (/   jn,   in, 1       /))                             
+                if (STAT_CALL /= nf90_noerr) stop 'NETCDFReadDataR8_2D - ModuleNETCDF - ERR90'            
+            
+            endif
+            
+            do j=JLB_,JUB_
+            do i=ILB_,IUB_
+                Array2D(i,j) = Aux2D(j-JLB_+1,i-ILB_+1)
+            enddo
+            enddo 
+
+            deallocate(Aux2D)
+
+            STAT_ = SUCCESS_
+
+        else
+
+            STAT_ = ready_
+
+        endif
+
+        if (present(STAT)) STAT = STAT_
+
+
+    end subroutine NETCDFReadDataR8_2D
+    
+    
+    !--------------------------------------------------------------------------    
+
+
+    !--------------------------------------------------------------------------
 
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -1813,10 +3430,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
 
 
-    subroutine KillNETCDF(ObjNCDFID, STAT)
+    subroutine KillNETCDF(NCDFID, STAT)
 
         !Arguments---------------------------------------------------------------
-        integer                             :: ObjNCDFID              
+        integer                             :: NCDFID              
         integer, optional, intent(OUT)      :: STAT
 
         !External----------------------------------------------------------------
@@ -1830,7 +3447,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         STAT_ = UNKNOWN_
 
-        call Ready(ObjNCDFID, ready_)    
+        call Ready(NCDFID, ready_)    
 
 cd1 :   if (ready_ .NE. OFF_ERR_) then
 
@@ -1844,7 +3461,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                 !Deallocates Instance
                 call DeallocateInstance ()
 
-                ObjNCDFID = 0
+                NCDFID = 0
                 STAT_       = SUCCESS_
 
             end if
@@ -1929,16 +3546,16 @@ cd1:    if (ObjNETCDF_ID > 0) then
 
     !--------------------------------------------------------------------------
 
-    subroutine LocateObjNETCDF (ObjNCDFID)
+    subroutine LocateObjNETCDF (NCDFID)
 
         !Arguments-------------------------------------------------------------
-        integer                                     :: ObjNCDFID
+        integer                                     :: NCDFID
 
         !Local-----------------------------------------------------------------
 
         Me => FirstObjNETCDF
         do while (associated (Me))
-            if (Me%InstanceID == ObjNCDFID) exit
+            if (Me%InstanceID == NCDFID) exit
             Me => Me%Next
         enddo
 
