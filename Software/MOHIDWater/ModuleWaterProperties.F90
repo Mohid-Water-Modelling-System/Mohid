@@ -525,7 +525,7 @@ Module ModuleWaterProperties
 
     type       T_Discharge
         integer                                 :: Number
-        integer, dimension(:), pointer          :: i, j, k, nCells
+        integer, dimension(:), pointer          :: i, j, k, nCells, kmin, kmax
         real,    dimension(:), pointer          :: Flow
         integer, dimension(:), pointer          :: Vert
         logical, dimension(:), pointer          :: Ignore
@@ -838,7 +838,7 @@ Module ModuleWaterProperties
     type       T_Density
         type(T_PropertyID)                      :: ID
         integer                                 :: Method
-        logical                                 :: CorrecPress
+        logical                                 :: CorrecPress, CorrecSed
         real, pointer, dimension(:,:,:)         :: Field
         real, pointer, dimension(:,:,:)         :: Sigma
         real                                    :: Reference    = FillValueReal
@@ -2395,7 +2395,9 @@ do1 :   do while (associated(PropertyX))
                 allocate(Me%Discharge%Flow   (TotalCells),                              &
                          Me%Discharge%i      (TotalCells),                              &
                          Me%Discharge%j      (TotalCells),                              &
-                         Me%Discharge%k      (TotalCells))
+                         Me%Discharge%k      (TotalCells),                              &
+                         Me%Discharge%kmin   (TotalCells),                              &
+                         Me%Discharge%kmax   (TotalCells))
 
                 allocate(Me%Discharge%Vert   (Me%Discharge%Number),                     &
                          Me%Discharge%Ignore (Me%Discharge%Number))
@@ -2404,6 +2406,9 @@ do1 :   do while (associated(PropertyX))
                 Me%Discharge%i      (:) = FillValueInt
                 Me%Discharge%j      (:) = FillValueInt
                 Me%Discharge%k      (:) = FillValueInt
+                Me%Discharge%kmin   (:) = FillValueInt
+                Me%Discharge%kmax   (:) = FillValueInt
+                
 
                 Me%Discharge%Vert   (:) = 0
                 Me%Discharge%Ignore (:) = .false.
@@ -7265,6 +7270,15 @@ cd2 :       if (BlockFound) then
         if (STAT_CALL /= SUCCESS_)stop 'ConstructDensity - ModuleWaterProperties - ERR30'
 
 
+        call GetData(Me%Density%CorrecSed,                                              &
+                     Me%ObjEnterData, iflag,                                            &
+                     SearchType = FromFile,                                             &
+                     keyword    = 'SEDIMENT_CORRECTION',                                &
+                     Default    = .false.,                                              &
+                     ClientModule = 'ModuleWaterProperties',                            &
+                     STAT       = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)stop 'ConstructDensity - ModuleWaterProperties - ERR30'
+
         allocate (Me%Density%Field(ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)stop 'ConstructDensity - ModuleWaterProperties - ERR40'
 
@@ -7337,9 +7351,9 @@ cd2 :       if (BlockFound) then
 
             call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL) 
 
-            if (STAT_CALL .NE. SUCCESS_)                                                    &
+            if (STAT_CALL .NE. SUCCESS_) then
                 stop 'ConstructDensity - ModuleWaterProperties - ERR80'        
-           
+            endif
         else
             stop 'ConstructDensity - ModuleWaterProperties - ERR90'        
         endif cd1
@@ -7365,6 +7379,13 @@ Sal:        if(STAT_CALL == SUCCESS_)then
 temp:          if (STAT_CALL == SUCCESS_)then
                 
                    if (PropertyX%Evolution%Variable) Me%Density%Variable = .TRUE.
+                   
+                    if (Me%Density%CorrecSed) then
+                        call Search_Property(PropertyX, PropertyXID = Cohesive_Sediment_, STAT = STAT_CALL)
+                        if (STAT_CALL/= SUCCESS_) stop 'ConstructDensity - ModuleWaterProperties - ERR80.'
+                        
+                        if (PropertyX%Evolution%Variable) Me%Density%Variable = .TRUE.                        
+                    endif
                 
                     call null_time(Me%Density%LastActualization)
 
@@ -10268,6 +10289,7 @@ cd10:                       if (Property%evolution%Advec_Difus_Parameters%Implic
                     call SetDischarges (Me%ObjAdvectionDiffusion, Me%Discharge%Flow,    &
                                             Property%DischConc,   Me%Discharge%I,       &
                                             Me%Discharge%J,       Me%Discharge%K,       &
+                                            Me%Discharge%kmin,    Me%Discharge%kmax,    &
                                             Me%Discharge%Vert,    Me%Discharge%Number,  &
                                             Me%Discharge%Ignore,  Me%Discharge%nCells,  &
                                             STAT = STAT_CALL)
@@ -13264,7 +13286,7 @@ do3:            do k = kbottom, KUB
         integer                                     :: nCells, n, AuxCell
         integer                                     :: FlowDistribution
         real                                        :: ConcentrationIncrease
-        integer                                     :: IntakeI, IntakeJ, IntakeK
+        integer                                     :: IntakeI, IntakeJ, IntakeK, kmin, kmax
 
                  
         !Begin------------------------------------------------------------
@@ -13364,7 +13386,7 @@ dd:     do dis = 1, Me%Discharge%Number
             endif
 
             call GetDischargeFlowDistribuiton(Me%ObjDischarges, dis, nCells, FlowDistribution, &
-                                              VectorI, VectorJ, VectorK, STAT = STAT_CALL)             
+                                              VectorI, VectorJ, VectorK, kmin, kmax, STAT = STAT_CALL)             
 
             if (STAT_CALL/=SUCCESS_)                                                     &
                 stop 'Sub. WaterPropDischarges - ModuleWaterProperties - ERR70'
@@ -13392,7 +13414,18 @@ dn:         do n=1, nCells
                     i         = VectorI(n)
                     j         = VectorJ(n)
                     k         = VectorK(n)
-                    AuxFlowIJ = DischargeFlow * DistributionCoef(n)
+
+                    call GetDischargeWaterFlow(Me%ObjDischarges,                        &
+                                               Me%ExternalVar%Now, dis,                 &
+                                               WaterLevel(I, J),                        &
+                                               AuxFlowIJ,                               &
+                                               SurfaceElevation2 = WaterLevelByPass,    &    
+                                               FlowDistribution  = DistributionCoef(n), &                                      
+                                               STAT              = STAT_CALL)                        
+
+                    if (STAT_CALL/=SUCCESS_)                                            &
+                        stop 'Sub. WaterPropDischarges - ModuleWaterProperties - ERR85'
+
                 endif
 
                 AuxCell = AuxCell + 1
@@ -13402,6 +13435,13 @@ dn:         do n=1, nCells
                 Me%Discharge%i      (AuxCell) = i
                 Me%Discharge%j      (AuxCell) = j
                 Me%Discharge%k      (AuxCell) = k
+                Me%Discharge%kmin   (AuxCell) = kmin                
+                Me%Discharge%kmax   (AuxCell) = kmax
+                
+                if (DischVertical == DischUniform_) then
+                    if (kmin == FillValueInt) Me%Discharge%kmin = KFloor_Z(i, j)
+                    if (kmax == FillValueInt) Me%Discharge%kmax = KUB
+                endif
 
            
                 PropertyX => Me%FirstProperty
@@ -14146,7 +14186,7 @@ cd2 :       if (Actual.GE.Property%Evolution%NextCompute) then
         type (T_Time)                           :: CurrentTime
 
         !Local----------------------------------------------------------------- 
-        type(T_Property), pointer               :: PropertyX  
+        type(T_Property), pointer               :: PropertyX, Cohesive_Sediment  
         real,    pointer, dimension(:,:,:)      :: S,T    
         real, pointer, dimension(:,:,:)         :: SZZ, ZCellCenter
         integer, pointer, dimension(:,:,:)      :: WaterPoints3D
@@ -14411,6 +14451,35 @@ cd10:   if (CurrentTime > Me%Density%LastActualization) then
 
             end if
             
+            if (Me%Density%CorrecSed) then
+            
+                call Search_Property(Cohesive_Sediment, PropertyXID = Cohesive_Sediment_, STAT = STAT_CALL)
+                if (STAT_CALL/= SUCCESS_)stop 'ModifySpecificHeat - ModuleWaterProperties - ERR01.'
+
+
+
+                !$OMP PARALLEL PRIVATE(I,J,K)
+                do k = KLB, KUB
+                !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+                do j = JLB, JUB
+                do i = ILB, IUB
+
+                    if (WaterPoints3D(i, j, k) == 1) then
+                        Me%Density%Sigma(i, j, k) = Me%Density%Sigma(i, j, k) + Cohesive_Sediment%Concentration(i,j,k)* &
+                                                                                Cohesive_Sediment%IScoefficient
+                    endif
+
+                enddo
+                enddo
+                !$OMP END DO NOWAIT
+                enddo
+                !$OMP END PARALLEL
+                
+                nullify(Cohesive_Sediment)
+
+            endif
+            
+            
             !$OMP PARALLEL PRIVATE(I,J,K)
             do k = KLB, KUB
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
@@ -14426,6 +14495,7 @@ cd10:   if (CurrentTime > Me%Density%LastActualization) then
             !$OMP END DO NOWAIT
             enddo
             !$OMP END PARALLEL
+
 
             !$OMP PARALLEL PRIVATE(I,J,K)
             do k = KLB, KUB
@@ -18252,6 +18322,8 @@ cd1:    if (ready_ .NE. OFF_ERR_) then
                                Me%Discharge%i       ,                                   &
                                Me%Discharge%j       ,                                   &
                                Me%Discharge%k       ,                                   &
+                               Me%Discharge%kmin    ,                                   &                               
+                               Me%Discharge%kmax    ,                                   &
                                Me%Discharge%Vert    ,                                   &
                                Me%Discharge%Ignore  ,                                   &
                                Me%Discharge%nCells)
@@ -18260,6 +18332,8 @@ cd1:    if (ready_ .NE. OFF_ERR_) then
                                Me%Discharge%i       ,                                   &
                                Me%Discharge%j       ,                                   &
                                Me%Discharge%k       ,                                   &
+                               Me%Discharge%kmin    ,                                   &                               
+                               Me%Discharge%kmax    ,                                   &
                                Me%Discharge%Vert    ,                                   &
                                Me%Discharge%Ignore  ,                                   &
                                Me%Discharge%nCells)
