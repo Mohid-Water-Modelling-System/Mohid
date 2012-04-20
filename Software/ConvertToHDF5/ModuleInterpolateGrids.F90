@@ -1176,6 +1176,11 @@ doSS:               do n = 1,Me%NumberSubSubGroups
                     if (STAT_CALL /= SUCCESS_)stop 'Open_HDF5_OutPut_File - ModuleInterpolateGrids - ERR188'
                 endif
 
+                if (Me%Extrapolate2DFields == NearestCell) then
+                    call ExtraPol2DFieldsNearestCell(Me%Father, NewFatherField%Values2D)  
+                    Me%Father%WaterPoints2D(:,:) = 1                         
+                endif    
+                
                 if(Me%NewInterpolation)then
 
                     !call ModifyInterpolator(Me%ObjInterpolation, NewField%Values2D, &
@@ -1202,7 +1207,7 @@ doSS:               do n = 1,Me%NumberSubSubGroups
                         else
                             Me%New%WaterPoints2D => AuxWP2D
                         endif
-
+                        
                         call Triangulator               (NewFatherField, NewField, AuxGrid)
 
                         call UnGetHorizontalMap(AuxGrid%ObjHorizontalMap, AuxWP2D, STAT = STAT_CALL)
@@ -1374,6 +1379,11 @@ doSS:               do n = 1,Me%NumberSubSubGroups
                         NewFatherField%Values2D(:,:) = NewFatherField%Values3D (:,:,k)
                         Me%Father%WaterPoints2D(:,:) = Me%Father%WaterPoints3D (:,:,k)
                         Me%Aux%WaterPoints2D   (:,:) = Me%Aux%WaterPoints3D (:,:,k)
+                        
+                        if (Me%Extrapolate2DFields == NearestCell) then
+                            call ExtraPol2DFieldsNearestCell(Me%Father, NewFatherField%Values2D)     
+                            Me%Father%WaterPoints2D(:,:) = 1           
+                        endif                           
 
                         if(Me%TypeOfInterpolation == Bilinear)then
 
