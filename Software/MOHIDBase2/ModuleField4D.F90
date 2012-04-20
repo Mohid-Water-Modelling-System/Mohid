@@ -997,7 +997,7 @@ i0:     if      (NewPropField%SpaceDim == Dim2D)then
         call ConstructHorizontalMap(HorizontalMapID      = Me%ObjHorizontalMap,         &
                                     GridDataID           = Me%ObjBathymetry,            &
                                     HorizontalGridID     = Me%ObjHorizontalGrid,        &
-                                    WaterPoints          = Mask2D,                      &
+                                    Points               = Mask2D,                      &
                                     STAT                 = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)stop 'ReadMap2DFromFile - ModuleField4D - ERR90'
 
