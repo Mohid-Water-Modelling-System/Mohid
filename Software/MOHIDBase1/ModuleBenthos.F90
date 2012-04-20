@@ -1550,24 +1550,24 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
                          MineralizationRate * OxygenLimitation
         
         
-            !------------------------------------------POM POOLS                 
-            if(Me%ComputeOptions%Pompools)then
+        !------------------------------------------POM POOLS                 
+        if(Me%ComputeOptions%Pompools)then
+        
+            Me%Matrix(Index, POP1, IP) = Me%ExternalVar%Mass(POP1, Index) * Me%DTDay * &
+                                         MineralizationRate * OxygenLimitation
             
-                Me%Matrix(Index, POP1, IP) = Me%ExternalVar%Mass(POP1, Index) * Me%DTDay * &
-                                             MineralizationRate * OxygenLimitation
-                
-                Me%Matrix(Index, POP2, IP) = Me%ExternalVar%Mass(POP2, Index) * Me%DTDay * &
-                                             MineralizationRate * OxygenLimitation
-                
-                Me%Matrix(Index, POP3, IP) = Me%ExternalVar%Mass(POP3, Index) * Me%DTDay * &
-                                             MineralizationRate * OxygenLimitation
-                
-                Me%Matrix(Index, POP4, IP) = Me%ExternalVar%Mass(POP4, Index) * Me%DTDay * &
-                                             MineralizationRate * OxygenLimitation
-                                             
-                Me%Matrix(Index, POP5, IP) = Me%ExternalVar%Mass(POP5, Index) * Me%DTDay * &
-                                             MineralizationRate * OxygenLimitation                                    
-            end if
+            Me%Matrix(Index, POP2, IP) = Me%ExternalVar%Mass(POP2, Index) * Me%DTDay * &
+                                         MineralizationRate * OxygenLimitation
+            
+            Me%Matrix(Index, POP3, IP) = Me%ExternalVar%Mass(POP3, Index) * Me%DTDay * &
+                                         MineralizationRate * OxygenLimitation
+            
+            Me%Matrix(Index, POP4, IP) = Me%ExternalVar%Mass(POP4, Index) * Me%DTDay * &
+                                         MineralizationRate * OxygenLimitation
+                                         
+            Me%Matrix(Index, POP5, IP) = Me%ExternalVar%Mass(POP5, Index) * Me%DTDay * &
+                                         MineralizationRate * OxygenLimitation                                    
+        end if
 
 
         if(.NOT. Me%ComputeOptions%Pompools)then
