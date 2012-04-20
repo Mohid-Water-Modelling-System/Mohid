@@ -1063,7 +1063,7 @@ cd7:                if(Point%Y .eq. Segment%StartAt%Y)then
         real(8)                                     :: tE, tL
         real(8)                                     :: t, N, D
         integer                                     :: i
-        real, parameter                             :: SMALL_NUM = 1.e-16 !  anything that avoids division overflow
+        real(8), parameter                          :: SMALL_NUM = 1.e-16 !  anything that avoids division overflow
 
         !Begin-----------------------------------------------------------------
 
@@ -1101,14 +1101,15 @@ cd7:                if(Point%Y .eq. Segment%StartAt%Y)then
             N = PerpProduct2D(AuxP,AuxD);!  = -dot(ne, S.P0-V[i])
 
             D = - PerpProduct2D(AuxP , SegmentDir);      !  = dot(ne, dS)
-
+            
             if (abs(D) < SMALL_NUM) then      !  S is nearly parallel to this edge
+                D = SMALL_NUM
                 if (N < 0) then              !  P0 is outside this edge, so
                     intersect2D_SegPoly = .false.
                     exit               !  S is outside the polygon
                 endif                  !  S cannot cross this edge, so
             endif                      !  ignore this edge
-
+            
             t = N / D;
             if (D < 0) then        !  segment S is entering across this edge
                 if (t > tE) then   !  new max tE
