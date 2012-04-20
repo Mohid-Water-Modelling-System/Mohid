@@ -214,7 +214,8 @@ Module ModuleTimeSerie
     subroutine StartTimeSerie(TimeSerieID, ObjTime,                                      &
                               TimeSerieDataFile, PropertyList, Extension, WaterPoints3D, &
                               WaterPoints2D, WaterPoints1D, ResultFileName, Instance,    &
-                              ModelName, CoordX, CoordY, UseTabulatedData, STAT)
+                              ModelName, CoordX, CoordY, UseTabulatedData,               &
+                              STAT)
 
         !Arguments-------------------------------------------------------------
         integer                                     :: TimeSerieID
@@ -375,7 +376,7 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
                 endif
 
                 Me%Points = .true.
-
+                
                 !Verifies the location of the time series
                 if (Me%Points) then
                     if (Me%TimeSerie3D        ) call VerifyTimeSerieLocation(WaterPoints3D = WaterPoints3D)
@@ -1934,14 +1935,17 @@ do1:        do iTimeSerie = 1, Me%NumberOfTimeSeries
                     !Calculates the residual values
                     DT_Residual = CurrentTime - Me%TimeSerie(iTimeSerie)%LastResidual
 
-                    !Updates the Residual Values
-                    do IPC = 1, Me%NumberOfProperties
-                        Me%TimeSerie(iTimeSerie)%ResidualValues(IPC) =                  &
-                            (Me%TimeSerie(iTimeSerie)%ResidualValues(IPC)               &
-                           * Me%TimeSerie(iTimeSerie)%ResidualTime                      &
-                           + DataLine(IPC) * DT_Residual)                               &
-                           / (Me%TimeSerie(iTimeSerie)%ResidualTime + DT_Residual)
-                    enddo
+                    if (DT_Residual + Me%TimeSerie(iTimeSerie)%ResidualTime > 0) then
+
+                        !Updates the Residual Values
+                        do IPC = 1, Me%NumberOfProperties
+                            Me%TimeSerie(iTimeSerie)%ResidualValues(IPC) =                  &
+                                (Me%TimeSerie(iTimeSerie)%ResidualValues(IPC)               &
+                               * Me%TimeSerie(iTimeSerie)%ResidualTime                      &
+                               + DataLine(IPC) * DT_Residual)                               &
+                               / (Me%TimeSerie(iTimeSerie)%ResidualTime + DT_Residual)
+                        enddo
+                    endif
 
                     Me%TimeSerie(iTimeSerie)%ResidualTime =                             &
                     Me%TimeSerie(iTimeSerie)%ResidualTime + DT_Residual
