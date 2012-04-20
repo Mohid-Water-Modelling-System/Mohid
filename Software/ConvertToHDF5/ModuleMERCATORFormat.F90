@@ -2028,7 +2028,6 @@ i2:                     if (CheckName(nameAux, MohidName)) then
         integer                                 :: WILB, WIUB, WJLB, WJUB, WKLB, WKUB
         integer                                 :: i, j, k, n
         integer                                 :: ncid, status, dimid
-        character(len=PathLength)               :: InputGridFile
         logical                                 :: BlockFound
         integer                                 :: iflag, FirstLine, STAT_CALL
 
@@ -4526,8 +4525,11 @@ i2:         if (CheckName(nameAux, MohidName)) then
                                STAT             = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructGridData - ModuleMERCATORFormat - ERR03'
 
-        call ConstructHorizontalMap(Me%ObjHorizontalMap, Me%ObjGridData, Me%ObjHorizontalGrid,   &
-                                      Me%FirstField%Date, STAT=STAT_CALL)  
+        call ConstructHorizontalMap(HorizontalMapID  = Me%ObjHorizontalMap,             &
+                                    GridDataID       = Me%ObjGridData,                  &
+                                    HorizontalGridID = Me%ObjHorizontalGrid,            &
+                                    ActualTime       = Me%FirstField%Date,              &
+                                    STAT             = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructGridData - ModuleMERCATORFormat - ERR04'
 
         call ConstructGeometry(Me%ObjGeometry, Me%ObjGridData, Me%ObjHorizontalGrid,    &
