@@ -1030,7 +1030,8 @@ BF:         if (BlockFound) then
         write(Me%Unit,*) 'TYPE : CARTESIAN'
         write(Me%Unit,*) 'DOMAINDEPTH : 0.'
         write(Me%Unit,*) 'LAYERS : 33'
-        write(Me%Unit,'(A138)') 'LAYERTHICKNESS : 6500 500 500 500 500 500 500 500 250 250 100 100 100 100 100 100 100 100 100 100 100 100 50 50 50 25 25 25 25 20 10 10 10'
+        write(Me%Unit,'(A138)') 'LAYERTHICKNESS : 6500 500 500 500 500 500 500 500 250 250'//&
+                                ' 100 100 100 100 100 100 100 100 100 100 100 100 50 50 50 25 25 25 25 20 10 10 10'
         write(Me%Unit,*) 'MININITIALLAYERTHICKNESS : 1'
         write(Me%Unit,*) '<enddomain>'
         call UnitsManager(Me%Unit, CLOSE_FILE, STAT = STAT_CALL) 
