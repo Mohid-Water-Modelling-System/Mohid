@@ -110,10 +110,10 @@ Module ModuleValida4D
         integer                                     :: TableColumns, PropNumber, HDF5Number, TableValues
         integer                                     :: Tcolumn, Xcolumn, Ycolumn, Zcolumn
         type(T_Time)                                :: InitialDate
-        
+        logical, dimension(:), pointer              :: NullValue        
         real                                        :: Zmax
         
-        real, dimension(:), pointer                 :: T, X, Y, Z, PercI, PercJ
+        real,    dimension(:), pointer              :: T, X, Y, Z, PercI, PercJ
         integer, dimension(:), pointer              :: i, j
         character (len = StringLength), dimension(:), pointer :: StationName
       
@@ -604,7 +604,10 @@ BF:         if (BlockFound) then
                 allocate(Me%T(Me%TableValues))
                 allocate(Me%X(Me%TableValues),Me%Y(Me%TableValues))
                 allocate(Me%i(Me%TableValues),Me%j(Me%TableValues))
-                allocate(Me%PercI(Me%TableValues),Me%PercJ(Me%TableValues))                
+                allocate(Me%PercI(Me%TableValues),Me%PercJ(Me%TableValues))      
+                allocate(Me%NullValue(Me%TableValues))          
+                
+                Me%NullValue(:) = .false.
                 
                 allocate(Me%StationName(Me%TableValues))
                 
@@ -1066,7 +1069,9 @@ diV:    do iV = 1, Me%TableValues
             
             if (.not. InsideDomain) then
                 write(*,*) 'Point ',iV, ' not inside the model domain'
-                stop 'GenerateNewTable - ModuleValida4D - ERR20'
+                !stop 'GenerateNewTable - ModuleValida4D - ERR20'
+                Me%NullValue(iV) = .true.
+                cycle
             endif
             
             if (iV == 1) NewPosition = .true.
@@ -1160,8 +1165,23 @@ diV1:   do iV = 1, Me%TableValues
                     endif
                 enddo
                 
-                if (iH > Me%HDF5Number) stop 'data out the hdf time period'
+                if (iH > Me%HDF5Number) then
+                    write(*,*) 'data out the hdf time period'
+                    Me%NullValue(iV) = .true.
+                    cycle
+                endif
+                
+            endif            
             
+            if (NewFields) then
+                    
+                !Search for the correct hdf file
+                do iH = 1, Me%HDF5Number       
+                    if     (CurrentTime .GE. Me%HDF5Files(iH)%StartTime) then
+                        if (CurrentTime .LE. Me%HDF5Files(iH)%EndTime  ) exit
+                    endif
+                enddo
+                
                 do iI = 1, Me%HDF5Files(iH)%NumberOfInstants
                 
                     Me%PrevTime = HDF5TimeInstant(iH, iI)
@@ -1540,8 +1560,12 @@ iN2:                if (NewFields) then
         write(unit,*) "<BeginTable>"
         
 diV:    do iV = 1, Me%TableValues       
+            if (Me%NullValue(iV)) then
+                write(AuxC,*) Me%T(iV), Me%X(iV), Me%Y(iV), Me%Z(iV), (" null ", iP=1,Me%PropNumber), " , ", Me%StationName(iV)
+            else
+                write(AuxC,*) Me%T(iV), Me%X(iV), Me%Y(iV), Me%Z(iV), (Me%Properties(iP)%ValueHDF5(iV), iP=1,Me%PropNumber), " , ", Me%StationName(iV)
+            endif
             
-            write(AuxC,*) Me%T(iV), Me%X(iV), Me%Y(iV), Me%Z(iV), (Me%Properties(iP)%ValueHDF5(iV), iP=1,Me%PropNumber), " , ", Me%StationName(iV)
             write(unit,'(A)') trim(adjustl(AuxC))
             
         enddo diV
