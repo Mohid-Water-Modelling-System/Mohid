@@ -34,7 +34,8 @@ Module ModuleDischarges
     use ModuleTime
     use ModuleEnterData
     use ModuleFunctions, only : InterpolateValueInTime, ConstructPropertyID
-    use ModuleTimeSerie, only : StartTimeSerieInput, GetTimeSerieValue, KillTimeSerie
+    use ModuleTimeSerie, only : StartTimeSerieInput, StartTimeSerie, GetTimeSerieValue, &
+                                WriteTimeSerieLine, KillTimeSerie
     use ModuleDrawing
 
     implicit none 
@@ -153,6 +154,8 @@ Module ModuleDischarges
         real                                    :: scalar         = FillValueReal
         logical                                 :: TimeSerieON
         integer                                 :: TimeSerie      = 0
+        logical                                 :: TimeSerieOnOut 
+        integer                                 :: TimeSerieOut   = 0
         logical                                 :: PropTimeSerie  = .false.
         logical                                 :: FromIntake     = .false.
         real                                    :: IncreaseValue  = FillValueReal 
@@ -245,8 +248,11 @@ Module ModuleDischarges
          type(T_Localization       )            :: Localization
          integer                                :: PropertiesNumber = FillValueInt
          character(len=PathLength)              :: DataBaseFile
+         character(len=PathLength)              :: OutPutFile         
          logical                                :: TimeSerieON
          integer                                :: TimeSerie        = 0
+         logical                                :: TimeSerieOnOut
+         integer                                :: TimeSerieOut     = 0
          type(T_WaterFlow          )            :: WaterFlow   
          type(T_WaterVelocity      )            :: VelocityFlow
          integer                                :: DischargeType
@@ -1004,11 +1010,12 @@ i2:         if (NewDischarge%Localization%AlternativeLocations) then
     subroutine Read_DataBaseFile(NewDischarge)
 
         !Arguments-------------------------------------------------------------
-        type(T_IndividualDischarge), pointer        :: NewDischarge
+        type(T_IndividualDischarge), pointer                :: NewDischarge
 
         !External--------------------------------------------------------------
-        integer                                     :: flag, STAT_CALL
-
+        integer                                             :: flag, STAT_CALL
+        character(len=StringLength), dimension(:), pointer  :: PropertyList
+        character(len=StringLength)                         :: Extension
         !----------------------------------------------------------------------
 
 
@@ -1036,6 +1043,33 @@ i2:         if (NewDischarge%Localization%AlternativeLocations) then
                                      Me%ObjTime, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'Read_DataBaseFile - ModuleDischarges - ERR20'
         end if 
+        
+
+        call GetData(NewDischarge%TimeSerieOnOut,                                       &
+                     Me%ObjEnterData,                                                   &
+                     flag,                                                              &
+                     FromFile,                                                          &
+                     keyword      = 'TIME_SERIE',                                       &
+                     default      = .false.,                                            &
+                     ClientModule = 'ModuleDischarges',                                 &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Read_DataBaseFile - ModuleDischarges - ERR30'
+
+
+        !Start TimeSerie Input
+        if (NewDischarge%TimeSerieOnOut) then
+            allocate(PropertyList(1))
+            PropertyList(1) = 'flow'
+            Extension       = '.fds'
+            call StartTimeSerie(TimeSerieID         = NewDischarge%TimeSerieOut,        &
+                                ObjTime             = Me%ObjTime,                       &
+                                TimeSerieDataFile   = Me%DataFile,                      &      
+                                PropertyList        = PropertyList,                     &
+                                Extension           = Extension,                        &
+                                ResultFileName      = NewDischarge%ID%Name,             &
+                                STAT                = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Read_DataBaseFile - ModuleDischarges - ERR40'
+        end if         
 
         !----------------------------------------------------------------------
 
@@ -1200,6 +1234,11 @@ i2:     if (NewDischarge%DischargeType == FlowOver) then
                      ClientModule = 'ModuleDischarges',                                 &
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR140'
+        
+        if (NewDischarge%DischargeType == Valve .and. .not. NewDischarge%ByPass%ON) then
+            write(*,*) 'In the case of a type "valve" discharge the discharge must also be "bypass"'
+            stop 'Construct_FlowValues - ModuleDischarges - ERR145'                    
+        endif
 
 i3:     if (NewDischarge%ByPass%ON) then
 
@@ -2544,7 +2583,8 @@ cd3 :       if (STAT_CALL/=SUCCESS_) then
     !--------------------------------------------------------------------------
     
     subroutine GetDischargeWaterFlow(DischargesID, TimeX, DischargeIDNumber,            &
-                                     SurfaceElevation, Flow, SurfaceElevation2, STAT)
+                                     SurfaceElevation, Flow, SurfaceElevation2,         &
+                                     FlowDistribution, STAT)
 
         !Arguments-------------------------------------------------------------
         integer                                     :: DischargesID
@@ -2553,6 +2593,7 @@ cd3 :       if (STAT_CALL/=SUCCESS_) then
         real   ,                        intent(IN)  :: SurfaceElevation
         real   ,                        intent(OUT) :: Flow
         real   , optional,              intent(IN)  :: SurfaceElevation2
+        real   , optional,              intent(IN)  :: FlowDistribution        
         integer, optional,              intent(OUT) :: STAT
 
         !Local-----------------------------------------------------------------
@@ -2566,6 +2607,7 @@ cd3 :       if (STAT_CALL/=SUCCESS_) then
         integer                                     :: STAT_CALL
         logical                                     :: AssociateIntakeFlowON
         real                                        :: FlowFraction
+        real,  dimension(:), pointer                :: AuxFlow
         !----------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
@@ -2639,7 +2681,9 @@ cd2:        if (DischargeX%DischargeType == Normal .and. DischargeX%WaterFlow%Va
                 !if the axis valve is above the water level in both sides than there is no flow
                 if (- DischargeX%Valve%AxisHeigth > max(SurfaceElevation, SurfaceElevation2)) then
                 
-                    H = 0.
+                    H    =  0.
+                    
+                    Flow =  0.
 
                 else
 
@@ -2678,8 +2722,21 @@ cd2:        if (DischargeX%DischargeType == Normal .and. DischargeX%WaterFlow%Va
                
 
             end if
-
-
+            
+            
+            if (DischargeX%TimeSerieOnOut) then   
+                allocate(AuxFlow(1))
+                AuxFlow(1) = Flow
+                !Flow 
+                call WriteTimeSerieLine(DischargeX%TimeSerieOut, AuxFlow,               &
+                                    STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'GetDischargeWaterFlow - ModuleDischarges - ERR20'
+                deallocate(AuxFlow)
+            endif
+            
+            if (present(FlowDistribution)) then
+                Flow = Flow * FlowDistribution
+            endif
 
             nullify(DischargeX)
 
@@ -3533,6 +3590,8 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
         !----------------------------------------------------------------------
 
     end subroutine TryIgnoreDischarge
+    
+!----------------------------------------------------------------------
 
     !--------------------------------------------------------------------------
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -3552,7 +3611,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
         !Local-----------------------------------------------------------------
         integer                                     :: ready_, STAT_            
         type(T_IndividualDischarge), pointer        :: DischargeX, DischargeToKill
-        integer                                     :: nUsers
+        integer                                     :: nUsers, STAT_CALL
 
         !----------------------------------------------------------------------
 
@@ -3579,6 +3638,11 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                     
                     if (DischargeToKill%Localization%TrackLocation)  &
                         call UnitsManager (DischargeToKill%Localization%TrackLocationFileUnitNumber, CLOSE_FILE)
+                        
+                    if (DischargeToKill%TimeSerieOnOut) then   
+                        call KillTimeSerie(DischargeToKill%TimeSerieOut, STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'Kill_Discharges - ModuleDischarges - ERR20'
+                    endif
                     
                     call KillIndividualDischarge(DischargeToKill)                                        
 
