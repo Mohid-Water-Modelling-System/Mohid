@@ -231,6 +231,7 @@ Module ModuleFunctions
 
     !TimeToString
     public  :: TimeToString
+    public  :: TimeToStringV2
 
     !ChangeSuffix
     public  :: ChangeSuffix
@@ -2725,8 +2726,8 @@ do3 :       DO K  = KLB+1, KUB+1
                     VEC%W(K) = -Thomas%COEF3%F(I, J, K) / AUX
                     VEC%G(K) = (Thomas%TI(I, J, K) - Thomas%COEF3%D(I, J, K) * VEC%G(K-1)) / AUX
                 ELSE
-                        write(*,*) 'i, j, k: ', I, J, K
-                        stop 'ERROR: Instability in THOMASZ - ModuleFunctions - ERR10'
+                        !write(*,*) 'i, j, k: ', I, J, K
+                        !write(*,*) 'ERROR: Instability in THOMASZ - ModuleFunctions - ERR10'
                 END IF
             END DO do3
 
@@ -6181,19 +6182,19 @@ cd1 :   if (PhytoLightLimitationFactor .LT. 0.0) then
 
     subroutine ComputeAdvection1D(ilb, iub, dt, du, Prop, Q, V, ComputePoints,          &
                                   Ticoef, Ecoef, DCoef, Fcoef,                          &
-                                  Method, TVD_Limitation, TetaExplicit, VolumeRelMax, Upwind2)
+                                  Method, TVD_Limitation, TetaExplicit,                 &
+                                  VolumeRelMax, Upwind2)
 
         !Arguments---------------------------------------------------
-        real(8), dimension(:), intent(IN)  :: Q, V
-        real,    dimension(:), intent(IN)  :: du, Prop
-        integer, dimension(:), intent(IN)  :: ComputePoints
-        real   ,               intent(IN)  :: dt, VolumeRelMax
-        integer,               intent(IN)  :: ilb, iub, Method, TVD_Limitation
-        real,                  intent(IN)  :: TetaExplicit !(0 - fully explicit, 1 - fully implicit) 
-        logical,               intent(IN)  :: Upwind2
-
-        real(8), dimension(:), intent(OUT) :: Ecoef
-        real,    dimension(:), intent(OUT) :: Ticoef, DCoef, Fcoef
+        real(8), dimension(:), pointer     :: Q, V
+        real,    dimension(:), pointer     :: du, Prop
+        integer, dimension(:), pointer     :: ComputePoints
+        real                               :: dt, VolumeRelMax
+        integer                            :: ilb, iub, Method, TVD_Limitation
+        real                               :: TetaExplicit !(0 - fully explicit, 1 - fully implicit) 
+        logical                            :: Upwind2
+        real(8), dimension(:), pointer     :: Ecoef
+        real,    dimension(:), pointer     :: Ticoef, DCoef, Fcoef
         !Local-------------------------------------------------------
         real(8), dimension(4)              :: V4
         real,    dimension(4)              :: CFace, Prop4, du4
@@ -6738,22 +6739,24 @@ d2:         do i=1,n-m ! we loop over the current c’s and d’s and update them.
     Subroutine ComputeDiffusion1D(ilb, iub, dt, du, Prop, k, v, ComputePoints, &
                                   Ticoef, Ecoef, DCoef, Fcoef, Theta)
         !Arguments---------------------------------------------------
-        real(8), dimension(:), intent(IN)  :: v, k
-        real,    dimension(:), intent(IN)  :: du, Prop 
-        integer, dimension(:), intent(IN)  :: ComputePoints
-        real   ,               intent(IN)  :: dt
-        integer,               intent(IN)  :: ilb, iub
-        real,                  intent(IN)  :: Theta
-        real(8), dimension(:), intent(OUT) :: Ecoef
-        real,    dimension(:), intent(OUT) :: Ticoef, DCoef, Fcoef
+        real(8), dimension(:), pointer  :: v, k
+        real,    dimension(:), pointer  :: du, Prop 
+        integer, dimension(:), pointer  :: ComputePoints
+        real                            :: dt
+        integer                         :: ilb, iub
+        real                            :: Theta
+        real(8), dimension(:), pointer  :: Ecoef
+        real,    dimension(:), pointer  :: Ticoef, DCoef, Fcoef
         !Locals---------------------------------------------------
         integer                            :: i
         real(8)                            :: aux, auxR, auxL
         !Begin---------------------------------------------------
         do i = ilb, iub
             if((ComputePoints(i)==Compute).and. &
-               (ComputePoints(i-1)==Compute)) then                              
-                aux = - k(i) * dt / du(i) !k = K * A !
+               (ComputePoints(i-1)==Compute)) then    
+                ![m^3] = [m^2/s * m^2] * [s] / [m] 
+                aux  = - k(i) * dt / du(i)
+                ![ ] = [m^3] / [m^3]
                 auxL = aux / v(i-1)
                 auxR = aux / v(i) 
                 DCoef(i)    = DCoef(i)   - Theta * auxR
@@ -6763,12 +6766,13 @@ d2:         do i=1,n-m ! we loop over the current c’s and d’s and update them.
                 TiCoef(i)   = TiCoef(i)   + (1 - Theta) * auxR * (Prop(i) - Prop(i-1))
                 TiCoef(i-1) = TiCoef(i-1) - (1 - Theta) * auxL * (Prop(i) - Prop(i-1))
             endif
+                       
         enddo
     End Subroutine ComputeDiffusion1D
     !End------------------------------------------------------------
     Subroutine ComputeDiffusion3D(ilb, iub, jlb, jub, klb, kub, &
                                   dx, dy, dz,                   &
-                                  cpx, cpy, cpz,                &
+                                  cpz,                          &
                                   kx, ky, kz,                   &
                                   dt, p, v,                     &
                                   Ticoef, Ecoef, DCoef, Fcoef,  &
@@ -6776,82 +6780,131 @@ d2:         do i=1,n-m ! we loop over the current c’s and d’s and update them.
                                   CalcX, CalcY, CalcZ)
         !Arguments---------------------------------------------------
         integer,                   intent(IN)  :: ilb, iub,jlb, jub, klb, kub
-        real, dimension(:,:), intent(IN)       :: dx, dy
-        real, dimension(:,:,:), intent(IN)     :: dz    
-        integer, dimension(:,:,:), intent(IN)  :: cpx, cpy, cpz    
-        real(8), dimension(:,:,:), intent(IN)  :: kx, ky, kz    
-        real(8), dimension(:,:,:), intent(IN)  :: v
-        real,    dimension(:,:,:), intent(IN)  :: p
+        real, dimension(:,:),pointer       :: dx, dy
+        real, dimension(:,:,:), pointer     :: dz    
+        integer, dimension(:,:,:), pointer  :: cpz    
+        real(8), dimension(:,:,:), pointer  :: kx, ky, kz    
+        real(8), dimension(:,:,:), pointer  :: v
+        real,    dimension(:,:,:), pointer  :: p
         real   ,                   intent(IN)  :: dt
         real,                      intent(IN)  :: ThetaX, ThetaY, ThetaZ
-        real(8), dimension(:,:,:), intent(OUT) :: Ecoef
-        real,    dimension(:,:,:), intent(OUT) :: Ticoef, DCoef, Fcoef
+        real(8), dimension(:,:,:), pointer :: Ecoef
+        real,    dimension(:,:,:), pointer :: Ticoef, DCoef, Fcoef
         logical                                :: CalcX, CalcY, CalcZ
         !Locals---------------------------------------------------
-        integer                                 :: i, j, k
-        real, pointer, dimension(:)             :: pint
+        integer                                 :: i, j, k, ubmax
+        integer, pointer, dimension(:)          :: cp1D
+        real,    pointer, dimension(:)          :: pint, dx1D, T1D, D1D, F1D
+        real(8), pointer, dimension(:)          :: E1D, k1D, v1D
         !Begin---------------------------------------------------
         !
         !----Allocate pint
         !
-        allocate(pint(1:max(iub,jub,kub)+1))
+        ubmax = max(iub,jub,kub)+1
+        allocate(pint(1:ubmax),dx1D(1:ubmax), k1D(1:ubmax), T1D(1:ubmax),              &
+                  E1D(1:ubmax), D1D(1:ubmax), F1D(1:ubmax), v1D(1:ubmax), cp1D(1:ubmax))
+
         !----X diffusion
         if(CalcX) then 
-            do k = klb+1, kub+1
-            do i = ilb+1, iub+1
-                !interpolate on faces
-                do j = jlb+1, jub+1
-                    if((cpx(i,j,k)==compute).and.(cpx(i,j-1,k)==compute)) then
-                        pint(j) = (p(i,j,k) + p(i,j-1,k)) / 2    
-                    endif
+            pint(:)=FillValueReal;dx1D(:)=FillValueReal;k1d(:)=FillValueReal;v1D(:)=FillValueReal; cp1D(:)=FillValueInt;
+            T1D (:)=FillValueReal;E1D (:)=FillValueReal;D1D(:)=FillValueReal;F1D(:)=FillValueReal;
+            do k = klb, kub+1
+            do i = ilb, iub
+                
+                do j = jlb, jub  
+                    pint    (j) = p     (i,j,k)                                                  
+                    dx1D    (j) = dx    (i,j)
+                    k1D     (j) = kx    (i,j,k)
+                    v1D     (j) = v     (i,j,k)
+                    cp1D    (j) = cpz   (i,j,k)
+                    T1D     (j) = TiCoef(i,j,k)
+                    E1D     (j) = ECoef (i,j,k)
+                    D1D     (j) = DCoef (i,j,k)
+                    F1D     (j) = FCoef (i,j,k)                    
                 enddo
-                call ComputeDiffusion1D(jlb+1, jub+1, dt, dx(i,:), pint,                 &
-                                        kx(i,:,k), v(i,:,k), cpx(i,:,k),                 &
-                                        TiCoef(i,:,k), ECoef(i,:,k), DCoef(i,:,k),       &
-                                        FCoef(i,:,k), ThetaX)
+                
+                call ComputeDiffusion1D(jlb+1, jub, dt, dx1D, pint,                     &
+                                        k1d, v1D, cp1D,T1D, E1D,D1D,F1D, ThetaX)
+                do j = jlb, jub  
+                    TiCoef(i,j,k)= T1D     (j) 
+                    ECoef (i,j,k)= E1D     (j) 
+                    DCoef (i,j,k)= D1D     (j) 
+                    FCoef (i,j,k)= F1D     (j) 
+                enddo                                        
+
             enddo
             enddo
         endif
         !----Y diffusion
         if(CalcY) then 
-            do k = klb+1, kub+1
-            do j = jlb+1, jub+1
-                !interpolate on faces
-                do i = ilb+1, iub+1
-                    if((cpy(i,j,k)==compute).and.(cpy(i-1,j,k)==compute)) then
-                        pint(j) = (p(i-1,j,k) + p(i,j,k)) / 2    
-                    endif
+            pint(:)=FillValueReal;dx1D(:)=FillValueReal;k1d(:)=FillValueReal;v1D(:)=FillValueReal; cp1D(:)=FillValueInt;
+            T1D (:)=FillValueReal;E1D (:)=FillValueReal;D1D(:)=FillValueReal;F1D(:)=FillValueReal;
+
+            do k = klb, kub+1
+            do j = jlb, jub
+                do i = ilb, iub                                    
+                    pint    (i) = p     (i,j,k)                
+                    dx1D    (i) = dy    (i,j)
+                    k1D     (i) = ky    (i,j,k)
+                    v1D     (i) = v     (i,j,k)
+                    cp1D    (i) = cpz   (i,j,k)
+                    T1D     (i) = TiCoef(i,j,k)
+                    E1D     (i) = ECoef (i,j,k)
+                    D1D     (i) = DCoef (i,j,k)
+                    F1D     (i) = FCoef (i,j,k)                    
                 enddo
-                call ComputeDiffusion1D(ilb+1, iub+1, dt, dy(:,j), pint,                 &
-                                        ky(:,j,k), v(:,j,k),  cpy(:,j,k),                &
-                                        TiCoef(:,j,k), ECoef(:,j,k), DCoef(:,j,k),       &
-                                        FCoef(:,j,k), ThetaY)
+                call ComputeDiffusion1D(ilb+1, iub, dt, dx1D, pint,                 &
+                                        k1d, v1D, cp1D,T1D, E1D,D1D,F1D, ThetaY)
+
+                do i = ilb, iub  
+                    TiCoef(i,j,k)= T1D     (i) 
+                    ECoef (i,j,k)= E1D     (i) 
+                    DCoef (i,j,k)= D1D     (i) 
+                    FCoef (i,j,k)= F1D     (i) 
+                enddo                                        
+
             enddo
             enddo
         endif
         !----Z diffusion
-        if(CalcZ) then 
-            do j = jlb+1, jub+1
-            do i = ilb+1, iub+1
-                !interpolate on faces
-                do k = klb+1, kub+1
-                    if((cpz(i,j,k)==compute).and.(cpz(i,j,k-1)==compute)) then
-                        pint(j) = (p(i,j,k) + p(i,j,k-1)) / 2    
-                    endif
+        if(CalcZ) then
+            pint(:)=FillValueReal;dx1D(:)=FillValueReal;k1d(:)=FillValueReal;v1D(:)=FillValueReal; cp1D(:)=FillValueInt;
+            T1D (:)=FillValueReal;E1D (:)=FillValueReal;D1D(:)=FillValueReal;F1D(:)=FillValueReal;
+
+            do j = jlb, jub
+            do i = ilb, iub                !interpolate on faces
+                do k = klb, kub+1   
+                    pint    (k) = p     (i,j,k)                                                 
+                    dx1D    (k) = dz    (i,j,k)
+                    k1D     (k) = kz    (i,j,k)
+                    v1D     (k) = v     (i,j,k)
+                    cp1D    (k) = cpz   (i,j,k)
+                    T1D     (k) = TiCoef(i,j,k)
+                    E1D     (k) = ECoef (i,j,k)
+                    D1D     (k) = DCoef (i,j,k)
+                    F1D     (k) = FCoef (i,j,k)                    
                 enddo
-                call ComputeDiffusion1D(klb+1, kub+1, dt, dz(i,j,:), pint,               &
-                                        kz(i,j,:), v(i,j,:), cpz(i,j,:),                 &
-                                        TiCoef(i,j,:), ECoef(i,j,:), DCoef(i,j,:),       &
-                                        FCoef(i,j,:), ThetaZ)
+                call ComputeDiffusion1D(klb+1, kub+1, dt, dx1D, pint,                   &
+                                        k1d, v1D, cp1D,T1D, E1D,D1D,F1D, ThetaZ)
+                                        
+                do k = klb, kub+1  
+                    TiCoef(i,j,k)= T1D     (k) 
+                    ECoef (i,j,k)= E1D     (k) 
+                    DCoef (i,j,k)= D1D     (k) 
+                    FCoef (i,j,k)= F1D     (k) 
+                enddo                                        
+                                        
             enddo !do i
             enddo !do j
         endif
-        deallocate(pint)
+
+        deallocate(pint,dx1D,k1D,T1D,E1D,D1D,F1D,v1D,cp1D)
+
     End Subroutine ComputeDiffusion3D   
     !End------------------------------------------------------------
     Subroutine ComputeAdvection3D(ilb, iub, jlb, jub, klb, kub,     &
                                   dx, dy, dz,                       &
-                                  cpx, cpy, cpz,                    &
+                                  cpz,                              &
                                   fx, fy, fz,                       &
                                   dt, p, v,                         &
                                   ti, e, d, f,                      &
@@ -6861,63 +6914,147 @@ d2:         do i=1,n-m ! we loop over the current c’s and d’s and update them.
                                   TVD_LimitationH, TVD_LimitationV, &
                                   VolumeRelMax, Upwind2H, Upwind2V)
         !Arguments---------------------------------------------------
-        integer,                   intent(IN)  :: ilb, iub,jlb, jub, klb, kub
-        real, dimension(:,:), intent(IN)       :: dx, dy
-        real, dimension(:,:,:), intent(IN)     :: dz    
-        integer, dimension(:,:,:), intent(IN)  :: cpx, cpy, cpz    
-        real(8), dimension(:,:,:), intent(IN)  :: fx, fy, fz    
-        real(8), dimension(:,:,:), intent(IN)  :: v
-        real,    dimension(:,:,:), intent(IN)  :: p
-        real   ,                   intent(IN)  :: dt
-        real,                      intent(IN)  :: ThetaX, ThetaY, ThetaZ
-        real(8), dimension(:,:,:), intent(OUT) :: e
-        real,    dimension(:,:,:), intent(OUT) :: ti, d, f
+        integer                             :: ilb, iub,jlb, jub, klb, kub
+        real, dimension(:,:), pointer       :: dx, dy
+        real, dimension(:,:,:), pointer     :: dz    
+        integer, dimension(:,:,:), pointer  :: cpz    
+        real(8), dimension(:,:,:), pointer  :: fx, fy, fz    
+        real(8), dimension(:,:,:), pointer  :: v
+        real,    dimension(:,:,:), pointer  :: p
+        real                                :: dt
+        real                                :: ThetaX, ThetaY, ThetaZ
+        real(8), dimension(:,:,:), pointer  :: e
+        real,    dimension(:,:,:), pointer  :: ti, d, f
                 integer                        :: methodH, methodV 
         integer                                :: TVD_LimitationH, TVD_LimitationV
         real                                   :: VolumeRelMax
         logical                                :: Upwind2H, Upwind2V
         logical                                :: CalcX, CalcY, CalcZ
         !Locals---------------------------------------------------
-        integer                                 :: i, j, k
+        integer                                 :: i, j, k, ubmax
+        integer, pointer, dimension(:)          :: cp1D
+        real,    pointer, dimension(:)          :: p1D, dx1D, T1D, D1D, F1D
+        real(8), pointer, dimension(:)          :: E1D, q1D, v1D
+        !Begin---------------------------------------------------
+        !
+        !----Allocate pint
+        !
+        ubmax = max(iub,jub,kub)+1
+        allocate(p1D(1:ubmax),dx1D(1:ubmax), q1D(1:ubmax), T1D(1:ubmax),              &
+                  E1D(1:ubmax), D1D(1:ubmax), F1D(1:ubmax), v1D(1:ubmax), cp1D(1:ubmax))
+
+        
         !Begin-----------------------------------------------------------
         !
         !----X advection
         if(CalcX) then 
+            p1D(:)=FillValueReal;dx1D(:)=FillValueReal;q1D(:)=FillValueReal;v1D(:)=FillValueReal; cp1D(:)=FillValueInt;
+            T1D(:)=FillValueReal;E1D (:)=FillValueReal;D1D(:)=FillValueReal;F1D(:)=FillValueReal;
+        
             do k = klb+1, kub+1
             do i = ilb+1, iub+1
-                call ComputeAdvection1D (jlb+1 , jub+1,                                                   &
-                                dt, dx(i, :), p(i, :, k), fx(i, :, k), v(i, :, k), &
-                                cpx(i,:,k), &
-                                ti(i,:,k), e(i,:,k), d(i,:,k), f(i,:,k),                              &
-                                MethodH, TVD_LimitationH, ThetaX, VolumeRelMax, Upwind2H)
+                do j = jlb+1, jub+1
+                    dx1D    (j) = dx (i,j)
+                    p1D     (j) = p  (i,j,k)                    
+                    q1D     (j) = fx (i,j,k)
+                    v1D     (j) = v  (i,j,k)
+                    cp1D    (j) = cpz(i,j,k)
+                    T1D     (j) = ti (i,j,k)
+                    E1D     (j) = e  (i,j,k)
+                    D1D     (j) = d  (i,j,k)
+                    F1D     (j) = f  (i,j,k)                    
+                enddo
+                
+                call ComputeAdvection1D (jlb+1 , jub+1,                                 &
+                                         dt, dx1D, p1D,q1d, v1D, cp1D,T1D, E1D,D1D,F1D, &
+                                         MethodH, TVD_LimitationH, ThetaX, VolumeRelMax,&
+                                         Upwind2H)
+                do j = jlb+1, jub+1
+                    ti (i,j,k)= T1D     (j) 
+                    e  (i,j,k)= E1D     (j) 
+                    d  (i,j,k)= D1D     (j) 
+                    f  (i,j,k)= F1D     (j) 
+                enddo                                           
             enddo
             enddo
         endif
         !----Y advection
         if(CalcY) then 
+            p1D (:)=FillValueReal;dx1D(:)=FillValueReal;
+            q1D (:)=FillValueReal;v1D (:)=FillValueReal; 
+            cp1D(:)=FillValueInt; T1D (:)=FillValueReal;
+            E1D (:)=FillValueReal;D1D (:)=FillValueReal;
+            F1D (:)=FillValueReal;
+        
             do k = klb+1, kub+1
             do j = jlb+1, jub+1
-                call ComputeAdvection1D (ilb+1 , iub+1,                                                       &
-                                dt, dy(:, j), p(:, j, k), fy(:, j, k), v(:, j, k), &
-                                cpy(:, j, k), &
-                                ti(:, j, k), e(:, j, k), d(:, j, k), f(:, j, k),                              &
-                                MethodH, TVD_LimitationH, ThetaY, VolumeRelMax, Upwind2H)
+                do i = ilb+1, iub+1
+                    dx1D    (i) = dy (i,j)
+                    p1D     (i) = p  (i,j,k)                    
+                    q1D     (i) = fy (i,j,k)
+                    v1D     (i) = v  (i,j,k)
+                    cp1D    (i) = cpz(i,j,k)
+                    T1D     (i) = ti (i,j,k)
+                    E1D     (i) = e  (i,j,k)
+                    D1D     (i) = d  (i,j,k)
+                    F1D     (i) = f  (i,j,k)                    
+                enddo
+            
+                call ComputeAdvection1D (ilb+1 , iub+1,                                 &
+                                         dt, dx1D, p1D,q1d, v1D, cp1D,T1D, E1D,D1D,F1D, &
+                                         MethodH, TVD_LimitationH, ThetaY, VolumeRelMax,&
+                                         Upwind2H)
+                                         
+                do i = ilb+1, iub+1
+                    ti (i,j,k)= T1D     (i) 
+                    e  (i,j,k)= E1D     (i) 
+                    d  (i,j,k)= D1D     (i) 
+                    f  (i,j,k)= F1D     (i) 
+                enddo                                                       
             enddo
             enddo
         endif
         !----Z advection
         if(CalcZ) then 
+            p1D(:)=FillValueReal;dx1D(:)=FillValueReal;
+            q1D(:)=FillValueReal;
+            v1D(:)=FillValueReal;cp1D(:)=FillValueInt;
+            T1D(:)=FillValueReal;E1D (:)=FillValueReal;
+            D1D(:)=FillValueReal;F1D (:)=FillValueReal;
+        
             do j = jlb+1, jub+1
             do i = ilb+1, iub+1
-                call ComputeAdvection1D (klb +1, kub+1,                                                            &
-                                dt, dz(i, j, :), p(i, j, :), fz(i, j, :),v(i, j, :), &
-                                cpz(i, j, :), &
-                                ti(i, j, :), e(i, j, :), d(i, j, :), f(i, j, :),       &
-                                MethodV, TVD_LimitationV, ThetaZ , VolumeRelMax, Upwind2V)
+                do k = klb+1, kub+1
+                    dx1D    (k) = dz (i,j,k)
+                    p1D     (k) = p  (i,j,k)                    
+                    q1D     (k) = fz (i,j,k)
+                    v1D     (k) = v  (i,j,k)
+                    cp1D    (k) = cpz(i,j,k)
+                    T1D     (k) = ti (i,j,k)
+                    E1D     (k) = e  (i,j,k)
+                    D1D     (k) = d  (i,j,k)
+                    F1D     (k) = f  (i,j,k)                    
+                enddo
+            
+                call ComputeAdvection1D (klb +1, kub+1,                                 &
+                                         dt, dx1D, p1D,q1d, v1D, cp1D,T1D, E1D,D1D,F1D, &
+                                         MethodV, TVD_LimitationV, ThetaZ , VolumeRelMax,&
+                                         Upwind2V)
+                                         
+                do k = klb+1, kub+1
+                    ti (i,j,k)= T1D     (k) 
+                    e  (i,j,k)= E1D     (k) 
+                    d  (i,j,k)= D1D     (k) 
+                    f  (i,j,k)= F1D     (k) 
+                enddo                                                       
             enddo
             enddo
         endif
-    EndSubroutine
+
+        deallocate(p1D,dx1D, q1d, T1D, E1D, D1D, F1D, v1D, cp1D)    
+            
+    End Subroutine ComputeAdvection3D
+    
     !End------------------------------------------------------------
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !                                                                                      !    
@@ -7657,6 +7794,11 @@ d2:         do i=1,n-m ! we loop over the current c’s and d’s and update them.
         real                                        :: global_residual 
         integer                                     :: global_n !numb. of it.
         !Begin--------------------------------------------------------------
+
+        rho0       = 0.
+        omega      = 0.
+        alpha      = 0.        
+       
         !
         !----Calculate index bounds
         if(normal == 0) then
@@ -7705,34 +7847,34 @@ d2:         do i=1,n-m ! we loop over the current c’s and d’s and update them.
             ue(:,:) = 0.
             lpr(:,:) = 1.
         !--------Address Pointers
-        if(normal == 0) then
-            ap => cp(:, k, :)
-            an => cn(:, k, :)
-            as => cs(:, k, :)
-            ae => ce(:, k, :)
-            aw => cw(:, k, :)
-            q => qq(:, k, :)
-            x  => fi(:, k, :)
-            mapp  => mapping(:, k, :)
-        elseif(normal == 1) then
-            ap => cp(k, :, :)
-            an => cn(k, :, :)
-            as => cs(k, :, :)
-            ae => ce(k, :, :)
-            aw => cw(k, :, :)
-            q => qq(k, :, :)
-            x  => fi(k, :, :)
-            mapp  => mapping(k, :, :)
-        elseif(normal == 2) then
-            ap => cp(:, :, k)
-            an => cn(:, :, k)
-            as => cs(:, :, k)
-            ae => ce(:, :, k)
-            aw => cw(:, :, k)
-            x => fi(:, :, k)
-            q => qq(:, :, k)
-            mapp  => mapping(:, :, k)
-        end if
+            if(normal == 0) then
+                ap => cp(:, k, :)
+                an => cn(:, k, :)
+                as => cs(:, k, :)
+                ae => ce(:, k, :)
+                aw => cw(:, k, :)
+                q => qq(:, k, :)
+                x  => fi(:, k, :)
+                mapp  => mapping(:, k, :)
+            elseif(normal == 1) then
+                ap => cp(k, :, :)
+                an => cn(k, :, :)
+                as => cs(k, :, :)
+                ae => ce(k, :, :)
+                aw => cw(k, :, :)
+                q => qq(k, :, :)
+                x  => fi(k, :, :)
+                mapp  => mapping(k, :, :)
+            elseif(normal == 2) then
+                ap => cp(:, :, k)
+                an => cn(:, :, k)
+                as => cs(:, :, k)
+                ae => ce(:, :, k)
+                aw => cw(:, :, k)
+                x => fi(:, :, k)
+                q => qq(:, :, k)
+                mapp  => mapping(:, :, k)
+            end if
         !--------Calculate intial residual vector
             res0 = 0.0
             do i = 2, IU
@@ -9206,9 +9348,64 @@ D2:     do I=imax-1,2,-1
         TimeToString = CharYear//CharMonth//CharDay//"-"//&
                        CharHour//CharMinute//CharSecond
 
-    end function
-
+    end function TimeToString
+    
     !--------------------------------------------------------------------------
+    !--------------------------------------------------------------------------
+    
+
+    character(len=19) function TimeToStringV2(Date)
+
+        !Arguments-------------------------------------------------------------
+        type(T_Time)                            :: Date
+        real,    dimension(6)                   :: AuxTime
+        character(len=4)                        :: CharYear
+        character(len=2)                        :: CharMonth
+        character(len=2)                        :: CharDay
+        character(len=2)                        :: CharHour
+        character(len=2)                        :: CharMinute
+        character(len=2)                        :: CharSecond
+
+        !Begin-----------------------------------------------------------------
+
+        call ExtractDate(Date, Year     = AuxTime(1), Month  = AuxTime(2), &
+                               Day      = AuxTime(3), Hour   = AuxTime(4), &
+                               Minute   = AuxTime(5), Second = AuxTime(6))
+        
+        write(CharYear,  '(i4)')int(AuxTime(1))
+        write(CharMonth, '(i2)')int(AuxTime(2))
+        write(CharDay,   '(i2)')int(AuxTime(3))
+        write(CharHour,  '(i2)')int(AuxTime(4))
+        write(CharMinute,'(i2)')int(AuxTime(5))
+        write(CharSecond,'(i2)')int(AuxTime(6))
+
+        if(len_trim(trim(adjustl(CharMonth)))   < 2)then 
+            CharMonth = "0"//trim(adjustl(CharMonth))
+        endif
+        
+        if(len_trim(trim(adjustl(CharDay)))     < 2)then 
+            CharDay = "0"//trim(adjustl(CharDay))
+        endif
+
+        if(len_trim(trim(adjustl(CharHour)))    < 2)then 
+            CharHour = "0"//trim(adjustl(CharHour))
+        endif
+
+        if(len_trim(trim(adjustl(CharMinute)))  < 2)then 
+            CharMinute = "0"//trim(adjustl(CharMinute))
+        endif
+
+        if(len_trim(trim(adjustl(CharSecond)))  < 2)then 
+            CharSecond = "0"//trim(adjustl(CharSecond))
+        endif
+
+        TimeToStringV2 = CharYear//"-"//CharMonth//"-"//CharDay//" "//&
+                         CharHour//":"//CharMinute//":"//CharSecond
+
+    end function TimeToStringV2
+    !--------------------------------------------------------------------------
+
+    
 !------------------------------------------------------------------------------
 
     subroutine WGS84toGoogleMaps2D(lon, lat, ILB, IUB, JLB, JUB, x, y) 
