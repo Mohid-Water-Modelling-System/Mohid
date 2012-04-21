@@ -394,6 +394,7 @@ Module ModuleHydrodynamic
     public  :: GetWavesStressON
     public  :: GetHydroAltimAssim
     public  :: GetVertical1D
+    public  :: GetXZFlow
 
 #ifdef _USE_SEQASSIMILATION
     public  :: GetHydroSeqAssimilation
@@ -1140,6 +1141,8 @@ Module ModuleHydrodynamic
         integer :: Vertical_AxiSymmetric_Model
 
         real    :: FlatherColdPeriod, FlatherColdSeaLevel
+        !PCL
+        logical :: XZFlow = .false.
 
     end type T_HydroOptions
 
@@ -5654,6 +5657,18 @@ cd21:   if (Baroclinic) then
 
         if (Me%ComputeOptions%Vertical_AxiSymmetric_Model == DirectionY_ .and. Me%WorkSize%JUB /= 3) &
             call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1120')    
+
+
+        call GetData(Me%ComputeOptions%XZFlow,                                 & 
+                     Me%ObjEnterData, iflag,                                   &
+                     Keyword    = 'XZ_FLOW',                                   &
+                     Default    = .false.,                                     &
+                     SearchType = FromFile,                                    &
+                     ClientModule ='ModuleHydrodynamic',                       &
+                     STAT       = STAT_CALL)            
+
+        if (STAT_CALL /= SUCCESS_)                                                      &
+            call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1130')    
 
 
     End Subroutine Construct_Numerical_Options
@@ -11187,6 +11202,37 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   
     !--------------------------------------------------------------------------
 
 
+    subroutine GetXZFlow (HydrodynamicID, XZFlow, STAT)
+         !Arguments-------------------------------------------------------------
+        integer,           intent(IN ) :: HydrodynamicID
+        logical,           intent(OUT) :: XZFlow
+        integer, optional, intent(OUT) :: STAT
+
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: STAT_, ready_
+
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(HydrodynamicID, ready_) 
+        
+if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                            &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+    
+            XZFlow = Me%ComputeOptions%XZFlow
+                           
+            STAT_ = SUCCESS_
+        else 
+            STAT_ = ready_
+        end if if1
+
+        if (present(STAT)) STAT = STAT_
+
+    end subroutine GetXZFlow
+
+    !--------------------------------------------------------------------------
 
 #ifdef _USE_SEQASSIMILATION
 
@@ -20376,7 +20422,6 @@ X1:         if (Me%External_Var%OpenPoints3D(i, j,KUB) == OpenPoint) then
         integer                              :: kbottom   ! cell index at bottom
         real(8)                              :: az        ! cell horizontal area
         real(8)                              :: df        ! horizontal flux balance
-        real(8)                              :: dw        ! old vertical flux balance
         real(8)                              :: db        ! velocity of the lower cell
         real(8)                              :: discharge ! discharge flux
         integer                              :: kub       ! upper cell index
@@ -31156,7 +31201,7 @@ cd1:        if (ComputeFaces3D_UV(I, J, KUB) == Covered) then
 
         type (T_Time)                      :: CurrentTime, BeginTime, EndTime
 
-        real                               :: ColdPeriod, ColdOrder, DT_RunPeriod, CoefCold, VelModel, VelReference, Angle  
+        real                               :: ColdPeriod, ColdOrder, DT_RunPeriod, CoefCold, VelModel, VelReference
 
         integer                            :: Vel_ID, status
         integer                            :: ILB, IUB, JLB, JUB, KUB, kbottom, i, j, k
