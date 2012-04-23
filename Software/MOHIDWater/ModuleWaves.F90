@@ -12,6 +12,49 @@
 ! DESCRIPTION   : Module to compute waves processes
 !
 !------------------------------------------------------------------------------
+! Keywords read in the Data File
+!
+! Keyword                   : Data Type    Default   !Comment
+!
+! RADIATION_TENSION_X       : logical       false    !Connect/Disconnect waves radiation tension in X direction
+! RADIATION_TENSION_Y       : logical       false    !Connect/Disconnect waves radiation tension in Y direction
+! WAVE_HEIGHT               : logical       true     !Connect/Disconnect waves height 
+! WAVE_PERIOD               : logical       true     !Connect/Disconnect waves period
+! WAVE_DIRECTION            : logical       true     !Connect/Disconnect waves direction
+! WAVEGEN_TYPE              : integer        0       !Method for computing wave generation (wave height and period)
+!                                                     ! 0 - deep areas (wind velocity dependent); 
+!                                                     ! 1 - shallow "closed" areas (wind velocity and direction, fetch and depth
+!                                                           dependent). 
+! DISTANCE_TO_LAND_METHOD   : integer        0       !Method for computing fetch distances to land (read if WAVEGEN_TYPE : 1)
+!                                                     ! 0 - grid based method (limited in nested domains)
+!                                                     ! 1 - graphical method using distances to land poligons (need the polygon 
+!                                                       block)
+! WINDROSE_DIRECTIONS       :  8/16          8       !Number of directions to compute distances to land (read if WAVEGEN_TYPE : 1)
+! WAVE_HEIGHT_PARAMETER     :  real          1.      !Multipling factor for wave height - calibration  (read if WAVEGEN_TYPE : 1)
+! WAVE_PERIOD_PARAMETER     :  real          1.      !Multipling factor for wave period - calibration  (read if WAVEGEN_TYPE : 1)
+! DEPTH_METHOD              : integer        0       !Method for computing fetch depth  (read if WAVEGEN_TYPE : 1)
+!                                                     ! 0 - local cell water column
+!                                                     ! 1 - average depth in the wind direction
+!                                                     ! 2 - user defined value (constant for sensibility tests)
+! MEAN_SEA_LEVEL            : real           0.      !Mean sea level above bathimetry for DEPTH_METHOD : 2 (average bathymetry +MSL)
+! DEPTH_VALUE               : real      AllmostZero  !Depth defined by user for DEPTH_METHOD : 3
+! OUTPUT_FETCH_DISTANCES    : logical     .false.    !Output fetch distances in each direction (grid data)(read if WAVEGEN_TYPE : 1)
+! OUTPUT_FETCH_DEPTHS       : logical     .false.    !Output fetch depths in each direction (grid data) (read if WAVEGEN_TYPE : 1)
+
+! Poligon block for DISTANCE_TO_LAND_METHOD : 1
+! <begin_landareafiles>
+!   Polygon1.xy
+!   Poligon2.xy
+!    ...
+! <end_landareafiles>
+
+!<begin_[property]>
+! NAME                      : wave height/ wave period / ... 
+!
+! see Module FillMatrix for more options
+!
+!<end_[property]>
+
 !
 !This program is free software; you can redistribute it and/or
 !modify it under the terms of the GNU General Public License 
@@ -44,7 +87,7 @@ Module ModuleWaves
     use ModuleGeometry,         only : GetGeometryWaterColumn, UnGetGeometry
     use ModuleHDF5,             only : ConstructHDF5, HDF5SetLimits, HDF5WriteData, &
                                        HDF5FlushMemory, GetHDF5FileAccess, KillHDF5
-    use ModuleGridData,         only : GetGridData, UngetGridData   
+    use ModuleGridData,         only : GetGridData, UngetGridData, WriteGridData   
     use ModuleTimeSerie,        only : StartTimeSerie, WriteTimeSerie, KillTimeSerie,   &
                                        GetTimeSerieLocation, CorrectsCellsTimeSerie,    &
                                        GetNumberOfTimeSeries, TryIgnoreTimeSerie
@@ -108,8 +151,15 @@ Module ModuleWaves
     
     integer, parameter                                      :: Old          = 0
     integer, parameter                                      :: CEQUALW2     = 1 
-    integer, parameter                                      :: Grid         = 0
-    integer, parameter                                      :: Polygon      = 1
+    
+    !Distances for Fetch computation
+    integer, parameter                                      :: DistanceGrid    = 0
+    integer, parameter                                      :: DistancePolygon = 1
+    
+    !Depth for fetch wave computation
+    integer, parameter                                      :: DepthLocal   = 0     !Depth is cell depth from hydro computations
+    integer, parameter                                      :: DepthAverage = 1     !Depth is average in wind direction (from bath)
+    integer, parameter                                      :: DepthDefined = 2     !Depth is defined by user (constant everywhere) 
 
     integer, parameter                                      :: Sxx_         = 1
     integer, parameter                                      :: Syy_         = 2
@@ -135,13 +185,16 @@ Module ModuleWaves
         real                                                :: CurrentValue4D       = FillValueReal
         logical                                             :: Backtracking
     end type   T_External                               
-                                                        
+
     type       T_OutPut                                 
          type (T_Time), pointer, dimension(:)               :: OutTime
          integer                                            :: NextOutPut
          logical                                            :: TimeSerie            = .false.
          logical                                            :: HDF                  = .false.
          integer                                            :: Number
+         logical                                            :: OutputGridData
+         logical                                            :: FetchDistances            = .false.
+         logical                                            :: FetchDepths               = .false.         
     end type T_OutPut                                   
                                                         
     type T_WaveProperty                                 
@@ -170,7 +223,7 @@ Module ModuleWaves
         type (T_WaveProperty)                               :: WaveDirection
         real, dimension(:,:  ), pointer                     :: Abw, Ubw, WaveLength
         real, dimension(:,:  ), pointer                     :: En, k
-        real, dimension(:,:,:), pointer                     :: Distance, Fetch
+        real, dimension(:,:,:), pointer                     :: Distance, Fetch, AverageDepth, Depth
         real, dimension(:    ), pointer                     :: AngleList  
         real, dimension(:    ), pointer                     :: XX, YY 
         real, dimension(:    ), pointer                     :: MinDistanceFromPoint                        
@@ -187,7 +240,10 @@ Module ModuleWaves
         integer                                             :: ObjTimeSerie            = 0
         integer                                             :: WaveGen_type            = Old
         integer                                             :: TotalDirections         = 8
-        integer                                             :: DistanceType            = Grid
+        integer                                             :: DistanceType            = DistanceGrid
+        integer                                             :: DepthType               = DepthLocal
+        real                                                :: DepthValue              = 0.
+        real                                                :: MeanSeaLevel            = 0.
         integer                                             :: N, NNE, NE, ENE, E, ESE 
         integer                                             :: SE, SSE, S, SSW, SW, WSW 
         integer                                             :: W, WNW, NW, NNW
@@ -273,8 +329,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             call ConstructWaveParameters
             
             if (Me%OutPut%HDF) call Open_HDF5_OutPut_File
-
-            call ConstructFetch
+            
+            if (Me%Wavegen_type.eq.CEQUALW2) then
+                call ConstructFetch
+            endif
 
             !Returns ID
             WavesID     = Me%InstanceID
@@ -553,14 +611,81 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             call GetData(Me%DistanceType,                                               &
                          Me%ObjEnterData, iflag,                                        &
                          Keyword    = 'DISTANCE_TO_LAND_METHOD',                        &
-                         Default    = Grid,                                             &
+                         Default    = DistanceGrid,                                     &
                          SearchType = FromFile,                                         &
                          ClientModule ='ModuleWave',                                    &
                          STAT       = STAT_CALL)            
 
             if (STAT_CALL /= SUCCESS_)                                                  &
                 stop 'ConstructWaveParameters - ModuleWaves - ERR90'
-        
+            
+            !Depth method for wave height and wave period from fetch 
+            !0-Local (is computed water column in the cell (as previously); 1-Average in wind direction (from bath)
+            !2-DepthDefined (constant value everywhere)
+            call GetData(Me%DepthType,                                                  &
+                         Me%ObjEnterData, iflag,                                        &
+                         Keyword    = 'DEPTH_METHOD',                                   &
+                         Default    = DepthLocal,                                       &
+                         SearchType = FromFile,                                         &
+                         ClientModule ='ModuleWave',                                    &
+                         STAT       = STAT_CALL)            
+
+            if (STAT_CALL /= SUCCESS_)                                                  &
+                stop 'ConstructWaveParameters - ModuleWaves - ERR100'
+            
+            if (Me%DepthType == DepthDefined) then
+                call GetData(Me%DepthValue,                                                 &
+                             Me%ObjEnterData, iflag,                                        &
+                             Keyword    = 'DEPTH_VALUE',                                    &
+                             Default    = AllmostZero,                                      &
+                             SearchType = FromFile,                                         &
+                             ClientModule ='ModuleWave',                                    &
+                             STAT       = STAT_CALL)            
+
+                if (STAT_CALL /= SUCCESS_)                                                  &
+                    stop 'ConstructWaveParameters - ModuleWaves - ERR105'
+            endif
+
+            if (Me%DepthType == DepthAverage) then
+                call GetData(Me%MeanSeaLevel,                                               &
+                             Me%ObjEnterData, iflag,                                        &
+                             Keyword    = 'MEAN_SEA_LEVEL',                                 &
+                             Default    = 0.,                                               &
+                             SearchType = FromFile,                                         &
+                             ClientModule ='ModuleWave',                                    &
+                             STAT       = STAT_CALL)            
+
+                if (STAT_CALL /= SUCCESS_)                                                  &
+                    stop 'ConstructWaveParameters - ModuleWaves - ERR106'
+            endif
+
+            call GetData(Me%Output%FetchDistances,                             &
+                         Me%ObjEnterData, iflag,                                        &
+                         Keyword    = 'OUTPUT_FETCH_DISTANCES',                         &
+                         Default    = .false.,                                          &
+                         SearchType = FromFile,                                         &
+                         ClientModule ='ModuleWave',                                    &
+                         STAT       = STAT_CALL)            
+
+            if (STAT_CALL /= SUCCESS_)                                                  &
+                stop 'ConstructWaveParameters - ModuleWaves - ERR107'
+
+            call GetData(Me%Output%FetchDepths,                                &
+                         Me%ObjEnterData, iflag,                                        &
+                         Keyword    = 'OUTPUT_FETCH_DEPTHS',                            &
+                         Default    = .false.,                                          &
+                         SearchType = FromFile,                                         &
+                         ClientModule ='ModuleWave',                                    &
+                         STAT       = STAT_CALL)            
+
+            if (STAT_CALL /= SUCCESS_)                                                  &
+                stop 'ConstructWaveParameters - ModuleWaves - ERR108'
+            
+            if (Me%Output%FetchDistances .or. Me%Output%FetchDepths) then
+                Me%Output%OutputGridData = .true.
+            endif
+            
+            
         endif
         
         if (Me%WaveHeight%ON .and. Me%WavePeriod%ON) then
@@ -585,12 +710,12 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         
 
         call KillEnterData (Me%ObjEnterData, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructWaveParameters - ModuleWaves - ERR090'
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructWaveParameters - ModuleWaves - ERR0110'
 
         !Ungets WaterPoints2D
         call UnGetHorizontalMap(Me%ObjHorizontalMap,  Me%ExternalVar%WaterPoints2D,     &
                                 STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructWaveParameters - ModuleWaves - ERR0100'
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructWaveParameters - ModuleWaves - ERR0120'
 
 
     end subroutine ConstructWaveParameters
@@ -978,137 +1103,213 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
     
         !Begin-------------------------------------------------------------------
         
-        if (Me%Wavegen_type.eq.CEQUALW2) then
             
-            write(*,*) 'Constructing Wind Fetch...'
-            
-            if (Me%TotalDirections.ne.8.and.Me%TotalDirections.ne.16) then
-                write(*,*)'The model only runs with 8 or 16 Wind Rose directions '
-                write(*,*)'Please select one of those on Waves data file'
-                stop 'ConstructFetch - ModuleWaves - ERR22'
-
-            endif
-
-            if (Me%DistanceType.ne.Grid.and.Me%DistanceType.ne.Polygon) then
-                write(*,*)'The model only has two methods to compute distance do land '
-                write(*,*)'Please select 0 (zero) for grid method or 1 (one) for graphical'
-                write(*,*)'method on DISTANCE_TO_LAND_METHOD keyword on Waves data file'
-                stop 'ConstructFetch - ModuleWaves - ERR23'
-            
-            endif
-            
-            !Gets WaterPoints2D
-            call GetWaterPoints2D(Me%ObjHorizontalMap, Me%ExternalVar%WaterPoints2D,    &
-                                    STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructFetch - ModuleWaves - ERR01'
-            
-            !Gets information about grid: regular or unregular
-            call GetCheckDistortion (Me%ObjHorizontalGrid, Me%ExternalVar%DistortionOn, &
-                                        STAT = STAT_CALL)
-            if(STAT_CALL .ne. SUCCESS_)stop 'ConstructFetch - ModuleWaves - ERR01a'
-
-            !Gets Angle
-            call GetGridAngle (Me%ObjHorizontalGrid, Angle = Me%ExternalVar%GridAngle,  &
-                               STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructFetch - ModuleWaves - ERR010'
-            
-            !Gets XX_IE, YY_IE        
-            call GetHorizontalGrid (Me%ObjHorizontalGrid, XX_IE = Me%ExternalVar%XX_IE, &
-                                     YY_IE = Me%ExternalVar%YY_IE, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructFetch - ModuleWaves - ERR020'
-    
-            
-            call GetHorizontalGrid(Me%ObjHorizontalGrid, DUX = Me%ExternalVar%DUX,      &        
-                                   DVY = Me%ExternalVar%DVY, STAT = STAT_CALL)
-                                   
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructFetch - ModuleWaves - ERR021'
-
-            if (Me%DistanceType.eq.Grid) then
-            
-                allocate(Me%XX(Me%Size%JLB:Me%Size%JUB))
-                Me%XX(:) =  FillValueReal
-                allocate(Me%YY(Me%Size%ILB:Me%Size%IUB))
-                Me%YY(:) =  FillValueReal
-
-            endif
-            
-            !allocate Distance, Fetch and Angles (angles with xx for all directions)
-            allocate(Me%Fetch(Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB,1:8))
-            Me%Fetch(:,:,:) =  FillValueReal
-            
-            allocate(Me%Distance(Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB,       &
-                     1:Me%TotalDirections))
-            Me%Distance(:,:,:) =  FillValueReal
-
-            allocate(Me%AngleList(1:Me%TotalDirections))
-            Me%AngleList(:) = FillValueReal
-                
-            if (Me%DistanceType.eq.Polygon) then
-                               
-                allocate(Me%Point)
-                allocate(Me%MinDistanceFromPoint(1:Me%TotalDirections))
-                Me%MinDistanceFromPoint(:) = FillValueReal
-            
-            endif
-
-            call ComputeAngleList
-
-            !Compute Distance to land and Fetch
-            if(Me%DistanceType.eq.Polygon) then
-
-                call ConstructLandArea
-                call ComputeFetchDistancePolygon
-            
-            elseif(Me%DistanceType.eq.Grid) then
-                
-                call ComputeFetchDistanceGrid
-            
-            endif
-            
-            call ComputeFetch
-            
-            !deallocate lists not used in modify
-            deallocate(Me%Distance)
-            deallocate(Me%AngleList)
-
-            if(Me%DistanceType.eq.Polygon) then
-                deallocate(Me%Point)
-                deallocate(Me%MinDistanceFromPoint)
-            endif
-
-            if (Me%DistanceType.eq.Grid) then
-                deallocate(Me%XX)
-                deallocate(Me%YY)
-            endif
-
-            !Ungets WaterPoints2D
-            call UnGetHorizontalMap(Me%ObjHorizontalMap, Me%ExternalVar%WaterPoints2D,  &
-                                     STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructFetch - ModuleWaves - ERR030'
-            
-            !Unget XX_IE
-            call UnGetHorizontalGrid(Me%ObjHorizontalGrid, Me%ExternalVar%XX_IE,        &
-                                     STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructFetch - ModuleWaves - ERR040'
-
-            !Unget YY_IE
-            call UnGetHorizontalGrid(Me%ObjHorizontalGrid, Me%ExternalVar%YY_IE,        &
-                                     STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructFetch - ModuleWaves - ERR050'
-
-            !Unget DUX
-            call UnGetHorizontalGrid(Me%ObjHorizontalGrid, Me%ExternalVar%DUX,          &
-                                     STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructFetch - ModuleWaves - ERR060'
-
-            !Unget DVY
-            call UnGetHorizontalGrid(Me%ObjHorizontalGrid, Me%ExternalVar%DVY,          &
-                                     STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructFetch - ModuleWaves - ERR070'
+        write(*,*) 'Constructing Wind Fetch...'
         
-            write(*,*) 'Finished Constructing Wind Fetch...'
+        if (Me%TotalDirections.ne.8.and.Me%TotalDirections.ne.16) then
+            write(*,*)'The model only runs with 8 or 16 Wind Rose directions '
+            write(*,*)'Please select one of those on Waves data file'
+            stop 'ConstructFetch - ModuleWaves - ERR01'
+
+        endif
+
+        if (Me%DistanceType.ne.DistanceGrid.and.Me%DistanceType.ne.DistancePolygon) then
+            write(*,*)'The model only has two methods to compute distance do land '
+            write(*,*)'Please select 0 (zero) for grid method or 1 (one) for graphical'
+            write(*,*)'method on DISTANCE_TO_LAND_METHOD keyword on Waves data file'
+            stop 'ConstructFetch - ModuleWaves - ERR10'
+        
+        endif
+        
+        if (Me%DepthType.ne.DepthLocal.and.Me%DepthType.ne.DepthAverage.and.Me%DepthType.ne.DepthDefined) then
+            write(*,*)'The model only has three methods to compute depth '
+            write(*,*)'Please select 0 (zero) for local cell depth, 1 (one) for'
+            write(*,*)'average depth in wind direction, 2 (two) for user defined'
+            write(*,*)'on DEPTH_METHOD keyword on Waves data file'
+            stop 'ConstructFetch - ModuleWaves - ERR20'
+        
+        endif        
+
+        if (Me%DepthType.eq.DepthAverage.and.Me%DistanceType.eq.DistancePolygon) then
+            write(*,*)'For now is not possibe to have DEPTH_METHOD : 1 (average depth in wind direction) '
+            write(*,*)'and DISTANCE_TO_LAND_METHOD : 1 (graphical method).'
+            stop 'ConstructFetch - ModuleWaves - ERR30'
+        
+        endif 
+        
+        if (Me%Output%FetchDepths .and. Me%DepthType .eq. DepthLocal) then
+            write(*,*)'DEPTH_METHOD : 0 (local depth) and OUTPUT_FETCH_DEPTHS : 1'
+            write(*,*)'are inconsistent since no average depths are computed to output.'
+            stop 'ConstructFetch - ModuleWaves - ERR40'        
+        endif
+        
+        !Gets WaterPoints2D
+        call GetWaterPoints2D(Me%ObjHorizontalMap, Me%ExternalVar%WaterPoints2D,    &
+                                STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructFetch - ModuleWaves - ERR50'
+        
+        !Gets information about grid: regular or unregular
+        call GetCheckDistortion (Me%ObjHorizontalGrid, Me%ExternalVar%DistortionOn, &
+                                    STAT = STAT_CALL)
+        if(STAT_CALL .ne. SUCCESS_)stop 'ConstructFetch - ModuleWaves - ERR060'
+
+        !Gets Angle
+        call GetGridAngle (Me%ObjHorizontalGrid, Angle = Me%ExternalVar%GridAngle,  &
+                           STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructFetch - ModuleWaves - ERR070'
+        
+        !Gets XX_IE, YY_IE        
+        call GetHorizontalGrid (Me%ObjHorizontalGrid, XX_IE = Me%ExternalVar%XX_IE, &
+                                 YY_IE = Me%ExternalVar%YY_IE, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructFetch - ModuleWaves - ERR080'
+
+        
+        call GetHorizontalGrid(Me%ObjHorizontalGrid, DUX = Me%ExternalVar%DUX,      &        
+                               DVY = Me%ExternalVar%DVY, STAT = STAT_CALL)
+                               
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructFetch - ModuleWaves - ERR090'
+
+        if (Me%DistanceType.eq.DistanceGrid) then
+        
+            allocate(Me%XX(Me%Size%JLB:Me%Size%JUB))
+            Me%XX(:) =  FillValueReal
+            allocate(Me%YY(Me%Size%ILB:Me%Size%IUB))
+            Me%YY(:) =  FillValueReal
+
+        endif
+        
+        !allocate Distance, Fetch and Angles (angles with xx for all directions)
+              
+        !Fetch distances to land in 8 or 16 directions
+        allocate(Me%Distance(Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB,       &
+                 1:Me%TotalDirections))
+        Me%Distance(:,:,:) =  FillValueReal
+
+        !Fetch weighted in 8 directions
+        allocate(Me%Fetch(Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB,1:8))
+        Me%Fetch(:,:,:) =  FillValueReal
+
+        allocate(Me%AngleList(1:Me%TotalDirections))
+        Me%AngleList(:) = FillValueReal
+            
+        if (Me%DistanceType.eq.DistancePolygon) then
+                           
+            allocate(Me%Point)
+            allocate(Me%MinDistanceFromPoint(1:Me%TotalDirections))
+            Me%MinDistanceFromPoint(:) = FillValueReal
+        
+        endif
+        
+        if (Me%DepthType.eq.DepthAverage .or. Me%DepthType.eq.DepthDefined) then
+            
+            !Average depth in wind direction (8 or 16 directions)
+            allocate(Me%AverageDepth(Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB,       &
+                     1:Me%TotalDirections))
+            
+            !Depth weigthed in 8 directions
+            allocate(Me%Depth(Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB,1:8))
+            
+            if (Me%DepthType.eq.DepthAverage) then        
+                Me%AverageDepth(:,:,:) =  FillValueReal
+                Me%Depth(:,:,:) =  FillValueReal
+            else
+                !It is initialized and will be not changed
+                Me%AverageDepth(:,:,:) =  Me%DepthValue
+                Me%Depth(:,:,:)        =  Me%DepthValue
+            endif
             
         endif
+
+
+        call ComputeAngleList
+
+        !Compute Distance to land and Fetch
+        if(Me%DistanceType.eq.DistancePolygon) then
+
+            call ConstructLandArea
+            call ComputeFetchDistancePolygon
+        
+        elseif(Me%DistanceType.eq.DistanceGrid) then
+
+            !Only rotated grids < 90º
+            if (abs(Me%ExternalVar%GridAngle).gt.90.) then
+                write(*,*)'The WAVEGEN_TYPE and DISTANCE_TO_LAND_METHOD selected'
+                write(*,*)'in Wave data file does not support grids rotated more than 90º'
+                stop 'ConstructFetch - ModuleWaves - ERR100'
+            endif
+
+            !Only regular grids
+            if (Me%ExternalVar%DistortionOn) then
+                write(*,*)'The WAVEGEN_TYPE selected in Wave data file does not support'
+                write(*,*)'unregular grids. Choose WAVEGEN_TYPE : 0 instead.'
+                stop 'ConstructFetch - ModuleWaves - ERR110'
+            endif
+            
+            if (Me%DepthType .eq. DepthAverage) then
+                !fetch distances and average depth in 8 or 16 wind directions
+                call ComputeFetchDistanceAndDepthGrid
+            else
+                !fetch distances in 8 or 16 wind directions
+                call ComputeFetchDistanceGrid
+            endif
+        endif
+        
+        !weighted Fetch in 8 wind directions
+        call ComputeFetch
+        
+        !weigthed average depth in 8 wind direction (case of average depth in wind direction). 
+        !in case of local depth it will be actualized with water column under modify. 
+        !in case of depth defined by user nothing to do since initalization remains constant
+        if (Me%DepthType .eq. DepthAverage) then
+            call ComputeDepth        
+        endif
+        
+        !Output the computations
+        if (Me%Output%OutputGridData) then
+            call Output_GridData
+        endif     
+           
+        !deallocate lists not used in modify
+        deallocate(Me%Distance)
+        deallocate(Me%AngleList)
+
+        if(Me%DistanceType.eq.DistancePolygon) then
+            deallocate(Me%Point)
+            deallocate(Me%MinDistanceFromPoint)
+        endif
+
+        if (Me%DistanceType.eq.DistanceGrid) then
+            deallocate(Me%XX)
+            deallocate(Me%YY)
+        endif
+
+        !Ungets WaterPoints2D
+        call UnGetHorizontalMap(Me%ObjHorizontalMap, Me%ExternalVar%WaterPoints2D,  &
+                                 STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructFetch - ModuleWaves - ERR0120'
+        
+        !Unget XX_IE
+        call UnGetHorizontalGrid(Me%ObjHorizontalGrid, Me%ExternalVar%XX_IE,        &
+                                 STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructFetch - ModuleWaves - ERR0130'
+
+        !Unget YY_IE
+        call UnGetHorizontalGrid(Me%ObjHorizontalGrid, Me%ExternalVar%YY_IE,        &
+                                 STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructFetch - ModuleWaves - ERR0140'
+
+        !Unget DUX
+        call UnGetHorizontalGrid(Me%ObjHorizontalGrid, Me%ExternalVar%DUX,          &
+                                 STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructFetch - ModuleWaves - ERR0150'
+
+        !Unget DVY
+        call UnGetHorizontalGrid(Me%ObjHorizontalGrid, Me%ExternalVar%DVY,          &
+                                 STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructFetch - ModuleWaves - ERR0160'
+    
+        write(*,*) 'Finished Constructing Wind Fetch...'
+            
         
     end subroutine ConstructFetch
        
@@ -1116,7 +1317,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
     subroutine ComputeAngleList
 
-        !Define angles with xx positive axe, according to 8 or 16 wind rose directions                
+        !Define trigonometric angles with xx positive axe, according to 8 or 16 wind rose directions 
+        !Diretion is where wind is blowing from              
         if (Me%TotalDirections.eq.8) then
 
             Me%W    = 1
@@ -1128,14 +1330,14 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             Me%N    = 7
             Me%NW   = 8
 
-            Me%AngleList(Me%W ) = 180.
-            Me%AngleList(Me%SW) = 225.
-            Me%AngleList(Me%S ) = 270.
-            Me%AngleList(Me%SE) = 315.
-            Me%AngleList(Me%E ) = 0.
-            Me%AngleList(Me%NE) = 45.
-            Me%AngleList(Me%N ) = 90.
-            Me%AngleList(Me%NW) = 135.
+            Me%AngleList(Me%W ) = 0. 
+            Me%AngleList(Me%SW) = 45. 
+            Me%AngleList(Me%S ) = 90. 
+            Me%AngleList(Me%SE) = 135.
+            Me%AngleList(Me%E ) = 180.
+            Me%AngleList(Me%NE) = 225.
+            Me%AngleList(Me%N ) = 270.
+            Me%AngleList(Me%NW) = 315.
 
         else if (Me%TotalDirections.eq.16) then
 
@@ -1156,22 +1358,39 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             Me%NW   = 15
             Me%NNW  = 14
             
-            Me%AngleList(Me%N  ) = 90. 
-            Me%AngleList(Me%NNE) = 67.5
-            Me%AngleList(Me%NE ) = 45.
-            Me%AngleList(Me%ENE) = 22.5
-            Me%AngleList(Me%E  ) = 0. 
-            Me%AngleList(Me%ESE) = 337.5
-            Me%AngleList(Me%SE ) = 315. 
-            Me%AngleList(Me%SSE) = 292.5
-            Me%AngleList(Me%S  ) = 270.
-            Me%AngleList(Me%SSW) = 247.5
-            Me%AngleList(Me%SW ) = 225.
-            Me%AngleList(Me%WSW) = 202.5
-            Me%AngleList(Me%W  ) = 180. 
+!            Me%AngleList(Me%N  ) = 90. 
+!            Me%AngleList(Me%NNE) = 67.5
+!            Me%AngleList(Me%NE ) = 45.
+!            Me%AngleList(Me%ENE) = 22.5
+!            Me%AngleList(Me%E  ) = 0. 
+!            Me%AngleList(Me%ESE) = 337.5
+!            Me%AngleList(Me%SE ) = 315. 
+!            Me%AngleList(Me%SSE) = 292.5
+!            Me%AngleList(Me%S  ) = 270.
+!            Me%AngleList(Me%SSW) = 247.5
+!            Me%AngleList(Me%SW ) = 225.
+!            Me%AngleList(Me%WSW) = 202.5
+!            Me%AngleList(Me%W  ) = 180. 
+!            Me%AngleList(Me%WNW) = 157.5
+!            Me%AngleList(Me%NW ) = 135.
+!            Me%AngleList(Me%NNW) = 112.5
+
+            Me%AngleList(Me%N  ) = 270. 
+            Me%AngleList(Me%NNE) = 247.5
+            Me%AngleList(Me%NE ) = 225.
+            Me%AngleList(Me%ENE) = 202.5
+            Me%AngleList(Me%E  ) = 180. 
+            Me%AngleList(Me%ESE) = 157.5
+            Me%AngleList(Me%SE ) = 135. 
+            Me%AngleList(Me%SSE) = 112.5
+            Me%AngleList(Me%S  ) = 90.
+            Me%AngleList(Me%SSW) = 67.5
+            Me%AngleList(Me%SW ) = 45.
+            Me%AngleList(Me%WSW) = 22.5
+            Me%AngleList(Me%W  ) = 0. 
             Me%AngleList(Me%WNW) = 157.5
-            Me%AngleList(Me%NW ) = 135.
-            Me%AngleList(Me%NNW) = 112.5
+            Me%AngleList(Me%NW ) = 315.
+            Me%AngleList(Me%NNW) = 292.5
             
         endif
 
@@ -1194,105 +1413,209 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                                 
         !Begin-----------------------------------------------------------------
         
-
-        if (abs(Me%ExternalVar%GridAngle).gt.90.) then
-            stop 'ComputeFetchDistanceGrid - ModuleWaves - ERR01'
-        endif
  
         !Compute Distance to land
         !XX_IE and YY_IE are used instead of XX and YY to make the model compatible
         !with non metric coordinates
 
-        !only regular grids
-        if (Me%ExternalVar%DistortionOn) then
-
-            write(*,*)'The WaveGen_Type selected in Wave data file does not support'
-            write(*,*)'unregular grids. Choose WaveGen_Type:0 instead.'
-            stop 'ComputeFetchDistanceGrid - ModuleWaves - ERR10'
+        IUB = Me%WorkSize%IUB
+        ILB = Me%WorkSize%ILB
+        JUB = Me%WorkSize%JUB
+        JLB = Me%WorkSize%JLB
+    
+        do j=JLB, JUB
+        do i=ILB, IUB
         
-        else
-
-            IUB = Me%WorkSize%IUB
-            ILB = Me%WorkSize%ILB
-            JUB = Me%WorkSize%JUB
-            JLB = Me%WorkSize%JLB
         
-            do j=JLB, JUB
-            do i=ILB, IUB
-            
-            
-                if (Me%ExternalVar%WaterPoints2D(i, j) == WaterPoint) then
+            if (Me%ExternalVar%WaterPoints2D(i, j) == WaterPoint) then
 
-                    do Direction = Me%W, Me%TotalDirections
+                do Direction = Me%W, Me%TotalDirections
 
-                        x = j
-                        y = i
-                        Angle = Me%AngleList(Direction) * Pi / 180.
-                        DistanceToLand = 0.
-                                                
-                        !center of cell
-                        PosX = Me%ExternalVar%XX_IE(i,j) + (Me%ExternalVar%DUX(i,j))/2.
-                        PosY = Me%ExternalVar%YY_IE(i,j) + (Me%ExternalVar%DVY(i,j))/2.
-                                                                           
-                        do while (Me%ExternalVar%WaterPoints2D(y, x) == WaterPoint)
+                    x = j
+                    y = i
+                    Angle = Me%AngleList(Direction) * Pi / 180.
+                    DistanceToLand = 0.
+                                            
+                    !center of cell
+                    PosX = Me%ExternalVar%XX_IE(i,j) + (Me%ExternalVar%DUX(i,j))/2.
+                    PosY = Me%ExternalVar%YY_IE(i,j) + (Me%ExternalVar%DVY(i,j))/2.
+                                                                       
+                    do while (Me%ExternalVar%WaterPoints2D(y, x) == WaterPoint)
+                    
+                        IterationDistance = (min(Me%ExternalVar%DUX(y,x),           &
+                                                Me%ExternalVar%DVY(y,x)))/2.
+                    
+                        DistanceToLand = DistanceToLand + IterationDistance
                         
-                            IterationDistance = (min(Me%ExternalVar%DUX(y,x),           &
-                                                    Me%ExternalVar%DVY(y,x)))/2.
+                        !minus because we want to go towards the wind origin measuring distance
+                        VerticalDistance = -sin(Angle)*IterationDistance
+                        HorizontalDistance = -cos(Angle)*IterationDistance
                         
-                            DistanceToLand = DistanceToLand + IterationDistance
+                        !new position
+                        PosY = PosY + VerticalDistance
+                        PosX = PosX + HorizontalDistance
 
-                            VerticalDistance = sin(Angle)*IterationDistance
-                            HorizontalDistance = cos(Angle)*IterationDistance
-                            
-                            !new position
-                            PosY = PosY + VerticalDistance
-                            PosX = PosX + HorizontalDistance
-
-                            if ((PosX .lt. Me%ExternalVar%XX_IE(y,JLB  )) .or.  &
-                                (PosY .lt. Me%ExternalVar%YY_IE(ILB,  x)) .or.  &
-                                (PosX .gt. Me%ExternalVar%XX_IE(y,JUB+1)) .or.  &
-                                (PosY .gt. Me%ExternalVar%YY_IE(IUB+1,x))) then
-                                exit
-                            endif
-                            
-                            !To drop one dimension (XX_IE and YY_IE are 2D and XX and 
-                            !YY are 1D). XX and YY are used in the locatecell function. 
-                            !In regular grids XX is independent of y and YY independent of x
-                            do runXX = JLB, JUB+1
-                                Me%XX(runXX) = Me%ExternalVar%XX_IE(y,runXX)
-                            enddo
-
-                            do runYY = ILB, IUB+1
-                                Me%YY(runYY) = Me%ExternalVar%YY_IE(runYY,x)
-                            enddo
-
-                            call LocateCell(XX = Me%XX, YY = Me%YY, XPos = PosX,            &
-                                            YPos = PosY, ILB = ILB, IUB = IUB+1,            &
-                                            JLB = JLB, JUB = JUB+1, ILower = y, JLower = x)
-
-                            if(y < 0 .or. x < 0) exit 
-
+                        if ((PosX .lt. Me%ExternalVar%XX_IE(y,JLB  )) .or.  &
+                            (PosY .lt. Me%ExternalVar%YY_IE(ILB,  x)) .or.  &
+                            (PosX .gt. Me%ExternalVar%XX_IE(y,JUB+1)) .or.  &
+                            (PosY .gt. Me%ExternalVar%YY_IE(IUB+1,x))) then
+                            exit
+                        endif
+                        
+                        !To drop one dimension (XX_IE and YY_IE are 2D and XX and 
+                        !YY are 1D). XX and YY are used in the locatecell function. 
+                        !In regular grids XX is independent of y and YY independent of x
+                        do runXX = JLB, JUB+1
+                            Me%XX(runXX) = Me%ExternalVar%XX_IE(y,runXX)
                         enddo
-                
-                        Me%Distance(i,j, Direction) = DistanceToLand
+
+                        do runYY = ILB, IUB+1
+                            Me%YY(runYY) = Me%ExternalVar%YY_IE(runYY,x)
+                        enddo
+
+                        call LocateCell(XX = Me%XX, YY = Me%YY, XPos = PosX,            &
+                                        YPos = PosY, ILB = ILB, IUB = IUB+1,            &
+                                        JLB = JLB, JUB = JUB+1, ILower = y, JLower = x)
+
+                        if(y < 0 .or. x < 0) exit 
 
                     enddo
-                endif
+            
+                    Me%Distance(i,j, Direction) = DistanceToLand
+
+                enddo
+            endif
+    
+        enddo
+        enddo
         
-            enddo
-            enddo
-        
-        endif
 
     end subroutine ComputeFetchDistanceGrid
 
     !--------------------------------------------------------------------------
+
+    subroutine ComputeFetchDistanceAndDepthGrid
+    
+        !Local-----------------------------------------------------------------
+        integer                         :: i, j, x, y, runXX, runYY 
+        integer                         :: ILB, IUB, JLB, JUB, Direction
+        real                            :: PosX, PosY 
+        real                            :: IterationDistance                   = 0.       
+        real                            :: DistanceToLand                      = 0. 
+        real(8)                         :: Angle
+        real                            :: VerticalDistance, HorizontalDistance
+        real                            :: SumDepth                            = 0.  !for average depth
+        integer                         :: CountDepthValues                    = 0
+        integer                         :: STAT_CALL                                        
+        !Begin-----------------------------------------------------------------
+        
+
+        !Compute Distance to land
+        !XX_IE and YY_IE are used instead of XX and YY to make the model compatible
+        !with non metric coordinates
+
+        !Gets a pointer to Bathymetry
+        call GetGridData(Me%ObjGridData, Me%ExternalVar%Bathymetry, STAT_CALL)     
+        if (STAT_CALL /= SUCCESS_) stop 'ComputeFetchDistanceAndDepthGrid - ModuleWaves - ERR01'
+
+        
+        IUB = Me%WorkSize%IUB
+        ILB = Me%WorkSize%ILB
+        JUB = Me%WorkSize%JUB
+        JLB = Me%WorkSize%JLB
+    
+        do j=JLB, JUB
+        do i=ILB, IUB
+        
+        
+            if (Me%ExternalVar%WaterPoints2D(i, j) == WaterPoint) then
+
+                do Direction = Me%W, Me%TotalDirections
+
+                    x = j
+                    y = i
+                    Angle = Me%AngleList(Direction) * Pi / 180.
+                    DistanceToLand   = 0.
+                    SumDepth         = 0.
+                    CountDepthValues = 0
+                                            
+                    !center of cell
+                    PosX = Me%ExternalVar%XX_IE(i,j) + (Me%ExternalVar%DUX(i,j))/2.
+                    PosY = Me%ExternalVar%YY_IE(i,j) + (Me%ExternalVar%DVY(i,j))/2.
+                                                                       
+                    do while (Me%ExternalVar%WaterPoints2D(y, x) == WaterPoint)
+                    
+                        IterationDistance = (min(Me%ExternalVar%DUX(y,x),           &
+                                                Me%ExternalVar%DVY(y,x)))/2.
+                    
+                        DistanceToLand = DistanceToLand + IterationDistance
+                        
+                        !minus because we want to go towards the wind origin measuring distance
+                        VerticalDistance = -sin(Angle)*IterationDistance
+                        HorizontalDistance = -cos(Angle)*IterationDistance
+                        
+                        !new position
+                        PosY = PosY + VerticalDistance
+                        PosX = PosX + HorizontalDistance
+
+                        if ((PosX .lt. Me%ExternalVar%XX_IE(y,JLB  )) .or.  &
+                            (PosY .lt. Me%ExternalVar%YY_IE(ILB,  x)) .or.  &
+                            (PosX .gt. Me%ExternalVar%XX_IE(y,JUB+1)) .or.  &
+                            (PosY .gt. Me%ExternalVar%YY_IE(IUB+1,x))) then
+                            exit
+                        endif
+                        
+                        !For water depth computation
+                        SumDepth         = SumDepth + Me%ExternalVar%Bathymetry(y,x)
+                        CountDepthValues = CountDepthValues + 1
+                        
+                        !To drop one dimension (XX_IE and YY_IE are 2D and XX and 
+                        !YY are 1D). XX and YY are used in the locatecell function. 
+                        !In regular grids XX is independent of y and YY independent of x
+                        do runXX = JLB, JUB+1
+                            Me%XX(runXX) = Me%ExternalVar%XX_IE(y,runXX)
+                        enddo
+
+                        do runYY = ILB, IUB+1
+                            Me%YY(runYY) = Me%ExternalVar%YY_IE(runYY,x)
+                        enddo
+
+                        call LocateCell(XX = Me%XX, YY = Me%YY, XPos = PosX,            &
+                                        YPos = PosY, ILB = ILB, IUB = IUB+1,            &
+                                        JLB = JLB, JUB = JUB+1, ILower = y, JLower = x)
+
+                        if(y < 0 .or. x < 0) exit 
+
+                    enddo
+            
+                    Me%Distance(i,j, Direction)    = DistanceToLand
+                    Me%AverageDepth(i,j,Direction) = Me%MeanSeaLevel + (SumDepth / CountDepthValues)
+                    
+                    !bathimetry may be negative but average depth not 
+                    if (Me%AverageDepth(i,j,Direction) .lt. 0.) then
+                        Me%AverageDepth(i,j,Direction) = AllmostZero
+                    endif
+                enddo
+            endif
+    
+        enddo
+        enddo
+        
+        !Ungets the Bathymetry
+        call UngetGridData (Me%ObjGridData, Me%ExternalVar%Bathymetry, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ComputeFetchDistanceAndDepthGrid - ModuleWaves - ERR10'
+
+
+    end subroutine ComputeFetchDistanceAndDepthGrid
+
+    !--------------------------------------------------------------------------
+
     
     subroutine ComputeFetchDistancePolygon
         
         !Local-----------------------------------------------------------------
         integer                                 :: i, j, k, ILB, IUB, JLB, JUB
-        
+        real, dimension(:), pointer             :: AngleList
         !Begin-----------------------------------------------------------------
         
         IUB = Me%WorkSize%IUB
@@ -1301,6 +1624,20 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         JLB = Me%WorkSize%JLB
 
         !Compute Distance To Land (To Polygon Border)
+        
+        !The function used computes distances in the direction of the angles.
+        !in waves the angle list is in the direction of the wind (e.g. west if wind blows from E->W)
+        !Here it is needed to compute distances in the opposite direction
+        !(the fecth distance is the distance against the wind). So angles were recomputed
+        
+        allocate (AngleList(Me%TotalDirections))
+        AngleList = FillValueReal
+        
+        !Opposite angles
+        do i = 1, Me%TotalDirections
+            AngleList = Me%AngleList(i) + 180.
+        enddo
+        
         do j=JLB, JUB
         do i=ILB, IUB
             
@@ -1310,9 +1647,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                          
             if (Me%ExternalVar%WaterPoints2D(i, j) == WaterPoint) then
 
-                Call PointDistanceToPolygon (Point = Me%Point, Polygons =        &
+                call PointDistanceToPolygon (Point = Me%Point, Polygons =        &
                                              Me%LandArea,                        &
-                                             AngleList = Me%AngleList,           &
+                                             AngleList = AngleList,              &
                                              MinDistanceFromPoint =              &
                                              Me%MinDistanceFromPoint)              
                 
@@ -1326,7 +1663,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         enddo
         enddo
-
+        
+        deallocate (AngleList)
+        
     end subroutine ComputeFetchDistancePolygon
     
     !--------------------------------------------------------------------------
@@ -1475,6 +1814,155 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
     end subroutine ComputeFetch
 
     !--------------------------------------------------------------------------
+
+    subroutine ComputeDepth
+       
+        !Local-----------------------------------------------------------------
+        integer                                 :: i, j, ILB, IUB, JLB, JUB
+        real                                    :: Weight22, Weight45, SumWeight
+
+        !Begin-----------------------------------------------------------------
+        
+        !Average depth for each wind direction was computes similary to fetch.
+        !there was no work on bibliography but since the distances were weighted for the neighbour angles
+        !also the depths were to accoount for variations in neighbour angles.  
+        
+        !Depth in the case of using average is computed in 8 directions. The difference is in the way of 
+        !calculation, if 8 or 16 wind rose directions are selected.
+        !With 8 wind rose directions, for each depth direction 3 depths and 3 angles are used 
+        !(the wind direction, one 45 degrees to the right and one 45 degrees to the left.
+        !With 16 wind rose directions, for each direction direction 5 depths and 5 angles are used 
+        !(the wind direction, 22.5 and 45 degrees to the right and the same to the left.
+
+        IUB = Me%WorkSize%IUB
+        ILB = Me%WorkSize%ILB
+        JUB = Me%WorkSize%JUB
+        JLB = Me%WorkSize%JLB
+        
+        !The weight is given according to cosine of the angles (angle with wind direction). 
+        !The weight along the wind direction (0 deg.) is maximum (1) reducing when angle icreases.
+        Weight22 = cos (22.5 * Pi/180.)
+        Weight45 = cos(45. * Pi/180.)
+
+        if (Me%TotalDirections.eq.8) then
+        
+            !The sum of weights with 8 wind rose directions
+            SumWeight = (2. * Weight45 + 1.)
+        
+            do j=JLB, JUB
+            do i=ILB, IUB
+            
+                if (Me%ExternalVar%WaterPoints2D(i, j) == WaterPoint) then
+
+                    Me%Depth(i,j, Me%N) =    (Weight45 * Me%AverageDepth(i,j, Me%NW)           &
+                                            +            Me%AverageDepth(i,j, Me%N)            &
+                                            + Weight45 * Me%AverageDepth(i,j, Me%NE)) / SumWeight
+                    
+                    Me%Depth(i,j, Me%NE) =   (Weight45 * Me%AverageDepth(i,j, Me%N)            &
+                                            +            Me%AverageDepth(i,j, Me%NE)           &
+                                            + Weight45 * Me%AverageDepth(i,j, Me%E)) / SumWeight
+                   
+                    Me%Depth(i,j, Me%E) =    (Weight45 * Me%AverageDepth(i,j, Me%NE)           &
+                                            +            Me%AverageDepth(i,j, Me%E)            &
+                                            + Weight45 * Me%AverageDepth(i,j, Me%SE)) / SumWeight
+                    
+                    Me%Depth(i,j, Me%SE) =   (Weight45 * Me%AverageDepth(i,j, Me%E)            &
+                                            +            Me%AverageDepth(i,j, Me%SE)           &
+                                            + Weight45 * Me%AverageDepth(i,j, Me%S)) / SumWeight
+                   
+                    Me%Depth(i,j, Me%S) =    (Weight45 * Me%AverageDepth(i,j, Me%SE)           &
+                                            +            Me%AverageDepth(i,j, Me%S)            &
+                                            + Weight45 * Me%AverageDepth(i,j, Me%SW)) / SumWeight
+                    
+                    Me%Depth(i,j, Me%SW) =   (Weight45 * Me%AverageDepth(i,j, Me%S)            &
+                                            +            Me%AverageDepth(i,j, Me%SW)           &
+                                            + Weight45 * Me%AverageDepth(i,j, Me%W)) / SumWeight
+                    
+                    Me%Depth(i,j, Me%W) =    (Weight45 * Me%AverageDepth(i,j, Me%SW)           &
+                                            +            Me%AverageDepth(i,j, Me%W)            &
+                                            + Weight45 * Me%AverageDepth(i,j, Me%NW)) / SumWeight
+                    
+                    Me%Depth(i,j, Me%NW) =   (Weight45 * Me%AverageDepth(i,j, Me%W)            &
+                                            +            Me%AverageDepth(i,j, Me%NW)           &
+                                            + Weight45 * Me%AverageDepth(i,j, Me%N)) / SumWeight
+                endif
+
+            enddo
+            enddo
+        
+        else if (Me%TotalDirections.eq.16) then
+
+            !The sum of weights with 16 wind rose directions
+            SumWeight = (2.*Weight22 + 2.*Weight45 + 1.)
+        
+            do j=JLB, JUB
+            do i=ILB, IUB
+            
+                if (Me%ExternalVar%WaterPoints2D(i, j) == WaterPoint) then
+
+                    !The 8 fetch directions (N-NW) now are classified from 1 to 16
+
+                    !N
+                    Me%Depth(i,j, 7) = (Weight45 * Me%AverageDepth(i,j, Me%NW )             &
+                                      + Weight22 * Me%AverageDepth(i,j, Me%NNW)             &
+                                      +            Me%AverageDepth(i,j, Me%N  )             &
+                                      + Weight22 * Me%AverageDepth(i,j, Me%NNE)             &
+                                      + Weight45 * Me%AverageDepth(i,j, Me%NE )) / SumWeight
+
+                    !NE
+                    Me%Depth(i,j, 6) =  (Weight45 * Me%AverageDepth(i,j, Me%N)             &
+                                       + Weight22 * Me%AverageDepth(i,j, Me%NNE)           &
+                                       +            Me%AverageDepth(i,j, Me%NE)            &
+                                       + Weight22 * Me%AverageDepth(i,j, Me%ENE)           &
+                                       + Weight45 * Me%AverageDepth(i,j, Me%E)) / SumWeight
+                    
+                    !E
+                    Me%Depth(i,j, 5) =  (Weight45 * Me%AverageDepth(i,j, Me%NE)            &
+                                       + Weight22 * Me%AverageDepth(i,j, Me%ENE)           &
+                                       +            Me%AverageDepth(i,j, Me%E)             &
+                                       + Weight22 * Me%AverageDepth(i,j, Me%ESE)           &
+                                       + Weight45 * Me%AverageDepth(i,j, Me%SE)) / SumWeight
+                    !SE
+                    Me%Depth(i,j, 4) =  (Weight45 * Me%AverageDepth(i,j, Me%E)             &
+                                       + Weight22 * Me%AverageDepth(i,j, Me%ESE)           &
+                                       +            Me%AverageDepth(i,j, Me%SE)            &
+                                       + Weight22 * Me%AverageDepth(i,j, Me%SSE)           &
+                                       + Weight45 * Me%AverageDepth(i,j, Me%S)) / SumWeight
+                    !S
+                    Me%Depth(i,j, 3) =  (Weight45 * Me%AverageDepth(i,j, Me%SE)            &
+                                       + Weight22 * Me%AverageDepth(i,j, Me%SSE)           &
+                                       +            Me%AverageDepth(i,j, Me%S)             &
+                                       + Weight22 * Me%AverageDepth(i,j, Me%SSW)           &
+                                       + Weight45 * Me%AverageDepth(i,j, Me%SW)) / SumWeight
+                    !SW
+                    Me%Depth(i,j, 2) =  (Weight45 * Me%AverageDepth(i,j, Me%S)             &
+                                       + Weight22 * Me%AverageDepth(i,j, Me%SSW)           &
+                                       +            Me%AverageDepth(i,j, Me%SW)            &
+                                       + Weight22 * Me%AverageDepth(i,j, Me%WSW)           &
+                                       + Weight45 * Me%AverageDepth(i,j, Me%W)) / SumWeight
+                    !W
+                    Me%Depth(i,j, 1) =  (Weight45 * Me%AverageDepth(i,j, Me%SW)            &
+                                       + Weight22 * Me%AverageDepth(i,j, Me%WSW)           &
+                                       +            Me%AverageDepth(i,j, Me%W)             &
+                                       + Weight22 * Me%AverageDepth(i,j, Me%WNW)           &
+                                       + Weight45 * Me%AverageDepth(i,j, Me%NW)) / SumWeight
+                    !NW
+                    Me%Depth(i,j, 8) =  (Weight45 * Me%AverageDepth(i,j, Me%W)             &
+                                       + Weight22 * Me%AverageDepth(i,j, Me%WNW)           &
+                                       +            Me%AverageDepth(i,j, Me%NW)            &
+                                       + Weight22 * Me%AverageDepth(i,j, Me%NNW)           &
+                                       + Weight45 * Me%AverageDepth(i,j, Me%N)) / SumWeight
+
+                endif
+
+            enddo
+            enddo
+
+        endif
+
+    end subroutine ComputeDepth
+
+    !--------------------------------------------------------------------------    
     
     subroutine ConstructLandArea
 
@@ -1589,6 +2077,236 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         if (STAT_CALL /= SUCCESS_) stop 'ConstructLandArea - ModuleWaves - ERR060'
 
     end subroutine ConstructLandArea
+    
+    !--------------------------------------------------------------------------
+    
+    subroutine Output_GridData
+        
+        !Local-----------------------------------------------------------------
+        integer                                       :: i, j, ILB, IUB, JLB, JUB
+        integer                                       :: STAT_CALL, Direction
+        character(len=Pathlength)                     :: FetchDistancesFile, FetchAverageDepthsFile
+        character(len=Pathlength)                     :: FetchFile, FetchDepthsFile
+        character(len=Pathlength)                     :: FetchDistancesFolder, FetchDepthsFolder
+        character (len=StringLength)                  :: AngleChar
+        real                                          :: AngleReal, Angle
+        real, dimension(:,:), pointer                 :: Fetch, FetchDistance, AverageDepth, Depth
+        !Begin-----------------------------------------------------------------
+
+        IUB = Me%WorkSize%IUB
+        ILB = Me%WorkSize%ILB
+        JUB = Me%WorkSize%JUB
+        JLB = Me%WorkSize%JLB
+
+        !WaterPoints2D
+        call GetWaterPoints2D(Me%ObjHorizontalMap, Me%ExternalVar%WaterPoints2D,            &
+                              STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Output_GridData - ModuleWaves - ERR00'
+        
+        if (Me%Output%FetchDistances) then
+            
+            !Gets the root path from the file nomfich.dat
+            call ReadFileName("ROOT_SRT", FetchDistancesFolder, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Output_GridData - ModuleWaves - ERR01'
+            
+            
+            !Write the Fetch distances in 8 or 16 direction
+            allocate (FetchDistance(ILB:IUB,JLB:JUB))
+            FetchDistance = FillValueReal
+            
+            !Direction 1 is angle 0º in trigonometric ref or wind blowing from west            
+            do Direction = 1, Me%TotalDirections
+                
+                !remove one dimension from Fetch distances
+                do j=JLB, JUB
+                do i=ILB, IUB
+                
+                    if (Me%ExternalVar%WaterPoints2D(i, j) == WaterPoint) then
+                        FetchDistance(i,j) = Me%Distance(i,j,Direction)
+                    endif
+                enddo
+                enddo
+                
+                !Convert from trigonometric to wind referencial
+                AngleReal = 270. - Me%AngleList(Direction)
+                if (AngleReal .lt. 0.) then
+                    AngleReal = AngleReal + 360.
+                endif
+                
+                ! converting integer to string using a 'internal file'
+                write (AngleChar, '(f5.1)') AngleReal
+                
+                !Writes the directions 
+                FetchDistancesFile = trim(FetchDistancesFolder)//"FetchDistances"//"_"//trim(AngleChar)//".dat"
+                                
+                call WriteGridData  (FetchDistancesFile,                   &
+                     COMENT1          = "FetchDistancesFile - Angles in filename are in wind referencial",  &
+                     COMENT2          = "(e.g. 0º is wind from N to S and 270º from W to E)",               &
+                     HorizontalGridID = Me%ObjHorizontalGrid,              &
+                     FillValue        = -99.0,                             &
+                     OverWrite        = .true.,                            &
+                     GridData2D_Real  = FetchDistance,                     &
+                     STAT             = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'Output_GridData - ModuleWaves - ERR10'
+                
+                
+            enddo
+            
+            deallocate (FetchDistance)
+            
+            
+            !Fetch weighted in 8 directions            
+            allocate (Fetch(ILB:IUB,JLB:JUB))
+            Fetch = FillValueReal
+            
+            Angle = 0. !first angle is zero trigonometric (wind from west to east)
+            
+            do Direction = 1, 8
+                
+                !remove one dimension from Fetch distances
+                do j=JLB, JUB
+                do i=ILB, IUB
+                
+                    if (Me%ExternalVar%WaterPoints2D(i, j) == WaterPoint) then
+                        Fetch(i,j) = Me%Fetch(i,j,Direction)
+                    endif
+                enddo
+                enddo
+                
+                !Convert from trigonometric to wind referencial
+                AngleReal = 270. - Angle
+                if (AngleReal .lt. 0.) then
+                    AngleReal = AngleReal + 360.
+                endif
+                
+                ! converting integer to string using a 'internal file'
+                write (AngleChar, '(f5.1)') AngleReal
+                
+                !Writes the directions 
+                FetchFile = trim(FetchDistancesFolder)//"FetchWeighted"//"_"//trim(AngleChar)//".dat"
+                                
+                call WriteGridData  (FetchFile,                   &
+                     COMENT1          = "FetchWeightedFile - Angles in filename are in wind referencial",  &
+                     COMENT2          = "(e.g. 0º is wind from N to S and 270º from W to E)",               &
+                     HorizontalGridID = Me%ObjHorizontalGrid,              &
+                     FillValue        = -99.0,                             &
+                     OverWrite        = .true.,                            &
+                     GridData2D_Real  = Fetch,                             &
+                     STAT             = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'Output_GridData - ModuleWaves - ERR10'
+                
+                Angle = Angle + 45.
+                
+            enddo
+            
+            deallocate (Fetch)
+            
+        endif        
+    
+    
+        if (Me%Output%FetchDepths) then
+            
+            !Gets the root path from the file nomfich.dat
+            call ReadFileName("ROOT_SRT", FetchDepthsFolder, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Output_GridData - ModuleWaves - ERR20'
+            
+            
+            !average depths in 8 or 16 directions
+            allocate (AverageDepth(ILB:IUB,JLB:JUB))
+            AverageDepth = FillValueReal
+            
+            do Direction = Me%W, Me%TotalDirections
+                
+                !remove one dimension from Depth
+                do j=JLB, JUB
+                do i=ILB, IUB
+                
+                    if (Me%ExternalVar%WaterPoints2D(i, j) == WaterPoint) then
+                        AverageDepth(i,j) = Me%AverageDepth(i,j,Direction)
+                    endif
+                enddo
+                enddo
+                
+                !Convert from trigonometric to wind referencial
+                AngleReal = 270. - Me%AngleList(Direction)
+                if (AngleReal .lt. 0.) then
+                    AngleReal = AngleReal + 360.
+                endif
+                
+                ! converting integer to string using a 'internal file'
+                write (AngleChar, '(f5.1)') AngleReal                
+                !Writes the directions 
+                FetchAverageDepthsFile = trim(FetchDepthsFolder)//"DepthAverage"//"_"//trim(AngleChar)//".dat"
+                 
+                call WriteGridData  (FetchAverageDepthsFile,                     &
+                     COMENT1          = "AverageDepthsFile - Angles in filename are in wind referencial",     &
+                     COMENT2          = "(e.g. 0º is wind from N to S and 270º from W to E)",               &
+                     HorizontalGridID = Me%ObjHorizontalGrid,              &
+                     FillValue        = -99.0,                             &
+                     OverWrite        = .true.,                            &
+                     GridData2D_Real  = AverageDepth,                             &
+                     STAT             = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'Output_GridData - ModuleWaves - ERR30'
+                
+                
+            enddo
+            
+            deallocate (AverageDepth)
+
+
+            !Depth weighted in 8 directions            
+            allocate (Depth(ILB:IUB,JLB:JUB))
+            Depth = FillValueReal
+            
+            Angle = 0. !first angle is zero trigonometric (wind from west to east)
+            
+            do Direction = 1, 8
+                
+                !remove one dimension from Depth
+                do j=JLB, JUB
+                do i=ILB, IUB
+                
+                    if (Me%ExternalVar%WaterPoints2D(i, j) == WaterPoint) then
+                        Depth(i,j) = Me%Depth(i,j,Direction)
+                    endif
+                enddo
+                enddo
+                
+                !Convert from trigonometric to wind referencial
+                AngleReal = 270. - Angle
+                if (AngleReal .lt. 0.) then
+                    AngleReal = AngleReal + 360.
+                endif
+                
+                ! converting integer to string using a 'internal file'
+                write (AngleChar, '(f5.1)') AngleReal
+                
+                !Writes the directions 
+                FetchDepthsFile = trim(FetchDepthsFolder)//"DepthWeighted"//"_"//trim(AngleChar)//".dat"
+                                
+                call WriteGridData  (FetchDepthsFile,                   &
+                     COMENT1          = "DepthWeightedFile - Angles in filename are in wind referencial",  &
+                     COMENT2          = "(e.g. 0º is wind from N to S and 270º from W to E)",               &
+                     HorizontalGridID = Me%ObjHorizontalGrid,              &
+                     FillValue        = -99.0,                             &
+                     OverWrite        = .true.,                            &
+                     GridData2D_Real  = Depth,                             &
+                     STAT             = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'Output_GridData - ModuleWaves - ERR10'
+                
+                Angle = Angle + 45.
+                
+            enddo
+            
+            deallocate (Depth)
+            
+        endif    
+
+        !Ungets WaterPoints2D
+        call UnGetHorizontalMap(Me%ObjHorizontalMap,  Me%ExternalVar%WaterPoints2D, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Output_GridData - ModuleWaves - ERR40'
+    
+    end subroutine Output_GridData
 
     !--------------------------------------------------------------------------
 
@@ -2027,7 +2745,6 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             call UnGetHorizontalMap(Me%ObjHorizontalMap,  Me%ExternalVar%WaterPoints2D, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ModifyWaves - ModuleWaves - ERR90'
             
-            
             if(Me%OutPut%HDF) then                                 
                 call OutPut_Results_HDF
             endif
@@ -2221,12 +2938,16 @@ cd2:                if (Me%WaveHeight%Field       (i,j) .lt. 0.1 .or.           
         ILB = Me%WorkSize%ILB
         JUB = Me%WorkSize%JUB
         JLB = Me%WorkSize%JLB
-    
-        call GetGeometryWaterColumn(Me%ObjGeometry,                                     &
-                                    WaterColumn = Me%ExternalVar%WaterColumn,           &
-                                    STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ComputeWaveHeightFetch - ModuleWaves. ERR01.'
-
+       
+        if (Me%DepthType.eq.DepthLocal) then
+        
+            call GetGeometryWaterColumn(Me%ObjGeometry,                                     &
+                                        WaterColumn = Me%ExternalVar%WaterColumn,           &
+                                        STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ComputeWaveHeightFetch - ModuleWaves. ERR01.'
+            
+        endif
+        
         do j=JLB, JUB
         do i=ILB, IUB
 
@@ -2280,9 +3001,15 @@ cd2:                if (Me%WaveHeight%Field       (i,j) .lt. 0.1 .or.           
                 Wind = sqrt(WindX**2. + WindY**2.)  
 
                 U2 = Wind * Wind         
-
-                COEF1 = 0.53 * (Gravity * Me%ExternalVar%WaterColumn(i, j) / U2) ** 0.75   
-
+                
+                !old formulation uses local water column
+                !new fomulations use average depth in wind direction or a constant value
+                if (Me%DepthType.eq.DepthLocal) then
+                    COEF1 = 0.53 * (Gravity * Me%ExternalVar%WaterColumn(i, j) / U2) ** 0.75   
+                else
+                    COEF1 = 0.53 * (Gravity * Me%Depth(i,j, WindDirection) / U2) ** 0.75   
+                endif
+                
                 COEF2 = 0.0125 * (Gravity * Me%Fetch(i,j, WindDirection) / U2)**0.42
 
 
@@ -2295,10 +3022,13 @@ cd2:                if (Me%WaveHeight%Field       (i,j) .lt. 0.1 .or.           
 
         enddo
         enddo
-    
-        call UnGetGeometry(Me%ObjGeometry, Me%ExternalVar%WaterColumn, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ComputeWaveHeightFetch - ModuleWaves. ERR20'
 
+        if (Me%DepthType.eq.DepthLocal) then
+
+            call UnGetGeometry(Me%ObjGeometry, Me%ExternalVar%WaterColumn, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ComputeWaveHeightFetch - ModuleWaves. ERR20'
+        
+        endif
    
     
                     
@@ -2359,10 +3089,14 @@ cd2:                if (Me%WaveHeight%Field       (i,j) .lt. 0.1 .or.           
         JUB = Me%WorkSize%JUB
         JLB = Me%WorkSize%JLB
     
-        call GetGeometryWaterColumn(Me%ObjGeometry,                                     &
-                                    WaterColumn = Me%ExternalVar%WaterColumn,           &
-                                    STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ComputeWavePeriodFetch - ModuleWaves. ERR01.'
+        if (Me%DepthType.eq.DepthLocal) then
+        
+            call GetGeometryWaterColumn(Me%ObjGeometry,                                     &
+                                        WaterColumn = Me%ExternalVar%WaterColumn,           &
+                                        STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ComputeWavePeriodFetch - ModuleWaves. ERR01.'
+            
+        endif
 
         do j=JLB, JUB
         do i=ILB, IUB
@@ -2415,9 +3149,15 @@ cd2:                if (Me%WaveHeight%Field       (i,j) .lt. 0.1 .or.           
                 Wind = sqrt(WindX**2. +  WindY**2.)  
 
                 U2 = Wind * Wind              
-
-                COEF3 = 0.833 * (Gravity * Me%ExternalVar%WaterColumn(i,j) / U2)**0.375
-
+                
+                !old formulation uses local water column
+                !new fomulations use average depth in wind direction or a constant value
+                if (Me%DepthType.eq.DepthLocal) then
+                    COEF3 = 0.833 * (Gravity * Me%ExternalVar%WaterColumn(i,j) / U2)**0.375
+                else    
+                    COEF3 = 0.833 * (Gravity * Me%Depth(i,j, WindDirection) / U2)**0.375
+                endif
+                    
                 COEF4 = 0.077 * (Gravity * Me%Fetch(i,j, WindDirection) / U2)**0.25
 
                 !Wave Period
@@ -2430,9 +3170,12 @@ cd2:                if (Me%WaveHeight%Field       (i,j) .lt. 0.1 .or.           
         enddo
         enddo
     
-        call UnGetGeometry(Me%ObjGeometry, Me%ExternalVar%WaterColumn, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ComputeWavePeriodFetch - ModuleWaves. ERR20'
-    
+        if (Me%DepthType.eq.DepthLocal) then
+
+            call UnGetGeometry(Me%ObjGeometry, Me%ExternalVar%WaterColumn, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ComputeWavePeriodFetch - ModuleWaves. ERR20'
+        
+        endif    
            
     end subroutine ComputeWavePeriodFetch
 
@@ -2866,7 +3609,10 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                 if (Me%Wavegen_type.eq.CEQUALW2) then
 
                     deallocate(Me%Fetch)
-
+                    
+                    if (Me%DepthType.eq.DepthAverage .or. Me%DepthType.eq.DepthDefined) then
+                        deallocate(Me%Depth)
+                    endif
                 endif
                 
                 !Kills the TimeSerie
