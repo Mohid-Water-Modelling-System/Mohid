@@ -29,7 +29,7 @@
 !                                                     ! 0 - grid based method (limited in nested domains)
 !                                                     ! 1 - graphical method using distances to land poligons (need the polygon 
 !                                                       block)
-! WINDROSE_DIRECTIONS       :  8/16          8       !Number of directions to compute distances to land (read if WAVEGEN_TYPE : 1)
+! FETCH_DIRECTIONS          :  8/16          16      !Number of directions for fetch distances and depth (read if WAVEGEN_TYPE : 1)
 ! WAVE_HEIGHT_PARAMETER     :  real          1.      !Multipling factor for wave height - calibration  (read if WAVEGEN_TYPE : 1)
 ! WAVE_PERIOD_PARAMETER     :  real          1.      !Multipling factor for wave period - calibration  (read if WAVEGEN_TYPE : 1)
 ! DEPTH_METHOD              : integer        0       !Method for computing fetch depth  (read if WAVEGEN_TYPE : 1)
@@ -74,7 +74,7 @@
 Module ModuleWaves
 
     use ModuleGlobalData
-    use ModuleFunctions,        only : Secant
+    use ModuleFunctions,        only : Secant, SetMatrixValue
     use ModuleEnterData        
     use ModuleTime
     use ModuleHorizontalMap,    only : GetWaterPoints2D, GetOpenPoints2D, UnGetHorizontalMap
@@ -239,7 +239,8 @@ Module ModuleWaves
         integer                                             :: ObjGridData             = 0
         integer                                             :: ObjTimeSerie            = 0
         integer                                             :: WaveGen_type            = Old
-        integer                                             :: TotalDirections         = 8
+        integer                                             :: TotalDirections         = 16     !now only 16 directions
+        integer                                             :: FetchDirections         = 16
         integer                                             :: DistanceType            = DistanceGrid
         integer                                             :: DepthType               = DepthLocal
         real                                                :: DepthValue              = 0.
@@ -443,7 +444,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         !Local-----------------------------------------------------------------
         integer                             :: STAT_CALL, iflag
-
+        integer                             :: aux
         !Begin-----------------------------------------------------------------
         
         
@@ -597,16 +598,31 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             if (STAT_CALL /= SUCCESS_)                                                  &
                 stop 'ConstructWaveParameters - ModuleWaves - ERR82'
                 
-            call GetData(Me%TotalDirections,                                            &
+            call GetData(Aux,                                                           &
                          Me%ObjEnterData, iflag,                                        &
                          Keyword    = 'WINDROSE_DIRECTIONS',                            &
-                         Default    = 8,                                                &
+                         Default    = 16,                                               &
                          SearchType = FromFile,                                         &
                          ClientModule ='ModuleWave',                                    &
                          STAT       = STAT_CALL)            
-
-            if (STAT_CALL /= SUCCESS_)                                                  &
+            if (iflag==1) then
+                write(*,*)'WINDROSE_DIRECTIONS keyword is deprecated'
+                write(*,*)'now always 16 cardinal directions are used'
+                write(*,*)'remove the keyword and redo the simulation'
                 stop 'ConstructWaveParameters - ModuleWaves - ERR83'
+            endif 
+            if (STAT_CALL /= SUCCESS_)                                                  &
+                stop 'ConstructWaveParameters - ModuleWaves - ERR84'
+
+            call GetData(Me%FetchDirections,                                            &
+                         Me%ObjEnterData, iflag,                                        &
+                         Keyword    = 'FETCH_DIRECTIONS',                               &
+                         Default    = 16,                                               &
+                         SearchType = FromFile,                                         &
+                         ClientModule ='ModuleWave',                                    &
+                         STAT       = STAT_CALL)            
+            if (STAT_CALL /= SUCCESS_)                                                  &
+                stop 'ConstructWaveParameters - ModuleWaves - ERR85'
             
             call GetData(Me%DistanceType,                                               &
                          Me%ObjEnterData, iflag,                                        &
@@ -1106,8 +1122,15 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             
         write(*,*) 'Constructing Wind Fetch...'
         
-        if (Me%TotalDirections.ne.8.and.Me%TotalDirections.ne.16) then
-            write(*,*)'The model only runs with 8 or 16 Wind Rose directions '
+!        if (Me%TotalDirections.ne.8.and.Me%TotalDirections.ne.16) then
+!            write(*,*)'The model only runs with 8 or 16 Wind Rose directions '
+!            write(*,*)'Please select one of those on Waves data file'
+!            stop 'ConstructFetch - ModuleWaves - ERR01'
+!
+!        endif
+
+        if (Me%FetchDirections.ne.8.and.Me%FetchDirections.ne.16) then
+            write(*,*)'The model only runs with 8 or 16 Fetch directions '
             write(*,*)'Please select one of those on Waves data file'
             stop 'ConstructFetch - ModuleWaves - ERR01'
 
@@ -1180,17 +1203,18 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         
         !allocate Distance, Fetch and Angles (angles with xx for all directions)
               
-        !Fetch distances to land in 8 or 16 directions
+        !Fetch distances to land in 16 directions
         allocate(Me%Distance(Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB,       &
                  1:Me%TotalDirections))
         Me%Distance(:,:,:) =  FillValueReal
 
-        !Fetch weighted in 8 directions
-        allocate(Me%Fetch(Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB,1:8))
+        !Fetch weighted in 8 directions or not weighted in 16 directions
+        allocate(Me%Fetch(Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB,1:Me%FetchDirections))
         Me%Fetch(:,:,:) =  FillValueReal
 
         allocate(Me%AngleList(1:Me%TotalDirections))
         Me%AngleList(:) = FillValueReal
+        
             
         if (Me%DistanceType.eq.DistancePolygon) then
                            
@@ -1202,12 +1226,12 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         
         if (Me%DepthType.eq.DepthAverage .or. Me%DepthType.eq.DepthDefined) then
             
-            !Average depth in wind direction (8 or 16 directions)
+            !Average depth in wind direction 16 directions
             allocate(Me%AverageDepth(Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB,       &
                      1:Me%TotalDirections))
             
-            !Depth weigthed in 8 directions
-            allocate(Me%Depth(Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB,1:8))
+            !Depth weigthed in 8 directions or not weighted in 16 directions
+            allocate(Me%Depth(Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB,1:Me%FetchDirections))
             
             if (Me%DepthType.eq.DepthAverage) then        
                 Me%AverageDepth(:,:,:) =  FillValueReal
@@ -1254,14 +1278,25 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             endif
         endif
         
-        !weighted Fetch in 8 wind directions
-        call ComputeFetch
+        if (Me%FetchDirections .eq. 8) then
+            !weighted Fetch in 8 wind directions (from 16 computed distances)
+            call ComputeFetch
+        elseif (Me%FetchDirections .eq. 16) then
+            !16 Fetch distances are the 16 computed distances
+            Me%Fetch => Me%Distance
+        endif
         
         !weigthed average depth in 8 wind direction (case of average depth in wind direction). 
         !in case of local depth it will be actualized with water column under modify. 
         !in case of depth defined by user nothing to do since initalization remains constant
         if (Me%DepthType .eq. DepthAverage) then
-            call ComputeDepth        
+            if (Me%FetchDirections .eq. 8) then
+                !weighted Depth in 8 wind directions (from 16 computed average depths)
+                call ComputeDepth 
+            elseif (Me%FetchDirections .eq. 16) then
+                !16 Depths are the 16 computed average depths
+                Me%Depth => Me%AverageDepth
+            endif       
         endif
         
         !Output the computations
@@ -1270,7 +1305,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         endif     
            
         !deallocate lists not used in modify
-        deallocate(Me%Distance)
+        !deallocate(Me%Distance)
         deallocate(Me%AngleList)
 
         if(Me%DistanceType.eq.DistancePolygon) then
@@ -1319,27 +1354,27 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         !Define trigonometric angles with xx positive axe, according to 8 or 16 wind rose directions 
         !Diretion is where wind is blowing from              
-        if (Me%TotalDirections.eq.8) then
-
-            Me%W    = 1
-            Me%SW   = 2
-            Me%S    = 3
-            Me%SE   = 4
-            Me%E    = 5
-            Me%NE   = 6
-            Me%N    = 7
-            Me%NW   = 8
-
-            Me%AngleList(Me%W ) = 0. 
-            Me%AngleList(Me%SW) = 45. 
-            Me%AngleList(Me%S ) = 90. 
-            Me%AngleList(Me%SE) = 135.
-            Me%AngleList(Me%E ) = 180.
-            Me%AngleList(Me%NE) = 225.
-            Me%AngleList(Me%N ) = 270.
-            Me%AngleList(Me%NW) = 315.
-
-        else if (Me%TotalDirections.eq.16) then
+!        if (Me%TotalDirections.eq.8) then
+!
+!            Me%W    = 1
+!            Me%SW   = 2
+!            Me%S    = 3
+!            Me%SE   = 4
+!            Me%E    = 5
+!            Me%NE   = 6
+!            Me%N    = 7
+!            Me%NW   = 8
+!
+!            Me%AngleList(Me%W ) = 0. 
+!            Me%AngleList(Me%SW) = 45. 
+!            Me%AngleList(Me%S ) = 90. 
+!            Me%AngleList(Me%SE) = 135.
+!            Me%AngleList(Me%E ) = 180.
+!            Me%AngleList(Me%NE) = 225.
+!            Me%AngleList(Me%N ) = 270.
+!            Me%AngleList(Me%NW) = 315.
+!
+!        else if (Me%TotalDirections.eq.16) then
 
             Me%N    = 13
             Me%NNE  = 12
@@ -1358,23 +1393,6 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             Me%NW   = 15
             Me%NNW  = 14
             
-!            Me%AngleList(Me%N  ) = 90. 
-!            Me%AngleList(Me%NNE) = 67.5
-!            Me%AngleList(Me%NE ) = 45.
-!            Me%AngleList(Me%ENE) = 22.5
-!            Me%AngleList(Me%E  ) = 0. 
-!            Me%AngleList(Me%ESE) = 337.5
-!            Me%AngleList(Me%SE ) = 315. 
-!            Me%AngleList(Me%SSE) = 292.5
-!            Me%AngleList(Me%S  ) = 270.
-!            Me%AngleList(Me%SSW) = 247.5
-!            Me%AngleList(Me%SW ) = 225.
-!            Me%AngleList(Me%WSW) = 202.5
-!            Me%AngleList(Me%W  ) = 180. 
-!            Me%AngleList(Me%WNW) = 157.5
-!            Me%AngleList(Me%NW ) = 135.
-!            Me%AngleList(Me%NNW) = 112.5
-
             Me%AngleList(Me%N  ) = 270. 
             Me%AngleList(Me%NNE) = 247.5
             Me%AngleList(Me%NE ) = 225.
@@ -1388,11 +1406,11 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             Me%AngleList(Me%SW ) = 45.
             Me%AngleList(Me%WSW) = 22.5
             Me%AngleList(Me%W  ) = 0. 
-            Me%AngleList(Me%WNW) = 157.5
+            Me%AngleList(Me%WNW) = 337.5
             Me%AngleList(Me%NW ) = 315.
             Me%AngleList(Me%NNW) = 292.5
             
-        endif
+!        endif
 
     
     end subroutine ComputeAngleList
@@ -1674,16 +1692,13 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
        
         !Local-----------------------------------------------------------------
         integer                                 :: i, j, ILB, IUB, JLB, JUB
-        real                                    :: Weight22, Weight45, SumWeight
+        real                                    :: Weight22, SumWeight
 
         !Begin-----------------------------------------------------------------
 
-        !Fetch is computed in 8 directions. The difference is in the way of 
-        !calculation, if 8 or 16 wind rose directions are selected.
-        !With 8 wind rose directions, for each fetch direction 3 distances and 3 angles are used 
-        !(the wind direction, one 45 degrees to the right and one 45 degrees to the left.
-        !With 16 wind rose directions, for each fetch direction 5 distances and 5 angles are used 
-        !(the wind direction, 22.5 and 45 degrees to the right and the same to the left.
+        !Fetch is computed in 8 directions.
+        !With 16 wind rose directions, for each fetch direction 3 distances and 3 angles are used 
+        !(the wind direction, 22.5 to the right and the same to the left.
 
         IUB = Me%WorkSize%IUB
         ILB = Me%WorkSize%ILB
@@ -1693,123 +1708,57 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         !The weight is given according to cosine of the angles (angle with wind direction). 
         !The weight along the wind direction (0 deg.) is maximum (1) reducing when angle icreases.
         Weight22 = cos (22.5 * Pi/180.)
-        Weight45 = cos(45. * Pi/180.)
 
-        if (Me%TotalDirections.eq.8) then
+        !The sum of weights with 16 wind rose directions (2 at 22.5 from direction and direction)
+        SumWeight = (2.*Weight22 + 1.)
+    
+        do j=JLB, JUB
+        do i=ILB, IUB
         
-            !The sum of weights with 8 wind rose directions
-            SumWeight = (2. * Weight45 + 1.)
-        
-            do j=JLB, JUB
-            do i=ILB, IUB
-            
-                if (Me%ExternalVar%WaterPoints2D(i, j) == WaterPoint) then
+            if (Me%ExternalVar%WaterPoints2D(i, j) == WaterPoint) then
 
-                    Me%Fetch(i,j, Me%N) = (Weight45 * Me%Distance(i,j, Me%NW)           &
-                                            + Me%Distance(i,j, Me%N)                    &
-                                            + Weight45 * Me%Distance(i,j, Me%NE)) / SumWeight
-                    
-                    Me%Fetch(i,j, Me%NE) = (Weight45 * Me%Distance(i,j, Me%N)           &
-                                            + Me%Distance(i,j, Me%NE)                   &
-                                            + Weight45 * Me%Distance(i,j, Me%E)) / SumWeight
-                   
-                    Me%Fetch(i,j, Me%E) = (Weight45 * Me%Distance(i,j, Me%NE)           &
-                                            + Me%Distance(i,j, Me%E)                    &
-                                            + Weight45 * Me%Distance(i,j, Me%SE)) / SumWeight
-                    
-                    Me%Fetch(i,j, Me%SE) = (Weight45 * Me%Distance(i,j, Me%E)           &
-                                            + Me%Distance(i,j, Me%SE)                   &
-                                            + Weight45 * Me%Distance(i,j, Me%S)) / SumWeight
-                   
-                    Me%Fetch(i,j, Me%S) = (Weight45 * Me%Distance(i,j, Me%SE)           &
-                                            + Me%Distance(i,j, Me%S)                    &
-                                            + Weight45 * Me%Distance(i,j, Me%SW)) / SumWeight
-                    
-                    Me%Fetch(i,j, Me%SW) = (Weight45 * Me%Distance(i,j, Me%S)           &
-                                            + Me%Distance(i,j, Me%SW)                   &
-                                            + Weight45 * Me%Distance(i,j, Me%W)) / SumWeight
-                    
-                    Me%Fetch(i,j, Me%W) = (Weight45 * Me%Distance(i,j, Me%SW)           &
-                                            + Me%Distance(i,j, Me%W)                    &
-                                            + Weight45 * Me%Distance(i,j, Me%NW)) / SumWeight
-                    
-                    Me%Fetch(i,j, Me%NW) = (Weight45 * Me%Distance(i,j, Me%W)           &
-                                            + Me%Distance(i,j, Me%NW)                   &
-                                            + Weight45 * Me%Distance(i,j, Me%N)) / SumWeight
-                endif
+                !The 8 fetch directions (N-NW) now are classified from 1 to 16
 
-            enddo
-            enddo
-        
-        else if (Me%TotalDirections.eq.16) then
+                !N
+                Me%Fetch(i,j, 7) = ( Weight22 * Me%Distance(i,j, Me%NNW)             &
+                                   +            Me%Distance(i,j, Me%N  )             &
+                                   + Weight22 * Me%Distance(i,j, Me%NNE)) / SumWeight
 
-            !The sum of weights with 16 wind rose directions
-            SumWeight = (2.*Weight22 + 2.*Weight45 + 1.)
-        
-            do j=JLB, JUB
-            do i=ILB, IUB
-            
-                if (Me%ExternalVar%WaterPoints2D(i, j) == WaterPoint) then
+                !NE
+                Me%Fetch(i,j, 6) =( Weight22 * Me%Distance(i,j, Me%NNE)              &
+                                  +            Me%Distance(i,j, Me%NE)               &
+                                  + Weight22 * Me%Distance(i,j, Me%ENE)) / SumWeight
+                
+                !E
+                Me%Fetch(i,j, 5) =( Weight22 * Me%Distance(i,j, Me%ENE)              &
+                                  +            Me%Distance(i,j, Me%E)                &
+                                  + Weight22 * Me%Distance(i,j, Me%ESE)) / SumWeight
+                !SE
+                Me%Fetch(i,j, 4) =( Weight22 * Me%Distance(i,j, Me%ESE)              &
+                                  +            Me%Distance(i,j, Me%SE)               &
+                                  + Weight22 * Me%Distance(i,j, Me%SSE)) / SumWeight
+                !S
+                Me%Fetch(i,j, 3) =( Weight22 * Me%Distance(i,j, Me%SSE)              &
+                                  +            Me%Distance(i,j, Me%S)                &
+                                  + Weight22 * Me%Distance(i,j, Me%SSW)) / SumWeight
+                !SW
+                Me%Fetch(i,j, 2) =( Weight22 * Me%Distance(i,j, Me%SSW)              &
+                                  +            Me%Distance(i,j, Me%SW)               &
+                                  + Weight22 * Me%Distance(i,j, Me%WSW)) / SumWeight
+                !W
+                Me%Fetch(i,j, 1) =( Weight22 * Me%Distance(i,j, Me%WSW)              &
+                                  +            Me%Distance(i,j, Me%W)                &
+                                  + Weight22 * Me%Distance(i,j, Me%WNW)) / SumWeight
+                !NW
+                Me%Fetch(i,j, 8) =( Weight22 * Me%Distance(i,j, Me%WNW)              &
+                                  +            Me%Distance(i,j, Me%NW)               &
+                                  + Weight22 * Me%Distance(i,j, Me%NNW)) / SumWeight
 
-                    !The 8 fetch directions (N-NW) now are classified from 1 to 16
+            endif
 
-                    !N
-                    Me%Fetch(i,j, 7) = (Weight45 * Me%Distance(i,j, Me%NW )             &
-                                      + Weight22 * Me%Distance(i,j, Me%NNW)             &
-                                      +            Me%Distance(i,j, Me%N  )             &
-                                      + Weight22 * Me%Distance(i,j, Me%NNE)             &
-                                      + Weight45 * Me%Distance(i,j, Me%NE )) / SumWeight
+        enddo
+        enddo
 
-                    !NE
-                    Me%Fetch(i,j, 6) = (Weight45 * Me%Distance(i,j, Me%N)         &
-                                                + Weight22 * Me%Distance(i,j, Me%NNE)   &
-                                                + Me%Distance(i,j, Me%NE)               &
-                                                + Weight22 * Me%Distance(i,j, Me%ENE)   &
-                                                + Weight45 * Me%Distance(i,j, Me%E)) / SumWeight
-                    
-                    !E
-                    Me%Fetch(i,j, 5) = (Weight45 * Me%Distance(i,j, Me%NE) &
-                                                + Weight22 * Me%Distance(i,j, Me%ENE)   &
-                                                + Me%Distance(i,j, Me%E)                &
-                                                + Weight22 * Me%Distance(i,j, Me%ESE)   &
-                                                + Weight45 * Me%Distance(i,j, Me%SE)) / SumWeight
-                    !SE
-                    Me%Fetch(i,j, 4) = (Weight45 * Me%Distance(i,j, Me%E)         &
-                                                + Weight22 * Me%Distance(i,j, Me%ESE)   &
-                                                + Me%Distance(i,j, Me%SE)               &
-                                                + Weight22 * Me%Distance(i,j, Me%SSE)   &
-                                                + Weight45 * Me%Distance(i,j, Me%S)) / SumWeight
-                    !S
-                    Me%Fetch(i,j, 3) = (Weight45 * Me%Distance(i,j, Me%SE)         &
-                                                + Weight22 * Me%Distance(i,j, Me%SSE)   &
-                                                + Me%Distance(i,j, Me%S)                &
-                                                + Weight22 * Me%Distance(i,j, Me%SSW)   &
-                                                + Weight45 * Me%Distance(i,j, Me%SW)) / SumWeight
-                    !SW
-                    Me%Fetch(i,j, 2) = (Weight45 * Me%Distance(i,j, Me%S)         &
-                                                + Weight22 * Me%Distance(i,j, Me%SSW)   &
-                                                + Me%Distance(i,j, Me%SW)               &
-                                                + Weight22 * Me%Distance(i,j, Me%WSW)   &
-                                                + Weight45 * Me%Distance(i,j, Me%W)) / SumWeight
-                    !W
-                    Me%Fetch(i,j, 1) = (Weight45 * Me%Distance(i,j, Me%SW)         &
-                                                + Weight22 * Me%Distance(i,j, Me%WSW)   &
-                                                + Me%Distance(i,j, Me%W)                &
-                                                + Weight22 * Me%Distance(i,j, Me%WNW)   &
-                                                + Weight45 * Me%Distance(i,j, Me%NW)) / SumWeight
-                    !NW
-                    Me%Fetch(i,j, 8) = (Weight45 * Me%Distance(i,j, Me%W)         &
-                                                + Weight22 * Me%Distance(i,j, Me%WNW)   &
-                                                + Me%Distance(i,j, Me%NW)               &
-                                                + Weight22 * Me%Distance(i,j, Me%NNW)   &
-                                                + Weight45 * Me%Distance(i,j, Me%N)) / SumWeight
-
-                endif
-
-            enddo
-            enddo
-
-        endif
 
     end subroutine ComputeFetch
 
@@ -1819,7 +1768,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
        
         !Local-----------------------------------------------------------------
         integer                                 :: i, j, ILB, IUB, JLB, JUB
-        real                                    :: Weight22, Weight45, SumWeight
+        real                                    :: Weight22, SumWeight
 
         !Begin-----------------------------------------------------------------
         
@@ -1827,12 +1776,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         !there was no work on bibliography but since the distances were weighted for the neighbour angles
         !also the depths were to accoount for variations in neighbour angles.  
         
-        !Depth in the case of using average is computed in 8 directions. The difference is in the way of 
-        !calculation, if 8 or 16 wind rose directions are selected.
-        !With 8 wind rose directions, for each depth direction 3 depths and 3 angles are used 
-        !(the wind direction, one 45 degrees to the right and one 45 degrees to the left.
-        !With 16 wind rose directions, for each direction direction 5 depths and 5 angles are used 
-        !(the wind direction, 22.5 and 45 degrees to the right and the same to the left.
+        !Depth in the case of using average is computed in 8 directions. T
+        !With 16 wind rose directions, for each direction direction 3 depths and 3 angles are used 
+        !(the wind direction, 22.5 degrees to the right and the same to the left.
 
         IUB = Me%WorkSize%IUB
         ILB = Me%WorkSize%ILB
@@ -1842,123 +1788,57 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         !The weight is given according to cosine of the angles (angle with wind direction). 
         !The weight along the wind direction (0 deg.) is maximum (1) reducing when angle icreases.
         Weight22 = cos (22.5 * Pi/180.)
-        Weight45 = cos(45. * Pi/180.)
 
-        if (Me%TotalDirections.eq.8) then
+        !The sum of weights with 16 wind rose directions
+        SumWeight = (2.*Weight22 + 1.)
+    
+        do j=JLB, JUB
+        do i=ILB, IUB
         
-            !The sum of weights with 8 wind rose directions
-            SumWeight = (2. * Weight45 + 1.)
-        
-            do j=JLB, JUB
-            do i=ILB, IUB
-            
-                if (Me%ExternalVar%WaterPoints2D(i, j) == WaterPoint) then
+            if (Me%ExternalVar%WaterPoints2D(i, j) == WaterPoint) then
 
-                    Me%Depth(i,j, Me%N) =    (Weight45 * Me%AverageDepth(i,j, Me%NW)           &
-                                            +            Me%AverageDepth(i,j, Me%N)            &
-                                            + Weight45 * Me%AverageDepth(i,j, Me%NE)) / SumWeight
-                    
-                    Me%Depth(i,j, Me%NE) =   (Weight45 * Me%AverageDepth(i,j, Me%N)            &
-                                            +            Me%AverageDepth(i,j, Me%NE)           &
-                                            + Weight45 * Me%AverageDepth(i,j, Me%E)) / SumWeight
-                   
-                    Me%Depth(i,j, Me%E) =    (Weight45 * Me%AverageDepth(i,j, Me%NE)           &
-                                            +            Me%AverageDepth(i,j, Me%E)            &
-                                            + Weight45 * Me%AverageDepth(i,j, Me%SE)) / SumWeight
-                    
-                    Me%Depth(i,j, Me%SE) =   (Weight45 * Me%AverageDepth(i,j, Me%E)            &
-                                            +            Me%AverageDepth(i,j, Me%SE)           &
-                                            + Weight45 * Me%AverageDepth(i,j, Me%S)) / SumWeight
-                   
-                    Me%Depth(i,j, Me%S) =    (Weight45 * Me%AverageDepth(i,j, Me%SE)           &
-                                            +            Me%AverageDepth(i,j, Me%S)            &
-                                            + Weight45 * Me%AverageDepth(i,j, Me%SW)) / SumWeight
-                    
-                    Me%Depth(i,j, Me%SW) =   (Weight45 * Me%AverageDepth(i,j, Me%S)            &
-                                            +            Me%AverageDepth(i,j, Me%SW)           &
-                                            + Weight45 * Me%AverageDepth(i,j, Me%W)) / SumWeight
-                    
-                    Me%Depth(i,j, Me%W) =    (Weight45 * Me%AverageDepth(i,j, Me%SW)           &
-                                            +            Me%AverageDepth(i,j, Me%W)            &
-                                            + Weight45 * Me%AverageDepth(i,j, Me%NW)) / SumWeight
-                    
-                    Me%Depth(i,j, Me%NW) =   (Weight45 * Me%AverageDepth(i,j, Me%W)            &
-                                            +            Me%AverageDepth(i,j, Me%NW)           &
-                                            + Weight45 * Me%AverageDepth(i,j, Me%N)) / SumWeight
-                endif
+                !The 8 fetch directions (N-NW) now are classified from 1 to 16
 
-            enddo
-            enddo
-        
-        else if (Me%TotalDirections.eq.16) then
+                !N
+                Me%Depth(i,j, 7) = ( Weight22 * Me%AverageDepth(i,j, Me%NNW)             &
+                                   +            Me%AverageDepth(i,j, Me%N  )             &
+                                   + Weight22 * Me%AverageDepth(i,j, Me%NNE)) / SumWeight
 
-            !The sum of weights with 16 wind rose directions
-            SumWeight = (2.*Weight22 + 2.*Weight45 + 1.)
-        
-            do j=JLB, JUB
-            do i=ILB, IUB
-            
-                if (Me%ExternalVar%WaterPoints2D(i, j) == WaterPoint) then
+                !NE
+                Me%Depth(i,j, 6) =( Weight22 * Me%AverageDepth(i,j, Me%NNE)              &
+                                  +            Me%AverageDepth(i,j, Me%NE)               &
+                                  + Weight22 * Me%AverageDepth(i,j, Me%ENE)) / SumWeight
+                
+                !E
+                Me%Depth(i,j, 5) =( Weight22 * Me%AverageDepth(i,j, Me%ENE)              &
+                                  +            Me%AverageDepth(i,j, Me%E)                &
+                                  + Weight22 * Me%AverageDepth(i,j, Me%ESE)) / SumWeight
+                !SE
+                Me%Depth(i,j, 4) =( Weight22 * Me%AverageDepth(i,j, Me%ESE)              &
+                                  +            Me%AverageDepth(i,j, Me%SE)               &
+                                  + Weight22 * Me%AverageDepth(i,j, Me%SSE)) / SumWeight
+                !S
+                Me%Depth(i,j, 3) =( Weight22 * Me%AverageDepth(i,j, Me%SSE)              &
+                                  +            Me%AverageDepth(i,j, Me%S)                &
+                                  + Weight22 * Me%AverageDepth(i,j, Me%SSW)) / SumWeight
+                !SW
+                Me%Depth(i,j, 2) =( Weight22 * Me%AverageDepth(i,j, Me%SSW)              &
+                                  +            Me%AverageDepth(i,j, Me%SW)               &
+                                  + Weight22 * Me%AverageDepth(i,j, Me%WSW)) / SumWeight
+                !W
+                Me%Depth(i,j, 1) =( Weight22 * Me%AverageDepth(i,j, Me%WSW)              &
+                                  +            Me%AverageDepth(i,j, Me%W)                &
+                                  + Weight22 * Me%AverageDepth(i,j, Me%WNW)) / SumWeight
+                !NW
+                Me%Depth(i,j, 8) =( Weight22 * Me%AverageDepth(i,j, Me%WNW)              &
+                                  +            Me%AverageDepth(i,j, Me%NW)               &
+                                  + Weight22 * Me%AverageDepth(i,j, Me%NNW)) / SumWeight
 
-                    !The 8 fetch directions (N-NW) now are classified from 1 to 16
+            endif
 
-                    !N
-                    Me%Depth(i,j, 7) = (Weight45 * Me%AverageDepth(i,j, Me%NW )             &
-                                      + Weight22 * Me%AverageDepth(i,j, Me%NNW)             &
-                                      +            Me%AverageDepth(i,j, Me%N  )             &
-                                      + Weight22 * Me%AverageDepth(i,j, Me%NNE)             &
-                                      + Weight45 * Me%AverageDepth(i,j, Me%NE )) / SumWeight
+        enddo
+        enddo
 
-                    !NE
-                    Me%Depth(i,j, 6) =  (Weight45 * Me%AverageDepth(i,j, Me%N)             &
-                                       + Weight22 * Me%AverageDepth(i,j, Me%NNE)           &
-                                       +            Me%AverageDepth(i,j, Me%NE)            &
-                                       + Weight22 * Me%AverageDepth(i,j, Me%ENE)           &
-                                       + Weight45 * Me%AverageDepth(i,j, Me%E)) / SumWeight
-                    
-                    !E
-                    Me%Depth(i,j, 5) =  (Weight45 * Me%AverageDepth(i,j, Me%NE)            &
-                                       + Weight22 * Me%AverageDepth(i,j, Me%ENE)           &
-                                       +            Me%AverageDepth(i,j, Me%E)             &
-                                       + Weight22 * Me%AverageDepth(i,j, Me%ESE)           &
-                                       + Weight45 * Me%AverageDepth(i,j, Me%SE)) / SumWeight
-                    !SE
-                    Me%Depth(i,j, 4) =  (Weight45 * Me%AverageDepth(i,j, Me%E)             &
-                                       + Weight22 * Me%AverageDepth(i,j, Me%ESE)           &
-                                       +            Me%AverageDepth(i,j, Me%SE)            &
-                                       + Weight22 * Me%AverageDepth(i,j, Me%SSE)           &
-                                       + Weight45 * Me%AverageDepth(i,j, Me%S)) / SumWeight
-                    !S
-                    Me%Depth(i,j, 3) =  (Weight45 * Me%AverageDepth(i,j, Me%SE)            &
-                                       + Weight22 * Me%AverageDepth(i,j, Me%SSE)           &
-                                       +            Me%AverageDepth(i,j, Me%S)             &
-                                       + Weight22 * Me%AverageDepth(i,j, Me%SSW)           &
-                                       + Weight45 * Me%AverageDepth(i,j, Me%SW)) / SumWeight
-                    !SW
-                    Me%Depth(i,j, 2) =  (Weight45 * Me%AverageDepth(i,j, Me%S)             &
-                                       + Weight22 * Me%AverageDepth(i,j, Me%SSW)           &
-                                       +            Me%AverageDepth(i,j, Me%SW)            &
-                                       + Weight22 * Me%AverageDepth(i,j, Me%WSW)           &
-                                       + Weight45 * Me%AverageDepth(i,j, Me%W)) / SumWeight
-                    !W
-                    Me%Depth(i,j, 1) =  (Weight45 * Me%AverageDepth(i,j, Me%SW)            &
-                                       + Weight22 * Me%AverageDepth(i,j, Me%WSW)           &
-                                       +            Me%AverageDepth(i,j, Me%W)             &
-                                       + Weight22 * Me%AverageDepth(i,j, Me%WNW)           &
-                                       + Weight45 * Me%AverageDepth(i,j, Me%NW)) / SumWeight
-                    !NW
-                    Me%Depth(i,j, 8) =  (Weight45 * Me%AverageDepth(i,j, Me%W)             &
-                                       + Weight22 * Me%AverageDepth(i,j, Me%WNW)           &
-                                       +            Me%AverageDepth(i,j, Me%NW)            &
-                                       + Weight22 * Me%AverageDepth(i,j, Me%NNW)           &
-                                       + Weight45 * Me%AverageDepth(i,j, Me%N)) / SumWeight
-
-                endif
-
-            enddo
-            enddo
-
-        endif
 
     end subroutine ComputeDepth
 
@@ -2154,53 +2034,55 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             
             deallocate (FetchDistance)
             
-            
-            !Fetch weighted in 8 directions            
-            allocate (Fetch(ILB:IUB,JLB:JUB))
-            Fetch = FillValueReal
-            
-            Angle = 0. !first angle is zero trigonometric (wind from west to east)
-            
-            do Direction = 1, 8
+            !if fetch direction 8 than more output - the weighted fetch
+            !if fetch direction 16 then the fetch distance is the distances computed above
+            if (Me%FetchDirections .eq. 8) then
+                !Fetch weighted in 8 directions            
+                allocate (Fetch(ILB:IUB,JLB:JUB))
+                Fetch = FillValueReal
                 
-                !remove one dimension from Fetch distances
-                do j=JLB, JUB
-                do i=ILB, IUB
+                Angle = 0. !first angle is zero trigonometric (wind from west to east)
                 
-                    if (Me%ExternalVar%WaterPoints2D(i, j) == WaterPoint) then
-                        Fetch(i,j) = Me%Fetch(i,j,Direction)
+                do Direction = 1, 8
+                    
+                    !remove one dimension from Fetch distances
+                    do j=JLB, JUB
+                    do i=ILB, IUB
+                    
+                        if (Me%ExternalVar%WaterPoints2D(i, j) == WaterPoint) then
+                            Fetch(i,j) = Me%Fetch(i,j,Direction)
+                        endif
+                    enddo
+                    enddo
+                    
+                    !Convert from trigonometric to wind referencial
+                    AngleReal = 270. - Angle
+                    if (AngleReal .lt. 0.) then
+                        AngleReal = AngleReal + 360.
                     endif
+                    
+                    ! converting integer to string using a 'internal file'
+                    write (AngleChar, '(f5.1)') AngleReal
+                    
+                    !Writes the directions 
+                    FetchFile = trim(FetchDistancesFolder)//"FetchWeighted"//"_"//trim(AngleChar)//".dat"
+                                    
+                    call WriteGridData  (FetchFile,                   &
+                         COMENT1          = "FetchWeightedFile - Angles in filename are in wind referencial",  &
+                         COMENT2          = "(e.g. 0º is wind from N to S and 270º from W to E)",               &
+                         HorizontalGridID = Me%ObjHorizontalGrid,              &
+                         FillValue        = -99.0,                             &
+                         OverWrite        = .true.,                            &
+                         GridData2D_Real  = Fetch,                             &
+                         STAT             = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'Output_GridData - ModuleWaves - ERR10'
+                    
+                    Angle = Angle + 45.
+                    
                 enddo
-                enddo
                 
-                !Convert from trigonometric to wind referencial
-                AngleReal = 270. - Angle
-                if (AngleReal .lt. 0.) then
-                    AngleReal = AngleReal + 360.
-                endif
-                
-                ! converting integer to string using a 'internal file'
-                write (AngleChar, '(f5.1)') AngleReal
-                
-                !Writes the directions 
-                FetchFile = trim(FetchDistancesFolder)//"FetchWeighted"//"_"//trim(AngleChar)//".dat"
-                                
-                call WriteGridData  (FetchFile,                   &
-                     COMENT1          = "FetchWeightedFile - Angles in filename are in wind referencial",  &
-                     COMENT2          = "(e.g. 0º is wind from N to S and 270º from W to E)",               &
-                     HorizontalGridID = Me%ObjHorizontalGrid,              &
-                     FillValue        = -99.0,                             &
-                     OverWrite        = .true.,                            &
-                     GridData2D_Real  = Fetch,                             &
-                     STAT             = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'Output_GridData - ModuleWaves - ERR10'
-                
-                Angle = Angle + 45.
-                
-            enddo
-            
-            deallocate (Fetch)
-            
+                deallocate (Fetch)
+            endif
         endif        
     
     
@@ -2253,53 +2135,56 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             
             deallocate (AverageDepth)
 
-
-            !Depth weighted in 8 directions            
-            allocate (Depth(ILB:IUB,JLB:JUB))
-            Depth = FillValueReal
             
-            Angle = 0. !first angle is zero trigonometric (wind from west to east)
-            
-            do Direction = 1, 8
+            !if fetch direction 8 than more output - the weighted depth
+            !if fetch direction 16 then the fetch depth is the average depths computed above
+            if (Me%FetchDirections .eq. 8) then
+                !Depth weighted in 8 directions            
+                allocate (Depth(ILB:IUB,JLB:JUB))
+                Depth = FillValueReal
                 
-                !remove one dimension from Depth
-                do j=JLB, JUB
-                do i=ILB, IUB
+                Angle = 0. !first angle is zero trigonometric (wind from west to east)
                 
-                    if (Me%ExternalVar%WaterPoints2D(i, j) == WaterPoint) then
-                        Depth(i,j) = Me%Depth(i,j,Direction)
+                do Direction = 1, 8
+                    
+                    !remove one dimension from Depth
+                    do j=JLB, JUB
+                    do i=ILB, IUB
+                    
+                        if (Me%ExternalVar%WaterPoints2D(i, j) == WaterPoint) then
+                            Depth(i,j) = Me%Depth(i,j,Direction)
+                        endif
+                    enddo
+                    enddo
+                    
+                    !Convert from trigonometric to wind referencial
+                    AngleReal = 270. - Angle
+                    if (AngleReal .lt. 0.) then
+                        AngleReal = AngleReal + 360.
                     endif
+                    
+                    ! converting integer to string using a 'internal file'
+                    write (AngleChar, '(f5.1)') AngleReal
+                    
+                    !Writes the directions 
+                    FetchDepthsFile = trim(FetchDepthsFolder)//"DepthWeighted"//"_"//trim(AngleChar)//".dat"
+                                    
+                    call WriteGridData  (FetchDepthsFile,                   &
+                         COMENT1          = "DepthWeightedFile - Angles in filename are in wind referencial",  &
+                         COMENT2          = "(e.g. 0º is wind from N to S and 270º from W to E)",               &
+                         HorizontalGridID = Me%ObjHorizontalGrid,              &
+                         FillValue        = -99.0,                             &
+                         OverWrite        = .true.,                            &
+                         GridData2D_Real  = Depth,                             &
+                         STAT             = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'Output_GridData - ModuleWaves - ERR10'
+                    
+                    Angle = Angle + 45.
+                    
                 enddo
-                enddo
                 
-                !Convert from trigonometric to wind referencial
-                AngleReal = 270. - Angle
-                if (AngleReal .lt. 0.) then
-                    AngleReal = AngleReal + 360.
-                endif
-                
-                ! converting integer to string using a 'internal file'
-                write (AngleChar, '(f5.1)') AngleReal
-                
-                !Writes the directions 
-                FetchDepthsFile = trim(FetchDepthsFolder)//"DepthWeighted"//"_"//trim(AngleChar)//".dat"
-                                
-                call WriteGridData  (FetchDepthsFile,                   &
-                     COMENT1          = "DepthWeightedFile - Angles in filename are in wind referencial",  &
-                     COMENT2          = "(e.g. 0º is wind from N to S and 270º from W to E)",               &
-                     HorizontalGridID = Me%ObjHorizontalGrid,              &
-                     FillValue        = -99.0,                             &
-                     OverWrite        = .true.,                            &
-                     GridData2D_Real  = Depth,                             &
-                     STAT             = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'Output_GridData - ModuleWaves - ERR10'
-                
-                Angle = Angle + 45.
-                
-            enddo
-            
-            deallocate (Depth)
-            
+                deallocate (Depth)
+            endif    
         endif    
 
         !Ungets WaterPoints2D
@@ -2929,7 +2814,7 @@ cd2:                if (Me%WaveHeight%Field       (i,j) .lt. 0.1 .or.           
         real                                    :: Wind, LeftDirection, RightDirection 
         real                                    :: COEF1, COEF2, U2, WindX, WindY 
         integer                                 :: i, j, ILB, IUB, JLB, JUB, WindDirection
-        real                                    :: WindAngle
+        real                                    :: WindAngle, AngleRange
         
         !Begin-----------------------------------------------------------------
         
@@ -2964,36 +2849,43 @@ cd2:                if (Me%WaveHeight%Field       (i,j) .lt. 0.1 .or.           
                     WindAngle = WindAngle + 360.
                 endif
                 
-                !Wind directions are fused into 8 major directions (N,NE,E,SE,S,SW,W,NW)
-                !Numbers are used instead of Me%[direction] because fetch as only 8 positions
-                !no matter if 8 or 16 wind rose directions are used
-                if ((WindAngle .gt. 337.5) .and. (WindAngle .le. 360.) .Or. &
-                    (WindAngle .ge. 0.   ) .and. (WindAngle .le. 22.5)) then
+                !define angle ranges (º) for each side of cardinal directions for checking where wind is coming from
+                if (Me%FetchDirections .eq. 8) then
+                    AngleRange = 22.5
+                elseif (Me%FetchDirections .eq. 16) then
+                    AngleRange = 11.25
+                endif
+                
+                !Wind directions are fused into 8 or 16 major directions 
+                !starting with wind from W (0º in trigonometric ref) because of discontinuity in 0º and 360º
+                if ((WindAngle .gt. (360. - AngleRange )) .and. (WindAngle .le. 360.             ) .Or. &
+                    (WindAngle .ge. 0.                  ) .and. (WindAngle .le. (0. + AngleRange))) then
                     
                     !if trigonometric angle is near zero then wind comes from West
                     WindDirection = Me%W
 
                 else 
-    
+                    
+                    !next start rotating anti clockwise (wind from SW or SSW)
                     WindDirection = Me%W + 1
-                    LeftDirection = 22.5
-                    RightDirection = 67.5
+                    LeftDirection = 0. + AngleRange
+                    RightDirection = LeftDirection + (2. * AngleRange)
             
-                    do while (WindDirection.le.8)
+                    do while (WindDirection .le. Me%FetchDirections)
 
                         if ((WindAngle .gt. LeftDirection).And.&
                             (WindAngle .le. RightDirection)) then
                             exit 
                         else
                             LeftDirection  = RightDirection
-                            RightDirection = RightDirection + 45.
+                            RightDirection = LeftDirection + (2. * AngleRange)
                             WindDirection  = WindDirection + 1
                         endif
 
                     enddo
                 endif
 
-                if (WindDirection.gt.8) then
+                if (WindDirection .gt. Me%FetchDirections) then
                     stop 'ComputeWaveHeightFetch - ModuleWaves - ERR10'
                 endif
         
@@ -3079,7 +2971,7 @@ cd2:                if (Me%WaveHeight%Field       (i,j) .lt. 0.1 .or.           
         real                                    :: Wind, LeftDirection, RightDirection 
         real                                    :: COEF3, COEF4, U2, WindX, WindY
         integer                                 :: i, j, ILB, IUB, JLB, JUB, WindDirection
-        real                                    :: WindAngle
+        real                                    :: WindAngle, AngleRange
 
        !Begin-----------------------------------------------------------------
         
@@ -3113,36 +3005,42 @@ cd2:                if (Me%WaveHeight%Field       (i,j) .lt. 0.1 .or.           
                     WindAngle = WindAngle + 360.
                 endif
 
-                !Wind directions are fused into 8 major directions (N,NE,E,SE,S,SW,W,NW)
-                !Numbers are used instead of Me%[direction] because fetch as only 8 positions
-                !no matter if 8 or 16 wind rose directions are used
-                if ((WindAngle .gt. 337.5) .and. (WindAngle .le. 360.) .Or. &
-                    (WindAngle .ge. 0.   ) .and. (WindAngle .le. 22.5)) then
+                !define angle ranges (º) for each side of cardinal directions for checking where wind is coming from
+                if (Me%FetchDirections .eq. 8) then
+                    AngleRange = 22.5
+                elseif (Me%FetchDirections .eq. 16) then
+                    AngleRange = 11.25
+                endif
+                
+                !Wind directions are fused into 8 or 16 major directions 
+                !starting with wind from W (0º in trigonometric ref) because of discontinuity in 0º and 360º
+                if ((WindAngle .gt. (360. - AngleRange)) .and. (WindAngle .le. 360.             ) .Or. &
+                    (WindAngle .ge. 0.                 ) .and. (WindAngle .le. (0. + AngleRange))) then
                     
                     !if trigonometric angle is near zero then wind comes from West                    
                     WindDirection = Me%W
 
                 else 
-    
+                    !next start rotating anti clockwise (wind from SW or SSW)
                     WindDirection = Me%W + 1
-                    LeftDirection = 22.5
-                    RightDirection = 67.5
+                    LeftDirection = 0. + AngleRange
+                    RightDirection = LeftDirection + (2 * AngleRange)
             
-                    do while (WindDirection.le.8)
+                    do while (WindDirection .le. Me%FetchDirections)
 
                         if ((WindAngle .gt. LeftDirection).And.&
                             (WindAngle .le. RightDirection)) then
                             exit 
                         else
                             LeftDirection  = RightDirection
-                            RightDirection = RightDirection + 45.
+                            RightDirection = LeftDirection + (2 * AngleRange)
                             WindDirection  = WindDirection + 1
                         endif
 
                     enddo
                 endif
         
-                if (WindDirection.gt.8) then
+                if (WindDirection .gt. Me%FetchDirections) then
                     stop 'ComputeWavePeriodFetch - ModuleWaves - ERR10'
                 endif
 
@@ -3607,10 +3505,11 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                 endif
 
                 if (Me%Wavegen_type.eq.CEQUALW2) then
-
+                    deallocate(Me%Distance)
                     deallocate(Me%Fetch)
                     
                     if (Me%DepthType.eq.DepthAverage .or. Me%DepthType.eq.DepthDefined) then
+                        deallocate(Me%AverageDepth)
                         deallocate(Me%Depth)
                     endif
                 endif
