@@ -177,7 +177,7 @@ program SmoothBatimNesting
                      STAT         = STAT_CALL)        
         if(STAT_CALL .ne. SUCCESS_) stop 'ReadGridFilesNames - SmoothBatimNesting - ERR45'
         
-        call StartComputeTime(Me%ObjTime, BeginTime, EndTime, DT, VariableDT = .false., STAT = STAT_CALL)
+        call StartComputeTime(Me%ObjTime, BeginTime,BeginTime, EndTime, DT, VariableDT = .false., STAT = STAT_CALL)
         if(STAT_CALL .ne. SUCCESS_) stop 'ReadGridFilesNames - SmoothBatimNesting - ERR48'
         
         !Construct grids
