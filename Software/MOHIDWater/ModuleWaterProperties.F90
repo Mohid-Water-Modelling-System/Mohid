@@ -54,7 +54,8 @@
 !   MACR_HEIGHT_BIOMASS_RATIO   : real            [0.002]       ! ratio Height/biomass (m/gC/m2)
 !                                                               ! this ratio is calculated knowing that biomass of 
 !                                                                500gdw/m2 average height =0.25 (Astill & Lavery, 2001)
-!                                                                gC= 0.3*gdw (Duarte, 1990)--> 0.25m/[500gdw/m2*0.3gC/gdw] = 0.002 m/gC/m2
+!                                                                gC= 0.3*gdw (Duarte, 1990)--> 
+!0.25m/[500gdw/m2*0.3gC/gdw] = 0.002 m/gC/m2
 
 !   <begin_shading>
 !   See module FillMatrix       : -                [m]          !Imposed shading factor
@@ -136,7 +137,8 @@
 !   CO2_PPRESSURE_OUTPUT        : 0/1               [0]         !Optinal HDF output for CO2 (partial pressure in the water)
 !   O2_SATURATION_OUTPUT        : 0/1               [0]         !Optinal HDF output for O2 (saturation in the water)
 
-!   CHLA_WQ_OUTPUT              : 0/1               [0]         !Optinal HDF output for Chla in WaterQuality module (conversion from mgC/L to ug Chla/L)
+!   CHLA_WQ_OUTPUT              : 0/1               [0]         !Optinal HDF output for Chla in WaterQuality module 
+!(conversion from mgC/L to ug Chla/L)
 !   C_CHLA_OUTPUT               : real              [60]        !C:Chla ratio for the conversion
 
       
@@ -8382,10 +8384,10 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             if (Me%Coupled%MinimumConcentration%Yes .or.      &
                 Me%Coupled%MaximumConcentration%Yes)          &
                 call SetLimitsConcentration !('Physical Processes')
-            
+
             if (Me%Coupled%FreeVerticalMovement%Yes)          &
                 call FreeVerticalMovements_Processes
-            
+
             if (Me%Coupled%BottomFluxes%Yes)                  &
                 call Bottom_Processes
 
@@ -8422,7 +8424,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
             if (Me%Coupled%Life%Yes)                          &
                 call Life_Processes
-            
+
             if (Me%Coupled%MacroAlgae%Yes)                    &
                 call MacroAlgae_Processes
 
@@ -10509,7 +10511,7 @@ do7 :                           do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                                         Me%MassFluxesY,                      &
                                         Me%MassFluxesZ,                      &
                                         trim(Property%ID%Name),              &
-                                        Me%ExternalVar%WaterPoints3D,        &
+                                        Me%ExternalVar%OpenPoints3D,        &
                                         STAT = STAT_CALL)
                             if (STAT_CALL .NE. SUCCESS_)                     &
                             stop 'Advection_Diffusion_Processes - ModuleWaterProperties - ERR300'
@@ -10864,19 +10866,18 @@ cd5:                if (TotalVolume > 0.) then
                                  FirstProp      = WqRateX%FirstProp%IDNumber,               &
                                  SecondProp     = WqRateX%SecondProp%IDNumber,              &
                                  RateFlux3D     = WqRateX%Field,                            &
-                                 WaterPoints3D  = Me%ExternalVar%WaterPoints3D,             &
+                                 WaterPoints3D  = Me%ExternalVar%OpenPoints3D,             &
                                  STAT           = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)                                                &
                     stop 'WaterQuality_Processes - ModuleWaterProperties - ERR04'
 
-
-                where (Me%ExternalVar%WaterPoints3D == WaterPoint) &
-                    WqRateX%Field = WqRateX%Field * Me%ExternalVar%VolumeZ / Me%Coupled%WQM%DT_Compute
+                where (Me%ExternalVar%OpenPoints3D == WaterPoint) &
+                        WqRateX%Field = WqRateX%Field * Me%ExternalVar%VolumeZ / Me%Coupled%WQM%DT_Compute
 
                 call BoxDif(Me%ObjBoxDif,                                                   &
                             WqRateX%Field,                                                  &
                             trim(WqRateX%ID%Name),                                          &
-                            Me%ExternalVar%WaterPoints3D,                                   &
+                            Me%ExternalVar%OpenPoints3D,                                   &
                             STAT  = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)                                                &
                     stop 'WaterQuality_Processes - ModuleWaterProperties - ERR05'
@@ -10979,19 +10980,19 @@ cd5:                if (TotalVolume > 0.) then
                 call GetRateFlux(InterfaceID    = Me%ObjInterface,                          &
                                  RateIndex      = WqRateX%CeQualID,                         &
                                  RateFlux3D     = WqRateX%Field,                            &
-                                 WaterPoints3D  = Me%ExternalVar%WaterPoints3D,             &
+                                 WaterPoints3D  = Me%ExternalVar%OpenPoints3D,             &
                                  STAT           = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)                                                &
                     stop 'CEQUALW2_Processes - ModuleWaterProperties - ERR04'
 
 
-                where (Me%ExternalVar%WaterPoints3D == WaterPoint) &
+                where (Me%ExternalVar%OpenPoints3D == WaterPoint) &
                     WqRateX%Field = WqRateX%Field * Me%ExternalVar%VolumeZ 
 
                 call BoxDif(Me%ObjBoxDif,                                                   &
                             WqRateX%Field,                                                  &
                             trim(WqRateX%ID%Name),                                          &
-                            Me%ExternalVar%WaterPoints3D,                                   &
+                            Me%ExternalVar%OpenPoints3D,                                   &
                             STAT  = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)                                                &
                     stop 'CEQUALW2_Processes - ModuleWaterProperties - ERR05'
@@ -11245,20 +11246,20 @@ cd5:                if (TotalVolume > 0.) then
                                  FirstProp      = WqRateX%FirstProp%IDNumber,               &
                                  SecondProp     = WqRateX%SecondProp%IDNumber,              &
                                  RateFlux3D     = WqRateX%Field,                            &
-                                 WaterPoints3D  = Me%ExternalVar%WaterPoints3D,             &
+                                 WaterPoints3D  = Me%ExternalVar%OpenPoints3D,             &
                                  STAT           = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)                                                &
                     stop 'MacroAlgae_Processes - ModuleWaterProperties - ERR04'
 
 
-                where (Me%ExternalVar%WaterPoints3D == WaterPoint) &
+                where (Me%ExternalVar%OpenPoints3D == WaterPoint) &
                     WqRateX%Field = WqRateX%Field * Me%ExternalVar%VolumeZ / &
                                     Me%Coupled%MacroAlgae%DT_Compute
 
                 call BoxDif(Me%ObjBoxDif,                                                   &
                             WqRateX%Field,                                                  &
                             trim(WqRateX%ID%Name),                                          &
-                            Me%ExternalVar%WaterPoints3D,                                   &
+                            Me%ExternalVar%OpenPoints3D,                                   &
                             STAT  = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)                                                &
                     stop 'MacroAlgae_Processes - ModuleWaterProperties - ERR05'
@@ -12630,7 +12631,7 @@ do1 :   do while (associated(PropertyX))
                                 if (T90%Concentration(i,j,k) <= 0.) then
                                     !$OMP CRITICAL (FODP1_WARN20)
                                     write(*,*) 'The T90 of property ', trim(PropertyX%ID%Name), ' can not be <= 0'
-                                    write(*,*) 'cell I=', i,' J=',j,' k=',k
+                                    write(*,*) 'cell I=', i,' J=',j,' k=', k
                                     write(*,*) 'It was assumed a T90 =', T90Aux
                                     write(*,*) 'FirstOrderDecayProcesses - ModuleWaterProperties - WARN20'
                                     !$OMP END CRITICAL (FODP1_WARN20)
@@ -15931,7 +15932,7 @@ i2:     if (Me%OutPut%Radiation) then
 
                 call BoxDif(Me%ObjBoxDif, Me%CellMass,                      &
                             trim(PropertyX%ID%name),                        &
-                            Me%ExternalVar%WaterPoints3D,                   &
+                            Me%ExternalVar%OpenPoints3D,                   &
                             STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_)  &
                     stop 'OutPut_BoxTimeSeries - ModuleWaterProperties - ERR01'
