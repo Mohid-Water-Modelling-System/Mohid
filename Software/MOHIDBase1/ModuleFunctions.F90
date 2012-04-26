@@ -4169,8 +4169,8 @@ end function
 
         if(present(PointsToFill2D))then
             
-            !!$OMP PARALLEL SHARED(CHUNK, DT1, Matrix2, DT2, Matrix1, DTtotal, PointsToFill2D) PRIVATE(I,J)
-            !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            !! $OMP PARALLEL SHARED(CHUNK, DT1, Matrix2, DT2, Matrix1, DTtotal, PointsToFill2D) PRIVATE(I,J)
+            !! $OMP DO SCHEDULE(DYNAMIC, CHUNK)
             do j = Size%JLB, Size%JUB
             do i = Size%ILB, Size%IUB
             
@@ -4182,13 +4182,13 @@ end function
 
             enddo
             enddo
-            !!$OMP END DO NOWAIT
-            !!$OMP END PARALLEL
+            !! $OMP END DO NOWAIT
+            !! $OMP END PARALLEL
 
         else
             
-            !!$OMP PARALLEL SHARED(CHUNK, DT1, Matrix2, DT2, Matrix1, DTtotal) PRIVATE(I,J)
-            !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            !! $OMP PARALLEL SHARED(CHUNK, DT1, Matrix2, DT2, Matrix1, DTtotal) PRIVATE(I,J)
+            !! $OMP DO SCHEDULE(DYNAMIC, CHUNK)
             do j = Size%JLB, Size%JUB
             do i = Size%ILB, Size%IUB
             
@@ -4196,8 +4196,8 @@ end function
 
             enddo
             enddo
-            !!$OMP END DO NOWAIT
-            !!$OMP END PARALLEL
+            !! $OMP END DO NOWAIT
+            !! $OMP END PARALLEL
 
         endif
 
@@ -4236,8 +4236,8 @@ end function
 
         if(present(PointsToFill3D))then
 
-            !!$OMP PARALLEL SHARED(CHUNK, DT1, Matrix2, DT2, Matrix1, DTtotal, PointsToFill3D) PRIVATE(I,J)
-            !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            !! $OMP PARALLEL SHARED(CHUNK, DT1, Matrix2, DT2, Matrix1, DTtotal, PointsToFill3D) PRIVATE(I,J)
+            !! $OMP DO SCHEDULE(DYNAMIC, CHUNK)
             do k = Size%KLB, Size%KUB
             do j = Size%JLB, Size%JUB
             do i = Size%ILB, Size%IUB
@@ -4251,13 +4251,13 @@ end function
             enddo
             enddo
             enddo
-            !!$OMP END DO NOWAIT
-            !!$OMP END PARALLEL
+            !! $OMP END DO NOWAIT
+            !! $OMP END PARALLEL
 
         else
             
-            !!$OMP PARALLEL SHARED(CHUNK, DT1, Matrix2, DT2, Matrix1, DTtotal, PointsToFill3D) PRIVATE(I,J)
-            !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            !! $OMP PARALLEL SHARED(CHUNK, DT1, Matrix2, DT2, Matrix1, DTtotal, PointsToFill3D) PRIVATE(I,J)
+            !! $OMP DO SCHEDULE(DYNAMIC, CHUNK)
             do k = Size%KLB, Size%KUB
             do j = Size%JLB, Size%JUB
             do i = Size%ILB, Size%IUB
@@ -4267,8 +4267,8 @@ end function
             enddo
             enddo
             enddo
-            !!$OMP END DO NOWAIT
-            !!$OMP END PARALLEL
+            !! $OMP END DO NOWAIT
+            !! $OMP END PARALLEL
 
         end if
 
@@ -4300,8 +4300,8 @@ end function
 
         if (NumberOfCells > 0) then
 
-            !!!$OMP PARALLEL PRIVATE(j,i,dimax,djmax,dijmax,SumValues,Count,dij,jj,ii)
-            !!!$OMP DO SCHEDULE(DYNAMIC,CHUNK)        
+            !!! $OMP PARALLEL PRIVATE(j,i,dimax,djmax,dijmax,SumValues,Count,dij,jj,ii)
+            !!! $OMP DO SCHEDULE(DYNAMIC,CHUNK)        
             do j = JLB, JUB
             do i = ILB, IUB
             
@@ -4349,8 +4349,8 @@ end function
 
             enddo
             enddo
-            !!!$OMP END DO NOWAIT
-            !!!$OMP END PARALLEL
+            !!! $OMP END DO NOWAIT
+            !!! $OMP END PARALLEL
 
         endif
 
@@ -4378,9 +4378,9 @@ end function
         !$ CHUNK = CHUNK_J(JLB,JUB) !
         
         !griflet
-        !!!$OMP PARALLEL PRIVATE( k,NumberOfCells,NoMapping,j,i,OkMap,&
-        !!!$OMP                   dimax,djmax,dijmax,SumValues,Count, &
-        !!!$OMP                   dij,jj,ii,dk,kk)
+        !!! $OMP PARALLEL PRIVATE( k,NumberOfCells,NoMapping,j,i,OkMap,&
+        !!! $OMP                   dimax,djmax,dijmax,SumValues,Count, &
+        !!! $OMP                   dij,jj,ii,dk,kk)
 d1:     do k = KLB, KUB
 
             if (associated(ComputePoints3D)) then
@@ -4397,7 +4397,7 @@ d1:     do k = KLB, KUB
 
             if (NumberOfCells > 0) then
 
-                !!!$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+                !!! $OMP DO SCHEDULE(DYNAMIC,CHUNK)
                 do j = JLB, JUB
                 do i = ILB, IUB
                 
@@ -4494,12 +4494,12 @@ d1:     do k = KLB, KUB
 
                 enddo
                 enddo
-                !!!$OMP END DO NOWAIT
+                !!! $OMP END DO NOWAIT
 
             endif
 
         enddo d1
-        !!!$OMP END PARALLEL
+        !!! $OMP END PARALLEL
 
     end subroutine ExtraPol3DNearestCell
 
@@ -4527,9 +4527,9 @@ d1:     do k = KLB, KUB
         !$ CHUNK = CHUNK_J(JLB,JUB) !
         
         !griflet
-        !!!$OMP PARALLEL PRIVATE( k,NumberOfCells,NoMapping,j,i,OkMap,&
-        !!!$OMP                   dimax,djmax,dijmax,SumValues,Count, &
-        !!!$OMP                   dij,jj,ii,dk,kk)
+        !!! $OMP PARALLEL PRIVATE( k,NumberOfCells,NoMapping,j,i,OkMap,&
+        !!! $OMP                   dimax,djmax,dijmax,SumValues,Count, &
+        !!! $OMP                   dij,jj,ii,dk,kk)
 d1:     do k = KLB, KUB
 
             if (associated(ComputePoints3D)) then
@@ -4545,7 +4545,7 @@ d1:     do k = KLB, KUB
 
             if (NumberOfCells > 0) then
 
-                !!!$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+                !!! $OMP DO SCHEDULE(DYNAMIC,CHUNK)
                 do j = JLB, JUB
                 do i = ILB, IUB
                 
@@ -4641,12 +4641,12 @@ d1:     do k = KLB, KUB
 
                 enddo
                 enddo
-                !!!$OMP END DO NOWAIT
+                !!! $OMP END DO NOWAIT
 
             endif
 
         enddo d1
-        !!!$OMP END PARALLEL
+        !!! $OMP END PARALLEL
 
     end subroutine ExtraPol3DNearestCell_8
 
@@ -8845,7 +8845,8 @@ d2:         do i=1,n-m ! we loop over the current c’s and d’s and update them.
 
             SettlingVelocity = KL*(CHS)**M*(1.0-Aux)**ML 
 
-        elseif(Aux > 1. .and. Concentration < 10.) then
+        !GRiflet: Correccao feita em coordenacao com LPinto
+        elseif(Aux > 1.) then
 
             SettlingVelocity = 0. !if concentration is to high settling velocity is null
 

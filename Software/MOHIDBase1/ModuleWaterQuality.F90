@@ -1012,8 +1012,6 @@ cd0 :   if (ready_ .EQ. IDLE_ERR_) then
 
             endif
 
-
-
             if (countequa.ne.PropUB)                                                                & 
                 stop 'Subroutine Construct_WQRateFlux; Module ModuleWaterQuality. ERR20.'
 

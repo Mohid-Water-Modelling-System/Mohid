@@ -2447,7 +2447,7 @@ idef:               if (Me%ExtVar%DefineCellsMap(i, j)==1) then
     subroutine SelectPointsWithNoData
         
         !Local-----------------------------------------------------------------
-        real, dimension(:,:), allocatable   :: AuxVector
+        real, dimension(:,:), pointer   :: AuxVector
         integer                             :: i, j, Count, GridPoints
 
         !Begin-----------------------------------------------------------------
@@ -2612,11 +2612,11 @@ idef:               if (Me%ExtVar%DefineCellsMap(i, j)==1) then
 
     end subroutine SetGridLimits
     
-    !--------------------------------------------------------------------------
+    !---------------------------------------------------------------------------
 
     subroutine Triangulator
 
-        !Local-----------------------------------------------------------------
+        !Local------------------------------------------------------------------
         real, dimension(:), pointer         :: NodeX, NodeY, NodeZ
         integer                             :: i, j, STAT_CALL, Count, nNodes
         integer                             :: UnitNumber, iT, nTriangles
@@ -2624,7 +2624,7 @@ idef:               if (Me%ExtVar%DefineCellsMap(i, j)==1) then
         integer, dimension(:), pointer      :: V1, V2, V3
         real,    dimension(:), allocatable  :: Aux2
 
-        !Begin-----------------------------------------------------------------
+        !Begin------------------------------------------------------------------
 
 
         write(*,*)"Performing triangulation..."
@@ -2718,6 +2718,7 @@ idef:               if (Me%ExtVar%DefineCellsMap(i, j)==1) then
             call UnitsManager (UnitNumber, CLOSE_FILE, STAT = STAT_CALL)
 
             deallocate(XT, YT, ZT, v1, v2, v3)
+            
         endif
 
         call KillTriangulation (Me%ObjTriangulation, STAT_CALL)

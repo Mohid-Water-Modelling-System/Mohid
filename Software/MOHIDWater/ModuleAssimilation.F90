@@ -628,6 +628,7 @@ Module ModuleAssimilation
                                           CoordY   = CoordY,                                & 
                                           CoordON  = CoordON,                               &
                                           STAT     = STAT_CALL)
+
                 if (CoordON) then
                     call GetXYCellZ(Me%ObjHorizontalGrid, CoordX, CoordY, Id, Jd, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleAssimilation - ERR50'
@@ -647,23 +648,19 @@ Module ModuleAssimilation
 
                     call CorrectsCellsTimeSerie(Me%ObjTimeSerie, dn, Id, Jd, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleAssimilation - ERR80'
+
                 endif
 
-
             enddo
-
 
         endif
 
         call UnGetMap(Me%ObjMap, WaterPoints3D, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleAssimilation - ERR70'
-    
-        
+
     end subroutine ConstructTimeSerie
 
     !--------------------------------------------------------------------------
-
-
 
     subroutine ConstructAssimilationList
 

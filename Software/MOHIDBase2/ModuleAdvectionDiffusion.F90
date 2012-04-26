@@ -2088,7 +2088,7 @@ cd1 :       if (Me%ExternalVar%ComputeFacesW3D(i, j, k) == 1) then
         end do do2
         !$OMP END DO
         end do do1
-        !!$OMP END PARALLEL
+        !! $OMP END PARALLEL
 
 
         if (Me%ExternalVar%NullDif)then
@@ -2384,7 +2384,7 @@ st:     if (Me%State%VertAdv) then
 
             !CHUNK = CHUNK_J(Me%Size%JLB, Me%Size%JUB)
         
-            !!$OMP PARALLEL SHARED(CHUNK) PRIVATE(I,J)
+            !! $OMP PARALLEL SHARED(CHUNK) PRIVATE(I,J)
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
 
 j1:         do j = Me%WorkSize%JLB, Me%WorkSize%JUB
@@ -2413,7 +2413,7 @@ i1:         do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             end do j1
             
             !$OMP END DO
-            !!$OMP END PARALLEL
+            !! $OMP END PARALLEL
 
         endif st
 
@@ -2515,7 +2515,7 @@ st:     if (Me%State%VertAdv) then
 
             !CHUNK = CHUNK_J(Me%Size%JLB, Me%Size%JUB)
         
-            !!$OMP PARALLEL SHARED(CHUNK) PRIVATE(I,J)
+            !! $OMP PARALLEL SHARED(CHUNK) PRIVATE(I,J)
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
 
 j1:         do j = Me%WorkSize%JLB, Me%WorkSize%JUB
@@ -2544,7 +2544,7 @@ i1:         do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             end do j1
             
             !$OMP END DO
-            !!$OMP END PARALLEL
+            !! $OMP END PARALLEL
 
         endif st
 
@@ -3284,8 +3284,8 @@ st:     if (Me%State%HorAdv) then
             
             !CHUNK = CHUNK_K(Me%Size%KLB, Me%Size%KUB)
 
-            !!$OMP PARALLEL SHARED(CHUNK) PRIVATE(I,K)
-            !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            !! $OMP PARALLEL SHARED(CHUNK) PRIVATE(I,K)
+            !! $OMP DO SCHEDULE(DYNAMIC, CHUNK)
 
 k1:         do k = KLB, KUB
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
@@ -3311,7 +3311,7 @@ i1:         do i = ILB, IUB
             !$OMP END DO
             end do k1
         
-        !!$OMP END PARALLEL
+        !! $OMP END PARALLEL
 
         endif st
 
@@ -3434,8 +3434,8 @@ st:     if (Me%State%HorAdv) then
             
             !CHUNK = CHUNK_K(Me%Size%KLB, Me%Size%KUB)
 
-            !!$OMP PARALLEL SHARED(CHUNK) PRIVATE(I,K)
-            !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            !! $OMP PARALLEL SHARED(CHUNK) PRIVATE(I,K)
+            !! $OMP DO SCHEDULE(DYNAMIC, CHUNK)
 
 k1:         do k = KLB, KUB
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
@@ -3461,7 +3461,7 @@ i1:         do i = ILB, IUB
             !$OMP END DO
             end do k1
         
-        !!$OMP END PARALLEL
+        !! $OMP END PARALLEL
 
         endif st
 
@@ -3600,8 +3600,8 @@ doi4 :      do i = ILB, IUB
 
 st:     if (Me%State%HorAdv) then
         
-            !!$OMP PARALLEL SHARED(CHUNK) PRIVATE(J,K)
-            !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            !! $OMP PARALLEL SHARED(CHUNK) PRIVATE(J,K)
+            !! $OMP DO SCHEDULE(DYNAMIC, CHUNK)
 
 k1:         do k = KLB, KUB
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
@@ -3627,8 +3627,8 @@ j1:         do j = JLB, JUB
             !$OMP END DO
             end do k1
             
-            !!$OMP END DO NOWAIT
-            !!$OMP END PARALLEL
+            !! $OMP END DO NOWAIT
+            !! $OMP END PARALLEL
 
         endif st
 
@@ -3752,8 +3752,8 @@ doi4 :      do i = ILB, IUB
 
 st:     if (Me%State%HorAdv) then
         
-            !!$OMP PARALLEL SHARED(CHUNK) PRIVATE(J,K)
-            !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            !! $OMP PARALLEL SHARED(CHUNK) PRIVATE(J,K)
+            !! $OMP DO SCHEDULE(DYNAMIC, CHUNK)
 
 k1:         do k = KLB, KUB
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
@@ -3779,8 +3779,8 @@ j1:         do j = JLB, JUB
             !$OMP END DO
             end do k1
             
-            !!$OMP END DO NOWAIT
-            !!$OMP END PARALLEL
+            !! $OMP END DO NOWAIT
+            !! $OMP END PARALLEL
 
         endif st
 
@@ -4095,10 +4095,10 @@ do1 :   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
         !CHUNK = CHUNK_J(JLB,JUB)
 
-        !!$OMP PARALLEL PRIVATE(i,j,k,KLB,DT_V,A1,A2,A3,A4,P1,P2,P3,P4,Atotal,InteriorProp) &
-        !!$OMP PRIVATE(ExteriorProp,VelBound,di,dj,iext,jext,LimitMax,Found,Me%ExternalVar%PROP)
+        !! $OMP PARALLEL PRIVATE(i,j,k,KLB,DT_V,A1,A2,A3,A4,P1,P2,P3,P4,Atotal,InteriorProp) &
+        !! $OMP PRIVATE(ExteriorProp,VelBound,di,dj,iext,jext,LimitMax,Found,Me%ExternalVar%PROP)
 
-        !!$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+        !! $OMP DO SCHEDULE(DYNAMIC,CHUNK)
 do3 :   do  j = JLB, JUB
 do1 :   do  i = ILB, IUB
 
@@ -4324,9 +4324,9 @@ cd2 :                       if (Me%WaterFluxOBoundary(i,j,k) < 0.0) Then ! water
             end if cd9
         end do do1
         end do do3
-        !!$OMP END DO
+        !! $OMP END DO
                
-        !!$OMP END PARALLEL   
+        !! $OMP END PARALLEL   
                 
         if (MonitorPerformance) call StopWatch ("ModuleAdvectionDiffusion", "OpenBoundaryCondition")
                                                                    

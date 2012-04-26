@@ -678,7 +678,7 @@ d1:     do ni = 1, Me%nInstants
         !Arguments-------------------------------------------------------------
         
         !Local-----------------------------------------------------------------
-        real, dimension(:,:  ), allocatable     :: Aux2D
+        real, dimension(:,:  ), pointer     :: Aux2D
         real, dimension(:    ), allocatable     :: Aux1DLon, Aux1DLat
         logical                                 :: exist
         integer                                 :: ILB, IUB, JLB, JUB

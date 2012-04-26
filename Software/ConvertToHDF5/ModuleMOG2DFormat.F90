@@ -385,7 +385,7 @@ Module ModuleMOG2DFormat
         !Arguments-------------------------------------------------------------
         
         !Local-----------------------------------------------------------------
-        real, dimension(:,:  ), allocatable     :: Aux2D
+        real, dimension(:,:  ), pointer     :: Aux2D
         logical                                 :: exist
         integer                                 :: ILB, IUB, JLB, JUB
         integer                                 :: WILB, WIUB, WJLB,WJUB

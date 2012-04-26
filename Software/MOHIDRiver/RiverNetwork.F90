@@ -77,6 +77,7 @@ program RiverNetwork
         call ConstructDrainageNetwork (ModelName, ObjDrainageNetwork, ObjTime, CheckMass = CheckMass, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'RiverNetwork - ConstructRiverNetwork - ERR02'
 
+
         !Check if Radiation is needed
         call GetNeedsRadiation (ObjDrainageNetwork, NeedsRadiation, STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'RiverNetwork - ConstructRiverNetwork - ERR03'

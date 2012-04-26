@@ -5551,8 +5551,8 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
 
         if (Me%ExtVar%ComputeVegInterfaceFluxes) then
 
-            !!!$OMP PARALLEL PRIVATE(I,J,K)
-            !!!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            !!! $OMP PARALLEL PRIVATE(I,J,K)
+            !!! $OMP DO SCHEDULE(DYNAMIC, CHUNK)
     !        do K = Me%WorkSize%KLB, Me%WorkSize%KUB
             do J = Me%WorkSize%JLB, Me%WorkSize%JUB
             do I = Me%WorkSize%ILB, Me%WorkSize%IUB
@@ -7027,7 +7027,7 @@ i1:         do i = ILB, IUB
             !$OMP END DO
             end do k1
             
-            !!$OMP END PARALLEL
+            !! $OMP END PARALLEL
         
         endif
 
@@ -7159,8 +7159,8 @@ j1:         do j = JLB, JUB
             !$OMP END DO
             end do k1
             
-            !!$OMP END DO NOWAIT
-            !!$OMP END PARALLEL
+            !! $OMP END DO NOWAIT
+            !! $OMP END PARALLEL
         
         endif
         
@@ -7366,7 +7366,7 @@ do4 :       do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
         !CHUNK = CHUNK_J(Me%Size%JLB, Me%Size%JUB)
     
-        !!$OMP PARALLEL SHARED(CHUNK) PRIVATE(I,J)
+        !! $OMP PARALLEL SHARED(CHUNK) PRIVATE(I,J)
 
         if (.not. Me%NewFormulation) then 
 
@@ -7397,7 +7397,7 @@ i1:         do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             end do j1
             
             !$OMP END DO
-            !!$OMP END PARALLEL
+            !! $OMP END PARALLEL
         
         endif
 
@@ -7517,8 +7517,8 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 !        Theta     => Me%ExtVar%WaterContent
 !        ThetaOld  => Me%ExtVar%WaterContentOld
 !        
-!        !!!$OMP PARALLEL PRIVATE(I,J,K)
-!        !!!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+!        !!! $OMP PARALLEL PRIVATE(I,J,K)
+!        !!! $OMP DO SCHEDULE(DYNAMIC, CHUNK)
 !        do K = Me%WorkSize%KLB, Me%WorkSize%KUB
 !        do J = Me%WorkSize%JLB, Me%WorkSize%JUB
 !        do I = Me%WorkSize%ILB, Me%WorkSize%IUB
@@ -7712,8 +7712,8 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 !        enddo
 !        enddo
 !        enddo
-!        !!!$OMP END DO
-!        !!!$OMP END PARALLEL
+!        !!! $OMP END DO
+!        !!! $OMP END PARALLEL
 !
 !
 !    end subroutine ModifyExplicitCoefs
@@ -8163,8 +8163,8 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
            
             if (GWFlowLink == Layer_) then
 
-                !!!$OMP PARALLEL PRIVATE(I,J,K)
-                !!!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+                !!! $OMP PARALLEL PRIVATE(I,J,K)
+                !!! $OMP DO SCHEDULE(DYNAMIC, CHUNK)
                 do K = Me%WorkSize%KLB, Me%WorkSize%KUB
                 do J = Me%WorkSize%JLB, Me%WorkSize%JUB
                 do I = Me%WorkSize%ILB, Me%WorkSize%IUB
@@ -8206,8 +8206,8 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                 !Flux between river and runoff one value for each soil column
                 !water removed or added in top cell of saturated zone
                 
-                !!!$OMP PARALLEL PRIVATE(I,J,K)
-                !!!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+                !!! $OMP PARALLEL PRIVATE(I,J,K)
+                !!! $OMP DO SCHEDULE(DYNAMIC, CHUNK)
                 do K = Me%WorkSize%KLB, Me%WorkSize%KUB
                 do J = Me%WorkSize%JLB, Me%WorkSize%JUB
                 do I = Me%WorkSize%ILB, Me%WorkSize%IUB

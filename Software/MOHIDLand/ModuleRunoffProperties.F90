@@ -5382,11 +5382,11 @@ do1 :   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         JUB = Me%WorkSize%JUB
 
         !CHUNK = CHUNK_I(ILB, IUB)
-        !!$OMP PARALLEL PRIVATE(i,j,AdvFluxX,DT2,DT1)
+        !! $OMP PARALLEL PRIVATE(i,j,AdvFluxX,DT2,DT1)
 
         if (.not. Me%NewFormulation) then
 
-            !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            !! $OMP DO SCHEDULE(DYNAMIC, CHUNK)
 i1:         do i = ILB, IUB
 
 
@@ -5406,9 +5406,9 @@ i1:         do i = ILB, IUB
                                         CurrProp%Evolution%AdvDiff%Upwind2H)
 
             end do i1
-            !!$OMP END DO
+            !! $OMP END DO
             
-            !!$OMP END PARALLEL
+            !! $OMP END PARALLEL
 
         endif
 
@@ -5514,8 +5514,8 @@ doi4 :      do i = ILB, IUB
 
             !CHUNK = CHUNK_J(JLB, JUB)
           
-            !!$OMP PARALLEL PRIVATE(i,j,AdvFluxY,DT2,DT1)       
-             !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            !! $OMP PARALLEL PRIVATE(i,j,AdvFluxY,DT2,DT1)       
+             !! $OMP DO SCHEDULE(DYNAMIC, CHUNK)
 j1:         do j = JLB, JUB
 
 
@@ -5535,10 +5535,10 @@ j1:         do j = JLB, JUB
                                         CurrProp%Evolution%AdvDiff%Upwind2H)
 
             end do j1
-            !!$OMP END DO
+            !! $OMP END DO
             
-            !!$OMP END DO NOWAIT
-            !!$OMP END PARALLEL
+            !! $OMP END DO NOWAIT
+            !! $OMP END PARALLEL
         endif
 
 cd6:    if (ImpExp_AdvYY == ExplicitScheme)  then !ExplicitScheme = 0
@@ -5846,8 +5846,8 @@ doi4 :      do i = ILB, IUB
         !!Drainage network interface mass balance 
         if (Me%ExtVar%CoupledDN) then
            
-            !!!$OMP PARALLEL PRIVATE(I,J,K)
-            !!!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            !!! $OMP PARALLEL PRIVATE(I,J,K)
+            !!! $OMP DO SCHEDULE(DYNAMIC, CHUNK)
             do J = Me%WorkSize%JLB, Me%WorkSize%JUB
             do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                 
@@ -5935,8 +5935,8 @@ doi4 :      do i = ILB, IUB
 !        WaterColumn    => Me%ExtVar%WaterColumn
 !        WaterColumnOld => Me%ExtVar%WaterColumnOld
 !
-!        !!!$OMP PARALLEL PRIVATE(I,J,K)
-!        !!!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+!        !!! $OMP PARALLEL PRIVATE(I,J,K)
+!        !!! $OMP DO SCHEDULE(DYNAMIC, CHUNK)
 !        do J = Me%WorkSize%JLB, Me%WorkSize%JUB
 !        do I = Me%WorkSize%ILB, Me%WorkSize%IUB
 !            if (Me%ExtVar%BasinPoints(I,J) == BasinPoint) then
@@ -6121,8 +6121,8 @@ doi4 :      do i = ILB, IUB
 !            endif
 !        enddo
 !        enddo
-!        !!!$OMP END DO
-!        !!!$OMP END PARALLEL
+!        !!! $OMP END DO
+!        !!! $OMP END PARALLEL
 !
 !
 !    end subroutine ModifyAdvectionDiffusion_Explicit

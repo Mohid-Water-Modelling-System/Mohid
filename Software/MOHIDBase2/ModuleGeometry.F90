@@ -2895,16 +2895,16 @@ cd1:    if (FacesOption == MinTickness) then
 
         else if (FacesOption == AverageTickness) then cd1
 
-            !!$OMP MASTER
+            !! $OMP MASTER
             !Gets DZX, DZY
             call GetHorizontalGrid(Me%ObjHorizontalGrid, DUX = DUX, DVY = DVY, & 
                                    STAT = STAT_CALL)
 
             if (STAT_CALL /= SUCCESS_)                                                  &
                 stop 'ComputeAreas - Geometry - ERR01'
-            !!$OMP END MASTER
+            !! $OMP END MASTER
 
-            !!$OMP BARRIER
+            !! $OMP BARRIER
 
             !Computes DUZ
             !$OMP PARALLEL PRIVATE(i,j,k)
@@ -2951,7 +2951,7 @@ cd1:    if (FacesOption == MinTickness) then
             enddo
             !$OMP END PARALLEL
 
-            !!$OMP MASTER
+            !! $OMP MASTER
             !Nullifies auxilary pointers
             call UnGetHorizontalGrid(Me%ObjHorizontalGrid, DUX, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                                   &
@@ -2961,9 +2961,9 @@ cd1:    if (FacesOption == MinTickness) then
             call UnGetHorizontalGrid(Me%ObjHorizontalGrid, DVY, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                                   &
                 stop 'ComputeDistances - Geometry - ERR03'
-            !!$OMP END MASTER
+            !! $OMP END MASTER
 
-            !!$OMP BARRIER
+            !! $OMP BARRIER
 
         endif cd1
 

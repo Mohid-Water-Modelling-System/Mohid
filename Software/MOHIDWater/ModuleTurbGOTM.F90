@@ -525,10 +525,10 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             
             !$ CHUNK = CHUNK_J(JLB,JUB)            
             ! We don't compute turbulence coefficients at the limits of the domain. 
-            !!$OMP PARALLEL PRIVATE(i,j,k,Kbottom, &
-            !!$OMP                   Depth,u_taus,u_taub,z0b,z0s, &
-            !!$OMP                   nlev,LocalObjGOTM,TID)
-            !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            !! $OMP PARALLEL PRIVATE(i,j,k,Kbottom, &
+            !! $OMP                   Depth,u_taus,u_taub,z0b,z0s, &
+            !! $OMP                   nlev,LocalObjGOTM,TID)
+            !! $OMP DO SCHEDULE(DYNAMIC, CHUNK)
 doj :       do j = JLB+1, JUB-1
 doi :       do i = ILB+1, IUB-1
 
@@ -536,7 +536,7 @@ ifwp :          if (Me%ExternalVar%OpenPoints3D(i,j,KUB) .EQ. Openpoint) then
                     
                     !griflet
                     TID = 1
-                    !!$ TID = 1 + omp_get_thread_num();
+                    !! $ TID = 1 + omp_get_thread_num();
                     LocalObjGOTM => Me%ObjGotm(TID)
                                         
                     Kbottom = Me%ExternalVar%KFloorZ        (i,j)
@@ -602,8 +602,8 @@ dok4 :              do k=Kbottom,KUB+1
 
             end do doi
             end do doj
-            !!$OMP END DO NOWAIT
-            !!$OMP END PARALLEL          
+            !! $OMP END DO NOWAIT
+            !! $OMP END PARALLEL          
 
             !Values at open boundary points at the limits of the domain 
             ! are set to the values of the nearest interior point. Null_gradient
@@ -798,12 +798,12 @@ dok4 :              do k=Kbottom,KUB+1
 
         !griflet: trying out this...
         !griflet: ... didn't work. Don't know why...
-        !!$OMP PARALLEL SHARED(P, B, SS, alpha, NN, NUM, NUH)
-        !!$OMP WORKSHARE
+        !! $OMP PARALLEL SHARED(P, B, SS, alpha, NN, NUM, NUH)
+        !! $OMP WORKSHARE
         P = (SS +alpha*NN)*NUM
         B = -NN*NUH
-        !!$OMP END WORKSHARE NOWAIT
-        !!$OMP END PARALLEL
+        !! $OMP END WORKSHARE NOWAIT
+        !! $OMP END PARALLEL
 
         nullify(NUM            )
         nullify(NUH            )

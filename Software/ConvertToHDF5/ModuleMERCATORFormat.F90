@@ -1004,8 +1004,8 @@ do0:    do n=1,nVars
         !Arguments-------------------------------------------------------------
         
         !Local-----------------------------------------------------------------
-        real, dimension(:,:,:), allocatable     :: Aux3D
-        real, dimension(:,:  ), allocatable     :: Aux2D
+        real, dimension(:,:,:), pointer     :: Aux3D
+        real, dimension(:,:  ), pointer     :: Aux2D
         real, dimension(:    ), allocatable     :: Depth, LayersInterface
         logical                                 :: exist, FirstTime
         integer                                 :: ILB, IUB, JLB, JUB, KLB, KUB
@@ -1295,8 +1295,8 @@ i3:     if (exist) then
         !Arguments-------------------------------------------------------------
         
         !Local-----------------------------------------------------------------
-        real, dimension(:,:,:), allocatable     :: Aux3D
-        real, dimension(:,:  ), allocatable     :: Aux2D
+        real, dimension(:,:,:), pointer     :: Aux3D
+        real, dimension(:,:  ), pointer     :: Aux2D
         real, dimension(:    ), allocatable     :: Depth, LayersInterface
         logical                                 :: exist, FirstTime, BlockFound
         integer                                 :: ILB, IUB, JLB, JUB, KLB, KUB
@@ -1723,8 +1723,8 @@ i4:         if (exist) then
         !Arguments-------------------------------------------------------------
         
         !Local-----------------------------------------------------------------
-        real, dimension(:,:,:), allocatable     :: Aux3D
-        real, dimension(:,:  ), allocatable     :: Aux2D
+        real, dimension(:,:,:), pointer     :: Aux3D
+        real, dimension(:,:  ), pointer     :: Aux2D
         real, dimension(:    ), allocatable     :: AuxLong, AuxLat 
         real, dimension(:    ), allocatable     :: Depth, LayersInterface
         logical                                 :: exist, FirstTime
@@ -2019,8 +2019,8 @@ i2:                     if (CheckName(nameAux, MohidName)) then
         !Arguments-------------------------------------------------------------
         
         !Local-----------------------------------------------------------------
-        integer, dimension(:,:,:,:), allocatable     :: Aux4D
-        real, dimension(:,:  ), allocatable     :: Aux2D
+        integer, dimension(:,:,:,:), pointer     :: Aux4D
+        real, dimension(:,:  ), pointer     :: Aux2D
         real, dimension(:    ), allocatable     :: AuxLong, AuxLat 
         real, dimension(:    ), allocatable     :: Depth, LayersInterface
         logical                                 :: exist

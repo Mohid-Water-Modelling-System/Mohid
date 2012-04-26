@@ -15418,7 +15418,6 @@ d1:     do em =1, Me%EulerModelNumber
 
     !--------------------------------------------------------------------------
 
-
     subroutine ParticleOutput ()
 
         !Arguments-------------------------------------------------------------
@@ -15451,10 +15450,7 @@ d1:     do em =1, Me%EulerModelNumber
         integer                                     :: OutPutLines, JetTotalParticles, em, em1, emMax, emp
         type (T_Position)                           :: Position
         real(8)                                     :: AverageX, AverageY, Stdv, RadiusOfInfluence,AuxPeriod,TotalTime
-                    
-                    
-                           
-       
+
         !Begin--------------------------------------------------------------------------
 
         if (Me%Output%Write_) then

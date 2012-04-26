@@ -527,10 +527,10 @@ Module ModuleBasin
         !!call OMP_SET_DYNAMIC(.false.)
         !!call OMP_SET_NUM_THREADS(2)
 
-        !!!!$OMP PARALLEL SHARED(Me) PRIVATE(TID)
+        !!!! $OMP PARALLEL SHARED(Me) PRIVATE(TID)
         !!!!TID = OMP_GET_THREAD_NUM()
         !!!!PRINT *, 'Hello World from thread = ', TID
-        !!!!$OMP END PARALLEL         
+        !!!! $OMP END PARALLEL         
 
 
         STAT_ = UNKNOWN_
@@ -5498,7 +5498,7 @@ cd2 :           if (BlockFound) then
 !
 !        !----------------------------------------------------------------------       
 !        
-!        !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+!        !! $OMP DO SCHEDULE(DYNAMIC, CHUNK)
 !        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
 !        do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 !            if (Me%ExtVar%BasinPoints(i,j) == BasinPoint) then             
@@ -5531,9 +5531,9 @@ cd2 :           if (BlockFound) then
 !            endif
 !        enddo
 !        enddo
-!        !!$OMP END DO 
+!        !! $OMP END DO 
 !        
-!        !!$OMP END PARALLEL
+!        !! $OMP END PARALLEL
 !    
 !    
 !    end subroutine ComputePropertyInfilColumn

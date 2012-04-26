@@ -6281,18 +6281,18 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
             !$ CHUNK = CHUNK_J(JLBSon,JUBSon)
 
             !griflet
-            !!$OMP PARALLEL PRIVATE( j,i,                      &
-            !!$OMP                   Jlower, Jupper,             &
-            !!$OMP                   Ilower,Iupper,              &
-            !!$OMP                   XXLower,XXUpper,            &
-            !!$OMP                   YYLower,YYUpper,            &
-            !!$OMP                   XPosition,YPosition,        &
-            !!$OMP                   PropLowLeft,PropUpLeft,     &
-            !!$OMP                   PropLowRight,PropUpRight,   &
-            !!$OMP                   ONLowLeft,ONUpLeft,         &
-            !!$OMP                   ONLowRight,ONUpRight,       &
-            !!$OMP                   InterPolOK)            
-            !!$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+            !! $OMP PARALLEL PRIVATE( j,i,                      &
+            !! $OMP                   Jlower, Jupper,             &
+            !! $OMP                   Ilower,Iupper,              &
+            !! $OMP                   XXLower,XXUpper,            &
+            !! $OMP                   YYLower,YYUpper,            &
+            !! $OMP                   XPosition,YPosition,        &
+            !! $OMP                   PropLowLeft,PropUpLeft,     &
+            !! $OMP                   PropLowRight,PropUpRight,   &
+            !! $OMP                   ONLowLeft,ONUpLeft,         &
+            !! $OMP                   ONLowRight,ONUpRight,       &
+            !! $OMP                   InterPolOK)            
+            !! $OMP DO SCHEDULE(DYNAMIC,CHUNK)
 doj:        do j = JLBSon, JUBSon
 doi:        do i = ILBSon, IUBSon
 
@@ -6383,8 +6383,8 @@ ifc:            if (.not. InterPolOK)   then
             
             enddo doi
             enddo doj
-            !!$OMP END DO NOWAIT
-            !!$OMP END PARALLEL
+            !! $OMP END DO NOWAIT
+            !! $OMP END PARALLEL
 
             nullify(XXSon,    YYSon   )
             nullify(JSon,     ISon    )
@@ -6591,21 +6591,21 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
             !$ CHUNK = CHUNK_J(JLBSon,JUBSon)
 
             !griflet
-            !!$OMP PARALLEL PRIVATE( k,j,i,                     &
-            !!$OMP                   InterPolOK, Jlower, Jupper, &
-            !!$OMP                   Ilower,Iupper,              &
-            !!$OMP                   XXLower,XXUpper,            &
-            !!$OMP                   YYLower,YYUpper,            &
-            !!$OMP                   XPosition,YPosition,        &
-            !!$OMP                   PropLowLeft,PropUpLeft,     &
-            !!$OMP                   PropLowRight,PropUpRight,   &
-            !!$OMP                   ONLowLeft,ONUpLeft,         &
-            !!$OMP                   ONLowRight,ONUpRight,PropSon)
-            !!$OMP           SHARED ( DXFather,DYFather,         &
-            !!$OMP                   XXFather2D, YYFather2D,     &
-            !!$OMP                   XXSon, YYSon)  
+            !! $OMP PARALLEL PRIVATE( k,j,i,                     &
+            !! $OMP                   InterPolOK, Jlower, Jupper, &
+            !! $OMP                   Ilower,Iupper,              &
+            !! $OMP                   XXLower,XXUpper,            &
+            !! $OMP                   YYLower,YYUpper,            &
+            !! $OMP                   XPosition,YPosition,        &
+            !! $OMP                   PropLowLeft,PropUpLeft,     &
+            !! $OMP                   PropLowRight,PropUpRight,   &
+            !! $OMP                   ONLowLeft,ONUpLeft,         &
+            !! $OMP                   ONLowRight,ONUpRight,PropSon)
+            !! $OMP           SHARED ( DXFather,DYFather,         &
+            !! $OMP                   XXFather2D, YYFather2D,     &
+            !! $OMP                   XXSon, YYSon)  
 dok:        do k = KLBFather   , KUBFather
-            !!$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+            !! $OMP DO SCHEDULE(DYNAMIC,CHUNK)
 doj:        do j = JLBSon, JUBSon
 doi:        do i = ILBSon, IUBSon
 
@@ -6714,9 +6714,9 @@ doi:        do i = ILBSon, IUBSon
             
             enddo doi
             enddo doj
-            !!$OMP END DO NOWAIT
+            !! $OMP END DO NOWAIT
             enddo dok
-            !!$OMP END PARALLEL
+            !! $OMP END PARALLEL
 
             nullify(XXSon,    YYSon   )
             nullify(JSon,     ISon    )
@@ -6921,21 +6921,21 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
             !$ CHUNK = CHUNK_J(JLBSon,JUBSon)
 
             !griflet
-            !!$OMP PARALLEL PRIVATE( k,j,i,                     &
-            !!$OMP                   InterPolOK, Jlower, Jupper, &
-            !!$OMP                   Ilower,Iupper,              &
-            !!$OMP                   XXLower,XXUpper,            &
-            !!$OMP                   YYLower,YYUpper,            &
-            !!$OMP                   XPosition,YPosition,        &
-            !!$OMP                   PropLowLeft,PropUpLeft,     &
-            !!$OMP                   PropLowRight,PropUpRight,   &
-            !!$OMP                   ONLowLeft,ONUpLeft,         &
-            !!$OMP                   ONLowRight,ONUpRight,PropSon)
-            !!$OMP           SHARED ( DXFather,DYFather,         &
-            !!$OMP                   XXFather2D, YYFather2D,     &
-            !!$OMP                   XXSon, YYSon)  
+            !! $OMP PARALLEL PRIVATE( k,j,i,                     &
+            !! $OMP                   InterPolOK, Jlower, Jupper, &
+            !! $OMP                   Ilower,Iupper,              &
+            !! $OMP                   XXLower,XXUpper,            &
+            !! $OMP                   YYLower,YYUpper,            &
+            !! $OMP                   XPosition,YPosition,        &
+            !! $OMP                   PropLowLeft,PropUpLeft,     &
+            !! $OMP                   PropLowRight,PropUpRight,   &
+            !! $OMP                   ONLowLeft,ONUpLeft,         &
+            !! $OMP                   ONLowRight,ONUpRight,PropSon)
+            !! $OMP           SHARED ( DXFather,DYFather,         &
+            !! $OMP                   XXFather2D, YYFather2D,     &
+            !! $OMP                   XXSon, YYSon)  
 dok:        do k = KLBFather, KUBFather
-            !!$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+            !! $OMP DO SCHEDULE(DYNAMIC,CHUNK)
 doj:        do j = JLBSon, JUBSon
 doi:        do i = ILBSon, IUBSon
 
@@ -7042,9 +7042,9 @@ doi:        do i = ILBSon, IUBSon
 
             enddo doi
             enddo doj
-            !!$OMP END DO NOWAIT
+            !! $OMP END DO NOWAIT
             enddo dok
-            !!$OMP END PARALLEL
+            !! $OMP END PARALLEL
 
 
             nullify(XXSon,    YYSon   )
