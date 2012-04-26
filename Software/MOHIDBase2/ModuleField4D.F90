@@ -52,21 +52,22 @@ Module ModuleField4D
                                        GetHDF5FileAccess, GetHDF5GroupNumberOfItems,    &
                                        HDF5SetLimits, GetHDF5ArrayDimensions, KillHDF5, &
                                        HDF5WriteData, HDF5FlushMemory, HDF5WriteData
-                                       
+#ifndef _NO_NETCDF                                       
+    ! Manages NetCDF files
     use ModuleNetCDF,           only : GetNCDFFileAccess, ConstructNETCDF,              &
                                        NETCDFReadGrid2D, NETCDFReadTime,                &
                                        NETCDFGetDimensions, NETCDFReadData,             &
                                        NETCDFReadVert
-    use ModuleTimeSerie
-     
-                                       
-
-    ! Manages NetCDF files
 #ifdef _USE_NIX
     use netcdf
 #else
     use netcdf90
 #endif
+#endif
+    use ModuleTimeSerie
+     
+                                       
+
 
     implicit none
 
@@ -638,12 +639,13 @@ i0:     if      (NewPropField%SpaceDim == Dim2D)then
                                         Imax = Imax, Jmax = Jmax, STAT = STAT_CALL)
                                         
             if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleField4D - ERR10'
-                       
+#ifndef _NO_NETCDF                       
         else if (Me%File%Form == NetCDF_) then
         
             call NETCDFGetDimensions (NCDFID = Me%File%Obj, JUB = Jmax, IUB = Imax, STAT = STAT_CALL)
             
             if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleField4D - ERR20'            
+#endif            
         endif
 
        
@@ -674,7 +676,7 @@ i0:     if      (NewPropField%SpaceDim == Dim2D)then
                               Array2D       = LonStag,                                  &
                               STAT          = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleField4D - ERR50'
-            
+#ifndef _NO_NETCDF            
         else if (Me%File%Form == NetCDF_) then
         
             allocate(LatR8    (0:Imax+1,0:Jmax+1))
@@ -708,7 +710,7 @@ i0:     if      (NewPropField%SpaceDim == Dim2D)then
             deallocate(LonR8    )
             deallocate(LatStagR8)
             deallocate(LonStagR8)        
-
+#endif
         endif
         
         if (Me%ReadWindow) then
@@ -847,7 +849,7 @@ i0:     if      (NewPropField%SpaceDim == Dim2D)then
                               Array2D       = Bathym,                                   &
                               STAT          = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)stop 'ReadBathymFromFile - ModuleField4D - ERR10'                                    
-
+#ifndef _NO_NETCDF
         else if (Me%File%Form == NetCDF_) then
         
             call NETCDFReadData(NCDFID          = Me%File%Obj,                          &
@@ -859,7 +861,7 @@ i0:     if      (NewPropField%SpaceDim == Dim2D)then
                                 JUB             = JUB,                                  &
                                 STAT            = STAT_CALL)        
             if (STAT_CALL /= SUCCESS_)stop 'ReadBathymFromFile - ModuleField4D - ERR20'
-                  
+#endif                  
         endif
  
         
@@ -908,13 +910,13 @@ i0:     if      (NewPropField%SpaceDim == Dim2D)then
                                             ItemName = trim(Me%File%MaskName),              &
                                             Kmax = Kmax, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_)stop 'ReadMap2DFromFile - ModuleField4D - ERR10'
-               
+#ifndef _NO_NETCDF               
             else if (Me%File%Form == NetCDF_) then
             
                 call NETCDFGetDimensions (NCDFID = Me%File%Obj, KUB = Kmax, STAT = STAT_CALL)
 
                 if (STAT_CALL /= SUCCESS_)stop 'ReadMap2DFromFile - ModuleField4D - ERR20'
-                
+#endif                
             endif
             
             allocate(Mask3D  (Me%Size2D%ILB:Me%Size2D%IUB,Me%Size2D%JLB:Me%Size2D%JUB,Kmax:Kmax))  
@@ -936,7 +938,7 @@ i0:     if      (NewPropField%SpaceDim == Dim2D)then
                                   Array3D       = Mask3D,                                   &
                                   STAT          = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_)stop 'ReadMap2DFromFile - ModuleField4D - ERR40'
-
+#ifndef _NO_NETCDF
             else if (Me%File%Form == NetCDF_) then
             
                 call NETCDFReadData(NCDFID          = Me%File%Obj,                          &
@@ -950,7 +952,7 @@ i0:     if      (NewPropField%SpaceDim == Dim2D)then
                                     KUB             = Kmax,                                 &
                                     STAT            = STAT_CALL)        
                 if (STAT_CALL /= SUCCESS_)stop 'ReadMap2DFromFile - ModuleField4D - ERR50'
-                      
+#endif                      
             endif
             
             Mask2D(:,:) = Mask3D(:,:,Kmax)
@@ -976,7 +978,7 @@ i0:     if      (NewPropField%SpaceDim == Dim2D)then
                                   Array2D       = Mask2D,                                   &
                                   STAT          = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_)stop 'ReadMap2DFromFile - ModuleField4D - ERR70'
-
+#ifndef _NO_NETCDF
             else if (Me%File%Form == NetCDF_) then
             
                 call NETCDFReadData(NCDFID          = Me%File%Obj,                          &
@@ -988,7 +990,7 @@ i0:     if      (NewPropField%SpaceDim == Dim2D)then
                                     JUB             = JUB,                                  &
                                     STAT            = STAT_CALL)        
                 if (STAT_CALL /= SUCCESS_)stop 'ReadMap2DFromFile - ModuleField4D - ERR80'
-                      
+#endif    
             endif
         
         endif 
@@ -1033,13 +1035,13 @@ i0:     if      (NewPropField%SpaceDim == Dim2D)then
                                         ItemName = trim(Me%File%MaskName),              &
                                         Kmax = Kmax, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)stop 'ReadGeometryFromFile - ModuleField4D - ERR10'
-           
+#ifndef _NO_NETCDF           
         else if (Me%File%Form == NetCDF_) then
         
             call NETCDFGetDimensions (NCDFID = Me%File%Obj, KUB = Kmax, STAT = STAT_CALL)
 
             if (STAT_CALL /= SUCCESS_)stop 'ReadGeometryFromFile - ModuleField4D - ERR20'
-            
+#endif            
         endif
             
            
@@ -1100,7 +1102,7 @@ i0:     if      (NewPropField%SpaceDim == Dim2D)then
                               Array3D       = SZZ,                                      &
                               STAT          = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)stop 'ReadMap3DFromFile - ModuleField4D - ERR20'
-
+#ifndef _NO_NETCDF
         else if (Me%File%Form == NetCDF_) then
         
 
@@ -1114,7 +1116,7 @@ i0:     if      (NewPropField%SpaceDim == Dim2D)then
                                 KUB             = KUB,                                  &
                                 STAT            = STAT_CALL)        
             if (STAT_CALL /= SUCCESS_)stop 'ReadMap3DFromFile - ModuleField4D - ERR30'
-                  
+#endif                  
         endif
 
 
@@ -1133,7 +1135,7 @@ i0:     if      (NewPropField%SpaceDim == Dim2D)then
                               Array3D       = Mask,                                     &
                               STAT          = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)stop 'ReadMap3DFromFile - ModuleField4D - ERR50'
-
+#ifndef _NO_NETCDF
         else if (Me%File%Form == NetCDF_) then
         
                 call NETCDFReadData(NCDFID          = Me%File%Obj,                          &
@@ -1147,6 +1149,7 @@ i0:     if      (NewPropField%SpaceDim == Dim2D)then
                                     KUB             = KUB,                                  &
                                     STAT            = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_)stop 'ReadMap3DFromFile - ModuleField4D - ERR60'
+#endif                
         endif
         
         call ConstructMap   (Map_ID             = Me%ObjMap,                            &
@@ -1444,8 +1447,10 @@ i0:     if      (NewPropField%SpaceDim == Dim2D)then
         
         if      (Me%File%FileName(i-4:i) == ".hdf5") then
             Me%File%Form = HDF5_
+#ifndef _NO_NETCDF            
         else if (Me%File%FileName(i-2:i) == ".nc"  ) then
             Me%File%Form = NetCDF_
+#endif            
         else
             stop 'ConstructFile - ModuleField4D - ERR20'
         endif
@@ -1469,7 +1474,7 @@ i0:     if      (NewPropField%SpaceDim == Dim2D)then
 
             Me%File%StartTime = Me%File%InstantsDates(1)
             Me%File%EndTime   = Me%File%InstantsDates(Me%File%NumberOfInstants)
-
+#ifndef _NO_NETCDF
         else if (Me%File%Form == NetCDF_) then
         
             call GetNCDFFileAccess (NCDF_READ = NCDF_READ)
@@ -1495,7 +1500,7 @@ i0:     if      (NewPropField%SpaceDim == Dim2D)then
             
             Me%File%StartTime = Me%File%InstantsDates(1                       )
             Me%File%EndTime   = Me%File%InstantsDates(Me%File%NumberOfInstants)
-            
+#endif            
         endif
 
         call GetComputeTimeLimits(Me%ObjTime, BeginTime = Me%StartTime,                 &
@@ -2128,11 +2133,11 @@ it:     if (NewPropField%ChangeInTime) then
                               trim(NewPropField%FieldName), OutputNumber = Instant,         &
                               Imax = Imax, Jmax = Jmax, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)stop 'ReadValues2D - ModuleField4D - ERR10'                                   
-
+#ifndef _NO_NETCDF
         else if (Me%File%Form == NetCDF_) then
         
             call NETCDFGetDimensions (NCDFID = Me%File%Obj, JUB = Jmax, IUB = Imax, STAT = STAT_CALL)
-
+#endif
         endif            
 
         if ((Imax < IUB - ILB + 1) .or.                                                &
@@ -2156,7 +2161,7 @@ it:     if (NewPropField%ChangeInTime) then
                               trim(NewPropField%FieldName),                                 &
                               Array2D = Field, OutputNumber = Instant, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)stop 'ReadValues2D - ModuleField4D - ERR40'
-
+#ifndef _NO_NETCDF
         else if (Me%File%Form == NetCDF_) then
         
             call NETCDFReadData(NCDFID          = Me%File%Obj,                          &
@@ -2169,6 +2174,7 @@ it:     if (NewPropField%ChangeInTime) then
                                 JUB             = JUB,                                  &
                                 STAT            = STAT_CALL)        
             if (STAT_CALL /= SUCCESS_)stop 'ReadValues2D - ModuleField4D - ERR50'            
+#endif            
         endif
 
 
@@ -2243,11 +2249,11 @@ it:     if (NewPropField%ChangeInTime) then
                               trim(NewPropField%FieldName), OutputNumber = Instant,         &
                               Imax = Imax, Jmax = Jmax, Kmax = Kmax, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)stop 'ReadValues2D - ModuleField4D - ERR10'                                   
-
+#ifndef _NO_NETCDF
         else if (Me%File%Form == NetCDF_) then
         
             call NETCDFGetDimensions (NCDFID = Me%File%Obj, JUB = Jmax, IUB = Imax, KUB = Kmax, STAT = STAT_CALL)
-
+#endif
         endif            
 
         if ((Imax < IUB - ILB + 1) .or.                                                &
@@ -2272,13 +2278,11 @@ it:     if (NewPropField%ChangeInTime) then
                               trim(NewPropField%FieldName),                                 &
                               Array3D = FieldAux, OutputNumber = Instant, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)stop 'ReadValues3D - ModuleField4D - ERR40'
-
-                                        
-           
+#ifndef _NO_NETCDF                                                   
         else if (Me%File%Form == NetCDF_) then
         
             call NETCDFReadData(NCDFID          = Me%File%Obj,                          &
-                                Array3D         = FieldAux,                                &
+                                Array3D         = FieldAux,                             &
                                 Name            = trim(NewPropField%FieldName),         &
                                 nInstant        = Instant,                              &
                                 ILB             = ILB,                                  &
@@ -2289,6 +2293,7 @@ it:     if (NewPropField%ChangeInTime) then
                                 KUB             = KUB,                                  &
                                 STAT            = STAT_CALL)        
             if (STAT_CALL /= SUCCESS_)stop 'ReadValues3D - ModuleField4D - ERR50'            
+#endif            
         endif
 
         

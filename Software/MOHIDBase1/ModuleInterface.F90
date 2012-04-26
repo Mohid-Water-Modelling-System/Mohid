@@ -33,7 +33,7 @@ Module ModuleInterface
     use ModuleGlobalData
     use ModuleTime
     !griflet
-    use ModuleFunctions, only: CHUNK_J, SetMatrixValue
+    use ModuleFunctions, only: CHUNK_I, SetMatrixValue
     use ModuleStopWatch, only: StartWatch, StopWatch
     use ModuleWaterQuality
     use ModuleSedimentQuality
@@ -1315,52 +1315,8 @@ cd1 :           if(STAT_CALL .EQ. KEYWORD_NOT_FOUND_ERR_) then
         call GetComputeTimeLimits(Me%ObjTime, EndTime = end_time, STAT = status)
         if (status /= SUCCESS_) &
             stop 'CheckDT - ModuleInterface - ERR020' 
-
-        select case (Me%SinksSourcesModel)
-            case (WaterQualityModel)
-            
-                model_name = 'Water Quality'
-                call GetDTWQM(Me%ObjWaterQuality, DTSecond = dt, STAT = status)
-                
-            case (SedimentQualityModel)
-            
-                model_name = 'Sediment Quality'
-                call GetDTSedimentQuality(Me%ObjSedimentQuality, DTSecond = dt, STAT = status)
-                
-            case (CEQUALW2Model, BenthicCEQUALW2Model)
-            
-                model_name = 'CEQUALW2'
-                call GetDTCEQUALW2(Me%ObjCEQUALW2, DTSecond = dt, STAT = status)
-            
-            case (LifeModel)
-            
-                model_name = 'Life'
-                call GetDTLife(Me%ObjLife, DT = dt, STAT = status)
-                
-#ifdef _BFM_  
-            case (BFMModel)
-            
-                model_name = 'BFM'
-                call GetDTBFM(Me%ObjBFM, DTSecond = dt, STAT = status)
-#endif
-
-            case (BenthosModel)
-            
-                model_name = 'Benthos'
-                call GetDTBenthos(Me%ObjBenthos, DTSecond = dt, STAT = status)
-            
-            case (MacroAlgaeModel)
-            
-                model_name = 'Macro Algae'
-                call GetDTMacroAlgae(Me%ObjMacroAlgae, DTSecond = dt, STAT = status)
-                
-#ifdef _PHREEQC_
-            case (PhreeqCModel) 
-            
-                model_name = 'PhreeqC'
-                call GetPhreeqCDT(Me%ObjPhreeqC, DTSecond = dt, STAT = status)                                   
-#endif
-        end select
+               
+        dt = InterfaceDT()
         
         if (status /= SUCCESS_) then
             write(*,*)
@@ -1379,7 +1335,7 @@ cd1 :           if(STAT_CALL .EQ. KEYWORD_NOT_FOUND_ERR_) then
             dt_lag = int(error_aux * dt)
             write(*,*) 
             write(*,*) 'DTSECONDS is not multiple of the run period.'
-            write(*,*) trim(model_name)//' wont be computed in the last', dt_lag, ' seconds.'
+            write(*,*) trim(model_name())//' wont be computed in the last', dt_lag, ' seconds.'
             write(*,*) 'CheckDT - ModuleInterface - WRN010.'
         endif   
         
@@ -2133,6 +2089,8 @@ cd14 :          if (Phosphorus) then
         integer                                         :: Index
         integer                                         :: i, j, k
         real,    dimension(:), pointer                  :: RateFlux
+        !$ integer                                      :: CHUNK
+        real,               dimension(:),       pointer :: LocalRateFlux
 
         !----------------------------------------------------------------------
 
@@ -2224,13 +2182,15 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
             !griflet: start
             NLB = Me%Array%ILB
             NUB = Me%Array%IUB
-            !$OMP PARALLEL PRIVATE(Index,i,j,k)
-            !$OMP DO
+            !$ CHUNK = CHUNK_I(NLB, NUB)
+            !$OMP PARALLEL PRIVATE(Index,i,j,k,LocalRateFlux)
+            LocalRateFlux => RateFlux
+            !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
             do Index = NLB, NUB
                 i = Me%Index2I(Index)
                 j = Me%Index2J(Index)
                 k = Me%Index2K(Index)
-                RateFlux3D(i, j, k) = RateFlux (Index)
+                RateFlux3D(i, j, k) = LocalRateFlux (Index)
             enddo
             !$OMP END DO NOWAIT
             !$OMP END PARALLEL
@@ -2300,6 +2260,8 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
         integer                                         :: Index
         integer                                         :: i, j, STAT_CALL
         real,    dimension(:), pointer                  :: RateFlux
+        !$ integer                                      :: CHUNK
+        real,    dimension(:), pointer                  :: LocalRateFlux
 
         !----------------------------------------------------------------------
 
@@ -2354,12 +2316,14 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
             !griflet: start
             NLB = Me%Array%ILB
             NUB = Me%Array%IUB
-            !$OMP PARALLEL PRIVATE(Index,i,j)
-            !$OMP DO
+            !$ CHUNK = CHUNK_I(NLB, NUB)
+            !$OMP PARALLEL PRIVATE(Index,i,j,LocalRateFlux)
+            LocalRateFlux => RateFlux
+            !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
             do Index = NLB, NUB
                 i = Me%Index2I(Index)
                 j = Me%Index2J(Index)
-                RateFlux2D(i, j) = RateFlux (Index)
+                RateFlux2D(i, j) = LocalRateFlux (Index)
             enddo
             !$OMP END DO NOWAIT
             !$OMP END PARALLEL
@@ -2458,7 +2422,11 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
         real                                            :: DTProp_
         logical                                         :: Increment
         type(T_Size2D)                                  :: PropArraySize
-!        !$ integer                                      :: CHUNK
+        !$ integer                                      :: CHUNK
+        integer                                         :: LocalnProperty
+        real,              dimension(:,:,:), pointer    :: LocalConcentration
+        real,              dimension(:,:), pointer      :: LocalConcInc        
+        real,              dimension(:,:), pointer      :: LocalMass
         
 !        !DEBUG purposes--------------------------------------------------------
 !        real :: old_value, new_value
@@ -2740,17 +2708,20 @@ cd4 :           if (ReadyToCompute) then
                     end select
 
                     !griflet
-                    !$OMP PARALLEL PRIVATE(prop,index)
-                    !$OMP DO
+                    !$ CHUNK = CHUNK_I(PropLB, PropUB)
+                    !$OMP PARALLEL PRIVATE(prop,index,LocalMass,LocalConcInc)
+                    LocalMass => Me%Mass
+                    LocalConcInc => Me%ConcentrationIncrement
+                    !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
 do7 :               do prop  = PropLB,  PropUB
 do6 :               do index = ArrayLB, ArrayUB
-                        Me%ConcentrationIncrement(prop, index) = Me%Mass(prop, index) - &
-                                                                 Me%ConcentrationIncrement(prop, index)
+                        LocalConcInc(prop, index) = LocalMass(prop, index) - &
+                                                                 LocalConcInc(prop, index)
                     end do do6
                     end do do7
                     !$OMP END DO NOWAIT
                     !$OMP END PARALLEL
-                
+
                 end if cd4
 
             elseif (Increment) then cd5
@@ -2762,19 +2733,14 @@ do6 :               do index = ArrayLB, ArrayUB
                 if (nProperty < 0) &
                     stop 'Modify_Interface3D - ModuleInterface - ERR80'
 
-                select case (Me%SinksSourcesModel)
+                DT = InterfaceDT()
 
-                    case(WaterQualityModel)
-                        
-                        call GetDTWQM(Me%ObjWaterQuality, DTSecond = DT, STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'Modify_Interface3D - ModuleInterface - ERR09'
-
-!                        !griflet
-!                        !$OMP PARALLEL PRIVATE(k,j,i,Index)
-!do1 :                   do k = KLB, KUB
-!                        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
-!do2 :                   do j = JLB, JUB
-!do3 :                   do i = ILB, IUB
+!               !griflet
+!               !$OMP PARALLEL PRIVATE(k,j,i,Index)
+!do1 :          do k = KLB, KUB
+!               !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+!do2 :          do j = JLB, JUB
+!do3 :          do i = ILB, IUB
 !cd2 :                       if (Me%ExternalVar%WaterPoints3D(i, j, k) == 1) then
 !                                Index = Index + 1
 !                                !Concentrations are only actualized in OpenPoints because of instability
@@ -2784,293 +2750,34 @@ do6 :               do index = ArrayLB, ArrayUB
 !                                    Me%ConcentrationIncrement(nProperty, Index) * DTProp / DT 
 !                                end if
 !                            end if cd2
-!                        end do do3
-!                        end do do2
-!                        !$OMP END DO NOWAIT
-!                        end do do1
-!                        !$OMP END PARALLEL
+!               end do do3
+!               end do do2
+!               !$OMP END DO NOWAIT
+!               end do do1
+!               !$OMP END PARALLEL
 
-                        !griflet: start
-                        NLB = Me%Array%ILB
-                        NUB = Me%Array%IUB
-                        !$OMP PARALLEL PRIVATE(Index,i,j,k)
-                        !$OMP DO
-                        do Index = NLB, NUB
-                            i = Me%Index2I(Index)
-                            j = Me%Index2J(Index)
-                            k = Me%Index2K(Index)
-                            if (Me%ExternalVar%OpenPoints3D(i, j, k) == 1) then
-                                Concentration(i, j, k) = Concentration( i, j, k)      + &
-                                Me%ConcentrationIncrement(nProperty, Index) * DTProp / DT 
-                            end if
-                        enddo
-                        !$OMP END DO NOWAIT
-                        !$OMP END PARALLEL
-                        !griflet: stop
-
-                    case(SedimentQualityModel)
-                        
-                        call GetDTSedimentQuality(Me%ObjSedimentQuality, DTSecond = DT, STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'Modify_Interface3D - ModuleInterface - ERR10'                
-
-!                        !griflet
-!                        !$OMP PARALLEL PRIVATE(k,j,i,Index)
-!do8 :                   do k = KLB, KUB
-!                        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
-!do9 :                   do j = JLB, JUB
-!do10:                   do i = ILB, IUB
-!cd8 :                       if (Me%ExternalVar%WaterPoints3D(i, j, k) == 1) then
-!                                Index = Index + 1
-!                                Concentration(i, j, k) = Concentration( i, j, k)                     + &
-!                                                         Me%ConcentrationIncrement(nProperty, Index) * &
-!                                                         DTProp / DT 
-!                            end if cd8
-!                        end do do10
-!                        end do do9
-!                        !$OMP END DO NOWAIT
-!                        end do do8
-!                        !$OMP END PARALLEL
-
-                        !griflet: start
-                        NLB = Me%Array%ILB
-                        NUB = Me%Array%IUB
-                        !$OMP PARALLEL PRIVATE(Index,i,j,k)
-                        !$OMP DO
-                        do Index = NLB, NUB
-                            i = Me%Index2I(Index)
-                            j = Me%Index2J(Index)
-                            k = Me%Index2K(Index)
-                            Concentration(i, j, k) = Concentration( i, j, k)                     + &
-                                                     Me%ConcentrationIncrement(nProperty, Index) * &
-                                                     DTProp / DT 
-                        enddo
-                        !$OMP END DO NOWAIT
-                        !$OMP END PARALLEL
-                        !griflet: stop
-
-
-                    case(CEQUALW2Model)
-
-                        call GetDTCEQUALW2(Me%ObjCEQUALW2, DTSecond = DT, STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'Modify_Interface3D - ModuleInterface - ERR11'
-
-!                        !griflet
-!                        !$OMP PARALLEL PRIVATE(k,j,i,Index)
-!do11 :                  do k = KLB, KUB
-!                        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
-!do12 :                  do j = JLB, JUB
-!do13 :                  do i = ILB, IUB
-!cd9 :                       if (Me%ExternalVar%WaterPoints3D(i, j, k) == 1) then
-!                                Index = Index + 1
-!                                !Concentrations are only actualized in OpenPoints because of instability
-!                                !in waterpoints that are not openpoints
-!                                if (Me%ExternalVar%OpenPoints3D(i, j, k) == 1) then
-!                                    Concentration(i, j, k) = Concentration( i, j, k)      + &
-!                                    Me%ConcentrationIncrement(nProperty, Index) * DTProp / DT 
-!                                end if
-!                            end if cd9
-!                        end do do13
-!                        end do do12
-!                        !$OMP END DO NOWAIT
-!                        end do do11
-!                        !$OMP END PARALLEL
-
-                        !griflet: start
-                        NLB = Me%Array%ILB
-                        NUB = Me%Array%IUB
-                        !$OMP PARALLEL PRIVATE(Index,i,j,k)
-                        !$OMP DO
-                        do Index = NLB, NUB
-                            i = Me%Index2I(Index)
-                            j = Me%Index2J(Index)
-                            k = Me%Index2K(Index)
-                            if (Me%ExternalVar%OpenPoints3D(i, j, k) == 1) then
-                                Concentration(i, j, k) = Concentration( i, j, k)      + &
-                                Me%ConcentrationIncrement(nProperty, Index) * DTProp / DT 
-                            end if
-                        enddo
-                        !$OMP END DO NOWAIT
-                        !$OMP END PARALLEL
-                        !griflet: stop
-
-                    case(LifeModel)
-
-                        call GetDTLife(Me%ObjLife, DT = DT, STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'Modify_Interface3D - ModuleInterface - ERR12'
-
-!                        !griflet
-!                        !$OMP PARALLEL PRIVATE(k,j,i,Index)
-!do15 :                  do k = KLB, KUB
-!                        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
-!do16 :                  do j = JLB, JUB
-!do17 :                  do i = ILB, IUB
-!cd14 :                       if (Me%ExternalVar%WaterPoints3D(i, j, k) == 1) then
-!                                Index = Index + 1
-!                                !Concentrations are only actualized in OpenPoints because of instability
-!                                !in waterpoints that are not openpoints
-!                                if (Me%ExternalVar%OpenPoints3D(i, j, k) == 1) then
-!                                    Concentration(i, j, k) = Concentration( i, j, k)      + &
-!                                    Me%ConcentrationIncrement(nProperty, Index) * DTProp / DT 
-!                                end if
-!                            end if cd14
-!                        end do do17
-!                        end do do16
-!                        !$OMP END DO NOWAIT
-!                        end do do15
-!                        !$OMP END PARALLEL
-
-                        !griflet: start
-                        NLB = Me%Array%ILB
-                        NUB = Me%Array%IUB
-                        !$OMP PARALLEL PRIVATE(Index,i,j,k)
-                        !$OMP DO
-                        do Index = NLB, NUB
-                            i = Me%Index2I(Index)
-                            j = Me%Index2J(Index)
-                            k = Me%Index2K(Index)
-                            if (Me%ExternalVar%OpenPoints3D(i, j, k) == 1) then
-                                Concentration(i, j, k) = Concentration( i, j, k)      + &
-                                Me%ConcentrationIncrement(nProperty, Index) * DTProp / DT 
-                            end if
-                        enddo
-                        !$OMP END DO NOWAIT
-                        !$OMP END PARALLEL
-                        !griflet: stop
-
-#ifdef _BFM_  
-                    case(BFMModel)
-
-                        call GetDTBFM(Me%ObjBFM, DTSecond = DT, STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'Modify_Interface3D - ModuleInterface - ERR13a'
-
-!                        !griflet
-!                        !$OMP PARALLEL PRIVATE(k,j,i,Index)
-!                        do k = KLB, KUB
-!                        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
-!                        do j = JLB, JUB
-!                        do i = ILB, IUB
-!                            if (Me%ExternalVar%WaterPoints3D(i, j, k) == 1) then
-!                                Index = Index + 1
-!
-!                                !Concentrations are in all waterpoints
-!                                Concentration(i, j, k) = Concentration( i, j, k)      + &
-!                                Me%ConcentrationIncrement(nProperty, Index) * DTProp / DT 
-!
-!                            end if 
-!                        end do 
-!                        end do 
-!                        !$OMP END DO NOWAIT
-!                        end do 
-!                        !$OMP END PARALLEL
-
-                        !griflet: start
-                        NLB = Me%Array%ILB
-                        NUB = Me%Array%IUB
-                        !$OMP PARALLEL PRIVATE(Index,i,j,k)
-                        !$OMP DO
-                        do Index = NLB, NUB
-                            i = Me%Index2I(Index)
-                            j = Me%Index2J(Index)
-                            k = Me%Index2K(Index)
-                            !Concentrations are in all waterpoints
-                            Concentration(i, j, k) = Concentration( i, j, k)      + &
-                            Me%ConcentrationIncrement(nProperty, Index) * DTProp / DT 
-                        enddo
-                        !$OMP END DO NOWAIT
-                        !$OMP END PARALLEL
-                        !griflet: stop
-#endif
-
-                    case(MacroAlgaeModel)
-
-
-                        call GetDTMacroAlgae(Me%ObjMacroAlgae, DTSecond = DT, STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'Modify_Interface3D - ModuleInterface - ERR13'
-
-!                        !griflet
-!                        !$OMP PARALLEL PRIVATE(k,j,i,Index)
-!                        do k = KLB, KUB
-!                        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
-!                        do j = JLB, JUB
-!                        do i = ILB, IUB
-!                            if (Me%ExternalVar%WaterPoints3D(i, j, k) == 1) then
-!                                Index = Index + 1
-!
-!                                !Concentrations are in all waterpoints
-!                                Concentration(i, j, k) = Concentration( i, j, k)      + &
-!                                Me%ConcentrationIncrement(nProperty, Index) * DTProp / DT 
-!
-!                            end if 
-!                        end do 
-!                        end do 
-!                        !$OMP END DO NOWAIT
-!                        end do 
-!                        !$OMP END PARALLEL
-
-                        !griflet: start
-                        NLB = Me%Array%ILB
-                        NUB = Me%Array%IUB
-                        !$OMP PARALLEL PRIVATE(Index,i,j,k)
-                        !$OMP DO
-                        do Index = NLB, NUB
-                            i = Me%Index2I(Index)
-                            j = Me%Index2J(Index)
-                            k = Me%Index2K(Index)
-                            !Concentrations are in all waterpoints
-                            Concentration(i, j, k) = Concentration( i, j, k)      + &
-                            Me%ConcentrationIncrement(nProperty, Index) * DTProp / DT 
-                        enddo
-                        !$OMP END DO NOWAIT
-                        !$OMP END PARALLEL
-                        !griflet: stop
-                        
-#ifdef _PHREEQC_
-
-                    case(PhreeqcModel)
-                         
-                        call GetPhreeqCDT(Me%ObjPhreeqC, DTSecond = DT, STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'Modify_Interface3D - ModuleInterface - ERR15'                
-
-!                        !griflet
-!                        !!$OMP PARALLEL PRIVATE(k,j,i,Index)
-!do18:                   do k = KLB, KUB
-!                        !!$OMP DO SCHEDULE(DYNAMIC,CHUNK)
-!do19:                   do j = JLB, JUB
-!do20:                   do i = ILB, IUB
-!
-!cd15:                       if (Me%ExternalVar%WaterPoints3D(i, j, k) == 1) then
-!
-!                                Index = Index + 1
-!                                Concentration(i, j, k) = Concentration(i, j, k) +                      &
-!                                                         Me%ConcentrationIncrement(nProperty, Index) * &
-!                                                         DTProp / DT 
-!                            end if cd15
-!                            
-!                        end do do20
-!                        end do do19
-!                        !!$OMP END DO NOWAIT
-!                        end do do18
-!                        !!$OMP END PARALLEL
-
-                        !griflet: start
-                        NLB = Me%Array%ILB
-                        NUB = Me%Array%IUB
-                        !$OMP PARALLEL PRIVATE(Index,i,j,k)
-                        !$OMP DO
-                        do Index = NLB, NUB
-                            i = Me%Index2I(Index)
-                            j = Me%Index2J(Index)
-                            k = Me%Index2K(Index)
-                            Concentration(i, j, k) = Concentration(i, j, k) +                      &
-                                                    Me%ConcentrationIncrement(nProperty, Index) * &
-                                                    DTProp / DT 
-                        enddo
-                        !$OMP END DO NOWAIT
-                        !$OMP END PARALLEL
-                        !griflet: stop
-#endif                   
-                end select
-
+                !griflet: start
+                NLB = Me%Array%ILB
+                NUB = Me%Array%IUB
+                !$ CHUNK = CHUNK_I(NLB, NUB)
+                !$OMP PARALLEL PRIVATE(Index,i,j,k,LocalnProperty,LocalConcInc,LocalConcentration)
+                LocalnProperty = nProperty
+                LocalConcInc => Me%ConcentrationIncrement
+                LocalConcentration => Concentration
+                !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+                do Index = NLB, NUB
+                    i = Me%Index2I(Index)
+                    j = Me%Index2J(Index)
+                    k = Me%Index2K(Index)
+                    if (Me%ExternalVar%OpenPoints3D(i, j, k) == 1) then
+                        LocalConcentration(i, j, k) = LocalConcentration( i, j, k)      + &
+                                LocalConcInc(LocalnProperty, Index) * DTProp / DT 
+                    end if
+                enddo
+                !$OMP END DO NOWAIT
+                !$OMP END PARALLEL
+                !griflet: stop
+                            
             end if cd5
 
             STAT_ = SUCCESS_
@@ -3120,7 +2827,11 @@ do6 :               do index = ArrayLB, ArrayUB
         real                                            :: DTProp_, DT
         logical                                         :: Increment
         
-!        !$ integer                                      :: CHUNK
+        !$ integer                                      :: CHUNK
+        integer                                         :: LocalnProperty
+        real,              dimension(:,:), pointer      :: LocalConcentration
+        real,              dimension(:,:), pointer      :: LocalConcInc        
+        real,              dimension(:,:), pointer      :: LocalMass
 
         !----------------------------------------------------------------------
 
@@ -3215,12 +2926,19 @@ cd4 :           if (ReadyToCompute) then
 
                     end select
 
+                    !$ CHUNK = CHUNK_I(PropLB, PropUB)
+                    !$OMP PARALLEL PRIVATE(prop,index,LocalMass,LocalConcInc)
+                    LocalMass => Me%Mass
+                    LocalConcInc => Me%ConcentrationIncrement
+                    !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
 do7 :               do prop  = PropLB,  PropUB
 do6 :               do index = ArrayLB, ArrayUB
-                        Me%ConcentrationIncrement(prop, index) = Me%Mass(prop, index) - &
-                                                                 Me%ConcentrationIncrement(prop, index)
+                        LocalConcInc(prop, index) = LocalMass(prop, index) - &
+                                                                 LocalConcInc(prop, index)
                     end do do6
                     end do do7
+                    !$OMP END DO NOWAIT
+                    !$OMP END PARALLEL
                 
                 end if cd4
 
@@ -3233,21 +2951,7 @@ do6 :               do index = ArrayLB, ArrayUB
                 if (nProperty < 0) &
                     stop 'Modify_Interface2D - ModuleInterface - ERR80'
 
-
-                select case (Me%SinksSourcesModel)
-
-                    case(BenthicCEQUALW2Model)
-
-                        call GetDTCEQUALW2(Me%ObjCEQUALW2, DTSecond = DT, STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'Modify_Interface2D - ModuleInterface - ERR03'
-
-
-                    case(BenthosModel)
-
-                        call GetDTBenthos(Me%ObjBenthos, DTSecond = DT, STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'Modify_Interface2D - ModuleInterface - ERR04'
-
-                end select
+                DT = InterfaceDT()
 
 !                !griflet
 !                !$OMP PARALLEL PRIVATE(j,i,Index)            
@@ -3271,14 +2975,18 @@ do6 :               do index = ArrayLB, ArrayUB
                 !griflet: start
                 NLB = Me%Array%ILB
                 NUB = Me%Array%IUB
-                !$OMP PARALLEL PRIVATE(Index,i,j)
-                !$OMP DO
+                !$ CHUNK = CHUNK_I(NLB, NUB)
+                !$OMP PARALLEL PRIVATE(Index,i,j,LocalnProperty,LocalConcInc,LocalConcentration)
+                LocalnProperty = nProperty
+                LocalConcInc => Me%ConcentrationIncrement
+                LocalConcentration => Concentration
+                !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
                 do Index = NLB, NUB
                     i = Me%Index2I(Index)
                     j = Me%Index2J(Index)
                     if (Me%ExternalVar%OpenPoints2D(i, j) == 1) then
-                        Concentration(i, j) = Concentration(i, j)      + &
-                        Me%ConcentrationIncrement(nProperty, Index) * DTProp / DT 
+                        LocalConcentration(i, j) = LocalConcentration( i, j)      + &
+                                LocalConcInc(LocalnProperty, Index) * DTProp / DT 
                     end if
                 enddo
                 !$OMP END DO NOWAIT
@@ -3351,6 +3059,10 @@ do6 :               do index = ArrayLB, ArrayUB
         integer                                         :: PropLB, PropUB, ArrayLB, ArrayUB 
         real                                            :: DTProp_
         logical                                         :: Increment
+        !$ integer                                      :: CHUNK
+        integer                                         :: LocalnProperty
+        real,              dimension(:), pointer        :: LocalConcentration
+        real,              dimension(:,:), pointer      :: LocalConcInc
 
         !----------------------------------------------------------------------
 
@@ -3575,216 +3287,42 @@ do6 :               do index = ArrayLB, ArrayUB
                 if (nProperty < 0) &
                     stop 'Modify_Interface1D - ModuleInterface - ERR80'
 
+                DT = InterfaceDT()
 
-                select case (Me%SinksSourcesModel)
+!do3 :          do i = ILB, IUB
+!cd2 :              if (Me%ExternalVar%RiverPoints1D(i) == 1) then
+!                                Index = Index + 1
+!                                !Concentrations are only actualized in OpenPoints because of instability
+!                                !in waterpoints that are not openpoints
+!                                if (Me%ExternalVar%OpenPoints1D(i) == 1) then
+!                                    Concentration(i) = Concentration( i)      + &
+!                                    Me%ConcentrationIncrement(nProperty, Index) * DTProp / DT 
+!                                end if
+!                   end if cd2
+!               end do do3
 
-                    case(WaterQualityModel)
+                !griflet: start
+                NLB = Me%Array%ILB
+                NUB = Me%Array%IUB
+                !$ CHUNK = CHUNK_I(NLB,NUB)
+                !$OMP PARALLEL PRIVATE(Index,i,LocalConcentration,LocalConcInc,LocalnProperty)
+                LocalConcentration => Concentration
+                LocalConcInc => Me%ConcentrationIncrement
+                LocalnProperty = nProperty
+                !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+                do Index = NLB, NUB
+                    i = Me%Index2I(Index)
+                    !Concentrations are only actualized in OpenPoints because of instability
+                    !in waterpoints that are not openpoints
+                    if (Me%ExternalVar%OpenPoints1D(i) == 1) then
+                        LocalConcentration(i) = LocalConcentration( i)      + &
+                        LocalConcInc(LocalnProperty, Index) * DTProp / DT 
+                    end if
+                enddo
+                !$OMP END DO NOWAIT
+                !$OMP END PARALLEL
+                !griflet: stop
                         
-                        call GetDTWQM(Me%ObjWaterQuality, DTSecond = DT, STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'Modify_Interface1D - ModuleInterface - ERR09'
-
-!do3 :                   do i = ILB, IUB
-!cd2 :                       if (Me%ExternalVar%RiverPoints1D(i) == 1) then
-!                                Index = Index + 1
-!                                !Concentrations are only actualized in OpenPoints because of instability
-!                                !in waterpoints that are not openpoints
-!                                if (Me%ExternalVar%OpenPoints1D(i) == 1) then
-!                                    Concentration(i) = Concentration( i)      + &
-!                                    Me%ConcentrationIncrement(nProperty, Index) * DTProp / DT 
-!                                end if
-!                            end if cd2
-!                        end do do3
-
-                        !griflet: start
-                        NLB = Me%Array%ILB
-                        NUB = Me%Array%IUB
-                        !$OMP PARALLEL PRIVATE(Index,i)
-                        !$OMP DO
-                        do Index = NLB, NUB
-                            i = Me%Index2I(Index)
-                            !Concentrations are only actualized in OpenPoints because of instability
-                            !in waterpoints that are not openpoints
-                            if (Me%ExternalVar%OpenPoints1D(i) == 1) then
-                                Concentration(i) = Concentration( i)      + &
-                                Me%ConcentrationIncrement(nProperty, Index) * DTProp / DT 
-                            end if
-                        enddo
-                        !$OMP END DO NOWAIT
-                        !$OMP END PARALLEL
-                        !griflet: stop
-                
-                    case(SedimentQualityModel)
-                        
-                        call GetDTSedimentQuality(Me%ObjSedimentQuality, DTSecond = DT, STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'Modify_Interface1D - ModuleInterface - ERR10'                
-
-!do10:                   do i = ILB, IUB
-!cd8 :                       if (Me%ExternalVar%RiverPoints1D(i) == 1) then
-!                                Index = Index + 1
-!                                Concentration(i) = Concentration( i)                     + &
-!                                                         Me%ConcentrationIncrement(nProperty, Index) * &
-!                                                         DTProp / DT 
-!                            end if cd8
-!                        end do do10
-
-                        !griflet: start
-                        NLB = Me%Array%ILB
-                        NUB = Me%Array%IUB
-                        !$OMP PARALLEL PRIVATE(Index,i)
-                        !$OMP DO
-                        do Index = NLB, NUB
-                            i = Me%Index2I(Index)
-                            Concentration(i) = Concentration( i)                     + &
-                                               Me%ConcentrationIncrement(nProperty, Index) * &
-                                               DTProp / DT 
-                        enddo
-                        !$OMP END DO NOWAIT
-                        !$OMP END PARALLEL
-                        !griflet: stop
-
-                    case(CEQUALW2Model)
-
-                        call GetDTCEQUALW2(Me%ObjCEQUALW2, DTSecond = DT, STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'Modify_Interface1D - ModuleInterface - ERR11'
-!
-!do13 :                   do i = ILB, IUB
-!cd9 :                       if (Me%ExternalVar%RiverPoints1D(i) == 1) then
-!                                Index = Index + 1
-!                                !Concentrations are only actualized in OpenPoints because of instability
-!                                !in waterpoints that are not openpoints
-!                                if (Me%ExternalVar%OpenPoints1D(i) == 1) then
-!                                    Concentration(i) = Concentration( i)      + &
-!                                    Me%ConcentrationIncrement(nProperty, Index) * DTProp / DT 
-!                                end if
-!                            end if cd9
-!                        end do do13
-
-                        !griflet: start
-                        NLB = Me%Array%ILB
-                        NUB = Me%Array%IUB
-                        !$OMP PARALLEL PRIVATE(Index,i)
-                        !$OMP DO
-                        do Index = NLB, NUB
-                            i = Me%Index2I(Index)
-                            !Concentrations are only actualized in OpenPoints because of instability
-                            !in waterpoints that are not openpoints
-                            if (Me%ExternalVar%OpenPoints1D(i) == 1) then
-                               Concentration(i) = Concentration( i)      + &
-                               Me%ConcentrationIncrement(nProperty, Index) * DTProp / DT 
-                            end if
-                        enddo
-                        !$OMP END DO NOWAIT
-                        !$OMP END PARALLEL
-                        !griflet: stop
-                   
-                    case(LifeModel)
-
-                        call GetDTLife(Me%ObjLife, DT = DT, STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'Modify_Interface1D - ModuleInterface - ERR12'
-
-!do17 :                   do i = ILB, IUB
-!cd14 :                       if (Me%ExternalVar%RiverPoints1D(i) == 1) then
-!                                Index = Index + 1
-!                                !Concentrations are only actualized in OpenPoints because of instability
-!                                !in waterpoints that are not openpoints
-!                                if (Me%ExternalVar%OpenPoints1D(i) == 1) then
-!                                    Concentration(i) = Concentration(i)      + &
-!                                    Me%ConcentrationIncrement(nProperty, Index) * DTProp / DT 
-!                                end if
-!                            end if cd14
-!                        end do do17
-
-                        !griflet: start
-                        NLB = Me%Array%ILB
-                        NUB = Me%Array%IUB
-                        !$OMP PARALLEL PRIVATE(Index,i)
-                        !$OMP DO
-                        do Index = NLB, NUB
-                            i = Me%Index2I(Index)
-                            !Concentrations are only actualized in OpenPoints because of instability
-                            !in waterpoints that are not openpoints
-                            if (Me%ExternalVar%OpenPoints1D(i) == 1) then
-                                Concentration(i) = Concentration(i)      + &
-                                Me%ConcentrationIncrement(nProperty, Index) * DTProp / DT 
-                            end if
-                        enddo
-                        !$OMP END DO NOWAIT
-                        !$OMP END PARALLEL
-                        !griflet: stop
-
-#ifdef _BFM_  
-                    case(BFMModel)
-                        call GetDTBFM(Me%ObjBFM, DTSecond = DT, STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'Modify_Interface1D - ModuleInterface - ERR12a'
-!
-!                        do i = ILB, IUB
-!                            
-!                            if (Me%ExternalVar%RiverPoints1D(i) == 1) then
-!                                Index = Index + 1
-!                                !Concentrations are only actualized in OpenPoints because of instability
-!                                !in waterpoints that are not openpoints
-!                                if (Me%ExternalVar%OpenPoints1D(i) == 1) then
-!                                    Concentration(i) = Concentration(i)      + &
-!                                    Me%ConcentrationIncrement(nProperty, Index) * DTProp / DT 
-!                                end if
-!                            end if
-!                        end do
-
-                        !griflet: start
-                        NLB = Me%Array%ILB
-                        NUB = Me%Array%IUB
-                        !$OMP PARALLEL PRIVATE(Index,i)
-                        !$OMP DO
-                        do Index = NLB, NUB
-                            i = Me%Index2I(Index)
-                            !Concentrations are only actualized in OpenPoints because of instability
-                            !in waterpoints that are not openpoints
-                            if (Me%ExternalVar%OpenPoints1D(i) == 1) then
-                                Concentration(i) = Concentration(i)      + &
-                                Me%ConcentrationIncrement(nProperty, Index) * DTProp / DT 
-                            end if
-                        enddo
-                        !$OMP END DO NOWAIT
-                        !$OMP END PARALLEL
-                        !griflet: stop
-#endif  
-                    case(BenthosModel)
-
-                        call GetDTBenthos(Me%ObjBenthos, DTSecond = DT, STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'Modify_Interface1D - ModuleInterface - ERR13'
-
-!do18 :                  do i = ILB, IUB
-!cd10 :                      if (Me%ExternalVar%RiverPoints1D(i) == 1) then
-!                                Index = Index + 1
-!                                !Concentrations are only actualized in OpenPoints because of instability
-!                                !in waterpoints that are not openpoints
-!                                if (Me%ExternalVar%OpenPoints1D(i) == 1) then
-!                                    Concentration(i) = Concentration( i)      + &
-!                                    Me%ConcentrationIncrement(nProperty, Index) * DTProp / DT 
-!                                end if
-!                            end if cd10
-!                        end do do18
-
-                        !griflet: start
-                        NLB = Me%Array%ILB
-                        NUB = Me%Array%IUB
-                        !$OMP PARALLEL PRIVATE(Index,i)
-                        !$OMP DO
-                        do Index = NLB, NUB
-                            i = Me%Index2I(Index)
-                            !Concentrations are only actualized in OpenPoints because of instability
-                            !in waterpoints that are not openpoints
-                            if (Me%ExternalVar%OpenPoints1D(i) == 1) then
-                                Concentration(i) = Concentration( i)      + &
-                                Me%ConcentrationIncrement(nProperty, Index) * DTProp / DT 
-                            end if
-                        enddo
-                        !$OMP END DO NOWAIT
-                        !$OMP END PARALLEL
-                        !griflet: stop
-
-                end select
-
             end if cd5
 
             STAT_ = SUCCESS_
@@ -5616,10 +5154,10 @@ cd45 :                  if (.NOT. Me%AddedProperties(i)) then
     end subroutine ConstructMapping_1D
 
    !----------------------------------------------------------------------
+   
    !griflet: end optimization
    
    !----------------------------------------------------------------------
-
    
     subroutine InputData3D (Concentration, nProperty)
 
@@ -5630,6 +5168,9 @@ cd45 :                  if (.NOT. Me%AddedProperties(i)) then
         !Local-----------------------------------------------------------------
         integer                                 :: Index
         integer                                 :: i, j, k
+        real, dimension(:,:,:), pointer         :: LocalConcentration
+        integer                                 :: LocalnProperty 
+        !$ integer                              :: CHUNK
         !integer                                 :: ILB, IUB      
         !integer                                 :: JLB, JUB     
         !integer                                 :: KLB, KUB    
@@ -5667,13 +5208,16 @@ cd45 :                  if (.NOT. Me%AddedProperties(i)) then
         !griflet: start
         NLB = Me%Array%ILB
         NUB = Me%Array%IUB
-        !$OMP PARALLEL PRIVATE(Index,i,j,k)
-        !$OMP DO
+        !$ CHUNK = CHUNK_I(NLB, NUB)
+        !$OMP PARALLEL PRIVATE(Index,i,j,k,LocalnProperty,LocalConcentration)
+        LocalnProperty = nProperty
+        LocalConcentration => Concentration
+        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
         do Index = NLB, NUB
             i = Me%Index2I(Index)
             j = Me%Index2J(Index)
             k = Me%Index2K(Index)
-            Me%Mass(nProperty,Index) = Concentration(i,j,k)
+            Me%Mass(LocalnProperty,Index) = LocalConcentration(i,j,k)
         enddo
         !$OMP END DO NOWAIT
         !$OMP END PARALLEL
@@ -5693,10 +5237,13 @@ cd45 :                  if (.NOT. Me%AddedProperties(i)) then
 
         !Local-----------------------------------------------------------------
         integer                                 :: Index
+        integer                                 :: LocalnProperty
+        real, dimension(:,:), pointer           :: LocalConcentration
         integer                                 :: i, j
         !integer                                 :: ILB, IUB      
         !integer                                 :: JLB, JUB  
         integer                                 :: NLB, NUB   
+        !$ integer                              :: CHUNK
 
         !----------------------------------------------------------------------
 
@@ -5724,12 +5271,15 @@ cd45 :                  if (.NOT. Me%AddedProperties(i)) then
         !griflet: start
         NLB = Me%Array%ILB
         NUB = Me%Array%IUB
-        !$OMP PARALLEL PRIVATE(Index,i,j)
-        !$OMP DO
+        !$ CHUNK = CHUNK_I(NLB, NUB)
+        !$OMP PARALLEL PRIVATE(Index,i,j,LocalnProperty,LocalConcentration)
+        LocalnProperty = nProperty
+        LocalConcentration => Concentration
+        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
         do Index = NLB, NUB
             i = Me%Index2I(Index)
             j = Me%Index2J(Index)
-            Me%Mass(nProperty,Index) = Concentration(i,j)
+            Me%Mass(LocalnProperty,Index) = LocalConcentration(i,j)
         enddo
         !$OMP END DO NOWAIT
         !$OMP END PARALLEL
@@ -5753,7 +5303,8 @@ cd45 :                  if (.NOT. Me%AddedProperties(i)) then
         !integer                                 :: ILB, IUB   
         
         integer                                 :: NLB, NUB      
-
+        !$ integer                              :: CHUNK
+        real, dimension(:), pointer             :: LocalConcentration        
         !----------------------------------------------------------------------
 
         !ILB = Me%Size1D%ILB     
@@ -5775,11 +5326,13 @@ cd45 :                  if (.NOT. Me%AddedProperties(i)) then
         !griflet: start
         NLB = Me%Array%ILB
         NUB = Me%Array%IUB
-        !$OMP PARALLEL PRIVATE(Index,i)
-        !$OMP DO
-       do Index = NLB, NUB
+        !$ CHUNK = CHUNK_I(NLB,NUB)
+        !$OMP PARALLEL PRIVATE(Index,i,LocalConcentration)
+        LocalConcentration => Concentration
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+        do Index = NLB, NUB
             i = Me%Index2I(Index)
-            Me%Mass(nProperty,Index) = Concentration(i)
+            Me%Mass(nProperty,Index) = LocalConcentration(i)
         enddo
         !$OMP END DO NOWAIT
         !$OMP END PARALLEL
@@ -5801,6 +5354,8 @@ cd45 :                  if (.NOT. Me%AddedProperties(i)) then
         integer                             :: Index
         integer                             :: i, j, k
         integer                             :: NLB, NUB
+        !$ integer                          :: CHUNK
+        real, dimension(:,:,:), pointer     :: LocalMatrix3D
 !        integer                             :: ILB, IUB      
 !        integer                             :: JLB, JUB     
 !        integer                             :: KLB, KUB    
@@ -5836,13 +5391,15 @@ cd45 :                  if (.NOT. Me%AddedProperties(i)) then
         !griflet: start
         NLB = Me%Array%ILB
         NUB = Me%Array%IUB
-        !$OMP PARALLEL PRIVATE(Index,i,j,k)
-        !$OMP DO
+        !$ CHUNK = CHUNK_I(NLB, NUB)
+        !$OMP PARALLEL PRIVATE(Index,i,j,k,LocalMatrix3D)
+        LocalMatrix3D => Matrix3D
+        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
         do Index = NLB, NUB
             i = Me%Index2I(Index)
             j = Me%Index2J(Index)
             k = Me%Index2K(Index)
-            Vector(Index) = Matrix3D(i,j,k)
+            Vector(Index) = LocalMatrix3D(i,j,k)
         enddo
         !$OMP END DO NOWAIT
         !$OMP END PARALLEL
@@ -5864,6 +5421,9 @@ cd45 :                  if (.NOT. Me%AddedProperties(i)) then
         integer                                 :: Index
         integer                                 :: i, j, k
         integer                                 :: NLB, NUB
+        !$ integer                              :: CHUNK
+        integer, dimension(:,:,:), pointer      :: LocalMatrix3D
+        
 !        integer                                 :: ILB, IUB      
 !        integer                                 :: JLB, JUB     
 !        integer                                 :: KLB, KUB
@@ -5907,13 +5467,15 @@ cd45 :                  if (.NOT. Me%AddedProperties(i)) then
         !griflet: start
         NLB = Me%Array%ILB
         NUB = Me%Array%IUB
-        !$OMP PARALLEL PRIVATE(Index,i,j,k)
-        !$OMP DO
+        !$ CHUNK = CHUNK_I(NLB, NUB)
+        !$OMP PARALLEL PRIVATE(Index,i,j,k,LocalMatrix3D)
+        LocalMatrix3D => Matrix3D
+        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
         do Index = NLB, NUB
             i = Me%Index2I(Index)
             j = Me%Index2J(Index)
             k = Me%Index2K(Index)
-            Vector(Index) = Matrix3D(i,j,k)
+            Vector(Index) = LocalMatrix3D(i,j,k)
         enddo
         !$OMP END DO NOWAIT
         !$OMP END PARALLEL
@@ -5933,6 +5495,8 @@ cd45 :                  if (.NOT. Me%AddedProperties(i)) then
         integer                             :: Index
         integer                             :: i, j
         integer                             :: NLB, NUB
+        !$ integer                          :: CHUNK
+        real, dimension(:,:), pointer    :: LocalMatrix2D
 !        integer                             :: ILB, IUB      
 !        integer                             :: JLB, JUB     
 !          
@@ -5974,16 +5538,19 @@ cd45 :                  if (.NOT. Me%AddedProperties(i)) then
         !griflet: start
         NLB = Me%Array%ILB
         NUB = Me%Array%IUB
-        !$OMP PARALLEL PRIVATE(Index,i,j)
-        !$OMP DO
+        !$ CHUNK = CHUNK_I(NLB, NUB)
+        !$OMP PARALLEL PRIVATE(Index,i,j,LocalMatrix2D)
+        LocalMatrix2D => Matrix2D
+        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
         do Index = NLB, NUB
             i = Me%Index2I(Index)
             j = Me%Index2J(Index)
-            Vector(Index) = Matrix2D(i,j)
+            Vector(Index) = LocalMatrix2D(i,j)
         enddo
         !$OMP END DO NOWAIT
         !$OMP END PARALLEL
         !griflet: stop
+
         
     end subroutine UnfoldMatrix2D_R
         
@@ -5999,6 +5566,8 @@ cd45 :                  if (.NOT. Me%AddedProperties(i)) then
         integer                                 :: Index
         integer                                 :: i, j
         integer                                 :: NLB, NUB
+        !$ integer                              :: CHUNK
+        integer, dimension(:,:), pointer        :: LocalMatrix2D
 !        integer                                 :: ILB, IUB      
 !        integer                                 :: JLB, JUB     
 !
@@ -6033,12 +5602,14 @@ cd45 :                  if (.NOT. Me%AddedProperties(i)) then
         !griflet: start
         NLB = Me%Array%ILB
         NUB = Me%Array%IUB
-        !$OMP PARALLEL PRIVATE(Index,i,j)
-        !$OMP DO
+        !$ CHUNK = CHUNK_I(NLB, NUB)
+        !$OMP PARALLEL PRIVATE(Index,i,j,LocalMatrix2D)
+        LocalMatrix2D => Matrix2D
+        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
         do Index = NLB, NUB
             i = Me%Index2I(Index)
             j = Me%Index2J(Index)
-            Vector(Index) = Matrix2D(i,j)
+            Vector(Index) = LocalMatrix2D(i,j)
         enddo
         !$OMP END DO NOWAIT
         !$OMP END PARALLEL
@@ -6058,6 +5629,8 @@ cd45 :                  if (.NOT. Me%AddedProperties(i)) then
         integer                             :: Index
         integer                             :: i
         integer                             :: NLB, NUB
+        !$ integer                          :: CHUNK
+        real, dimension(:  ), pointer       :: LocalMatrix1D        
 !        integer                             :: ILB, IUB      
 !           
 !        !----------------------------------------------------------------------
@@ -6089,11 +5662,12 @@ cd45 :                  if (.NOT. Me%AddedProperties(i)) then
         !griflet: start
         NLB = Me%Array%ILB
         NUB = Me%Array%IUB
-        !$OMP PARALLEL PRIVATE(Index,i)
-        !$OMP DO
+        !$OMP PARALLEL PRIVATE(Index,i,LocalMatrix1D)
+        LocalMatrix1D => Matrix1D
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
         do Index = NLB, NUB
             i = Me%Index2I(Index)
-            Vector(Index) = Matrix1D(i)
+            Vector(Index) = LocalMatrix1D(i)
         enddo
         !$OMP END DO NOWAIT
         !$OMP END PARALLEL
@@ -6113,6 +5687,8 @@ cd45 :                  if (.NOT. Me%AddedProperties(i)) then
         integer                                 :: Index
         integer                                 :: i
         integer                                 :: NLB, NUB
+        !$ integer                              :: CHUNK
+        integer, dimension(:  ), pointer           :: LocalMatrix1D        
 !        integer                                 :: ILB, IUB      
 !        !----------------------------------------------------------------------
 !
@@ -6139,11 +5715,12 @@ cd45 :                  if (.NOT. Me%AddedProperties(i)) then
         !griflet: start
         NLB = Me%Array%ILB
         NUB = Me%Array%IUB
-        !$OMP PARALLEL PRIVATE(Index,i)
-        !$OMP DO
+        !$OMP PARALLEL PRIVATE(Index,i,LocalMatrix1D)
+        LocalMatrix1D => Matrix1D
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
         do Index = NLB, NUB
             i = Me%Index2I(Index)
-            Vector(Index) = Matrix1D(i)
+            Vector(Index) = LocalMatrix1D(i)
         enddo
         !$OMP END DO NOWAIT
         !$OMP END PARALLEL
@@ -6630,7 +6207,82 @@ cd1 :           if      (PropertyID== Phytoplankton_       ) then
 
     !--------------------------------------------------------------------------
 
+    real function InterfaceDT()
+    
+        integer         :: STAT_CALL
+        
+        select case (Me%SinksSourcesModel)
 
+            case(WaterQualityModel)                        
+                call GetDTWQM(Me%ObjWaterQuality, DTSecond = InterfaceDT, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'InterfaceDT - ModuleInterface - ERR09'
+                
+            case(SedimentQualityModel)                        
+                call GetDTSedimentQuality(Me%ObjSedimentQuality, DTSecond = InterfaceDT, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'InterfaceDT - ModuleInterface - ERR10'                
+
+            case(CEQUALW2Model, BenthicCEQUALW2Model)
+                call GetDTCEQUALW2(Me%ObjCEQUALW2, DTSecond = InterfaceDT, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'InterfaceDT - ModuleInterface - ERR11'
+                   
+            case(LifeModel)
+                call GetDTLife(Me%ObjLife, DT = InterfaceDT, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'InterfaceDT - ModuleInterface - ERR12'
+#ifdef _BFM_  
+            case(BFMModel)
+                call GetDTBFM(Me%ObjBFM, DTSecond = InterfaceDT, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'InterfaceDT - ModuleInterface - ERR12a'
+#endif  
+            case(BenthosModel)
+                call GetDTBenthos(Me%ObjBenthos, DTSecond = InterfaceDT, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'InterfaceDT - ModuleInterface - ERR13'
+
+            case(MacroAlgaeModel)
+                call GetDTMacroAlgae(Me%ObjMacroAlgae, DTSecond = InterfaceDT, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'InterfaceDT - ModuleInterface - ERR14'                        
+#ifdef _PHREEQC_
+            case(PhreeqcModel)                         
+                call GetPhreeqCDT(Me%ObjPhreeqC, DTSecond = InterfaceDT, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'InterfaceDT - ModuleInterface - ERR15'                
+#endif                   
+        end select
+                
+    end function InterfaceDT
+
+    !--------------------------------------------------------------------------
+
+    character(256) function model_name()
+    
+        select case (Me%SinksSourcesModel)
+        
+            case (WaterQualityModel)            
+                model_name = 'Water Quality'
+                
+            case (SedimentQualityModel)            
+                model_name = 'Sediment Quality'
+                
+            case (CEQUALW2Model, BenthicCEQUALW2Model)            
+                model_name = 'CEQUALW2'
+            
+            case (LifeModel)            
+                model_name = 'Life'                
+#ifdef _BFM_  
+            case (BFMModel)            
+                model_name = 'BFM'
+#endif
+            case (BenthosModel)            
+                model_name = 'Benthos'
+            
+            case (MacroAlgaeModel)            
+                model_name = 'Macro Algae'                
+#ifdef _PHREEQC_
+            case (PhreeqCModel)             
+                model_name = 'PhreeqC'
+#endif
+        end select
+        
+    end function     
+    
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
