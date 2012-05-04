@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<VisualStudioUserFile ProjectType="typeStaticLibrary" ProjectCreator="Intel Fortran" Keyword="Static Library" Version="11.0" ProjectIdGuid="{0056F7D7-347A-40DE-98B8-843CF05B5488}">
+	<Configurations>
+		<Configuration Name="Debug|Win32" WorkingDirectory="Z:\Proj_344_Argomarine\Simula\AquaSafeServerTesting\extract"/>
+		<Configuration Name="Release|Win32" WorkingDirectory="\\poseidon\Aplica\Proj_Efacec\Simula\Flow3D\DecantadorCompleto\exe"/>
+		<Configuration Name="Debug Double|Win32"/>
+		<Configuration Name="Release Double|Win32"/>
+		<Configuration Name="Release Double OpenMP|Win32"/>
+		<Configuration Name="Release OpenMP|Win32"/>
+		<Configuration Name="Debug OpenMP|Win32"/>
+		<Configuration Name="Debug Double PhreeqC|Win32"/>
+		<Configuration Name="Release Double OpenMP PhreeqC|Win32"/>
+		<Configuration Name="Debug OpenMI|Win32"/>
+		<Configuration Name="Release OpenMI|Win32"/>
+		<Configuration Name="Debug Double Openmp|Win32"/>
+		<Configuration Name="Debug|x64"/>
+		<Configuration Name="Release|x64"/>
+		<Configuration Name="Debug Double|x64"/>
+		<Configuration Name="Release Double|x64"/>
+		<Configuration Name="Release Double OpenMP|x64"/>
+		<Configuration Name="Release OpenMP|x64"/>
+		<Configuration Name="Debug OpenMP|x64"/>
+		<Configuration Name="Debug Double PhreeqC|x64"/>
+		<Configuration Name="Release Double OpenMP PhreeqC|x64"/>
+		<Configuration Name="Debug OpenMI|x64"/>
+		<Configuration Name="Release OpenMI|x64"/>
+		<Configuration Name="Debug Double Openmp|x64"/>
+		<Configuration Name="Release MPI|Win32"/>
+		<Configuration Name="Release MPI|x64"/>
+		<Configuration Name="Debug Developper Single|Win32"/>
+		<Configuration Name="Debug Developper Single|x64"/>
+		<Configuration Name="Debug Double CUDA|Win32"/>
+		<Configuration Name="Release Double CUDA|Win32"/>
+		<Configuration Name="Release Double OpenMI|Win32"/>
+		<Configuration Name="Release Double OpenMI|x64"/></Configurations></VisualStudioUserFile>

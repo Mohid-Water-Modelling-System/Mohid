@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<VisualStudioUserFile ProjectCreator="Intel Fortran" Keyword="Console Application" Version="11.0" ProjectIdGuid="{4D8FB248-4615-441A-AF9E-0C7FA58C4F6B}">
+	<Configurations>
+		<Configuration Name="Debug|Win32" WorkingDirectory="E:\Aplica\Proj_344_Argomarine\Simula\AquaSafeServerTesting\test4"/>
+		<Configuration Name="Release|Win32" WorkingDirectory="E:\Aplica\Proj_344_Argomarine\Simula\AquaSafeServerTesting\test4"/>
+		<Configuration Name="Release Double|Win32"/>
+		<Configuration Name="Debug OpenMP|Win32"/>
+		<Configuration Name="Debug Double PhreeqC|Win32"/>
+		<Configuration Name="Debug OpenMI|Win32"/>
+		<Configuration Name="Debug Double Openmp|Win32"/>
+		<Configuration Name="Debug|x64"/>
+		<Configuration Name="Release|x64" WorkingDirectory="Z:\Proj_344_Argomarine\Simula\AquaSafeServerTesting\test4"/>
+		<Configuration Name="Release Double|x64"/>
+		<Configuration Name="Debug OpenMP|x64"/>
+		<Configuration Name="Debug Double PhreeqC|x64"/>
+		<Configuration Name="Debug OpenMI|x64"/>
+		<Configuration Name="Debug Double Openmp|x64"/>
+		<Configuration Name="Release MPI|Win32"/>
+		<Configuration Name="Release MPI|x64"/>
+		<Configuration Name="Debug Developper Single|Win32"/>
+		<Configuration Name="Debug Developper Single|x64"/>
+		<Configuration Name="Debug Double CUDA|Win32"/>
+		<Configuration Name="Debug Double CUDA|x64"/>
+		<Configuration Name="Release Double CUDA|Win32"/>
+		<Configuration Name="Release Double CUDA|x64"/></Configurations></VisualStudioUserFile>

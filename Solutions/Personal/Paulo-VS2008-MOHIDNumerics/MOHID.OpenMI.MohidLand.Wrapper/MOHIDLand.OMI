@@ -1,0 +1,6 @@
+﻿<?xml version="1.0"?>
+<LinkableComponent Type="MOHID.OpenMI.MohidLand.Wrapper.MohidLandLinkableComponent" Assembly="D:\Software\Mohid\MOHID.Numerics\Solutions\VisualStudio2008_IntelFortran11\MOHIDNumerics\MOHID.OpenMI.MohidLand.Wrapper\bin\Debug OpenMI\MOHID.OpenMI.MohidLand.Wrapper.dll">
+  <Arguments>
+    <Argument Key="FilePath" ReadOnly="true" Value= "C:\Users\frank\Documents\Mohid Studio\Projects\Open MI\Sample Catchment\exe\nomfich.dat" />
+  </Arguments>
+</LinkableComponent>

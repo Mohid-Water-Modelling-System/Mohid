@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<VisualStudioUserFile ProjectCreator="Intel Fortran" Keyword="Console Application" Version="11.0" ProjectIdGuid="{DD4BF52A-DA2B-49B5-871F-133150FDB18C}">
+	<Configurations>
+		<Configuration Name="Debug|Win32" WorkingDirectory="Z:\Proj_344_Argomarine\Simula\AquaSafeServerTesting\test5"/>
+		<Configuration Name="Release|Win32" WorkingDirectory="Z:\Proj_344_Argomarine\Simula\AquaSafeServerTesting\test3"/>
+		<Configuration Name="Debug OpenMP|Win32"/>
+		<Configuration Name="Debug Double PhreeqC|Win32"/>
+		<Configuration Name="Debug OpenMI|Win32"/>
+		<Configuration Name="Debug Double Openmp|Win32"/>
+		<Configuration Name="Debug|x64"/>
+		<Configuration Name="Release|x64"/>
+		<Configuration Name="Debug OpenMP|x64"/>
+		<Configuration Name="Debug Double PhreeqC|x64"/>
+		<Configuration Name="Debug OpenMI|x64"/>
+		<Configuration Name="Debug Double Openmp|x64"/>
+		<Configuration Name="Release MPI|Win32"/>
+		<Configuration Name="Release MPI|x64"/>
+		<Configuration Name="Debug Developper Single|Win32"/>
+		<Configuration Name="Debug Developper Single|x64"/>
+		<Configuration Name="Debug Double CUDA|Win32"/>
+		<Configuration Name="Debug Double CUDA|x64"/>
+		<Configuration Name="Release Double CUDA|Win32"/>
+		<Configuration Name="Release Double CUDA|x64"/></Configurations></VisualStudioUserFile>

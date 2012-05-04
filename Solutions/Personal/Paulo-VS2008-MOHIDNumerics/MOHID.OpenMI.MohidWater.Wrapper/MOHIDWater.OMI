@@ -1,0 +1,6 @@
+﻿<?xml version="1.0"?>
+<LinkableComponent Type="MOHID.OpenMI.MohidWater.Wrapper.MohidWaterLinkableComponent" Assembly="D:\Software\Mohid\MOHID.Numerics\Solutions\VisualStudio2008_IntelFortran11\MOHIDNumerics\MOHID.OpenMI.MohidWater.Wrapper\bin\Debug OpenMI\MOHID.OpenMI.MohidWater.Wrapper.dll">
+  <Arguments>
+    <Argument Key="FilePath" ReadOnly="true" Value= "D:\MohidProjects\Studio\03_MOHID OpenMI\Sample Estuary\exe\nomfich.dat" />
+  </Arguments>
+</LinkableComponent>
