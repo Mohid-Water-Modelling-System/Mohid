@@ -320,6 +320,8 @@ Module ModuleGeometry
         type (T_Time)                           :: ActualTime  
         type (T_Size3D)                         :: Size
         type (T_Size3D)                         :: WorkSize
+        
+        logical                                 :: IsWindow
        
         character(len=Pathlength)               :: InputFile
 
@@ -902,6 +904,14 @@ Module ModuleGeometry
         call ConstructEnterData(ObjEnterData, Me%InputFile, STAT = STATUS)           
         if (STATUS /= SUCCESS_) stop "GetDomainsFromFile - Geometry - ERR10"
 
+        !Searches for the MinWaterColumn
+        call GetData(Me%IsWindow, ObjEnterData, iflag,                          &
+                     SearchType     = FromFile,                                         &
+                     keyword        = 'WINDOW',                                         &
+                     Default        = .false.,                                          &  
+                     ClientModule   = 'ModuleGeometry',                                 &
+                     STAT           = STATUS)
+        if (STATUS /= SUCCESS_) stop "GetDomainsFromFile - Geometry - ERR20"
 
         !Searches for the MinWaterColumn
         call GetData(Me%WaterColumn%Zmin, ObjEnterData, iflag,                          &
@@ -1448,9 +1458,10 @@ cd2 :                       if (BlockLayersFound) then
                 !Error = abs(DomainDif - Sum)
 
                 if ((DomainDif - Sum)>1e-7) then
-                    write(*,*)'Layers incorrectly defined - Domain number ',CurrentDomain%ID
-                    stop 'ComputeLayers - Geometry - ERR20.'
-
+                    if (.not. Me%IsWindow) then
+                        write(*,*)'Layers incorrectly defined - Domain number ',CurrentDomain%ID
+                        stop 'ComputeLayers - Geometry - ERR20.'
+                    endif
                 endif
 
             endif
