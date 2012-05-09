@@ -305,7 +305,7 @@
 				<Tool Name="VFPostBuildEventTool"/>
 				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
 		<Configuration Name="Release Double OpenMI|Win32" ConfigurationType="typeStaticLibrary">
-				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" BufferedIO="true" InterproceduralOptimizations="ipoSingleFile" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\..\..\..\ExternalLibs\HDF_1.6.8\IntelFortran11\Include;..\..\..\..\ExternalLibs\Proj4\Include" PreprocessorDefinitions="_USE_PROJ4;_OPENMI_" StandardWarnings="standardWarningsF03" WarnDeclarations="true" WarnUnusedVariables="true" WarnTruncateSource="true" RealKIND="realKIND8" LocalSavedScalarsZero="true" FloatingPointExceptionHandling="fpe0" Traceback="true"/>
+				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" BufferedIO="true" InterproceduralOptimizations="ipoSingleFile" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\..\..\..\ExternalLibs\HDF_1.6.8\IntelFortran11\Include;..\..\..\..\ExternalLibs\Proj4\Include" PreprocessorDefinitions="_USE_PROJ4;_OPENMI_" OpenMP="OpenMPParallelCode" StandardWarnings="standardWarningsF03" WarnDeclarations="true" WarnUnusedVariables="true" WarnTruncateSource="true" RealKIND="realKIND8" LocalSavedScalarsZero="true" FloatingPointExceptionHandling="fpe0" Traceback="true"/>
 				<Tool Name="VFLibrarianTool"/>
 				<Tool Name="VFResourceCompilerTool"/>
 				<Tool Name="VFMidlTool" SuppressStartupBanner="true"/>

@@ -12217,7 +12217,7 @@ if2:                if (CurrNode%nDownstreamReaches .NE. 0) then
                     iReach = iReach + 1
                 end if
             end do
-            call HDF5WriteData  (Me%ObjHDF5, "/Results/Velocity", "Velocity",            &
+            call HDF5WriteData  (Me%ObjHDF5, "/Results/velocity", "velocity",            &
                                  "m/s",                                                  &
                                  Array1D      = OutputMatrix,                            &
                                  OutputNumber = Me%OutPut%NextOutPut,                    &

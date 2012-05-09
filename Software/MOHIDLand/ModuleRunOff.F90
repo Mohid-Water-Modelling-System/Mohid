@@ -179,7 +179,6 @@ Module ModuleRunOff
         real(8), dimension(:,:), pointer            :: myWaterVolume            => null() 
         real(8), dimension(:,:), pointer            :: myWaterColumnOld         => null() !OldColumn from Basin
         real(8), dimension(:,:), pointer            :: myWaterVolumeOld         => null()
-        real,    dimension(:,:), pointer            :: FreeGridCellArea         => null() !GridCellArea not occupied with buildings
         real,    dimension(:,:), pointer            :: lFlowToChannels          => null() !Instantaneous Flow To Channels
         real,    dimension(:,:), pointer            :: iFlowToChannels          => null() !Integrated    Flow
         real,    dimension(:,:), pointer            :: lFlowBoundary            => null() !Instantaneous Flow to impose BC
@@ -206,7 +205,7 @@ Module ModuleRunOff
         real,    dimension(:,:), pointer            :: StormWaterCenterFlowX    => null() !Output
         real,    dimension(:,:), pointer            :: StormWaterCenterFlowY    => null() !Output
         real,    dimension(:,:), pointer            :: StormWaterCenterModulus  => null() !Output 
-        real,    dimension(:,:), pointer            :: BuildingsFraction        => null() !Fraction of Grid cell which is occupied w/ B
+        real,    dimension(:,:), pointer            :: BuildingsHeight          => null() !Height of building in cell
         real,    dimension(:,:), pointer            :: StormWaterInteraction    => null() !Points where interaction with SWMM occurs
         real,    dimension(:,:), pointer            :: MassError                => null() !Contains mass error
         real, dimension(:,:), pointer               :: CenterFlowX, CenterFlowY
@@ -462,7 +461,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         type(T_PropertyID)                          :: InitialWaterColumnID
         type(T_PropertyID)                          :: OverLandCoefficientDeltaID
         type(T_PropertyID)                          :: StormWaterDrainageID
-        type(T_PropertyID)                          :: BuildingsFractionID
+        type(T_PropertyID)                          :: BuildingsHeightID
         type(T_PropertyID)                          :: StormWaterInteractionID
         integer                                     :: iflag, ClientNumber
         logical                                     :: BlockFound
@@ -1030,37 +1029,38 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             
         endif
 
+        allocate(Me%BuildingsHeight(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+        Me%BuildingsHeight = 0.0
+
         if (Me%Buildings) then
         
-            allocate(Me%BuildingsFraction(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
-
             call RewindBuffer (ObjEnterData, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR20'
 
             !Gets Flag with Sewer Points
             call ExtractBlockFromBuffer(ObjEnterData, ClientNumber,                          &
-                                        '<BeginBuildingsFraction>',                          &
-                                        '<EndBuildingsFraction>', BlockFound,                &
+                                        '<BeginBuildingsHeight>',                          &
+                                        '<EndBuildingsHeight>', BlockFound,                &
                                         STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR21'
 
             if (BlockFound) then
-                call ConstructFillMatrix  ( PropertyID       = BuildingsFractionID,          &
+                call ConstructFillMatrix  ( PropertyID       = BuildingsHeightID,          &
                                             EnterDataID      = ObjEnterData,                 &
                                             TimeID           = Me%ObjTime,                   &
                                             HorizontalGridID = Me%ObjHorizontalGrid,         &
                                             ExtractType      = FromBlock,                    &
                                             PointsToFill2D   = Me%ExtVar%BasinPoints,        &
-                                            Matrix2D         = Me%BuildingsFraction,         &
+                                            Matrix2D         = Me%BuildingsHeight,         &
                                             TypeZUV          = TypeZ_,                       &
                                             STAT             = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR22'
 
-                call KillFillMatrix(BuildingsFractionID%ObjFillMatrix, STAT = STAT_CALL)
+                call KillFillMatrix(BuildingsHeightID%ObjFillMatrix, STAT = STAT_CALL)
                 if (STAT_CALL  /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR23'
 
             else
-                write(*,*)'Missing Block <BeginBuildingsFraction> / <EndBuildingsFraction>' 
+                write(*,*)'Missing Block <BeginBuildingsHeight> / <EndBuildingsHeight>' 
                 stop      'ReadDataFile - ModuleRunOff - ERR08'
             endif
         
@@ -1177,28 +1177,18 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         
         if (Me%Buildings) then
 
-            !Corrects BuildingFractions
+            !Checks Building Height
             do j = Me%Size%JLB, Me%Size%JUB
             do i = Me%Size%ILB, Me%Size%IUB
 
-                Me%BuildingsFraction(i, j) = (1.0 - min(Me%BuildingsFraction(i, j), 0.9))
-
+                if (Me%ExtVar%BasinPoints(i, j) == BasinPoint) then
+                    if (Me%BuildingsHeight(i, j) .lt. 0.0) then
+                        write(*,*)'Buildings Height must be greater then 0', i, j
+                        stop 'InitializeVariables - ModuleRunOff - ERR01'                        
+                    endif
+                endif
             enddo
             enddo
-
-        
-            allocate(Me%FreeGridCellArea(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
-            do j = Me%Size%JLB, Me%Size%JUB
-            do i = Me%Size%ILB, Me%Size%IUB
-
-                Me%FreeGridCellArea(i, j) = Me%ExtVar%GridCellArea(i, j) * Me%BuildingsFraction(i, j)
-
-            enddo
-            enddo
-        
-        else
-        
-            Me%FreeGridCellArea => Me%ExtVar%GridCellArea
            
         endif
         
@@ -1242,22 +1232,26 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             if (Me%ExtVar%BasinPoints(i, j) == BasinPoint) then
             
                 if (((Me%ExtVar%BasinPoints(i+1, j) == BasinPoint                 .and. &
-                      Me%ExtVar%Topography (i+1, j) > Me%ExtVar%Topography(i, j)) .or.  &  
+                      Me%ExtVar%Topography (i+1, j) >= Me%ExtVar%Topography(i, j)) .or.  &  
                       Me%ExtVar%BasinPoints(i+1, j) /= BasinPoint)                .and. &
                     ((Me%ExtVar%BasinPoints(i-1, j) == BasinPoint                 .and. &
-                      Me%ExtVar%Topography (i-1, j) > Me%ExtVar%Topography(i, j)) .or.  &
+                      Me%ExtVar%Topography (i-1, j) >= Me%ExtVar%Topography(i, j)) .or.  &
                       Me%ExtVar%BasinPoints(i-1, j) /= BasinPoint)                .and. &
                     ((Me%ExtVar%BasinPoints(i, j+1) == BasinPoint                 .and. &
-                      Me%ExtVar%Topography (i, j+1) > Me%ExtVar%Topography(i, j)) .or.  &
+                      Me%ExtVar%Topography (i, j+1) >= Me%ExtVar%Topography(i, j)) .or.  &
                       Me%ExtVar%BasinPoints(i, j+1) /= BasinPoint)                .and. &
                     ((Me%ExtVar%BasinPoints(i, j-1) == BasinPoint                 .and. &
-                      Me%ExtVar%Topography (i, j-1) > Me%ExtVar%Topography(i, j)) .or.  &
+                      Me%ExtVar%Topography (i, j-1) >= Me%ExtVar%Topography(i, j)) .or.  &
                       Me%ExtVar%BasinPoints(i, j-1) /= BasinPoint)) then
                     
-                    Me%DFourSinkPoint(i, j) = BasinPoint
+                    if (Me%LowestNeighborI(i, j) /= i .or. Me%LowestNeighborJ(i, j) /= j) then
+
+                        Me%DFourSinkPoint(i, j) = BasinPoint
+                        
+                        !D 4 Sink Points are not points where stability criteria is verified
+                        Me%StabilityPoints(i, j)= 0
                     
-                    !D 4 Sink Points are not points where stability criteria is verified
-                    Me%StabilityPoints(i, j)= 0
+                    endif
                     
                 endif
 
@@ -1277,15 +1271,15 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                     Me%DFourSinkPoint(i, j) = 0
                 endif
                 
-                !Target Point is a DNet Point
-                if (Me%DFourSinkPoint(i, j) == BasinPoint .and. Me%LowestNeighborI(i, j) /= null_int) then
-              
-                    if (Me%ExtVar%RiverPoints (Me%LowestNeighborI(i, j), Me%LowestNeighborJ(i, j)) == BasinPoint) then
-                        Me%DFourSinkPoint(i, j) = 0
-                    endif
-              
-                endif              
-                
+!                !Target Point is a DNet Point
+!                if (Me%DFourSinkPoint(i, j) == BasinPoint .and. Me%LowestNeighborI(i, j) /= null_int) then
+!              
+!                    if (Me%ExtVar%RiverPoints (Me%LowestNeighborI(i, j), Me%LowestNeighborJ(i, j)) == BasinPoint) then
+!                        Me%DFourSinkPoint(i, j) = 0
+!                    endif
+!              
+!                endif              
+!                
             enddo
             enddo
                         
@@ -2465,12 +2459,6 @@ doIter:         do while (iter <= Niter)
                 endif
             endif
 
-            !Redistribute the Water Column over the entire area
-            if (Me%Buildings) then
-                call DistributeLocalWaterColumn
-            endif
-
-                            
             !Ungets external variables
             call ReadUnLockExternalVar (StaticOnly = .false.)
 
@@ -2532,7 +2520,7 @@ doIter:         do while (iter <= Niter)
                 Me%myWaterVolume(i, j)      = Me%myWaterVolume(i, j) + Flow * LocalDT
 
                 !Updates Water Column
-                Me%myWaterColumn  (i, j)    = Me%myWaterVolume (i, j) / Me%FreeGridCellArea   (i, j) !Me%ExtVar%GridCellArea(i, j)
+                Me%myWaterColumn  (i, j)    = Me%myWaterVolume (i, j) / Me%ExtVar%GridCellArea(i, j)
 
                 !Updates Water Level
                 Me%myWaterLevel (i, j)      = Me%myWaterColumn (i, j) + Me%ExtVar%Topography(i, j)
@@ -2575,17 +2563,19 @@ doIter:         do while (iter <= Niter)
             if (Me%ExtVar%BasinPoints(i, j-1) == BasinPoint .and. Me%ExtVar%BasinPoints(i, j) == BasinPoint) then
             
                 !Maximum Bottom Level
-                MaxBottom = max(Me%ExtVar%Topography(i, j-1), Me%ExtVar%Topography(i, j))
+                MaxBottom = max(Me%ExtVar%Topography(i, j-1) + Me%BuildingsHeight(i, j-1), &
+                                Me%ExtVar%Topography(i, j)   + Me%BuildingsHeight(i, j))
                 
                 !Water Column Left (above MaxBottom)
-                WCL       = max(Me%myWaterLevel(i, j-1) - MaxBottom, dble(0.0))
+                WCL       = max(Me%myWaterLevel(i, j-1) + Me%BuildingsHeight(i, j-1) - MaxBottom, dble(0.0))
             
                 !Water Column Right (above MaxBottom)
-                WCR       = max(Me%myWaterLevel(i, j  ) - MaxBottom, dble(0.0))
+                WCR       = max(Me%myWaterLevel(i, j  ) + Me%BuildingsHeight(i, j)   - MaxBottom, dble(0.0))
 
                 !In the case of kinematic wave, always consider the "upstream" area, otherwise the average above "max bottom"
                 if (Me%HydrodynamicApproximation == KinematicWave_) then
-                    if (Me%ExtVar%Topography(i, j-1) > Me%ExtVar%Topography(i, j)) then
+                    if (Me%ExtVar%Topography(i, j-1) + Me%BuildingsHeight(i, j-1) >      &
+                        Me%ExtVar%Topography(i, j)   + Me%BuildingsHeight(i, j)) then
                         WCA = WCL
                     else
                         WCA = WCR
@@ -2593,27 +2583,20 @@ doIter:         do while (iter <= Niter)
                 else
                     !Average Water Column
                     !WCA = (WCL + WCR) / 2.0
-                    if (Me%myWaterLevel(i, j-1)     > Me%myWaterLevel(i, j)) then
+                    if (Me%myWaterLevel(i, j-1) + Me%BuildingsHeight(i, j-1) > Me%myWaterLevel(i, j) + Me%BuildingsHeight(i, j)) then
                         WCA = WCL
                     else
                         WCA = WCR
                     endif
                 endif
                 
-                if (Me%Buildings) then
-                    Me%AreaU(i, j) = WCA * Me%ExtVar%DYY(i, j) * (Me%BuildingsFraction(i, j-1) + Me%BuildingsFraction(i, j)) / 2.0
-                else
-                    Me%AreaU(i, j) = WCA * Me%ExtVar%DYY(i, j)
-                endif
-
+                !Area  = Water Column * Side lenght of cell
+                Me%AreaU(i, j) = WCA * Me%ExtVar%DYY(i, j)
+                
                 if (WCA > Me%MinimumWaterColumn) then
-                
                     Me%ComputeFaceU(i, j) = 1
-                
                 else
-                    
                     Me%ComputeFaceU(i, j) = 0
-                
                 endif
             
             endif
@@ -2629,17 +2612,19 @@ doIter:         do while (iter <= Niter)
             if (Me%ExtVar%BasinPoints(i-1, j) == BasinPoint .and. Me%ExtVar%BasinPoints(i, j) == BasinPoint) then
             
                 !Maximum Bottom Level
-                MaxBottom = max(Me%ExtVar%Topography(i-1, j), Me%ExtVar%Topography(i, j))
+                MaxBottom = max(Me%ExtVar%Topography(i-1, j) + Me%BuildingsHeight(i-1, j), &
+                                Me%ExtVar%Topography(i, j)   + Me%BuildingsHeight(i, j))
                 
                 !Water Column Left
-                WCL       = max(Me%myWaterLevel(i-1, j) - MaxBottom, dble(0.0))
+                WCL       = max(Me%myWaterLevel(i-1, j) + Me%BuildingsHeight(i-1, j) - MaxBottom, dble(0.0))
             
                 !Water Column Right
-                WCR       = max(Me%myWaterLevel(i, j  ) - MaxBottom, dble(0.0))
+                WCR       = max(Me%myWaterLevel(i, j  ) + Me%BuildingsHeight(i, j)   - MaxBottom, dble(0.0))
                
                 !In the case of kinematic wave, always consider the "upstream" area, otherwise the average above "max bottom"
                 if (Me%HydrodynamicApproximation == KinematicWave_) then
-                    if (Me%ExtVar%Topography(i-1, j) > Me%ExtVar%Topography(i, j)) then
+                    if (Me%ExtVar%Topography(i-1, j) + Me%BuildingsHeight(i-1, j) >      &
+                        Me%ExtVar%Topography(i, j)   + Me%BuildingsHeight(i, j)) then
                         WCA = WCL
                     else
                         WCA = WCR
@@ -2647,29 +2632,21 @@ doIter:         do while (iter <= Niter)
                 else
                     !Average Water Column
                     !WCA = (WCL + WCR) / 2.0
-                    if (Me%myWaterLevel(i-1, j)  > Me%myWaterLevel(i, j)) then
+                    if (Me%myWaterLevel(i-1, j) + Me%BuildingsHeight(i-1, j) >           &
+                        Me%myWaterLevel(i, j) + Me%BuildingsHeight(i, j)) then
                         WCA = WCL
                     else
                         WCA = WCR
                     endif
                 endif
 
+                !Area  = Water Column * Side lenght of cell
+                Me%AreaV(i, j) = WCA * Me%ExtVar%DXX(i, j)
                 
-                if (Me%Buildings) then
-                    Me%AreaV(i, j) = WCA * Me%ExtVar%DYY(i, j) *  (Me%BuildingsFraction(i-1, j) + Me%BuildingsFraction(i, j)) / 2.0
-                else
-                    Me%AreaV(i, j) = WCA * Me%ExtVar%DXX(i, j)
-                endif
-
-
                 if (WCA > Me%MinimumWaterColumn) then
-                
                     Me%ComputeFaceV(i, j) = 1
-                
                 else
-                    
                     Me%ComputeFaceV(i, j) = 0
-                
                 endif
             
             endif
@@ -2719,8 +2696,8 @@ doIter:         do while (iter <= Niter)
                 if (Me%HydrodynamicApproximation == KinematicWave_) then
                 
                     if (Me%Buildings) then
-                        level_left  = Me%ExtVar%Topography(i, j-1) + 0.0 !Me%BuildingsHeight(i, j-1)
-                        level_right = Me%ExtVar%Topography(i, j)   + 0.0 !Me%BuildingsHeight(i, j  )
+                        level_left  = Me%ExtVar%Topography(i, j-1) + Me%BuildingsHeight(i, j-1)
+                        level_right = Me%ExtVar%Topography(i, j)   + Me%BuildingsHeight(i, j  )
                     else
                         level_left  = Me%ExtVar%Topography(i, j-1)
                         level_right = Me%ExtVar%Topography(i, j)
@@ -2729,8 +2706,8 @@ doIter:         do while (iter <= Niter)
                 else if (Me%HydrodynamicApproximation == DiffusionWave_) then
                 
                     if (Me%Buildings) then
-                        level_left  = Me%myWaterLevel(i, j-1) + 0.0 !Me%BuildingsHeight(i, j-1)
-                        level_right = Me%myWaterLevel(i, j)   + 0.0 !Me%BuildingsHeight(i, j  )
+                        level_left  = Me%myWaterLevel(i, j-1) + Me%BuildingsHeight(i, j-1)
+                        level_right = Me%myWaterLevel(i, j)   + Me%BuildingsHeight(i, j  )
                     else
                         level_left  = Me%myWaterLevel(i, j-1)
                         level_right = Me%myWaterLevel(i, j)
@@ -2824,8 +2801,8 @@ doIter:         do while (iter <= Niter)
                 
                     !Adds to the final level the height of the buidings, if any
                     if (Me%Buildings) then
-                        level_bottom = Me%ExtVar%Topography(i-1, j) + 0.0 !Me%BuildingsHeight(i-1, j)
-                        level_top    = Me%ExtVar%Topography(i, j)   + 0.0 !Me%BuildingsHeight(i, j  )
+                        level_bottom = Me%ExtVar%Topography(i-1, j) + Me%BuildingsHeight(i-1, j)
+                        level_top    = Me%ExtVar%Topography(i, j)   + Me%BuildingsHeight(i, j  )
                     else
                         level_bottom = Me%ExtVar%Topography(i-1, j)
                         level_top    = Me%ExtVar%Topography(i, j)
@@ -2835,8 +2812,8 @@ doIter:         do while (iter <= Niter)
 
                     !Adds to the final level the height of the buidings, if any
                     if (Me%Buildings) then
-                        level_bottom = Me%myWaterLevel(i-1, j) !+ Me%BuildingsHeight(i-1, j)
-                        level_top    = Me%myWaterLevel(i, j)   !+ Me%BuildingsHeight(i, j  )
+                        level_bottom = Me%myWaterLevel(i-1, j) + Me%BuildingsHeight(i-1, j)
+                        level_top    = Me%myWaterLevel(i, j)   + Me%BuildingsHeight(i, j  )
                     else
                         level_bottom = Me%myWaterLevel(i-1, j)
                         level_top    = Me%myWaterLevel(i, j)
@@ -2965,8 +2942,8 @@ doIter:         do while (iter <= Niter)
             
                 !Adds to the final level the height of the buidings, if any
                 if (Me%Buildings) then
-                    level_left  = Me%myWaterLevel(i, j-1) !+ Me%BuildingsHeight(i, j-1)
-                    level_right = Me%myWaterLevel(i, j)   !+ Me%BuildingsHeight(i, j  )
+                    level_left  = Me%myWaterLevel(i, j-1) + Me%BuildingsHeight(i, j-1)
+                    level_right = Me%myWaterLevel(i, j)   + Me%BuildingsHeight(i, j  )
                 else
                     level_left  = Me%myWaterLevel(i, j-1)
                     level_right = Me%myWaterLevel(i, j)
@@ -3040,25 +3017,21 @@ doIter:         do while (iter <= Niter)
                 Me%lFlowX(i, j) = (Me%FlowXOld(i, j) + Pressure + Advection) / (1.0 + Friction)
 
 !                !Limits Velocity to reasonable values
-!                if (level_left > level_right) then
+!                if (Me%Buildings) then
+!                    if (level_left > level_right) then
+!                        MaxFlow         = 0.5 * (level_left - level_right) * Me%ExtVar%GridCellArea(i, j) &
+!                                         / LocalDT
+!                        CriticalFlow    = 0.5 * Me%AreaU(i, j) * sqrt(Gravity * HydraulicRadius)
+!                        
+!                        Me%lFlowX(i, j) = Min(Me%lFlowX(i, j), Min(MaxFlow, CriticalFlow))
+!                    else
+!                        CriticalFlow    = -0.5 * Me%AreaU(i, j) * sqrt(Gravity * HydraulicRadius)
+!                        MaxFlow         = -0.5 * (level_right - level_left) * Me%ExtVar%GridCellArea(i, j) &
+!                                          / LocalDT
 !
-!                    MaxFlow         = 0.5 * (level_left - level_right) * Me%ExtVar%GridCellArea(i, j) &
-!                                     / LocalDT
-!                    CriticalFlow    = 0.5 * Me%AreaU(i, j) * sqrt(Gravity * HydraulicRadius)
-!                    
-!                    Me%lFlowX(i, j) = Min(Me%lFlowX(i, j), Min(MaxFlow, CriticalFlow))
-!                    
-!                else
-!                
-!                    CriticalFlow    = -0.5 * Me%AreaU(i, j) * sqrt(Gravity * HydraulicRadius)
-!                    MaxFlow         = -0.5 * (level_right - level_left) * Me%ExtVar%GridCellArea(i, j) &
-!                                      / LocalDT
-!
-!                    Me%lFlowX(i, j) = Max(Me%lFlowX(i, j), Max(CriticalFlow, MaxFlow))
-!                    
-!                                
+!                        Me%lFlowX(i, j) = Max(Me%lFlowX(i, j), Max(CriticalFlow, MaxFlow))
+!                    endif
 !                endif
-
 
             else
             
@@ -3079,8 +3052,8 @@ doIter:         do while (iter <= Niter)
             
                 !Adds to the final level the height of the buidings, if any
                 if (Me%Buildings) then
-                    level_bottom = Me%myWaterLevel(i-1, j) !+ Me%BuildingsHeight(i-1, j)
-                    level_top    = Me%myWaterLevel(i, j)   !+ Me%BuildingsHeight(i, j  )
+                    level_bottom = Me%myWaterLevel(i-1, j) + Me%BuildingsHeight(i-1, j)
+                    level_top    = Me%myWaterLevel(i, j)   + Me%BuildingsHeight(i, j  )
                 else
                     level_bottom = Me%myWaterLevel(i-1, j)
                     level_top    = Me%myWaterLevel(i, j)
@@ -3155,26 +3128,25 @@ doIter:         do while (iter <= Niter)
                 Me%lFlowY(i, j) = (Me%FlowYOld(i, j) + Pressure + Advection) / (1.0 + Friction)
 
 !                !Limits Velocity to reasonable values
-!                if (level_bottom > level_top) then
-!                
-!                    MaxFlow         = 0.5 * (level_bottom - level_top) * Me%ExtVar%GridCellArea(i, j) &
-!                                          / LocalDT
-!                    CriticalFlow    = 0.5 * Me%AreaV(i, j) * sqrt(Gravity * HydraulicRadius)
+!                if (Me%Buildings) then
+!                    if (level_bottom > level_top) then
 !                    
-!                    Me%lFlowY(i, j) = Min(Me%lFlowY(i, j), Min(MaxFlow, CriticalFlow))                
-!                     
+!                        MaxFlow         = 0.5 * (level_bottom - level_top) * Me%ExtVar%GridCellArea(i, j) &
+!                                              / LocalDT
+!                        CriticalFlow    = 0.5 * Me%AreaV(i, j) * sqrt(Gravity * HydraulicRadius)
+!                        
+!                        Me%lFlowY(i, j) = Min(Me%lFlowY(i, j), Min(MaxFlow, CriticalFlow))                
 !
-!                else
-!                
-!                    CriticalFlow    = -0.5 * Me%AreaV(i, j) * sqrt(Gravity * HydraulicRadius)
-!                    MaxFlow         = -0.5 * (level_top - level_bottom) * Me%ExtVar%GridCellArea(i, j) &
-!                                          / LocalDT
+!                    else
+!                    
+!                        CriticalFlow    = -0.5 * Me%AreaV(i, j) * sqrt(Gravity * HydraulicRadius)
+!                        MaxFlow         = -0.5 * (level_top - level_bottom) * Me%ExtVar%GridCellArea(i, j) &
+!                                              / LocalDT
 !
-!                    Me%lFlowY(i, j) = Max(Me%lFlowY(i, j), Max(CriticalFlow, MaxFlow))
-!                
-!                
+!                        Me%lFlowY(i, j) = Max(Me%lFlowY(i, j), Max(CriticalFlow, MaxFlow))
+!                    
+!                    endif
 !                endif
-
               
             else
             
@@ -3212,10 +3184,8 @@ doIter:         do while (iter <= Niter)
         JLB = Me%WorkSize%JLB
         JUB = Me%WorkSize%JUB
 
-        !$OMP PARALLEL PRIVATE(I,J, dVol)
 
         !X
-        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
         do j = JLB, JUB
         do i = ILB, IUB
             if (Me%ComputeFaceU(i, j) == BasinPoint) then
@@ -3228,8 +3198,8 @@ doIter:         do while (iter <= Niter)
                 Me%myWaterVolume (i, j)    = Me%myWaterVolume (i, j)   + dVol 
 
                 !Updates Water Column
-                Me%myWaterColumn  (i, j-1) = Me%myWaterVolume (i, j-1) / Me%FreeGridCellArea   (i, j-1) ! Me%ExtVar%GridCellArea(i, j-1)
-                Me%myWaterColumn  (i, j)   = Me%myWaterVolume (i, j)   / Me%FreeGridCellArea   (i, j  ) !Me%ExtVar%GridCellArea(i, j)
+                Me%myWaterColumn  (i, j-1) = Me%myWaterVolume (i, j-1) / Me%ExtVar%GridCellArea(i, j-1)
+                Me%myWaterColumn  (i, j)   = Me%myWaterVolume (i, j)   / Me%ExtVar%GridCellArea(i, j)
 
                 !Updates Water Level
                 Me%myWaterLevel (i, j-1)   = Me%myWaterColumn (i, j-1) + Me%ExtVar%Topography(i, j-1)
@@ -3238,10 +3208,8 @@ doIter:         do while (iter <= Niter)
             endif
         enddo
         enddo
-        !$OMP END DO NOWAIT
 
         !Y
-        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
         do j = JLB, JUB
         do i = ILB, IUB
             if (Me%ComputeFaceV(i, j) == BasinPoint) then
@@ -3254,8 +3222,8 @@ doIter:         do while (iter <= Niter)
                 Me%myWaterVolume (i, j)   = Me%myWaterVolume (i, j)   + dVol 
 
                 !Updates Water Column
-                Me%myWaterColumn (i-1, j) = Me%myWaterVolume (i-1, j) / Me%FreeGridCellArea   (i-1, j) !Me%ExtVar%GridCellArea(i-1, j)
-                Me%myWaterColumn (i, j)   = Me%myWaterVolume (i, j)   / Me%FreeGridCellArea   (i,   j) !Me%ExtVar%GridCellArea(i, j)
+                Me%myWaterColumn (i-1, j) = Me%myWaterVolume (i-1, j) / Me%ExtVar%GridCellArea(i-1, j)
+                Me%myWaterColumn (i, j)   = Me%myWaterVolume (i, j)   / Me%ExtVar%GridCellArea(i, j)
 
                 !Updates Water Level
                 Me%myWaterLevel (i-1, j)  = Me%myWaterColumn (i-1, j) + Me%ExtVar%Topography(i-1, j)
@@ -3264,8 +3232,6 @@ doIter:         do while (iter <= Niter)
             endif
         enddo
         enddo
-        !$OMP END DO NOWAIT
-        !$OMP END PARALLEL
     
     end subroutine UpdateWaterLevels 
 
@@ -3288,9 +3254,6 @@ doIter:         do while (iter <= Niter)
         JLB = Me%WorkSize%JLB
         JUB = Me%WorkSize%JUB
 
-        !$OMP PARALLEL PRIVATE(I,J, it, jt, dVol, AverageCellLength, FlowMax)
-
-        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
         do j = JLB, JUB
         do i = ILB, IUB
             
@@ -3298,53 +3261,37 @@ doIter:         do while (iter <= Niter)
                 Me%myWaterColumn(i,  j) > Me%MinimumWaterColumn) then
             
 
-                !
-                !Checks if Water Column is lower then in 4 direction. If not flood occurs and 4 drainage will not be used...
-                !
-                if ( ((Me%ExtVar%BasinPoints(i-1, j) == BasinPoint             .and.  &
-                       Me%myWaterLevel(i,   j) < Me%ExtVar%Topography(i-1, j)) .or.   &
-                       Me%ExtVar%BasinPoints(i-1, j) /= BasinPoint)            .and.  &
-                     ((Me%ExtVar%BasinPoints(i+1, j) == BasinPoint             .and.  &
-                       Me%myWaterLevel(i,   j) < Me%ExtVar%Topography(i+1, j)) .or.   &
-                       Me%ExtVar%BasinPoints(i+1, j) /= BasinPoint)            .and.  &
-                     ((Me%ExtVar%BasinPoints(i, j-1) == BasinPoint             .and.  &
-                       Me%myWaterLevel(i,   j) < Me%ExtVar%Topography(i, j-1)) .or.   &
-                       Me%ExtVar%BasinPoints(i, j-1) /= BasinPoint)            .and.  &
-                     ((Me%ExtVar%BasinPoints(i, j+1) == BasinPoint             .and.  &
-                       Me%myWaterLevel(i,   j) < Me%ExtVar%Topography(i, j+1)) .or.   &
-                       Me%ExtVar%BasinPoints(i, j+1) /= BasinPoint)) then
-                    
+                it = Me%LowestNeighborI(i, j)
+                jt = Me%LowestNeighborJ(i, j)
 
-                    it = Me%LowestNeighborI(i, j)
-                    jt = Me%LowestNeighborJ(i, j)
+                !Critical Flow                    
+                AverageCellLength  = ( Me%ExtVar%DUX (i, j) + Me%ExtVar%DVY (i, j) ) / 2.0
+                FlowMax = Min(sqrt(Gravity * Me%myWaterColumn(i, j)) *  Me%myWaterColumn(i, j) * AverageCellLength, &
+                              0.1 * Me%myWaterColumn(i, j) * AverageCellLength)
+                
+                
+                
 
-                    !Critical Flow                    
-                    AverageCellLength  = ( Me%ExtVar%DUX (i, j) + Me%ExtVar%DVY (i, j) ) / 2.0
-                    FlowMax = sqrt(Gravity * Me%myWaterColumn(i, j)) *  Me%myWaterColumn(i, j) * AverageCellLength
+                !dVol -> max Critical Flow & Avaliable Volume
+                dVol = min(Me%myWaterVolume(i,j), FlowMax)
 
-                    !dVol -> max Critical Flow & Avaliable Volume
-                    dVol = min(Me%myWaterVolume(i,j), FlowMax)
+                !Updates Water Volume
+                Me%myWaterVolume (i, j)    = Me%myWaterVolume (i, j)   - dVol 
+                Me%myWaterVolume (it, jt)  = Me%myWaterVolume (it, jt) + dVol 
 
-                    !Updates Water Volume
-                    Me%myWaterVolume (i, j)    = Me%myWaterVolume (i, j)   - dVol 
-                    Me%myWaterVolume (it, jt)  = Me%myWaterVolume (it, jt) + dVol 
+                !Updates Water Column
+                Me%myWaterColumn  (i, j)   = Me%myWaterVolume (i, j)   / Me%ExtVar%GridCellArea(i, j)
+                Me%myWaterColumn  (it, jt) = Me%myWaterVolume (it, jt) / Me%ExtVar%GridCellArea(it, jt)
 
-                    !Updates Water Column
-                    Me%myWaterColumn  (i, j)   = Me%myWaterVolume (i, j)   / Me%FreeGridCellArea   (i, j  ) !Me%ExtVar%GridCellArea(i, j)
-                    Me%myWaterColumn  (it, jt) = Me%myWaterVolume (it, jt) / Me%FreeGridCellArea   (it, jt) !Me%ExtVar%GridCellArea(it, jt)
+                !Updates Water Level
+                Me%myWaterLevel (i, j)     = Me%myWaterColumn (i, j)   + Me%ExtVar%Topography(i, j)
+                Me%myWaterLevel (it, jt)   = Me%myWaterColumn (it, jt) + Me%ExtVar%Topography(it, jt)
 
-                    !Updates Water Level
-                    Me%myWaterLevel (i, j)     = Me%myWaterColumn (i, j)   + Me%ExtVar%Topography(i, j)
-                    Me%myWaterLevel (it, jt)   = Me%myWaterColumn (it, jt) + Me%ExtVar%Topography(it, jt)
-
-                endif
             
             endif
             
         enddo
         enddo
-        !$OMP END DO NOWAIT
-        !$OMP END PARALLEL
     
 
     end subroutine RouteDFourPoints
@@ -3400,7 +3347,7 @@ doIter:         do while (iter <= Niter)
                     Me%myWaterVolume (i, j)     = Me%myWaterVolume (i, j)   - InfiltrationVolume
                     
                     !New WaterColumn
-                    Me%myWaterColumn (i, j)     = Me%myWaterVolume (i, j) / Me%FreeGridCellArea (i, j) !Me%ExtVar%GridCellArea(i, j)
+                    Me%myWaterColumn (i, j)     = Me%myWaterVolume (i, j) / Me%ExtVar%GridCellArea(i, j)
 
                     !New Level
                     Me%myWaterLevel (i, j)      = Me%myWaterColumn (i, j) + Me%ExtVar%Topography(i, j)
@@ -3479,7 +3426,7 @@ doIter:         do while (iter <= Niter)
                     Me%myWaterVolume   (i, j) = Me%myWaterVolume   (i, j) + dVol
                     
                     !New WaterColumn
-                    Me%myWaterColumn   (i, j) = Me%myWaterVolume   (i, j) / Me%FreeGridCellArea (i, j) !Me%ExtVar%GridCellArea(i, j)
+                    Me%myWaterColumn   (i, j) = Me%myWaterVolume   (i, j) / Me%ExtVar%GridCellArea(i, j)
 
                     !New Level
                     Me%myWaterLevel    (i, j) = Me%myWaterColumn   (i, j) + Me%ExtVar%Topography(i, j)
@@ -3776,7 +3723,7 @@ doIter:         do while (iter <= Niter)
                     Me%myWaterVolume (i, j)    = Me%myWaterVolume (i, j)   - dVol 
                     
                     !Updates Water Column
-                    Me%myWaterColumn  (i, j)   = Me%myWaterVolume (i, j)   / Me%FreeGridCellArea (i, j) !Me%ExtVar%GridCellArea(i, j)
+                    Me%myWaterColumn  (i, j)   = Me%myWaterVolume (i, j)   / Me%ExtVar%GridCellArea(i, j)
 
                     !Updates Water Level
                     Me%myWaterLevel (i, j)     = Me%myWaterColumn (i, j)   + Me%ExtVar%Topography(i, j)
@@ -3929,7 +3876,7 @@ doIter:         do while (iter <= Niter)
             
                     Me%myWaterVolume (i, j)     = Me%myWaterVolume (i, j) + dVol 
                     
-                    Me%myWaterColumn  (i, j)    = Me%myWaterVolume (i, j)   / Me%FreeGridCellArea(i, j) ! Me%ExtVar%GridCellArea(i, j)
+                    Me%myWaterColumn  (i, j)    = Me%myWaterVolume (i, j)   / Me%ExtVar%GridCellArea(i, j)
 
                     Me%myWaterLevel (i, j)      = Me%myWaterColumn (i, j)   + Me%ExtVar%Topography(i, j)
 
@@ -4123,7 +4070,7 @@ doIter:         do while (iter <= Niter)
                 !Updates Volumes
                 Me%myWaterVolume (i, j) = Me%myWaterVolume (i, j) - Me%iFlowToChannels    (i, j) * Me%ExtVar%DT
                 
-                Me%myWaterColumn (i, j) = Me%myWaterVolume (i, j) / Me%FreeGridCellArea   (i, j) !Me%ExtVar%GridCellArea(i, j)
+                Me%myWaterColumn (i, j) = Me%myWaterVolume (i, j) / Me%ExtVar%GridCellArea(i, j)
 
                 Me%myWaterLevel  (i, j) = Me%myWaterColumn (i, j) + Me%ExtVar%Topography  (i, j)
                            
@@ -4236,12 +4183,6 @@ doIter:         do while (iter <= Niter)
         JLB = Me%WorkSize%JLB
         JUB = Me%WorkSize%JUB
 
-        !
-        !The Water column which arrives here is the uniformily distributed water column. 
-        !Within module runoff we have to take into account the free cell area
-        !
-        !
-
         !$OMP PARALLEL PRIVATE(I,J)
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
         do j = JLB, JUB
@@ -4250,15 +4191,9 @@ doIter:         do while (iter <= Niter)
 
                 Me%myWaterVolume(i, j) = WaterColumn(i, j) * Me%ExtVar%GridCellArea(i, j)
 
-                !Updates Water Column
-                Me%myWaterColumn(i, j) = Me%myWaterVolume (i, j)  / Me%FreeGridCellArea   (i, j) 
+                Me%myWaterColumn(i, j) = WaterColumn(i, j)
 
-                !Updates Water Level
-                Me%myWaterLevel (i, j) = Me%myWaterColumn (i, j)  + Me%ExtVar%Topography(i, j)
-         
-!                Me%myWaterColumn(i, j) = WaterColumn(i, j)
-
-!                Me%myWaterLevel (i, j) = Me%myWaterColumn(i, j) + Me%ExtVar%Topography(i, j)
+                Me%myWaterLevel (i, j) = Me%myWaterColumn(i, j) + Me%ExtVar%Topography(i, j)
             endif
         enddo
         enddo
@@ -4267,47 +4202,6 @@ doIter:         do while (iter <= Niter)
         
     end subroutine LocalWaterColumn            
 
-    !--------------------------------------------------------------------------
-
-    subroutine DistributeLocalWaterColumn
-
-        !Arguments-------------------------------------------------------------
-
-        !Local-----------------------------------------------------------------
-        integer                                     :: i, j
-        integer                                     :: ILB, IUB, JLB, JUB
-        integer                                     :: CHUNK
-
-        CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
-
-        ILB = Me%WorkSize%ILB
-        IUB = Me%WorkSize%IUB
-        JLB = Me%WorkSize%JLB
-        JUB = Me%WorkSize%JUB
-
-        !
-        !The Water column which arrives here is the uniformily distributed water column. 
-        !Within module runoff we have to take into account the free cell area
-        !
-        !Undo this at the end of the Modify Process
-
-        !$OMP PARALLEL PRIVATE(I,J)
-        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
-        do j = JLB, JUB
-        do i = ILB, IUB
-            if (Me%ExtVar%BasinPoints(i, j) == BasinPoint) then
-
-                !Updates Water Column
-                Me%myWaterColumn(i, j) = Me%myWaterVolume (i, j)  / Me%ExtVar%GridCellArea(i, j)
-
-            endif
-        enddo
-        enddo
-        !$OMP END DO NOWAIT
-        !$OMP END PARALLEL        
-        
-    end subroutine DistributeLocalWaterColumn            
-    
     !--------------------------------------------------------------------------
 
     subroutine IntegrateFlow (LocalDT, SumDT)
@@ -4451,7 +4345,7 @@ doIter:         do while (iter <= Niter)
                         Me%myWaterVolume (i, j)   = Me%myWaterVolume (i, j)   - dVol 
                             
                         !Updates Water Column
-                        Me%myWaterColumn  (i, j)   = Me%myWaterVolume (i, j)  / Me%FreeGridCellArea   (i, j) !Me%ExtVar%GridCellArea(i, j)
+                        Me%myWaterColumn  (i, j)   = Me%myWaterVolume (i, j)  / Me%ExtVar%GridCellArea(i, j)
 
                         !Updates Water Level
                         Me%myWaterLevel (i, j)     = Me%myWaterColumn (i, j)  + Me%ExtVar%Topography(i, j)

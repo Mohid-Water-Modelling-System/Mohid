@@ -14,8 +14,8 @@
 				<Tool Name="VFPostBuildEventTool"/>
 				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
 		<Configuration Name="Release|Win32">
-				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true"/>
-				<Tool Name="VFLinkerTool" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" SubSystem="subSystemConsole"/>
+				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" AdditionalIncludeDirectories="..\..\..\..\Solutions\VisualStudio2008_IntelFortran11\MOHIDNumerics\MOHIDBase1\Release;..\..\..\..\Solutions\VisualStudio2008_IntelFortran11\MOHIDNumerics\MOHIDBase2\Release"/>
+				<Tool Name="VFLinkerTool" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" AdditionalLibraryDirectories="..\..\..\..\Solutions\VisualStudio2008_IntelFortran11\MOHIDNumerics\MOHIDBase1\Release;..\..\..\..\Solutions\VisualStudio2008_IntelFortran11\MOHIDNumerics\MOHIDBase2\Release" SubSystem="subSystemConsole" AdditionalDependencies="MOHIDBase1.lib MOHIDBase2.lib"/>
 				<Tool Name="VFResourceCompilerTool"/>
 				<Tool Name="VFMidlTool" SuppressStartupBanner="true"/>
 				<Tool Name="VFCustomBuildTool"/>
