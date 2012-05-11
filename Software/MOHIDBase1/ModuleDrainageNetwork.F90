@@ -9160,7 +9160,7 @@ if2:        if (CurrNode%VolumeNew > PoolVolume) then
         do i = 1, DownNode%nDownstreamReaches
             DownReach => Me%Reaches (DownNode%DownstreamReaches (i))
             
-            if (DownNode%VerticalArea .GE. Me%MinimumWaterDepth ) then
+            if (DownNode%WaterDepth .GE. Me%MinimumWaterDepth ) then
            
                 DownFlux  = (CurrReach%FlowOld + DownReach%FlowOld) / 2.
                 
@@ -9176,7 +9176,7 @@ if2:        if (CurrNode%VolumeNew > PoolVolume) then
         do i = 1, UpNode%nUpstreamReaches                    
             UpReach => Me%Reaches (UpNode%UpstreamReaches (i))
 
-            if (UpNode%VerticalArea .GE. Me%MinimumWaterDepth ) then
+            if (UpNode%WaterDepth .GE. Me%MinimumWaterDepth ) then
 
                 UpFlux  = (CurrReach%FlowOld + UpReach%FlowOld) / 2.
 

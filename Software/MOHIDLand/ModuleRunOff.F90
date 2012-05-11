@@ -2673,6 +2673,7 @@ doIter:         do while (iter <= Niter)
         real                                        :: level_left, level_right
         real                                        :: level_bottom, level_top
         real                                        :: HydraulicRadius
+        real                                        :: Margin1, Margin2
         integer                                     :: CHUNK
         real(8)                                     :: MaxFlow
 
@@ -2684,8 +2685,9 @@ doIter:         do while (iter <= Niter)
         JLB = Me%WorkSize%JLB
         JUB = Me%WorkSize%JUB
 
-        !$OMP PARALLEL PRIVATE(I,J, Slope, level_left, level_right, level_bottom, level_top, HydraulicRadius, MaxFlow)
-
+        !$OMP PARALLEL PRIVATE(I,J, Slope, level_left, level_right, level_bottom, level_top, &
+        !$OMP HydraulicRadius, MaxFlow, Margin1, Margin2)
+        
         !X
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
         do j = JLB, JUB
@@ -2725,6 +2727,18 @@ doIter:         do while (iter <= Niter)
 
                 !Hydraulic Radius
                 HydraulicRadius = Me%AreaU(i, j) / Me%ExtVar%DYY(i, j)
+
+                !Bottom Difference to adjacent cells (to check existence of “margins” on the side)
+                Margin1 = Me%ExtVar%Topography(i, j+1) - Me%ExtVar%Topography(i, j)
+                Margin2 = Me%ExtVar%Topography(i, j-1) - Me%ExtVar%Topography(i, j)
+
+                !if positive than there is a “margin” on the side and friction occurs at wet length
+                if (Margin1 .gt. 0.0) then
+                    HydraulicRadius = HydraulicRadius + min(Me%myWaterColumn(i,j), Margin1)
+                endif
+                if (Margin2 .gt. 0.0) then
+                    HydraulicRadius = HydraulicRadius + min(Me%myWaterColumn(i,j), Margin2)
+                endif
                 
                 
                 !
@@ -2831,6 +2845,18 @@ doIter:         do while (iter <= Niter)
 
                 !Hydraulic Radius
                 HydraulicRadius = Me%AreaV(i, j) / Me%ExtVar%DXX(i, j)
+
+                !Bottom Difference to adjacent cells (to check existence of “margins” on the side)
+                Margin1 = Me%ExtVar%Topography(i+1, j) - Me%ExtVar%Topography(i, j)
+                Margin2 = Me%ExtVar%Topography(i-1, j) - Me%ExtVar%Topography(i, j)
+
+                !if positive than there is a “margin” on the side and friction occurs at wet length
+                if (Margin1 .gt. 0.0) then
+                    HydraulicRadius = HydraulicRadius + min(Me%myWaterColumn(i,j), Margin1)
+                endif
+                if (Margin2 .gt. 0.0) then
+                    HydraulicRadius = HydraulicRadius + min(Me%myWaterColumn(i,j), Margin2)
+                endif
                 
                 !
                 !MANNIGS EQUATION -  KINEMATIC WAVR
@@ -2915,8 +2941,9 @@ doIter:         do while (iter <= Niter)
         real                                        :: HydraulicRadius
         real                                        :: Friction
         real                                        :: Pressure
-        real                                        :: inAdv, outAdv, Advection, Qf, u
+        real                                        :: inAdv, outAdv, Advection, Qf, u, v
         real(8)                                     :: MaxFlow, CriticalFlow
+        real                                        :: Margin1, Margin2
         integer                                     :: CHUNK
 
         if (MonitorPerformance) call StartWatch ("ModuleRunOff", "DynamicWave")
@@ -2930,8 +2957,8 @@ doIter:         do while (iter <= Niter)
         JUB = Me%WorkSize%JUB
 
         !$OMP PARALLEL PRIVATE(I,J, Slope, level_left, level_right, level_bottom, level_top, &
-        !$OMP HydraulicRadius, Friction, Pressure, inAdv, outAdv, Advection, Qf, u, &
-        !$OMP MaxFlow, CriticalFlow)
+        !$OMP HydraulicRadius, Friction, Pressure, inAdv, outAdv, Advection, Qf, u, v, &
+        !$OMP MaxFlow, CriticalFlow, Margin1, Margin2)
 
         !X
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
@@ -2952,10 +2979,21 @@ doIter:         do while (iter <= Niter)
                 !Slope
                 Slope           = AdjustSlope((level_left - level_right) / Me%ExtVar%DZX(i, j-1))
 
-
                 !Hydraulic Radius
-                !HydraulicRadius = Me%AreaU(i, j) / Me%ExtVar%DYY(i, j)
-                HydraulicRadius = Me%AreaU(i, j) / (Me%ExtVar%DYY(i, j) + Me%myWaterColumn(i, j-1) + Me%myWaterColumn(i, j))
+                HydraulicRadius = Me%AreaU(i, j) / Me%ExtVar%DYY(i, j)
+
+                !Bottom Difference to adjacent cells (to check existence of “margins” on the side)
+                Margin1 = Me%ExtVar%Topography(i, j+1) - Me%ExtVar%Topography(i, j)
+                Margin2 = Me%ExtVar%Topography(i, j-1) - Me%ExtVar%Topography(i, j)
+
+                !if positive than there is a “margin” on the side and friction occurs at wet length
+                if (Margin1 .gt. 0.0) then
+                    HydraulicRadius = HydraulicRadius + min(Me%myWaterColumn(i,j), Margin1)
+                endif
+                if (Margin2 .gt. 0.0) then
+                    HydraulicRadius = HydraulicRadius + min(Me%myWaterColumn(i,j), Margin2)
+                endif
+
        
                 !
                 !Sant Vernant
@@ -2975,12 +3013,10 @@ doIter:         do while (iter <= Niter)
                 !Advection
                 if (Me%CalculateAdvection) then
 
-                    !if (Me%ComputeFaceU(i, j-1) + Me%ComputeFaceU(i, j) +  Me%ComputeFaceU(i, j+1) == 3) then
-                    if (Me%AreaU(i, j-1) > 0.1 .and. Me%AreaU(i, j) > 0.1 .and. Me%AreaU(i, j+1) > 0.1) then
+                    if (Me%ComputeFaceU(i, j) +  Me%ComputeFaceU(i, j+1) == 2) then
 
                         !Out
-                        Qf = (Me%ComputeFaceU(i, j) * Me%FlowXOld(i, j) + Me%ComputeFaceU(i, j+1) * Me%FlowXOld(i, j+1)) / &
-                             (Me%ComputeFaceU(i, j) +  Me%ComputeFaceU(i, j+1))
+                        Qf = (Me%FlowXOld(i, j) + Me%FlowXOld(i, j+1)) / 2.0
 
                         if (Qf > 0) then
                             u = Me%FlowXOld(i, j) / Me%AreaU(i, j)
@@ -2988,11 +3024,19 @@ doIter:         do while (iter <= Niter)
                             u = Me%FlowXOld(i, j+1) / Me%AreaU(i, j+1)
                         endif
 
+                        !u = Qf / (Me%myWaterColumn(i, j) * Me%ExtVar%DVY(i, j))                
+
                         outAdv = u * Qf
+                        
+                    else
+                        outAdv = 0.0
+                    endif       
+
+                    if (Me%ComputeFaceU(i, j-1) + Me%ComputeFaceU(i, j) == 2) then
+                        
 
                         !In
-                        Qf = (Me%ComputeFaceU(i, j-1) * Me%FlowXOld(i, j-1) + Me%ComputeFaceU(i, j) * Me%FlowXOld(i, j)) / &
-                             (Me%ComputeFaceU(i, j-1) +  Me%ComputeFaceU(i, j))
+                        Qf = (Me%FlowXOld(i, j-1) + Me%FlowXOld(i, j)) / 2.0
                         
                         if (Qf > 0) then
                             u = Me%FlowXOld(i, j-1) / Me%AreaU(i, j-1)
@@ -3000,12 +3044,13 @@ doIter:         do while (iter <= Niter)
                             u = Me%FlowXOld(i, j) / Me%AreaU(i, j)
                         endif
                         
+                        !u = Qf / (Me%myWaterColumn(i, j-1) * Me%ExtVar%DVY(i-1, j))
+                        
                         inAdv = u * Qf
                     else
                         inAdv = 0.0
-                        outAdv = 0.0
-                    endif                
-                    
+                    endif       
+
                     Advection = (inAdv - outAdv) * LocalDT / Me%ExtVar%DUX(i, j)
                     
                 else
@@ -3063,10 +3108,19 @@ doIter:         do while (iter <= Niter)
                 Slope           = AdjustSlope((level_bottom - level_top) / Me%ExtVar%DZY(i-1, j))
 
                 !Hydraulic Radius
-                !HydraulicRadius = Me%AreaV(i, j) / Me%ExtVar%DXX(i, j)
-                !Area de fundo + 2 * area de lado
-                HydraulicRadius = Me%AreaV(i, j) / (Me%ExtVar%DXX(i, j) + Me%myWaterColumn(i-1, j) + Me%myWaterColumn(i, j))
-                
+                HydraulicRadius = Me%AreaV(i, j) / Me%ExtVar%DXX(i, j)
+
+                !Bottom Difference to adjacent cells (to check existence of “margins” on the side)
+                Margin1 = Me%ExtVar%Topography(i+1, j) - Me%ExtVar%Topography(i, j)
+                Margin2 = Me%ExtVar%Topography(i-1, j) - Me%ExtVar%Topography(i, j)
+
+                !if positive than there is a “margin” on the side and friction occurs at wet length
+                if (Margin1 .gt. 0.0) then
+                    HydraulicRadius = HydraulicRadius + min(Me%myWaterColumn(i,j), Margin1)
+                endif
+                if (Margin2 .gt. 0.0) then
+                    HydraulicRadius = HydraulicRadius + min(Me%myWaterColumn(i,j), Margin2)
+                endif
                
                 !
                 !Sant Vernant
@@ -3085,39 +3139,49 @@ doIter:         do while (iter <= Niter)
                 !Advection
                 if (Me%CalculateAdvection) then
 
-                    !if (Me%ComputeFaceV(i-1, j) + Me%ComputeFaceV(i, j) +  Me%ComputeFaceV(i+1, j) == 3) then
-                    if (Me%AreaV(i-1, j) > 0.1 .and. Me%AreaV(i, j) > 0.1 .and. Me%AreaV(i+1, j) > 0.1) then
+                    if (Me%ComputeFaceV(i, j) +  Me%ComputeFaceV(i+1, j) == 2) then
                         
                         !Out
-                        Qf = (Me%ComputeFaceV(i, j) * Me%FlowYOld(i, j) + Me%ComputeFaceV(i+1, j) * Me%FlowYOld(i+1, j)) / &
-                             (Me%ComputeFaceV(i, j) +  Me%ComputeFaceV(i+1, j))
+                        Qf = (Me%FlowYOld(i, j) + Me%FlowYOld(i+1, j)) / 2.0
                              
-                        if (Qf > 0) then
+                        if (Qf > 0.0) then
                             u = Me%FlowYOld(i, j) / Me%AreaV(i, j)
                         else
                             u = Me%FlowYOld(i+1, j) / Me%AreaV(i+1, j)
                         endif
+                        
+                        !u = Qf / (Me%myWaterColumn(i, j) * Me%ExtVar%DUX(i, j))
                              
                         outAdv = u * Qf
+                    
+                    else
+                    
+                        outAdv = 0.0
+                    
+                    endif
+
+                    if (Me%ComputeFaceV(i-1, j) + Me%ComputeFaceV(i, j) == 2) then
 
                         !In
-                        Qf = (Me%ComputeFaceV(i-1, j) * Me%FlowYOld(i-1, j) + Me%ComputeFaceV(i, j) * Me%FlowYOld(i, j)) / &
-                             (Me%ComputeFaceV(i-1, j) +  Me%ComputeFaceV(i, j))
+                        Qf = (Me%FlowYOld(i-1, j) + Me%FlowYOld(i, j)) / 2.0
                         
+                        !Upwind
                         if (Qf > 0) then
-                            u = Me%FlowYOld(i-1, j) / Me%AreaV(i-1, j)     
+                            u = Me%FlowYOld(i-1, j) / Me%AreaV(i-1, j)
                         else
                             u = Me%FlowYOld(i, j) / Me%AreaV(i, j)     
                         endif
                         
+                        !u = Qf / (Me%myWaterColumn(i-1, j) * Me%ExtVar%DUX(i-1, j))
+                        
                         inAdv = Qf * u
                         
                     else
-                        outAdv = 0.0
                         inAdv = 0.0
                     endif                
         
-                    Advection = (inAdv - outAdv) * LocalDT / Me%ExtVar%DUX(i, j)
+                           
+                    Advection = (inAdv - outAdv) * LocalDT / Me%ExtVar%DVY(i, j)
                     
                 else
                 
