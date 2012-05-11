@@ -725,6 +725,16 @@ Module ModuleLagrangian
         real                                    :: CoupleProp               = null_real 
     end type T_Partition
 
+	type T_Larvae
+        logical                                 :: Vertical_Migration = OFF
+        logical                                 :: Compute_Larvae_Velocity = ON 
+        logical                                 :: Light_Relation = ON
+        real                                    :: Larvae_Max_Depth
+        real                                    :: Larvae_Min_Depth
+        real                                    :: Larvae_Velocity
+        real                                    :: Migration_Time
+        real                                    :: Radiation_Limit
+    end type T_Larvae
 
     !One Property
     type  T_Property
@@ -738,6 +748,7 @@ Module ModuleLagrangian
         logical                                 :: T90Variable              = OFF
         integer                                 :: T90Var_Method            = null_int
         real                                    :: T90                      = 7200.     !Coliform Bacteria decay time
+		type(T_Larvae)                          :: Larvae
         type(T_Partition)                       :: SedimentPartition
         type(T_Partition)                       :: WaterPartition
         logical                                 :: Statistics               = .false.
@@ -3362,7 +3373,95 @@ DOPROP:         do
                         !Extra Stuff
                         ret = CheckPropertyName (NewProperty%Name, PropertyID)
                         select case (PropertyID)
-
+						
+                        case (Larvae_)
+                        
+                            call GetData(NewProperty%Larvae%Vertical_Migration,          &
+                                         Me%ObjEnterData,                                &
+                                         flag,                                           &
+                                         SearchType   = FromBlockInBlock,                &
+                                         keyword      ='VERTICAL_MIGRATION',             &
+                                         ClientModule ='ModuleLagrangian',               &
+                                         Default      = .false.,                         &    
+                                         STAT         = STAT_CALL)
+                            if (STAT_CALL /= SUCCESS_) stop 'ConstructOrigins - ModuleLagrangian - ERR2000'
+                               
+                                if (NewProperty%Larvae%Vertical_Migration) then
+          
+                                    call GetData(NewProperty%Larvae%Larvae_Max_Depth,        &
+                                             Me%ObjEnterData,                                &
+                                             flag,                                           &
+                                             SearchType   = FromBlockInBlock,                &
+                                             keyword      ='LARVAE_MAX_DEPTH',               &
+                                             ClientModule ='ModuleLagrangian',               &
+                                             Default      = 100.,                            &    
+                                             STAT         = STAT_CALL)
+                                    if (STAT_CALL /= SUCCESS_) stop 'ConstructOrigins - ModuleLagrangian - ERR2010'
+                                    
+                                    call GetData(NewProperty%Larvae%Larvae_Min_Depth,        &
+                                             Me%ObjEnterData,                                &
+                                             flag,                                           &
+                                             SearchType   = FromBlockInBlock,                &
+                                             keyword      ='LARVAE_MIN_DEPTH',               &
+                                             ClientModule ='ModuleLagrangian',               &
+                                             Default      = 10.,                             &    
+                                             STAT         = STAT_CALL)
+                                    if (STAT_CALL /= SUCCESS_) stop 'ConstructOrigins - ModuleLagrangian - ERR2020'
+                                
+                                    call GetData(NewProperty%Larvae%Larvae_Velocity,         &
+                                             Me%ObjEnterData,                                &
+                                             flag,                                           &
+                                             SearchType   = FromBlockInBlock,                &
+                                             keyword      ='LARVAE_VELOCITY',                &
+                                             ClientModule ='ModuleLagrangian',               &
+                                             Default      = 0.001,                           &    
+                                             STAT         = STAT_CALL)
+                                    if (STAT_CALL /= SUCCESS_) stop 'ConstructOrigins - ModuleLagrangian - ERR2030'  
+                                                                  
+                                    call GetData(NewProperty%Larvae%Radiation_Limit,         &
+                                             Me%ObjEnterData,                                &
+                                             flag,                                           &
+                                             SearchType   = FromBlockInBlock,                &
+                                             keyword      ='RADIATION_LIMIT',                &
+                                             ClientModule ='ModuleLagrangian',               &
+                                             Default      = 0.00,                            &    
+                                             STAT         = STAT_CALL)
+                                    if (STAT_CALL /= SUCCESS_) stop 'ConstructOrigins - ModuleLagrangian - ERR2040'  
+                                    
+                                    call GetData(NewProperty%Larvae%Light_Relation,          &
+                                             Me%ObjEnterData,                                &
+                                             flag,                                           &
+                                             SearchType   = FromBlockInBlock,                &
+                                             keyword      ='LIGHT_RELATION',                 &
+                                             ClientModule ='ModuleLagrangian',               &
+                                             Default      = .true.,                          &    
+                                             STAT         = STAT_CALL)
+                                    if (STAT_CALL /= SUCCESS_) stop 'ConstructOrigins - ModuleLagrangian - ERR2045' 
+                                     
+                                    call GetData(NewProperty%Larvae%Compute_Larvae_Velocity, &
+                                             Me%ObjEnterData,                                &
+                                             flag,                                           &
+                                             SearchType   = FromBlockInBlock,                &
+                                             keyword      ='COMPUTE_LARVAE_VELOCITY',        &
+                                             ClientModule ='ModuleLagrangian',               &
+                                             Default      = .true.,                          &    
+                                             STAT         = STAT_CALL)
+                                    if (STAT_CALL /= SUCCESS_) stop 'ConstructOrigins - ModuleLagrangian - ERR2050'                        
+                                        
+                                        if (NewProperty%Larvae%Compute_Larvae_Velocity) then
+                                        
+                                             call GetData(NewProperty%Larvae%Migration_Time,          &
+                                                      Me%ObjEnterData,                                &
+                                                      flag,                                           &
+                                                      SearchType   = FromBlockInBlock,                &
+                                                      keyword      ='MIGRATION_TIME',                 &
+                                                      ClientModule ='ModuleLagrangian',               &
+                                                      Default      = 18000.,                          &    
+                                                      STAT         = STAT_CALL)
+                                             if (STAT_CALL /= SUCCESS_) stop 'ConstructOrigins - ModuleLagrangian - ERR2060'  
+                                        endif
+                                endif                        
+					
                         !T90
                         case (Fecal_Coliforms_)
 
@@ -7222,6 +7321,10 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
                 if (Me%State%Oil) then                
                     call FillGridThickness      ()             
                 endif
+				
+				if ( Me%State%Larvae ) then
+                    call LightEvolution      ()
+                endif   
 
                 !Moves the Origins
                 call MoveOrigin             ()
@@ -7249,9 +7352,11 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
                 !Dilute Particle with Ambiente Concentration
                 call Dilution                ()
 
-                if (Me%State%WQM .or. Me%State%T90Variable) then
-                    call LightEvolution      ()
-                endif
+                if ( .not. Me%State%Larvae ) then
+					if (Me%State%WQM .or. Me%State%T90Variable) then
+						call LightEvolution      ()
+					endif
+				endif	
 
                 !Calculates Sinks and Sources due WQM
                 if (Me%State%WQM) then
@@ -9143,15 +9248,16 @@ end if
         real                                        :: CompZ1_Up, CompZ1_Down
         real                                        :: AuxCompMisturaZ_Up, AuxCompMisturaZ_Down
         real                                        :: EspSup, Esp, EspInf
-        real                                        :: VELQZ, D50M, VQ1, VELFLOAT
+        real                                        :: VELQZ, D50M, VQ1, VELFLOAT, VELLARVAE
         real                                        :: WStandardDeviation
         real                                        :: W, WD
         real                                        :: Radius, Area, VolOld, VolNew, dVol
         real                                        :: ai, dw, Cd, DeltaD, AuxW, dwt        
         real                                        :: r1, r2, correction
-        integer                                     :: STAT_CALL 
+        integer                                     :: STAT_CALL, Light_Index 
         real                                        :: BottomDepth, SurfaceDepth
         real                                        :: BreakingWaveHeight
+        type(T_Larvae), pointer                     :: LarvaePtr		
         !------------------------------------------------------------------------
 
         i       = CurrentPartic%Position%I
@@ -9308,6 +9414,92 @@ MD:     if (CurrentOrigin%Position%MaintainDepth) then
 
                 end if
 
+                VELLARVAE = 0.0
+                
+                nullify(LarvaePtr)
+
+                if ( findLarvaeInOrigin(CurrentOrigin, LarvaePtr) ) then
+                                                      
+                    if(LarvaePtr%Vertical_Migration) then
+                           
+                        if (LarvaePtr%Compute_Larvae_Velocity) then
+                    
+                            VELLARVAE = (LarvaePtr%Larvae_Max_Depth - LarvaePtr%Larvae_Min_Depth)/LarvaePtr%Migration_Time
+                   
+                        else
+                    
+                            VELLARVAE = LarvaePtr%Larvae_Velocity
+                        
+                        endif
+                        
+                        !Are we between the depth max and min limits?
+                        if (CurrentPartic%Position%Z.GE.LarvaePtr%Larvae_Min_Depth .AND. &
+                            CurrentPartic%Position%Z.LE.LarvaePtr%Larvae_Max_Depth) then
+                            
+                            !We are? Then check the radiation limits and light relation
+                            
+                            if (LarvaePtr%Light_Relation) then 
+                            
+                                Light_Index = 2
+                                
+                            else
+                            
+                                Light_Index = 1
+                                
+                            endif
+                            
+                            !Are we above the maximum radiation?
+                            if (CurrentPartic%Radiation.GE.LarvaePtr%Radiation_Limit) then
+                        
+                                !We are? Then go down, run away from too much radiation.
+                                VELLARVAE = -1*ABS(VELLARVAE)*(-1)**(Light_Index)
+                            
+                            else 
+                                
+                                !We're not? Then we can go up, closer to the minimum depth
+                                !because we like being closest to the surface.
+                                VELLARVAE = ABS(VELLARVAE)*(-1)**(Light_Index)   
+                                
+                            endif                 
+                        
+                        !We're not? Then move towards the nearest limit.
+                        else
+                            
+                            !Are we above min depth? 
+                            if (CurrentPartic%Position%Z.LT.LarvaePtr%Larvae_Min_Depth) then
+                        
+                                !Yes we are, so please go down.
+                                VELLARVAE = -1*ABS(VELLARVAE)
+                        
+                            else
+                                
+                                !No we're not. Hence we must be
+                                !below max depth, so please go up.
+                                VELLARVAE = ABS(VELLARVAE)
+                        
+                            endif
+                        
+                        endif
+                                                                                                   
+                    endif     
+                    ! If radiation has a low value Larvae goes up to a higher deep
+!                   if (CurrentPartic%Radiation.GE.RADIATION_LIMIT) then
+!                        w(t)=LARVAE_VELOCITY
+!                    else
+!                        w(t)=-1*LARVAE_VELOCITY
+!                    endif
+                    ! If radiation has a higth value Larvae goes down to a lower deep
+                    ! If Larvae goes out the fixed deep values vertical velocity take an oposite value 
+!                    if (CurrentPartic%Position%Z.LT.LarvaePtr%Larvae_Min_Depth) then
+!                         w(t)=LARVAE_VELOCITY
+!                    endif
+!                    if (CurrentPartic%Position%Z.GT.LarvaePtr%Larvae_Max_Depth) then
+!                         w(t)=-1*LARVAE_VELOCITY
+!                    endif
+
+
+                endif
+				
                 if (CurrentOrigin%State%Oil) then    
                
                     !correction number of particle submerged
@@ -9428,7 +9620,7 @@ MD:     if (CurrentOrigin%Position%MaintainDepth) then
 
                     CurrentPartic%W    = 0.
                     
-                    NewPosition%Z = CurrentPartic%Position%Z - (W + WD + VELQZ + VELFLOAT) *  Me%DT_Partic         
+                    NewPosition%Z = CurrentPartic%Position%Z - (W + WD + VELQZ + VELFLOAT + VELLARVAE) *  Me%DT_Partic         
       
                     ! This is to correct or update particle position due to VELFLOAT:
                     if (CurrentOrigin%State%Oil .and. (.not. CurrentPartic%Position%Surface)) then    
@@ -9933,7 +10125,11 @@ CurrOr: do while (associated(CurrentOrigin))
         !Updates light
 d1:     do iGroup = 1, Me%nGroups
 
+            call GetRadiationPercentages (Me%Light%ObjLightExtinction(iGroup),           &
+                                          SWPercentage = SWPercentage, STAT = STAT_CALL)
 
+            if (STAT_CALL /= SUCCESS_)stop 'LightEvolution - ModuleLagrangian - ERR01'
+            
 i0:         if(Me%Light%Compute)then
 
                 call GetLightExtinctionOptions(LightExtinctionID    = Me%Light%ObjLightExtinction(iGroup),& 
@@ -9944,10 +10140,10 @@ i0:         if(Me%Light%Compute)then
                                                STAT                 = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_)stop 'LightEvolution - ModuleLagrangian - ERR01'
 
-                call GetRadiationPercentages (Me%Light%ObjLightExtinction(iGroup),           &
-                                              SWPercentage = SWPercentage, STAT = STAT_CALL)
+                !call GetRadiationPercentages (Me%Light%ObjLightExtinction(iGroup),           &
+                !                              SWPercentage = SWPercentage, STAT = STAT_CALL)
 
-                if (STAT_CALL /= SUCCESS_)stop 'LightEvolution - ModuleLagrangian - ERR01'
+                !if (STAT_CALL /= SUCCESS_)stop 'LightEvolution - ModuleLagrangian - ERR01'
 
 
 i1:             if(NeedsConcentrations)then
@@ -15224,6 +15420,35 @@ if1:    if (Me%ExternalVar%Now >= Me%OutPut%OutTime(OutPutNumber)) then
         deallocate (OutputMatrix            )
 
     end subroutine WriteMonitorOutput
+
+    logical function findLarvaeInOrigin(CurrentOrigin, LarvaePtr)
+                
+        type(T_Origin), pointer,intent(in)      :: CurrentOrigin
+        
+        type(T_Larvae), pointer,intent(out)     :: LarvaePtr
+        
+        type(T_Property), pointer               :: CurrentProperty        
+                
+        findLarvaeInOrigin = .false.
+                
+        CurrentProperty => CurrentOrigin%FirstProperty
+                    
+        do while ( associated(CurrentProperty) )
+                
+            if( CurrentProperty%ID == Larvae_ ) then
+                    
+                findLarvaeInOrigin = .true.
+                
+                LarvaePtr => CurrentProperty%Larvae
+                   
+            endif
+                        
+            CurrentProperty => CurrentProperty%Next
+                    
+        enddo
+                
+    end function findLarvaeInOrigin
+    
 
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
