@@ -3015,18 +3015,32 @@ doIter:         do while (iter <= Niter)
 
                     if (Me%ComputeFaceU(i, j) +  Me%ComputeFaceU(i, j+1) == 2) then
 
+                        !OLD Version - Artigo Rosa
                         !Out
-                        Qf = (Me%FlowXOld(i, j) + Me%FlowXOld(i, j+1)) / 2.0
+                        !Qf = (Me%FlowXOld(i, j) + Me%FlowXOld(i, j+1)) / 2.0
 
-                        if (Qf > 0) then
-                            u = Me%FlowXOld(i, j) / Me%AreaU(i, j)
+                        !if (Qf > 0) then
+                        !    u = Me%FlowXOld(i, j) / Me%AreaU(i, j)
+                        !else
+                        !    u = Me%FlowXOld(i, j+1) / Me%AreaU(i, j+1)
+                        !endif
+
+                        !outAdv = u * Qf
+                        
+                        !New Version - Ramiro
+                        if ((Me%FlowXOld(i, j) .ge. 0.0 .and. Me%FlowXOld(i, j+1) .ge. 0.0) .or. &
+                            (Me%FlowXOld(i, j) .le. 0.0 .and. Me%FlowXOld(i, j+1) .le. 0.0)) then
+                            
+                            Qf = (Me%FlowXOld(i, j) + Me%FlowXOld(i, j+1)) / 2.0
+
+                            if (Qf > 0.0) then
+                                outAdv = Me%FlowXOld(i, j)   * Me%FlowXOld(i, j) / Me%AreaU(i, j)
+                            else
+                                outAdv = Me%FlowXOld(i, j+1) * Me%FlowXOld(i, j+1) / Me%AreaU(i, j+1)
+                            endif
                         else
-                            u = Me%FlowXOld(i, j+1) / Me%AreaU(i, j+1)
+                            outAdv = 0.0
                         endif
-
-                        !u = Qf / (Me%myWaterColumn(i, j) * Me%ExtVar%DVY(i, j))                
-
-                        outAdv = u * Qf
                         
                     else
                         outAdv = 0.0
@@ -3035,18 +3049,34 @@ doIter:         do while (iter <= Niter)
                     if (Me%ComputeFaceU(i, j-1) + Me%ComputeFaceU(i, j) == 2) then
                         
 
+                        !OLD Version - Artigo Rosa
                         !In
-                        Qf = (Me%FlowXOld(i, j-1) + Me%FlowXOld(i, j)) / 2.0
+                        !Qf = (Me%FlowXOld(i, j-1) + Me%FlowXOld(i, j)) / 2.0
                         
-                        if (Qf > 0) then
-                            u = Me%FlowXOld(i, j-1) / Me%AreaU(i, j-1)
+                        !if (Qf > 0) then
+                        !    u = Me%FlowXOld(i, j-1) / Me%AreaU(i, j-1)
+                        !else
+                        !    u = Me%FlowXOld(i, j) / Me%AreaU(i, j)
+                        !endif
+                        
+                        !inAdv = u * Qf
+                        
+                        !New Version - Ramiro
+                        if ((Me%FlowXOld(i, j-1) .ge. 0.0 .and. Me%FlowXOld(i, j) .ge. 0.0) .or. &
+                            (Me%FlowXOld(i, j-1) .le. 0.0 .and. Me%FlowXOld(i, j) .le. 0.0)) then
+                            
+                            Qf = (Me%FlowXOld(i, j-1) + Me%FlowXOld(i, j)) / 2.0
+
+                            if (Qf > 0.0) then
+                                inAdv = Me%FlowXOld(i, j-1) * Me%FlowXOld(i, j-1) / Me%AreaU(i, j)
+                            else
+                                inAdv = Me%FlowXOld(i, j) * Me%FlowXOld(i, j) / Me%AreaU(i, j)
+                            endif
                         else
-                            u = Me%FlowXOld(i, j) / Me%AreaU(i, j)
+                            inAdv = 0.0
                         endif
                         
-                        !u = Qf / (Me%myWaterColumn(i, j-1) * Me%ExtVar%DVY(i-1, j))
                         
-                        inAdv = u * Qf
                     else
                         inAdv = 0.0
                     endif       
@@ -3141,18 +3171,33 @@ doIter:         do while (iter <= Niter)
 
                     if (Me%ComputeFaceV(i, j) +  Me%ComputeFaceV(i+1, j) == 2) then
                         
+                        !Old Version - Artigo Rosa
                         !Out
-                        Qf = (Me%FlowYOld(i, j) + Me%FlowYOld(i+1, j)) / 2.0
+                        !Qf = (Me%FlowYOld(i, j) + Me%FlowYOld(i+1, j)) / 2.0
                              
-                        if (Qf > 0.0) then
-                            u = Me%FlowYOld(i, j) / Me%AreaV(i, j)
+                        !if (Qf > 0.0) then
+                        !    u = Me%FlowYOld(i, j) / Me%AreaV(i, j)
+                        !else
+                        !    u = Me%FlowYOld(i+1, j) / Me%AreaV(i+1, j)
+                        !endif
+                        
+                        !outAdv = u * Qf
+                    
+                        !New Version - Ramiro
+                        if ((Me%FlowYOld(i, j) .ge. 0.0 .and. Me%FlowYOld(i+1, j) .ge. 0.0) .or. &
+                            (Me%FlowYOld(i, j) .le. 0.0 .and. Me%FlowYOld(i+1, j) .le. 0.0)) then
+                            
+                            Qf = (Me%FlowYOld(i, j) + Me%FlowYOld(i+1, j)) / 2.0
+
+                            if (Qf > 0.0) then
+                                outAdv = Me%FlowYOld(i, j)   * Me%FlowYOld(i, j) / Me%AreaV(i, j)
+                            else
+                                outAdv = Me%FlowYOld(i+1, j) * Me%FlowYOld(i+1, j) / Me%AreaV(i+1, j)
+                            endif
                         else
-                            u = Me%FlowYOld(i+1, j) / Me%AreaV(i+1, j)
+                            outAdv = 0.0
                         endif
                         
-                        !u = Qf / (Me%myWaterColumn(i, j) * Me%ExtVar%DUX(i, j))
-                             
-                        outAdv = u * Qf
                     
                     else
                     
@@ -3162,19 +3207,33 @@ doIter:         do while (iter <= Niter)
 
                     if (Me%ComputeFaceV(i-1, j) + Me%ComputeFaceV(i, j) == 2) then
 
+                        !Old Version - Artigo Rosa
                         !In
-                        Qf = (Me%FlowYOld(i-1, j) + Me%FlowYOld(i, j)) / 2.0
+                        !Qf = (Me%FlowYOld(i-1, j) + Me%FlowYOld(i, j)) / 2.0
                         
                         !Upwind
-                        if (Qf > 0) then
-                            u = Me%FlowYOld(i-1, j) / Me%AreaV(i-1, j)
+                        !if (Qf > 0) then
+                        !    u = Me%FlowYOld(i-1, j) / Me%AreaV(i-1, j)
+                        !else
+                        !    u = Me%FlowYOld(i, j) / Me%AreaV(i, j)     
+                        !endif
+                        
+                        !inAdv = Qf * u
+
+                        !New Version - Ramiro
+                        if ((Me%FlowYOld(i-1, j) .ge. 0.0 .and. Me%FlowYOld(i, j) .ge. 0.0) .or. &
+                            (Me%FlowYOld(i-1, j) .le. 0.0 .and. Me%FlowYOld(i, j) .le. 0.0)) then
+                            
+                            Qf = (Me%FlowYOld(i-1, j) + Me%FlowYOld(i, j)) / 2.0
+
+                            if (Qf > 0.0) then
+                                inAdv = Me%FlowYOld(i-1, j)   * Me%FlowYOld(i-1, j) / Me%AreaV(i-1, j)
+                            else
+                                inAdv = Me%FlowYOld(i, j) * Me%FlowYOld(i, j) / Me%AreaV(i, j)
+                            endif
                         else
-                            u = Me%FlowYOld(i, j) / Me%AreaV(i, j)     
+                            inAdv = 0.0
                         endif
-                        
-                        !u = Qf / (Me%myWaterColumn(i-1, j) * Me%ExtVar%DUX(i-1, j))
-                        
-                        inAdv = Qf * u
                         
                     else
                         inAdv = 0.0
