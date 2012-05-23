@@ -49,7 +49,8 @@ FILES = \
        ModuleFillMatrix.$(S) \
        ModuleInterpolation.$(S) \
        ModuleAtmosphere.$(S) \
-       ModuleChainReactions.$(S)
+       ModuleChainReactions.$(S) \
+       ModuleField4D.$(S)
 TARGET = $(BASE2)
 
 #-------Makefile rules-----------------
