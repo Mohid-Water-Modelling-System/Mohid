@@ -9039,6 +9039,9 @@ if2:        if (CurrNode%VolumeNew > PoolVolume) then
         !Arguments--------------------------------------------------------------        
         type (T_Reach), pointer                 :: CurrReach
         real                                    :: sign
+        real                                    :: WaterDepth, CriticalFlow
+        type (T_Node ), pointer                 :: UpNode, DownNode 
+
 
         if (abs(CurrReach%Slope) >  AllmostZero) then
         
@@ -9052,7 +9055,35 @@ if2:        if (CurrNode%VolumeNew > PoolVolume) then
             CurrReach%FlowNew  = sign * CurrReach%VerticalArea * CurrReach%HydraulicRadius **(2.0/3.0) &
                                  * sqrt(abs(CurrReach%Slope))  / CurrReach%Manning
                                  
+            
+            !limit to critical flow if a free drop exists
+            if (Me%HydrodynamicApproximation == DiffusionWave) then
+            
+                UpNode   => Me%Nodes (CurrReach%UpstreamNode  )
+                DownNode => Me%Nodes (CurrReach%DownstreamNode)
+                    
+                if ((UpNode%WaterLevel .lt. DownNode%CrossSection%BottomLevel) .or.                &
+                     (DownNode%WaterLevel .lt. UpNode%CrossSection%BottomLevel)) then
 
+                    !Waterdepth is the upper water column (maximum of level - maximum of bottom)
+                    WaterDepth  = max(UpNode%WaterLevel, DownNode%WaterLevel) -                    &
+                                  max(UpNode%CrossSection%BottomLevel,                             &
+                                      DownNode%CrossSection%BottomLevel)
+
+                    !Critical Flow
+                    CriticalFlow = CurrReach%VerticalArea * sqrt(Gravity * WaterDepth)
+
+                    if (abs(CurrReach%FlowNew) > CriticalFlow) then
+                        if (CurrReach%FlowNew > 0) then
+                            CurrReach%FlowNew = CriticalFlow
+                        else
+                            CurrReach%FlowNew = -1.0 * CriticalFlow
+                        endif
+                    endif
+                    
+                endif
+            endif
+            
             CurrReach%Velocity = CurrReach%FlowNew / (CurrReach%VerticalArea + CurrReach%PoolVerticalArea)
 
         else
@@ -9104,7 +9135,12 @@ if2:        if (CurrNode%VolumeNew > PoolVolume) then
         !FLOW---------------------------------------------------------------
         FlowNew = ( CurrReach%FlowOld + Advection + Pressure )    &
                           / ( 1. + Friction )
-
+        
+        !Limit to critical flow. Using the critical flow limitation in all cells assumes "slow" flow or
+        !subcritical that is consistent with the formulation used (flow depends on downstream height)
+        !because in supercritical flow it is only dependent on upstream and descritization to describe it would have
+        !to change. Supercritical flow usually exists on hydraulic infraestructures (high drops) and a 
+        !hydraulic jump exists between fast flow and slow flow.
         !Waterdepth at the center of the reach
         MaxBottom  = max(UpNode%CrossSection%BottomLevel, DownNode%CrossSection%BottomLevel)
         WaterDepth = (max(UpNode%WaterLevel - MaxBottom, 0.0) + max(DownNode%WaterLevel - MaxBottom, 0.0)) / 2.0
@@ -9160,14 +9196,47 @@ if2:        if (CurrNode%VolumeNew > PoolVolume) then
         do i = 1, DownNode%nDownstreamReaches
             DownReach => Me%Reaches (DownNode%DownstreamReaches (i))
             
-            if (DownNode%WaterDepth .GE. Me%MinimumWaterDepth ) then
-           
-                DownFlux  = (CurrReach%FlowOld + DownReach%FlowOld) / 2.
+            !This old formulation had a problem when flows in adjacent reaches
+            !had opposite directions. Flux was the average and velocity would be
+            !in opposite  direction of average flow. 
+!            DownFlux = (CurrReach%FlowOld + DownReach%FlowOld) / 2.
+!
+!           if (DownFlux.GE.0.0) then
+!               DownProp = CurrReach%Velocity
+!           else
+!               DownProp = DownReach%Velocity 
+!           end if
+!                                                                       
+!           AdvectionDown = AdvectionDown + DownFlux * DownProp
+ 
+            if ((DownNode%WaterDepth .GE. Me%MinimumWaterDepth)) then
                 
-                DownProp  = abs(DownFlux) / DownNode%VerticalArea
-                                                                           
-                !m4/s2        = m4/s2           m3/s     * m/s
-                AdvectionDown = AdvectionDown + DownFlux * DownProp
+                !The new formulation in case of opposite directions in adjacent reaches does not compute
+                !advection. In case of same direction is hard-upwind meaning that it will use flow and 
+                !velocity from the upwind reach. This option may be more stable than soft-upwind 
+                !(average flow and velocity from upwind reach) or central differences (average flow 
+                !and velocity).
+                
+                !if flows in same direction
+                if ((CurrReach%FlowOld * DownReach%FlowOld) .gt. 0.0) then
+                
+                    DownFlux  = (CurrReach%FlowOld + DownReach%FlowOld) / 2.
+                    
+                    if (DownFlux .gt. 0.0) then
+                        DownFlux  = CurrReach%FlowOld
+                        DownProp  = CurrReach%Velocity
+                    else
+                        DownFlux  = DownReach%FlowOld
+                        DownProp  = DownReach%Velocity                   
+                    endif
+                    
+                    !m4/s2        = m4/s2           m3/s     * m/s
+                    AdvectionDown = AdvectionDown + DownFlux * DownProp
+                else
+                    !No advection added if flows in oposite directions
+                    !AdvectionDown = AdvectionDown
+                endif                                                           
+                
             endif
         end do
        
@@ -9176,13 +9245,35 @@ if2:        if (CurrNode%VolumeNew > PoolVolume) then
         do i = 1, UpNode%nUpstreamReaches                    
             UpReach => Me%Reaches (UpNode%UpstreamReaches (i))
 
-            if (UpNode%WaterDepth .GE. Me%MinimumWaterDepth ) then
+!            UpFlux = ( CurrReach%FlowOld + UpReach%FlowOld) / 2.
+!
+!            if (UpFlux.GE.0.0) then
+!               UpProp = UpReach%Velocity
+!            else
+!               UpProp = CurrReach%Velocity
+!            end if
 
-                UpFlux  = (CurrReach%FlowOld + UpReach%FlowOld) / 2.
+            if ((UpNode%WaterDepth .GE. Me%MinimumWaterDepth)) then
 
-                UpProp  = abs(UpFlux) / UpNode%VerticalArea
-
-                AdvectionUp    =  AdvectionUp + UpFlux * UpProp
+                !if flows in same direction
+                if ((CurrReach%FlowOld * UpReach%FlowOld) .gt. 0.0) then
+                
+                    UpFlux  = (CurrReach%FlowOld + UpReach%FlowOld) / 2.
+                    
+                    if (UpFlux .gt. 0.0) then
+                        UpFlux  = UpReach%FlowOld
+                        UpFlux  = UpReach%Velocity
+                    else
+                        UpFlux  = CurrReach%FlowOld
+                        UpFlux  = CurrReach%Velocity                   
+                    endif
+                    
+                    !m4/s2        = m4/s2           m3/s     * m/s
+                    AdvectionUp = AdvectionUp + UpFlux * UpProp
+                else
+                    !No advection added if flows in oposite directions
+                    !AdvectionUp = AdvectionUp
+                endif                                                       
             endif
         end do
    
@@ -9275,7 +9366,16 @@ if2:        if (CurrNode%VolumeNew > PoolVolume) then
 
         !Local-----------------------------------------------------------------
         type (T_Node), pointer                      :: CurrNode
-        
+
+
+        !This code was put here because if Niter was greater then MaxIterations, "restart" would never be set.
+         if (Me%Stabilize .and. Niter >= Me%MaxIterations) then
+             write(*,*)'Number of iterations above maximum: ', Niter
+             write(*,*)'Check DT configurations'
+             stop 'VerifyMinimumVolume - ModuleDrainageNetwork - ERR01'
+         endif
+
+       
         CurrNode => Me%Nodes (NodeID)
 
         if (CurrNode%nDownstreamReaches /= 0 .and. CurrNode%VolumeNew < 0.0) then
