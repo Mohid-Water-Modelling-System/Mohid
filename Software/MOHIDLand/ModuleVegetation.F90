@@ -680,6 +680,7 @@ Module ModuleVegetation
         real                                            :: PlantingHUBase, PlantHUatMaturity
  !       real                                            :: PotentialHUBase
         real                                            :: WaterUptakeCompensationFactor
+        logical                                         :: NutrientReduceUptake
         real                                            :: NitrogenDistributionParameter
         real                                            :: PhosphorusDistributionParameter
         real                                            :: AtmosphereCO2
@@ -1383,6 +1384,16 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                          ClientModule   = 'ModuleVegetation',                               &
                          STAT           = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR190'
+            
+            call GetData(Me%ComputeOptions%NutrientReduceUptake,                 &
+                         Me%ObjEnterData, iflag,                                            &
+                         Keyword        = 'NUTRIENT_REDUCE_UPTAKE',                         &
+                         Default        = .true.,                                           &
+                         SearchType     = FromFile,                                         &
+                         ClientModule   = 'ModuleVegetation',                               &
+                         STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleVegetation - ERR195'
+            
         endif
 
         call GetData(Me%ComputeOptions%AtmosphereCO2,                                   &
@@ -7269,7 +7280,14 @@ cd0:    if (Exist) then
             (ready_ .EQ. READ_LOCK_ERR_)) then
 
             call Read_Lock(mVEGETATION_, Me%InstanceID)
-
+            
+            if (.not. Me%ComputeOptions%Evolution%ModelSWAT) then
+                allocate(Me%IsPlantGrowing (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
+                Me%IsPlantGrowing = .false.
+                Growing  => Me%IsPlantGrowing
+                !deallocate (Me%IsPlantGrowing)
+            endif
+            
             Growing  => Me%IsPlantGrowing
 
             STAT_ = SUCCESS_
@@ -9812,31 +9830,46 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
                             CellVolume = Me%ExternalVar%CellVolume(i,j,k)
                             
-                            !Avoid emptying the cell during vegetation dt
-                            !m3H20 = m3H20/m3cell * m3cell - (m3/s * s)
-                            PredictedVolume = Me%ExternalVar%SoilWaterContent(i,j,k) * CellVolume              &
-                                              - (Me%Fluxes%WaterUptakeLayer(i,j,k) * Me%ComputeOptions%VegetationDT)
-        
-                            !      kgN/ha        = gN/m3H20 * 1E-3kg/g * m3H20/m3cell * m3cell / (m2) * 10000m2/ha 
-!                            LayerNitrogenContent = Me%ExternalVar%SoilNitrate(i,j,k) * 1E-3                       &
-!                                                    * Me%ExternalVar%SoilWaterContent(i,j,k)                      &
-!                                                    * (CellVolume) / (GridCellArea) * 10000
-                            LayerNitrogenContent = Me%ExternalVar%SoilNitrate(i,j,k) * 1E-3                       &
-                                                    * PredictedVolume / (GridCellArea) * 10000.
+                            if (Me%ComputeOptions%NutrientReduceUptake) then
+                                !Avoid emptying the cell during vegetation dt
+                                !m3H20 = m3H20/m3cell * m3cell - (m3/s * s)
+                                PredictedVolume = Me%ExternalVar%SoilWaterContent(i,j,k) * CellVolume              &
+                                                  - (Me%Fluxes%WaterUptakeLayer(i,j,k) * Me%ComputeOptions%VegetationDT)
+            
+                                !      kgN/ha        = gN/m3H20 * 1E-3kg/g * m3H20/m3cell * m3cell / (m2) * 10000m2/ha 
+    !                            LayerNitrogenContent = Me%ExternalVar%SoilNitrate(i,j,k) * 1E-3                       &
+    !                                                    * Me%ExternalVar%SoilWaterContent(i,j,k)                      &
+    !                                                    * (CellVolume) / (GridCellArea) * 10000
+                                LayerNitrogenContent = Me%ExternalVar%SoilNitrate(i,j,k) * 1E-3                       &
+                                                        * PredictedVolume / (GridCellArea) * 10000.
 
 
-                            Me%Fluxes%NitrogenUptakeLayer(i,j,k) = PotentialNitrogenUptake + DemandNotMetInUpperLayers
-                           
-                           !Avoid taking more than exists because there is also transport that can remove mass
-                           !Problem with this SWAT formulatio where nutrient is completely disconnected from transpiration
-                           !If plant tries to remove per day more than half the amount that exists than nutrients
-                           !will run out in two days. at this low amount plant encounters limitations to uptake
+                                Me%Fluxes%NitrogenUptakeLayer(i,j,k) = PotentialNitrogenUptake + DemandNotMetInUpperLayers
+                               
+                               !Avoid taking more than exists because there is also transport that can remove mass
+                               !Problem with this SWAT formulatio where nutrient is completely disconnected from transpiration
+                               !If plant tries to remove per day more than half the amount that exists than nutrients
+                               !will run out in two days. at this low amount plant encounters limitations to uptake
+                                
+
+                                if (Me%Fluxes%NitrogenUptakeLayer(i,j,k) .ge. LayerNitrogenContent * 0.5) then
+                                    !Me%Fluxes%NitrogenUptakeLayer(i,j,k) = LayerNitrogenContent
+                                    Me%Fluxes%NitrogenUptakeLayer(i,j,k) = 0.
+                                end if
+                            else
                             
+            
+                                !      kgN/ha        = gN/m3H20 * 1E-3kg/g * m3H20/m3cell * m3cell / (m2) * 10000m2/ha 
+                                LayerNitrogenContent = Me%ExternalVar%SoilNitrate(i,j,k) * 1E-3                       &
+                                                        * Me%ExternalVar%SoilWaterContent(i,j,k)                      &
+                                                        * (CellVolume) / (GridCellArea) * 10000
 
-                            if (Me%Fluxes%NitrogenUptakeLayer(i,j,k) .ge. LayerNitrogenContent * 0.5) then
-                                !Me%Fluxes%NitrogenUptakeLayer(i,j,k) = LayerNitrogenContent
-                                Me%Fluxes%NitrogenUptakeLayer(i,j,k) = 0.
-                            end if
+                                Me%Fluxes%NitrogenUptakeLayer(i,j,k) = PotentialNitrogenUptake + DemandNotMetInUpperLayers
+                               
+                                if (Me%Fluxes%NitrogenUptakeLayer(i,j,k) .ge. LayerNitrogenContent) then
+                                    Me%Fluxes%NitrogenUptakeLayer(i,j,k) = LayerNitrogenContent
+                                end if                            
+                            endif
         
                             SumUptake = SumUptake + Me%Fluxes%NitrogenUptakeLayer(i,j,k)
                         enddo do3
@@ -10286,33 +10319,51 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                             SumDemand = SumDemand + PotentialPhosphorusUptake
 
                             CellVolume = Me%ExternalVar%CellVolume(i,j,k)
-
-                            !Avoid emptying the cell during vegetation dt
-                            !m3H20 = m3H20/m3cell * m3cell - (m3/s * s)
-                            PredictedVolume = Me%ExternalVar%SoilWaterContent(i,j,k) * CellVolume              &
-                                              - (Me%Fluxes%WaterUptakeLayer(i,j,k) * Me%ComputeOptions%VegetationDT)
-            
-                            !      kgP/ha          = gP/m3H20 * 1E-3kg/g  * m3H20/m3cell * m3cell / (m2) * 10000m2/ha 
-!                            LayerPhosphorusContent = Me%ExternalVar%SoilPhosphorus(i,j,k)  * 1E-3                                &
-!                                                     * Me%ExternalVar%SoilWaterContent(i,j,k)                                    &
-!                                                     * (CellVolume) / (GridCellArea) * 10000
-                            LayerPhosphorusContent = Me%ExternalVar%SoilPhosphorus(i,j,k)  * 1E-3                                &
-                                                     * PredictedVolume / (GridCellArea) * 10000.
-
-
-                            Me%Fluxes%PhosphorusUptakeLayer(i,j,k) = PotentialPhosphorusUptake + DemandNotMetInUpperLayers
-                           
-                           !Avoid taking more than exists because there is also transport that can remove mass
-                           !Problem with this SWAT formulatio where nutrient is completely disconnected from transpiration
-                           !If plant tries to remove per day more than half the amount that exists than nutrients
-                           !will run out in two days. at this low amount plant encounters limitations to uptake                            
                             
-                            !if (LayerPhosphorusContent .lt. Me%Fluxes%PhosphorusUptakeLayer(i,j,k)) then
-                            if (Me%Fluxes%PhosphorusUptakeLayer(i,j,k) .ge. LayerPhosphorusContent * 0.5) then
-                                !Me%Fluxes%PhosphorusUptakeLayer(i,j,k) = LayerPhosphorusContent
-                                Me%Fluxes%PhosphorusUptakeLayer(i,j,k) = 0.
-                            end if
-            
+                            if (Me%ComputeOptions%NutrientReduceUptake) then
+                            
+                                !Avoid emptying the cell during vegetation dt
+                                !m3H20 = m3H20/m3cell * m3cell - (m3/s * s)
+                                PredictedVolume = Me%ExternalVar%SoilWaterContent(i,j,k) * CellVolume              &
+                                                  - (Me%Fluxes%WaterUptakeLayer(i,j,k) * Me%ComputeOptions%VegetationDT)
+                
+                                !      kgP/ha          = gP/m3H20 * 1E-3kg/g  * m3H20/m3cell * m3cell / (m2) * 10000m2/ha 
+    !                            LayerPhosphorusContent = Me%ExternalVar%SoilPhosphorus(i,j,k)  * 1E-3                                &
+    !                                                     * Me%ExternalVar%SoilWaterContent(i,j,k)                                    &
+    !                                                     * (CellVolume) / (GridCellArea) * 10000
+                                LayerPhosphorusContent = Me%ExternalVar%SoilPhosphorus(i,j,k)  * 1E-3                                &
+                                                         * PredictedVolume / (GridCellArea) * 10000.
+
+
+                                Me%Fluxes%PhosphorusUptakeLayer(i,j,k) = PotentialPhosphorusUptake + DemandNotMetInUpperLayers
+                               
+                               !Avoid taking more than exists because there is also transport that can remove mass
+                               !Problem with this SWAT formulatio where nutrient is completely disconnected from transpiration
+                               !If plant tries to remove per day more than half the amount that exists than nutrients
+                               !will run out in two days. at this low amount plant encounters limitations to uptake                            
+                                
+                                !if (LayerPhosphorusContent .lt. Me%Fluxes%PhosphorusUptakeLayer(i,j,k)) then
+                                if (Me%Fluxes%PhosphorusUptakeLayer(i,j,k) .ge. LayerPhosphorusContent * 0.5) then
+                                    !Me%Fluxes%PhosphorusUptakeLayer(i,j,k) = LayerPhosphorusContent
+                                    Me%Fluxes%PhosphorusUptakeLayer(i,j,k) = 0.
+                                end if
+                            else
+                            
+                
+                                !      kgP/ha          = gP/m3H20 * 1E-3kg/g  * m3H20/m3cell * m3cell / (m2) * 10000m2/ha 
+                                LayerPhosphorusContent = Me%ExternalVar%SoilPhosphorus(i,j,k)  * 1E-3                                &
+                                                         * Me%ExternalVar%SoilWaterContent(i,j,k)                                    &
+                                                         * (CellVolume) / (GridCellArea) * 10000
+
+                                Me%Fluxes%PhosphorusUptakeLayer(i,j,k) = PotentialPhosphorusUptake + DemandNotMetInUpperLayers
+                               
+                                !if (LayerPhosphorusContent .lt. Me%Fluxes%PhosphorusUptakeLayer(i,j,k)) then
+                                if (Me%Fluxes%PhosphorusUptakeLayer(i,j,k) .ge. LayerPhosphorusContent) then
+                                    Me%Fluxes%PhosphorusUptakeLayer(i,j,k) = LayerPhosphorusContent
+                                end if
+                            
+                            endif
+                                                        
                             SumUptake = SumUptake + Me%Fluxes%PhosphorusUptakeLayer(i,j,k)
                         enddo do3
 

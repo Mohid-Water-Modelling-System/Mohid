@@ -118,6 +118,7 @@ Module ModuleRunoffProperties
     public  :: SetBasinConcRP     !RP gets Basin WC conc (updated each time a module changes water column)
     public  :: SetBasinToRPSplash !RP gets through fall and canopy height to compute splash erosion
     public  :: SetVegetationRP    !RP gets flux from vegetation to fluffy - fertilization organic particulate material
+                                  ! and pesticide to water column if exists
 
 !    public  :: SetWindVelocity
     public  :: UnGetRunoffProperties
@@ -240,6 +241,7 @@ Module ModuleRunoffProperties
         !If vegetation organic particulated material in fertilization
         logical                                     :: CoupledVegetation
         logical                                     :: VegParticFertilization
+        logical                                     :: Pesticide
         real,       dimension(:,:  ), pointer       :: FertilOrganicNParticFluff
         real,       dimension(:,:  ), pointer       :: FertilOrganicPParticFluff
         integer                                     :: VegetationDT
@@ -347,7 +349,7 @@ Module ModuleRunoffProperties
         real, dimension(:,:), pointer           :: ConcentrationDN          => null()
         real, dimension(:,:), pointer           :: TotalConcentration       => null()
         real, dimension(:,:), pointer           :: ConcInInterfaceDN
-
+        real, dimension(:,:),   pointer         :: PesticideFlux            => null()
         logical                                 :: FallVelocity
         real, dimension(:,:), pointer           :: ErosionRate          => null()
         real, dimension(:,:), pointer           :: DepositionRate       => null()
@@ -373,6 +375,7 @@ Module ModuleRunoffProperties
         real,    pointer, dimension(:,:)        :: ViscosityV
         type (T_Property), pointer              :: Next, Prev                     => null()
         logical                                 :: Particulate
+        logical                                 :: Pesticide
         type (T_Evolution)                      :: Evolution
         type (T_MassBalance)                    :: MB
         real, pointer, dimension(:,:)           :: Diff_Turbulence_H
@@ -539,6 +542,7 @@ Module ModuleRunoffProperties
                                               CheckGlobalMass,                            &
                                               CoupledVegetation,                          &
                                               VegParticFertilization,                     &
+                                              Pesticide,                                  &
                                               STAT)
      
         !Arguments---------------------------------------------------------------
@@ -553,6 +557,7 @@ Module ModuleRunoffProperties
         logical                                         :: CheckGlobalMass
         logical                                         :: CoupledVegetation
         logical                                         :: VegParticFertilization
+        logical                                         :: Pesticide
         integer, optional, intent(OUT)                  :: STAT 
         !External----------------------------------------------------------------
         integer                                         :: ready_         
@@ -593,6 +598,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             
             Me%ExtVar%CoupledVegetation      = CoupledVegetation
             Me%ExtVar%VegParticFertilization = VegParticFertilization
+            Me%ExtVar%Pesticide              = Pesticide
 
             call ReadFileNames
 
@@ -2118,6 +2124,23 @@ cd2 :           if (BlockFound) then
             NewProperty%ConcentrationDN(:,:) = FillValueReal
         endif
 
+        call GetData(NewProperty%Pesticide,                                                 &
+                     Me%ObjEnterData,iflag,                                                 &
+                     SearchType   = FromBlock,                                              &
+                     keyword      = 'PESTICIDE',                                            &
+                     default      = .false.,                                                &
+                     ClientModule = 'ModuleRunoffProperties',                               &
+                     STAT         = STAT_CALL)              
+        if (STAT_CALL .NE. SUCCESS_)stop 'Construct_PropertyValues - ModuleRunoffProperties - ERR42'
+
+        !by default zero because user may copy property blocks and leave pesticide ON in a property that is not pesticide.
+        if (NewProperty%Pesticide) then
+            allocate(NewProperty%PesticideFlux(ILB:IUB, JLB:JUB), STAT = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_)stop 'Construct_PropertyValues - ModuleRunoffProperties - ERR45'
+            NewProperty%PesticideFlux(:,:) = 0.
+        endif
+
+
         !it has to be always allocated
         allocate(NewProperty%ConcInInterfaceDN(ILB:IUB, JLB:JUB), STAT = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)stop 'Construct_PropertyValues - ModuleRunoffProperties - ERR50'
@@ -3101,8 +3124,8 @@ cd0:    if (Exist) then
             if (STAT_CALL /= SUCCESS_)                                                   &
                 stop 'ReadOldConcBoundariesHDF - ModuleRunoffProperties - ERR02'
 
-            call HDF5ReadData   (ObjHDF5, "/Results/"//NewProperty%ID%Name,        &
-                                 NewProperty%ID%Name,                                    &
+            call HDF5ReadData   (ObjHDF5, "/Results/"//trim(adjustl(NewProperty%ID%Name)), &
+                                 trim(adjustl(NewProperty%ID%Name)),                       &
                                  Array2D = NewProperty%Concentration,                    &
                                  STAT    = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                                   &
@@ -3110,8 +3133,8 @@ cd0:    if (Exist) then
 
             
             if (NewProperty%Particulate) then
-                call HDF5ReadData   (ObjHDF5, "/Results/"//NewProperty%ID%Name//" Bottom",   &
-                                     NewProperty%ID%Name//" Bottom",                         &
+                call HDF5ReadData   (ObjHDF5, "/Results/"//trim(adjustl(NewProperty%ID%Name))//" Bottom",   &
+                                     trim(adjustl(NewProperty%ID%Name))//" Bottom",                         &
                                      Array2D = NewProperty%Concentration,                    &
                                      STAT    = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_)                                                   &
@@ -3970,17 +3993,21 @@ cd0:    if (Exist) then
     !---------------------------------------------------------------------------
 
     subroutine SetVegetationRP   (RunoffPropertiesID, FertilOrganicNParticFluff, &
-                                      FertilOrganicPParticFluff, VegetationDT, STAT)
+                                      FertilOrganicPParticFluff, PesticideIDNumber, &
+                                      PesticideSoilFlux, VegetationDT, STAT)
 
         !Arguments--------------------------------------------------------------
         integer                                         :: RunoffPropertiesID
         real,    dimension(:, :), pointer, optional     :: FertilOrganicNParticFluff
         real,    dimension(:, :), pointer, optional     :: FertilOrganicPParticFluff
+        integer, optional                               :: PesticideIDNumber
+        real,    dimension(:, :), pointer, optional     :: PesticideSoilFlux
         real,    optional                               :: VegetationDT
         integer, intent(OUT), optional                  :: STAT
 
         !Local------------------------------------------------------------------
         integer                                         :: STAT_, ready_, i, j
+        type (T_Property), pointer                      :: PropertyX
 
         !-----------------------------------------------------------------------
 
@@ -4009,7 +4036,7 @@ cd0:    if (Exist) then
             
             if (present(FertilOrganicPParticFluff)) then
                 call GetBasinPoints   (Me%ObjBasinGeometry, Me%ExtVar%BasinPoints, STAT = STAT_)
-                if (STAT_ /= SUCCESS_) stop 'SetVegetationRP - ModuleRunoffProperties - ERR01'            
+                if (STAT_ /= SUCCESS_) stop 'SetVegetationRP - ModuleRunoffProperties - ERR020'            
 
                 do j=Me%WorkSize%JLB, Me%WorkSize%JUB
                 do i=Me%WorkSize%ILB, Me%WorkSize%IUB                    
@@ -4021,10 +4048,29 @@ cd0:    if (Exist) then
                 enddo
 
                 call UnGetBasin   (Me%ObjBasinGeometry, Me%ExtVar%BasinPoints, STAT = STAT_)
-                if (STAT_ /= SUCCESS_) stop 'SetVegetationRP - ModuleRunoffProperties - ERR010'            
+                if (STAT_ /= SUCCESS_) stop 'SetVegetationRP - ModuleRunoffProperties - ERR030'            
             endif
             
             if (present(VegetationDT)) Me%ExtVar%VegetationDT = VegetationDT
+
+            if (present(PesticideIDNumber       )) then
+                call SearchProperty(PropertyX, PropertyXIDNumber = PesticideIDNumber, STAT = STAT_)
+                if (STAT_ == SUCCESS_) then
+                    if (.not. present(PesticideSoilFlux)) stop 'SetVegetationRP - ModuleRunoffProperties - ERR40'
+                    if (.not. associated(PropertyX%PesticideFlux)) then
+                        write(*,*) 'Property', GetPropertyName(PesticideIDNumber) 
+                        write(*,*) 'is a pesticide and needs PESTICIDE keyword in Runoff Properties'
+                        stop 'SetVegetationRP - ModuleRunoffProperties - ERR50'
+                    else    
+                        PropertyX%PesticideFlux => PesticideSoilFlux
+                    endif
+                else
+                    write(*,*)
+                    write(*,*) 'Not found pesticide', GetPropertyName(PesticideIDNumber) 
+                    write(*,*) 'in Runoff Properties property list'
+                    stop ' SetVegetationRP - ModuleRunoffProperties - ERR60'
+                endif    
+            endif
                 
             STAT_ = SUCCESS_
         else
@@ -4472,11 +4518,14 @@ cd0:    if (Exist) then
     !-----------------------------------------------------------------------------
 
     subroutine InterfaceFluxes !routine for mass sources - from vegetation (OM fertilization to fluff layer)
+                               !and pesticide if water column exists
         !Local--------------------------------------------------------------------
         !Begin--------------------------------------------------------------------
 
-        if (Me%ExtVar%CoupledVegetation .and. Me%ExtVar%VegParticFertilization) then
-            call VegetationInterfaceFluxes
+        if (Me%ExtVar%CoupledVegetation) then
+            if(Me%ExtVar%VegParticFertilization .or. Me%ExtVar%Pesticide) then
+                call VegetationInterfaceFluxes
+            endif
         endif
 
 
@@ -4498,45 +4547,81 @@ cd0:    if (Exist) then
         
         VegDT = Me%ExtVar%VegetationDT
         
-        call Search_Property(Property, PON_, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'VegetationInterfaceFluxes - ModuleRunoffProperties - ERR01'
-            
-        do J = Me%WorkSize%JLB, Me%WorkSize%JUB
-        do I = Me%WorkSize%ILB, Me%WorkSize%IUB
-            
-            if (Me%ExtVar%BasinPoints(i,j) == BasinPoint) then
-            
-                !m3             = m  * m2
-                CellWaterVolume = Me%ExtVar%WaterColumnOld(i,j) * Me%ExtVar%Area(i,j) 
-                !kgN/m2                          = kg/m2  + (kg/ha * dt/vegdt * 1ha/10000m2)  
-                Property%BottomConcentration(i,j) = Property%BottomConcentration(i,j)                          &
-                                                   + (Me%ExtVar%FertilOrganicNParticFluff(i,j)                     &
-                                                    * (ModelDT / VegDT)  / 10000.)   
-                                                
-            endif
-        enddo
-        enddo
- 
-        call Search_Property(Property, POP_, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'VegetationInterfaceFluxes - ModuleRunoffProperties - ERR01'
-            
-        do J = Me%WorkSize%JLB, Me%WorkSize%JUB
-        do I = Me%WorkSize%ILB, Me%WorkSize%IUB
-            
-            if (Me%ExtVar%BasinPoints(i,j) == BasinPoint) then
-            
-                !m3             = m  * m2
-                CellWaterVolume = Me%ExtVar%WaterColumnOld(i,j) * Me%ExtVar%Area(i,j) 
-                !kgN/m2                          = kg/m2  + (kg/ha * dt/vegdt * 1ha/10000m2)  
-                Property%BottomConcentration(i,j) = Property%BottomConcentration(i,j)                          &
-                                                   + (Me%ExtVar%FertilOrganicPParticFluff(i,j)                     &
-                                                    * (ModelDT / VegDT)  / 10000.)   
-                                                
-            endif
-        enddo
-        enddo
+        if(Me%ExtVar%VegParticFertilization) then
         
+            call Search_Property(Property, PON_, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'VegetationInterfaceFluxes - ModuleRunoffProperties - ERR01'
+                
+            do J = Me%WorkSize%JLB, Me%WorkSize%JUB
+            do I = Me%WorkSize%ILB, Me%WorkSize%IUB
+                
+                if (Me%ExtVar%BasinPoints(i,j) == BasinPoint) then
+                
+                    !m3             = m  * m2
+                    !CellWaterVolume = Me%ExtVar%WaterColumnOld(i,j) * Me%ExtVar%Area(i,j) 
+                    !kgN/m2                          = kg/m2  + (kg/ha * dt/vegdt * 1ha/10000m2)  
+                    Property%BottomConcentration(i,j) = Property%BottomConcentration(i,j)                          &
+                                                       + (Me%ExtVar%FertilOrganicNParticFluff(i,j)                     &
+                                                        * (ModelDT / VegDT)  / 10000.)   
+                                                    
+                endif
+            enddo
+            enddo
+     
+            call Search_Property(Property, POP_, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'VegetationInterfaceFluxes - ModuleRunoffProperties - ERR01'
+                
+            do J = Me%WorkSize%JLB, Me%WorkSize%JUB
+            do I = Me%WorkSize%ILB, Me%WorkSize%IUB
+                
+                if (Me%ExtVar%BasinPoints(i,j) == BasinPoint) then
+                
+                    !m3             = m  * m2
+                    !CellWaterVolume = Me%ExtVar%WaterColumnOld(i,j) * Me%ExtVar%Area(i,j) 
+                    !kgN/m2                          = kg/m2  + (kg/ha * dt/vegdt * 1ha/10000m2)  
+                    Property%BottomConcentration(i,j) = Property%BottomConcentration(i,j)                          &
+                                                       + (Me%ExtVar%FertilOrganicPParticFluff(i,j)                     &
+                                                        * (ModelDT / VegDT)  / 10000.)   
+                                                    
+                endif
+            enddo
+            enddo
+        endif
+        
+        if (Me%ExtVar%Pesticide) then
+            !Pesticide flux for runoff wate if water column exists
+            Property => Me%FirstProperty
 
+            do while (associated(Property)) 
+                
+                if (Property%Pesticide) then
+                
+                    !if (Property%Evolution%AdvectionDiffusion) then
+
+                        do J = Me%WorkSize%JLB, Me%WorkSize%JUB
+                        do I = Me%WorkSize%ILB, Me%WorkSize%IUB
+                            
+                            if (Me%ExtVar%BasinPoints(i,j) == BasinPoint .and. Me%ExtVar%WaterColumnOld(i,j) .gt. AlmostZero) then
+                            
+                                !m3             = m  * m2
+                                CellWaterVolume = Me%ExtVar%WaterColumnOld(i,j) * Me%ExtVar%Area(i,j) 
+                                !g/m3                          = g/m3  + (kg/ha * dt/vegdt * 1E3g/kg * (m2) * 1ha/10000m2) / m3 
+                                Property%ConcentrationOld(i,j) = Property%ConcentrationOld(i,j) + (Property%PesticideFlux(i,j) &
+                                                                    * ModelDT / VegDT * 1e3 * Me%ExtVar%Area(i,j) / 10000.)        &
+                                                                     / CellWaterVolume
+                                                                
+                            endif
+                        enddo
+                        enddo
+    !                    else
+                      
+    !                    endif         
+                endif
+            
+                Property => Property%Next
+                
+            enddo  
+        endif
 
     end subroutine VegetationInterfaceFluxes
  
@@ -6924,7 +7009,9 @@ do1 :   do while (associated(Property))
             if (Property%Evolution%Decay) then
                 
                 !days
-                DT = Me%ExtVar%DT / 86400.
+                !dt has to be Dtinterval so that is consistent with property actualization
+                !DT = Me%ExtVar%DT /86400.
+                DT = Property%Evolution%DTInterval / 86400.
           
                 if(Me%ExtVar%Now .GE. Property%Evolution%NextCompute) then            
             
@@ -6973,7 +7060,7 @@ do1 :   do while (associated(Property))
         type (T_Property), pointer              :: PartPropX
         type (T_Property), pointer              :: PropertyX
 !        type (T_Property), pointer              :: Salinity
-        type (T_Property), pointer              :: CohesiveSediment
+        type (T_Property), pointer              :: CohesiveSediment 
         real                                    :: DT, MassTransfer
         real                                    :: DissolvedFraction
         real                                    :: ParticulateFraction
@@ -7025,9 +7112,9 @@ cd1:            if(Me%ExtVar%Now .GE. PropertyX%Evolution%NextCompute) then
     !                        stop 'Partition_Processes - ModuleRunoffProperties - ERR03'
     !                endif
                     
-                    !Info about old mass and concentration is for last instant and not Dtinterval
-                    DT = Me%ExtVar%DT
-                    !DT = PropertyX%Evolution%DTInterval
+                    !dt has to be Dtinterval so that is consistent with property actualization
+                    !DT = Me%ExtVar%DT
+                    DT = PropertyX%Evolution%DTInterval
 
     do1:            do j = JLB, JUB
     do2:            do i = ILB, IUB
@@ -7759,12 +7846,12 @@ First:          if (LastTime.LT.Actual) then
         if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModuleRunoffProperties - ERR25'
 
         !Writes the Grid
-        call HDF5WriteData   (ObjHDF5, "/Grid", "Bathymetry", "m",           &
+        call HDF5WriteData   (ObjHDF5, "//Grid/Topography", "Topography", "m",           &
                               Array2D = Me%ExtVar%Topography, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModuleRunoffProperties - ERR05'
 
         !WriteBasinPoints
-        call HDF5WriteData   (ObjHDF5, "/Grid", "BasinPoints", "-",          &
+        call HDF5WriteData   (ObjHDF5, "//Grid/BasinPoints", "BasinPoints", "-",          &
                               Array2D = Me%ExtVar%BasinPoints, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModuleRunoffProperties - ERR07'
 
@@ -7795,7 +7882,6 @@ First:          if (LastTime.LT.Actual) then
                                       trim(PropertyX%ID%Name)//" Bottom",              &
                                       "kg/m2",                                         &
                                       Array2D = PropertyX%BottomConcentration,         &
-                                      OutputNumber = OutPutNumber,                     &
                                       STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModuleRunoffproperties - ERR15'
 

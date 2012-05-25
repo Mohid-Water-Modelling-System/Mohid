@@ -2234,6 +2234,7 @@ i1:         if (CoordON) then
         logical                                     :: IsConstant
         real                                        :: ConstantValue
         logical                                     :: VegParticFertilization
+        logical                                     :: Pesticide
         !Begin-----------------------------------------------------------------
 
         !Constructs Atmosphere
@@ -2373,7 +2374,9 @@ i1:         if (CoordON) then
             endif
             
             !Send info about organic particulate material to runoff properties to allocate flux
-            call GetVegetationOptions(Me%ObjVegetation, VegParticFertilization = VegParticFertilization, STAT = STAT_CALL)
+            call GetVegetationOptions(Me%ObjVegetation,                                &
+                                      VegParticFertilization = VegParticFertilization, &
+                                      Pesticide = Pesticide, STAT = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_) stop 'ConstructCoupledModules - ModuleBasin - ERR110' 
             
         endif
@@ -2408,6 +2411,7 @@ i1:         if (CoordON) then
                                                        CheckGlobalMass            = Me%VerifyGlobalMass,          &
                                                        CoupledVegetation          = Me%Coupled%Vegetation,        &
                                                        VegParticFertilization     = VegParticFertilization,       &
+                                                       Pesticide                  = Pesticide,                    &
                                                        STAT                       = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ConstructCoupledModules - ModuleBasin - ERR080'
             endif
@@ -5396,6 +5400,7 @@ cd2 :           if (BlockFound) then
                                          WaterColumn                = Me%ExtUpdate%Watercolumn,     &
 !                                         ThroughFall                = Me%ThroughFall,               &
 !                                         WCEvaporated               = Me%WaterColumnEvaporated,     &
+                                         WaterColumnOLd             = Me%ExtUpdate%WatercolumnOld,   &
                                          STAT                       = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'PorousMediaPropertiesProcesses - ModuleBasin - ERR0110' 
         
@@ -5559,8 +5564,11 @@ cd2 :           if (BlockFound) then
         real, dimension(:,:), pointer              :: FertilOrganicPParticFluff
         logical                                    :: NutrientFluxesWithSoil, Fertilization
         logical                                    :: ModelNitrogen, ModelPhosphorus
-        logical                                    :: GrowthModel, VegParticFertilization
+        logical                                    :: GrowthModel, VegParticFertilization, Pesticide
         real                                       :: VegetationDT
+        integer                                     :: NumberOfPesticides        
+        integer                                     :: PesticideIDNumber, Pest
+        real, dimension (:,:), pointer              :: PesticideSoil       
  !       type (T_Size3D)                            :: WorkSize3D
  !       real, dimension(:, :), pointer             :: InfiltrationFlux
         !Begin-----------------------------------------------------------------
@@ -5677,6 +5685,7 @@ cd2 :           if (BlockFound) then
                                       ModelPhosphorus        = ModelPhosphorus,                  &
                                       GrowthModel            = GrowthModel,                      &
                                       VegParticFertilization = VegParticFertilization,           &
+                                      Pesticide              = Pesticide,                        &
                                       STAT                   = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'RunoffPropertiesProcesses - ModuleBasin - ERR0160'
             
@@ -5724,6 +5733,42 @@ cd2 :           if (BlockFound) then
                     endif
                 
                 endif
+            
+                !get vegetation pesticide fluxes and send them to RP - computed if water column exists
+                if (Pesticide) then
+                    call GetVegetationOptions      (VegetationID             = Me%ObjVegetation,           &
+                                                    NumberOfPesticides       = NumberOfPesticides,         &
+                                                    STAT                     = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'RunoffPropertiesProcesses - ModuleBasin - ERR0180'
+
+                    call GetVegetationDT  (Me%ObjVegetation, VegetationDT, STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'RunoffPropertiesProcesses - ModuleBasin - ERR190'
+
+                    
+                    do Pest = 1, NumberOfPesticides
+
+                        call GetVegetationSoilFluxes   (VegetationID             = Me%ObjVegetation,           &
+                                                        Pest                     = Pest,                       &
+                                                        PesticideIDNumber        = PesticideIDNumber,          &
+                                                        PesticideSoil            = PesticideSoil,              &
+                                                        STAT                     = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'RunoffPropertiesProcesses - ModuleBasin - ERR0200'
+                        
+
+                        call SetVegetationRP(RunoffPropertiesID  = Me%ObjRunoffProperties, &
+                                                        PesticideIDNumber       = PesticideIDNumber,           &
+                                                        PesticideSoilFlux       = PesticideSoil,               &
+                                                        VegetationDT            = VegetationDT,                &
+                                                        STAT                     = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'RunoffPropertiesProcesses - ModuleBasin - ERR0210'
+                        
+                        call UnGetVegetationSoilFluxes (VegetationID             = Me%ObjVegetation,         &
+                                                        PesticideSoil            = PesticideSoil,            &
+                                                        STAT                     = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'RunoffPropertiesProcesses - ModuleBasin - ERR0220'                
+                        
+                    enddo
+                endif            
             
             endif
             

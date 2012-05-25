@@ -292,6 +292,7 @@ Module ModulePorousMedia
     !Unsaturated Zone Types
     type T_SoilOptions
         logical :: CalcHorizontal
+        logical :: CalcDrainageNetworkFlux
         integer :: CondutivityFace
         logical :: Continuous
         logical :: StopOnWrongDate
@@ -903,6 +904,15 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                      STAT           = STAT_CALL)             
         if (STAT_CALL /= SUCCESS_) stop 'GetUnSaturatedOptions - ModulePorousMedia - ERR210'
 
+
+        call GetData(Me%SoilOpt%CalcDrainageNetworkFlux,                        &
+                     Me%ObjEnterData, iflag,                                    &
+                     SearchType     = FromFile,                                 &
+                     keyword        ='CALC_DRAINAGE_FLUX',                      &
+                     Default        =.TRUE.,                                    &
+                     ClientModule   ='ModulePorousMedia',                       &
+                     STAT           = STAT_CALL)             
+        if (STAT_CALL /= SUCCESS_) stop 'GetUnSaturatedOptions - ModulePorousMedia - ERR02'
        
         ! 1 - AVERAGE of the conductivity in the cells
         ! 2 - MAXIMUM of the conductivity in the cells
@@ -3702,7 +3712,7 @@ dConv:  do while (iteration <= Niteration)
             call SoilWaterFlux
             
             !Calculates Flux to channels
-            if (Me%ObjDrainageNetwork /= 0) then
+            if (Me%ObjDrainageNetwork /= 0 .and. Me%SoilOpt%CalcDrainageNetworkFlux) then
                 call ExchangeWithDrainageNet
             endif
             

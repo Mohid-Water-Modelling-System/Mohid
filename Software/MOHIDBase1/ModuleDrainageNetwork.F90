@@ -9051,7 +9051,6 @@ if2:        if (CurrNode%VolumeNew > PoolVolume) then
                 sign = -1.0
             endif
 
-
             CurrReach%FlowNew  = sign * CurrReach%VerticalArea * CurrReach%HydraulicRadius **(2.0/3.0) &
                                  * sqrt(abs(CurrReach%Slope))  / CurrReach%Manning
                                  
@@ -10513,7 +10512,7 @@ if1:    if (Property%Diffusion_Scheme == CentralDif) then
         type (T_Property), pointer                  :: Property
         integer                                     :: NodeID
         type (T_node), pointer                      :: CurrNode
-        real                                        :: OldMass, MassSink, NewMass
+        real                                        :: OldMass, MassSink, NewMass, DT
         !Begin------------------------------------------------------------------
         
         
@@ -10523,7 +10522,10 @@ if1:    if (Property%Diffusion_Scheme == CentralDif) then
         do while (associated (Property))
         
             if (Property%ComputeOptions%Generic_Decay) then
-        
+                
+                !days
+                DT = Me%ExtVar%DT / 86400.
+                
                 do NodeID = 1, Me%TotalNodes
 
                     if (Me%OpenPointsProcess (NodeID) == OpenPoint) then                    
@@ -10535,7 +10537,7 @@ if1:    if (Property%Diffusion_Scheme == CentralDif) then
                         OldMass = Property%Concentration (NodeID) * CurrNode%VolumeNew
                         
                         !P = P0*exp(-kt)  
-                        MassSink = min (OldMass - OldMass * exp(-Property%DecayRate * Me%ExtVar%DT),  OldMass)
+                        MassSink = min (OldMass - OldMass * exp(-Property%DecayRate * DT),  OldMass)
                         
                         NewMass = OldMass - MassSink
                         

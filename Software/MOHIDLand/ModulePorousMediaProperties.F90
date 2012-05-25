@@ -272,6 +272,7 @@ Module ModulePorousMediaProperties
         real,    pointer, dimension(:,:,:)          :: WaterContent
         real,    pointer, dimension(:,:,:)          :: WaterContentOld
         real(8), pointer, dimension(:,:)            :: WaterColumn
+        real(8), pointer, dimension(:,:)            :: WaterColumnOld
         real(8), pointer, dimension(:,:)            :: InfiltrationColumn
         real(8), pointer, dimension(:,:,:)          :: CellVolume        
         real(8), dimension(:,:,:), pointer          :: FluxU
@@ -5044,12 +5045,13 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
     subroutine ModifyPorousMediaProperties(ObjPorousMediaPropertiesID,          &
-                                           WaterColumn,                         &
+                                           WaterColumn, WaterColumnOld,         &
                                            STAT)
 
         !Arguments-------------------------------------------------------------
         integer                                     :: ObjPorousMediaPropertiesID
         real(8), dimension(:,:), pointer            :: WaterColumn
+        real(8), dimension(:,:), pointer            :: WaterColumnOld
         integer, intent(OUT), optional              :: STAT
 
         !Local-----------------------------------------------------------------
@@ -5078,6 +5080,8 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
             
             !New Water column to see if there will be diffusion with runoff
             Me%ExtVar%WaterColumn => WaterColumn
+            !Old Water column - only used for pesticide add before transport
+            Me%ExtVar%WaterColumnOLd => WaterColumnOLd
 
             PropertyX => Me%FirstProperty
 
@@ -6085,7 +6089,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
             enddo
         endif
 
-        !Pesticide only in surface
+        !Pesticide only in surface and only if no water column
         if (Me%ExtVar%GrowthModel) then
 
             Property => Me%FirstProperty
@@ -6099,7 +6103,8 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
                         do J = Me%WorkSize%JLB, Me%WorkSize%JUB
                         do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                             
-                            if (Me%ExtVar%BasinPoints(i,j) == BasinPoint) then
+                            !Here it is needed the ne Water
+                            if (Me%ExtVar%BasinPoints(i,j) == BasinPoint .and. Me%ExtVar%WaterColumnOld(i,j) .le. AlmostZero) then
                             
                                 k = Me%WorkSize%KUB
                                 !m3             = m3H20/m3cell * m3cell
@@ -8844,9 +8849,9 @@ cd1:            if(Me%ExtVar%Now .GE. PropertyX%Evolution%NextCompute) then
     !                        stop 'Partition_Processes - ModuleRunoffProperties - ERR03'
     !                endif
                     
-                    !Info about old mass and concentration is for last instant and not Dtinterval
-                    DT  = Me%ExtVar%DT
-                    !DT = PropertyX%Evolution%DTInterval
+                    !dt has to be Dtinterval so that is consistent with property actualization
+                    !DT = Me%ExtVar%DT
+                    DT = PropertyX%Evolution%DTInterval
                     
     do3:            do k = KLB, KUB
     do1:            do j = JLB, JUB
@@ -9338,8 +9343,10 @@ do1 :   do while (associated(Property))
             if (Property%Evolution%Decay) then
                 
                 !days
-                DT = Me%ExtVar%DT / 86400.
-          
+                !dt has to be Dtinterval so that is consistent with property actualization
+                !DT = Me%ExtVar%DT /86400.
+                DT = Property%Evolution%DTInterval / 86400.
+                          
                 if(Me%ExtVar%Now .GE. Property%Evolution%NextCompute) then            
             
                     do K = Me%WorkSize%KLB, Me%WorkSize%KUB
