@@ -808,9 +808,7 @@ if2 :           if (BlockFound) then
 
                     k = k + 1
 
-                    ia = 0
-                    do 
-                        ia = ia + 1
+                    do ia=len_trim(obj_name),1,-1
                         if (obj_name(ia:ia) == '_') exit
                     enddo                  
 
