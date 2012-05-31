@@ -819,23 +819,27 @@ program Convert2netcdf
         allocate(WaterPoints3D (1:Me%HDFFile%Size%IUB, &
                                 1:Me%HDFFile%Size%JUB, &
                                 1:Me%HDFFile%Size%KUB))
+                                
+        if (.not. Me%HDFFile%Sigma) then                                
 
-        !Read VerticalZ code
-        call HDF5SetLimits(Me%HDFFile%ObjHDF5, ILB = 1, IUB = Me%HDFFile%Size%IUB, &
-                                               JLB = 1, JUB = Me%HDFFile%Size%JUB, &
-                                               KLB = 1, KUB = Me%HDFFile%Size%KUB+1, &
-                                               STAT         = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_) stop 'ReadWriteVertical - Convert2netcdf - ERR01'
+            !Read VerticalZ code
+            call HDF5SetLimits(Me%HDFFile%ObjHDF5, ILB = 1, IUB = Me%HDFFile%Size%IUB, &
+                                                   JLB = 1, JUB = Me%HDFFile%Size%JUB, &
+                                                   KLB = 1, KUB = Me%HDFFile%Size%KUB+1, &
+                                                   STAT         = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_) stop 'ReadWriteVertical - Convert2netcdf - ERR01'
 
-        !The first time instant is considered only.
-        call HDF5ReadData(HDF5ID       = Me%HDFFile%ObjHDF5,            &
-                          GroupName    = "/Grid",                       &
-                          Name         = trim(Me%HDFFile%VertVar),      &
-                          Array3D      = Vert3D,                        &
-                          OutputNumber = 1,                             &
-                          STAT         = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_) stop 'ReadWriteVertical - Convert2netcdf - ERR02'
-        
+            !The first time instant is considered only.
+            call HDF5ReadData(HDF5ID       = Me%HDFFile%ObjHDF5,            &
+                              GroupName    = "/Grid",                       &
+                              Name         = trim(Me%HDFFile%VertVar),      &
+                              Array3D      = Vert3D,                        &
+                              OutputNumber = 1,                             &
+                              STAT         = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_) stop 'ReadWriteVertical - Convert2netcdf - ERR02'
+
+        endif
+                
         !Read Waterpoints code
         call HDF5SetLimits(Me%HDFFile%ObjHDF5, ILB = 1, IUB = Me%HDFFile%Size%IUB, &
                                                JLB = 1, JUB = Me%HDFFile%Size%JUB, &
@@ -858,7 +862,7 @@ program Convert2netcdf
             
             !Returns the depth of the cell's bottom face in a sigma referential i.e. [0 1]
             do i = 1, Me%HDFFile%Size%KUB
-                Vert1D(i) = i/Me%HDFFile%Size%KUB  !assuming constant spacing
+                Vert1D(i) = i/Me%HDFFile%Size%KUB - 0.5  !assuming constant spacing
             enddo
 
             !Returns the depth of the cell's bottom face in a sigma referential i.e. [0 1]
@@ -1087,8 +1091,8 @@ program Convert2netcdf
                 enddo                
                 enddo                
 
-                call BuildAttributes("Bathymetry", NCDFName, LongName, StandardName,    &
-                                     Units, ValidMin, ValidMax,                         &
+                call BuildAttributes(trim(Me%HDFFile%HdfMask), NCDFName, LongName,          &
+                                     StandardName, Units, ValidMin, ValidMax,               &
                                      MinValue, MaxValue, MissingValue, Int2D = Me%Int2DIn)
         
                 call NETCDFWriteData (NCDFID        = Me%NCDF_File%ObjNETCDF,               &
