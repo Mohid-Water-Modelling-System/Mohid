@@ -104,6 +104,8 @@ Module ModuleNetCDFCF_2_HDF5MOHID
         type(T_Time), dimension(:), pointer     :: Value1DOut
         integer                                 :: NumberInst
         integer                                 :: TotalInst        
+        integer                                 :: TotalInstOut
+        integer, dimension(:), pointer          :: InstOut
         type(T_Time)                            :: RefDateTimeIn, RefDateTimeOut            
         type(T_Time)                            :: FileEndTime, LasTEndTime                    
         real                                    :: UnitsFactor
@@ -175,6 +177,7 @@ Module ModuleNetCDFCF_2_HDF5MOHID
         real, dimension(:,:),     pointer       :: Value2DOut
         real, dimension(:,:,:),   pointer       :: Value3DOut
         logical                                 :: FromDir2Vector
+        logical                                 :: FromMeteo2Algebric
         character(len=StringLength)             :: DirX
         character(len=StringLength)             :: DirY
         logical                                 :: ComputeIntensity, Rotation, Beaufort, WaveBeaufort 
@@ -1433,7 +1436,7 @@ BF:         if (BlockFound) then
                              ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',               &
                              default      = .false.,                                    &
                              STAT         = STAT_CALL)        
-                if (STAT_CALL /= SUCCESS_) stop 'ReadGridOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR25'
+                if (STAT_CALL /= SUCCESS_) stop 'ReadGridOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR30'
                 
                 Me%LongLat%LatIn%DataType  = Real8_
                 Me%LongLat%LongIn%DataType = Real8_
@@ -1447,7 +1450,7 @@ BF:         if (BlockFound) then
                              keyword      = 'NETCDF_NAME_DEPTH',                        &
                              ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',               &
                              STAT         = STAT_CALL)        
-                if (STAT_CALL /= SUCCESS_) stop 'ReadGridOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR30'
+                if (STAT_CALL /= SUCCESS_) stop 'ReadGridOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR40'
 
                 if  (iflag == 0) then 
                     Me%Depth%Dim3D = .false.
@@ -1464,7 +1467,7 @@ BF:         if (BlockFound) then
                              keyword      = 'NETCDF_NAME_BATHYM',                       &
                              ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',               &
                              STAT         = STAT_CALL)        
-                if (STAT_CALL /= SUCCESS_) stop 'ReadGridOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR40'
+                if (STAT_CALL /= SUCCESS_) stop 'ReadGridOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR50'
                 
                 if  (iflag == 0) then 
                     Me%Bathym%ON = .false.
@@ -1479,7 +1482,7 @@ BF:         if (BlockFound) then
                              default      = 'Batim.dat',                                &
                              ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',               &
                              STAT         = STAT_CALL)        
-                if (STAT_CALL /= SUCCESS_) stop 'ReadGridOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR45'                
+                if (STAT_CALL /= SUCCESS_) stop 'ReadGridOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR60'                
 
                 call GetData(Me%Bathym%FromMapping,                                     &
                              Me%ObjEnterData, iflag,                                    &
@@ -1488,7 +1491,7 @@ BF:         if (BlockFound) then
                              default      = .false.,                                    &
                              ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',               &
                              STAT         = STAT_CALL)        
-                if (STAT_CALL /= SUCCESS_) stop 'ReadGridOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR40'     
+                if (STAT_CALL /= SUCCESS_) stop 'ReadGridOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR70'     
                 
                 call GetData(Me%Bathym%ValueIn%DataType,                                &
                              Me%ObjEnterData, iflag,                                    &
@@ -1497,7 +1500,7 @@ BF:         if (BlockFound) then
                              default      = Real8_,                                     &
                              ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',               &
                              STAT         = STAT_CALL)        
-                if (STAT_CALL /= SUCCESS_) stop 'ReadTimeOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR50'
+                if (STAT_CALL /= SUCCESS_) stop 'ReadTimeOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR80'
                 
                 
                 call GetData(Me%Bathym%ValueIn%DataType,                                &
@@ -1507,7 +1510,7 @@ BF:         if (BlockFound) then
                              default      = Real8_,                                     &
                              ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',               &
                              STAT         = STAT_CALL)        
-                if (STAT_CALL /= SUCCESS_) stop 'ReadTimeOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR50'
+                if (STAT_CALL /= SUCCESS_) stop 'ReadTimeOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR90'
                 
                 Me%Bathym%ValueIn%Dim      = 2
                 
@@ -1518,7 +1521,7 @@ BF:         if (BlockFound) then
                              default      = Real8_,                                     &
                              ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',               &
                              STAT         = STAT_CALL)        
-                if (STAT_CALL /= SUCCESS_) stop 'ReadTimeOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR50'                   
+                if (STAT_CALL /= SUCCESS_) stop 'ReadTimeOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR100'                   
                 
                 
                 if (.not. Me%Bathym%ON) then
@@ -1530,11 +1533,9 @@ BF:         if (BlockFound) then
                                  ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',               &
                                  default      = 0.,                                         &
                                  STAT         = STAT_CALL)        
-                    if (STAT_CALL /= SUCCESS_) stop 'ReadGridOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR50'
+                    if (STAT_CALL /= SUCCESS_) stop 'ReadGridOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR110'
                 
                 endif
-                
-         
                 
                 call GetData(Me%Mapping%NetCDFName,                                     &
                              Me%ObjEnterData, iflag,                                    &
@@ -1542,7 +1543,7 @@ BF:         if (BlockFound) then
                              keyword      = 'NETCDF_NAME_MAPPING',                      &
                              ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',               &
                              STAT         = STAT_CALL)        
-                if (STAT_CALL /= SUCCESS_) stop 'ReadGridOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR70'   
+                if (STAT_CALL /= SUCCESS_) stop 'ReadGridOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR30'   
                 
                 if (iflag == 0) then
                     Me%Mapping%ON = .false.
@@ -1977,6 +1978,15 @@ BF:         if (BlockFound) then
 
                     endif                        
 
+                    call GetData(Me%Field(ip)%FromMeteo2Algebric,                       &
+                                 Me%ObjEnterData, iflag,                                &
+                                 SearchType   = FromBlockInBlock,                       &
+                                 keyword      = 'METEO_TO_ALGEBRIC',                    &
+                                 default      = .false.,                                &
+                                 ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',           &
+                                 STAT         = STAT_CALL)        
+                    if (STAT_CALL /= SUCCESS_) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR2650'
+
 
                     !call Block_Unlock(Me%ObjEnterData, Me%ClientNumber, STAT = STAT_CALL) 
 
@@ -1986,12 +1996,12 @@ BF:         if (BlockFound) then
             
                 else BF
                 
-                    stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR270'    
+                    stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR2670'    
                     
                 endif BF
             else IS
             
-                stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR280'    
+                stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR2680'    
             
             endif IS            
         
@@ -2012,7 +2022,7 @@ BF:         if (BlockFound) then
         logical                                 :: BlockFound, LastLineON
         integer                                 :: iflag, line, FirstLine, LastLine,    &
                                                    STAT_CALL, HDF5_CREATE, iOut, status,&
-                                                   ncid, iP
+                                                   ncid, iP, i, io
                  
 
 
@@ -2103,8 +2113,23 @@ BF:         if (BlockFound) then
                     endif 
 
                     if (LastLineON) then
+                    
+                        allocate(Me%Date%InstOut(1:Me%Date%TotalInst))
+
+                        Me%Date%InstOut(:)   = -99
+                        Me%Date%TotalInstOut = 1
+                        
+                        Me%Date%InstOut(1) = 1
+                        do i=2, Me%Date%TotalInst
+                            if (Me%Date%ValueInTotal(i) > Me%Date%ValueInTotal(i-1)) then
+                                Me%Date%TotalInstOut = Me%Date%TotalInstOut + 1
+                                Me%Date%InstOut(i)   = Me%Date%TotalInstOut
+                            endif
+                        enddo                            
+                    
                         if (Me%OutHDF5  ) call WriteTimeHDF5  
                         if (Me%OutNetCDF) call WriteTimeNetCDF
+                        
                     endif
               
                     status=NF90_CLOSE(ncid)
@@ -2665,7 +2690,7 @@ BF:         if (BlockFound) then
         integer                                         :: iOut, ncid
         
         !Local-----------------------------------------------------------------
-        integer                                         :: iP, iT
+        integer                                         :: iP, iT, iFinal
         logical                                         :: WriteProp
         !Begin-----------------------------------------------------------------
         
@@ -2688,10 +2713,12 @@ BF:         if (BlockFound) then
                 
                 if (WriteProp) then
                 
-                    call WriteFieldAllInst(iOut, iP, iT)
+                    iFinal = iOut + iT
+                    if (Me%Date%InstOut(iFinal) >0) then 
+                        call WriteFieldAllInst(Me%Date%InstOut(iFinal), iP, iT)
+                    endif
                     
                     Me%OutCountProp = Me%OutCountProp + 1
-                    
                 endif
 
                 if (.not. (Me%Field(iP)%ComputeIntensity .or. Me%Field(iP)%Rotation .or. &
@@ -2729,7 +2756,9 @@ BF:         if (BlockFound) then
         
 d1:     do iT =1, Me%Date%NumberInst
         
-            iFinal = iOut + iT
+            iFinal = Me%Date%InstOut(iOut + iT)
+            
+            if (iFinal <0) cycle
 
 i1:         if (Me%OutNetCDF) then
 
@@ -2908,14 +2937,14 @@ i5:         if (Me%OutHDF5) then
    !------------------------------------------------------------------------
 
    !------------------------------------------------------------------------
-    subroutine WriteFieldAllInst(iOut, iP, iT)
+    subroutine WriteFieldAllInst(iFinal, iP, iT)
         !Arguments-------------------------------------------------------------
-        integer                                         :: iOut, iP, iT
+        integer                                         :: iFinal, iP, iT
         
         !Local-----------------------------------------------------------------
         real(8), dimension(:), pointer                  :: DepthAux, ValueAux
         real(8)                                         :: Depthx
-        integer                                         :: iFinal, i, j, k, mask, l, kin, ic
+        integer                                         :: i, j, k, mask, l, kin, ic
         !Begin-----------------------------------------------------------------
 !        do iT = 1, Me%Date%NumberInst
         
@@ -3027,7 +3056,6 @@ i5:         if (Me%OutHDF5) then
                 
             endif
 
-            iFinal = iT + iOut
             
             if (Me%Field(iP)%CenterX) then
             
@@ -3290,7 +3318,7 @@ i4:         if      (Me%Depth%Positive == "up"  ) then
         real(8)                                         :: Aux        
         real,    dimension(:), pointer                  :: TimePtr
         type(T_Time)                                    :: CurrentTime
-        integer                                         :: STAT_CALL, i
+        integer                                         :: STAT_CALL, i, io
 
         !Begin-----------------------------------------------------------------
         
@@ -3301,8 +3329,14 @@ i4:         if      (Me%Depth%Positive == "up"  ) then
         
 
         do i=1, size(Me%Date%ValueInTotal)
+        
+            io = Me%Date%InstOut(i)           
+            
+            if (io <0) cycle
 
             Aux = Me%Date%ValueInTotal(i)
+
+         
             
             CurrentTime = Me%Date%RefDateTimeOut + Aux
        
@@ -3321,10 +3355,9 @@ i4:         if      (Me%Depth%Positive == "up"  ) then
             call HDF5WriteData  (Me%ObjHDF5, "/Time",                                   &
                                  "Time", "YYYY/MM/DD HH:MM:SS",                         &
                                  Array1D = TimePtr,                                     &
-                                 OutputNumber = i, STAT = STAT_CALL)
+                                 OutputNumber = io, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)stop 'WriteTimeHDF5 - ModuleNetCDFCF_2_HDF5MOHID - ERR20'
             
-           
         enddo
         
        
@@ -3339,7 +3372,7 @@ i4:         if      (Me%Depth%Positive == "up"  ) then
         logical, optional                               :: DefDimTime
         !Local-----------------------------------------------------------------
         real(8), dimension(:), pointer                  :: Times        
-        integer                                         :: STAT_CALL, i, TotalInst
+        integer                                         :: STAT_CALL, i, TotalInst, TotalInstOut, io
         character(len=Stringlength)                     :: AuxChar
 
         !Begin-----------------------------------------------------------------
@@ -3347,23 +3380,28 @@ i4:         if      (Me%Depth%Positive == "up"  ) then
         write(*,*)
         write(*,*)'Writing Time NetCDF file...'
         
-        TotalInst = Me%Date%TotalInst
+        TotalInst    = Me%Date%TotalInst
+        TotalInstOut = Me%Date%TotalInstOut
 
         AuxChar = TimeToStringV2(Me%Date%RefDateTimeOut)
      
         
-        allocate(Times(TotalInst))
-
+        allocate(Times(TotalInstOut))
+        
+        io = 1
         do i=1, TotalInst
 
-            Times(i) = Me%Date%ValueInTotal(i)
+            if ( Me%Date%InstOut(i) >0) then
+                Times(io) = Me%Date%ValueInTotal(i)
+                io = io + 1
+            endif
             
         enddo
         
         if (present(DefDimTime)) then
             call NETCDFWriteTime(NCDFID       = Me%NetCDF_Out%ObjNetCDF,                    &
                                  InitialDate  = AuxChar,                                    &
-                                 nInstants    = TotalInst,                                  &
+                                 nInstants    = io,                                         &
                                  Times        = Times,                                      &
                                  DefDimTime   = DefDimTime,                                 &
                                  STAT         = STAT_CALL)
@@ -3373,7 +3411,7 @@ i4:         if      (Me%Depth%Positive == "up"  ) then
         
             call NETCDFWriteTime(NCDFID       = Me%NetCDF_Out%ObjNetCDF,                    &
                                  InitialDate  = AuxChar,                                    &
-                                 nInstants    = TotalInst,                                  &
+                                 nInstants    = io,                                         &
                                  Times        = Times,                                      &
                                  STAT         = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)stop 'WriteTimeNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR20'
@@ -5399,6 +5437,11 @@ if1:   if(present(Int2D) .or. present(Int3D))then
                 
                 if (Mapping == 0) then 
                     Aux2D(i,j) = FillValueReal
+                else
+                    !Direction property - from meteorological convention to algebric 
+                    if (Me%Field(iP)%FromMeteo2Algebric) then
+                        Aux2D(i,j) = 270. - Aux2D(i,j)    
+                    endif
                 endif
             enddo
             enddo
@@ -5417,9 +5460,13 @@ if1:   if(present(Int2D) .or. present(Int3D))then
                 
                 do j = WorkJLB, WorkJUB
                 do i = WorkILB, WorkIUB                
-                    !Nautical convention 
+                    !Meteorological convention 
                     if (Me%Mapping%Value2DOut(i+ Me%WindowOut%ILB - 1,j+ Me%WindowOut%JLB - 1) == 1) then
-                        Aux2DV(i,j) = cos((270 - Aux2D(i,j))*Pi/180.) 
+                        if (Me%Field(iP)%FromMeteo2Algebric) then                    
+                            Aux2DV(i,j) = cos((      Aux2D(i,j))*Pi/180.) 
+                        else
+                            Aux2DV(i,j) = cos((270 - Aux2D(i,j))*Pi/180.) 
+                        endif
                     else
                         Aux2DV(i,j) = FillValueReal
                     endif
@@ -5438,9 +5485,13 @@ if1:   if(present(Int2D) .or. present(Int3D))then
                 
                 do j = WorkJLB, WorkJUB
                 do i = WorkILB, WorkIUB                
-                    !Nautical convention 
+                    !Meteorological convention 
                     if (Me%Mapping%Value2DOut(i+ Me%WindowOut%ILB - 1,j+ Me%WindowOut%JLB - 1) == 1) then
-                        Aux2DV(i,j) = sin((270 - Aux2D(i,j))*Pi/180.) 
+                        if (Me%Field(iP)%FromMeteo2Algebric) then                    
+                            Aux2DV(i,j) = sin((      Aux2D(i,j))*Pi/180.) 
+                        else                    
+                            Aux2DV(i,j) = sin((270 - Aux2D(i,j))*Pi/180.) 
+                        endif
                     else
                         Aux2DV(i,j) = FillValueReal
                     endif
@@ -5461,6 +5512,7 @@ if1:   if(present(Int2D) .or. present(Int3D))then
                 if (Me%WindowOut%ON) deallocate(Aux2D)                
 
             endif
+            
 
 
         else if (Me%Field(iP)%Dim==3) then
@@ -5656,6 +5708,10 @@ if1:   if(present(Int2D) .or. present(Int3D))then
             do j = 1, WorkJUB
             do i = 1, WorkIUB
                 Field2D(j,i)=Me%Field(iP)%Value2DOut(i,j)
+               !Direction property - from meteorological convention to algebric 
+                if (Me%Field(iP)%FromMeteo2Algebric) then
+                    Field2D(j,i) = 270. - Field2D(j,i)    
+                endif                
             enddo
             enddo                
              
@@ -5683,8 +5739,12 @@ if1:   if(present(Int2D) .or. present(Int3D))then
             
                 do j = 1, WorkJUB
                 do i = 1, WorkIUB
-                    !Nautical convention 
-                    Field2D(j,i) = cos((270 - Me%Field(iP)%Value2DOut(i,j))*Pi/180.) 
+                    if (Me%Field(iP)%FromMeteo2Algebric) then
+                        Field2D(j,i) = cos((      Me%Field(iP)%Value2DOut(i,j))*Pi/180.) 
+                    else                        
+                        !Meteorological convention 
+                        Field2D(j,i) = cos((270 - Me%Field(iP)%Value2DOut(i,j))*Pi/180.) 
+                    endif
                 enddo
                 enddo
 
@@ -5709,8 +5769,12 @@ if1:   if(present(Int2D) .or. present(Int3D))then
 
                 do j = 1, WorkJUB
                 do i = 1, WorkIUB
-                    !Nautical convention 
-                    Field2D(j,i) = sin((270 - Me%Field(iP)%Value2DOut(i,j))*Pi/180.) 
+                    if (Me%Field(iP)%FromMeteo2Algebric) then
+                        Field2D(j,i) = sin((      Me%Field(iP)%Value2DOut(i,j))*Pi/180.) 
+                    else
+                        !Meteorological convention 
+                        Field2D(j,i) = sin((270 - Me%Field(iP)%Value2DOut(i,j))*Pi/180.) 
+                    endif
                 enddo
                 enddo
 
