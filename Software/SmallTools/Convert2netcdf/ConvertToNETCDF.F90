@@ -628,8 +628,7 @@ program Convert2netcdf
 
         !Local-----------------------------------------------------------------
         integer(HID_T)                              :: gr_id, dset_id, class_id
-!        integer(8)                                  :: ssize
-        integer                                     :: ssize
+        integer(8)                                  :: ssize
         integer(HID_T)                              :: space_id, datatype_id
         integer(HID_T)                              :: rank
         integer(HSIZE_T), dimension(7)              :: dims, maxdims
@@ -637,6 +636,7 @@ program Convert2netcdf
 
         !Begin-----------------------------------------------------------------
 
+        dims = 0        
         write(*,*)"Reading sizes..."
 
         call h5gopen_f(Me%HDFFile%FileID, Me%HDFFile%SizeGroup, gr_id, STAT_CALL)
@@ -1135,7 +1135,7 @@ program Convert2netcdf
         integer                                     :: rank, obj_type
         integer(HSIZE_T), dimension(7)              :: dims, maxdims
         integer(HID_T)                              :: gr_id, dset_id, class_id
-        integer(4)                                  :: ssize
+        integer(8)                                  :: ssize
         integer(HID_T)                              :: space_id, datatype_id
         logical                                     :: IsMapping
         integer                                     :: ILB, IUB, JLB, JUB, KLB, KUB, i, j, k
@@ -1151,7 +1151,7 @@ program Convert2netcdf
 
         IsMapping = .false.
 
-        write(*,*)"Reading and writing mask..."
+        write(*,*)"Reading and writing mask old..."
 
         call h5gopen_f(Me%HDFFile%FileID, "/Grid", gr_id, STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_) stop 'ReadMask - Convert2netcdf - ERR01'
@@ -1745,8 +1745,7 @@ if1:   if(present(Int2D) .or. present(Int3D))then
         integer                                     :: STAT_CALL
         integer(HID_T)                              :: class_id, space_id, dset_id
         integer(HID_T)                              :: datatype_id, rank, NumType
-        !integer(8)                                  :: ssize
-        integer                                     :: ssize        
+        integer(8)                                  :: ssize
         integer(HSIZE_T), dimension(7)              :: dims
         integer                                     :: ILB, IUB, JLB, JUB, KLB, KUB
         character(len=StringLength)                 :: Name, NCDFName, LongName, StandardName, Units
