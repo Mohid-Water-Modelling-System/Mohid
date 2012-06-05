@@ -64,6 +64,7 @@ program ConvertToHDF5
     use ModuleAladinFormat
     use ModuleMOG2DFormat
 #endif
+    use ModuleIHRadarFormat
 
     implicit none
 
@@ -104,6 +105,7 @@ program ConvertToHDF5
     character(len = StringLength), parameter:: InterpolateTime              = 'INTERPOLATE TIME'    
     character(len = StringLength), parameter:: GluesHD5Files                = 'GLUES HDF5 FILES'
     character(len = StringLength), parameter:: PatchHD5Files                = 'PATCH HDF5 FILES'
+    character(len = StringLength), parameter:: ConvertIHRadarFormatToHDF5   = 'CONVERT IH RADAR FORMAT'
 
 
     call StartConvertToHDF5; call KillConvertToHDF5
@@ -351,12 +353,16 @@ if2 :           if (BlockFound) then
                             if(STAT_CALL .ne. SUCCESS_) stop 'ReadOptions - ConvertToHDF5 - ERR210'
 #endif
 #endif
-
                         case(InterpolateTime)
 
                             call StartInterpolateTime(ObjEnterData, ClientNumber, STAT = STAT_CALL)
                             if(STAT_CALL .ne. SUCCESS_) stop 'ReadOptions - ConvertToHDF5 - ERR260'
 
+                        case(ConvertIHRadarFormatToHDF5)
+                        
+                            call ConvertIHRadarFormat(ObjEnterData, ClientNumber, STAT = STAT_CALL)
+                            if(STAT_CALL .ne. SUCCESS_) stop 'ReadOptions - ConvertToHDF5 - ERR270'
+                        
                         case default
                             
                             stop 'Option not known - ReadOptions - ConvertToHDF5 - ERR299'

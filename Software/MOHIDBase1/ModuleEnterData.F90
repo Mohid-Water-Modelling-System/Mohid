@@ -1265,7 +1265,6 @@ do1 :   do I = StartSearch, EndSearch
         !External--------------------------------------------------------------
         type(T_Dataline)    :: string
         logical, optional   :: ValidDelimiter
-
         !Local-----------------------------------------------------------------
 
         integer :: delimiter_pos
@@ -1276,7 +1275,7 @@ do1 :   do I = StartSearch, EndSearch
         character(LEN = 1) :: backslash = char(92)
 
         !----------------------------------------------------------------------
-        if(present(ValidDelimiter))ValidDelimiter = .true.
+        if(present(ValidDelimiter)) ValidDelimiter = .true.
 
         delimiter_pos = scan(string%full_line, delimiter)
 
@@ -1292,10 +1291,10 @@ cd1 :   if       (delimiter_pos .EQ. 0) then
                 delimiter_pos = scan(string%full_line, space)
 
         else if                               (delimiter_pos .EQ. IUB)  then
-            write(*,*)  
-            write(*,*) "Found : at the end of line." 
-            write(*,*) "Line: "//trim(string%full_line) 
-            stop       "Subroutine ScanLine; Module ModuleEnterData. ERR01." 
+                write(*,*)  
+                write(*,*) "Found : at the end of line." 
+                write(*,*) "Line: "//trim(string%full_line) 
+                stop       "Subroutine ScanLine; Module ModuleEnterData. ERR01." 
         end if cd1
 
         string%delimiter_pos = delimiter_pos
@@ -1303,9 +1302,47 @@ cd1 :   if       (delimiter_pos .EQ. 0) then
         !----------------------------------------------------------------------
 
     end subroutine ScanLine
-
     !--------------------------------------------------------------------------     
 
+    !--------------------------------------------------------------------------     
+    subroutine ScanLineUnsafe(string, ValidDelimiter)
+
+        !External--------------------------------------------------------------
+        type(T_Dataline)    :: string
+        logical, optional   :: ValidDelimiter
+        !Local-----------------------------------------------------------------
+
+        integer :: delimiter_pos
+        integer :: IUB
+
+        character(LEN = 1) :: space     = char(32)
+        character(LEN = 1) :: slash     = char(47)
+        character(LEN = 1) :: backslash = char(92)
+
+        !----------------------------------------------------------------------
+        if(present(ValidDelimiter)) ValidDelimiter = .true.
+
+        delimiter_pos = scan(string%full_line, delimiter)
+
+        IUB = len_trim(string%full_line)
+
+cd1 :   if       (delimiter_pos .EQ. 0) then
+            delimiter_pos = scan(string%full_line, space)
+            if(present(ValidDelimiter))ValidDelimiter = .false.
+        else if ((delimiter_pos .GT. 0) .AND. (delimiter_pos .LE. IUB)) then
+            if ((string%full_line(delimiter_pos+1:delimiter_pos+1) .EQ. slash    ) .OR. &   
+                (string%full_line(delimiter_pos+1:delimiter_pos+1) .EQ. backslash))     &   
+                delimiter_pos = scan(string%full_line, space)
+        end if cd1
+
+        string%delimiter_pos = delimiter_pos
+
+        !----------------------------------------------------------------------
+
+    end subroutine ScanLineUnsafe
+    !--------------------------------------------------------------------------     
+
+    !--------------------------------------------------------------------------     
     subroutine ReadInteger_New(value,                                         &
                                EnterDataID,                                   &
                                flag,                                          &
@@ -3206,7 +3243,7 @@ if9 :           if (Me%BlockClientIDnumber .EQ. ClientNumber) then     !Second o
         FoundBegin = .FALSE.
         FoundEnd   = .FALSE.
 do1 :   do I = start, Me%BufferSize
-            call ScanLine(Me%BufferLines(I))
+            call ScanLineUnsafe(Me%BufferLines(I))
 
             ReadKeyWord = Me%BufferLines(I)%full_line(1:Me%BufferLines(I)%delimiter_pos-1)
             if (trim(adjustl(ReadKeyWord)) .EQ. trim(adjustl(block_begin))) then
@@ -3220,7 +3257,7 @@ do1 :   do I = start, Me%BufferSize
 cd3 :   if (FoundBegin) then
 do2 :       do I = Me%Block%BeginBlock+1, Me%BufferSize
 
-                call ScanLine(Me%BufferLines(I))
+                call ScanLineUnsafe(Me%BufferLines(I))
                 ReadKeyWord = Me%BufferLines(I)%full_line(1:Me%BufferLines(I)%delimiter_pos-1)
 
 if8 :           if (trim(adjustl(ReadKeyWord)) .EQ. trim(adjustl(block_begin))) then
