@@ -775,6 +775,7 @@ Module ModuleDrainageNetwork
         real                                        :: InitialWaterDepth
         real                                        :: MinimumWaterDepth
         real                                        :: MinimumWaterDepthProcess
+        real                                        :: MinimumWaterDepthAdvection
         
         integer                                     :: HydrodynamicApproximation
         real                                        :: NumericalScheme
@@ -820,7 +821,8 @@ Module ModuleDrainageNetwork
         type (T_ExtVar)                             :: ExtVar        
         real                                        :: NextDT               = null_real
         integer                                     :: LastGoodNiter        = 1
-        integer                                     :: InternalTimeStepSplit= 5
+        integer                                     :: NextNiter            = 1
+        integer                                     :: InternalTimeStepSplit = 5
 
         real, dimension (:), pointer                :: GlobalToxicity       => null()
         integer                                     :: nToxicProp           = 0
@@ -1275,6 +1277,20 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         end if
 
 
+        call GetData(Me%MinimumWaterDepthAdvection,                             &
+                     Me%ObjEnterData, flag,                                     &  
+                     keyword      = 'MIN_WATER_DEPTH_ADVECTION',                &   
+                     ClientModule = 'DrainageNetwork',                          &
+                     SearchType   = FromFile,                                   &
+                     Default      = 0.0,                                        &
+                     STAT         = STAT_CALL)                                  
+        if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR16a'        
+
+        if (Me%MinimumWaterDepthAdvection.LT.0.0) then
+            write (*,*)'Invalid Number of Minimum Water Level for advection [MIN_WATER_DEPTH_ADVECTION]'
+            stop 'ModuleDrainageNetwork - ReadDataFile - ERR16b'
+        end if
+
         call GetData(Me%Continuous,                                             &
                      Me%ObjEnterData, flag,                                     &  
                      keyword      = 'CONTINUOUS',                               &
@@ -1375,15 +1391,15 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         endif
 
         
-        !Internal Time Step Split
-        call GetData(Me%InternalTimeStepSplit,                              &
-                     Me%ObjEnterData, flag,                                 &  
-                     keyword      = 'TIME_STEP_SPLIT',                      &
-                     ClientModule = 'DrainageNetwork',                      &
-                     SearchType   = FromFile,                               &
-                     Default      = 5,                                      &
-                     STAT         = STAT_CALL)                                  
-        if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR25a'        
+!        !Internal Time Step Split
+!        call GetData(Me%InternalTimeStepSplit,                              &
+!                     Me%ObjEnterData, flag,                                 &  
+!                     keyword      = 'TIME_STEP_SPLIT',                      &
+!                     ClientModule = 'DrainageNetwork',                      &
+!                     SearchType   = FromFile,                               &
+!                     Default      = 5,                                      &
+!                     STAT         = STAT_CALL)                                  
+!        if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR25a'        
 
         !Gets flag of DT is limited by the courant number
         call GetData(Me%LimitDTCourant,                                     &
@@ -7531,7 +7547,8 @@ do2 :   do while (associated(PropertyX))
 
         SumDT       = 0.0
         Restart     = .false.
-        Niter       = Me%InternalTimeStepSplit
+        !Niter       = Me%InternalTimeStepSplit
+        Niter       = Me%NextNiter
         LocalDT     = Me%ExtVar%DT / Niter
         iter        = 1
         do while (iter <= Niter)
@@ -7565,7 +7582,8 @@ do2 :   do while (associated(PropertyX))
             !If Hydrodynamic return Restart as true, Restart with initial Solution
             if (Restart) then
                 !Niter   = Niter + 1
-                Niter = Niter + Me%InternalTimeStepSplit
+                !Niter = Niter + Me%InternalTimeStepSplit
+                Niter       = Me%NextNiter * 2.0
                 LocalDT = Me%ExtVar%DT / Niter
                 call WriteDTLog_ML ('ModuleDrainageNetwork', Niter, LocalDT)
                 if (Niter > Me%MaxIterations) then
@@ -7595,6 +7613,14 @@ do2 :   do while (associated(PropertyX))
             endif
 
         enddo
+
+        !DB
+        if (Niter <= Me%LastGoodNiter) then
+            Me%NextNiter = max (int(Niter / 2.0), 1)
+            !Me%NextNiter = max (int(Niter / Me%DTFactor), 1)
+        else
+            Me%NextNiter = Niter
+        endif
 
         Me%LastGoodNiter = Niter
 
@@ -8047,11 +8073,11 @@ do2 :   do while (associated(PropertyX))
 
                 if (MaxrdVol > 0.0) then
                     
-                    
-                    if (Me%LastGoodNiter == Me%InternalTimeStepSplit .and. MaxrdVol < Me%StabilizeFactor) then
+                    !if (Me%LastGoodNiter == Me%InternalTimeStepSplit .and. MaxrdVol < Me%StabilizeFactor) then
+                    if (Me%NextNiter < Me%LastGoodNiter .and. MaxrdVol < Me%StabilizeFactor) then    
                         nextDTVariation = Me%ExtVar%DT * Me%DTFactor
-                    else if (Me%LastGoodNiter ==  Me%InternalTimeStepSplit) then
-                        nextDTVariation = Me%ExtVar%DT
+                    !else if (Me%LastGoodNiter ==  Me%InternalTimeStepSplit) then
+                    !    nextDTVariation = Me%ExtVar%DT
                     else
                         nextDTVariation = Me%ExtVar%DT / Me%DTFactor
                     endif                
@@ -8062,7 +8088,8 @@ do2 :   do while (associated(PropertyX))
 
             endif
 
-            if (min(nextDTVariation, nextDTCourant * Me%InternalTimeStepSplit) > MaxDT) then
+            !if (min(nextDTVariation, nextDTCourant * Me%InternalTimeStepSplit) > MaxDT) then
+            if (min(nextDTVariation, nextDTCourant) > MaxDT) then  !DB
                 Me%NextDT = Me%ExtVar%DT * Me%DTFactor
             else
                 Me%NextDT = min(nextDTVariation, nextDTCourant) 
@@ -9069,9 +9096,10 @@ if2:        if (CurrNode%VolumeNew > PoolVolume) then
                                   max(UpNode%CrossSection%BottomLevel,                             &
                                       DownNode%CrossSection%BottomLevel)
 
-                    !Critical Flow
+                    !Critical Flow - reach vertical area already takes into account water depths
+                    !above maximum bottom
                     CriticalFlow = CurrReach%VerticalArea * sqrt(Gravity * WaterDepth)
-
+                    
                     if (abs(CurrReach%FlowNew) > CriticalFlow) then
                         if (CurrReach%FlowNew > 0) then
                             CurrReach%FlowNew = CriticalFlow
@@ -9122,14 +9150,19 @@ if2:        if (CurrNode%VolumeNew > PoolVolume) then
         Pressure          = DT * Gravity * CurrReach%VerticalArea * LevelSlope
 
         !FRICTION - semi-implicit -----------------------------------------------
-        !        =  s * m/s2    * m3/s * s/m(1/3) / (m * m.... units are correct, I check on the paper.. FB
+        !   -    =  (s * m.s-2  * m3.s-1 * s.m(-1/3)) / (m2 * m(4/3)) = m(10/3) / m(10/3)
         Friction = DT * Gravity * abs(CurrReach%FlowOld) * CurrReach%Manning ** 2. &
                  / ( CurrReach%VerticalArea * CurrReach%HydraulicRadius ** (4./3.) ) 
         
 
         !ADVECTION - upwind (in - out)-------------------------------------------
         !positive direction is downstream
-        Advection = HydroAdvection(CurrReach, DT)
+        if (UpNode%WaterDepth .gt. Me%MinimumWaterDepthAdvection     &
+            .and. DownNode%WaterDepth .gt. Me%MinimumWaterDepthAdvection) then
+            Advection = HydroAdvection(CurrReach, DT)
+        else
+            Advection = 0.0
+        endif
 
         !FLOW---------------------------------------------------------------
         FlowNew = ( CurrReach%FlowOld + Advection + Pressure )    &
@@ -9140,11 +9173,19 @@ if2:        if (CurrNode%VolumeNew > PoolVolume) then
         !because in supercritical flow it is only dependent on upstream and descritization to describe it would have
         !to change. Supercritical flow usually exists on hydraulic infraestructures (high drops) and a 
         !hydraulic jump exists between fast flow and slow flow.
-        !Waterdepth at the center of the reach
+        !Waterdepth at the center of the reach - depending on flow direction since flow
+        !can be in opposite direction of height gradient
         MaxBottom  = max(UpNode%CrossSection%BottomLevel, DownNode%CrossSection%BottomLevel)
-        WaterDepth = (max(UpNode%WaterLevel - MaxBottom, 0.0) + max(DownNode%WaterLevel - MaxBottom, 0.0)) / 2.0
-
-        !Critical Flow
+        !WaterDepth = (max(UpNode%WaterLevel - MaxBottom, 0.0) + max(DownNode%WaterLevel - MaxBottom, 0.0)) / 2.0
+        
+        if (FlowNew .gt. 0.0) then
+            WaterDepth = max(UpNode%WaterLevel - MaxBottom, 0.0)
+        else
+            WaterDepth = max(DownNode%WaterLevel - MaxBottom, 0.0)
+        endif
+        
+        !Critical Flow - reach vertical area already takes into account water depths
+        !above maximum bottom
         CriticalFlow = CurrReach%VerticalArea * sqrt(Gravity * WaterDepth)
 
         if (abs(FlowNew) < CriticalFlow) then
@@ -9894,16 +9935,20 @@ do2:            do while (Iterate)
                     if (Me%OpenPointsFlow (NodeID) == OpenPoint) then
                        
                         CurrNode => Me%Nodes (NodeID)
-                
-                        !Sai - Entra
-                        call ComputeAdvection  (Advection, Property, NodeID, AdvOutFlow)  !gX/s
-                        call ComputeDiffusion  (Diffusion, Property, NodeID, DifOutFlow)  !gX/s               
-
                         
-                        !New Concentration    
-                        Property%Concentration (NodeID) = (Property%ConcentrationOld (NodeID) * CurrNode%VolumeOld + &
-                                                           LocalDT * (Advection + Diffusion )) / CurrNode%VolumeNew
-                                                           
+                        if (CurrNode%VolumeNew .gt. AllmostZero) then
+                            !Sai - Entra
+                            call ComputeAdvection  (Advection, Property, NodeID, AdvOutFlow)  !gX/s
+                            call ComputeDiffusion  (Diffusion, Property, NodeID, DifOutFlow)  !gX/s               
+
+                            
+                            !New Concentration    
+                            Property%Concentration (NodeID) = (Property%ConcentrationOld (NodeID) * CurrNode%VolumeOld + &
+                                                               LocalDT * (Advection + Diffusion )) / CurrNode%VolumeNew
+                        else
+                            !if all water exited then do not compute (no mass) and to avoid division by zero
+                            Property%Concentration (NodeID) = 0.0
+                        endif                                   
                    end if
                 end do
                 

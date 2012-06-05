@@ -433,6 +433,8 @@ Module ModulePorousMedia
 
         !Options
         real                                    :: NextDT
+        integer                                 :: LastGoodNiteration = 1
+        integer                                 :: NextNiteration = 1
         !Unsaturated Options
         type (T_SoilOptions )                   :: SoilOpt
 
@@ -989,7 +991,7 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                      Me%ObjEnterData, iflag,                                    &
                      SearchType     = FromFile,                                 &
                      keyword        ='MAX_ITER',                                &
-                     Default        = 3,                                        &
+                     Default        = 5,                                        &
                      ClientModule   ='ModulePorousMedia',                       &
                      STAT           = STAT_CALL)             
         if (STAT_CALL /= SUCCESS_)                                              &
@@ -997,15 +999,15 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
 
         !Limit number of iteractions (when it is reached current dt is devided 
         !by 3 and the iteration starts from the begining
-        call GetData(Me%CV%IterStep,                                            &
-                     Me%ObjEnterData, iflag,                                    &
-                     SearchType     = FromFile,                                 &
-                     keyword        ='ITER_STEP',                               &
-                     Default        = 1,                                        &
-                     ClientModule   ='ModulePorousMedia',                       &
-                     STAT           = STAT_CALL)             
-        if (STAT_CALL /= SUCCESS_)                                              &
-            call SetError(FATAL_, KEYWORD_, "ConvergeOptions; ModulePorousMedia. ERR300") 
+!        call GetData(Me%CV%IterStep,                                            &
+!                     Me%ObjEnterData, iflag,                                    &
+!                     SearchType     = FromFile,                                 &
+!                     keyword        ='ITER_STEP',                               &
+!                     Default        = 1,                                        &
+!                     ClientModule   ='ModulePorousMedia',                       &
+!                     STAT           = STAT_CALL)             
+!        if (STAT_CALL /= SUCCESS_)                                              &
+!            call SetError(FATAL_, KEYWORD_, "ConvergeOptions; ModulePorousMedia. ERR300") 
 
         call GetData(Me%CV%LimitIter,                                           &
                      Me%ObjEnterData, iflag,                                    &
@@ -3685,7 +3687,8 @@ i1:         if (CoordON) then
             call SetMatrixValue (Me%EfectiveEVAP,     Me%Size2D, dble(0.0),         Me%ExtVar%BasinPoints)
         endif        
         iteration         = 1
-        Niteration        = 1
+        !Niteration        = 1
+        Niteration        = Me%NextNIteration
         Me%CV%CurrentDT   = Me%ExtVar%DT / Niteration
         SumDT             = 0.0
         StrongVariation   = .false.
@@ -3729,7 +3732,8 @@ dConv:  do while (iteration <= Niteration)
             !Vertical Continuty            
             if (StrongVariation) then
             
-                Niteration        = Niteration + Me%CV%IterStep
+                !Niteration        = Niteration + Me%CV%IterStep
+                Niteration        = Niteration * 2.0
                 Me%CV%CurrentDT   = Me%ExtVar%DT / Niteration
                 call WriteDTLog_ML ('ModulePorousMedia', Niteration, Me%CV%CurrentDT)                    
                 iteration         = 1
@@ -3776,10 +3780,21 @@ dConv:  do while (iteration <= Niteration)
             endif
             
             if (Niteration > Me%CV%LimitIter) then
-                    call SetError(WARNING_, INTERNAL_, "Strong Variation after LIMIT ITER", OFF)
+                    call SetError(FATAL_, INTERNAL_, "Strong Variation after LIMIT ITER", OFF)
             endif
             
         enddo dConv
+
+
+        !DB
+        if (Niteration <= Me%LastGoodNiteration) then
+            Me%NextNiteration = max (int(Niteration / 2.0), 1)
+            !Me%NextNiter = max (int(Niter / Me%DTFactor), 1)
+        else
+            Me%NextNiteration = Niteration
+        endif
+        
+        Me%LastGoodNiteration = Niteration
         
         call CalculateMeanFlows (Niteration)
         call InsertInfiltrationOnFluxMatrix
