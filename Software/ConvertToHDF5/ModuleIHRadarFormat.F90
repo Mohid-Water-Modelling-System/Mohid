@@ -599,6 +599,7 @@ i1:                 if (exist) then
         real, dimension(:), pointer             :: lon, lat, u, v, stdu, stdv, cov, xdist, ydist, rang, bear, vel, dir
         real                                    :: aux
         integer                                 :: STAT_CALL
+        real, dimension(:), pointer             :: axis_ptr
 
         !Begin-----------------------------------------------------------------
 
@@ -700,11 +701,17 @@ i1:                 if (exist) then
                     !Griflet: convert the ascii file data from arrays to an hdf5 matrix
                     !Must invocate an algorithm of point in polygon,
                     do line = 1, lines
-                        call LocateCellPolygons(Me%XX_IE, Me%YY_IE,                         &
-                                            lon(line), lat(line), Me%OpenPoints,            &
-                                            Me%WorkSize%ILB, Me%WorkSize%IUB,           &
-                                            Me%WorkSize%JLB, Me%WorkSize%JUB,           &
-                                            i, j)
+                        i = 0
+                        j = 0
+                        !call LocateCellPolygons(Me%XX_IE, Me%YY_IE,                         &
+                        !                    lon(line), lat(line), Me%OpenPoints,            &
+                        !                    Me%WorkSize%ILB, Me%WorkSize%IUB,           &
+                        !                    Me%WorkSize%JLB, Me%WorkSize%JUB,           &
+                        !                    i, j)
+                        axis_ptr => Me%XX_IE(1,Me%WorkSize%JLB:Me%WorkSize%JUB+1)
+                        j = LocateCellIn1DAxis(axis_ptr, lon(line), Me%WorkSize%JLB, Me%WorkSize%JUB+1)
+                        axis_ptr => Me%YY_IE( Me%WorkSize%ILB:Me%WorkSize%IUB+1,1)
+                        i = LocateCellIn1DAxis(axis_ptr, lat(line), Me%WorkSize%ILB, Me%WorkSize%IUB+1)
                         !Griflet: set the confirmed water point as zero
                         Me%OpenPoints(i,j) = 0                   
                         Me%velu(i,j) = u(line) * 1E-2
@@ -758,8 +765,41 @@ i1:                 if (exist) then
     end subroutine ReadIHRadarFile
 
     !--------------------------------------------------------------------------
+
+    !------------------------------------------------------------------------
+    integer function LocateCellIn1DAxis(axis, pos, ILB, IUB)
+        !Arguments -------------------------------------------------
+        real, dimension(:), pointer                     :: axis
+        real                                            :: pos
+        integer                                         :: ILB, IUB        
+        !Local -----------------------------------------------------
+        integer                                         :: ICenter, IL, IU
+        logical                                         :: cellfound        
+        !Begin -----------------------------------------------------        
+        !Initialize algorithm
+        cellfound = .false.        
+        IL = ILB
+        IU = IUB        
+        !Iterative algorithm
+        do while (.not.cellfound)        
+            ICenter = (IL + IU)/2                                    
+            if ( pos > axis(ICenter) ) then
+                !Cell is in [ICenter IU]
+                IL = ICenter            
+            else if ( pos <= axis(ICenter) ) then
+                !Cell is in [IL ICenter]
+                IU = ICenter
+            else
+                 stop 'LocateCellIn1DAxis - ModuleIHRadarFormat - ERR10'
+            end if            
+            if (IU-IL == 1) cellfound = .true.        
+        end do
+        LocateCellIn1DAxis = IL
+    end function LocateCellIn1DAxis
+    !--------------------------------------------------------------------------
   
     !------------------------------------------------------------------------
+
     subroutine WriteIHRadarHDF5(iOut)
 
         !Arguments -------------------------------------------------

@@ -10297,7 +10297,7 @@ cd1:    if      (SumON > 0) then
             Jupper  = J2
             JLower  = J1
 
-            !Test if the cell was founded
+            !Test if the cell was found
             if ((Iupper - ILower) == 1 .and. (Jupper - JLower) == 1) CellFound = .true.
 
         end do 
