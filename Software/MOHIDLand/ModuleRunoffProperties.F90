@@ -3478,34 +3478,34 @@ cd0:    if (Exist) then
                                        Matrix2D             = Property%Field,                   &
                                        TypeZUV              = TypeZ_,                           &
                                        STAT                 = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'Read_Property_2D - ModuleInterfaceSedimentWater - ERR05'
+            if (STAT_CALL /= SUCCESS_) stop 'Read_Property_2D - ModuleRunoffProperties - ERR05'
 
             call UngetBasin (Me%ObjBasinGeometry, Me%ExtVar%BasinPoints, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'Read_Property_2D - ModuleRunoffProperties - ERR06'  
 
             call GetDefaultValue(Property%ID%ObjFillMatrix, Property%Scalar, STAT = STAT_CALL)
-            if (STAT_CALL  /= SUCCESS_) stop 'Read_Property_2D - ModuleInterfaceSedimentWater - ERR10'
+            if (STAT_CALL  /= SUCCESS_) stop 'Read_Property_2D - ModuleRunoffProperties - ERR10'
 
             call GetIfMatrixRemainsConstant(FillMatrixID    = Property%ID%ObjFillMatrix,        &
                                             RemainsConstant = Property%Constant,                &
                                             STAT            = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'Read_Property_2D - ModuleInterfaceSedimentWater - ERR20'
+            if (STAT_CALL /= SUCCESS_) stop 'Read_Property_2D - ModuleRunoffProperties - ERR20'
 
 
             if(.not. Property%ID%SolutionFromFile)then
                 call KillFillMatrix(Property%ID%ObjFillMatrix, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'Read_Property_2D - ModuleInterfaceSedimentWater - ERR30'
+                if (STAT_CALL /= SUCCESS_) stop 'Read_Property_2D - ModuleRunoffProperties - ERR30'
             end if
 
             if(ExtractType == FromBlock)then
                 call Block_Unlock(Me%ObjEnterData, LocalClientNumber, STAT = STAT_CALL) 
-                if (STAT_CALL /= SUCCESS_) stop 'Read_Property_2D - ModuleInterfaceSedimentWater - ERR40'
+                if (STAT_CALL /= SUCCESS_) stop 'Read_Property_2D - ModuleRunoffProperties - ERR40'
             end if
 
         else
 
             write (*,*)'Block ',trim(BeginBlock),' ',trim(EndBlock),' not found'
-            stop 'Read_Property_2D - ModuleInterfaceSedimentWater - ERR60'
+            stop 'Read_Property_2D - ModuleRunoffProperties - ERR60'
 
         endif
         
@@ -3515,12 +3515,12 @@ cd0:    if (Exist) then
             case(FromBlock)
 
                 call RewindBuffer (Me%ObjEnterData, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'Read_Property_2D - ModuleInterfaceSedimentWater - ERR70'
+                if (STAT_CALL /= SUCCESS_) stop 'Read_Property_2D - ModuleRunoffProperties - ERR70'
 
             case(FromBlockInBlock)
                 
                 call RewindBlock  (Me%ObjEnterData, LocalClientNumber, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'Read_Property_2D - ModuleInterfaceSedimentWater - ERR80'
+                if (STAT_CALL /= SUCCESS_) stop 'Read_Property_2D - ModuleRunoffProperties - ERR80'
 
             case default
 
@@ -5944,8 +5944,8 @@ doi4 :      do i = ILB, IUB
                         !Global Mass Exchange
                         ![kg] = [kg] + [m3/s] * [g/m3] * [1e-3kg/g]* [s] 
                         CurrProperty%MB%DNExchangeMass =  CurrProperty%MB%DNExchangeMass                   &
-!                                  + (Me%ExtVar%FlowToChannels(i,j) * CurrProperty%ConcentrationOld(i,j)          &
-                          + (Me%ExtVar%FlowToChannels(i,j) * CurrProperty%Concentration(i,j)             &
+                                  + (Me%ExtVar%FlowToChannels(i,j) * CurrProperty%ConcentrationOld(i,j)          &
+!                          + (Me%ExtVar%FlowToChannels(i,j) * CurrProperty%Concentration(i,j)             &
                              * 1e-3 * Me%ExtVar%DT)
                     
                     !mass coming from channel -> conc from DN

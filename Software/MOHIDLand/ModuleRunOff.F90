@@ -178,6 +178,7 @@ Module ModuleRunOff
         real,    dimension(:,:), pointer            :: InitialWaterColumn       => null()
         real(8), dimension(:,:), pointer            :: myWaterVolume            => null() 
         real(8), dimension(:,:), pointer            :: myWaterColumnOld         => null() !OldColumn from Basin
+        real(8), dimension(:,:), pointer            :: myWaterColumnAfterTransport => null() !for property transport
         real(8), dimension(:,:), pointer            :: myWaterVolumeOld         => null()
         real,    dimension(:,:), pointer            :: lFlowToChannels          => null() !Instantaneous Flow To Channels
         real,    dimension(:,:), pointer            :: iFlowToChannels          => null() !Integrated    Flow
@@ -230,6 +231,7 @@ Module ModuleRunOff
         real                                        :: StabilizeFactor
         integer                                     :: HydrodynamicApproximation = DiffusionWave_
         logical                                     :: CalculateAdvection   = .true.
+        logical                                     :: CalculateCellMargins = .true.
         logical                                     :: ImposeMaxVelocity    = .false.
         real                                        :: ImposedMaxVelocity   = 0.1
         integer                                     :: LastGoodNiter        = 1
@@ -602,7 +604,16 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR0170'
             endif
         endif
-        
+
+        !Gets if compute "margins" aside of adjacent cells that produce friction
+        call GetData(Me%CalculateCellMargins,                               &
+                     ObjEnterData, iflag,                                   &
+                     SearchType   = FromFile,                               &
+                     keyword      = 'HYDRAULIC_RADIUS_MARGINS',             &
+                     default      = .true.,                                 &
+                     ClientModule = 'ModuleRunOff',                         &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR0180'        
         
         !Gets if solution is limited by an maximum velocity
         call GetData(Me%ImposeMaxVelocity,                                      &
@@ -1446,6 +1457,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         allocate(Me%myWaterLevel         (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
         allocate(Me%myWaterColumn        (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
+        !allocate(Me%myWaterColumnAfterTransport (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
         allocate(Me%InitialWaterColumn   (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
         allocate(Me%myWaterVolume        (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
         allocate(Me%myWaterColumnOld     (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
@@ -1458,6 +1470,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         Me%myWaterColumnOld        = null_real
         Me%myWaterVolumeOld        = null_real
         Me%MassError               = 0
+        !Me%myWaterColumnAfterTransport = null_real
 
         allocate(Me%iFlowX               (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
         allocate(Me%iFlowY               (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
@@ -1986,6 +1999,37 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
     end subroutine GetRunoffWaterColumnOld
 
     !--------------------------------------------------------------------------
+    
+!    subroutine GetRunoffWaterColumnAfterTransport (ObjRunOffID, WaterColumn, STAT)
+!
+!        !Arguments-------------------------------------------------------------
+!        integer                                         :: ObjRunOffID
+!        real(8), dimension(:, :), pointer               :: WaterColumn
+!        integer, intent(OUT), optional                  :: STAT
+!
+!        !Local-----------------------------------------------------------------
+!        integer                                         :: STAT_, ready_
+!
+!        !----------------------------------------------------------------------
+!
+!        call Ready(ObjRunOffID, ready_)    
+!        
+!cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
+!            (ready_ .EQ. READ_LOCK_ERR_)) then
+!
+!            call Read_Lock(mRUNOFF_, Me%InstanceID)
+!            WaterColumn => Me%MyWaterColumnAfterTransport
+!
+!            STAT_ = SUCCESS_
+!        else 
+!            STAT_ = ready_
+!        end if cd1
+!
+!        if (present(STAT)) STAT = STAT_
+!
+!    end subroutine GetRunoffWaterColumnAfterTransport    
+
+    !--------------------------------------------------------------------------
 
     subroutine GetRunoffCenterVelocity (ObjRunOffID, VelX, VelY, STAT)
 
@@ -2479,7 +2523,12 @@ doIter:         do while (iter <= Niter)
             endif
             
             Me%LastGoodNiter = Niter
-
+            
+            !save water column before removes from next processes
+            !important for property transport if river cells get out of water, conc has to be computed
+            !by transport
+            !call SetMatrixValue(Me%myWaterColumnAfterTransport, Me%Size, Me%myWaterColumn)
+            
             !Gets ExternalVars
             call ReadLockExternalVar (StaticOnly = .false.)
 
@@ -2806,32 +2855,34 @@ doIter:         do while (iter <= Niter)
 !                HydraulicRadius = HydraulicRadius(i,j,Direction,level_left,level_right)
                 !Wet perimeter, first is bottom
                 WetPerimeter = Me%ExtVar%DYY(i, j)
-
-                !Water Depth consistent with AreaU computed (only water above max bottom)
-                WaterDepth = Me%AreaU(i,j) / Me%ExtVar%DYY(i, j)
-                MaxBottom = max(Me%ExtVar%Topography(i, j) + Me%BuildingsHeight(i, j),     &
-                                Me%ExtVar%Topography(i, j-1) + Me%BuildingsHeight(i, j-1))
                 
-                !to check wich cell to use to use since areaU depends on higher water level and max bottom
-                if (level_left .gt. level_right) then
-                    dj = -1
-                else
-                    dj = 0
-                endif
-               
-                !Bottom Difference to adjacent cells (to check existence of “margins” on the side)
-                Margin1 = Me%ExtVar%Topography(i+1, j + dj) - MaxBottom
-                Margin2 = Me%ExtVar%Topography(i-1, j + dj) - MaxBottom
+                if (Me%CalculateCellMargins) then
+                    !Water Depth consistent with AreaU computed (only water above max bottom)
+                    WaterDepth = Me%AreaU(i,j) / Me%ExtVar%DYY(i, j)
+                    MaxBottom = max(Me%ExtVar%Topography(i, j) + Me%BuildingsHeight(i, j),     &
+                                    Me%ExtVar%Topography(i, j-1) + Me%BuildingsHeight(i, j-1))
+                    
+                    !to check wich cell to use to use since areaU depends on higher water level and max bottom
+                    if (level_left .gt. level_right) then
+                        dj = -1
+                    else
+                        dj = 0
+                    endif
+                   
+                    !Bottom Difference to adjacent cells (to check existence of “margins” on the side)
+                    Margin1 = Me%ExtVar%Topography(i+1, j + dj) - MaxBottom
+                    Margin2 = Me%ExtVar%Topography(i-1, j + dj) - MaxBottom
 
-                !if positive than there is a “margin” on the side and friction occurs at wet length
-                !If not basin points than result will be negative.
-                if (Margin1 .gt. 0.0) then
-                    WetPerimeter = WetPerimeter + min(WaterDepth, Margin1)
+                    !if positive than there is a “margin” on the side and friction occurs at wet length
+                    !If not basin points than result will be negative.
+                    if (Margin1 .gt. 0.0) then
+                        WetPerimeter = WetPerimeter + min(WaterDepth, Margin1)
+                    endif
+                    if (Margin2 .gt. 0.0) then
+                        WetPerimeter = WetPerimeter + min(WaterDepth, Margin2)
+                    endif
                 endif
-                if (Margin2 .gt. 0.0) then
-                    WetPerimeter = WetPerimeter + min(WaterDepth, Margin2)
-                endif
-
+                
                 HydraulicRadius = Me%AreaU(i, j) / WetPerimeter
                              
                 
@@ -2924,28 +2975,30 @@ doIter:         do while (iter <= Niter)
                 !Wet perimeter, first is bottom
                 WetPerimeter = Me%ExtVar%DXX(i, j)
                 
-                !Water Depth consistent with AreaV computed (only water above max bottom)
-                WaterDepth = Me%AreaV(i,j) / Me%ExtVar%DXX(i, j)
-                MaxBottom = max(Me%ExtVar%Topography(i, j) + Me%BuildingsHeight(i, j),     &
-                                Me%ExtVar%Topography(i-1, j) + Me%BuildingsHeight(i-1, j))
+                if (Me%CalculateCellMargins) then
+                    !Water Depth consistent with AreaV computed (only water above max bottom)
+                    WaterDepth = Me%AreaV(i,j) / Me%ExtVar%DXX(i, j)
+                    MaxBottom = max(Me%ExtVar%Topography(i, j) + Me%BuildingsHeight(i, j),     &
+                                    Me%ExtVar%Topography(i-1, j) + Me%BuildingsHeight(i-1, j))
 
-                !to check wich cell to use since areaV depends on higher water level
-                if (level_bottom .gt. level_top) then
-                    di = -1
-                else
-                    di = 0
-                endif
+                    !to check wich cell to use since areaV depends on higher water level
+                    if (level_bottom .gt. level_top) then
+                        di = -1
+                    else
+                        di = 0
+                    endif
 
-                !Bottom Difference to adjacent cells (to check existence of “margins” on the side)
-                Margin1 = Me%ExtVar%Topography(i + di,j+1) - MaxBottom
-                Margin2 = Me%ExtVar%Topography(i + di,j-1) - MaxBottom
+                    !Bottom Difference to adjacent cells (to check existence of “margins” on the side)
+                    Margin1 = Me%ExtVar%Topography(i + di,j+1) - MaxBottom
+                    Margin2 = Me%ExtVar%Topography(i + di,j-1) - MaxBottom
 
-                !if positive than there is a “margin” on the side and friction occurs at wet length
-                if (Margin1 .gt. 0.0) then
-                    WetPerimeter = WetPerimeter + min(WaterDepth, Margin1)
-                endif
-                if (Margin2 .gt. 0.0) then
-                    WetPerimeter = WetPerimeter + min(WaterDepth, Margin2)
+                    !if positive than there is a “margin” on the side and friction occurs at wet length
+                    if (Margin1 .gt. 0.0) then
+                        WetPerimeter = WetPerimeter + min(WaterDepth, Margin1)
+                    endif
+                    if (Margin2 .gt. 0.0) then
+                        WetPerimeter = WetPerimeter + min(WaterDepth, Margin2)
+                    endif
                 endif
                 
                 !m = m2 / m
@@ -3065,31 +3118,33 @@ doIter:         do while (iter <= Niter)
                 !wet perimeter, first is bottom
                 WetPerimeter = Me%ExtVar%DYY(i, j)
                 
-                !Then, is checked if "margins" occur on the cell of the highest water level
-                !water depth consistent with AreaU computed (only water above max bottom)
-                WaterDepth = Me%AreaU(i,j) / Me%ExtVar%DYY(i, j)
-                MaxBottom = max(Me%ExtVar%Topography(i, j) + Me%BuildingsHeight(i, j),   &
-                            Me%ExtVar%Topography(i, j-1) + Me%BuildingsHeight(i, j-1))
-                
-                !to check which cell to use since areaU depends on higher water level
-                if (level_left .gt. level_right) then
-                    dj = -1
-                else
-                    dj = 0
-                endif
-                
-                !bottom Difference to adjacent cells (to check existence of “margins” on the side)
-                Margin1 = Me%ExtVar%Topography(i+1, j + dj) - MaxBottom
-                Margin2 = Me%ExtVar%Topography(i-1, j + dj) - MaxBottom
+                if (Me%CalculateCellMargins) then
+                    !Then, is checked if "margins" occur on the cell of the highest water level
+                    !water depth consistent with AreaU computed (only water above max bottom)
+                    WaterDepth = Me%AreaU(i,j) / Me%ExtVar%DYY(i, j)
+                    MaxBottom = max(Me%ExtVar%Topography(i, j) + Me%BuildingsHeight(i, j),   &
+                                Me%ExtVar%Topography(i, j-1) + Me%BuildingsHeight(i, j-1))
+                    
+                    !to check which cell to use since areaU depends on higher water level
+                    if (level_left .gt. level_right) then
+                        dj = -1
+                    else
+                        dj = 0
+                    endif
+                    
+                    !bottom Difference to adjacent cells (to check existence of “margins” on the side)
+                    Margin1 = Me%ExtVar%Topography(i+1, j + dj) - MaxBottom
+                    Margin2 = Me%ExtVar%Topography(i-1, j + dj) - MaxBottom
 
-                !if positive, than there is a “margin” on the side and friction occurs at wet length
-                if (Margin1 .gt. 0.0) then
-                    WetPerimeter = WetPerimeter + min(WaterDepth, Margin1)
+                    !if positive, than there is a “margin” on the side and friction occurs at wet length
+                    if (Margin1 .gt. 0.0) then
+                        WetPerimeter = WetPerimeter + min(WaterDepth, Margin1)
+                    endif
+                    if (Margin2 .gt. 0.0) then
+                        WetPerimeter = WetPerimeter + min(WaterDepth, Margin2)
+                    endif
                 endif
-                if (Margin2 .gt. 0.0) then
-                    WetPerimeter = WetPerimeter + min(WaterDepth, Margin2)
-                endif
-
+                
                 HydraulicRadius = Me%AreaU(i, j) / WetPerimeter
        
                 !
@@ -3102,7 +3157,7 @@ doIter:         do while (iter <= Niter)
 
 
                 !FRICTION - semi-implicit -----------------------------------------------
-                !   -    =  (s * m.s-2  * m3.s-1 * s.m(-1/3)) / (m2 * m(4/3)) = m(10/3) / m(10/3)
+                !   -    =  (s * m.s-2  * m3.s-1 * (s.m(-1/3))^2) / (m2 * m(4/3)) = m(10/3) / m(10/3)
                 Friction = LocalDT * Gravity * abs(Me%FlowXOld(i, j)) * Me%OverlandCoefficientX(i,j)** 2. &
                          / ( Me%AreaU(i, j) * HydraulicRadius ** (4./3.) ) 
         
@@ -3346,29 +3401,31 @@ doIter:         do while (iter <= Niter)
                 
                 !wet perimeter, first is bottom
                 WetPerimeter = Me%ExtVar%DXX(i, j)
+                
+                if (Me%CalculateCellMargins) then
+                    !water Depth consistent with AreaV computed (only water above max bottom)
+                    WaterDepth = Me%AreaV(i,j) / Me%ExtVar%DXX(i, j)
+                    MaxBottom = max(Me%ExtVar%Topography(i, j) + Me%BuildingsHeight(i, j),    &
+                                Me%ExtVar%Topography(i-1, j) + Me%BuildingsHeight(i-1, j))
 
-                !water Depth consistent with AreaV computed (only water above max bottom)
-                WaterDepth = Me%AreaV(i,j) / Me%ExtVar%DXX(i, j)
-                MaxBottom = max(Me%ExtVar%Topography(i, j) + Me%BuildingsHeight(i, j),    &
-                            Me%ExtVar%Topography(i-1, j) + Me%BuildingsHeight(i-1, j))
+                    !to check wich cell to use since areaV depends on higher water level
+                    if (level_bottom .gt. level_top) then
+                        di = -1
+                    else
+                        di = 0
+                    endif
 
-                !to check wich cell to use since areaV depends on higher water level
-                if (level_bottom .gt. level_top) then
-                    di = -1
-                else
-                    di = 0
-                endif
+                    !bottom Difference to adjacent cells (to check existence of “margins” on the side)
+                    Margin1 = Me%ExtVar%Topography(i + di,j+1) - MaxBottom
+                    Margin2 = Me%ExtVar%Topography(i + di,j-1) - MaxBottom
 
-                !bottom Difference to adjacent cells (to check existence of “margins” on the side)
-                Margin1 = Me%ExtVar%Topography(i + di,j+1) - MaxBottom
-                Margin2 = Me%ExtVar%Topography(i + di,j-1) - MaxBottom
-
-                !if positive than there is a “margin” on the side and friction occurs at wet length
-                if (Margin1 .gt. 0.0) then
-                    WetPerimeter = WetPerimeter + min(WaterDepth, Margin1)
-                endif
-                if (Margin2 .gt. 0.0) then
-                    WetPerimeter = WetPerimeter + min(WaterDepth, Margin2)
+                    !if positive than there is a “margin” on the side and friction occurs at wet length
+                    if (Margin1 .gt. 0.0) then
+                        WetPerimeter = WetPerimeter + min(WaterDepth, Margin1)
+                    endif
+                    if (Margin2 .gt. 0.0) then
+                        WetPerimeter = WetPerimeter + min(WaterDepth, Margin2)
+                    endif
                 endif
                 
                 !m = m2 / m
@@ -3383,7 +3440,7 @@ doIter:         do while (iter <= Niter)
 
 
                 !FRICTION - semi-implicit -----------------------------------------------
-                !   -    =  (s * m.s-2  * m3.s-1 * s.m(-1/3)) / (m2 * m(4/3)) = m(10/3) / m(10/3)
+                !   -    =  (s * m.s-2  * m3.s-1 * (s.m(-1/3))^2) / (m2 * m(4/3)) = m(10/3) / m(10/3)
                 Friction = LocalDT * Gravity * abs(Me%FlowYOld(i, j)) * Me%OverlandCoefficientY(i,j) ** 2. &
                          / ( Me%AreaV(i, j) * HydraulicRadius ** (4./3.) ) 
         

@@ -1060,9 +1060,11 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                         
                         CurrNode => Me%Nodes(NodeID)
                         BottomMass = 0.0
-                        if (Check_Particulate_Property(Property%ID%IDNumber)) then
+                        if (Check_Particulate_Property(Property%ID%IDNumber).and.(Property%ComputeOptions%BottomFluxes)) then
                             ![kg] = [kg/m2] * [m2]
                             BottomMass = Property%BottomConc(NodeID) * CurrNode%CrossSection%BottomWidth * CurrNode%Length
+                        else
+                            BottomMass = 0.0
                         endif
                         
                         ![kg] = [kg] + [kg] + [g/m3] * [m3] * [1e-3kg/g]
@@ -7583,7 +7585,7 @@ do2 :   do while (associated(PropertyX))
             if (Restart) then
                 !Niter   = Niter + 1
                 !Niter = Niter + Me%InternalTimeStepSplit
-                Niter       = Me%NextNiter * 2.0
+                Niter        = Niter * 2.0
                 LocalDT = Me%ExtVar%DT / Niter
                 call WriteDTLog_ML ('ModuleDrainageNetwork', Niter, LocalDT)
                 if (Niter > Me%MaxIterations) then
@@ -7676,25 +7678,27 @@ do2 :   do while (associated(PropertyX))
             do NodeID = 1, Me%TotalNodes
                 if (Me%Nodes(NodeID)%nDownStreamReaches /= 0) then
                     Me%TotalStoredVolume = Me%TotalStoredVolume + Me%Nodes(NodeID)%VolumeNew
+                !endif
+                    Property => Me%FirstProperty
+                    do while (associated(Property))
+                        
+                        CurrNode => Me%Nodes(NodeID)
+                        BottomMass = 0.0
+                        if (Check_Particulate_Property(Property%ID%IDNumber).and.(Property%ComputeOptions%BottomFluxes)) then
+                            ![kg] = [kg/m2] * [m2]
+                            BottomMass = Property%BottomConc(NodeID) * CurrNode%CrossSection%BottomWidth * CurrNode%Length
+                        else
+                            BottomMass = 0.0
+                        endif                
+                        
+                        ![kg] = [kg] + [g/m3] * [m3] * [1e-3kg/g]
+                        Property%MB%TotalStoredMass = Property%MB%TotalStoredMass + BottomMass &
+                                                      + Property%Concentration (NodeID)        &
+                                                      * Property%ISCoefficient                 &
+                                                      * Me%Nodes(NodeID)%VolumeNew
+                        Property => Property%Next
+                    enddo                                    
                 endif
-                Property => Me%FirstProperty
-                do while (associated(Property))
-                    
-                    CurrNode => Me%Nodes(NodeID)
-                    BottomMass = 0.0
-                    if (Check_Particulate_Property(Property%ID%IDNumber)) then
-                        ![kg] = [kg/m2] * [m2]
-                        BottomMass = Property%BottomConc(NodeID) * CurrNode%CrossSection%BottomWidth * CurrNode%Length
-                    endif                
-                    
-                    ![kg] = [kg] + [g/m3] * [m3] * [1e-3kg/g]
-                    Property%MB%TotalStoredMass = Property%MB%TotalStoredMass + BottomMass &
-                                                  + Property%Concentration (NodeID)        &
-                                                  * Property%ISCoefficient                 &
-                                                  * Me%Nodes(NodeID)%VolumeNew
-                    Property => Property%Next
-                enddo                                    
-!                endif
             end do
         end if
 
@@ -9077,7 +9081,8 @@ if2:        if (CurrNode%VolumeNew > PoolVolume) then
             else
                 sign = -1.0
             endif
-
+            
+            !m3/s = (m2 * m^(2/3) ) / (s.m^(-1/3)) = (m^(6/3) * m^(2/3) * m^(1/3))/s = m3/s
             CurrReach%FlowNew  = sign * CurrReach%VerticalArea * CurrReach%HydraulicRadius **(2.0/3.0) &
                                  * sqrt(abs(CurrReach%Slope))  / CurrReach%Manning
                                  
@@ -9906,6 +9911,7 @@ do2:            do while (Iterate)
         real                                    :: Advection, Diffusion
         real                                    :: AdvOutFlow, DifOutFlow
         integer                                 :: NodeID
+        type (T_Reach   ), pointer              :: OutletReach
 
         if (MonitorPerformance) call StartWatch ("ModuleDrainageNetwork", "Advection_Diffusion")
 
@@ -9936,13 +9942,14 @@ do2:            do while (Iterate)
                        
                         CurrNode => Me%Nodes (NodeID)
                         
-                        if (CurrNode%VolumeNew .gt. AllmostZero) then
+                        if (CurrNode%VolumeNew .gt. 0.0) then
                             !Sai - Entra
                             call ComputeAdvection  (Advection, Property, NodeID, AdvOutFlow)  !gX/s
                             call ComputeDiffusion  (Diffusion, Property, NodeID, DifOutFlow)  !gX/s               
 
                             
-                            !New Concentration    
+                            !New Concentration 
+                            !g/m3 = (g/m3 * m3  + s * g/s) / m3   
                             Property%Concentration (NodeID) = (Property%ConcentrationOld (NodeID) * CurrNode%VolumeOld + &
                                                                LocalDT * (Advection + Diffusion )) / CurrNode%VolumeNew
                         else
@@ -9950,11 +9957,24 @@ do2:            do while (Iterate)
                             Property%Concentration (NodeID) = 0.0
                         endif                                   
                    end if
+                   
+                   !This has to be here so that mapping does not eliminate downstream reach.
+                   !Only advection is needed to be computed since diffusion is not computed at the end (no exiting of diffusion)
+                    if (Me%CheckMass) then
+                        OutletReach => Me%Reaches (Me%OutletReachPos)               
+                        if (NodeID == OutletReach%UpstreamNode) then
+                            !Flow exiting
+                            if (OutletReach%FlowNew.GE.0.0) then
+                                !g/s
+                                AdvOutflow = Property%ConcentrationOld(NodeID) * OutletReach%FlowNew
+                            endif
+                        endif
+                    endif                   
+
                 end do
                 
             endif
-            
-            
+
             if (Me%CheckMass) then
                 !kg = g/s * s * 1-3kg/g
                 Property%MB%TotalOutFlowMass = Property%MB%TotalOutFlowMass + (AdvOutFlow + DifOutFlow) * LocalDT * 1e-3
@@ -10005,23 +10025,24 @@ do2:            do while (Iterate)
                 else
                     DownProp = Property%ConcentrationOld (DownReach%DownstreamNode)
                 end if
-                                                                                
+                
+                !g/s = g/s + (m3/s * g/m3)
                 DownFlux    =  DownFlux + DownReach%FlowNew * DownProp
 
             endif
 
         end do
         
-        if (Me%CheckMass) then
-            OutletReach => Me%Reaches (Me%OutletReachPos)               
-            if (NodePos == OutletReach%UpstreamNode) then
-                !Flow exiting
-                if (DownFlux .gt. 0.0) then
-                    !g/s
-                    AdvOutflow = DownFlux
-                endif
-            endif
-        endif
+!        if (Me%CheckMass) then
+!            OutletReach => Me%Reaches (Me%OutletReachPos)               
+!            if (NodePos == OutletReach%UpstreamNode) then
+!                !Flow exiting
+!                if (DownFlux .gt. 0.0) then
+!                    !g/s
+!                    AdvOutflow = DownFlux
+!                endif
+!            endif
+!        endif
            
         !UpFlux
         UpFlux = 0.0
@@ -10035,15 +10056,18 @@ do2:            do while (Iterate)
                 else
                     UpProp = Property%ConcentrationOld (NodePos  )
                 end if
-
+                
+                !g/s = g/s + (m3/s * g/m3)
                 UpFlux    =  UpFlux + UpReach%FlowNew * UpProp
             
             endif
             
         end do
-         
-        !Advection flux is the entering flux to the node, less the exiting flux
-        AdvectionFlux = UpFlux - DownFlux
+        
+        !advection fluxes have the direction (signal) of flow
+        !if downflux positive will reduce node concentration (negative sign in AdvectionFlux)
+        !if UpFlux positive will increase node concentration (positive sign in AdvectionFlux)
+        AdvectionFlux = -1.0 *(DownFlux - UpFlux)
         
 
     end subroutine ComputeAdvection
@@ -10078,26 +10102,28 @@ if1:    if (Property%Diffusion_Scheme == CentralDif) then
                 DownNode    => Me%Nodes (DownNodePos)
 
                 if (Me%OpenPointsFlow(DownNodePos) == OpenPoint) then
-
+                    
+                    !g/m4 = g/m3 /m
                     GradProp    = (Property%ConcentrationOld (DownNodePos) - Property%ConcentrationOld (NodePos)) &
                                 / DownReach%Length
-
+                    
+                    !g/s = g/s + (m2/s * g/m4 * m2)
                     DownFlux    =  DownFlux + Property%Diffusivity * GradProp * DownReach%VerticalArea
 
                 endif
 
             end do
  
-             if (Me%CheckMass) then
-                OutletReach => Me%Reaches (Me%OutletReachPos)               
-                if (NodePos == OutletReach%UpstreamNode) then
-                    !Diffusion exiting
-                    if (DownFlux .lt. 0.0) then
-                        !g/s
-                        DifOutflow = - DownFlux
-                    endif
-                endif
-            endif
+!             if (Me%CheckMass) then
+!                OutletReach => Me%Reaches (Me%OutletReachPos)               
+!                if (NodePos == OutletReach%UpstreamNode) then
+!                    !Diffusion exiting (prop gradient negative)
+!                    if (DownFlux .lt. 0.0) then
+!                        !g/s
+!                        DifOutflow = - DownFlux
+!                    endif
+!                endif
+!            endif
  
             UpFlux = 0.0
             do i = 1, CurrNode%nUpstreamReaches
@@ -10109,7 +10135,8 @@ if1:    if (Property%Diffusion_Scheme == CentralDif) then
 
                     GradProp  = (Property%ConcentrationOld (NodePos) - Property%ConcentrationOld (UpNodePos)) &
                                  / UpReach%Length
-
+                    
+                    !g/s = g/s + (m2/s * g/m4 * m2)
                     UpFlux    =  UpFlux + Property%Diffusivity * GradProp * UpReach%VerticalArea
 
                 endif
@@ -10122,8 +10149,11 @@ if1:    if (Property%Diffusion_Scheme == CentralDif) then
             stop 'ComputeDiffusion - ModuleDrainageNetwork - ERR01'
                 
         end if if1        
-        
-        DiffusionFlux = UpFlux - DownFlux
+
+        !diffusion fluxes have the direction (signal) of property gradient (evaluated in down - up)
+        !if downflux positive (downstream conc higher) will increase node concentration (positive sign in AdvectionFlux)
+        !if upFlux positive (node conc higher) will decrease node concentration (negative sign in AdvectionFlux)        
+        DiffusionFlux = DownFlux - UpFlux
 
     end subroutine  ComputeDiffusion
     
