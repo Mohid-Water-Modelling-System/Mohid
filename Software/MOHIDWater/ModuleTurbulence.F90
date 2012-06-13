@@ -150,6 +150,7 @@ Module ModuleTurbulence
     private ::          Output_Statistics
     private ::      EstuaryModel                    !Horizontal
     private ::      SmagorinskyModel                !Horizontal
+    private ::      ImposeTurbVertLimit
     private ::      OutPut_TimeSeries
     private ::      Output_Profile
     private ::      OutPut_Results_HDF
@@ -213,9 +214,8 @@ Module ModuleTurbulence
     integer, parameter :: Layers_             = 9
 
     !3D turbulence options
-    integer, parameter :: smagorinsky3d_      = 1
-    integer, parameter :: lomax3d_            = 2
-    integer, parameter :: smagorinsky3d_vh_   = 3
+    integer, parameter :: smagorinsky3d_      = 99
+
 
     !Mixed layer options
     integer, parameter :: tke_mld_        = 1
@@ -256,6 +256,8 @@ Module ModuleTurbulence
         real, dimension(:,:,:), pointer             :: HorizontalCenter
         real, dimension(:,:,:), pointer             :: HorizontalCorner
         real                                        :: Background
+        real                                        :: VertMax
+        logical                                     :: VertMaxON
     end type T_Viscosity
 
     type       T_Diffusivity
@@ -1107,7 +1109,7 @@ case1 : select case  (Me%TurbOptions%MODVISH)
         
                 call InicEstuaryModel           
         
-            case (Smagorinsky_)
+            case (Smagorinsky_ , smagorinsky3d_)
 
                 call InicEstuarySmagorinskyModel
        
@@ -1183,6 +1185,11 @@ case1 : select case  (Me%TurbOptions%MODTURB)
             case (nihoul_               )
 
                 call InicNihoulLeendertseeModel
+            
+            case (smagorinsky3d_        )
+
+                continue                
+                
         
             case default
 
@@ -1204,6 +1211,21 @@ case1 : select case  (Me%TurbOptions%MODTURB)
                             STAT         = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'InicVerticalModels - ModuleTurbulence - ERR06'
                  
+
+            call GetData(   Me%Viscosity%VertMax,                       &
+                            Me%ObjEnterData, iflag,                     &
+                            SearchType   = FromFile,                    &
+                            keyword      = 'MAX_VISC_VERT',             &
+                            ClientModule = 'ModuleTurbulence',          &
+                            default      = 10.,                         &
+                            STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'InicVerticalModels - ModuleTurbulence - ERR10'
+            
+            !if (iflag==1) then
+                Me%Viscosity%VertMaxON = .true.
+            !else
+            !    Me%Viscosity%VertMaxON = .false.
+            !endif
 
     end subroutine InicVerticalModels   
 
@@ -1560,6 +1582,7 @@ cd2 :   if (flag .EQ. 0) then
         character(LEN = StringLength), parameter :: Char_pacanowski         = trim(adjustl('pacanowski'          ))
         character(LEN = StringLength), parameter :: Char_nihoul             = trim(adjustl('nihoul'              ))
         character(LEN = StringLength), parameter :: Char_turbulenceequation = trim(adjustl('turbulence_equation' ))
+        character(LEN = StringLength), parameter :: Char_smagorinsky3d      = trim(adjustl('smagorinsky3d'       ))
                                                                                              
         !----------------------------------------------------------------------
 
@@ -1593,6 +1616,12 @@ case1 : select case(String)
             case(Char_nihoul         )
                 Me%TurbOptions%MODTURB = nihoul_
                 STAT                              = SUCCESS_
+                
+            case(Char_smagorinsky3d  )                
+
+                Me%TurbOptions%MODTURB = smagorinsky3d_
+                STAT                              = SUCCESS_
+
 
             case default
                 Me%TurbOptions%MODTURB = null_int
@@ -1618,6 +1647,7 @@ case1 : select case(String)
         character(LEN = StringLength), parameter :: Char_smagorinsky  = trim(adjustl('smagorinsky'  ))
         character(LEN = StringLength), parameter :: Char_File2D       = trim(adjustl('file2D'       ))
         character(LEN = StringLength), parameter :: Char_Boxes2D      = trim(adjustl('boxes2D'      ))
+        character(LEN = StringLength), parameter :: Char_smagorinsky3d= trim(adjustl('smagorinsky3d'))
        
         !----------------------------------------------------------------------
 
@@ -1639,6 +1669,10 @@ case1 : select case(String)
 
             case(Char_smagorinsky)
                 Me%TurbOptions%MODVISH = Smagorinsky_
+                STAT                              = SUCCESS_
+
+            case(Char_smagorinsky3d)
+                Me%TurbOptions%MODVISH = smagorinsky3d_
                 STAT                              = SUCCESS_
 
             case default
@@ -1797,7 +1831,7 @@ case1 : select case(String)
     subroutine InicEstuarySmagorinskyModel
 
         !Local-----------------------------------------------------------------
-        integer                     :: iflag, STAT_CALL
+        integer                     :: iflag, STAT_CALL, i, j, k, KLB, KUB, ILB, IUB, JLB, JUB
         
         !----------------------------------------------------------------------
 
@@ -1820,6 +1854,39 @@ cd1 :   if (iflag .EQ. 0) then
             write(*,*) 'InicEstuarySmagorinskyModel - ModuleTurbulence - WRN01'
             write(*,*) 
         end if cd1
+        
+        KLB = Me%WorkSize%KLB
+        KUB = Me%WorkSize%KUB
+        JLB = Me%WorkSize%JLB
+        JUB = Me%WorkSize%JUB
+        ILB = Me%WorkSize%ILB
+        IUB = Me%WorkSize%IUB
+                
+        do k = KLB, KUB
+        do j = JLB, JUB
+        do i = ILB, IUB
+
+            if (Me%ExternalVar%WaterPoints3D (i, j, k) == WaterPoint) then
+                Me%Viscosity%HorizontalCenter(i, j, k) = Me%TurbVar%MINHorizontalViscosity
+            end if
+
+        enddo
+        enddo
+        enddo     
+        
+        do k = KLB, KUB
+        do j = JLB, JUB
+        do i = ILB, IUB
+
+            if (Me%ExternalVar%WaterPoints3D (i, j, k) == WaterPoint) then
+                Me%Viscosity%HorizontalCenter(i, j, k)  = Me%TurbVar%MINHorizontalViscosity
+                Me%Viscosity%Vertical(i, j, k)          = Me%TurbVar%MINHorizontalViscosity
+                Me%Diffusivity%Vertical(i, j, k)        = Me%TurbVar%MINHorizontalViscosity                
+            end if
+
+        enddo
+        enddo
+        enddo                        
 
         !----------------------------------------------------------------------
 
@@ -3122,6 +3189,10 @@ cd3 :       if      (Me%TurbOptions%MODTURB .EQ. Constant_   .or.       &
 
                 call TurbulenceEquationModel
 
+            elseif (Me%TurbOptions%MODTURB .EQ. smagorinsky3d_     ) then cd3
+                       
+                !Do not do nothing
+                
             else cd3
 
                 stop 'Turbulence - ModuleTurbulence - ERR11'
@@ -3184,7 +3255,11 @@ cd4 :       if     (Me%TurbOptions%MODVISH .EQ. Constant_   ) then
             elseif (Me%TurbOptions%MODVISH .EQ. Smagorinsky_) then cd4
             
                 call SmagorinskyModel
+                
+            elseif (Me%TurbOptions%MODVISH .EQ. smagorinsky3d_) then cd4
             
+                call Smagorinsky3DModel
+
             else cd4
             
                 stop 'Turbulence - ModuleTurbulence - ERR12'
@@ -3192,6 +3267,10 @@ cd4 :       if     (Me%TurbOptions%MODVISH .EQ. Constant_   ) then
             end if cd4
 
             call TurbulentViscosity_CellCorner
+            
+            if (Me%Viscosity%VertMaxON) then
+                call ImposeTurbVertLimit
+            endif
 
             call OutPut_Results_HDF
 
@@ -3295,8 +3374,35 @@ cd4 :       if     (Me%TurbOptions%MODVISH .EQ. Constant_   ) then
     end subroutine Turbulence
 
     !--------------------------------------------------------------------------
+    
+    subroutine ImposeTurbVertLimit
+
+        !Local-----------------------------------------------------------------
+        integer                                         :: STAT_CALL, i, j, k, kbottom
+
+        !Begin-----------------------------------------------------------------
+        
+do2 :   do J = Me%WorkSize%JLB, Me%WorkSize%JUB
+do3 :   do I = Me%WorkSize%ILB, Me%WorkSize%IUB
+
+            if(Me%ExternalVar%WaterPoints3D(i,j,Me%WorkSize%KUB) == WaterPoint)then
+
+                kbottom = Me%ExternalVar%KFloorZ(i, j)
+
+do1 :           do K = kbottom, Me%WorkSize%KUB+1
+                    Me%Viscosity%Vertical(i,j,k) = min(Me%Viscosity%Vertical(i,j,k),Me%Viscosity%VertMax)
+                end do do1
+            end if
+                                                    
+        end do do3
+        end do do2
+
+    end subroutine 
+
+    !--------------------------------------------------------------------------
 
     subroutine OutPut_Results_HDF
+    
 
         !Local-----------------------------------------------------------------
         integer                                         :: STAT_CALL
@@ -4013,6 +4119,207 @@ do1 :       do k = kbottom, KUB-1
         if (MonitorPerformance) call StopWatch ("ModuleTurbulence", "TurbulenceEquationModel")
 
     end subroutine TurbulenceEquationModel
+
+    !--------------------------------------------------------------------------
+    ! Subroutine Smagorinsky3DModel.
+    ! 
+    ! Computes a 3D turbulent viscosity coeeficients field as a direct function of the velocity gradients
+    !
+    !--------------------------------------------------------------------------
+
+    subroutine Smagorinsky3DModel
+
+        !Local-----------------------------------------------------------------
+        integer                                 :: ILB, IUB
+        integer                                 :: JLB, JUB
+        integer                                 :: KLB, KUB
+        integer                                 :: i, j, k, kbottom
+        real                                    :: u1, u2, u3, v1, v2, v3, w1, w3
+        real                                    :: dudx, dudy, dudz, dvdx, dvdy, dvdz, dwdx, dwdy, dwdz
+        real,    pointer, dimension(:,:,:)      :: DWZ
+        real,    pointer, dimension(:,:  )      :: DUX, DVY
+        real,    dimension(:,:,:), pointer      :: VelocityX, VelocityY, VelocityZ
+        integer, dimension(:,:,:), pointer      :: ComputeFacesU3D, ComputeFacesV3D, ComputeFacesW3D
+        integer, dimension(:,:  ), pointer      :: KFloorZ
+        real, dimension(3,3)                    :: S
+        real                                    :: ViscTurb, Cs, Dgrid
+        
+        !----------------------------------------------------------------------
+
+        ILB = Me%WorkSize%ILB
+        IUB = Me%WorkSize%IUB
+        JLB = Me%WorkSize%JLB
+        JUB = Me%WorkSize%JUB
+        KLB = Me%WorkSize%KLB
+        KUB = Me%WorkSize%KUB
+
+        DWZ             => Me%ExternalVar%DWZ
+        DUX             => Me%ExternalVar%DUX
+        DVY             => Me%ExternalVar%DVY        
+        
+        KFloorZ         => Me%ExternalVar%KFloorZ
+        VelocityX       => Me%ExternalVar%VelocityX
+        VelocityY       => Me%ExternalVar%VelocityY
+        VelocityZ       => Me%ExternalVar%VelocityZ
+        ComputeFacesU3D => Me%ExternalVar%ComputeFacesU3D
+        ComputeFacesV3D => Me%ExternalVar%ComputeFacesV3D      
+        ComputeFacesW3D => Me%ExternalVar%ComputeFacesW3D      
+                
+        Me%Viscosity%HorizontalCenter(:,:,:) = 0.
+
+do2 :   do j = JLB, JUB
+do3 :   do i = ILB, IUB
+
+cd1 :       if (Me%ExternalVar%WaterPoints3D(i, j, KUB)   == WaterPoint)         then
+
+                kbottom = KFloorZ(i, j)
+            
+do1 :           do k = kbottom, KUB                         
+
+                    ! du/dx, dv/dy, dw/dz
+                    dudx  = (VelocityX(i,  j+1,k  ) - VelocityX(i,  j,  k  )) / DUX(i, j)
+                    
+                    dvdy  = (VelocityY(i+1,  j,k  ) - VelocityY(  i,  j,k  )) / DVY(i, j)
+                                                                                            
+                    dwdz  = (VelocityZ(  i,  j,k+1) - VelocityZ(  i,  j,k  )) / DWZ(i, j, k)
+                    
+                    !du/dy 
+                    u1 = (VelocityX(i-1,  j,  k  ) * ComputeFacesU3D(i-1,  j,  k  )  +       &
+                          VelocityX(i-1,j+1,  k  ) * ComputeFacesU3D(i-1,j+1,  k  )) / 2.                
+                    
+
+                    u2 = (VelocityX(i+1,  j,  k  ) * ComputeFacesU3D(i+1,  j,  k  )  +       &
+                          VelocityX(i+1,j+1,  k  ) * ComputeFacesU3D(i+1,j+1,  k  )) / 2.                
+
+                    dudy = (u2 - u1) / 2. / DVY(i, j)
+
+                    !dv/dx
+                    v1 = (VelocityY(i  ,j-1,  k  ) * ComputeFacesV3D(i  ,j-1,  k  )  +       &
+                          VelocityY(i+1,j-1,  k  ) * ComputeFacesV3D(i+1,j-1,  k  )) / 2.                
+                    
+
+                    v2 = (VelocityY(i  ,j+1,  k  ) * ComputeFacesV3D(i  ,j+1,  k  )  +       &
+                          VelocityY(i+1,j+1,  k  ) * ComputeFacesV3D(i+1,j+1,  k  )) / 2.                
+
+                    dvdx = (v2 - v1) / 2. / DUX(i, j)
+
+                    !du/dz 
+                    if (k == kbottom) then
+                        u1 = 0
+                    else
+                        u1 = (VelocityX(i  ,  j,  k-1) * ComputeFacesU3D(i  ,  j,  k-1)  +       &
+                              VelocityX(i  ,j+1,  k-1) * ComputeFacesU3D(i  ,j+1,  k-1)) / 2.
+                    endif
+                          
+                    if (k == KUB) then
+                        u3 = 0
+                    else
+                        u3 = (VelocityX(i  ,  j,  k+1) * ComputeFacesU3D(i  ,  j,  k+1)  +       &
+                              VelocityX(i  ,j+1,  k+1) * ComputeFacesU3D(i  ,j+1,  k+1)) / 2.
+                    endif
+                    
+                    dudz   = (u3 - u1) / 2. / DWZ(i, j, k)
+                                    
+                    !dv/dz
+                    if (k == kbottom) then
+                        v1 = 0
+                    else
+                        v1 = (VelocityY(i  ,  j,  k-1) * ComputeFacesV3D(i  ,  j,  k-1)  +       &
+                              VelocityY(i+1,  j,  k-1) * ComputeFacesV3D(i+1,  j,  k-1)) / 2.
+                    endif
+                          
+                    if (k == KUB) then
+                        v3 = 0
+                    else
+                        v3 = (VelocityY(i  ,  j,  k+1) * ComputeFacesV3D(i  ,  j,  k+1)  +       &
+                              VelocityY(i+1,  j,  k+1) * ComputeFacesV3D(i+1,  j,  k+1)) / 2.
+                    endif
+                    
+                    dvdz   = (v3 - v1) / 2. / DWZ(i, j, k)
+                                    
+                    !dw/dx
+                    w3 = (VelocityZ(i  ,j+1,  k+1) * ComputeFacesW3D(i  ,j+1,  k+1)  -       &
+                          VelocityZ(i  ,j-1,  k+1) * ComputeFacesW3D(i  ,j-1,  k+1)) / DUX(i, j) / 2
+
+                    w1 = (VelocityZ(i  ,j+1,  k  ) * ComputeFacesW3D(i  ,j+1,  k  )  -       &
+                          VelocityZ(i  ,j-1,  k  ) * ComputeFacesW3D(i  ,j-1,  k  )) / DUX(i, j) / 2
+                          
+                    dwdx = (w3 + w1) / 2.      
+
+                    !dw/dy          
+                    w3 = (VelocityZ(i+1,j  ,  k+1) * ComputeFacesW3D(i+1,j  ,  k+1)  -       &
+                          VelocityZ(i-1,j  ,  k+1) * ComputeFacesW3D(i-1,j  ,  k+1)) / DVY(i, j) / 2
+
+                    w1 = (VelocityZ(i+1,j  ,  k  ) * ComputeFacesW3D(i+1,j  ,  k  )  -       &
+                          VelocityZ(i-1,j  ,  k  ) * ComputeFacesW3D(i-1,j  ,  k  )) / DVY(i, j) / 2
+
+                          
+                    dwdy = (w3 + w1) / 2.    
+                    
+                    S(1,1) = 0.5 * (dudx + dudx)
+                    S(2,2) = 0.5 * (dvdy + dvdy)
+                    S(3,3) = 0.5 * (dwdz + dwdz)
+                    S(1,2) = 0.5 * (dudy + dvdx)                
+                    S(2,1) = S(1,2)
+                    S(1,3) = 0.5 * (dudz + dwdx)                
+                    S(3,1) = S(1,3)
+                    S(2,3) = 0.5 * (dvdz + dwdy)                
+                    S(3,2) = S(2,3)
+                    
+                    Cs     = Me%TurbVar%HORCON
+                    
+                    Dgrid = (DUX(i, j) + DVY(i, j) + DWZ(i, j, k)) / 3.
+
+                    ViscTurb = (Cs * Dgrid)**2 * sqrt(2. * SUM(MATMUL(S, S)))
+                    
+                    Me%Viscosity%HorizontalCenter(i, j, k) = max(Me%TurbVar%MINHorizontalViscosity, &
+                                                                 ViscTurb + Me%Viscosity%Background)
+
+                enddo do1
+            end if cd1          
+
+        end do do3
+        end do do2
+        
+do4 :   do j = JLB, JUB
+do5 :   do i = ILB, IUB
+
+cd2 :       if (Me%ExternalVar%WaterPoints3D(i, j, KUB)   == WaterPoint)         then
+
+                kbottom = KFloorZ(i, j)
+                
+                Me%Viscosity%Vertical(i, j, :) = 0.
+            
+do6 :           do k = kbottom, KUB-1                         
+                
+                    Me%Viscosity%Vertical(i, j, k+1) = (Me%Viscosity%HorizontalCenter(i, j, k  ) * DWZ(i, j, k+1) + &
+                                                        Me%Viscosity%HorizontalCenter(i, j, k+1) * DWZ(i, j, k  ))/ &
+                                                       (DWZ(i, j, k) + DWZ(i, j, k+1))
+                enddo do6
+            end if cd2          
+
+        end do do5
+        end do do4
+        
+
+
+        nullify(DWZ             )
+        nullify(DUX             )
+        nullify(DVY             )
+        
+        nullify(KFloorZ         )
+        nullify(VelocityX       )
+        nullify(VelocityY       )
+        nullify(VelocityZ       )
+        nullify(ComputeFacesU3D )
+        nullify(ComputeFacesV3D )
+        nullify(ComputeFacesW3D )
+ 
+    end subroutine Smagorinsky3DModel
+
+    !--------------------------------------------------------------------------
+
+
 
 
     !-------------------------------------------------------------------------- 
