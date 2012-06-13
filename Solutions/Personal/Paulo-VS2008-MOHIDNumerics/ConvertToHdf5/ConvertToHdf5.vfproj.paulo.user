@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <VisualStudioUserFile ProjectCreator="Intel Fortran" Keyword="Console Application" Version="11.0" ProjectIdGuid="{4D8FB248-4615-441A-AF9E-0C7FA58C4F6B}">
 	<Configurations>
-		<Configuration Name="Debug|Win32" WorkingDirectory="E:\Aplica\Proj_344_Argomarine\Simula\AquaSafeServerTesting\test4"/>
-		<Configuration Name="Release|Win32" WorkingDirectory="E:\Aplica\Proj_344_Argomarine\Simula\AquaSafeServerTesting\test4"/>
+		<Configuration Name="Debug|Win32" WorkingDirectory="Z:\Proj_344_Argomarine\Simula\AquaSafeServerTesting\test7"/>
+		<Configuration Name="Release|Win32" WorkingDirectory="X:\Proj_351_EASYCO\softwaredevelopment\DownloadManager\FromNetCDFTohdf5\Testing17"/>
 		<Configuration Name="Release Double|Win32"/>
 		<Configuration Name="Debug OpenMP|Win32"/>
 		<Configuration Name="Debug Double PhreeqC|Win32"/>
