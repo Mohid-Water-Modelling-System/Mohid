@@ -137,6 +137,8 @@ Module ModuleHDF5Extractor
     ! Definition of type T_Field
     type       T_Field
         character(len=StringLength)                 :: Name
+        real, dimension(:      ),   pointer         :: Values1D
+        integer, dimension(:   ),   pointer         :: IntValues1D !For integer valued
         real, dimension(:,:  ),     pointer         :: Values2D
         integer, dimension(:,: ),   pointer         :: IntValues2D !For integer valued
         real, dimension(:,:,:),     pointer         :: Values3D
@@ -155,6 +157,7 @@ Module ModuleHDF5Extractor
         integer                                     :: Rank
         character(len=StringLength)                 :: Units
         integer, dimension(7)                       :: Dimensions
+        logical                                     :: TimeDependent
         integer(HID_T)                              :: NumType     = 0
         type(T_Field),              pointer         :: FirstField
         type(T_Item),               pointer               :: Next  => null()
@@ -970,6 +973,53 @@ cd2 :           if (BlockFound) then
             endif
 
             select case (ObjItem%Rank)
+                case (1)
+
+                    call HDF5SetLimits (ObjEnterData, Me%WorkSize%ILB,          &   
+                                        Me%WorkSize%IUB, STAT = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_)                                & 
+                    stop 'OpenOutputFile - ModuleHDF5Extractor - ERR20'
+
+                    if (ObjItem%NumType == Me%HDFNativeReal) then
+
+                        call HDF5WriteData (ObjEnterData, ObjItem%Group,        & 
+                                            ObjItem%Name, ObjItem%Units,        &
+                                            Array1D =  ObjItem%FirstField%Values1D, &
+                                            STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_)                              &
+                        stop 'OpenOutputFile - ModuleHDF5Extractor - ERR30'            
+
+                        if (Me%Interval%Interval_ON .and.                       &
+                            (Me%Interval%CountIntervalHDF5 ==                   &
+                            Me%Interval%NumberIntervalHDF5)) then
+
+                            deallocate(ObjItem%FirstField%Values2D)
+                            nullify   (ObjItem%FirstField%Values2D)
+
+                        endif
+
+                    else if (ObjItem%NumType == Me%HDFNativeInteger) then
+
+                        call HDF5WriteData (ObjEnterData, ObjItem%Group,        & 
+                                            ObjItem%Name, ObjItem%Units,        &
+                                            Array1D =  ObjItem%FirstField%IntValues1D,  &
+                                            STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_)                              &
+                        stop 'OpenOutputFile - ModuleHDF5Extractor - ERR40'            
+
+                        if (Me%Interval%Interval_ON .and.                       &
+                            (Me%Interval%CountIntervalHDF5 ==                   &
+                            Me%Interval%NumberIntervalHDF5)) then
+
+                            deallocate(ObjItem%FirstField%IntValues1D)
+                            nullify   (ObjItem%FirstField%IntValues1D)
+
+                        endif
+
+                    endif
+
+            
+            
                 case (2)
 
                     call HDF5SetLimits (ObjEnterData, Me%WorkSize%ILB,          &   
@@ -1142,6 +1192,48 @@ cd2 :           if (BlockFound) then
         !Begin-----------------------------------------------------------------
 
         select case (ObjItem%Rank)
+            case (1)
+                !Get 1D values!
+
+                !calculate Size1D
+                Me%WorkSize%ILB = 1
+                Me%WorkSize%IUB = ObjItem%Dimensions(1)
+
+                call HDF5SetLimits (Me%ObjHDF5File, Me%WorkSize%ILB,            &
+                                    Me%WorkSize%IUB, STAT = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_)                                    & 
+                stop 'ReadItemField - ModuleHDF5Extractor - ERR10'
+
+                if (ObjItem%NumType == Me%HDFNativeReal) then
+                    !allocate field
+                    nullify (ObjField%Values1D)
+                    allocate(ObjField%Values1D(Me%WorkSize%ILB:Me%WorkSize%IUB))
+
+                    !read field
+                    call HDF5ReadData(Me%ObjHDF5File, ObjItem%Group,            &
+                                      trim(ObjField%Name),                      &
+                                      Array1D      = ObjField%Values1D,         &
+                                      STAT = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_)                                &
+                    stop 'ReadItemField - ModuleHDF5Extractor - ERR20'
+                
+                elseif (ObjItem%NumType == Me%HDFNativeInteger) then
+
+                    !allocate field
+                    nullify (ObjField%IntValues1D)
+                    allocate(ObjField%IntValues1D(Me%WorkSize%ILB:Me%WorkSize%IUB))
+
+                    !read field
+                    call HDF5ReadData(Me%ObjHDF5File, ObjItem%Group,            &
+                                      trim(ObjField%Name),                      &
+                                      Array1D      = ObjField%IntValues1D,      &
+                                      STAT = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_)                                &
+                    stop 'ReadItemField - ModuleHDF5Extractor - ERR30'
+ 
+                endif
+
+
             case (2)
                 !Get 2D values!
 
@@ -1155,7 +1247,7 @@ cd2 :           if (BlockFound) then
                                     Me%WorkSize%IUB, Me%WorkSize%JLB,           &
                                     Me%WorkSize%JUB, STAT = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)                                    & 
-                stop 'ReadItemField - ModuleHDF5Extractor - ERR10'
+                stop 'ReadItemField - ModuleHDF5Extractor - ERR40'
 
                 if (ObjItem%NumType == Me%HDFNativeReal) then
                     !allocate field
@@ -1169,7 +1261,7 @@ cd2 :           if (BlockFound) then
                                       Array2D      = ObjField%Values2D,         &
                                       STAT = STAT_CALL)
                     if (STAT_CALL .NE. SUCCESS_)                                &
-                    stop 'ReadItemField - ModuleHDF5Extractor - ERR20'
+                    stop 'ReadItemField - ModuleHDF5Extractor - ERR50'
                 
                 elseif (ObjItem%NumType == Me%HDFNativeInteger) then
 
@@ -1184,7 +1276,7 @@ cd2 :           if (BlockFound) then
                                       Array2D      = ObjField%IntValues2D,      &
                                       STAT = STAT_CALL)
                     if (STAT_CALL .NE. SUCCESS_)                                &
-                    stop 'ReadItemField - ModuleHDF5Extractor - ERR30'
+                    stop 'ReadItemField - ModuleHDF5Extractor - ERR60'
  
                 endif
 
@@ -1204,7 +1296,7 @@ cd2 :           if (BlockFound) then
                                      Me%WorkSize%JUB, Me%WorkSize%KLB,          &
                                      Me%WorkSize%KUB, STAT = STAT_CALL)                
                 if (STAT_CALL .NE. SUCCESS_)                                    & 
-                stop 'ReadItemField - ModuleHDF5Extractor - ERR40'
+                stop 'ReadItemField - ModuleHDF5Extractor - ERR70'
 
                 if (ObjItem%NumType == Me%HDFNativeReal) then
            
@@ -1220,7 +1312,7 @@ cd2 :           if (BlockFound) then
                                       Array3D      = ObjField%Values3D,         &
                                       STAT = STAT_CALL)
                     if (STAT_CALL .NE. SUCCESS_)                                &
-                    stop 'ReadItemField - ModuleHDF5Extractor - ERR50'
+                    stop 'ReadItemField - ModuleHDF5Extractor - ERR80'
 
                 elseif (ObjItem%NumType == Me%HDFNativeInteger) then
 
@@ -1236,7 +1328,7 @@ cd2 :           if (BlockFound) then
                                       Array3D      = ObjField%IntValues3D,      &
                                       STAT = STAT_CALL)
                     if (STAT_CALL .NE. SUCCESS_)                                &
-                    stop 'ReadItemField - ModuleHDF5Extractor - ERR60'
+                    stop 'ReadItemField - ModuleHDF5Extractor - ERR90'
 
                 endif
 
@@ -1292,8 +1384,6 @@ cd2 :           if (BlockFound) then
                 write(*,*)
                 write(*,*) 'Residual group is present in file but not extracted.'
 
-                return
-
             elseif (Me%CurrentGroup == "Statistics") then
                 ! All itens are time independent but meaningless for extracting purposes
                 !(statistic values are assessed for the original file period)
@@ -1301,9 +1391,15 @@ cd2 :           if (BlockFound) then
                 write(*,*)
                 write(*,*) 'Statistics group is present in file but not extracted.'
 
-                return
+                
+            elseif (Me%CurrentGroup == "Generic4D") then
+                ! All itens are time independent but meaningless for extracting purposes
+                !(Generic4D values are assessed for the original file period)
 
-            elseif (Me%CurrentGroup == "Grid") then
+                write(*,*)
+                write(*,*) 'Generic4D group is present in file but not extracted.'
+
+            elseif (Me%CurrentGroup == "Grid" .or. Me%CurrentGroup == "Nodes" .or. Me%CurrentGroup == "Reaches"  .or. Me%CurrentGroup == "ID") then
 
                 if (obj_type == H5G_DATASET_F) then
 
@@ -1318,6 +1414,8 @@ cd2 :           if (BlockFound) then
                         TimeIndependent = .true.
 
                         NewItem%Name = obj_name
+                        
+                        NewItem%TimeDependent = .false.
 
                     else                           
 
@@ -1326,6 +1424,8 @@ cd2 :           if (BlockFound) then
                         call AddItem(Me%FirstDependentItem, NewItem)
 
                         NewItem%Name = Me%LastSubGroup
+                        
+                        NewItem%TimeDependent = .true.
 
                     endif
 
@@ -1421,7 +1521,7 @@ cd2 :           if (BlockFound) then
 
                 !endif
 
-                return
+                !return
 
             endif
             
@@ -1476,7 +1576,10 @@ cd2 :           if (BlockFound) then
                 write(*,*)
                 write(*,*)'Parameter to extract not time dependent: '           &
                           //trim(ObjParameter%Name)
-                stop 'InquireParameters - ModuleHDF5Extractor - ERR20' 
+                ObjParameter%TimeDependent = .false. 
+                !stop 'InquireParameters - ModuleHDF5Extractor - ERR20' 
+            else
+                ObjParameter%TimeDependent = .true.                 
                 
             endif
 
@@ -1615,11 +1718,15 @@ cd2 :           if (BlockFound) then
 
         !(select the item)
         do while(associated(ObjItem))
+        
+            if (ObjItem%TimeDependent) then
 
-            call WriteItemFields(ObjItem)
+                call WriteItemFields(ObjItem)
 
-            call KillItemFields(ObjItem)
-
+                call KillItemFields(ObjItem)
+            
+            endif
+            
             ObjItem => ObjItem%Next
 
         end do
@@ -1629,16 +1736,19 @@ cd2 :           if (BlockFound) then
 
         !(select the item)
         do while(associated(ObjParameter))
+        
+            if (ObjParameter%TimeDependent) then
 
-            ! Converts V3 in V4 Names and Groups
-            if(Me%ConvertV3toV4) then
-                ObjParameter%Name  = ObjParameter%NameV4
-                ObjParameter%Group = ObjParameter%GroupV4
-            end if
+                ! Converts V3 in V4 Names and Groups
+                if(Me%ConvertV3toV4) then
+                    ObjParameter%Name  = ObjParameter%NameV4
+                    ObjParameter%Group = ObjParameter%GroupV4
+                end if
 
-            call WriteItemFields(ObjParameter)
-
-            call KillItemFields(ObjParameter)
+                call WriteItemFields(ObjParameter)
+                call KillItemFields(ObjParameter)
+                
+            endif                
 
             ObjParameter => ObjParameter%Next
 
@@ -1788,28 +1898,31 @@ cd2 :           if (BlockFound) then
         type (T_Field), pointer                     :: NewField
 
         !Begin-----------------------------------------------------------------
+        
+        if (ObjItem%TimeDependent) then
 
-        !Read item fields
-        if (CurrentInstant == Me%HDF5StartInstant) then
-        
-            !(just to inform the user of which items are being actually read)    
-            write(*,*)'Reading '//trim(ObjItem%Name)//' fields'
-        
+            !Read item fields
+            if (CurrentInstant == Me%HDF5StartInstant) then
+            
+                !(just to inform the user of which items are being actually read)    
+                write(*,*)'Reading '//trim(ObjItem%Name)//' fields'
+            
+            endif
+
+            !construct new fields
+            call AddField(ObjItem%FirstField, NewField)
+
+            !get field name
+            call GetHDF5GroupID(Me%ObjHDF5File, ObjItem%Group,                      &
+                                CurrentInstant, NewField%Name,                      &
+                                STAT = STAT_CALL)                                
+            if (STAT_CALL .NE. SUCCESS_)                                            &  
+            stop 'ReadTimeDependentFields - ModuleHDF5Extractor - ERR10'
+
+            !get field values
+            call ReadItemField(ObjItem, NewField)
+
         endif
-
-        !construct new fields
-        call AddField(ObjItem%FirstField, NewField)
-
-        !get field name
-        call GetHDF5GroupID(Me%ObjHDF5File, ObjItem%Group,                      &
-                            CurrentInstant, NewField%Name,                      &
-                            STAT = STAT_CALL)                                
-        if (STAT_CALL .NE. SUCCESS_)                                            &  
-        stop 'ReadTimeDependentFields - ModuleHDF5Extractor - ERR10'
-
-        !get field values
-        call ReadItemField(ObjItem, NewField)
-
     end subroutine ReadTimeDependentFields
 
     !--------------------------------------------------------------------------
@@ -1948,6 +2061,103 @@ cd2 :           if (BlockFound) then
         endif
         
         select case (ObjItem%Rank)
+            case (1)
+
+                call HDF5SetLimits (ObjEnterData, Me%WorkSize%ILB,              &
+                                    Me%WorkSize%IUB, STAT = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_)                                    & 
+                stop 'WriteItemFields - ModuleHDF5Extractor - ERR10'
+
+                write(*,*)'Writing '//trim(ObjItem%Name)//' fields'
+
+                CurrentField => ObjItem%FirstField
+
+                OutputNumber = 1
+
+                InstantNumber = 1
+
+                !(select the field)
+do1:            do while(associated(CurrentField))
+
+                    !(write field according to number type)
+                    if (ObjItem%NumType == Me%HDFNativeReal) then
+
+                        call HDF5WriteData(ObjEnterData, ObjItem%Group,         & 
+                                           ObjItem%Name,                        & 
+                                           ObjItem%Units,                       &
+                                           Array1D = CurrentField%Values1D,     &
+                                           OutputNumber = OutputNumber,         &
+                                           STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_)                              &
+                            stop 'OutputField - ModuleHDF5Extractor - ERR20'            
+
+                    else if (ObjItem%NumType == Me%HDFNativeInteger) then
+
+                        call HDF5WriteData(ObjEnterData, ObjItem%Group,         & 
+                                           ObjItem%Name,                        &
+                                           ObjItem%Units,                       &
+                                           Array1D = CurrentField%IntValues1D,  &
+                                           OutputNumber = OutputNumber,         &
+                                           STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_)                              &
+                            stop 'WriteItemFields - ModuleHDF5Extractor - ERR30'            
+
+                    endif
+
+                    if (Me%Interval%Interval_ON) then
+
+                        if (InstantNumber < Me%InstantsNumber) then
+
+                            NextTime = Me%InstantsArray(InstantNumber + 1)
+
+                            if (NextTime > StartIntervalTime + Me%Interval%DT) then
+
+                                !Writes everything to disk
+                                call HDF5FlushMemory (ObjEnterData, STAT = STAT_CALL)                         
+                                if (STAT_CALL /= SUCCESS_)                      &
+                                    stop 'WriteItemFields - ModuleHDF5Extractor - ERR40'
+
+                                !A new HDF5 file must be writen 
+                                ObjOutputFile => ObjOutputFile%Next
+
+                                ObjEnterData = ObjOutputFile%ObjEnterData
+                        
+                                StartIntervalTime = StartIntervalTime + Me%Interval%DT
+
+                                OutputNumber = 1
+
+                                call HDF5SetLimits (ObjEnterData, Me%WorkSize%ILB, &
+                                    Me%WorkSize%IUB, STAT = STAT_CALL)
+                                if (STAT_CALL .NE. SUCCESS_)                    & 
+                                    stop 'WriteItemFields - ModuleHDF5Extractor - ERR50'
+
+                            else
+                    
+                                CurrentField => CurrentField%Next
+
+                                OutputNumber = OutputNumber + 1
+
+                                InstantNumber = InstantNumber + 1
+
+                            endif
+
+                        else 
+
+                            exit do1
+
+                        endif
+                    
+                    else
+
+                        CurrentField => CurrentField%Next
+
+                        OutputNumber = OutputNumber + 1
+
+                    endif
+
+
+                end do do1
+
 
             case (2)
 
@@ -2058,6 +2268,14 @@ do2:            do while(associated(CurrentField))
                     Me%WorkSize%KLB = Me%SpatialWindow%KLB 
                     Me%WorkSize%KUB = Me%SpatialWindow%KUB 
 
+                    if (trim(ObjItem%Name)=="VerticalZ") then
+                        Me%WorkSize%KUB = Me%WorkSize%KUB + 1
+                    endif                    
+
+                endif
+
+                if (trim(ObjItem%Name)=="VerticalZ") then
+                    ObjItem%Name = "Vertical"
                 endif
 
                 call HDF5SetLimits (ObjEnterData, Me%WorkSize%ILB,              &
@@ -2069,9 +2287,7 @@ do2:            do while(associated(CurrentField))
 
                 write(*,*)'Writing '//trim(ObjItem%Name)//' fields'
                 
-                if (trim(ObjItem%Name)=="VerticalZ") then
-                    ObjItem%Name = "Vertical"
-                endif
+
 
                 CurrentField => ObjItem%FirstField
 
