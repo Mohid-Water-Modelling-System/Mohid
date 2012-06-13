@@ -1412,7 +1412,7 @@ Module ModuleGlobalData
     integer, parameter :: Father3DSon2D      = 3
 
     !Methodologies use to compute sedimentation velocity of fine sediments
-    integer, parameter :: WSConstant = 1, SPMFunction = 2
+    integer, parameter :: WSConstant = 1, SPMFunction = 2, WSSecondaryClarifier = 3
 
     !Advection 1D parameters
     integer, parameter :: UpwindOrder1 = 1, UpwindOrder2 = 2, UpwindOrder3 = 3, P2_TVD = 4, CentralDif = 5, LeapFrog = 6
@@ -2947,7 +2947,6 @@ cd3 :   if (ErrorMagnitude == FATAL_) then
         character(len=*), optional      :: PropertyName
         
         !Local-----------------------------------------------------------------
-        character(len=132)              :: Aux
         
 
         if (MonitorDT) then
@@ -2981,8 +2980,7 @@ cd3 :   if (ErrorMagnitude == FATAL_) then
         character(len=*), optional      :: Message
         
         !Local-----------------------------------------------------------------
-        character(len=132)              :: Aux
-        
+       
         if (MonitorDT) then
             if (present(Message)) then
                 write (UnitDT, '(A25, I10,F12.4,A132)') ModuleName, iter, DT, Message
