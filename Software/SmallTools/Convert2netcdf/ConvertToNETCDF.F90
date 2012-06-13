@@ -628,7 +628,7 @@ program Convert2netcdf
 
         !Local-----------------------------------------------------------------
         integer(HID_T)                              :: gr_id, dset_id, class_id
-        integer(8)                                  :: ssize
+        integer                                     :: ssize
         integer(HID_T)                              :: space_id, datatype_id
         integer(HID_T)                              :: rank
         integer(HSIZE_T), dimension(7)              :: dims, maxdims
@@ -1312,8 +1312,12 @@ program Convert2netcdf
 
         !Local-----------------------------------------------------------------
         integer                                             :: i, j, k
+        real                                                :: Add_Factor
+        real                                                :: Multiply_Factor
 
         !Begin-----------------------------------------------------------------
+        Add_Factor      = 0.
+        Multiply_Factor = 1.
 
         select case(trim(adjustl(Name)))
 
@@ -1345,7 +1349,7 @@ program Convert2netcdf
 
             case("temperature")
                 NCDFName        = "temperature"
-                LongName        = "temperature"
+                LongName        = "sea water temperature"
                 StandardName    = "sea_water_temperature"
                 Units           = "degC"
                 ValidMin        = 0.
@@ -1354,15 +1358,15 @@ program Convert2netcdf
 
             case("salinity")
                 NCDFName        = "salinity"
-                LongName        = "salinity"
+                LongName        = "sea water salinity"
                 StandardName    = "sea_water_salinity"
-                Units           = "1e-3"
+                Units           = "PSU"
                 ValidMin        = 0.
                 ValidMax        = 40.
                 MissingValue    = FillValueReal
 
             case("density")
-                NCDFName        = "sea_water_density"
+                NCDFName        = "density"
                 LongName        = "sea water density"
                 StandardName    = "sea_water_density"
                 Units           = "kg m-3"
@@ -1371,9 +1375,9 @@ program Convert2netcdf
                 MissingValue    = FillValueReal
 
             case("oxygen")
-                NCDFName        = "dissolved_oxygen"
-                LongName        = "dissolved oxygen"
-                StandardName    = "oxygen"
+                NCDFName        = "oxygen"
+                LongName        = "mass concentration of oxygen in sea water"
+                StandardName    = "mass_concentration_of_oxygen_in_sea_water"
                 Units           = "mg l-1"
                 ValidMin        = 0.
                 ValidMax        = 30.
@@ -1389,8 +1393,8 @@ program Convert2netcdf
                 MissingValue    = FillValueReal
 
             case("velocity_U")
-                NCDFName        = "u"
-                LongName        = "east-west current velocity"
+                NCDFName        = "velocity_U"
+                LongName        = "eastward sea water velocity"
                 StandardName    = "eastward_sea_water_velocity"
                 Units           = "m s-1"
                 ValidMin        = -5.
@@ -1398,8 +1402,8 @@ program Convert2netcdf
                 MissingValue    = FillValueReal
 
             case("velocity_V")
-                NCDFName        = "v"
-                LongName        = "north-south current velocity"
+                NCDFName        = "velocity_V"
+                LongName        = "northward sea water velocity"
                 StandardName    = "northward_sea_water_velocity"
                 Units           = "m s-1"
                 ValidMin        = -5.
@@ -1407,8 +1411,8 @@ program Convert2netcdf
                 MissingValue    = FillValueReal
 
             case("velocity_W")
-                NCDFName        = "w"
-                LongName        = "vertical current velocity"
+                NCDFName        = "velocity_W"
+                LongName        = "upward sea water velocity"
                 StandardName    = "upward_sea_water_velocity"
                 Units           = "m s-1"
                 ValidMin        = -2.
@@ -1416,7 +1420,7 @@ program Convert2netcdf
                 MissingValue    = FillValueReal
 
             case("velocity_modulus")
-                NCDFName        = "vm"
+                NCDFName        = "velocity_modulus"
                 LongName        = "sea water speed"
                 StandardName    = "sea_water_speed"
                 Units           = "m s-1"
@@ -1425,27 +1429,35 @@ program Convert2netcdf
                 MissingValue    = FillValueReal
 
             case("water_level")
-                NCDFName        = "ssh"
-                LongName        = "sea water level"
+                NCDFName        = "water_level"
+                LongName        = "sea surface height"
                 StandardName    = "sea_surface_height"
                 Units           = "m"
                 ValidMin        = -20.
                 ValidMax        = 20.
                 MissingValue    = FillValueReal
 
+            case("wind_modulus")
+                NCDFName        = "wind_modulus"
+                LongName        = "wind speed"
+                StandardName    = "wind_speed"
+                Units           = "m s-1"
+                ValidMin        = -100.
+                ValidMax        = 100.
+                MissingValue    = FillValueReal
             case("wind_velocity_X")
-                NCDFName        = "x_wind"
-                LongName        = "east-west wind velocity"
-                StandardName    = "east-west_wind_velocity"
+                NCDFName        = "wind_velocity_X"
+                LongName        = "x wind"
+                StandardName    = "x_wind"
                 Units           = "m s-1"
                 ValidMin        = -100.
                 ValidMax        = 100.
                 MissingValue    = FillValueReal
 
             case("wind_velocity_Y")
-                NCDFName        = "y_wind"
-                LongName        = "north-south wind velocity"
-                StandardName    = "north-south_wind_velocity"
+                NCDFName        = "wind_velocity_Y"
+                LongName        = "y wind"
+                StandardName    = "y_wind"
                 Units           = "m s-1"
                 ValidMin        = -100.
                 ValidMax        = 100.
@@ -1461,12 +1473,30 @@ program Convert2netcdf
                 MissingValue    = FillValueReal
 
             case("atmospheric_pressure")
-                NCDFName        = "air_pressure"
+                NCDFName        = "atmospheric_pressure"
                 LongName        = "atmospheric pressure"
                 StandardName    = "atmospheric_pressure"
                 Units           = "Pa"
-                ValidMin        = -90.
-                ValidMax        = 60.
+                ValidMin        = 85000.
+                ValidMax        = 110000.
+                MissingValue    = FillValueReal
+
+            case("mean_sea_level_pressure")
+                NCDFName        = "mean_sea_level_pressure"
+                LongName        = "air pressure at sea level"
+                StandardName    = "air_pressure_at_sea_level"
+                Units           = "Pa"
+                ValidMin        = 85000.
+                ValidMax        = 110000.
+                MissingValue    = FillValueReal
+
+            case("relative_humidity")
+                NCDFName        = "relative_humidity"
+                LongName        = "relative humidity"
+                StandardName    = "relative_humidity"
+                Units           = "1"
+                ValidMin        = 0.
+                ValidMax        = 1.
                 MissingValue    = FillValueReal
 
             case("short_wave_solar_radiation_extinction")
@@ -1478,10 +1508,19 @@ program Convert2netcdf
                 ValidMax        = 100.
                 MissingValue    = FillValueReal
 
-            case("short_wave_solar_radiation")
-                NCDFName        = "short_wave_solar_radiation"
-                LongName        = "short wave solar radiation"
-                StandardName    = "omnidirectional_photosynthetic_spherical_irradiance_in_sea_water"
+            case("solar_radiation")
+                NCDFName        = "solar_radiation"
+                LongName        = "downwelling shortwave flux in air"
+                StandardName    = "downwelling_shortwave_flux_in_air"
+                Units           = "W m-2"
+                ValidMin        = 0.
+                ValidMax        = 1400.
+                MissingValue    = FillValueReal
+
+            case("downward_long_wave_radiation")
+                NCDFName        = "downward_long_wave_radiation"
+                LongName        = "downwelling longwave flux in air"
+                StandardName    = "downwelling_longwave_flux_in_air"
                 Units           = "W m-2"
                 ValidMin        = 0.
                 ValidMax        = 1400.
@@ -1489,38 +1528,107 @@ program Convert2netcdf
 
             case("phytoplankton")
                 NCDFName        = "phytoplankton"
-                LongName        = "phytoplankton"
-                StandardName    = "phytoplankton"
-                Units           = "mg l-1"
-                ValidMin        = 0.
-                ValidMax        = 10.
+                LongName        = "mole concentration of phytoplankton expressed as carbon in sea water"
+                StandardName    = "mole_concentration_of_phytoplankton_expressed_as_carbon_in_sea_water"
+                Units           = "mol m-3"
+                Multiply_Factor = 1000./12.0107
+                ValidMin        = 0. * Multiply_Factor
+                ValidMax        = 10. * Multiply_Factor
                 MissingValue    = FillValueReal
 
             case("zooplankton")
                 NCDFName        = "zooplankton"
-                LongName        = "zooplankton"
-                StandardName    = "zooplankton"
-                Units           = "mg l-1"
-                ValidMin        = 0.
-                ValidMax        = 10.
+                LongName        = "mole concentration of zooplankton expressed as carbon in sea water"
+                StandardName    = "mole_concentration_of_zooplankton_expressed_as_carbon_in_sea_water"
+                Multiply_Factor = 1000./12.0107
+                ValidMin        = 0. * Multiply_Factor
+                ValidMax        = 10. * Multiply_Factor
                 MissingValue    = FillValueReal
 
             case("nitrate")
                 NCDFName        = "nitrate"
-                LongName        = "nitrate"
-                StandardName    = "nitrate"
+                LongName        = "mole concentration of nitrate in sea water"
+                StandardName    = "mole_concentration_of_nitrate_in_sea_water"
+                Units           = "mol m-3"
+                Multiply_Factor = 1000./14.0067
+                ValidMin        = 0. * Multiply_Factor
+                ValidMax        = 10. * Multiply_Factor
+                MissingValue    = FillValueReal
+
+            case("ammonia")
+                NCDFName        = "ammonia"
+                LongName        = "mole concentration of ammonium in sea water"
+                StandardName    = "mole_concentration_of_ammonium_in_sea_water"
+                Units           = "mol m-3"
+                Multiply_Factor = 1000./14.0067
+                ValidMin        = 0. * Multiply_Factor
+                ValidMax        = 10. * Multiply_Factor
+                MissingValue    = FillValueReal
+
+            case("cohesive_sediment")
+                NCDFName        = "cohesive_sediment"
+                LongName        = "mass concentration of suspended matter in sea water"
+                StandardName    = "mass_concentration_of_suspended_matter_in_sea_water"
                 Units           = "mg l-1"
                 ValidMin        = 0.
                 ValidMax        = 10.
                 MissingValue    = FillValueReal
 
-            case("ammonia")
-                NCDFName        = "ammonia"
-                LongName        = "ammonia"
-                StandardName    = "ammonia"
-                Units           = "mg l-1"
-                ValidMin        = 0.
-                ValidMax        = 10.
+            case("inorganic_phosphorus")
+                NCDFName        = "inorganic_phosphorus"
+                LongName        = "mole concentration of phosphate in sea water"
+                StandardName    = "mole_concentration_of_phosphate_in_sea_water"
+                Units           = "mol m-3"
+                Multiply_Factor = 1000./30.974
+                ValidMin        = 0. * Multiply_Factor
+                ValidMax        = 10. * Multiply_Factor
+                MissingValue    = FillValueReal
+
+            case("particulate_organic_nitrogen")
+                NCDFName        = "particulate_organic_nitrogen"
+                LongName        = "mole concentration of particulate organic matter expressed as nitrogen in sea water"
+                StandardName    = "mole_concentration_of_particulate_organic_matter_expressed_as_nitrogen_in_sea_water"
+                Units           = "mol m-3"
+                Multiply_Factor = 1000./14.0067
+                ValidMin        = 0. * Multiply_Factor
+                ValidMax        = 10. * Multiply_Factor
+                MissingValue    = FillValueReal
+
+            case("particulate_organic_phosphorus")
+                NCDFName        = "particulate_organic_phosphorus"
+                LongName        = "mole concentration of particulate organic matter expressed as phosphorus in sea water"
+                StandardName    = "mole_concentration_of_particulate_organic_matter_expressed_as_phosphorus_in_sea_water"
+                Units           = "mol m-3"
+                Multiply_Factor = 1000./30.974
+                ValidMin        = 0. * Multiply_Factor
+                ValidMax        = 10. * Multiply_Factor
+                MissingValue    = FillValueReal
+
+            case("mean_wave_direction")
+                NCDFName        = "mean_wave_direction"
+                LongName        = "sea surface wave to direction"
+                StandardName    = "sea_surface_wave_to_direction"
+                Units           = "degree"
+                ValidMin        = 0. 
+                ValidMax        = 360.
+                MissingValue    = FillValueReal
+
+            case("significant_wave_height")
+                NCDFName        = "significant_wave_height"
+                LongName        = "sea surface wave significant height"
+                StandardName    = "sea_surface_wave_significant_height"
+                Units           = "m"
+                ValidMin        = 0. 
+                ValidMax        = 30.
+                MissingValue    = FillValueReal
+
+            case("mean_wave_period")
+                NCDFName        = "mean_wave_period"
+                LongName        = "sea surface wave zero upcrossing period"
+                StandardName    = "sea_surface_wave_zero_upcrossing_period"
+                Units           = "s"
+                ValidMin        = 0. 
+                ValidMax        = 30.
                 MissingValue    = FillValueReal
 
             case default
@@ -1547,6 +1655,7 @@ if1:   if(present(Int2D) .or. present(Int3D))then
 
             do j = 1, Me%HDFFile%Size%JUB
             do i = 1, Me%HDFFile%Size%IUB
+                Float2D(i,j) = Float2D(i, j) * Multiply_Factor + Add_Factor
 
                 if(Float2D(i,j) .gt. FillValueReal/2. .and. Float2D(i,j) .lt.  Min .and. &
                                                             Float2D(i,j) .ge. ValidMin)then
@@ -1569,6 +1678,7 @@ if1:   if(present(Int2D) .or. present(Int3D))then
             do j = 1, Me%HDFFile%Size%JUB
             do i = 1, Me%HDFFile%Size%IUB
             do k = 1, Me%HDFFile%Size%KUB
+                Float3D(i,j,k) = Float3D(i, j, k) * Multiply_Factor + Add_Factor
 
                 if(Float3D(i,j,k) .gt. FillValueReal/2. .and. Float3D(i,j,k) .lt.  Min .and. &
                                                               Float3D(i,j,k) .ge. ValidMin)then
