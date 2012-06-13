@@ -793,6 +793,7 @@ Module ModuleHydrodynamic
         real,    dimension (:, :, :), pointer :: ObstacleDrag_Aceleration
         real,    dimension (:, :, :), pointer :: Altim_Relax_Aceleration
         real,    dimension (:,:),     pointer :: TidePotentialLevel
+        real,    dimension (:, :, :), pointer :: Scraper_Aceleration
     end type T_Forces
 
     private :: T_HorAdvection
@@ -1125,6 +1126,8 @@ Module ModuleHydrodynamic
         logical :: WaveStress 
 
         logical :: Obstacle
+        
+        logical :: Scraper
 
         type (T_Time) :: RAMP_BeginTime
 
@@ -1143,6 +1146,8 @@ Module ModuleHydrodynamic
         real    :: FlatherColdPeriod, FlatherColdSeaLevel
         !PCL
         logical :: XZFlow = .false.
+        
+        logical :: ExternalBarotropicVel2D = .true. 
 
     end type T_HydroOptions
 
@@ -5669,6 +5674,43 @@ cd21:   if (Baroclinic) then
 
         if (STAT_CALL /= SUCCESS_)                                                      &
             call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1130')    
+
+        call GetData(Me%ComputeOptions%ExternalBarotropicVel2D,                & 
+                     Me%ObjEnterData, iflag,                                   &
+                     Keyword    = 'EXTERNAL_BAROTROPIC_2D',                    &
+                     Default    = .true.,                                      &
+                     SearchType = FromFile,                                    &
+                     ClientModule ='ModuleHydrodynamic',                       &
+                     STAT       = STAT_CALL)            
+
+        if (STAT_CALL /= SUCCESS_)                                                      &
+            call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1140')    
+
+
+        !<BeginKeyword>
+            !Keyword          : SCRAPER
+            !<BeginDescription>       
+               ! 
+               !Checks if the user want to take in consideration the effect of a scraper
+               ! 
+            !<EndDescription>
+            !Type             : logical
+            !Default          : 0 (No OBSTACLE)
+            !File keyword     : IN_DAD3D 
+            !Multiple Options : 0 (No OBSTACLE, 1(SCRAPER parameterization)
+            !Search Type      : From File
+        !<EndKeyword>
+
+        call GetData(Me%ComputeOptions%Scraper,                                         & 
+                     Me%ObjEnterData, iflag,                                            & 
+                     Keyword    = 'SCRAPER',                                            &
+                     Default    = .false.,                                              &
+                     SearchType = FromFile,                                             &
+                     ClientModule ='ModuleHydrodynamic',                                &
+                     STAT       = STAT_CALL)            
+
+        if (STAT_CALL /= SUCCESS_)                                                      &
+            call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1150')
 
 
     End Subroutine Construct_Numerical_Options
@@ -24012,9 +24054,11 @@ cd24:   if (Me%Relaxation%RefBoundWaterLevel) then
         !Local---------------------------------------------------------------------
         real(8), dimension (:,:,:), pointer :: WaterFlux_XY, WaterFlux_YX,               &
                                                LocalFlux3D_XY, LocalFlux3D_YX
+        real,    dimension (:,:,:), pointer :: LocalVel3D_X , LocalVel3D_Y
         real,    dimension (:,:  ), pointer :: LocalVel2D_XY, LocalVel2D_YX,             &
                                                LocalVel2D_X , LocalVel2D_Y
         real,    dimension (:,:  ), pointer :: WaterColumnUV, DUX_VY, DYY_XX, DXX_YY 
+        
         integer, dimension (:,:,:), pointer :: ComputeFaces3D_UV, ComputeFaces3D_VU
         integer, dimension (:,:  ), pointer :: BoundaryFacesUV, kfloor_UV, kfloor_VU
         integer                             :: di, dj
@@ -24129,11 +24173,11 @@ cd24:   if (Me%Relaxation%RefBoundWaterLevel) then
 
 
         !Gets Bathymetry
-        call GetGridData(Me%ObjGridData,                                &
+        call GetGridData(Me%ObjGridData,                                                &
                            Bathymetry, STAT = status)
         
-        if (status /= SUCCESS_)                                                          &
-            call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherLocalSolution - Hydrodynamic - ERR00")
+        if (status /= SUCCESS_)                                                         &
+            call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherLocalSolution - Hydrodynamic - ERR010")
 
 
 cd0:    if (Me%ComputeOptions%LocalSolution == Gauge_             .or.                  &
@@ -24147,7 +24191,7 @@ cd0:    if (Me%ComputeOptions%LocalSolution == Gauge_             .or.          
                                      Me%ComputeOptions%AtmosphereCoef,                  &
                                      STAT        = status)
             if (status /= SUCCESS_)                                                     &
-                call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherLocalSolution - Hydrodynamic - ERR01")
+                call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherLocalSolution - Hydrodynamic - ERR020")
 
 
             call GetImposedElevation(Me%ObjOpenBoundary,                                &
@@ -24155,7 +24199,7 @@ cd0:    if (Me%ComputeOptions%LocalSolution == Gauge_             .or.          
 
 
             if (status /= SUCCESS_)                                                     &
-                call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherLocalSolution - Hydrodynamic - ERR02")
+                call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherLocalSolution - Hydrodynamic - ERR030")
 
 
 
@@ -24163,7 +24207,7 @@ cd0:    if (Me%ComputeOptions%LocalSolution == Gauge_             .or.          
                                                            DirectionY = DirY, STAT= status)
 
             if (status /= SUCCESS_)                                                     &
-                call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherLocalSolution - Hydrodynamic - ERR03a")
+                call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherLocalSolution - Hydrodynamic - ERR040")
 
 
             if      (Me%Direction%XY == DirectionX_) then
@@ -24179,22 +24223,6 @@ cd0:    if (Me%ComputeOptions%LocalSolution == Gauge_             .or.          
 
             endif
 
-
-            !call GetImposedVelocity   (Me%ObjOpenBoundary, LocalFlux_XY,   &
-            !                           DirBound, STAT= status)
-
-            !if (status /= SUCCESS_)                                                          &
-            !    call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherLocalSolution - Hydrodynamic - ERR03b")
-
-
-            !call GetImposedVelocity   (Me%ObjOpenBoundary, LocalFlux_YX,   &
-            !                           DirBound, STAT= status)
-
-            !if (status /= SUCCESS_)                                                          &
-            !    call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherLocalSolution - Hydrodynamic - ERR03b")
-
-
-
             LocalGauge = .true.
 
         endif cd0 
@@ -24204,32 +24232,88 @@ cd0:    if (Me%ComputeOptions%LocalSolution == Gauge_             .or.          
         AuxFlatherCold = 0.
 
 
-ifa:    if (Me%ComputeOptions%LocalSolution == AssimilationField_ .or.      & 
-            Me%ComputeOptions%LocalSolution == AssimilaPlusSubModel_ .or.   &
+ifa:    if (Me%ComputeOptions%LocalSolution == AssimilationField_ .or.                  & 
+            Me%ComputeOptions%LocalSolution == AssimilaPlusSubModel_ .or.               &
             Me%ComputeOptions%LocalSolution == AssimilaGaugeSubModel_) then 
 
             !call GetAssimilationList(WaterLevel = PropertyID)
-            call GetAssimilationField(Me%ObjAssimilation,                   &
-                                      ID              = WaterLevel_,                     &
-                                      Field2D         = AssimilaWaterLevel,              &
+            call GetAssimilationField(Me%ObjAssimilation,                               &
+                                      ID              = WaterLevel_,                    &
+                                      Field2D         = AssimilaWaterLevel,             &
                                       STAT            = status)
 
-            if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherLocalSolution - Hydrodynamic - ERR04")
+            if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherLocalSolution - Hydrodynamic - ERR050")
+            
+            if (Me%ComputeOptions%ExternalBarotropicVel2D) then            
 
-            call GetAssimilationField(Me%ObjAssimilation,                   &
-                                      ID              = BarotropicVelocityU_,            &
-                                      Field2D         = LocalVel2D_X,                    &
-                                      STAT            = status)
+                    call GetAssimilationField(Me%ObjAssimilation,                       &
+                                              ID              = BarotropicVelocityU_,   &
+                                              Field2D         = LocalVel2D_X,           &
+                                              STAT            = status)
 
-            if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherLocalSolution - Hydrodynamic - ERR04a")
+                    if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_,           &
+                        "WaterLevel_FlatherLocalSolution - Hydrodynamic - ERR060")
 
 
-            call GetAssimilationField(Me%ObjAssimilation,                   &
-                                      ID              = BarotropicVelocityV_,            &
-                                      Field2D         = LocalVel2D_Y,                    &
-                                      STAT            = status)
+                    call GetAssimilationField(Me%ObjAssimilation,                       &
+                                              ID              = BarotropicVelocityV_,   &
+                                              Field2D         = LocalVel2D_Y,           &
+                                              STAT            = status)
 
-            if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherLocalSolution - Hydrodynamic - ERR04b")
+                    if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_,           &
+                        "WaterLevel_FlatherLocalSolution - Hydrodynamic - ERR070")
+
+            else
+
+                    call GetAssimilationField(Me%ObjAssimilation,                       &
+                                              ID              = VelocityU_,             &
+                                              Field3D         = LocalVel3D_X,           &
+                                              STAT            = status)
+
+                    if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_,           &
+                        "WaterLevel_FlatherLocalSolution - Hydrodynamic - ERR080")
+
+
+                    call GetAssimilationField(Me%ObjAssimilation,                       &
+                                              ID              = VelocityV_,             &
+                                              Field3D         = LocalVel3D_Y,           &
+                                              STAT            = status)
+
+                    if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_,           &
+                        "WaterLevel_FlatherLocalSolution - Hydrodynamic - ERR090")
+                    
+                    nullify (LocalVel2D_X, LocalVel2D_Y)
+                    allocate(LocalVel2D_X(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+                    allocate(LocalVel2D_Y(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+
+                    LocalVel2D_X(:,:) = 0.
+                    LocalVel2D_Y(:,:) = 0.
+
+                    do  j = JLB, JUB
+                    do  i = ILB, IUB                    
+i34:                    if (Me%External_Var%ComputeFaces3D_U(i, j, KUB) == Covered) then                     
+                            kbottom = Me%External_Var%kfloor_U(i, j) 
+                            do  k = kbottom, KUB
+                                LocalVel2D_X(i, j) = LocalVel2D_X(i, j) + LocalVel3D_X(i, j, k) * &
+                                                     Me%External_Var%DUZ(i, j, k) / Me%External_Var%WaterColumnU(i, j)
+                            enddo 
+                        endif i34
+                    enddo
+                    enddo
+                    
+                    do  j = JLB, JUB
+                    do  i = ILB, IUB                    
+i35:                    if (Me%External_Var%ComputeFaces3D_V(i, j, KUB) == Covered) then                     
+                            kbottom = Me%External_Var%kfloor_V(i, j) 
+                            do  k = kbottom, KUB
+                                LocalVel2D_Y(i, j) = LocalVel2D_Y(i, j) + LocalVel3D_Y(i, j, k) * &
+                                                     Me%External_Var%DVZ(i, j, k) / Me%External_Var%WaterColumnV(i, j)
+                            enddo 
+                        endif i35
+                    enddo
+                    enddo                    
+
+            endif
 
             DT_RunPeriod = Me%CurrentTime - Me%BeginTime
 
@@ -24413,7 +24497,7 @@ cd2:            if (ComputeFaces3D_UV(i1, j1, KUB) == Covered) then
                     
                     Aux2 = dble(DYY_XX(i1, j1)) 
                     
-                    if (LocalSolution .and. LocalAssimila)                                  &
+                    if (LocalSolution .and. LocalAssimila)                              &
                         LocalFlux_WestSouth = Aux1 * Aux2 * dble(SlowCoef * LocalVel2D_XY(i1, j1))
 
                     kbottom = kfloor_UV(i1, j1) 
@@ -24422,7 +24506,7 @@ cd2:            if (ComputeFaces3D_UV(i1, j1, KUB) == Covered) then
                     
                         Flux_WestSouth = Flux_WestSouth + WaterFlux_XY(i1, j1, k)
 
-                        if (LocalSolution .and. LocalSubModel)                             &
+                        if (LocalSolution .and. LocalSubModel)                          &
                             LocalFlux_WestSouth = LocalFlux_WestSouth + LocalFlux3D_XY(i1, j1, k) * Aux2
 
                     enddo
@@ -24439,7 +24523,7 @@ cd3:            if (ComputeFaces3D_UV(i2, j2, KUB) == Covered) then
 
                     Aux2 = dble(DYY_XX(i2, j2))
 
-                    if (LocalSolution .and. LocalAssimila)                                  &
+                    if (LocalSolution .and. LocalAssimila)                              &
                         LocalFlux_EastNorth = Aux1 * Aux2 * dble(SlowCoef * LocalVel2D_XY(i2, j2))
 
                     kbottom = kfloor_UV(i2, j2) 
@@ -24448,7 +24532,7 @@ cd3:            if (ComputeFaces3D_UV(i2, j2, KUB) == Covered) then
                     
                         Flux_EastNorth = Flux_EastNorth + WaterFlux_XY(i2, j2, k)
 
-                        if (LocalSolution .and. LocalSubModel)                             &
+                        if (LocalSolution .and. LocalSubModel)                          &
                             LocalFlux_EastNorth = LocalFlux_EastNorth + LocalFlux3D_XY(i2, j2, k) * Aux2
 
                     enddo
@@ -24464,7 +24548,7 @@ cd4:            if (ComputeFaces3D_VU(i3, j3, KUB) == Covered) then
 
                     Aux2  = dble(DXX_YY(i3, j3))
 
-                    if (LocalSolution .and. LocalAssimila)                                  &
+                    if (LocalSolution .and. LocalAssimila)                              &
                         LocalFlux_SouthWest = Aux1 * Aux2 * dble(SlowCoef * LocalVel2D_YX(i3, j3))
 
                     kbottom = kfloor_VU(i3, j3) 
@@ -24473,7 +24557,7 @@ cd4:            if (ComputeFaces3D_VU(i3, j3, KUB) == Covered) then
                         
                         Flux_SouthWest = Flux_SouthWest + WaterFlux_YX(i3, j3, k) 
 
-                        if (LocalSolution .and. LocalSubModel)                             &
+                        if (LocalSolution .and. LocalSubModel)                          &
                             LocalFlux_SouthWest = LocalFlux_SouthWest + LocalFlux3D_YX(i3, j3, k) * Aux2
 
                     enddo
@@ -24490,7 +24574,7 @@ cd5:            if (ComputeFaces3D_VU(i4, j4, KUB) == Covered) then
 
                     Aux2 = dble(DXX_YY(i4, j4))
 
-                    if (LocalSolution .and. LocalAssimila)                                  &
+                    if (LocalSolution .and. LocalAssimila)                              &
                         LocalFlux_NorthEast = Aux1 * Aux2 * dble(SlowCoef * LocalVel2D_YX(i4, j4))
 
                     kbottom = kfloor_VU(i4, j4) 
@@ -24499,7 +24583,7 @@ cd5:            if (ComputeFaces3D_VU(i4, j4, KUB) == Covered) then
                     
                         Flux_NorthEast = Flux_NorthEast + WaterFlux_YX(i4, j4, k)
 
-                        if (LocalSolution .and. LocalSubModel)                             &
+                        if (LocalSolution .and. LocalSubModel)                          &
                             LocalFlux_NorthEast = LocalFlux_NorthEast + LocalFlux3D_YX(i4, j4, k) * Aux2
 
                     enddo
@@ -24662,7 +24746,7 @@ cd15:           if (LocalSolution) then
         call UnGetGridData(Me%ObjGridData, Bathymetry, STAT = status)
         
         if (status /= SUCCESS_)                                                         &
-            call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherLocalSolution - Hydrodynamic - ERR08")
+            call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherLocalSolution - Hydrodynamic - ERR100")
 
         
 
@@ -24672,17 +24756,8 @@ cd24:   if (Me%ComputeOptions%LocalSolution == Gauge_             .or.          
 
             call UnGetOpenBoundary(Me%ObjOpenBoundary, GaugeWaterLevel, STAT = status)
             if (status /= SUCCESS_) &
-                call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherLocalSolution - Hydrodynamic - ERR09")
+                call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherLocalSolution - Hydrodynamic - ERR110")
 
-
-            !call UnGetOpenBoundary(Me%ObjOpenBoundary, LocalFlux3D_XY, STAT = status)
-            !if (status /= SUCCESS_)                                                          &
-            !    call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherLocalSolution - Hydrodynamic - ERR10")
-
-
-            !call UnGetOpenBoundary(Me%ObjOpenBoundary, LocalFlux_YX, STAT = status)
-            !if (status /= SUCCESS_)                                                          &
-            !    call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherLocalSolution - Hydrodynamic - ERR11")
 
         endif cd24
 
@@ -24696,25 +24771,47 @@ cd25:   if (Me%ComputeOptions%LocalSolution == AssimilationField_    .or.       
             call UnGetAssimilation(Me%ObjAssimilation,                                  &
                                     AssimilaWaterLevel, STAT = status)
 
-            if (status /= SUCCESS_)                                                      &
-                call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherLocalSolution - Hydrodynamic - ERR12")
+            if (status /= SUCCESS_)                                                     &
+                call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherLocalSolution - Hydrodynamic - ERR120")
+
+            if (Me%ComputeOptions%ExternalBarotropicVel2D) then  
+
+                call UnGetAssimilation(Me%ObjAssimilation,                                  &
+                                        LocalVel2D_X, STAT = status)
+
+                if (status /= SUCCESS_)                                                     &
+                    call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherLocalSolution - Hydrodynamic - ERR130")
 
 
-            call UnGetAssimilation(Me%ObjAssimilation,                      &
-                                    LocalVel2D_X, STAT = status)
 
-            if (status /= SUCCESS_)                                                      &
-                call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherLocalSolution - Hydrodynamic - ERR13")
+                call UnGetAssimilation(Me%ObjAssimilation,                                  &
+                                        LocalVel2D_Y, STAT = status)
+
+                if (status /= SUCCESS_)                                                     &
+                    call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherLocalSolution - Hydrodynamic - ERR140")
+            else
+            
+            
+                if (associated(LocalVel2D_X )) deallocate(LocalVel2D_X)
+                if (associated(LocalVel2D_Y )) deallocate(LocalVel2D_Y)            
+
+                call UnGetAssimilation(Me%ObjAssimilation,                                  &
+                                        LocalVel3D_X, STAT = status)
+                if (status /= SUCCESS_)                                                     &
+                    call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherLocalSolution - Hydrodynamic - ERR150")
 
 
 
-            call UnGetAssimilation(Me%ObjAssimilation,                      &
-                                    LocalVel2D_Y, STAT = status)
+                call UnGetAssimilation(Me%ObjAssimilation,                                  &
+                                        LocalVel3D_Y, STAT = status)
+                if (status /= SUCCESS_)                                                     &
+                    call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherLocalSolution - Hydrodynamic - ERR160")
 
-            if (status /= SUCCESS_)                                                      &
-                call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherLocalSolution - Hydrodynamic - ERR14")
+                
+            endif
         
         endif cd25
+            
 
         !Nullify auxiliar variables
             
@@ -27230,6 +27327,10 @@ cd3:                   if (Manning) then
         !Obstacle drag
         if (Me%ComputeOptions%Obstacle)                                         &
             call Modify_ObstacleDrag
+            
+        !Effect of a scraper in a settling tank
+        if (Me%ComputeOptions%Scraper)                                         &
+            call Modify_ScraperEffect           
 
         !Adds a force that relax the velocity field to a reference field
         if (Me%Relaxation%Force)                                                &
@@ -30785,8 +30886,116 @@ dk:             do k = kmin,kmax
     
     !End ----------------------------------------------------------------------
 
+    subroutine Modify_ScraperEffect
+        
+        !Local---------------------------------------------------------------------
+        integer                             :: IUB, ILB, JUB, JLB, KUB, KLB, kbottom
+        integer                             :: di, dj, i, j, k
+        integer                             :: JL, JXB
+        real                                :: T, Period, VelScraperX, aux, VelScraper
+        !$ integer                          :: CHUNK
 
-  
+        !Begin---------------------------------------------------------------------
+
+        if (MonitorPerformance) then
+            call StartWatch ("ModuleHydrodynamic", "Modify_ObstacleDrag")
+        endif
+
+        IUB = Me%WorkSize%IUB
+        ILB = Me%WorkSize%ILB
+        JUB = Me%WorkSize%JUB
+        JLB = Me%WorkSize%JLB
+        KUB = Me%WorkSize%KUB
+        KLB = Me%WorkSize%KLB
+
+        di  = Me%Direction%di
+        dj  = Me%Direction%dj
+
+        
+        if(.not.(associated(Me%Forces%Scraper_Aceleration))) then
+
+                allocate(Me%Forces%Scraper_Aceleration(Me%Size%ILB:Me%Size%IUB,         &
+                                              Me%Size%JLB:Me%Size%JUB,                  &
+                                              Me%Size%KLB:Me%Size%KUB))
+                
+        endif     
+        
+        Me%Forces%Scraper_Aceleration(:,:,:) = 0.                             
+        
+        if (dj == 1) then                   
+        
+            JL           = 132
+            T           = Me%CurrentTime - Me%BeginTime
+            Period      = 1080 
+            VelScraperX = real(JL) * 0.15 / Period
+            aux         = sin(T/Period*Pi)                        
+            
+            JXB         = int((T/Period - int(T/Period)) * JL)
+
+        !$ CHUNK = CHUNK_J(JLB, JUB)
+
+        !griflet: new simple parallelization
+        !$OMP PARALLEL PRIVATE(i,j,k,kbottom,iSouth,jWest,I_North,J_East, &
+        !$OMP                  VelMod_UV, FaceDragCoef)
+        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+do1:    do j = JLB, JUB
+do2:    do i = ILB, IUB
+
+
+            if (Me%External_Var%ComputeFaces3D_UV(I, J, KUB) == Covered) then 
+
+
+                kbottom = Me%External_Var%KFloor_UV(I, J)
+                
+do3:            do k = kbottom, KUB
+
+                    VelScraper = FillValueReal
+
+                    if (J==JXB + 3) then
+                    
+                        if (K>=24 .and. K<= 25) then
+                            if (aux > 0) then
+                                VelScraper  = VelScraperX
+                            endif
+                        endif  
+                        
+                    endif
+                    
+                    if (J==JL-JXB+3) then                         
+                        
+                        if (K>=28 .and. K<= 29) then
+                            if (aux <= 0) then
+                                VelScraper  = - VelScraperX
+                            endif
+                        endif                  
+
+                    endif        
+                    
+                    if (VelScraper > FillValueReal) then
+
+                        ![m/s2]              =    [m/s] / [s]
+                        Me%Forces%Scraper_Aceleration(i, j, k) =                        &
+                            (VelScraper - Me%Velocity%Horizontal%UV%New(I,J,K)) / Me%Velocity%DT
+
+                    endif
+                    
+                enddo do3
+
+            endif
+
+        enddo do2
+        enddo do1
+        !$OMP END DO NOWAIT
+        !$OMP END PARALLEL
+        
+        endif
+
+        if (MonitorPerformance) then
+            call StopWatch ("ModuleHydrodynamic", "Modify_ObstacleDrag")
+        endif
+
+    end subroutine Modify_ScraperEffect  
+ 
 
     subroutine Modify_ObstacleDrag
         
@@ -33188,8 +33397,6 @@ cd13:           if (ComputeFaces3D_UV(i, j, KUB)== Covered) then
                     F_UV = (DUX_VY(ileft, jleft) * Coriolis_Freq(I, J) + DUX_VY(I, J) * Coriolis_Freq(ileft, jleft)) / &
                            (DUX_VY(ileft, jleft) + DUX_VY(I, J))
 
-!                    InertialPeriods = Me%ComputeOptions%InertialPeriods
-
                     TimeCoef = abs (DT_RunPeriod * F_UV / (2 * Pi) / InertialPeriods)
 
 cd14:               if (TimeCoef < 1) then
@@ -35127,9 +35334,14 @@ dok:            do  k = kbottom, KUB
                     endif 
 
                     ![m/s]           = [m/s]            +     [s]     *     [m/s^2] 
-                    if (Me%ComputeOptions%Obstacle)                                &
-                        TiCoef_3D(i, j, k) = TiCoef_3D(i, j, k) + DT_Velocity *          &
+                    if (Me%ComputeOptions%Obstacle)                                     &
+                        TiCoef_3D(i, j, k) = TiCoef_3D(i, j, k) + DT_Velocity *         &
                                                                   Me%Forces%ObstacleDrag_Aceleration(i, j, k)  
+
+                    if (Me%ComputeOptions%Scraper)                                      &
+                        TiCoef_3D(i, j, k) = TiCoef_3D(i, j, k) + DT_Velocity *         &
+                                                                  Me%Forces%Scraper_Aceleration(i, j, k)  
+
 
                     !Aceleration due to barotropic water Pressure 
 
@@ -37101,18 +37313,23 @@ ic1:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
                 !Coriolis and centrifugal force in the bottom layer
                 ![m^3/s]     = [m^3/s]      + [m^2]   * [s]         * [m/s^2]
 
-                AuxExplicit  = AuxExplicit  + FC_Area * DT_Velocity *                    &
+                AuxExplicit  = AuxExplicit  + FC_Area * DT_Velocity *                   &
                                               Inertial_Aceleration(I, J, kbottom)
                                              
                 if (Me%Relaxation%Force)                                    &
                     ![m^3/s]     = [m^3/s]      + [m^2]   * [s]         * [m/s^2]
-                    AuxExplicit  = AuxExplicit  + FC_Area * DT_Velocity *                &
+                    AuxExplicit  = AuxExplicit  + FC_Area * DT_Velocity *               &
                                                   Relax_Aceleration(I, J, kbottom)
 
-                if(Me%ComputeOptions%Obstacle)                                           &
+                if(Me%ComputeOptions%Obstacle)                                          &
                     ![m^3/s]     = [m^3/s]      + [m^2]   * [s]         * [m/s^2]
-                    AuxExplicit  = AuxExplicit  + FC_Area * DT_Velocity *                &
+                    AuxExplicit  = AuxExplicit  + FC_Area * DT_Velocity *               &
                                                   Me%Forces%ObstacleDrag_Aceleration(I, J, kbottom)
+                                              
+                if (Me%ComputeOptions%Scraper)                                          &
+                    AuxExplicit  = AuxExplicit  + FC_Area * DT_Velocity *               &
+                                                  Me%Forces%Scraper_Aceleration(i, j, kbottom)  
+                                                  
 
                 !baroclinic pressure in the bottom layer
                 ![m^3/s]     = [m^3/s]      + [m^2] * [s] * [M/m^3] * [m/s^2] / [M/m^3]  
@@ -37577,6 +37794,11 @@ dok:            do  k = kbottom, KUB
                         ![m^3/s]     = [m^3/s]      +     [s]     * [m^2]  * [m/s^2]
                         AuxExplicit  = AuxExplicit  + DT_Velocity * Area_UV(I, J, K)   *     &
                                                       Me%Forces%ObstacleDrag_Aceleration(I, J, K) 
+
+                    if(Me%ComputeOptions%Scraper)                                       &
+                        ![m^3/s]     = [m^3/s]      +     [s]     * [m^2]  * [m/s^2]
+                        AuxExplicit  = AuxExplicit  + DT_Velocity * Area_UV(I, J, K)   *     &
+                                                      Me%Forces%Scraper_Aceleration(I, J, K) 
 
                     !Baroclinic pressure
 
@@ -42535,6 +42757,14 @@ ic1:    if (Me%CyclicBoundary%ON) then
 
 
         end if
+        
+        if(Me%ComputeOptions%Scraper)then
+            
+            deallocate (Me%Forces%Scraper_Aceleration, STAT = STAT_CALL) 
+            if (STAT_CALL /= SUCCESS_) stop 'DeallocateVariables; ModuleHydrodynamic. ERR110.' 
+
+
+        end if        
 
         if (Me%OutPut%TimeSerieON .or. Me%OutPut%hdf5ON .or. Me%OutPut%ProfileON) &
             call KillMatrixesOutput
