@@ -241,6 +241,10 @@ Module ModuleAdvectionDiffusion
         logical                            :: DischON     
         logical, pointer, dimension(:)     :: IgnoreDisch
 
+        !No flux condition
+        logical                            :: NoFlux
+        integer, dimension(:,:,:), pointer :: NoFluxU, NoFluxV, NoFluxW
+
 
     end type T_External
 
@@ -1051,6 +1055,10 @@ cd1 :   if (ready_ == IDLE_ERR_) then
                                   NumericStability,                             &   
                                   PROPOld,                                      &
                                   SmallDepths,                                  &
+                                  NoFlux,                                       &
+                                  NoFluxU,                                      &
+                                  NoFluxV,                                      &
+                                  NoFluxW,                                      &
                                   STAT)
 
         !Arguments-------------------------------------------------------------
@@ -1097,6 +1105,10 @@ cd1 :   if (ready_ == IDLE_ERR_) then
                                                                             ! boundary conditions 
 
         logical, dimension(:, : ), pointer, optional :: SmallDepths
+        
+        logical, optional, intent(IN )     :: NoFlux
+
+        integer, dimension(:,:,:), pointer, optional :: NoFluxU, NoFluxV, NoFluxW
 
         !External--------------------------------------------------------------
 
@@ -1223,6 +1235,14 @@ cd10 :      if (present(BoundaryCondition)) then
             end if cd10
 
 
+cd110:      if (present(NoFlux)) then
+                Me%ExternalVar%NoFlux  =  NoFlux
+                Me%ExternalVar%NoFluxU => NoFluxU
+                Me%ExternalVar%NoFluxV => NoFluxV
+                Me%ExternalVar%NoFluxW => NoFluxW
+            else
+                Me%ExternalVar%NoFlux  = .false.
+            end if cd110
 
 cd7 :       if (ImpExp_DifH  /= 0.0) then    !0 = Explicit
                 write(*,*) 'Horizontal Diffusion must be explicit.'
@@ -1942,6 +1962,11 @@ do8:            do k=kbottom, KUB
         nullify(Me%ExternalVar%ComputeFacesV3D   )
         nullify(Me%ExternalVar%ComputeFacesW3D   )
 
+        nullify(Me%ExternalVar%NoFluxU           )
+        nullify(Me%ExternalVar%NoFluxV           )
+        nullify(Me%ExternalVar%NoFluxW           )
+
+
         if (associated(Me%ExternalVar%ReferenceProp)) nullify(Me%ExternalVar%ReferenceProp)
         if (associated(Me%ExternalVar%PROPOld))       nullify(Me%ExternalVar%PROPOld)
             
@@ -2170,7 +2195,14 @@ cd1 :       if (Me%ExternalVar%ComputeFacesW3D(i, j, k) == 1) then
                         +  Me%ExternalVar%Visc_H(i,j-1,k)            &
                         *  Me%ExternalVar%DUX(i,j  ))                &
                         / (Me%ExternalVar%DUX(i,j    )               &
-                        +  Me%ExternalVar%DUX(i,j-1))           
+                        +  Me%ExternalVar%DUX(i,j-1))     
+                        
+                if (Me%ExternalVar%NoFlux) then
+                    if (Me%ExternalVar%NoFluxU(i, j, k) == 1) then
+                        Me%Diffusion_CoeficientX(i, j, k) = 0.
+                    endif
+                endif
+                              
 
             endif
 
@@ -2195,6 +2227,12 @@ cd1 :       if (Me%ExternalVar%ComputeFacesW3D(i, j, k) == 1) then
                          *  Me%ExternalVar%DVY(i,  j))                &
                          / (Me%ExternalVar%DVY(i,j)                   &
                          +  Me%ExternalVar%DVY(i-1,j))
+
+                if (Me%ExternalVar%NoFlux) then
+                    if (Me%ExternalVar%NoFluxV(i, j, k) == 1) then
+                        Me%Diffusion_CoeficientY(i, j, k) = 0.
+                    endif
+                endif
 
             Endif
 
@@ -2317,12 +2355,18 @@ do1 :   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
             if (Me%ExternalVar%ComputeFacesW3D(i, j, k  ) == 1 .and.                    &
                 .not. SmallDepthCell (i, j))  then
-            
+                
                 ! [m^2/s * m * m / m]
                 AuxK  =  Me%Diffusion_CoeficientZ(i,j,k  )                              &
                        * Me%ExternalVar%DUX      (i,j    )                              &
                        * Me%ExternalVar%DVY      (i,j    )                              &
                        / Me%ExternalVar%DZZ      (i,j,k-1)
+
+                if (Me%ExternalVar%NoFlux) then
+                    if (Me%ExternalVar%NoFluxW(i, j, k) == 1) then
+                        AuxK = 0.
+                    endif
+                endif
 
                 ![m^3/s * s / m^3]
                 Aux1 = AuxK * dble(Me%ExternalVar%DTProp) / Me%ExternalVar%VolumeZ(i, j, k-1) 
@@ -2407,6 +2451,20 @@ i1:         do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                                                 Me%ExternalVar%TVDLimitationV,              &
                                                 Me%ExternalVar%VolumeRelMax,                &
                                                 Me%ExternalVar%Upwind2V)
+                                                
+
+                    if (Me%ExternalVar%NoFlux) then
+
+                        do k=Me%ExternalVar%KFloorZ(i, j), Me%WorkSize%KUB
+                            if (Me%ExternalVar%NoFluxW(i, j, k)==1) then
+                                Me%COEF3_VertAdv%C_flux     (i,j,k) = 0.
+                                Me%COEF3_VertAdv%D_flux     (i,j,k) = 0. 
+                                Me%COEF3_VertAdv%E_flux     (i,j,k) = 0.
+                                Me%COEF3_VertAdv%F_flux     (i,j,k) = 0.
+                            endif
+                        enddo
+                    endif 
+                                                                 
                 endif
 
             end do i1
@@ -2460,7 +2518,7 @@ doi4 :      do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
                     DT1 = Me%ExternalVar%DTProp / Me%ExternalVar%VolumeZ(i,j,k-1)
                     DT2 = Me%ExternalVar%DTProp / Me%ExternalVar%VolumeZ(i,j,k  )
-
+                    
                     Me%COEF3%D(i,j,k  ) = Me%COEF3%D(i,j,k  ) - Me%COEF3_VertAdv%D_flux(i,   j, k) * DT2
                     Me%COEF3%E(i,j,k  ) = Me%COEF3%E(i,j,k  ) - Me%COEF3_VertAdv%E_flux(i,   j, k) * DT2
 
@@ -2538,6 +2596,8 @@ i1:         do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                                                 Me%ExternalVar%TVDLimitationV,              &
                                                 Me%ExternalVar%VolumeRelMax,                &
                                                 Me%ExternalVar%Upwind2V)
+                    
+                                               
                 endif
 
             end do i1
@@ -3307,6 +3367,17 @@ i1:         do i = ILB, IUB
                                         Me%ExternalVar%VolumeRelMax,                    &
                                         Me%ExternalVar%Upwind2H)
 
+                    if (Me%ExternalVar%NoFlux) then
+                        do j = JLB, JUB
+                            if (Me%ExternalVar%NoFluxU(i, j, k)==1) then
+                                Me%COEF3_HorAdvXX%C_flux     (i,j,k) = 0.
+                                Me%COEF3_HorAdvXX%D_flux     (i,j,k) = 0. 
+                                Me%COEF3_HorAdvXX%E_flux     (i,j,k) = 0.
+                                Me%COEF3_HorAdvXX%F_flux     (i,j,k) = 0.
+                            endif
+                        enddo
+                    endif                                                
+                    
             end do i1
             !$OMP END DO
             end do k1
@@ -3622,6 +3693,19 @@ j1:         do j = JLB, JUB
                                         Me%ExternalVar%TVDLimitationH,                  &
                                         Me%ExternalVar%VolumeRelMax,                    &
                                         Me%ExternalVar%Upwind2H)
+
+
+
+                    if (Me%ExternalVar%NoFlux) then
+                        do i = ILB, IUB
+                            if (Me%ExternalVar%NoFluxV(i, j, k)==1) then
+                                Me%COEF3_HorAdvXX%C_flux     (i,j,k) = 0.
+                                Me%COEF3_HorAdvXX%D_flux     (i,j,k) = 0. 
+                                Me%COEF3_HorAdvXX%E_flux     (i,j,k) = 0.
+                                Me%COEF3_HorAdvXX%F_flux     (i,j,k) = 0.
+                            endif
+                        enddo
+                    endif                                                
 
             end do j1
             !$OMP END DO
