@@ -587,23 +587,23 @@ i0:     if      (NewPropField%SpaceDim == Dim2D)then
             !Sets limits for next write operations
             call HDF5SetLimits   (Me%ObjHDF5Out, WorkILB, WorkIUB, WorkJLB,                       &
                                   WorkJUB, WorkKLB, WorkKUB, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleField4D - ERR05'
+            if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleField4D - ERR70'
             
             call HDF5WriteData   (Me%ObjHDF5Out, "/Grid", "WaterPoints3D", "-",         &
                                   Array3D = Me%ExternalVar%WaterPoints3D,               &
                                   STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleField4D - ERR60'
+            if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleField4D - ERR80'
         
         endif i0
         
         !Writes everything to disk
         call HDF5FlushMemory (Me%ObjHDF5Out, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleField4D - ERR09'
+        if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleField4D - ERR90'
 
 
         !Ungets the Bathymetry
         call UngetGridData (Me%ObjBathymetry, Bathymetry, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleField4D - ERR10'
+        if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleField4D - ERR100'
 
         !----------------------------------------------------------------------
 
@@ -638,13 +638,13 @@ i0:     if      (NewPropField%SpaceDim == Dim2D)then
                                         ItemName = trim(Me%File%BathymName),            &
                                         Imax = Imax, Jmax = Jmax, STAT = STAT_CALL)
                                         
-            if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleField4D - ERR10'
+            if (STAT_CALL /= SUCCESS_) stop 'ReadGridFromFile - ModuleField4D - ERR10'
 #ifndef _NO_NETCDF                       
         else if (Me%File%Form == NetCDF_) then
         
             call NETCDFGetDimensions (NCDFID = Me%File%Obj, JUB = Jmax, IUB = Imax, STAT = STAT_CALL)
             
-            if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleField4D - ERR20'            
+            if (STAT_CALL /= SUCCESS_) stop 'ReadGridFromFile - ModuleField4D - ERR20'            
 #endif            
         endif
 
@@ -661,21 +661,21 @@ i0:     if      (NewPropField%SpaceDim == Dim2D)then
             call HDF5SetLimits  (HDF5ID = Me%File%Obj, ILB = 1, IUB = Imax+1,           &
                                                        JLB = 1, JUB = Jmax+1,           &
                                  STAT   = STAT_CALL)                                     
-            if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleField4D - ERR30'
+            if (STAT_CALL /= SUCCESS_) stop 'ReadGridFromFile - ModuleField4D - ERR30'
                                         
             call HDF5ReadData(HDF5ID        = Me%File%Obj,                              &
                               GroupName     = "/Grid",                                  &
                               Name          = trim(Me%File%LatStagName),                &
                               Array2D       = LatStag,                                  &
                               STAT          = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleField4D - ERR40'
+            if (STAT_CALL /= SUCCESS_) stop 'ReadGridFromFile - ModuleField4D - ERR40'
             
             call HDF5ReadData(HDF5ID        = Me%File%Obj,                              &
                               GroupName     = "/Grid",                                  &
                               Name          = trim(Me%File%LonStagName),                &
                               Array2D       = LonStag,                                  &
                               STAT          = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleField4D - ERR50'
+            if (STAT_CALL /= SUCCESS_) stop 'ReadGridFromFile - ModuleField4D - ERR50'
 #ifndef _NO_NETCDF            
         else if (Me%File%Form == NetCDF_) then
         
@@ -695,7 +695,7 @@ i0:     if      (NewPropField%SpaceDim == Dim2D)then
                                   Lat_Stag  = LatStagR8,                                &
                                   Lon_Stag  = LonStagR8,                                &
                                   STAT      = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleField4D - ERR60'
+            if (STAT_CALL /= SUCCESS_) stop 'ReadGridFromFile - ModuleField4D - ERR60'
             
             do j=0,Jmax+1
             do i=0,Imax+1            
@@ -749,7 +749,7 @@ i0:     if      (NewPropField%SpaceDim == Dim2D)then
                                         WindowWithData  = Me%WindowWithData)
             
                 if (.not. Me%WindowWithData) then
-                    stop 'Open_HDF5_OutPut_File - ModuleField4D - ERR70'
+                    stop 'ReadGridFromFile - ModuleField4D - ERR70'
                 endif
             
             endif
@@ -793,7 +793,7 @@ i0:     if      (NewPropField%SpaceDim == Dim2D)then
                                      JLB                = JLB,                          &
                                      JUB                = JUB,                          &
                                      STAT               = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleField4D - ERR80'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadGridFromFile - ModuleField4D - ERR80'
         
         deallocate(Lat    )
         deallocate(Lon    )
@@ -2898,6 +2898,7 @@ dnP:    do nP = 1,nPoints
         real                                            :: X_W, X_E, Xv, Y_S, Y_N, Yv, PercI, PercJ  
         integer                                         :: STAT_CALL, nPoints, nP
         integer                                         :: jW, jE, iS, iN, i, j
+        integer                                         :: iT, i1, i2, i3, i4
         logical                                         :: InsideDomain
 
         !Begin----------------------------------------------------------------
@@ -2971,12 +2972,31 @@ dnP:    do nP = 1,nPoints
                 ValueSE     = Me%Matrix2D(iS, jE)
                 ValueNW     = Me%Matrix2D(iN, jW)
                 ValueNE     = Me%Matrix2D(iN, jE)
-                                               
-                ValueN      = LinearInterpolation (X_W, ValueNW, X_E, ValueNE, Xv)
-                ValueS      = LinearInterpolation (X_W, ValueSW, X_E, ValueSE, Xv)
-                Bathym(nP)  = LinearInterpolation (Y_S, ValueS , Y_N, ValueN,  Yv)
                 
-                NoData(nP)  = .false. 
+                i1=0;i2=0;i3=0;i4=0;
+                
+                if (ValueSW > -50) i1 = 1
+                if (ValueSE > -50) i2 = 1 
+                if (ValueNE > -50) i3 = 1
+                if (ValueNW > -50) i4 = 1
+                
+                
+                iT = i1+i2+i3+i4
+
+                if (iT==4) then
+
+                    ValueN      = LinearInterpolation (X_W, ValueNW, X_E, ValueNE, Xv)
+                    ValueS      = LinearInterpolation (X_W, ValueSW, X_E, ValueSE, Xv)
+                    Bathym(nP)  = LinearInterpolation (Y_S, ValueS , Y_N, ValueN,  Yv)
+
+                    NoData(nP)  = .false. 
+               
+                else if (iT ==0) then
+                    NoData(nP)  = .true. 
+                else
+                    Bathym(nP)  = (ValueSW*real(i1) + ValueSE*real(i2) + ValueNE*real(i3) + ValueNW*real(i4))/real(iT)
+                    NoData(nP)  = .false. 
+                endif
         
             endif
                             
@@ -3114,27 +3134,28 @@ dnP:    do nP = 1,nPoints
                     ValueSE     = ValueAtDepthZ(iS, jE, Z(nP))
                     ValueNW     = ValueAtDepthZ(iN, jW, Z(nP))
                     ValueNE     = ValueAtDepthZ(iN, jE, Z(nP))
-
-                    ValueN      = LinearInterpolation (X_W, ValueNW, X_E, ValueNE, Xv)
-                    ValueS      = LinearInterpolation (X_W, ValueSW, X_E, ValueSE, Xv)
-                    
-                    Field(nP)   = LinearInterpolation (Y_S, ValueS, Y_N, ValueN, Yv)
-                    
-                
-                
                 else
                     ValueSW     = Me%Matrix3D(iS, jW, k)
                     ValueSE     = Me%Matrix3D(iS, jE, k)
                     ValueNW     = Me%Matrix3D(iN, jW, k)
                     ValueNE     = Me%Matrix3D(iN, jE, k)
-                                                   
-                    ValueN      = LinearInterpolation (X_W, ValueNW, X_E, ValueNE, Xv)
-                    ValueS      = LinearInterpolation (X_W, ValueSW, X_E, ValueSE, Xv)
-                    
-                    Field(nP)   = LinearInterpolation (Y_S,  ValueS, Y_N,  ValueN, Yv)
                 endif
+
+                if (ValueSW < FillValueReal/1e4) ValueSW = 0.
+                if (ValueSE < FillValueReal/1e4) ValueSE = 0.                
+                if (ValueNW < FillValueReal/1e4) ValueNW = 0.                
+                if (ValueNE < FillValueReal/1e4) ValueNE = 0.                
                 
-                NoData(nP) = .false. 
+                ValueN      = LinearInterpolation (X_W, ValueNW, X_E, ValueNE, Xv)
+                ValueS      = LinearInterpolation (X_W, ValueSW, X_E, ValueSE, Xv)
+                
+                Field(nP)   = LinearInterpolation (Y_S, ValueS, Y_N, ValueN, Yv)
+                
+                if (abs(Field(nP)) > 0.) then
+                    NoData(nP) = .false. 
+                else
+                    NoData(nP) = .true. 
+                endif
             endif
                             
         enddo dnP            
