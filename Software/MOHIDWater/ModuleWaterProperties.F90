@@ -32,6 +32,7 @@
 !   DENSITY_METHOD              : int               2           !Water density compute method
 !                                                               !1-Leendertse; ; 3-Linear
 !   PRESSURE_CORRECTION         : 0/1               0           !Check if density is computed with (1) or
+!   DENSITY_COHESIVE_SED        : real           [2600 kg/m3]   !Cohesive sediments density 
 !
 !   REFERENCE_SPECIFICHEAT      : real           [4200 J/kg/ºC] !Reference Water Specific Heat
 !   SPECIFICHEAT_METHOD         : int               3           !Specific Heat computation default method
@@ -56,7 +57,13 @@
 !                                                                500gdw/m2 average height =0.25 (Astill & Lavery, 2001)
 !                                                                gC= 0.3*gdw (Duarte, 1990)--> 
 !0.25m/[500gdw/m2*0.3gC/gdw] = 0.002 m/gC/m2
-
+!   NO_FLUX_INTERIOR_CONDITION  :                   [0]         ! Check if the user wants in the domain interior to assume no flux condition along 
+                                                                ! specific faces. 
+!   RELAXATION_TIME_SCALE_NO_FLUX_LIMIT :         1000 * DT     ! Below this time scela there is no flux along a cell face. For each face 
+                                                                ! relaxation time scale is the one define in the Assimilation Module for flow properties 
+                                                                ! VelocityU_ (zonal velocity), VelocityV_ (meridional velocity), VelocityW_ (vertical velocity)
+!   
+!
 !   <begin_shading>
 !   See module FillMatrix       : -                [m]          !Imposed shading factor
 !                                                               !
@@ -222,7 +229,8 @@ Module ModuleWaterProperties
                                           KillInterface
     use ModuleFreeVerticalMovement, only: Construct_FreeVerticalMovement, GetFreeVertMovOptions,&
                                           Kill_FreeVerticalMovement,Modify_FreeVerticalMovement,&
-                                          FreeVertPropertyExists, FreeVertPropertyHasDeposition
+                                          FreeVertPropertyExists, FreeVertPropertyHasDeposition,&
+                                          Get_FreeVelocity, UngetFreeVerticalMovement
     use ModuleHydroIntegration
 
 #ifdef _USE_MPI
@@ -744,6 +752,7 @@ Module ModuleWaterProperties
         logical                                 :: OutputHDF            = .false.
         logical                                 :: OutputSurfaceHDF     = .false.
         logical                                 :: OutputProfile        = .false.
+        logical                                 :: OutputHDFSedVel      = .false.  
         logical                                 :: BoxTimeSerie         = .false.
         logical                                 :: Statistics           = .false.
         character(len=Pathlength)               :: StatisticsFile
@@ -844,6 +853,7 @@ Module ModuleWaterProperties
         real, pointer, dimension(:,:,:)         :: Field
         real, pointer, dimension(:,:,:)         :: Sigma
         real                                    :: Reference    = FillValueReal
+        real                                    :: CohesiveSed  = FillValueReal
         logical                                 :: Variable     =.false.
         type(T_Time)                            :: LastActualization
 
@@ -923,6 +933,12 @@ Module ModuleWaterProperties
         real,    pointer, dimension(:,:  )      :: NonSolarRadiation
         real,    pointer, dimension(:,:  )      :: SurfaceRadiation
     end type T_ExtSurface
+    
+    type      T_NoFlux
+        integer, pointer, dimension(:,:,:)      :: U,V,W
+        logical                                 :: ON
+        real                                    :: RelaxTimeScaleLimit 
+    end type  T_NoFlux
 
     type      T_WaterProperties 
         integer                                 :: InstanceID
@@ -952,6 +968,7 @@ Module ModuleWaterProperties
         type(T_MacroAlgae)                      :: MacroAlgae
         type(T_Discharge)                       :: Discharge
         type(T_HybridWeights)                   :: HybridWeights
+        type(T_NoFlux       )                   :: NoFlux
         integer                                 :: PropertiesNumber         = 0
         integer                                 :: WQratesNumber            = 0
         integer                                 :: DoSatType
@@ -1166,6 +1183,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             call ConstructEnterData(Me%ObjEnterData, Me%Files%ConstructData, STAT = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_) &
                 stop 'Construct_WaterProperties - ModuleWaterProperties - ERR01'
+                
+            !Construct the variables necessary to impose 
+            !a no flux condition in the model interior            
+            call ConstructNoFluxInterior                
 
 #ifdef _USE_SEQASSIMILATION
             call ConstructBooleanSeqAssimilation
@@ -1182,7 +1203,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
             !Construct Specific Heat of water
             call ConstructSpecificHeat
-
+            
             call ConstructGlobalOutput
 
             !Initialize oxygen to saturation. 
@@ -1236,6 +1257,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 #ifdef OVERLAP
             call ConstructWaterOverlap
 #endif OVERLAP
+
 
             call KillEnterData(Me%ObjEnterData, STAT = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_) &
@@ -2450,7 +2472,8 @@ do1 :   do while (associated(PropertyX))
 
         end if
     
-        if (Me%Coupled%DataAssimilation%Yes .or. Me%Coupled%AltimetryAssimilation%Yes) then
+        if (Me%Coupled%DataAssimilation%Yes .or. Me%Coupled%AltimetryAssimilation%Yes .or. &
+            Me%NoFlux%ON) then
 
             if(AssimilationID == 0)then
 
@@ -5943,7 +5966,8 @@ cd1:    if (BoundaryCondition == Orlanski) then
                 stop 'Read_Advec_Difus_Parameters - ModuleWaterProperties - ERR72'
             
         endif
-            
+        
+
     end subroutine Read_Advec_Difus_Parameters
 
 
@@ -6877,6 +6901,30 @@ cd2:    if (NewProperty%Evolution%Partition%NonComplianceCriteria) then
 
         endif    
 
+        !<BeginKeyword>
+            !Keyword          : OUTPUT_HDF_SEDVEL
+            !<BeginDescription>       
+               ! 
+               ! Checks out if the user pretends to write a HDF format file for this property
+               ! at the surface layer
+               ! 
+            !<EndDescription>
+            !Type             : Boolean 
+            !Default          : .false.
+            !File keyword     : DISPQUAL
+            !Multiple Options : Do not have
+            !Search Type      : FromBlock
+            !Begin Block      : <beginproperty>
+            !End Block        : <endproperty>
+        !<EndKeyword>
+        call GetData(NewProperty%OutputHDFSedVel,                                       &
+                     Me%ObjEnterData, iflag,                                            &
+                     Keyword        = 'OUTPUT_HDF_SEDVEL',                              &
+                     Default        = .false.,                                          &
+                     SearchType     = FromBlock,                                        &
+                     ClientModule   = 'ModuleWaterProperties',                          &
+                     STAT           = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Construct_PropertyOutPut - ModuleWaterProperties - ERR01'
 
     end subroutine Construct_PropertyOutPut
 
@@ -7281,11 +7329,22 @@ cd2 :       if (BlockFound) then
                      STAT       = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)stop 'ConstructDensity - ModuleWaterProperties - ERR30'
 
-        allocate (Me%Density%Field(ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT_CALL)
+
+        call GetData(Me%Density%CohesiveSed,                                            &
+                     Me%ObjEnterData, iflag,                                            &
+                     SearchType = FromFile,                                             &
+                     keyword    = 'DENSITY_COHESIVE_SED',                               &
+                     Default    = 2600.,                                                &
+                     ClientModule = 'ModuleWaterProperties',                            &
+                     STAT       = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)stop 'ConstructDensity - ModuleWaterProperties - ERR40'
 
-        allocate (Me%Density%Sigma(ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT_CALL)
+
+        allocate (Me%Density%Field(ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)stop 'ConstructDensity - ModuleWaterProperties - ERR50'
+
+        allocate (Me%Density%Sigma(ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)stop 'ConstructDensity - ModuleWaterProperties - ERR60'
 
         do k = KLB, KUB
         do j = JLB, JUB
@@ -7332,12 +7391,12 @@ cd2 :       if (BlockFound) then
                                         TypeZUV              = TypeZ_,                           &
                                         STAT                 = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_)                                                          &
-                    stop 'ConstructDensity - ModuleWaterProperties - ERR60'
+                    stop 'ConstructDensity - ModuleWaterProperties - ERR70'
 
 
                 call KillFillMatrix(Me%Density%ID%ObjFillMatrix, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_)&
-                    stop 'ConstructDensity - ModuleWaterProperties - ERR70'
+                    stop 'ConstructDensity - ModuleWaterProperties - ERR80'
 
                 do k = KLB, KUB
                 do j = JLB, JUB
@@ -7354,10 +7413,10 @@ cd2 :       if (BlockFound) then
             call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL) 
 
             if (STAT_CALL .NE. SUCCESS_) then
-                stop 'ConstructDensity - ModuleWaterProperties - ERR80'        
+                stop 'ConstructDensity - ModuleWaterProperties - ERR90'        
             endif
         else
-            stop 'ConstructDensity - ModuleWaterProperties - ERR90'        
+            stop 'ConstructDensity - ModuleWaterProperties - ERR100'        
         endif cd1
 
 
@@ -7384,7 +7443,7 @@ temp:          if (STAT_CALL == SUCCESS_)then
                    
                     if (Me%Density%CorrecSed) then
                         call Search_Property(PropertyX, PropertyXID = Cohesive_Sediment_, STAT = STAT_CALL)
-                        if (STAT_CALL/= SUCCESS_) stop 'ConstructDensity - ModuleWaterProperties - ERR80.'
+                        if (STAT_CALL/= SUCCESS_) stop 'ConstructDensity - ModuleWaterProperties - ERR110.'
                         
                         if (PropertyX%Evolution%Variable) Me%Density%Variable = .TRUE.                        
                     endif
@@ -7395,7 +7454,7 @@ temp:          if (STAT_CALL == SUCCESS_)then
 
                 else
                     
-                    stop 'ConstructDensity - ModuleWaterProperties - ERR100'
+                    stop 'ConstructDensity - ModuleWaterProperties - ERR120'
 
                 endif temp
 
@@ -7506,6 +7565,58 @@ temp:          if (STAT_CALL == SUCCESS_)then
 
 
     !--------------------------------------------------------------------------
+    
+    subroutine ConstructNoFluxInterior
+
+        !Local-----------------------------------------------------------------
+        real                               :: ModelDT
+        integer                            :: STAT_CALL, iflag
+        
+        !----------------------------------------------------------------------
+
+
+        call GetData(Me%NoFlux%ON,                                                      &
+                     Me%ObjEnterData, iflag,                                            &
+                     SearchType = FromFile,                                             &
+                     keyword    = 'NO_FLUX_INTERIOR_CONDITION',                         &
+                     Default    = .false.,                                              &
+                     ClientModule = 'ModuleWaterProperties',                            &
+                     STAT       = STAT_CALL)
+
+        if (STAT_CALL /= SUCCESS_)                                                      &
+            stop 'ConstructNoFluxInterior - ModuleWaterProperties - ERR10'
+            
+
+        if (Me%NoFlux%ON) then
+        
+            call GetComputeTimeStep(Me%ObjTime, ModelDT, STAT = STAT_CALL)
+            
+            if (STAT_CALL /= SUCCESS_)                                                  &
+                stop 'ConstructNoFluxInterior - ModuleWaterProperties - ERR30'
+
+            call GetData(Me%NoFlux%RelaxTimeScaleLimit,                                 &
+                         Me%ObjEnterData, iflag,                                        &
+                         SearchType = FromFile,                                         &
+                         keyword    = 'RELAXATION_TIME_SCALE_NO_FLUX_LIMIT',            &
+                         Default    = 1000.*ModelDT,                                    &
+                         ClientModule = 'ModuleWaterProperties',                        &
+                         STAT       = STAT_CALL)
+
+            if (STAT_CALL /= SUCCESS_)                                                  &
+                stop 'ConstructNoFluxInterior - ModuleWaterProperties - ERR40'
+                
+            allocate(Me%NoFlux%U(Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB,Me%Size%KLB:Me%Size%KUB))
+            allocate(Me%NoFlux%V(Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB,Me%Size%KLB:Me%Size%KUB))
+            allocate(Me%NoFlux%W(Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB,Me%Size%KLB:Me%Size%KUB))                        
+
+        endif
+            
+
+
+    end subroutine ConstructNoFluxInterior
+
+    !--------------------------------------------------------------------------
+    
 
      subroutine ConstructSpecificHeat
 
@@ -8361,7 +8472,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             call ReadLockExternalVar
 
             call TimeStepActualization
-        
+            
             if (Me%Coupled%SolutionFromFile%Yes)              &
                 call ModifyPropertiesFromFile
 
@@ -8370,9 +8481,12 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
             if (Me%Coupled%Discharges%Yes)                    &
                 call WaterPropDischarges
-
+                
             if (Me%Coupled%HybridReferenceField)              &
                 call UpdateHybridReferenceField
+            
+            if (Me%NoFlux%ON)                                 &
+                call ModifyNoFluxMapping                
 
             if (Me%Coupled%AdvectionDiffusion%Yes)            &            
                 call Advection_Diffusion_Processes
@@ -10343,6 +10457,10 @@ cd10:                       if (Property%evolution%Advec_Difus_Parameters%Implic
                             NumericStability  = Property%evolution%Advec_Difus_Parameters%NumericStability,  &
                             PropOld           = Property%evolution%Advec_Difus_Parameters%PropOld,           &
                             SmallDepths       = Me%SmallDepths%ON,                          &
+                            NoFlux            = Me%NoFlux%ON,                               &
+                            NoFluxU           = Me%NoFlux%U,                                &
+                            NoFluxV           = Me%NoFlux%V,                                &                            
+                            NoFluxW           = Me%NoFlux%W,                                &                            
                             STAT              = STAT_CALL)
                     if (STAT_CALL .NE. SUCCESS_)                                            &
                         stop 'Advection_Diffusion_Processes - ModuleWaterProperties - ERR110'
@@ -11877,7 +11995,9 @@ cd1:            if (Me%ExternalVar%Now.GE.Property%Evolution%NextCompute) then
                                                      Property%IScoefficient,            &  
                                                      Property%Evolution%DTInterval,     &
                                                      Me%ExternalVar%Now,                &
-                                                     STAT = STAT_CALL)
+                                                     NoFlux  = Me%NoFlux%ON,            &
+                                                     NoFluxW = Me%NoFlux%W,             &
+                                                     STAT    = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_)                                          &
                        stop 'FreeVerticalMovements_Processes - ModuleWaterProperties - ERR04'
 
@@ -13803,7 +13923,131 @@ i7:                     if      (Property%Assimilation%DecayTime(i, j, KUB)  > 0
     end subroutine DataAssimilationProcesses
 
     !--------------------------------------------------------------------------
+    
 
+
+    subroutine ModifyNoFluxMapping
+
+        !Local -----------------------------------------------------------------
+        real,    pointer, dimension(:,:,:)          :: RelaxTimeScale
+        integer                                     :: ILB, IUB 
+        integer                                     :: JLB, JUB 
+        integer                                     :: KLB, KUB
+        integer                                     :: I, J, K, STAT_CALL
+        !Begin--------------------------------------------------------------------
+
+        ILB = Me%WorkSize%ILB 
+        IUB = Me%WorkSize%IUB 
+        JLB = Me%WorkSize%JLB 
+        JUB = Me%WorkSize%JUB 
+        KLB = Me%WorkSize%KLB 
+        KUB = Me%WorkSize%KUB 
+
+        !ComputeFaces3D
+        call GetComputeFaces3D(Me%ObjMap,                                           &
+                               ComputeFacesU3D = Me%ExternalVar%ComputeFacesU3D,    &
+                               ComputeFacesV3D = Me%ExternalVar%ComputeFacesV3D,    &
+                               ComputeFacesW3D = Me%ExternalVar%ComputeFacesW3D,    &
+                               STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ModifyNoFluxMapping; WaterProperties. ERR10' 
+                
+        !U faces
+        call GetAssimilationCoef (Me%ObjAssimilation,                                   &
+                                  ID              = VelocityU_,                         &
+                                  CoefField3D     = RelaxTimeScale,                     &
+                                  STAT            = STAT_CALL) 
+
+        if (STAT_CALL /= SUCCESS_) stop 'ModifyNoFluxMapping; WaterProperties. ERR20' 
+
+doku :  do k = KLB, KUB
+doju :  do j = JLB, JUB + 1
+doiu :  do i = ILB, IUB
+                    
+            if (Me%ExternalVar%ComputeFacesU3D(i, j, k) == 1 .and.                      &
+                RelaxTimeScale                (i, j, k) < Me%NoFlux%RelaxTimeScaleLimit) then
+                Me%NoFlux%U(i, j, k) = 1
+            else
+                Me%NoFlux%U(i, j, k) = 0            
+            endif
+
+        enddo doiu
+        enddo doju 
+        enddo doku
+
+
+        call UnGetAssimilation(Me%ObjAssimilation, RelaxTimeScale, STAT = STAT_CALL) 
+        if (STAT_CALL /= SUCCESS_) stop 'ModifyNoFluxMapping; WaterProperties. ERR30'
+            
+        call UnGetMap(Me%ObjMap, Me%ExternalVar%ComputeFacesU3D, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ModifyNoFluxMapping; WaterProperties. ERR40' 
+            
+
+        !V faces
+        call GetAssimilationCoef (Me%ObjAssimilation,                                   &
+                                  ID              = VelocityV_,                         &
+                                  CoefField3D     = RelaxTimeScale,                     &
+                                  STAT            = STAT_CALL) 
+
+        if (STAT_CALL /= SUCCESS_) stop 'ModifyNoFluxMapping; WaterProperties. ERR50' 
+
+dokv :  do k = KLB, KUB
+dojv :  do j = JLB, JUB
+doiv :  do i = ILB, IUB + 1
+                    
+            if (Me%ExternalVar%ComputeFacesV3D(i, j, k) == 1 .and.                      &
+                RelaxTimeScale                (i, j, k) < Me%NoFlux%RelaxTimeScaleLimit) then
+                Me%NoFlux%V(i, j, k) = 1
+            else
+                Me%NoFlux%V(i, j, k) = 0            
+            endif
+
+        enddo doiv
+        enddo dojv 
+        enddo dokv
+
+
+        call UnGetAssimilation(Me%ObjAssimilation, RelaxTimeScale, STAT = STAT_CALL) 
+        if (STAT_CALL /= SUCCESS_) stop 'ModifyNoFluxMapping; WaterProperties. ERR60'
+            
+        call UnGetMap(Me%ObjMap, Me%ExternalVar%ComputeFacesV3D, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ModifyNoFluxMapping; WaterProperties. ERR70' 
+        
+        !W faces
+        call GetAssimilationCoef (Me%ObjAssimilation,                                   &
+                                  ID              = VelocityW_,                         &
+                                  CoefField3D     = RelaxTimeScale,                     &
+                                  STAT            = STAT_CALL) 
+
+        if (STAT_CALL /= SUCCESS_) stop 'ModifyNoFluxMapping; WaterProperties. ERR80' 
+
+dokw :  do k = KLB, KUB + 1
+dojw :  do j = JLB, JUB
+doiw :  do i = ILB, IUB
+                    
+            if (Me%ExternalVar%ComputeFacesW3D(i, j, k) == 1 .and.                      &
+                RelaxTimeScale                (i, j, k) < Me%NoFlux%RelaxTimeScaleLimit) then
+                Me%NoFlux%W(i, j, k) = 1
+            else
+                Me%NoFlux%W(i, j, k) = 0            
+            endif
+
+        enddo doiw
+        enddo dojw 
+        enddo dokw
+
+
+        call UnGetAssimilation(Me%ObjAssimilation, RelaxTimeScale, STAT = STAT_CALL) 
+        if (STAT_CALL /= SUCCESS_) stop 'ModifyNoFluxMapping; WaterProperties. ERR90'
+            
+        call UnGetMap(Me%ObjMap, Me%ExternalVar%ComputeFacesW3D, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ModifyNoFluxMapping; WaterProperties. ERR100'        
+        
+        !----------------------------------------------------------------------
+
+
+    end subroutine ModifyNoFluxMapping
+
+    !--------------------------------------------------------------------------
     subroutine UpdateHybridReferenceField
         
         !Local -----------------------------------------------------------------
@@ -14467,7 +14711,8 @@ cd10:   if (CurrentTime > Me%Density%LastActualization) then
 
                     if (WaterPoints3D(i, j, k) == 1) then
                         Me%Density%Sigma(i, j, k) = Me%Density%Sigma(i, j, k) + Cohesive_Sediment%Concentration(i,j,k)* &
-                                                                                Cohesive_Sediment%IScoefficient
+                                                                                Cohesive_Sediment%IScoefficient       * &
+                                                    (Me%Density%CohesiveSed - Me%Density%Reference) / Me%Density%Reference
                     endif
 
                 enddo
@@ -14993,6 +15238,7 @@ do9:                do k=kbottom, KUB
          
         !Local-----------------------------------------------------------------
         type (T_Property), pointer         :: PropertyX
+        real,   dimension(:,:,:), pointer  :: SettlingVelocity
         logical                            :: FirstTime
         integer                            :: OutPutNumber, ObjHDF5
         type (T_Time)                      :: Actual, OutTime, Aux
@@ -15165,6 +15411,32 @@ sp:                     if (.not. SimpleOutPut) then
                         if (STAT_CALL /= SUCCESS_) stop 'OutPut_Results_HDF - ModuleWaterProperties - ERR120'
                     
                     endif
+
+                    if (PropertyX%Evolution%FreeVerticalMovement .and. PropertyX%OutputHDFSedVel) then
+                    
+                        
+                        call Get_FreeVelocity(FreeVerticalMovementID = Me%ObjFreeVerticalMovement,&
+                                              PropertyID             = PropertyX%ID%IDNumber,     &
+                                              Free_Velocity          = SettlingVelocity,          &
+                                              STAT                   = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'OutPut_Results_HDF - ModuleWaterProperties - ERR130'
+
+                        call HDF5WriteData(ObjHDF5,                                     &
+                                           "/Results/SettlingVelocity/"//PropertyX%ID%Name,   &
+                                           PropertyX%ID%Name,                           &
+                                           "m/s",                                       &
+                                           Array3D      = SettlingVelocity,             &
+                                           OutputNumber = OutPutNumber, STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'OutPut_Results_HDF - ModuleWaterProperties - ERR140'
+                    
+                    
+                        call UngetFreeVerticalMovement(FreeVerticalMovementID = Me%ObjFreeVerticalMovement,&
+                                                       Array                  = SettlingVelocity,          &
+                                                       STAT                   = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'OutPut_Results_HDF - ModuleWaterProperties - ERR150'
+                    endif
+                    
+                                        
                   
                     if (FirstTime) FirstTime = .false.
 
@@ -15189,13 +15461,13 @@ sp3:                if (.not. SimpleOutPut) then
                 call HDF5SetLimits  (ObjHDF5, WorkILB, WorkIUB,                         &
                                      WorkJLB, WorkJUB, WorkKLB, WorkKUB,                &
                                      STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'OutPut_Results_HDF - ModuleWaterProperties - ERR130'
+                if (STAT_CALL /= SUCCESS_) stop 'OutPut_Results_HDF - ModuleWaterProperties - ERR160'
 
                 call HDF5WriteData  (ObjHDF5, "/Results/"//"macroalgae distribution",   &
                                      "macroalgae distribution", "gC/m2",                &
                                      Array2D = Me%MacroAlgae%Distribution,              &
                                      OutputNumber = OutPutNumber, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'OutPut_Results_HDF - ModuleWaterProperties - ERR140'
+                if (STAT_CALL /= SUCCESS_) stop 'OutPut_Results_HDF - ModuleWaterProperties - ERR170'
                 
             end if
 
@@ -15209,7 +15481,7 @@ sp3:                if (.not. SimpleOutPut) then
             
             !Writes everything to disk
             call HDF5FlushMemory (ObjHDF5, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'OutPut_Results_HDF - ModuleWaterProperties - ERR150'            
+            if (STAT_CALL /= SUCCESS_) stop 'OutPut_Results_HDF - ModuleWaterProperties - ERR180'            
 
         endif  TOut    
 
@@ -18634,6 +18906,8 @@ cd9 :               if (associated(PropertyX%Assimilation%Field)) then
                 if (Me%SpecificHeat%UseField) call KillSpecificHeat
 
                 if (Me%SolarRadiation%Exists) call KillSolarRadiation
+                
+                call KillNoFluxInterior                
                     
 #ifdef _ENABLE_CUDA                
                 !Kills ModuleCuda.
@@ -19039,6 +19313,29 @@ cd9 :               if (associated(PropertyX%Assimilation%Field)) then
         
 
     end subroutine KillSolarRadiation
+    
+    !--------------------------------------------------------------------------
+    
+    subroutine KillNoFluxInterior
+
+        !Local-----------------------------------------------------------------
+        
+        !----------------------------------------------------------------------
+           
+
+        if (Me%NoFlux%ON) then
+        
+            deallocate(Me%NoFlux%U)
+            deallocate(Me%NoFlux%V)
+            deallocate(Me%NoFlux%W)
+
+        endif
+            
+
+
+    end subroutine KillNoFluxInterior
+
+    !--------------------------------------------------------------------------    
 
 #ifdef _USE_SEQASSIMILATION
 
