@@ -2442,7 +2442,7 @@ cd0:    if (EXIST) then
 
                   Me%TransportCapacity(i, j) = Ggr*RhoSW*Me%D35%Field2D(I,J)/S1               !(m)
                   
-                  ! m*m/s = m3/s/m
+                  ! [m3/s/m] = [m/s]*[m]
                   Me%TransportCapacity(i, j) = Me%ExternalVar%VelMod(I,J) * Me%TransportCapacity(i, j)
 
                 else
