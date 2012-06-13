@@ -1003,6 +1003,16 @@ Module ModuleLagrangianGlobal
         real                                    :: CurrentY                 = FillValueReal
         real                                    :: CurrentZ                 = FillValueReal
         real                                    :: D50vel                   = FillValueReal
+        integer                                 :: SolutionWH               = FillValueInt
+        integer                                 :: SolutionWP               = FillValueInt
+        integer                                 :: SolutionWD               = FillValueInt
+        integer                                 :: SolutionWX               = FillValueInt
+        integer                                 :: SolutionWY               = FillValueInt
+        integer                                 :: SolutionCX               = FillValueInt
+        integer                                 :: SolutionCY               = FillValueInt
+        integer                                 :: SolutionCZ               = FillValueInt        
+        integer                                 :: SolutionS                = FillValueInt
+        integer                                 :: SolutionT                = FillValueInt        
     end type T_Partic
 
     !Particle deposition
@@ -9374,7 +9384,9 @@ dem:        do em = 1, Me%EulerModelNumber
                     do j = WorkSizeJLB, WorkSizeJUB       
                     do i = WorkSizeILB, WorkSizeIUB                   
                         if (.not.NoData(ic)) then
-                            Bathymetry(i,j) = Prop1D(ic)
+                            if (Prop1D(ic) > -50.) then
+                                Bathymetry(i,j) = Prop1D(ic)
+                            endif
                         endif
                         ic = ic + 1
                     enddo
@@ -9469,6 +9481,7 @@ dem:        do em = 1, Me%EulerModelNumber
         real,       dimension(:), pointer           :: Matrix1DZ  
         real,       dimension(:), pointer           :: Prop1D
         logical,    dimension(:), pointer           :: NoData
+        integer,    dimension(:), pointer           :: Solution  
         integer                                     :: nP, nPtotal, nF, nFiles_total
         integer                                     :: nMOP, nMOPtotal, STAT_CALL
         
@@ -9481,6 +9494,7 @@ d1:     do while (associated(CurrentOrigin))
             nPtotal = nPtotal + CurrentOrigin%nParticle
                 CurrentPartic   => CurrentOrigin%FirstPartic
                 do while (associated(CurrentPartic))
+                
                     CurrentPartic%CurrentX      = FillValueReal
                     CurrentPartic%CurrentY      = FillValueReal
                     CurrentPartic%CurrentZ      = FillValueReal
@@ -9489,7 +9503,18 @@ d1:     do while (associated(CurrentOrigin))
                     CurrentPartic%WaveHeight    = FillValueReal
                     CurrentPartic%WavePeriod    = FillValueReal
                     CurrentPartic%WaveDirection = FillValueReal
-                    
+
+                    CurrentPartic%SolutionCX    = FillValueInt
+                    CurrentPartic%SolutionCY    = FillValueInt
+                    CurrentPartic%SolutionCZ    = FillValueInt
+                    CurrentPartic%SolutionWX    = FillValueInt
+                    CurrentPartic%SolutionWY    = FillValueInt
+                    CurrentPartic%SolutionWH    = FillValueInt
+                    CurrentPartic%SolutionWP    = FillValueInt
+                    CurrentPartic%SolutionWD    = FillValueInt
+                    CurrentPartic%SolutionS     = FillValueInt
+                    CurrentPartic%SolutionT     = FillValueInt                    
+
                     CurrentPartic               => CurrentPartic%Next
                 enddo
             CurrentOrigin => CurrentOrigin%Next
@@ -9500,14 +9525,13 @@ d1:     do while (associated(CurrentOrigin))
             allocate    (Matrix1DX(nPtotal))
             allocate    (Matrix1DY(nPtotal))
             allocate    (Matrix1DZ(nPtotal)) 
+            allocate    (Solution (nPtotal))             
             allocate    (Prop1D   (nPtotal))     
             allocate    (NoData   (nPtotal))                                 
                          
             Matrix1DX(:) = FillValueReal
             Matrix1DY(:) = FillValueReal
             Matrix1DZ(:) = FillValueReal  
-            Prop1D   (:) = FillValueReal  
-            NoData   (:) = .true.
              
             nP = 1
             CurrentOrigin => Me%FirstOrigin
@@ -9529,8 +9553,13 @@ d1:     do while (associated(CurrentOrigin))
             
     do3:    do nMOP = 1, nMOPtotal
                 if (Me%MeteoOcean%Prop(nMOP)%ID%IDNumber == bathymetry_) cycle 
+                
                 nFiles_total = Me%MeteoOcean%Prop(nMOP)%FieldNumber
+                
                 NoData   (:) = .true.
+                Solution (:) = 0  
+                Prop1D   (:) = FillValueReal                                
+
     do4:        do nF = 1, nFiles_total
                     call ModifyField4DXYZ(Field4DID             = Me%MeteoOcean%Prop(nMOP)%Field(nF)%ID, &
                                           PropertyIDNumber      = Me%MeteoOcean%Prop(nMOP)%ID%IDNumber,  &
@@ -9542,6 +9571,12 @@ d1:     do while (associated(CurrentOrigin))
                                           NoData                = NoData,                           &
                                           STAT                  = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'ActualizeMeteoOcean - ModuleLagrangianGlobal - ERR10' 
+                    
+                    do nP = 1, nPtotal
+                        if (.not. NoData(nP) .and. Solution (nP) == 0) then
+                            Solution (nP) = nF
+                        endif
+                    enddo
                 enddo do4
                 
                 nP = 1
@@ -9556,7 +9591,8 @@ d1:     do while (associated(CurrentOrigin))
                                                        Me%MeteoOcean%Prop(nMOP)%ID%IDNumber,&
                                                        Prop1D(nP),                          &
                                                        Me%MeteoOcean%Prop(nMOP)%LagPropI,   &
-                                                       Me%MeteoOcean%Prop(nMOP)%EqualToAmbient)
+                                                       Me%MeteoOcean%Prop(nMOP)%EqualToAmbient,&
+                                                       Solution(nP))
                              
                         CurrentPartic => CurrentPartic%Next
                         nP = nP + 1
@@ -9571,6 +9607,7 @@ d1:     do while (associated(CurrentOrigin))
             deallocate    (Matrix1DX)
             deallocate    (Matrix1DY)
             deallocate    (Matrix1DZ) 
+            deallocate    (Solution )
             deallocate    (Prop1D   )     
             deallocate    (NoData   )        
             
@@ -9581,7 +9618,7 @@ d1:     do while (associated(CurrentOrigin))
     !--------------------------------------------------------------------------
 
     subroutine ActualizeMeteoOceanPartic(CurrentPartic, PropIDNumber, PropValue,        &
-                                         LagPropI, EqualToAmbient)
+                                         LagPropI, EqualToAmbient, Solution)
                                                    
         !Arguments-------------------------------------------------------------
         type (T_Partic), pointer                :: CurrentPartic 
@@ -9589,6 +9626,7 @@ d1:     do while (associated(CurrentOrigin))
         real                                    :: PropValue
         integer                                 :: LagPropI
         logical                                 :: EqualToAmbient
+        integer                                 :: Solution
 
         !Local-----------------------------------------------------------------        
         
@@ -9596,39 +9634,57 @@ d1:     do while (associated(CurrentOrigin))
 
         if      (PropIDNumber == VelocityU_     ) then
         
-            CurrentPartic%CurrentX = PropValue
+            CurrentPartic%CurrentX   = PropValue
+            CurrentPartic%SolutionCX = Solution
         
         elseif  (PropIDNumber == VelocityV_     ) then 
 
-            CurrentPartic%CurrentY = PropValue
+            CurrentPartic%CurrentY   = PropValue
+            CurrentPartic%SolutionCY = Solution
 
         elseif  (PropIDNumber == VelocityW_     ) then 
 
-            CurrentPartic%CurrentZ = PropValue
+            CurrentPartic%CurrentZ   = PropValue
+            CurrentPartic%SolutionCZ = Solution
 
         elseif  (PropIDNumber == WindVelocityX_ ) then 
 
-            CurrentPartic%WindX = PropValue
+            CurrentPartic%WindX      = PropValue
+            CurrentPartic%SolutionWX = Solution
 
         elseif  (PropIDNumber == WindVelocityY_ ) then
 
-            CurrentPartic%WindY = PropValue
+            CurrentPartic%WindY      = PropValue
+            CurrentPartic%SolutionWY = Solution
 
         elseif  (PropIDNumber == WaveAmplitude_ ) then  
 
             CurrentPartic%WaveHeight = PropValue
+            CurrentPartic%SolutionWH = Solution            
 
         elseif  (PropIDNumber == WavePeriod_    ) then  
 
             CurrentPartic%WavePeriod = PropValue
+            CurrentPartic%SolutionWP = Solution            
 
         elseif  (PropIDNumber == WaveDirection_ ) then  
 
             CurrentPartic%WaveDirection = PropValue
-
+            CurrentPartic%SolutionWD    = Solution
+            
         else
             if (PropValue > FillValueReal/100) then 
                 CurrentPartic%AmbientConc(LagPropI) = PropValue
+                
+                if (PropIDNumber == Temperature_) then
+                    CurrentPartic%SolutionT    = Solution
+                endif
+                
+                if (PropIDNumber == Salinity_   ) then
+                    CurrentPartic%SolutionS    = Solution
+                endif
+                
+                
                 if (EqualToAmbient) then
                     CurrentPartic%Concentration(LagPropI) = CurrentPartic%AmbientConc(LagPropI)
                 endif
@@ -17010,14 +17066,15 @@ thick:                      do while (associated(CurrentOrigin))
     subroutine HDF5WriteDataMeteoOcean(CurrentOrigin, em, OutPutNumber)
     
         !Arguments------------------------------------------------------------------    
-        type(T_Origin), pointer             :: CurrentOrigin
-        integer                             :: em, OutPutNumber 
+        type(T_Origin),                              pointer :: CurrentOrigin
+        integer                                              :: em, OutPutNumber 
 
         !Local----------------------------------------------------------------------                    
-        type (T_Partic), pointer            :: CurrentPartic
-        real, dimension (:), pointer        :: Matrix1D
-        character (len = StringLength)      :: Name, Units
-        integer                             :: nP, STAT_CALL
+        type (T_Partic)                            , pointer :: CurrentPartic
+        real,                         dimension (:), pointer :: Matrix1D
+        integer,                      dimension (:), pointer :: Solution1D        
+        character (len = StringLength)                       :: Name, Units
+        integer                                              :: nP, STAT_CALL
         
         !Begin----------------------------------------------------------------------    
 
@@ -17025,164 +17082,261 @@ thick:                      do while (associated(CurrentOrigin))
         
         !meteo ocean physical properties
         
-        allocate(Matrix1D(CurrentOrigin%nParticle))
+        allocate(Matrix1D  (CurrentOrigin%nParticle))
+        allocate(Solution1D(CurrentOrigin%nParticle))        
         
         CurrentPartic => CurrentOrigin%FirstPartic
         nP = 0
         do while (associated(CurrentPartic))
             nP = nP + 1
-            Matrix1D(nP)  =  CurrentPartic%CurrentX
+            Matrix1D  (nP)  =  CurrentPartic%CurrentX
+            Solution1D(nP)  =  CurrentPartic%SolutionCX
             CurrentPartic => CurrentPartic%Next
         enddo            
         if (nP > 0) then
             !HDF 5
             Name = "velocity U"
             Units ="m/s"
-            call HDF5WriteData  (Me%ObjHDF5(em),                  &
-                                 "/Results/"//trim(CurrentOrigin%Name)// &
-                                 "/"//trim(Name),        &
-                                 trim(Name),             &
-                                 trim(Units),            &
-                                 Array1D = Matrix1D,                     &
-                                 OutputNumber = OutPutNumber,            &
+            call HDF5WriteData  (Me%ObjHDF5(em),                                        &
+                                 "/Results/"//trim(CurrentOrigin%Name)//                &
+                                 "/"//trim(Name),                                       &
+                                 trim(Name),                                            &
+                                 trim(Units),                                           &
+                                 Array1D = Matrix1D,                                    &
+                                 OutputNumber = OutPutNumber,                           &
                                  STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ParticleOutput - ModuleLagrangianGlobal - ERR320'
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteDataMeteoOcean - ModuleLagrangianGlobal - ERR10'
+
+            Name = "velocity U Solution"
+            Units ="-"
+            call HDF5WriteData  (Me%ObjHDF5(em),                                        &
+                                 "/Results/"//trim(CurrentOrigin%Name)//                &
+                                 "/"//trim(Name),                                       &
+                                 trim(Name),                                            &
+                                 trim(Units),                                           &
+                                 Array1D = Solution1D,                                  &
+                                 OutputNumber = OutPutNumber,                           &
+                                 STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteDataMeteoOcean - ModuleLagrangianGlobal - ERR20'
         endif
         
         CurrentPartic => CurrentOrigin%FirstPartic
         nP = 0
         do while (associated(CurrentPartic))
             nP = nP + 1
-            Matrix1D(nP)  =  CurrentPartic%CurrentY
-            CurrentPartic => CurrentPartic%Next
+            Matrix1D(nP)   =  CurrentPartic%CurrentY
+            Solution1D(nP) =  CurrentPartic%SolutionCY
+            CurrentPartic  => CurrentPartic%Next
         enddo            
         if (nP > 0) then
             !HDF 5
             Name = "velocity V"
             Units ="m/s"
-            call HDF5WriteData  (Me%ObjHDF5(em),                  &
-                                 "/Results/"//trim(CurrentOrigin%Name)// &
-                                 "/"//trim(Name),        &
-                                 trim(Name),             &
-                                 trim(Units),            &
-                                 Array1D = Matrix1D,                     &
-                                 OutputNumber = OutPutNumber,            &
+            call HDF5WriteData  (Me%ObjHDF5(em),                                        &
+                                 "/Results/"//trim(CurrentOrigin%Name)//                &
+                                 "/"//trim(Name),                                       &
+                                 trim(Name),                                            &
+                                 trim(Units),                                           &
+                                 Array1D = Matrix1D,                                    &
+                                 OutputNumber = OutPutNumber,                           &
                                  STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ParticleOutput - ModuleLagrangianGlobal - ERR320'
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteDataMeteoOcean - ModuleLagrangianGlobal - ERR30'
+            
+            Name = "velocity V Solution"
+            Units ="-"
+            call HDF5WriteData  (Me%ObjHDF5(em),                                        &
+                                 "/Results/"//trim(CurrentOrigin%Name)//                &
+                                 "/"//trim(Name),                                       &
+                                 trim(Name),                                            &
+                                 trim(Units),                                           &
+                                 Array1D = Solution1D,                                  &
+                                 OutputNumber = OutPutNumber,                           &
+                                 STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteDataMeteoOcean - ModuleLagrangianGlobal - ERR40'            
         endif
 
         CurrentPartic => CurrentOrigin%FirstPartic
         nP = 0
         do while (associated(CurrentPartic))
             nP = nP + 1
-            Matrix1D(nP)  =  CurrentPartic%WindX
-            CurrentPartic => CurrentPartic%Next
+            Matrix1D(nP)   =  CurrentPartic%WindX
+            Solution1D(nP) =  CurrentPartic%SolutionWX
+            CurrentPartic  => CurrentPartic%Next
         enddo            
         if (nP > 0) then
             !HDF 5
             Name = "wind velocity X"
             Units ="m/s"
-            call HDF5WriteData  (Me%ObjHDF5(em),                  &
-                                 "/Results/"//trim(CurrentOrigin%Name)// &
-                                 "/"//trim(Name),        &
-                                 trim(Name),             &
-                                 trim(Units),            &
-                                 Array1D = Matrix1D,                     &
-                                 OutputNumber = OutPutNumber,            &
+            call HDF5WriteData  (Me%ObjHDF5(em),                                        &
+                                 "/Results/"//trim(CurrentOrigin%Name)//                &
+                                 "/"//trim(Name),                                       &
+                                 trim(Name),                                            &
+                                 trim(Units),                                           &
+                                 Array1D = Matrix1D,                                    &
+                                 OutputNumber = OutPutNumber,                           &
                                  STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ParticleOutput - ModuleLagrangianGlobal - ERR320'
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteDataMeteoOcean - ModuleLagrangianGlobal - ERR50'
+            
+            Name = "wind velocity X Solution"
+            Units ="-"
+            call HDF5WriteData  (Me%ObjHDF5(em),                                        &
+                                 "/Results/"//trim(CurrentOrigin%Name)//                &
+                                 "/"//trim(Name),                                       &
+                                 trim(Name),                                            &
+                                 trim(Units),                                           &
+                                 Array1D = Solution1D,                                  &
+                                 OutputNumber = OutPutNumber,                           &
+                                 STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteDataMeteoOcean - ModuleLagrangianGlobal - ERR60'      
+                        
         endif
 
         CurrentPartic => CurrentOrigin%FirstPartic
         nP = 0
         do while (associated(CurrentPartic))
             nP = nP + 1
-            Matrix1D(nP)  =  CurrentPartic%WindY
-            CurrentPartic => CurrentPartic%Next
+            Matrix1D(nP)   =  CurrentPartic%WindY
+            Solution1D(nP) =  CurrentPartic%SolutionWY
+            CurrentPartic  => CurrentPartic%Next
         enddo            
         if (nP > 0) then
             !HDF 5
             Name = "wind velocity Y"
             Units ="m/s"
-            call HDF5WriteData  (Me%ObjHDF5(em),                  &
-                                 "/Results/"//trim(CurrentOrigin%Name)// &
-                                 "/"//trim(Name),        &
-                                 trim(Name),             &
-                                 trim(Units),            &
-                                 Array1D = Matrix1D,                     &
-                                 OutputNumber = OutPutNumber,            &
+            call HDF5WriteData  (Me%ObjHDF5(em),                                        &
+                                 "/Results/"//trim(CurrentOrigin%Name)//                &
+                                 "/"//trim(Name),                                       &
+                                 trim(Name),                                            &
+                                 trim(Units),                                           &
+                                 Array1D = Matrix1D,                                    &
+                                 OutputNumber = OutPutNumber,                           &
                                  STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ParticleOutput - ModuleLagrangianGlobal - ERR320'
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteDataMeteoOcean - ModuleLagrangianGlobal - ERR70'
+            
+            Name = "wind velocity Y Solution"
+            Units ="-"
+            call HDF5WriteData  (Me%ObjHDF5(em),                                        &
+                                 "/Results/"//trim(CurrentOrigin%Name)//                &
+                                 "/"//trim(Name),                                       &
+                                 trim(Name),                                            &
+                                 trim(Units),                                           &
+                                 Array1D = Solution1D,                                  &
+                                 OutputNumber = OutPutNumber,                           &
+                                 STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteDataMeteoOcean - ModuleLagrangianGlobal - ERR80'             
         endif
 
         CurrentPartic => CurrentOrigin%FirstPartic
         nP = 0
         do while (associated(CurrentPartic))
             nP = nP + 1
-            Matrix1D(nP)  =  CurrentPartic%WaveHeight
-            CurrentPartic => CurrentPartic%Next
+            Matrix1D(nP)   =  CurrentPartic%WaveHeight
+            Solution1D(nP) =  CurrentPartic%SolutionWH
+            CurrentPartic  => CurrentPartic%Next
         enddo            
         if (nP > 0) then
             !HDF 5
             Name = "wave height"
             Units ="m/s"
-            call HDF5WriteData  (Me%ObjHDF5(em),                  &
-                                 "/Results/"//trim(CurrentOrigin%Name)// &
-                                 "/"//trim(Name),        &
-                                 trim(Name),             &
-                                 trim(Units),            &
-                                 Array1D = Matrix1D,                     &
-                                 OutputNumber = OutPutNumber,            &
+            call HDF5WriteData  (Me%ObjHDF5(em),                                        &
+                                 "/Results/"//trim(CurrentOrigin%Name)//                &
+                                 "/"//trim(Name),                                       &
+                                 trim(Name),                                            &
+                                 trim(Units),                                           &
+                                 Array1D = Matrix1D,                                    &
+                                 OutputNumber = OutPutNumber,                           &
                                  STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ParticleOutput - ModuleLagrangianGlobal - ERR320'
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteDataMeteoOcean - ModuleLagrangianGlobal - ERR90'
+
+            Name = "wave height Solution"
+            Units ="-"
+            call HDF5WriteData  (Me%ObjHDF5(em),                                        &
+                                 "/Results/"//trim(CurrentOrigin%Name)//                &
+                                 "/"//trim(Name),                                       &
+                                 trim(Name),                                            &
+                                 trim(Units),                                           &
+                                 Array1D = Solution1D,                                  &
+                                 OutputNumber = OutPutNumber,                           &
+                                 STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteDataMeteoOcean - ModuleLagrangianGlobal - ERR100'
         endif
 
         CurrentPartic => CurrentOrigin%FirstPartic
         nP = 0
         do while (associated(CurrentPartic))
             nP = nP + 1
-            Matrix1D(nP)  =  CurrentPartic%WavePeriod
-            CurrentPartic => CurrentPartic%Next
+            Matrix1D(nP)   =  CurrentPartic%WavePeriod
+            Solution1D(nP) =  CurrentPartic%SolutionWP
+            CurrentPartic  => CurrentPartic%Next
         enddo            
         if (nP > 0) then
             !HDF 5
             Name = "wave period"
             Units ="m/s"
-            call HDF5WriteData  (Me%ObjHDF5(em),                  &
-                                 "/Results/"//trim(CurrentOrigin%Name)// &
-                                 "/"//trim(Name),        &
-                                 trim(Name),             &
-                                 trim(Units),            &
-                                 Array1D = Matrix1D,                     &
-                                 OutputNumber = OutPutNumber,            &
+            call HDF5WriteData  (Me%ObjHDF5(em),                                        &
+                                 "/Results/"//trim(CurrentOrigin%Name)//                &
+                                 "/"//trim(Name),                                       &
+                                 trim(Name),                                            &
+                                 trim(Units),                                           &
+                                 Array1D = Matrix1D,                                    &
+                                 OutputNumber = OutPutNumber,                           &
                                  STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ParticleOutput - ModuleLagrangianGlobal - ERR320'
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteDataMeteoOcean - ModuleLagrangianGlobal - ERR110'
+            
+
+            Name = "wave period Solution"
+            Units ="-"
+            call HDF5WriteData  (Me%ObjHDF5(em),                                        &
+                                 "/Results/"//trim(CurrentOrigin%Name)//                &
+                                 "/"//trim(Name),                                       &
+                                 trim(Name),                                            &
+                                 trim(Units),                                           &
+                                 Array1D = Solution1D,                                  &
+                                 OutputNumber = OutPutNumber,                           &
+                                 STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteDataMeteoOcean - ModuleLagrangianGlobal - ERR120'
+            
         endif
         
         CurrentPartic => CurrentOrigin%FirstPartic
         nP = 0
         do while (associated(CurrentPartic))
             nP = nP + 1
-            Matrix1D(nP)  =  CurrentPartic%WaveDirection
-            CurrentPartic => CurrentPartic%Next
+            Matrix1D(nP)   =  CurrentPartic%WaveDirection
+            Solution1D(nP) =  CurrentPartic%SolutionWD
+            CurrentPartic  => CurrentPartic%Next
         enddo            
         if (nP > 0) then
             !HDF 5
             Name = "wave direction"
             Units ="m/s"
-            call HDF5WriteData  (Me%ObjHDF5(em),                  &
-                                 "/Results/"//trim(CurrentOrigin%Name)// &
-                                 "/"//trim(Name),        &
-                                 trim(Name),             &
-                                 trim(Units),            &
-                                 Array1D = Matrix1D,                     &
-                                 OutputNumber = OutPutNumber,            &
+            call HDF5WriteData  (Me%ObjHDF5(em),                                        &
+                                 "/Results/"//trim(CurrentOrigin%Name)//                &
+                                 "/"//trim(Name),                                       &
+                                 trim(Name),                                            &
+                                 trim(Units),                                           &
+                                 Array1D = Matrix1D,                                    &
+                                 OutputNumber = OutPutNumber,                           &
                                  STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ParticleOutput - ModuleLagrangianGlobal - ERR320'
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteDataMeteoOcean - ModuleLagrangianGlobal - ERR130'
+            
+            Name = "wave direction Solution"
+            Units ="-"
+            call HDF5WriteData  (Me%ObjHDF5(em),                                        &
+                                 "/Results/"//trim(CurrentOrigin%Name)//                &
+                                 "/"//trim(Name),                                       &
+                                 trim(Name),                                            &
+                                 trim(Units),                                           &
+                                 Array1D = Solution1D,                                  &
+                                 OutputNumber = OutPutNumber,                           &
+                                 STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteDataMeteoOcean - ModuleLagrangianGlobal - ERR140'
+            
         endif
         
 
-        deallocate(Matrix1D)
+        deallocate(Matrix1D  )
+        deallocate(Solution1D)
         
     end subroutine HDF5WriteDataMeteoOcean
 
@@ -17544,7 +17698,7 @@ CurrOr:     do while (associated(CurrentOrigin))
         
         if (Coincident) NumberOfNodes = 1
 
-        if (NumberOfNodes > 3) then
+        if (NumberOfNodes >= 3) then
 
             allocate(NodeX(1:NumberOfNodes), NodeY(1:NumberOfNodes))
 
