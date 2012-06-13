@@ -219,6 +219,7 @@ Module ModuleFunctions
 
     !Compute settling velocity    
     public  :: SettlingVelocity
+    public  :: SettlingVelSecondaryClarifier
 
     !Bathymetry smoother
     public  :: SLPMIN
@@ -2214,7 +2215,7 @@ do3 :       do JI=JImin+1,JImax+1
                 I        = IJ*dj + JI*di
                 J        = IJ*di + JI*dj
                 AUX = THOMAS%COEF2%E(I,J) + THOMAS%COEF2%D(I,J) * VEC%W(JI-1)
-                if (AUX .ne. 0) then
+                if (abs(AUX) > 0) then
                     VEC%W(JI) = -THOMAS%COEF2%F(I,J) / AUX
                     VEC%G(JI) = (THOMAS%TI(I,J) - THOMAS%COEF2%D(I,J) * VEC%G(JI-1))/ AUX
                 else
@@ -2518,7 +2519,7 @@ do2 :   do IJ = IJmin, IJmax
 
 do3 :       do JI=JImin+1,JImax+1
                 AUX = Thomas%COEF3%E(IJ, JI, K) + Thomas%COEF3%D(IJ, JI, K) * VEC%W(JI-1)
-                if (AUX .ne. 0) then
+                if (abs(AUX) > 0) then
                     VEC%W(JI) = - Thomas%COEF3%F(IJ, JI, K) / AUX
                     VEC%G(JI) =  (Thomas%TI(IJ, JI, K) - Thomas%COEF3%D(IJ, JI, K) * VEC%G(JI-1))/ AUX
                 else
@@ -2582,7 +2583,7 @@ do2 :   do IJ = IJmin, IJmax
 
 do3 :       do JI=JImin+1,JImax+1
                 AUX = Thomas%COEF3%E(JI, IJ, K) + Thomas%COEF3%D(JI, IJ, K) * VEC%W(JI-1)
-                if (AUX .ne. 0) then
+                if (abs(AUX) > 0) then
                     VEC%W(JI) = - Thomas%COEF3%F(JI, IJ, K) / AUX
                     VEC%G(JI) = (Thomas%TI(JI, IJ, K) - Thomas%COEF3%D(JI, IJ, K) * VEC%G(JI-1))/ AUX
                 else
@@ -2722,7 +2723,7 @@ do1 :   DO I = ILB, IUB
 
 do3 :       DO K  = KLB+1, KUB+1
                 AUX = Thomas%COEF3%E(I, J, K) + Thomas%COEF3%D(I, J, K) * VEC%W(K-1)
-                IF (AUX .ne. 0) then
+                IF (abs(AUX) > 0) then
                     VEC%W(K) = -Thomas%COEF3%F(I, J, K) / AUX
                     VEC%G(K) = (Thomas%TI(I, J, K) - Thomas%COEF3%D(I, J, K) * VEC%G(K-1)) / AUX
                 ELSE
@@ -8860,6 +8861,59 @@ d2:         do i=1,n-m ! we loop over the current c’s and d’s and update them.
         endif
 
     end function SettlingVelocity
+
+    real function SettlingVelSecondaryClarifier (Cx)
+        
+        !Arguments-------------------------------------------------
+        real,       intent(IN) :: Cx     !kg/m3 or g/l 
+        
+        !Local-----------------------------------------------------
+        real(8)                :: v0max, v0, Rh, Rf, Fns, Cmin, vs, Cy
+        real(8)                :: Vcorr, Vres, Rcorr1, Rcorr2, Xcorr1, Xcorr2 
+        
+        !Begin-----------------------------------------------------
+        
+        !Parameters - Hindering settling - PhD Thesis Takács (2008) - Medium load
+        ![m/day]
+        v0max   = 370
+        v0      = 142.9
+        ![l/g]
+        Rh      = 0.378
+        Rf      = 2.86
+        ![-]
+        Fns     = 0.11
+        
+        !Parameters - Compression settling
+        ![m/day]
+        Vcorr   = 20.
+        Vres    = 0.5
+        ![l/g]
+        Rcorr1  = 3. 
+        Rcorr2  = 0.5
+        ![g/l]
+        Xcorr1  = 4.     
+        Xcorr2  = 8.
+        
+
+        !g/l
+        Cmin = Cx * Fns
+        Cy   = Cx - Cmin
+        
+        !Hindering settling (m/day)
+
+        vs = v0 * (exp(-Rh*Cy)-exp(-Rf*Cy))
+        
+        !compression (m/day)
+        vs = vs + Vcorr         /(1+exp(-Rcorr1*(Cx-Xcorr1))) - &
+                  Vcorr + Vres  /(1+exp(-Rcorr2*(Cx-Xcorr2)))
+                  
+        if (vs <0    ) vs = 0.                  
+        if (vs >v0max) vs = v0max
+        
+        !From m/day to m/s
+        SettlingVelSecondaryClarifier = vs / 86400.
+
+    end function SettlingVelSecondaryClarifier
 
 
 
