@@ -1019,7 +1019,7 @@ do1 :                   do i = 2, iLength
         real                             :: X_W, X_E, Xv, Y_S, Y_N, Yv        
         real                             :: ValueSW, ValueNW, ValueSE, ValueNE, ValueN, ValueS
         integer                          :: iV, iH, iP, STAT_CALL, Ndepths
-        integer                          :: i, j, k, kb, iI
+        integer                          :: i, j, k, kb, iI, kbb
         integer                          :: jW, jE, iS, iN, imin, jmin, imax, jmax
         integer                          :: ILB, IUB, JLB, JUB, KLB, KUB
         integer                          :: kmin_prev, kmin_next
@@ -1392,31 +1392,56 @@ i12:                if (NewFields) then
                     if (Me%WorkSize%KUB > 1) then
                     
                         ValuesAux (kb:Me%WorkSize%KUB) = Values3D(iS, jW, kb:Me%WorkSize%KUB)
+                        
+                        do kbb = kb, Me%WorkSize%KUB
+                            if (ValuesAux(kbb)> FillValueReal/1000.) exit
+                        enddo 
+                        
+                        Ndepths = Me%WorkSize%KUB - kbb + 1
 
                         ValueSW = InterpolateProfileR8(dble(Me%Z(iV)), Ndepths,             &
-                                                       DepthsSW  (kb:Me%WorkSize%KUB),      &
-                                                       ValuesAux (kb:Me%WorkSize%KUB),      &
+                                                       DepthsSW  (kbb:Me%WorkSize%KUB),     &
+                                                       ValuesAux (kbb:Me%WorkSize%KUB),     &
                                                        FoundBottom, FoundSurface)
 
                         ValuesAux (kb:Me%WorkSize%KUB) = Values3D(iS, jE, kb:Me%WorkSize%KUB)
+                        
+                        do kbb = kb, Me%WorkSize%KUB
+                            if (ValuesAux(kbb)> FillValueReal/1000.) exit
+                        enddo 
+                        
+                        Ndepths = Me%WorkSize%KUB - kbb + 1
+                        
 
                         ValueSE = InterpolateProfileR8(dble(Me%Z(iV)), Ndepths,             &
-                                                       DepthsSE  (kb:Me%WorkSize%KUB),      &
-                                                       ValuesAux (kb:Me%WorkSize%KUB),      &
+                                                       DepthsSE  (kbb:Me%WorkSize%KUB),     &
+                                                       ValuesAux (kbb:Me%WorkSize%KUB),     &
                                                        FoundBottom, FoundSurface)
                         ValuesAux (kb:Me%WorkSize%KUB) = Values3D(iN, jW, kb:Me%WorkSize%KUB)
 
+                        do kbb = kb, Me%WorkSize%KUB
+                            if (ValuesAux(kbb)> FillValueReal/1000.) exit
+                        enddo 
+                        
+                        Ndepths = Me%WorkSize%KUB - kbb + 1
 
                         ValueNW = InterpolateProfileR8(dble(Me%Z(iV)), Ndepths,             &
-                                                       DepthsNW(kb:Me%WorkSize%KUB),        &
-                                                       ValuesAux (kb:Me%WorkSize%KUB),      &
+                                                       DepthsNW(kbb:Me%WorkSize%KUB),       &
+                                                       ValuesAux (kbb:Me%WorkSize%KUB),     &
                                                        FoundBottom, FoundSurface)
 
                         ValuesAux (kb:Me%WorkSize%KUB) = Values3D(iN, jE, kb:Me%WorkSize%KUB)
+                        
+                        do kbb = kb, Me%WorkSize%KUB
+                            if (ValuesAux(kbb)> FillValueReal/1000.) exit
+                        enddo 
+                        
+                        Ndepths = Me%WorkSize%KUB - kbb + 1
+                        
 
                         ValueNE = InterpolateProfileR8(dble(Me%Z(iV)), Ndepths,             &
-                                                       DepthsNE  (kb:Me%WorkSize%KUB),      &
-                                                       ValuesAux (kb:Me%WorkSize%KUB),      &
+                                                       DepthsNE  (kbb:Me%WorkSize%KUB),     &
+                                                       ValuesAux (kbb:Me%WorkSize%KUB),     &
                                                        FoundBottom, FoundSurface)
                                                        
                         ValueN = LinearInterpolation (X_W, ValueNW, X_E, ValueNE, Xv)
