@@ -36,7 +36,7 @@
 !   CHS                         : real            [4 g/l]       !Hindered settling threshold concentration  
 !   WS_VALUE                    : real          [0.0001 m/s]    !Constant settling velocity
 !   WS_TYPE                     : int               [1]         !Settling velocity compute method 
-!                                                               !Constant = 1, SPMFunction = 2
+!                                                               !Constant = 1, SPMFunction = 2, WSSecondaryClarifier = 3
 !   SALTINT                     : 0/1               [0]         !Use salinity effect on settling velocity
 !   SALTINTVALUE                : real            [3 psu]       !Salinity threshold concentration for affecting
 !                                                               !settling velocity
@@ -53,7 +53,8 @@ Module ModuleFreeVerticalMovement
 
     use ModuleGlobalData
     use ModuleFunctions,        only: THOMASZ, ConstructPropertyID, SettlingVelocity,          &
-                                      SetMatrixValue, CHUNK_J, CHUNK_K, T_VECGW, T_THOMAS, T_D_E_F, Pad
+                                      SetMatrixValue, CHUNK_J, CHUNK_K, T_VECGW,                &
+                                      T_THOMAS, T_D_E_F, Pad, SettlingVelSecondaryClarifier
     use ModuleTime
     use ModuleHorizontalGrid,   only: GetGridCellArea, UngetHorizontalGrid
     use ModuleGeometry,         only: GetGeometrySize, GetGeometryVolumes, UnGetGeometry,      &
@@ -164,6 +165,8 @@ Module ModuleFreeVerticalMovement
         real                                    :: DTProp         = FillValueReal
         real                                    :: IS_Coef        = FillValueReal
         real                                    :: SPMISCoef      = FillValueReal
+        logical                                 :: NoFlux
+        integer, pointer, dimension(: , : , :)  :: NoFluxW
     end type T_External
 
     type       T_Options
@@ -655,7 +658,7 @@ cd2 :           if (BlockFound) then
             !Type             : integer 
             !Default          : WSConstant
             !File keyword     : FREE_DAT
-            !Multiple Options : WSConstant = 1, SPMFunction = 2
+            !Multiple Options : WSConstant = 1, SPMFunction = 2, WSSecondaryClarifier = 3
             !Search Type      : FromBlock
             !Begin Block      : <beginproperty>
             !End Block        : <endproperty>
@@ -671,7 +674,9 @@ cd2 :           if (BlockFound) then
             stop 'Read_FreeVert_Parameters - ModuleFreeVerticalMovement - ERR03' 
            
            
-        if(NewProperty%Ws_Type == SPMFunction) Me%Needs%SPM = .true.       
+        if(NewProperty%Ws_Type == SPMFunction          ) Me%Needs%SPM = .true.       
+        
+        if(NewProperty%Ws_Type == WSSecondaryClarifier ) Me%Needs%SPM = .true.              
         
         if(NewProperty%Ws_Type == WSConstant)then
             call SetMatrixValue(NewProperty%Velocity, Me%Size, NewProperty%Ws_Value)
@@ -940,7 +945,7 @@ cd2 :           if (BlockFound) then
 
      subroutine Modify_FreeVerticalMovement(FreeVerticalMovementID, Concentration, SPM,     &
                                             SPMISCoef, SalinityField, PropertyID, IS_Coef,  &
-                                            DTProp, CurrentTime, STAT)
+                                            DTProp, CurrentTime, NoFlux, NoFluxW, STAT)
        
         !Arguments-------------------------------------------------------------
         integer                                 :: FreeVerticalMovementID
@@ -951,12 +956,14 @@ cd2 :           if (BlockFound) then
         integer                                 :: PropertyID
         real                                    :: IS_Coef, DTProp
         type(T_Time)                            :: CurrentTime
+        logical, intent(IN), optional           :: NoFlux
+        integer, dimension(:,:,:), pointer, optional :: NoFluxW           
+                
         integer, optional                       :: STAT
         
         !External--------------------------------------------------------------
         integer                                 :: STAT_CALL
         integer                                 :: ready_
-         
         !Local-----------------------------------------------------------------
         integer                                 :: STAT_    
         type(T_Property), pointer               :: PropertyX
@@ -985,10 +992,17 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
                 Me%ExternalVar%SalinityField => SalinityField
             end if
 
-            if(PropertyX%Ws_Type == SPMFunction)then
+            if(PropertyX%Ws_Type == SPMFunction .or. PropertyX%Ws_Type == WSSecondaryClarifier )then
                 Me%ExternalVar%SPMISCoef =  SPMISCoef
                 Me%ExternalVar%SPM       => SPM
             end if
+            
+            if (present(NoFlux)) then
+                Me%ExternalVar%NoFlux  =  NoFlux
+                Me%ExternalVar%NoFluxW => NoFluxW
+            else
+                Me%ExternalVar%NoFlux  =  .false. 
+            endif
                         
             !Compute free vertical movement
             call FreeVerticalMovementIteration(PropertyX)
@@ -996,6 +1010,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             nullify(Me%ExternalVar%Concentration)
             nullify(Me%ExternalVar%SPM)
             nullify(Me%ExternalVar%SalinityField)
+            nullify(Me%ExternalVar%NoFluxW)
 
             call null_time   (Me%ExternalVar%Now)
  
@@ -1301,7 +1316,7 @@ do1 :   do i=Me%WorkSize%ILB, Me%WorkSize%IUB
         KL1             =  PropertyX%KL1
         M               =  PropertyX%M
         ML              =  PropertyX%ML
-        
+                
         CHUNK = CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)
         
         if (MonitorPerformance) call StartWatch ("ModuleFreeVerticalMovement", "Vertical_Velocity")
@@ -1342,6 +1357,20 @@ do1 :   do i=Me%WorkSize%ILB, Me%WorkSize%IUB
                 enddo
 
             end if
+            
+        elseif(PropertyX%Ws_Type ==  WSSecondaryClarifier) then            
+            
+            do k=Me%WorkSize%KLB, Me%WorkSize%KUB 
+            do j=Me%WorkSize%JLB, Me%WorkSize%JUB
+            do i=Me%WorkSize%ILB, Me%WorkSize%IUB
+                if (Me%ExternalVar%OpenPoints3D(i, j, k)== OpenPoint) then
+                    PropertyX%Velocity(i, j, k)=-SettlingVelSecondaryClarifier (SPM(i, j, k)*SPMISCoef)
+                else
+                    PropertyX%Velocity(i, j, k)= 0.                                            
+                end if
+            enddo
+            enddo
+            enddo
         
         elseif(PropertyX%Ws_Type ==  WSConstant) then
             
@@ -1368,6 +1397,23 @@ do1 :   do i=Me%WorkSize%ILB, Me%WorkSize%IUB
                 call SetMatrixValue(PropertyX%Velocity, Me%Size, PropertyX%Ws_Value)
             endif
         end if
+        
+        if (Me%ExternalVar%NoFlux) then
+           !$OMP PARALLEL SHARED(CHUNK, PropertyX) PRIVATE(I,J,K)
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            do k=Me%WorkSize%KLB, Me%WorkSize%KUB 
+            do j=Me%WorkSize%JLB, Me%WorkSize%JUB
+            do i=Me%WorkSize%ILB, Me%WorkSize%IUB
+                if (Me%ExternalVar%OpenPoints3D(i, j, k) == OpenPoint .and.             &
+                    Me%ExternalVar%NoFluxW     (i, j, k) == 1) then
+                        PropertyX%Velocity(i, j, k) = 0.
+                end if
+            enddo
+            enddo
+            enddo
+            !$OMP END DO NOWAIT
+            !$OMP END PARALLEL        
+        endif        
         
         if (MonitorPerformance) call StopWatch ("ModuleFreeVerticalMovement", "Vertical_Velocity")
         
