@@ -1718,8 +1718,9 @@ cd2 :           if (BlockFound) then
 
 
             allocate(NewProperty%Mass_Available(ILB:IUB, JLB:JUB))
+            NewProperty%Mass_Available  = null_real
             allocate(NewProperty%MassInKg      (ILB:IUB, JLB:JUB))
-            NewProperty%MassInKg = null_real
+            NewProperty%MassInKg        = null_real
 
             if(NewProperty%Old)then
 
