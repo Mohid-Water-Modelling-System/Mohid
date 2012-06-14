@@ -342,7 +342,13 @@ Module ModuleGlobalData
     !Drifting macroalgae
     integer, parameter :: DriftingMacroAlgae_               = 850
 
-
+    ! BenthicEcology
+    integer, parameter :: SuspensionFeedersN_               = 860 ! isab
+    integer, parameter :: SuspensionFeedersC_               = 861
+    integer, parameter :: SuspensionFeedersP_               = 862
+    integer, parameter :: DepositFeeders_                   = 863
+    
+    
     !Hydrodynamic Properties
     integer, parameter :: WaterLevel_                       = 86
     integer, parameter :: VelocityU_                        = 87
@@ -958,6 +964,11 @@ Module ModuleGlobalData
     character(StringLength), private, parameter :: Char_ParticulateLead      = 'particulate lead'
     character(StringLength), private, parameter :: Char_DissolvedLead        = 'dissolved lead'
     
+    ! benthos
+    character(StringLength), private, parameter :: Char_SuspensionFeedersC    = 'suspension feeders carbon'
+    character(StringLength), private, parameter :: Char_SuspensionFeedersN    = 'suspension feeders nitrogen'
+    character(StringLength), private, parameter :: Char_SuspensionFeedersP    = 'suspension feeders phosphorus'
+    character(StringLength), private, parameter :: Char_DepositFeeders       = 'deposit feeders'
 
     character(StringLength), private, parameter :: Char_GrossProd            = 'grossprod'
     character(StringLength), private, parameter :: Char_NutrientLim          = 'nutrientlim'
@@ -2084,6 +2095,11 @@ Module ModuleGlobalData
             call AddPropList (MacroAlgae_,              Char_MacroAlgae,                ListNumber)
             call AddPropList (DriftingMacroAlgae_,      Char_DriftingMacroAlgae,        ListNumber)
             call AddPropList (MicroPhytoBenthos_,       Char_MicroPhytoBenthos,         ListNumber)
+            
+            call AddPropList (SuspensionFeedersN_,      Char_SuspensionFeedersN,        ListNumber) ! isab
+            call AddPropList (SuspensionFeedersC_,      Char_SuspensionFeedersC,        ListNumber)
+            call AddPropList (SuspensionFeedersP_,      Char_SuspensionFeedersP,        ListNumber)
+            call AddPropList (DepositFeeders_,          Char_DepositFeeders,            ListNumber)
 
             call AddPropList (AdsorbedAmmonia_,         Char_AdsorbedAmmonia,           ListNumber)
             call AddPropList (RefreactaryOrganicN_,     Char_RefreactaryOrganicN,       ListNumber)
@@ -2636,7 +2652,9 @@ cd1 :   if ((Property == POC_                   ) .OR.  (Property == PON_       
             (Property == ParticulateLead_       ) .OR.  (Property == ParticulateZinc_       ) .OR.          &
             (Property == ParticulateMercury_    ) .OR.  (Property == AnaerobicPop_          ) .OR.          &
             (Property == AutotrophicPop_        ) .OR.  (Property == HeterotrophicPop_      ) .OR.          &
-            (Property == SolPop_                ) .OR.  (Property == IndividualsPerCell_    )        ) then
+            (Property == SolPop_                ) .OR.  (Property == IndividualsPerCell_    ) .OR.          &
+            (Property == SuspensionFeedersC_    ) .OR.  (Property == SuspensionFeedersN_    ) .OR.          &   !isab    
+            (Property == SuspensionFeedersP_    ) ) then
 
             Check_Particulate_Property = .TRUE.    
         
