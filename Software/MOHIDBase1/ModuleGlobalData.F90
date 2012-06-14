@@ -72,7 +72,7 @@ Module ModuleGlobalData
     end interface SetError
     
     !Parameter-----------------------------------------------------------------
-    integer, parameter  :: MaxModules           =  78
+    integer, parameter  :: MaxModules           =  79
 
 #ifdef _INCREASE_MAXINSTANCES
     integer, parameter  :: MaxInstances         = 2000
@@ -1217,6 +1217,7 @@ Module ModuleGlobalData
     character(StringLength), parameter          :: MacroAlgaeModel          = 'MacroAlgae'
     character(StringLength), parameter          :: PhreeqCModel             = 'PhreeqCModel'
     character(StringLength), parameter          :: BoxDifModel              = 'BoxDifModel'
+    character(StringLength), parameter          :: BenthicEcologyModel      = 'BenthicEcology'
 
     !Water air interface
     character(StringLength), private, parameter :: Char_LatentHeat               = 'latent heat'
@@ -1573,6 +1574,7 @@ Module ModuleGlobalData
     integer, parameter ::  mCHAINREACTIONS_         = 76
     integer, parameter ::  mCUDA_                   = 77
     integer, parameter :: mField4D_                 = 78
+    integer, parameter ::  mBENTHICECOLOGY_         = 79
 
     type T_Size1D
         integer                 :: ILB            = null_int
@@ -1666,7 +1668,7 @@ Module ModuleGlobalData
         T_Module(mPOROUSMEDIAPROPERTIES_ , "PorousMediaProperties"), T_Module(mPHREEQC_                , "PhreeqC"),               &
         T_Module(mCUDA_                  , "Cuda"),                                                                                &
         T_Module(mRUNOFFPROPERTIES_      , "RunoffProperties"),      T_Module(mCHAINREACTIONS_         , "ChainReactions"),        &
-        T_Module(mField4D_               , "Field4D") /)
+        T_Module(mField4D_               , "Field4D"),               T_Module(mBENTHICECOLOGY_         , "BenthicEcology") /)        ! isab
 
     !Variables
     logical, dimension(MaxModules)                                  :: RegisteredModules = .false.
