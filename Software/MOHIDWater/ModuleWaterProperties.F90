@@ -359,6 +359,7 @@ Module ModuleWaterProperties
     public  :: GetWaterPropertiesAirOptions
     public  :: GetWaterPropertiesBottomOptions
     public  :: GetPropertySurfaceFlux
+    public  :: GetShortWaveRadiationAverage
 #ifdef _USE_SEQASSIMILATION
     public  :: GetWaterPropertiesIDArray
     public  :: GetWaterSeqAssimilation
@@ -16858,7 +16859,44 @@ cd2 :           if (PropertyX%SubModel%ON) then
             
     end subroutine GetConcentration
 
-    !--------------------------------------------------------------------------
+
+   !--------------------------------------------------------------------------
+    subroutine GetShortWaveRadiationAverage(WaterPropertiesID, ShortWaveRadiationAverage, STAT)  
+   
+
+        !Arguments---------------------------------------------------------------
+        integer                                     :: WaterPropertiesID
+        real, pointer, dimension(:,:,:)             :: ShortWaveRadiationAverage
+        integer,            optional, intent(OUT)   :: STAT
+
+        !Local-------------------------------------------------------------------
+        integer                                     :: ready_          
+        integer                                     :: STAT_    
+        
+        ! this subroutine gets the values of the average shortwave radiation, 
+        ! to be used by other modules, for example by ModuleInterfaceSedimentWater
+        !------------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(WaterPropertiesID, ready_) 
+        
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+            call Read_Lock(mWATERPROPERTIES_, Me%InstanceID) 
+
+            ShortWaveRadiationAverage => Me%SolarRadiation%ShortWaveAverage
+
+            STAT_ = SUCCESS_
+            
+        else
+            STAT_ = ready_
+        end if
+
+
+        if (present(STAT))STAT = STAT_
+            
+    end subroutine GetShortWaveRadiationAverage
 
     !----------------------------------------------------------------------------
 
