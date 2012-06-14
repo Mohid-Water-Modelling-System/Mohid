@@ -636,6 +636,7 @@ Module ModuleDrainageNetwork
         logical                                     :: CalcFractionSediment     = .false.
         logical                                     :: EVTPFromReach            = .false.
         logical                                     :: StormWaterModelLink      = .false.
+        logical                                     :: LimitToCriticalFlow      = .true.
     end type T_ComputeOptions
 
     type       T_Coupling
@@ -1703,6 +1704,18 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      ClientModule = 'ModuleDrainageNetwork',                            &
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)  stop 'ReadDataFile - ModuleDrainageNetwork - ERR100'
+
+        !If limit flow to criticl one
+        call GetData(Me%ComputeOptions%LimitToCriticalFlow,                             &
+                     Me%ObjEnterData,                                                   &
+                     flag,                                                              &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'LIMIT_TO_CRITICAL_FLOW',                           &
+                     Default      = .true.,                                             &
+                     ClientModule = 'ModuleDrainageNetwork',                            &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)  stop 'ReadDataFile - ModuleDrainageNetwork - ERR110'
+
 
 
     end subroutine ReadDataFile
@@ -8990,7 +9003,7 @@ if2:        if (CurrNode%VolumeNew > PoolVolume) then
 !        endif
 
         MaxBottom  = max(UpNode%CrossSection%BottomLevel, DownNode%CrossSection%BottomLevel)
-        WaterDepth = (max(UpNode%WaterLevel - MaxBottom, 0.0) + max(DownNode%WaterLevel - MaxBottom, 0.0)) / 2.0
+        WaterDepth = max(max(UpNode%WaterLevel - MaxBottom, 0.0), max(DownNode%WaterLevel - MaxBottom, 0.0)) !/ 2.0
         
         
         if (UpNode%CrossSection%Form == Trapezoidal .OR.            &
@@ -9170,40 +9183,39 @@ if2:        if (CurrNode%VolumeNew > PoolVolume) then
         endif
 
         !FLOW---------------------------------------------------------------
-        FlowNew = ( CurrReach%FlowOld + Advection + Pressure )    &
+        CurrReach%FlowNew = ( CurrReach%FlowOld + Advection + Pressure )    &
                           / ( 1. + Friction )
         
-        !Limit to critical flow. Using the critical flow limitation in all cells assumes "slow" flow or
-        !subcritical that is consistent with the formulation used (flow depends on downstream height)
-        !because in supercritical flow it is only dependent on upstream and descritization to describe it would have
-        !to change. Supercritical flow usually exists on hydraulic infraestructures (high drops) and a 
-        !hydraulic jump exists between fast flow and slow flow.
-        !Waterdepth at the center of the reach - depending on flow direction since flow
-        !can be in opposite direction of height gradient
-        MaxBottom  = max(UpNode%CrossSection%BottomLevel, DownNode%CrossSection%BottomLevel)
-        !WaterDepth = (max(UpNode%WaterLevel - MaxBottom, 0.0) + max(DownNode%WaterLevel - MaxBottom, 0.0)) / 2.0
-        
-        if (FlowNew .gt. 0.0) then
-            WaterDepth = max(UpNode%WaterLevel - MaxBottom, 0.0)
-        else
-            WaterDepth = max(DownNode%WaterLevel - MaxBottom, 0.0)
-        endif
-        
-        !Critical Flow - reach vertical area already takes into account water depths
-        !above maximum bottom
-        CriticalFlow = CurrReach%VerticalArea * sqrt(Gravity * WaterDepth)
-
-        if (abs(FlowNew) < CriticalFlow) then
-            CurrReach%FlowNew = FlowNew
-        else
-            if (FlowNew > 0) then
-                CurrReach%FlowNew = CriticalFlow
+        if (Me%ComputeOptions%LimitToCriticalFlow) then
+            !Limit to critical flow. Using the critical flow limitation in all cells assumes "slow" flow or
+            !subcritical that is consistent with the formulation used (flow depends on downstream height)
+            !because in supercritical flow it is only dependent on upstream and descritization to describe it would have
+            !to change. Supercritical flow usually exists on hydraulic infraestructures (high drops) and a 
+            !hydraulic jump exists between fast flow and slow flow.
+            !Waterdepth at the center of the reach - depending on flow direction since flow
+            !can be in opposite direction of height gradient
+            MaxBottom  = max(UpNode%CrossSection%BottomLevel, DownNode%CrossSection%BottomLevel)
+            !WaterDepth = (max(UpNode%WaterLevel - MaxBottom, 0.0) + max(DownNode%WaterLevel - MaxBottom, 0.0)) / 2.0
+            
+            if (FlowNew .gt. 0.0) then
+                WaterDepth = max(UpNode%WaterLevel - MaxBottom, 0.0)
             else
-                CurrReach%FlowNew = -1.0 * CriticalFlow
+                WaterDepth = max(DownNode%WaterLevel - MaxBottom, 0.0)
             endif
+            
+            !Critical Flow - reach vertical area already takes into account water depths
+            !above maximum bottom
+            CriticalFlow = CurrReach%VerticalArea * sqrt(Gravity * WaterDepth)
+    
+            if (abs(FlowNew) > CriticalFlow) then
+                if (FlowNew > 0) then
+                    CurrReach%FlowNew = CriticalFlow
+                else
+                    CurrReach%FlowNew = -1.0 * CriticalFlow
+                endif
+            endif
+
         endif
-
-
        
         !Velocity
         CurrReach%Velocity = CurrReach%FlowNew / (CurrReach%VerticalArea + CurrReach%PoolVerticalArea)

@@ -250,6 +250,7 @@ Module ModuleRunOff
         real(8)                                     :: FlowAtBoundary       = 0.0
         integer                                     :: MaxIterations        = 5
         logical                                     :: SimpleChannelInteraction = .false.
+        logical                                     :: LimitToCriticalFlow  = .true.
 
         logical                                     :: WriteMaxFlowModulus  = .false.
         character(Pathlength)                       :: MaxFlowModulusFile
@@ -854,6 +855,17 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      STAT         = STAT_CALL)                                  
         if (STAT_CALL /= SUCCESS_) stop 'ModuleRunOff - ReadDataFile - ERR390'
 
+        !Limits Flow to critical
+        call GetData(Me%LimitToCriticalFlow,                                &
+                     ObjEnterData, iflag,                                   &  
+                     keyword      = 'LIMIT_TO_CRITICAL_FLOW',               &
+                     ClientModule = 'ModuleRunOff',                         &
+                     SearchType   = FromFile,                               &
+                     Default      = .true.,                                 &
+                     STAT         = STAT_CALL)                                  
+        if (STAT_CALL /= SUCCESS_) stop 'ModuleRunOff - ReadDataFile - ERR391'
+
+        
 
         !Storm Water Drainage
         call GetData(Me%StormWaterDrainage,                                 &
@@ -2900,7 +2912,7 @@ doIter:         do while (iter <= Niter)
                 
                 
                 !Limits Velocity to celerity if a free drop exists
-                if (Me%HydrodynamicApproximation == DiffusionWave_) then
+                if (Me%HydrodynamicApproximation == DiffusionWave_ .and. Me%LimitToCriticalFlow) then
                     if ((level_left .lt. Me%ExtVar%Topography(i,j)) .or. (level_right .lt. Me%ExtVar%Topography(i,j-1))) then
                         
                         !already defined in shorter
@@ -3018,7 +3030,7 @@ doIter:         do while (iter <= Niter)
                 endif
                 
                 !Limits Velocity to reasonable values
-                if (Me%HydrodynamicApproximation == DiffusionWave_) then
+                if (Me%HydrodynamicApproximation == DiffusionWave_ .and. Me%LimitToCriticalFlow) then
 
                     if ((level_bottom .lt. Me%ExtVar%Topography(i,j)) .or. (level_top .lt. Me%ExtVar%Topography(i-1,j))) then
                         
@@ -3284,36 +3296,40 @@ doIter:         do while (iter <= Niter)
                 
                 Me%lFlowX(i, j) = (Me%FlowXOld(i, j) + Pressure + Advection) / (1.0 + Friction)
 
-                !Limit to critical flow. Using the critical flow limitation in all cells assumes "slow" flow or
-                !subcritical that is consistent with the formulation used (flow depends on downstream height)
-                !because in supercritical flow it is only dependent on upstream and descritization to describe it would have
-                !to change. Supercritical flow usually exists on hydraulic infraestructures (high drops) and a 
-                !hydraulic jump exists between fast flow and slow flow.
+                if (Me%LimitToCriticalFlow) then
 
-                !Waterdepth at the center of the face - depending on flow direction since flow
-                !can be in opposite direction of height gradient (AreaU uses the higher water level)              
-                !WaterDepth = Me%AreaU(i,j)/Me%ExtVar%DYY(i,j)
-                MaxBottom = max(Me%ExtVar%Topography(i, j) + Me%BuildingsHeight(i, j),   &
-                            Me%ExtVar%Topography(i, j-1) + Me%BuildingsHeight(i, j-1))     
-                                                
-                if (Me%lFlowX(i, j) .gt. 0.0) then           
-                    WaterDepth = max(Me%MyWaterLevel(i,j-1) - MaxBottom, 0.0)
-                else
-                    WaterDepth = max(Me%MyWaterLevel(i,j) - MaxBottom, 0.0)
-                endif
-                
-                !Critical Flow
-                !CriticalFlow = Me%AreaU(i, j) * sqrt(Gravity * WaterDepth)
-                !m3/s = m * m * m/s
-                CriticalFlow = WaterDepth * Me%ExtVar%DYY(i,j) * sqrt(Gravity * WaterDepth)
-                
-                !only limit if flow higher
-                if (abs(Me%lFlowX(i, j)) > CriticalFlow) then
-                    if (Me%lFlowX(i, j) > 0) then
-                        Me%lFlowX(i, j) = CriticalFlow
+                    !Limit to critical flow. Using the critical flow limitation in all cells assumes "slow" flow or
+                    !subcritical that is consistent with the formulation used (flow depends on downstream height)
+                    !because in supercritical flow it is only dependent on upstream and descritization to describe it would have
+                    !to change. Supercritical flow usually exists on hydraulic infraestructures (high drops) and a 
+                    !hydraulic jump exists between fast flow and slow flow.
+
+                    !Waterdepth at the center of the face - depending on flow direction since flow
+                    !can be in opposite direction of height gradient (AreaU uses the higher water level)              
+                    !WaterDepth = Me%AreaU(i,j)/Me%ExtVar%DYY(i,j)
+                    MaxBottom = max(Me%ExtVar%Topography(i, j) + Me%BuildingsHeight(i, j),   &
+                                Me%ExtVar%Topography(i, j-1) + Me%BuildingsHeight(i, j-1))     
+                                                    
+                    if (Me%lFlowX(i, j) .gt. 0.0) then           
+                        WaterDepth = max(Me%MyWaterLevel(i,j-1) - MaxBottom, 0.0)
                     else
-                        Me%lFlowX(i, j) = -1.0 * CriticalFlow
+                        WaterDepth = max(Me%MyWaterLevel(i,j) - MaxBottom, 0.0)
                     endif
+                    
+                    !Critical Flow
+                    !CriticalFlow = Me%AreaU(i, j) * sqrt(Gravity * WaterDepth)
+                    !m3/s = m * m * m/s
+                    CriticalFlow = WaterDepth * Me%ExtVar%DYY(i,j) * sqrt(Gravity * WaterDepth)
+                    
+                    !only limit if flow higher
+                    if (abs(Me%lFlowX(i, j)) > CriticalFlow) then
+                        if (Me%lFlowX(i, j) > 0) then
+                            Me%lFlowX(i, j) = CriticalFlow
+                        else
+                            Me%lFlowX(i, j) = -1.0 * CriticalFlow
+                        endif
+                    endif
+                    
                 endif
                 
             else
@@ -3553,30 +3569,33 @@ doIter:         do while (iter <= Niter)
                 
                 Me%lFlowY(i, j) = (Me%FlowYOld(i, j) + Pressure + Advection) / (1.0 + Friction)
                 
-                !Limit to critical flow
-                !Waterdepth at the center of the face - depending on flow direction since flow
-                !can be in opposite direction of height gradient (AreaU uses the higher)
-                !WaterDepth = Me%AreaV(i,j)/Me%ExtVar%DXX(i,j)
-                MaxBottom = max(Me%ExtVar%Topography(i, j) + Me%BuildingsHeight(i, j),   &
-                            Me%ExtVar%Topography(i-1, j) + Me%BuildingsHeight(i-1, j))     
-                                                
-                if (Me%lFlowY(i, j) .gt. 0.0) then           
-                    WaterDepth = max(Me%MyWaterLevel(i-1,j) - MaxBottom, 0.0)
-                else
-                    WaterDepth = max(Me%MyWaterLevel(i,j) - MaxBottom, 0.0)
-                endif                
                 
-                !Critical Flow
-                !CriticalFlow = Me%AreaV(i, j) * sqrt(Gravity * WaterDepth)
-                !m3/s = m * m * m/s
-                CriticalFlow = WaterDepth * Me%ExtVar%DXX(i,j) * sqrt(Gravity * WaterDepth)
-                
-                !only limit if flow higher
-                if (abs(Me%lFlowY(i, j)) > CriticalFlow) then
-                    if (Me%lFlowY(i, j) > 0) then
-                        Me%lFlowY(i, j) = CriticalFlow
+                if (Me%LimitToCriticalFlow) then
+                    !Limit to critical flow
+                    !Waterdepth at the center of the face - depending on flow direction since flow
+                    !can be in opposite direction of height gradient (AreaU uses the higher)
+                    !WaterDepth = Me%AreaV(i,j)/Me%ExtVar%DXX(i,j)
+                    MaxBottom = max(Me%ExtVar%Topography(i, j) + Me%BuildingsHeight(i, j),   &
+                                Me%ExtVar%Topography(i-1, j) + Me%BuildingsHeight(i-1, j))     
+                                                    
+                    if (Me%lFlowY(i, j) .gt. 0.0) then           
+                        WaterDepth = max(Me%MyWaterLevel(i-1,j) - MaxBottom, 0.0)
                     else
-                        Me%lFlowY(i, j) = -1.0 * CriticalFlow
+                        WaterDepth = max(Me%MyWaterLevel(i,j) - MaxBottom, 0.0)
+                    endif                
+                    
+                    !Critical Flow
+                    !CriticalFlow = Me%AreaV(i, j) * sqrt(Gravity * WaterDepth)
+                    !m3/s = m * m * m/s
+                    CriticalFlow = WaterDepth * Me%ExtVar%DXX(i,j) * sqrt(Gravity * WaterDepth)
+                    
+                    !only limit if flow higher
+                    if (abs(Me%lFlowY(i, j)) > CriticalFlow) then
+                        if (Me%lFlowY(i, j) > 0) then
+                            Me%lFlowY(i, j) = CriticalFlow
+                        else
+                            Me%lFlowY(i, j) = -1.0 * CriticalFlow
+                        endif
                     endif
                 endif
 
