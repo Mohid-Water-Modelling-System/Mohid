@@ -1421,8 +1421,8 @@ program Convert2netcdf
 
             case("oxygen")
                 NCDFName        = "dissolved_oxygen"
-                LongName        = "dissolved oxygen"
-                StandardName    = "oxygen"
+                LongName        = "mass concentration of oxygen in sea water"
+                StandardName    = "mass_concentration_of_oxygen_in_sea_water"
                 Units           = "mg l-1"
                 ValidMin        = 0.
                 ValidMax        = 30.
