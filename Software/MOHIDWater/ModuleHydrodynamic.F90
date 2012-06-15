@@ -30935,8 +30935,7 @@ dk:             do k = kmin,kmax
         !$ CHUNK = CHUNK_J(JLB, JUB)
 
         !griflet: new simple parallelization
-        !$OMP PARALLEL PRIVATE(i,j,k,kbottom,iSouth,jWest,I_North,J_East, &
-        !$OMP                  VelMod_UV, FaceDragCoef)
+        !$OMP PARALLEL PRIVATE(i,j,k,kbottom,VelScraper)
         !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
 do1:    do j = JLB, JUB
 do2:    do i = ILB, IUB
