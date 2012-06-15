@@ -613,6 +613,8 @@ program Convert2netcdf
         if (Me%HDFFile%Size%KUB .gt. 0) then
             if ( .not. Me%HDFFile%ResultsAre2D ) then
                 call ReadWriteVertical
+            else
+                call WriteVerticalNullDepth
             endif
         endif
 
@@ -957,6 +959,49 @@ program Convert2netcdf
     end subroutine ReadWriteVertical
 
     !--------------------------------------------------------------------------
+    subroutine WriteVerticalNullDepth
+
+        !Local-----------------------------------------------------------------
+        integer                             :: STAT_CALL, i, j, k, kk
+        real, dimension(:  ), pointer       :: Vert1D, Vert1DStag
+
+
+        !Begin-----------------------------------------------------------------
+    
+    
+        write(*,*)"Writing Vertical Coordinate..."
+        
+        if (Me%HDFFile%Size%KUB /= 1) then
+            stop "WriteVerticalNullDepth - ConvertNetCDF - ERR10"
+        endif
+        
+        allocate(Vert1D      (1:Me%HDFFile%Size%KUB))
+        allocate(Vert1DStag  (1:Me%HDFFile%Size%KUB+1))          
+        
+        Vert1D(1) = 0.5
+        Vert1DStag(1) = 1
+        Vert1DStag(2) = 0
+        
+
+        call NETCDFWriteVert(NCDFID           = Me%NCDF_File%ObjNETCDF,                 &
+                             Vert             = Vert1D,                                 &
+                             VertCoordinate   = Me%HDFFile%Sigma,                       &
+                             OffSet           = Me%DepthAddOffSet,                      &
+                             STAT             = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'WriteVerticalNullDepth - Convert2netcdf - ERR10'
+        
+        call NETCDFWriteVertStag(NCDFID         = Me%NCDF_File%ObjNETCDF,               &
+                                 VertStag       = Vert1DStag,                           &
+                                 STAT           = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'WriteVerticalNullDepth - Convert2netcdf - ERR20'                
+
+        deallocate(Vert1D      )
+        deallocate(Vert1DStag  )
+        
+        
+    end subroutine WriteVerticalNullDepth
+    
+    !--------------------------------------------------------------------------    
 
     subroutine ReadWriteBathymetry
 
@@ -1375,9 +1420,9 @@ program Convert2netcdf
                 MissingValue    = FillValueReal
 
             case("oxygen")
-                NCDFName        = "oxygen"
-                LongName        = "mass concentration of oxygen in sea water"
-                StandardName    = "mass_concentration_of_oxygen_in_sea_water"
+                NCDFName        = "dissolved_oxygen"
+                LongName        = "dissolved oxygen"
+                StandardName    = "oxygen"
                 Units           = "mg l-1"
                 ValidMin        = 0.
                 ValidMax        = 30.
@@ -1393,7 +1438,7 @@ program Convert2netcdf
                 MissingValue    = FillValueReal
 
             case("velocity_U")
-                NCDFName        = "velocity_U"
+                NCDFName        = "u"
                 LongName        = "eastward sea water velocity"
                 StandardName    = "eastward_sea_water_velocity"
                 Units           = "m s-1"
@@ -1402,7 +1447,7 @@ program Convert2netcdf
                 MissingValue    = FillValueReal
 
             case("velocity_V")
-                NCDFName        = "velocity_V"
+                NCDFName        = "v"
                 LongName        = "northward sea water velocity"
                 StandardName    = "northward_sea_water_velocity"
                 Units           = "m s-1"
@@ -1420,7 +1465,7 @@ program Convert2netcdf
                 MissingValue    = FillValueReal
 
             case("velocity_modulus")
-                NCDFName        = "velocity_modulus"
+                NCDFName        = "vm"
                 LongName        = "sea water speed"
                 StandardName    = "sea_water_speed"
                 Units           = "m s-1"
@@ -1429,7 +1474,7 @@ program Convert2netcdf
                 MissingValue    = FillValueReal
 
             case("water_level")
-                NCDFName        = "water_level"
+                NCDFName        = "ssh"
                 LongName        = "sea surface height"
                 StandardName    = "sea_surface_height"
                 Units           = "m"
@@ -1446,7 +1491,7 @@ program Convert2netcdf
                 ValidMax        = 100.
                 MissingValue    = FillValueReal
             case("wind_velocity_X")
-                NCDFName        = "wind_velocity_X"
+                NCDFName        = "x_wind"
                 LongName        = "x wind"
                 StandardName    = "x_wind"
                 Units           = "m s-1"
@@ -1455,7 +1500,7 @@ program Convert2netcdf
                 MissingValue    = FillValueReal
 
             case("wind_velocity_Y")
-                NCDFName        = "wind_velocity_Y"
+                NCDFName        = "y_wind"
                 LongName        = "y wind"
                 StandardName    = "y_wind"
                 Units           = "m s-1"
