@@ -1285,16 +1285,22 @@ cd1 :   if       (delimiter_pos .EQ. 0) then
             delimiter_pos = scan(string%full_line, space)
             if(present(ValidDelimiter))ValidDelimiter = .false.
 
+#ifndef _SCANLINE_UNSAFE
         else if ((delimiter_pos .GT. 0) .AND. (delimiter_pos .LT. IUB)) then
             if ((string%full_line(delimiter_pos+1:delimiter_pos+1) .EQ. slash    ) .OR. &   
                 (string%full_line(delimiter_pos+1:delimiter_pos+1) .EQ. backslash))     &   
                 delimiter_pos = scan(string%full_line, space)
-
         else if                               (delimiter_pos .EQ. IUB)  then
                 write(*,*)  
                 write(*,*) "Found : at the end of line." 
                 write(*,*) "Line: "//trim(string%full_line) 
                 stop       "Subroutine ScanLine; Module ModuleEnterData. ERR01." 
+#else
+        else if ((delimiter_pos .GT. 0) .AND. (delimiter_pos .LE. IUB)) then
+            if ((string%full_line(delimiter_pos+1:delimiter_pos+1) .EQ. slash    ) .OR. &   
+                (string%full_line(delimiter_pos+1:delimiter_pos+1) .EQ. backslash))     &   
+                delimiter_pos = scan(string%full_line, space)
+#endif                
         end if cd1
 
         string%delimiter_pos = delimiter_pos

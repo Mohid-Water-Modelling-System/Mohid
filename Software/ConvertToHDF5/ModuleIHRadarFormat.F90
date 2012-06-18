@@ -7,10 +7,9 @@
 ! MODULE        : IHRadar Format
 ! URL           : http://www.mohid.com
 ! AFFILIATION   : IST/MARETEC, Marine Modelling Group
-! DATE          : Januray 2008
-! REVISION      : Guillaume Riflet
-! DESCRIPTION   : Module to convert Aldin files into HDF5 format.
-!                 Optimized for CVF6.6. Written in ANSI FORTRAN 95
+! DATE          : June 2012
+! REVISION      : v1
+! DESCRIPTION   : Module to convert SeaSonde HF radar ascii files into HDF5 format.
 !
 !------------------------------------------------------------------------------
 !DataFile

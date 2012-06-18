@@ -643,6 +643,7 @@ Module ModuleWaterProperties
         logical                                 :: MacroAlgae           = .false.
         logical                                 :: CEQUALW2             = .false.
         logical                                 :: Life                 = .false.
+        logical                                 :: WWTPQ                = .false.
         logical                                 :: Partitioning         = .false.
         logical                                 :: FreeVerticalMovement = .false.
         logical                                 :: AdvectionDiffusion   = .false. 
@@ -818,6 +819,7 @@ Module ModuleWaterProperties
          type(T_Coupling)                       :: WQM
          type(T_Coupling)                       :: CEQUALW2
          type(T_Coupling)                       :: Life           
+         type(T_Coupling)                       :: WWTPQM
          type(T_Coupling)                       :: Partition
          type(T_Coupling)                       :: FreeVerticalMovement  
          type(T_Coupling)                       :: SurfaceFluxes 
@@ -2077,6 +2079,7 @@ cd2 :           if (BlockFound) then
         Me%Coupled%WQM%NumberOfProperties                   = 0
         Me%Coupled%CEQUALW2%NumberOfProperties              = 0
         Me%Coupled%Life%NumberOfProperties                  = 0
+        Me%Coupled%WWTPQM%NumberOfProperties                = 0
         Me%Coupled%AdvectionDiffusion%NumberOfProperties    = 0
         Me%Coupled%FreeVerticalMovement%NumberOfProperties  = 0
         Me%Coupled%SurfaceFluxes%NumberOfProperties         = 0
@@ -2129,6 +2132,12 @@ do1 :   do while (associated(PropertyX))
                 Me%Coupled%Life%NumberOfProperties                      = &
                 Me%Coupled%Life%NumberOfProperties                      + 1
                 Me%Coupled%Life%Yes                                     = ON
+            endif
+
+            if (PropertyX%Evolution%WWTPQ) then
+                Me%Coupled%WWTPQM%NumberOfProperties                       = &
+                Me%Coupled%WWTPQM%NumberOfProperties                       + 1
+                Me%Coupled%WWTPQM%Yes                                      = ON
             endif
 
             if (PropertyX%Evolution%LightExtinction) then
@@ -2344,6 +2353,12 @@ do1 :   do while (associated(PropertyX))
             stop      'Construct_Sub_Modules - WaterProperties - ERR30'
         end if
 
+        if(Me%Coupled%WWTPQM%Yes .and. (Me%Coupled%WQM%Yes .or. Me%Coupled%CEQUALW2%Yes .or. Me%Coupled%Life%Yes))then
+
+            write(*,*)'Cannot run WWTPQ model and Water Quality/CEQUALW2/LIFE model in the same simulation.'
+            stop      'Construct_Sub_Modules - WaterProperties - ERR40'
+        end if
+
         !Water quality
         if(Me%Coupled%WQM%Yes)then
 
@@ -2372,6 +2387,12 @@ do1 :   do while (associated(PropertyX))
 
         end if
 
+        !WWTPQ
+        if(Me%Coupled%WWTPQM%Yes)then
+
+            call CoupleWWTPQ
+
+        end if
 
         !Free vertical movement   
         if(Me%Coupled%FreeVerticalMovement%Yes) then
@@ -2587,6 +2608,7 @@ do1 :   do while (associated(PropertyX))
                    PropertyX%Evolution%MacroAlgae                    .or. &
                    PropertyX%Evolution%CEQUALW2                      .or. &
                    PropertyX%Evolution%Life                          .or. &
+                   PropertyX%Evolution%WWTPQ                         .or. &
                    PropertyX%Evolution%Partitioning                  .or. &
                    PropertyX%Evolution%FreeVerticalMovement          .or. &
                    PropertyX%Evolution%AdvectionDiffusion            .or. &
@@ -2632,10 +2654,10 @@ do1 :   do while (associated(PropertyX))
         call Search_Property(PropertyX, PropertyXID = Age_, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructAge - ModuleWaterProperties - ERR01'
 
-        if (PropertyX%Evolution%WaterQuality) then
-            write(*,*)'Property Age cannot use module Waterquality as sink and source model'
+        if (PropertyX%Evolution%WaterQuality .or. PropertyX%Evolution%WWTPQ) then
+            write(*,*)'Property Age cannot use module Waterquality or WWTPQ as sink and source model'
             write(*,*)'Age evolution is automaticly calculated by module Waterproperties'
-            write(*,*)'Set WQM for property age to 0'
+            write(*,*)'Set WQM and WWTPQ for property age to 0'
             stop 'ConstructAge - ModuleWaterProperties - ERR02'
         endif
 
@@ -3149,6 +3171,61 @@ do1 :   do while (associated(PropertyX))
     
     !--------------------------------------------------------------------------
 
+
+    subroutine CoupleWWTPQ
+
+        !Local-----------------------------------------------------------------
+        type(T_Property), pointer                           :: PropertyX
+        integer, pointer, dimension(:)                      :: WWTPQPropertyList
+        integer                                             :: STAT_CALL
+        real                                                :: WWTPQDT
+        integer                                             :: Index = 0
+        !----------------------------------------------------------------------
+
+        Index = 0
+
+        nullify (WWTPQPropertyList)
+        allocate(WWTPQPropertyList(1:Me%Coupled%WWTPQM%NumberOfProperties))
+
+        PropertyX => Me%FirstProperty
+            
+        do while(associated(PropertyX))
+
+            if(PropertyX%Evolution%WWTPQ)then
+
+                Index = Index + 1
+                WWTPQPropertyList(Index)  = PropertyX%ID%IDNumber
+
+            end if
+
+            PropertyX => PropertyX%Next
+        enddo
+        
+        nullify(PropertyX)
+
+
+        call ConstructInterface(InterfaceID         = Me%ObjInterface,               &
+                                TimeID              = Me%ObjTime,                    &
+                                SinksSourcesModel   = WWTPQModel,                    &
+                                DT                  = WWTPQDT,                &
+                                PropertiesList      = WWTPQPropertyList,      &
+                                WaterPoints3D       = Me%ExternalVar%WaterPoints3D,  &
+                                Size3D              = Me%WorkSize,                   &
+                                Vertical1D          = Me%ExternalVar%Vertical1D,     &
+                                STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)                                                   &
+            stop 'CoupleWaterQuality - ModuleWaterProperties - ERR01'
+        
+        Me%Coupled%WWTPQM%DT_Compute  = WWTPQDT 
+        Me%Coupled%WWTPQM%NextCompute = Me%ExternalVar%Now
+        
+        deallocate(WWTPQPropertyList)
+        nullify   (WWTPQPropertyList)
+
+    end subroutine CoupleWWTPQ
+
+    !--------------------------------------------------------------------------
+
     subroutine CoupleFreeVerticalMovement (             &
 #ifdef _ENABLE_CUDA
                                             CudaID      &
@@ -3598,6 +3675,7 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
             NewProperty%Evolution%MacroAlgae            .or.                            &
             NewProperty%Evolution%CEQUALW2              .or.                            &
             NewProperty%Evolution%Life                  .or.                            &
+            NewProperty%Evolution%WWTPQ                 .or.                            &
             NewProperty%Evolution%Partitioning          .or.                            &
             NewProperty%Evolution%FreeVerticalMovement  .or.                            &
             NewProperty%Evolution%AdvectionDiffusion    .or.                            & 
@@ -4788,6 +4866,30 @@ case1 : select case(PropertyID)
 
         if(NewProperty%evolution%Life) NewProperty%evolution%Variable = .true.
 
+        !<BeginKeyword>
+            !Keyword          : WWTPQ
+            !<BeginDescription>       
+               ! This property has WWTPQ Model as a sink and source
+            !<EndDescription>
+            !Type             : Logical 
+            !Default          : FALSE
+            !File keyword     : WWTPQUAL
+            !Multiple Options : NO, WWTPQM
+            !Search Type      : FromBlock
+            !Begin Block      : <beginproperty>
+            !End Block        : <endproperty>
+        !<EndKeyword>       
+        call GetData(NewProperty%Evolution%WWTPQ,                                 &
+                     Me%ObjEnterData, iflag,                                             &
+                     SearchType   = FromBlock,                                           &
+                     keyword      = 'WWTPQ',                                     &
+                     Default      = OFF,                                                 &
+                     ClientModule = 'ModuleWaterProperties',                             &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_)                                                     &
+            stop 'Subroutine Construct_PropertyEvolution - ModuleWaterProperties - ERR71'
+
+        if(NewProperty%Evolution%WWTPQ) NewProperty%evolution%Variable = .true.
 
         !<BeginKeyword>
             !Keyword          : PARTITION
@@ -7802,18 +7904,15 @@ cd2 :       if (BlockFound) then
 
                     if(PropertyX%Evolution%SurfaceFluxes) SolarRadiationIsNeeded = .true.
 
-                case(Phytoplankton_)
+                case(Phytoplankton_, Diatoms_)
                     
                     if(PropertyX%Evolution%WaterQuality ) SolarRadiationIsNeeded = .true.
+                    if(PropertyX%Evolution%WWTPQ ) SolarRadiationIsNeeded = .true.
 
                 case(MacroAlgae_)
                     
                     if(PropertyX%Evolution%MacroAlgae   ) SolarRadiationIsNeeded = .true.
 
-                case(Diatoms_)
-                    
-                    if(PropertyX%Evolution%WaterQuality ) SolarRadiationIsNeeded = .true.
-                
                 case(Algae_1_, Algae_2_, Algae_3_, Algae_4_, Algae_5_)
                 
                     if(PropertyX%Evolution%CEQUALW2     ) SolarRadiationIsNeeded = .true.
@@ -7940,6 +8039,7 @@ cd2 :       if (BlockFound) then
             write(*, *)"---CEQUALW2         : ", CurrentProperty%Evolution%CEQUALW2
             write(*, *)"---Life             : ", CurrentProperty%Evolution%Life
             write(*, *)"---MacroAlgae       : ", CurrentProperty%Evolution%MacroAlgae
+            write(*, *)"---WWTPQ            : ", CurrentProperty%Evolution%WWTPQ
             write(*, *)"---Partitioning     : ", CurrentProperty%Evolution%Partitioning
             write(*, *)"---Free Vert. Mov   : ", CurrentProperty%Evolution%FreeVerticalMovement
             write(*, *)"---Adv. Diff.       : ", CurrentProperty%Evolution%AdvectionDiffusion
@@ -8542,6 +8642,9 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
             if (Me%Coupled%MacroAlgae%Yes)                    &
                 call MacroAlgae_Processes
+
+            if (Me%Coupled%WWTPQM%Yes)                           &
+                call WWTPQ_Processes
 
             if (Me%Coupled%MinimumConcentration%Yes .or.      &
                 Me%Coupled%MaximumConcentration%Yes)          &
@@ -11688,6 +11791,128 @@ cd5:                if (TotalVolume > 0.) then
         enddo
 
     end subroutine MacroAlgaePhysicalConditions
+
+    !--------------------------------------------------------------------------
+    !   Makes the connection between the Water         
+    !   Properties module and the WWTP quality     
+    !   model                                       
+    !--------------------------------------------------------------------------
+    subroutine WWTPQ_Processes
+
+        !External--------------------------------------------------------------
+        integer                                 :: STAT_CALL
+
+        !Local----------------------------------------------------------------- 
+        type (T_Property),      pointer         :: PropertyX
+        type (T_WqRate),        pointer         :: WqRateX
+        real, dimension(:,:,:), pointer         :: ShortWaveExtinctionField
+        real, dimension(:,:,:), pointer         :: ShortWaveTop
+
+        !Begin----------------------------------------------------------------- 
+
+        if (MonitorPerformance) call StartWatch ("ModuleWaterProperties", "WWTPQ_Processes")
+
+        ShortWaveTop => Me%SolarRadiation%ShortWaveTop
+
+        call GetShortWaveExtinctionField(Me%ObjLightExtinction, ShortWaveExtinctionField, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WWTPQ_Processes - ModuleWaterProperties - ERR01'
+
+        PropertyX => Me%FirstProperty
+
+        if (Me%ExternalVar%Now .GE. Me%Coupled%WWTPQM%NextCompute) then
+            
+            do while(associated(PropertyX))
+
+                call Modify_Interface(InterfaceID       = Me%ObjInterface,              &
+                                      PropertyID        = PropertyX%ID%IDNumber,        &
+                                      Concentration     = PropertyX%Concentration,      &
+                                      WaterPoints3D     = Me%ExternalVar%WaterPoints3D, &
+                                      OpenPoints3D      = Me%ExternalVar%OpenPoints3D,  &
+                                      ShortWaveTop= ShortWaveTop,           &
+                                      LightExtCoefField = ShortWaveExtinctionField,     &
+                                      DWZ               = Me%ExternalVar%DWZ,           &
+                                      STAT              = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_)                                            &
+                    stop 'WWTPQ_Processes - ModuleWaterProperties - ERR02'
+
+                PropertyX => PropertyX%Next
+
+            end do
+
+            Me%Coupled%WWTPQM%NextCompute = Me%Coupled%WWTPQM%NextCompute + Me%Coupled%WWTPQM%DT_Compute
+            
+        end if 
+
+        PropertyX => Me%FirstProperty
+
+        do while (associated(PropertyX))
+
+            if (PropertyX%Evolution%WWTPQ) then
+    
+                if (Me%ExternalVar%Now .GE.PropertyX%Evolution%NextCompute) then
+
+                   call Modify_Interface(InterfaceID   = Me%ObjInterface,               &
+                                         PropertyID    = PropertyX%ID%IDNumber,         &
+                                         Concentration = PropertyX%Concentration,       &
+                                         DTProp        = PropertyX%Evolution%DTInterval,&
+                                         WaterPoints3D = Me%ExternalVar%WaterPoints3D,  &
+                                         OpenPoints3D  = Me%ExternalVar%OpenPoints3D,   &
+                                         STAT           = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_)                                        &
+                        stop 'WWTPQ_Processes - ModuleWaterProperties - ERR03'
+                endif
+
+            endif
+            
+            PropertyX=>PropertyX%Next
+
+        enddo
+
+        nullify(PropertyX)
+         
+        !Get rate fluxes, integrate them and write box time series
+        WqRateX => Me%FirstWqRate
+
+        do while (associated(WqRateX))
+
+            if(WqRateX%Model == WWTPQModel)then
+
+                call GetRateFlux(InterfaceID    = Me%ObjInterface,                          &
+                                 FirstProp      = WqRateX%FirstProp%IDNumber,               &
+                                 SecondProp     = WqRateX%SecondProp%IDNumber,              &
+                                 RateFlux3D     = WqRateX%Field,                            &
+                                 WaterPoints3D  = Me%ExternalVar%OpenPoints3D,             &
+                                 STAT           = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_)                                                &
+                    stop 'WWTPQ_Processes - ModuleWaterProperties - ERR04'
+
+                where (Me%ExternalVar%OpenPoints3D == WaterPoint) &
+                        WqRateX%Field = WqRateX%Field * Me%ExternalVar%VolumeZ / Me%Coupled%WWTPQM%DT_Compute
+
+                call BoxDif(Me%ObjBoxDif,                                                   &
+                            WqRateX%Field,                                                  &
+                            trim(WqRateX%ID%Name),                                          &
+                            Me%ExternalVar%OpenPoints3D,                                   &
+                            STAT  = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_)                                                &
+                    stop 'WWTPQ_Processes - ModuleWaterProperties - ERR05'
+            end if
+
+            WqRateX=>WqRateX%Next
+
+        enddo   
+
+        nullify(WqRateX)
+
+        call UnGetLightExtinction(Me%ObjLightExtinction, ShortWaveExtinctionField, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WWTPQ_Processes - ModuleWaterProperties - ERR06'
+
+        if (MonitorPerformance) call StopWatch ("ModuleWaterProperties", "WWTPQ_Processes")
+
+
+    end subroutine WWTPQ_Processes
+
+    !--------------------------------------------------------------------------
 
     !--------------------------------------------------------------------------
     !   Makes the connection between the Water         
@@ -17371,7 +17596,8 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
                     if((PropertyX%Evolution%WaterQuality)       .or. &
                        (PropertyX%Evolution%CEQUALW2    )       .or. &
                        (PropertyX%Evolution%Life        )       .or. &
-                       (PropertyX%Evolution%MacroAlgae  )) WQMYes = .true.
+                       (PropertyX%Evolution%MacroAlgae  )       .or. &
+                       (PropertyX%Evolution%WWTPQ  )) WQMYes = .true.
                     
                 end if
 
@@ -18859,7 +19085,7 @@ cd9 :               if (associated(PropertyX%Assimilation%Field)) then
                 end if
 
                 !Interface
-                if (Me%Coupled%WQM%Yes .or. Me%Coupled%CEQUALW2%Yes .or. Me%Coupled%Life%Yes ) then
+                if (Me%Coupled%WQM%Yes .or. Me%Coupled%CEQUALW2%Yes .or. Me%Coupled%Life%Yes .or. Me%Coupled%WWTPQM%Yes) then
                     call KillInterface(Me%ObjInterface, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) &
                         stop 'KillWaterProperties - ModuleWaterProperties - ERR410'
