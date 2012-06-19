@@ -29,7 +29,7 @@
 !------------------------------------------------------------------------------
 !DataFile
 !   DT                          : real           [3600]         !Time step compute biogeochemical processes
-!   PELAGIC_MODEL               : string                        Name of the pelagic model coupledh with benthicecology 
+!   PELAGIC_MODEL               : string                        Name of the pelagic model coupled with benthicecology 
 !---------------------------------Biochemical processes parameters  --------------------------------------------------   
 !Type and Name                    Label (from file)   value         unit                 Description
 !BioChemPar%KmaxNit               KMAXNIT             0.1           [1/day]              Maximum nitrification rate
@@ -71,7 +71,6 @@ Module ModuleBenthicEcology
 
     !Constructor
     
-     !Constructor
     public  :: ConstructBenthicEcology
     private ::      AllocateInstance
     private ::      ReadData
@@ -97,7 +96,7 @@ Module ModuleBenthicEcology
     private ::          ConstructPropertyList
         
         
-        !Selector
+    !Selector
     public  :: GetDTBenthicEcology
     public  :: GetBenthicEcologyPropertyList
     public  :: GetBenthicEcologySize
@@ -114,7 +113,7 @@ Module ModuleBenthicEcology
     !private ::      Decomposers
    
     
-        !Destructor
+    !Destructor
     public  :: KillBenthicEcology                                                     
     private ::      DeAllocateInstance
 
