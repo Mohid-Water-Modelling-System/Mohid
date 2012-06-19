@@ -87,7 +87,7 @@ Module ModuleBasin
                                      UngetRunoffProperties, SetBasinConcRP,              &
                                      SetBasinToRPSplash, GetRPMassBalance,               &
                                      CheckRPProperty, GetRPConcentrationOld,             &
-                                     GetRPDecayRate, SetVegetationRP
+                                     GetRPDecayRate, SetVegetationRP, GetRPConcentrationAT
                                      
     use ModuleDrainageNetwork,only : ConstructDrainageNetwork, FillOutPutMatrix,         &
                                      ModifyDrainageNetwork,                              &
@@ -2843,10 +2843,10 @@ cd2 :           if (BlockFound) then
                 call AtmosphereProcesses 
 
                 !Actualizes the WaterColumn
-                WarningString = 'AtmosphereProcesses'
-                call ActualizeWaterColumn (WarningString) 
+                call ActualizeWaterColumn  
                 
                 if (Me%Coupled%RunoffProperties) then
+                    WarningString = 'AtmosphereProcesses'
                     call ActualizeWaterColumnConc(WarningString) 
                 endif
                 
@@ -2865,13 +2865,13 @@ cd2 :           if (BlockFound) then
                 call PorousMediaProcesses
 
                 !Actualizes the WaterColumn
-                WarningString = 'PorousMediaProcesses'
-                call ActualizeWaterColumn (WarningString)                 
+                call ActualizeWaterColumn                 
                 
                 
                 if (Me%Coupled%PorousMediaProperties) then
 
                     call PorousMediaPropertiesProcesses     
+                    WarningString = 'PorousMediaProcesses'
                     call ActualizeWaterColumnConc(WarningString) 
                     
                 endif           
@@ -2890,10 +2890,10 @@ cd2 :           if (BlockFound) then
 !                end do
 !
 !                !Actualizes the WaterColumn
-!                WarningString = 'PorousMediaProcesses 2'
 !                call ActualizeWaterColumn (WarningString) 
 !
 !                if (Me%Coupled%RunoffProperties) then
+!                    WarningString = 'PorousMediaProcesses 2'
 !                    call ActualizeWaterColumnConc(WarningString) 
 !                endif
                 
@@ -2905,10 +2905,10 @@ cd2 :           if (BlockFound) then
                 call SimpleInfiltration
 
                 !Actualizes the WaterColumn
-                WarningString = 'SimpleInfiltration'
-                call ActualizeWaterColumn (WarningString) 
+                call ActualizeWaterColumn  
                 
                 if (Me%Coupled%RunoffProperties) then
+                    WarningString = 'SimpleInfiltration'
                     call ActualizeWaterColumnConc(WarningString) 
                 endif                
             endif
@@ -3860,7 +3860,6 @@ cd2 :           if (BlockFound) then
         real(8)                                     :: MassAdded, MassSink
         real                                        :: VegDT, DT
         real                                        :: DecayRate
-        logical, dimension(:,:), pointer            :: IsVegGrowing
         !Begin-----------------------------------------------------------------
                                   
         !Mass Balance to vegetation water on leafs
@@ -4719,8 +4718,14 @@ cd2 :           if (BlockFound) then
                 if (PropAdvDiff) then
                     
                     !Get the property conc from RP Old because is explicit flux (is the same used in RP fluxes)
-                    call GetRPConcentrationOld(RunoffPropertiesID    = Me%ObjRunoffProperties,       &
-                                               ConcentrationXOld     = RPConcentration,              &
+!                    call GetRPConcentrationOld(RunoffPropertiesID    = Me%ObjRunoffProperties,       &
+!                                               ConcentrationXOld     = RPConcentration,              &
+!                                               PropertyXIDNumber     = PropID,                       &
+!                                               STAT                  = STAT_CALL)        
+!                    if (STAT_CALL /= SUCCESS_) stop 'DrainageNetworkProcesses - ModuleBasin - ERR030'
+                    !The conc used for flux with DN is the one saved After Transport
+                    call GetRPConcentrationAT(RunoffPropertiesID    = Me%ObjRunoffProperties,       &
+                                               ConcentrationXAT      = RPConcentration,              &
                                                PropertyXIDNumber     = PropID,                       &
                                                STAT                  = STAT_CALL)        
                     if (STAT_CALL /= SUCCESS_) stop 'DrainageNetworkProcesses - ModuleBasin - ERR030'
@@ -5086,7 +5091,9 @@ cd2 :           if (BlockFound) then
                 if (STAT_CALL /= SUCCESS_) stop 'PorousMediaPropertiesProcesses - ModuleBasin - ERR103.3' 
                 
                 if (PropAdvDiff .and. (.not. PropParticulate)) then
-
+                    
+                    !Get the new RP concentration (after surface fluxes) because is the same used in PMP for infil flux
+                    !and in MassInFlow (the routine that computes the actualization of Runoff Properties
                     call GetRPConcentration(RunoffPropertiesID       = Me%ObjRunoffProperties,       &
                                              ConcentrationX          = RPConcentration,              &
                                              PropertyXIDNumber       = PropID,                       &
@@ -5369,6 +5376,9 @@ cd2 :           if (BlockFound) then
                 if (PropAdvDiff .and. (.not. Check_Particulate_Property(PropID))) then
                     
                     !Get the property conc from Drainage Network
+                    !The DN new concentration is computed at the end of timestep. So the conc used
+                    !in PMP here is the new of the last time step or the old of the new that is the same
+                    !used in DN for the water discharges                    
                     call GetDNConcentration   (DrainageNetworkID = Me%ObjDrainageNetwork,                  &
                                                ConcentrationX    = DNConcentration,                        &
                                                PropertyXIDNumber = PropID,                                 &
@@ -5613,7 +5623,10 @@ cd2 :           if (BlockFound) then
                 if (STAT_CALL /= SUCCESS_) stop 'RunoffPropertiesProcesses - ModuleBasin - ERR106' 
                 
                 !Particulate and not particulate properties (in water phase)with advection diffusion may interact with runoff
-                if (PropAdvDiff) then                        
+                if (PropAdvDiff) then  
+                    !The DN new concentration is computed at the end of timestep. So the conc used
+                    !in runoff here is the new of the last time step or the old of the new that is the same
+                    !used in DN for the water discharges
                     call GetDNConcentration   (DrainageNetworkID = Me%ObjDrainageNetwork,                  &
                                                ConcentrationX    = DNConcentration,                        &
                                                PropertyXIDNumber = PropID,                                 &
@@ -5796,10 +5809,10 @@ cd2 :           if (BlockFound) then
 
     !--------------------------------------------------------------------------
 
-    subroutine ActualizeWaterColumn (WarningString)
+    subroutine ActualizeWaterColumn ()
 
         !Arguments-------------------------------------------------------------
-        character (Len = *), intent(in)             :: WarningString
+        !character (Len = *), intent(in)             :: WarningString
 
         !Local-----------------------------------------------------------------
         integer                                     :: i, j, CHUNK, STAT_CALL
@@ -5808,7 +5821,7 @@ cd2 :           if (BlockFound) then
 
         if (MonitorPerformance) call StartWatch ("ModuleBasin", "ActualizeWaterColumn")
 
-        !$OMP PARALLEL PRIVATE(I,J, WarningString)
+        !$OMP PARALLEL PRIVATE(I,J)
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
         do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         do i = Me%WorkSize%ILB, Me%WorkSize%IUB
@@ -5888,16 +5901,17 @@ cd2 :           if (BlockFound) then
                 MassInFlow = 0.0
                 allocate(MassToBottom(Me%WorkSize%ILB:Me%WorkSize%IUB,Me%WorkSize%JLB:Me%WorkSize%JUB))
                 MassToBottom = 0.0
-                allocate(NewRPConcentration(Me%WorkSize%ILB:Me%WorkSize%IUB,Me%WorkSize%JLB:Me%WorkSize%JUB))
-                NewRPConcentration = null_real
 
-                !Get the most recent conc. from RP
+                !Get the most recent conc. from RP (e.g. is the same used in PMP)
                 call GetRPConcentration(RunoffPropertiesID       = Me%ObjRunoffProperties,       &
                                          ConcentrationX          = RPConcentration,              &
                                          PropertyXIDNumber       = PropID,                       &
                                          STAT                    = STAT_CALL)        
                 if (STAT_CALL /= SUCCESS_) stop 'ActualizeWaterColumnConcentration - ModuleBasin - ERR20'
                 
+                allocate(NewRPConcentration(Me%WorkSize%ILB:Me%WorkSize%IUB,Me%WorkSize%JLB:Me%WorkSize%JUB))
+                call SetMatrixValue (NewRPConcentration, Me%WorkSize, RPConcentration)
+
                 !Compute mass flow matrix to update concentrations
                 call ComputeMassInFlow (WarningString, RPConcentration, PropID, PropParticulate, MassInFlow)
 
@@ -5918,7 +5932,8 @@ cd2 :           if (BlockFound) then
                             NewRPConcentration(i,j) = PropertyMassNew / (Me%ExtUpdate%Watercolumn(i,j)        &
                                                                          * Me%ExtVar%GridCellArea(i,j))
                         else
-                            NewRPConcentration(i,j) = 0.0
+                            !Do not zero, leave unchanged (RP Conc)
+                            !NewRPConcentration(i,j) = 0.0
                             
                             !deposition driven by complete infiltration of water column (WC totally infiltrated in time step) 
                             if ((PropParticulate) .and. (Me%ExtUpdate%WatercolumnOld(i,j) .gt. AlmostZero)) then

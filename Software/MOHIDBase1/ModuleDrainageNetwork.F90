@@ -441,6 +441,10 @@ Module ModuleDrainageNetwork
 
     integer, parameter                              :: UnitMax              = 80
 
+    !water column computation in faces
+    integer, parameter                              :: WDMaxBottom_         = 1
+    integer, parameter                              :: WDAverageBottom_     = 2
+
     !Types---------------------------------------------------------------------
 
     type T_FlowFrequency
@@ -637,6 +641,7 @@ Module ModuleDrainageNetwork
         logical                                     :: EVTPFromReach            = .false.
         logical                                     :: StormWaterModelLink      = .false.
         logical                                     :: LimitToCriticalFlow      = .true.
+        integer                                     :: FaceWaterColumn          = WDMaxBottom_        
     end type T_ComputeOptions
 
     type       T_Coupling
@@ -1293,6 +1298,16 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             write (*,*)'Invalid Number of Minimum Water Level for advection [MIN_WATER_DEPTH_ADVECTION]'
             stop 'ModuleDrainageNetwork - ReadDataFile - ERR16b'
         end if
+
+!        !Method for computing water column in the face (1 - Using max height and max bottom; 2- using average of WC)
+!        call GetData(Me%ComputeOptions%FaceWaterColumn,                     &
+!                     ObjEnterData, iflag,                                   &  
+!                     keyword      = 'WATER_DEPTH_FACE',                     &
+!                     ClientModule = 'ModuleDraianageNetork',                &
+!                     SearchType   = FromFile,                               &
+!                     Default      = WDMaxBottom_,                           &
+!                     STAT         = STAT_CALL)                                  
+!        if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR16b'
 
         call GetData(Me%Continuous,                                             &
                      Me%ObjEnterData, flag,                                     &  
@@ -7568,6 +7583,13 @@ do2 :   do while (associated(PropertyX))
         iter        = 1
         do while (iter <= Niter)
 
+            !Water From OverLandFlow / GW Exchange
+            !Warning ModifyWaterExchange has to be the first exchange in order to use ConcOld
+            !(the same conc that RP and PMP used to compute the mass flux between runoff and river)
+            if (Me%HasGrid) then
+                call ModifyWaterExchange    (LocalDT)
+            endif
+
             !Transmission Losses - Should be used when running MOHID River Network only
             if (.not. Me%HasGrid .and. Me%ComputeOptions%TransmissionLosses) then
                 call ModifyTransmissionLosses   (LocalDT)
@@ -7583,11 +7605,6 @@ do2 :   do while (associated(PropertyX))
                 call FlowFromStormWater     (LocalDT)
             endif
             
-            !Water From OverLandFlow / GW Exchange
-            if (Me%HasGrid) then
-                call ModifyWaterExchange    (LocalDT)
-            endif
-
             call UpdateAreasAndMappings
             
          
@@ -8849,7 +8866,11 @@ if2:        if (CurrNode%VolumeNew > PoolVolume) then
                         call ModifyDownstreamTimeSerie (LevelOut)
                     end if
                     
-                    CurrNode%WaterLevel = UpReach%Velocity*UpNode%WaterDepth / sqrt(Gravity*UpNode%WaterDepth) + LevelOut
+                    if (UpNode%WaterDepth .gt. 0.0) then
+                        CurrNode%WaterLevel = UpReach%Velocity*UpNode%WaterDepth / sqrt(Gravity*UpNode%WaterDepth) + LevelOut
+                    else
+                        CurrNode%WaterLevel = CurrNode%CrossSection%BottomLevel
+                    endif
                     CurrNode%WaterDepth = CurrNode%WaterLevel - CurrNode%CrossSection%BottomLevel
 
                
@@ -9001,10 +9022,17 @@ if2:        if (CurrNode%VolumeNew > PoolVolume) then
 !        else
 !            WaterDepth = max(DownNode%WaterLevel - UpNode%CrossSection%BottomLevel, 0.0)
 !        endif
-
-        MaxBottom  = max(UpNode%CrossSection%BottomLevel, DownNode%CrossSection%BottomLevel)
-        WaterDepth = max(max(UpNode%WaterLevel - MaxBottom, 0.0), max(DownNode%WaterLevel - MaxBottom, 0.0)) !/ 2.0
         
+        !2 ways of computing water depth, the 2nd may create problems in backwater in big section changes
+        !because the reach has the upstream node section
+!        if (Me%ComputeOptions%FaceWaterColumn == WDMaxBottom_) then
+            MaxBottom  = max(UpNode%CrossSection%BottomLevel, DownNode%CrossSection%BottomLevel)
+            !WaterDepth = (max(UpNode%WaterLevel - MaxBottom, 0.0) + max(DownNode%WaterLevel - MaxBottom, 0.0)) / 2.0
+            WaterDepth = max(UpNode%WaterLevel - MaxBottom, DownNode%WaterLevel - MaxBottom)
+!        elseif (Me%ComputeOptions%FaceWaterColumn == WDAverageBottom_) then
+!            AverageBottom = (UpNode%CrossSection%BottomLevel + DownNode%CrossSection%BottomLevel) / 2.0
+!            WaterDepth = max(UpNode%WaterLevel - AverageBottom, DownNode%WaterDepth - AverageBottom)
+!        endif
         
         if (UpNode%CrossSection%Form == Trapezoidal .OR.            &
            (UpNode%CrossSection%Form == TrapezoidalFlood .AND.      &
@@ -9098,10 +9126,10 @@ if2:        if (CurrNode%VolumeNew > PoolVolume) then
             !m3/s = (m2 * m^(2/3) ) / (s.m^(-1/3)) = (m^(6/3) * m^(2/3) * m^(1/3))/s = m3/s
             CurrReach%FlowNew  = sign * CurrReach%VerticalArea * CurrReach%HydraulicRadius **(2.0/3.0) &
                                  * sqrt(abs(CurrReach%Slope))  / CurrReach%Manning
-                                 
+
             
             !limit to critical flow if a free drop exists
-            if (Me%HydrodynamicApproximation == DiffusionWave) then
+            if (Me%HydrodynamicApproximation == DiffusionWave .and. Me%ComputeOptions%LimitToCriticalFlow) then
             
                 UpNode   => Me%Nodes (CurrReach%UpstreamNode  )
                 DownNode => Me%Nodes (CurrReach%DownstreamNode)
@@ -9171,7 +9199,6 @@ if2:        if (CurrNode%VolumeNew > PoolVolume) then
         !   -    =  (s * m.s-2  * m3.s-1 * s.m(-1/3)) / (m2 * m(4/3)) = m(10/3) / m(10/3)
         Friction = DT * Gravity * abs(CurrReach%FlowOld) * CurrReach%Manning ** 2. &
                  / ( CurrReach%VerticalArea * CurrReach%HydraulicRadius ** (4./3.) ) 
-        
 
         !ADVECTION - upwind (in - out)-------------------------------------------
         !positive direction is downstream
@@ -9192,29 +9219,40 @@ if2:        if (CurrNode%VolumeNew > PoolVolume) then
             !because in supercritical flow it is only dependent on upstream and descritization to describe it would have
             !to change. Supercritical flow usually exists on hydraulic infraestructures (high drops) and a 
             !hydraulic jump exists between fast flow and slow flow.
-            !Waterdepth at the center of the reach - depending on flow direction since flow
-            !can be in opposite direction of height gradient
-            MaxBottom  = max(UpNode%CrossSection%BottomLevel, DownNode%CrossSection%BottomLevel)
-            !WaterDepth = (max(UpNode%WaterLevel - MaxBottom, 0.0) + max(DownNode%WaterLevel - MaxBottom, 0.0)) / 2.0
             
-            if (FlowNew .gt. 0.0) then
-                WaterDepth = max(UpNode%WaterLevel - MaxBottom, 0.0)
-            else
-                WaterDepth = max(DownNode%WaterLevel - MaxBottom, 0.0)
-            endif
-            
-            !Critical Flow - reach vertical area already takes into account water depths
-            !above maximum bottom
-            CriticalFlow = CurrReach%VerticalArea * sqrt(Gravity * WaterDepth)
-    
-            if (abs(FlowNew) > CriticalFlow) then
-                if (FlowNew > 0) then
-                    CurrReach%FlowNew = CriticalFlow
-                else
-                    CurrReach%FlowNew = -1.0 * CriticalFlow
+            !Test critical only if free drop exists
+!            if ((UpNode%WaterLevel .lt. DownNode%CrossSection%BottomLevel) .or.                &
+!                 (DownNode%WaterLevel .lt. UpNode%CrossSection%BottomLevel)) then            
+                
+                !Waterdepth at the center of the reach - depending on flow direction since flow
+                !can be in opposite direction of height gradient
+!                if (Me%ComputeOptions%FaceWaterColumn == WDMaxBottom_) then
+                    MaxBottom  = max(UpNode%CrossSection%BottomLevel, DownNode%CrossSection%BottomLevel)
+                    if (FlowNew .gt. 0.0) then
+                        WaterDepth = max(UpNode%WaterLevel - MaxBottom, 0.0)
+                    else
+                        WaterDepth = max(DownNode%WaterLevel - MaxBottom, 0.0)
+                    endif
+!                elseif(Me%ComputeOptions%FaceWaterColumn == WDAverageBottom_) then
+!                    if (FlowNew .gt. 0.0) then
+!                        WaterDepth = UpNode%WaterDepth
+!                    else
+!                        WaterDepth = DownNode%WaterDepth
+!                    endif
+!                endif
+                
+                !Critical Flow - reach vertical area already takes into account water depths
+                !above maximum bottom
+                CriticalFlow = CurrReach%VerticalArea * sqrt(Gravity * WaterDepth)
+        
+                if (abs(FlowNew) > CriticalFlow) then
+                    if (FlowNew > 0) then
+                        CurrReach%FlowNew = CriticalFlow
+                    else
+                        CurrReach%FlowNew = -1.0 * CriticalFlow
+                    endif
                 endif
-            endif
-
+!            endif
         endif
        
         !Velocity
@@ -9350,7 +9388,6 @@ if2:        if (CurrNode%VolumeNew > PoolVolume) then
     
         !Arguments--------------------------------------------------------------        
         type (T_Reach), pointer                 :: CurrReach        
-    
         !Local------------------------------------------------------------------
         type (T_Node), pointer                  :: CurrNode
         real                                    :: h      !hydraulic mean depth
@@ -9363,7 +9400,8 @@ if2:        if (CurrNode%VolumeNew > PoolVolume) then
                 CurrReach%FlowNew  = 0.0
                 CurrReach%Velocity = 0.0
             else
-                h = CurrNode%VerticalArea / CurrNode%SurfaceWidth
+                !h = CurrNode%VerticalArea / CurrNode%SurfaceWidth
+                h = CurrNode%WaterDepth
                 CurrReach%FlowNew = CurrNode%VerticalArea * sqrt(Gravity*h)
                 CurrReach%Velocity = CurrReach%FlowNew / CurrNode%VerticalArea
             endif
@@ -9956,17 +9994,17 @@ do2:            do while (Iterate)
                         
                         if (CurrNode%VolumeNew .gt. 0.0) then
                             !Sai - Entra
-                            call ComputeAdvection  (Advection, Property, NodeID, AdvOutFlow)  !gX/s
-                            call ComputeDiffusion  (Diffusion, Property, NodeID, DifOutFlow)  !gX/s               
+                            call ComputeAdvection  (Advection, Property, NodeID)  !gX/s
+                            call ComputeDiffusion  (Diffusion, Property, NodeID)  !gX/s               
 
                             
                             !New Concentration 
                             !g/m3 = (g/m3 * m3  + s * g/s) / m3   
                             Property%Concentration (NodeID) = (Property%ConcentrationOld (NodeID) * CurrNode%VolumeOld + &
                                                                LocalDT * (Advection + Diffusion )) / CurrNode%VolumeNew
-                        else
-                            !if all water exited then do not compute (no mass) and to avoid division by zero
-                            Property%Concentration (NodeID) = 0.0
+!                        else
+!                            !if all water exited then do not compute (no mass) and to avoid division by zero
+!                            Property%Concentration (NodeID) = 0.0
                         endif                                   
                    end if
                    
@@ -10004,16 +10042,16 @@ do2:            do while (Iterate)
     !---------------------------------------------------------------------------
     !---------------------------------------------------------------------------
 
-    subroutine ComputeAdvection  (AdvectionFlux, Property, NodePos, AdvOutFlow)  
+    subroutine ComputeAdvection  (AdvectionFlux, Property, NodePos)  
 
         !Arguments--------------------------------------------------------------
         real                                    :: AdvectionFlux  !kg/s     
         type (T_Property), pointer              :: Property
         integer                                 :: NodePos
-        real                                    :: AdvOutflow
+        !real                                    :: AdvOutflow
         !Local------------------------------------------------------------------
         type (T_Node    ), pointer              :: CurrNode              
-        type (T_Reach   ), pointer              :: DownReach, UpReach, OutletReach
+        type (T_Reach   ), pointer              :: DownReach, UpReach !, OutletReach
         integer                                 :: i
         real                                    :: DownProp, UpProp
         real                                    :: DownFlux, UpFlux
@@ -10087,16 +10125,16 @@ do2:            do while (Iterate)
     !---------------------------------------------------------------------------
     !---------------------------------------------------------------------------
     
-    subroutine  ComputeDiffusion  (DiffusionFlux, Property, NodePos, DifOutFlow)
+    subroutine  ComputeDiffusion  (DiffusionFlux, Property, NodePos)
 
         !Arguments--------------------------------------------------------------
         real                                    :: DiffusionFlux  ![]/s     
         type (T_Property), pointer              :: Property
         integer                                 :: NodePos
-        real                                    :: DifOutFlow
+        !real                                    :: DifOutFlow
         !Local------------------------------------------------------------------
         type (T_Node    ), pointer              :: CurrNode, DownNode, UpNode              
-        type (T_Reach   ), pointer              :: DownReach, UpReach, OutletReach
+        type (T_Reach   ), pointer              :: DownReach, UpReach !, OutletReach
         integer                                 :: DownNodePos, UpNodePos, i
         real                                    :: DownFlux, UpFlux
         real                                    :: GradProp

@@ -78,9 +78,10 @@ Module ModuleRunOff
     public  ::  GetFlowToChannels
     public  ::  GetFlowAtBoundary
     public  ::  GetFlowDischarge
-    public  ::  GetRunoffWaterLevel
-    public  ::  GetRunoffWaterColumn
-    public  ::  GetRunoffWaterColumnOld
+    public  ::  GetRunoffWaterLevel 
+    public  ::  GetRunoffWaterColumn        !Final WaterColumn 
+    public  ::  GetRunoffWaterColumnOld     !Initial WaterColumn
+    public  ::  GetRunoffWaterColumnAT      !WaterColumn After Transport (For RP) 
     public  ::  GetRunoffCenterVelocity
     public  ::  GetRunoffTotalStoredVolume
     public  ::  GetMassError
@@ -119,6 +120,10 @@ Module ModuleRunOff
     integer, parameter                              :: DynamicWave_     = 3      
 
     integer, parameter                              :: UnitMax          = 80
+    
+    !water column computation in faces
+    integer, parameter                              :: WCMaxBottom_       = 1
+    integer, parameter                              :: WCAverageBottom_   = 2
 
     !Types---------------------------------------------------------------------
     type T_OutPut
@@ -179,6 +184,7 @@ Module ModuleRunOff
         real(8), dimension(:,:), pointer            :: myWaterVolume            => null() 
         real(8), dimension(:,:), pointer            :: myWaterColumnOld         => null() !OldColumn from Basin
         real(8), dimension(:,:), pointer            :: myWaterColumnAfterTransport => null() !for property transport
+        real(8), dimension(:,:), pointer            :: myWaterVolumePred        => null() !to avoid negative collumns
         real(8), dimension(:,:), pointer            :: myWaterVolumeOld         => null()
         real,    dimension(:,:), pointer            :: lFlowToChannels          => null() !Instantaneous Flow To Channels
         real,    dimension(:,:), pointer            :: iFlowToChannels          => null() !Integrated    Flow
@@ -251,6 +257,7 @@ Module ModuleRunOff
         integer                                     :: MaxIterations        = 5
         logical                                     :: SimpleChannelInteraction = .false.
         logical                                     :: LimitToCriticalFlow  = .true.
+        integer                                     :: FaceWaterColumn      = WCMaxBottom_
 
         logical                                     :: WriteMaxFlowModulus  = .false.
         character(Pathlength)                       :: MaxFlowModulusFile
@@ -606,15 +613,33 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             endif
         endif
 
-        !Gets if compute "margins" aside of adjacent cells that produce friction
-        call GetData(Me%CalculateCellMargins,                               &
-                     ObjEnterData, iflag,                                   &
-                     SearchType   = FromFile,                               &
-                     keyword      = 'HYDRAULIC_RADIUS_MARGINS',             &
-                     default      = .true.,                                 &
+        !Method for computing water column in the face (1 - Using max level and max bottom; 
+        !2- using max level and average of bottom)
+        call GetData(Me%FaceWaterColumn,                                    &
+                     ObjEnterData, iflag,                                   &  
+                     keyword      = 'WATER_COLUMN_FACE',                    &
                      ClientModule = 'ModuleRunOff',                         &
-                     STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR0180'        
+                     SearchType   = FromFile,                               &
+                     Default      = WCMaxBottom_,                           &
+                     STAT         = STAT_CALL)                                  
+        if (STAT_CALL /= SUCCESS_) stop 'ModuleRunOff - ReadDataFile - ERR175'
+        
+        if (Me%FaceWaterColumn /= WCMaxBottom_ .and. Me%FaceWaterColumn /= WCAverageBottom_) then
+            write(*,*) 'Unknown option for WATER_COLUMN_FACE'
+            stop 'ModuleRunOff - ReadDataFile - ERR01'
+        endif        
+        
+        if (Me%FaceWaterColumn == WCMaxBottom_) then
+            !Gets if compute "margins" aside of adjacent cells that produce friction
+            call GetData(Me%CalculateCellMargins,                               &
+                         ObjEnterData, iflag,                                   &
+                         SearchType   = FromFile,                               &
+                         keyword      = 'HYDRAULIC_RADIUS_MARGINS',             &
+                         default      = .true.,                                 &
+                         ClientModule = 'ModuleRunOff',                         &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR0180'        
+        endif
         
         !Gets if solution is limited by an maximum velocity
         call GetData(Me%ImposeMaxVelocity,                                      &
@@ -1243,7 +1268,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         enddo
         enddo
         
-        
+               
         if (Me%Buildings) then
 
             !Checks Building Height
@@ -1469,7 +1494,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         allocate(Me%myWaterLevel         (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
         allocate(Me%myWaterColumn        (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
-        !allocate(Me%myWaterColumnAfterTransport (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
+        allocate(Me%myWaterColumnAfterTransport (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
+        allocate(Me%myWaterVolumePred   (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
+        Me%myWaterVolumePred = null_real
         allocate(Me%InitialWaterColumn   (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
         allocate(Me%myWaterVolume        (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
         allocate(Me%myWaterColumnOld     (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
@@ -1482,7 +1509,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         Me%myWaterColumnOld        = null_real
         Me%myWaterVolumeOld        = null_real
         Me%MassError               = 0
-        !Me%myWaterColumnAfterTransport = null_real
+        Me%myWaterColumnAfterTransport = null_real
 
         allocate(Me%iFlowX               (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
         allocate(Me%iFlowY               (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
@@ -2012,34 +2039,37 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
 
     !--------------------------------------------------------------------------
     
-!    subroutine GetRunoffWaterColumnAfterTransport (ObjRunOffID, WaterColumn, STAT)
-!
-!        !Arguments-------------------------------------------------------------
-!        integer                                         :: ObjRunOffID
-!        real(8), dimension(:, :), pointer               :: WaterColumn
-!        integer, intent(OUT), optional                  :: STAT
-!
-!        !Local-----------------------------------------------------------------
-!        integer                                         :: STAT_, ready_
-!
-!        !----------------------------------------------------------------------
-!
-!        call Ready(ObjRunOffID, ready_)    
-!        
-!cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
-!            (ready_ .EQ. READ_LOCK_ERR_)) then
-!
-!            call Read_Lock(mRUNOFF_, Me%InstanceID)
-!            WaterColumn => Me%MyWaterColumnAfterTransport
-!
-!            STAT_ = SUCCESS_
-!        else 
-!            STAT_ = ready_
-!        end if cd1
-!
-!        if (present(STAT)) STAT = STAT_
-!
-!    end subroutine GetRunoffWaterColumnAfterTransport    
+    subroutine GetRunoffWaterColumnAT (ObjRunOffID, WaterColumn, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                                         :: ObjRunOffID
+        real(8), dimension(:, :), pointer               :: WaterColumn
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                         :: STAT_, ready_
+
+        !----------------------------------------------------------------------
+
+        call Ready(ObjRunOffID, ready_)    
+        
+cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            call Read_Lock(mRUNOFF_, Me%InstanceID)
+            !because runoff water may go all to the river in one time step and Runoff Conc would be zero
+            !but not flow, transport has to be separated from drainage network interaction
+            !and explicit/implicit transport is only evaluated with water column after transport            
+            WaterColumn => Me%MyWaterColumnAfterTransport
+
+            STAT_ = SUCCESS_
+        else 
+            STAT_ = ready_
+        end if cd1
+
+        if (present(STAT)) STAT = STAT_
+
+    end subroutine GetRunoffWaterColumnAT    
 
     !--------------------------------------------------------------------------
 
@@ -2477,12 +2507,18 @@ doIter:         do while (iter <= Niter)
 
                     !Updates Geometry
                     call ModifyGeometryAndMapping
-
+                    
+                    !save most recent water volume to predict if negative occur. in that case flux will be
+                    !limited to water volume and next fluxes will be zero
+                    if (.not. Me%LimitToCriticalFlow) then
+                        call SetMatrixValue (Me%myWaterVolumePred, Me%Size, Me%myWaterVolume)
+                    endif        
+                    
                     select case (Me%HydrodynamicApproximation)
                         case (KinematicWave_)
-                            call KinematicWave  (LocalDT)          !Slope based on topography
+                            call KinematicWave  ()            !Slope based on topography
                         case (DiffusionWave_)
-                            call KinematicWave  (LocalDT)          !Slope based on surface
+                            call KinematicWave  ()            !Slope based on surface
                         case (DynamicWave_)
                             call DynamicWaveXX    (LocalDT)   !Consider Advection, Friction and Pressure
                             call DynamicWaveYY    (LocalDT)
@@ -2538,8 +2574,8 @@ doIter:         do while (iter <= Niter)
             
             !save water column before removes from next processes
             !important for property transport if river cells get out of water, conc has to be computed
-            !by transport
-            !call SetMatrixValue(Me%myWaterColumnAfterTransport, Me%Size, Me%myWaterColumn)
+            !after transport and not zero because there was no water left
+            call SetMatrixValue(Me%myWaterColumnAfterTransport, Me%Size, Me%myWaterColumn)
             
             !Gets ExternalVars
             call ReadLockExternalVar (StaticOnly = .false.)
@@ -2673,7 +2709,7 @@ doIter:         do while (iter <= Niter)
         !Local-----------------------------------------------------------------
         integer                                     :: i, j
         integer                                     :: ILB, IUB, JLB, JUB
-        real                                        :: WCL, WCR, WCA, MaxBottom
+        real                                        :: WCL, WCR, WCA, Bottom
         integer                                     :: CHUNK
 
         CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
@@ -2684,53 +2720,65 @@ doIter:         do while (iter <= Niter)
         JLB = Me%WorkSize%JLB
         JUB = Me%WorkSize%JUB
 
-        !$OMP PARALLEL PRIVATE(I,J, WCL, WCR, WCA, MaxBottom)
+        !$OMP PARALLEL PRIVATE(I,J, WCL, WCR, WCA, Bottom)
 
 
         !X
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
         do j = JLB, JUB
         do i = ILB, IUB
+            !only evaluate if basin points or any of adjacent cells has water (do not compute flow
+            !for empty cells)
             if (Me%ExtVar%BasinPoints(i, j-1) == BasinPoint .and. Me%ExtVar%BasinPoints(i, j) == BasinPoint) then
-            
-                !Maximum Bottom Level
-                MaxBottom = max(Me%ExtVar%Topography(i, j-1) + Me%BuildingsHeight(i, j-1), &
-                                Me%ExtVar%Topography(i, j)   + Me%BuildingsHeight(i, j))
                 
-                !Water Column Left (above MaxBottom)
-                WCL       = max(Me%myWaterLevel(i, j-1) + Me%BuildingsHeight(i, j-1) - MaxBottom, dble(0.0))
-            
-                !Water Column Right (above MaxBottom)
-                WCR       = max(Me%myWaterLevel(i, j  ) + Me%BuildingsHeight(i, j)   - MaxBottom, dble(0.0))
+                if ((Me%MyWaterColumn(i,j-1) .gt. 0.0) .or. (Me%MyWaterColumn(i,j) .gt. 0.0)) then
+                    
+                    if (Me%FaceWaterColumn == WCMaxBottom_) then
+                        !Maximum Bottom Level
+                        Bottom = max(Me%ExtVar%Topography(i, j-1) + Me%BuildingsHeight(i, j-1), &
+                                     Me%ExtVar%Topography(i, j)   + Me%BuildingsHeight(i, j))
+                    elseif (Me%FaceWaterColumn == WCAverageBottom_) then
+                        !Average Bottom Level
+                        Bottom = ((Me%ExtVar%Topography(i,j) +  Me%BuildingsHeight(i, j))   &
+                                   + (Me%ExtVar%Topography(i,j-1) +  Me%BuildingsHeight(i, j-1))) / 2.0                
+                    endif
+                    
+                    !Water Column Left (above MaxBottom)
+                    WCL       = max(Me%myWaterLevel(i, j-1) + Me%BuildingsHeight(i, j-1) - Bottom, dble(0.0))
+                
+                    !Water Column Right (above MaxBottom)
+                    WCR       = max(Me%myWaterLevel(i, j  ) + Me%BuildingsHeight(i, j)   - Bottom, dble(0.0))
 
-                !In the case of kinematic wave, always consider the "upstream" area, otherwise the average above "max bottom"
-                if (Me%HydrodynamicApproximation == KinematicWave_) then
-                    if (Me%ExtVar%Topography(i, j-1) + Me%BuildingsHeight(i, j-1) >      &
-                        Me%ExtVar%Topography(i, j)   + Me%BuildingsHeight(i, j)) then
-                        WCA = WCL
+                    !In the case of kinematic wave, always consider the "upstream" area, otherwise the average above "max bottom"
+                    if (Me%HydrodynamicApproximation == KinematicWave_) then
+                        if (Me%ExtVar%Topography(i, j-1) + Me%BuildingsHeight(i, j-1) >      &
+                            Me%ExtVar%Topography(i, j)   + Me%BuildingsHeight(i, j)) then
+                            WCA = WCL
+                        else
+                            WCA = WCR
+                        endif
                     else
-                        WCA = WCR
+                        !Average Water Column
+                        !WCA = (WCL + WCR) / 2.0
+                        if (Me%myWaterLevel(i, j-1) + Me%BuildingsHeight(i, j-1) >           &
+                            Me%myWaterLevel(i, j) + Me%BuildingsHeight(i, j)) then
+                            WCA = WCL
+                        else
+                            WCA = WCR
+                        endif
                     endif
-                else
-                    !Average Water Column
-                    !WCA = (WCL + WCR) / 2.0
-                    if (Me%myWaterLevel(i, j-1) + Me%BuildingsHeight(i, j-1) >           &
-                        Me%myWaterLevel(i, j) + Me%BuildingsHeight(i, j)) then
-                        WCA = WCL
+                    
+                    !Area  = Water Column * Side lenght of cell
+                    Me%AreaU(i, j) = WCA * Me%ExtVar%DYY(i, j)
+                    
+                    if (WCA > Me%MinimumWaterColumn) then
+                        Me%ComputeFaceU(i, j) = 1
                     else
-                        WCA = WCR
+                        Me%ComputeFaceU(i, j) = 0
                     endif
-                endif
-                
-                !Area  = Water Column * Side lenght of cell
-                Me%AreaU(i, j) = WCA * Me%ExtVar%DYY(i, j)
-                
-                if (WCA > Me%MinimumWaterColumn) then
-                    Me%ComputeFaceU(i, j) = 1
                 else
                     Me%ComputeFaceU(i, j) = 0
                 endif
-            
             endif
             
         enddo
@@ -2742,45 +2790,55 @@ doIter:         do while (iter <= Niter)
         do j = JLB, JUB
         do i = ILB, IUB
             if (Me%ExtVar%BasinPoints(i-1, j) == BasinPoint .and. Me%ExtVar%BasinPoints(i, j) == BasinPoint) then
-            
-                !Maximum Bottom Level
-                MaxBottom = max(Me%ExtVar%Topography(i-1, j) + Me%BuildingsHeight(i-1, j), &
-                                Me%ExtVar%Topography(i, j)   + Me%BuildingsHeight(i, j))
                 
-                !Water Column Left
-                WCL       = max(Me%myWaterLevel(i-1, j) + Me%BuildingsHeight(i-1, j) - MaxBottom, dble(0.0))
-            
-                !Water Column Right
-                WCR       = max(Me%myWaterLevel(i, j  ) + Me%BuildingsHeight(i, j)   - MaxBottom, dble(0.0))
-               
-                !In the case of kinematic wave, always consider the "upstream" area, otherwise the average above "max bottom"
-                if (Me%HydrodynamicApproximation == KinematicWave_) then
-                    if (Me%ExtVar%Topography(i-1, j) + Me%BuildingsHeight(i-1, j) >      &
-                        Me%ExtVar%Topography(i, j)   + Me%BuildingsHeight(i, j)) then
-                        WCA = WCL
-                    else
-                        WCA = WCR
+                if ((Me%MyWaterColumn(i-1,j) .gt. 0.0) .or. (Me%MyWaterColumn(i,j) .gt. 0.0)) then
+                
+                    if (Me%FaceWaterColumn == WCMaxBottom_) then
+                        !Maximum Bottom Level
+                        Bottom = max(Me%ExtVar%Topography(i-1, j) + Me%BuildingsHeight(i-1, j), &
+                                        Me%ExtVar%Topography(i, j)   + Me%BuildingsHeight(i, j))
+                    elseif (Me%FaceWaterColumn == WCAverageBottom_) then
+                        !Average Bottom Level
+                        Bottom = ((Me%ExtVar%Topography(i,j) +  Me%BuildingsHeight(i, j))   &
+                                    + (Me%ExtVar%Topography(i-1,j) +  Me%BuildingsHeight(i-1, j))) / 2.0                
                     endif
-                else
-                    !Average Water Column
-                    !WCA = (WCL + WCR) / 2.0
-                    if (Me%myWaterLevel(i-1, j) + Me%BuildingsHeight(i-1, j) >           &
-                        Me%myWaterLevel(i, j) + Me%BuildingsHeight(i, j)) then
-                        WCA = WCL
+                    
+                    !Water Column Left
+                    WCL       = max(Me%myWaterLevel(i-1, j) + Me%BuildingsHeight(i-1, j) - Bottom, dble(0.0))
+                
+                    !Water Column Right
+                    WCR       = max(Me%myWaterLevel(i, j  ) + Me%BuildingsHeight(i, j)   - Bottom, dble(0.0))
+                   
+                    !In the case of kinematic wave, always consider the "upstream" area, otherwise the average above "max bottom"
+                    if (Me%HydrodynamicApproximation == KinematicWave_) then
+                        if (Me%ExtVar%Topography(i-1, j) + Me%BuildingsHeight(i-1, j) >      &
+                            Me%ExtVar%Topography(i, j)   + Me%BuildingsHeight(i, j)) then
+                            WCA = WCL
+                        else
+                            WCA = WCR
+                        endif
                     else
-                        WCA = WCR
+                        !Average Water Column
+                        !WCA = (WCL + WCR) / 2.0
+                        if (Me%myWaterLevel(i-1, j) + Me%BuildingsHeight(i-1, j) >           &
+                            Me%myWaterLevel(i, j) + Me%BuildingsHeight(i, j)) then
+                            WCA = WCL
+                        else
+                            WCA = WCR
+                        endif
                     endif
-                endif
 
-                !Area  = Water Column * Side lenght of cell
-                Me%AreaV(i, j) = WCA * Me%ExtVar%DXX(i, j)
-                
-                if (WCA > Me%MinimumWaterColumn) then
-                    Me%ComputeFaceV(i, j) = 1
+                    !Area  = Water Column * Side lenght of cell
+                    Me%AreaV(i, j) = WCA * Me%ExtVar%DXX(i, j)
+                    
+                    if (WCA > Me%MinimumWaterColumn) then
+                        Me%ComputeFaceV(i, j) = 1
+                    else
+                        Me%ComputeFaceV(i, j) = 0
+                    endif
                 else
                     Me%ComputeFaceV(i, j) = 0
                 endif
-            
             endif
             
         enddo
@@ -2789,14 +2847,14 @@ doIter:         do while (iter <= Niter)
         !$OMP END PARALLEL
         
     
-    end subroutine ModifyGeometryAndMapping 
+    end subroutine ModifyGeometryAndMapping
 
     !--------------------------------------------------------------------------
 
-    subroutine KinematicWave (LocalDT)
+    subroutine KinematicWave ()
     
         !Arguments-------------------------------------------------------------
-        real                                        :: LocalDT
+        !real                                        :: LocalDT
         
         !Local-----------------------------------------------------------------
         integer                                     :: i, j
@@ -2809,7 +2867,7 @@ doIter:         do while (iter <= Niter)
         real                                        :: WaterDepth, MaxBottom
         integer                                     :: CHUNK, di, dj
         real(8)                                     :: MaxFlow
-        character(len=StringLength)                 :: Direction
+        !character(len=StringLength)                 :: Direction
 
         CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
 
@@ -2820,7 +2878,7 @@ doIter:         do while (iter <= Niter)
         JUB = Me%WorkSize%JUB
 
         !$OMP PARALLEL PRIVATE(I,J, Slope, level_left, level_right, level_bottom, level_top, &
-        !$OMP HydraulicRadius, MaxFlow, Margin1, Margin2, WaterDepth, MaxBottom, WetPerimeter, di, dj, Direction)
+        !$OMP HydraulicRadius, MaxFlow, Margin1, Margin2, WaterDepth, MaxBottom, WetPerimeter, di, dj)
         
         !X
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
@@ -2868,7 +2926,8 @@ doIter:         do while (iter <= Niter)
                 !Wet perimeter, first is bottom
                 WetPerimeter = Me%ExtVar%DYY(i, j)
                 
-                if (Me%CalculateCellMargins) then
+                !only compute in water column as MaxBottom (topography stairs descritization)
+                if ((Me%FaceWaterColumn == WCMaxBottom_) .and. (Me%CalculateCellMargins)) then
                     !Water Depth consistent with AreaU computed (only water above max bottom)
                     WaterDepth = Me%AreaU(i,j) / Me%ExtVar%DYY(i, j)
                     MaxBottom = max(Me%ExtVar%Topography(i, j) + Me%BuildingsHeight(i, j),     &
@@ -2987,7 +3046,7 @@ doIter:         do while (iter <= Niter)
                 !Wet perimeter, first is bottom
                 WetPerimeter = Me%ExtVar%DXX(i, j)
                 
-                if (Me%CalculateCellMargins) then
+                if ((Me%FaceWaterColumn == WCMaxBottom_) .and. (Me%CalculateCellMargins)) then
                     !Water Depth consistent with AreaV computed (only water above max bottom)
                     WaterDepth = Me%AreaV(i,j) / Me%ExtVar%DXX(i, j)
                     MaxBottom = max(Me%ExtVar%Topography(i, j) + Me%BuildingsHeight(i, j),     &
@@ -3071,18 +3130,17 @@ doIter:         do while (iter <= Niter)
         integer                                     :: ILB, IUB, JLB, JUB
         real                                        :: Slope
         real                                        :: level_left, level_right
-        real                                        :: level_bottom, level_top
         real                                        :: HydraulicRadius
         real                                        :: Friction
         real                                        :: Pressure
         !real                                        :: upAdv, downAdv, 
         real                                        :: XLeftAdv, XRightAdv, YBottomAdv, YTopAdv
-        real                                        :: Advection, Qf, u, v, WetPerimeter
-        real(8)                                     :: MaxFlow, CriticalFlow
+        real                                        :: Advection, Qf, WetPerimeter
+        real(8)                                     :: CriticalFlow
         real                                        :: Margin1, Margin2
-        integer                                     :: CHUNK, di, dj
+        integer                                     :: CHUNK, dj
         real                                        :: MaxBottom, WaterDepth
-        character(len=StringLength)                 :: Direction
+        !character(len=StringLength)                 :: Direction
 
 
         if (MonitorPerformance) call StartWatch ("ModuleRunOff", "DynamicWaveXX")
@@ -3095,9 +3153,9 @@ doIter:         do while (iter <= Niter)
         JLB = Me%WorkSize%JLB
         JUB = Me%WorkSize%JUB
 
-        !$OMP PARALLEL PRIVATE(I,J, Slope, level_left, level_right, level_bottom, level_top, &
-        !$OMP HydraulicRadius, Friction, Pressure, XLeftAdv, XRightAdv, YBottomAdv, YTopAdv, Advection, Qf, u, v, &
-        !$OMP MaxFlow, CriticalFlow, Margin1, Margin2, MaxBottom, WaterDepth, di, dj, WetPerimeter, Direction)
+        !$OMP PARALLEL PRIVATE(I,J, Slope, level_left, level_right, &
+        !$OMP HydraulicRadius, Friction, Pressure, XLeftAdv, XRightAdv, YBottomAdv, YTopAdv, Advection, Qf, &
+        !$OMP CriticalFlow, Margin1, Margin2, MaxBottom, WaterDepth, dj, WetPerimeter)
 
         !X
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
@@ -3130,7 +3188,8 @@ doIter:         do while (iter <= Niter)
                 !wet perimeter, first is bottom
                 WetPerimeter = Me%ExtVar%DYY(i, j)
                 
-                if (Me%CalculateCellMargins) then
+                !only compute margins if water column method is MaxBottom (topography discretization by "stairs")
+                if ((Me%FaceWaterColumn == WCMaxBottom_) .and. (Me%CalculateCellMargins)) then
                     !Then, is checked if "margins" occur on the cell of the highest water level
                     !water depth consistent with AreaU computed (only water above max bottom)
                     WaterDepth = Me%AreaU(i,j) / Me%ExtVar%DYY(i, j)
@@ -3303,33 +3362,59 @@ doIter:         do while (iter <= Niter)
                     !because in supercritical flow it is only dependent on upstream and descritization to describe it would have
                     !to change. Supercritical flow usually exists on hydraulic infraestructures (high drops) and a 
                     !hydraulic jump exists between fast flow and slow flow.
+                    
+                    !Test Limitation only if free drop exists
+!                    if ((level_left .lt. Me%ExtVar%Topography(i,j)) .or. (level_right .lt. Me%ExtVar%Topography(i,j-1))) then
 
-                    !Waterdepth at the center of the face - depending on flow direction since flow
-                    !can be in opposite direction of height gradient (AreaU uses the higher water level)              
-                    !WaterDepth = Me%AreaU(i,j)/Me%ExtVar%DYY(i,j)
-                    MaxBottom = max(Me%ExtVar%Topography(i, j) + Me%BuildingsHeight(i, j),   &
-                                Me%ExtVar%Topography(i, j-1) + Me%BuildingsHeight(i, j-1))     
-                                                    
-                    if (Me%lFlowX(i, j) .gt. 0.0) then           
-                        WaterDepth = max(Me%MyWaterLevel(i,j-1) - MaxBottom, 0.0)
-                    else
-                        WaterDepth = max(Me%MyWaterLevel(i,j) - MaxBottom, 0.0)
-                    endif
-                    
-                    !Critical Flow
-                    !CriticalFlow = Me%AreaU(i, j) * sqrt(Gravity * WaterDepth)
-                    !m3/s = m * m * m/s
-                    CriticalFlow = WaterDepth * Me%ExtVar%DYY(i,j) * sqrt(Gravity * WaterDepth)
-                    
-                    !only limit if flow higher
-                    if (abs(Me%lFlowX(i, j)) > CriticalFlow) then
-                        if (Me%lFlowX(i, j) > 0) then
-                            Me%lFlowX(i, j) = CriticalFlow
-                        else
-                            Me%lFlowX(i, j) = -1.0 * CriticalFlow
+                        !Waterdepth at the center of the face - depending on flow direction since flow
+                        !can be in opposite direction of height gradient (AreaU uses the higher water level)              
+                        !WaterDepth = Me%AreaU(i,j)/Me%ExtVar%DYY(i,j)
+                        if (Me%FaceWaterColumn == WCMaxBottom_) then
+                            MaxBottom = max(Me%ExtVar%Topography(i, j) + Me%BuildingsHeight(i, j),   &
+                                        Me%ExtVar%Topography(i, j-1) + Me%BuildingsHeight(i, j-1))     
+                                                            
+                            if (Me%lFlowX(i, j) .gt. 0.0) then           
+                                WaterDepth = max(Me%MyWaterLevel(i,j-1) - MaxBottom, 0.0)
+                            else
+                                WaterDepth = max(Me%MyWaterLevel(i,j) - MaxBottom, 0.0)
+                            endif
+                        elseif (Me%FaceWaterColumn == WCAverageBottom_) then
+                            if (Me%lFlowX(i, j) .gt. 0.0) then           
+                                WaterDepth = Me%MyWaterColumn(i,j-1)
+                            else
+                                WaterDepth = Me%MyWaterColumn(i,j)
+                            endif                        
                         endif
-                    endif
-                    
+                        
+                        !Critical Flow
+                        !CriticalFlow = Me%AreaU(i, j) * sqrt(Gravity * WaterDepth)
+                        !m3/s = m * m * m/s
+                        CriticalFlow = WaterDepth * Me%ExtVar%DYY(i,j) * sqrt(Gravity * WaterDepth)
+                        
+                        !only limit if flow higher
+                        if (abs(Me%lFlowX(i, j)) > CriticalFlow) then
+                            if (Me%lFlowX(i, j) > 0) then
+                                Me%lFlowX(i, j) = CriticalFlow
+                            else
+                                Me%lFlowX(i, j) = -1.0 * CriticalFlow
+                            endif
+                        endif
+ !                   endif
+                
+                else
+                    !Predict water column to avoid negative volumes since 4 fluxes exist and the sum may be more than exists
+                    if (Me%lFlowX(i, j) .lt. 0.0) then
+                        if (abs(Me%lFlowX(i, j))* LocalDT .gt. Me%myWaterVolumePred(i,j)) then
+                            Me%lFlowX(i, j) = - Me%myWaterVolumePred(i,j) / LocalDT
+                        endif
+                        !m3 = m3 + (-m3/s * s)
+                        Me%myWaterVolumePred(i,j) = Me%myWaterVolumePred(i,j) + (Me%lFlowX(i, j) * LocalDT)
+                    elseif (Me%lFlowX(i, j) .gt. 0.0) then
+                        if (Me%lFlowX(i, j)* LocalDT .gt. Me%myWaterVolumePred(i,j-1)) then
+                            Me%lFlowX(i, j) =  Me%myWaterVolumePred(i,j-1) / LocalDT
+                        endif
+                        Me%myWaterVolumePred(i,j-1) = Me%myWaterVolumePred(i,j-1) - (Me%lFlowX(i, j) * LocalDT) 
+                    endif                
                 endif
                 
             else
@@ -3359,19 +3444,18 @@ doIter:         do while (iter <= Niter)
         integer                                     :: i, j
         integer                                     :: ILB, IUB, JLB, JUB
         real                                        :: Slope
-        real                                        :: level_left, level_right
         real                                        :: level_bottom, level_top
         real                                        :: HydraulicRadius
         real                                        :: Friction
         real                                        :: Pressure
         !real                                        :: upAdv, downAdv, 
         real                                        :: XLeftAdv, XRightAdv, YBottomAdv, YTopAdv
-        real                                        :: Advection, Qf, u, v, WetPerimeter
-        real(8)                                     :: MaxFlow, CriticalFlow
+        real                                        :: Advection, Qf, WetPerimeter
+        real(8)                                     :: CriticalFlow
         real                                        :: Margin1, Margin2
-        integer                                     :: CHUNK, di, dj
+        integer                                     :: CHUNK, di
         real                                        :: MaxBottom, WaterDepth
-        character(len=StringLength)                 :: Direction
+        !character(len=StringLength)                 :: Direction
 
         if (MonitorPerformance) call StartWatch ("ModuleRunOff", "DynamicWaveYY")
 
@@ -3383,9 +3467,9 @@ doIter:         do while (iter <= Niter)
         JLB = Me%WorkSize%JLB
         JUB = Me%WorkSize%JUB
 
-        !$OMP PARALLEL PRIVATE(I,J, Slope, level_left, level_right, level_bottom, level_top, &
-        !$OMP HydraulicRadius, Friction, Pressure, XLeftAdv, XRightAdv, YBottomAdv, YTopAdv, Advection, Qf, u, v, &
-        !$OMP MaxFlow, CriticalFlow, Margin1, Margin2, MaxBottom, WaterDepth, di, dj, WetPerimeter, Direction)
+        !$OMP PARALLEL PRIVATE(I,J, Slope, level_bottom, level_top, &
+        !$OMP HydraulicRadius, Friction, Pressure, XLeftAdv, XRightAdv, YBottomAdv, YTopAdv, Advection, Qf, &
+        !$OMP CriticalFlow, Margin1, Margin2, MaxBottom, WaterDepth, di, WetPerimeter)
 
         !Y
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
@@ -3418,7 +3502,7 @@ doIter:         do while (iter <= Niter)
                 !wet perimeter, first is bottom
                 WetPerimeter = Me%ExtVar%DXX(i, j)
                 
-                if (Me%CalculateCellMargins) then
+                if ((Me%FaceWaterColumn == WCMaxBottom_) .and. (Me%CalculateCellMargins)) then
                     !water Depth consistent with AreaV computed (only water above max bottom)
                     WaterDepth = Me%AreaV(i,j) / Me%ExtVar%DXX(i, j)
                     MaxBottom = max(Me%ExtVar%Topography(i, j) + Me%BuildingsHeight(i, j),    &
@@ -3571,32 +3655,56 @@ doIter:         do while (iter <= Niter)
                 
                 
                 if (Me%LimitToCriticalFlow) then
-                    !Limit to critical flow
-                    !Waterdepth at the center of the face - depending on flow direction since flow
-                    !can be in opposite direction of height gradient (AreaU uses the higher)
-                    !WaterDepth = Me%AreaV(i,j)/Me%ExtVar%DXX(i,j)
-                    MaxBottom = max(Me%ExtVar%Topography(i, j) + Me%BuildingsHeight(i, j),   &
-                                Me%ExtVar%Topography(i-1, j) + Me%BuildingsHeight(i-1, j))     
-                                                    
-                    if (Me%lFlowY(i, j) .gt. 0.0) then           
-                        WaterDepth = max(Me%MyWaterLevel(i-1,j) - MaxBottom, 0.0)
-                    else
-                        WaterDepth = max(Me%MyWaterLevel(i,j) - MaxBottom, 0.0)
-                    endif                
                     
-                    !Critical Flow
-                    !CriticalFlow = Me%AreaV(i, j) * sqrt(Gravity * WaterDepth)
-                    !m3/s = m * m * m/s
-                    CriticalFlow = WaterDepth * Me%ExtVar%DXX(i,j) * sqrt(Gravity * WaterDepth)
+!                    if ((level_bottom .lt. Me%ExtVar%Topography(i,j)) .or. (level_top .lt. Me%ExtVar%Topography(i-1,j))) then
                     
-                    !only limit if flow higher
-                    if (abs(Me%lFlowY(i, j)) > CriticalFlow) then
-                        if (Me%lFlowY(i, j) > 0) then
-                            Me%lFlowY(i, j) = CriticalFlow
-                        else
-                            Me%lFlowY(i, j) = -1.0 * CriticalFlow
+                        !Waterdepth at the center of the face - depending on flow direction since flow
+                        !can be in opposite direction of height gradient (AreaU uses the higher)
+                        !WaterDepth = Me%AreaV(i,j)/Me%ExtVar%DXX(i,j)
+                        if (Me%FaceWaterColumn == WCMaxBottom_) then
+                            MaxBottom = max(Me%ExtVar%Topography(i, j) + Me%BuildingsHeight(i, j),   &
+                                        Me%ExtVar%Topography(i-1, j) + Me%BuildingsHeight(i-1, j))     
+                                                            
+                            if (Me%lFlowY(i, j) .gt. 0.0) then           
+                                WaterDepth = max(Me%MyWaterLevel(i-1,j) - MaxBottom, 0.0)
+                            else
+                                WaterDepth = max(Me%MyWaterLevel(i,j) - MaxBottom, 0.0)
+                            endif                
+                        elseif (Me%FaceWaterColumn == WCAverageBottom_) then
+                            if (Me%lFlowY(i, j) .gt. 0.0) then           
+                                WaterDepth = Me%MyWaterColumn(i-1,j)
+                            else
+                                WaterDepth = Me%MyWaterColumn(i,j)
+                            endif                                        
                         endif
-                    endif
+                        
+                        !Critical Flow
+                        !CriticalFlow = Me%AreaV(i, j) * sqrt(Gravity * WaterDepth)
+                        !m3/s = m * m * m/s
+                        CriticalFlow = WaterDepth * Me%ExtVar%DXX(i,j) * sqrt(Gravity * WaterDepth)
+                        
+                        !only limit if flow higher
+                        if (abs(Me%lFlowY(i, j)) > CriticalFlow) then
+                            if (Me%lFlowY(i, j) > 0) then
+                                Me%lFlowY(i, j) = CriticalFlow
+                            else
+                                Me%lFlowY(i, j) = -1.0 * CriticalFlow
+                            endif
+                        endif
+ !                   endif
+                
+                else
+                    if (Me%lFlowY(i, j) .lt. 0.0) then
+                        if ( abs(Me%lFlowY(i, j))* LocalDT  .gt. Me%myWaterVolumePred(i,j)) then
+                            Me%lFlowY(i, j) = - Me%myWaterVolumePred(i,j)  / LocalDT
+                        endif
+                        Me%myWaterVolumePred(i,j) = Me%myWaterVolumePred(i,j) +  (Me%lFlowY(i, j) * LocalDT)                        
+                    elseif (Me%lFlowY(i, j) .gt. 0.0) then
+                        if ( Me%lFlowY(i, j)* LocalDT .gt. Me%myWaterVolumePred(i-1,j)) then
+                            Me%lFlowY(i, j) =  Me%myWaterVolumePred(i-1,j) / LocalDT
+                        endif
+                        Me%myWaterVolumePred(i-1,j) = Me%myWaterVolumePred(i-1,j) - (Me%lFlowX(i, j) * LocalDT) 
+                    endif                
                 endif
 
             else
@@ -4453,8 +4561,7 @@ doIter:         do while (iter <= Niter)
         !Local-----------------------------------------------------------------
         integer                                     :: i, j
         integer                                     :: ILB, IUB, JLB, JUB, STAT_CALL
-        real                                        :: dVol, Flow, MaxFlow
-        
+        real                                        :: dVol !, Flow, MaxFlow
         real                                        :: TotalVolume, VolExcess, NewLevel
         real   , dimension(:, :), pointer           :: ChannelsVolume
         real   , dimension(:, :), pointer           :: ChannelsMaxVolume
@@ -4510,27 +4617,35 @@ doIter:         do while (iter <= Niter)
                     !Route Flow from overland to channel, using free flow condition
                     !Maximum flow is equal to volume avaliable at watercolumn
                     
-                    dh      = abs(Me%myWaterLevel(i, j) - ChannelsWaterLevel(i, j))
+                    !Free drop, dh will be the water column
+!                    dh      = Me%MyWaterColumn(i,j)
+                    !dh      = abs(Me%myWaterLevel(i, j) - ChannelsWaterLevel(i, j))
                     
-                    if (dh > Me%MinimumWaterColumn) then
-                    
-                        Flow    = sqrt(Gravity * dh) * 2.0 * ChannelsNodeLength(i, j) * dh
+ !                   if (dh > Me%MinimumWaterColumn) then
                         
-                        MaxFlow = Me%myWaterVolume (i, j) / Me%ExtVar%DT
+                        !in terms of velocity water already arrived to runoff center cell so it should be
+                        !in the river (instantaneously)
+                        Me%iFlowToChannels(i, j) = Me%myWaterVolume (i, j) / Me%ExtVar%DT
                         
-                        Me%iFlowToChannels(i, j) = min(Flow, MaxFlow)
-                    
-                    else
-                    
-                        Me%iFlowToChannels(i, j) = 0.0
-                        
-                    endif
+!                        !limit to critical
+!                        !m3/s = celerity (m/s) * m2 (Area = (dh * L) * 2)
+!                        MaxFlow    = sqrt(Gravity * dh) * 2.0 * ChannelsNodeLength(i, j) * dh
+!                                              
+!                        if (Me%iFlowToChannels(i, j) > MaxFlow) then
+!                            Me%iFlowToChannels(i, j) = MaxFlow
+!                         endif
+!                    else
+!                    
+!                        Me%iFlowToChannels(i, j) = 0.0
+!                        
+!                    endif
                     
                 else
                 
 
                     !Total Volume does not fit into the channel
                     !Route flow in a way the the water level becomes horizontal
+                    !River section has to be
                     !Limit flow so that volumes to not become negative and critical flow is not exceeded
                     
                     !Volume which does not fit in the channel
@@ -4540,10 +4655,10 @@ doIter:         do while (iter <= Niter)
                         
                         !Total area -> channel area + grid cell
                         a1 = ChannelsSurfaceWidth(i, j) * ChannelsNodeLength(i, j) + Me%ExtVar%GridCellArea(i, j)
-
+                        
                         !New level = ExcessVolume / area + ground level
                         NewLevel = VolExcess / a1 + Me%ExtVar%Topography(i, j)
-
+                        
                     else                                            !Trapezoidal - formula resolvente
                         
                         !VolExcess = newLevel * GridCellAreas + ChannelsNodeLength * (TopWidth + TopWidth * 2 * BankSlope*h) * h) / 2
@@ -4562,10 +4677,12 @@ doIter:         do while (iter <= Niter)
                             NewLevel  = x2 + Me%ExtVar%Topography(i, j)
                         endif
                     endif
+                    
+                    !dh will be the maximum height above topography (lateral moving water)
+                    dh = max (Me%myWaterLevel(i, j), ChannelsWaterLevel(i, j)) - Me%ExtVar%Topography(i,j)
+                    !dh      = abs(Me%myWaterLevel(i, j) - ChannelsWaterLevel(i, j))
 
-                    dh      = abs(Me%myWaterLevel(i, j) - ChannelsWaterLevel(i, j))
-
-                    if (dh > Me%MinimumWaterColumn) then
+!                    if (dh > Me%MinimumWaterColumn) then
                     
                         !Variation in volume by comparing old level with new level
                         dVol = (Me%myWaterLevel(i, j) - NewLevel ) *  Me%ExtVar%GridCellArea(i, j)
@@ -4580,22 +4697,24 @@ doIter:         do while (iter <= Niter)
                             Me%iFlowToChannels(i, j) = max(Me%iFlowToChannels(i, j),                &
                                                            -1.0 * (ChannelsVolume(i,j) - ChannelsMaxVolume(i, j)) / Me%ExtVar%DT)
                         endif
-                        
-                        !Limits to critical flow to critical one
-                        MaxFlow = sqrt(Gravity * dh) * 2.0 * ChannelsNodeLength(i, j) * dh
-                        if (abs(Me%iFlowToChannels(i, j)) > MaxFlow) then
-                            if (Me%iFlowToChannels(i, j) > 0.0) then
-                                Me%iFlowToChannels(i, j) = MaxFlow
-                            else
-                                Me%iFlowToChannels(i, j) = -1.0 * MaxFlow
-                            endif
-                        endif
-                        
-                    else
-                    
-                        Me%iFlowToChannels(i, j) = 0.0
-                        
-                    endif
+
+                        !in terms of velocity water already arrived to runoff/DN center cell so it should be
+                        !in the river or runoff (instantaneously)
+!                        !Limits to critical flow to critical one
+!                        MaxFlow = sqrt(Gravity * dh) * 2.0 * ChannelsNodeLength(i, j) * dh
+!                        if (abs(Me%iFlowToChannels(i, j)) > MaxFlow) then
+!                            if (Me%iFlowToChannels(i, j) > 0.0) then
+!                                Me%iFlowToChannels(i, j) = MaxFlow
+!                            else
+!                                Me%iFlowToChannels(i, j) = -1.0 * MaxFlow
+!                            endif
+!                        endif
+!                        
+!                    else
+!                    
+!                        Me%iFlowToChannels(i, j) = 0.0
+!                        
+!                    endif
                     
                  endif
                  
@@ -4663,15 +4782,15 @@ doIter:         do while (iter <= Niter)
         do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             if (Me%ExtVar%BasinPoints(i, j) == BasinPoint) then
                 if (Me%myWaterVolume (i, j) < -1.0 * AllmostZero) then    
-!                     write (*,*) 'Negative', i,j,Niter,Me%MyWaterColumn(i,j),Me%MyWaterColumnOld(i,j),  &
-!                                 Me%ExtVar%DT,Me%lFlowX(i, j),Me%lFlowX(i, j+1),Me%lFlowY(i, j),Me%lFlowY(i+1, j),&
-!                                 Me%myWaterColumn(i,j-1),Me%myWaterColumn(i,j+1),Me%myWaterColumn(i-1,j),Me%myWaterColumn(i+1,j),&
-!                          Me%myWaterColumnOld(i,j-1),Me%myWaterColumnOld(i,j+1),Me%myWaterColumnOld(i-1,j),Me%myWaterColumnOld(i+1,j)
+!                     write (*,*) 'Negative', i,j,Niter,Me%MyWaterVolume(i,j),Me%MyWaterVolumeOld(i,j),  &
+!                      Me%ExtVar%DT,Me%lFlowX(i, j),Me%lFlowX(i, j+1),Me%lFlowY(i, j),Me%lFlowY(i+1, j),&
+!                      Me%myWaterVolume(i,j-1),Me%myWaterVolume(i,j+1),Me%myWaterVolume(i-1,j),Me%myWaterVolume(i+1,j),&
+!                      Me%myWaterVolumeOld(i,j-1),Me%myWaterVolumeOld(i,j+1),Me%myWaterVolumeOld(i-1,j),Me%myWaterVolumeOld(i+1,j)
                     Restart = .true.
                     return
                 else if (Me%myWaterVolume (i, j) < 0.0) then  
                     Me%myWaterVolume (i, j) = 0.0    
-!                    write (*,*) 'Negative Allmost Zero', i,j,Niter,Me%MyWaterColumn(i,j),Me%MyWaterColumnOld(i,j)                             
+!                    write (*,*) 'Negative Allmost Zero', i,j,Niter,Me%MyWaterVolume(i,j),Me%MyWaterVolumeOld(i,j)                             
                 endif
             endif
         enddo
@@ -4899,6 +5018,7 @@ doIter:         do while (iter <= Niter)
             endif
         enddo
         enddo
+
     
     end subroutine    
     

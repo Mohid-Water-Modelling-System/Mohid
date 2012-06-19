@@ -10328,10 +10328,10 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                                                   - (Me%Fluxes%WaterUptakeLayer(i,j,k) * Me%ComputeOptions%VegetationDT)
                 
                                 !      kgP/ha          = gP/m3H20 * 1E-3kg/g  * m3H20/m3cell * m3cell / (m2) * 10000m2/ha 
-    !                            LayerPhosphorusContent = Me%ExternalVar%SoilPhosphorus(i,j,k)  * 1E-3                                &
-    !                                                     * Me%ExternalVar%SoilWaterContent(i,j,k)                                    &
+    !                            LayerPhosphorusContent = Me%ExternalVar%SoilPhosphorus(i,j,k)  * 1E-3              &
+    !                                                     * Me%ExternalVar%SoilWaterContent(i,j,k)                  &
     !                                                     * (CellVolume) / (GridCellArea) * 10000
-                                LayerPhosphorusContent = Me%ExternalVar%SoilPhosphorus(i,j,k)  * 1E-3                                &
+                                LayerPhosphorusContent = Me%ExternalVar%SoilPhosphorus(i,j,k)  * 1E-3              &
                                                          * PredictedVolume / (GridCellArea) * 10000.
 
 
@@ -10351,8 +10351,8 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                             
                 
                                 !      kgP/ha          = gP/m3H20 * 1E-3kg/g  * m3H20/m3cell * m3cell / (m2) * 10000m2/ha 
-                                LayerPhosphorusContent = Me%ExternalVar%SoilPhosphorus(i,j,k)  * 1E-3                                &
-                                                         * Me%ExternalVar%SoilWaterContent(i,j,k)                                    &
+                                LayerPhosphorusContent = Me%ExternalVar%SoilPhosphorus(i,j,k)  * 1E-3                   &
+                                                         * Me%ExternalVar%SoilWaterContent(i,j,k)                       &
                                                          * (CellVolume) / (GridCellArea) * 10000
 
                                 Me%Fluxes%PhosphorusUptakeLayer(i,j,k) = PotentialPhosphorusUptake + DemandNotMetInUpperLayers

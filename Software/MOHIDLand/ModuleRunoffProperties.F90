@@ -79,7 +79,8 @@ Module ModuleRunoffProperties
     use ModuleRunoff,             only : GetOverLandFlow, UnGetRunoff, GetRunoffWaterColumn,  &
                                          GetFlowToChannels, GetRunoffCenterVelocity,          &
                                          GetRunoffWaterColumnOld, GetRunoffWaterColumn,       &
-                                         GetManning, GetManningDelta, GetRunoffCenterVelocity      
+                                         GetManning, GetManningDelta, GetRunoffCenterVelocity, &
+                                         GetRunoffWaterColumnAT      
 !    use ModuleInterface,          only : ConstructInterface, Modify_Interface
     use ModuleAdvectionDiffusion, only : StartAdvectionDiffusion, AdvectionDiffusion,      &
                                          GetAdvFlux, GetDifFlux, GetBoundaryConditionList, &
@@ -110,8 +111,9 @@ Module ModuleRunoffProperties
     public  :: GetRPnProperties
     public  :: GetRPPropertiesIDByIdx 
     public  :: GetRPOptions   
-    public  :: GetRPConcentration
-    public  :: GetRPConcentrationOld
+    public  :: GetRPConcentration     !New Conc at the end (after link with DN)
+    public  :: GetRPConcentrationAT   !Conc After Transtport (needed in ModuleDrainageNetwork)
+    public  :: GetRPConcentrationOld  !Old Conc (before transport)
     public  :: GetRPDecayRate
     public  :: CheckRPProperty
     public  :: SetDNConcRP        !RP gets DN conc 
@@ -209,8 +211,9 @@ Module ModuleRunoffProperties
         real,    dimension(:,:), pointer           :: CenterVelV
         real,    dimension(:,:), pointer           :: CenterVelU
         real,    dimension(:,:), pointer           :: FlowToChannels
-        real(8), pointer, dimension(:,:)           :: WaterColumn
-        real(8), pointer, dimension(:,:)           :: WaterColumnOld
+        real(8), pointer, dimension(:,:)           :: WaterColumn           !Final WaterColumn
+        real(8), pointer, dimension(:,:)           :: WaterColumnOld        !Initial Water Column
+        real(8), pointer, dimension(:,:)           :: WaterColumnAT         !Water Column After Transport
         real(8), pointer, dimension(:,:)           :: CellVolume
         real(8), pointer, dimension(:,:)           :: CellWaterMass
         real(8),    dimension(:,:), pointer        :: FluxU
@@ -341,6 +344,7 @@ Module ModuleRunoffProperties
     type T_Property
         type (T_PropertyID)                     :: ID
         real, dimension(:,:), pointer           :: Concentration            => null()
+        real, dimension(:,:), pointer           :: ConcentrationAT          => null()
 !        real, dimension(:,:), pointer           :: Mass                     => null()
         real, dimension(:,:), pointer           :: ConcentrationOld         => null()
         real, dimension(:,:), pointer           :: BottomConcentration      => null()
@@ -2111,6 +2115,12 @@ cd2 :           if (BlockFound) then
 !        allocate(NewProperty%Mass(ILB:IUB, JLB:JUB), STAT = STAT_CALL)
 !        if (STAT_CALL .NE. SUCCESS_)stop 'Construct_PropertyValues - ModuleRunoffProperties - ERR15'
 !        NewProperty%Mass(:,:) = FillValueReal
+        
+        !Concentration After Transport. is the concentration that DN needs because is the one
+        !used to remove flux from runoff
+        allocate(NewProperty%ConcentrationAT(ILB:IUB, JLB:JUB), STAT = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_)stop 'Construct_PropertyValues - ModuleRunoffProperties - ERR10'
+        NewProperty%Concentration(:,:) = FillValueReal
 
 
         allocate(NewProperty%ConcentrationOld(ILB:IUB, JLB:JUB), STAT = STAT_CALL)
@@ -3652,6 +3662,64 @@ cd0:    if (Exist) then
 
     !--------------------------------------------------------------------------------
 
+    subroutine GetRPConcentrationAT(RunoffPropertiesID, ConcentrationXAT, &  !MassX, 
+                                PropertyXIDNumber,                    &
+                                PropertyXUnits, STAT)
+
+        !Arguments---------------------------------------------------------------
+        integer                                     :: RunoffPropertiesID
+        real, pointer, dimension(:,:)               :: ConcentrationXAT
+!        real, pointer, dimension(:,:), optional     :: MassX
+        character(LEN = *), optional, intent(OUT)   :: PropertyXUnits
+        integer,                      intent(IN )   :: PropertyXIDNumber
+        integer,            optional, intent(OUT)   :: STAT
+
+        !Local-------------------------------------------------------------------
+        integer                                     :: ready_          
+        integer                                     :: STAT_CALL              
+        type(T_Property), pointer                   :: PropertyX
+        integer                                     :: UnitsSize
+        integer                                     :: STAT_    
+
+        !------------------------------------------------------------------------
+
+
+        STAT_ = UNKNOWN_
+
+        call Ready(RunoffPropertiesID, ready_) 
+        
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+            call Read_Lock(mRunoffPROPERTIES_, Me%InstanceID) 
+
+            nullify(PropertyX)
+
+            call Search_Property(PropertyX, PropertyXID = PropertyXIDNumber, STAT = STAT_CALL)
+            if (STAT_CALL == SUCCESS_) then
+                
+                ConcentrationXAT => PropertyX%ConcentrationAT
+!                if (present(MassX)) MassX => PropertyX%Mass
+
+                if (present(PropertyXUnits)) then 
+                   UnitsSize      = LEN (PropertyXUnits)
+                   PropertyXUnits = PropertyX%ID%Units(1:UnitsSize)
+                end if
+
+                STAT_ = SUCCESS_
+            else
+                STAT_ = STAT_CALL
+            end if
+        else
+            STAT_ = ready_
+        end if
+
+
+        if (present(STAT))STAT = STAT_
+            
+    end subroutine GetRPConcentrationAT
+
+    !--------------------------------------------------------------------------------
+
     subroutine GetRPConcentrationOld(RunoffPropertiesID, ConcentrationXOld, &  !MassX, 
                                 PropertyXIDNumber,                    &
                                 PropertyXUnits, STAT)
@@ -4453,8 +4521,23 @@ cd0:    if (Exist) then
             !Nutrient sources from vegetation - fertilization particulate to fluff layer 
             call InterfaceFluxes
             
+            !Now adevection diffusion has only the transport between cells existing in Runoff
             if (Me%Coupled%AdvectionDiffusion) then
                 call AdvectionDiffusionProcesses
+            endif
+            
+            !Actualize property matrix after transport
+            PropertyX => Me%FirstProperty
+
+            do while (associated(PropertyX))
+                !Concentration after transport that is the one used for DN flux, and needed in ModuleDrainageNetwork
+                call SetMatrixValue (PropertyX%ConcentrationAT, Me%Size, PropertyX%Concentration, Me%ExtVar%BasinPoints)
+                PropertyX => PropertyX%Next
+            enddo
+            
+            !DN fluxes had to be separated from Advection Diffusion 
+            if (Me%ExtVar%CoupledDN) then
+                call ModifyDrainageNetworkInterface
             endif
 
 !            if (Me%Coupled%SoilQuality) then
@@ -4863,14 +4946,13 @@ cd0:    if (Exist) then
                 !Update property values based on the new coefs computed
                 call ModifyPropertyValues (PropertyX)
                
-                !Update property mass fluxes between modules
-                if (Me%CheckGlobalMass) then
-                    call ModifyInterfaceMassFluxes (PropertyX)
-                endif
+!                !Update property mass fluxes between modules
+!                if (Me%CheckGlobalMass) then
+!                    call ModifyInterfaceMassFluxes (PropertyX)
+!                endif
             
             endif
-
-
+                        
             PropertyX => PropertyX%Next
 
         enddo
@@ -4898,9 +4980,10 @@ cd0:    if (Exist) then
         do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             if (Me%ExtVar%BasinPoints(i,j) == BasinPoint) then             
                  
-                Me%WaterVolume(i,j)        = Me%ExtVar%WaterColumn(i,j) * Me%ExtVar%Area(i,j)
+                !Me%WaterVolume(i,j)        = Me%ExtVar%WaterColumn(i,j) * Me%ExtVar%Area(i,j)
+                Me%WaterVolume(i,j)        = Me%ExtVar%WaterColumnAT(i,j) * Me%ExtVar%Area(i,j)
                 
-                if (Me%WaterVolume(i, j) > AllMostZero) then
+                if (Me%WaterVolume(i, j) > AlmostZero) then
                     Me%DummyOpenPoints(i,j) = 1
                 else
                     Me%DummyOpenPoints(i,j) = 0
@@ -5166,9 +5249,13 @@ do1 :       do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         !Discharges not yet accounted
         
         !Fluxes with Drainage network - in the cells that link with river
-        if (Me%ExtVar%CoupledDN) then
-            call ModifyDrainageNetworkCoefs(PropertyX)
-        endif
+        !This link was disconnected since in one time step runoff may run out of water
+        !to DN, and if it happens in several time steps than flow is different from zero
+        !and conc is zero that is wrong. So transport will be evaluated for water columns
+        !before and after transport and link to DN is made after (see ModifyDrainageNetworkInterface)
+        !if (Me%ExtVar%CoupledDN) then
+            !call ModifyDrainageNetworkCoefs(PropertyX)
+        !endif
 
         !Boundary condition
         !Boundary Fluxes not yet accounted
@@ -5310,7 +5397,7 @@ do2 :   do j = Me%WorkSize%JLB, Me%WorkSize%JUB
 do1 :   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             
             !Only if there will be water at the end of the time step it can have diffusion
-            if ((Me%WaterVolume(i, j) .gt. 0.0) .and. (Me%WaterVolume(i, j-1) .gt. 0.0)) then
+            if ((Me%WaterVolume(i, j) .gt. AlmostZero) .and. (Me%WaterVolume(i, j-1) .gt. AlmostZero)) then
                 
                 AreaU = (0.5 * (Me%ExtVar%WaterColumnOld(i,j) + Me%ExtVar%WaterColumnOld(i,j-1))) * Me%ExtVar%DYY(i,j  )
                 
@@ -5368,7 +5455,7 @@ do2 :   do j = Me%WorkSize%JLB, Me%WorkSize%JUB
 do1 :   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             
             !Only if there will be water at the end of the time step it can have diffusion
-            if ((Me%WaterVolume(i, j) .gt. 0.0) .and. (Me%WaterVolume(i-1, j) .gt. 0.0)) then
+            if ((Me%WaterVolume(i, j) .gt. AlmostZero) .and. (Me%WaterVolume(i-1, j) .gt. AlmostZero)) then
 
                 AreaV = (0.5 * (Me%ExtVar%WaterColumnOld(i,j) + Me%ExtVar%WaterColumnOld(i-1,j))) * Me%ExtVar%DXX(i,j  )
                        
@@ -5507,7 +5594,7 @@ doj3 :      do j = JLB, JUB
 doi3 :      do i = ILB, IUB
             
             !computation needs volumes
-            if (Me%WaterVolume(i, j) .gt. 0.0 .and. Me%WaterVolume(i, j-1) .gt. 0.0) then
+            if (Me%WaterVolume(i, j) .gt. AlmostZero .and. Me%WaterVolume(i, j-1) .gt. AlmostZero) then
 
                 AdvFluxX =    (Me%COEF3_HorAdvXX%C_flux(i,   j)                          &
                             *  CurrProp%Concentration  (i, j-2)                          &
@@ -5538,7 +5625,7 @@ doj4 :      do j = JLB, JUB
 doi4 :      do i = ILB, IUB
 
             !computation needs volumes
-            if (Me%WaterVolume(i, j) .gt. 0.0 .and. Me%WaterVolume(i, j-1) .gt. 0.0) then
+            if (Me%WaterVolume(i, j) .gt. AlmostZero .and. Me%WaterVolume(i, j-1) .gt. AlmostZero) then
 
                 DT2 = Me%ExtVar%DT / Me%WaterVolume(i,j  )
                 DT1 = Me%ExtVar%DT / Me%WaterVolume(i,j-1)
@@ -5637,7 +5724,7 @@ doj3 :      do j = JLB, JUB
 doi3 :      do i = ILB, IUB
 
             !computation needs volumes
-            if (Me%WaterVolume(i, j) .gt. 0.0 .and. Me%WaterVolume(i-1, j) .gt. 0.0) then
+            if (Me%WaterVolume(i, j) .gt. AlmostZero .and. Me%WaterVolume(i-1, j) .gt. AlmostZero) then
 
                 AdvFluxY =    (Me%COEF3_HorAdvYY%C_flux(  i, j)                          &
                             *  CurrProp%Concentration  (i-2, j)                          &
@@ -5670,7 +5757,7 @@ doi4 :      do i = ILB, IUB
 
 
             !computation needs volumes
-            if (Me%WaterVolume(i, j) .gt. 0.0 .and. Me%WaterVolume(i-1, j) .gt. 0.0) then
+            if (Me%WaterVolume(i, j) .gt. AlmostZero .and. Me%WaterVolume(i-1, j) .gt. AlmostZero) then
 
                 DT2 = Me%ExtVar%DT / Me%WaterVolume(i  ,j  )
                 DT1 = Me%ExtVar%DT / Me%WaterVolume(i-1,j  )
@@ -5702,72 +5789,170 @@ doi4 :      do i = ILB, IUB
     
     !--------------------------------------------------------------------------
 
-    subroutine ModifyDrainageNetworkCoefs (PropertyX)
+!    subroutine ModifyDrainageNetworkCoefs (PropertyX)
+!    
+!        !Arguments-------------------------------------------------------------
+!        type (T_Property), pointer                  :: PropertyX
+!
+!
+!        !Local-----------------------------------------------------------------
+!        type (T_Property), pointer                  :: CurrProperty
+!        integer                                     :: i, j, CHUNK
+!        real(8)                                     :: aux 
+!        !Begin-----------------------------------------------------------------
+!
+!        if (MonitorPerformance) call StartWatch ("ModuleRunoffProperties", "ModifyDrainageNetworkCoefs")
+!   
+!        
+!        CurrProperty => PropertyX
+!        
+!       !Flux between river and runoff in layers
+!       
+!        CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+!      
+!        !$OMP PARALLEL PRIVATE(i,j,aux)
+!        
+!        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+!        do J = Me%WorkSize%JLB, Me%WorkSize%JUB
+!        do I = Me%WorkSize%ILB, Me%WorkSize%IUB
+!            
+!            if ((Me%ExtVar%BasinPoints(I,J) == BasinPoint) .and.  &
+!                (Me%ExtVar%RiverPoints(I,J) == BasinPoint) .and.  &
+!                (Me%DummyOpenPoints(I,J)    == BasinPoint)) then   
+!                       
+!                !Auxuliar value for transport - units of flow^-1
+!                !s/m3
+!                aux             = (Me%ExtVar%DT/Me%WaterVolume(i,j) )
+!                
+!                ! Positive flow -> looses mass
+!                Me%COEFExpl%CoefInterfDN(i,j) = - aux * Me%ExtVar%FlowToChannels(i,j)
+!
+!              
+!                ! mass going to channel -> conc from runoff
+!                if (Me%ExtVar%FlowToChannels(i,j) .gt. 0.0) then
+!                    
+!                    CurrProperty%ConcInInterfaceDN(i,j) =  CurrProperty%ConcentrationOld(i,j)
+!                    
+!               
+!                !mass coming from channel -> conc from DN
+!                elseif (Me%ExtVar%FlowToChannels(i,j) .lt. 0.0) then
+!                    
+!                    CurrProperty%ConcInInterfaceDN(i,j) = CurrProperty%ConcentrationDN(i,j)
+!                    
+!                endif
+!                
+!           endif
+!        
+!        enddo
+!        enddo
+!        !$OMP END DO
+!        
+!        !$OMP END PARALLEL
+!                           
+!        if (MonitorPerformance) call StopWatch ("ModuleRunoffProperties", "ModifyDrainageNetworkCoefs")
+!
+!   
+!   end subroutine ModifyDrainageNetworkCoefs
+
+    !---------------------------------------------------------------------------
+
+    !DN fluxes had to be separated from Advection diffusion since in one time step
+    !runoff could run out of water and the mixing between runoff cels and link to DN had to be
+    !separated (2 consecutive dt's with flow to river but no water in the final would produce
+    !flow with zero conc. (no water column). Not changing conc in zero water column does not conceptualy work
+    !because the cell may keep having zero WC in the end (after going to river) but before, mixing  with
+    !neighbour cells may have changed concentration
+    subroutine ModifyDrainageNetworkInterface
     
         !Arguments-------------------------------------------------------------
-        type (T_Property), pointer                  :: PropertyX
 
 
         !Local-----------------------------------------------------------------
         type (T_Property), pointer                  :: CurrProperty
-        integer                                     :: i, j, CHUNK
-        real(8)                                     :: aux 
+        integer                                     :: i, j, CHUNK, STAT_CALL
+        real(8)                                     :: Prop, WaterVolumeOld, WaterVolumeNew
+        real(8)                                     :: FlowMass
+        real(8), dimension(:,:), pointer            :: WaterColumnFinal
         !Begin-----------------------------------------------------------------
 
-        if (MonitorPerformance) call StartWatch ("ModuleRunoffProperties", "ModifyDrainageNetworkCoefs")
+        if (MonitorPerformance) call StartWatch ("ModuleRunoffProperties", "ModifyDrainageNetworkInterface")
    
-        
-        CurrProperty => PropertyX
-        
-       !Flux between river and runoff in layers
-       
-        CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
-      
-        !$OMP PARALLEL PRIVATE(i,j,aux)
-        
-        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
-        do J = Me%WorkSize%JLB, Me%WorkSize%JUB
-        do I = Me%WorkSize%ILB, Me%WorkSize%IUB
-            
-            if ((Me%ExtVar%BasinPoints(I,J) == BasinPoint) .and.  &
-                (Me%ExtVar%RiverPoints(I,J) == BasinPoint) .and.  &
-                (Me%DummyOpenPoints(I,J)    == BasinPoint)) then   
-                       
-                !Auxuliar value for transport - units of flow^-1
-                !s/m3
-                aux             = (Me%ExtVar%DT/Me%WaterVolume(i,j) )
-                
-                ! Positive flow -> looses mass
-                Me%COEFExpl%CoefInterfDN(i,j) = - aux * Me%ExtVar%FlowToChannels(i,j)
+        call GetRunoffWaterColumn (Me%ObjRunoff, WaterColumnFinal, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ModifyDrainageNetworkInterface - ModuleRunoffProperties - ERR10'
 
-              
-                ! mass going to channel -> conc from runoff
-                if (Me%ExtVar%FlowToChannels(i,j) .gt. 0.0) then
-                    
-                    CurrProperty%ConcInInterfaceDN(i,j) =  CurrProperty%ConcentrationOld(i,j)
-                    
+        CurrProperty => Me%FirstProperty
+        
+        do while (associated(CurrProperty))
+
+            if (CurrProperty%Evolution%AdvectionDiffusion) then        
+               !Flux between river and runoff 
                
-                !mass coming from channel -> conc from DN
-                elseif (Me%ExtVar%FlowToChannels(i,j) .lt. 0.0) then
-                    
-                    CurrProperty%ConcInInterfaceDN(i,j) = CurrProperty%ConcentrationDN(i,j)
-                    
-                endif
+                CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+              
+                !!$OMP PARALLEL PRIVATE(i,j,Prop, WaterVolumeOld, WaterVolumeNew, FlowMass)
                 
-           endif
+                !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+                do J = Me%WorkSize%JLB, Me%WorkSize%JUB
+                do I = Me%WorkSize%ILB, Me%WorkSize%IUB
+                    
+                    if ((Me%ExtVar%BasinPoints(I,J) == BasinPoint) .and.  &
+                        (Me%ExtVar%RiverPoints(I,J) == BasinPoint)) then   
+                        
+                        ! mass going to channel -> conc from runoff - concentration does not change
+                        if (Me%ExtVar%FlowToChannels(i,j) .ge. 0.0) then
+                            
+                            Prop =  CurrProperty%Concentration(i,j)
+                       
+                        !mass coming from channel -> conc from DN
+                        elseif (Me%ExtVar%FlowToChannels(i,j) .lt. 0.0) then
+                            
+                            Prop = CurrProperty%ConcentrationDN(i,j)
+                            
+                        endif
+
+                        !Prop and WaterVolumeOld are after transport and before this update
+                        WaterVolumeOld = Me%ExtVar%WaterColumnAT(i,j) * Me%ExtVar%Area(i,j)
+                        WaterVolumeNew = WaterColumnFinal(i,j) * Me%ExtVar%Area(i,j)
+                        
+                        !g = m3/s * s * g/m3
+                        FlowMass       = Me%ExtVar%FlowToChannels(i,j) * Me%ExtVar%DT * Prop                    
+                        
+                        if (WaterColumnFinal(i,j) .gt. AlmostZero) then
+                            !Update New Concentration
+                            !g/m3 = ((g/m3 * m3) + g)/ m3
+                            CurrProperty%Concentration(i,j) = ((Prop * WaterVolumeOld) - FlowMass) / WaterVolumeNew
+                        endif
+                        if (Me%CheckGlobalMass) then
+                            !kg = g * 1e-3 kg/g
+                            CurrProperty%MB%DNExchangeMass =  CurrProperty%MB%DNExchangeMass + (FlowMass * 1e-3)
+                        endif
+!                        write(*,*) CurrProperty%ID%Name, i,j, Me%ExtVar%FlowToChannels(i,j), &
+!                                    Me%ExtVar%WaterColumnOld(i,j),Me%ExtVar%WaterColumnAT(i,j),Me%ExtVar%WaterColumn(i,j) &
+!                                  , CurrProperty%ConcentrationOld(i,j),Prop,CurrProperty%Concentration(i,j)
+                   endif
+                
+                enddo
+                enddo
+                !!$OMP END DO
+                
+                !!$OMP END PARALLEL
+
+            endif
+            
+            CurrProperty => CurrProperty%Next
         
         enddo
-        enddo
-        !$OMP END DO
         
-        !$OMP END PARALLEL
+        call UngetRunoff (Me%ObjRunoff, WaterColumnFinal, STAT_CALL)  
+        if (STAT_CALL /= SUCCESS_)  stop 'ModifyDrainageNetworkInterface - ModuleRunoffProperties - ERR020'     
                            
-        if (MonitorPerformance) call StopWatch ("ModuleRunoffProperties", "ModifyDrainageNetworkCoefs")
+        if (MonitorPerformance) call StopWatch ("ModuleRunoffProperties", "ModifyDrainageNetworkInterface")
 
    
-   end subroutine ModifyDrainageNetworkCoefs
+   end subroutine ModifyDrainageNetworkInterface
 
     !---------------------------------------------------------------------------
+
 
     subroutine ModifyPropertyValues(PropertyX)
         
@@ -5798,10 +5983,11 @@ doi4 :      do i = ILB, IUB
                 if (Me%ExtVar%BasinPoints(I,J) == BasinPoint) then   
                     
                     !evaluate if there is water
-                    if (Me%WaterVolume(i,j) .gt. 0.0) then
+                    if (Me%WaterVolume(i,j) .gt. AlmostZero) then
                         CoefInterfDN     = Me%COEFExpl%CoefInterfDN(i,j)
                        
-                        CoefB = Me%ExtVar%WaterColumnOld(i,j)/Me%ExtVar%WaterColumn(i,j)
+                        !CoefB = Me%ExtVar%WaterColumnOld(i,j)/Me%ExtVar%WaterColumn(i,j)
+                        CoefB = Me%ExtVar%WaterColumnOld(i,j)/Me%ExtVar%WaterColumnAT(i,j)
                         
                         Me%TICOEF3(i,j  ) = Me%TICOEF3(i,j) + CoefB * CurrProperty%ConcentrationOld(i,j  )                  &
                                                           + CoefInterfDN     * CurrProperty%ConcInInterfaceDN(i,j)              
@@ -5813,9 +5999,10 @@ doi4 :      do i = ILB, IUB
 
                     if (CurrProperty%Particulate) then
                         ![kg/m2] = [g/m3]* [m * m2] * [1E-3kg/g] /[m2] + [kg/m2]
-                        CurrProperty%TotalConcentration (i,j) = ((CurrProperty%Concentration (i,j) * 1E-3                   &
-                                                                  * Me%ExtVar%WaterColumn(i,j) * Me%ExtVar%Area(i, j))      &
-                                                                 / Me%ExtVar%Area(i, j))                                    &
+                        CurrProperty%TotalConcentration (i,j) = ((CurrProperty%Concentration (i,j) * 1E-3                  &
+!                                                                  * Me%ExtVar%WaterColumn(i,j) * Me%ExtVar%Area(i, j))    &
+                                                                  * Me%ExtVar%WaterColumnAT(i,j) * Me%ExtVar%Area(i, j))   &
+                                                                 / Me%ExtVar%Area(i, j))                                   &
                                                                  + CurrProperty%BottomConcentration (i,j)   
                     endif      
 
@@ -5836,7 +6023,7 @@ doi4 :      do i = ILB, IUB
             do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                 if (Me%ExtVar%BasinPoints(I,J) == BasinPoint) then           
                     
-                    if (Me%WaterVolume(i,j) .gt. 0.0) then
+                    if (Me%WaterVolume(i,j) .gt. AlmostZero) then
                     
                         CoefInterfDN     = Me%COEFExpl%CoefInterfDN(i,j)
                         
@@ -5849,7 +6036,8 @@ doi4 :      do i = ILB, IUB
                         endif
                         
 
-                        CoefB = Me%ExtVar%WaterColumnOld(i,j)/Me%ExtVar%WaterColumn(i,j)
+                        !CoefB = Me%ExtVar%WaterColumnOld(i,j)/Me%ExtVar%WaterColumn(i,j)
+                        CoefB = Me%ExtVar%WaterColumnOld(i,j)/Me%ExtVar%WaterColumnAT(i,j)
 
                         Me%TICOEF3(i,j) = Me%TICOEF3(i,j)                                                      &
                                             + coefB * CurrProperty%ConcentrationOld(i,j)                       &
@@ -5897,7 +6085,8 @@ doi4 :      do i = ILB, IUB
                     if (Me%ExtVar%BasinPoints(I,J) == BasinPoint) then           
                         ![kg/m2] = [g/m3]* [m * m2] * [1E-3kg/g] /[m2] + [kg/m2]
                         CurrProperty%TotalConcentration (i,j) = ((CurrProperty%Concentration (i,j) * 1E-3                 &
-                                                                  * Me%ExtVar%WaterColumn(i,j) * Me%ExtVar%Area(i, j))    &
+!                                                                  * Me%ExtVar%WaterColumn(i,j) * Me%ExtVar%Area(i, j))    &
+                                                                  * Me%ExtVar%WaterColumnAT(i,j) * Me%ExtVar%Area(i, j))    &
                                                                  / Me%ExtVar%Area(i, j))                                  &
                                                                  + CurrProperty%BottomConcentration (i,j) 
                     endif 
@@ -5916,56 +6105,56 @@ doi4 :      do i = ILB, IUB
     
     !---------------------------------------------------------------------------
 
-    subroutine ModifyInterfaceMassFluxes(PropertyX) 
-
-        !Arguments-------------------------------------------------------------
-        type (T_Property), pointer                  :: PropertyX
-
-        !Local-----------------------------------------------------------------
-        type (T_Property), pointer                  :: CurrProperty
-        integer                                     :: i, j !, STAT_CALL !, CHUNK
-        !Begin-----------------------------------------------------------------    
-        
-        CurrProperty => PropertyX
-        
-        !!Drainage network interface mass balance 
-        if (Me%ExtVar%CoupledDN) then
-           
-            !!! $OMP PARALLEL PRIVATE(I,J,K)
-            !!! $OMP DO SCHEDULE(DYNAMIC, CHUNK)
-            do J = Me%WorkSize%JLB, Me%WorkSize%JUB
-            do I = Me%WorkSize%ILB, Me%WorkSize%IUB
-                
-                if (Me%ExtVar%BasinPoints(I,J) == BasinPoint .and. Me%ExtVar%RiverPoints(I,J) == BasinPoint) then   
-
-                    ! mass going to channel -> conc from soil
-                    if (Me%ExtVar%FlowToChannels(i,j) .gt. 0.0) then
-                        
-                        !Global Mass Exchange
-                        ![kg] = [kg] + [m3/s] * [g/m3] * [1e-3kg/g]* [s] 
-                        CurrProperty%MB%DNExchangeMass =  CurrProperty%MB%DNExchangeMass                   &
-                                  + (Me%ExtVar%FlowToChannels(i,j) * CurrProperty%ConcentrationOld(i,j)          &
-!                          + (Me%ExtVar%FlowToChannels(i,j) * CurrProperty%Concentration(i,j)             &
-                             * 1e-3 * Me%ExtVar%DT)
-                    
-                    !mass coming from channel -> conc from DN
-                    elseif (Me%ExtVar%FlowToChannels(i,j) .lt. 0.0) then
-                        
-                        !Global Mass Exchange
-                        ![kg] = [kg] + [m3/s] * [g/m3] * [1e-3kg/g]* [s] 
-                        CurrProperty%MB%DNExchangeMass =  CurrProperty%MB%DNExchangeMass                   &
-                          + (Me%ExtVar%FlowToChannels(i,j) * CurrProperty%ConcentrationDN(i,j)             &
-                             * 1e-3 * Me%ExtVar%DT)  
-                        
-                    endif
-                endif
-            enddo
-            enddo
-           
-        endif
-        
-    
-    end subroutine ModifyInterfaceMassFluxes
+!    subroutine ModifyInterfaceMassFluxes(PropertyX) 
+!
+!        !Arguments-------------------------------------------------------------
+!        type (T_Property), pointer                  :: PropertyX
+!
+!        !Local-----------------------------------------------------------------
+!        type (T_Property), pointer                  :: CurrProperty
+!        integer                                     :: i, j !, STAT_CALL !, CHUNK
+!        !Begin-----------------------------------------------------------------    
+!        
+!        CurrProperty => PropertyX
+!        
+!        !!Drainage network interface mass balance 
+!        if (Me%ExtVar%CoupledDN) then
+!           
+!            !!! $OMP PARALLEL PRIVATE(I,J,K)
+!            !!! $OMP DO SCHEDULE(DYNAMIC, CHUNK)
+!            do J = Me%WorkSize%JLB, Me%WorkSize%JUB
+!            do I = Me%WorkSize%ILB, Me%WorkSize%IUB
+!                
+!                if (Me%ExtVar%BasinPoints(I,J) == BasinPoint .and. Me%ExtVar%RiverPoints(I,J) == BasinPoint) then   
+!
+!                    ! mass going to channel -> conc from runoff
+!                    if (Me%ExtVar%FlowToChannels(i,j) .gt. 0.0) then
+!                        
+!                        !Global Mass Exchange
+!                        ![kg] = [kg] + [m3/s] * [g/m3] * [1e-3kg/g]* [s] 
+!                        CurrProperty%MB%DNExchangeMass =  CurrProperty%MB%DNExchangeMass                   &
+!                                  + (Me%ExtVar%FlowToChannels(i,j) * CurrProperty%ConcentrationOld(i,j)          &
+!!                          + (Me%ExtVar%FlowToChannels(i,j) * CurrProperty%Concentration(i,j)             &
+!                             * 1e-3 * Me%ExtVar%DT)
+!                    
+!                    !mass coming from channel -> conc from DN
+!                    elseif (Me%ExtVar%FlowToChannels(i,j) .lt. 0.0) then
+!                        
+!                        !Global Mass Exchange
+!                        ![kg] = [kg] + [m3/s] * [g/m3] * [1e-3kg/g]* [s] 
+!                        CurrProperty%MB%DNExchangeMass =  CurrProperty%MB%DNExchangeMass                   &
+!                          + (Me%ExtVar%FlowToChannels(i,j) * CurrProperty%ConcentrationDN(i,j)             &
+!                             * 1e-3 * Me%ExtVar%DT)  
+!                        
+!                    endif
+!                endif
+!            enddo
+!            enddo
+!           
+!        endif
+!        
+!    
+!    end subroutine ModifyInterfaceMassFluxes
     
     !---------------------------------------------------------------------------
 
@@ -7777,7 +7966,7 @@ First:          if (LastTime.LT.Actual) then
         !Local-----------------------------------------------------------------
         type (T_Property), pointer                  :: PropertyX
         integer                                     :: STAT_CALL
-        integer                                     :: OutPutNumber
+        !integer                                     :: OutPutNumber
         integer                                     :: HDF5_CREATE
         character(LEN = PathLength)                 :: FileName
         integer                                     :: ObjHDF5
@@ -8325,8 +8514,11 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
         call GetRunoffCenterVelocity (Me%ObjRunoff, Me%ExtVar%CenterVelU, Me%ExtVar%CenterVelV, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - ModuleRunoffProperties - ERR040'
 
-
         call GetRunoffWaterColumn     (Me%ObjRunoff, Me%ExtVar%WaterColumn, STAT = STAT_CALL) 
+        if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - ModuleRunoffProperties - ERR64'
+
+        !Water Column After Transport (Advection Diffusion only includes transport)
+        call GetRunoffWaterColumnAT     (Me%ObjRunoff, Me%ExtVar%WaterColumnAT, STAT = STAT_CALL) 
         if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - ModuleRunoffProperties - ERR64'
 
         call GetRunoffWaterColumnOld   (Me%ObjRunoff, Me%ExtVar%WaterColumnOld, STAT = STAT_CALL)
@@ -8384,8 +8576,11 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
         
         call UnGetRunoff           (Me%ObjRunoff, Me%ExtVar%CenterVelV, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadUnLockExternalVar - ModuleRunoffProperties - ERR060'             
-        
+
         call UnGetRunoff           (Me%ObjRunoff, Me%ExtVar%WaterColumn, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadUnLockExternalVar - ModuleRunoffProperties - ERR061'
+        
+        call UnGetRunoff           (Me%ObjRunoff, Me%ExtVar%WaterColumnAT, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadUnLockExternalVar - ModuleRunoffProperties - ERR063'
 
         call UnGetRunoff           (Me%ObjRunoff, Me%ExtVar%WaterColumnOld, STAT = STAT_CALL)
