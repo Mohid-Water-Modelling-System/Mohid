@@ -88,6 +88,7 @@
 !   PARTICULATE                 : 0/1              [0]          !Property physical state: 0 - Dissolved ; 1 - Particulate
 !   OLD                         : 0/1              [0]          !Initialization from previous run (overrides FillMatrix)
 !   BENTHOS                     : 0/1              [0]          !Compute benthic ecological processes
+!   BENTHICECOLOGY              : 0/1              [0]          !Compute benthic ecological processes with module BenthicEcology
 !   CEQUALW2                    : 0/1              [0]          !Compute CEQUALW2 benthic ecological processes
 !   DETRITUS                    : 0/1              [0]          !Computed as detritus
 !   SEDIMENT_WATER_FLUXES       : 0/1              [0]          !Compute fluxes between sediment and water column
@@ -147,7 +148,8 @@ Module ModuleInterfaceSedimentWater
                                           UnGetWaterProperties, GetWaterPropertyOptions,    &
                                           SetFluxToWaterProperties, WaterPropertyExists,    &
                                           GetWaterPropertiesBottomOptions,                  &
-                                          SetMacroAlgaeParameters
+                                          SetMacroAlgaeParameters,                          &
+                                          GetShortWaveRadiationAverage
     use ModuleHydrodynamic,         only: GetChezy,GetHorizontalVelocity, UnGetHydrodynamic,&
                                           SetHydrodynamicManning, SetBottomWaterFlux,       &
                                           SetHydrodynamicRugosityMatrix, GetWavesStressON,  &
@@ -225,6 +227,7 @@ Module ModuleInterfaceSedimentWater
     private ::      ConstructConsolidation
     private ::      Construct_Sub_Modules
     private ::          CoupleBenthos
+    private ::          CoupleBenthicEcology
     private ::          CoupleCEQUALW2
     private ::          CheckOptionsWaterFluxes
 #ifndef _SEDIMENT_
@@ -248,10 +251,12 @@ Module ModuleInterfaceSedimentWater
     private ::          ComputeWaveRugosity
     private ::          ComputeWaveTension
     private ::      Benthos_Processes
+    private ::      BenthicEcology_Processes
     private ::      Detritus_Processes
     private ::      CEQUALW2_Processes
     private ::      ModifyWaterColumnFluxes
     private ::          InitializeFluxesToWaterColumn
+    private ::          InitializeFluxesToWaterColumn_Benthic
     private ::          ModifyErosionFluxes
     private ::              ModifyErosionCoefficient
     private ::              ErosionFlux             !Function
@@ -382,6 +387,8 @@ Module ModuleInterfaceSedimentWater
         integer, pointer, dimension(:,:,:)          :: LandPoints3D
         real,    pointer, dimension(:,:  )          :: Bathymetry
         real,    pointer, dimension(:,:  )          :: WaterColumn
+        real,    pointer, dimension(:,:)            :: WaterVolume
+        real,    pointer, dimension(:,:)            :: Sediment
         real                                        :: MinWaterColumn        
         integer, pointer, dimension(:,:  )          :: KFloor_Z
         real,    pointer, dimension(:,:  )          :: WavePeriod, WaveHeight
@@ -419,6 +426,8 @@ Module ModuleInterfaceSedimentWater
     type       T_Evolution
         logical                                     :: Variable             = .false.
         logical                                     :: Benthos              = .false.
+        logical                                     :: BenthicEcology       = .false.
+        logical                                     :: BenthicOnly          = .false.
         logical                                     :: CEQUALW2             = .false.
         logical                                     :: Detritus             = .false.
         logical                                     :: SedimentWaterFluxes  = .false.
@@ -437,6 +446,8 @@ Module ModuleInterfaceSedimentWater
          real, dimension(:,:), pointer              :: Mass_Available
          real, dimension(:,:), pointer              :: WaterConcentration
          real, dimension(:,:), pointer              :: MassInKg
+         real, dimension(:,:), pointer              :: Mass_FromWater
+         real, dimension(:,:), pointer              :: MassInKgFromWater
          real, dimension(:,:), pointer              :: SedimentConcentration
          real, dimension(:,:), pointer              :: FluxToWater
          real, dimension(:,:), pointer              :: FluxToSediment
@@ -473,6 +484,7 @@ Module ModuleInterfaceSedimentWater
 
     type       T_Coupled
          type(T_Coupling)                           :: Benthos
+         type(T_Coupling)                           :: BenthicEcology
          type(T_Coupling)                           :: CEQUALW2
          type(T_Coupling)                           :: Detritus
          type(T_Coupling)                           :: SedimentFluxes   
@@ -1721,6 +1733,8 @@ cd2 :           if (BlockFound) then
             NewProperty%Mass_Available  = null_real
             allocate(NewProperty%MassInKg      (ILB:IUB, JLB:JUB))
             NewProperty%MassInKg        = null_real
+            allocate(NewProperty%MassInKgFromWater(ILB:IUB, JLB:JUB))
+            allocate(NewProperty%Mass_FromWater(ILB:IUB, JLB:JUB))
 
             if(NewProperty%Old)then
 
@@ -1774,7 +1788,17 @@ cd2 :           if (BlockFound) then
 
         end if
 
+       
+       if(NewProperty%Evolution%BenthicOnly)then
 
+            allocate(NewProperty%WaterConcentration(ILB:IUB, JLB:JUB), STAT = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_)                                        &
+                stop 'Construct_PropertyValues - ModuleInterfaceSedimentWater - ERR07.1'
+            NewProperty%WaterConcentration(:,:) = 0.
+
+        end if
+       
+       
         if(NewProperty%Evolution%WaterFluxes .or. NewProperty%Evolution%SedimentWaterFluxes)then
             
             allocate(NewProperty%FluxToWater(ILB:IUB, JLB:JUB), STAT = STAT_CALL)
@@ -1878,6 +1902,35 @@ cd2 :           if (BlockFound) then
             stop 'Construct_PropertyEvolution - ModuleInterfaceSedimentWater - ERR20'
 
         if(NewProperty%evolution%Benthos) NewProperty%Evolution%Variable = .true.
+       
+       
+        call GetData(NewProperty%Evolution%BenthicEcology,                              &
+                     Me%ObjEnterData, iflag,                                            &
+                     SearchType   = FromBlock,                                          &
+                     keyword      = 'BENTHICECOLOGY',                                   &
+                     Default      = OFF,                                                &
+                     ClientModule = 'ModuleInterfaceSedimentWater',                     &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_)                                                    &
+            stop 'Construct_PropertyEvolution - ModuleInterfaceSedimentWater - ERR25'
+        
+         if(NewProperty%evolution%BenthicEcology) NewProperty%Evolution%Variable = .true.
+        
+        
+        call GetData(NewProperty%Evolution%BenthicOnly,                              &
+                     Me%ObjEnterData, iflag,                                            &
+                     SearchType   = FromBlock,                                          &
+                     keyword      = 'BENTHICONLY',                                   &
+                     Default      = OFF,                                                &
+                     ClientModule = 'ModuleInterfaceSedimentWater',                     &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_)                                                    &
+            stop 'Construct_PropertyEvolution - ModuleInterfaceSedimentWater - ERR25'
+            
+            
+            
+            
+       
 
         !CEQUALW2 as a sink and source      
         call GetData(NewProperty%Evolution%CEQUALW2,                                    &
@@ -2573,6 +2626,7 @@ do1 :   do
 
             write(*, *)"Property          : ", trim(CurrentProperty%ID%Name)
             write(*, *)"---Benthos        : ", CurrentProperty%Evolution%Benthos
+            write(*, *)"---BenthicEcology : ", CurrentProperty%Evolution%BenthicEcology
             write(*, *)"---BenthicCEQUALW2: ", CurrentProperty%Evolution%CEQUALW2
             write(*, *)"---Detritus       : ", CurrentProperty%Evolution%Detritus
             write(*, *)"---WaterFluxes    : ", CurrentProperty%Evolution%WaterFluxes
@@ -2609,6 +2663,7 @@ do1 :   do
         Me%Coupled%TimeSerie%NumberOfProperties            = 0
         Me%Coupled%BoxTimeSerie%NumberOfProperties         = 0
         Me%Coupled%OutputHDF%NumberOfProperties            = 0
+        Me%Coupled%BenthicEcology%NumberOfProperties       = 0
 
         PropertyX => Me%FirstProperty
 
@@ -2638,6 +2693,12 @@ do1 :   do while (associated(PropertyX))
                 Me%Coupled%Benthos%NumberOfProperties               = &
                 Me%Coupled%Benthos%NumberOfProperties               + 1
                 Me%Coupled%Benthos%Yes                              = ON
+            endif
+            
+             if (PropertyX%Evolution%BenthicEcology) then
+                Me%Coupled%BenthicEcology%NumberOfProperties        = &
+                Me%Coupled%BenthicEcology%NumberOfProperties        + 1
+                Me%Coupled%BenthicEcology%Yes                       = ON
             endif
 
             if (PropertyX%Evolution%CEQUALW2) then
@@ -2694,6 +2755,21 @@ do1 :   do while (associated(PropertyX))
 
         end if
 
+        if(Me%Coupled%Benthos%Yes .and. Me%Coupled%BenthicEcology%Yes)then
+            
+            write(*,*)'Benthos and BenthicEcology models cannot be simulated at the same time.'
+            stop 'Construct_Sub_Modules - ModuleInterfaceSedimentWater - ERR01.1'
+
+        end if
+        
+        if(Me%Coupled%BenthicEcology%Yes .and. Me%Coupled%CEQUALW2%Yes)then
+            
+            write(*,*)'BenthicEcology and CEQUALW2 models cannot be simulated at the same time.'
+            stop 'Construct_Sub_Modules - ModuleInterfaceSedimentWater - ERR01.2'
+
+        end if
+
+
         if(Me%Coupled%Detritus%Yes .and. .not. Me%Coupled%CEQUALW2%Yes)then
             
             write(*,*)'Detritus and CEQUALW2 must be simulated at the same time.'
@@ -2725,6 +2801,12 @@ do1 :   do while (associated(PropertyX))
         if(Me%Coupled%Benthos%Yes)then
 
             call CoupleBenthos
+
+        end if
+        
+       if(Me%Coupled%BenthicEcology%Yes)then
+
+            call CoupleBenthicEcology
 
         end if
 
@@ -3034,7 +3116,86 @@ do1 :   do while (associated(PropertyX))
     end subroutine CoupleBenthos
 
 
+  
     !--------------------------------------------------------------------------
+
+    subroutine CoupleBenthicEcology
+
+        !Local-----------------------------------------------------------------
+        type(T_Property), pointer                           :: PropertyX, Temperature
+        integer, pointer, dimension(:)                      :: BenthicEcologyPropertyList
+        integer                                             :: STAT_CALL
+        real                                                :: BenthicEcologyDT
+        integer                                             :: Index = 0
+        integer                                             :: ILB,IUB,JLB,JUB
+        !----------------------------------------------------------------------
+
+        ILB = Me%Size2D%ILB
+        IUB = Me%Size2D%IUB
+        JLB = Me%Size2D%JLB
+        JUB = Me%Size2D%JUB
+
+
+        Index = 0
+
+        nullify (BenthicEcologyPropertyList)
+        allocate(BenthicEcologyPropertyList(1:Me%Coupled%BenthicEcology%NumberOfProperties))
+
+
+        call Search_Property(Temperature, PropertyXID = Temperature_, STAT = STAT_CALL)                                  
+        if (STAT_CALL /= SUCCESS_) then
+            write(*,*)'Please define property temperature in the'
+            write(*,*)'InterfaceSedimentWater data file.'
+            stop 'CoupleBenthicEcology - ModuleInterfaceSedimentWater - ERR00' 
+        end if
+
+
+        PropertyX => Me%FirstProperty
+
+        do while(associated(PropertyX))
+
+            if(PropertyX%Evolution%BenthicEcology)then
+                Index = Index + 1
+                BenthicEcologyPropertyList(Index)  = PropertyX%ID%IDNumber
+            end if
+
+            PropertyX => PropertyX%Next
+
+        enddo
+
+        nullify(PropertyX)
+
+        call ConstructInterface(InterfaceID         = Me%ObjInterface,               &
+                                TimeID              = Me%ObjTime,                    &
+                                SinksSourcesModel   = BenthicEcologyModel,                  &
+                                DT                  = BenthicEcologyDT,                     &
+                                PropertiesList      = BenthicEcologyPropertyList,           &
+                                WaterPoints2D       = Me%ExtWater%WaterPoints2D,     &
+                                Size2D              = Me%WorkSize2D,                 &
+                                STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)                                                   &
+            stop 'CoupleBenthicEcology - ModuleInterfaceSedimentWater - ERR01'
+
+        Me%Coupled%BenthicEcology%DT_Compute  = BenthicEcologyDT 
+        Me%Coupled%BenthicEcology%NextCompute = Me%ExternalVar%Now
+
+        allocate(Me%ExtWater%WaterVolume(ILB:IUB, JLB:JUB), STAT = STAT_CALL) 
+            if(STAT_CALL .ne. SUCCESS_)&
+                stop 'CoupleBenthicEcology - ModuleInterfaceSedimentWater - ERR05'
+     
+       allocate(Me%ExtWater%Sediment(ILB:IUB, JLB:JUB), STAT = STAT_CALL) 
+            if(STAT_CALL .ne. SUCCESS_)&
+                stop 'CoupleBenthicEcology - ModuleInterfaceSedimentWater - ERR06'
+       
+      
+
+        deallocate(BenthicEcologyPropertyList)
+        nullify   (BenthicEcologyPropertyList)
+
+    end subroutine CoupleBenthicEcology
+    !--------------------------------------------------------------------------
+
+    
 
     subroutine CoupleCEQUALW2
 
@@ -4093,6 +4254,9 @@ do1 :   do while (associated(PropertyX))
 
             if(Me%Coupled%Benthos%Yes)              &
                 call Benthos_Processes
+                
+            if(Me%Coupled%BenthicEcology%Yes)       &
+                call BenthicEcology_Processes  
                                    
             if(Me%Coupled%CEQUALW2%Yes)             &
                 call CEQUALW2_Processes
@@ -4587,7 +4751,14 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
 
     subroutine ModifyWaterColumnFluxes
 
+        
+        
+        
+        if (Me%Coupled%BenthicEcology%Yes)then
+        call InitializeFluxesToWaterColumn_Benthic
+        else
         call InitializeFluxesToWaterColumn
+        endif
         
         
         if(Me%Coupled%Erosion%Yes)then
@@ -4764,8 +4935,120 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
     
     end subroutine InitializeFluxesToWaterColumn
 
+
     !--------------------------------------------------------------------------
 
+    subroutine InitializeFluxesToWaterColumn_Benthic
+        
+        !External--------------------------------------------------------------
+        integer                                 :: STAT_CALL
+
+        !Local-----------------------------------------------------------------
+        integer                                 :: IUB, JUB, ILB, JLB
+        integer                                 :: i, j, kbottom
+        type(T_Property), pointer               :: PropertyX
+        real, dimension(:,:,:), pointer         :: WaterPropertyConcentration
+        character(len=StringLength)             :: WaterPropertyUnits
+        real                                    :: WaterPropertyISCoef
+        integer                                 :: CHUNK 
+
+        !Begin-----------------------------------------------------------------
+
+        IUB = Me%WaterWorkSize3D%IUB
+        JUB = Me%WaterWorkSize3D%JUB
+        ILB = Me%WaterWorkSize3D%ILB
+        JLB = Me%WaterWorkSize3D%JLB
+
+        PropertyX => Me%FirstProperty
+
+        do while(associated(PropertyX))
+
+            if(Me%ExternalVar%Now .ge. PropertyX%Evolution%NextCompute)then
+
+                if (MonitorPerformance) then
+                    call StartWatch ("ModuleInterfaceSedimentWater", "InitializeFluxesToWaterColumn_Benthic")
+                endif
+
+                !if(.not. PropertyX%Particulate)then
+                if(.not. PropertyX%Evolution%BenthicOnly)then
+                    call GetConcentration(WaterPropertiesID = Me%ObjWaterProperties,            &
+                                          ConcentrationX    = WaterPropertyConcentration,       &
+                                          PropertyXIDNumber = PropertyX%ID%IDNumber,            &
+                                          PropertyXUnits    = WaterPropertyUnits,               &
+                                          PropertyXISCoef   = WaterPropertyISCoef,              &
+                                          STAT              = STAT_CALL)
+                    if(STAT_CALL .ne. SUCCESS_)&
+                        stop 'InitializeFluxesToWaterColumn_Benthic - ModuleInterfaceSedimentWater - ERR01'
+
+                    CHUNK = CHUNK_I(ILB, IUB)
+                    !$OMP PARALLEL PRIVATE(i,j,kbottom)
+                    !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+                    do i = ILB, IUB
+                    do j = JLB, JUB
+
+                        if(Me%ExtWater%WaterPoints2D(i,j) == WaterPoint)then
+
+                            kbottom = Me%ExtWater%KFloor_Z(i, j)
+
+                            PropertyX%WaterConcentration(i,j) = WaterPropertyConcentration(i,j,kbottom) * &
+                                                                WaterPropertyISCoef
+                                                                
+                            
+                            PropertyX%Mass_FromWater(i,j) =  PropertyX%WaterConcentration(i,j) * &
+                                                                 Me%ExtWater%VolumeZ(i,j,kbottom)                                    
+
+                        end if
+
+                    enddo
+                    enddo
+                    !$OMP END DO
+                    !$OMP END PARALLEL
+
+                    call UnGetWaterProperties(Me%ObjWaterProperties, WaterPropertyConcentration, STAT = STAT_CALL)
+                    if(STAT_CALL .ne. SUCCESS_)&
+                        stop 'InitializeFluxesToWaterColumn_Benthic - ModuleInterfaceSedimentWater - ERR02'
+                
+
+                
+                end if
+
+
+                if(PropertyX%Evolution%WaterFluxes .or. PropertyX%Evolution%SedimentWaterFluxes)then
+
+                    CHUNK = CHUNK_I(ILB, IUB)
+                    !$OMP PARALLEL PRIVATE(i,j)
+                    !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+                    do i = ILB, IUB
+                    do j = JLB, JUB
+                
+                        if(Me%ExtWater%WaterPoints2D(i,j) == WaterPoint)then
+
+                            PropertyX%FluxToWater(i,j) = 0.
+
+                        end if
+
+                    enddo
+                    enddo
+                    !$OMP END DO
+                    !$OMP END PARALLEL
+
+                end if
+
+                if (MonitorPerformance) then
+                    call StopWatch ("ModuleInterfaceSedimentWater", "InitializeFluxesToWaterColumn_Benthic")
+                endif
+
+            end if
+
+            PropertyX => PropertyX%Next
+
+        end do
+
+
+    
+    end subroutine InitializeFluxesToWaterColumn_Benthic
+
+    !--------------------------------------------------------------------------
 
     subroutine InitializeFluxesToSediment
         
@@ -6356,7 +6639,428 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
 
     end subroutine Benthos_Processes
 
+
+!--------------------------------------------------------------------------
+
+subroutine BenthicEcology_Processes
+        
+        !External--------------------------------------------------------------
+        integer                                 :: STAT_CALL        
+        
+        !Local----------------------------------------------------------------- 
+        type (T_Property   ),       pointer     :: PropertyX
+        type (T_BenthicRate),       pointer     :: BenthicRateX
+        integer                                 :: WILB, WIUB, WJLB, WJUB
+        integer                                 :: i, j, kbottom
+        real, dimension(:,:,:),     pointer     :: ConcentrationOld
+        character(len=StringLength)             :: WaterPropertyUnits
+        real                                    :: WaterPropertyISCoef
+        real, dimension(:,:,:), pointer         :: WaterPropertyConcentration
+        integer                                 :: CHUNK
+
+        !Begin-----------------------------------------------------------------
+        
+        WIUB = Me%WorkSize2D%IUB
+        WJUB = Me%WorkSize2D%JUB
+        WILB = Me%WorkSize2D%ILB
+        WJLB = Me%WorkSize2D%JLB
+
+        CHUNK = CHUNK_J(WJLB, WJUB)
+        
+        if (MonitorPerformance) then
+            call StartWatch ("ModuleInterfaceSedimentWater", "BenthicEcology_Processes")
+        endif
+        
+       
+        if (Me%ExternalVar%Now .GE. Me%Coupled%BenthicEcology%NextCompute) then
+        
+                    !$OMP PARALLEL PRIVATE(i,j,kbottom)
+                    !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+                    do j = WJLB, WJUB
+                    do i = WILB, WIUB
+
+                        if(Me%ExtWater%WaterPoints2D(i,j) == WaterPoint)then
+
+                            kbottom = Me%ExtWater%KFloor_Z(i, j)
+
+                            Me%ExtWater%WaterVolume(i,j) =  Me%ExtWater%VolumeZ(i,j,kbottom)
+                           
+
+                        end if
+
+                    enddo
+                    enddo
+                    !$OMP END DO
+                    !$OMP END PARALLEL
+        
+        
+
+            PropertyX => Me%FirstProperty
+
+            do while(associated(PropertyX))
+
+                if(PropertyX%ID%IDNumber == Temperature_)  then
+
+                    call Modify_Interface(InterfaceID   = Me%ObjInterface,                  &
+                                          PropertyID    = PropertyX%ID%IDNumber,            &
+                                          Concentration = PropertyX%WaterConcentration,     &
+                                          WaterPoints2D = Me%ExtWater%WaterPoints2D,        &
+                                          OpenPoints2D  = Me%ExtWater%OpenPoints2D,         &
+                                          WaterVolume2D = Me%ExtWater%WaterVolume ,         &
+                                          CellArea2D    = Me%ExternalVar%GridCellArea,      &
+                                          STAT          = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_)                                            &
+                        stop 'BenthicEcology_Processes - ModuleInterfaceSedimentWater - ERR01'
+
+        
+                elseif(PropertyX%ID%IDNumber == Cohesive_Sediment_  )then
+                    
+                    !$OMP PARALLEL PRIVATE(i,j,kbottom)
+                    !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+                    do j = WJLB, WJUB
+                    do i = WILB, WIUB
+
+                        if(Me%ExtWater%WaterPoints2D(i,j) == WaterPoint)then
+
+                            kbottom = Me%ExtWater%KFloor_Z(i, j)
+
+                            PropertyX%MassInKg(i,j) = PropertyX%WaterConcentration(i,j) * &
+                                                      Me%ExtWater%VolumeZ(i,j,kbottom)
+
+                        end if
+
+                    enddo
+                    enddo
+                    !$OMP END DO
+                    !$OMP END PARALLEL
+
+                    call Modify_Interface(InterfaceID   = Me%ObjInterface,                  &
+                                          PropertyID    = PropertyX%ID%IDNumber,            &
+                                          Concentration = PropertyX%MassInKg,               &
+                                          Sediment      = PropertyX%WaterConcentration,     &
+                                          WaterPoints2D = Me%ExtWater%WaterPoints2D,        &
+                                          OpenPoints2D  = Me%ExtWater%OpenPoints2D,         &
+                                          STAT          = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_)                                            &
+                        stop 'BenthicEcology_Processes - ModuleInterfaceSedimentWater - ERR04'
+
+
+                else
+                    !$OMP PARALLEL PRIVATE(i,j,kbottom)
+                    if(PropertyX%Particulate)then
+                        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+                        do j = WJLB, WJUB
+                        do i = WILB, WIUB
+
+                            if(Me%ExtWater%WaterPoints2D(i,j) == WaterPoint)then
+
+                                kbottom = Me%ExtWater%KFloor_Z(i, j)
+                       !For particulate properties, MassInkg is different from Mass_FromWater 
+                       ! MassInKg is the mass of particulate material (In Kg) laying on the bottom;
+                       ! Mass_FromWater is the mass of particulate material (In Kg) in the cell closest to the bottom
+                                PropertyX%MassInKg(i,j) = PropertyX%Mass_Available(i,j)     * &   
+                                                          Me%ExternalVar%GridCellArea(i,j)
+                                PropertyX%WaterConcentration(i,j) = PropertyX%Mass_FromWater(i,j)     / &
+                                                          Me%ExtWater%VolumeZ(i,j,kbottom)                          
+                                                                                        
+                            end if
+
+                        enddo
+                        enddo
+                        !$OMP END DO
+                        
+                        
+                        
+                        
+
+                    else
+                        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+                        do j = WJLB, WJUB
+                        do i = WILB, WIUB
+
+                            if(Me%ExtWater%WaterPoints2D(i,j) == WaterPoint)then
+
+                                kbottom = Me%ExtWater%KFloor_Z(i, j)
+
+                                !PropertyX%MassInKg(i,j) = PropertyX%WaterConcentration(i,j) * &  !For particulate properties, MassInkg and Mass_FromWater are the same
+                                !                          Me%ExtWater%VolumeZ(i,j,kbottom)
+                                PropertyX%Mass_FromWater(i,j) = PropertyX%WaterConcentration(i,j) * &  !For particulate properties, MassInkg and Mass_FromWater are the same
+                                                          Me%ExtWater%VolumeZ(i,j,kbottom)
+
+
+                            end if
+
+                        enddo
+                        enddo
+                        !$OMP END DO
+                    
+                    end if
+                    !$OMP END PARALLEL
+
+
+                            
+                           !if(PropertyX%Evolution%BenthicOnly)then
+                           
+                           !call Modify_Interface(InterfaceID   = Me%ObjInterface,                  &
+                           !                       PropertyID    = PropertyX%ID%IDNumber,            &
+                           !                       Concentration = PropertyX%MassInKg,               &
+                           !                       WaterPoints2D = Me%ExtWater%WaterPoints2D,        &
+                           !                       OpenPoints2D  = Me%ExtWater%OpenPoints2D,         &
+                           !                       STAT          = STAT_CALL)
+                           ! if (STAT_CALL .NE. SUCCESS_)                                            &
+                           !     stop 'BenthicEcology_Processes - ModuleInterfaceSedimentWater - ERR05'
+                           
+                           !else
+                            
+                            call Modify_Interface(InterfaceID   = Me%ObjInterface,                  &
+                                                  PropertyID    = PropertyX%ID%IDNumber,            &
+                                                  Concentration = PropertyX%MassInKg,               &  ! Concentration is NOT a concentration but a mass
+                                              MassInKgFromWater = PropertyX%Mass_FromWater,      &
+                                                  WaterPoints2D = Me%ExtWater%WaterPoints2D,        &
+                                                  OpenPoints2D  = Me%ExtWater%OpenPoints2D,         &
+                                                  STAT          = STAT_CALL)
+                            if (STAT_CALL .NE. SUCCESS_)                                            &
+                                stop 'BenthicEcology_Processes - ModuleInterfaceSedimentWater - ERR05'
+                          
+                          
+                         ! endif
+                           
+                
+                end if
+
+
+                PropertyX => PropertyX%Next
+
+            end do
+            
+            Me%Coupled%BenthicEcology%NextCompute = Me%Coupled%BenthicEcology%NextCompute +               &
+                                             Me%Coupled%BenthicEcology%DT_Compute
+        end if
+
+        PropertyX => Me%FirstProperty
+
+        do while(associated(PropertyX))
+
+       if01:   if (PropertyX%Evolution%BenthicEcology) then
+
+        if02:   if (Me%ExternalVar%Now .GE. PropertyX%Evolution%NextCompute) then
+
+                    !$OMP PARALLEL PRIVATE(i,j,kbottom)
+                   if1: if(PropertyX%Particulate)then
+                        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+                        do j = WJLB, WJUB
+                        do i = WILB, WIUB
+
+                            if(Me%ExtWater%WaterPoints2D(i,j) == WaterPoint)then
+
+                                kbottom = Me%ExtWater%KFloor_Z(i, j)
+
+                                PropertyX%MassInKg(i,j) = PropertyX%Mass_Available(i,j)     * &
+                                                          Me%ExternalVar%GridCellArea(i,j)
+                                                          
+                                PropertyX%WaterConcentration(i,j) = PropertyX%Mass_FromWater(i,j)     / &
+                                                          Me%ExtWater%VolumeZ(i,j,kbottom)                        
+                                                          
+                            end if
+
+                        enddo
+                        enddo
+                        !$OMP END DO
+
+                    else
+                        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+                        do j = WJLB, WJUB
+                        do i = WILB, WIUB
+
+                            if(Me%ExtWater%WaterPoints2D(i,j) == WaterPoint)then
+
+                                kbottom = Me%ExtWater%KFloor_Z(i, j)
+
+                                PropertyX%Mass_FromWater(i,j) = PropertyX%WaterConcentration(i,j) * &  ! If the property is dissolved, the mass is retrieved from the water
+                                                          Me%ExtWater%VolumeZ(i,j,kbottom)
+                                                          
+                                PropertyX%MassInKg(i,j)=0. ! since the property is dissolved, it has no mass on the bottom 
+
+                            end if
+
+                        enddo
+                        enddo
+                        !$OMP END DO
+                    end if if1
+                    !$OMP END PARALLEL
+
+
+                   !if(PropertyX%Evolution%BenthicOnly)then
+                           
+                           !call Modify_Interface(InterfaceID   = Me%ObjInterface,                  &
+                           !                       PropertyID    = PropertyX%ID%IDNumber,            &
+                           !!                       Concentration = PropertyX%MassInKg,               & 
+                           !!                       WaterPoints2D = Me%ExtWater%WaterPoints2D,        &
+                           !                       OpenPoints2D  = Me%ExtWater%OpenPoints2D,         &
+                           !                       DTProp        = PropertyX%Evolution%DTInterval,   &
+                           !                       STAT          = STAT_CALL)
+                           ! if (STAT_CALL .NE. SUCCESS_)                                            &
+                           !     stop 'BenthicEcology_Processes - ModuleInterfaceSedimentWater - ERR06'
+                           
+                     !else
+
+                            call Modify_Interface(InterfaceID   = Me%ObjInterface,                  &
+                                                  PropertyID    = PropertyX%ID%IDNumber,            &
+                                                  Concentration = PropertyX%MassInKg,               & 
+                                              MassInKgFromWater = PropertyX%Mass_FromWater,      &
+                                                  WaterPoints2D = Me%ExtWater%WaterPoints2D,        &
+                                                  OpenPoints2D  = Me%ExtWater%OpenPoints2D,         &
+                                                  DTProp        = PropertyX%Evolution%DTInterval,   &
+                                                  STAT          = STAT_CALL)
+                            if (STAT_CALL .NE. SUCCESS_)                                            &
+                                stop 'BenthicEcology_Processes - ModuleInterfaceSedimentWater - ERR06'
+                     
+                     
+                     
+                     !endif
+                    !$OMP PARALLEL PRIVATE(i,j,kbottom)
+                if2: if(.not. PropertyX%Particulate)then
+                        !$OMP MASTER
+                        call GetConcentration(WaterPropertiesID = Me%ObjWaterProperties,    &
+                                              ConcentrationX    = ConcentrationOld,         &
+                                              PropertyXIDNumber = PropertyX%ID%IDNumber,    &
+                                              PropertyXUnits    = WaterPropertyUnits,       &
+                                              PropertyXISCoef   = WaterPropertyISCoef,      &
+                                              STAT              = STAT_CALL)
+                        if(STAT_CALL .ne. SUCCESS_)                                         &
+                            stop 'BenthicEcology_Processes - ModuleInterfaceSedimentWater - ERR07'
+                        !$OMP END MASTER
+                        !$OMP BARRIER
+                        
+                        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+                        do j = WJLB, WJUB
+                        do i = WILB, WIUB
+                    
+                            if(Me%ExtWater%OpenPoints2D(i,j) == OpenPoint)then
+
+                                kbottom = Me%ExtWater%KFloor_Z(i, j)
+                                !kg m-2 s-1                = kg m-2 s-1 + (kg - kg/m3 * m3)/(m2 * s)
+                               
+                               
+                                PropertyX%FluxToWater(i,j) = PropertyX%FluxToWater(i,j)                           +   &    
+                                                            ! (PropertyX%MassInKg(i,j)                             -   &
+                                                            (PropertyX%Mass_FromWater(i,j)                             -   &
+                                                              ConcentrationOld(i,j,kbottom) * WaterPropertyISCoef *   &
+                                                              Me%ExtWater%VolumeZ(i,j,kbottom))                   /   &
+                                                             (Me%ExternalVar%GridCellArea(i,j)                    *   &
+                                                              PropertyX%Evolution%DTInterval)
+ 
+                            end if
+
+                        enddo
+                        enddo
+                        !$OMP END DO
+
+                        !$OMP MASTER
+                        call UnGetWaterProperties(Me%ObjWaterProperties, ConcentrationOld, STAT = STAT_CALL)
+                        if(STAT_CALL .ne. SUCCESS_)&
+                            stop 'BenthicEcology_Processes - ModuleInterfaceSedimentWater - ERR08'
+                        !$OMP END MASTER
+                    else
+                        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+                        do j = WJLB, WJUB
+                        do i = WILB, WIUB
+
+                            if(Me%ExtWater%WaterPoints2D(i,j) == WaterPoint)then
+
+                                kbottom = Me%ExtWater%KFloor_Z(i, j)
+
+                                PropertyX%Mass_Available(i,j) =  PropertyX%MassInKg(i,j) / &
+                                                                 Me%ExternalVar%GridCellArea(i,j)
+                                PropertyX%WaterConcentration(i,j) = PropertyX%Mass_FromWater(i,j)  / &
+                                                                 Me%ExtWater%VolumeZ(i,j,kbottom)
+                                
+                                if(.not.PropertyX%Evolution%BenthicOnly)then
+                                
+                                        call GetConcentration(WaterPropertiesID = Me%ObjWaterProperties,    &
+                                                      ConcentrationX    = ConcentrationOld,         &
+                                                      PropertyXIDNumber = PropertyX%ID%IDNumber,    &
+                                                      PropertyXUnits    = WaterPropertyUnits,       &
+                                                      PropertyXISCoef   = WaterPropertyISCoef,      &
+                                                      STAT              = STAT_CALL)
+                                if(STAT_CALL .ne. SUCCESS_)                                         &
+                                    stop 'CEQUALW2_Processes - ModuleInterfaceSedimentWater - ERR03'
+                                
+                                                                 
+                                    PropertyX%FluxToWater(i,j) = PropertyX%FluxToWater(i,j)                           +   &    
+                                                                 (PropertyX%Mass_FromWater(i,j)                    -   &
+                                                                  ConcentrationOld(i,j,kbottom) * WaterPropertyISCoef *   &
+                                                                  Me%ExtWater%VolumeZ(i,j,kbottom))                   /   &
+                                                                 (Me%ExternalVar%GridCellArea(i,j)                    *   &
+                                                                  PropertyX%Evolution%DTInterval)                                 
+                                   
+                                    
+                                    call UnGetWaterProperties(Me%ObjWaterProperties, ConcentrationOld, STAT = STAT_CALL)
+                                    if(STAT_CALL .ne. SUCCESS_)&
+                                     stop 'BenthicEcology_Processes - ModuleInterfaceSedimentWater - ERR08'
+                                    
+                        
+                        
+                                   
+                                   endif                                  
+                            end if
+                            
+                            
+
+                        enddo
+                        enddo
+                        !$OMP END DO
+                        
+                       
+                        
+
+                    end if if2
+                    !$OMP END PARALLEL
+                end if if02
+
+            end if if01
+
+            PropertyX => PropertyX%Next
+            
+        end do
+
+        if (MonitorPerformance) then
+            call StopWatch ("ModuleInterfaceSedimentWater", "BenthicEcology_Processes")
+        endif
+        
+        !BenthicRateX => Me%FirstBenthicRate
+
+       ! do while (associated(BenthicRateX))
+
+        !    call GetRateFlux(InterfaceID    = Me%ObjInterface,                          &
+        !                     FirstProp      = BenthicRateX%FirstProp%IDNumber,          &
+        !                     SecondProp     = BenthicRateX%SecondProp%IDNumber,         &
+        !!                     RateFlux2D     = BenthicRateX%Field,                       &
+        !                    WaterPoints2D  = Me%ExtWater%WaterPoints2D,                &
+        !                     STAT           = STAT_CALL)
+        !    if (STAT_CALL .NE. SUCCESS_)                                                &
+        !        stop 'BenthicEcology_Processes - ModuleInterfaceSedimentWater - ERR09'
+
+        !    where (Me%ExtWater%WaterPoints2D == WaterPoint)                             &
+        !        BenthicRateX%Field = BenthicRateX%Field * Me%ExternalVar%GridCellArea / &
+        !                             Me%Coupled%BenthicEcology%DT_Compute
+
+
+        !    call BoxDif(Me%ObjBoxDif,                                                   &
+        !                BenthicRateX%Field,                                             &
+        !                BenthicRateX%ID%Name,                                           &
+        !                Me%ExtWater%WaterPoints2D,                                      &
+        !                STAT = STAT_CALL)
+         !   if (STAT_CALL .NE. SUCCESS_)                                                &
+         !       stop 'BenthicEcology_Processes - ModuleInterfaceSedimentWater - ERR10'
+
+         !   BenthicRateX => BenthicRateX%Next
+        !enddo
+
+
+    end subroutine BenthicEcology_Processes
     !--------------------------------------------------------------------------
+    
 
     subroutine Detritus_Processes
         
@@ -7348,6 +8052,22 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                     if(STAT_CALL .ne. SUCCESS_)&
                         stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ER41b'
                 endif
+                
+                
+                if (Me%Coupled%BenthicEcology%Yes) then
+                    call KillInterface (Me%ObjInterface, STAT = STAT_CALL) 
+                    if(STAT_CALL .ne. SUCCESS_)&
+                        stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ER41c'
+                
+                 deallocate(Me%ExtWater%WaterVolume, STAT = STAT_CALL) 
+                     if(STAT_CALL .ne. SUCCESS_)&
+                     stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR41d'
+                     
+                deallocate(Me%ExtWater%Sediment, STAT = STAT_CALL) 
+                     if(STAT_CALL .ne. SUCCESS_)&
+                     stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR41d'
+                
+                endif
 
                 PropertyX => Me%FirstProperty
 
@@ -7362,6 +8082,11 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                     if(STAT_CALL .ne. SUCCESS_)&
                         stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR36a'
                     nullify(PropertyX%MassInKg)
+                    
+                    deallocate(PropertyX%Mass_FromWater,   STAT = STAT_CALL) 
+                    if(STAT_CALL .ne. SUCCESS_)&
+                        stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR36b'
+                    nullify(PropertyX%Mass_FromWater)
 
                     if(PropertyX%Evolution%Deposition)then
 

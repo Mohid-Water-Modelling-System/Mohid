@@ -42,6 +42,7 @@ Module ModuleInterface
     use ModuleBenthos
     use ModuleMacroAlgae
     use ModuleEnterData, only: ReadFileName
+    use ModuleBenthicEcology
     use ModuleWWTPQ
 
 #ifdef _PHREEQC_ 
@@ -127,6 +128,7 @@ Module ModuleInterface
     private :: FillMassTempSalinity1D
     private :: FillMassTempSalinity2D
     private :: FillMassTempSalinity3D
+    private :: FillMassFromWater2D
     interface  FillMassTempSalinity
         module procedure FillMassTempSalinity1D
         module procedure FillMassTempSalinity2D
@@ -233,6 +235,11 @@ Module ModuleInterface
         real,    pointer, dimension(:    )      :: WindVelocity
         integer, pointer, dimension(:    )      :: OpenPoints
         logical, pointer, dimension(:    )      :: AddedProperties
+        real,    pointer, dimension(:    )      :: WaterVol
+        real,    pointer, dimension(:    )      :: CellArea
+        real,    pointer, dimension(:,:  )      :: MassInKgFromWater
+        real,    pointer, dimension(:,:  )      :: WaterMassInKgIncrement
+        real,    pointer, dimension(:    )      :: Sediment
 
         !Instance of ModuleTime
         integer                                 :: ObjTime              = 0
@@ -248,7 +255,10 @@ Module ModuleInterface
 
         !Instance of ModuleBenthos
         integer                                 :: ObjBenthos           = 0
-
+        
+        !Instance of ModuleBenthicEcology
+        integer                                 :: ObjBenthicEcology    = 0
+        
         !Instance of ModuleLife
         integer                                 :: ObjLife              = 0
 #ifdef _BFM_    
@@ -844,6 +854,31 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             
                 allocate(Me%Oxygen(ArrayLB:ArrayUB), STAT = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR24'
+                
+                
+            case (BenthicEcologyModel )
+            
+                allocate(Me%WaterMassInKgIncrement(PropLB:PropUB, ArrayLB:ArrayUB), &
+                                                     STAT = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR25'
+                
+                
+                allocate (Me%Sediment(ArrayLB:ArrayUB), STAT = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR26'
+                             
+                allocate(Me%WaterVol(ArrayLB:ArrayUB), STAT = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR27'
+                
+                allocate(Me%CellArea(ArrayLB:ArrayUB), STAT = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR28'
+                
+                allocate(Me%MassinKgFromWater(PropLB:PropUB, ArrayLB:ArrayUB), STAT = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR29'
+                
+
+                Me%WaterMassInKgIncrement = FillValueReal
+                Me%WaterVol  = FillValueReal
+                Me%CellArea  = FillValueReal
 
             case (MacroAlgaeModel)
 
@@ -1027,6 +1062,12 @@ cd1 :           if(STAT_CALL .EQ. KEYWORD_NOT_FOUND_ERR_) then
                 Message  = trim('MacroAlgae Data File')
                 call ReadFileName('MACROALGAE_DATA',Me%FileName, Message = Message, STAT = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)stop 'ReadInterfaceFilesName - Module Interface - ERR08' 
+                
+           case(BenthicEcologyModel)
+
+                Message  = trim('Benthic Ecology Data File')
+                call ReadFileName('BENTHICECOLOGY_DATA',Me%FileName, Message = Message, STAT = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_)stop 'ReadInterfaceFilesName - Module Interface - ERR08.1'
 
 #ifdef _PHREEQC_
                 
@@ -1294,6 +1335,35 @@ cd1 :           if(STAT_CALL .EQ. KEYWORD_NOT_FOUND_ERR_) then
                 !Get DT from MacroAlgae model to exit as argument to WaterProperties
                 call GetDTMacroAlgae(Me%ObjMacroAlgae, DTSecond = DT, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'StartSinksSourcesModel - ModuleInterface - ERR020'
+                
+                
+                 case(BenthicEcologyModel)
+
+
+                !Construct Benthos Model
+                call ConstructBenthicEcology (Me%ObjBenthicEcology,                               &
+                                   FileName = Me%FileName,                      &
+                                   ILB      = Me%Array%ILB,                     &
+                                   IUB      = Me%Array%IUB,                     &
+                                   STAT = STAT_CALL) 
+                if (STAT_CALL /= SUCCESS_) stop 'StartSinksSourcesModel - ModuleInterface - ERR023'
+ 
+                !Number of properties involved
+                call GetBenthicEcologySize (Me%ObjBenthicEcology,                             &
+                                     PropLB = PropLB,                           &
+                                     PropUB = PropUB,                           &
+                                     STAT   = STAT_CALL)                            
+                if (STAT_CALL /= SUCCESS_) stop 'StartSinksSourcesModel - ModuleInterface - ERR024'
+
+                !Number of properties involved
+                Me%Prop%ILB = PropLB
+                Me%Prop%IUB = PropUB
+
+                !Get DT from BenthicEcology model to exit as argument to WaterProperties
+                call GetDTBenthicEcology(Me%ObjBenthicEcology, DTSecond = DT, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'StartSinksSourcesModel - ModuleInterface - ERR025'
+                
+                
 
 #ifdef _PHREEQC_
 
@@ -1435,6 +1505,7 @@ cd1 :           if(STAT_CALL .EQ. KEYWORD_NOT_FOUND_ERR_) then
         integer, dimension(:), pointer                       :: MacroAlgaeList
         integer                                              :: i,PropLB, PropUB
         integer, dimension(:), pointer                       :: BenthosList, LifeList
+        integer, dimension(:), pointer                       :: BenthicEcologyList
 #ifdef _BFM_  
         integer, dimension(:), pointer                       :: BFMList
 #endif
@@ -1982,6 +2053,46 @@ cd14 :          if (Phosphorus) then
                 call UngetMacroAlgae (Me%ObjMacroAlgae, MacroAlgaeList, STAT=STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'Check_Options - ModuleInterface - ERR20'
 
+  case(BenthicEcologyModel)
+
+!                !Get Benthos model time step
+!                call GetDTBenthos(Me%ObjBenthos, DTSecond = DT, STAT = STAT_CALL)
+!                if (STAT_CALL /= SUCCESS_) stop 'Check_Options - ModuleInterface - ERR13' 
+!        
+!                !Run period in seconds
+!                RunPeriod = EndTime - Me%ExternalVar%Now
+!
+!                !The run period must be a multiple of the SedimentQuality DT
+!                auxFactor = RunPeriod / DT
+!
+!                ErrorAux  = auxFactor - int(auxFactor)
+!                
+!                if (ErrorAux /= 0) then
+!                    Dtlag = int(ErrorAux * DT)
+!                    write(*,*) 
+!                    write(*,*) 'DTSECONDS is not multiple of the run period.'
+!                    write(*,*) 'Benthos wont be computed in the last', Dtlag, ' seconds.'
+!                    write(*,*) 'Check_Options - ModuleInterface - WRN04.'
+!                endif
+                
+                call GetBenthicEcologyPropertyList (Me%ObjBenthicEcology, BenthicEcologyList, STAT=STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'Check_Options - ModuleInterface - ERR21'
+                
+                !Number of properties involved
+                PropLB = Me%Prop%ILB
+                PropUB = Me%Prop%IUB
+
+                do i = PropLB, PropUB
+                    if (.not.FindProperty(PropertiesList, BenthicEcologyList(i))) then
+                        write(*,*) 'Property ',GetPropertyName(BenthicEcologyList(i)),' not found'
+                        stop 'Properties lists benthic ecology inconsistent  - Check_Options- ModuleInterface- ERR22'    
+                    end if
+                end do
+
+                call UngetBenthicEcology (Me%ObjBenthicEcology, BenthicEcologyList, STAT=STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'Check_Options - ModuleInterface - ERR23'
+
+
 
 #ifdef _PHREEQC_
 
@@ -2527,6 +2638,14 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
                                             nFirstProp, nSecondProp,                    &
                                             RateFlux, STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'GetRateFlux2D - ModuleInterface - ERR01'
+                    
+                    
+                     !case (BenthicEcologyModel)  To be added
+
+                    !call GetBenthosRateFlux(Me%ObjBenthicEcology,                              &
+                   !                         nFirstProp, nSecondProp,                    &
+                   !                         RateFlux, STAT_CALL)
+                    !if (STAT_CALL /= SUCCESS_) stop 'GetRateFlux2D - ModuleInterface - ERR01' 
                 
             end select
 
@@ -2567,6 +2686,12 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
 
                     call UnGetBenthosRateFlux(Me%ObjBenthos, RateFlux, STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'GetRateFlux2D - ModuleInterface - ERR02'
+                    
+                    
+                 !case (BenthicEcologyModel)
+
+                   ! call UnGetBenthicEcologyRateFlux(Me%ObjBenthicEcology, RateFlux, STAT_CALL) !To be added
+                    !if (STAT_CALL /= SUCCESS_) stop 'GetRateFlux2D - ModuleInterface - ERR03'    
                 
             end select
 
@@ -3050,6 +3175,8 @@ do6 :               do index = ArrayLB, ArrayUB
 
     subroutine Modify_Interface2D(InterfaceID, PropertyID, Concentration,               &
                                   WaterPoints2D, OpenPoints2D, Oxygen2D,                &
+                                  MassInKgFromWater, Sediment,                          &
+                                  WaterVolume2D,CellArea2D,                             &
                                   DTProp, STAT)
 
         !Arguments-------------------------------------------------------------
@@ -3060,6 +3187,10 @@ do6 :               do index = ArrayLB, ArrayUB
         integer,           dimension(:,:  ), pointer    :: WaterPoints2D
         integer, optional, dimension(:,:  ), pointer    :: OpenPoints2D
         real   , optional, dimension(:,:  ), pointer    :: Oxygen2D
+        real   , optional, dimension(:,:  ), pointer    :: Sediment
+        real   , optional, dimension(:,:  ), pointer    :: WaterVolume2D
+        real   , optional, dimension(:,:  ), pointer    :: CellArea2D
+        real   , optional, dimension(:,:  ), pointer    :: MassInKgFromWater
 
         integer, optional,  intent(OUT)                 :: STAT
 
@@ -3116,7 +3247,19 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
             if(present(Oxygen2D))then
                 call UnfoldMatrix(Oxygen2D, Me%Oxygen)
-            end if                        
+            end if    
+            
+            if(present(WaterVolume2D))then
+                call UnfoldMatrix(WaterVolume2D, Me%WaterVol)
+            end if 
+            
+             if(present(CellArea2D))then
+                call UnfoldMatrix(CellArea2D, Me%CellArea)
+            end if  
+            
+            if(present(Sediment))then
+                call UnfoldMatrix(Sediment, Me%Sediment)
+            end if                     
             
             Increment = OFF
             ReadyToCompute = .false.
@@ -3133,13 +3276,28 @@ cd7 :       if (present(DTProp))then
 cd5 :       if (.not. Increment) then 
 
                 call FillMassTempSalinity(PropertyID, Concentration, ReadyToCompute)
+                
+                
+                if(present(MassInKgFromWater) )then
+                
+                call FillMassFromWater2D(PropertyID, MassInKgFromWater, ReadyToCompute)
+                
+                endif
 
 cd4 :           if (ReadyToCompute) then
+
+                    !$ CHUNK = CHUNK_I(PropLB, PropUB)
 
                     call UnfoldMatrix(Me%ExternalVar%OpenPoints2D, Me%OpenPoints)
 
                     !Stores the concentration before changing them
                     Me%ConcentrationIncrement = Me%Mass
+                    
+                    
+                    if(Me%SinksSourcesModel==BenthicEcologyModel)then
+                    !Stores the concentration before changing them
+                    Me%WaterMassInKgIncrement = Me%MassInKgFromWater
+                    endif
 
                     select case (Me%SinksSourcesModel)
 
@@ -3175,10 +3333,37 @@ cd4 :           if (ReadyToCompute) then
                                                  Me%Mass,                              &
                                                  STAT = STAT_CALL)
                             if (STAT_CALL /= SUCCESS_) stop 'Modify_Interface2D - ModuleInterface - ERR02'
+                            
+                            
+                            
+                        case(BenthicEcologyModel)
+                                                       
+
+                            call ModifyBenthicEcology  (Me%ObjBenthicEcology,          &
+                                                 Me%Temperature,                       &
+                                                 Me%WaterVol,                          &
+                                                 Me%CellArea,                          &
+                                                 Me%MassInKgFromWater,                 &
+                                                 Me%Sediment,                          &
+                                                 Me%OpenPoints,                        &
+                                                 Me%Mass,                              &
+                                                 STAT = STAT_CALL)
+                            if (STAT_CALL /= SUCCESS_) stop 'Modify_Interface2D - ModuleInterface - ERR03'
+
+
+                            !$OMP PARALLEL PRIVATE(prop, index)
+                            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+                            do prop  = PropLB,  PropUB
+                            do index = ArrayLB, ArrayUB
+                                Me%WaterMassInKgIncrement(prop, index) = Me%MassInKgFromWater(prop, index) - &
+                                                                         Me%WaterMassInKgIncrement(prop, index)
+                            end do 
+                            end do 
+                            !$OMP END DO NOWAIT
+                            !$OMP END PARALLEL
 
                     end select
 
-                    !$ CHUNK = CHUNK_I(PropLB, PropUB)
                     !$OMP PARALLEL PRIVATE(prop,index,LocalMass,LocalConcInc)
                     LocalMass => Me%Mass
                     LocalConcInc => Me%ConcentrationIncrement
@@ -3224,6 +3409,23 @@ do6 :               do index = ArrayLB, ArrayUB
 !                !$OMP END DO NOWAIT
 !                !$OMP END PARALLEL
                 
+               if(Me%SinksSourcesModel==BenthicEcologyModel)then
+                 
+                        NLB = Me%Array%ILB
+                        NUB = Me%Array%IUB
+                        do Index = NLB, NUB
+                            i = Me%Index2I(Index)
+                            j = Me%Index2J(Index)
+                            if (Me%ExternalVar%OpenPoints2D(i, j) == 1) then
+                                MassInKgFromWater(i, j) = MassInKgFromWater(i, j)      + &
+                                Me%WaterMassInKgIncrement(nProperty, Index) * DTProp / DT 
+                            end if
+                        enddo 
+                
+                endif
+             
+             
+             
                 !griflet: start
                 NLB = Me%Array%ILB
                 NUB = Me%Array%IUB
@@ -4788,6 +4990,10 @@ cd45 :                  if (.NOT. Me%AddedProperties(i)) then
             case(BenthosModel)
 
                 call GetBenthosPropIndex(Me%ObjBenthos, PropertyID, IndexNumber, STAT = STAT_CALL)
+                
+             case(BenthicEcologyModel)
+
+                call GetBenthicEcologyPropIndex(Me%ObjBenthicEcology, PropertyID, IndexNumber, STAT = STAT_CALL)
 
         end select
         
@@ -4820,6 +5026,60 @@ cd45 :                  if (.NOT. Me%AddedProperties(i)) then
         !----------------------------------------------------------------------
 
     end Subroutine FillMassTempSalinity2D
+    
+    !----------------------------------------------------------------------
+    
+    subroutine FillMassFromWater2D(PropertyID, MassFromWater, Ready) 
+
+        !Arguments-------------------------------------------------------------
+        integer,                intent(IN )     :: PropertyID
+        real, dimension(:,:),   pointer         :: MassFromWater
+        logical,                intent(OUT)     :: Ready
+
+        !External--------------------------------------------------------------
+
+        !Local-----------------------------------------------------------------
+        integer                                 :: IndexNumber, STAT_CALL
+        integer                                 :: i,j
+        integer                                 :: Index
+        integer                                 :: NLB, NUB
+        !----------------------------------------------------------------------
+
+       select case (Me%SinksSourcesModel)
+
+           case(BenthicEcologyModel)
+
+                call GetBenthicEcologyPropIndex(Me%ObjBenthicEcology, PropertyID, IndexNumber, STAT = STAT_CALL)
+
+
+        end select
+        
+        if (STAT_CALL==SUCCESS_) then
+ 
+
+                    !griflet: new way
+                    !griflet: start
+                    NLB = Me%Array%ILB
+                    NUB = Me%Array%IUB
+                    !$OMP PARALLEL PRIVATE(Index,i,j)
+                    !$OMP DO
+                    do Index = NLB, NUB
+                        i = Me%Index2I(Index)
+                        j = Me%Index2J(Index)
+                        Me%MassinKgFromWater(IndexNumber,Index) = MassFromWater(i,j)
+                    enddo
+                    !$OMP END DO NOWAIT
+                    !$OMP END PARALLEL
+                    !griflet: stop
+        
+        
+        else if (STAT_CALL.NE.SUCCESS_ .AND. STAT_CALL.NE.NOT_FOUND_ERR_) then
+            stop 'FillMassTempSalinity3D - ModuleInterface - ERR05' 
+        end if  
+
+        !----------------------------------------------------------------------
+
+    end Subroutine FillMassFromWater2D
 
     !--------------------------------------------------------------------------
     
@@ -7029,6 +7289,20 @@ cd1 :           if      (PropertyID== Phytoplankton_       ) then
                     
                 end if
                 
+                
+                
+               case(BenthicEcologyModel)
+                
+                call GetBenthicEcologyPropIndex(Me%ObjBenthicEcology, PropertyID, nProperty, STAT_CALL)
+                
+                if (STAT_CALL.NE.SUCCESS_) then 
+                    
+                    write(*,*) 
+                    write(*,*) 'Inconsistency between Interface and Benthic ecology Model.'
+                    stop       'PropertyIndexNumber - ModuleInterface - ERR22.1'
+
+                end if
+                
 #ifdef _PHREEQC_
             !ToDo: Need to change
             case (PhreeqCModel)
@@ -7278,11 +7552,16 @@ cd1 :           if      (PropertyID== Phytoplankton_       ) then
 
             case(MacroAlgaeModel)
                 call GetDTMacroAlgae(Me%ObjMacroAlgae, DTSecond = InterfaceDT, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'InterfaceDT - ModuleInterface - ERR14'                        
+                if (STAT_CALL /= SUCCESS_) stop 'InterfaceDT - ModuleInterface - ERR14'    
+                
+            case(BenthicEcologyModel)
+                call GetDTBenthicEcology(Me%ObjBenthicEcology, DTSecond = InterfaceDT, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'InterfaceDT - ModuleInterface - ERR15'  
+                                  
 #ifdef _PHREEQC_
             case(PhreeqcModel)                         
                 call GetPhreeqCDT(Me%ObjPhreeqC, DTSecond = InterfaceDT, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'InterfaceDT - ModuleInterface - ERR15'                
+                if (STAT_CALL /= SUCCESS_) stop 'InterfaceDT - ModuleInterface - ERR16'                
 #endif                   
             case(WWTPQModel)                        
                 call GetDTWWTPQM(Me%ObjWWTPQ, DTSecond = InterfaceDT, STAT = STAT_CALL)
@@ -7317,7 +7596,11 @@ cd1 :           if      (PropertyID== Phytoplankton_       ) then
                 model_name = 'Benthos'
             
             case (MacroAlgaeModel)            
-                model_name = 'Macro Algae'                
+                model_name = 'Macro Algae'
+                
+            case (BenthicEcologyModel)
+                model_name = 'BenthicEcology'
+                                
 #ifdef _PHREEQC_
             case (PhreeqCModel)             
                 model_name = 'PhreeqC'
@@ -7404,6 +7687,14 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                         call KillMacroAlgae(Me%ObjMacroAlgae, STAT = STAT_CALL)
                         if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR04.4'
                         
+                     case(BenthicEcologyModel)
+                        
+                        call KillBenthicEcology(Me%ObjBenthicEcology, STAT = STAT_CALL)
+                        if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR04.5'
+                        
+                       deallocate(Me%WaterMassInKgIncrement, STAT = STAT_CALL)
+                       if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR04.5.1' 
+                        
 #ifdef _PHREEQC_
                     case(PhreeqCModel)
                     
@@ -7479,6 +7770,27 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                 if(associated(Me%Alkalinity))then
                     deallocate(Me%Alkalinity, STAT = STAT_CALL)
                     if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR13'
+                end if
+                
+                
+                 if(associated(Me%WaterVol))then
+                    deallocate(Me%WaterVol, STAT = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR14.1'
+                end if
+                
+                if(associated(Me%CellArea))then
+                    deallocate(Me%CellArea, STAT = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR14.1'
+                end if
+                
+                if(associated(Me%MassInKgFromWater))then
+                    deallocate(Me%MassInKgFromWater, STAT = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR14.2'
+                end if
+                
+                if(associated(Me%Sediment))then
+                    deallocate(Me%Sediment, STAT = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR14.3'
                 end if
                 
 #ifdef _PHREEQC_
