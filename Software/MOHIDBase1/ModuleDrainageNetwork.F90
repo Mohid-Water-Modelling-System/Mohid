@@ -7619,7 +7619,7 @@ do2 :   do while (associated(PropertyX))
                 LocalDT = Me%ExtVar%DT / Niter
                 call WriteDTLog_ML ('ModuleDrainageNetwork', Niter, LocalDT)
                 if (Niter > Me%MaxIterations) then
-                    write(*,*)'Number of iterations above maximum'
+                    write(*,*)'Number of iterations above maximum: ', Niter
                     write(*,*)'Check DT configurations'
                     stop 'ModifyDrainageNetLocal - ModuleDrainageNetwork - ERR03'
                 endif
@@ -8512,7 +8512,7 @@ do2 :   do while (associated(PropertyX))
 
                 ISConcentration = NewMass / (Volume + DischargeFlow * LocalDT)
 
-            elseif (DischargeFlow < 0.0) then
+            elseif (DischargeFlow < 0.0 .and. Volume > 0.0) then
                     
                 !If the discharge flow is negative (Output) then the concentration
                 !to consider is the concentration of the NOD ID where the discharge
@@ -8534,7 +8534,6 @@ do2 :   do while (associated(PropertyX))
                 endif
 
                 ISConcentration    = NewMass / (Volume + DischargeFlow * LocalDT)
-
             endif
 
         else
@@ -9210,7 +9209,7 @@ if2:        if (CurrNode%VolumeNew > PoolVolume) then
         endif
 
         !FLOW---------------------------------------------------------------
-        CurrReach%FlowNew = ( CurrReach%FlowOld + Advection + Pressure )    &
+        FlowNew = ( CurrReach%FlowOld + Advection + Pressure )    &
                           / ( 1. + Friction )
         
         if (Me%ComputeOptions%LimitToCriticalFlow) then
@@ -9245,7 +9244,9 @@ if2:        if (CurrNode%VolumeNew > PoolVolume) then
                 !above maximum bottom
                 CriticalFlow = CurrReach%VerticalArea * sqrt(Gravity * WaterDepth)
         
-                if (abs(FlowNew) > CriticalFlow) then
+                if (abs(FlowNew) < CriticalFlow) then
+                    CurrReach%FlowNew = FlowNew
+                else
                     if (FlowNew > 0) then
                         CurrReach%FlowNew = CriticalFlow
                     else
@@ -9400,8 +9401,8 @@ if2:        if (CurrNode%VolumeNew > PoolVolume) then
                 CurrReach%FlowNew  = 0.0
                 CurrReach%Velocity = 0.0
             else
-                !h = CurrNode%VerticalArea / CurrNode%SurfaceWidth
-                h = CurrNode%WaterDepth
+                h = CurrNode%VerticalArea / CurrNode%SurfaceWidth
+                !h = CurrNode%WaterDepth
                 CurrReach%FlowNew = CurrNode%VerticalArea * sqrt(Gravity*h)
                 CurrReach%Velocity = CurrReach%FlowNew / CurrNode%VerticalArea
             endif

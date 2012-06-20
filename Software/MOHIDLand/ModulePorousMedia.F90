@@ -3780,7 +3780,10 @@ dConv:  do while (iteration <= Niteration)
             endif
             
             if (Niteration > Me%CV%LimitIter) then
-                    call SetError(FATAL_, INTERNAL_, "Strong Variation after LIMIT ITER", OFF)
+                    !call SetError(WARNING_, INTERNAL_, "Strong Variation after LIMIT ITER", OFF)
+                 write(*,*)'Number of iterations above maximum: ', Niteration
+                 write(*,*)'Check DT configurations'
+                 stop 'VariableSaturatedFlow - ModulePorousMedia - ERR01'                    
             endif
             
         enddo dConv
@@ -5224,7 +5227,7 @@ cd2 :   if (Me%ExtVar%BasinPoints(i, j) == 1) then
                 !in the same way.... 
                 do K = Me%ExtVar%KFloor(i, j), Me%WorkSize%KUB - 1
                     if (abs(Me%CV%ThetaOld(I,J,K)-Me%Theta(I,J,K)) > Me%CV%ThetaTolerance) then
-                    
+                        
                         !nStrongs = nStrongs + 1
                         StrongVariation = .true.
                     

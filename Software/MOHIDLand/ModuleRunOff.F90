@@ -2727,58 +2727,53 @@ doIter:         do while (iter <= Niter)
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
         do j = JLB, JUB
         do i = ILB, IUB
-            !only evaluate if basin points or any of adjacent cells has water (do not compute flow
-            !for empty cells)
+
             if (Me%ExtVar%BasinPoints(i, j-1) == BasinPoint .and. Me%ExtVar%BasinPoints(i, j) == BasinPoint) then
                 
-                if ((Me%MyWaterColumn(i,j-1) .gt. 0.0) .or. (Me%MyWaterColumn(i,j) .gt. 0.0)) then
-                    
-                    if (Me%FaceWaterColumn == WCMaxBottom_) then
-                        !Maximum Bottom Level
-                        Bottom = max(Me%ExtVar%Topography(i, j-1) + Me%BuildingsHeight(i, j-1), &
-                                     Me%ExtVar%Topography(i, j)   + Me%BuildingsHeight(i, j))
-                    elseif (Me%FaceWaterColumn == WCAverageBottom_) then
-                        !Average Bottom Level
-                        Bottom = ((Me%ExtVar%Topography(i,j) +  Me%BuildingsHeight(i, j))   &
-                                   + (Me%ExtVar%Topography(i,j-1) +  Me%BuildingsHeight(i, j-1))) / 2.0                
-                    endif
-                    
-                    !Water Column Left (above MaxBottom)
-                    WCL       = max(Me%myWaterLevel(i, j-1) + Me%BuildingsHeight(i, j-1) - Bottom, dble(0.0))
+                if (Me%FaceWaterColumn == WCMaxBottom_) then
+                    !Maximum Bottom Level
+                    Bottom = max(Me%ExtVar%Topography(i, j-1) + Me%BuildingsHeight(i, j-1), &
+                                 Me%ExtVar%Topography(i, j)   + Me%BuildingsHeight(i, j))
+                elseif (Me%FaceWaterColumn == WCAverageBottom_) then
+                    !Average Bottom Level
+                    Bottom = ((Me%ExtVar%Topography(i,j) +  Me%BuildingsHeight(i, j))   &
+                               + (Me%ExtVar%Topography(i,j-1) +  Me%BuildingsHeight(i, j-1))) / 2.0                
+                endif
                 
-                    !Water Column Right (above MaxBottom)
-                    WCR       = max(Me%myWaterLevel(i, j  ) + Me%BuildingsHeight(i, j)   - Bottom, dble(0.0))
+                !Water Column Left (above MaxBottom)
+                WCL       = max(Me%myWaterLevel(i, j-1) + Me%BuildingsHeight(i, j-1) - Bottom, dble(0.0))
+            
+                !Water Column Right (above MaxBottom)
+                WCR       = max(Me%myWaterLevel(i, j  ) + Me%BuildingsHeight(i, j)   - Bottom, dble(0.0))
 
-                    !In the case of kinematic wave, always consider the "upstream" area, otherwise the average above "max bottom"
-                    if (Me%HydrodynamicApproximation == KinematicWave_) then
-                        if (Me%ExtVar%Topography(i, j-1) + Me%BuildingsHeight(i, j-1) >      &
-                            Me%ExtVar%Topography(i, j)   + Me%BuildingsHeight(i, j)) then
-                            WCA = WCL
-                        else
-                            WCA = WCR
-                        endif
+                !In the case of kinematic wave, always consider the "upstream" area, otherwise the average above "max bottom"
+                if (Me%HydrodynamicApproximation == KinematicWave_) then
+                    if (Me%ExtVar%Topography(i, j-1) + Me%BuildingsHeight(i, j-1) >      &
+                        Me%ExtVar%Topography(i, j)   + Me%BuildingsHeight(i, j)) then
+                        WCA = WCL
                     else
-                        !Average Water Column
-                        !WCA = (WCL + WCR) / 2.0
-                        if (Me%myWaterLevel(i, j-1) + Me%BuildingsHeight(i, j-1) >           &
-                            Me%myWaterLevel(i, j) + Me%BuildingsHeight(i, j)) then
-                            WCA = WCL
-                        else
-                            WCA = WCR
-                        endif
+                        WCA = WCR
                     endif
-                    
-                    !Area  = Water Column * Side lenght of cell
-                    Me%AreaU(i, j) = WCA * Me%ExtVar%DYY(i, j)
-                    
-                    if (WCA > Me%MinimumWaterColumn) then
-                        Me%ComputeFaceU(i, j) = 1
+                else
+                    !Average Water Column
+                    !WCA = (WCL + WCR) / 2.0
+                    if (Me%myWaterLevel(i, j-1) + Me%BuildingsHeight(i, j-1) >           &
+                        Me%myWaterLevel(i, j) + Me%BuildingsHeight(i, j)) then
+                        WCA = WCL
                     else
-                        Me%ComputeFaceU(i, j) = 0
+                        WCA = WCR
                     endif
+                endif
+                
+                !Area  = Water Column * Side lenght of cell
+                Me%AreaU(i, j) = WCA * Me%ExtVar%DYY(i, j)
+                
+                if (WCA > Me%MinimumWaterColumn) then
+                    Me%ComputeFaceU(i, j) = 1
                 else
                     Me%ComputeFaceU(i, j) = 0
                 endif
+
             endif
             
         enddo
@@ -2791,54 +2786,50 @@ doIter:         do while (iter <= Niter)
         do i = ILB, IUB
             if (Me%ExtVar%BasinPoints(i-1, j) == BasinPoint .and. Me%ExtVar%BasinPoints(i, j) == BasinPoint) then
                 
-                if ((Me%MyWaterColumn(i-1,j) .gt. 0.0) .or. (Me%MyWaterColumn(i,j) .gt. 0.0)) then
+                if (Me%FaceWaterColumn == WCMaxBottom_) then
+                    !Maximum Bottom Level
+                    Bottom = max(Me%ExtVar%Topography(i-1, j) + Me%BuildingsHeight(i-1, j), &
+                                    Me%ExtVar%Topography(i, j)   + Me%BuildingsHeight(i, j))
+                elseif (Me%FaceWaterColumn == WCAverageBottom_) then
+                    !Average Bottom Level
+                    Bottom = ((Me%ExtVar%Topography(i,j) +  Me%BuildingsHeight(i, j))   &
+                                + (Me%ExtVar%Topography(i-1,j) +  Me%BuildingsHeight(i-1, j))) / 2.0                
+                endif
                 
-                    if (Me%FaceWaterColumn == WCMaxBottom_) then
-                        !Maximum Bottom Level
-                        Bottom = max(Me%ExtVar%Topography(i-1, j) + Me%BuildingsHeight(i-1, j), &
-                                        Me%ExtVar%Topography(i, j)   + Me%BuildingsHeight(i, j))
-                    elseif (Me%FaceWaterColumn == WCAverageBottom_) then
-                        !Average Bottom Level
-                        Bottom = ((Me%ExtVar%Topography(i,j) +  Me%BuildingsHeight(i, j))   &
-                                    + (Me%ExtVar%Topography(i-1,j) +  Me%BuildingsHeight(i-1, j))) / 2.0                
-                    endif
-                    
-                    !Water Column Left
-                    WCL       = max(Me%myWaterLevel(i-1, j) + Me%BuildingsHeight(i-1, j) - Bottom, dble(0.0))
-                
-                    !Water Column Right
-                    WCR       = max(Me%myWaterLevel(i, j  ) + Me%BuildingsHeight(i, j)   - Bottom, dble(0.0))
-                   
-                    !In the case of kinematic wave, always consider the "upstream" area, otherwise the average above "max bottom"
-                    if (Me%HydrodynamicApproximation == KinematicWave_) then
-                        if (Me%ExtVar%Topography(i-1, j) + Me%BuildingsHeight(i-1, j) >      &
-                            Me%ExtVar%Topography(i, j)   + Me%BuildingsHeight(i, j)) then
-                            WCA = WCL
-                        else
-                            WCA = WCR
-                        endif
+                !Water Column Left
+                WCL       = max(Me%myWaterLevel(i-1, j) + Me%BuildingsHeight(i-1, j) - Bottom, dble(0.0))
+            
+                !Water Column Right
+                WCR       = max(Me%myWaterLevel(i, j  ) + Me%BuildingsHeight(i, j)   - Bottom, dble(0.0))
+               
+                !In the case of kinematic wave, always consider the "upstream" area, otherwise the average above "max bottom"
+                if (Me%HydrodynamicApproximation == KinematicWave_) then
+                    if (Me%ExtVar%Topography(i-1, j) + Me%BuildingsHeight(i-1, j) >      &
+                        Me%ExtVar%Topography(i, j)   + Me%BuildingsHeight(i, j)) then
+                        WCA = WCL
                     else
-                        !Average Water Column
-                        !WCA = (WCL + WCR) / 2.0
-                        if (Me%myWaterLevel(i-1, j) + Me%BuildingsHeight(i-1, j) >           &
-                            Me%myWaterLevel(i, j) + Me%BuildingsHeight(i, j)) then
-                            WCA = WCL
-                        else
-                            WCA = WCR
-                        endif
+                        WCA = WCR
                     endif
+                else
+                    !Average Water Column
+                    !WCA = (WCL + WCR) / 2.0
+                    if (Me%myWaterLevel(i-1, j) + Me%BuildingsHeight(i-1, j) >           &
+                        Me%myWaterLevel(i, j) + Me%BuildingsHeight(i, j)) then
+                        WCA = WCL
+                    else
+                        WCA = WCR
+                    endif
+                endif
 
-                    !Area  = Water Column * Side lenght of cell
-                    Me%AreaV(i, j) = WCA * Me%ExtVar%DXX(i, j)
-                    
-                    if (WCA > Me%MinimumWaterColumn) then
-                        Me%ComputeFaceV(i, j) = 1
-                    else
-                        Me%ComputeFaceV(i, j) = 0
-                    endif
+                !Area  = Water Column * Side lenght of cell
+                Me%AreaV(i, j) = WCA * Me%ExtVar%DXX(i, j)
+                
+                if (WCA > Me%MinimumWaterColumn) then
+                    Me%ComputeFaceV(i, j) = 1
                 else
                     Me%ComputeFaceV(i, j) = 0
                 endif
+
             endif
             
         enddo
@@ -3407,14 +3398,16 @@ doIter:         do while (iter <= Niter)
                         if (abs(Me%lFlowX(i, j))* LocalDT .gt. Me%myWaterVolumePred(i,j)) then
                             Me%lFlowX(i, j) = - Me%myWaterVolumePred(i,j) / LocalDT
                         endif
-                        !m3 = m3 + (-m3/s * s)
-                        Me%myWaterVolumePred(i,j) = Me%myWaterVolumePred(i,j) + (Me%lFlowX(i, j) * LocalDT)
                     elseif (Me%lFlowX(i, j) .gt. 0.0) then
                         if (Me%lFlowX(i, j)* LocalDT .gt. Me%myWaterVolumePred(i,j-1)) then
                             Me%lFlowX(i, j) =  Me%myWaterVolumePred(i,j-1) / LocalDT
                         endif
-                        Me%myWaterVolumePred(i,j-1) = Me%myWaterVolumePred(i,j-1) - (Me%lFlowX(i, j) * LocalDT) 
-                    endif                
+                    endif 
+                    
+                    !m3 = m3 + (-m3/s * s)
+                    Me%myWaterVolumePred(i,j) = Me%myWaterVolumePred(i,j) + (Me%lFlowX(i, j) * LocalDT)
+                    Me%myWaterVolumePred(i,j-1) = Me%myWaterVolumePred(i,j-1) - (Me%lFlowX(i, j) * LocalDT) 
+                                   
                 endif
                 
             else
@@ -3698,13 +3691,15 @@ doIter:         do while (iter <= Niter)
                         if ( abs(Me%lFlowY(i, j))* LocalDT  .gt. Me%myWaterVolumePred(i,j)) then
                             Me%lFlowY(i, j) = - Me%myWaterVolumePred(i,j)  / LocalDT
                         endif
-                        Me%myWaterVolumePred(i,j) = Me%myWaterVolumePred(i,j) +  (Me%lFlowY(i, j) * LocalDT)                        
                     elseif (Me%lFlowY(i, j) .gt. 0.0) then
                         if ( Me%lFlowY(i, j)* LocalDT .gt. Me%myWaterVolumePred(i-1,j)) then
                             Me%lFlowY(i, j) =  Me%myWaterVolumePred(i-1,j) / LocalDT
                         endif
-                        Me%myWaterVolumePred(i-1,j) = Me%myWaterVolumePred(i-1,j) - (Me%lFlowX(i, j) * LocalDT) 
                     endif                
+                    
+                    Me%myWaterVolumePred(i,j) = Me%myWaterVolumePred(i,j) +  (Me%lFlowY(i, j) * LocalDT)                        
+                    Me%myWaterVolumePred(i-1,j) = Me%myWaterVolumePred(i-1,j) - (Me%lFlowX(i, j) * LocalDT) 
+                    
                 endif
 
             else
@@ -4561,7 +4556,7 @@ doIter:         do while (iter <= Niter)
         !Local-----------------------------------------------------------------
         integer                                     :: i, j
         integer                                     :: ILB, IUB, JLB, JUB, STAT_CALL
-        real                                        :: dVol !, Flow, MaxFlow
+        real                                        :: dVol, Flow, MaxFlow
         real                                        :: TotalVolume, VolExcess, NewLevel
         real   , dimension(:, :), pointer           :: ChannelsVolume
         real   , dimension(:, :), pointer           :: ChannelsMaxVolume
@@ -4622,6 +4617,12 @@ doIter:         do while (iter <= Niter)
                     !dh      = abs(Me%myWaterLevel(i, j) - ChannelsWaterLevel(i, j))
                     
  !                   if (dh > Me%MinimumWaterColumn) then
+!
+!                        Flow    = sqrt(Gravity * dh) * 2.0 * ChannelsNodeLength(i, j) * dh
+!                        
+!                        MaxFlow = Me%myWaterVolume (i, j) / Me%ExtVar%DT
+!                        
+!                        Me%iFlowToChannels(i, j) = min(Flow, MaxFlow)
                         
                         !in terms of velocity water already arrived to runoff center cell so it should be
                         !in the river (instantaneously)
@@ -4633,7 +4634,7 @@ doIter:         do while (iter <= Niter)
 !                                              
 !                        if (Me%iFlowToChannels(i, j) > MaxFlow) then
 !                            Me%iFlowToChannels(i, j) = MaxFlow
-!                         endif
+!                        endif
 !                    else
 !                    
 !                        Me%iFlowToChannels(i, j) = 0.0
@@ -4645,7 +4646,7 @@ doIter:         do while (iter <= Niter)
 
                     !Total Volume does not fit into the channel
                     !Route flow in a way the the water level becomes horizontal
-                    !River section has to be
+
                     !Limit flow so that volumes to not become negative and critical flow is not exceeded
                     
                     !Volume which does not fit in the channel
@@ -4679,7 +4680,7 @@ doIter:         do while (iter <= Niter)
                     endif
                     
                     !dh will be the maximum height above topography (lateral moving water)
-                    dh = max (Me%myWaterLevel(i, j), ChannelsWaterLevel(i, j)) - Me%ExtVar%Topography(i,j)
+!                    dh = max (Me%myWaterLevel(i, j), ChannelsWaterLevel(i, j)) - Me%ExtVar%Topography(i,j)
                     !dh      = abs(Me%myWaterLevel(i, j) - ChannelsWaterLevel(i, j))
 
 !                    if (dh > Me%MinimumWaterColumn) then
@@ -4698,8 +4699,8 @@ doIter:         do while (iter <= Niter)
                                                            -1.0 * (ChannelsVolume(i,j) - ChannelsMaxVolume(i, j)) / Me%ExtVar%DT)
                         endif
 
-                        !in terms of velocity water already arrived to runoff/DN center cell so it should be
-                        !in the river or runoff (instantaneously)
+!                        !in terms of velocity water already arrived to runoff/DN center cell so it should be
+!                        !in the river or runoff (instantaneously)
 !                        !Limits to critical flow to critical one
 !                        MaxFlow = sqrt(Gravity * dh) * 2.0 * ChannelsNodeLength(i, j) * dh
 !                        if (abs(Me%iFlowToChannels(i, j)) > MaxFlow) then
