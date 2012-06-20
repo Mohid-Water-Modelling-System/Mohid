@@ -2037,7 +2037,7 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
         
        
         integer :: Producer_N, Producer_C, Producer_P
-        integer :: AM,      NA, IP
+        integer :: AM,      NA, IP, O2
         integer :: PON, POP, POC
         real    :: AverageRadiation, TemperatureDependence
         real    :: Lightlim, NLim, PLim, NutLim, GrowthRate,UptakeNA, UptakeAM, UptakeP
@@ -2052,6 +2052,7 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
         PON     = Me%PropIndex%PON
         POP     = Me%PropIndex%POP
         IP      = Me%PropIndex%Phosphate
+        O2      = Me%PropIndex%Oxygen
         
         if(Me%PelagicModel == LifeModel) then
         POC     = Me%PropIndex%POC
@@ -2179,6 +2180,11 @@ d1:     do while(associated(Producer))
             !what passes from Phosphate to benthic producer 
             Me%ExternalVar%MassInKgFromWater(IP,     Index) = Me%ExternalVar%MassInKgFromWater(IP,     Index) - UptakeP
        end if
+       
+       Me%ExternalVar%MassInKgFromWater(O2, Index)=Me%ExternalVar%MassInKgFromWater(O2, Index) + &
+                                                   (GrowthRate                                 * &
+                                                    Me%ExternalVar%Mass(Producer_C, Index)     - &
+                                                    RespirationC)*32./12.
 
         if(Me%PelagicModel == LifeModel) then
         !what passes from The benthic producer to POC (only if ModuleLife is active)
