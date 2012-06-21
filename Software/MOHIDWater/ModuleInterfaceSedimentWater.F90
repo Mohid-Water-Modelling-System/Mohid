@@ -6769,7 +6769,7 @@ subroutine BenthicEcology_Processes
                                 kbottom = Me%ExtWater%KFloor_Z(i, j)
                        !For particulate properties, MassInkg is different from Mass_FromWater 
                        ! MassInKg is the mass of particulate material (In Kg) laying on the bottom;
-                       ! Mass_FromWater is the mass of particulate material (In Kg) in the cell closest to the bottom
+                       ! Mass_FromWater is the mass of particulate material (In Kg) in the water cell closest to the bottom
                                 PropertyX%MassInKg(i,j) = PropertyX%Mass_Available(i,j)     * &   
                                                           Me%ExternalVar%GridCellArea(i,j)
                                 PropertyX%WaterConcentration(i,j) = PropertyX%Mass_FromWater(i,j)     / &

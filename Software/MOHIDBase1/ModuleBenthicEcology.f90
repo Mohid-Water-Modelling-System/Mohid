@@ -556,7 +556,9 @@ subroutine ReadData
         !Nitrogen index number
             Me%Prop%IUB                 = Me%Prop%IUB + 1
             Me%PropIndex%Ammonia        = Me%Prop%IUB
-        
+            
+            Me%Prop%IUB                 = Me%Prop%IUB + 1
+            Me%PropIndex%Nitrate        = Me%Prop%IUB
         
         if (Me%PelagicModel == LifeModel) then
                 !Particulate organic carbon index number
@@ -661,6 +663,7 @@ subroutine ReadData
 
         if(Me%ComputeOptions%Nitrogen)then
             Me%PropertyList(Me%PropIndex%Ammonia)           = Ammonia_
+            Me%PropertyList(Me%PropIndex%Nitrate)           = Nitrate_
             Me%PropertyList(Me%PropIndex%PON)               = PON_
             
             if(Me%ComputeOptions%Pompools)then
