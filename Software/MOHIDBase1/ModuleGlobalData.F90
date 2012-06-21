@@ -347,6 +347,9 @@ Module ModuleGlobalData
     integer, parameter :: SuspensionFeedersC_               = 861
     integer, parameter :: SuspensionFeedersP_               = 862
     integer, parameter :: DepositFeeders_                   = 863
+    integer, parameter :: MicroPhytoBenthosN_               = 864 ! isab
+    integer, parameter :: MicroPhytoBenthosC_               = 865
+    integer, parameter :: MicroPhytoBenthosP_               = 866
     
     
     !Hydrodynamic Properties
@@ -968,7 +971,10 @@ Module ModuleGlobalData
     character(StringLength), private, parameter :: Char_SuspensionFeedersC    = 'suspension feeders carbon'
     character(StringLength), private, parameter :: Char_SuspensionFeedersN    = 'suspension feeders nitrogen'
     character(StringLength), private, parameter :: Char_SuspensionFeedersP    = 'suspension feeders phosphorus'
-    character(StringLength), private, parameter :: Char_DepositFeeders       = 'deposit feeders'
+    character(StringLength), private, parameter :: Char_MicroPhytoBenthosC    = 'microphytobenthos carbon'
+    character(StringLength), private, parameter :: Char_MicroPhytoBenthosN    = 'microphytobenthos nitrogen'
+    character(StringLength), private, parameter :: Char_MicroPhytoBenthosP    = 'microphytobenthos phosphorus'
+    character(StringLength), private, parameter :: Char_DepositFeeders        = 'deposit feeders'
 
     character(StringLength), private, parameter :: Char_GrossProd            = 'grossprod'
     character(StringLength), private, parameter :: Char_NutrientLim          = 'nutrientlim'
@@ -2104,6 +2110,9 @@ Module ModuleGlobalData
             call AddPropList (SuspensionFeedersN_,      Char_SuspensionFeedersN,        ListNumber) ! isab
             call AddPropList (SuspensionFeedersC_,      Char_SuspensionFeedersC,        ListNumber)
             call AddPropList (SuspensionFeedersP_,      Char_SuspensionFeedersP,        ListNumber)
+            call AddPropList (MicroPhytoBenthosN_,      Char_MicroPhytoBenthosN,        ListNumber) ! isab
+            call AddPropList (MicroPhytoBenthosC_,      Char_MicroPhytoBenthosC,        ListNumber)
+            call AddPropList (MicroPhytoBenthosP_,      Char_MicroPhytoBenthosP,        ListNumber)
             call AddPropList (DepositFeeders_,          Char_DepositFeeders,            ListNumber)
 
             call AddPropList (AdsorbedAmmonia_,         Char_AdsorbedAmmonia,           ListNumber)
@@ -2659,7 +2668,8 @@ cd1 :   if ((Property == POC_                   ) .OR.  (Property == PON_       
             (Property == AutotrophicPop_        ) .OR.  (Property == HeterotrophicPop_      ) .OR.          &
             (Property == SolPop_                ) .OR.  (Property == IndividualsPerCell_    ) .OR.          &
             (Property == SuspensionFeedersC_    ) .OR.  (Property == SuspensionFeedersN_    ) .OR.          &   !isab    
-            (Property == SuspensionFeedersP_    ) ) then
+            (Property == SuspensionFeedersP_    ) .OR.  (Property == MicroPhytoBenthosN_    ) .OR.          &   !isab    
+            (Property == MicroPhytoBenthosP_    ) .OR.  (Property == MicroPhytoBenthosC_)) then
 
             Check_Particulate_Property = .TRUE.    
         

@@ -562,6 +562,7 @@ Module ModuleInterfaceSedimentWater
         type(T_BenthicRate), pointer                :: FirstBenthicRate
         type(T_BenthicRate), pointer                :: LastBenthicRate
         real,dimension(:,:), pointer                :: DepositionProbability
+        real,dimension(:,:), pointer                :: BottomSWRadiationAverage
         logical                                     :: RunsSediments            = .false.
         logical                                     :: RunsSandTransport        = .false.
         logical                                     :: Manning                  = .false.
@@ -3187,7 +3188,9 @@ do1 :   do while (associated(PropertyX))
             if(STAT_CALL .ne. SUCCESS_)&
                 stop 'CoupleBenthicEcology - ModuleInterfaceSedimentWater - ERR06'
        
-      
+      allocate(Me%BottomSWRadiationAverage(ILB:IUB, JLB:JUB), STAT = STAT_CALL) 
+            if(STAT_CALL .ne. SUCCESS_)&
+                stop 'CoupleBenthicEcology - ModuleInterfaceSedimentWater - ERR14'
 
         deallocate(BenthicEcologyPropertyList)
         nullify   (BenthicEcologyPropertyList)
@@ -6656,6 +6659,7 @@ subroutine BenthicEcology_Processes
         character(len=StringLength)             :: WaterPropertyUnits
         real                                    :: WaterPropertyISCoef
         real, dimension(:,:,:), pointer         :: WaterPropertyConcentration
+        real, dimension(:,:,:),     pointer     :: ShortWaveRadiationAverage
         integer                                 :: CHUNK
 
         !Begin-----------------------------------------------------------------
@@ -6674,6 +6678,11 @@ subroutine BenthicEcology_Processes
        
         if (Me%ExternalVar%Now .GE. Me%Coupled%BenthicEcology%NextCompute) then
         
+        
+         call GetShortWaveRadiationAverage(Me%ObjWaterProperties, ShortWaveRadiationAverage, STAT = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_)                                            &
+          stop 'BenthicEcology_Processes - ModuleInterfaceSedimentWater - ERR01'
+        
                     !$OMP PARALLEL PRIVATE(i,j,kbottom)
                     !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
                     do j = WJLB, WJUB
@@ -6684,7 +6693,7 @@ subroutine BenthicEcology_Processes
                             kbottom = Me%ExtWater%KFloor_Z(i, j)
 
                             Me%ExtWater%WaterVolume(i,j) =  Me%ExtWater%VolumeZ(i,j,kbottom)
-                           
+                            Me%BottomSWRadiationAverage(i,j) = ShortWaveRadiationAverage(i,j,kbottom)
 
                         end if
 
@@ -6693,7 +6702,9 @@ subroutine BenthicEcology_Processes
                     !$OMP END DO
                     !$OMP END PARALLEL
         
-        
+            call UnGetWaterProperties(Me%ObjWaterProperties, ShortWaveRadiationAverage, STAT = STAT_CALL)
+            if(STAT_CALL .ne. SUCCESS_)&
+               stop 'BenthicEcology_Processes - ModuleInterfaceSedimentWater - ERR02'
 
             PropertyX => Me%FirstProperty
 
@@ -6701,15 +6712,16 @@ subroutine BenthicEcology_Processes
 
                 if(PropertyX%ID%IDNumber == Temperature_)  then
 
-                    call Modify_Interface(InterfaceID   = Me%ObjInterface,                  &
-                                          PropertyID    = PropertyX%ID%IDNumber,            &
-                                          Concentration = PropertyX%WaterConcentration,     &
-                                          WaterPoints2D = Me%ExtWater%WaterPoints2D,        &
-                                          OpenPoints2D  = Me%ExtWater%OpenPoints2D,         &
-                                          WaterVolume2D = Me%ExtWater%WaterVolume ,         &
-                                          CellArea2D    = Me%ExternalVar%GridCellArea,      &
-                                          STAT          = STAT_CALL)
-                    if (STAT_CALL .NE. SUCCESS_)                                            &
+                    call Modify_Interface(InterfaceID      = Me%ObjInterface,                  &
+                                          PropertyID       = PropertyX%ID%IDNumber,            &
+                                          Concentration    = PropertyX%WaterConcentration,     &
+                                          WaterPoints2D    = Me%ExtWater%WaterPoints2D,        &
+                                          OpenPoints2D     = Me%ExtWater%OpenPoints2D,         &
+                                          WaterVolume2D    = Me%ExtWater%WaterVolume ,         &
+                                          CellArea2D       = Me%ExternalVar%GridCellArea,      &
+                                          ShortWave2D      = Me%BottomSWRadiationAverage,      &
+                                          STAT             = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_)                                               &
                         stop 'BenthicEcology_Processes - ModuleInterfaceSedimentWater - ERR01'
 
         
@@ -8057,15 +8069,19 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                 if (Me%Coupled%BenthicEcology%Yes) then
                     call KillInterface (Me%ObjInterface, STAT = STAT_CALL) 
                     if(STAT_CALL .ne. SUCCESS_)&
-                        stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ER41c'
+                        stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR601'
                 
                  deallocate(Me%ExtWater%WaterVolume, STAT = STAT_CALL) 
                      if(STAT_CALL .ne. SUCCESS_)&
-                     stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR41d'
+                     stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR602'
                      
                 deallocate(Me%ExtWater%Sediment, STAT = STAT_CALL) 
                      if(STAT_CALL .ne. SUCCESS_)&
-                     stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR41d'
+                     stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR603'
+                     
+                deallocate(Me%BottomSWRadiationAverage, STAT = STAT_CALL) 
+                     if(STAT_CALL .ne. SUCCESS_)&
+                     stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR604'
                 
                 endif
 

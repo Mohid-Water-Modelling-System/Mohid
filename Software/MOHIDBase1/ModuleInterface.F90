@@ -240,6 +240,7 @@ Module ModuleInterface
         real,    pointer, dimension(:,:  )      :: MassInKgFromWater
         real,    pointer, dimension(:,:  )      :: WaterMassInKgIncrement
         real,    pointer, dimension(:    )      :: Sediment
+        real,    pointer, dimension(:    )      :: BottomSWRadiationAverage
 
         !Instance of ModuleTime
         integer                                 :: ObjTime              = 0
@@ -860,25 +861,27 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             
                 allocate(Me%WaterMassInKgIncrement(PropLB:PropUB, ArrayLB:ArrayUB), &
                                                      STAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR25'
-                
-                
+                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR25.1'
+                 
                 allocate (Me%Sediment(ArrayLB:ArrayUB), STAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR26'
+                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR25.2'
                              
                 allocate(Me%WaterVol(ArrayLB:ArrayUB), STAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR27'
+                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR25.3'
                 
                 allocate(Me%CellArea(ArrayLB:ArrayUB), STAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR28'
+                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR26.1'
                 
                 allocate(Me%MassinKgFromWater(PropLB:PropUB, ArrayLB:ArrayUB), STAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR29'
+                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR26.2'
                 
+                allocate(Me%BottomSWRadiationAverage(ArrayLB:ArrayUB), STAT = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR26.3'  
 
-                Me%WaterMassInKgIncrement = FillValueReal
-                Me%WaterVol  = FillValueReal
-                Me%CellArea  = FillValueReal
+                Me%WaterMassInKgIncrement         = FillValueReal
+                Me%WaterVol                       = FillValueReal
+                Me%CellArea                       = FillValueReal
+                Me%BottomSWRadiationAverage       = FillValueReal
 
             case (MacroAlgaeModel)
 
@@ -3176,7 +3179,7 @@ do6 :               do index = ArrayLB, ArrayUB
     subroutine Modify_Interface2D(InterfaceID, PropertyID, Concentration,               &
                                   WaterPoints2D, OpenPoints2D, Oxygen2D,                &
                                   MassInKgFromWater, Sediment,                          &
-                                  WaterVolume2D,CellArea2D,                             &
+                                  WaterVolume2D,CellArea2D,ShortWave2D,                 &
                                   DTProp, STAT)
 
         !Arguments-------------------------------------------------------------
@@ -3187,6 +3190,7 @@ do6 :               do index = ArrayLB, ArrayUB
         integer,           dimension(:,:  ), pointer    :: WaterPoints2D
         integer, optional, dimension(:,:  ), pointer    :: OpenPoints2D
         real   , optional, dimension(:,:  ), pointer    :: Oxygen2D
+        real   , optional, dimension(:,:  ), pointer    :: ShortWave2D
         real   , optional, dimension(:,:  ), pointer    :: Sediment
         real   , optional, dimension(:,:  ), pointer    :: WaterVolume2D
         real   , optional, dimension(:,:  ), pointer    :: CellArea2D
@@ -3255,6 +3259,10 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             
              if(present(CellArea2D))then
                 call UnfoldMatrix(CellArea2D, Me%CellArea)
+            end if  
+            
+            if(present(ShortWave2D))then
+                call UnfoldMatrix(ShortWave2D, Me%BottomSWRadiationAverage)
             end if  
             
             if(present(Sediment))then
@@ -3339,14 +3347,15 @@ cd4 :           if (ReadyToCompute) then
                         case(BenthicEcologyModel)
                                                        
 
-                            call ModifyBenthicEcology  (Me%ObjBenthicEcology,          &
-                                                 Me%Temperature,                       &
-                                                 Me%WaterVol,                          &
-                                                 Me%CellArea,                          &
-                                                 Me%MassInKgFromWater,                 &
-                                                 Me%Sediment,                          &
-                                                 Me%OpenPoints,                        &
-                                                 Me%Mass,                              &
+                            call ModifyBenthicEcology  (Me%ObjBenthicEcology,             &
+                                                 Me%Temperature,                          &
+                                                 Me%WaterVol,                             &
+                                                 Me%CellArea,                             &
+                                                 Me%MassInKgFromWater,                    &
+                                                 Me%Sediment,                             &
+                                                 Me%BottomSWRadiationAverage,             &
+                                                 Me%OpenPoints,                           &
+                                                 Me%Mass,                                 &
                                                  STAT = STAT_CALL)
                             if (STAT_CALL /= SUCCESS_) stop 'Modify_Interface2D - ModuleInterface - ERR03'
 

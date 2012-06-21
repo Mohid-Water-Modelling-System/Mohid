@@ -46,6 +46,14 @@
 !Producer%KP                     KP                  User defined   [KgP/m3]             Half saturation Constant for P Uptake
 !Producer%NCratio                NCRATIO             User Defined   [-]                  Producer N/C ratio
 !Producer%PCratio                PCRATIO             User Defined   [-]                  Producer P/C ratio
+!Producer%TOptPhytoMin           TOPTFMIN            User Defined   [ºC]                 Minimum temperature of the optimal interval for the microphytobenthos
+!Producer%TOptPhytoMax           TOPTFMAX            User Defined   [ºC]                 Maximum temperature of the optimal interval for the microphytobenthos
+!Producer%TPhytoMin              TFMIN               User Defined   [ºC]                 Minimum tolerable temperature of the  interval for the microphytobenthos 
+!Producer%TPhytoMax              TFMAX               User Defined   [ºC]                 Maximum tolerable temperature of the  interval for the microphytobenthos
+!Producer%FK1                    TFCONST1            User Defined   [ºC]                 Constant to control temperature response curve shape              
+!Producer%FK2                    TFCONST2            User Defined   [ºC]                 Constant to control temperature response curve shape                 
+!Producer%FK3                    TFCONST3            User Defined   [ºC]                 Constant to control temperature response curve shape                 
+!Producer%FK4                    TFCONST4            User Defined   [ºC]                 Constant to control temperature response curve shape                 
 !---------------------------------Consumer parameters  -----------------------------------------------------------------------------------------
 !Consumer%RespirationRate        RESPIRATION_RATE    User defined   [1/day]              Consumer Respiration rate
 !Consumer%MortalityRate          MORTALITY_RATE      User defined   [1/day]              Consumer Mortality rate
@@ -266,6 +274,14 @@ Module ModuleBenthicEcology
         real                                        :: KLIGHT           = null_real
         real                                        :: NCratio          = null_real   
         real                                        :: PCratio          = null_real
+        real                                        :: TOptPhytoMin     = null_real
+        real                                        :: TOptPhytoMax     = null_real
+        real                                        :: TPhytoMin        = null_real
+        real                                        :: TPhytoMax        = null_real
+        real                                        :: FK1              = null_real
+        real                                        :: FK2              = null_real
+        real                                        :: FK3              = null_real
+        real                                        :: FK4              = null_real
    type(T_Producer    ), pointer                    :: Next 
     end type T_Producer
  
@@ -1155,13 +1171,95 @@ subroutine AddProducer (ObjProducer)
                      STAT         = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_) stop 'ConstructProducerParameters - ModuleBenthicEcology - ERROR #9'
         
-            call GetData(NewProducer%PCratio,                    &
+        call GetData(NewProducer%PCratio,                    &
                      Me%ObjEnterData, iflag,                    &
                      SearchType   = FromBlock,                  &
                      keyword      = 'PCRATIO',               &
                      ClientModule = MohidModules(mBenthicEcology_)%Name,  &
                      STAT         = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_) stop 'ConstructProducerParameters - ModuleBenthicEcology - ERROR #10'
+        
+         !TOptPhytoMin, minimum temperature of the optimal interval for the microphytobenthos 
+            !growth, oC
+        call GetData(NewProducer%TOptPhytoMin,                    &
+                     Me%ObjEnterData, iflag,                    &
+                     SearchType   = FromBlock,                  &
+                     keyword      = 'TOPTFMIN',               &
+                     ClientModule = MohidModules(mBenthicEcology_)%Name,  &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructProducerParameters - ModuleBenthicEcology - ERROR #11'
+        
+       
+        !TOptPhytoMax, maximum temperature of the optimal interval for the microphytobenthos 
+        !growth, oC
+        call GetData(NewProducer%TOptPhytoMax,                    &
+                     Me%ObjEnterData, iflag,                    &
+                     SearchType   = FromBlock,                  &
+                     keyword      = 'TOPTFMAX',               &
+                     ClientModule = MohidModules(mBenthicEcology_)%Name,  &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructProducerParameters - ModuleBenthicEcology - ERROR #12' 
+
+
+
+        !TPhytoMin, minimum tolerable temperature of the  interval for the microphytobenthos 
+        !growth, oC
+            
+            call GetData(NewProducer%TPhytoMin,                    &
+                     Me%ObjEnterData, iflag,                    &
+                     SearchType   = FromBlock,                  &
+                     keyword      = 'TFMIN',               &
+                     ClientModule = MohidModules(mBenthicEcology_)%Name,  &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructProducerParameters - ModuleBenthicEcology - ERROR #13' 
+        
+          
+        !TPhytoMax, maximum tolerable temperature of the  interval for the microphytobenthos 
+        !growth, oC
+             call GetData(NewProducer%TPhytoMax,                    &
+                     Me%ObjEnterData, iflag,                    &
+                     SearchType   = FromBlock,                  &
+                     keyword      = 'TFMAX',               &
+                     ClientModule = MohidModules(mBenthicEcology_)%Name,  &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructProducerParameters - ModuleBenthicEcology - ERROR #14' 
+            
+        !FK1, constant to control temperature response curve shape
+           call GetData(NewProducer%FK1,                    &
+                     Me%ObjEnterData, iflag,                    &
+                     SearchType   = FromBlock,                  &
+                     keyword      = 'TFCONST1',               &
+                     ClientModule = MohidModules(mBenthicEcology_)%Name,  &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructProducerParameters - ModuleBenthicEcology - ERROR #15' 
+
+       !FK2, constant to control temperature response curve shape
+           call GetData(NewProducer%FK2,                    &
+                     Me%ObjEnterData, iflag,                    &
+                     SearchType   = FromBlock,                  &
+                     keyword      = 'TFCONST2',               &
+                     ClientModule = MohidModules(mBenthicEcology_)%Name,  &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructProducerParameters - ModuleBenthicEcology - ERROR #16' 
+
+       !FK3, constant to control temperature response curve shape
+           call GetData(NewProducer%FK3,                    &
+                     Me%ObjEnterData, iflag,                    &
+                     SearchType   = FromBlock,                  &
+                     keyword      = 'TFCONST3',               &
+                     ClientModule = MohidModules(mBenthicEcology_)%Name,  &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructProducerParameters - ModuleBenthicEcology - ERROR #17' 
+
+       !FK4, constant to control temperature response curve shape
+           call GetData(NewProducer%FK4,                    &
+                     Me%ObjEnterData, iflag,                    &
+                     SearchType   = FromBlock,                  &
+                     keyword      = 'TFCONST4',               &
+                     ClientModule = MohidModules(mBenthicEcology_)%Name,  &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructProducerParameters - ModuleBenthicEcology - ERROR #18' 
+ 
 
     end subroutine ConstructProducerParameters
 
@@ -1931,7 +2029,7 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
     
     
     subroutine ModifyBenthicEcology(ObjBenthicEcologyID, Temperature, WaterVolume, &
-               CellArea, MassInKgFromWater, Sediment, OpenPoints, Mass, STAT)
+               CellArea, MassInKgFromWater, Sediment, ShortWaveAverage, OpenPoints, Mass, STAT)
     
     
             !Arguments-------------------------------------------------------------
@@ -1942,6 +2040,7 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
         real,    dimension(:  ), pointer            :: WaterVolume
         real,    dimension(:  ), pointer            :: CellArea
         integer, dimension(:  ), pointer, optional  :: OpenPoints
+        real,    dimension(:  ), pointer, optional  :: ShortWaveAverage
         real,    dimension(:,:), pointer            :: Mass
         integer, intent(OUT), optional              :: STAT
 
@@ -1961,7 +2060,11 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
             if (.not. associated(Me%ExternalVar%Temperature))       &
                 stop 'ModifyBenthicEcology - ModuleBenthicEcology - ERR01'
                 
-             
+             Me%ExternalVar%ShortWaveAverage  => ShortWaveAverage
+            if (.not. associated(Me%ExternalVar%ShortWaveAverage))       &
+                stop 'ModifyBenthicEcology - ModuleBenthicEcology - ERR02'
+                
+                
              Me%ExternalVar%Sediment  => Sediment
             if (.not. associated(Me%ExternalVar%Sediment))       &
                 stop 'ModifyBenthicEcology - ModuleBenthicEcology - ERR03'
@@ -2037,13 +2140,14 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
         
        
         integer :: Producer_N, Producer_C, Producer_P
-        integer :: AM,      NA, IP, O2
+        integer :: AM, NA, IP, O2
         integer :: PON, POP, POC
-        real    :: AverageRadiation, TemperatureDependence
+        real    :: AverageRadiation
         real    :: Lightlim, NLim, PLim, NutLim, GrowthRate,UptakeNA, UptakeAM, UptakeP
         real    :: RespirationC, RespirationN, RespirationP
         real    :: MortalityC, MortalityN, MortalityP
         real    :: x1,x2,x3,x4, AmmoniaPreferenceFactor
+        real    :: s1, s2, xa,xb,ya,yb, TemperatureLim
 
     !------------------------------------------------------------------------
        
@@ -2062,12 +2166,32 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
         Producer => Me%FirstProducer
 
 d1:     do while(associated(Producer))
+        ! Average radiation
+        ! I put the maximum between 0.0 and the value of shortwave radiation because during the first temporal iteration, 
+        ! the short wave radiation is not calculated yet and it is retreived from ModuleWaterProperties as negative number.
+        ! In the other temporal iterations this would not be necessary.
+        AverageRadiation = max(0.0, Me%ExternalVar%ShortWaveAverage(index)) !W/m2
         
-        AverageRadiation = Me%ExternalVar%ShortWaveAverage(index) !W/m2
+        ! TemperatureLim is the function expressing the dependence on the temperature
+        ! Dimensionless factor 
+        ! temperature limitation function is the same as used in modulewaterquality for phytoplankton
         
-        ! TemperatureDependence is the function expressing the dependence on the temperature
-        ! Dimensionless factor
-        TemperatureDependence=exp(0.07*(Me%ExternalVar%Temperature(Index))) 
+        !TemperatureLim, temperature effect on producer assimilation rate
+        s1 = (1.0 / (Producer%TOptPhytoMin - Producer%TPhytoMin)) * log((Producer%FK2 * (1.0 - Producer%FK1))              &
+                                                          / (Producer%FK1 * (1.0 - Producer%FK2)))
+
+        s2 = (1.0 / (Producer%TPhytoMax - Producer%TOptPhytoMax)) * log((Producer%FK3 * (1.0 - Producer%FK4))              &
+                                                          / (Producer%FK4 * (1.0 - Producer%FK3)))
+
+        ya = exp(s1 * (Me%ExternalVar%Temperature(index) - Producer%TPhytoMin))
+        yb = exp(s2 * (Producer%TPhytoMax - Me%ExternalVar%Temperature(index)))
+
+        xa = (Producer%FK1 * ya) / (1.0 + Producer%FK1 * (ya - 1.0))
+        xb = (Producer%FK4 * yb) / (1.0 + Producer%FK4 * (yb - 1.0))
+
+        TemperatureLim = xa * xb
+        
+        !-------------------------------------------------------------------------------------------
         
         Producer_N   = Producer%PoolIndex%Nitrogen
         Producer_C   = Producer%PoolIndex%Carbon
@@ -2110,7 +2234,7 @@ d1:     do while(associated(Producer))
             end if 
         
         ! growth rate 1/day
-        GrowthRate=Producer%Vmax*LightLim*NutLim
+        GrowthRate=Producer%Vmax*LightLim*NutLim*TemperatureLim
         
         ! uptake of ammonia (Michaelis Menten kinetics)
         ! KgN     = 1/day  * (KgN/KgC) * KgC*day
@@ -2124,12 +2248,12 @@ d1:     do while(associated(Producer))
         
         
         !KgC = KgC *day * 1/day * [-]                                                                                       
-        MortalityC = Me%ExternalVar%Mass(Producer_C, Index) * Me%DTDay * Producer%MortalityRate*TemperatureDependence 
+        MortalityC = Me%ExternalVar%Mass(Producer_C, Index) * Me%DTDay * Producer%MortalityRate*TemperatureLim 
         MortalityN = MortalityC*Producer%NCRatio  ! KgN
         MortalityP = MortalityC*Producer%PCRatio  ! KgP
         
         ! units of mass
-        RespirationC = Me%ExternalVar%Mass(Producer_C, Index) * Producer%RespirationRate*TemperatureDependence * Me%DTDay !KgC
+        RespirationC = Me%ExternalVar%Mass(Producer_C, Index) * Producer%RespirationRate*TemperatureLim * Me%DTDay !KgC
         RespirationN = RespirationC*Producer%NCRatio  ! KgN
         RespirationP = RespirationC*Producer%PCRatio  ! KgP
         
