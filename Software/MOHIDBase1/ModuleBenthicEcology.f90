@@ -2274,7 +2274,8 @@ d1:     do while(associated(Producer))
         Me%ExternalVar%Mass(Producer_N,     Index) = Me%ExternalVar%Mass(Producer_N,     Index) + &
                                                      GrowthRate                                 * &
                                                      Me%ExternalVar%Mass(Producer_C, Index)     * &
-                                                     Producer%NCRatio                           - &
+                                                     Producer%NCRatio                           * &
+                                                     Me%DTDay                                   - &
                                                      MortalityN                                 - &
                                                      RespirationN  
         ! KgP
