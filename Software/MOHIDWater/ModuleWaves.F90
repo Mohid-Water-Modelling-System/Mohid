@@ -2838,78 +2838,79 @@ cd2:                if (Me%WaveHeight%Field       (i,j) .lt. 0.1 .or.           
 
             if (Me%ExternalVar%WaterPoints2D(i, j) == WaterPoint) then
         
-               
                 WindX = Me%ExternalVar%WindVelocityX(i,j)
                 WindY = Me%ExternalVar%WindVelocityY(i,j)
-                !Angle in degrees in triginometric referencial
-                WindAngle = atan2(WindY,WindX) * 180. / Pi
-                
-                !only positive angles for next operations
-                if (WindAngle .lt. 0.0) then
-                    WindAngle = WindAngle + 360.
-                endif
-                
-                !define angle ranges (º) for each side of cardinal directions for checking where wind is coming from
-                if (Me%FetchDirections .eq. 8) then
-                    AngleRange = 22.5
-                elseif (Me%FetchDirections .eq. 16) then
-                    AngleRange = 11.25
-                endif
-                
-                !Wind directions are fused into 8 or 16 major directions 
-                !starting with wind from W (0º in trigonometric ref) because of discontinuity in 0º and 360º
-                if ((WindAngle .gt. (360. - AngleRange )) .and. (WindAngle .le. 360.             ) .Or. &
-                    (WindAngle .ge. 0.                  ) .and. (WindAngle .le. (0. + AngleRange))) then
-                    
-                    !if trigonometric angle is near zero then wind comes from West
-                    WindDirection = Me%W
-
-                else 
-                    
-                    !next start rotating anti clockwise (wind from SW or SSW)
-                    WindDirection = Me%W + 1
-                    LeftDirection = 0. + AngleRange
-                    RightDirection = LeftDirection + (2. * AngleRange)
-            
-                    do while (WindDirection .le. Me%FetchDirections)
-
-                        if ((WindAngle .gt. LeftDirection).And.&
-                            (WindAngle .le. RightDirection)) then
-                            exit 
-                        else
-                            LeftDirection  = RightDirection
-                            RightDirection = LeftDirection + (2. * AngleRange)
-                            WindDirection  = WindDirection + 1
-                        endif
-
-                    enddo
-                endif
-
-                if (WindDirection .gt. Me%FetchDirections) then
-                    stop 'ComputeWaveHeightFetch - ModuleWaves - ERR10'
-                endif
-        
-                !compute
                 Wind = sqrt(WindX**2. + WindY**2.)  
-
-                U2 = Wind * Wind         
                 
-                !old formulation uses local water column
-                !new fomulations use average depth in wind direction or a constant value
-                if (Me%DepthType.eq.DepthLocal) then
-                    COEF1 = 0.53 * (Gravity * Me%ExternalVar%WaterColumn(i, j) / U2) ** 0.75   
+                if (Wind .ne. 0.0) then
+                    !Angle in degrees in triginometric referencial
+                    WindAngle = atan2(WindY,WindX) * 180. / Pi
+                    
+                    !only positive angles for next operations
+                    if (WindAngle .lt. 0.0) then
+                        WindAngle = WindAngle + 360.
+                    endif
+                    
+                    !define angle ranges (º) for each side of cardinal directions for checking where wind is coming from
+                    if (Me%FetchDirections .eq. 8) then
+                        AngleRange = 22.5
+                    elseif (Me%FetchDirections .eq. 16) then
+                        AngleRange = 11.25
+                    endif
+                    
+                    !Wind directions are fused into 8 or 16 major directions 
+                    !starting with wind from W (0º in trigonometric ref) because of discontinuity in 0º and 360º
+                    if ((WindAngle .gt. (360. - AngleRange )) .and. (WindAngle .le. 360.             ) .Or. &
+                        (WindAngle .ge. 0.                  ) .and. (WindAngle .le. (0. + AngleRange))) then
+                        
+                        !if trigonometric angle is near zero then wind comes from West
+                        WindDirection = Me%W
+
+                    else 
+                        
+                        !next start rotating anti clockwise (wind from SW or SSW)
+                        WindDirection = Me%W + 1
+                        LeftDirection = 0. + AngleRange
+                        RightDirection = LeftDirection + (2. * AngleRange)
+                
+                        do while (WindDirection .le. Me%FetchDirections)
+
+                            if ((WindAngle .gt. LeftDirection).And.&
+                                (WindAngle .le. RightDirection)) then
+                                exit 
+                            else
+                                LeftDirection  = RightDirection
+                                RightDirection = LeftDirection + (2. * AngleRange)
+                                WindDirection  = WindDirection + 1
+                            endif
+
+                        enddo
+                    endif
+
+                    if (WindDirection .gt. Me%FetchDirections) then
+                        stop 'ComputeWaveHeightFetch - ModuleWaves - ERR10'
+                    endif
+            
+                    U2 = Wind * Wind         
+                    
+                    !old formulation uses local water column
+                    !new fomulations use average depth in wind direction or a constant value
+                    if (Me%DepthType.eq.DepthLocal) then
+                        COEF1 = 0.53 * (Gravity * Me%ExternalVar%WaterColumn(i, j) / U2) ** 0.75   
+                    else
+                        COEF1 = 0.53 * (Gravity * Me%Depth(i,j, WindDirection) / U2) ** 0.75   
+                    endif
+                    
+                    COEF2 = 0.0125 * (Gravity * Me%Fetch(i,j, WindDirection) / U2)**0.42
+
+
+                    !WaveHeight
+                    Me%WaveHeight%Field(i, j) = Me%WaveHeightParameter * 0.283 * U2 /   &
+                                                Gravity *                               &
+                                                Tanh(COEF1) * Tanh(COEF2 / Tanh(COEF1))    
                 else
-                    COEF1 = 0.53 * (Gravity * Me%Depth(i,j, WindDirection) / U2) ** 0.75   
+                    Me%WaveHeight%Field(i, j) = 0.0
                 endif
-                
-                COEF2 = 0.0125 * (Gravity * Me%Fetch(i,j, WindDirection) / U2)**0.42
-
-
-                !WaveHeight
-                Me%WaveHeight%Field(i, j) = Me%WaveHeightParameter * 0.283 * U2 /   &
-                                            Gravity *                               &
-                                            Tanh(COEF1) * Tanh(COEF2 / Tanh(COEF1))    
-     
             endif
 
         enddo
@@ -2997,72 +2998,76 @@ cd2:                if (Me%WaveHeight%Field       (i,j) .lt. 0.1 .or.           
         
                 WindX = Me%ExternalVar%WindVelocityX(i,j)
                 WindY = Me%ExternalVar%WindVelocityY(i,j)
-                !Angle in degrees in triginometric referencial
-                WindAngle = atan2(WindY,WindX) * 180. / Pi
-
-                !only positive angles for next operations
-                if (WindAngle .lt. 0.0) then
-                    WindAngle = WindAngle + 360.
-                endif
-
-                !define angle ranges (º) for each side of cardinal directions for checking where wind is coming from
-                if (Me%FetchDirections .eq. 8) then
-                    AngleRange = 22.5
-                elseif (Me%FetchDirections .eq. 16) then
-                    AngleRange = 11.25
-                endif
-                
-                !Wind directions are fused into 8 or 16 major directions 
-                !starting with wind from W (0º in trigonometric ref) because of discontinuity in 0º and 360º
-                if ((WindAngle .gt. (360. - AngleRange)) .and. (WindAngle .le. 360.             ) .Or. &
-                    (WindAngle .ge. 0.                 ) .and. (WindAngle .le. (0. + AngleRange))) then
-                    
-                    !if trigonometric angle is near zero then wind comes from West                    
-                    WindDirection = Me%W
-
-                else 
-                    !next start rotating anti clockwise (wind from SW or SSW)
-                    WindDirection = Me%W + 1
-                    LeftDirection = 0. + AngleRange
-                    RightDirection = LeftDirection + (2 * AngleRange)
-            
-                    do while (WindDirection .le. Me%FetchDirections)
-
-                        if ((WindAngle .gt. LeftDirection).And.&
-                            (WindAngle .le. RightDirection)) then
-                            exit 
-                        else
-                            LeftDirection  = RightDirection
-                            RightDirection = LeftDirection + (2 * AngleRange)
-                            WindDirection  = WindDirection + 1
-                        endif
-
-                    enddo
-                endif
-        
-                if (WindDirection .gt. Me%FetchDirections) then
-                    stop 'ComputeWavePeriodFetch - ModuleWaves - ERR10'
-                endif
-
                 Wind = sqrt(WindX**2. +  WindY**2.)  
-
-                U2 = Wind * Wind              
                 
-                !old formulation uses local water column
-                !new fomulations use average depth in wind direction or a constant value
-                if (Me%DepthType.eq.DepthLocal) then
-                    COEF3 = 0.833 * (Gravity * Me%ExternalVar%WaterColumn(i,j) / U2)**0.375
-                else    
-                    COEF3 = 0.833 * (Gravity * Me%Depth(i,j, WindDirection) / U2)**0.375
-                endif
+                !Wave Period only if wind not zero
+                if (Wind .ne. 0.0) then
+                    !Angle in degrees in triginometric referencial
+                    WindAngle = atan2(WindY,WindX) * 180. / Pi
+
+                    !only positive angles for next operations
+                    if (WindAngle .lt. 0.0) then
+                        WindAngle = WindAngle + 360.
+                    endif
+
+                    !define angle ranges (º) for each side of cardinal directions for checking where wind is coming from
+                    if (Me%FetchDirections .eq. 8) then
+                        AngleRange = 22.5
+                    elseif (Me%FetchDirections .eq. 16) then
+                        AngleRange = 11.25
+                    endif
                     
-                COEF4 = 0.077 * (Gravity * Me%Fetch(i,j, WindDirection) / U2)**0.25
+                    !Wind directions are fused into 8 or 16 major directions 
+                    !starting with wind from W (0º in trigonometric ref) because of discontinuity in 0º and 360º
+                    if ((WindAngle .gt. (360. - AngleRange)) .and. (WindAngle .le. 360.             ) .Or. &
+                        (WindAngle .ge. 0.                 ) .and. (WindAngle .le. (0. + AngleRange))) then
+                        
+                        !if trigonometric angle is near zero then wind comes from West                    
+                        WindDirection = Me%W
 
-                !Wave Period
-                Me%WavePeriod%Field(i, j) = Me%WavePeriodParameter * 2 * Pi * Wind / &
-                                            Gravity * 1.2 *                          &
-                                            Tanh(COEF3) * Tanh(COEF4 / Tanh(COEF3))
+                    else 
+                        !next start rotating anti clockwise (wind from SW or SSW)
+                        WindDirection = Me%W + 1
+                        LeftDirection = 0. + AngleRange
+                        RightDirection = LeftDirection + (2 * AngleRange)
+                
+                        do while (WindDirection .le. Me%FetchDirections)
 
+                            if ((WindAngle .gt. LeftDirection).And.&
+                                (WindAngle .le. RightDirection)) then
+                                exit 
+                            else
+                                LeftDirection  = RightDirection
+                                RightDirection = LeftDirection + (2 * AngleRange)
+                                WindDirection  = WindDirection + 1
+                            endif
+
+                        enddo
+                    endif
+            
+                    if (WindDirection .gt. Me%FetchDirections) then
+                        stop 'ComputeWavePeriodFetch - ModuleWaves - ERR10'
+                    endif
+
+                    U2 = Wind * Wind              
+                    
+                    !old formulation uses local water column
+                    !new fomulations use average depth in wind direction or a constant value
+                    if (Me%DepthType.eq.DepthLocal) then
+                        COEF3 = 0.833 * (Gravity * Me%ExternalVar%WaterColumn(i,j) / U2)**0.375
+                    else    
+                        COEF3 = 0.833 * (Gravity * Me%Depth(i,j, WindDirection) / U2)**0.375
+                    endif
+                        
+                    COEF4 = 0.077 * (Gravity * Me%Fetch(i,j, WindDirection) / U2)**0.25
+
+                    !Wave Period
+                    Me%WavePeriod%Field(i, j) = Me%WavePeriodParameter * 2 * Pi * Wind / &
+                                                Gravity * 1.2 *                          &
+                                                Tanh(COEF3) * Tanh(COEF4 / Tanh(COEF3))
+                else
+                    Me%WavePeriod%Field(i, j) = 0.0
+                endif
             endif
 
         enddo
