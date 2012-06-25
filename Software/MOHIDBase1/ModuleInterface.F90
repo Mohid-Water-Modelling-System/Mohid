@@ -241,6 +241,7 @@ Module ModuleInterface
         real,    pointer, dimension(:,:  )      :: WaterMassInKgIncrement
         real,    pointer, dimension(:    )      :: Sediment
         real,    pointer, dimension(:    )      :: BottomSWRadiationAverage
+        real,    pointer, dimension(:    )      :: ShearStress2D
 
         !Instance of ModuleTime
         integer                                 :: ObjTime              = 0
@@ -877,11 +878,15 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 
                 allocate(Me%BottomSWRadiationAverage(ArrayLB:ArrayUB), STAT = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR26.3'  
+                
+                allocate(Me%ShearStress2D(ArrayLB:ArrayUB), STAT = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR26.4'
 
                 Me%WaterMassInKgIncrement         = FillValueReal
                 Me%WaterVol                       = FillValueReal
                 Me%CellArea                       = FillValueReal
                 Me%BottomSWRadiationAverage       = FillValueReal
+                Me%ShearStress2D                  = FillValueReal
 
             case (MacroAlgaeModel)
 
@@ -3180,6 +3185,7 @@ do6 :               do index = ArrayLB, ArrayUB
                                   WaterPoints2D, OpenPoints2D, Oxygen2D,                &
                                   MassInKgFromWater, Sediment,                          &
                                   WaterVolume2D,CellArea2D,ShortWave2D,                 &
+                                  ShearStress2D,                                        &
                                   DTProp, STAT)
 
         !Arguments-------------------------------------------------------------
@@ -3194,6 +3200,7 @@ do6 :               do index = ArrayLB, ArrayUB
         real   , optional, dimension(:,:  ), pointer    :: Sediment
         real   , optional, dimension(:,:  ), pointer    :: WaterVolume2D
         real   , optional, dimension(:,:  ), pointer    :: CellArea2D
+        real   , optional, dimension(:,:  ), pointer    :: ShearStress2D
         real   , optional, dimension(:,:  ), pointer    :: MassInKgFromWater
 
         integer, optional,  intent(OUT)                 :: STAT
@@ -3263,6 +3270,10 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             
             if(present(ShortWave2D))then
                 call UnfoldMatrix(ShortWave2D, Me%BottomSWRadiationAverage)
+            end if  
+            
+            if(present(ShearStress2D))then
+                call UnfoldMatrix(ShearStress2D, Me%ShearStress2D)
             end if  
             
             if(present(Sediment))then
@@ -3354,6 +3365,7 @@ cd4 :           if (ReadyToCompute) then
                                                  Me%MassInKgFromWater,                    &
                                                  Me%Sediment,                             &
                                                  Me%BottomSWRadiationAverage,             &
+                                                 Me%ShearStress2D,                        &
                                                  Me%OpenPoints,                           &
                                                  Me%Mass,                                 &
                                                  STAT = STAT_CALL)

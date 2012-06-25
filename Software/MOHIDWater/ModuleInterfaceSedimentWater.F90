@@ -6720,6 +6720,7 @@ subroutine BenthicEcology_Processes
                                           WaterVolume2D    = Me%ExtWater%WaterVolume ,         &
                                           CellArea2D       = Me%ExternalVar%GridCellArea,      &
                                           ShortWave2D      = Me%BottomSWRadiationAverage,      &
+                                          ShearStress2D    = Me%Shear_Stress%Tension,          &
                                           STAT             = STAT_CALL)
                     if (STAT_CALL .NE. SUCCESS_)                                               &
                         stop 'BenthicEcology_Processes - ModuleInterfaceSedimentWater - ERR01'
@@ -8082,7 +8083,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                 deallocate(Me%BottomSWRadiationAverage, STAT = STAT_CALL) 
                      if(STAT_CALL .ne. SUCCESS_)&
                      stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR604'
-                
+                               
                 endif
 
                 PropertyX => Me%FirstProperty

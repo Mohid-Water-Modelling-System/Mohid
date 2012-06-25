@@ -53,7 +53,9 @@
 !Producer%FK1                    TFCONST1            User Defined   [ºC]                 Constant to control temperature response curve shape              
 !Producer%FK2                    TFCONST2            User Defined   [ºC]                 Constant to control temperature response curve shape                 
 !Producer%FK3                    TFCONST3            User Defined   [ºC]                 Constant to control temperature response curve shape                 
-!Producer%FK4                    TFCONST4            User Defined   [ºC]                 Constant to control temperature response curve shape                 
+!Producer%FK4                    TFCONST4            User Defined   [ºC]                 Constant to control temperature response curve shape 
+!Producer%EroCritShear           EROCRIT             User Defined   [Pa]                 Shear stress above which producers are eroded 
+!Producer%MinimumBiomass         MINBIOMASS          User Defined   [KgC/m2]             minimum biomass       
 !---------------------------------Consumer parameters  -----------------------------------------------------------------------------------------
 !Consumer%RespirationRate        RESPIRATION_RATE    User defined   [1/day]              Consumer Respiration rate
 !Consumer%MortalityRate          MORTALITY_RATE      User defined   [1/day]              Consumer Mortality rate
@@ -172,6 +174,7 @@ Module ModuleBenthicEcology
         real, pointer, dimension(:  )       :: ShortWaveAverage
         real, pointer, dimension(:  )       :: LightExtCoefField
         real, pointer, dimension(:  )       :: Thickness
+        real, pointer, dimension(:  )       :: ShearStress
         real, pointer, dimension(:,:)       :: Mass    
     end type T_External
   
@@ -282,6 +285,8 @@ Module ModuleBenthicEcology
         real                                        :: FK2              = null_real
         real                                        :: FK3              = null_real
         real                                        :: FK4              = null_real
+        real                                        :: EroCritShear     = null_real
+        real                                        :: MinimumBiomass   = null_real
    type(T_Producer    ), pointer                    :: Next 
     end type T_Producer
  
@@ -1262,7 +1267,25 @@ subroutine AddProducer (ObjProducer)
                      ClientModule = MohidModules(mBenthicEcology_)%Name,  &
                      STAT         = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_) stop 'ConstructProducerParameters - ModuleBenthicEcology - ERROR #18' 
- 
+        
+               !EROCRIT, shear stress at which erosion of producers occurs (Pa)
+           call GetData(NewProducer%EroCritShear,                    &
+                     Me%ObjEnterData, iflag,                    &
+                     SearchType   = FromBlock,                  &
+                     keyword      = 'EROCRIT',               &
+                     ClientModule = MohidModules(mBenthicEcology_)%Name,  &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructProducerParameters - ModuleBenthicEcology - ERROR #19' 
+        
+               !MINBIOMASS, minimum producers biomass (kgC/m2)
+           call GetData(NewProducer%MinimumBiomass,                    &
+                     Me%ObjEnterData, iflag,                    &
+                     SearchType   = FromBlock,                  &
+                     keyword      = 'MINBIOMASS',               &
+                     ClientModule = MohidModules(mBenthicEcology_)%Name,  &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructProducerParameters - ModuleBenthicEcology - ERROR #20'         
+
 
     end subroutine ConstructProducerParameters
 
@@ -2031,8 +2054,17 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     
     
-    subroutine ModifyBenthicEcology(ObjBenthicEcologyID, Temperature, WaterVolume, &
-               CellArea, MassInKgFromWater, Sediment, ShortWaveAverage, OpenPoints, Mass, STAT)
+    subroutine ModifyBenthicEcology(ObjBenthicEcologyID, &
+                                    Temperature,         &
+                                    WaterVolume,         &
+                                    CellArea,            &
+                                    MassInKgFromWater,   &
+                                    Sediment,            &
+                                    ShortWaveAverage,    &
+                                    ShearStress,         &
+                                    OpenPoints,          &
+                                    Mass,                &
+                                    STAT)
     
     
             !Arguments-------------------------------------------------------------
@@ -2044,6 +2076,7 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
         real,    dimension(:  ), pointer            :: CellArea
         integer, dimension(:  ), pointer, optional  :: OpenPoints
         real,    dimension(:  ), pointer, optional  :: ShortWaveAverage
+        real,    dimension(:  ), pointer, optional  :: ShearStress
         real,    dimension(:,:), pointer            :: Mass
         integer, intent(OUT), optional              :: STAT
 
@@ -2083,10 +2116,14 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
             Me%ExternalVar%CellArea  => CellArea
             if (.not. associated(Me%ExternalVar%CellArea))       &
                 stop 'ModifyBenthicEcology - ModuleBenthicEcology - ERR06'
+                
+           Me%ExternalVar%ShearStress  => ShearStress
+           if (.not. associated(Me%ExternalVar%ShearStress))       &
+               stop 'ModifyBenthicEcology - ModuleBenthicEcology - ERR07'
               
             Me%ExternalVar%Mass         => Mass
             if (.not. associated(Me%ExternalVar%Mass))              &
-                stop 'ModifyBenthos - ModuleBenthos - ERR05'
+                stop 'ModifyBenthos - ModuleBenthicEcology - ERR08'
 
 
             do Index = Me%Size%ILB, Me%Size%IUB
@@ -2142,15 +2179,20 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
         type(T_Producer),      pointer             :: Producer
         
        
-        integer :: Producer_N, Producer_C, Producer_P
-        integer :: AM, NA, IP, O2
-        integer :: PON, POP, POC
-        real    :: AverageRadiation
-        real    :: Lightlim, NLim, PLim, NutLim, GrowthRate,UptakeNA, UptakeAM, UptakeP
-        real    :: RespirationC, RespirationN, RespirationP
-        real    :: MortalityC, MortalityN, MortalityP
-        real    :: x1,x2,x3,x4, AmmoniaPreferenceFactor
-        real    :: s1, s2, xa,xb,ya,yb, TemperatureLim
+        integer             :: Producer_N, Producer_C, Producer_P
+        integer             :: AM, NA, IP, O2
+        integer             :: PON, POP, POC
+        real                :: AverageRadiation
+        real                :: Lightlim, NLim, PLim, NutLim, GrowthRate
+        real                :: UptakeNA, UptakeAM, UptakeP
+        real                :: RespirationC, RespirationN, RespirationP
+        real                :: MortalityC, MortalityN, MortalityP
+        real                :: FluxToPON, FluxToPOP, FluxToPOC
+        real                :: x1,x2,x3,x4, AmmoniaPreferenceFactor
+        real                :: s1, s2, xa,xb,ya,yb, TemperatureLim
+        integer             :: Zone
+        integer, parameter  :: NoLimitation = 1
+        integer, parameter  :: Erosion      = 2
 
     !------------------------------------------------------------------------
        
@@ -2161,6 +2203,10 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
         IP      = Me%PropIndex%Phosphate
         O2      = Me%PropIndex%Oxygen
         
+        
+
+        
+        
         if(Me%PelagicModel == LifeModel) then
         POC     = Me%PropIndex%POC
         endif
@@ -2169,6 +2215,15 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
         Producer => Me%FirstProducer
 
 d1:     do while(associated(Producer))
+
+        if(Me%ExternalVar%ShearStress(Index)       > Producer%EroCritShear     )then
+                    
+                    Zone = Erosion
+        else
+                    
+                    Zone = NoLimitation
+        endif
+
         ! Average radiation
         ! I put the maximum between 0.0 and the value of shortwave radiation because during the first temporal iteration, 
         ! the short wave radiation is not calculated yet and it is retreived from ModuleWaterProperties as negative number.
@@ -2235,6 +2290,12 @@ d1:     do while(associated(Producer))
             else 
                 AmmoniaPreferenceFactor = (x1 / x2) + (x3 / x4)
             end if 
+        
+       
+       
+        select case(Zone)
+        
+        case(NoLimitation)
         
         ! growth rate 1/day
         GrowthRate=Producer%Vmax*LightLim*NutLim*TemperatureLim
@@ -2318,6 +2379,63 @@ d1:     do while(associated(Producer))
         !what passes from The benthic producer to POC (only if ModuleLife is active)
         Me%ExternalVar%Mass(POC,     Index) = Me%ExternalVar%Mass(POC,     Index) + MortalityC
         endif
+        
+        
+        case(Erosion)
+        
+        
+         !Not all benthic producers mass is eroded. to make sure 
+         !there's always enough to grow back again (minimum concentration)
+         ! This is similar to macroalgae module
+                   
+                     if(Me%ExternalVar%Mass(Producer_C, Index) > Producer%MinimumBiomass)then
+                    
+                    
+                     !what passes from benthic producer to POM
+
+                      ! KgC  (MinimumBiomass is expressed as KgC/m2, so it is necessary to multiply by
+                      ! the cell area to get the value in KgC)
+                      FluxToPOC = Me%ExternalVar%Mass(Producer_C, Index) - &
+                                  Producer%MinimumBiomass*Me%ExternalVar%CellArea(Index)
+                                                  
+
+                     ! KgN  (MinimumBiomass is expressed as KgC/m2, so it is necessary to multiply by the
+                     ! ratio  N:C and by cell area to get the value in KgN)
+                      FluxToPON = Me%ExternalVar%Mass(Producer_N, Index) - &
+                                  Producer%MinimumBiomass*Producer%NCRatio*Me%ExternalVar%CellArea(Index)
+                                                  
+                     ! KgP  (MinimumBiomass is expressed as KgC/m2, so it is necessary to multiply by the
+                     ! ratio  P:C and by cell area to get the value in KgP)
+                      FluxToPOP   = Me%ExternalVar%Mass(Producer_P, Index) - &
+                                   Producer%MinimumBiomass*Producer%PCRatio*Me%ExternalVar%CellArea(Index)
+                                                  
+                                             
+                     else
+                     !what passes from benthic Producer to POM:
+                     !( if the benthic producer reaches its minimum value, nothing passes)
+                     
+                     FluxToPOC=0.
+                     FluxToPON=0.
+                     FluxToPOP=0.
+                     end if
+                     
+
+                    
+                    !only minimum biomass remains:
+                    Me%ExternalVar%Mass(Producer_C, Index)=Producer%MinimumBiomass*Me%ExternalVar%CellArea(Index)
+                    Me%ExternalVar%Mass(Producer_N, Index)=Producer%MinimumBiomass*Producer%NCRatio*Me%ExternalVar%CellArea(Index)
+                    Me%ExternalVar%Mass(Producer_P, Index)=Producer%MinimumBiomass*Producer%PCRatio*Me%ExternalVar%CellArea(Index)
+        
+                    if(Me%PelagicModel == LifeModel) then
+                     
+                    !what passes from The benthic producer to POC (only if ModuleLife is active)
+                    Me%ExternalVar%Mass(POC,     Index) = Me%ExternalVar%Mass(POC,     Index) + FluxToPOC
+                    endif
+                    
+                    Me%ExternalVar%Mass(PON,     Index) = Me%ExternalVar%Mass(PON,     Index) + FluxToPON
+                    Me%ExternalVar%Mass(POp,     Index) = Me%ExternalVar%Mass(POP,     Index) + FluxToPOP
+        
+        end select
 
 
             Producer => Producer%Next
@@ -2332,7 +2450,7 @@ d1:     do while(associated(Producer))
     
     
     
-    
+    !---------------------------------------------------------------------------------------
     
        subroutine ComputeBenthicConsumers (index)
     
