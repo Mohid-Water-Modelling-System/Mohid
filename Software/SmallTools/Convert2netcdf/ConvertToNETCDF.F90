@@ -1585,6 +1585,7 @@ program Convert2netcdf
                 NCDFName        = "zooplankton"
                 LongName        = "mole concentration of zooplankton expressed as carbon in sea water"
                 StandardName    = "mole_concentration_of_zooplankton_expressed_as_carbon_in_sea_water"
+                Units           = "mol m-3"
                 Multiply_Factor = 1000./12.0107
                 ValidMin        = 0. * Multiply_Factor
                 ValidMax        = 10. * Multiply_Factor
