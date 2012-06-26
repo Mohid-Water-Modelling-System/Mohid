@@ -1617,7 +1617,7 @@ program Convert2netcdf
                 StandardName    = "mass_concentration_of_suspended_matter_in_sea_water"
                 Units           = "mg l-1"
                 ValidMin        = 0.
-                ValidMax        = 10.
+                ValidMax        = 1000.
                 MissingValue    = FillValueReal
 
             case("inorganic_phosphorus")
