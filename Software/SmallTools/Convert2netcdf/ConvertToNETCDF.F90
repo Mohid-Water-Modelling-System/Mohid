@@ -1654,8 +1654,27 @@ program Convert2netcdf
                 LongName        = "sea surface wave to direction"
                 StandardName    = "sea_surface_wave_to_direction"
                 Units           = "degree"
-                ValidMin        = 0. 
-                ValidMax        = 360.
+                ValidMin        = -180 
+                ValidMax        = 180.
+                Multiply_Factor = 57.2958
+                MissingValue    = FillValueReal
+! Next 2 keywords are not CF compliant
+            case("mean_wave_direction_X")
+                NCDFName        = "wave_X"
+                LongName        = "mean wave direction X"
+                StandardName    = "mean_wave_direction_X"
+                Units           = "-"
+                ValidMin        = -1. 
+                ValidMax        = 1.
+                MissingValue    = FillValueReal
+
+            case("mean_wave_direction_Y")
+                NCDFName        = "wave_Y"
+                LongName        = "mean wave direction Y"
+                StandardName    = "mean_wave_direction_Y"
+                Units           = "-"
+                ValidMin        = -1. 
+                ValidMax        = 1.
                 MissingValue    = FillValueReal
 
             case("significant_wave_height")
