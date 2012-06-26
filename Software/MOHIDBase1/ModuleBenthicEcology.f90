@@ -2334,16 +2334,14 @@ d1:     do while(associated(Producer))
         ! KgN
         Me%ExternalVar%Mass(Producer_N,     Index) = Me%ExternalVar%Mass(Producer_N,     Index) + &
                                                      GrowthRate                                 * &
-                                                     Me%ExternalVar%Mass(Producer_C, Index)     * &
-                                                     Producer%NCRatio                           * &
+                                                     Me%ExternalVar%Mass(Producer_N, Index)     * &    
                                                      Me%DTDay                                   - &
                                                      MortalityN                                 - &
                                                      RespirationN  
         ! KgP
         Me%ExternalVar%Mass(Producer_P,     Index) = Me%ExternalVar%Mass(Producer_P,     Index) + &  ! KgP
                                                      GrowthRate                                 * &  ! 
-                                                     Me%ExternalVar%Mass(Producer_C, Index)     * &
-                                                     Producer%PCRatio                           * &
+                                                     Me%ExternalVar%Mass(Producer_P, Index)     * &
                                                      Me%DTDay                                   - &
                                                      MortalityP                                 - &
                                                      RespirationP  
@@ -2433,7 +2431,7 @@ d1:     do while(associated(Producer))
                     endif
                     
                     Me%ExternalVar%Mass(PON,     Index) = Me%ExternalVar%Mass(PON,     Index) + FluxToPON
-                    Me%ExternalVar%Mass(POp,     Index) = Me%ExternalVar%Mass(POP,     Index) + FluxToPOP
+                    Me%ExternalVar%Mass(POP,     Index) = Me%ExternalVar%Mass(POP,     Index) + FluxToPOP
         
         end select
 
