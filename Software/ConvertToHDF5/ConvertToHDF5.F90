@@ -63,8 +63,8 @@ program ConvertToHDF5
     use ModuleCFPolcomFormat
     use ModuleAladinFormat
     use ModuleMOG2DFormat
-#endif
     use ModuleIHRadarFormat
+#endif
 
     implicit none
 
