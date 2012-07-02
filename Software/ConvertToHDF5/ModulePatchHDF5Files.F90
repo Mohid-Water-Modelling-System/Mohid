@@ -1081,7 +1081,7 @@ do2 :       do while (associated(ObjFatherFile))
         if (STAT_CALL /= SUCCESS_)                                                      &
             stop 'Open_HDF5_OutPut_File - ModulePatchHDF5Files - ERR90'
 
-        call HDF5WriteData   (Me%New%ObjHDF5, "/Grid", "WaterPoints", "-",              &
+        call HDF5WriteData   (Me%New%ObjHDF5, "/Grid", "WaterPoints3D", "-",              &
                               Array3D = WaterPoints3D,  STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                      &
             stop 'Open_HDF5_OutPut_File - ModulePatchHDF5Files - ERR100'

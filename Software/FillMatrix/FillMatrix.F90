@@ -1201,7 +1201,7 @@ doj:                do j = Me%ExtVar%WorkSize%JLB, Me%ExtVar%WorkSize%JUB
                              Me%ExtVar%WorkSize%JLB, Me%ExtVar%WorkSize%JUB, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)stop 'Open_HDF5_OutPut_File - FillMatrix - ERR50'
 
-        call HDF5WriteData   (Me%ObjHDF5, "/Grid", "WaterPoints", "-",                      &
+        call HDF5WriteData   (Me%ObjHDF5, "/Grid", "WaterPoints2D", "-",                      &
                               Array2D = Me%ExtVar%WaterPoints2D,  STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)stop 'Open_HDF5_OutPut_File - FillMatrix - ERR60'
         

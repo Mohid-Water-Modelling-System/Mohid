@@ -432,7 +432,7 @@ Module ModuleEUCenterFormat
         if (STAT_CALL /= SUCCESS_)stop 'Open_HDF5_OutPut_File - ModuleEUCenterFormat - ERR05'
 
 
-        call HDF5WriteData   (Me%ObjHDF5, "/Grid", "WaterPoints", "-",    &
+        call HDF5WriteData   (Me%ObjHDF5, "/Grid", "WaterPoints3D", "-",    &
                               Array3D = Me%WaterPoints3D,                 &
                               STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)stop 'Open_HDF5_OutPut_File - ModuleEUCenterFormat - ERR06'

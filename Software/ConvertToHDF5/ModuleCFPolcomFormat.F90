@@ -1522,7 +1522,7 @@ i5:                     if (Me%Polcom_Data) then
           if (STAT_CALL /= SUCCESS_)stop 'Open_HDF5_OutPut_File - ModuleMM5Format - ERR07'
 
 
-          call HDF5WriteData   (Me%ObjHDF5, "/Grid", "WaterPoints", "-",    &
+          call HDF5WriteData   (Me%ObjHDF5, "/Grid", "WaterPoints3D", "-",    &
                               Array3D = WaterPoints3D,  STAT = STAT_CALL)
           if (STAT_CALL /= SUCCESS_)stop 'Open_HDF5_OutPut_File - ModuleMM5Format - ERR08'
 

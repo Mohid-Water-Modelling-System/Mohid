@@ -3765,7 +3765,7 @@ TOut:       if (Actual >= Me%OutPut%OutTime(OutPutNumber)) then
 
                 if (STAT_CALL /= SUCCESS_) stop 'OutPutSandHDF - ModuleSand - ERR03'
 
-                call HDF5WriteData  (Me%ObjHDF5, "/Grid/OpenPoints", "OpenPoints2D",         &
+                call HDF5WriteData  (Me%ObjHDF5, "/Grid/OpenPoints", "OpenPoints",         &
                                      "-", Array2D = Me%ExternalVar%OpenPoints2D,             &
                                      OutputNumber = OutPutNumber, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'OutPutSandHDF - ModuleSand - ERR04'

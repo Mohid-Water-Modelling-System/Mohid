@@ -2306,7 +2306,7 @@ cd2 :           if (BlockFound) then
         if (STAT_CALL /= SUCCESS_) &
            stop 'Open_HDF5_OutPut_File - ModuleInterfaceSedimentWater - ERR05'
 
-        call HDF5WriteData  (Me%ObjHDF5, "/Grid", "WaterPoints",                    &
+        call HDF5WriteData  (Me%ObjHDF5, "/Grid", "WaterPoints3D",                    &
                              "-", Array3D = Me%ExtWater%WaterPoints3D,              &
                              STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) &

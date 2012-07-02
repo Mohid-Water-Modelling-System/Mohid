@@ -599,7 +599,7 @@ i1:     if (exist) then
                              Me%WorkSize%JLB, Me%WorkSize%JUB, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)stop 'Open_HDF5_OutPut_File - ModuleMOG2DFormat - ERR07'            
 
-        call HDF5WriteData   (Me%ObjHDF5, "/Grid", "WaterPoints", "-",    &
+        call HDF5WriteData   (Me%ObjHDF5, "/Grid", "WaterPoints2D", "-",    &
                               Array2D = Me%WaterPoints,  STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)stop 'Open_HDF5_OutPut_File - ModuleMOG2DFormat - ERR08'
 

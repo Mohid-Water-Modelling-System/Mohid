@@ -14,10 +14,18 @@
 !------------------------------------------------------------------------------
 !DataFile
 !
-!   OUTPUTFILENAME              : char              -           !Path to HDF5 file generated from IH radar file
+!   IH_GRID_VERSION             : integer           -           !Grid version from IH radar file.
 !   INPUT_GRID_FILENAME         : char              -           !Path to IH radar grid file
-!   GRID_VERSION_TIMESTAMP      : time              -           !Timestamp (time format) of the current grid version
-!   OUTPUT_GRID_FILENAME        : char              -           
+!   OUTPUT_GRID_FILENAME        : char              -           !!Path to grid data file generated from seasonde radar file
+!   OUTPUT_HDF5_FILENAME        : char              -           !Path to HDF5 file generated from seasonde radar file
+!   OUTPUT_NETCDF_FILENAME      : char              -           !Path to Netcdf file generated from seasonde radar file
+!   NETCDF_TITLE                : char              -           !Netcdf file global attribute
+!   NETCDF_CONVENTION           : char              CF-1.0      !Netcdf file global attribute
+!   NETCDF_VERSION              : char              3.6.1       !Netcdf file global attribute
+!   NETCDF_HISTORY              : char              -           !Netcdf file global attribute
+!   NETCDF_INSTITUTION          : char              Instituto Superior Tecnico           !Netcdf file global attribute
+!   NETCDF_REFERENCES           : char              http://www.mohid.com           !Netcdf file global attribute
+!   NETCDF_DATE                 : char              -           !Netcdf file global attribute
 !
 !   <<begin_input_files>>
 !   TOTL_IHOC_2012_05_01_1400.tuv
@@ -90,6 +98,7 @@ Module ModuleIHRadarFormat
     use ModuleGlobalData
     use ModuleFunctions,   only: SetMatrixValue
     use ModuleHDF5
+    use ModuleNetcdf
     use ModuleEnterData
     use ModuleTime
     use ModuleGridData,    only: WriteGridData
@@ -110,9 +119,8 @@ Module ModuleIHRadarFormat
     private ::      CreateGridIHRadarFile
     private ::          LoadIHRadarGrid
     private ::          ConstructGridDataFile
-    private ::      WriteHDFIHRadarFile
+    private ::      WriteIHRadarFile
     private ::          Open_HDF5_OutPut_File
-    private ::          Write_HDF5_Grid_Data
     private ::          OpenAndReadIHRadarFields
     private ::              ReadIHRadarFile
     private ::                WriteHDF5Field
@@ -126,18 +134,34 @@ Module ModuleIHRadarFormat
     character(LEN = StringLength), parameter    :: input_files_end     = '<<end_input_files>>'
     character(LEN = StringLength), parameter    :: data_begin   = '%TableStart'
     character(LEN = StringLength), parameter    :: data_end     = '%TableEnd'
+    integer, parameter                          :: no_output_       = -99
+    integer, parameter                          :: hdf5_       = 1
+    integer, parameter                          :: netcdf_     = 2
 
     !Types---------------------------------------------------------------------
+    private :: T_Netcdf_Global_Attributes
+    type T_Netcdf_Global_Attributes
+        character(len=StringLength)                         :: Title
+        character(len=StringLength)                         :: Convention
+        character(len=StringLength)                         :: Version
+        character(len=StringLength)                         :: History
+        character(len=StringLength)                         :: Source
+        character(len=StringLength)                         :: Institution
+        character(len=StringLength)                         :: References
+        integer                                             :: iDate
+    end type T_Netcdf_Global_Attributes
     
     private :: T_IHRadarFormat
     type T_IHRadarFormat
         integer                                 :: ObjEnterData         = 0
         integer                                 :: ObjHDF5              = 0
+        integer                                 :: ObjNetcdf            = 0
         integer                                 :: ObjHorizontalGrid    = 0
         integer                                 :: ObjHorizontalMap     = 0
         integer                                 :: ObjTime              = 0
         integer                                 :: Unit, ClientNumber
-        character(len=PathLength)               :: OutputFileName
+        logical                                 :: OutputHDF5
+        character(len=PathLength)               :: OutputHDF5FileName
         character(len=PathLength)               :: GridFileName
         character(len=PathLength)               :: InputGridFile
         integer                                 :: GridVersion
@@ -158,6 +182,10 @@ Module ModuleIHRadarFormat
         real, dimension(:,:),       pointer     :: bearing
         real, dimension(:,:),       pointer     :: velocity
         real, dimension(:,:),       pointer     :: direction
+
+        logical                                 :: OutputNetcdf
+        character(len=PathLength)               :: OutputNetcdfFileName
+        type(T_Netcdf_Global_Attributes)        :: OutputNetcdfAttr
                 
         type(T_Size2D)                          :: Size, WorkSize
         type(T_Time)                            :: Time
@@ -205,17 +233,21 @@ Module ModuleIHRadarFormat
         !if (STAT_CALL /= SUCCESS_) stop 'ConstructGridDataFile - ModuleIHRadarFormat - ERR02a'
 
         call ReadOptions
+        
+        if (Me%OutputNetcdf) then
+            call ReadNetcdfOptions
+        endif
 
         !Open and load the grid file; then create a new griddata file
         call CreateGridIHRadarFile
 
         write(*,*) 'Converting IHRadar to Mohid HDF5 format...'
 
-        call allocateVariables
+        call AllocateVariables
 
         !open the list os ascii IH radar files, read and write 
         !in the HDF5 file in MOHID format
-        call WriteHDFIHRadarFile
+        call WriteIHRadarFile
         
         write(*,*) 'Done converting IHRadar to Mohid HDF5 format.'
 
@@ -236,15 +268,53 @@ Module ModuleIHRadarFormat
         !Begin-----------------------------------------------------------------
 
         !Read output filename
-        call GetData(Me%OutputFileName,                                                 &
-                     Me%ObjEnterData, iflag,                                            &
-                     SearchType   = FromBlock,                                          &
-                     keyword      = 'OUTPUTFILENAME',                                   &
+        call GetData(Me%OutputHDF5FileName,                                                &
+                     Me%ObjEnterData, iflag,                                           &
+                     SearchType   = FromBlock,                                         &
+                     keyword      = 'OUTPUTFILENAME',                                 &
                      ClientModule = 'ModuleIHRadarFormat',                             &
                      STAT         = STAT_CALL)        
         if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleIHRadarFormat - ERR10'
+        if (iflag) then
+            Me%OutputHDF5 = .true.
+        else
+            Me%OutputHDF5 = .false.
+        endif
 
         !Read output filename
+        call GetData(Me%OutputHDF5FileName,                                                &
+                     Me%ObjEnterData, iflag,                                           &
+                     SearchType   = FromBlock,                                         &
+                     keyword      = 'OUTPUT_HDF5_FILENAME',                            &
+                     ClientModule = 'ModuleIHRadarFormat',                             &
+                     STAT         = STAT_CALL)        
+        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleIHRadarFormat - ERR11'
+        if (iflag) then
+            Me%OutputHDF5 = .true.
+        else
+            Me%OutputHDF5 = .false.
+        endif
+
+        !Read output netcdf filename
+        call GetData(Me%OutputNetcdfFileName,                                          &
+                     Me%ObjEnterData, iflag,                                           &
+                     SearchType   = FromBlock,                                         &
+                     keyword      = 'OUTPUT_NETCDF_FILENAME',                          &
+                     ClientModule = 'ModuleIHRadarFormat',                             &
+                     STAT         = STAT_CALL)        
+        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleIHRadarFormat - ERR12'        
+        if (iflag) then
+            Me%OutputNetcdf = .true.
+        else
+            Me%OutputNetcdf = .false.
+        endif
+        
+        if (.not.Me%OutputNetcdf .or. .not.Me%OutputHDF5) then
+            write(*,*) 'Please define one of OUTPUT_NETCDF_FILENAME or OUTPUT_HDF5_FILENAME (aka OUTPUTFILENAME) keywords.'
+            stop 'ReadOptions - ModuleIHRadarFormat - ERR13'        
+        endif  
+        
+        !Read output grid filename
         call GetData(Me%GridFileName,                                                 &
                      Me%ObjEnterData, iflag,                                            &
                      SearchType   = FromBlock,                                          &
@@ -252,6 +322,10 @@ Module ModuleIHRadarFormat
                      ClientModule = 'ModuleIHRadarFormat',                             &
                      STAT         = STAT_CALL)        
         if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleIHRadarFormat - ERR20'
+        if (.not.iflag) then
+            write(*,*) 'Please define OUTPUT_GRID_FILENAME keyword'
+            stop 'ReadOptions - ModuleIHRadarFormat - ERR21'
+        endif
 
         !Read input IHRadar netcdf gridded data file to generate the griddata
         call GetData(Me%InputGridFile,                                              &
@@ -261,6 +335,10 @@ Module ModuleIHRadarFormat
                      ClientModule = 'ModuleIHRadarFormat',                         &
                      STAT         = STAT_CALL)        
         if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleIHRadarFormat - ERR80'
+        if (.not.iflag) then
+            write(*,*) 'Please define INPUT_GRID_FILENAME keyword'
+            stop 'ReadOptions - ModuleIHRadarFormat - ERR22'
+        endif
 
         call GetData(Me%GridVersion,                                                &
                      Me%ObjEnterData, iflag,                                        &
@@ -268,11 +346,96 @@ Module ModuleIHRadarFormat
                      keyword      = 'IH_GRID_VERSION',                       &
                      ClientModule = 'ModuleIHRadarFormat',                          &
                      STAT         = STAT_CALL)        
-        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleIHRadarFormat - ERR80'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleIHRadarFormat - ERR81'
+        if (.not.iflag) then
+            write(*,*) 'Please define IH_GRID_VERSION keyword'
+            stop 'ReadOptions - ModuleIHRadarFormat - ERR23'
+        endif
 
     end subroutine ReadOptions
 
     !--------------------------------------------------------------------------
+
+    subroutine ReadNetcdfOptions
+    
+        !Local-----------------------------------------------------------------
+        integer                                     :: STAT_CALL
+        integer                                     :: iflag
+
+        !Begin-----------------------------------------------------------------
+
+        call GetData(Me%OutputNetcdfAttr%Title,                                                &
+                     Me%ObjEnterData,iflag,                                             &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'NETCDF_TITLE',                                     &
+                     ClientModule = 'ModuleIHRadarFormat',                                   &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadNetcdfOptions - ModuleIHRadarFormat - ERR04'
+
+        call GetData(Me%OutputNetcdfAttr%Convention,                                           &
+                     Me%ObjEnterData,iflag,                                             &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'NETCDF_CONVENTION',                                &
+                     Default      = 'CF-1.0',                                           &
+                     ClientModule = 'ModuleIHRadarFormat',                                   &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadNetcdfOptions - ModuleIHRadarFormat - ERR05'
+
+        call GetData(Me%OutputNetcdfAttr%Version,                                              &
+                     Me%ObjEnterData,iflag,                                             &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'NETCDF_VERSION',                                   &
+                     Default      = '3.6.1',                                            &
+                     ClientModule = 'ModuleIHRadarFormat',                                   &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadNetcdfOptions - ModuleIHRadarFormat - ERR06'
+
+        call GetData(Me%OutputNetcdfAttr%History,                                              &
+                     Me%ObjEnterData,iflag,                                             &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'NETCDF_HISTORY',                                   &
+                     ClientModule = 'ModuleIHRadarFormat',                                   &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadNetcdfOptions - ModuleIHRadarFormat - ERR07'
+        
+        call GetData(Me%OutputNetcdfAttr%Source,                                               &
+                     Me%ObjEnterData,iflag,                                             &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'NETCDF_SOURCE',                                    &
+                     ClientModule = 'ModuleIHRadarFormat',                                   &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadNetcdfOptions - ModuleIHRadarFormat - ERR08'
+
+        
+        call GetData(Me%OutputNetcdfAttr%Institution,                                          &
+                     Me%ObjEnterData,iflag,                                             &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'NETCDF_INSTITUTION',                               &
+                     Default      = 'Instituto Superior Tecnico',                       &
+                     ClientModule = 'ModuleIHRadarFormat',                                   &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadNetcdfOptions - ModuleIHRadarFormat - ERR09'
+        
+        call GetData(Me%OutputNetcdfAttr%References,                                           &
+                     Me%ObjEnterData,iflag,                                             &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'NETCDF_REFERENCES',                                &
+                     Default      = 'http://www.mohid.com',                             &
+                     ClientModule = 'ModuleIHRadarFormat',                                   &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadNetcdfOptions - ModuleIHRadarFormat - ERR10'
+
+        call GetData(Me%OutputNetcdfAttr%iDate,                                                &
+                     Me%ObjEnterData,iflag,                                             &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'NETCDF_DATE',                                      &
+                     ClientModule = 'ModuleIHRadarFormat',                                   &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadNetcdfOptions - ModuleIHRadarFormat - ERR11'
+    
+    end subroutine ReadNetcdfOptions
+
+    !------------------------------------------------------------------------
 
     subroutine CreateGridIHRadarFile
 
@@ -286,28 +449,19 @@ Module ModuleIHRadarFormat
     
     !------------------------------------------------------------------------
 
-    subroutine WriteHDFIHRadarFile
-
-        !Local-----------------------------------------------------------------
-        integer                 :: HDF5_CREATE    
+    subroutine WriteIHRadarFile
 
         !Begin----------------------------------------------------------------
 
         !Gets File Access Code
-        call GetHDF5FileAccess  (HDF5_CREATE = HDF5_CREATE)
-
-        call Open_HDF5_OutPut_File (HDF5_CREATE)
-
-        call Write_HDF5_Grid_Data
+        call Open_Output_File
 
         call OpenAndReadIHRadarFields
 
-        call Close_HDF5_OutPut_File
+        call Close_Output_File
 
-    end subroutine WriteHDFIHRadarFile    
+    end subroutine WriteIHRadarFile    
    
-    !------------------------------------------------------------------------
-
     !------------------------------------------------------------------------
 
     subroutine AllocateVariables
@@ -435,79 +589,6 @@ i1:     if (exist) then
     
     !------------------------------------------------------------------------
 
-
-    !----------------------------------------------------------------------
-
-    subroutine Open_HDF5_OutPut_File (HDF5_IO_CODE)
-
-        !Arguments-------------------------------------------------------------
-        integer                                     :: HDF5_IO_CODE
-
-        !Local-----------------------------------------------------------------
-        integer                                     :: STAT_CALL
-
-        !----------------------------------------------------------------------
-       
-        !Opens HDF5 File
-        call ConstructHDF5(Me%ObjHDF5, Me%OutputFileName, HDF5_IO_CODE, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)stop 'Open_HDF5_OutPut_File - ModuleMecatorFormat - ERR01'
-        
-        
-    end subroutine Open_HDF5_OutPut_File
-
-    !--------------------------------------------------------------------------
-
-    !--------------------------------------------------------------------------
-
-    subroutine Write_HDF5_Grid_Data
-
-        !Local-----------------------------------------------------------------
-        integer                                     :: STAT_CALL
-
-        call HDF5SetLimits  (Me%ObjHDF5, Me%WorkSize%ILB, Me%WorkSize%IUB,&
-                             Me%WorkSize%JLB, Me%WorkSize%JUB, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)stop 'Open_HDF5_OutPut_File - ModuleMecatorFormat - ERR02'
-        
-        call HDF5WriteData   (Me%ObjHDF5, "/Grid", "Bathymetry", "-",       &
-                              Array2D =  Me%Bathymetry, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)stop 'Open_HDF5_OutPut_File - ModuleMecatorFormat - ERR03'            
-
-
-        call WriteHorizontalGrid (Me%ObjHorizontalGrid, Me%ObjHDF5, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)stop 'Open_HDF5_OutPut_File - ModuleMecatorFormat - ERR04'            
-   
-        
-        call HDF5SetLimits  (Me%ObjHDF5, Me%WorkSize%ILB, Me%WorkSize%IUB,&
-                             Me%WorkSize%JLB, Me%WorkSize%JUB, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)stop 'Open_HDF5_OutPut_File - ModuleMecatorFormat - ERR07'            
-
-        call HDF5WriteData   (Me%ObjHDF5, "/Grid", "WaterPoints", "-",    &
-                              Array2D = Me%OpenPoints,  STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)stop 'Open_HDF5_OutPut_File - ModuleMecatorFormat - ERR08'
-        
-        !Writes everything to disk
-        call HDF5FlushMemory (Me%ObjHDF5, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)stop 'Open_HDF5_OutPut_File - ModuleMecatorFormat - ERR09'
-
-    end subroutine Write_HDF5_Grid_Data
-
-    !--------------------------------------------------------------------------
-
-    !--------------------------------------------------------------------------
-
-    subroutine Close_HDF5_OutPut_File
-
-        !Local-----------------------------------------------------------------
-        integer                                     :: STAT_CALL
-
-        !----------------------------------------------------------------------
-        call KillHDF5(Me%ObjHDF5, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)stop 'Close_HDF5_OutPut_File - ModuleIHRadarFormat - ERR60'
-
-    end subroutine Close_HDF5_OutPut_File
-
-    !--------------------------------------------------------------------------
-
     !------------------------------------------------------------------------
 
     subroutine OpenAndReadIHRadarFields
@@ -546,8 +627,7 @@ i1:                 if (exist) then
                                                     
                         call ReadIHRadarFile (InputFile)
                         
-                        !Griflet: todo
-                        call WriteIHRadarHDF5 (line - FirstLine)
+                        call WriteIHRadar (line - FirstLine)
 
                     endif i1
                     
@@ -575,7 +655,6 @@ i1:                 if (exist) then
 
     !------------------------------------------------------------------------
 
-    !------------------------------------------------------------------------
     subroutine ReadIHRadarFile(InputFile)
     !GRiflet: this one must be completely rewritten.
     !
@@ -765,23 +844,29 @@ i1:                 if (exist) then
 
     !--------------------------------------------------------------------------
 
-    !------------------------------------------------------------------------
     integer function LocateCellIn1DAxis(axis, pos, ILB, IUB)
+
         !Arguments -------------------------------------------------
         real, dimension(:), pointer                     :: axis
         real                                            :: pos
         integer                                         :: ILB, IUB        
+
         !Local -----------------------------------------------------
         integer                                         :: ICenter, IL, IU
         logical                                         :: cellfound        
+
         !Begin -----------------------------------------------------        
+
         !Initialize algorithm
         cellfound = .false.        
         IL = ILB
         IU = IUB        
+
         !Iterative algorithm
-        do while (.not.cellfound)        
-            ICenter = (IL + IU)/2                                    
+        do while (.not.cellfound)
+                
+            ICenter = (IL + IU)/2     
+                                           
             if ( pos > axis(ICenter) ) then
                 !Cell is in [ICenter IU]
                 IL = ICenter            
@@ -790,16 +875,128 @@ i1:                 if (exist) then
                 IU = ICenter
             else
                  stop 'LocateCellIn1DAxis - ModuleIHRadarFormat - ERR10'
-            end if            
-            if (IU-IL == 1) cellfound = .true.        
+            end if           
+             
+            if (IU-IL == 1) cellfound = .true. 
+                   
         end do
+
         LocateCellIn1DAxis = IL
+
     end function LocateCellIn1DAxis
+
     !--------------------------------------------------------------------------
-  
+      
+    subroutine Open_Output_File
+
+        !Construct file
+        !Write Bathymetry
+        !Write Horizontal Grid
+        !Write WaterPoints2D
+
+        if (Me%OutputHDF5) then
+            call Open_HDF5_Output_File
+        endif
+        
+        if (Me%OutputNetcdf) then
+            !Griflet: todo
+        endif
+                
+    end subroutine
+
     !------------------------------------------------------------------------
 
-    subroutine WriteIHRadarHDF5(iOut)
+    subroutine WriteIHRadar(iOut)
+    
+        !Arguments -------------------------------------------------
+        integer                                         :: iOut
+        
+        !Begin -----------------------------------------------------
+
+        !Write OpenPoints
+        !Write Fields
+        !Write Time
+
+        if (Me%OutputHDF5) then        
+            call Write_HDF5_Fields(iOut)
+        endif
+                
+        if (Me%OutputNetcdf) then        
+            !Griflet: todo
+        endif
+        
+    end subroutine
+  
+    !--------------------------------------------------------------------------
+    
+    subroutine Close_Output_File
+
+        !Kill file
+
+        if (Me%OutputHDF5) then        
+            call Close_HDF5_Output_File
+        endif
+                
+        if (Me%OutputNetcdf) then        
+            !Griflet: todo
+        endif
+
+    end subroutine
+
+    !--------------------------------------------------------------------------
+
+    subroutine Open_HDF5_Output_File
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: HDF5_CREATE
+        integer                                     :: HDF5_IO_CODE
+        integer                                     :: STAT_CALL
+
+        call GetHDF5FileAccess  (HDF5_CREATE = HDF5_CREATE)
+
+        !Opens HDF5 File
+        call ConstructHDF5(Me%ObjHDF5, Me%OutputHDF5FileName, HDF5_IO_CODE, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)stop 'Open_HDF5_Output_File - ModuleMecatorFormat - ERR01'
+
+        call WriteHDF5GridData
+
+    end subroutine
+
+    !------------------------------------------------------------------------
+    
+    subroutine WriteHDF5GridData
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: STAT_CALL
+
+        call HDF5SetLimits  (Me%ObjHDF5, Me%WorkSize%ILB, Me%WorkSize%IUB,&
+                             Me%WorkSize%JLB, Me%WorkSize%JUB, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)stop 'WriteHDF5GridData - ModuleMecatorFormat - ERR02'
+        
+        call HDF5WriteData   (Me%ObjHDF5, "/Grid", "Bathymetry", "-",       &
+                              Array2D =  Me%Bathymetry, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)stop 'WriteHDF5GridData - ModuleMecatorFormat - ERR03'            
+
+        call WriteHorizontalGrid (Me%ObjHorizontalGrid, Me%ObjHDF5, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)stop 'WriteHDF5GridData - ModuleMecatorFormat - ERR04'            
+           
+        call HDF5SetLimits  (Me%ObjHDF5, Me%WorkSize%ILB, Me%WorkSize%IUB,&
+                             Me%WorkSize%JLB, Me%WorkSize%JUB, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)stop 'WriteHDF5GridData - ModuleMecatorFormat - ERR07'            
+
+        call HDF5WriteData   (Me%ObjHDF5, "/Grid", "WaterPoints2D", "-",    &
+                              Array2D = Me%OpenPoints,  STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)stop 'WriteHDF5GridData - ModuleMecatorFormat - ERR08'
+        
+        !Writes everything to disk
+        call HDF5FlushMemory (Me%ObjHDF5, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)stop 'WriteHDF5GridData - ModuleMecatorFormat - ERR09'
+
+    end subroutine WriteHDF5GridData
+
+    !--------------------------------------------------------------------------
+
+    subroutine Write_HDF5_Fields(iOut)
 
         !Arguments -------------------------------------------------
         integer                                         :: iOut
@@ -811,8 +1008,10 @@ i1:                 if (exist) then
 
         !Begin------------------------------------------------------
 
-        !MOHID HDF5 standard names
+        !Write OpenPoints
         call WriteHDF5Openpoints(iOut)
+
+        !Write fields
         MohidName = "velocity U"
         units = "m/s"
         call WriteHDF5Field(MohidName, Me%velu, units, iOut)
@@ -846,16 +1045,51 @@ i1:                 if (exist) then
         MohidName = "velocity direction"
         units = "º"
         call WriteHDF5Field(MohidName, Me%direction, units, iOut)
+
+        !Write time
         call WriteHDF5Time(iOut)
 
         !Writes everything to disk
         call HDF5FlushMemory (Me%ObjHDF5, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'WriteIHRadarHDF5 - ModuleIHRadarFormat - ERR10'
+        if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Fields - ModuleIHRadarFormat - ERR10'
 
-    end subroutine WriteIHRadarHDF5
+    end subroutine Write_HDF5_Fields
+
     !------------------------------------------------------------------------
 
+    subroutine WriteHDF5Openpoints(iOut)
+
+        !Arguments-------------------------------------------------------------
+        integer                                         :: iOut
+
+        !Local-----------------------------------------------------------------
+        integer                                         :: STAT_CALL
+        integer                                         :: WorkILB, WorkJLB
+        integer                                         :: WorkIUB, WorkJUB
+
+        !Begin-----------------------------------------------------------------
+        
+        !Bounds
+        WorkILB = Me%WorkSize%ILB 
+        WorkIUB = Me%WorkSize%IUB 
+
+        WorkJLB = Me%WorkSize%JLB 
+        WorkJUB = Me%WorkSize%JUB 
+
+        !Begin-----------------------------------------------------------------
+        call HDF5SetLimits  (Me%ObjHDF5, WorkILB, WorkIUB, WorkJLB,                     &
+                             WorkJUB, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteHDF5Openpoints - ModuleIHRadarFormat - ERR10'
+
+        call HDF5WriteData  (Me%ObjHDF5, "/Grid/OpenPoints",                  &
+                                 "OpenPoints","-", Array2D = Me%OpenPoints,      &
+                                 OutputNumber = iOut, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteHDF5Openpoints - ModuleIHRadarFormat - ERR20'
+        
+    end subroutine WriteHDF5Openpoints
+ 
     !------------------------------------------------------------------------
+
     subroutine WriteHDF5Field(MohidName, Field, PropUnits, iOut)
 
         !Arguments-------------------------------------------------------------
@@ -888,43 +1122,9 @@ i1:                 if (exist) then
         if (STAT_CALL /= SUCCESS_) stop 'WriteHDF5Field - ModuleIHRadarFormat - ERR20'
 
     end subroutine WriteHDF5Field 
-    !------------------------------------------------------------------------
 
     !------------------------------------------------------------------------
-    subroutine WriteHDF5Openpoints(iOut)
 
-        !Arguments-------------------------------------------------------------
-        integer                                         :: iOut
-
-        !Local-----------------------------------------------------------------
-        integer                                         :: STAT_CALL
-        integer                                         :: WorkILB, WorkJLB
-        integer                                         :: WorkIUB, WorkJUB
-
-        !Begin-----------------------------------------------------------------
-        
-        !Bounds
-        WorkILB = Me%WorkSize%ILB 
-        WorkIUB = Me%WorkSize%IUB 
-
-        WorkJLB = Me%WorkSize%JLB 
-        WorkJUB = Me%WorkSize%JUB 
-
-        !Begin-----------------------------------------------------------------
-        call HDF5SetLimits  (Me%ObjHDF5, WorkILB, WorkIUB, WorkJLB,                     &
-                             WorkJUB, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'WriteHDF5Field - ModuleIHRadarFormat - ERR10'
-
-        call HDF5WriteData  (Me%ObjHDF5, "/Grid/OpenPoints",                  &
-                                 "OpenPoints","-", Array2D = Me%OpenPoints,      &
-                                 OutputNumber = iOut, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'WriteHDF5Field - ModuleIHRadarFormat - ERR20'
-        
-    end subroutine WriteHDF5Openpoints
- 
-    !------------------------------------------------------------------------
-
-    !------------------------------------------------------------------------
     subroutine WriteHDF5Time(iOut)
 
         !Arguments-------------------------------------------------------------
@@ -952,8 +1152,53 @@ i1:                 if (exist) then
  
     !------------------------------------------------------------------------
 
+    subroutine Close_HDF5_OutPut_File
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: STAT_CALL
+
+        !----------------------------------------------------------------------
+        call KillHDF5(Me%ObjHDF5, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)stop 'Close_HDF5_OutPut_File - ModuleIHRadarFormat - ERR60'
+
+    end subroutine Close_HDF5_OutPut_File
+
     !--------------------------------------------------------------------------
     
+    subroutine Open_Netcdf_Output_File
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: NCDF_CREATE, STAT_CALL
+        
+        !Begin-----------------------------------------------------------------
+        
+        call GetNCDFFileAccess(NCDF_CREATE = NCDF_CREATE)
+        
+        call ConstructNETCDF(Me%ObjNETCDF, Me%OutputNetcdfFileName, NCDF_CREATE, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'OpenNCDFFile - ModuleIHRadarFormat - ERR01'
+
+        call NETCDFWriteHeader(NCDFID         = Me%ObjNETCDF,                 &
+                               Title          = Me%OutputNetcdfAttr%Title,           &
+                               Convention     = Me%OutputNetcdfAttr%Convention,      &
+                               Version        = Me%OutputNetcdfAttr%Version,         &
+                               History        = Me%OutputNetcdfAttr%History,         &
+                               iDate          = Me%OutputNetcdfAttr%iDate,           &
+                               Source         = Me%OutputNetcdfAttr%Source,          &
+                               Institution    = Me%OutputNetcdfAttr%Institution,     &
+                               References     = Me%OutputNetcdfAttr%References,      &
+                               STAT           = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'OpenNCDFFile - ModuleIHRadarFormat - ERR02'
+        
+        write(*,*)
+        write(*,*)'Opened ncdf file                : ', trim(Me%OutputNetcdfFileName)
+
+        call NETCDFSetDimensions(Me%ObjNETCDF, Me%Size%IUB, Me%Size%JUB, 0, STAT = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'ReadSetDimensions - Convert2netcdf - ERR02'
+
+    end subroutine Open_Netcdf_Output_File
+    
+    !--------------------------------------------------------------------------
+
     subroutine KillIHRadarFormat
         
         !Local-----------------------------------------------------------------

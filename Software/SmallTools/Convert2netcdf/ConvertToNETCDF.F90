@@ -630,7 +630,7 @@ program Convert2netcdf
 
         !Local-----------------------------------------------------------------
         integer(HID_T)                              :: gr_id, dset_id, class_id
-        integer                                     :: ssize
+        integer(HID_T)                              :: ssize
         integer(HID_T)                              :: space_id, datatype_id
         integer(HID_T)                              :: rank
         integer(HSIZE_T), dimension(7)              :: dims, maxdims
@@ -712,7 +712,7 @@ program Convert2netcdf
         write(*,*)"Reading and writing latitude and longitude..."
 
         allocate(Aux4        (1:Me%HDFFile%Size%IUB+1, 1:Me%HDFFile%Size%JUB+1))
-       
+
 
         allocate(Lat        (1:Me%HDFFile%Size%JUB, 1:Me%HDFFile%Size%IUB))
         allocate(Lon        (1:Me%HDFFile%Size%JUB, 1:Me%HDFFile%Size%IUB))
@@ -739,13 +739,13 @@ program Convert2netcdf
                           Array2D      = Aux4,                          &
                           STAT         = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_) stop 'ReadWriteLatLon - Convert2netcdf - ERR20'
-        
+
         do j = 1, Me%HDFFile%Size%JUB+1
         do i = 1, Me%HDFFile%Size%IUB+1
             Lat_Stag(j,i) = Aux4(i,j)
         enddo
         enddo        
-        
+
         call HDF5ReadData(HDF5ID       = Me%HDFFile%ObjHDF5,            &
                           GroupName    = "/Grid",                       &
                           Name         = trim(LonVar),                  &
@@ -1180,7 +1180,7 @@ program Convert2netcdf
         integer                                     :: rank, obj_type
         integer(HSIZE_T), dimension(7)              :: dims, maxdims
         integer(HID_T)                              :: gr_id, dset_id, class_id
-        integer                                     :: ssize
+        integer(HID_T)                              :: ssize
         integer(HID_T)                              :: space_id, datatype_id
         logical                                     :: IsMapping
         integer                                     :: ILB, IUB, JLB, JUB, KLB, KUB, i, j, k
@@ -1920,7 +1920,7 @@ if1:   if(present(Int2D) .or. present(Int3D))then
         integer                                     :: STAT_CALL
         integer(HID_T)                              :: class_id, space_id, dset_id
         integer(HID_T)                              :: datatype_id, rank, NumType
-        integer                                     :: ssize
+        integer(HID_T)                              :: ssize
         integer(HSIZE_T), dimension(7)              :: dims
         integer                                     :: ILB, IUB, JLB, JUB, KLB, KUB
         character(len=StringLength)                 :: Name, NCDFName, LongName, StandardName, Units
