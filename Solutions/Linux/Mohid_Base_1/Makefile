@@ -41,6 +41,7 @@ FILES = \
         ModuleEnterData.$(S) \
         ModuleFunctions.$(S) \
         ModuleBenthos.$(S) \
+        ModuleBenthicEcology.$(S) \
         ModuleCEQUALW2.$(S) \
         ModuleMacroAlgae.$(S) \
         ModuleTimeSerie.$(S) \
@@ -58,8 +59,8 @@ FILES = \
         ModuleHDF5.$(S) \
         ModuleDrainageNetwork.$(S) \
         ModuleProfile.$(S) \
-        ModuleTask2000.F
-
+        ModuleTask2000.F \
+        ModuleWWTPQ.$(S)
 
 ifeq ($(IS_PROJ4F),true)
     FILES := proj4.${S} ${FILES} 
@@ -79,7 +80,7 @@ ModuleTime.${O} : ModuleGlobalData.${O}
 ModuleStopWatch.${O} : ModuleTime.${O}
 ModuleEnterData.${O} : ModuleStopWatch.${O}
 
-ModuleFunctions.${2O} : ModuleEnterData.${O}
+ModuleFunctions.${O} : ModuleEnterData.${O}
 
 ModuleBenthos.${O} : ModuleEnterData.${O}
 ModuleCEQUALW2.${O} : ModuleFunctions.${O}
@@ -94,13 +95,11 @@ ModuleWaterQuality.${O} : ModuleFunctions.${O} \
                        ModuleLUD.${O}
 ModuleSedimentQuality.${O} : ModuleFunctions.${O} \
                           ModuleLUD.${O}
+ModuleBenthicEcology.${O} : ModuleFunctions.${O}
+ModuleWWTPQ.${O} : ModuleFunctions.${O} \
+		ModuleLUD.${O}	
 ModuleLife.${O} : ModuleFunctions.${O}
-ModuleInterface.${O} : ModuleWaterQuality.${O} \
-                    ModuleSedimentQuality.${O} \
-                    ModuleCEQUALW2.${O} \
-                    ModuleMacroAlgae.${O} \
-                    ModuleLife.${O} \
-                    ModuleBenthos.${O}
+ModuleInterface.${O} : ModuleWaterQuality.${O} ModuleSedimentQuality.${O} ModuleCEQUALW2.${O} ModuleMacroAlgae.${O} ModuleLife.${O} ModuleBenthos.${O} ModuleBenthicEcology.${O} ModuleWWTPQ.${O}
 ModuleHydroIntegration.${O} : ModuleTime.${O}
 ModuleLightExtinction.${O} : ModuleFunctions.${O} \
                           ModuleTimeSerie.${O}

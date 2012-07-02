@@ -108,15 +108,17 @@ include Makefiles/Makemodules.mk
 
 #------Modules dependencies----------
 
-Mohid_Base_2.all : Mohid_Base_1.all
 MohidLand.all : Mohid_Base_2.all
 MohidWater.all : Mohid_Base_2.all
 ifeq ($(IS_NETCDF),true)
+SmallTools/Convert2netcdf.all : Mohid_Base_1.all
 ConvertToHDF5.all : Mohid_Base_2.all \
                     SmallTools/Convert2netcdf.all
-endif
-ifeq ($(IS_NETCDF),false)
+Mohid_Base_2.all : Mohid_Base_1.all \
+		SmallTools/Convert2netcdf.all
+else
 ConvertToHDF5.all : Mohid_Base_2.all
+Mohid_Base_2.all : Mohid_Base_1.all
 endif
 ConvertToXYZ.all : Mohid_Base_2.all
 MohidRiver.all : Mohid_Base_2.all

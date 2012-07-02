@@ -29,11 +29,14 @@
 INCS = -I$(HDF5INC) -I$(BASE1INC)
 LIBS =
 
+ifeq ($(IS_NETCDF), true)
+    INCS := $(INCS) -I$(NETCDFINC) -I$(CONVERT2NETCDFINC)
+endif
+
 ifeq ($(IS_PROJ4F),true)
     INCS := $(INCS) -I$(PROJ4FINC)
     LIBS := $(LIBS) $(PROJ4FLIBS)
 endif
-
 
 SRCDIR = $(SRCREP)/MOHIDBase2
 FILES = \
