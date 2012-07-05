@@ -39809,9 +39809,11 @@ cd2:            if (WaterPoints3D(i  , j  ,k)== WaterPoint .and.                
                             OutputNumber = Index, STAT = STAT_CALL)        
         if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR190'
         !Do statistics analysis
-        call Statistics_OutPut(Me%OutPut%CenterU, Me%OutPut%CenterV, Me%OutPut%CenterW, &
-                               Me%OutPut%ModulusH, Me%WaterLevel%New)
-
+        if (.not. present(iW)) then
+            call Statistics_OutPut(Me%OutPut%CenterU, Me%OutPut%CenterV, Me%OutPut%CenterW, &
+                                   Me%OutPut%ModulusH, Me%WaterLevel%New)
+        endif
+        
         CHUNK = CHUNK_J(WorkJLB, WorkJUB)
 
         if (MonitorPerformance) then
@@ -40167,8 +40169,10 @@ cd3:        if (Me%ComputeOptions%Residual .and. .not.  SimpleOutPut) then
                 if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR670'
 
             endif cd3
-
-            call KillHydroStatistics
+            
+            if (.not. present(iW)) then
+                call KillHydroStatistics
+            endif
 
             call KillHDF5 (ObjHDF5, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR680'
