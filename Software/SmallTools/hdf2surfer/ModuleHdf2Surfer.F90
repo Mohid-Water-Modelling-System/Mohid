@@ -202,6 +202,7 @@ Module ModuleHdf2Surfer
 
         !Arguments---------------------------------------------------------------
         !Local-------------------------------------------------------------------
+        real,   dimension(:,:), pointer                 :: SurfaceElevation
         real                                            :: aux
         integer                                         :: STAT_CALL, flag, FirstLine, LastLine
 
@@ -422,11 +423,38 @@ Module ModuleHdf2Surfer
             if (STAT_CALL /= SUCCESS_) then
                 stop 'ConstructOutPut - ModuleHdf2Surfer - ERR230'
             endif
+            
+            call GetWaterPoints3D(Me%ObjMap, Me%WaterPoints3D, STAT = STAT_CALL)
+
+            if (STAT_CALL /= SUCCESS_)  then
+                stop 'ConstructOutPut - ModuleHdf2Surfer - ERR240'
+            endif
+            
+            allocate(SurfaceElevation(Me%WorkSize2D%ILB:Me%WorkSize2D%IUB,Me%WorkSize2D%JLB:Me%WorkSize2D%JUB))
+            
+            SurfaceElevation(:,:) = 0.
+            
+            call ComputeInitialGeometry(GeometryID       = Me%ObjGeometry,              &
+                                        SurfaceElevation = SurfaceElevation,            &
+                                        WaterPoints3D    = Me%WaterPoints3D,            &
+                                        STAT             = STAT_CALL)
+                                                 
+            if (STAT_CALL /= SUCCESS_)  then
+                stop "Construct1DAnalysis - ModuleHdf2Surfer - ERR250"
+            endif
+            
+            deallocate(SurfaceElevation)
+
+            call UnGetMap(Me%ObjMap, Me%WaterPoints3D, STAT = STAT_CALL)
+
+            if (STAT_CALL /= SUCCESS_)  then
+                stop 'ConstructOutPut - ModuleHdf2Surfer - ERR260'
+            endif
 
             call GetGeometrySize(Me%ObjGeometry, Size = Me%Size3D,                      &
                                  WorkSize = Me%WorkSize3D,  STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) then
-                stop 'ConstructOutPut - ModuleHdf2Surfer - ERR240'
+                stop 'ConstructOutPut - ModuleHdf2Surfer - ERR270'
             endif
 
         
@@ -443,11 +471,11 @@ Module ModuleHdf2Surfer
         
 
         if (STAT_CALL /= SUCCESS_)  then
-            stop "ConstructOutPut - ModuleHdf2Surfer - ERR250"
+            stop "ConstructOutPut - ModuleHdf2Surfer - ERR280"
         endif
 
         if (flag == 0)  then
-            stop "ConstructOutPut - ModuleHdf2Surfer - ERR260"
+            stop "ConstructOutPut - ModuleHdf2Surfer - ERR290"
         endif        
 
         call GetData(   Me%Run,                                                         &
@@ -459,11 +487,11 @@ Module ModuleHdf2Surfer
         
 
         if (STAT_CALL /= SUCCESS_)  then
-            stop "ConstructOutPut - ModuleHdf2Surfer - ERR270"
+            stop "ConstructOutPut - ModuleHdf2Surfer - ERR300"
         endif
 
         if (flag == 0)  then
-            stop "ConstructOutPut - ModuleHdf2Surfer - ERR280"
+            stop "ConstructOutPut - ModuleHdf2Surfer - ERR310"
         endif        
 
         call GetData(   Me%ScalarPropOut,                                               &
@@ -475,11 +503,11 @@ Module ModuleHdf2Surfer
         
 
         if (STAT_CALL /= SUCCESS_)  then
-            stop "ConstructOutPut - ModuleHdf2Surfer - ERR290"
+            stop "ConstructOutPut - ModuleHdf2Surfer - ERR320"
         endif
 
         if (flag == 0) then            
-            stop "ConstructOutPut - ModuleHdf2Surfer - ERR300"
+            stop "ConstructOutPut - ModuleHdf2Surfer - ERR330"
         endif  
 
         call GetData(   Me%ScalarPropUnits,                                             &
@@ -491,11 +519,11 @@ Module ModuleHdf2Surfer
         
 
         if (STAT_CALL /= SUCCESS_)  then
-            stop "ConstructOutPut - ModuleHdf2Surfer - ERR310"
+            stop "ConstructOutPut - ModuleHdf2Surfer - ERR340"
         endif
 
         if (flag == 0) then            
-            stop "ConstructOutPut - ModuleHdf2Surfer - ERR320"
+            stop "ConstructOutPut - ModuleHdf2Surfer - ERR350"
         endif  
 
         call GetData(   Me%ValueMin,                                                    &
@@ -507,7 +535,7 @@ Module ModuleHdf2Surfer
                         STAT         = STAT_CALL)
         
         if (STAT_CALL /= SUCCESS_)  then
-            stop "ConstructOutPut - ModuleHdf2Surfer - ERR330"
+            stop "ConstructOutPut - ModuleHdf2Surfer - ERR360"
         endif
 
         call GetData(   Me%ValueMax,                                                    &
@@ -519,7 +547,7 @@ Module ModuleHdf2Surfer
                         STAT         = STAT_CALL)
         
         if (STAT_CALL /= SUCCESS_)  then
-            stop "ConstructOutPut - ModuleHdf2Surfer - ERR330"
+            stop "ConstructOutPut - ModuleHdf2Surfer - ERR370"
         endif
 
         call GetData(   Me%Extrapolate,                                                 &
@@ -531,7 +559,7 @@ Module ModuleHdf2Surfer
                         STAT         = STAT_CALL)
         
         if (STAT_CALL /= SUCCESS_)  then
-            stop "ConstructOutPut - ModuleHdf2Surfer - ERR330"
+            stop "ConstructOutPut - ModuleHdf2Surfer - ERR380"
         endif
 
 
