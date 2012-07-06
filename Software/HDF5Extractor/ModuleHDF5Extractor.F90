@@ -114,7 +114,7 @@ Module ModuleHDF5Extractor
 
     ! Definition of IntervalHDF5
     type       T_IntervalHDF5
-        character(PathLength)                       :: Name
+        character(len=PathLength)                   :: Name
         integer                                     :: ObjEnterData         = 0
         type(T_IntervalHDF5),       pointer               :: Next  => null()
     end type T_IntervalHDF5
@@ -1399,7 +1399,8 @@ cd2 :           if (BlockFound) then
                 write(*,*)
                 write(*,*) 'Generic4D group is present in file but not extracted.'
 
-            elseif (Me%CurrentGroup == "Grid" .or. Me%CurrentGroup == "Nodes" .or. Me%CurrentGroup == "Reaches"  .or. Me%CurrentGroup == "ID") then
+            elseif (Me%CurrentGroup == "Grid"     .or. Me%CurrentGroup == "Nodes" .or. &
+                    Me%CurrentGroup == "Reaches"  .or. Me%CurrentGroup == "ID") then
 
                 if (obj_type == H5G_DATASET_F) then
 
