@@ -1245,7 +1245,9 @@ Module ModuleHDF5
             call h5dwrite_f  (dset_id, NumType,                                         &
                               Me%AuxMatrixes%DataR4_3D,                                 &
                               dims, STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteDataR4 - ModuleHDF5 - ERR08b'
+            if (STAT_CALL /= SUCCESS_) then
+                stop 'HDF5WriteDataR4 - ModuleHDF5 - ERR08b'
+            endif
             
             !Creates attributes
             call CreateMinMaxAttribute (dset_id, Units, Minimum, Maximum)
@@ -1595,7 +1597,9 @@ Module ModuleHDF5
                               Me%AuxMatrixes%DataR8_3D,                                 &
                               dims, STAT_CALL)
 
-            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteDataR8 - ModuleHDF5 - ERR08b'
+            if (STAT_CALL /= SUCCESS_) then
+                stop 'HDF5WriteDataR8 - ModuleHDF5 - ERR08b'
+            endif
 
             !Creates attributes
             call CreateMinMaxAttribute (dset_id, Units, Minimum, Maximum)
@@ -1933,7 +1937,9 @@ Module ModuleHDF5
             call h5dwrite_f  (dset_id, NumType,                                         &
                               Me%AuxMatrixes%DataI4_3D,                                 &
                               dims, STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteDataI4 - ModuleHDF5 - ERR08b'
+            if (STAT_CALL /= SUCCESS_) then
+                stop 'HDF5WriteDataI4 - ModuleHDF5 - ERR08b'
+            endif
             
             !Creates attributes
             call CreateMinMaxAttribute (dset_id, Units, Minimum, Maximum)
@@ -2380,7 +2386,9 @@ Module ModuleHDF5
             call h5dread_f   (dset_id, NumType,                                         &
                               Me%AuxMatrixes%DataR4_3D,                                 &
                               dims, STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadDataR4_3D - ModuleHDF5 - ERR08b'
+            if (STAT_CALL /= SUCCESS_) then
+                stop 'HDF5ReadDataR4_3D - ModuleHDF5 - ERR08b'
+            endif
 
             call SetMatrixValue(Array3D, Me%Limits3D, Me%AuxMatrixes%DataR4_3D)
 
@@ -2994,7 +3002,9 @@ Module ModuleHDF5
             call h5dread_f   (dset_id, NumType,                                         &
                               Me%AuxMatrixes%DataI4_3D,                                 &
                               dims, STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadDataI4_3D - ModuleHDF5 - ERR08b'
+            if (STAT_CALL /= SUCCESS_) then
+                stop 'HDF5ReadDataI4_3D - ModuleHDF5 - ERR08b'
+            endif
             
             call SetMatrixValue(Array3D,Me%Limits3D,Me%AuxMatrixes%DataI4_3D)
                                          
