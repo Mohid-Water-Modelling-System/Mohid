@@ -5644,10 +5644,10 @@ cd1 :   if ((Property == Temperature_           ) .OR.  (Property == Salinity_  
         SumAux = abs(DXdc + DXba + DYac + DYbd)
         MinDx  = SumAux * 1.e-16
 
-        if (abs(DXdc)==0.) DXdc = MinDx
-        if (abs(DXba)==0.) DXba = MinDx
-        if (abs(DYac)==0.) DYac = MinDx
-        if (abs(DYbd)==0.) DYbd = MinDx
+        if (abs(DXdc)<MinDx) DXdc = MinDx
+        if (abs(DXba)<MinDx) DXba = MinDx
+        if (abs(DYac)<MinDx) DYac = MinDx
+        if (abs(DYbd)<MinDx) DYbd = MinDx
 
         a1 = (XdR8*YcR8 - XcR8*YdR8) / DXdc
         b1 = (   YdR8 -    YcR8) / DXdc
@@ -8876,15 +8876,21 @@ d2:         do i=1,n-m ! we loop over the current c’s and d’s and update them.
         !Parameters - Hindering settling - PhD Thesis Takács (2008) - Medium load
         ![m/day]
         v0max   = 370
+        ! 120 - 370
         v0      = 142.9
         ![l/g]
+        !0.2 - 1
         Rh      = 0.378
+        !5 - 100
         Rf      = 2.86
         ![-]
-        Fns     = 0.11
+        !No settling fraction
+        !1e-3 : 3e-3
+        Fns     = 2.28e-3
         
         !Parameters - Compression settling
         ![m/day]
+        
         Vcorr   = 20.
         Vres    = 0.5
         ![l/g]
