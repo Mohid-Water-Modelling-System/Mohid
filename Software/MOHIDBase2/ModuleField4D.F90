@@ -51,7 +51,8 @@ Module ModuleField4D
     use ModuleHDF5,             only : ConstructHDF5, HDF5ReadData,                     &
                                        GetHDF5FileAccess, GetHDF5GroupNumberOfItems,    &
                                        HDF5SetLimits, GetHDF5ArrayDimensions, KillHDF5, &
-                                       HDF5WriteData, HDF5FlushMemory, HDF5WriteData
+                                       HDF5WriteData, HDF5FlushMemory, HDF5WriteData,   &
+                                       GetHDF5GroupExist
 #ifndef _NO_NETCDF                                       
     ! Manages NetCDF files
     use ModuleNetCDF,           only : GetNCDFFileAccess, ConstructNETCDF,              &
@@ -145,6 +146,14 @@ Module ModuleField4D
 
     !Types---------------------------------------------------------------------
 
+    type T_DefaultNames
+        character(Len=StringLength) :: bat       
+        character(Len=StringLength) :: lon_stag  
+        character(Len=StringLength) :: lat_stag  
+        character(Len=StringLength) :: mask      
+        character(Len=StringLength) :: depth_stag
+    end type T_DefaultNames
+
 
     !Generic 4D
     type T_Generic4D
@@ -181,6 +190,7 @@ Module ModuleField4D
         integer                                     :: Form = HDF5_
         character(StringLength)                     :: LonStagName, LatStagName
         character(StringLength)                     :: DepthStagName, MaskName, BathymName
+        type (T_DefaultNames)                       :: DefaultNames        
     end type T_File
     
     type T_PropField
@@ -256,7 +266,7 @@ Module ModuleField4D
         real                                        :: LatReference
         real                                        :: LonReference
         logical                                     :: ReadWindow, WindowWithData
-        real,    dimension(2,2)                     :: WindowLimits        
+        real,    dimension(2,2)                     :: WindowLimits
         type(T_Field4D), pointer                    :: Next
     end type  T_Field4D
 
@@ -799,10 +809,10 @@ i0:     if      (NewPropField%SpaceDim == Dim2D)then
         deallocate(Lon    )
         deallocate(LatStag)
         deallocate(LonStag)
-
-        deallocate(LatStagW)
-        deallocate(LonStagW)
-
+        if (Me%ReadWindow) then
+            deallocate(LatStagW)
+            deallocate(LonStagW)
+        endif
         nullify(XXDummy)
         nullify(YYDummy)
 
@@ -919,7 +929,7 @@ i0:     if      (NewPropField%SpaceDim == Dim2D)then
 #endif                
             endif
             
-            allocate(Mask3D  (Me%Size2D%ILB:Me%Size2D%IUB,Me%Size2D%JLB:Me%Size2D%JUB,Kmax:Kmax))  
+            allocate(Mask3D  (Me%Size2D%ILB:Me%Size2D%IUB,Me%Size2D%JLB:Me%Size2D%JUB,1:Kmax))  
             
         
            !Read horizontal grid
@@ -927,7 +937,7 @@ i0:     if      (NewPropField%SpaceDim == Dim2D)then
                 
                 call HDF5SetLimits  (HDF5ID = Me%File%Obj, ILB = ILB, IUB = IUB,            &
                                                            JLB = JLB, JUB = JUB,            &
-                                                           KLB = Kmax, KUB = Kmax,          &
+                                                           KLB = 1, KUB = Kmax,          &
                                      STAT   = STAT_CALL)                                
                                      
                 if (STAT_CALL /= SUCCESS_)stop 'ReadMap2DFromFile - ModuleField4D - ERR30'
@@ -948,7 +958,7 @@ i0:     if      (NewPropField%SpaceDim == Dim2D)then
                                     IUB             = IUB,                                  &
                                     JLB             = JLB,                                  &
                                     JUB             = JUB,                                  &
-                                    KLB             = Kmax,                                 &
+                                    KLB             = 1,                                    &
                                     KUB             = Kmax,                                 &
                                     STAT            = STAT_CALL)        
                 if (STAT_CALL /= SUCCESS_)stop 'ReadMap2DFromFile - ModuleField4D - ERR50'
@@ -1071,7 +1081,8 @@ i0:     if      (NewPropField%SpaceDim == Dim2D)then
         !Local-----------------------------------------------------------------
          real,      pointer, dimension(:,:,:)    :: SZZ
          integer,   pointer, dimension(:,:,:)    :: mask    
-         integer                                 :: ILB, IUB, JLB, JUB, KLB, KUB, STAT_CALL     
+         integer                                 :: ILB, IUB, JLB, JUB, KLB, KUB, STAT_CALL 
+         logical                                 :: Exist  
          
 
         !Begin-----------------------------------------------------------------
@@ -1095,13 +1106,29 @@ i0:     if      (NewPropField%SpaceDim == Dim2D)then
                                  STAT   = STAT_CALL)                                
                                  
             if (STAT_CALL /= SUCCESS_)stop 'ReadMap3DFromFile - ModuleField4D - ERR10'
+            
+            call GetHDF5GroupExist (HDF5ID = Me%File%Obj, GroupName = "/Grid/VerticalZ",&
+                                    Exist  = Exist, STAT = STAT_CALL)                                
+            if (STAT_CALL /= SUCCESS_)stop 'ReadMap3DFromFile - ModuleField4D - ERR15'
+            
+            if (Exist) then
                                         
-            call HDF5ReadData(HDF5ID        = Me%File%Obj,                              &
-                              GroupName     = "/Grid/VerticalZ",                        &
-                              Name          = "Vertical_00001",                         &
-                              Array3D       = SZZ,                                      &
-                              STAT          = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)stop 'ReadMap3DFromFile - ModuleField4D - ERR20'
+                call HDF5ReadData(HDF5ID        = Me%File%Obj,                              &
+                                  GroupName     = "/Grid/VerticalZ",                        &
+                                  Name          = "Vertical_00001",                         &
+                                  Array3D       = SZZ,                                      &
+                                  STAT          = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)stop 'ReadMap3DFromFile - ModuleField4D - ERR20'
+                
+            else
+                if (KUB==1) then
+                    SZZ(:,:,0) = 1.
+                    SZZ(:,:,1) = 0.
+                else
+                    stop 'ReadMap3DFromFile - ModuleField4D - ERR25'
+                endif
+            endif
+                            
 #ifndef _NO_NETCDF
         else if (Me%File%Form == NetCDF_) then
         
@@ -1474,8 +1501,27 @@ i0:     if      (NewPropField%SpaceDim == Dim2D)then
 
             Me%File%StartTime = Me%File%InstantsDates(1)
             Me%File%EndTime   = Me%File%InstantsDates(Me%File%NumberOfInstants)
+            
+            
+            Me%File%DefaultNames%bat        = 'Bathymetry'
+            Me%File%DefaultNames%lon_stag   = 'Longitude'
+            Me%File%DefaultNames%lat_stag   = 'Latitude'
+            if (Me%MaskDim == Dim3D) then
+                Me%File%DefaultNames%mask   = 'WaterPoints3D'
+            else
+                Me%File%DefaultNames%mask   = 'WaterPoints2D'
+            endif
+            Me%File%DefaultNames%depth_stag = 'VerticalZ'
+            
 #ifndef _NO_NETCDF
         else if (Me%File%Form == NetCDF_) then
+
+            Me%File%DefaultNames%bat        = 'bathymetry'
+            Me%File%DefaultNames%lon_stag   = 'lon_staggered'
+            Me%File%DefaultNames%lat_stag   = 'lat_staggered'
+            Me%File%DefaultNames%mask       = 'mask'
+            Me%File%DefaultNames%depth_stag = 'depth_staggered'
+            
         
             call GetNCDFFileAccess (NCDF_READ = NCDF_READ)
         
@@ -1511,16 +1557,16 @@ i0:     if      (NewPropField%SpaceDim == Dim2D)then
                      Me%ObjEnterData,  iflag,                                           &
                      SearchType     = ExtractType,                                      &
                      keyword        = 'LONG_GRID',                                      &
-                     default        = 'lon_staggered',                                  &
+                     default        = Me%File%DefaultNames%lon_stag,                    &
                      ClientModule   = 'ModuleField4D',                                  &
                      STAT           = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_) stop 'ConstructFile - ModuleFiel4D - ERR90'
-
+        
         call GetData(Me%File%LatStagName,                                               &
                      Me%ObjEnterData,  iflag,                                           &
                      SearchType     = ExtractType,                                      &
                      keyword        = 'LAT_GRID',                                       &
-                     default        = 'lat_staggered',                                  &
+                     default        = Me%File%DefaultNames%lat_stag,                    &
                      ClientModule   = 'ModuleField4D',                                  &
                      STAT           = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_) stop 'ConstructFile - ModuleFiel4D - ERR100'
@@ -1529,7 +1575,7 @@ i0:     if      (NewPropField%SpaceDim == Dim2D)then
                      Me%ObjEnterData,  iflag,                                           &
                      SearchType     = ExtractType,                                      &
                      keyword        = 'DEPTH_GRID',                                     &
-                     default        = 'depth_staggered',                                &
+                     default        = Me%File%DefaultNames%depth_stag,                  &
                      ClientModule   = 'ModuleField4D',                                  &
                      STAT           = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_) stop 'ConstructFile - ModuleFiel4D - ERR110'
@@ -1538,7 +1584,7 @@ i0:     if      (NewPropField%SpaceDim == Dim2D)then
                      Me%ObjEnterData,  iflag,                                           &
                      SearchType     = ExtractType,                                      &
                      keyword        = 'BATHYM_GRID',                                    &
-                     default        = 'bathymetry',                                     &
+                     default        = Me%File%DefaultNames%bat,                         &
                      ClientModule   = 'ModuleField4D',                                  &
                      STAT           = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_) stop 'ConstructFile - ModuleFiel4D - ERR120'         
@@ -1548,7 +1594,7 @@ i0:     if      (NewPropField%SpaceDim == Dim2D)then
                      Me%ObjEnterData,  iflag,                                           &
                      SearchType     = ExtractType,                                      &
                      keyword        = 'MASK_GRID',                                      &
-                     default        = 'mask',                                           &
+                     default        = Me%File%DefaultNames%mask,                        &
                      ClientModule   = 'ModuleField4D',                                  &
                      STAT           = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_) stop 'ConstructFile - ModuleFiel4D - ERR130'        
@@ -3030,6 +3076,7 @@ dnP:    do nP = 1,nPoints
         !Local----------------------------------------------------------------
         real,   dimension(:,:,:),   pointer                 :: SZZ
         real                                                :: ValueSW, ValueNW, ValueSE, ValueNE, ValueN, ValueS
+        integer                                             :: MaskSW, MaskNW, MaskSE, MaskNE, MaskN, MaskS
         real                                                :: X_W, X_E, Xv, Y_S, Y_N, Yv, PercI, PercJ  
         integer                                             :: STAT_CALL, nPoints, nP, k
         integer                                             :: jW, jE, iS, iN, i, j
@@ -3134,28 +3181,85 @@ dnP:    do nP = 1,nPoints
                     ValueSE     = ValueAtDepthZ(iS, jE, Z(nP))
                     ValueNW     = ValueAtDepthZ(iN, jW, Z(nP))
                     ValueNE     = ValueAtDepthZ(iN, jE, Z(nP))
+                    
+                    MaskSW      = MaskAtDepthZ(iS, jW, Z(nP))        
+                    MaskSE      = MaskAtDepthZ(iS, jE, Z(nP))
+                    MaskNW      = MaskAtDepthZ(iN, jW, Z(nP))
+                    MaskNE      = MaskAtDepthZ(iN, jE, Z(nP))
+                                            
                 else
                     ValueSW     = Me%Matrix3D(iS, jW, k)
                     ValueSE     = Me%Matrix3D(iS, jE, k)
                     ValueNW     = Me%Matrix3D(iN, jW, k)
                     ValueNE     = Me%Matrix3D(iN, jE, k)
+                    
+                    MaskSW      = Me%ExternalVar%Waterpoints3D(iS, jW, k)
+                    MaskSE      = Me%ExternalVar%Waterpoints3D(iS, jE, k)
+                    MaskNW      = Me%ExternalVar%Waterpoints3D(iN, jW, k)
+                    MaskNE      = Me%ExternalVar%Waterpoints3D(iN, jE, k)
+                    
                 endif
 
                 if (ValueSW < FillValueReal/1e4) ValueSW = 0.
                 if (ValueSE < FillValueReal/1e4) ValueSE = 0.                
                 if (ValueNW < FillValueReal/1e4) ValueNW = 0.                
-                if (ValueNE < FillValueReal/1e4) ValueNE = 0.                
+                if (ValueNE < FillValueReal/1e4) ValueNE = 0.    
                 
-                ValueN      = LinearInterpolation (X_W, ValueNW, X_E, ValueNE, Xv)
-                ValueS      = LinearInterpolation (X_W, ValueSW, X_E, ValueSE, Xv)
+                if (Me%Extrapolate) then
                 
-                Field(nP)   = LinearInterpolation (Y_S, ValueS, Y_N, ValueN, Yv)
-                
-                if (abs(Field(nP)) > 0.) then
-                    NoData(nP) = .false. 
+                    ValueN      = LinearInterpolation (X_W, ValueNW, X_E, ValueNE, Xv)
+                    ValueS      = LinearInterpolation (X_W, ValueSW, X_E, ValueSE, Xv)
+                    
+                    Field(nP)   = LinearInterpolation (Y_S, ValueS, Y_N, ValueN, Yv)
+
+                    if (abs(Field(nP)) > 0.) then
+                        NoData(nP) = .false. 
+                    else
+                        NoData(nP) = .true. 
+                    endif                    
+                    
                 else
-                    NoData(nP) = .true. 
+                    if (MaskNW == WaterPoint .and. MaskNE == WaterPoint) then
+                        ValueN = LinearInterpolation (X_W, ValueNW, X_E, ValueNE, Xv)
+                        MaskN  = 1
+                    elseif (MaskNW == WaterPoint) then
+                        ValueN = ValueNW
+                        MaskN  = 1
+                    elseif (MaskNE == WaterPoint) then
+                        ValueN = ValueNE
+                        MaskN  = 1
+                    else
+                        MaskN  = 0
+                    endif
+
+                    if (MaskSW == WaterPoint .and. MaskSE == WaterPoint) then
+                        ValueS = LinearInterpolation (X_W, ValueSW, X_E, ValueSE, Xv)
+                        MaskS  = 1
+                    elseif (MaskSW == WaterPoint) then
+                        ValueS = ValueSW
+                        MaskS  = 1
+                    elseif (MaskSE == WaterPoint) then
+                        ValueS = ValueSE
+                        MaskS  = 1
+                    else
+                        MaskS  = 0
+                    endif
+                    
+                    NoData(nP) = .false. 
+                    
+                    if (MaskN == WaterPoint .and. MaskS == WaterPoint) then
+                        Field(nP) = LinearInterpolation (Y_S, ValueS, Y_N, ValueN, Yv)
+                    else if (MaskN == WaterPoint) then
+                        Field(nP) = ValueN
+                    else if (MaskS == WaterPoint) then
+                        Field(nP) = ValueS
+                    else
+                        Field(nP)  = FillValueReal
+                        NoData(nP) = .true. 
+                    endif
+                    
                 endif
+
             endif
                             
         enddo dnP            
@@ -3198,6 +3302,37 @@ dnP:    do nP = 1,nPoints
         
     end function ValueAtDepthZ
 
+
+    !----------------------------------------------------------------------
+
+    integer function MaskAtDepthZ(i, j, Z)
+    
+        !Arguments-------------------------------------------------------------
+        real        :: Z
+        integer     :: i, j
+
+        !Local-----------------------------------------------------------------        
+        integer     :: KLB, KUB, kb, Ndepths, k
+
+        !Begin-----------------------------------------------------------------            
+
+        KLB = Me%WorkSize3D%KLB
+        KUB = Me%WorkSize3D%KUB
+        
+        do k = KUB,KLB+1,-1
+            if (Me%Depth3D (i, j, k-1)<Me%Depth3D (i, j, k)) exit
+        enddo
+        
+        kb = k
+        
+        Ndepths       = KUB - kb + 1
+        
+        Me%Depth1D (kb:KUB)  =   Me%Depth3D                  (i, j, kb:KUB) 
+        Me%Matrix1D(kb:KUB)  =   Me%ExternalVar%WaterPoints3D(i, j, kb:KUB)         
+
+        MaskAtDepthZ = int(InterpolateProfileR8(dble(Z), Ndepths, Me%Depth1D (kb:KUB), Me%Matrix1D(kb:KUB)))
+        
+    end function MaskAtDepthZ
 
     !----------------------------------------------------------------------
 
