@@ -8978,7 +8978,7 @@ if2:        if (CurrNode%VolumeNew > PoolVolume) then
         type (T_Node ), pointer                 :: UpNode, DownNode    
         real                                    :: PoolDepth, PoolVolume
         real                                    :: WetPerimiter, MaxBottom
-        real                                    :: WaterDepth, SurfaceWidth
+        real                                    :: WaterDepth, WaterLevel, SurfaceWidth
         real                                    :: AvTrapez1, AvTrapez2, PTrapez1
         real                                    :: aux, aux2, TopH   
 
@@ -9074,10 +9074,11 @@ if2:        if (CurrNode%VolumeNew > PoolVolume) then
         elseif (UpNode%CrossSection%Form == Tabular) then
                 
             !NOT TESTED CODE
-                
+                WaterLevel = UpNode%CrossSection%BottomLevel + WaterDepth
                 
                 call TabularGeometry (UpNode%CrossSection,      &
-                                      WaterDepth,               &
+!                                      WaterDepth,               &
+                                      WaterLevel,               &
                                       CurrReach%VerticalArea,   & 
                                       WetPerimiter,             &
                                       aux2)

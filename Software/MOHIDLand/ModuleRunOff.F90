@@ -3898,13 +3898,18 @@ doIter:         do while (iter <= Niter)
 
                 it = Me%LowestNeighborI(i, j)
                 jt = Me%LowestNeighborJ(i, j)
-
+                
+                !!MaxBottom = max (Me%ExtVar%Topography(i,j), Me%ExtVar%Topography(it,jt))
+                !!WaterDepth = Me%myWaterColumn(i, j) - MaxBottom
+                !!if (WaterDepth .gt. 0.0) then
+                
                 !Critical Flow                    
                 AverageCellLength  = ( Me%ExtVar%DUX (i, j) + Me%ExtVar%DVY (i, j) ) / 2.0
                 FlowMax = Min(sqrt(Gravity * Me%myWaterColumn(i, j)) *  Me%myWaterColumn(i, j) * AverageCellLength, &
                               0.1 * Me%myWaterColumn(i, j) * AverageCellLength)
                 
                 
+                !!FlowMax = sqrt(Gravity * WaterDepth) *  WaterDepth * AverageCellLength
                 
 
                 !dVol -> max Critical Flow & Avaliable Volume
@@ -4053,6 +4058,8 @@ doIter:         do while (iter <= Niter)
                 !If the lowest neighbor is a stromwater drainage point, route it there. Otherwise put the water back to the surface
                 !                    
                 if (Me%StormWaterDrainageCoef(Me%LowestNeighborI(i, j), Me%LowestNeighborJ(i, j)) > AllmostZero) then
+                    ilowest = Me%LowestNeighborI(i, j)
+                    jlowest = Me%LowestNeighborJ(i, j)
                     Me%StormWaterVolume(ilowest, jlowest) = Me%StormWaterVolume(ilowest, jlowest)   + dVol
                     Me%StormWaterVolume(i,       j      ) = Me%StormWaterVolume(i,       j      )   - dVol
                 else
@@ -4413,7 +4420,7 @@ doIter:         do while (iter <= Niter)
         real   , dimension(:, :), pointer           :: ChannelsBankSlope
         real   , dimension(:, :), pointer           :: ChannelsBottomLevel
         real                                        :: a0, a1, a2
-        real                                        :: x1, x2, MaxFlow
+        real                                        :: x1, x2, MaxFlow, Flow
         integer, dimension(:, :), pointer           :: ChannelsActiveState
         integer                                     :: CHUNK
 
@@ -4500,16 +4507,19 @@ doIter:         do while (iter <= Niter)
                     !But may exist the special case where at the beggining channel level is lower than
                     !runoff level, but with the exchange, the channel level got bigger
                     !and a flow addition (subtraction) is needed    
-                    Me%iFlowToChannels(i, j)    = Me%iFlowToChannels(i, j) -dVol / Me%ExtVar%DT     
-            
+                    !Me%iFlowToChannels(i, j)    = Me%iFlowToChannels(i, j) -dVol / Me%ExtVar%DT     
+                    Flow = -dVol / Me%ExtVar%DT
+                    
                     !Limits flow to critical one
                     MaxFlow = -1.0 * sqrt(Gravity * WCR) * WCR * ChannelsNodeLength(i, j)
                     
-                    if (Me%iFlowToChannels(i, j) < MaxFlow) then
-                        Me%iFlowToChannels(i, j) = MaxFlow
+                    if (Flow > MaxFlow) then
+                        Flow = MaxFlow
                     endif
-            
-                    Me%myWaterVolume (i, j)     = Me%myWaterVolume (i, j) + dVol 
+                    
+                    Me%iFlowToChannels(i, j)    = Me%iFlowToChannels(i, j) + Flow
+                    
+                    Me%myWaterVolume (i, j)     = Me%myWaterVolume (i, j) - (Flow *  Me%ExtVar%DT)
                     
                     Me%myWaterColumn  (i, j)    = Me%myWaterVolume (i, j)   / Me%ExtVar%GridCellArea(i, j)
 
@@ -4618,7 +4628,7 @@ doIter:         do while (iter <= Niter)
                     
  !                   if (dh > Me%MinimumWaterColumn) then
 !
-!                        Flow    = sqrt(Gravity * dh) * 2.0 * ChannelsNodeLength(i, j) * dh
+!                        FlowCel = sqrt(Gravity * dh) * 2.0 * ChannelsNodeLength(i, j) * dh
 !                        
 !                        MaxFlow = Me%myWaterVolume (i, j) / Me%ExtVar%DT
 !                        
@@ -4626,7 +4636,8 @@ doIter:         do while (iter <= Niter)
                         
                         !in terms of velocity water already arrived to runoff center cell so it should be
                         !in the river (instantaneously)
-                        Me%iFlowToChannels(i, j) = Me%myWaterVolume (i, j) / Me%ExtVar%DT
+                        !!!!Me%iFlowToChannels(i, j) = Me%myWaterVolume (i, j) / Me%ExtVar%DT
+                        Flow = Me%myWaterVolume (i, j) / Me%ExtVar%DT
                         
 !                        !limit to critical
 !                        !m3/s = celerity (m/s) * m2 (Area = (dh * L) * 2)
@@ -4688,39 +4699,43 @@ doIter:         do while (iter <= Niter)
                         !Variation in volume by comparing old level with new level
                         dVol = (Me%myWaterLevel(i, j) - NewLevel ) *  Me%ExtVar%GridCellArea(i, j)
              
-                        Me%iFlowToChannels(i, j)    = dVol / Me%ExtVar%DT
+                        !Me%iFlowToChannels(i, j)    = dVol / Me%ExtVar%DT
+                        Flow      = dVol / Me%ExtVar%DT
                         
                         !Prevent negative volumes
-                        if (Me%iFlowToChannels(i, j) > 0.0) then
-                            Me%iFlowToChannels(i, j) = min(Me%iFlowToChannels(i, j),                &
-                                                           Me%myWaterVolume  (i, j) / Me%ExtVar%DT)
+                        if (Flow > 0.0) then
+                            Flow = min(Flow, Me%myWaterVolume(i, j) / Me%ExtVar%DT)
                         else
-                            Me%iFlowToChannels(i, j) = max(Me%iFlowToChannels(i, j),                &
-                                                           -1.0 * (ChannelsVolume(i,j) - ChannelsMaxVolume(i, j)) / Me%ExtVar%DT)
+                            Flow = max(Flow, -1.0 * (ChannelsVolume(i,j) - ChannelsMaxVolume(i, j)) / Me%ExtVar%DT)
                         endif
+
 
 !                        !in terms of velocity water already arrived to runoff/DN center cell so it should be
 !                        !in the river or runoff (instantaneously)
 !                        !Limits to critical flow to critical one
 !                        MaxFlow = sqrt(Gravity * dh) * 2.0 * ChannelsNodeLength(i, j) * dh
-!                        if (abs(Me%iFlowToChannels(i, j)) > MaxFlow) then
-!                            if (Me%iFlowToChannels(i, j) > 0.0) then
-!                                Me%iFlowToChannels(i, j) = MaxFlow
+!                        if (abs(Flow) > MaxFlow) then
+!                            if (Flow > 0.0) then
+!                                Flow = MaxFlow
 !                            else
-!                                Me%iFlowToChannels(i, j) = -1.0 * MaxFlow
+!                                Flow = -1.0 * MaxFlow
 !                            endif
 !                        endif
 !                        
 !                    else
 !                    
-!                        Me%iFlowToChannels(i, j) = 0.0
+!                        Flow = 0.0
 !                        
-!                    endif
+!                    endif                    
                     
                  endif
-                 
+
+                !!Important!! flow to channel may have other sources than this, so a sum is needed
+                Me%iFlowToChannels(i, j) = Me%iFlowToChannels(i, j) + Flow
+
                 !Updates Volumes
-                Me%myWaterVolume (i, j) = Me%myWaterVolume (i, j) - Me%iFlowToChannels    (i, j) * Me%ExtVar%DT
+                !Me%myWaterVolume (i, j) = Me%myWaterVolume (i, j) - Me%iFlowToChannels    (i, j) * Me%ExtVar%DT
+                Me%myWaterVolume (i, j) = Me%myWaterVolume (i, j) - (Flow * Me%ExtVar%DT)
                 
                 Me%myWaterColumn (i, j) = Me%myWaterVolume (i, j) / Me%ExtVar%GridCellArea(i, j)
 
